@@ -423,11 +423,7 @@ impl Host {
                     // `.openidea/settings.toml` written by a tool or plugin (it is usually
                     // gitignored, hence `ignored`): applied as if set in Settings.
                     if settings_file_changed(&root, [&changed, &batch.removed, &ignored, &ignored_gone]) {
-                        let before = settings.effective();
-                        if settings.reload() != before {
-                            lsp.reconfigure_soon();
-                            sink.emit(IdeEvent::SettingsChanged { key: String::new() });
-                        }
+                        apply_settings_file(&settings, &lsp, &sink);
                     }
                     // Atomic saves by external tools surface as `created`.
                     documents.on_disk_changed(&[&changed[..], &ignored].concat());
@@ -1210,6 +1206,22 @@ const HISTORY_BATCH_LIMIT: usize = 500;
 /// Local History for changes made outside the IDE (other tools, VCS, deletions).
 /// Contents equal to the last snapshot (e.g. the IDE's own saves) are skipped.
 /// The batch's ignored files (`.env`), split into those still on disk and those removed.
+/// Applies a project's settings file changed on disk: windows and language servers follow it.
+fn apply_settings_file(settings: &SettingsStore, lsp: &Arc<LspManager>, sink: &SharedSink) {
+    let before = settings.effective();
+    if settings.reload() != before {
+        lsp.reconfigure_soon();
+        sink.emit(IdeEvent::SettingsChanged { key: String::new() });
+    }
+}
+
+impl Project {
+    /// See [`apply_settings_file`].
+    pub(crate) fn apply_settings_file(&self) {
+        apply_settings_file(&self.settings, &self.lsp, &self.sink);
+    }
+}
+
 /// Whether a batch touched the project's own settings file.
 fn settings_file_changed<'a>(root: &Path, lists: impl IntoIterator<Item = &'a Vec<PathBuf>>) -> bool {
     let file = ide_core::project_dir::path(root, "settings.toml");

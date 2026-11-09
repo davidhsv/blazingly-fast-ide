@@ -38,6 +38,9 @@ type ContextKey = (Option<String>, String, String);
 /// What plugins see of the open projects; provided by the app
 /// ([`super::PluginHost::set_workspace`]), over [`crate::Host`] on the desktop.
 pub trait PluginWorkspace: Send + Sync {
+    /// A plugin wrote `path`; an open project whose settings file it is applies it at once.
+    fn file_written(&self, _path: &Path) {}
+
     /// Execution host of the Database subsystem; absent on unsupported hosts.
     fn database_host(&self) -> Option<Arc<crate::Host>> {
         None
@@ -2673,7 +2676,12 @@ impl HostApi for PluginApi {
             let bytes = ide_vfs::encode(text, &encoding, has_bom).map_err(|e| not_writable(real, e))?;
             ide_vfs::write_atomic_private(real, &bytes).map(drop).map_err(|e| not_writable(real, e))
         } else {
-            ide_vfs::save_text(real, text, &encoding, has_bom).map(drop).map_err(|e| not_writable(real, e))
+            ide_vfs::save_text(real, text, &encoding, has_bom).map_err(|e| not_writable(real, e))?;
+            // Not left to the file watcher, whose events can arrive late or not at all.
+            if let Some(workspace) = self.shared.workspace() {
+                workspace.file_written(real);
+            }
+            Ok(())
         }
     }
 
@@ -2745,6 +2753,14 @@ impl HostWorkspace {
 }
 
 impl PluginWorkspace for HostWorkspace {
+    fn file_written(&self, path: &Path) {
+        let Some(host) = self.0.upgrade() else { return };
+        for project in host.projects() {
+            if path == ide_core::project_dir::path(&project.root, "settings.toml") {
+                project.apply_settings_file();
+            }
+        }
+    }
     fn database_host(&self) -> Option<Arc<crate::Host>> {
         self.0.upgrade()
     }
