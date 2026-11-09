@@ -448,3 +448,60 @@ async fn properties_conversion_through_remote_dispatch_without_a_remote_host() {
     invoke(&peer, "close_project", json!({})).await.unwrap();
     peer.kill();
 }
+
+/// A tool or plugin that writes `.openidea/settings.toml` (gitignored, as Bazel's sync
+/// leaves it) changes the open project's settings, as Settings would.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn project_settings_written_on_disk_apply_to_the_open_project() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = dunce::canonicalize(tmp.path()).unwrap().join("bazel-project");
+    std::fs::create_dir_all(root.join(".openidea")).unwrap();
+    std::fs::write(root.join(".gitignore"), "/.openidea/settings.toml\n").unwrap();
+    let peer_slot = Arc::new(OnceLock::new());
+    let sink_peer = peer_slot.clone();
+    let host = Arc::new(Host::new(HostConfig {
+        config_dir: tmp.path().join("config"),
+        data_dir: tmp.path().join("data"),
+        local_data_dir: tmp.path().join("data"),
+        languages: Arc::new(ide_language::LanguageRegistry::load(None).unwrap()),
+        syntax: Arc::default(),
+        sink_for: Box::new(move |w| rpc::event_sink(sink_peer.clone(), Some(w.to_owned()))),
+        owner: |w| w,
+        runtime: tokio::runtime::Handle::current(),
+        project_environment: false,
+    }));
+    let (client_io, server_io) = tokio::io::duplex(1 << 20);
+    let (sr, sw) = tokio::io::split(server_io);
+    tokio::spawn(rpc::serve(host, Dispatcher::standard(), peer_slot, sr, sw));
+    let (cr, cw) = tokio::io::split(client_io);
+    let client = Arc::new(Client::default());
+    let peer = Peer::connect(cr, cw, client.clone());
+    invoke(&peer, "open_project", json!({ "path": root })).await.unwrap();
+    let settings = invoke(&peer, "settings_get", json!({})).await.unwrap();
+    assert_eq!(settings["languages"]["java"]["maven"]["unlinkedProjects"], json!([]));
+
+    let settings_changed = || {
+        client
+            .events
+            .lock()
+            .iter()
+            .any(|e| matches!(&e.event, ide_core::IdeEvent::SettingsChanged { key } if key.is_empty()))
+    };
+    // Written until seen: the file watcher starts in the background after the project opens.
+    for _ in 0..50 {
+        std::fs::write(
+            root.join(".openidea/settings.toml"),
+            "[languages.java.maven]\nunlinkedProjects = [\"pom.xml\"]\n",
+        )
+        .unwrap();
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        if settings_changed() {
+            break;
+        }
+    }
+    until("settings changed event", settings_changed).await;
+    let settings = invoke(&peer, "settings_get", json!({})).await.unwrap();
+    assert_eq!(settings["languages"]["java"]["maven"]["unlinkedProjects"], json!(["pom.xml"]));
+    invoke(&peer, "close_project", json!({})).await.unwrap();
+    peer.kill();
+}
