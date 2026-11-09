@@ -2005,6 +2005,51 @@ fn run_detectors_offer_granted_commands_in_marked_projects() {
     assert!(detection.launch(config).unwrap_err().contains("no longer enabled"));
 }
 
+/// A detector names the arguments that start its JVM with a waiting JDWP agent, and the
+/// debugger that attaches to it; Debug then runs the command with them.
+#[cfg(unix)]
+#[test]
+fn run_detectors_declare_an_attaching_debugger() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = fixture(Limits::default());
+    let tmp = tempfile::tempdir().unwrap();
+    let bin = tmp.path().join("bin");
+    std::fs::create_dir(&bin).unwrap();
+    std::fs::write(bin.join("bazel"), "#!/bin/sh\n").unwrap();
+    std::fs::set_permissions(bin.join("bazel"), std::fs::Permissions::from_mode(0o755)).unwrap();
+    let path = bin.clone();
+    f.host.set_program_path(Arc::new(move || Some(path.clone().into_os_string())));
+    let manifest = |engines: &str, debugger: &str| {
+        format!(
+            "id = \"acme.bazel\"\nname = \"Bazel\"\nversion = \"1.0.0\"\nengines.openidea = \"{engines}\"\n\
+             [[contributes.runDetectors]]\nid = \"test\"\nname = \"bazel test\"\nfiles = [\"MODULE.bazel\"]\n\
+             command = \"bazel\"\nargs = [\"test\"]\ntest = true\n{debugger}"
+        )
+    };
+    let pkg = tmp.path().join("pkg");
+    std::fs::create_dir(&pkg).unwrap();
+    let debugger = "debugger = \"java-debug\"\ndebugArgs = [\"--java_debug\"]\n";
+    for (engines, decl, why) in [
+        ("^1.0", debugger, "API 1.4"),
+        ("^1.4", "debugger = \"codelldb\"\ndebugArgs = [\"-g\"]\n", "not an attaching debugger"),
+        ("^1.4", "debugger = \"java-debug\"\n", "no debugArgs"),
+    ] {
+        std::fs::write(pkg.join("plugin.toml"), manifest(engines, decl)).unwrap();
+        assert!(f.host.install_from_dir(&pkg, &Consent::default()).is_err(), "{why}");
+    }
+    std::fs::write(pkg.join("plugin.toml"), manifest("^1.4", debugger)).unwrap();
+    f.host.install_from_dir(&pkg, &Consent::default()).unwrap();
+    f.host.set_capability("acme.bazel", "process:bazel", true).unwrap();
+
+    let project = tmp.path().join("ws");
+    std::fs::create_dir(&project).unwrap();
+    std::fs::write(project.join("MODULE.bazel"), "").unwrap();
+    let configs = f.host.run_detection().detect(&project);
+    assert_eq!(configs.len(), 1);
+    assert_eq!(configs[0].debug_adapter.as_deref(), Some("java-debug"));
+    assert_eq!(configs[0].extras.params.get("debugArgs").map(String::as_str), Some(r#"["--java_debug"]"#));
+}
+
 /// Compiled components are cached across runs (keyed by module and
 /// engine), so a cold activation only deserializes.
 #[test]

@@ -7,6 +7,8 @@
  * Maven goals that run the application inside Maven's JVM (`tomcat7:run`, `jetty:run`,
  * `exec:java`) get the agent through `MAVEN_OPTS`; any other configuration set to the Java
  * debugger (a script such as `catalina.sh run`) through `JAVA_TOOL_OPTIONS`, which every JVM reads.
+ * A plugin's run detector names the arguments that start its JVM with a waiting agent (`debugArgs`,
+ * e.g. Bazel's `--java_debug`).
  */
 import { executeAction } from "@/platform/actions";
 import { call, commands, type RunConfig } from "@/platform/ipc";
@@ -37,6 +39,18 @@ function withProperty(args: readonly string[], key: string, value: string): stri
   return out;
 }
 
+/** The `debugArgs` of a plugin's run detector that declared an attaching debugger. */
+function pluginDebugArgs(config: RunConfig): string[] | null {
+  const raw = config.params?.debugArgs;
+  if (!raw || !JVM_ADAPTERS.includes(config.debugAdapter ?? "")) return null;
+  try {
+    const args: unknown = JSON.parse(raw);
+    return Array.isArray(args) && args.length && args.every((a) => typeof a === "string") ? args : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The configuration with a waiting JDWP agent, or null when it starts no debuggable JVM.
  *  `jdwpPort`: pin a Surefire / Failsafe fork to this port — its "Listening for transport"
  *  line stays buffered until the tests run, which `suspend=y` prevents, so the port must be
@@ -45,6 +59,11 @@ export function jdwpLaunch(config: RunConfig, jdwpPort?: number): RunConfig | nu
   config = applyBuildPolicyToCommand(config);
   if (config.kind === "tomcat") return { ...config, params: { ...config.params, tomcatDebug: "true" } };
   const args = config.args;
+  if (config.kind === "plugin") {
+    const extra = pluginDebugArgs(config);
+    if (!extra) return null;
+    return extra.every((a) => args.includes(a)) ? config : { ...config, args: [...args, ...extra] };
+  }
   // A single source file (`java Hi.java`): the agent goes before the file. Compiled first
   // (`javac … && java -cp …`): through `JDK_JAVA_OPTIONS`, which only the `java` launcher reads.
   if (config.kind === "java-file")
@@ -91,7 +110,11 @@ function needsPinnedPort(config: RunConfig): boolean {
 }
 
 /** Runs `config` with a JDWP agent and attaches the Java debugger to every JVM it starts. */
-export async function debugWithAgent(config: RunConfig, show?: boolean): Promise<boolean> {
+export async function debugWithAgent(
+  config: RunConfig,
+  show?: boolean,
+  onExit?: (code: number | null, stopped: boolean) => void,
+): Promise<boolean> {
   const pinned = needsPinnedPort(config) ? await call(commands.debugFreePort()).catch(() => null) : null;
   const launch = jdwpLaunch(config, pinned ?? undefined);
   if (!launch) return false;
@@ -116,6 +139,7 @@ export async function debugWithAgent(config: RunConfig, show?: boolean): Promise
   const session = await startRun(config, undefined, undefined, {
     launch,
     show,
+    onExit,
     onLine: (line) => {
       const port = jdwpListeningPort(line);
       if (port === null) return;

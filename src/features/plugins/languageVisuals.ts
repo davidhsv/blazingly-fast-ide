@@ -25,7 +25,8 @@ import { pluginVisuals } from "@/editor/lsp/pluginVisuals";
 import { findLanguageDescription, languageInfo, loadSupport } from "@/editor/core/cm/languages";
 import { onNavigationProvidersChanged } from "@/editor/navigationProviders";
 import { call, commands, type GutterAction, type Injection } from "@/platform/ipc";
-import { gutterIconMarkup } from "@/ui/icons";
+import { gutterIconMarkup, isIconName, type IconName } from "@/ui/icons";
+import { showContextMenu } from "@/ui";
 import { resolveMarkerIcon, onMarkerIconsChanged } from "./markerIcons";
 import { markerIcon } from "./lineMarkerGutter";
 import styles from "@/editor/navigation/LineMarkers.module.css";
@@ -58,41 +59,62 @@ const highlights = StateField.define<DecorationSet>({
   },
   provide: (f) => Prec.high(EditorView.decorations.from(f)),
 });
+interface LineAction {
+  plugin: string;
+  action: GutterAction;
+}
+/** The actions of one line: a click runs a single one; several (Run, Debug…) open a menu, as IDEA's run gutter does. */
 class ActionMarker extends GutterMarker {
   constructor(
-    readonly plugin: string,
-    readonly action: GutterAction,
+    readonly actions: readonly LineAction[],
     readonly ctx: EditorDocContext,
   ) {
     super();
   }
   override eq(other: GutterMarker) {
-    return (
-      other instanceof ActionMarker &&
-      other.plugin === this.plugin &&
-      JSON.stringify(other.action) === JSON.stringify(this.action)
-    );
+    return other instanceof ActionMarker && JSON.stringify(other.actions) === JSON.stringify(this.actions);
+  }
+  private execute({ plugin, action }: LineAction) {
+    void call(
+      commands.lspExecuteCommand(this.ctx.doc, {
+        title: action.tooltip,
+        command: `openidea.plugin-language:${plugin}:${action.command}`,
+        arguments: [JSON.stringify(action.argument)],
+      }),
+    ).catch(console.warn);
   }
   override toDOM() {
+    const first = this.actions[0]!;
     const el = document.createElement("button");
     el.type = "button";
     el.className = `${styles.marker} cm-plugin-gutter-action`;
-    el.title = this.action.tooltip;
-    el.setAttribute("aria-label", this.action.tooltip);
-    el.innerHTML = gutterIconMarkup(markerIcon(this.action.icon)) ?? "";
+    const title = this.actions.map((a) => a.action.tooltip).join("\n");
+    el.title = title;
+    el.setAttribute("aria-label", title);
+    el.innerHTML = gutterIconMarkup(markerIcon(first.action.icon)) ?? "";
     el.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      void call(
-        commands.lspExecuteCommand(this.ctx.doc, {
-          title: this.action.tooltip,
-          command: `openidea.plugin-language:${this.plugin}:${this.action.command}`,
-          arguments: [JSON.stringify(this.action.argument)],
-        }),
-      ).catch(console.warn);
+      if (this.actions.length === 1) {
+        this.execute(first);
+        return;
+      }
+      const at = el.getBoundingClientRect();
+      showContextMenu(
+        { x: at.left, y: at.bottom },
+        this.actions.map((a) => ({
+          label: a.action.tooltip,
+          icon: menuIcon(a.action.icon),
+          run: () => this.execute(a),
+        })),
+      );
     };
     return el;
   }
+}
+/** The menu icon of an action whose gutter icon is a registered icon name (`run`, `debug`). */
+function menuIcon(icon: string | null): IconName | undefined {
+  return icon && isIconName(icon) ? icon : undefined;
 }
 const setActions = StateEffect.define<{ pos: number; marker: ActionMarker }[]>();
 const actions = StateField.define<{ pos: number; marker: ActionMarker }[]>({
@@ -156,14 +178,20 @@ export function pluginLanguageVisuals(ctx: EditorDocContext): Extension {
             try {
               const result = await pluginVisuals(view, ctx);
               const deco = await injectedHighlights(view.state, result.injections);
-              const placed = await Promise.all(
+              const resolved = await Promise.all(
                 result.gutterActions
                   .filter(([, a]) => a.line < text.lines)
-                  .map(async ([plugin, a]) => ({
-                    pos: text.line(a.line + 1).from,
-                    marker: new ActionMarker(plugin, { ...a, icon: await resolveMarkerIcon(plugin, a.icon) }, ctx),
-                  })),
+                  .map(async ([plugin, a]) => ({ plugin, action: a, icon: await resolveMarkerIcon(plugin, a.icon) })),
               );
+              const byLine = new Map<number, LineAction[]>();
+              for (const { plugin, action, icon } of resolved) {
+                const line = byLine.get(action.line) ?? [];
+                line.push({ plugin, action: { ...action, icon } });
+                byLine.set(action.line, line);
+              }
+              const placed = [...byLine]
+                .sort(([a], [b]) => a - b)
+                .map(([line, entries]) => ({ pos: text.line(line + 1).from, marker: new ActionMarker(entries, ctx) }));
               if (generation !== this.generation || view.state.doc !== text) return;
               this.skipped = !view.dom.isConnected;
               if (this.skipped) return;

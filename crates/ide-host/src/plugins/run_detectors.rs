@@ -9,6 +9,8 @@
 //! command = "forge"
 //! args = ["test"]
 //! test = true                    # results go to the test tree
+//! debugger = "java-debug"        # API 1.4: Debug runs it with `debugArgs` and attaches
+//! debugArgs = ["--java_debug"]   # to the JVM that prints JDWP's "Listening for transport…"
 //! ```
 //!
 //! The command is a `process:` capability like a language server's: the
@@ -45,7 +47,18 @@ pub struct Detector {
     /// Optional output parser, including the API 1.4 plugin export.
     #[serde(default)]
     pub framework: Option<String>,
+    /// The debugger that attaches to the JVM the command starts with `debug_args` (API 1.4).
+    #[serde(default)]
+    pub debugger: Option<String>,
+    /// Arguments that make the command start its JVM with a waiting JDWP agent.
+    #[serde(default, rename = "debugArgs")]
+    pub debug_args: Vec<String>,
 }
+
+/// Debuggers a detector can attach: the JVM's, through the JDWP port the agent prints.
+const ATTACHING_DEBUGGERS: [&str; 1] = ["java-debug"];
+/// The run configuration parameter holding a detector's `debugArgs` (a JSON array).
+pub const DEBUG_ARGS_PARAM: &str = "debugArgs";
 
 /// Detectors of enabled plugins.
 #[derive(Default)]
@@ -95,6 +108,19 @@ impl ExtensionPoint for RunDetectorsPoint {
             return Err("invalid test framework".into());
         }
         validate_item_id(&d.id, "run detector id")?;
+        if d.debugger.is_some() || !d.debug_args.is_empty() {
+            pkg.manifest.needs_api("runDetectors.debugger", 4)?;
+            if !d.debugger.as_deref().is_some_and(|a| ATTACHING_DEBUGGERS.contains(&a)) {
+                return Err(format!(
+                    "run detector {:?}: `debugger` is one of {} (with `debugArgs`)",
+                    d.id,
+                    ATTACHING_DEBUGGERS.join(", ")
+                ));
+            }
+            if d.debug_args.is_empty() || d.debug_args.len() > MAX_ARGS {
+                return Err(format!("run detector {:?}: give 1–{MAX_ARGS} `debugArgs` with `debugger`", d.id));
+            }
+        }
         if d.name.trim().is_empty() || d.name.len() > 128 {
             return Err(format!("run detector {:?}: `name` must be 1–128 bytes", d.id));
         }
@@ -130,6 +156,18 @@ pub struct PluginRunDetection {
     pub(crate) project_pins: super::api::ProjectPins,
 }
 
+/// The configuration parameters of a detector: its test framework and its debug arguments.
+fn detector_params(d: &Detector) -> std::collections::BTreeMap<String, String> {
+    let mut params = std::collections::BTreeMap::new();
+    if let Some(f) = &d.framework {
+        params.insert("framework".into(), f.clone());
+    }
+    if d.debugger.is_some() {
+        params.insert(DEBUG_ARGS_PARAM.into(), serde_json::to_string(&d.debug_args).unwrap_or_default());
+    }
+    params
+}
+
 pub(super) fn config_id(plugin: &str, detector: &str) -> String {
     format!("{EXTERNAL_PREFIX}{plugin}:{detector}")
 }
@@ -160,12 +198,9 @@ impl ExternalDetection for PluginRunDetection {
                 env: Default::default(),
                 detected: true,
                 is_test: d.test,
-                debug_adapter: None,
+                debug_adapter: d.debugger.clone(),
                 allow_parallel: false,
-                extras: ide_run::RunExtras {
-                    params: d.framework.clone().map(|f| [("framework".into(), f)].into()).unwrap_or_default(),
-                    ..Default::default()
-                },
+                extras: ide_run::RunExtras { params: detector_params(&d), ..Default::default() },
             })
             .collect();
         for ((plugin, project), entries) in self.dynamic.read().iter().filter(|((_, project), _)| project == root) {

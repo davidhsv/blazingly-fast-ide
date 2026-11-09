@@ -560,3 +560,33 @@ describe("jvmMainCandidates", () => {
     expect(fq?.instance).toBeUndefined();
   });
 });
+
+describe("plugin run detectors with an attaching debugger", () => {
+  const detected = (params: Record<string, string>, debugAdapter: string | null = "java-debug"): RunConfig => ({
+    id: "plugin:acme.bazel:test",
+    name: "bazel test",
+    kind: "plugin",
+    command: "bazelisk",
+    args: ["test", "//a:t"],
+    cwd: "/p",
+    env: {},
+    detected: true,
+    isTest: true,
+    debugAdapter,
+    allowParallel: false,
+    params,
+  });
+
+  it("start the command with the detector's debug arguments, once", () => {
+    const debug = jdwpLaunch(detected({ debugArgs: '["--java_debug"]' }))!;
+    expect(debug.args).toEqual(["test", "//a:t", "--java_debug"]);
+    expect(jdwpLaunch(debug)!.args).toEqual(["test", "//a:t", "--java_debug"]);
+  });
+
+  it("need both a JVM debugger and debug arguments", () => {
+    expect(jdwpLaunch(detected({}))).toBeNull();
+    expect(jdwpLaunch(detected({ debugArgs: '["--java_debug"]' }, null))).toBeNull();
+    expect(jdwpLaunch(detected({ debugArgs: "not json" }))).toBeNull();
+    expect(jdwpLaunch(detected({ debugArgs: "[]" }))).toBeNull();
+  });
+});

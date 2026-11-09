@@ -156,6 +156,8 @@ struct State {
     mcp_stdio: Option<Vec<String>>,
     run_targets: BTreeMap<(String, String), crate::PluginRunTarget>,
     run_configurations: BTreeMap<String, crate::PluginRunConfiguration>,
+    /// Configurations whose `runDetectors` entry declares a `debugger`.
+    debuggable_configurations: BTreeSet<String>,
     configuration_runs: Vec<(String, String, Vec<String>, bool)>,
     log_tabs: Vec<MockLogTab>,
     locations: Vec<(String, u32, u32)>,
@@ -509,6 +511,10 @@ impl MockHost {
     }
     pub fn set_run_configurations(&self, configs: Vec<crate::PluginRunConfiguration>) {
         self.state.borrow_mut().run_configurations = configs.into_iter().map(|c| (c.id.clone(), c)).collect();
+    }
+    /// Lets Debug start `config`, as a `runDetectors` entry with `debugger` and `debugArgs` does.
+    pub fn set_run_configuration_debugger(&self, config: &str) {
+        self.state.borrow_mut().debuggable_configurations.insert(config.to_owned());
     }
     /// Text written through write_terminal.
     pub fn terminal_writes(&self) -> Vec<(String, String)> {
@@ -1877,7 +1883,7 @@ pub mod current {
         with(|s| {
             let c = s.run_configurations.get(config).ok_or_else(|| Error::NotFound(config.into()))?;
             require(s, &format!("process:{}", c.program))?;
-            if debug {
+            if debug && !s.debuggable_configurations.contains(config) {
                 return Err(Error::Invalid("this configuration has no debugger".into()));
             }
             let id = format!("mock-run-{}", s.configuration_runs.len());

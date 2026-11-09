@@ -143,7 +143,7 @@ work), but 0.1 code no longer runs: rebuild it against the 1.0 SDK.
 | `themes`            | `path` (theme JSON), `editor-scheme?`                                                                                                                                                                                                  | no            |
 | `iconThemes`        | `id`, `label`, `path` (icon theme JSON, see §5)                                                                                                                                                                                        | no            |
 | `languages`         | `path` (`languages/<id>.toml` format, see §6)                                                                                                                                                                                          | no            |
-| `runDetectors`      | `id`, `name`, `files`, `command`, `args?`, `test?`, `framework?` (API 1.4; §6.2)                                                                                                                                                       | no            |
+| `runDetectors`      | `id`, `name`, `files`, `command`, `args?`, `test?`, `framework?`, `debugger?`, `debugArgs?` (API 1.4; §6.2)                                                                                                                            | no            |
 | `runConfigurations` | `files`: marker files for the optional `run-configurations` export (API 1.4)                                                                                                                                                           | yes           |
 | `mcpTools`          | `name`, `description`, `inputSchema` (package JSON Schema path), `readOnly`, `destructive` (API 1.4; see _Plugin MCP tools_)                                                                                                           | yes           |
 | `snippets`          | `language`, `path` (named JSON snippets; API 1.4)                                                                                                                                                                                      | no            |
@@ -1070,7 +1070,7 @@ and register `register_plugin!(MyPlugin, language_features)`:
 | `document-symbols`    | `document_symbols(doc)`                          | Structure and breadcrumbs use these only when LSP returns no document symbols (including an empty list); otherwise LSP symbols win. Tree-sitter is the final fallback.                                                                                                                             |
 | `implementation`      | `implementation(doc, at)`                        | Merged with LSP Go to Implementation, deduplicated by location.                                                                                                                                                                                                                                    |
 | `type-definition`     | `type_definition(doc, at)`                       | Merged with LSP Go to Type Declaration, deduplicated by location.                                                                                                                                                                                                                                  |
-| `gutter-actions`      | `gutter_actions(doc)`                            | Buttons beside line markers. Clicks invoke only the returning plugin's declared command, with its optional string argument and the editor window/project context. Icons accept the same names, aliases and declared marker SVG paths as line markers.                                              |
+| `gutter-actions`      | `gutter_actions(doc)`                            | Buttons beside line markers. Clicks invoke only the returning plugin's declared command, with its optional string argument and the editor window/project context. Several per line open a menu. Icons accept the same names, aliases and declared marker SVG paths as line markers.                |
 
 The optional WIT interface is `language-features`, in worlds
 `plugin-language-features` / `editor-language-features`. Its own `document`
@@ -1623,7 +1623,8 @@ invoking window's normal Run tool window. Both the short id and the full
 arguments. The id is allocated before asynchronous preparation (including before-launch
 builds); a later startup failure still produces its completion with a null status.
 The IDE owns Stop, Rerun and target handling, and verifies the approved
-program at launch and on rerun. Debug uses the debugger of the source file named in the configuration's arguments
+program at launch and on rerun. Debug of a `runDetectors` entry with `debugger` and `debugArgs` runs it with
+those arguments and attaches (§6.2); otherwise it uses the debugger of the source file named in the configuration's arguments
 (or the debugger explicitly chosen on its saved configuration). Without one it
 returns `invalid`. Local Debug and Rerun recheck the owned program pin; debugging
 these configurations on a run target is currently invalid. Starting from activation or a provider is invalid.
@@ -2090,6 +2091,22 @@ test = true                  # results go to the test tree
 
 The configuration appears among the detected ones while `process:<command>` is
 granted, and starts the approved program.
+
+A command that starts a JVM can be debugged (API 1.4): `debugArgs` make it start the JVM with a
+waiting JDWP agent, and when the output prints `Listening for transport dt_socket at address: <port>`
+the Java debugger attaches, as it does for Maven and Gradle tests. `debugger` is `java-debug`.
+
+```toml
+[[contributes.runDetectors]]
+id = "bazel-test"
+name = "bazel test"
+files = ["MODULE.bazel"]
+command = "bazelisk"
+args = ["test"]
+test = true
+debugger = "java-debug"
+debugArgs = ["--java_debug"]
+```
 
 ## 7. Installing and developing
 
