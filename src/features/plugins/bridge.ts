@@ -254,7 +254,7 @@ export function followThemeSetting(): () => void {
 }
 
 /** Reports the focused editor's file to the backend (`editor-focused` events). */
-function trackActiveFile(): () => void {
+export function trackActiveFile(): () => void {
   let last: string | null | undefined;
   const report = (path: string | null) => {
     if (path === last) return;
@@ -263,8 +263,20 @@ function trackActiveFile(): () => void {
       .setActiveFile(path)
       .catch(() => {});
   };
-  report(useEditorRegistry.getState().active?.ctx.path ?? null);
-  return useEditorRegistry.subscribe((s) => report(s.active?.ctx.path ?? null));
+  const current = () => useEditorRegistry.getState().active?.ctx.path ?? null;
+  report(current());
+  const offEditors = useEditorRegistry.subscribe((s) => report(s.active?.ctx.path ?? null));
+  // A window reports its (empty) focus before its project opens: plugins then learn of the project
+  // only once a file opens. Report again with the project, so it reaches them at once.
+  const offProject = useProject.subscribe((s, prev) => {
+    if (s.project?.root === prev.project?.root || !s.project) return;
+    last = undefined;
+    report(current());
+  });
+  return () => {
+    offEditors();
+    offProject();
+  };
 }
 
 // --- events -----------------------------------------------------------------
