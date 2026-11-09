@@ -12,6 +12,7 @@ import {
   shebang,
   shellWord,
   fileTargets,
+  jvmBuildOwns,
   type ContextInput,
   type LocatedTool,
   type ToolEnv,
@@ -1194,4 +1195,19 @@ it("nested Ruby scripts use their own source paths relative to their cwd", () =>
   } finally {
     spy.mockRestore();
   }
+});
+
+describe("JVM test runners", () => {
+  const at = (path: string, configs: RunConfig[]): ContextInput => ({ path: `${ROOT}/${path}`, root: ROOT, configs });
+  const file = "lib/src/test/java/a/ATest.java";
+
+  it("are the Maven or Gradle builds that own the file, not other test configurations", () => {
+    expect(jvmBuildOwns(at(file, [cfg({ id: "maven:test", kind: "maven", args: ["test"], isTest: true })]))).toBe(true);
+    expect(jvmBuildOwns(at(file, [cfg({ id: "gradle:test", kind: "gradle", args: ["test"], isTest: true })]))).toBe(
+      true,
+    );
+    const bazel = cfg({ id: "plugin:acme.bazel:test", kind: "plugin", command: "bazelisk", isTest: true });
+    expect(jvmBuildOwns(at(file, [bazel]))).toBe(false);
+    expect(jvmBuildOwns({ path: "/elsewhere/ATest.java", root: ROOT, configs: [] })).toBe(false);
+  });
 });

@@ -23,7 +23,7 @@ import {
 import { loadGoModules } from "./goModules";
 import { onServerSettled } from "@/editor/lsp/availability";
 import { resolveCandidates, retryNegativeInheritedMain, unresolvedCandidates } from "./inheritedMain";
-import { fileTargets, OPTIMISTIC, produceContextChoices, type ContextInput } from "./producers";
+import { fileTargets, jvmBuildOwns, OPTIMISTIC, produceContextChoices, type ContextInput } from "./producers";
 import { loadConfigs, useRun } from "./store";
 import { targetLanguage, type RunTarget } from "./targets";
 import { onTestStatesChanged, testState, testStatesVersion, type TestState } from "./testing/states";
@@ -199,13 +199,21 @@ export function runGutter(ctx: EditorDocContext): Extension {
   if (!useProject.getState().project?.root || isVirtualUri(path) || !hasGutterTargets(path)) return [];
   if (/\.go$/.test(path))
     void loadGoModules(useProject.getState().project?.root ?? null, useRun.getState().configs).catch(() => {});
-  const detect = (text: string) => fileTargets({ ...projectContext(), path }, text);
+  const detect = (text: string) => {
+    const input = { ...projectContext(), path };
+    const targets = fileTargets(input, text);
+    // JVM tests run through Maven or Gradle; a project built otherwise (Bazel) runs them through
+    // its build tool's plugin, which marks them in its own gutter.
+    if (!/\.(java|kt)$/.test(path) || !useRun.getState().loaded || jvmBuildOwns(input)) return targets;
+    return targets.filter((t) => t.kind !== "test" && t.kind !== "suite");
+  };
 
   const detector = ViewPlugin.fromClass(
     class {
       timer: ReturnType<typeof setTimeout> | undefined;
       readonly unsubscribe: () => void;
       readonly offServers: () => void;
+      readonly offConfigs: () => void;
       resolving = false;
       destroyed = false;
       constructor(readonly view: EditorView) {
@@ -213,6 +221,9 @@ export function runGutter(ctx: EditorDocContext): Extension {
         this.offServers = onServerSettled(() => {
           retryNegativeInheritedMain();
           this.schedule(0);
+        });
+        this.offConfigs = useRun.subscribe((s, prev) => {
+          if (s.configs !== prev.configs || s.loaded !== prev.loaded) this.schedule(0);
         });
         // Redraw the markers with the new results (the gutter recomputes them on any update).
         this.unsubscribe = onTestStatesChanged(() => {
@@ -252,6 +263,7 @@ export function runGutter(ctx: EditorDocContext): Extension {
         clearTimeout(this.timer);
         this.destroyed = true;
         this.offServers();
+        this.offConfigs();
         this.unsubscribe();
       }
     },

@@ -693,6 +693,12 @@ const hasBuildTool = (rel: string, configs: readonly RunConfig[], kinds: readonl
   buildOwners(rel, configs, kinds).length > 0;
 const JVM_BUILDS = ["maven", "gradle"];
 
+/** Whether Maven or Gradle builds the JVM source at `input.path`: the runners of its tests. */
+export function jvmBuildOwns(input: ContextInput): boolean {
+  input = scopedInput(input);
+  return isProjectPath(input) && hasBuildTool(relTo(input.path, input.root), input.configs, JVM_BUILDS);
+}
+
 /**
  * A Godot scene: `godot --path <project> res://<scene>` in the Godot project holding it
  * (a detected "Godot Project" configuration), debuggable through the editor's adapter.
