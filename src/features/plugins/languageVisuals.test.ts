@@ -73,6 +73,57 @@ it("renders owned gutter commands and drops answers to superseded buffers", asyn
     expect.objectContaining({ command: "openidea.plugin-language:test:run", arguments: ['"value"'] }),
   );
 });
+it("puts the actions of one line behind one icon whose click opens a menu", async () => {
+  vi.useFakeTimers();
+  const { useContextMenuStore } = await import("@/ui/Menu");
+  const action = (line: number, icon: string, tooltip: string, command: string) => ({
+    line,
+    icon,
+    tooltip,
+    command,
+    argument: "x",
+  });
+  const answerAt = (line: number) =>
+    ipc.pluginLanguageVisuals.mockResolvedValue({
+      status: "ok",
+      data: {
+        version: 1,
+        injections: [],
+        colors: [],
+        gutterActions: [
+          ["test", action(line, "run", "Run 'T'", "run")],
+          ["test", action(line, "debug", "Debug 'T'", "debug")],
+        ],
+      },
+    });
+  answerAt(0);
+  const view = new EditorView({
+    state: EditorState.create({ doc: "class T {}", extensions: [iconAreaExtension, pluginLanguageVisuals(ctx)] }),
+    parent: document.body,
+  });
+  views.push(view);
+  await vi.advanceTimersByTimeAsync(300);
+  const buttons = view.dom.querySelectorAll<HTMLButtonElement>(".cm-plugin-gutter-action");
+  expect(buttons).toHaveLength(1);
+  buttons[0]!.click();
+  expect(ipc.lspExecuteCommand).not.toHaveBeenCalled();
+  const items = useContextMenuStore.getState().menu!.items as { label: string; icon?: string; run: () => void }[];
+  expect(items.map((i) => [i.label, i.icon])).toEqual([
+    ["Run 'T'", "run"],
+    ["Debug 'T'", "debug"],
+  ]);
+  items[1]!.run();
+  expect(ipc.lspExecuteCommand).toHaveBeenCalledWith(
+    7,
+    expect.objectContaining({ command: "openidea.plugin-language:test:debug" }),
+  );
+
+  // The same actions on the line the edit moved them to keep their button.
+  answerAt(1);
+  view.dispatch({ changes: { from: 0, insert: "\n" } });
+  await vi.advanceTimersByTimeAsync(300);
+  expect(view.dom.querySelector(".cm-plugin-gutter-action")).toBe(buttons[0]);
+});
 
 it("keeps Run buttons mounted while edits and delayed refreshes move their lines", async () => {
   vi.useFakeTimers();

@@ -735,6 +735,11 @@ export function activate(): () => void {
             return;
           }
           if (a.debug) {
+            // A detector with `debugArgs`: started with them, the Java debugger attaches as for Maven.
+            if (jdwpLaunch(a.config) && getAction("debug.attach")) {
+              await debugWithAgent(a.config, undefined, a.onExit);
+              return;
+            }
             if (!getAction("debug.pluginStart")) throw new Error("Debugger unavailable");
             await executeActionOrThrow("debug.pluginStart", a);
             return;
