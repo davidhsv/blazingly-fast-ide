@@ -655,6 +655,15 @@ pub fn configure_maven_import(
     if let Some(settings) = &cfg.settings {
         merge(&mut options, settings.clone());
     }
+    // Unlinking keeps jdtls' Maven importer from importing those POMs. With that importer off
+    // (a project built otherwise, such as with Bazel), excluding their directories would only
+    // hide the project's own Eclipse project, a root POM's directory being the project itself.
+    let maven_enabled = |p: &str| options.pointer(p).and_then(Value::as_bool);
+    if maven_enabled("/java/import/maven/enabled").or_else(|| maven_enabled("/settings/java/import/maven/enabled"))
+        == Some(false)
+    {
+        return;
+    }
     let mut exclusions = options
         .pointer("/java/import/exclusions")
         .or_else(|| options.pointer("/settings/java/import/exclusions"))
@@ -1784,6 +1793,26 @@ mod maven_linkage_tests {
         assert!(exclusions.contains(&json!(tmp.path().join("a/child").to_string_lossy().replace('\\', "/"))));
         assert!(cfg.args[1].starts_with("/cache/jdtls-maven-"));
         assert!(options.get("projectConfigurations").is_none());
+    }
+
+    #[test]
+    fn unlinked_poms_leave_the_import_alone_without_the_maven_importer() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("pom.xml"), "<project/>").unwrap();
+        let files = ["file:///p/pom.xml".to_owned()];
+        for settings in [
+            json!({"java":{"import":{"maven":{"enabled":false}}}}),
+            json!({"settings":{"java":{"import":{"maven":{"enabled":false}}}}}),
+        ] {
+            let mut cfg = custom_server("jdtls", &LanguageServerSettings::default());
+            cfg.args = vec!["-data".into(), "/cache/jdtls".into()];
+            cfg.settings = Some(settings);
+            configure_maven_import(&mut cfg, tmp.path(), &["pom.xml".into()], Some(&files));
+            let options = serde_json::to_value(&cfg.initialization_options).unwrap();
+            assert!(options.pointer("/settings/java/import/exclusions").is_none(), "{options}");
+            assert!(options.get("projectConfigurations").is_none());
+            assert_eq!(cfg.args[1], "/cache/jdtls");
+        }
     }
 
     #[test]
