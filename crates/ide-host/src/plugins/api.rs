@@ -903,6 +903,11 @@ impl Shared {
         tx.send(answer).is_ok()
     }
 
+    /// Whether the plugin's running work shows a task the user can follow and cancel.
+    pub(super) fn has_task(&self, plugin: &str) -> bool {
+        self.tasks.lock().values().any(|t| t.plugin == plugin)
+    }
+
     fn end_task(&self, id: u64) {
         if let Some(t) = self.tasks.lock().remove(&id) {
             self.sink.emit(None, PluginEvent::TaskEnded { plugin_id: t.plugin, task_id: id.to_string() });

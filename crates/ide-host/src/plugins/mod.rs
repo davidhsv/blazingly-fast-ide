@@ -1968,7 +1968,11 @@ impl PluginHost {
         let token = Arc::new(());
         {
             let mut batches = plugin.batches.lock();
+            // A newer batch replaces the running one. A focus change alone leaves work that started a
+            // task (a build tool's sync on a window's first event): it isn't about the old focus.
+            let focus_only = kinds.iter().all(|k| *k == EventKind::EditorFocused);
             if batches.running.as_ref() == Some(&kinds)
+                && !(focus_only && self.shared.has_task(plugin.id()))
                 && !kinds.contains(&EventKind::Scheduled)
                 && !kinds.contains(&EventKind::FilesChanged)
                 && !kinds.iter().any(|k| {
