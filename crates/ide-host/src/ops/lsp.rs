@@ -646,6 +646,21 @@ pub async fn lsp_references(
                 let (partial, symbol) = (on_partial.clone(), symbol.clone());
                 blocking(move || {
                     let snap = project.documents.text_snapshot(doc)?;
+                    // A local the syntax tree resolves with certainty needs no project search.
+                    if !snap.large {
+                        let s = ide_syntax::Snapshot::doc(doc, snap.version, &snap.language, &snap.text);
+                        match project.structure.locals(&s, pos, &cancel) {
+                            Ok(ide_syntax::Locals::Local { symbol }) if symbol.certain => {
+                                let (path, _) = project.documents.identity(doc)?;
+                                let ranges = include_declaration.then_some(symbol.definition).into_iter();
+                                let locations =
+                                    ranges.chain(symbol.references).map(|r| Location::file(path.clone(), r)).collect();
+                                return Ok(References { locations, ..Default::default() });
+                            }
+                            Err(ide_syntax::StructureError::Cancelled) => return Err(ide_core::IdeError::cancelled()),
+                            _ => {}
+                        }
+                    }
                     let name = super::text_usages::word_at(&snap.text, pos).ok_or(e)?;
                     super::text_usages::text_references(&project, &syntax, &name, &cancel, &|locations| {
                         let refs = References { locations, approximate: true, ..Default::default() };

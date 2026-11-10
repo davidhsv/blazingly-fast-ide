@@ -129,6 +129,11 @@ async fn find_usages_without_a_server_returns_text_matches_outside_comments_and_
             *p == h.rel(&l.path.0) && *line == l.range.start.line && *col == l.range.start.col
         })));
     }
+    // A local the syntax tree resolves stays in its scope: no project search, exact result.
+    let (refs, _) = h.usages(doc, Pos::new(3, 19), 4).await;
+    assert!(!refs.approximate);
+    assert_eq!(refs.locations.len(), 1);
+    assert_eq!(refs.locations[0].range.start, Pos::new(3, 31));
     // The word before a caret at the end of an identifier, as the editor picks it.
     let (refs, _) = h.usages(doc, Pos::new(4, 23), 2).await;
     assert_eq!(refs.locations.len(), 7);
