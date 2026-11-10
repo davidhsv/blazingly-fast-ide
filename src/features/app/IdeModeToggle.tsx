@@ -22,7 +22,7 @@ export function IdeModeToggle() {
       tooltip={
         light
           ? tx("Light mode: editor, git and search only, no language servers. Click to switch to Full mode.")
-          : tx("Full mode: language servers, run and debug are on. Click to switch to Light mode.")
+          : tx("Full mode: language servers and the tooling feeding them are on. Click to switch to Light mode.")
       }
       shortcut={shortcutLabel("ide.toggleMode")}
       onClick={() => void executeAction("ide.toggleMode", "widget")}

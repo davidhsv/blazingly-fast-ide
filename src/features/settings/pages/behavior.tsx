@@ -356,7 +356,7 @@ function UiOptionsGrid() {
 
 const IDE_MODE_OPTIONS: readonly SelectOption[] = [
   { value: "light", label: "Light mode", detail: "Editor, git and search; no language servers" },
-  { value: "full", label: "Full mode", detail: "Language servers, run and debug" },
+  { value: "full", label: "Full mode", detail: "Language servers and the tooling they need" },
 ];
 
 const AA_OPTIONS: SelectOption<Antialiasing>[] = [
