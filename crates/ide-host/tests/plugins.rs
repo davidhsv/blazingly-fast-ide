@@ -30,6 +30,7 @@ struct TestWorkspace {
     /// plugin → its settings as the user set them.
     settings: Mutex<std::collections::BTreeMap<String, serde_json::Map<String, serde_json::Value>>>,
     global_settings: Mutex<std::collections::BTreeMap<String, serde_json::Map<String, serde_json::Value>>>,
+    ide_mode: Mutex<ide_core::settings::IdeMode>,
 }
 
 impl TestWorkspace {
@@ -48,6 +49,7 @@ impl TestWorkspace {
             diagnostics: Mutex::default(),
             settings: Mutex::default(),
             global_settings: Mutex::default(),
+            ide_mode: Mutex::default(),
         })
     }
 
@@ -150,6 +152,9 @@ impl PluginWorkspace for TestWorkspace {
     fn plugin_settings(&self, plugin: &str, root: Option<&Path>) -> serde_json::Map<String, serde_json::Value> {
         let layer = if root.is_some() { &self.settings } else { &self.global_settings };
         layer.lock().get(plugin).cloned().unwrap_or_default()
+    }
+    fn ide_mode(&self, _root: Option<&Path>) -> ide_core::settings::IdeMode {
+        *self.ide_mode.lock()
     }
 }
 
@@ -2525,6 +2530,7 @@ fn git_toolbox_does_not_fetch_untrusted_projects() {
         diagnostics: Mutex::default(),
         settings: Mutex::default(),
         global_settings: Mutex::default(),
+        ide_mode: Mutex::default(),
     });
     f.host.set_workspace(Some(untrusted));
     let err = f.run("openidea.git-toolbox", "fetch", None).unwrap_err();
@@ -5805,6 +5811,23 @@ fn api14_command_requests_preserve_window_result_and_reject_cycles() {
             _ => unreachable!(),
         }
     }
+}
+
+#[test]
+fn a_changed_ide_mode_reaches_plugins_as_a_settings_change() {
+    let f = fixture(Limits::default());
+    f.install(&sample("api14"));
+    use ide_plugin::WorkbenchEvent as E;
+    f.host.post_events(Some("main"), vec![E::SettingsChanged(Vec::new())]);
+    *f.workspace.ide_mode.lock() = ide_core::settings::IdeMode::Full;
+    f.host.post_window_events("main", vec![E::SettingsChanged(Vec::new())], None);
+    f.host.flush_events_at(Instant::now() + Duration::from_secs(2));
+    assert!(f.host.wait_events(Duration::from_secs(5)));
+    let received: serde_json::Value = serde_json::from_str(&f.run("api14", "events", None).unwrap().unwrap()).unwrap();
+    let events = received.as_array().unwrap();
+    assert_eq!(events.len(), 1, "{received}");
+    assert_eq!(events[0]["kind"], "settings-changed");
+    assert_eq!(events[0]["data"], "[\"ide.mode\"]");
 }
 
 #[test]

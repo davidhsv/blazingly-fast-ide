@@ -1788,6 +1788,13 @@ Settings › Plugins (searchable; projects can override values) and the plugin
 reads values with `host::setting*`; a stored value of the wrong type falls
 back to the default.
 
+One IDE setting is readable by every plugin, schema or not: `host::setting("ide.mode")`
+(or `setting_string`) is the effective IDE mode of the invoking window's project,
+`"light"` (the default: editor, git, search and the syntax index; no language servers)
+or `"full"` (language servers and the tooling they need). It is read-only. A change
+of the mode reaches plugins subscribed to `settings-changed` as the key `ide.mode`
+in the event's list, next to their own changed keys.
+
 #### Multiple pages, groups, lists and tables (API 1.3)
 
 Require `engines.openidea = "^1.3"` when using pages, groups, arrays or actions.
