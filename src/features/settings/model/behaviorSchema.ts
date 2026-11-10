@@ -116,7 +116,8 @@ export const DEFAULT_APPEARANCE_EXTRAS: AppearanceExtras = {
 export const DEFAULT_GENERAL_EXTRAS: GeneralExtras = {
   openProjectIn: "ask",
   updateSource: "auto",
-  autoCheckUpdates: true,
+  // A fork: the official release would replace it.
+  autoCheckUpdates: false,
   defaultProjectDirectory: "",
   saveOnIdle: false,
   idleSeconds: 15,
