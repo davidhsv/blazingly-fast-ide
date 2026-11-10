@@ -265,6 +265,14 @@ export function isPowerSaveMode(settings: unknown = useProject.getState().settin
   return isObj(general) && general.powerSaveMode === true;
 }
 
+export type IdeMode = "light" | "full";
+
+/** Appearance & Behavior › IDE Mode (`ide.mode`): Light (the default) keeps language servers off. */
+export function ideMode(settings: unknown = useProject.getState().settings): IdeMode {
+  const ide = settings && typeof settings === "object" ? (settings as Obj).ide : undefined;
+  return isObj(ide) && ide.mode === "full" ? "full" : "light";
+}
+
 /** Power Save Mode turns off the editor's automatic popups and background highlighting. */
 export function powerSaveExtras(p: EditorExtras): EditorExtras {
   return {

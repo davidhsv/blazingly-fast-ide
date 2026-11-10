@@ -386,6 +386,10 @@ pub struct References {
     #[serde(default)]
     #[specta(optional)]
     pub libraries_skipped: bool,
+    /// Text matches (no language server answered): same-named symbols are not told apart.
+    #[serde(default)]
+    #[specta(optional)]
+    pub approximate: bool,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Type)]
@@ -485,6 +489,10 @@ pub struct HierarchyRefactored {
 pub struct CallHierarchy {
     pub items: Vec<HierarchyItem>,
     pub incomplete: Option<ReferencesIncomplete>,
+    /// Text matches (no language server answered): same-named symbols are not told apart.
+    #[serde(default)]
+    #[specta(optional)]
+    pub approximate: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]

@@ -31,6 +31,7 @@ pub mod search;
 pub mod spell;
 pub mod syntax;
 pub mod term;
+pub mod text_usages;
 pub mod tools;
 pub mod vcs;
 

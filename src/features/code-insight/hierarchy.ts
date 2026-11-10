@@ -1,7 +1,7 @@
 /** Call / type hierarchy state, with lazily expanded levels. */
 import { create } from "zustand";
 import type { HierarchyDirection, HierarchyItem, OutlineItem, Pos, RequestId, SymbolKind } from "@/bindings";
-import { incompleteNote } from "@/editor/lsp/lsp";
+import { resultNote } from "@/editor/lsp/lsp";
 import { IpcError, call, commands, nextRequestId } from "@/platform/ipc";
 import { toolWindowService } from "@/workbench/contributions";
 import { basename } from "@/platform/project";
@@ -167,10 +167,8 @@ async function loadRoot(quiet = false): Promise<RootResult> {
   cancelInflight();
   useHierarchy.setState({ generation, children: new Map(), failed: new Set(), notes: new Map(), loading: true });
   try {
-    const { items, incomplete } = await withDocument(root.path, (doc) =>
-      request(s.mode, doc, root.line, root.col, s.direction),
-    );
-    setChildren(generation, ROOT_ID, [rootKey(root)], items, incomplete && incompleteNote(incomplete, root.name));
+    const result = await withDocument(root.path, (doc) => request(s.mode, doc, root.line, root.col, s.direction));
+    setChildren(generation, ROOT_ID, [rootKey(root)], result.items, resultNote(result, root.name));
     return "loaded";
   } catch (e) {
     if (useHierarchy.getState().generation !== generation) return "stale";
@@ -218,16 +216,8 @@ export async function loadChildren(node: HierarchyNode) {
   const { mode, direction, generation } = useHierarchy.getState();
   const at = node.item.selectionRange.start;
   try {
-    const { items, incomplete } = await withDocument(node.item.path, (doc) =>
-      request(mode, doc, at.line, at.col, direction),
-    );
-    setChildren(
-      generation,
-      node.id,
-      nodeKeys.get(node) ?? [],
-      items,
-      incomplete && incompleteNote(incomplete, node.item.name),
-    );
+    const result = await withDocument(node.item.path, (doc) => request(mode, doc, at.line, at.col, direction));
+    setChildren(generation, node.id, nodeKeys.get(node) ?? [], result.items, resultNote(result, node.item.name));
   } catch (e) {
     if (useHierarchy.getState().generation !== generation) return;
     useHierarchy.setState((st) => ({
