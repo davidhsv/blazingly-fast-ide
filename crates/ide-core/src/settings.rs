@@ -73,6 +73,8 @@ pub struct Settings {
     pub file_colors: FileColorSettings,
     /// Database › Query Execution, Languages & Frameworks › SQL Resolution Scopes.
     pub database: DatabaseSettings,
+    /// Light / Full IDE mode (`ide.mode`): what starts beyond the editor, git, search and the index.
+    pub ide: IdeSettings,
     /// Plugin settings (`[contributes.settings]`): plugin id → its values by key.
     #[specta(type = BTreeMap<String, BTreeMap<String, specta_typescript::Unknown>>)]
     pub plugins: BTreeMap<String, serde_json::Map<String, serde_json::Value>>,
@@ -210,6 +212,38 @@ impl Default for AgentMcpServer {
             url: None,
             headers: BTreeMap::new(),
             agents: Vec::new(),
+        }
+    }
+}
+
+/// Appearance & Behavior › IDE Mode.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct IdeSettings {
+    pub mode: IdeMode,
+}
+
+/// How much of the IDE runs for a project. Light (the default) keeps the editor, git,
+/// search and the syntax index; Full also starts language servers and the heavy
+/// background tooling that feeds them (Kotlin bridge, PHPStan).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum IdeMode {
+    #[default]
+    Light,
+    Full,
+}
+
+impl IdeMode {
+    pub fn is_full(self) -> bool {
+        self == IdeMode::Full
+    }
+
+    /// The JSON value plugins read through `host::setting("ide.mode")`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IdeMode::Light => "light",
+            IdeMode::Full => "full",
         }
     }
 }
@@ -511,6 +545,7 @@ impl Default for Settings {
             scopes: Vec::new(),
             file_colors: FileColorSettings::default(),
             database: DatabaseSettings::default(),
+            ide: IdeSettings::default(),
             plugins: BTreeMap::new(),
         }
     }

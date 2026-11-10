@@ -162,12 +162,16 @@ impl KotlinBridge {
             if !self.trusted.load(Ordering::Acquire) {
                 continue;
             }
+            // Light mode: no JDT to feed; the Maven / Gradle model load it needs is skipped too.
+            let settings = self.settings.effective();
+            if !settings.ide.mode.is_full() {
+                continue;
+            }
             if !debounce(&cancel, &self.lifetime).await {
                 continue;
             }
             let root = self.root.clone();
             let cache = self.cache.clone();
-            let settings = self.settings.effective();
             let has_sources = tokio::task::spawn_blocking(move || {
                 let model = crate::ops::build::load(&root, &cache, &settings);
                 let enabled = kotlin_bridge::has_kotlin(&root, &model);

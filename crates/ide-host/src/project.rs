@@ -148,6 +148,7 @@ impl Host {
         let lsp = LspManager::new(root.clone(), languages.clone(), sink.clone());
         crate::plugins::injections::configure_lsp(&lsp);
         lsp.set_execution_allowed(trusted.load(Ordering::Acquire));
+        lsp.set_servers_enabled(settings.effective().ide.mode.is_full());
         lsp.set_content_roots(language_server_roots(&root, extra_roots.clone()));
         lsp.set_jdtls_import_roots(ide_build::maven_external_roots(
             &root,
@@ -1380,7 +1381,9 @@ const HISTORY_BATCH_LIMIT: usize = 500;
 /// Applies a project's settings file changed on disk: windows and language servers follow it.
 fn apply_settings_file(settings: &SettingsStore, lsp: &Arc<LspManager>, sink: &SharedSink) {
     let before = settings.effective();
-    if settings.reload() != before {
+    let after = settings.reload();
+    if after != before {
+        lsp.set_servers_enabled(after.ide.mode.is_full());
         lsp.reconfigure_soon();
         sink.emit(IdeEvent::SettingsChanged { key: String::new() });
     }
@@ -1390,6 +1393,28 @@ impl Project {
     /// See [`apply_settings_file`].
     pub(crate) fn apply_settings_file(&self) {
         apply_settings_file(&self.settings, &self.lsp, &self.sink);
+    }
+
+    /// The effective `ide.mode`.
+    pub fn ide_mode(&self) -> ide_core::settings::IdeMode {
+        self.settings.effective().ide.mode
+    }
+
+    /// Applies a changed `ide.mode` live: Light stops every language server (and the
+    /// background tooling feeding them), Full starts them for the open documents.
+    pub(crate) fn apply_ide_mode(&self) {
+        let full = self.ide_mode().is_full();
+        self.lsp.set_servers_enabled(full);
+        if let Some(bridge) = &self.kotlin_bridge {
+            bridge.schedule();
+        }
+        if let Some(phpstan) = &self.phpstan {
+            phpstan.interrupt();
+        }
+        self.lsp.reconfigure_soon();
+        if full {
+            self.lsp.prewarm_java_configuration();
+        }
     }
 }
 
