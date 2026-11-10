@@ -1,3 +1,21 @@
+# Blazingly Fast IDE
+
+A personal fork of [OpenIDEA](https://github.com/l0ng-ai/openidea) for reviewing AI-made changes:
+
+- **Blaze mode** (the default): editor, git, file and text search, and the syntax index, with no language
+  servers. Find Usages and Call Hierarchy fall back to text matches, marked as approximate.
+- **Deep mode**: language servers, run and debug, as in OpenIDEA. The toggle sits in the title bar
+  (`Ctrl+Alt+Shift+M`).
+- Build-tool plugins can run and debug tests from the gutter (`runDetectors` with `debugger` and
+  `debugArgs`) and set the project up while it opens; see the
+  [Bazel plugin](https://github.com/davidhsv/openidea-bazel).
+
+It keeps OpenIDEA's app identifier, so it uses the same settings, plugins and data, and it does not
+check for OpenIDEA updates (Settings › Updates). Upstream is merged in by rebasing on its release tags.
+Apache 2.0, like OpenIDEA; see `LICENSE` and `NOTICE`.
+
+---
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="src-tauri/icons/source/openidea-wordmark-dark.svg">

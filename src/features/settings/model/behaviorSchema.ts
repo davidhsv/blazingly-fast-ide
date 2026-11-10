@@ -197,7 +197,8 @@ const NAV_BAR_POSITIONS: readonly NavigationBarPosition[] = ["top", "statusBar",
 export const DEFAULT_GENERAL_EXTRAS: GeneralExtras = {
   openProjectIn: "ask",
   updateSource: "auto",
-  autoCheckUpdates: true,
+  // A fork: the official release would replace it.
+  autoCheckUpdates: false,
   showWhatsNewAfterUpdate: true,
   lastRunVersion: "",
   defaultProjectDirectory: "",

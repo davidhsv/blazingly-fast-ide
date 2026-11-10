@@ -7,9 +7,9 @@ import { validateGeneralExtras, validateAppearanceExtras, validateNotifications 
 
 describe("appearance & behavior settings", () => {
   it("defaults automatic update checks to on and respects an explicit opt-out", () => {
-    expect(validateSettings({}).general.autoCheckUpdates).toBe(true);
-    expect(validateSettings({ general: { autoCheckUpdates: false } }).general.autoCheckUpdates).toBe(false);
-    expect(validateSettings({ general: { autoCheckUpdates: "off" } }).general.autoCheckUpdates).toBe(true);
+    expect(validateSettings({}).general.autoCheckUpdates).toBe(false);
+    expect(validateSettings({ general: { autoCheckUpdates: true } }).general.autoCheckUpdates).toBe(true);
+    expect(validateSettings({ general: { autoCheckUpdates: "off" } }).general.autoCheckUpdates).toBe(false);
   });
 
   it("steps zoom within 50–300%", () => {
