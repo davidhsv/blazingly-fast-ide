@@ -402,6 +402,10 @@ function SettingsWindowRow() {
     />
   );
 }
+const IDE_MODE_OPTIONS: readonly SelectOption[] = [
+  { value: "light", label: "Light mode", detail: "Editor, git and search; no language servers" },
+  { value: "full", label: "Full mode", detail: "Language servers, run and debug" },
+];
 
 const AA_OPTIONS: SelectOption<Antialiasing>[] = [
   { value: "subpixel", label: "Subpixel" },
@@ -1149,6 +1153,27 @@ export const BEHAVIOR_PAGES: PageSpec[] = [
             key: "general.closeTabsWithWindow",
             label: "Close all editor tabs when the window closes",
             hint: "Files left open are not restored the next time that project or a standalone file is opened.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "general.mode",
+    title: "IDE Mode",
+    group: APPEARANCE_GROUP,
+    order: 2,
+    projectScope: true,
+    keywords: ["light mode", "full mode", "language server", "lsp", "memory", "performance"],
+    sections: [
+      {
+        options: [
+          {
+            kind: "select",
+            key: "ide.mode",
+            label: "IDE mode",
+            options: IDE_MODE_OPTIONS,
+            hint: "Light: the editor, git, search and the syntax index only; no language server runs, and Find Usages and Call Hierarchy use text matches. Full: language servers and the background tooling they need start when files open.",
           },
         ],
       },

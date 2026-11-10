@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { registerAction } from "@/platform/actions";
+import { useProject } from "@/platform/project";
 import { ServerStatus } from "./ServerStatus";
 import { useServers, type ServerEntry } from "./servers";
 
@@ -33,6 +34,20 @@ describe("Language server status popup", () => {
     fireEvent.click(screen.getByRole("button", { name: "Configure jdtls…" }));
     expect(run).toHaveBeenCalledWith("jdtls");
     expect(screen.queryByRole("button", { name: "Configure jdtls…" })).toBeNull();
+    off();
+  });
+
+  it("says Light mode and offers Full mode while language servers are off", () => {
+    const run = vi.fn();
+    const off = registerAction({ id: "ide.toggleMode", title: "Toggle Light/Full Mode", run });
+    useProject.setState({ project: { root: "/p" } as never, settings: { ide: { mode: "light" } } });
+    useServers.setState({ servers: new Map([[1 as never, server("stopped", null)]]) });
+    render(<ServerStatus />);
+    fireEvent.click(screen.getByRole("button", { name: "Language servers: Light mode" }));
+    expect(screen.getByText("Language servers are off in Light mode.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Switch to Full Mode" }));
+    expect(run).toHaveBeenCalled();
+    useProject.setState({ project: null, settings: null });
     off();
   });
 
