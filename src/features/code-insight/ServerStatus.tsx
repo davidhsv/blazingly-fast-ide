@@ -17,8 +17,8 @@ export function ServerStatus() {
   const light = useProject((s) => !!s.project && ideMode(s.settings) === "light");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
-  // Light mode keeps every server off: say so instead of listing stopped servers.
-  const summary = light ? { text: tx("Light mode"), tone: "idle" as const } : serversSummary(servers);
+  // Blaze mode keeps every server off: say so instead of listing stopped servers.
+  const summary = light ? { text: tx("Blaze mode"), tone: "idle" as const } : serversSummary(servers);
   // features/tools owns installing; without it, fall back to the manual hint text.
   const canInstall = !!getAction("tools.install");
   if (!summary) return null;
@@ -50,7 +50,7 @@ export function ServerStatus() {
             <div className={styles.server}>
               <div className={styles.line}>
                 <span className={styles.status}>
-                  <T>Language servers are off in Light mode.</T>
+                  <T>Language servers are off in Blaze mode.</T>
                 </span>
                 <span className={styles.spacer} />
                 <Button
@@ -60,7 +60,7 @@ export function ServerStatus() {
                     void executeAction("ide.toggleMode", "widget");
                   }}
                 >
-                  <T>Switch to Full Mode</T>
+                  <T>Switch to Deep Mode</T>
                 </Button>
               </div>
             </div>

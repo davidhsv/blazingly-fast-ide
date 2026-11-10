@@ -1,7 +1,7 @@
-//! Find Usages and Call Hierarchy without a language server (Light mode, or a
+//! Find Usages and Call Hierarchy without a language server (Blaze mode, or a
 //! language none serves): whole-word text matches outside comments and string
 //! literals, placed with the syntax outline. The results are approximate and
-//! say so (`approximate`), so the UI can offer Full mode for exact ones.
+//! say so (`approximate`), so the UI can offer Deep mode for exact ones.
 
 use crate::Project;
 use ide_core::text::OutlineItem;

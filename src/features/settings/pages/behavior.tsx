@@ -355,8 +355,8 @@ function UiOptionsGrid() {
 }
 
 const IDE_MODE_OPTIONS: readonly SelectOption[] = [
-  { value: "light", label: "Light mode", detail: "Editor, git and search; no language servers" },
-  { value: "full", label: "Full mode", detail: "Language servers and the tooling they need" },
+  { value: "light", label: "Blaze mode", detail: "Editor, git and search; no language servers" },
+  { value: "full", label: "Deep mode", detail: "Language servers and the tooling they need" },
 ];
 
 const AA_OPTIONS: SelectOption<Antialiasing>[] = [
@@ -758,7 +758,7 @@ export const BEHAVIOR_PAGES: PageSpec[] = [
     group: APPEARANCE_GROUP,
     order: 2,
     projectScope: true,
-    keywords: ["light mode", "full mode", "language server", "lsp", "memory", "performance"],
+    keywords: ["Blaze mode", "Deep mode", "language server", "lsp", "memory", "performance"],
     sections: [
       {
         options: [

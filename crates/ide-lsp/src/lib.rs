@@ -214,7 +214,7 @@ pub struct LspManager {
     reconfigure_lock: tokio::sync::Mutex<()>,
     shutting_down: AtomicBool,
     execution_allowed: AtomicBool,
-    /// Off in Light mode: no server starts, running ones stop.
+    /// Off in Blaze mode: no server starts, running ones stop.
     servers_enabled: AtomicBool,
     java_usages_warned: AtomicBool,
     configuration_cache: Arc<Mutex<jdtls::configuration::ConfigurationCache>>,
@@ -285,7 +285,7 @@ fn user_did_open(server: &Server, run: &Running, path: &Path, uri: &lsp::Uri, pa
 /// `unavailableText` matches the "… doesn't support …" wording).
 /// Launch errors of the gates; the status UI shows them as the server's message.
 pub const RESTRICTED_MESSAGE: &str = "Project is in Restricted Mode";
-pub const LIGHT_MODE_MESSAGE: &str = "Project is in Light mode: language servers are off";
+pub const LIGHT_MODE_MESSAGE: &str = "Project is in Blaze mode: language servers are off";
 
 fn unsupported(servers: &[Arc<Server>], feature: &str) -> IdeError {
     let running: Vec<&str> = servers.iter().filter(|s| s.running().is_some()).map(|s| s.name.as_str()).collect();
@@ -555,7 +555,7 @@ impl LspManager {
         out
     }
 
-    /// Why no server may start right now: Restricted Mode (untrusted project) or Light mode.
+    /// Why no server may start right now: Restricted Mode (untrusted project) or Blaze mode.
     pub(crate) fn launch_block(&self) -> Option<&'static str> {
         if !self.execution_allowed.load(Ordering::Acquire) {
             Some(RESTRICTED_MESSAGE)
@@ -3193,14 +3193,14 @@ impl LspManager {
     }
 
     /// Restricted Mode (`false`) stops every server and starts none; trusting the
-    /// project (`true`) starts them again unless Light mode keeps them off.
+    /// project (`true`) starts them again unless Blaze mode keeps them off.
     pub fn set_execution_allowed(&self, allowed: bool) {
         let was_blocked = self.launch_block().is_some();
         self.execution_allowed.store(allowed, Ordering::Release);
         self.gate_changed(was_blocked);
     }
 
-    /// Light mode (`false`) stops every server and starts none; Full mode (`true`)
+    /// Blaze mode (`false`) stops every server and starts none; Deep mode (`true`)
     /// starts them for the open documents again. Restricted Mode still wins.
     pub fn set_servers_enabled(&self, enabled: bool) {
         let was_blocked = self.launch_block().is_some();
@@ -3238,7 +3238,7 @@ impl LspManager {
     /// (e.g. a new project interpreter); stopped ones pick it up on their next start.
     /// A change of `settings` alone reaches a running server without a restart.
     /// Servers no longer enabled stop; newly enabled ones attach to open documents.
-    /// While a gate is closed (Restricted or Light mode) every instance stops instead.
+    /// While a gate is closed (Restricted or Blaze mode) every instance stops instead.
     pub async fn reconfigure(&self) {
         let _reconfigure = self.reconfigure_lock.lock().await;
         if self.launch_block().is_some() {

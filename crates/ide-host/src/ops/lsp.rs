@@ -638,7 +638,7 @@ pub async fn lsp_references(
         if cancel.is_cancelled() {
             return Err(ide_core::IdeError::cancelled());
         }
-        // No server answers (Light mode, or none for the language): an explicit, project-wide
+        // No server answers (Blaze mode, or none for the language): an explicit, project-wide
         // Find Usages falls back to text matches. Scoped probes (code lenses) stay silent.
         let result = match result {
             Err(e) if project_wide && e.kind == ErrorKind::Unavailable => {
@@ -1400,7 +1400,7 @@ pub async fn lsp_call_hierarchy(
     let project = host.project(window)?;
     let cancel = host.begin_request(request);
     let result = match project.lsp.call_hierarchy(doc, pos, direction, cancel.clone()).await {
-        // No server answers (Light mode, or none for the language): callers / callees by text.
+        // No server answers (Blaze mode, or none for the language): callers / callees by text.
         Err(e) if e.kind == ErrorKind::Unavailable && !cancel.is_cancelled() => {
             let syntax = host.syntax();
             blocking(move || super::text_usages::call_hierarchy(&project, &syntax, doc, pos, direction, &cancel)).await

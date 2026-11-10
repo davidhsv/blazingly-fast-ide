@@ -1790,8 +1790,8 @@ back to the default.
 
 One IDE setting is readable by every plugin, schema or not: `host::setting("ide.mode")`
 (or `setting_string`) is the effective IDE mode of the invoking window's project,
-`"light"` (the default: editor, git, search and the syntax index; no language servers)
-or `"full"` (language servers and the tooling they need). It is read-only. A change
+`"light"` (Blaze mode, the default: editor, git, search and the syntax index; no language
+servers) or `"full"` (Deep mode: language servers and the tooling they need). It is read-only. A change
 of the mode reaches plugins subscribed to `settings-changed` as the key `ide.mode`
 in the event's list, next to their own changed keys.
 

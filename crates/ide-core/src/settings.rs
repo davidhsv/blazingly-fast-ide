@@ -343,7 +343,8 @@ impl Default for GeneralSettings {
             power_save_mode: false,
             project_name: String::new(),
             update_source: "auto".into(),
-            auto_check_updates: true,
+            // A fork: the official release would replace it.
+            auto_check_updates: false,
         }
     }
 }

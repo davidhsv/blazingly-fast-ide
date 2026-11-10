@@ -1,4 +1,4 @@
-//! Light mode: no language server runs, and Find Usages / Call Hierarchy fall back
+//! Blaze mode: no language server runs, and Find Usages / Call Hierarchy fall back
 //! to whole-word text matches placed with the syntax outline.
 
 use ide_core::settings::IdeMode;

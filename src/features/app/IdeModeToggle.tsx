@@ -21,14 +21,14 @@ export function IdeModeToggle() {
       aria-label={light ? tx("IDE mode: Light") : tx("IDE mode: Full")}
       tooltip={
         light
-          ? tx("Light mode: editor, git and search only, no language servers. Click to switch to Full mode.")
-          : tx("Full mode: language servers and the tooling feeding them are on. Click to switch to Light mode.")
+          ? tx("Blaze mode: editor, git and search only, no language servers. Click to switch to Deep mode.")
+          : tx("Deep mode: language servers and the tooling feeding them are on. Click to switch to Blaze mode.")
       }
       shortcut={shortcutLabel("ide.toggleMode")}
       onClick={() => void executeAction("ide.toggleMode", "widget")}
     >
       <Icon name={light ? "ide-mode-light" : "ide-mode-full"} size={16} />
-      {light ? tx("Light mode") : tx("Full mode")}
+      {light ? tx("Blaze mode") : tx("Deep mode")}
     </BarButton>
   );
 }

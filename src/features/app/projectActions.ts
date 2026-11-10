@@ -175,11 +175,11 @@ export function projectActions(): Action[] {
   return [
     {
       id: "ide.toggleMode",
-      title: "Toggle Light/Full Mode",
+      title: "Toggle Blaze/Deep Mode",
       category: "File",
-      description: "Light mode keeps language servers off (editor, git and search only); Full mode starts them",
+      description: "Blaze mode keeps language servers off (editor, git and search only); Deep mode starts them",
       icon: "ide-mode-full",
-      keywords: ["light mode", "full mode", "language servers", "lsp", "ide mode"],
+      keywords: ["Blaze mode", "Deep mode", "language servers", "lsp", "ide mode"],
       toggled: () => ideMode() === "full",
       run: () => toggleIdeMode(),
     },

@@ -817,7 +817,7 @@ async fn light_mode_stops_running_servers_and_starts_none_until_full_mode() {
     h.mgr.set_servers_enabled(false);
     h.mgr.reconfigure().await;
     h.wait_status("jdtls", ServerStatus::Stopped).await;
-    // Documents opened in Light mode attach no server; trusting the project starts none either.
+    // Documents opened in Blaze mode attach no server; trusting the project starts none either.
     h.open("Other.java", "class Other {}");
     h.mgr.set_execution_allowed(false);
     h.mgr.reconfigure().await;
@@ -826,7 +826,7 @@ async fn light_mode_stops_running_servers_and_starts_none_until_full_mode() {
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(state.launches.load(Ordering::SeqCst), 1);
     assert!(h.mgr.servers().iter().all(|s| s.status == ServerStatus::Stopped), "{:?}", h.mgr.servers());
-    // Full mode starts the servers of the open documents again.
+    // Deep mode starts the servers of the open documents again.
     h.mgr.set_servers_enabled(true);
     h.mgr.reconfigure().await;
     eventually(|| state.launches.load(Ordering::SeqCst) == 2 && state.docs.lock().len() == 2).await;
