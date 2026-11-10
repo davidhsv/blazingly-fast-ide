@@ -1250,17 +1250,47 @@ pub fn load_with_linked(
 }
 
 /// Shared linkage decision for every Maven consumer, including modules outside a reactor directory.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct UnlinkedProjects {
     poms: std::collections::BTreeSet<String>,
 }
 
+/// The last [`UnlinkedProjects::load`] per project root: its settings, the POMs it read
+/// (with their modification time and size) and the result.
+type UnlinkedCache = HashMap<PathBuf, (ide_core::settings::MavenSettings, Vec<PomStamp>, UnlinkedProjects)>;
+type PomStamp = (PathBuf, Option<(std::time::SystemTime, u64)>);
+
+static UNLINKED: OnceLock<Mutex<UnlinkedCache>> = OnceLock::new();
+
+fn pom_stamp(path: PathBuf) -> PomStamp {
+    let stamp = std::fs::metadata(&path).ok().and_then(|m| Some((m.modified().ok()?, m.len())));
+    (path, stamp)
+}
+
 impl UnlinkedProjects {
+    /// Memoized: the project's roots and excludes ask on every directory listing and
+    /// search, and reading the model again costs tens of milliseconds and megabytes on a
+    /// large reactor. A changed POM (or a root `pom.xml` appearing) reads it again.
     pub fn load(root: &Path, settings: &ide_core::settings::MavenSettings) -> Self {
         if settings.unlinked_projects.is_empty() {
             return Self::default();
         }
-        Self::from_model(&load_linked(root, settings), settings)
+        // Held while loading, so concurrent callers wait for one read instead of each building the model.
+        let mut cache = UNLINKED.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((cached, stamps, unlinked)) = cache.get(root)
+            && cached == settings
+            && stamps.iter().all(|(path, stamp)| pom_stamp(path.clone()).1 == *stamp)
+        {
+            return unlinked.clone();
+        }
+        let model = load_linked(root, settings);
+        let unlinked = Self::from_model(&model, settings);
+        let stamps = std::iter::once(root.join("pom.xml"))
+            .chain(model.projects.iter().map(|p| root.join(&p.pom)))
+            .map(pom_stamp)
+            .collect();
+        cache.insert(root.to_path_buf(), (settings.clone(), stamps, unlinked.clone()));
+        unlinked
     }
 
     pub fn from_model(model: &MavenModel, settings: &ide_core::settings::MavenSettings) -> Self {
@@ -1801,6 +1831,31 @@ mod tests {
         zip.start_file("META-INF/maven/plugin.xml", zip::write::SimpleFileOptions::default()).unwrap();
         std::io::Write::write_all(&mut zip, descriptor.as_bytes()).unwrap();
         zip.finish().unwrap();
+    }
+
+    #[test]
+    fn unlinked_projects_follow_pom_and_settings_changes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let write = |path: &str, modules: &[&str]| {
+            let modules: String = modules.iter().map(|m| format!("<module>{m}</module>")).collect();
+            std::fs::create_dir_all(root.join(path).parent().unwrap()).unwrap();
+            std::fs::write(root.join(path), format!("<project><modules>{modules}</modules></project>")).unwrap();
+        };
+        write("pom.xml", &["a"]);
+        write("a/pom.xml", &[]);
+        write("b/pom.xml", &[]);
+        let mut settings =
+            ide_core::settings::MavenSettings { unlinked_projects: vec!["a/pom.xml".into()], ..Default::default() };
+        let poms = |settings: &ide_core::settings::MavenSettings| {
+            UnlinkedProjects::load(root, settings).poms().map(str::to_owned).collect::<Vec<_>>()
+        };
+        assert_eq!(poms(&settings), ["a/pom.xml"]);
+        settings.unlinked_projects = vec!["pom.xml".into()];
+        assert_eq!(poms(&settings), ["a/pom.xml", "pom.xml"], "new settings read the model again");
+        assert_eq!(poms(&settings), ["a/pom.xml", "pom.xml"]);
+        write("pom.xml", &["a", "b"]);
+        assert_eq!(poms(&settings), ["a/pom.xml", "b/pom.xml", "pom.xml"], "an edited POM reads the model again");
     }
 
     #[test]
