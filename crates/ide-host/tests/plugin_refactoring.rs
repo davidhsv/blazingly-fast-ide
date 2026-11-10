@@ -250,6 +250,9 @@ async fn indexed_usages_rename_preview_staleness_and_grouped_undo() {
     );
     project.documents.close(doc.id);
     host.set_project_trust(&root, true, false).await.unwrap();
+    host.global_settings
+        .set(ide_workspace::settings::SettingsScope::Global, "ide.mode", serde_json::Value::String("full".into()))
+        .unwrap();
     let project = host.open_project("main", &root).unwrap();
     // BOM-less UTF-16 detection requires mostly ASCII pairs, even with emoji anchors.
     let padding = format!("ignored {}\n", "x".repeat(128));

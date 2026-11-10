@@ -259,6 +259,9 @@ async fn malicious_project_stays_editable_then_starts_in_place_after_trust() {
         "[languageServers.trust-witness]\nlanguages = ['python']\ncommand = {:?}\n[languageServers.pyright]\nenabled = false\n", root.join("server").to_str().unwrap()
     )).unwrap();
     let host = host(&tmp.path().join("app"), true);
+    host.global_settings
+        .set(ide_workspace::settings::SettingsScope::Global, "ide.mode", serde_json::Value::String("full".into()))
+        .unwrap();
     let project = host.open_project("main", &root).unwrap();
     assert!(!project.is_trusted());
     let doc = ops::doc::open(&host, "main", root.join("main.py")).await.unwrap();

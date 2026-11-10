@@ -424,7 +424,7 @@ impl Host {
                     // `.openidea/settings.toml` written by a tool or plugin (it is usually
                     // gitignored, hence `ignored`): applied as if set in Settings.
                     if settings_file_changed(&root, [&changed, &batch.removed, &ignored, &ignored_gone]) {
-                        apply_settings_file(&settings, &lsp, &sink);
+                        apply_settings_file(&settings, &lsp, &sink, Some(&kotlin_bridge), Some(&phpstan));
                     }
                     // Atomic saves by external tools surface as `created`.
                     documents.on_disk_changed(&[&changed[..], &ignored].concat());
@@ -1208,11 +1208,25 @@ const HISTORY_BATCH_LIMIT: usize = 500;
 /// Contents equal to the last snapshot (e.g. the IDE's own saves) are skipped.
 /// The batch's ignored files (`.env`), split into those still on disk and those removed.
 /// Applies a project's settings file changed on disk: windows and language servers follow it.
-fn apply_settings_file(settings: &SettingsStore, lsp: &Arc<LspManager>, sink: &SharedSink) {
+fn apply_settings_file(
+    settings: &SettingsStore,
+    lsp: &Arc<LspManager>,
+    sink: &SharedSink,
+    kotlin_bridge: Option<&Arc<crate::kotlin_bridge::KotlinBridge>>,
+    phpstan: Option<&Arc<crate::phpstan::Phpstan>>,
+) {
     let before = settings.effective();
     let after = settings.reload();
     if after != before {
         lsp.set_servers_enabled(after.ide.mode.is_full());
+        if after.ide.mode != before.ide.mode {
+            if let Some(bridge) = kotlin_bridge {
+                bridge.schedule();
+            }
+            if let Some(phpstan) = phpstan {
+                phpstan.interrupt();
+            }
+        }
         lsp.reconfigure_soon();
         sink.emit(IdeEvent::SettingsChanged { key: String::new() });
     }
@@ -1221,7 +1235,7 @@ fn apply_settings_file(settings: &SettingsStore, lsp: &Arc<LspManager>, sink: &S
 impl Project {
     /// See [`apply_settings_file`].
     pub(crate) fn apply_settings_file(&self) {
-        apply_settings_file(&self.settings, &self.lsp, &self.sink);
+        apply_settings_file(&self.settings, &self.lsp, &self.sink, self.kotlin_bridge.as_ref(), self.phpstan.as_ref());
     }
 
     /// The effective `ide.mode`.

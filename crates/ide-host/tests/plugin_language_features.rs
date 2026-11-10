@@ -89,6 +89,9 @@ async fn editor_ops_merge_the_fixture_format_selection_and_execute_owned_command
         runtime: tokio::runtime::Handle::current(),
         project_environment: false,
     }));
+    host.global_settings
+        .set(ide_workspace::settings::SettingsScope::Global, "ide.mode", serde_json::Value::String("full".into()))
+        .unwrap();
     host.open_project("main", &root).unwrap();
     let p = plugins(tmp.path());
     p.set_workspace(Some(Arc::new(HostWorkspace(Arc::downgrade(&host)))));

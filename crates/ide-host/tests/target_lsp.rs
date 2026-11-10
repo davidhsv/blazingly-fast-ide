@@ -105,6 +105,9 @@ exec "$@"
         runtime: tokio::runtime::Handle::current(),
         project_environment: false,
     }));
+    host.global_settings
+        .set(ide_workspace::settings::SettingsScope::Global, "ide.mode", serde_json::Value::String("full".into()))
+        .unwrap();
     host.open_project("main", &root).unwrap();
     host.set_project_trust(&root, true, false).await.unwrap();
     let plugins = Arc::new(

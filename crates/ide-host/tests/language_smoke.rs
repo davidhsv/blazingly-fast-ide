@@ -200,6 +200,9 @@ impl Smoke {
             project_environment: false,
         }));
         host.trust.decide(&root, true, false).unwrap();
+        host.global_settings
+            .set(ide_workspace::settings::SettingsScope::Global, "ide.mode", serde_json::Value::String("full".into()))
+            .unwrap();
         host.open_project(WINDOW, &root).unwrap();
         Smoke { language, host, root, events, warm_up: checks.warm_up, _tmp: tmp }
     }
