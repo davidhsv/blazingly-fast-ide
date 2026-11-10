@@ -809,6 +809,32 @@ async fn trusting_an_existing_java_instance_restarts_it_without_locking_the_regi
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn light_mode_stops_running_servers_and_starts_none_until_full_mode() {
+    let h = harness_for("java", "java", &[("jdtls", incremental_caps())], &[]);
+    h.open("Main.java", "class Main {}");
+    h.wait_status("jdtls", ServerStatus::Ready).await;
+    let state = h.launcher.state("jdtls");
+    h.mgr.set_servers_enabled(false);
+    h.mgr.reconfigure().await;
+    h.wait_status("jdtls", ServerStatus::Stopped).await;
+    // Documents opened in Light mode attach no server; trusting the project starts none either.
+    h.open("Other.java", "class Other {}");
+    h.mgr.set_execution_allowed(false);
+    h.mgr.reconfigure().await;
+    h.mgr.set_execution_allowed(true);
+    h.mgr.reconfigure().await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(state.launches.load(Ordering::SeqCst), 1);
+    assert!(h.mgr.servers().iter().all(|s| s.status == ServerStatus::Stopped), "{:?}", h.mgr.servers());
+    // Full mode starts the servers of the open documents again.
+    h.mgr.set_servers_enabled(true);
+    h.mgr.reconfigure().await;
+    eventually(|| state.launches.load(Ordering::SeqCst) == 2 && state.docs.lock().len() == 2).await;
+    h.wait_status("jdtls", ServerStatus::Ready).await;
+    h.mgr.shutdown_all().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn java_sharing_preserves_other_servers_and_marker_scoped_fallbacks() {
     for fallback in [false, true] {
         let h = harness_for(

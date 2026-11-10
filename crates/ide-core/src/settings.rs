@@ -65,6 +65,8 @@ pub struct Settings {
     pub agents: AgentSettings,
     /// Tools › MCP Server (global only).
     pub mcp_server: McpServerSettings,
+    /// Light / Full IDE mode (`ide.mode`): what starts beyond the editor, git, search and the index.
+    pub ide: IdeSettings,
     /// Plugin settings (`[contributes.settings]`): plugin id → its values by key.
     #[specta(type = BTreeMap<String, BTreeMap<String, specta_typescript::Unknown>>)]
     pub plugins: BTreeMap<String, serde_json::Map<String, serde_json::Value>>,
@@ -87,6 +89,38 @@ pub struct AgentSettings {
 impl Default for AgentSettings {
     fn default() -> Self {
         Self { show_context_usage: true, show_work_time: true, show_usage_limits: true, show_cost: false }
+    }
+}
+
+/// Appearance & Behavior › IDE Mode.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(default, rename_all = "camelCase")]
+pub struct IdeSettings {
+    pub mode: IdeMode,
+}
+
+/// How much of the IDE runs for a project. Light (the default) keeps the editor, git,
+/// search and the syntax index; Full also starts language servers and the heavy
+/// background tooling that feeds them (Kotlin bridge, PHPStan).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum IdeMode {
+    #[default]
+    Light,
+    Full,
+}
+
+impl IdeMode {
+    pub fn is_full(self) -> bool {
+        self == IdeMode::Full
+    }
+
+    /// The JSON value plugins read through `host::setting("ide.mode")`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            IdeMode::Light => "light",
+            IdeMode::Full => "full",
+        }
     }
 }
 
@@ -252,6 +286,7 @@ impl Default for Settings {
             cmake: CMakeSettings::default(),
             agents: AgentSettings::default(),
             mcp_server: McpServerSettings::default(),
+            ide: IdeSettings::default(),
             plugins: BTreeMap::new(),
         }
     }

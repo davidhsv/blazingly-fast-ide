@@ -145,7 +145,7 @@ impl Phpstan {
                 }
                 std::mem::take(&mut queue.files)
             };
-            if !self.trusted.load(Ordering::Acquire) {
+            if !self.trusted.load(Ordering::Acquire) || !self.settings.effective().ide.mode.is_full() {
                 continue;
             }
             let (root, config_dir, settings) = (self.root.clone(), self.config_dir.clone(), self.settings.clone());
@@ -639,7 +639,8 @@ mod tests {
             std::fs::write(&php, script).unwrap();
             std::fs::set_permissions(&php, std::fs::Permissions::from_mode(0o755)).unwrap();
             std::fs::create_dir_all(root.join(".openidea")).unwrap();
-            let settings = format!("[languages.php]\ninterpreter = {:?}\n", php.to_string_lossy());
+            let settings =
+                format!("[ide]\nmode = \"full\"\n\n[languages.php]\ninterpreter = {:?}\n", php.to_string_lossy());
             std::fs::write(root.join(".openidea/settings.toml"), settings).unwrap();
             let config = base.join("config");
             let settings = Arc::new(SettingsStore::load(&config, Some(&root)));

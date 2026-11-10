@@ -560,9 +560,7 @@ impl LspManager {
         self.runtime.spawn(async move {
             tokio::time::sleep(Duration::from_secs(2)).await;
             let Some(mgr) = weak.upgrade() else { return };
-            if mgr.shutting_down.load(std::sync::atomic::Ordering::Acquire)
-                || !mgr.execution_allowed.load(std::sync::atomic::Ordering::Acquire)
-            {
+            if mgr.shutting_down.load(std::sync::atomic::Ordering::Acquire) || mgr.launch_block().is_some() {
                 return;
             }
             let root = mgr.project_root.clone();

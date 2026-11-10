@@ -214,6 +214,8 @@ pub struct LspManager {
     reconfigure_lock: tokio::sync::Mutex<()>,
     shutting_down: AtomicBool,
     execution_allowed: AtomicBool,
+    /// Off in Light mode: no server starts, running ones stop.
+    servers_enabled: AtomicBool,
     java_usages_warned: AtomicBool,
     configuration_cache: Arc<Mutex<jdtls::configuration::ConfigurationCache>>,
     /// `window/showMessage` texts already surfaced; servers repeat them on every restart/reconfigure.
@@ -281,6 +283,10 @@ fn user_did_open(server: &Server, run: &Running, path: &Path, uri: &lsp::Uri, pa
 /// No target for `feature`: names the running servers that lack it, so the UI can
 /// tell "the server can't do this" from "no server is running" (the UI's
 /// `unavailableText` matches the "… doesn't support …" wording).
+/// Launch errors of the gates; the status UI shows them as the server's message.
+pub const RESTRICTED_MESSAGE: &str = "Project is in Restricted Mode";
+pub const LIGHT_MODE_MESSAGE: &str = "Project is in Light mode: language servers are off";
+
 fn unsupported(servers: &[Arc<Server>], feature: &str) -> IdeError {
     let running: Vec<&str> = servers.iter().filter(|s| s.running().is_some()).map(|s| s.name.as_str()).collect();
     if running.is_empty() {
@@ -424,6 +430,7 @@ impl LspManager {
             reconfigure_lock: tokio::sync::Mutex::new(()),
             shutting_down: AtomicBool::new(false),
             execution_allowed: AtomicBool::new(true),
+            servers_enabled: AtomicBool::new(true),
             java_usages_warned: AtomicBool::new(false),
             configuration_cache: Arc::new(Mutex::new(Default::default())),
             shown_messages: Mutex::new(HashSet::new()),
@@ -548,9 +555,20 @@ impl LspManager {
         out
     }
 
+    /// Why no server may start right now: Restricted Mode (untrusted project) or Light mode.
+    pub(crate) fn launch_block(&self) -> Option<&'static str> {
+        if !self.execution_allowed.load(Ordering::Acquire) {
+            Some(RESTRICTED_MESSAGE)
+        } else if !self.servers_enabled.load(Ordering::Acquire) {
+            Some(LIGHT_MODE_MESSAGE)
+        } else {
+            None
+        }
+    }
+
     /// The definitions of the servers `language` uses.
     fn language_servers(&self, language: &LanguageId) -> Vec<LanguageServerConfig> {
-        if !self.execution_allowed.load(Ordering::Acquire) {
+        if self.launch_block().is_some() {
             return Vec::new();
         }
         let Some(cfg) = self.languages.get(language) else { return Vec::new() };
@@ -610,7 +628,7 @@ impl LspManager {
     }
 
     fn ensure_started(&self, server: &Arc<Server>) {
-        if self.shutting_down.load(Ordering::Acquire) || !self.execution_allowed.load(Ordering::Acquire) {
+        if self.shutting_down.load(Ordering::Acquire) || self.launch_block().is_some() {
             return;
         }
         let workspace = is_local_jdtls(&server.config).then(|| self.jdtls_workspace_state());
@@ -664,12 +682,14 @@ impl LspManager {
         // The settings hook may touch the filesystem (e.g. scanning for JDKs); TCP
         // servers may take a while to start listening.
         let launched = tokio::task::spawn_blocking(move || {
-            if !me.execution_allowed.load(Ordering::Acquire) {
-                return Err(LaunchError::Config("Project is in Restricted Mode".into()));
+            if let Some(blocked) = me.launch_block() {
+                return Err(LaunchError::Config(blocked.into()));
             }
             let mut cfg = me.configured(&tail);
-            if !me.execution_allowed.load(Ordering::Acquire) || launch_cancel.is_cancelled() {
-                return Err(LaunchError::Config("Project is in Restricted Mode".into()));
+            if let Some(blocked) =
+                me.launch_block().or_else(|| launch_cancel.is_cancelled().then_some(RESTRICTED_MESSAGE))
+            {
+                return Err(LaunchError::Config(blocked.into()));
             }
             tail.set_effective_config(generation, cfg.clone());
             let prepare = me.prepare_hook.read().clone();
@@ -688,8 +708,10 @@ impl LspManager {
                 let missing = cfg.target.is_none() && !me.launcher.available(&cfg, &root);
                 return Err(if missing { LaunchError::Missing } else { LaunchError::Config(message.clone()) });
             }
-            if !me.execution_allowed.load(Ordering::Acquire) || launch_cancel.is_cancelled() {
-                return Err(LaunchError::Config("Project is in Restricted Mode".into()));
+            if let Some(blocked) =
+                me.launch_block().or_else(|| launch_cancel.is_cancelled().then_some(RESTRICTED_MESSAGE))
+            {
+                return Err(LaunchError::Config(blocked.into()));
             }
             me.launcher.launch_resolved(
                 &cfg,
@@ -1756,6 +1778,7 @@ impl LspManager {
                                 classified: found.clone(),
                                 incomplete: sources.incomplete,
                                 libraries_skipped: false,
+                                approximate: false,
                             });
                         }
                         query(false).await?
@@ -1788,7 +1811,13 @@ impl LspManager {
                     .collect();
                 let locations: Vec<Location> = classified.iter().map(|r| r.location.clone()).collect();
                 self.note_virtual(&t.server, locations.iter().map(|l| l.uri.as_deref()));
-                Ok(References { locations, classified, incomplete: widened.incomplete, libraries_skipped })
+                Ok(References {
+                    locations,
+                    classified,
+                    incomplete: widened.incomplete,
+                    libraries_skipped,
+                    approximate: false,
+                })
             }
             .await;
             match classified {
@@ -2875,7 +2904,7 @@ impl LspManager {
             return Err(IdeError::cancelled());
         }
         self.note_virtual(&t.server, out.iter().map(|i| i.uri.as_deref()));
-        Ok(CallHierarchy { items: out, incomplete })
+        Ok(CallHierarchy { items: out, incomplete, approximate: false })
     }
 
     pub async fn type_hierarchy(
@@ -3139,8 +3168,8 @@ impl LspManager {
     /// The server's base configuration with the settings hook applied.
     fn configured(&self, server: &Server) -> LanguageServerConfig {
         let mut cfg = server.config.clone();
-        if !self.execution_allowed.load(Ordering::Acquire) {
-            cfg.launch_error = Some("Project is in Restricted Mode".into());
+        if let Some(blocked) = self.launch_block() {
+            cfg.launch_error = Some(blocked.into());
             return cfg;
         }
         let in_target = self.target_hook.read().clone().is_some_and(|hook| {
@@ -3163,25 +3192,38 @@ impl LspManager {
         cfg
     }
 
-    /// Restarts running servers whose settings-derived configuration changed
-    /// (e.g. a new project interpreter); stopped ones pick it up on their next start.
-    /// A change of `settings` alone reaches a running server without a restart.
-    /// Servers no longer enabled stop; newly enabled ones attach to open documents.
+    /// Restricted Mode (`false`) stops every server and starts none; trusting the
+    /// project (`true`) starts them again unless Light mode keeps them off.
     pub fn set_execution_allowed(&self, allowed: bool) {
-        let previous = self.execution_allowed.swap(allowed, Ordering::AcqRel);
-        if !allowed {
+        let was_blocked = self.launch_block().is_some();
+        self.execution_allowed.store(allowed, Ordering::Release);
+        self.gate_changed(was_blocked);
+    }
+
+    /// Light mode (`false`) stops every server and starts none; Full mode (`true`)
+    /// starts them for the open documents again. Restricted Mode still wins.
+    pub fn set_servers_enabled(&self, enabled: bool) {
+        let was_blocked = self.launch_block().is_some();
+        self.servers_enabled.store(enabled, Ordering::Release);
+        self.gate_changed(was_blocked);
+    }
+
+    /// Cancels pending starts when a gate closed; restarts the known servers when the
+    /// last one opened. [`Self::reconfigure`] then stops instances / attaches servers to the open documents.
+    fn gate_changed(&self, was_blocked: bool) {
+        let blocked = self.launch_block().is_some();
+        if blocked {
             for server in self.servers.lock().iter() {
                 server.start_token().cancel();
             }
-        }
-        if allowed && !previous {
+        } else if was_blocked {
             let servers = self.servers.lock().clone();
             for server in &servers {
                 server.reset_for_restart();
                 self.ensure_started(server);
             }
         }
-        if allowed != previous {
+        if blocked != was_blocked {
             self.injection_providers_changed();
         }
     }
@@ -3192,9 +3234,14 @@ impl LspManager {
         self.runtime.spawn(async move { me.reconfigure().await });
     }
 
+    /// Restarts running servers whose settings-derived configuration changed
+    /// (e.g. a new project interpreter); stopped ones pick it up on their next start.
+    /// A change of `settings` alone reaches a running server without a restart.
+    /// Servers no longer enabled stop; newly enabled ones attach to open documents.
+    /// While a gate is closed (Restricted or Light mode) every instance stops instead.
     pub async fn reconfigure(&self) {
         let _reconfigure = self.reconfigure_lock.lock().await;
-        if !self.execution_allowed.load(Ordering::Acquire) {
+        if self.launch_block().is_some() {
             let servers = self.servers.lock().clone();
             join_all(servers.iter().map(|s| self.stop_instance(s, true))).await;
             return;

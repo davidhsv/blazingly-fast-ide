@@ -235,6 +235,11 @@ pub fn set_settings(
             host.runtime.spawn(async move { lsp.reconfigure().await });
         }
     }
+    if key == "ide" || key.starts_with("ide.") {
+        for project in affected().into_iter().filter(|p| !p.light) {
+            project.apply_ide_mode();
+        }
+    }
     let roots_changed = key == "projectStructure"
         || key.starts_with("projectStructure.")
         || "languages.java.maven.unlinkedProjects".starts_with(key)
