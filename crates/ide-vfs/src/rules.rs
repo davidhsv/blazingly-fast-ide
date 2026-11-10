@@ -314,11 +314,13 @@ impl GitignoreStack {
     /// Whether `path` (absolute) is ignored. `is_dir` refers to `path` itself.
     pub fn is_ignored(&self, path: &Path, is_dir: bool) -> bool {
         // A project's watcher can span independent nested repositories. Their local
-        // excludes and ignore ancestry must stop at their own repository boundary.
+        // excludes and ignore ancestry must stop at their own repository boundary, unless
+        // the outer repository ignores the nested one as a whole (`.claude/worktrees/<name>`).
         if let Some(parent) = path.parent()
             && let Some(nested) = self.nested_for(parent)
         {
-            return nested.is_ignored(path, is_dir);
+            return nested.repo_root.as_deref().is_some_and(|root| self.is_ignored(root, true))
+                || nested.is_ignored(path, is_dir);
         }
         if self.repo_root.as_deref() == Some(path) {
             return false;
@@ -474,6 +476,25 @@ mod tests {
         stack.invalidate_tree(&repo.join("a/b/c/new.rs"));
         assert_eq!(stack.nested.lock().by_root.len(), 1);
         assert!(Arc::ptr_eq(&nested, stack.nested.lock().by_root.get(&repo).unwrap()));
+    }
+
+    #[test]
+    fn a_nested_repository_in_an_ignored_folder_is_ignored_whole() {
+        let tmp = tempfile::tempdir().unwrap();
+        let workspace = tmp.path();
+        std::fs::create_dir_all(workspace.join(".git")).unwrap();
+        std::fs::write(workspace.join(".gitignore"), ".claude/worktrees\n").unwrap();
+        let worktree = workspace.join(".claude/worktrees/task");
+        std::fs::create_dir_all(worktree.join("src")).unwrap();
+        std::fs::write(worktree.join(".git"), "gitdir: ../../../.git/worktrees/task\n").unwrap();
+        let kept = workspace.join("vendor/lib");
+        std::fs::create_dir_all(kept.join("src")).unwrap();
+        std::fs::create_dir(kept.join(".git")).unwrap();
+
+        let stack = GitignoreStack::new(workspace);
+        assert!(stack.is_ignored(&worktree.join("src/Main.java"), false));
+        assert!(stack.is_ignored(&worktree.join("src"), true));
+        assert!(!stack.is_ignored(&kept.join("src/lib.rs"), false), "a nested repository the outer one keeps");
     }
 
     #[test]
