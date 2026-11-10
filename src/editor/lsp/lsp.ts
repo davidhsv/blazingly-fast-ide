@@ -61,7 +61,7 @@ export function incompleteNote(reason: ReferencesIncomplete, word: string | null
 /** The note beside text-match results: what they are and how to get exact ones. */
 export function approximateNote(): string {
   return ideMode() === "light"
-    ? tx("Text matches: switch to Full mode for exact results")
+    ? tx("Text matches: switch to Deep mode for exact results")
     : tx("Text matches: no language server answered");
 }
 

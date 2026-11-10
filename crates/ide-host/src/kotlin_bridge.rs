@@ -162,7 +162,7 @@ impl KotlinBridge {
             if !self.trusted.load(Ordering::Acquire) {
                 continue;
             }
-            // Light mode: no JDT to feed; the Maven / Gradle model load it needs is skipped too.
+            // Blaze mode: no JDT to feed; the Maven / Gradle model load it needs is skipped too.
             let settings = self.settings.effective();
             if !settings.ide.mode.is_full() {
                 continue;

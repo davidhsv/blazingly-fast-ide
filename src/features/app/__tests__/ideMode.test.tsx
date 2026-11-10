@@ -22,14 +22,14 @@ afterEach(() => {
   useProject.setState({ project: null, settings: null, lightEdit: false });
 });
 
-it("defaults to Light mode and switches the global value from the title bar", async () => {
+it("defaults to Blaze mode and switches the global value from the title bar", async () => {
   const dispose = registerActions(projectActions());
   useProject.setState({ project, settings: {} });
   expect(ideMode()).toBe("light");
   settingsSet.mockResolvedValueOnce(ok({ ide: { mode: "full" } }));
   render(<IdeModeToggle />);
   const button = screen.getByRole("button", { name: "IDE mode: Light" });
-  expect(button).toHaveTextContent("Light mode");
+  expect(button).toHaveTextContent("Blaze mode");
   expect(button).toHaveAttribute("aria-pressed", "false");
   fireEvent.click(button);
   await vi.waitFor(() => expect(ideMode()).toBe("full"));
