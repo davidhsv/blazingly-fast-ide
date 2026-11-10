@@ -4,7 +4,7 @@ import { Channel } from "@tauri-apps/api/core";
 import type { ClassifiedReference, ReferenceAccess, ReferenceKind, Location, References, RequestId } from "@/bindings";
 import { clearLineTokens } from "@/editor/lineTokens";
 import { showPendingHint } from "@/editor/lsp/hint";
-import { incompleteNote } from "@/editor/lsp/lsp";
+import { resultNote } from "@/editor/lsp/lsp";
 import { commands, IpcError, isCancelled, nextRequestId } from "@/platform/ipc";
 import { tx } from "@/platform/i18n";
 import { shortcutLabel } from "@/platform/keymap";
@@ -249,7 +249,7 @@ export async function fetchUsages(
       if (settled) return;
       onPartial({
         groups: groupUsages(refs.locations, files, refs.classified ?? []),
-        note: refs.incomplete ? incompleteNote(refs.incomplete, c.word) : null,
+        note: resultNote(refs, c.word),
         librariesSkipped: false,
       });
     });
@@ -263,7 +263,7 @@ export async function fetchUsages(
     locs = refs.locations;
     classified = refs.classified ?? [];
     librariesSkipped = refs.librariesSkipped ?? false;
-    if (refs.incomplete) note = incompleteNote(refs.incomplete, c.word);
+    note = resultNote(refs, c.word);
   } catch (e) {
     if (isCancelled(e)) throw e;
     let fb = null;

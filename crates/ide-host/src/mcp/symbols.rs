@@ -559,7 +559,7 @@ mod tests {
     }
 
     fn hierarchy(root: HierarchyItem, items: Vec<HierarchyItem>) -> CallHierarchy {
-        CallHierarchy { root: Some(root), items, incomplete: None }
+        CallHierarchy { root: Some(root), items, incomplete: None, approximate: false }
     }
 
     #[test]

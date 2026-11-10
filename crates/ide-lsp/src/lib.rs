@@ -2242,6 +2242,7 @@ impl LspManager {
                                 classified: found.clone(),
                                 incomplete: sources.incomplete,
                                 libraries_skipped: false,
+                                approximate: false,
                             });
                         }
                         query(false).await?
@@ -2275,7 +2276,13 @@ impl LspManager {
                 let locations: Vec<Location> = classified.iter().map(|r| r.location.clone()).collect();
                 self.note_virtual(&t.server, locations.iter().map(|l| l.uri.as_deref()));
                 self.note_arduino_sources(&t.server, &locations);
-                Ok(References { locations, classified, incomplete: widened.incomplete, libraries_skipped })
+                Ok(References {
+                    locations,
+                    classified,
+                    incomplete: widened.incomplete,
+                    libraries_skipped,
+                    approximate: false,
+                })
             }
             .await;
             match classified {
@@ -3390,7 +3397,7 @@ impl LspManager {
             return Err(IdeError::cancelled());
         }
         self.note_virtual(&t.server, out.iter().chain(&root).map(|i| i.uri.as_deref()));
-        Ok(CallHierarchy { root, items: out, incomplete })
+        Ok(CallHierarchy { root, items: out, incomplete, approximate: false })
     }
 
     /// The type at `pos` as the server's type hierarchy names it (with its `detail`, the

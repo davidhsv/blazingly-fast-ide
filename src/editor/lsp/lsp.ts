@@ -5,6 +5,7 @@ import { whenAllSynced, type EditorDocContext } from "@/editor/api";
 import { IpcError, call, isCancelled, isTauri, unavailableText } from "@/platform/ipc";
 import { hasInvokeRoute } from "@/platform/tauriCore";
 import { tx } from "@/platform/i18n";
+import { ideMode } from "@/platform/editorSettings";
 import type { IdeError, ReferencesIncomplete } from "@/bindings";
 import { showHint } from "./hint";
 
@@ -55,6 +56,25 @@ export function incompleteNote(reason: ReferencesIncomplete, word: string | null
         ? tx`May be incomplete: some files that mention '${word}' are too large or unreadable`
         : tx("May be incomplete: some files that mention the name are too large or unreadable");
   }
+}
+
+/** The note beside text-match results: what they are and how to get exact ones. */
+export function approximateNote(): string {
+  return ideMode() === "light"
+    ? tx("Text matches: switch to Full mode for exact results")
+    : tx("Text matches: no language server answered");
+}
+
+/** The note of a references / call hierarchy result, if it may be inexact. */
+export function resultNote(
+  result: { incomplete: ReferencesIncomplete | null; approximate?: boolean },
+  word: string | null,
+): string | null {
+  const notes = [
+    result.approximate ? approximateNote() : null,
+    result.incomplete ? incompleteNote(result.incomplete, word) : null,
+  ].filter((n): n is string => !!n);
+  return notes.length ? notes.join(" · ") : null;
 }
 
 export function isUnavailable(e: unknown): boolean {

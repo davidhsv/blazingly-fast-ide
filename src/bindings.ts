@@ -3273,6 +3273,8 @@ export type CallHierarchy = {
 	root?: HierarchyItem | null,
 	items: HierarchyItem[],
 	incomplete: ReferencesIncomplete | null,
+	/**  Text matches (no language server answered): same-named symbols are not told apart. */
+	approximate?: boolean,
 };
 
 /**  A capability as the UI shows it. */
@@ -6896,6 +6898,18 @@ remember: boolean } |
 /**  Backend document incarnation; stale queued events cannot target a reopen. */
 id: string; path: IpcPath; state: string; message: string | null };
 
+/**
+ *  How much of the IDE runs for a project. Light (the default) keeps the editor, git,
+ *  search and the syntax index; Full also starts language servers and the heavy
+ *  background tooling that feeds them (Kotlin bridge, PHPStan).
+ */
+export type IdeMode = "light" | "full";
+
+/**  Appearance & Behavior › IDE Mode. */
+export type IdeSettings = {
+	mode?: IdeMode,
+};
+
 /**  An identifier-like token whose text equals the searched name. */
 export type IdentifierOccurrence = {
 	range: Range,
@@ -9933,6 +9947,8 @@ export type References = {
 	incomplete: ReferencesIncomplete | null,
 	/**  The dependencies and the JDK were not searched (asked for without `libraries`). */
 	librariesSkipped?: boolean,
+	/**  Text matches (no language server answered): same-named symbols are not told apart. */
+	approximate?: boolean,
 };
 
 /**  Why a references search may have missed usages. */
@@ -10790,6 +10806,8 @@ export type Settings_Deserialize = {
 	agents?: AgentSettings_Deserialize,
 	/**  Agents › MCP Server (global only). */
 	mcpServer?: McpServerSettings,
+	/**  Light / Full IDE mode (`ide.mode`): what starts beyond the editor, git, search and the index. */
+	ide?: IdeSettings,
 	/**  Tools › Agents: Command Execution Policy. */
 	agentSecurity?: AgentSecuritySettings,
 	/**  Appearance & Behavior › Scopes: named file sets other settings refer to. */
@@ -10862,6 +10880,8 @@ export type Settings_Serialize = {
 	agents: AgentSettings_Serialize,
 	/**  Agents › MCP Server (global only). */
 	mcpServer: McpServerSettings,
+	/**  Light / Full IDE mode (`ide.mode`): what starts beyond the editor, git, search and the index. */
+	ide: IdeSettings,
 	/**  Tools › Agents: Command Execution Policy. */
 	agentSecurity: AgentSecuritySettings,
 	/**  Appearance & Behavior › Scopes: named file sets other settings refer to. */

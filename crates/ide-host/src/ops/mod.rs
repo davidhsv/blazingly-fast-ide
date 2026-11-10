@@ -37,6 +37,7 @@ pub mod ssh;
 pub mod stream_trace;
 pub mod syntax;
 pub mod term;
+pub mod text_usages;
 pub mod tools;
 pub mod vcs;
 pub mod web;

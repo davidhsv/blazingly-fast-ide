@@ -9,7 +9,7 @@ import {
   pythonAncestors,
   pythonSubtypes,
 } from "@/editor/navigation/pythonHierarchy";
-import { incompleteNote } from "@/editor/lsp/lsp";
+import { resultNote } from "@/editor/lsp/lsp";
 import { IpcError, call, commands, nextRequestId } from "@/platform/ipc";
 import { toolWindowService } from "@/workbench/contributions";
 import { basename } from "@/platform/project";
@@ -359,10 +359,10 @@ async function loadRoot(quiet = false): Promise<RootResult> {
     expanded: [ROOT_ID],
   });
   try {
-    const { items, incomplete } = await withDocument(root.path, (doc) =>
+    const result = await withDocument(root.path, (doc) =>
       request(s.mode, doc, root.path, root.line, root.col, s.direction),
     );
-    setChildren(generation, ROOT_ID, [rootKey(root)], items, incomplete && incompleteNote(incomplete, root.name));
+    setChildren(generation, ROOT_ID, [rootKey(root)], result.items, resultNote(result, root.name));
     prefetchLevels(useHierarchy.getState().children.get(ROOT_ID) ?? []);
     if (s.mode === "type") void loadRootDetail(generation, root);
     return "loaded";
@@ -413,16 +413,10 @@ export async function loadChildren(node: HierarchyNode, ahead = false) {
   const { mode, direction, generation } = useHierarchy.getState();
   const at = node.item.selectionRange.start;
   try {
-    const { items, incomplete } = await withDocument(node.item.path, (doc) =>
+    const result = await withDocument(node.item.path, (doc) =>
       request(mode, doc, node.item.path, at.line, at.col, direction),
     );
-    setChildren(
-      generation,
-      node.id,
-      nodeKeys.get(node) ?? [],
-      items,
-      incomplete && incompleteNote(incomplete, node.item.name),
-    );
+    setChildren(generation, node.id, nodeKeys.get(node) ?? [], result.items, resultNote(result, node.item.name));
     if (!ahead) prefetchLevels(useHierarchy.getState().children.get(node.id) ?? []);
   } catch (e) {
     if (ahead || useHierarchy.getState().generation !== generation) return;
