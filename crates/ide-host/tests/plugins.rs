@@ -31,6 +31,7 @@ struct TestWorkspace {
     /// plugin → its settings as the user set them.
     settings: Mutex<std::collections::BTreeMap<String, serde_json::Map<String, serde_json::Value>>>,
     global_settings: Mutex<std::collections::BTreeMap<String, serde_json::Map<String, serde_json::Value>>>,
+    ide_mode: Mutex<ide_core::settings::IdeMode>,
     /// What plugins sent the language server `mock`: (method, params, whether a notification).
     server_messages: Mutex<Vec<(String, Option<serde_json::Value>, bool)>>,
 }
@@ -51,6 +52,7 @@ impl TestWorkspace {
             diagnostics: Mutex::default(),
             settings: Mutex::default(),
             global_settings: Mutex::default(),
+            ide_mode: Mutex::default(),
             server_messages: Mutex::default(),
         })
     }
@@ -260,6 +262,9 @@ impl PluginWorkspace for TestWorkspace {
     fn plugin_settings(&self, plugin: &str, root: Option<&Path>) -> serde_json::Map<String, serde_json::Value> {
         let layer = if root.is_some() { &self.settings } else { &self.global_settings };
         layer.lock().get(plugin).cloned().unwrap_or_default()
+    }
+    fn ide_mode(&self, _root: Option<&Path>) -> ide_core::settings::IdeMode {
+        *self.ide_mode.lock()
     }
 }
 
@@ -2777,6 +2782,7 @@ fn git_toolbox_does_not_fetch_untrusted_projects() {
         diagnostics: Mutex::default(),
         settings: Mutex::default(),
         global_settings: Mutex::default(),
+        ide_mode: Mutex::default(),
         server_messages: Mutex::default(),
     });
     f.host.set_workspace(Some(untrusted));
@@ -6459,6 +6465,27 @@ fn api14_command_requests_preserve_window_result_and_reject_cycles() {
 }
 
 #[test]
+fn a_changed_ide_mode_reaches_plugins_as_a_settings_change() {
+    let f = fixture(Limits::default());
+    f.install(&sample("api14"));
+    use ide_plugin::WorkbenchEvent as E;
+    f.host.post_events(Some("main"), vec![E::SettingsChanged(Vec::new())]);
+    *f.workspace.ide_mode.lock() = ide_core::settings::IdeMode::Full;
+    f.host.post_window_events("main", vec![E::SettingsChanged(Vec::new())], None);
+    f.host.flush_events_at(Instant::now() + Duration::from_secs(2));
+    assert!(f.host.wait_events(Duration::from_secs(5)));
+    let received: serde_json::Value = serde_json::from_str(&f.run("api14", "events", None).unwrap().unwrap()).unwrap();
+    let events = received.as_array().unwrap();
+    assert_eq!(events.len(), 2, "{received}");
+    // The first post hands over every current key, `ide.mode` among them; the mode change
+    // is then the only key of the second.
+    assert_eq!(events[0]["kind"], "settings-changed");
+    assert_eq!(events[0]["data"], "[\"enabled\",\"ide.mode\"]");
+    assert_eq!(events[1]["kind"], "settings-changed");
+    assert_eq!(events[1]["data"], "[\"ide.mode\"]");
+}
+
+#[test]
 fn api14_settings_and_input_events_use_other_and_capture_the_editor() {
     let f = fixture(Limits::default());
     f.install(&sample("api14"));
@@ -6491,11 +6518,11 @@ fn api14_settings_and_input_events_use_other_and_capture_the_editor() {
     let received: serde_json::Value = serde_json::from_str(&f.run("api14", "events", None).unwrap().unwrap()).unwrap();
     let events = received.as_array().unwrap();
     assert_eq!(events.len(), 4, "{received}");
-    // The first synthetic post hands over the current keys ("enabled": false);
-    // the second is a real diff to true. Keys come from the recomputed
-    // snapshot, never from the event payload ("another-plugin-key").
+    // The first synthetic post hands over the current keys ("enabled": false, and the
+    // IDE mode every plugin reads); the second is a real diff to true. Keys come from the
+    // recomputed snapshot, never from the event payload ("another-plugin-key").
     assert_eq!(events[0]["kind"], "settings-changed");
-    assert_eq!(events[0]["data"], "[\"enabled\"]");
+    assert_eq!(events[0]["data"], "[\"enabled\",\"ide.mode\"]");
     assert_eq!(events[1]["kind"], "settings-changed");
     assert_eq!(events[1]["data"], "[\"enabled\"]");
     assert_eq!(events[3]["kind"], "input-mode-changed");

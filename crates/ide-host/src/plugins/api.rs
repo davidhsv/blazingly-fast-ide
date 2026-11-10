@@ -157,7 +157,14 @@ pub trait PluginWorkspace: Send + Sync {
     fn plugin_settings(&self, _plugin: &str, _root: Option<&Path>) -> serde_json::Map<String, serde_json::Value> {
         serde_json::Map::new()
     }
+    /// The effective `ide.mode` of the project at `root` (or the global one).
+    fn ide_mode(&self, _root: Option<&Path>) -> ide_core::settings::IdeMode {
+        ide_core::settings::IdeMode::default()
+    }
 }
+
+/// The IDE setting every plugin reads through `host::setting`, next to its own.
+pub const IDE_MODE_KEY: &str = "ide.mode";
 
 /// Where plugin secrets live (the OS keychain on the desktop). Plugins can
 /// only ask whether one is set; values go out only inside `net` requests.
@@ -715,6 +722,9 @@ impl Shared {
                     }
                 }
             }
+        }
+        if let Some(mode) = api.setting(root.as_deref(), IDE_MODE_KEY) {
+            current.insert(IDE_MODE_KEY.into(), mode);
         }
         let previous =
             self.setting_snapshots.lock().insert((client.map(str::to_owned), pkg.id().into()), current.clone());
@@ -3027,6 +3037,10 @@ impl HostApi for PluginApi {
     }
 
     fn setting(&self, root: Option<&Path>, key: &str) -> Option<String> {
+        if key == IDE_MODE_KEY {
+            let mode = self.shared.workspace().map(|w| w.ide_mode(root)).unwrap_or_default();
+            return serde_json::to_string(mode.as_str()).ok();
+        }
         let schema: Vec<super::ui_points::SettingSchema> = self
             .shared
             .ui
@@ -3584,17 +3598,26 @@ impl PluginWorkspace for HostWorkspace {
     }
 
     fn plugin_settings(&self, plugin: &str, root: Option<&Path>) -> serde_json::Map<String, serde_json::Value> {
-        let Some(host) = self.0.upgrade() else { return serde_json::Map::new() };
-        // A member root reads the settings of the group's project, like the
-        // group's own root does.
-        let settings = match root.and_then(|r| host.projects().into_iter().find(|p| p.root == r)) {
+        self.settings_at(root).map(|s| s.plugins.get(plugin).cloned().unwrap_or_default()).unwrap_or_default()
+    }
+
+    fn ide_mode(&self, root: Option<&Path>) -> ide_core::settings::IdeMode {
+        self.settings_at(root).map(|s| s.ide.mode).unwrap_or_default()
+    }
+}
+
+impl HostWorkspace {
+    /// The effective settings of the project at `root`, else the global ones. A member root reads
+    /// the settings of the group's project, like the group's own root does.
+    fn settings_at(&self, root: Option<&Path>) -> Option<ide_core::settings::Settings> {
+        let host = self.0.upgrade()?;
+        Some(match root.and_then(|r| host.projects().into_iter().find(|p| p.root == r)) {
             Some(p) => p.settings.effective(),
             None => match root.map(|r| HostWorkspace::project_covering(self, r)) {
                 Some(Some(p)) => p.settings.effective(),
                 _ => host.global_settings.effective(),
             },
-        };
-        settings.plugins.get(plugin).cloned().unwrap_or_default()
+        })
     }
 }
 
@@ -3750,6 +3773,14 @@ mod tests {
             api.write_bytes_file(&path, b"bytes").unwrap();
             assert_eq!(std::fs::read(&path).unwrap(), b"bytes");
         }
+    }
+
+    #[test]
+    fn ide_mode_is_readable_without_a_schema_and_defaults_to_light() {
+        let tmp = tempfile::tempdir().unwrap();
+        let api = api(tmp.path(), Arc::default());
+        assert_eq!(api.setting(None, IDE_MODE_KEY).as_deref(), Some("\"light\""));
+        assert_eq!(api.setting(None, "other"), None);
     }
 
     #[test]
