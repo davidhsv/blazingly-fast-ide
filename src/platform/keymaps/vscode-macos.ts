@@ -30,6 +30,7 @@ export const vscodeMacos: Record<string, string[]> = {
   "navigate.nextError": ["F8"],
   "navigate.prevError": ["Shift+F8"],
   "navigate.callHierarchy": ["Alt+Shift+H"],
+  "ide.toggleMode": ["Ctrl+Alt+Shift+M"],
   "navigate.showFilePath": [],
   "navigate.customRegion": [],
   "editor.contextInfo": [],

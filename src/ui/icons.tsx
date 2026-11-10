@@ -248,6 +248,8 @@ const ICONS = {
   settings: "general/settings",
   help: "openidea/general/help",
   "page-first": "openidea/general/pageFirst",
+  "ide-mode-light": "openidea/general/lightMode",
+  "ide-mode-full": "openidea/general/fullMode",
   "page-last": "openidea/general/pageLast",
   sliders: "openidea/general/sliders",
   "graphql-variables": "openidea/general/graphqlVariables",

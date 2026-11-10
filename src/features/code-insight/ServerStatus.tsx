@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { getAction, executeAction } from "@/platform/actions";
 import { BarButton, Button, IconButton, Popup, T } from "@/ui";
 import { downloadJdkActions } from "@/platform/jdk";
+import { ideMode } from "@/platform/editorSettings";
 import { relativePath, useProject } from "@/platform/project";
 import { STATUS_LABEL, restartServer, servedByOther, serversSummary, useServers } from "./servers";
 import styles from "./ServerStatus.module.css";
@@ -13,9 +14,11 @@ export function ServerStatus() {
   const map = useServers((s) => s.servers);
   const servers = useMemo(() => [...map.values()].sort((a, b) => a.name.localeCompare(b.name)), [map]);
   const root = useProject((s) => s.project?.root ?? "");
+  const light = useProject((s) => !!s.project && ideMode(s.settings) === "light");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
-  const summary = serversSummary(servers);
+  // Light mode keeps every server off: say so instead of listing stopped servers.
+  const summary = light ? { text: tx("Light mode"), tone: "idle" as const } : serversSummary(servers);
   // features/tools owns installing; without it, fall back to the manual hint text.
   const canInstall = !!getAction("tools.install");
   if (!summary) return null;
@@ -43,6 +46,25 @@ export function ServerStatus() {
           <div className={styles.header}>
             <T>Language Servers</T>
           </div>
+          {light && (
+            <div className={styles.server}>
+              <div className={styles.line}>
+                <span className={styles.status}>
+                  <T>Language servers are off in Light mode.</T>
+                </span>
+                <span className={styles.spacer} />
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setOpen(false);
+                    void executeAction("ide.toggleMode", "widget");
+                  }}
+                >
+                  <T>Switch to Full Mode</T>
+                </Button>
+              </div>
+            </div>
+          )}
           {servers.map((s) => {
             // jdtls without a JDK new enough to run it: "Download JDK 25".
             const [jdkFix] = s.status === "misconfigured" ? downloadJdkActions(s.message) : [];

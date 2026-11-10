@@ -1,0 +1,8 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding-inline: 8px;
+  border-radius: 6px;
+}

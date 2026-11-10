@@ -27,6 +27,7 @@ export const intellijWindows: Record<string, string[]> = {
   "navigate.nextError": ["F2"],
   "navigate.prevError": ["Shift+F2"],
   "navigate.callHierarchy": ["Ctrl+Alt+H"],
+  "ide.toggleMode": ["Ctrl+Alt+Shift+M"],
   "navigate.typeHierarchy": ["Ctrl+H"],
   "navigate.toggleBookmark": ["F11"],
   "navigate.showBookmarks": ["Shift+F11"],

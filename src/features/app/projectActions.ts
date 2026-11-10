@@ -4,7 +4,7 @@
  * Save Mode (with its editor banner).
  */
 import { executeAction, type Action } from "@/platform/actions";
-import { isPowerSaveMode } from "@/platform/editorSettings";
+import { ideMode, isPowerSaveMode, type IdeMode } from "@/platform/editorSettings";
 import { call, commands, isTauri } from "@/platform/ipc";
 import { useProject } from "@/platform/project";
 import { notifications, registerEditorBanner } from "@/workbench/contributions";
@@ -147,6 +147,25 @@ async function togglePowerSave() {
   }
 }
 
+/**
+ * Switches `ide.mode` globally; a project override that hides the global value is
+ * switched too, so the toggle always takes effect in the current window.
+ */
+export async function toggleIdeMode() {
+  const next: IdeMode = ideMode() === "light" ? "full" : "light";
+  const value = JSON.stringify(next);
+  try {
+    let settings = await call(commands.settingsSet("global", "ide.mode", value));
+    const { project, lightEdit } = useProject.getState();
+    if (project && !lightEdit && ideMode(settings) !== next) {
+      settings = await call(commands.settingsSet("project", "ide.mode", value));
+    }
+    useProject.setState({ settings });
+  } catch (e) {
+    notifications().notify({ level: "error", title: "Cannot change the IDE mode", body: errorText(e) });
+  }
+}
+
 const desktop = (run: () => Promise<void>) => () => {
   if (isTauri()) return run();
   notifications().notify({ level: "warning", title: "This needs the desktop app" });
@@ -154,6 +173,16 @@ const desktop = (run: () => Promise<void>) => () => {
 
 export function projectActions(): Action[] {
   return [
+    {
+      id: "ide.toggleMode",
+      title: "Toggle Light/Full Mode",
+      category: "File",
+      description: "Light mode keeps language servers off (editor, git and search only); Full mode starts them",
+      icon: "ide-mode-full",
+      keywords: ["light mode", "full mode", "language servers", "lsp", "ide mode"],
+      toggled: () => ideMode() === "full",
+      run: () => toggleIdeMode(),
+    },
     {
       id: "file.newProject",
       title: "New Project…",

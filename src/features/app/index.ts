@@ -2,7 +2,8 @@
  * Desktop shell integration: native menu bridge, multi-window, window title,
  * close / quit guards, About, Keymap Reference, logs, update check and i18n wiring.
  */
-import { registerOverlay, registerStatusItem } from "@/workbench/contributions";
+import { registerOverlay, registerStatusItem, registerTitleItem } from "@/workbench/contributions";
+import { IdeModeToggle } from "./IdeModeToggle";
 import { AboutOverlay } from "./AboutDialog";
 import { appActions, updateActions } from "./appActions";
 import { installUpdateChecks } from "./updates";
@@ -47,6 +48,7 @@ export function activate(): () => void {
     }),
     registerLocalizedActions(projectActions),
     registerPowerSaveBanner(),
+    registerTitleItem({ id: "app.ideMode", title: "IDE Mode", align: "right", priority: 1, component: IdeModeToggle }),
     registerInvalidateCachesActions(),
     installMenuBridge(),
     installWindowTitle(),
