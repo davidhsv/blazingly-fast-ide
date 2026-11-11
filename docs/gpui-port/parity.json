@@ -138,5 +138,17 @@
   "point.registerToolWindow:project": {
     "status": "partial",
     "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; shown in a fixed left pane, not yet a tool window with a stripe button and header"
+  },
+  "point.registerStatusItem:editor.caret": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; text only: no Go to Line popup on click, no multi-caret count"
+  },
+  "point.registerStatusItem:editor.lineEnding": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; label only: no menu to change the separator"
+  },
+  "point.registerStatusItem:editor.encoding": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; label only: no reload / convert menu"
   }
 }

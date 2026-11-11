@@ -34,6 +34,8 @@ pub struct Workbench {
     /// The label the backend knows this window by.
     label: String,
     content: Content,
+    /// Redraws the status bar when the shown editor changes.
+    editor_observer: Option<Subscription>,
 }
 
 /// The workbench of each window, so that an action can find what it acts on.
@@ -64,7 +66,7 @@ impl Workbench {
             crate::platform::context::drop_window_context(id, cx);
         })
         .detach();
-        Self { label: label.to_owned(), content: Content::Empty }
+        Self { label: label.to_owned(), content: Content::Empty, editor_observer: None }
     }
 
     pub fn label(&self) -> &str {
@@ -77,6 +79,17 @@ impl Workbench {
             Content::Project { editor, .. } => editor.as_ref(),
             _ => None,
         }
+    }
+
+    /// The status bar's right-hand items for the shown editor: caret position, line separator
+    /// and encoding, in that order.
+    pub fn status_items(&self, cx: &App) -> Vec<String> {
+        let Some(status) = self.editor().map(|editor| editor.read(cx).status()) else { return Vec::new() };
+        vec![status.caret_text(), status.line_ending_text().to_owned(), status.encoding.to_uppercase()]
+    }
+
+    fn observe_editor(&mut self, editor: &Entity<Editor>, cx: &mut Context<Self>) {
+        self.editor_observer = Some(cx.observe(editor, |_, _, cx| cx.notify()));
     }
 
     /// The file tree, when a project is open.
@@ -140,16 +153,21 @@ impl Workbench {
                             project.documents.rope_snapshot(info.id).map_err(|error| error.message)?;
                         Ok((info, version, rope))
                     });
+                let mut shown = None;
                 match (text, &mut workbench.content) {
                     (Ok((info, version, rope)), Content::Project { editor, .. }) => {
                         let opened = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
                         let focus = opened.focus_handle(cx);
                         window.focus(&focus, cx);
-                        *editor = Some(opened);
+                        *editor = Some(opened.clone());
+                        shown = Some(opened);
                     }
                     // The project was closed while the file was opening.
                     (Ok(_), _) => {}
                     (Err(message), _) => tracing::error!("cannot open the file: {message}"),
+                }
+                if let Some(editor) = shown {
+                    workbench.observe_editor(&editor, cx);
                 }
                 cx.notify();
             });
@@ -199,6 +217,7 @@ impl Workbench {
                         let editor = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
                         let focus = editor.focus_handle(cx);
                         window.focus(&focus, cx);
+                        workbench.observe_editor(&editor, cx);
                         Content::Editor(editor)
                     }
                     Err(message) => Content::Failed(message.into()),
@@ -256,7 +275,23 @@ impl Render for Workbench {
                     cx.stop_propagation();
                 }
             }))
-            .child(body)
+            .flex()
+            .flex_col()
+            .child(div().flex_1().min_h_0().w_full().child(body))
+            .children(self.editor().is_some().then(|| {
+                // The status bar: plain UI text, items right-aligned as in the webview's footer.
+                div()
+                    .h(theme::length(cx, "h-statusbar") + gpui_kit::px(4.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .justify_end()
+                    .gap(gpui_kit::px(16.0))
+                    .pl(gpui_kit::px(12.0))
+                    .pr(gpui_kit::px(10.0))
+                    .text_color(theme::color(cx, "fg-muted"))
+                    .children(self.status_items(cx).into_iter().map(SharedString::from))
+            }))
     }
 }
 
@@ -366,6 +401,30 @@ mod tests {
         // The editor takes focus, so typing edits the file that was opened.
         cx.simulate_input("// ");
         assert_eq!(editor.read_with(cx, |e, _| e.text()), "// const a = 1;\n");
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.close_project("w1");
+    }
+
+    // src/editor/core/view/statusItems.test.tsx (caret, line separator and encoding widgets)
+    #[gpui_kit::test]
+    async fn the_status_bar_follows_the_editors_caret_and_selection(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let file = folder.path().join("notes.txt");
+        std::fs::write(&file, "ab\r\ncd\r\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        assert!(workbench.read_with(cx, |w, cx| w.status_items(cx)).is_empty());
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_file(file.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let items = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, cx| w.status_items(cx));
+        assert_eq!(items(cx), ["1:1", "CRLF", "UTF-8"]);
+        cx.simulate_keystrokes("down right");
+        assert_eq!(items(cx), ["2:2", "CRLF", "UTF-8"]);
+        cx.simulate_keystrokes("shift-right");
+        assert_eq!(items(cx), ["2:3 (1 chars)", "CRLF", "UTF-8"]);
+        // A line break is one character of the selection, whatever the file's line separator.
+        cx.simulate_keystrokes("cmd-a");
+        assert_eq!(items(cx)[0], "3:1 (6 chars, 2 line breaks)");
         let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
         host.close_project("w1");
     }

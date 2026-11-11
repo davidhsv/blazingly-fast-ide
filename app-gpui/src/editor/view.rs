@@ -25,6 +25,7 @@ use ide_core::error::ErrorKind;
 use ide_core::{ChangeSet, DocId, IdeEvent, IdeResult, LanguageId, TextChange};
 use ide_host::Host;
 use ide_language::SyntaxHighlightKind;
+use ide_text::LineEnding;
 use ide_workspace::DocumentInfo;
 use ropey::Rope;
 use std::future::Future;
@@ -69,6 +70,45 @@ pub struct HighlightSpan {
     pub kind: SyntaxHighlightKind,
 }
 
+/// The active editor's state as the status bar shows it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EditorStatus {
+    /// Zero-based line and UTF-16 column of the caret.
+    pub line: u32,
+    pub col: u32,
+    /// Length of the selection in UTF-16 code units, and the line breaks it spans.
+    pub selected_chars: u32,
+    pub selected_line_breaks: u32,
+    pub line_ending: LineEnding,
+    pub encoding: String,
+    pub read_only: bool,
+}
+
+impl EditorStatus {
+    /// `12:5`, with the selection's size when there is one: `12:5 (40 chars, 2 line breaks)`.
+    pub fn caret_text(&self) -> String {
+        let mut text = format!("{}:{}", self.line + 1, self.col + 1);
+        if self.selected_chars > 0 {
+            text.push_str(&format!(" ({} chars", self.selected_chars));
+            match self.selected_line_breaks {
+                0 => {}
+                1 => text.push_str(", 1 line break"),
+                n => text.push_str(&format!(", {n} line breaks")),
+            }
+            text.push(')');
+        }
+        text
+    }
+
+    pub fn line_ending_text(&self) -> &'static str {
+        match self.line_ending {
+            LineEnding::Lf => "LF",
+            LineEnding::CrLf => "CRLF",
+            LineEnding::Cr => "CR",
+        }
+    }
+}
+
 /// What the last frame drew, for hit-testing and the platform's text input.
 struct Layout {
     bounds: Bounds<Pixels>,
@@ -89,6 +129,8 @@ pub struct Editor {
     language: LanguageId,
     read_only: bool,
     large: bool,
+    line_ending: LineEnding,
+    encoding: String,
     rope: Rope,
     version: u32,
     /// The selection in UTF-16 offsets: `anchor` stays, `head` is the caret.
@@ -150,6 +192,8 @@ impl Editor {
             language: info.language.clone(),
             read_only: info.read_only,
             large: info.large,
+            line_ending: info.line_ending,
+            encoding: info.encoding.clone(),
             rope,
             version,
             anchor: 0,
@@ -201,6 +245,22 @@ impl Editor {
     /// The caret's UTF-16 offset.
     pub fn caret(&self) -> u32 {
         self.head
+    }
+
+    /// What the status bar shows about this editor.
+    pub fn status(&self) -> EditorStatus {
+        let selection = self.selection();
+        let (line, col) = self.caret_position();
+        let line_of = |offset| buffer::line_col(&self.rope, offset).0;
+        EditorStatus {
+            line,
+            col,
+            selected_chars: selection.end - selection.start,
+            selected_line_breaks: line_of(selection.end) - line_of(selection.start),
+            line_ending: self.line_ending,
+            encoding: self.encoding.clone(),
+            read_only: self.read_only,
+        }
     }
 
     /// The caret's zero-based line and UTF-16 column.
