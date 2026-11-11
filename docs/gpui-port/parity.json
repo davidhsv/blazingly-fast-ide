@@ -1,16 +1,28 @@
 {
-  "unit:src/platform/context.test.ts": { "status": "done", "proof": "`platform::context::tests`" },
+  "unit:src/platform/context.test.ts": {
+    "status": "done",
+    "proof": "`platform::context::tests`"
+  },
   "unit:src/platform/keymap.test.ts": {
     "status": "done",
     "proof": "`platform::keymap::tests`, `platform::dispatcher::tests`"
   },
-  "unit:src/platform/i18n.test.ts": { "status": "done", "proof": "`platform::i18n::tests`" },
-  "module:src/platform/context.ts": { "status": "done", "proof": "`platform::context::tests`" },
-  "module:src/platform/keymap.ts": {
-    "status": "partial",
-    "proof": "`platform::keymap::tests`, `platform::dispatcher::tests`; not yet fed from window events"
+  "unit:src/platform/i18n.test.ts": {
+    "status": "done",
+    "proof": "`platform::i18n::tests`"
   },
-  "module:src/platform/i18n.ts": { "status": "done", "proof": "`platform::i18n::tests`" },
+  "module:src/platform/context.ts": {
+    "status": "done",
+    "proof": "`platform::context::tests`"
+  },
+  "module:src/platform/keymap.ts": {
+    "status": "done",
+    "proof": "`platform::keymap::tests`, `platform::dispatcher::tests`, `platform::input::tests`"
+  },
+  "module:src/platform/i18n.ts": {
+    "status": "done",
+    "proof": "`platform::i18n::tests`"
+  },
   "keymap:intellij-macos": {
     "status": "done",
     "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
@@ -35,7 +47,10 @@
     "status": "done",
     "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
   },
-  "design:tokens": { "status": "done", "proof": "`theme::tokens::tests::every_token_resolves_in_every_builtin_theme`" },
+  "design:tokens": {
+    "status": "done",
+    "proof": "`theme::tokens::tests::every_token_resolves_in_every_builtin_theme`"
+  },
   "design:locale.en.json": {
     "status": "done",
     "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
@@ -63,5 +78,13 @@
   "design:locale.es.json": {
     "status": "done",
     "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
+  },
+  "unit:src/platform/actions.test.ts": {
+    "status": "partial",
+    "proof": "`platform::actions::tests`; error propagation of `execute_action_or_throw` has no window test yet"
+  },
+  "module:src/platform/actions.ts": {
+    "status": "partial",
+    "proof": "`platform::actions::tests`, `platform::input::tests`; handlers exist for no feature action yet"
   }
 }

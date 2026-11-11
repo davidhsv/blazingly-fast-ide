@@ -9,9 +9,11 @@
 //! unary := "!" unary | "(" expr ")" | cmp ; cmp := key (("==" | "!=") value)?
 //! ```
 
+use gpui_kit::{App, Global, Window, WindowId};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::fmt;
+use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
 
 /// A fact's value. An absent key is falsy and equal to nothing.
@@ -321,6 +323,49 @@ pub fn evaluate_when(expr: Option<&str>, ctx: &ContextKeys) -> Result<bool, When
         None => Ok(true),
         Some(expr) => Ok(compile_when(expr)?.eval(ctx)),
     }
+}
+
+/// Each window's facts. The webview UI keeps them in a per-webview store; here one process
+/// serves every window, so they are kept per window.
+#[derive(Default)]
+pub struct ContextStore {
+    windows: HashMap<WindowId, Rc<ContextKeys>>,
+}
+
+impl Global for ContextStore {}
+
+/// The context keys of `window`.
+pub fn window_context(window: &Window, cx: &App) -> Rc<ContextKeys> {
+    cx.try_global::<ContextStore>()
+        .and_then(|store| store.windows.get(&window.window_handle().window_id()).cloned())
+        .unwrap_or_default()
+}
+
+/// Publishes a fact for `window`; the window is redrawn when the value changed.
+pub fn set_context(window: &mut Window, cx: &mut App, key: &str, value: impl Into<ContextValue>) {
+    let id = window.window_handle().window_id();
+    let keys = cx.default_global::<ContextStore>().windows.entry(id).or_default();
+    if Rc::make_mut(keys).set(key, value) {
+        window.refresh();
+    }
+}
+
+/// Withdraws a fact of `window`.
+pub fn clear_context(window: &mut Window, cx: &mut App, key: &str) {
+    let id = window.window_handle().window_id();
+    let cleared = cx
+        .default_global::<ContextStore>()
+        .windows
+        .get_mut(&id)
+        .is_some_and(|keys| keys.contains(key) && Rc::make_mut(keys).clear(key));
+    if cleared {
+        window.refresh();
+    }
+}
+
+/// Forgets a closed window's facts.
+pub fn drop_window_context(window: WindowId, cx: &mut App) {
+    cx.default_global::<ContextStore>().windows.remove(&window);
 }
 
 #[cfg(test)]
