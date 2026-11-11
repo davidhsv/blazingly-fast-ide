@@ -5,6 +5,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+# Highlight queries for the languages the webview highlights with CodeMirror: for a UI without
+# CodeMirror (the GPUI app). Off in the Tauri build, which then compiles none of them.
+native-highlights = []
+
 [dependencies]
 ide-core.workspace = true
 ide-extension.workspace = true

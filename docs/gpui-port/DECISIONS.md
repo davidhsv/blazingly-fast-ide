@@ -78,7 +78,9 @@ Open risk: `Documents::edit` takes the store's operation lock on the main thread
 
 ## D15. Highlighting comes from tree-sitter, not Lezer
 
-The webview highlights most languages with CodeMirror's Lezer grammars, which do not exist outside a browser; only languages without a CodeMirror mode use the backend's tree-sitter queries (`doc_highlights`, 8 grammars). The GPUI editor uses `doc_highlights` for every language and maps its kinds to the same `--syn-*` tokens the webview's highlight style uses. Until the remaining 29 grammars' `highlights.scm` queries are enabled (through an explicit table passed from the GPUI app, so the Tauri app's behaviour does not change), those languages render without colours. Token boundaries will differ from Lezer's in places; that is a deviation this port cannot avoid.
+The webview highlights most languages with CodeMirror's Lezer grammars, which do not exist outside a browser; only languages without a CodeMirror mode use the backend's tree-sitter queries (`doc_highlights`). The GPUI editor uses `doc_highlights` for every language and maps its kinds to the `--syn-*` tokens exactly as the webview's highlight style does.
+
+For the languages CodeMirror covers, `ide-language` gains a cargo feature, `native-highlights`, that the GPUI app enables: it supplies each grammar crate's own `highlights.scm` (26 grammars) through the same code path. The Tauri build leaves the feature off, so its binary and behaviour are unchanged (checked: clippy and the highlight tests pass in both configurations). Those upstream queries capture declared and called functions alike; for Rust, JavaScript/TypeScript/TSX, Python, Go, Java, C and C++ a few extra patterns mark declarations, because the colour scheme distinguishes them. The other languages colour declarations like calls for now. Protocol Buffers has no query in the locked grammar version. Token boundaries will differ from Lezer's in places; that is a deviation this port cannot avoid.
 
 ## D16. Keys are named by the layout, not by the physical key
 

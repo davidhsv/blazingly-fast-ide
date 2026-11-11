@@ -67,7 +67,11 @@ impl Grammar {
     fn highlight_query(&self) -> Option<&highlight::HighlightQuery> {
         self.highlights
             .get_or_init(|| {
-                let h = self.spec.highlights.as_ref()?;
+                #[cfg(feature = "native-highlights")]
+                let native = grammars::native_highlights(self.spec.name);
+                #[cfg(not(feature = "native-highlights"))]
+                let native: Option<grammars::Highlights> = None;
+                let h = self.spec.highlights.as_ref().or(native.as_ref())?;
                 highlight::HighlightQuery::new(&self.language, h.query, h.first_wins)
                     .inspect_err(|e| tracing::error!("highlights query for {} is invalid: {e}", self.spec.name))
                     .ok()

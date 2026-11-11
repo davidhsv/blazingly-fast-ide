@@ -23,7 +23,7 @@ path = "src/main.rs"
 gpui-kit = "=0.9.1"
 ide-core = { path = "../crates/ide-core" }
 ide-host = { path = "../crates/ide-host" }
-ide-language = { path = "../crates/ide-language" }
+ide-language = { path = "../crates/ide-language", features = ["native-highlights"] }
 ide-workspace = { path = "../crates/ide-workspace" }
 ide-syntax = { path = "../crates/ide-syntax" }
 ide-text = { path = "../crates/ide-text" }

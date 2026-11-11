@@ -551,6 +551,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(feature = "native-highlights"))]
     #[test]
     fn languages_without_a_query_have_none() {
         assert_eq!(crate::Syntax::new().highlights(&ide_core::LanguageId::new("rust"), "fn a() {}"), None);
@@ -564,6 +565,68 @@ mod tests {
                 if let Err(e) = HighlightQuery::new(&lang, h.query, h.first_wins) {
                     panic!("{}: {e}", spec.name);
                 }
+            }
+        }
+    }
+
+    /// Every grammar crate's own query compiles against its grammar and colours the basics.
+    #[cfg(feature = "native-highlights")]
+    #[test]
+    fn native_queries_compile_and_colour_the_basics() {
+        use SyntaxHighlightKind as K;
+        for spec in super::super::grammars::SPECS {
+            if let Some(h) = super::super::grammars::native_highlights(spec.name) {
+                let lang = Language::new(spec.language);
+                if let Err(e) = HighlightQuery::new(&lang, h.query, h.first_wins) {
+                    panic!("{}: {e}", spec.name);
+                }
+            }
+        }
+        let kind_of = |lang: &str, text: &str, token: &str| {
+            spans(lang, text).into_iter().find(|(t, _)| t == token).map(|(_, kind)| kind)
+        };
+        for (lang, text, expected) in [
+            (
+                "rust",
+                "fn main() { let x = \"hi\"; } // done",
+                vec![("fn", K::Keyword), ("main", K::Function), ("\"hi\"", K::String), ("// done", K::Comment)],
+            ),
+            (
+                "java",
+                "class A { int f() { return 42; } } // c",
+                vec![("class", K::Keyword), ("f", K::Function), ("42", K::Number), ("// c", K::Comment)],
+            ),
+            (
+                "python",
+                "def f():\n    return 'x'  # c\n",
+                vec![("def", K::Keyword), ("f", K::Function), ("'x'", K::String), ("# c", K::Comment)],
+            ),
+            (
+                "go",
+                "package main\nfunc main() { x := \"s\" } // c\n",
+                vec![("func", K::Keyword), ("main", K::Function), ("// c", K::Comment)],
+            ),
+            (
+                "javascript",
+                "function go() { return 1; } // c",
+                vec![("function", K::Keyword), ("go", K::Function), ("1", K::Number), ("// c", K::Comment)],
+            ),
+            (
+                "typescript",
+                "function go(a: string): number { return 1; } // c",
+                vec![("function", K::Keyword), ("go", K::Function), ("// c", K::Comment)],
+            ),
+            ("json", "{\"a\": 1, \"b\": true}", vec![("1", K::Number)]),
+            ("toml", "name = \"x\" # c\n", vec![("\"x\"", K::String), ("# c", K::Comment)]),
+            (
+                "c",
+                "int main(void) { return 0; } // c",
+                vec![("return", K::Keyword), ("main", K::Function), ("0", K::Number), ("// c", K::Comment)],
+            ),
+            ("bash", "echo \"hi\" # c\n", vec![("# c", K::Comment)]),
+        ] {
+            for (token, kind) in expected {
+                assert_eq!(kind_of(lang, text, token), Some(kind), "{lang}: {token:?} in {:?}", spans(lang, text));
             }
         }
     }

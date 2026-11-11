@@ -45,6 +45,71 @@ macro_rules! outline {
 
 const NONE: &[&str] = &[];
 
+/// The grammar crates' own `highlights.scm` for the grammars [`SPECS`] gives no query, because
+/// the webview highlights those languages with CodeMirror. A UI without CodeMirror uses these
+/// through the same `doc_highlights` path. In these queries the later pattern wins for a node
+/// (`(identifier) @variable` comes first, the specific roles after it).
+#[cfg(feature = "native-highlights")]
+pub(crate) fn native_highlights(name: &str) -> Option<Highlights> {
+    use std::sync::OnceLock;
+    /// Queries that extend another grammar's (TypeScript over JavaScript, C++ over C).
+    fn joined(cell: &'static OnceLock<String>, parts: &[&str]) -> &'static str {
+        cell.get_or_init(|| parts.join("\n"))
+    }
+    // The upstream queries capture declared and called functions alike as `@function`; the
+    // editor's colour scheme tells them apart, so declarations get their own capture, last.
+    const RUST_DEFINITIONS: &str = "(function_item name: (identifier) @function.definition)\n(function_signature_item name: (identifier) @function.definition)";
+    const JS_DEFINITIONS: &str = "(function_declaration name: (identifier) @function.definition)\n(generator_function_declaration name: (identifier) @function.definition)\n(method_definition name: (property_identifier) @function.definition)";
+    const PYTHON_DEFINITIONS: &str = "(function_definition name: (identifier) @function.definition)";
+    const GO_DEFINITIONS: &str = "(function_declaration name: (identifier) @function.definition)\n(method_declaration name: (field_identifier) @function.definition)";
+    const JAVA_DEFINITIONS: &str = "(method_declaration name: (identifier) @function.definition)\n(constructor_declaration name: (identifier) @function.definition)";
+    const C_DEFINITIONS: &str = "(function_declarator declarator: (identifier) @function.definition)";
+    static RUST: OnceLock<String> = OnceLock::new();
+    static TYPESCRIPT: OnceLock<String> = OnceLock::new();
+    static TSX: OnceLock<String> = OnceLock::new();
+    static JAVASCRIPT: OnceLock<String> = OnceLock::new();
+    static PYTHON: OnceLock<String> = OnceLock::new();
+    static GO: OnceLock<String> = OnceLock::new();
+    static JAVA: OnceLock<String> = OnceLock::new();
+    static C: OnceLock<String> = OnceLock::new();
+    static CPP: OnceLock<String> = OnceLock::new();
+    let js = tree_sitter_javascript::HIGHLIGHT_QUERY;
+    let jsx = tree_sitter_javascript::JSX_HIGHLIGHT_QUERY;
+    let ts = tree_sitter_typescript::HIGHLIGHTS_QUERY;
+    let c = tree_sitter_c::HIGHLIGHT_QUERY;
+    let query = match name {
+        "rust" => joined(&RUST, &[tree_sitter_rust::HIGHLIGHTS_QUERY, RUST_DEFINITIONS]),
+        "javascript" => joined(&JAVASCRIPT, &[js, jsx, JS_DEFINITIONS]),
+        "typescript" => joined(&TYPESCRIPT, &[js, ts, JS_DEFINITIONS]),
+        "tsx" => joined(&TSX, &[js, jsx, ts, JS_DEFINITIONS]),
+        "python" => joined(&PYTHON, &[tree_sitter_python::HIGHLIGHTS_QUERY, PYTHON_DEFINITIONS]),
+        "go" => joined(&GO, &[tree_sitter_go::HIGHLIGHTS_QUERY, GO_DEFINITIONS]),
+        "java" => joined(&JAVA, &[tree_sitter_java::HIGHLIGHTS_QUERY, JAVA_DEFINITIONS]),
+        "scala" => tree_sitter_scala::HIGHLIGHTS_QUERY,
+        "c" => joined(&C, &[c, C_DEFINITIONS]),
+        "cpp" => joined(&CPP, &[c, tree_sitter_cpp::HIGHLIGHT_QUERY, C_DEFINITIONS]),
+        "csharp" => tree_sitter_c_sharp::HIGHLIGHTS_QUERY,
+        "swift" => tree_sitter_swift::HIGHLIGHTS_QUERY,
+        "ruby" => tree_sitter_ruby::HIGHLIGHTS_QUERY,
+        "php" => tree_sitter_php::HIGHLIGHTS_QUERY,
+        "lua" => tree_sitter_lua::HIGHLIGHTS_QUERY,
+        "dart" => tree_sitter_dart::HIGHLIGHTS_QUERY,
+        "haskell" => tree_sitter_haskell::HIGHLIGHTS_QUERY,
+        "ocaml" | "ocaml_interface" => tree_sitter_ocaml::HIGHLIGHTS_QUERY,
+        "bash" => tree_sitter_bash::HIGHLIGHT_QUERY,
+        "html" => tree_sitter_html::HIGHLIGHTS_QUERY,
+        "xml" => tree_sitter_xml::XML_HIGHLIGHT_QUERY,
+        "css" => tree_sitter_css::HIGHLIGHTS_QUERY,
+        "json" => tree_sitter_json::HIGHLIGHTS_QUERY,
+        "yaml" => tree_sitter_yaml::HIGHLIGHTS_QUERY,
+        "toml" => tree_sitter_toml_ng::HIGHLIGHTS_QUERY,
+        "markdown" => tree_sitter_md::HIGHLIGHT_QUERY_BLOCK,
+        "cmake" => tree_sitter_cmake::HIGHLIGHTS_QUERY,
+        _ => return None,
+    };
+    Some(Highlights { query, first_wins: false })
+}
+
 pub(crate) static SPECS: &[Spec] = &[
     Spec {
         name: "rust",

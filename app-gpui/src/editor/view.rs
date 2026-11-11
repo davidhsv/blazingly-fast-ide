@@ -1271,6 +1271,26 @@ mod tests {
         f.host.close_project("w1");
     }
 
+    /// Languages the webview highlights with CodeMirror are highlighted by their grammar's
+    /// own query here (ide-language's `native-highlights` feature).
+    #[gpui_kit::test]
+    async fn rust_is_highlighted_without_codemirror(cx: &mut TestAppContext) {
+        let (f, cx) = open(cx, &[("main.rs", "fn main() {\n    let greeting = \"hi\"; // say it\n}\n")]).await;
+        settle(cx, |cx| !f.editor.read_with(cx, |e, _| e.highlights().is_empty()));
+        f.editor.read_with(cx, |editor, _| {
+            let text = editor.text();
+            let kind_of = |token: &str| {
+                let at = text.find(token).expect("the token is in the text") as u32;
+                editor.highlights().iter().find(|s| s.from <= at && at < s.to).map(|s| s.kind)
+            };
+            assert_eq!(kind_of("fn"), Some(SyntaxHighlightKind::Keyword));
+            assert_eq!(kind_of("main"), Some(SyntaxHighlightKind::Function));
+            assert_eq!(kind_of("\"hi\""), Some(SyntaxHighlightKind::String));
+            assert_eq!(kind_of("// say it"), Some(SyntaxHighlightKind::Comment));
+        });
+        f.host.close_project("w1");
+    }
+
     #[gpui_kit::test]
     async fn the_backends_own_edits_move_the_caret(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("notes.txt", "body\n")]).await;
