@@ -1,0 +1,1346 @@
+{
+ "en": [
+  {
+   "n": 0,
+   "text": "0",
+   "plural": "other"
+  },
+  {
+   "n": 1,
+   "text": "1",
+   "plural": "one"
+  },
+  {
+   "n": 2,
+   "text": "2",
+   "plural": "other"
+  },
+  {
+   "n": 3,
+   "text": "3",
+   "plural": "other"
+  },
+  {
+   "n": 4,
+   "text": "4",
+   "plural": "other"
+  },
+  {
+   "n": 5,
+   "text": "5",
+   "plural": "other"
+  },
+  {
+   "n": 10,
+   "text": "10",
+   "plural": "other"
+  },
+  {
+   "n": 11,
+   "text": "11",
+   "plural": "other"
+  },
+  {
+   "n": 12,
+   "text": "12",
+   "plural": "other"
+  },
+  {
+   "n": 14,
+   "text": "14",
+   "plural": "other"
+  },
+  {
+   "n": 15,
+   "text": "15",
+   "plural": "other"
+  },
+  {
+   "n": 21,
+   "text": "21",
+   "plural": "other"
+  },
+  {
+   "n": 22,
+   "text": "22",
+   "plural": "other"
+  },
+  {
+   "n": 25,
+   "text": "25",
+   "plural": "other"
+  },
+  {
+   "n": 100,
+   "text": "100",
+   "plural": "other"
+  },
+  {
+   "n": 101,
+   "text": "101",
+   "plural": "other"
+  },
+  {
+   "n": 102,
+   "text": "102",
+   "plural": "other"
+  },
+  {
+   "n": 112,
+   "text": "112",
+   "plural": "other"
+  },
+  {
+   "n": 999,
+   "text": "999",
+   "plural": "other"
+  },
+  {
+   "n": 1000,
+   "text": "1,000",
+   "plural": "other"
+  },
+  {
+   "n": 1234,
+   "text": "1,234",
+   "plural": "other"
+  },
+  {
+   "n": 9999,
+   "text": "9,999",
+   "plural": "other"
+  },
+  {
+   "n": 10000,
+   "text": "10,000",
+   "plural": "other"
+  },
+  {
+   "n": 12345,
+   "text": "12,345",
+   "plural": "other"
+  },
+  {
+   "n": 123456,
+   "text": "123,456",
+   "plural": "other"
+  },
+  {
+   "n": 1000000,
+   "text": "1,000,000",
+   "plural": "other"
+  },
+  {
+   "n": 2000000,
+   "text": "2,000,000",
+   "plural": "other"
+  },
+  {
+   "n": 1234567.891,
+   "text": "1,234,567.891",
+   "plural": "other"
+  },
+  {
+   "n": 0.5,
+   "text": "0.5",
+   "plural": "other"
+  },
+  {
+   "n": 1.5,
+   "text": "1.5",
+   "plural": "other"
+  },
+  {
+   "n": 2.5,
+   "text": "2.5",
+   "plural": "other"
+  },
+  {
+   "n": 1234.5,
+   "text": "1,234.5",
+   "plural": "other"
+  },
+  {
+   "n": 0.0001,
+   "text": "0",
+   "plural": "other"
+  },
+  {
+   "n": 0.0005,
+   "text": "0.001",
+   "plural": "other"
+  },
+  {
+   "n": 1000000000,
+   "text": "1,000,000,000",
+   "plural": "other"
+  },
+  {
+   "n": -1,
+   "text": "-1",
+   "plural": "one"
+  },
+  {
+   "n": -1234.5,
+   "text": "-1,234.5",
+   "plural": "other"
+  },
+  {
+   "n": -0.0001,
+   "text": "-0",
+   "plural": "other"
+  }
+ ],
+ "zh": [
+  {
+   "n": 0,
+   "text": "0",
+   "plural": "other"
+  },
+  {
+   "n": 1,
+   "text": "1",
+   "plural": "other"
+  },
+  {
+   "n": 2,
+   "text": "2",
+   "plural": "other"
+  },
+  {
+   "n": 3,
+   "text": "3",
+   "plural": "other"
+  },
+  {
+   "n": 4,
+   "text": "4",
+   "plural": "other"
+  },
+  {
+   "n": 5,
+   "text": "5",
+   "plural": "other"
+  },
+  {
+   "n": 10,
+   "text": "10",
+   "plural": "other"
+  },
+  {
+   "n": 11,
+   "text": "11",
+   "plural": "other"
+  },
+  {
+   "n": 12,
+   "text": "12",
+   "plural": "other"
+  },
+  {
+   "n": 14,
+   "text": "14",
+   "plural": "other"
+  },
+  {
+   "n": 15,
+   "text": "15",
+   "plural": "other"
+  },
+  {
+   "n": 21,
+   "text": "21",
+   "plural": "other"
+  },
+  {
+   "n": 22,
+   "text": "22",
+   "plural": "other"
+  },
+  {
+   "n": 25,
+   "text": "25",
+   "plural": "other"
+  },
+  {
+   "n": 100,
+   "text": "100",
+   "plural": "other"
+  },
+  {
+   "n": 101,
+   "text": "101",
+   "plural": "other"
+  },
+  {
+   "n": 102,
+   "text": "102",
+   "plural": "other"
+  },
+  {
+   "n": 112,
+   "text": "112",
+   "plural": "other"
+  },
+  {
+   "n": 999,
+   "text": "999",
+   "plural": "other"
+  },
+  {
+   "n": 1000,
+   "text": "1,000",
+   "plural": "other"
+  },
+  {
+   "n": 1234,
+   "text": "1,234",
+   "plural": "other"
+  },
+  {
+   "n": 9999,
+   "text": "9,999",
+   "plural": "other"
+  },
+  {
+   "n": 10000,
+   "text": "10,000",
+   "plural": "other"
+  },
+  {
+   "n": 12345,
+   "text": "12,345",
+   "plural": "other"
+  },
+  {
+   "n": 123456,
+   "text": "123,456",
+   "plural": "other"
+  },
+  {
+   "n": 1000000,
+   "text": "1,000,000",
+   "plural": "other"
+  },
+  {
+   "n": 2000000,
+   "text": "2,000,000",
+   "plural": "other"
+  },
+  {
+   "n": 1234567.891,
+   "text": "1,234,567.891",
+   "plural": "other"
+  },
+  {
+   "n": 0.5,
+   "text": "0.5",
+   "plural": "other"
+  },
+  {
+   "n": 1.5,
+   "text": "1.5",
+   "plural": "other"
+  },
+  {
+   "n": 2.5,
+   "text": "2.5",
+   "plural": "other"
+  },
+  {
+   "n": 1234.5,
+   "text": "1,234.5",
+   "plural": "other"
+  },
+  {
+   "n": 0.0001,
+   "text": "0",
+   "plural": "other"
+  },
+  {
+   "n": 0.0005,
+   "text": "0.001",
+   "plural": "other"
+  },
+  {
+   "n": 1000000000,
+   "text": "1,000,000,000",
+   "plural": "other"
+  },
+  {
+   "n": -1,
+   "text": "-1",
+   "plural": "other"
+  },
+  {
+   "n": -1234.5,
+   "text": "-1,234.5",
+   "plural": "other"
+  },
+  {
+   "n": -0.0001,
+   "text": "-0",
+   "plural": "other"
+  }
+ ],
+ "ko": [
+  {
+   "n": 0,
+   "text": "0",
+   "plural": "other"
+  },
+  {
+   "n": 1,
+   "text": "1",
+   "plural": "other"
+  },
+  {
+   "n": 2,
+   "text": "2",
+   "plural": "other"
+  },
+  {
+   "n": 3,
+   "text": "3",
+   "plural": "other"
+  },
+  {
+   "n": 4,
+   "text": "4",
+   "plural": "other"
+  },
+  {
+   "n": 5,
+   "text": "5",
+   "plural": "other"
+  },
+  {
+   "n": 10,
+   "text": "10",
+   "plural": "other"
+  },
+  {
+   "n": 11,
+   "text": "11",
+   "plural": "other"
+  },
+  {
+   "n": 12,
+   "text": "12",
+   "plural": "other"
+  },
+  {
+   "n": 14,
+   "text": "14",
+   "plural": "other"
+  },
+  {
+   "n": 15,
+   "text": "15",
+   "plural": "other"
+  },
+  {
+   "n": 21,
+   "text": "21",
+   "plural": "other"
+  },
+  {
+   "n": 22,
+   "text": "22",
+   "plural": "other"
+  },
+  {
+   "n": 25,
+   "text": "25",
+   "plural": "other"
+  },
+  {
+   "n": 100,
+   "text": "100",
+   "plural": "other"
+  },
+  {
+   "n": 101,
+   "text": "101",
+   "plural": "other"
+  },
+  {
+   "n": 102,
+   "text": "102",
+   "plural": "other"
+  },
+  {
+   "n": 112,
+   "text": "112",
+   "plural": "other"
+  },
+  {
+   "n": 999,
+   "text": "999",
+   "plural": "other"
+  },
+  {
+   "n": 1000,
+   "text": "1,000",
+   "plural": "other"
+  },
+  {
+   "n": 1234,
+   "text": "1,234",
+   "plural": "other"
+  },
+  {
+   "n": 9999,
+   "text": "9,999",
+   "plural": "other"
+  },
+  {
+   "n": 10000,
+   "text": "10,000",
+   "plural": "other"
+  },
+  {
+   "n": 12345,
+   "text": "12,345",
+   "plural": "other"
+  },
+  {
+   "n": 123456,
+   "text": "123,456",
+   "plural": "other"
+  },
+  {
+   "n": 1000000,
+   "text": "1,000,000",
+   "plural": "other"
+  },
+  {
+   "n": 2000000,
+   "text": "2,000,000",
+   "plural": "other"
+  },
+  {
+   "n": 1234567.891,
+   "text": "1,234,567.891",
+   "plural": "other"
+  },
+  {
+   "n": 0.5,
+   "text": "0.5",
+   "plural": "other"
+  },
+  {
+   "n": 1.5,
+   "text": "1.5",
+   "plural": "other"
+  },
+  {
+   "n": 2.5,
+   "text": "2.5",
+   "plural": "other"
+  },
+  {
+   "n": 1234.5,
+   "text": "1,234.5",
+   "plural": "other"
+  },
+  {
+   "n": 0.0001,
+   "text": "0",
+   "plural": "other"
+  },
+  {
+   "n": 0.0005,
+   "text": "0.001",
+   "plural": "other"
+  },
+  {
+   "n": 1000000000,
+   "text": "1,000,000,000",
+   "plural": "other"
+  },
+  {
+   "n": -1,
+   "text": "-1",
+   "plural": "other"
+  },
+  {
+   "n": -1234.5,
+   "text": "-1,234.5",
+   "plural": "other"
+  },
+  {
+   "n": -0.0001,
+   "text": "-0",
+   "plural": "other"
+  }
+ ],
+ "fr": [
+  {
+   "n": 0,
+   "text": "0",
+   "plural": "one"
+  },
+  {
+   "n": 1,
+   "text": "1",
+   "plural": "one"
+  },
+  {
+   "n": 2,
+   "text": "2",
+   "plural": "other"
+  },
+  {
+   "n": 3,
+   "text": "3",
+   "plural": "other"
+  },
+  {
+   "n": 4,
+   "text": "4",
+   "plural": "other"
+  },
+  {
+   "n": 5,
+   "text": "5",
+   "plural": "other"
+  },
+  {
+   "n": 10,
+   "text": "10",
+   "plural": "other"
+  },
+  {
+   "n": 11,
+   "text": "11",
+   "plural": "other"
+  },
+  {
+   "n": 12,
+   "text": "12",
+   "plural": "other"
+  },
+  {
+   "n": 14,
+   "text": "14",
+   "plural": "other"
+  },
+  {
+   "n": 15,
+   "text": "15",
+   "plural": "other"
+  },
+  {
+   "n": 21,
+   "text": "21",
+   "plural": "other"
+  },
+  {
+   "n": 22,
+   "text": "22",
+   "plural": "other"
+  },
+  {
+   "n": 25,
+   "text": "25",
+   "plural": "other"
+  },
+  {
+   "n": 100,
+   "text": "100",
+   "plural": "other"
+  },
+  {
+   "n": 101,
+   "text": "101",
+   "plural": "other"
+  },
+  {
+   "n": 102,
+   "text": "102",
+   "plural": "other"
+  },
+  {
+   "n": 112,
+   "text": "112",
+   "plural": "other"
+  },
+  {
+   "n": 999,
+   "text": "999",
+   "plural": "other"
+  },
+  {
+   "n": 1000,
+   "text": "1 000",
+   "plural": "other"
+  },
+  {
+   "n": 1234,
+   "text": "1 234",
+   "plural": "other"
+  },
+  {
+   "n": 9999,
+   "text": "9 999",
+   "plural": "other"
+  },
+  {
+   "n": 10000,
+   "text": "10 000",
+   "plural": "other"
+  },
+  {
+   "n": 12345,
+   "text": "12 345",
+   "plural": "other"
+  },
+  {
+   "n": 123456,
+   "text": "123 456",
+   "plural": "other"
+  },
+  {
+   "n": 1000000,
+   "text": "1 000 000",
+   "plural": "many"
+  },
+  {
+   "n": 2000000,
+   "text": "2 000 000",
+   "plural": "many"
+  },
+  {
+   "n": 1234567.891,
+   "text": "1 234 567,891",
+   "plural": "other"
+  },
+  {
+   "n": 0.5,
+   "text": "0,5",
+   "plural": "one"
+  },
+  {
+   "n": 1.5,
+   "text": "1,5",
+   "plural": "one"
+  },
+  {
+   "n": 2.5,
+   "text": "2,5",
+   "plural": "other"
+  },
+  {
+   "n": 1234.5,
+   "text": "1 234,5",
+   "plural": "other"
+  },
+  {
+   "n": 0.0001,
+   "text": "0",
+   "plural": "one"
+  },
+  {
+   "n": 0.0005,
+   "text": "0,001",
+   "plural": "one"
+  },
+  {
+   "n": 1000000000,
+   "text": "1 000 000 000",
+   "plural": "many"
+  },
+  {
+   "n": -1,
+   "text": "-1",
+   "plural": "one"
+  },
+  {
+   "n": -1234.5,
+   "text": "-1 234,5",
+   "plural": "other"
+  },
+  {
+   "n": -0.0001,
+   "text": "-0",
+   "plural": "one"
+  }
+ ],
+ "pl": [
+  {
+   "n": 0,
+   "text": "0",
+   "plural": "many"
+  },
+  {
+   "n": 1,
+   "text": "1",
+   "plural": "one"
+  },
+  {
+   "n": 2,
+   "text": "2",
+   "plural": "few"
+  },
+  {
+   "n": 3,
+   "text": "3",
+   "plural": "few"
+  },
+  {
+   "n": 4,
+   "text": "4",
+   "plural": "few"
+  },
+  {
+   "n": 5,
+   "text": "5",
+   "plural": "many"
+  },
+  {
+   "n": 10,
+   "text": "10",
+   "plural": "many"
+  },
+  {
+   "n": 11,
+   "text": "11",
+   "plural": "many"
+  },
+  {
+   "n": 12,
+   "text": "12",
+   "plural": "many"
+  },
+  {
+   "n": 14,
+   "text": "14",
+   "plural": "many"
+  },
+  {
+   "n": 15,
+   "text": "15",
+   "plural": "many"
+  },
+  {
+   "n": 21,
+   "text": "21",
+   "plural": "many"
+  },
+  {
+   "n": 22,
+   "text": "22",
+   "plural": "few"
+  },
+  {
+   "n": 25,
+   "text": "25",
+   "plural": "many"
+  },
+  {
+   "n": 100,
+   "text": "100",
+   "plural": "many"
+  },
+  {
+   "n": 101,
+   "text": "101",
+   "plural": "many"
+  },
+  {
+   "n": 102,
+   "text": "102",
+   "plural": "few"
+  },
+  {
+   "n": 112,
+   "text": "112",
+   "plural": "many"
+  },
+  {
+   "n": 999,
+   "text": "999",
+   "plural": "many"
+  },
+  {
+   "n": 1000,
+   "text": "1000",
+   "plural": "many"
+  },
+  {
+   "n": 1234,
+   "text": "1234",
+   "plural": "few"
+  },
+  {
+   "n": 9999,
+   "text": "9999",
+   "plural": "many"
+  },
+  {
+   "n": 10000,
+   "text": "10 000",
+   "plural": "many"
+  },
+  {
+   "n": 12345,
+   "text": "12 345",
+   "plural": "many"
+  },
+  {
+   "n": 123456,
+   "text": "123 456",
+   "plural": "many"
+  },
+  {
+   "n": 1000000,
+   "text": "1 000 000",
+   "plural": "many"
+  },
+  {
+   "n": 2000000,
+   "text": "2 000 000",
+   "plural": "many"
+  },
+  {
+   "n": 1234567.891,
+   "text": "1 234 567,891",
+   "plural": "other"
+  },
+  {
+   "n": 0.5,
+   "text": "0,5",
+   "plural": "other"
+  },
+  {
+   "n": 1.5,
+   "text": "1,5",
+   "plural": "other"
+  },
+  {
+   "n": 2.5,
+   "text": "2,5",
+   "plural": "other"
+  },
+  {
+   "n": 1234.5,
+   "text": "1234,5",
+   "plural": "other"
+  },
+  {
+   "n": 0.0001,
+   "text": "0",
+   "plural": "many"
+  },
+  {
+   "n": 0.0005,
+   "text": "0,001",
+   "plural": "other"
+  },
+  {
+   "n": 1000000000,
+   "text": "1 000 000 000",
+   "plural": "many"
+  },
+  {
+   "n": -1,
+   "text": "-1",
+   "plural": "one"
+  },
+  {
+   "n": -1234.5,
+   "text": "-1234,5",
+   "plural": "other"
+  },
+  {
+   "n": -0.0001,
+   "text": "-0",
+   "plural": "many"
+  }
+ ],
+ "pt": [
+  {
+   "n": 0,
+   "text": "0",
+   "plural": "one"
+  },
+  {
+   "n": 1,
+   "text": "1",
+   "plural": "one"
+  },
+  {
+   "n": 2,
+   "text": "2",
+   "plural": "other"
+  },
+  {
+   "n": 3,
+   "text": "3",
+   "plural": "other"
+  },
+  {
+   "n": 4,
+   "text": "4",
+   "plural": "other"
+  },
+  {
+   "n": 5,
+   "text": "5",
+   "plural": "other"
+  },
+  {
+   "n": 10,
+   "text": "10",
+   "plural": "other"
+  },
+  {
+   "n": 11,
+   "text": "11",
+   "plural": "other"
+  },
+  {
+   "n": 12,
+   "text": "12",
+   "plural": "other"
+  },
+  {
+   "n": 14,
+   "text": "14",
+   "plural": "other"
+  },
+  {
+   "n": 15,
+   "text": "15",
+   "plural": "other"
+  },
+  {
+   "n": 21,
+   "text": "21",
+   "plural": "other"
+  },
+  {
+   "n": 22,
+   "text": "22",
+   "plural": "other"
+  },
+  {
+   "n": 25,
+   "text": "25",
+   "plural": "other"
+  },
+  {
+   "n": 100,
+   "text": "100",
+   "plural": "other"
+  },
+  {
+   "n": 101,
+   "text": "101",
+   "plural": "other"
+  },
+  {
+   "n": 102,
+   "text": "102",
+   "plural": "other"
+  },
+  {
+   "n": 112,
+   "text": "112",
+   "plural": "other"
+  },
+  {
+   "n": 999,
+   "text": "999",
+   "plural": "other"
+  },
+  {
+   "n": 1000,
+   "text": "1.000",
+   "plural": "other"
+  },
+  {
+   "n": 1234,
+   "text": "1.234",
+   "plural": "other"
+  },
+  {
+   "n": 9999,
+   "text": "9.999",
+   "plural": "other"
+  },
+  {
+   "n": 10000,
+   "text": "10.000",
+   "plural": "other"
+  },
+  {
+   "n": 12345,
+   "text": "12.345",
+   "plural": "other"
+  },
+  {
+   "n": 123456,
+   "text": "123.456",
+   "plural": "other"
+  },
+  {
+   "n": 1000000,
+   "text": "1.000.000",
+   "plural": "many"
+  },
+  {
+   "n": 2000000,
+   "text": "2.000.000",
+   "plural": "many"
+  },
+  {
+   "n": 1234567.891,
+   "text": "1.234.567,891",
+   "plural": "other"
+  },
+  {
+   "n": 0.5,
+   "text": "0,5",
+   "plural": "one"
+  },
+  {
+   "n": 1.5,
+   "text": "1,5",
+   "plural": "one"
+  },
+  {
+   "n": 2.5,
+   "text": "2,5",
+   "plural": "other"
+  },
+  {
+   "n": 1234.5,
+   "text": "1.234,5",
+   "plural": "other"
+  },
+  {
+   "n": 0.0001,
+   "text": "0",
+   "plural": "one"
+  },
+  {
+   "n": 0.0005,
+   "text": "0,001",
+   "plural": "one"
+  },
+  {
+   "n": 1000000000,
+   "text": "1.000.000.000",
+   "plural": "many"
+  },
+  {
+   "n": -1,
+   "text": "-1",
+   "plural": "one"
+  },
+  {
+   "n": -1234.5,
+   "text": "-1.234,5",
+   "plural": "other"
+  },
+  {
+   "n": -0.0001,
+   "text": "-0",
+   "plural": "one"
+  }
+ ],
+ "es": [
+  {
+   "n": 0,
+   "text": "0",
+   "plural": "other"
+  },
+  {
+   "n": 1,
+   "text": "1",
+   "plural": "one"
+  },
+  {
+   "n": 2,
+   "text": "2",
+   "plural": "other"
+  },
+  {
+   "n": 3,
+   "text": "3",
+   "plural": "other"
+  },
+  {
+   "n": 4,
+   "text": "4",
+   "plural": "other"
+  },
+  {
+   "n": 5,
+   "text": "5",
+   "plural": "other"
+  },
+  {
+   "n": 10,
+   "text": "10",
+   "plural": "other"
+  },
+  {
+   "n": 11,
+   "text": "11",
+   "plural": "other"
+  },
+  {
+   "n": 12,
+   "text": "12",
+   "plural": "other"
+  },
+  {
+   "n": 14,
+   "text": "14",
+   "plural": "other"
+  },
+  {
+   "n": 15,
+   "text": "15",
+   "plural": "other"
+  },
+  {
+   "n": 21,
+   "text": "21",
+   "plural": "other"
+  },
+  {
+   "n": 22,
+   "text": "22",
+   "plural": "other"
+  },
+  {
+   "n": 25,
+   "text": "25",
+   "plural": "other"
+  },
+  {
+   "n": 100,
+   "text": "100",
+   "plural": "other"
+  },
+  {
+   "n": 101,
+   "text": "101",
+   "plural": "other"
+  },
+  {
+   "n": 102,
+   "text": "102",
+   "plural": "other"
+  },
+  {
+   "n": 112,
+   "text": "112",
+   "plural": "other"
+  },
+  {
+   "n": 999,
+   "text": "999",
+   "plural": "other"
+  },
+  {
+   "n": 1000,
+   "text": "1000",
+   "plural": "other"
+  },
+  {
+   "n": 1234,
+   "text": "1234",
+   "plural": "other"
+  },
+  {
+   "n": 9999,
+   "text": "9999",
+   "plural": "other"
+  },
+  {
+   "n": 10000,
+   "text": "10.000",
+   "plural": "other"
+  },
+  {
+   "n": 12345,
+   "text": "12.345",
+   "plural": "other"
+  },
+  {
+   "n": 123456,
+   "text": "123.456",
+   "plural": "other"
+  },
+  {
+   "n": 1000000,
+   "text": "1.000.000",
+   "plural": "many"
+  },
+  {
+   "n": 2000000,
+   "text": "2.000.000",
+   "plural": "many"
+  },
+  {
+   "n": 1234567.891,
+   "text": "1.234.567,891",
+   "plural": "other"
+  },
+  {
+   "n": 0.5,
+   "text": "0,5",
+   "plural": "other"
+  },
+  {
+   "n": 1.5,
+   "text": "1,5",
+   "plural": "other"
+  },
+  {
+   "n": 2.5,
+   "text": "2,5",
+   "plural": "other"
+  },
+  {
+   "n": 1234.5,
+   "text": "1234,5",
+   "plural": "other"
+  },
+  {
+   "n": 0.0001,
+   "text": "0",
+   "plural": "other"
+  },
+  {
+   "n": 0.0005,
+   "text": "0,001",
+   "plural": "other"
+  },
+  {
+   "n": 1000000000,
+   "text": "1.000.000.000",
+   "plural": "many"
+  },
+  {
+   "n": -1,
+   "text": "-1",
+   "plural": "one"
+  },
+  {
+   "n": -1234.5,
+   "text": "-1234,5",
+   "plural": "other"
+  },
+  {
+   "n": -0.0001,
+   "text": "-0",
+   "plural": "other"
+  }
+ ]
+}

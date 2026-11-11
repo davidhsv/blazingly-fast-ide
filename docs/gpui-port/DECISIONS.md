@@ -35,6 +35,8 @@ Measured at the pinned commit: `crates/editor`, `crates/terminal` and `crates/ui
 
 `ide-terminal` owns the PTY and streams bytes; the webview parses them with xterm.js. The GPUI app feeds the same bytes to `alacritty_terminal`'s grid and paints the grid.
 
+Status: planned. The crate is a dependency, resolves next to the backend (`lockcheck.mjs` passes) and compiles; no terminal view exists yet.
+
 ## D8. HTML surfaces
 
 | Surface                                                                                                            | GPUI app                                                                                    |
@@ -43,6 +45,8 @@ Measured at the pinned commit: `crates/editor`, `crates/terminal` and `crates/ui
 | Plugin web views (`openidea-plugin:` scheme), the Web editor's browser bar, notebook HTML output, Mermaid diagrams | A WKWebView created through `wry` when the surface is first shown, destroyed when it closes |
 
 Plugin web views are HTML by contract (plugin API 1.4), so a web view cannot be removed without breaking plugins. It is created on demand, so a session that opens none of these surfaces has no WebKit process; the final measurement reports both cases.
+
+Status: planned. `wry` is pinned to 0.57.0, the version the Tauri build's lock holds, and compiles in the GPUI workspace; no web view has been shown inside a GPUI window yet, and the plugin host (`src-tauri/src/commands/plugin.rs`, 1067 lines, plus `plugin_web.rs`) has not been extracted from the Tauri glue.
 
 ## D9. Shared dependencies resolve to the root lock's versions
 
@@ -63,3 +67,25 @@ GPUI has a key-binding system, but this IDE's binding syntax (two-stroke chords 
 ## D13. The GPUI app has its own directories
 
 The Tauri app keeps settings, recent projects, credentials and caches under the identifier `ai.l0ng.openidea`. The GPUI app uses `ai.l0ng.openidea.gpui` (`.gpui.dev` in debug builds), so it can run next to an installed Tauri build without the two processes writing the same files, and `OPENIDEA_GPUI_HOME` puts every directory under one folder (tests, and the final measurement, which starts both apps from empty directories). The cost: the GPUI app does not pick up the Tauri app's existing settings; importing them is a copy of the configuration folder.
+
+## D14. The editor shows the backend's rope; edits are synchronous calls
+
+The webview keeps its own copy of every open document in CodeMirror and reconciles it with the backend's through an OT client (`src/editor/core/sync/DocSync.ts`), because edits cross an IPC boundary. In process there is no boundary: the editor holds a clone of the backend's rope at a known version (a `ropey` clone shares its chunks, so the text exists once) and applies each edit with `Documents::edit(doc, version, changes)` before repainting. Edits the backend makes itself arrive as `DocPatched` and move the selection; an edit rejected as out of sync (a backend edit not delivered yet) refreshes the text and is re-made at the caret's new place. `Documents::rope_snapshot` is the one backend API added for this (`crates/ide-workspace/src/documents.rs`, additive).
+
+Open risk: `Documents::edit` takes the store's operation lock on the main thread. A long backend operation holding that lock (save all, sync from disk) would stall typing; if a measurement shows it, edits move to a queue with the rebase logic `DocSync` has.
+
+## D15. Highlighting comes from tree-sitter, not Lezer
+
+The webview highlights most languages with CodeMirror's Lezer grammars, which do not exist outside a browser; only languages without a CodeMirror mode use the backend's tree-sitter queries (`doc_highlights`, 8 grammars). The GPUI editor uses `doc_highlights` for every language and maps its kinds to the same `--syn-*` tokens the webview's highlight style uses. Until the remaining 29 grammars' `highlights.scm` queries are enabled (through an explicit table passed from the GPUI app, so the Tauri app's behaviour does not change), those languages render without colours. Token boundaries will differ from Lezer's in places; that is a deviation this port cannot avoid.
+
+## D16. Keys are named by the layout, not by the physical key
+
+The webview names a key from `KeyboardEvent.code` (physical position) with a fallback to the typed letter, so that ⌥-letter works on macOS and AZERTY's Ctrl+Z is not Ctrl+W. GPUI reports the layout-resolved key (the character the key types without modifiers, or its ASCII equivalent on non-Latin layouts), which gives the same answers for both cases; it has no physical code, so numeric-keypad operators are not told apart from the main-row ones. Bindings that name `NumpadAdd` / `NumpadSubtract` / `NumpadMultiply` / `NumpadDivide` therefore fire from neither key until a platform hook supplies the distinction.
+
+## D17. Fonts: not embedded yet
+
+The webview bundles Inter Variable and JetBrains Mono Variable as WOFF2 subsets per Unicode range (`@fontsource-variable/*`). GPUI's text system loads TTF/OTF data, and several same-named subset fonts do not combine into one family there. The editor currently uses the first installed family of `--font-mono` (falling back to Menlo) and the UI uses the system font. Embedding the two families as full TTFs is open.
+
+## D18. Pure-logic ports are checked against the original's own engine where one exists
+
+Number formats and plural categories are rules the webview gets from `Intl`. `gen-data.mjs` writes what Node's `Intl.NumberFormat` and `Intl.PluralRules` answer for the seven UI locales to `assets/gen/intl.json`, and a Rust test compares every row. It caught two differences on its first run (negative zero keeps its sign; Spanish treats -1 as `one`).

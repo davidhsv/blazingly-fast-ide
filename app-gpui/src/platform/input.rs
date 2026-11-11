@@ -123,8 +123,8 @@ struct Env<'a> {
 }
 
 impl DispatchEnv for Env<'_> {
-    fn bindings(&self) -> Vec<(String, String)> {
-        self.keymap.effective_bindings().into_iter().map(|(binding, id)| (binding, id.to_owned())).collect()
+    fn bindings(&self) -> &[(String, String)] {
+        self.keymap.effective_bindings()
     }
 
     fn key_enabled(&self, action_id: &str) -> bool {
@@ -143,11 +143,7 @@ fn dispatch(window: &mut Window, cx: &mut App, decide: impl FnOnce(&mut WindowIn
         .remove(&id)
         .unwrap_or_else(|| WindowInput { dispatcher: Dispatcher::new(is_mac_host()), modifiers: Mods::NONE });
     let outcome = {
-        let env = Env {
-            keymap: &cx.default_global::<Keymap>().0.clone(),
-            registry: cx.default_global::<ActionRegistry>(),
-            ctx: &ctx,
-        };
+        let env = Env { keymap: &cx.global::<Keymap>().0, registry: cx.global::<ActionRegistry>(), ctx: &ctx };
         decide(&mut state, now, &env)
     };
     cx.global_mut::<Input>().windows.insert(id, state);

@@ -294,6 +294,9 @@ pub struct KeymapState {
     extensions: Keymap,
     /// `extensions` minus what the preset and the user already use.
     usable_extensions: Keymap,
+    /// Every (normalized binding, action id) pair, in precedence order; rebuilt on change so
+    /// that dispatch, which runs on every keystroke, only reads it.
+    effective: Vec<(String, String)>,
 }
 
 impl Default for KeymapState {
@@ -305,12 +308,15 @@ impl Default for KeymapState {
 impl KeymapState {
     pub fn new(preset_id: &str) -> Self {
         let preset = if preset(preset_id).is_some() { preset_id } else { default_preset(is_mac_host()) };
-        Self {
+        let mut state = Self {
             preset: preset.to_owned(),
             overrides: Keymap::new(),
             extensions: Keymap::new(),
             usable_extensions: Keymap::new(),
-        }
+            effective: Vec::new(),
+        };
+        state.refresh_extensions();
+        state
     }
 
     pub fn preset_id(&self) -> &str {
@@ -409,6 +415,13 @@ impl KeymapState {
             }
         }
         self.usable_extensions = usable;
+        let layers = self
+            .usable_extensions
+            .iter()
+            .chain(preset.iter().filter(|(id, _)| !self.overrides.contains_key(*id)))
+            .chain(&self.overrides);
+        self.effective =
+            layers.flat_map(|(id, keys)| keys.iter().map(move |k| (normalize_binding(k), id.clone()))).collect();
     }
 
     pub fn bindings_for(&self, action_id: &str) -> &[String] {
@@ -419,17 +432,10 @@ impl KeymapState {
             .map_or(&[], Vec::as_slice)
     }
 
-    /// Every (binding, action id) pair of the effective keymap, in precedence order: a later
-    /// pair wins over an earlier one with the same binding.
-    pub fn effective_bindings(&self) -> Vec<(String, &str)> {
-        let preset = self.preset_map();
-        let layers = self
-            .usable_extensions
-            .iter()
-            .filter(|(id, _)| !preset.contains_key(*id) && !self.overrides.contains_key(*id))
-            .chain(preset.iter().filter(|(id, _)| !self.overrides.contains_key(*id)))
-            .chain(&self.overrides);
-        layers.flat_map(|(id, keys)| keys.iter().map(move |k| (normalize_binding(k), id.as_str()))).collect()
+    /// Every (normalized binding, action id) pair of the effective keymap, in precedence order:
+    /// a later pair wins over an earlier one with the same binding.
+    pub fn effective_bindings(&self) -> &[(String, String)] {
+        &self.effective
     }
 
     /// The first keyboard binding of an action: what menus and tooltips show.
@@ -545,8 +551,11 @@ mod tests {
         assert_eq!(state.primary_key_binding("navigate.searchEverywhere"), Some("Meta+P"));
         assert_eq!(state.shortcut_label("navigate.searchEverywhere", true).as_deref(), Some("⌘P"));
         let effective = state.effective_bindings();
-        assert!(!effective.iter().any(|(b, id)| b == "Shift Shift" && *id == "navigate.searchEverywhere"));
-        assert_eq!(effective.last().map(|(b, id)| (b.as_str(), *id)), Some(("Meta+P", "navigate.searchEverywhere")));
+        assert!(!effective.iter().any(|(b, id)| b == "Shift Shift" && id == "navigate.searchEverywhere"));
+        assert_eq!(
+            effective.last().map(|(b, id)| (b.as_str(), id.as_str())),
+            Some(("Meta+P", "navigate.searchEverywhere"))
+        );
     }
 
     #[test]
@@ -586,7 +595,7 @@ mod tests {
         state.set_overrides(Keymap::from([("user.action".to_owned(), vec!["Meta+Alt+Shift+F12".to_owned()])]));
         assert!(state.bindings_for("plugin.a").is_empty());
         state.unregister_extension_bindings("plugin.a");
-        assert!(state.effective_bindings().iter().all(|(_, id)| *id != "plugin.a"));
+        assert!(state.effective_bindings().iter().all(|(_, id)| id != "plugin.a"));
     }
 
     #[test]

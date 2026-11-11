@@ -90,5 +90,17 @@
   "design:icons": {
     "status": "done",
     "proof": "`theme::icons::tests`"
+  },
+  "unit:src/editor/core/sync/DocSync.test.ts": {
+    "status": "partial",
+    "proof": "`editor::view::tests::typing_survives_a_backend_edit_that_has_not_arrived_yet`, `editor::view::tests::the_backends_own_edits_move_the_caret`; the edit pipeline is synchronous in process, so the queueing cases have no counterpart yet"
+  },
+  "module:src/editor/core/sync": {
+    "status": "partial",
+    "proof": "`editor::view::tests`"
+  },
+  "module:src/workbench/Workbench.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tests`; LightEdit frame only: no title bar, tool windows, status bar or welcome view"
   }
 }

@@ -1,17 +1,35 @@
-use gpui_kit::*;
-
-struct Probe;
-
-impl Render for Probe {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        div().flex().size_full().bg(rgb(0x1e1f22)).text_color(rgb(0xbcbec4)).child("OpenIDEA (GPUI probe)")
-    }
-}
+use gpui_kit::{App, AppContext as _, WindowOptions};
+use openidea_gpui::theme::icons::IconAssets;
+use openidea_gpui::workbench::Workbench;
+use std::path::PathBuf;
 
 fn main() {
-    gpui_kit::application().run(|cx: &mut App| {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .init();
+    // A file given on the command line opens for editing.
+    let file = std::env::args_os().nth(1).map(PathBuf::from);
+    gpui_kit::application().with_assets(IconAssets { fallback: gpui_kit::assets::Assets }).run(move |cx: &mut App| {
         gpui_kit::init(cx);
-        gpui_kit::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| Probe)).expect("open window");
+        if let Err(error) = openidea_gpui::init(cx) {
+            tracing::error!("cannot start: {error:#}");
+            cx.quit();
+            return;
+        }
+        let opened = gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
+            cx.new(|cx| {
+                let mut workbench = Workbench::new("main");
+                if let Some(file) = file.clone() {
+                    workbench.open_file(file, window, cx);
+                }
+                workbench
+            })
+        });
+        if let Err(error) = opened {
+            tracing::error!("cannot open a window: {error:#}");
+            cx.quit();
+            return;
+        }
         cx.activate(true);
     });
 }

@@ -323,7 +323,26 @@ function iconTables() {
   return { icons: sortedEntries(icons), symbols: sortedEntries(symbols) };
 }
 
+/**
+ * What `Intl.NumberFormat` and `Intl.PluralRules` answer for the UI locales: the reference the
+ * Rust number formatting and plural rules are tested against.
+ */
+function intlTable() {
+  const numbers = [
+    0, 1, 2, 3, 4, 5, 10, 11, 12, 14, 15, 21, 22, 25, 100, 101, 102, 112, 999, 1000, 1234, 9999, 10000, 12345, 123456,
+    1000000, 2000000, 1234567.891, 0.5, 1.5, 2.5, 1234.5, 0.0001, 0.0005, 1e9, -1, -1234.5, -0.0001,
+  ];
+  const table = {};
+  for (const locale of ["en", "zh", "ko", "fr", "pl", "pt", "es"]) {
+    const format = new Intl.NumberFormat(locale);
+    const plural = new Intl.PluralRules(locale);
+    table[locale] = numbers.map((n) => ({ n, text: format.format(n), plural: plural.select(n) }));
+  }
+  return table;
+}
+
 emit("keymaps.json", keymaps());
+emit("intl.json", intlTable());
 const manifest = actionManifest();
 if (manifest.actions.length < 600) throw new Error(`only ${manifest.actions.length} actions resolved`);
 emit("actions.json", manifest);

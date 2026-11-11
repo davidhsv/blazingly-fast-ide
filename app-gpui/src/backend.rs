@@ -258,10 +258,20 @@ mod tests {
         let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
         assert!(names.contains(&"Cargo.toml") && names.contains(&"src"), "{names:?}");
 
-        // Opening a project publishes events for its window.
-        cx.run_until_parked();
-        assert!(seen.borrow().iter().all(|w| w.as_deref() == Some("w1") || w.is_none()));
+        // A document reports its unsaved state to the window that owns it.
         let host = cx.update(|cx| cx.global::<Backend>().host.clone());
+        let documents = host.project("w1").expect("the project is open").documents.clone();
+        let info = documents.open(&root.join("Cargo.toml")).expect("the file opens");
+        documents.replace_all(info.id, "# changed\n").expect("the edit applies");
+        for _ in 0..200 {
+            cx.run_until_parked();
+            if !seen.borrow().is_empty() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(seen.borrow().iter().any(|w| w.as_deref() == Some("w1")), "events seen: {:?}", seen.borrow());
+        assert!(seen.borrow().iter().all(|w| w.as_deref() == Some("w1") || w.is_none()));
         host.close_project("w1");
     }
 }

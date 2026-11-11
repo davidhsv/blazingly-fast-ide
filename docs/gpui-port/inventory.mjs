@@ -8,6 +8,7 @@
 // independent count: the run fails rather than write an inventory with a hole in it.
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
+import { spawnSync } from "node:child_process";
 import {
   root,
   rel,
@@ -390,6 +391,20 @@ for (const key of Object.keys(parity))
   if (!usedKeys.has(key)) problems.push(`parity.json names an unknown row: ${key}`);
 for (const [key, p] of Object.entries(parity))
   if (p.status === "done" && !p.proof) problems.push(`parity.json: ${key} is done without a proof`);
+
+// A proof names Rust tests (`module::tests` or `module::tests::case`, in backticks): each must
+// exist in the GPUI app's test binary, so a renamed or deleted test cannot keep a row checked.
+const listed = spawnSync("cargo", ["test", "--lib", "--", "--list"], { cwd: join(root, "app-gpui"), encoding: "utf8" });
+if (listed.status !== 0)
+  problems.push(`cargo test --list failed in app-gpui:\n${(listed.stderr ?? "").split("\n").slice(-8).join("\n")}`);
+const rustTests = [...(listed.stdout ?? "").matchAll(/^([\w:]+): test$/gm)].map((m) => m[1]);
+for (const [key, p] of Object.entries(parity)) {
+  const named = [...(p.proof ?? "").matchAll(/`([a-z_]\w*(?:::\w+)+)`/g)].map((m) => m[1]);
+  if (p.status === "done" && !named.length) problems.push(`parity.json: the proof of ${key} names no test`);
+  for (const name of named)
+    if (!rustTests.some((t) => t === name || t.startsWith(`${name}::`)))
+      problems.push(`parity.json: ${key} cites ${name}, which is not a test of app-gpui`);
+}
 
 if (problems.length) {
   console.error(problems.map((p) => `inventory: ${p}`).join("\n"));

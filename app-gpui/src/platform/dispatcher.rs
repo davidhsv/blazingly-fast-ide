@@ -114,7 +114,7 @@ pub fn mouse_stroke(button: u32, mods: Mods) -> Option<String> {
 /// What the dispatcher asks of the keymap and the action registry.
 pub trait DispatchEnv {
     /// Every (normalized binding, action id) pair, later pairs winning.
-    fn bindings(&self) -> Vec<(String, String)>;
+    fn bindings(&self) -> &[(String, String)];
     /// Whether a shortcut may run the action now (`when` and `keyWhen`); false when unknown.
     fn key_enabled(&self, action_id: &str) -> bool;
     /// Whether the focused component keeps this first stroke for itself (Vim mode…).
@@ -242,7 +242,7 @@ impl Dispatcher {
             return Outcome::Pass;
         }
         let binding = format!("{0} {0}", modifier.name());
-        Self::first_enabled(env, &env.bindings(), &binding).map_or(Outcome::Pass, Outcome::Run)
+        Self::first_enabled(env, env.bindings(), &binding).map_or(Outcome::Pass, Outcome::Run)
     }
 
     /// A key pressed while the second press of a modifier is held: its `Alt Alt+Up` gesture.
@@ -250,7 +250,7 @@ impl Dispatcher {
         let tap =
             self.tap.filter(|t| t.step == 3 && press.mods.held(t.modifier) && !press.mods.others_held(t.modifier))?;
         let binding = normalize_binding(&format!("{0} {0}+{1}", tap.modifier.name(), stroke(&press.key, Mods::NONE)));
-        let id = Self::first_enabled(env, &env.bindings(), &binding)?;
+        let id = Self::first_enabled(env, env.bindings(), &binding)?;
         if let Some(t) = &mut self.tap {
             t.key_used = true;
         }
@@ -326,7 +326,7 @@ impl Dispatcher {
                 .replace("NumpadMultiply", "*")
                 .replace("NumpadDivide", "/")
         };
-        if let Some(id) = Self::first_enabled(env, &bindings, &seq) {
+        if let Some(id) = Self::first_enabled(env, bindings, &seq) {
             self.reset();
             return Outcome::Run(id);
         }
@@ -362,7 +362,7 @@ impl Dispatcher {
         }
         // Side buttons never reach the target (no editor selection, no focus change).
         self.reset();
-        Self::first_enabled(env, &env.bindings(), &stroke).map_or(Outcome::Swallow, Outcome::Run)
+        Self::first_enabled(env, env.bindings(), &stroke).map_or(Outcome::Swallow, Outcome::Run)
     }
 
     /// The action bound to a mouse stroke, if any is enabled.
@@ -371,7 +371,7 @@ impl Dispatcher {
             return Outcome::Pass;
         }
         mouse_stroke(button, mods)
-            .and_then(|stroke| Self::first_enabled(env, &env.bindings(), &stroke))
+            .and_then(|stroke| Self::first_enabled(env, env.bindings(), &stroke))
             .map_or(Outcome::Pass, Outcome::Run)
     }
 
@@ -381,7 +381,7 @@ impl Dispatcher {
             return Outcome::Pass;
         }
         self.blur();
-        Self::first_enabled(env, &env.bindings(), stroke).map_or(Outcome::Pass, Outcome::Run)
+        Self::first_enabled(env, env.bindings(), stroke).map_or(Outcome::Pass, Outcome::Run)
     }
 }
 
@@ -408,8 +408,8 @@ mod tests {
     }
 
     impl DispatchEnv for Env {
-        fn bindings(&self) -> Vec<(String, String)> {
-            self.bindings.clone()
+        fn bindings(&self) -> &[(String, String)] {
+            &self.bindings
         }
         fn key_enabled(&self, action_id: &str) -> bool {
             !self.disabled.contains(action_id)

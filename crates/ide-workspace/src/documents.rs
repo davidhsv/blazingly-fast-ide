@@ -692,6 +692,12 @@ impl Documents {
         self.with_doc(doc, |st| Ok(Self::info(doc, st)))
     }
 
+    /// The document's rope at its current version. Cloning a rope shares its chunks, so a UI in
+    /// the same process can display the text without holding a second copy of it.
+    pub fn rope_snapshot(&self, doc: DocId) -> IdeResult<(u32, ide_text::ropey::Rope)> {
+        self.with_doc(doc, |st| Ok((st.doc.version(), st.doc.rope().clone())))
+    }
+
     /// Text, version and language only (cheaper than [`Documents::snapshot`]).
     pub fn text_snapshot(&self, doc: DocId) -> IdeResult<TextSnapshot> {
         self.with_doc(doc, |st| {

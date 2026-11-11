@@ -176,7 +176,8 @@ pub fn format_number(n: f64, locale: &str) -> String {
     let style = number_style(locale);
     let (integer, fraction) = decimal_digits(n);
     let mut out = String::new();
-    if n < 0.0 && (integer != "0" || !fraction.is_empty()) {
+    // A negative number keeps its sign even when it rounds to zero, as `Intl` writes it ("-0").
+    if n < 0.0 {
         out.push('-');
     }
     if integer.len() >= 3 + style.minimum_grouping_digits {
@@ -223,7 +224,7 @@ pub fn plural_category(n: f64, locale: &str) -> &'static str {
             }
         }
         "es" => {
-            if whole && i == 1 && n > 0.0 {
+            if whole && i == 1 {
                 "one"
             } else if millions {
                 "many"
@@ -576,6 +577,12 @@ pub struct I18n {
     built: BuiltTexts,
 }
 
+/// The process-wide locale state.
+#[derive(Default)]
+pub struct Localization(pub I18n);
+
+impl gpui_kit::Global for Localization {}
+
 impl Default for I18n {
     fn default() -> Self {
         Self { locale: DEFAULT_LOCALE, extra: HashMap::new(), built: BuiltTexts::default() }
@@ -783,7 +790,7 @@ mod tests {
         assert_eq!(format_number(12345.0, "es"), "12.345");
         assert_eq!(format_number(1234.5678, "pt"), "1.234,568");
         assert_eq!(format_number(-0.5, "en"), "-0.5");
-        assert_eq!(format_number(-0.0001, "en"), "0");
+        assert_eq!(format_number(-0.0001, "en"), "-0");
         assert_eq!(format_number(999.0, "en"), "999");
     }
 
@@ -1087,6 +1094,43 @@ mod tests {
         let zh = message_catalog("zh");
         assert_eq!(zh.len(), en.len());
         assert!(!text_catalog("zh").is_empty() && text_catalog("en").is_empty());
+    }
+
+    /// The number formats and plural categories match what the webview's `Intl` answers
+    /// (`assets/gen/intl.json`, written by `docs/gpui-port/gen-data.mjs` from Node's `Intl`).
+    #[test]
+    fn numbers_and_plurals_match_intl() {
+        #[derive(serde::Deserialize)]
+        struct Row {
+            n: f64,
+            text: String,
+            plural: String,
+        }
+        let table: HashMap<String, Vec<Row>> =
+            serde_json::from_str(include_str!("../../assets/gen/intl.json")).expect("the table parses");
+        assert_eq!(table.len(), LOCALES.len());
+        let mut failures = Vec::new();
+        for (locale, rows) in &table {
+            for row in rows {
+                if format_number(row.n, locale) != row.text {
+                    failures.push(format!(
+                        "{locale}: {} formats as {:?}, Intl says {:?}",
+                        row.n,
+                        format_number(row.n, locale),
+                        row.text
+                    ));
+                }
+                if plural_category(row.n, locale) != row.plural {
+                    failures.push(format!(
+                        "{locale}: {} is {:?}, Intl says {:?}",
+                        row.n,
+                        plural_category(row.n, locale),
+                        row.plural
+                    ));
+                }
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
     #[test]
