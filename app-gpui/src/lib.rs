@@ -5,6 +5,7 @@ pub mod editor;
 pub mod platform;
 pub mod project_tree;
 pub mod theme;
+pub mod ui;
 pub mod workbench;
 
 use gpui_kit::App;

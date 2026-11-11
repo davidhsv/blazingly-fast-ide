@@ -11,3 +11,4 @@ pub mod input;
 pub mod keymap;
 pub mod paths;
 pub mod project_roots;
+pub mod search;

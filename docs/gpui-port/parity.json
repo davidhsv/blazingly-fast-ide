@@ -258,5 +258,41 @@
   "module:src/workbench/toolwindows/content.ts": {
     "status": "partial",
     "proof": "`workbench::tool_windows::tests`; the model only: no window uses it yet"
+  },
+  "unit:src/ui/menuAim.test.ts": {
+    "status": "done",
+    "proof": "`ui::menu_aim::tests`"
+  },
+  "module:src/ui/menuAim.ts": {
+    "status": "done",
+    "proof": "`ui::menu_aim::tests`"
+  },
+  "unit:src/ui/patternIndex.test.ts": {
+    "status": "done",
+    "proof": "`ui::pattern_index::tests`"
+  },
+  "module:src/ui/patternIndex.ts": {
+    "status": "partial",
+    "proof": "`ui::pattern_index::tests`; patterns are matched by a caller-supplied predicate: no regex engine is wired to it yet"
+  },
+  "unit:src/ui/consoleFind.test.ts": {
+    "status": "partial",
+    "proof": "`ui::console_find::tests`; the regex cases run against a test double, not a regex engine"
+  },
+  "module:src/ui/consoleFind.ts": {
+    "status": "partial",
+    "proof": "`ui::console_find::tests`; regex mode needs a matcher from the caller, and no console uses it yet"
+  },
+  "module:src/ui/match.ts": {
+    "status": "partial",
+    "proof": "`ui::matching::tests`; case folding is per character, which differs from JavaScript's whole-string lowercasing for a few letters (İ, final Σ)"
+  },
+  "unit:src/platform/search.test.ts": {
+    "status": "partial",
+    "proof": "`platform::search::tests`; history shared through storage and per-project scope reloads are not ported"
+  },
+  "module:src/platform/search.ts": {
+    "status": "partial",
+    "proof": "`platform::search::tests`; the pure parts only: no storage, no scope store"
   }
 }
