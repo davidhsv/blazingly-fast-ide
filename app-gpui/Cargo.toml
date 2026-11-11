@@ -7,6 +7,10 @@ rust-version = "1.96"
 license = "Apache-2.0"
 publish = false
 
+[lib]
+name = "openidea_gpui"
+path = "src/lib.rs"
+
 [[bin]]
 name = "openidea-gpui"
 path = "src/main.rs"
@@ -16,8 +20,7 @@ path = "src/main.rs"
 [workspace]
 
 [dependencies]
-# `runtime_shaders`: the Metal shaders compile at start-up, so building needs no Xcode.app.
-gpui = { version = "=0.2.2", features = ["runtime_shaders"] }
+gpui-kit = "=0.9.1"
 ide-core = { path = "../crates/ide-core" }
 ide-host = { path = "../crates/ide-host" }
 ide-language = { path = "../crates/ide-language" }
@@ -34,7 +37,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 anyhow = "1"
 
 [dev-dependencies]
-gpui = { version = "=0.2.2", features = ["runtime_shaders", "test-support"] }
+gpui-kit = { version = "=0.9.1", features = ["test-support"] }
 
 [profile.dev]
 opt-level = 0

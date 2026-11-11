@@ -1,0 +1,3565 @@
+{
+ "registerCloneSource": [
+  {
+   "id": "github",
+   "label": "GitHub",
+   "icon": "github",
+   "order": 10,
+   "$component": "computed",
+   "source": "src/features/github/index.ts:262"
+  }
+ ],
+ "registerCommitCheckProvider": [
+  {
+   "$checks": "function",
+   "$run": "function",
+   "source": "src/features/plugins/uiPoints.tsx:212"
+  }
+ ],
+ "registerDocumentIndexSync": [
+  {
+   "source": "src/features/plugins/navigation.ts:154"
+  }
+ ],
+ "registerEditorBanner": [
+  {
+   "id": "editor.document",
+   "order": -10,
+   "$useBanner": "function",
+   "source": "src/editor/core/index.ts:70"
+  },
+  {
+   "id": "lsp.outsideProject",
+   "order": 5,
+   "$useBanner": "function",
+   "source": "src/editor/lsp/index.ts:85"
+  },
+  {
+   "id": "app.powerSave",
+   "order": 0,
+   "$useBanner": "function",
+   "source": "src/features/app/projectActions.ts:229"
+  },
+  {
+   "id": "php.composerInstall",
+   "order": 10,
+   "$useBanner": "computed",
+   "source": "src/features/run/composerInstall.ts:120"
+  },
+  {
+   "id": "vcs.conflict",
+   "order": -5,
+   "$useBanner": "function",
+   "source": "src/features/vcs/conflictBanner.ts:13"
+  }
+ ],
+ "registerEditorContribution": [
+  {
+   "id": "lsp",
+   "order": 50,
+   "$extensions": "computed",
+   "source": "src/editor/lsp/index.ts:78"
+  },
+  {
+   "id": "lsp.lineMarkers",
+   "order": 56,
+   "$extensions": "computed",
+   "source": "src/editor/lsp/index.ts:80"
+  },
+  {
+   "id": "lsp.parameterTab",
+   "order": 95,
+   "$extensions": "function",
+   "source": "src/editor/lsp/index.ts:82"
+  },
+  {
+   "id": "build-tools.versionCatalog",
+   "$extensions": "computed",
+   "source": "src/features/build-tools/index.ts:200"
+  },
+  {
+   "id": "build-tools.pomNavigation",
+   "$extensions": "computed",
+   "source": "src/features/build-tools/index.ts:201"
+  },
+  {
+   "id": "colorPreview.gutter",
+   "order": 59,
+   "$extensions": "function",
+   "source": "src/features/color-preview/index.ts:7"
+  },
+  {
+   "id": "coverage.gutter",
+   "order": 65,
+   "$extensions": "computed",
+   "source": "src/features/coverage/index.ts:30"
+  },
+  {
+   "id": "database.console",
+   "order": 57,
+   "$extensions": "computed",
+   "source": "src/features/database/index.ts:84"
+  },
+  {
+   "id": "debugger",
+   "order": 60,
+   "$extensions": "function",
+   "source": "src/features/debugger/index.ts:92"
+  },
+  {
+   "id": "dependency-versions",
+   "$extensions": "function",
+   "source": "src/features/dependencies/index.ts:208"
+  },
+  {
+   "id": "github.reviewMode",
+   "order": 58,
+   "$extensions": "computed",
+   "source": "src/features/github/reviewMode/index.ts:123"
+  },
+  {
+   "id": "graphql.toolbar",
+   "order": 58,
+   "$extensions": "computed",
+   "source": "src/features/graphql/index.ts:45"
+  },
+  {
+   "id": "http.requests",
+   "order": 56,
+   "$extensions": "computed",
+   "source": "src/features/http-client/index.ts:123"
+  },
+  {
+   "id": "http.endpoints",
+   "order": 58,
+   "$extensions": "computed",
+   "source": "src/features/http-client/index.ts:124"
+  },
+  {
+   "id": "http.spring",
+   "order": 57,
+   "$extensions": "computed",
+   "source": "src/features/http-client/index.ts:125"
+  },
+  {
+   "id": "macros.recorder",
+   "order": 0,
+   "$extensions": "function",
+   "source": "src/features/macros/index.ts:140"
+  },
+  {
+   "id": "plugins.decorations",
+   "$extensions": "computed",
+   "source": "src/features/plugins/decorations.ts:139"
+  },
+  {
+   "id": "plugins.languageFeatures",
+   "order": 58,
+   "$extensions": "computed",
+   "source": "src/features/plugins/index.ts:163"
+  },
+  {
+   "id": "plugins.lineMarkers",
+   "order": 57,
+   "$extensions": "computed",
+   "source": "src/features/plugins/index.ts:164"
+  },
+  {
+   "id": "plugins.indexedMarkers",
+   "order": 65,
+   "$extensions": "function",
+   "source": "src/features/plugins/indexedMarkers.ts:163"
+  },
+  {
+   "id": "plugins.navigation",
+   "$extensions": "function",
+   "source": "src/features/plugins/navigation.ts:181"
+  },
+  {
+   "id": "run.targets",
+   "order": 55,
+   "$extensions": "computed",
+   "source": "src/features/run/index.ts:438"
+  },
+  {
+   "id": "run.npmScripts",
+   "order": 58,
+   "$extensions": "computed",
+   "source": "src/features/run/index.ts:439"
+  },
+  {
+   "id": "search.tracking",
+   "order": 200,
+   "$extensions": "function",
+   "source": "src/features/search/common/tracking.ts:130"
+  },
+  {
+   "id": "search.bookmarks",
+   "order": 50,
+   "$extensions": "function",
+   "source": "src/features/search/index.ts:188"
+  },
+  {
+   "id": "services.dockerGutter",
+   "order": 56,
+   "$extensions": "computed",
+   "source": "src/features/services/index.ts:81"
+  },
+  {
+   "id": "templates",
+   "order": 90,
+   "$extensions": "computed",
+   "source": "src/features/templates/index.ts:176"
+  },
+  {
+   "id": "todo.highlight",
+   "order": 120,
+   "$extensions": "computed",
+   "source": "src/features/todo/index.ts:26"
+  },
+  {
+   "id": "merge-conflict-markers",
+   "$extensions": "function",
+   "source": "src/features/vcs/conflictMarkers.ts:41"
+  },
+  {
+   "id": "vcs.changeMarkers",
+   "order": 60,
+   "$extensions": "function",
+   "source": "src/features/vcs/index.ts:304"
+  },
+  {
+   "id": "viewers.markdownLive",
+   "$extensions": "function",
+   "source": "src/features/viewers/markdown/live.ts:105"
+  },
+  {
+   "id": "vim",
+   "order": 0,
+   "embedded": true,
+   "$extensions": "function",
+   "source": "src/features/vim/index.ts:63"
+  }
+ ],
+ "registerEditorDropHandler": [
+  {
+   "$accepts": "function",
+   "$drop": "function",
+   "source": "src/features/agents/index.ts:104"
+  }
+ ],
+ "registerEditorKind": [
+  {
+   "kind": "agent-session",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "restorable": true,
+   "keepAlive": true,
+   "source": "src/features/agents/index.ts:83"
+  },
+  {
+   "kind": "agent-home",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "restorable": true,
+   "source": "src/features/agents/index.ts:96"
+  },
+  {
+   "kind": "maven.dependencyAnalyzer",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "restorable": true,
+   "source": "src/features/build-tools/index.ts:203"
+  },
+  {
+   "kind": "db-table",
+   "$component": "computed",
+   "$title": "computed",
+   "$icon": "function",
+   "source": "src/features/database/index.ts:74"
+  },
+  {
+   "kind": "github.timeline",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "source": "src/features/github/index.ts:282"
+  },
+  {
+   "kind": "notebook",
+   "restorable": true,
+   "$document": "computed",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "source": "src/features/notebook/index.ts:49"
+  },
+  {
+   "kind": "pluginEditor",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "restorable": true,
+   "document": {
+    "$isDirty": "function",
+    "$flush": "function",
+    "$save": "function",
+    "$prepareClose": "function",
+    "$cancelClose": "function",
+    "$discard": "function",
+    "$close": "function",
+    "$undo": "function",
+    "$redo": "function"
+   },
+   "source": "src/features/plugins/uiPoints.tsx:546"
+  },
+  {
+   "kind": "pluginLog",
+   "$component": "computed",
+   "keepAlive": true,
+   "$title": "computed",
+   "$icon": "function",
+   "source": "src/features/plugins/uiPoints.tsx:554"
+  },
+  {
+   "kind": "pluginContent",
+   "$component": "computed",
+   "keepAlive": true,
+   "$title": "computed",
+   "$icon": "computed",
+   "document": {
+    "$isDirty": "function",
+    "$flush": "function",
+    "$save": "function",
+    "$prepareClose": "function",
+    "$cancelClose": "function",
+    "$discard": "function",
+    "$close": "function",
+    "$undo": "function",
+    "$redo": "function"
+   },
+   "source": "src/features/plugins/uiPoints.tsx:561"
+  },
+  {
+   "kind": "dockerLog",
+   "$component": "computed",
+   "$title": "computed",
+   "$icon": "function",
+   "keepAlive": true,
+   "source": "src/features/services/index.ts:73"
+  },
+  {
+   "kind": "diff",
+   "standalone": true,
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "source": "src/features/vcs/index.ts:156"
+  },
+  {
+   "kind": "git-revision",
+   "standalone": true,
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "restorable": true,
+   "source": "src/features/vcs/index.ts:254"
+  },
+  {
+   "kind": "git-log",
+   "standalone": true,
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "restorable": true,
+   "$onClose": "function",
+   "source": "src/features/vcs/index.ts:265"
+  },
+  {
+   "kind": "git-merge-diff",
+   "standalone": true,
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "restorable": true,
+   "source": "src/features/vcs/index.ts:274"
+  },
+  {
+   "kind": "merge",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "source": "src/features/vcs/index.ts:283"
+  },
+  {
+   "kind": "localHistory",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "source": "src/features/vcs/index.ts:289"
+  },
+  {
+   "kind": "selectionHistory",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "source": "src/features/vcs/index.ts:295"
+  },
+  {
+   "kind": "image",
+   "$component": "computed",
+   "$title": "computed",
+   "$icon": "computed",
+   "source": "src/features/viewers/index.ts:85"
+  },
+  {
+   "kind": "binary",
+   "$component": "computed",
+   "$title": "computed",
+   "$icon": "computed",
+   "source": "src/features/viewers/index.ts:86"
+  }
+ ],
+ "registerEndpointProvider": [
+  {
+   "id": "http.spring",
+   "$endpoints": "computed",
+   "source": "src/features/http-client/spring/routeIndex.ts:10"
+  },
+  {
+   "$id": "computed",
+   "$endpoints": "function",
+   "source": "src/features/plugins/points.tsx:161"
+  }
+ ],
+ "registerExtensionBindings": [
+  {
+   "source": "src/features/plugins/uiPoints.tsx:439"
+  }
+ ],
+ "registerFileDropHandler": [
+  {
+   "source": "src/editor/core/cm/markdownImages.ts:117"
+  },
+  {
+   "source": "src/features/terminal/drop.ts:22"
+  }
+ ],
+ "registerFileEditorProvider": [
+  {
+   "id": "notebook",
+   "order": 5,
+   "$resolve": "function",
+   "source": "src/features/notebook/index.ts:57"
+  },
+  {
+   "$id": "computed",
+   "order": 40,
+   "$resolve": "function",
+   "source": "src/features/plugins/uiPoints.tsx:477"
+  },
+  {
+   "id": "viewers.image",
+   "order": 10,
+   "$resolve": "function",
+   "source": "src/features/viewers/index.ts:87"
+  },
+  {
+   "id": "viewers.hex",
+   "order": 50,
+   "$resolve": "function",
+   "source": "src/features/viewers/index.ts:95"
+  }
+ ],
+ "registerFontZoomSurface": [
+  {
+   "source": "src/features/plugins/views/WebView.tsx:169"
+  },
+  {
+   "source": "src/features/terminal/session.ts:325"
+  }
+ ],
+ "registerGitLogChecks": [
+  {
+   "source": "src/features/github/index.ts:269"
+  }
+ ],
+ "registerKeyClaim": [
+  {
+   "source": "src/editor/core/view/FindBar.tsx:367"
+  },
+  {
+   "source": "src/features/debugger/ui/DebugConsole.tsx:244"
+  },
+  {
+   "source": "src/features/plugins/views/contentEditor.tsx:518"
+  },
+  {
+   "source": "src/features/plugins/views/logEditor.tsx:241"
+  },
+  {
+   "source": "src/features/run/ConsoleView.tsx:346"
+  },
+  {
+   "source": "src/features/search/everywhere/SearchEverywhere.tsx:82"
+  },
+  {
+   "source": "src/features/search/find/parts.tsx:182"
+  },
+  {
+   "source": "src/features/services/logEditor.tsx:273"
+  },
+  {
+   "source": "src/features/terminal/keys.ts:136"
+  },
+  {
+   "source": "src/features/vcs/BranchWidget.tsx:297"
+  },
+  {
+   "source": "src/features/vcs/diffDialog.tsx:85"
+  },
+  {
+   "source": "src/features/vim/index.ts:79"
+  }
+ ],
+ "registerLanguageMode": [
+  {
+   "source": "src/features/http-client/index.ts:122"
+  }
+ ],
+ "registerMenuGroup": [
+  {
+   "id": "agents.send",
+   "menus": [
+    "editor",
+    "projectView"
+   ],
+   "order": 80,
+   "$items": "function",
+   "source": "src/features/agents/index.ts:109"
+  },
+  {
+   "id": "gradle.analyzeDependencies",
+   "menus": [
+    "editor",
+    "editorTab",
+    "projectView"
+   ],
+   "order": 30,
+   "$items": "function",
+   "source": "src/features/build-tools/index.ts:211"
+  },
+  {
+   "id": "maven.analyzeDependencies",
+   "menus": [
+    "editor",
+    "editorTab",
+    "projectView"
+   ],
+   "order": 30,
+   "$items": "function",
+   "source": "src/features/build-tools/index.ts:224"
+  },
+  {
+   "id": "build.module",
+   "menus": [
+    "projectView"
+   ],
+   "order": 40,
+   "$items": "function",
+   "source": "src/features/build/index.ts:125"
+  },
+  {
+   "id": "debugger.evaluate",
+   "menus": [
+    "editor"
+   ],
+   "$items": "function",
+   "source": "src/features/debugger/index.ts:73"
+  },
+  {
+   "id": "debugger.hotswap",
+   "menus": [
+    "editor"
+   ],
+   "$items": "function",
+   "source": "src/features/debugger/index.ts:78"
+  },
+  {
+   "id": "debugger.stop",
+   "menus": [
+    "stopProcess"
+   ],
+   "$items": "function",
+   "source": "src/features/debugger/index.ts:84"
+  },
+  {
+   "id": "deployment",
+   "menus": [
+    "projectView",
+    "editor",
+    "editorTab"
+   ],
+   "order": 60,
+   "$items": "function",
+   "$prepare": "function",
+   "source": "src/features/deployment/index.ts:88"
+  },
+  {
+   "id": "github.reviewMode",
+   "menus": [
+    "editor"
+   ],
+   "order": 60,
+   "$items": "function",
+   "source": "src/features/github/reviewMode/index.ts:146"
+  },
+  {
+   "id": "http.spring",
+   "menus": [
+    "editor"
+   ],
+   "order": 40,
+   "$items": "function",
+   "source": "src/features/http-client/index.ts:126"
+  },
+  {
+   "id": "http.new",
+   "menus": [
+    "new"
+   ],
+   "order": 20,
+   "$items": "function",
+   "source": "src/features/http-client/index.ts:136"
+  },
+  {
+   "id": "plugins",
+   "menus": [
+    "editor",
+    "projectView",
+    "editorTab",
+    "problems",
+    "searchResults"
+   ],
+   "order": 90,
+   "$items": "function",
+   "source": "src/features/plugins/uiPoints.tsx:569"
+  },
+  {
+   "id": "go.modules",
+   "menus": [
+    "projectView",
+    "editorTab",
+    "editor"
+   ],
+   "$items": "function",
+   "source": "src/features/run/goActions.ts:103"
+  },
+  {
+   "id": "run.context",
+   "menus": [
+    "editor",
+    "projectView",
+    "editorTab"
+   ],
+   "$items": "computed",
+   "$prepare": "computed",
+   "source": "src/features/run/index.ts:440"
+  },
+  {
+   "id": "scratch.new",
+   "menus": [
+    "new"
+   ],
+   "order": 0,
+   "$items": "function",
+   "source": "src/features/scratch/index.ts:46"
+  },
+  {
+   "id": "search.structure.selectIn",
+   "menus": [
+    "selectIn"
+   ],
+   "$items": "function",
+   "source": "src/features/search/index.ts:194"
+  },
+  {
+   "id": "search.bookmarks",
+   "menus": [
+    "editorGutter"
+   ],
+   "order": 20,
+   "$items": "function",
+   "source": "src/features/search/index.ts:209"
+  },
+  {
+   "id": "search.bookmarks.files",
+   "menus": [
+    "projectView",
+    "editorTab"
+   ],
+   "order": 60,
+   "$items": "function",
+   "source": "src/features/search/index.ts:226"
+  },
+  {
+   "id": "settings.fileType",
+   "menus": [
+    "projectView",
+    "editorTab"
+   ],
+   "order": 90,
+   "$prepare": "function",
+   "$items": "function",
+   "source": "src/features/settings/fileTypesRuntime.ts:130"
+  },
+  {
+   "id": "templates.new",
+   "menus": [
+    "new"
+   ],
+   "order": 10,
+   "$items": "function",
+   "source": "src/features/templates/index.ts:99"
+  },
+  {
+   "id": "templates.newFromTemplate",
+   "menus": [
+    "new"
+   ],
+   "order": 100,
+   "$items": "function",
+   "source": "src/features/templates/index.ts:114"
+  },
+  {
+   "id": "templates.emmet",
+   "menus": [
+    "editor"
+   ],
+   "order": 60,
+   "$items": "function",
+   "source": "src/features/templates/index.ts:180"
+  },
+  {
+   "id": "vcs.gutter",
+   "menus": [
+    "editorGutter"
+   ],
+   "order": 10,
+   "$items": "function",
+   "source": "src/features/vcs/index.ts:309"
+  },
+  {
+   "id": "web.open",
+   "menus": [
+    "editor",
+    "editorTab",
+    "projectView"
+   ],
+   "order": 5,
+   "$items": "function",
+   "source": "src/features/web/index.ts:100"
+  },
+  {
+   "id": "web.openIn",
+   "menus": [
+    "openIn"
+   ],
+   "$items": "function",
+   "source": "src/features/web/index.ts:118"
+  }
+ ],
+ "registerMenuSlotItem": [
+  {
+   "source": "src/features/plugins/uiPoints.tsx:177"
+  },
+  {
+   "source": "src/features/plugins/uiPoints.tsx:182"
+  }
+ ],
+ "registerNavigationProvider": [
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "$targets": "computed",
+   "source": "src/features/plugins/navigation.ts:172"
+  }
+ ],
+ "registerOccurrenceNavigator": [
+  {
+   "source": "src/workbench/contributions.ts:1362"
+  }
+ ],
+ "registerOverlay": [
+  {
+   "id": "editor.gotoLine",
+   "$component": "computed",
+   "source": "src/editor/core/index.ts:71"
+  },
+  {
+   "id": "editor.pasteHistory",
+   "$component": "computed",
+   "source": "src/editor/core/index.ts:72"
+  },
+  {
+   "id": "editor.navigationBar",
+   "$component": "computed",
+   "source": "src/editor/core/index.ts:73"
+  },
+  {
+   "id": "editor-lsp.popups",
+   "$component": "computed",
+   "source": "src/editor/lsp/index.ts:83"
+  },
+  {
+   "id": "editor-lsp.hierarchyDialog",
+   "$component": "computed",
+   "source": "src/editor/lsp/index.ts:84"
+  },
+  {
+   "id": "analysis.dialogs",
+   "$component": "computed",
+   "source": "src/features/analysis/index.ts:29"
+  },
+  {
+   "id": "app.about",
+   "$component": "computed",
+   "source": "src/features/app/index.ts:37"
+  },
+  {
+   "id": "app.keymapReference",
+   "$component": "computed",
+   "source": "src/features/app/index.ts:38"
+  },
+  {
+   "id": "app.invalidateCaches",
+   "$component": "computed",
+   "source": "src/features/app/index.ts:39"
+  },
+  {
+   "id": "app.newProject",
+   "$component": "computed",
+   "source": "src/features/app/index.ts:40"
+  },
+  {
+   "id": "app.termination",
+   "$component": "computed",
+   "source": "src/features/app/index.ts:41"
+  },
+  {
+   "id": "app.workspace",
+   "$component": "computed",
+   "source": "src/features/app/index.ts:58"
+  },
+  {
+   "id": "build-tools.execute",
+   "$component": "computed",
+   "source": "src/features/build-tools/index.ts:199"
+  },
+  {
+   "id": "code-insight.usagesPopup",
+   "$component": "computed",
+   "source": "src/features/code-insight/index.ts:91"
+  },
+  {
+   "id": "coverage.manageReports",
+   "$component": "computed",
+   "source": "src/features/coverage/index.ts:32"
+  },
+  {
+   "id": "database.dialogs",
+   "$component": "computed",
+   "source": "src/features/database/index.ts:80"
+  },
+  {
+   "id": "debugger",
+   "$component": "computed",
+   "source": "src/features/debugger/index.ts:69"
+  },
+  {
+   "id": "deployment.dialogs",
+   "$component": "computed",
+   "source": "src/features/deployment/index.ts:87"
+  },
+  {
+   "id": "github.dialogs",
+   "$component": "computed",
+   "source": "src/features/github/index.ts:289"
+  },
+  {
+   "id": "graphql.environment",
+   "$component": "computed",
+   "source": "src/features/graphql/index.ts:46"
+  },
+  {
+   "id": "macros.dialogs",
+   "$component": "computed",
+   "source": "src/features/macros/index.ts:141"
+  },
+  {
+   "id": "mcp.confirm",
+   "$component": "computed",
+   "source": "src/features/mcp/index.ts:12"
+  },
+  {
+   "id": "perf.overlay",
+   "$component": "computed",
+   "source": "src/features/perf/index.ts:13"
+  },
+  {
+   "id": "plugins.consent",
+   "$component": "computed",
+   "source": "src/features/plugins/index.ts:63"
+  },
+  {
+   "id": "plugins.intellijThemes",
+   "$component": "computed",
+   "source": "src/features/plugins/index.ts:64"
+  },
+  {
+   "id": "plugins.consent",
+   "$component": "computed",
+   "source": "src/features/plugins/index.ts:80"
+  },
+  {
+   "id": "plugins.intellijThemes",
+   "$component": "computed",
+   "source": "src/features/plugins/index.ts:81"
+  },
+  {
+   "id": "project.fileRefactor",
+   "$component": "computed",
+   "source": "src/features/project-tree/index.ts:204"
+  },
+  {
+   "id": "project.refactoringPreview",
+   "$component": "computed",
+   "source": "src/features/project-tree/index.ts:205"
+  },
+  {
+   "id": "project.newPopup",
+   "$component": "computed",
+   "source": "src/features/project-tree/index.ts:206"
+  },
+  {
+   "id": "project.trustDialog",
+   "$component": "computed",
+   "source": "src/features/project-trust/index.tsx:245"
+  },
+  {
+   "id": "remote.connect",
+   "$component": "computed",
+   "source": "src/features/remote-dev/index.ts:57"
+  },
+  {
+   "id": "runAnything.popup",
+   "$component": "computed",
+   "source": "src/features/run-anything/index.ts:12"
+  },
+  {
+   "id": "run.chooser",
+   "$component": "computed",
+   "source": "src/features/run/index.ts:391"
+  },
+  {
+   "id": "run.editConfigs",
+   "$component": "computed",
+   "source": "src/features/run/index.ts:392"
+  },
+  {
+   "id": "run.dialogs",
+   "$component": "computed",
+   "source": "src/features/run/index.ts:396"
+  },
+  {
+   "id": "run.serviceImport",
+   "$component": "computed",
+   "source": "src/features/run/index.ts:397"
+  },
+  {
+   "id": "run.serviceImport",
+   "$component": "computed",
+   "source": "src/features/run/index.ts:398"
+  },
+  {
+   "id": "run.stackTraceDialog",
+   "$component": "computed",
+   "source": "src/features/run/stackTrace.tsx:153"
+  },
+  {
+   "id": "scratch.chooser",
+   "$component": "computed",
+   "source": "src/features/scratch/index.ts:44"
+  },
+  {
+   "id": "search.everywhere",
+   "$component": "computed",
+   "source": "src/features/search/index.ts:130"
+  },
+  {
+   "id": "search.recent",
+   "$component": "computed",
+   "source": "src/features/search/index.ts:136"
+  },
+  {
+   "id": "search.findInFiles",
+   "$component": "computed",
+   "source": "src/features/search/index.ts:140"
+  },
+  {
+   "id": "search.scopes",
+   "$component": "computed",
+   "source": "src/features/search/index.ts:144"
+  },
+  {
+   "id": "search.fileStructure",
+   "$component": "computed",
+   "source": "src/features/search/index.ts:145"
+  },
+  {
+   "id": "search.bookmarks",
+   "$component": "computed",
+   "source": "src/features/search/index.ts:151"
+  },
+  {
+   "id": "services.dialogs",
+   "$component": "computed",
+   "source": "src/features/services/index.ts:80"
+  },
+  {
+   "id": "settings.dialog",
+   "$component": "computed",
+   "source": "src/features/settings/index.ts:123"
+  },
+  {
+   "id": "settings.projectStructure",
+   "$component": "computed",
+   "source": "src/features/settings/index.ts:124"
+  },
+  {
+   "id": "settings.assignShortcut",
+   "$component": "computed",
+   "source": "src/features/settings/index.ts:139"
+  },
+  {
+   "id": "ssh.askpass",
+   "$component": "computed",
+   "source": "src/features/ssh/index.ts:15"
+  },
+  {
+   "id": "templates.chooser",
+   "$component": "computed",
+   "source": "src/features/templates/index.ts:177"
+  },
+  {
+   "id": "templates.newFile",
+   "$component": "computed",
+   "source": "src/features/templates/index.ts:178"
+  },
+  {
+   "id": "templates.emmetUpdateTag",
+   "$component": "computed",
+   "source": "src/features/templates/index.ts:179"
+  },
+  {
+   "id": "vcs.dialogs",
+   "$component": "computed",
+   "source": "src/features/vcs/index.ts:240"
+  },
+  {
+   "id": "vcs.branches",
+   "$component": "computed",
+   "source": "src/features/vcs/index.ts:241"
+  },
+  {
+   "id": "welcome.recentProjects",
+   "$component": "computed",
+   "source": "src/features/welcome/index.ts:17"
+  },
+  {
+   "id": "workbench.customizeToolbar",
+   "$component": "computed",
+   "source": "src/workbench/activate.ts:81"
+  },
+  {
+   "id": "workbench.backgroundTasks",
+   "$component": "computed",
+   "source": "src/workbench/activate.ts:82"
+  }
+ ],
+ "registerProjectViewRoot": [
+  {
+   "id": "externalLibraries",
+   "label": "External Libraries",
+   "icon": "library",
+   "order": 5,
+   "readOnly": true,
+   "$children": "computed",
+   "source": "src/features/libraries/index.ts:159"
+  },
+  {
+   "$id": "computed",
+   "$label": "computed",
+   "$detail": "computed",
+   "icon": "function",
+   "iconVariants": [
+    "function",
+    "debug",
+    "info",
+    "error",
+    "github",
+    "stop",
+    "pause",
+    "folder",
+    "refresh",
+    "edit",
+    "file",
+    "filter",
+    "word",
+    "plugin",
+    "server",
+    "commit",
+    "branch",
+    "module",
+    "tag",
+    "settings",
+    "sort",
+    "web",
+    "replace",
+    "search",
+    "split",
+    "class",
+    "interface",
+    "enum",
+    "method",
+    "field",
+    "variable",
+    "package",
+    "annotation",
+    "folder-open",
+    "folder-source",
+    "folder-test",
+    "folder-resources",
+    "folder-test-resources",
+    "folder-excluded",
+    "folder-library",
+    "folder-github",
+    "folder-generated-source",
+    "folder-generated-test",
+    "folder-compiled",
+    "folder-javadoc",
+    "class-abstract",
+    "record",
+    "exception",
+    "jvm-test",
+    "runnable-mark",
+    "kotlin-object",
+    "spring-config",
+    "gradle-project",
+    "gradle-module",
+    "spring-boot",
+    "tomcat",
+    "visualgc",
+    "file-unknown",
+    "file-code",
+    "file-text",
+    "file-json",
+    "file-md",
+    "file-image",
+    "paperclip",
+    "file-config",
+    "file-python",
+    "file-jupyter",
+    "file-requirements",
+    "file-pipenv",
+    "file-pyproject",
+    "file-js",
+    "file-jsx",
+    "file-ts",
+    "file-tsx",
+    "file-npm",
+    "file-vue",
+    "file-svelte",
+    "file-jsp",
+    "file-astro",
+    "file-yaml",
+    "file-toml",
+    "file-html",
+    "file-xhtml",
+    "file-css",
+    "file-less",
+    "file-sass",
+    "file-scss",
+    "file-xml",
+    "file-xsd",
+    "file-shell",
+    "file-powershell",
+    "file-windows",
+    "file-sql",
+    "file-graphql",
+    "file-proto",
+    "file-csv",
+    "file-properties",
+    "file-ignored",
+    "file-git",
+    "file-archive",
+    "file-binary",
+    "file-font",
+    "file-patch",
+    "file-java",
+    "file-kotlin",
+    "file-kotlin-script",
+    "file-groovy",
+    "file-gradle",
+    "file-gradle-kts",
+    "file-maven",
+    "file-scala",
+    "file-php",
+    "file-perl",
+    "file-c",
+    "file-cpp",
+    "file-h",
+    "file-objc",
+    "file-objcpp",
+    "file-csharp",
+    "file-fsharp",
+    "file-swift",
+    "file-go",
+    "file-gomod",
+    "file-gowork",
+    "file-rust",
+    "file-cargo",
+    "file-cargo-lock",
+    "file-ruby",
+    "file-lua",
+    "file-zig",
+    "file-gdscript",
+    "file-godot",
+    "file-gdshader",
+    "file-asciidoc",
+    "file-d",
+    "file-dart",
+    "file-elixir",
+    "file-erlang",
+    "file-haskell",
+    "file-ocaml",
+    "file-clojure",
+    "file-julia",
+    "file-r",
+    "file-nix",
+    "file-latex",
+    "file-rst",
+    "file-docker",
+    "docker-connected",
+    "docker-compose-running",
+    "docker-compose-stopped",
+    "docker-compose-service-running",
+    "docker-compose-service-stopped",
+    "docker-devcontainer",
+    "docker-containers",
+    "docker-images",
+    "docker-networks",
+    "docker-volumes",
+    "docker-container-running",
+    "docker-container-stopped",
+    "docker-image",
+    "docker-registry",
+    "docker-pull",
+    "docker-push",
+    "file-makefile",
+    "file-cmake",
+    "file-bazel",
+    "file-jenkins",
+    "file-terraform",
+    "file-hcl",
+    "file-dotenv",
+    "file-lock",
+    "file-license",
+    "file-readme",
+    "file-log",
+    "file-http",
+    "file-regexp",
+    "file-manifest",
+    "file-idl",
+    "toolwindow-project",
+    "toolwindow-structure",
+    "toolwindow-hierarchy",
+    "toolwindow-find",
+    "toolwindow-usages",
+    "toolwindow-bookmarks",
+    "toolwindow-commit",
+    "toolwindow-git",
+    "toolwindow-terminal",
+    "toolwindow-run",
+    "toolwindow-debug",
+    "toolwindow-problems",
+    "toolwindow-todo",
+    "toolwindow-notifications",
+    "toolwindow-services",
+    "toolwindow-pull-requests",
+    "toolwindow-inspection",
+    "toolwindow-duplicates",
+    "toolwindow-changes",
+    "toolwindow-database",
+    "toolwindow-agents",
+    "toolwindow-graphql",
+    "agent-claude",
+    "agent-codex",
+    "agent-gemini",
+    "agent-copilot",
+    "agent-cursor",
+    "agent-opencode",
+    "agent-qwen",
+    "agent-kimi",
+    "agent-goose",
+    "agent-auggie",
+    "agent-kiro",
+    "agent-vibe",
+    "toolwindow-maven",
+    "toolwindow-gradle",
+    "toolwindow-build",
+    "chevron-right",
+    "chevron-down",
+    "chevron-up",
+    "chevron-left",
+    "close",
+    "plus",
+    "minus",
+    "check",
+    "more",
+    "more-horizontal",
+    "regex",
+    "case",
+    "text-match",
+    "open-in-tool-window",
+    "preserve-case",
+    "new-line",
+    "search-history",
+    "quote",
+    "help",
+    "page-first",
+    "ide-mode-light",
+    "ide-mode-full",
+    "page-last",
+    "sliders",
+    "graphql-variables",
+    "layout",
+    "split-horizontal",
+    "editor-only",
+    "editor-preview",
+    "preview-only",
+    "maximize",
+    "zoom-in",
+    "zoom-out",
+    "actual-size",
+    "chessboard",
+    "minimize",
+    "main-menu",
+    "window-minimize",
+    "window-maximize",
+    "window-restore",
+    "window-close",
+    "hide",
+    "pin",
+    "eye",
+    "show-read-access",
+    "show-write-access",
+    "lock",
+    "unlock",
+    "scratches",
+    "external-link",
+    "collapse-all",
+    "expand-all",
+    "locate",
+    "autoscroll-to-source",
+    "autoscroll-from-source",
+    "copy",
+    "paste",
+    "cut",
+    "trash",
+    "arrow-left",
+    "arrow-right",
+    "arrow-up",
+    "arrow-down",
+    "undo",
+    "redo",
+    "sun",
+    "moon",
+    "list",
+    "keyboard",
+    "bulb",
+    "bulb-fix",
+    "soft-wrap",
+    "history",
+    "clock",
+    "bell",
+    "database",
+    "db-table",
+    "db-view",
+    "db-column",
+    "db-columns",
+    "db-column-key",
+    "db-column-fk",
+    "db-key",
+    "db-foreign-key",
+    "db-index",
+    "db-schema",
+    "db-console",
+    "db-matview",
+    "db-routine",
+    "db-trigger",
+    "db-sequence",
+    "db-plan",
+    "db-chart",
+    "db-sort",
+    "db-folder",
+    "db-add",
+    "db-properties",
+    "db-disconnect",
+    "db-sqlite",
+    "db-postgres",
+    "db-clickhouse",
+    "db-mysql",
+    "db-sqlserver",
+    "db-oracle",
+    "db-mariadb",
+    "db-aurora",
+    "db-redshift",
+    "db-cockroach",
+    "db-greenplum",
+    "db-neon",
+    "db-oceanbase",
+    "db-singlestore",
+    "db-supabase",
+    "db-tidb",
+    "db-timescale",
+    "db-yugabyte",
+    "export",
+    "browser-chrome",
+    "browser-chromium",
+    "browser-firefox",
+    "browser-safari",
+    "browser-edge",
+    "browser-brave",
+    "structure",
+    "hierarchy",
+    "terminal",
+    "problems",
+    "todo",
+    "bookmark",
+    "warning",
+    "success",
+    "run",
+    "run-coverage",
+    "profile",
+    "toolwindow-coverage",
+    "toolwindow-profiler",
+    "toolwindow-logcat",
+    "gutter-run",
+    "gutter-run-all",
+    "gutter-run-passed",
+    "gutter-run-failed",
+    "gutter-implemented",
+    "gutter-implementing",
+    "gutter-overridden",
+    "gutter-overriding",
+    "rerun",
+    "hot-reload",
+    "rerun-filled",
+    "restart-debug",
+    "restart-debug-filled",
+    "stop-filled",
+    "resume",
+    "step-over",
+    "step-into",
+    "step-out",
+    "run-to-cursor",
+    "force-run-to-cursor",
+    "force-step-into",
+    "force-step-over",
+    "smart-step-into",
+    "show-execution-point",
+    "reset-frame",
+    "attach-to-process",
+    "evaluate-expression",
+    "breakpoint",
+    "breakpoint-disabled",
+    "breakpoint-muted",
+    "breakpoint-method",
+    "breakpoint-field",
+    "breakpoint-exception",
+    "mute-breakpoint",
+    "view-breakpoints",
+    "maven-project",
+    "maven-module",
+    "maven-goal",
+    "maven-plugin",
+    "maven-plugin-goal",
+    "maven-profiles",
+    "maven-load-changes",
+    "gradle-load-changes",
+    "build-task",
+    "build-task-group",
+    "build-offline",
+    "build-dependencies",
+    "build-project",
+    "build-rebuild",
+    "skip-tests",
+    "run-anything",
+    "library",
+    "resolve-continue",
+    "vcs-abort",
+    "git-pull",
+    "git-push",
+    "git-fetch",
+    "vcs-incoming",
+    "vcs-outgoing",
+    "diff",
+    "revert",
+    "diff-apply-left",
+    "diff-apply-all",
+    "diff-apply-right",
+    "diff-arrow-right",
+    "diff-arrow-left",
+    "diff-arrow-right-down",
+    "diff-arrow-left-down",
+    "diff-magic",
+    "diff-magic-toolbar",
+    "diff-remove",
+    "diff-revert",
+    "shelve",
+    "unshelve",
+    "changelist",
+    "stash",
+    "star",
+    "star-outline",
+    "current-branch",
+    "branch-label",
+    "current-branch-label",
+    "github-pr-open",
+    "github-pr-closed",
+    "github-pr-draft",
+    "github-pr-merged",
+    "github-review",
+    "github-review-accepted",
+    "github-review-rejected",
+    "github-timeline",
+    "github-issue-open",
+    "github-issue-closed",
+    "github-local-branch",
+    "github-warning",
+    "add-emoji",
+    "add-emoji-hovered",
+    "send",
+    "send-hovered",
+    "review-comment",
+    "review-comment-unread",
+    "review-comment-hovered",
+    "review-comment-read-many",
+    "review-comment-unread-many",
+    "review-file-unread",
+    "review-default-avatar",
+    "review-non-mergeable",
+    "review-branch-current",
+    "inline-add",
+    "inline-add-hover",
+    "edit-source",
+    "green-checkmark",
+    "ci-pending",
+    "ci-failed",
+    "ci-skipped",
+    "ci-failed-in-progress",
+    "symbol-function",
+    "symbol-file",
+    "symbol-text",
+    "symbol-module",
+    "symbol-property",
+    "symbol-class",
+    "symbol-interface",
+    "symbol-enum",
+    "symbol-struct",
+    "symbol-trait",
+    "symbol-method",
+    "symbol-constructor",
+    "symbol-field",
+    "symbol-variable",
+    "symbol-constant",
+    "symbol-parameter",
+    "symbol-namespace",
+    "symbol-package",
+    "symbol-type",
+    "symbol-annotation",
+    "symbol-keyword",
+    "symbol-snippet"
+   ],
+   "$path": "computed",
+   "$order": "computed",
+   "source": "src/features/project-tree/index.ts:131"
+  },
+  {
+   "$id": "computed",
+   "$order": "computed",
+   "beforeProject": true,
+   "source": "src/features/project-tree/index.ts:141"
+  },
+  {
+   "id": "scratches",
+   "label": "Scratches",
+   "icon": "scratches",
+   "$path": "computed",
+   "order": 10,
+   "scope": "scratches",
+   "source": "src/features/scratch/index.ts:28"
+  }
+ ],
+ "registerRunAnythingProvider": [
+  {
+   "id": "build-tools",
+   "group": "Build Tools",
+   "order": 20,
+   "$items": "function",
+   "$execute": "function",
+   "source": "src/features/build-tools/index.ts:202"
+  },
+  {
+   "id": "run.configs",
+   "group": "Run Configurations",
+   "order": 10,
+   "$items": "function",
+   "$execute": "function",
+   "source": "src/features/run/index.ts:387"
+  }
+ ],
+ "registerRunConfigType": [
+  {
+   "id": "remote-jvm",
+   "label": "Remote JVM Debug",
+   "icon": "attach-to-process",
+   "description": "Attach the debugger to a JVM started with a JDWP agent, here or on another machine",
+   "defaults": {
+    "mode": "attach",
+    "host": "localhost",
+    "port": "5005",
+    "jdk": "9"
+   },
+   "debugOnly": true,
+   "debugAdapter": "java-debug",
+   "fields": [
+    {
+     "key": "mode",
+     "label": "Debugger mode",
+     "control": "select",
+     "options": [
+      {
+       "value": "attach",
+       "label": "Attach to remote JVM"
+      },
+      {
+       "value": "listen",
+       "label": "Listen to remote JVM"
+      }
+     ]
+    },
+    {
+     "key": "host",
+     "label": "Host",
+     "mono": true,
+     "required": true
+    },
+    {
+     "key": "port",
+     "label": "Port",
+     "mono": true,
+     "required": true,
+     "$validate": "function"
+    },
+    {
+     "key": "jdk",
+     "label": "JDK version of the remote JVM",
+     "control": "select",
+     "options": [
+      {
+       "value": "9",
+       "label": "JDK 9 or later"
+      },
+      {
+       "value": "5",
+       "label": "JDK 5 - 8"
+      },
+      {
+       "value": "1.4",
+       "label": "JDK 1.4.x"
+      }
+     ]
+    },
+    {
+     "key": "args",
+     "label": "Command line arguments for remote JVM",
+     "control": "output",
+     "mono": true,
+     "$value": "computed",
+     "hint": "Add to the remote JVM's command line (or JAVA_TOOL_OPTIONS)"
+    },
+    {
+     "key": "module",
+     "label": "Use module classpath",
+     "mono": true,
+     "placeholder": "Project root",
+     "hint": "Module directory whose sources the debugger shows",
+     "$suggestions": "function"
+    }
+   ],
+   "$commandLine": "function",
+   "source": "src/features/debugger/index.ts:58"
+  },
+  {
+   "id": "go-remote",
+   "label": "Go Remote",
+   "icon": "file-go",
+   "description": "Attach to a Delve server (dlv --headless) here or on another machine",
+   "defaults": {
+    "host": "localhost",
+    "port": "2345"
+   },
+   "debugOnly": true,
+   "debugAdapter": "delve",
+   "$fields": "computed",
+   "$commandLine": "function",
+   "source": "src/features/debugger/index.ts:58"
+  },
+  {
+   "id": "python-remote",
+   "label": "Python Remote Debug (debugpy)",
+   "icon": "file-python",
+   "description": "Attach to a Python process listening with debugpy here or on another machine",
+   "defaults": {
+    "host": "localhost",
+    "port": "5678"
+   },
+   "debugOnly": true,
+   "debugAdapter": "debugpy",
+   "$fields": "computed",
+   "$commandLine": "function",
+   "source": "src/features/debugger/index.ts:58"
+  },
+  {
+   "id": "node-remote",
+   "label": "Attach to Node.js",
+   "icon": "file-js",
+   "description": "Attach to a Node.js process started with --inspect here or on another machine",
+   "defaults": {
+    "host": "localhost",
+    "port": "9229"
+   },
+   "debugOnly": true,
+   "debugAdapter": "js-debug",
+   "$fields": "computed",
+   "$commandLine": "function",
+   "source": "src/features/debugger/index.ts:58"
+  },
+  {
+   "id": "php-remote",
+   "label": "PHP Remote Debug (Xdebug)",
+   "icon": "file-php",
+   "description": "Listen for Xdebug connections: debug PHP requests served elsewhere (php-fpm, a container)",
+   "defaults": {
+    "port": "9003"
+   },
+   "debugOnly": true,
+   "debugAdapter": "php-debug",
+   "$fields": "computed",
+   "$commandLine": "function",
+   "source": "src/features/debugger/index.ts:58"
+  },
+  {
+   "id": "godot-attach",
+   "label": "Attach to Godot",
+   "icon": "file-gdscript",
+   "description": "Debug the game the Godot editor is running, through the editor's debug adapter",
+   "defaults": {
+    "host": "localhost",
+    "port": "6006"
+   },
+   "debugOnly": true,
+   "debugAdapter": "godot",
+   "fields": [
+    {
+     "key": "host",
+     "label": "Host",
+     "mono": true,
+     "required": true
+    },
+    {
+     "key": "port",
+     "label": "Port",
+     "mono": true,
+     "required": true,
+     "$validate": "function"
+    },
+    {
+     "key": "hint",
+     "label": "Before attaching",
+     "control": "output",
+     "$value": "function"
+    }
+   ],
+   "$commandLine": "function",
+   "source": "src/features/debugger/index.ts:58"
+  },
+  {
+   "id": "shell",
+   "label": "Shell Script",
+   "icon": "file-shell",
+   "description": "Run a script file, script text or command line",
+   "defaults": {
+    "mode": "file"
+   },
+   "fields": [
+    {
+     "key": "mode",
+     "label": "Execute",
+     "control": "select",
+     "options": [
+      {
+       "value": "file",
+       "label": "Script file"
+      },
+      {
+       "value": "text",
+       "label": "Script text"
+      },
+      {
+       "value": "command",
+       "label": "Command line"
+      }
+     ]
+    },
+    {
+     "key": "path",
+     "label": "Script path",
+     "mono": true,
+     "required": true,
+     "browse": "file",
+     "$visible": "function"
+    },
+    {
+     "key": "options",
+     "label": "Script options",
+     "mono": true,
+     "$visible": "function"
+    },
+    {
+     "key": "interpreter",
+     "label": "Interpreter path",
+     "mono": true,
+     "browse": "file",
+     "placeholder": "Run the script directly",
+     "$visible": "function"
+    },
+    {
+     "key": "interpreterOptions",
+     "label": "Interpreter options",
+     "mono": true,
+     "$visible": "function"
+    },
+    {
+     "key": "script",
+     "label": "Script text",
+     "control": "textarea",
+     "mono": true,
+     "required": true,
+     "$visible": "function"
+    },
+    {
+     "key": "command",
+     "label": "Command",
+     "mono": true,
+     "required": true,
+     "placeholder": "e.g. ./gradlew or cargo",
+     "$visible": "function"
+    },
+    {
+     "key": "args",
+     "label": "Arguments",
+     "mono": true,
+     "placeholder": "Space separated; quote with ' or \"",
+     "$visible": "function"
+    }
+   ],
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "program",
+   "label": "Program",
+   "icon": "file-binary",
+   "description": "Run an executable with arguments",
+   "fields": [
+    {
+     "key": "program",
+     "label": "Executable",
+     "mono": true,
+     "required": true,
+     "browse": "file",
+     "placeholder": "Path or command on PATH"
+    },
+    {
+     "key": "arguments",
+     "label": "Program arguments",
+     "mono": true
+    }
+   ],
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "npm",
+   "label": "npm",
+   "icon": "file-npm",
+   "description": "Run a package.json script",
+   "defaults": {
+    "packageManager": "npm",
+    "command": "run"
+   },
+   "ownsWorkingDirectory": true,
+   "fields": [
+    {
+     "key": "packageDir",
+     "label": "package.json directory",
+     "mono": true,
+     "browse": "directory",
+     "placeholder": "Project root"
+    },
+    {
+     "key": "command",
+     "label": "Command",
+     "control": "select",
+     "$options": "computed"
+    },
+    {
+     "key": "script",
+     "label": "Script",
+     "mono": true,
+     "required": true,
+     "$visible": "function",
+     "$suggestions": "function"
+    },
+    {
+     "key": "arguments",
+     "label": "Arguments",
+     "mono": true
+    },
+    {
+     "key": "packageManager",
+     "label": "Package manager",
+     "control": "select",
+     "$options": "computed"
+    },
+    {
+     "key": "nodeInterpreter",
+     "label": "Node interpreter",
+     "mono": true,
+     "browse": "file",
+     "placeholder": "Project default",
+     "hint": "The node executable this script runs on; empty uses Settings › Languages & Frameworks › Node.js."
+    }
+   ],
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "gradle",
+   "label": "Gradle",
+   "icon": "file-gradle",
+   "$description": "computed",
+   "$defaults": "computed",
+   "ownsWorkingDirectory": true,
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$prepareLaunch": "computed",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "maven",
+   "label": "Maven",
+   "icon": "file-maven",
+   "$description": "computed",
+   "$defaults": "computed",
+   "ownsWorkingDirectory": true,
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$prepareLaunch": "computed",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "godot",
+   "label": "Godot",
+   "icon": "file-gdscript",
+   "description": "Run a Godot project's main scene or a chosen scene",
+   "ownsWorkingDirectory": true,
+   "debugAdapter": "godot",
+   "fields": [
+    {
+     "key": "projectDir",
+     "label": "Project directory",
+     "mono": true,
+     "browse": "directory",
+     "placeholder": "Project root (holds project.godot)"
+    },
+    {
+     "key": "scene",
+     "label": "Scene",
+     "mono": true,
+     "placeholder": "Main scene",
+     "hint": "e.g. res://levels/level_1.tscn; empty runs the project's main scene",
+     "$suggestions": "function"
+    },
+    {
+     "key": "arguments",
+     "label": "Arguments",
+     "mono": true,
+     "placeholder": "Godot command line options, e.g. --debug-collisions"
+    }
+   ],
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "pytest",
+   "label": "pytest",
+   "icon": "file-python",
+   "description": "Run pytest tests",
+   "defaults": {
+    "command": "pytest"
+   },
+   "debugAdapter": "debugpy",
+   "fields": [
+    {
+     "key": "command",
+     "label": "Command",
+     "mono": true,
+     "placeholder": "pytest",
+     "required": true,
+     "hint": "e.g. pytest, uv, poetry, .venv/bin/pytest, python"
+    },
+    {
+     "key": "runnerArgs",
+     "label": "Runner arguments",
+     "mono": true,
+     "placeholder": "run pytest",
+     "hint": "e.g. `run pytest` for uv/poetry, `-m pytest` for python; empty calls the command itself"
+    },
+    {
+     "key": "target",
+     "label": "Target",
+     "mono": true,
+     "placeholder": "tests",
+     "hint": "Directory, file or test id; empty runs the whole suite"
+    },
+    {
+     "key": "options",
+     "label": "pytest options",
+     "mono": true,
+     "placeholder": "e.g. -x -q --tb=short"
+    }
+   ],
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "ruby",
+   "label": "Ruby",
+   "icon": "file-ruby",
+   "description": "Run a Ruby script",
+   "defaults": {},
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "rake",
+   "label": "Rake",
+   "icon": "file-ruby",
+   "description": "Run a Rake task",
+   "defaults": {
+    "bundler": "true"
+   },
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "rspec",
+   "label": "RSpec",
+   "icon": "file-ruby",
+   "description": "Run RSpec examples",
+   "defaults": {
+    "bundler": "true"
+   },
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "django-test",
+   "label": "Django tests",
+   "icon": "file-python",
+   "description": "Run Django tests with manage.py test",
+   "defaults": {
+    "command": "python3"
+   },
+   "debugAdapter": "debugpy",
+   "fields": [
+    {
+     "key": "command",
+     "label": "Command",
+     "mono": true,
+     "placeholder": "python3",
+     "required": true,
+     "hint": "e.g. python3, .venv/bin/python, uv, poetry"
+    },
+    {
+     "key": "runnerArgs",
+     "label": "Runner arguments",
+     "mono": true,
+     "placeholder": "run python",
+     "hint": "e.g. `run python` for uv/poetry; empty calls the interpreter itself"
+    },
+    {
+     "key": "target",
+     "label": "Target",
+     "mono": true,
+     "placeholder": "polls.tests",
+     "hint": "App labels, modules or dotted test paths; empty runs every test"
+    },
+    {
+     "key": "settings",
+     "label": "Settings module",
+     "mono": true,
+     "placeholder": "mysite.settings_test",
+     "hint": "Passed as --settings; empty keeps DJANGO_SETTINGS_MODULE or the default in manage.py"
+    },
+    {
+     "key": "options",
+     "label": "Options",
+     "mono": true,
+     "placeholder": "e.g. --keepdb --parallel"
+    }
+   ],
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "phpunit",
+   "label": "PHPUnit",
+   "icon": "file-php",
+   "description": "Run PHPUnit tests",
+   "defaults": {
+    "command": "vendor/bin/phpunit"
+   },
+   "debugAdapter": "php-debug",
+   "fields": [
+    {
+     "key": "command",
+     "label": "Command",
+     "mono": true,
+     "placeholder": "vendor/bin/phpunit",
+     "required": true,
+     "hint": "e.g. vendor/bin/phpunit, phpunit, vendor/bin/pest"
+    },
+    {
+     "key": "target",
+     "label": "Target",
+     "mono": true,
+     "placeholder": "tests/Unit",
+     "hint": "Test file or directory; empty runs the suites of the configuration file"
+    },
+    {
+     "key": "configuration",
+     "label": "Configuration file",
+     "mono": true,
+     "placeholder": "phpunit.xml",
+     "hint": "Passed as --configuration; empty lets PHPUnit find phpunit.xml(.dist)"
+    },
+    {
+     "key": "filter",
+     "label": "Test filter",
+     "mono": true,
+     "placeholder": "CalculatorTest::testAdd",
+     "hint": "Passed as --filter: a test name or a regular expression"
+    },
+    {
+     "key": "options",
+     "label": "PHPUnit options",
+     "mono": true,
+     "placeholder": "e.g. --stop-on-failure --testsuite unit"
+    }
+   ],
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "dotnet",
+   "label": ".NET Project",
+   "icon": "file-csharp",
+   "description": "Run a .NET project with a launch profile",
+   "debugAdapter": "netcoredbg",
+   "fields": [
+    {
+     "key": "project",
+     "label": ".NET project",
+     "mono": true,
+     "required": true,
+     "$suggestions": "function"
+    },
+    {
+     "key": "framework",
+     "label": "Target framework",
+     "mono": true,
+     "$suggestions": "function"
+    },
+    {
+     "key": "launchProfile",
+     "label": "Launch profile",
+     "mono": true,
+     "hint": "Empty disables launch profiles",
+     "$suggestions": "function"
+    },
+    {
+     "key": "programArgs",
+     "label": "Program arguments",
+     "mono": true,
+     "hint": "Empty uses the launch profile's arguments"
+    },
+    {
+     "key": "applicationUrl",
+     "label": "Application URL",
+     "control": "output",
+     "$value": "function"
+    },
+    {
+     "key": "profileEnvironment",
+     "label": "Profile environment variables",
+     "control": "output",
+     "$value": "function",
+     "hint": "Environment variables below override the profile"
+    }
+   ],
+   "$commandLine": "function",
+   "$prepareLaunch": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "dotnet-test",
+   "label": "dotnet test",
+   "icon": "file-csharp",
+   "description": "Run .NET tests",
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$prepareLaunch": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "go",
+   "label": "Go Build",
+   "icon": "file-go",
+   "description": "Build and run a Go application",
+   "defaults": {
+    "goKind": "build",
+    "scope": "package",
+    "target": ".",
+    "runAfterBuild": "true",
+    "useTags": "true"
+   },
+   "debugAdapter": "delve",
+   "terminal": false,
+   "$fields": "computed",
+   "$commandLine": "computed",
+   "$paramsFrom": "computed",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "go-test",
+   "label": "Go Test",
+   "icon": "file-go",
+   "description": "Run Go tests",
+   "defaults": {
+    "goKind": "test",
+    "scope": "package",
+    "target": ".",
+    "useTags": "true"
+   },
+   "debugAdapter": "delve",
+   "terminal": false,
+   "$fields": "computed",
+   "$commandLine": "computed",
+   "$paramsFrom": "computed",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "$id": "computed",
+   "$label": "computed",
+   "$icon": "computed",
+   "$description": "computed",
+   "defaults": {
+    "classpath": "${classpath}",
+    "onUpdate": "ask",
+    "onDeactivation": "none"
+   },
+   "debugAdapter": "java-debug",
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "$id": "computed",
+   "$label": "computed",
+   "$icon": "computed",
+   "$description": "computed",
+   "defaults": {
+    "classpath": "${classpath}",
+    "onUpdate": "ask",
+    "onDeactivation": "none"
+   },
+   "debugAdapter": "java-debug",
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "tomcat",
+   "group": "Servers",
+   "label": "Tomcat Server",
+   "icon": "tomcat",
+   "description": "Run a WAR application in a local Tomcat server",
+   "debugAdapter": "java-debug",
+   "terminal": false,
+   "defaults": {
+    "deployment": "artifact",
+    "httpPort": "8080",
+    "jmxPort": "1099",
+    "buildArtifact": "true",
+    "openBrowser": "true",
+    "onUpdate": "ask",
+    "onDeactivation": "none"
+   },
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$prepareLaunch": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "compound",
+   "label": "Compound",
+   "icon": "gutter-run-all",
+   "description": "Run or debug several configurations together",
+   "fields": [],
+   "$commandLine": "function",
+   "source": "src/features/run/types.ts:456"
+  },
+  {
+   "id": "docker-dockerfile",
+   "label": "Dockerfile",
+   "group": "Docker",
+   "icon": "file-docker",
+   "description": "Build an image from a Dockerfile and run a container from it",
+   "defaults": {
+    "connection": "default",
+    "dockerfile": "Dockerfile",
+    "runImage": "true"
+   },
+   "ownsWorkingDirectory": true,
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$prepareLaunch": "computed",
+   "source": "src/features/services/runTypes.ts:327"
+  },
+  {
+   "id": "docker-image",
+   "label": "Docker Image",
+   "group": "Docker",
+   "icon": "file-docker",
+   "description": "Run a container from an image",
+   "defaults": {
+    "connection": "default"
+   },
+   "ownsWorkingDirectory": true,
+   "fields": [
+    {
+     "key": "connection",
+     "label": "Server",
+     "control": "select",
+     "$options": "function"
+    },
+    {
+     "key": "image",
+     "label": "Image ID or name",
+     "mono": true,
+     "required": true,
+     "placeholder": "e.g. postgres:16"
+    },
+    {
+     "key": "pull",
+     "label": "Pull the image before running",
+     "control": "checkbox"
+    },
+    {
+     "key": "containerName",
+     "label": "Container name",
+     "mono": true,
+     "placeholder": "Derived from the image"
+    },
+    {
+     "key": "ports",
+     "label": "Bind ports",
+     "mono": true,
+     "placeholder": "8080:80, 5005:5005"
+    },
+    {
+     "key": "volumes",
+     "label": "Bind mounts",
+     "mono": true,
+     "placeholder": "./data:/data; cache:/root/.cache"
+    },
+    {
+     "key": "containerEnv",
+     "label": "Container environment",
+     "mono": true,
+     "placeholder": "KEY=value; OTHER=value"
+    },
+    {
+     "key": "runOptions",
+     "label": "Run options",
+     "mono": true,
+     "placeholder": "e.g. --rm --network host"
+    },
+    {
+     "key": "command",
+     "label": "Command",
+     "mono": true,
+     "placeholder": "The image's default"
+    }
+   ],
+   "$commandLine": "function",
+   "$prepareLaunch": "computed",
+   "source": "src/features/services/runTypes.ts:327"
+  },
+  {
+   "id": "docker-compose",
+   "label": "Docker Compose",
+   "group": "Docker",
+   "icon": "file-docker",
+   "description": "Start the services of Compose files",
+   "defaults": {
+    "connection": "default",
+    "files": "docker-compose.yml"
+   },
+   "ownsWorkingDirectory": true,
+   "fields": [
+    {
+     "key": "connection",
+     "label": "Server",
+     "control": "select",
+     "$options": "function"
+    },
+    {
+     "key": "files",
+     "label": "Compose files",
+     "mono": true,
+     "required": true,
+     "placeholder": "docker-compose.yml; docker-compose.override.yml"
+    },
+    {
+     "key": "services",
+     "label": "Services",
+     "mono": true,
+     "placeholder": "All services"
+    },
+    {
+     "key": "project",
+     "label": "Project name",
+     "mono": true,
+     "placeholder": "The folder name"
+    },
+    {
+     "key": "detach",
+     "label": "Run in the background (-d)",
+     "control": "checkbox"
+    },
+    {
+     "key": "build",
+     "label": "Build images before starting (--build)",
+     "control": "checkbox"
+    },
+    {
+     "key": "upOptions",
+     "label": "Up options",
+     "mono": true,
+     "placeholder": "e.g. --force-recreate --remove-orphans"
+    }
+   ],
+   "$commandLine": "function",
+   "$prepareLaunch": "computed",
+   "source": "src/features/services/runTypes.ts:327"
+  }
+ ],
+ "registerRunExecutor": [
+  {
+   "id": "coverage",
+   "$label": "function",
+   "icon": "run-coverage",
+   "action": "run.coverage",
+   "order": 10,
+   "$supports": "computed",
+   "$prepare": "computed",
+   "source": "src/features/coverage/index.ts:18"
+  },
+  {
+   "id": "profiler",
+   "$label": "function",
+   "icon": "profile",
+   "action": "run.profile",
+   "order": 20,
+   "$supports": "function",
+   "$prepare": "computed",
+   "source": "src/features/profiler/index.ts:14"
+  }
+ ],
+ "registerRunningProcessesProvider": [
+  {
+   "id": "run",
+   "$running": "function",
+   "$stop": "function",
+   "source": "src/features/run/index.ts:401"
+  }
+ ],
+ "registerSaveParticipant": [
+  {
+   "id": "lsp.formatOnSave",
+   "order": 50,
+   "$beforeSave": "function",
+   "source": "src/editor/lsp/actions.ts:139"
+  },
+  {
+   "id": "lsp.organizeImportsOnSave",
+   "order": 40,
+   "$beforeSave": "function",
+   "source": "src/editor/lsp/actions.ts:152"
+  },
+  {
+   "id": "lsp.cleanupOnSave",
+   "order": 45,
+   "$beforeSave": "function",
+   "source": "src/editor/lsp/actions.ts:152"
+  }
+ ],
+ "registerServiceProvider": [
+  {
+   "$id": "computed",
+   "order": 900,
+   "$useRoots": "function",
+   "$actions": "function",
+   "$menu": "function",
+   "$select": "function",
+   "$activate": "function",
+   "$expand": "function",
+   "$detail": "computed",
+   "source": "src/features/plugins/uiPoints.tsx:372"
+  },
+  {
+   "id": "runConfigurations",
+   "order": 0,
+   "$useRoots": "computed",
+   "$actions": "computed",
+   "$menu": "computed",
+   "$activate": "function",
+   "$detail": "computed",
+   "$addMenu": "computed",
+   "reorder": {
+    "$canMove": "function",
+    "$move": "function"
+   },
+   "source": "src/features/run/index.ts:399"
+  },
+  {
+   "id": "docker",
+   "order": 10,
+   "$useRoots": "computed",
+   "$watch": "computed",
+   "$actions": "computed",
+   "$menu": "computed",
+   "$activate": "function",
+   "$detail": "computed",
+   "$banner": "computed",
+   "$addMenu": "function",
+   "source": "src/features/services/index.ts:72"
+  }
+ ],
+ "registerServiceView": [
+  {
+   "id": "dbResults",
+   "title": "Database",
+   "icon": "database",
+   "order": 20,
+   "onUse": true,
+   "$component": "computed",
+   "source": "src/features/database/index.ts:66"
+  },
+  {
+   "id": "httpClient",
+   "title": "HTTP Client",
+   "icon": "file-http",
+   "order": 10,
+   "onUse": true,
+   "$component": "computed",
+   "$headerActions": "computed",
+   "source": "src/features/http-client/index.ts:127"
+  },
+  {
+   "id": "services",
+   "title": "Services",
+   "icon": "toolwindow-services",
+   "order": 0,
+   "$component": "computed",
+   "source": "src/features/services/index.ts:65"
+  }
+ ],
+ "registerSettingsPage": [
+  {
+   "id": "tools.agents",
+   "title": "Agents",
+   "group": "Tools",
+   "order": 500,
+   "keywords": [
+    "agent",
+    "acp",
+    "registry",
+    "install",
+    "update",
+    "coding agent"
+   ],
+   "$component": "computed",
+   "source": "src/features/agents/index.ts:30"
+  },
+  {
+   "id": "vcs.github",
+   "title": "GitHub",
+   "order": 9,
+   "keywords": [
+    "pull request",
+    "viewed",
+    "review"
+   ],
+   "$component": "computed",
+   "source": "src/features/github/settingsPages.ts:5"
+  },
+  {
+   "id": "plugins",
+   "title": "Plugins",
+   "order": 250,
+   "keywords": [
+    "plugin",
+    "extension",
+    "wasm",
+    "install",
+    "theme",
+    "marketplace"
+   ],
+   "$component": "computed",
+   "source": "src/features/plugins/index.ts:44"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "projectScope": true,
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/plugins/settings.tsx:327"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "projectScope": true,
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/plugins/settings.tsx:337"
+  },
+  {
+   "id": "projectTrust",
+   "title": "Project Trust",
+   "group": "Security",
+   "$component": "computed",
+   "source": "src/features/project-trust/index.tsx:247"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$keywords": "computed",
+   "$component": "function",
+   "source": "src/features/settings/iconThemePages.tsx:18"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$group": "computed",
+   "$order": "computed",
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/settings/pages/registry.tsx:62"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$group": "computed",
+   "$order": "computed",
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/settings/pages/registry.tsx:62"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$group": "computed",
+   "$order": "computed",
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/settings/pages/registry.tsx:62"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$group": "computed",
+   "$order": "computed",
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/settings/pages/registry.tsx:69"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$group": "computed",
+   "$order": "computed",
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/settings/pages/registry.tsx:69"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$group": "computed",
+   "$order": "computed",
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/settings/pages/registry.tsx:69"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$group": "computed",
+   "$order": "computed",
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/settings/pages/registry.tsx:82"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$group": "computed",
+   "$order": "computed",
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/settings/pages/registry.tsx:82"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "$group": "computed",
+   "$order": "computed",
+   "$keywords": "computed",
+   "$component": "computed",
+   "source": "src/features/settings/pages/registry.tsx:82"
+  },
+  {
+   "id": "editor.liveTemplates",
+   "title": "Live Templates",
+   "group": "Editor",
+   "order": 28,
+   "keywords": [
+    "snippet",
+    "abbreviation",
+    "surround",
+    "template"
+   ],
+   "$component": "computed",
+   "source": "src/features/templates/index.ts:145"
+  },
+  {
+   "id": "editor.general.postfixCompletion",
+   "title": "Postfix Completion",
+   "group": "Editor",
+   "order": 7,
+   "keywords": [
+    "postfix",
+    "template",
+    ".if",
+    ".var",
+    ".for"
+   ],
+   "$component": "computed",
+   "source": "src/features/templates/index.ts:153"
+  },
+  {
+   "id": "editor.fileTemplates",
+   "title": "File and Code Templates",
+   "group": "Editor",
+   "order": 26,
+   "keywords": [
+    "new file",
+    "class",
+    "template",
+    "package",
+    "includes",
+    "file header",
+    "code",
+    "scheme",
+    "reformat"
+   ],
+   "$component": "computed",
+   "source": "src/features/templates/index.ts:162"
+  },
+  {
+   "id": "editor.todo",
+   "title": "TODO",
+   "group": "Editor",
+   "order": 40,
+   "keywords": [
+    "todo",
+    "fixme",
+    "hack",
+    "pattern"
+   ],
+   "$component": "computed",
+   "source": "src/features/todo/index.ts:12"
+  },
+  {
+   "id": "languages.servers",
+   "title": "Language Servers",
+   "group": "Languages & Frameworks",
+   "order": 400,
+   "keywords": [
+    "lsp",
+    "language server",
+    "debugger",
+    "adapter",
+    "dap",
+    "install",
+    "initialization options",
+    "rust-analyzer",
+    "gopls",
+    "pyright"
+   ],
+   "projectScope": true,
+   "$component": "computed",
+   "source": "src/features/tools/index.ts:17"
+  },
+  {
+   "id": "vcs.log",
+   "title": "Log",
+   "order": 6,
+   "keywords": [
+    "git log",
+    "references",
+    "tags",
+    "columns",
+    "commit time"
+   ],
+   "$component": "computed",
+   "source": "src/features/vcs/index.ts:166"
+  },
+  {
+   "id": "editor.vim",
+   "title": "Vim",
+   "group": "Editor",
+   "order": 45,
+   "keywords": [
+    "vim",
+    "ideavim",
+    "ideavimrc",
+    "emulation",
+    "shortcut conflicts",
+    "handler"
+   ],
+   "$component": "computed",
+   "source": "src/features/vim/index.ts:22"
+  }
+ ],
+ "registerSoftWrapSurface": [
+  {
+   "source": "src/features/vcs/DiffEditor.tsx:384"
+  }
+ ],
+ "registerStatusItem": [
+  {
+   "id": "editor.breadcrumbs",
+   "align": "left",
+   "priority": 0,
+   "$component": "computed",
+   "title": "Navigation Bar",
+   "source": "src/editor/core/index.ts:75"
+  },
+  {
+   "id": "editor.caret",
+   "align": "right",
+   "priority": 20,
+   "$component": "computed",
+   "title": "Line:Column Number",
+   "lightEdit": true,
+   "source": "src/editor/core/index.ts:82"
+  },
+  {
+   "id": "editor.lineEnding",
+   "align": "right",
+   "priority": 30,
+   "$component": "computed",
+   "title": "Line Separator",
+   "lightEdit": true,
+   "source": "src/editor/core/index.ts:90"
+  },
+  {
+   "id": "editor.encoding",
+   "align": "right",
+   "priority": 40,
+   "$component": "computed",
+   "title": "File Encoding",
+   "lightEdit": true,
+   "source": "src/editor/core/index.ts:98"
+  },
+  {
+   "id": "editor.indent",
+   "align": "right",
+   "priority": 50,
+   "$component": "computed",
+   "title": "Indentation",
+   "lightEdit": true,
+   "source": "src/editor/core/index.ts:106"
+  },
+  {
+   "id": "editor.readOnly",
+   "align": "right",
+   "priority": 55,
+   "$component": "computed",
+   "title": "Read-only Attribute",
+   "lightEdit": true,
+   "source": "src/editor/core/index.ts:114"
+  },
+  {
+   "id": "editor-lsp.usagesStatus",
+   "align": "left",
+   "priority": 10,
+   "$component": "computed",
+   "source": "src/editor/lsp/index.ts:86"
+  },
+  {
+   "id": "agents.status",
+   "align": "right",
+   "priority": 3,
+   "title": "Agents",
+   "$component": "computed",
+   "source": "src/features/agents/index.ts:108"
+  },
+  {
+   "id": "app.lightEdit",
+   "align": "left",
+   "priority": 20,
+   "$component": "computed",
+   "lightEdit": true,
+   "source": "src/features/app/index.ts:42"
+  },
+  {
+   "id": "code-insight.servers",
+   "align": "right",
+   "priority": 5,
+   "$component": "computed",
+   "title": "Language Services",
+   "source": "src/features/code-insight/index.ts:84"
+  },
+  {
+   "id": "macros.recording",
+   "align": "left",
+   "priority": 4,
+   "$component": "computed",
+   "source": "src/features/macros/index.ts:142"
+  },
+  {
+   "id": "perf.memory",
+   "title": "Memory Indicator",
+   "defaultVisible": false,
+   "align": "right",
+   "priority": 100,
+   "$component": "computed",
+   "source": "src/features/perf/index.ts:12"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "align": "left",
+   "alignVariants": [
+    "left",
+    "right"
+   ],
+   "$priority": "computed",
+   "$component": "computed",
+   "source": "src/features/plugins/runtimeUi.tsx:159"
+  },
+  {
+   "id": "remote.location",
+   "title": "Remote Host",
+   "align": "left",
+   "priority": 100,
+   "$component": "computed",
+   "source": "src/features/remote-dev/index.ts:58"
+  },
+  {
+   "id": "php.languageLevel",
+   "title": "PHP Language Level",
+   "align": "right",
+   "priority": 89,
+   "$component": "computed",
+   "source": "src/features/settings/languages/PhpStatus.tsx:145"
+  },
+  {
+   "id": "python.interpreter",
+   "title": "Python Interpreter",
+   "align": "right",
+   "priority": 90,
+   "$component": "computed",
+   "source": "src/features/settings/languages/PythonStatus.tsx:175"
+  },
+  {
+   "id": "vim.mode",
+   "align": "right",
+   "priority": 45,
+   "$component": "computed",
+   "title": "Vim",
+   "lightEdit": true,
+   "source": "src/features/vim/index.ts:81"
+  },
+  {
+   "id": "workbench.tasks",
+   "align": "right",
+   "priority": 0,
+   "$component": "computed",
+   "lightEdit": true,
+   "source": "src/workbench/activate.ts:83"
+  },
+  {
+   "id": "workbench.info",
+   "align": "left",
+   "priority": 5,
+   "$component": "computed",
+   "lightEdit": true,
+   "source": "src/workbench/activate.ts:84"
+  }
+ ],
+ "registerTextEditorWrapper": [
+  {
+   "$id": "computed",
+   "$matches": "computed",
+   "$component": "computed",
+   "$tabActions": "computed",
+   "source": "src/features/plugins/uiPoints.tsx:471"
+  },
+  {
+   "id": "viewers.markdown",
+   "$matches": "computed",
+   "$component": "computed",
+   "$tabActions": "computed",
+   "source": "src/features/viewers/index.ts:108"
+  },
+  {
+   "id": "web.html",
+   "$matches": "computed",
+   "$component": "computed",
+   "source": "src/features/web/index.ts:62"
+  }
+ ],
+ "registerTitleItem": [
+  {
+   "id": "app.ideMode",
+   "title": "IDE Mode",
+   "align": "right",
+   "priority": 1,
+   "$component": "computed",
+   "source": "src/features/app/index.ts:51"
+  },
+  {
+   "id": "build.project",
+   "title": "Build Project",
+   "align": "right",
+   "priority": -1,
+   "$component": "computed",
+   "source": "src/features/build/index.ts:47"
+  },
+  {
+   "id": "run.widget",
+   "title": "Run Widget",
+   "align": "right",
+   "priority": 0,
+   "$component": "computed",
+   "source": "src/features/run/index.ts:386"
+  },
+  {
+   "id": "vcs.mergeRebase",
+   "title": "Merge/Rebase Widget",
+   "align": "left",
+   "priority": 11,
+   "$component": "computed",
+   "source": "src/features/vcs/index.ts:60"
+  },
+  {
+   "id": "vcs.branch",
+   "title": "VCS Widget",
+   "align": "left",
+   "priority": 10,
+   "$component": "computed",
+   "source": "src/features/vcs/index.ts:84"
+  }
+ ],
+ "registerToolWindow": [
+  {
+   "id": "documentation",
+   "title": "Documentation",
+   "icon": "info",
+   "anchor": "right",
+   "secondary": true,
+   "stripe": "onUse",
+   "order": 90,
+   "$component": "computed",
+   "source": "src/editor/lsp/index.ts:88"
+  },
+  {
+   "id": "agents",
+   "title": "Agents",
+   "icon": "toolwindow-agents",
+   "anchor": "right",
+   "order": 0.5,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "$headerActions": "computed",
+   "$useBadge": "function",
+   "source": "src/features/agents/index.ts:67"
+  },
+  {
+   "id": "inspection",
+   "title": "Inspection Results",
+   "icon": "toolwindow-inspection",
+   "anchor": "bottom",
+   "stripe": "onUse",
+   "order": 36,
+   "$component": "computed",
+   "$headerActions": "computed",
+   "$headerMenu": "computed",
+   "source": "src/features/analysis/index.ts:30"
+  },
+  {
+   "id": "duplicates",
+   "title": "Duplicates",
+   "icon": "toolwindow-duplicates",
+   "anchor": "bottom",
+   "stripe": "onUse",
+   "order": 37,
+   "$component": "computed",
+   "$headerActions": "computed",
+   "source": "src/features/analysis/index.ts:41"
+  },
+  {
+   "id": "maven",
+   "title": "Maven",
+   "icon": "toolwindow-maven",
+   "anchor": "right",
+   "order": 10,
+   "$component": "computed",
+   "source": "src/features/build-tools/index.ts:138"
+  },
+  {
+   "id": "gradle",
+   "title": "Gradle",
+   "icon": "toolwindow-gradle",
+   "anchor": "right",
+   "order": 11,
+   "$component": "computed",
+   "source": "src/features/build-tools/index.ts:146"
+  },
+  {
+   "id": "gradle",
+   "title": "Gradle",
+   "icon": "toolwindow-gradle",
+   "anchor": "right",
+   "order": 11,
+   "$component": "computed",
+   "source": "src/features/build-tools/index.ts:183"
+  },
+  {
+   "id": "build",
+   "title": "Build",
+   "icon": "toolwindow-build",
+   "anchor": "bottom",
+   "stripe": "onUse",
+   "order": 6,
+   "$component": "computed",
+   "$headerActions": "computed",
+   "$useBadge": "computed",
+   "source": "src/features/build/index.ts:36"
+  },
+  {
+   "id": "problems",
+   "title": "Problems",
+   "icon": "toolwindow-problems",
+   "anchor": "bottom",
+   "order": 30,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "$headerActions": "computed",
+   "$headerMenu": "computed",
+   "$useBadge": "computed",
+   "source": "src/features/code-insight/index.ts:51"
+  },
+  {
+   "id": "usages",
+   "title": "Find Usages",
+   "icon": "toolwindow-usages",
+   "anchor": "bottom",
+   "stripe": "onUse",
+   "order": 35,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "$headerMenu": "computed",
+   "source": "src/features/code-insight/index.ts:63"
+  },
+  {
+   "id": "hierarchy",
+   "title": "Hierarchy",
+   "icon": "toolwindow-hierarchy",
+   "anchor": "right",
+   "stripe": "onUse",
+   "order": 40,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "source": "src/features/code-insight/index.ts:74"
+  },
+  {
+   "id": "coverage",
+   "title": "Coverage",
+   "icon": "toolwindow-coverage",
+   "anchor": "right",
+   "stripe": "onUse",
+   "order": 30,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "$headerActions": "computed",
+   "source": "src/features/coverage/index.ts:19"
+  },
+  {
+   "id": "database",
+   "title": "Database",
+   "icon": "toolwindow-database",
+   "anchor": "right",
+   "order": 20,
+   "$component": "computed",
+   "$headerMenu": "computed",
+   "$headerActions": "computed",
+   "source": "src/features/database/index.ts:56"
+  },
+  {
+   "id": "debug",
+   "title": "Debug",
+   "icon": "toolwindow-debug",
+   "anchor": "bottom",
+   "stripe": "onUse",
+   "order": 20,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "source": "src/features/debugger/index.ts:59"
+  },
+  {
+   "id": "remoteHost",
+   "title": "Remote Host",
+   "icon": "web",
+   "anchor": "right",
+   "order": 30,
+   "requiresProject": true,
+   "stripe": "onUse",
+   "$component": "computed",
+   "source": "src/features/deployment/index.ts:77"
+  },
+  {
+   "id": "dotnet",
+   "title": ".NET",
+   "icon": "file-csharp",
+   "anchor": "right",
+   "stripe": "onUse",
+   "$component": "computed",
+   "source": "src/features/dotnet/index.ts:20"
+  },
+  {
+   "id": "pullRequests",
+   "title": "Pull Requests",
+   "icon": "toolwindow-pull-requests",
+   "anchor": "left",
+   "order": 2,
+   "stripe": "onUse",
+   "$component": "computed",
+   "$headerContent": "computed",
+   "$headerActions": "computed",
+   "$headerMenu": "computed",
+   "source": "src/features/github/index.ts:270"
+  },
+  {
+   "id": "graphql",
+   "title": "GraphQL",
+   "icon": "toolwindow-graphql",
+   "anchor": "bottom",
+   "order": 4,
+   "stripe": "onUse",
+   "$component": "computed",
+   "$headerContent": "computed",
+   "source": "src/features/graphql/index.ts:34"
+  },
+  {
+   "id": "logcat",
+   "title": "Logcat",
+   "icon": "toolwindow-logcat",
+   "anchor": "bottom",
+   "stripe": "onUse",
+   "order": 26,
+   "$component": "computed",
+   "requiresProject": false,
+   "source": "src/features/logcat/index.ts:10"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "verbatim": true,
+   "$anchor": "computed",
+   "$secondary": "computed",
+   "$icon": "computed",
+   "order": 900,
+   "$component": "computed",
+   "source": "src/features/plugins/views/viewWindows.tsx:118"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "verbatim": true,
+   "$anchor": "computed",
+   "$secondary": "computed",
+   "$icon": "computed",
+   "order": 900,
+   "$component": "computed",
+   "source": "src/features/plugins/views/viewWindows.tsx:118"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "verbatim": true,
+   "$anchor": "computed",
+   "$secondary": "computed",
+   "$icon": "computed",
+   "order": 900,
+   "$component": "computed",
+   "source": "src/features/plugins/views/viewWindows.tsx:118"
+  },
+  {
+   "$id": "computed",
+   "$title": "computed",
+   "verbatim": true,
+   "$anchor": "computed",
+   "$secondary": "computed",
+   "$icon": "computed",
+   "order": 900,
+   "$component": "computed",
+   "source": "src/features/plugins/views/viewWindows.tsx:118"
+  },
+  {
+   "id": "profiler",
+   "title": "Profiler",
+   "icon": "toolwindow-profiler",
+   "anchor": "bottom",
+   "stripe": "onUse",
+   "order": 25,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "source": "src/features/profiler/index.ts:15"
+  },
+  {
+   "id": "project",
+   "title": "Project",
+   "icon": "toolwindow-project",
+   "anchor": "left",
+   "order": 0,
+   "$component": "computed",
+   "$headerActions": "computed",
+   "$headerMenu": "computed",
+   "$titleMenu": "computed",
+   "source": "src/features/project-tree/index.ts:193"
+  },
+  {
+   "id": "remote.ports",
+   "title": "Ports",
+   "icon": "web",
+   "anchor": "bottom",
+   "order": 40,
+   "stripe": "onUse",
+   "$component": "computed",
+   "source": "src/features/remote-dev/index.ts:31"
+  },
+  {
+   "id": "run",
+   "title": "Run",
+   "icon": "toolwindow-run",
+   "anchor": "bottom",
+   "stripe": "onUse",
+   "order": 5,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "$useBadge": "computed",
+   "source": "src/features/run/index.ts:375"
+  },
+  {
+   "id": "structure",
+   "title": "Structure",
+   "icon": "toolwindow-structure",
+   "anchor": "left",
+   "secondary": true,
+   "order": 20,
+   "$component": "computed",
+   "source": "src/features/search/index.ts:153"
+  },
+  {
+   "id": "bookmarks",
+   "title": "Bookmarks",
+   "icon": "toolwindow-bookmarks",
+   "anchor": "left",
+   "secondary": true,
+   "order": 30,
+   "$component": "computed",
+   "$headerActions": "computed",
+   "$useBadge": "function",
+   "source": "src/features/search/index.ts:163"
+  },
+  {
+   "id": "find",
+   "title": "Find",
+   "icon": "toolwindow-find",
+   "anchor": "bottom",
+   "stripe": "onUse",
+   "order": 5,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "$headerActions": "computed",
+   "$headerMenu": "computed",
+   "source": "src/features/search/index.ts:175"
+  },
+  {
+   "id": "services",
+   "title": "Services",
+   "icon": "toolwindow-services",
+   "anchor": "bottom",
+   "order": 8,
+   "stripe": "onUse",
+   "$component": "computed",
+   "$headerContent": "computed",
+   "$headerActions": "computed",
+   "source": "src/features/services/index.ts:54"
+  },
+  {
+   "id": "terminal",
+   "title": "Terminal",
+   "icon": "toolwindow-terminal",
+   "anchor": "bottom",
+   "order": 10,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "source": "src/features/terminal/index.ts:57"
+  },
+  {
+   "id": "todo",
+   "title": "TODO",
+   "icon": "toolwindow-todo",
+   "iconVariants": [
+    "toolwindow-todo",
+    "list"
+   ],
+   "anchor": "bottom",
+   "order": 40,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "$headerActions": "computed",
+   "$headerMenu": "computed",
+   "$useBadge": "computed",
+   "source": "src/features/todo/index.ts:27"
+  },
+  {
+   "id": "commit",
+   "title": "Commit",
+   "icon": "toolwindow-commit",
+   "anchor": "left",
+   "order": 1,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "tabsReplaceTitle": true,
+   "$useBadge": "function",
+   "source": "src/features/vcs/index.ts:115"
+  },
+  {
+   "id": "git",
+   "title": "Git",
+   "icon": "toolwindow-git",
+   "anchor": "bottom",
+   "order": 5,
+   "$component": "computed",
+   "$headerContent": "computed",
+   "source": "src/features/vcs/index.ts:245"
+  },
+  {
+   "id": "notifications",
+   "title": "Notifications",
+   "icon": "bell",
+   "anchor": "right",
+   "order": 0,
+   "$component": "computed",
+   "$headerActions": "computed",
+   "$useBadge": "computed",
+   "source": "src/workbench/activate.ts:85"
+  }
+ ],
+ "registerUndoHandler": [
+  {
+   "source": "src/features/project-tree/index.ts:209"
+  }
+ ],
+ "registerWorkbenchBanner": [
+  {
+   "id": "project.restrictedMode",
+   "$component": "computed",
+   "source": "src/features/project-trust/index.tsx:246"
+  }
+ ]
+}

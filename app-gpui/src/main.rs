@@ -1,6 +1,4 @@
-use gpui::{
-    App, Application, Bounds, Context, Window, WindowBounds, WindowOptions, div, prelude::*, px, rgb, size,
-};
+use gpui_kit::*;
 
 struct Probe;
 
@@ -11,13 +9,9 @@ impl Render for Probe {
 }
 
 fn main() {
-    Application::new().run(|cx: &mut App| {
-        let bounds = Bounds::centered(None, size(px(600.), px(400.)), cx);
-        cx.open_window(
-            WindowOptions { window_bounds: Some(WindowBounds::Windowed(bounds)), ..Default::default() },
-            |_, cx| cx.new(|_| Probe),
-        )
-        .expect("open window");
+    gpui_kit::application().run(|cx: &mut App| {
+        gpui_kit::init(cx);
+        gpui_kit::open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| Probe)).expect("open window");
         cx.activate(true);
     });
 }

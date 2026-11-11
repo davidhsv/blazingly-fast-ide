@@ -1,0 +1,7244 @@
+{
+ "actions": [
+  {
+   "id": "agents.addAgent",
+   "title": "More Agents…",
+   "category": "Agents",
+   "description": "Opens Settings › Tools › Agents: installs, updates or removes agents from the ACP Registry.",
+   "icon": "plugin",
+   "keywords": [
+    "agent",
+    "acp",
+    "registry",
+    "install",
+    "update"
+   ],
+   "source": "src/features/agents/index.ts:139"
+  },
+  {
+   "id": "agents.archiveTasks",
+   "title": "Archive Agent Tasks",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/taskActions.ts:152"
+  },
+  {
+   "id": "agents.copyReplyMarkdown",
+   "title": "Copy Markdown",
+   "category": "Agents",
+   "icon": "copy",
+   "hidden": true,
+   "source": "src/features/agents/replyActions.ts:13"
+  },
+  {
+   "id": "agents.deleteTasks",
+   "title": "Delete Agent Tasks",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/taskActions.ts:172"
+  },
+  {
+   "id": "agents.dockTask",
+   "title": "Open Agent Task in Tool Window",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/taskActions.ts:107"
+  },
+  {
+   "id": "agents.findInConversation",
+   "title": "Find in Conversation",
+   "category": "Agents",
+   "icon": "search",
+   "when": "agentSessionFocus",
+   "source": "src/features/agents/index.ts:121"
+  },
+  {
+   "id": "agents.forkReply",
+   "title": "Branch Conversation from Here",
+   "category": "Agents",
+   "icon": "branch",
+   "hidden": true,
+   "source": "src/features/agents/replyActions.ts:132"
+  },
+  {
+   "id": "agents.forkTask",
+   "title": "Copy Agent Task to a New Task",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/taskActions.ts:141"
+  },
+  {
+   "id": "agents.jumpToLatest",
+   "title": "Jump to Latest",
+   "category": "Agents",
+   "icon": "arrow-down",
+   "hidden": true,
+   "source": "src/features/agents/replyActions.ts:62"
+  },
+  {
+   "id": "agents.newTask",
+   "title": "New Agent Task",
+   "category": "Agents",
+   "description": "Opens the New Task page; a string `arg` pre-fills the task description.",
+   "icon": "plus",
+   "when": "projectOpen",
+   "keywords": [
+    "agent",
+    "claude",
+    "codex",
+    "gemini",
+    "ai"
+   ],
+   "source": "src/features/agents/index.ts:129"
+  },
+  {
+   "id": "agents.openSampleConversations",
+   "title": "Open Sample Conversations",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/index.ts:51"
+  },
+  {
+   "id": "agents.openTask",
+   "title": "Open Agent Task",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/taskActions.ts:98"
+  },
+  {
+   "id": "agents.openTaskInEditor",
+   "title": "Open Agent Task in Editor",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/taskActions.ts:89"
+  },
+  {
+   "id": "agents.quoteReply",
+   "title": "Quote Reply",
+   "category": "Agents",
+   "icon": "quote",
+   "hidden": true,
+   "source": "src/features/agents/replyActions.ts:104"
+  },
+  {
+   "id": "agents.regenerateReply",
+   "title": "Regenerate Response",
+   "category": "Agents",
+   "icon": "refresh",
+   "hidden": true,
+   "source": "src/features/agents/replyActions.ts:117"
+  },
+  {
+   "id": "agents.renameTask",
+   "title": "Rename Agent Task",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/taskActions.ts:123"
+  },
+  {
+   "id": "agents.retractMessage",
+   "title": "Retract Message",
+   "category": "Agents",
+   "icon": "diff-revert",
+   "hidden": true,
+   "source": "src/features/agents/replyActions.ts:73"
+  },
+  {
+   "id": "agents.sendToAgent",
+   "title": "Send to Agent",
+   "category": "Agents",
+   "description": "Adds the editor selection (or the file) as an @ reference to the agent message typed last; a string[] `arg` sends those paths.",
+   "icon": "toolwindow-agents",
+   "when": "projectOpen",
+   "keywords": [
+    "agent",
+    "chat",
+    "context",
+    "reference",
+    "selection"
+   ],
+   "source": "src/features/agents/index.ts:148"
+  },
+  {
+   "id": "agents.showToolWindow",
+   "title": "Agents",
+   "category": "Agents",
+   "icon": "toolwindow-agents",
+   "when": "projectOpen",
+   "keywords": [
+    "agent",
+    "tasks"
+   ],
+   "source": "src/features/agents/index.ts:162"
+  },
+  {
+   "id": "agents.unarchiveTasks",
+   "title": "Unarchive Agent Tasks",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/taskActions.ts:160"
+  },
+  {
+   "id": "agents.undockTask",
+   "title": "Open Agent Task in Editor",
+   "category": "Agents",
+   "hidden": true,
+   "source": "src/features/agents/taskActions.ts:116"
+  },
+  {
+   "id": "agents.useEditor",
+   "title": "Chat in Editor",
+   "category": "Agents",
+   "icon": "editor-only",
+   "source": "src/features/agents/taskActions.ts:82"
+  },
+  {
+   "id": "agents.useToolWindow",
+   "title": "Chat in Tool Window",
+   "category": "Agents",
+   "icon": "open-in-tool-window",
+   "source": "src/features/agents/taskActions.ts:75"
+  },
+  {
+   "id": "analyze.inspectCode",
+   "title": "Inspect Code…",
+   "category": "Code",
+   "icon": "toolwindow-inspection",
+   "when": "projectOpen",
+   "keywords": [
+    "inspection",
+    "analyze",
+    "diagnostics",
+    "problems"
+   ],
+   "source": "src/features/analysis/index.ts:52"
+  },
+  {
+   "id": "analyze.inspectFile",
+   "title": "Inspect Current File",
+   "category": "Code",
+   "icon": "toolwindow-inspection",
+   "when": "projectOpen && textEditorActive",
+   "keywords": [
+    "inspect code with editor settings",
+    "inspection",
+    "analyze file"
+   ],
+   "source": "src/features/analysis/index.ts:61"
+  },
+  {
+   "id": "analyze.locateDuplicates",
+   "title": "Locate Duplicates…",
+   "category": "Code",
+   "when": "projectOpen",
+   "keywords": [
+    "duplicates",
+    "clones",
+    "copy paste",
+    "cpd"
+   ],
+   "source": "src/features/analysis/index.ts:79"
+  },
+  {
+   "id": "analyze.stackTrace",
+   "title": "Analyze Stack Trace or Thread Dump…",
+   "category": "Code",
+   "when": "projectOpen",
+   "keywords": [
+    "stacktrace",
+    "exception",
+    "thread dump",
+    "unscramble"
+   ],
+   "source": "src/features/run/stackTrace.tsx:155"
+  },
+  {
+   "id": "app.about",
+   "titleKey": "app.action.about",
+   "categoryKey": "app.category.help",
+   "icon": "info",
+   "source": "src/features/app/appActions.ts:82"
+  },
+  {
+   "id": "app.checkForUpdates",
+   "titleKey": "app.action.checkForUpdates",
+   "categoryKey": "app.category.help",
+   "keywords": [
+    "update",
+    "upgrade",
+    "version"
+   ],
+   "source": "src/features/app/appActions.ts:62"
+  },
+  {
+   "id": "app.installCli",
+   "title": "Install 'openidea' Command",
+   "category": "Tools",
+   "keywords": [
+    "cli",
+    "shell",
+    "terminal",
+    "path",
+    "command line",
+    "launcher"
+   ],
+   "source": "src/features/app/cliCommand.ts:58"
+  },
+  {
+   "id": "app.quit",
+   "titleKey": "app.action.quit",
+   "categoryKey": "app.category.file",
+   "source": "src/features/app/appActions.ts:83"
+  },
+  {
+   "id": "app.restart",
+   "title": "Restart IDE",
+   "category": "File",
+   "keywords": [
+    "relaunch"
+   ],
+   "source": "src/features/app/InvalidateCaches.tsx:134"
+  },
+  {
+   "id": "app.uninstallCli",
+   "title": "Uninstall 'openidea' Command",
+   "category": "Tools",
+   "keywords": [
+    "cli",
+    "shell",
+    "terminal",
+    "path",
+    "command line",
+    "launcher"
+   ],
+   "source": "src/features/app/cliCommand.ts:65"
+  },
+  {
+   "id": "bookmarks.newList",
+   "title": "New Bookmark List…",
+   "category": "Bookmarks",
+   "when": "projectOpen",
+   "source": "src/features/search/index.ts:454"
+  },
+  {
+   "id": "bookmarks.toggleFileBookmark",
+   "title": "Toggle File Bookmark",
+   "category": "Bookmarks",
+   "icon": "bookmark",
+   "when": "projectOpen",
+   "source": "src/features/search/index.ts:433"
+  },
+  {
+   "id": "build.buildArtifacts",
+   "title": "Build Artifacts",
+   "category": "Build",
+   "description": "Packages the project (mvn package, gradle assemble, cargo build --release, npm run build)",
+   "when": "projectOpen && !build.running",
+   "keywords": [
+    "package",
+    "assemble",
+    "jar",
+    "release"
+   ],
+   "source": "src/features/build/index.ts:102"
+  },
+  {
+   "id": "build.buildModule",
+   "title": "Build Module",
+   "category": "Build",
+   "description": "Compiles the module of the current file",
+   "when": "projectOpen && !build.running",
+   "keywords": [
+    "recompile",
+    "compile file",
+    "make module"
+   ],
+   "source": "src/features/build/index.ts:75"
+  },
+  {
+   "id": "build.buildProject",
+   "title": "Build Project",
+   "category": "Build",
+   "description": "Compiles the project's sources and tests with its build system",
+   "icon": "build-project",
+   "when": "projectOpen && !build.running",
+   "keywords": [
+    "compile",
+    "make",
+    "mvn",
+    "gradle",
+    "cargo",
+    "tsc",
+    "go build",
+    "cmake"
+   ],
+   "source": "src/features/build/index.ts:55"
+  },
+  {
+   "id": "build.rebuildProject",
+   "title": "Rebuild Project",
+   "category": "Build",
+   "description": "Cleans the build outputs, then builds the project",
+   "icon": "build-rebuild",
+   "when": "projectOpen && !build.running",
+   "keywords": [
+    "clean",
+    "compile"
+   ],
+   "source": "src/features/build/index.ts:89"
+  },
+  {
+   "id": "build.stop",
+   "title": "Stop Build",
+   "category": "Build",
+   "icon": "stop",
+   "when": "build.running",
+   "source": "src/features/build/index.ts:116"
+  },
+  {
+   "id": "code.addCaretNextOccurrence",
+   "title": "Add Selection for Next Occurrence",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen || findBarFocus || findBarOpen && popupOpen",
+   "source": "src/editor/core/actions.ts:760"
+  },
+  {
+   "id": "code.addCaretsToLineEnds",
+   "title": "Add Carets to Ends of Selected Lines",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:835"
+  },
+  {
+   "id": "code.applyPastedImports",
+   "title": "Add Imports",
+   "category": "Code",
+   "hidden": true,
+   "source": "src/editor/lsp/importsOnPaste.ts:389"
+  },
+  {
+   "id": "code.applyQuickFix",
+   "title": "Apply Quick Fix",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "fix error",
+    "problem",
+    "lightbulb"
+   ],
+   "source": "src/editor/lsp/actions.ts:190"
+  },
+  {
+   "id": "code.autoIndentLines",
+   "title": "Auto-Indent Lines",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "reindent",
+    "fix indentation"
+   ],
+   "source": "src/editor/core/actions.ts:806"
+  },
+  {
+   "id": "code.cleanup",
+   "title": "Code Cleanup…",
+   "category": "Code",
+   "when": "projectOpen",
+   "keywords": [
+    "fix all",
+    "cleanup",
+    "organize imports",
+    "reformat"
+   ],
+   "source": "src/features/analysis/index.ts:71"
+  },
+  {
+   "id": "code.cleanupFile",
+   "title": "Code Cleanup in File",
+   "category": "Code",
+   "description": "Code Cleanup on `{ path, fixAll?, optimizeImports?, reformat? }` (all steps by default), opened first.",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/editor/lsp/actions.ts:232"
+  },
+  {
+   "id": "code.collapseBlock",
+   "title": "Fold Code Block",
+   "category": "Folding",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "fold"
+   ],
+   "source": "src/editor/core/actions.ts:805"
+  },
+  {
+   "id": "code.collapseRecursively",
+   "title": "Collapse Recursively",
+   "category": "Folding",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "fold"
+   ],
+   "source": "src/editor/core/actions.ts:752"
+  },
+  {
+   "id": "code.commentBlock",
+   "title": "Comment with Block Comment",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:688"
+  },
+  {
+   "id": "code.commentLine",
+   "title": "Comment with Line Comment",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:687"
+  },
+  {
+   "id": "code.completeStatement",
+   "title": "Complete Current Statement",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:762"
+  },
+  {
+   "id": "code.completion",
+   "title": "Basic",
+   "category": "Code Completion",
+   "icon": "list",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "code completion",
+    "basic completion",
+    "autocomplete"
+   ],
+   "source": "src/editor/lsp/actions.ts:169"
+  },
+  {
+   "id": "code.cyclicExpandWord",
+   "title": "Cyclic Expand Word",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "hippie",
+    "complete word",
+    "dabbrev"
+   ],
+   "source": "src/editor/core/actions.ts:710"
+  },
+  {
+   "id": "code.cyclicExpandWordBackward",
+   "title": "Cyclic Expand Word (Backward)",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "hippie",
+    "complete word",
+    "dabbrev"
+   ],
+   "source": "src/editor/core/actions.ts:713"
+  },
+  {
+   "id": "code.deleteLine",
+   "title": "Delete Line",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:690"
+  },
+  {
+   "id": "code.duplicateLine",
+   "title": "Duplicate Line or Selection",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:689"
+  },
+  {
+   "id": "code.expandRecursively",
+   "title": "Expand Recursively",
+   "category": "Folding",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "unfold"
+   ],
+   "source": "src/editor/core/actions.ts:756"
+  },
+  {
+   "id": "code.expressionTypeInfo",
+   "title": "Expression Type Info",
+   "category": "View",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "type of expression",
+    "show type"
+   ],
+   "source": "src/editor/lsp/actions.ts:350"
+  },
+  {
+   "id": "code.extendSelection",
+   "title": "Extend Selection",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:701"
+  },
+  {
+   "id": "code.fold",
+   "title": "Collapse",
+   "category": "Folding",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "fold"
+   ],
+   "source": "src/editor/core/actions.ts:707"
+  },
+  {
+   "id": "code.foldAll",
+   "title": "Collapse All",
+   "category": "Folding",
+   "icon": "collapse-all",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:750"
+  },
+  {
+   "id": "code.foldSelection",
+   "title": "Fold Selection / Remove Region",
+   "category": "Folding",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:848"
+  },
+  {
+   "id": "code.foldToggle",
+   "title": "Toggle Fold",
+   "category": "Folding",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:709"
+  },
+  {
+   "id": "code.generate",
+   "title": "Generate…",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:318"
+  },
+  {
+   "id": "code.implementMethods",
+   "title": "Implement Methods…",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:339"
+  },
+  {
+   "id": "code.insertLiveTemplate",
+   "title": "Insert Live Template…",
+   "category": "Code",
+   "when": "textEditorActive && !editorReadOnly && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "snippet",
+    "template",
+    "abbreviation"
+   ],
+   "source": "src/features/templates/index.ts:188"
+  },
+  {
+   "id": "code.joinLines",
+   "title": "Join Lines",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:833"
+  },
+  {
+   "id": "code.moveElementLeft",
+   "title": "Move Element Left",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "swap argument",
+    "move parameter"
+   ],
+   "source": "src/editor/core/actions.ts:693"
+  },
+  {
+   "id": "code.moveElementRight",
+   "title": "Move Element Right",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "swap argument",
+    "move parameter"
+   ],
+   "source": "src/editor/core/actions.ts:696"
+  },
+  {
+   "id": "code.moveLineDown",
+   "title": "Move Line Down",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:692"
+  },
+  {
+   "id": "code.moveLineUp",
+   "title": "Move Line Up",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:691"
+  },
+  {
+   "id": "code.moveStatementDown",
+   "title": "Move Statement Down",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:700"
+  },
+  {
+   "id": "code.moveStatementUp",
+   "title": "Move Statement Up",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:699"
+  },
+  {
+   "id": "code.optimizeImports",
+   "title": "Optimize Imports",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "organize imports"
+   ],
+   "source": "src/editor/lsp/actions.ts:220"
+  },
+  {
+   "id": "code.optimizeImportsFile",
+   "title": "Optimize Imports in File",
+   "category": "Code",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/editor/lsp/actions.ts:245"
+  },
+  {
+   "id": "code.overrideMethods",
+   "title": "Override Methods…",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:347"
+  },
+  {
+   "id": "code.parameterInfo",
+   "title": "Parameter Info",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:173"
+  },
+  {
+   "id": "code.pasteAsPlainText",
+   "title": "Paste as Plain Text",
+   "category": "Edit",
+   "icon": "paste",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:732"
+  },
+  {
+   "id": "code.pasteFromHistory",
+   "title": "Paste from History…",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "clipboard",
+    "paste multiple"
+   ],
+   "source": "src/editor/core/actions.ts:839"
+  },
+  {
+   "id": "code.quickDefinition",
+   "title": "Quick Definition",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:177"
+  },
+  {
+   "id": "code.quickDocumentation",
+   "title": "Quick Documentation",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "javadoc",
+    "docs",
+    "hover"
+   ],
+   "source": "src/editor/lsp/actions.ts:174"
+  },
+  {
+   "id": "code.quickTypeDefinition",
+   "title": "Quick Type Definition",
+   "category": "View",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "type declaration",
+    "preview"
+   ],
+   "source": "src/editor/lsp/actions.ts:178"
+  },
+  {
+   "id": "code.reformat",
+   "title": "Reformat Code",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "format",
+    "prettier"
+   ],
+   "source": "src/editor/lsp/actions.ts:193"
+  },
+  {
+   "id": "code.reformatDialog",
+   "title": "Reformat File…",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:217"
+  },
+  {
+   "id": "code.reformatFile",
+   "title": "Reformat File",
+   "category": "Code",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/editor/lsp/actions.ts:224"
+  },
+  {
+   "id": "code.reformatWithOxfmt",
+   "title": "Reformat with oxfmt",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "format",
+    "oxfmt",
+    "oxc"
+   ],
+   "source": "src/editor/lsp/actions.ts:203"
+  },
+  {
+   "id": "code.reformatWithPrettier",
+   "title": "Reformat with Prettier",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "format",
+    "prettier"
+   ],
+   "source": "src/editor/lsp/actions.ts:196"
+  },
+  {
+   "id": "code.reformatWithRuff",
+   "title": "Reformat with Ruff",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "format",
+    "ruff",
+    "python"
+   ],
+   "source": "src/editor/lsp/actions.ts:210"
+  },
+  {
+   "id": "code.reverseLines",
+   "title": "Reverse Lines",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:844"
+  },
+  {
+   "id": "code.selectAllOccurrences",
+   "title": "Select All Occurrences",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen || findBarFocus || findBarOpen && popupOpen",
+   "source": "src/editor/core/actions.ts:761"
+  },
+  {
+   "id": "code.showErrorDescription",
+   "title": "Error Description",
+   "category": "View",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "problem",
+    "warning",
+    "tooltip"
+   ],
+   "source": "src/editor/lsp/actions.ts:270"
+  },
+  {
+   "id": "code.showIntentions",
+   "title": "Show Context Actions",
+   "category": "Code",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "intention",
+    "quick fix",
+    "lightbulb"
+   ],
+   "source": "src/editor/lsp/actions.ts:187"
+  },
+  {
+   "id": "code.shrinkSelection",
+   "title": "Shrink Selection",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:704"
+  },
+  {
+   "id": "code.sortLines",
+   "title": "Sort Lines",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:843"
+  },
+  {
+   "id": "code.splitLine",
+   "title": "Split Line",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:765"
+  },
+  {
+   "id": "code.startNewLine",
+   "title": "Start New Line",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:763"
+  },
+  {
+   "id": "code.startNewLineBefore",
+   "title": "Start New Line Before Current",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:764"
+  },
+  {
+   "id": "code.surroundWith",
+   "title": "Surround With…",
+   "category": "Code",
+   "when": "textEditorActive && !editorReadOnly && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "wrap",
+    "if",
+    "try",
+    "region"
+   ],
+   "source": "src/features/templates/index.ts:199"
+  },
+  {
+   "id": "code.surroundWithLiveTemplate",
+   "title": "Surround with Live Template…",
+   "category": "Code",
+   "when": "textEditorActive && !editorReadOnly && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "wrap",
+    "snippet",
+    "template",
+    "selection"
+   ],
+   "source": "src/features/templates/index.ts:212"
+  },
+  {
+   "id": "code.toggleCase",
+   "title": "Toggle Case",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "upper",
+    "lower"
+   ],
+   "source": "src/editor/core/actions.ts:834"
+  },
+  {
+   "id": "code.unfold",
+   "title": "Expand",
+   "category": "Folding",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "unfold"
+   ],
+   "source": "src/editor/core/actions.ts:708"
+  },
+  {
+   "id": "code.unfoldAll",
+   "title": "Expand All",
+   "category": "Folding",
+   "icon": "expand-all",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:751"
+  },
+  {
+   "id": "code.unselectOccurrence",
+   "title": "Unselect Occurrence",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen || findBarFocus || findBarOpen && popupOpen",
+   "source": "src/editor/core/actions.ts:838"
+  },
+  {
+   "id": "code.unwrap",
+   "title": "Unwrap/Remove…",
+   "category": "Code",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "unwrap",
+    "remove if"
+   ],
+   "source": "src/editor/core/actions.ts:845"
+  },
+  {
+   "id": "coverage.hide",
+   "title": "Hide Coverage",
+   "category": "Run",
+   "description": "Remove coverage highlighting from editors and the project view",
+   "icon": "close",
+   "when": "coverageVisible",
+   "source": "src/features/coverage/index.ts:76"
+  },
+  {
+   "id": "coverage.importReport",
+   "title": "Import a Coverage Report…",
+   "category": "Run",
+   "description": "Show a report collected elsewhere (CI): lcov, JaCoCo XML or a Go cover profile; argument: the file path",
+   "icon": "folder-open",
+   "when": "projectOpen",
+   "keywords": [
+    "coverage",
+    "lcov",
+    "jacoco",
+    "ci",
+    "import"
+   ],
+   "source": "src/features/coverage/index.ts:55"
+  },
+  {
+   "id": "coverage.manageReports",
+   "title": "Manage Coverage Reports…",
+   "category": "Run",
+   "description": "Choose the shown coverage suite, delete suites and imported reports",
+   "icon": "list",
+   "when": "projectOpen",
+   "keywords": [
+    "coverage",
+    "suites",
+    "show coverage data"
+   ],
+   "source": "src/features/coverage/index.ts:66"
+  },
+  {
+   "id": "coverage.show",
+   "title": "Show Coverage",
+   "category": "Run",
+   "description": "Show the selected coverage suite in editors and the project view",
+   "icon": "eye",
+   "when": "coverageSuites && !coverageVisible",
+   "source": "src/features/coverage/index.ts:85"
+  },
+  {
+   "id": "db.collapseAll",
+   "title": "Collapse All",
+   "icon": "collapse-all",
+   "source": "src/features/database/treeActions.ts:471"
+  },
+  {
+   "id": "db.copyReference",
+   "title": "Copy Reference",
+   "icon": "copy",
+   "keywords": [
+    "qualified name"
+   ],
+   "source": "src/features/database/treeActions.ts:378"
+  },
+  {
+   "id": "db.ddlToClipboard",
+   "title": "Generate DDL to Clipboard",
+   "icon": "copy",
+   "keywords": [
+    "create table",
+    "sql script"
+   ],
+   "source": "src/features/database/treeActions.ts:403"
+  },
+  {
+   "id": "db.ddlToConsole",
+   "title": "Generate DDL to Query Console",
+   "icon": "db-console",
+   "keywords": [
+    "create table",
+    "sql script"
+   ],
+   "source": "src/features/database/treeActions.ts:414"
+  },
+  {
+   "id": "db.disconnect",
+   "title": "Deactivate",
+   "icon": "db-disconnect",
+   "keywords": [
+    "disconnect",
+    "close connection"
+   ],
+   "source": "src/features/database/treeActions.ts:224"
+  },
+  {
+   "id": "db.drop",
+   "title": "Drop…",
+   "icon": "trash",
+   "keywords": [
+    "delete",
+    "remove data source"
+   ],
+   "source": "src/features/database/treeActions.ts:299"
+  },
+  {
+   "id": "db.duplicateSource",
+   "title": "Duplicate",
+   "icon": "copy",
+   "keywords": [
+    "copy data source"
+   ],
+   "source": "src/features/database/treeActions.ts:393"
+  },
+  {
+   "id": "db.editData",
+   "title": "Edit Data",
+   "icon": "db-table",
+   "keywords": [
+    "open table",
+    "table editor"
+   ],
+   "source": "src/features/database/treeActions.ts:253"
+  },
+  {
+   "id": "db.execute",
+   "title": "Execute SQL Statement",
+   "category": "Tools",
+   "icon": "run",
+   "when": "editorTextFocus && editorLangId == sql",
+   "source": "src/features/database/index.ts:184"
+  },
+  {
+   "id": "db.explainPlan",
+   "title": "Explain Plan",
+   "category": "Tools",
+   "icon": "db-plan",
+   "when": "editorTextFocus && editorLangId == sql",
+   "keywords": [
+    "query plan",
+    "explain",
+    "sql"
+   ],
+   "source": "src/features/database/index.ts:225"
+  },
+  {
+   "id": "db.goToColumn",
+   "title": "Go to Column",
+   "category": "Tools",
+   "when": "dbTableEditorFocus",
+   "keywords": [
+    "table editor",
+    "file structure",
+    "columns"
+   ],
+   "source": "src/features/database/index.ts:201"
+  },
+  {
+   "id": "db.goToDdl",
+   "title": "Go to DDL",
+   "icon": "file-sql",
+   "keywords": [
+    "edit source",
+    "definition",
+    "create table"
+   ],
+   "source": "src/features/database/treeActions.ts:264"
+  },
+  {
+   "id": "db.goToReferencedTable",
+   "title": "Go to Referenced Table",
+   "keywords": [
+    "foreign key"
+   ],
+   "source": "src/features/database/treeActions.ts:447"
+  },
+  {
+   "id": "db.importData",
+   "title": "Import Data from File…",
+   "icon": "import",
+   "keywords": [
+    "csv",
+    "tsv",
+    "load data"
+   ],
+   "source": "src/features/database/treeActions.ts:367"
+  },
+  {
+   "id": "db.jumpToConsole",
+   "title": "Jump to Query Console…",
+   "icon": "db-console",
+   "source": "src/features/database/treeActions.ts:240"
+  },
+  {
+   "id": "db.modifyTable",
+   "title": "Modify Table…",
+   "icon": "edit",
+   "keywords": [
+    "alter table",
+    "add column",
+    "modify column"
+   ],
+   "source": "src/features/database/treeActions.ts:323"
+  },
+  {
+   "id": "db.new",
+   "title": "New…",
+   "icon": "plus",
+   "keywords": [
+    "query console",
+    "data source"
+   ],
+   "source": "src/features/database/treeActions.ts:456"
+  },
+  {
+   "id": "db.newColumn",
+   "title": "Column",
+   "icon": "db-column",
+   "keywords": [
+    "add column"
+   ],
+   "source": "src/features/database/treeActions.ts:355"
+  },
+  {
+   "id": "db.newDataSource",
+   "title": "New Data Source…",
+   "category": "Tools",
+   "icon": "plus",
+   "when": "projectOpen",
+   "keywords": [
+    "database",
+    "connection",
+    "postgres",
+    "mysql",
+    "sqlite"
+   ],
+   "source": "src/features/database/index.ts:154"
+  },
+  {
+   "id": "db.newTable",
+   "title": "Table",
+   "icon": "db-table",
+   "keywords": [
+    "create table",
+    "new table"
+   ],
+   "source": "src/features/database/treeActions.ts:341"
+  },
+  {
+   "id": "db.openConsole",
+   "title": "Query Console",
+   "category": "Tools",
+   "icon": "file-sql",
+   "when": "projectOpen",
+   "keywords": [
+    "database",
+    "sql console"
+   ],
+   "source": "src/features/database/index.ts:166"
+  },
+  {
+   "id": "db.pluginConnect",
+   "title": "Connect Plugin Data Source",
+   "category": "Tools",
+   "when": "projectOpen",
+   "source": "src/features/database/index.ts:128"
+  },
+  {
+   "id": "db.properties",
+   "title": "Data Source Properties…",
+   "icon": "db-properties",
+   "keywords": [
+    "data sources",
+    "connection settings"
+   ],
+   "source": "src/features/database/treeActions.ts:206"
+  },
+  {
+   "id": "db.queryHistory",
+   "title": "Browse Query History",
+   "category": "Tools",
+   "icon": "history",
+   "when": "projectOpen",
+   "keywords": [
+    "database",
+    "sql",
+    "history"
+   ],
+   "source": "src/features/database/index.ts:239"
+  },
+  {
+   "id": "db.quickDoc",
+   "title": "Quick Documentation",
+   "icon": "info",
+   "source": "src/features/database/treeActions.ts:277"
+  },
+  {
+   "id": "db.refresh",
+   "title": "Refresh",
+   "icon": "refresh",
+   "keywords": [
+    "synchronize",
+    "introspect"
+   ],
+   "source": "src/features/database/treeActions.ts:217"
+  },
+  {
+   "id": "db.rename",
+   "title": "Rename…",
+   "icon": "edit",
+   "source": "src/features/database/treeActions.ts:286"
+  },
+  {
+   "id": "db.revertChanges",
+   "title": "Revert",
+   "category": "Tools",
+   "when": "dbTableEditorFocus && dbTableEditorChanges",
+   "keywords": [
+    "table editor",
+    "discard changes",
+    "undo"
+   ],
+   "source": "src/features/database/index.ts:217"
+  },
+  {
+   "id": "db.runSqlScript",
+   "title": "Run SQL Script…",
+   "icon": "run",
+   "keywords": [
+    "execute file",
+    "import sql"
+   ],
+   "source": "src/features/database/treeActions.ts:425"
+  },
+  {
+   "id": "db.separateProceduresAndFunctions",
+   "title": "Separate Procedures and Functions",
+   "source": "src/features/database/treeActions.ts:466"
+  },
+  {
+   "id": "db.showToolWindow",
+   "title": "Database",
+   "category": "Tools",
+   "icon": "toolwindow-database",
+   "when": "projectOpen",
+   "keywords": [
+    "data sources",
+    "sql",
+    "tables"
+   ],
+   "source": "src/features/database/index.ts:145"
+  },
+  {
+   "id": "db.sqlScript",
+   "title": "SQL Script Template",
+   "hidden": true,
+   "source": "src/features/database/treeActions.ts:437"
+  },
+  {
+   "id": "db.submitChanges",
+   "title": "Submit",
+   "category": "Tools",
+   "when": "dbTableEditorFocus && dbTableEditorChanges",
+   "keywords": [
+    "table editor",
+    "apply changes",
+    "commit"
+   ],
+   "source": "src/features/database/index.ts:209"
+  },
+  {
+   "id": "db.truncate",
+   "title": "Truncate…",
+   "keywords": [
+    "delete all rows",
+    "empty table"
+   ],
+   "source": "src/features/database/treeActions.ts:313"
+  },
+  {
+   "id": "debug",
+   "title": "Debug",
+   "icon": "debug",
+   "source": "src/features/run/services.tsx:594"
+  },
+  {
+   "id": "debug.attach",
+   "title": "Attach Debugger",
+   "category": "Debug",
+   "description": "Attach the Java debugger to a JVM listening for JDWP (arg: { name, module, hostName, port, process })",
+   "hidden": true,
+   "source": "src/features/debugger/actions.ts:450"
+  },
+  {
+   "id": "debug.attachToProcess",
+   "title": "Attach to Process…",
+   "category": "Debug",
+   "description": "Attach the debugger to a running Java, Node.js, Python, Go or native process",
+   "icon": "attach-to-process",
+   "source": "src/features/debugger/actions.ts:689"
+  },
+  {
+   "id": "debug.browseConsoleHistory",
+   "title": "Browse Console History",
+   "category": "Debug",
+   "when": "debugSessionActive",
+   "keywords": [
+    "history",
+    "previous expressions",
+    "repl"
+   ],
+   "source": "src/features/debugger/actions.ts:853"
+  },
+  {
+   "id": "debug.cancelHotSwap",
+   "title": "Cancel Hot Swap Build",
+   "category": "Debug",
+   "description": "Stop the compile a Reload Changed Classes action is waiting on",
+   "icon": "stop",
+   "when": "debugHotSwapBuilding",
+   "source": "src/features/debugger/actions.ts:507"
+  },
+  {
+   "id": "debug.evaluate",
+   "title": "Evaluate Expression…",
+   "category": "Debug",
+   "when": "debugSessionActive",
+   "source": "src/features/debugger/actions.ts:846"
+  },
+  {
+   "id": "debug.forceRunToCursor",
+   "title": "Force Run to Cursor",
+   "category": "Debug",
+   "description": "Run to the caret, ignoring breakpoints on the way",
+   "icon": "force-run-to-cursor",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:713"
+  },
+  {
+   "id": "debug.forceStepInto",
+   "title": "Force Step Into",
+   "category": "Debug",
+   "icon": "force-step-into",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:604"
+  },
+  {
+   "id": "debug.forceStepOver",
+   "title": "Force Step Over",
+   "category": "Debug",
+   "description": "Step over, ignoring breakpoints in the called code",
+   "icon": "force-step-over",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:588"
+  },
+  {
+   "id": "debug.hotReload",
+   "title": "Hot Reload",
+   "category": "Debug",
+   "description": "Flutter: inject the changed sources into the running app",
+   "icon": "hot-reload",
+   "when": "debugSessionRunning && debugSessionDart",
+   "source": "src/features/debugger/actions.ts:561"
+  },
+  {
+   "id": "debug.hotRestart",
+   "title": "Hot Restart",
+   "category": "Debug",
+   "description": "Flutter: restart the app, discarding its state",
+   "icon": "refresh",
+   "when": "debugSessionRunning && debugSessionDart",
+   "source": "src/features/debugger/actions.ts:573"
+  },
+  {
+   "id": "debug.jumpToSource",
+   "title": "Jump to Source",
+   "category": "Debug",
+   "when": "debugSessionPaused",
+   "keyWhen": "debugFramesFocus || debugVariablesFocus",
+   "source": "src/features/debugger/actions.ts:672"
+  },
+  {
+   "id": "debug.muteBreakpoints",
+   "title": "Mute Breakpoints",
+   "category": "Debug",
+   "keywords": [
+    "unmute",
+    "disable all"
+   ],
+   "toggle": true,
+   "source": "src/features/debugger/actions.ts:829"
+  },
+  {
+   "id": "debug.pause",
+   "title": "Pause Program",
+   "category": "Debug",
+   "icon": "pause",
+   "when": "debugSessionRunning",
+   "source": "src/features/debugger/actions.ts:544"
+  },
+  {
+   "id": "debug.pluginStart",
+   "title": "Debug Plugin Configuration",
+   "category": "Debug",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/debugger/actions.ts:403"
+  },
+  {
+   "id": "debug.quickEvaluate",
+   "title": "Quick Evaluate Expression",
+   "category": "Debug",
+   "when": "debugSessionPaused && textEditorActive",
+   "source": "src/features/debugger/actions.ts:863"
+  },
+  {
+   "id": "debug.reloadChangedClasses",
+   "title": "Reload Changed Classes",
+   "category": "Debug",
+   "description": "HotSwap: compile and reload the changed classes into the running Java debug session",
+   "icon": "refresh",
+   "when": "debugCanHotSwap",
+   "keywords": [
+    "hotswap",
+    "hot swap",
+    "hot code replace"
+   ],
+   "source": "src/features/debugger/actions.ts:491"
+  },
+  {
+   "id": "debug.removeAllBreakpoints",
+   "title": "Remove All Breakpoints",
+   "category": "Debug",
+   "source": "src/features/debugger/actions.ts:837"
+  },
+  {
+   "id": "debug.rerun",
+   "title": "Rerun",
+   "category": "Debug",
+   "icon": "rerun",
+   "when": "debugCanRerun",
+   "keyWhen": "activeToolWindow == 'debug'",
+   "source": "src/features/debugger/actions.ts:516"
+  },
+  {
+   "id": "debug.resetFrame",
+   "title": "Reset Frame",
+   "category": "Debug",
+   "description": "Return to the start of the selected frame's method",
+   "icon": "reset-frame",
+   "when": "debugSessionPaused",
+   "keywords": [
+    "drop frame",
+    "pop frame",
+    "restart frame"
+   ],
+   "source": "src/features/debugger/actions.ts:641"
+  },
+  {
+   "id": "debug.resume",
+   "title": "Resume Program",
+   "category": "Debug",
+   "icon": "resume",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:529"
+  },
+  {
+   "id": "debug.runToCursor",
+   "title": "Run to Cursor",
+   "category": "Debug",
+   "icon": "run-to-cursor",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:697"
+  },
+  {
+   "id": "debug.setValue",
+   "title": "Set Value…",
+   "category": "Debug",
+   "icon": "edit",
+   "when": "debugSessionPaused",
+   "keyWhen": "debugVariablesFocus",
+   "source": "src/features/debugger/actions.ts:663"
+  },
+  {
+   "id": "debug.showExecutionPoint",
+   "title": "Show Execution Point",
+   "category": "Debug",
+   "icon": "show-execution-point",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:630"
+  },
+  {
+   "id": "debug.showToolWindow",
+   "title": "Show Debug Tool Window",
+   "category": "Debug",
+   "hidden": true,
+   "source": "src/features/debugger/actions.ts:871"
+  },
+  {
+   "id": "debug.smartStepInto",
+   "title": "Smart Step Into",
+   "category": "Debug",
+   "description": "Choose which call on the current line to step into",
+   "icon": "smart-step-into",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:621"
+  },
+  {
+   "id": "debug.startConfig",
+   "title": "Debug…",
+   "category": "Debug",
+   "description": "Start debugging a run configuration",
+   "icon": "debug",
+   "source": "src/features/debugger/actions.ts:442"
+  },
+  {
+   "id": "debug.stepInto",
+   "title": "Step Into",
+   "category": "Debug",
+   "icon": "step-into",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:586"
+  },
+  {
+   "id": "debug.stepOut",
+   "title": "Step Out",
+   "category": "Debug",
+   "icon": "step-out",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:587"
+  },
+  {
+   "id": "debug.stepOver",
+   "title": "Step Over",
+   "category": "Debug",
+   "icon": "step-over",
+   "when": "debugSessionPaused",
+   "source": "src/features/debugger/actions.ts:585"
+  },
+  {
+   "id": "debug.stop",
+   "title": "Stop",
+   "category": "Debug",
+   "icon": "stop",
+   "when": "debugSessionActive",
+   "source": "src/features/debugger/actions.ts:480"
+  },
+  {
+   "id": "debug.toggleBreakpoint",
+   "title": "Toggle Line Breakpoint",
+   "category": "Debug",
+   "icon": "breakpoint",
+   "source": "src/features/debugger/actions.ts:730"
+  },
+  {
+   "id": "debug.toggleFieldWatchpoint",
+   "title": "Toggle Field Watchpoint",
+   "category": "Debug",
+   "icon": "breakpoint-field",
+   "source": "src/features/debugger/actions.ts:795"
+  },
+  {
+   "id": "debug.toggleMethodBreakpoint",
+   "title": "Toggle Method Breakpoint",
+   "category": "Debug",
+   "icon": "breakpoint-method",
+   "source": "src/features/debugger/actions.ts:772"
+  },
+  {
+   "id": "debug.toggleTemporaryBreakpoint",
+   "title": "Toggle Temporary Line Breakpoint",
+   "category": "Debug",
+   "description": "A line breakpoint that is removed after it is hit",
+   "icon": "breakpoint",
+   "source": "src/features/debugger/actions.ts:757"
+  },
+  {
+   "id": "debug.viewBreakpoints",
+   "title": "View Breakpoints…",
+   "category": "Debug",
+   "icon": "breakpoint",
+   "source": "src/features/debugger/actions.ts:818"
+  },
+  {
+   "id": "delete",
+   "title": "Delete",
+   "icon": "trash",
+   "source": "src/features/services/docker.tsx:216"
+  },
+  {
+   "id": "deployment.browseRemoteHost",
+   "title": "Browse Remote Host",
+   "category": "Deployment",
+   "description": "Show the files of a deployment server in the Remote Host tool window",
+   "icon": "web",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "remote host",
+    "server files"
+   ],
+   "source": "src/features/deployment/actions.tsx:501"
+  },
+  {
+   "id": "deployment.configure",
+   "title": "Deployment Configuration…",
+   "category": "Deployment",
+   "description": "Edit the deployment servers and options",
+   "icon": "settings",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "servers",
+    "settings"
+   ],
+   "source": "src/features/deployment/actions.tsx:521"
+  },
+  {
+   "id": "deployment.deleteFromServer",
+   "title": "Delete from Server",
+   "category": "Deployment",
+   "description": "Delete the remote copies of the selected files and folders on the default server",
+   "icon": "trash",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "remove",
+    "remote"
+   ],
+   "source": "src/features/deployment/actions.tsx:481"
+  },
+  {
+   "id": "deployment.downloadFrom",
+   "title": "Download from…",
+   "category": "Deployment",
+   "description": "Replace the selected files and folders with their copies on a deployment server",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "download",
+    "remote"
+   ],
+   "source": "src/features/deployment/actions.tsx:445"
+  },
+  {
+   "id": "deployment.downloadFromDefault",
+   "title": "Download from Default Server",
+   "category": "Deployment",
+   "description": "Replace the selected files and folders with their copies on the default deployment server",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "download",
+    "remote"
+   ],
+   "source": "src/features/deployment/actions.tsx:436"
+  },
+  {
+   "id": "deployment.openInBrowser",
+   "title": "Open in Browser (Deployed)",
+   "category": "Deployment",
+   "description": "Open the deployed URL of the file on the default server's web server",
+   "icon": "web",
+   "keywords": [
+    "deploy",
+    "web server",
+    "url",
+    "browser"
+   ],
+   "source": "src/features/deployment/actions.tsx:511"
+  },
+  {
+   "id": "deployment.syncWith",
+   "title": "Sync with Deployed to…",
+   "category": "Deployment",
+   "description": "Compare local files with a deployment server and synchronize them",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "compare",
+    "synchronize",
+    "remote",
+    "diff"
+   ],
+   "source": "src/features/deployment/actions.tsx:454"
+  },
+  {
+   "id": "deployment.syncWithDefault",
+   "title": "Sync with Deployed to Default Server",
+   "category": "Deployment",
+   "description": "Compare local files with the default deployment server and synchronize them",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "compare",
+    "synchronize",
+    "remote",
+    "diff"
+   ],
+   "source": "src/features/deployment/actions.tsx:469"
+  },
+  {
+   "id": "deployment.toggleAutoUpload",
+   "title": "Automatic Upload",
+   "category": "Deployment",
+   "description": "Upload changed files to the default server automatically",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "auto upload",
+    "on save",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/deployment/actions.tsx:491"
+  },
+  {
+   "id": "deployment.uploadTo",
+   "title": "Upload to…",
+   "category": "Deployment",
+   "description": "Upload the selected files and folders to a deployment server",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "upload",
+    "remote"
+   ],
+   "source": "src/features/deployment/actions.tsx:427"
+  },
+  {
+   "id": "deployment.uploadToDefault",
+   "title": "Upload to Default Server",
+   "category": "Deployment",
+   "description": "Upload the selected files and folders to the default deployment server",
+   "icon": "export",
+   "keywords": [
+    "deploy",
+    "sftp",
+    "upload",
+    "remote"
+   ],
+   "source": "src/features/deployment/actions.tsx:417"
+  },
+  {
+   "id": "diff.applyLeftSide",
+   "title": "Accept Left Side",
+   "category": "Diff",
+   "description": "Copies the change at the caret from the left side to the right one",
+   "icon": "arrow-right",
+   "when": "diffEditorFocus",
+   "source": "src/features/vcs/compare.tsx:193"
+  },
+  {
+   "id": "diff.applyRightSide",
+   "title": "Accept Right Side",
+   "category": "Diff",
+   "description": "Copies the change at the caret from the right side to the left one",
+   "icon": "arrow-left",
+   "when": "diffEditorFocus",
+   "source": "src/features/vcs/compare.tsx:202"
+  },
+  {
+   "id": "diff.compareDirectories",
+   "title": "Compare Directories",
+   "category": "Diff",
+   "icon": "diff",
+   "when": "projectOpen",
+   "keywords": [
+    "diff",
+    "folders",
+    "compare folders"
+   ],
+   "source": "src/features/vcs/compare.tsx:251"
+  },
+  {
+   "id": "diff.compareFiles",
+   "title": "Compare Files",
+   "category": "Diff",
+   "icon": "diff",
+   "when": "projectOpen",
+   "source": "src/features/vcs/compare.tsx:265"
+  },
+  {
+   "id": "diff.compareTexts",
+   "title": "Compare Texts",
+   "category": "Diff",
+   "hidden": true,
+   "source": "src/features/vcs/compare.tsx:298"
+  },
+  {
+   "id": "diff.compareWith",
+   "title": "Compare With…",
+   "category": "Diff",
+   "icon": "diff",
+   "when": "projectOpen",
+   "keywords": [
+    "diff",
+    "compare files",
+    "compare folders"
+   ],
+   "source": "src/features/vcs/compare.tsx:219"
+  },
+  {
+   "id": "diff.compareWithClipboard",
+   "title": "Compare with Clipboard",
+   "category": "Diff",
+   "icon": "diff",
+   "when": "projectOpen",
+   "source": "src/features/vcs/compare.tsx:277"
+  },
+  {
+   "id": "diff.jumpToSource",
+   "title": "Jump to Source",
+   "category": "Diff",
+   "icon": "external-link",
+   "when": "diffEditorFocus",
+   "source": "src/features/vcs/compare.tsx:211"
+  },
+  {
+   "id": "diff.nextDifference",
+   "title": "Next Difference",
+   "category": "Diff",
+   "icon": "arrow-down",
+   "when": "diffEditorFocus",
+   "source": "src/features/vcs/compare.tsx:152"
+  },
+  {
+   "id": "diff.nextFile",
+   "title": "Compare Next File",
+   "category": "Diff",
+   "icon": "arrow-right",
+   "when": "diffEditorFocus",
+   "source": "src/features/vcs/compare.tsx:177"
+  },
+  {
+   "id": "diff.prevDifference",
+   "title": "Previous Difference",
+   "category": "Diff",
+   "icon": "arrow-up",
+   "when": "diffEditorFocus",
+   "source": "src/features/vcs/compare.tsx:160"
+  },
+  {
+   "id": "diff.prevFile",
+   "title": "Compare Previous File",
+   "category": "Diff",
+   "icon": "arrow-left",
+   "when": "diffEditorFocus",
+   "source": "src/features/vcs/compare.tsx:185"
+  },
+  {
+   "id": "diff.showSettings",
+   "title": "Diff Settings",
+   "category": "Diff",
+   "icon": "settings",
+   "when": "diffEditorFocus",
+   "keywords": [
+    "ignore whitespace",
+    "highlighting",
+    "side-by-side",
+    "unified"
+   ],
+   "source": "src/features/vcs/compare.tsx:168"
+  },
+  {
+   "id": "docker.execShell",
+   "title": "Create Terminal in Container",
+   "category": "Docker",
+   "icon": "terminal",
+   "when": "projectOpen",
+   "keywords": [
+    "exec",
+    "shell",
+    "attach"
+   ],
+   "source": "src/features/services/index.ts:228"
+  },
+  {
+   "id": "docker.inspect",
+   "title": "Inspect Docker Object",
+   "category": "Docker",
+   "icon": "info",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:201"
+  },
+  {
+   "id": "docker.openLogInEditor",
+   "title": "Open Container Log in Editor",
+   "category": "Docker",
+   "icon": "file-log",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:168"
+  },
+  {
+   "id": "docker.prune",
+   "title": "Prune Docker…",
+   "category": "Docker",
+   "description": "Argument: `containers`, `images`, `allImages`, `volumes`, `networks` or `system` (default).",
+   "icon": "trash",
+   "when": "projectOpen",
+   "keywords": [
+    "clean",
+    "system prune"
+   ],
+   "source": "src/features/services/index.ts:251"
+  },
+  {
+   "id": "docker.pullImage",
+   "title": "Pull Docker Image…",
+   "category": "Docker",
+   "icon": "docker-pull",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:240"
+  },
+  {
+   "id": "docker.refresh",
+   "title": "Refresh Docker",
+   "category": "Docker",
+   "icon": "refresh",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:107"
+  },
+  {
+   "id": "docker.remove",
+   "title": "Delete Docker Object…",
+   "category": "Docker",
+   "icon": "trash",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:139"
+  },
+  {
+   "id": "docker.restart",
+   "title": "Restart Container",
+   "category": "Docker",
+   "icon": "rerun",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:131"
+  },
+  {
+   "id": "docker.showDashboard",
+   "title": "Show Docker Dashboard",
+   "category": "Docker",
+   "icon": "layout",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:147"
+  },
+  {
+   "id": "docker.showLayers",
+   "title": "Show Image Layers",
+   "category": "Docker",
+   "icon": "list",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:190"
+  },
+  {
+   "id": "docker.showLog",
+   "title": "Show Container Log",
+   "category": "Docker",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:158"
+  },
+  {
+   "id": "docker.showProcesses",
+   "title": "Show Container Processes",
+   "category": "Docker",
+   "icon": "list",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:179"
+  },
+  {
+   "id": "docker.start",
+   "title": "Start Container",
+   "category": "Docker",
+   "icon": "run",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:115"
+  },
+  {
+   "id": "docker.stop",
+   "title": "Stop Container",
+   "category": "Docker",
+   "icon": "stop",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:123"
+  },
+  {
+   "id": "docker.toggleStoppedContainers",
+   "title": "Toggle Stopped Containers",
+   "category": "Docker",
+   "icon": "filter",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:212"
+  },
+  {
+   "id": "docker.toggleUntaggedImages",
+   "title": "Toggle Untagged Images",
+   "category": "Docker",
+   "icon": "filter",
+   "when": "projectOpen",
+   "source": "src/features/services/index.ts:220"
+  },
+  {
+   "id": "dotnet.cancel",
+   "title": "Cancel .NET Operation",
+   "category": "Build",
+   "source": "src/features/dotnet/index.ts:47"
+  },
+  {
+   "id": "dotnet.discover",
+   "title": "Discover .NET Tests",
+   "category": "Run",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:92"
+  },
+  {
+   "id": "dotnet.installTrx",
+   "title": "Install TRX reporting",
+   "category": "Build",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:108"
+  },
+  {
+   "id": "dotnet.packageChange",
+   "title": "Change NuGet Package",
+   "category": "Build",
+   "hidden": true,
+   "source": "src/features/dotnet/index.ts:82"
+  },
+  {
+   "id": "dotnet.packages",
+   "title": "Refresh NuGet Packages",
+   "category": "Build",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:65"
+  },
+  {
+   "id": "dotnet.reload",
+   "title": "Reload .NET Workspace",
+   "category": "Build",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:40"
+  },
+  {
+   "id": "dotnet.search",
+   "title": "Search NuGet Packages",
+   "category": "Build",
+   "hidden": true,
+   "source": "src/features/dotnet/index.ts:72"
+  },
+  {
+   "id": "dotnet.select",
+   "title": "Select .NET Project",
+   "category": "Build",
+   "hidden": true,
+   "source": "src/features/dotnet/index.ts:48"
+  },
+  {
+   "id": "dotnet.show",
+   "title": ".NET Workspace",
+   "category": "Build",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:30"
+  },
+  {
+   "id": "dotnet.test",
+   "title": "Run .NET Tests",
+   "category": "Run",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:99"
+  },
+  {
+   "id": "edit.copy",
+   "titleKey": "app.action.copy",
+   "categoryKey": "app.category.edit",
+   "hidden": true,
+   "source": "src/features/app/appActions.ts:102"
+  },
+  {
+   "id": "edit.cut",
+   "titleKey": "app.action.cut",
+   "categoryKey": "app.category.edit",
+   "hidden": true,
+   "source": "src/features/app/appActions.ts:101"
+  },
+  {
+   "id": "edit.paste",
+   "titleKey": "app.action.paste",
+   "categoryKey": "app.category.edit",
+   "hidden": true,
+   "source": "src/features/app/appActions.ts:103"
+  },
+  {
+   "id": "edit.redo",
+   "titleKey": "app.action.redo",
+   "categoryKey": "app.category.edit",
+   "hidden": true,
+   "source": "src/features/app/appActions.ts:100"
+  },
+  {
+   "id": "edit.selectAll",
+   "titleKey": "app.action.selectAll",
+   "categoryKey": "app.category.edit",
+   "hidden": true,
+   "source": "src/features/app/appActions.ts:104"
+  },
+  {
+   "id": "edit.undo",
+   "titleKey": "app.action.undo",
+   "categoryKey": "app.category.edit",
+   "hidden": true,
+   "source": "src/features/app/appActions.ts:99"
+  },
+  {
+   "id": "editor.addOrRemoveCaret",
+   "title": "Add or Remove Caret",
+   "category": "Editor Actions",
+   "when": "textEditorActive",
+   "hidden": true,
+   "source": "src/editor/core/actions.ts:809"
+  },
+  {
+   "id": "editor.changeSplitOrientation",
+   "title": "Change Splitter Orientation",
+   "category": "Window",
+   "when": "editorSplit",
+   "source": "src/editor/core/actions.ts:1145"
+  },
+  {
+   "id": "editor.cloneCaretAbove",
+   "title": "Clone Caret Above",
+   "category": "Editor Actions",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:818"
+  },
+  {
+   "id": "editor.cloneCaretBelow",
+   "title": "Clone Caret Below",
+   "category": "Editor Actions",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:819"
+  },
+  {
+   "id": "editor.closeAllTabs",
+   "title": "Close All Tabs",
+   "category": "Window",
+   "when": "editorTabsOpen",
+   "source": "src/editor/core/actions.ts:1053"
+  },
+  {
+   "id": "editor.closeOtherTabs",
+   "title": "Close Other Tabs",
+   "category": "Window",
+   "when": "editorTabsOpen && !toolWindowFocus",
+   "source": "src/editor/core/actions.ts:1043"
+  },
+  {
+   "id": "editor.closeTab",
+   "title": "Close Tab",
+   "category": "Window",
+   "icon": "close",
+   "when": "(editorTabsOpen || editorSplit) && !toolWindowFocus",
+   "source": "src/editor/core/actions.ts:1033"
+  },
+  {
+   "id": "editor.codeBlockEnd",
+   "title": "Move Caret to Code Block End",
+   "category": "Editor Actions",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:770"
+  },
+  {
+   "id": "editor.codeBlockEndWithSelection",
+   "title": "Move Caret to Code Block End with Selection",
+   "category": "Editor Actions",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:779"
+  },
+  {
+   "id": "editor.codeBlockStart",
+   "title": "Move Caret to Code Block Start",
+   "category": "Editor Actions",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:767"
+  },
+  {
+   "id": "editor.codeBlockStartWithSelection",
+   "title": "Move Caret to Code Block Start with Selection",
+   "category": "Editor Actions",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:773"
+  },
+  {
+   "id": "editor.contextInfo",
+   "title": "Context Info",
+   "category": "View",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "enclosing method",
+    "enclosing class",
+    "where am I"
+   ],
+   "source": "src/editor/core/actions.ts:787"
+  },
+  {
+   "id": "editor.copyPath",
+   "title": "Absolute Path",
+   "category": "Edit",
+   "icon": "copy",
+   "when": "textEditorActive",
+   "keyWhen": "editorFocus || !toolWindowFocus",
+   "source": "src/editor/core/actions.ts:1162"
+  },
+  {
+   "id": "editor.copyPathReference",
+   "title": "Copy Path/Reference…",
+   "category": "Edit",
+   "icon": "copy",
+   "when": "textEditorActive",
+   "keyWhen": "editorFocus || !toolWindowFocus",
+   "source": "src/editor/core/actions.ts:1175"
+  },
+  {
+   "id": "editor.copyPathWithLineNumber",
+   "title": "Copy Path with Line Number",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:1184"
+  },
+  {
+   "id": "editor.copyReference",
+   "title": "Copy Reference",
+   "category": "Edit",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "fully qualified name",
+    "fqn",
+    "copy path"
+   ],
+   "source": "src/editor/core/actions.ts:721"
+  },
+  {
+   "id": "editor.decreaseFontSize",
+   "title": "Decrease Font Size",
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "zoom",
+    "font size"
+   ],
+   "source": "src/editor/core/actions.ts:916"
+  },
+  {
+   "id": "editor.encodings.toggleNativeToAscii",
+   "title": "Transparent native-to-ascii conversion",
+   "category": "Editor",
+   "keywords": [
+    "properties",
+    "encoding",
+    "Unicode"
+   ],
+   "source": "src/features/settings/nativeToAscii.ts:10"
+  },
+  {
+   "id": "editor.increaseFontSize",
+   "title": "Increase Font Size",
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "zoom",
+    "font size"
+   ],
+   "source": "src/editor/core/actions.ts:908"
+  },
+  {
+   "id": "editor.inlineCompletion.accept",
+   "title": "Insert Inline Proposal",
+   "category": "Inline Completion",
+   "when": "editorTextFocus && inlineCompletionVisible",
+   "source": "src/editor/lsp/inlineCompletion.ts:321"
+  },
+  {
+   "id": "editor.inlineCompletion.acceptWord",
+   "title": "Insert Inline Proposal: Next Word",
+   "category": "Inline Completion",
+   "when": "editorTextFocus && inlineCompletionVisible",
+   "source": "src/editor/lsp/inlineCompletion.ts:322"
+  },
+  {
+   "id": "editor.inlineCompletion.dismiss",
+   "title": "Hide Inline Proposal",
+   "category": "Inline Completion",
+   "when": "editorTextFocus && inlineCompletionVisible",
+   "source": "src/editor/lsp/inlineCompletion.ts:323"
+  },
+  {
+   "id": "editor.inlineCompletion.next",
+   "title": "Show Next Inline Proposal",
+   "category": "Inline Completion",
+   "when": "editorTextFocus && inlineCompletionVisible",
+   "source": "src/editor/lsp/inlineCompletion.ts:324"
+  },
+  {
+   "id": "editor.inlineCompletion.previous",
+   "title": "Show Previous Inline Proposal",
+   "category": "Inline Completion",
+   "when": "editorTextFocus && inlineCompletionVisible",
+   "source": "src/editor/lsp/inlineCompletion.ts:325"
+  },
+  {
+   "id": "editor.inlineCompletion.trigger",
+   "title": "Call Inline Completion",
+   "category": "Code",
+   "when": "editorTextFocus",
+   "keywords": [
+    "ghost text",
+    "inline suggestion"
+   ],
+   "source": "src/editor/lsp/inlineCompletion.ts:305"
+  },
+  {
+   "id": "editor.matchBrace",
+   "title": "Move Caret to Matching Brace",
+   "category": "Editor Actions",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keyWhen": "editorTextFocus",
+   "source": "src/editor/core/actions.ts:820"
+  },
+  {
+   "id": "editor.moveToOppositeGroup",
+   "title": "Move to Opposite Group",
+   "category": "Window",
+   "when": "editorSplit",
+   "source": "src/editor/core/actions.ts:1119"
+  },
+  {
+   "id": "editor.nextSplitter",
+   "title": "Go to Next Splitter",
+   "category": "Window",
+   "when": "editorSplit",
+   "keywords": [
+    "split",
+    "editor group",
+    "pane"
+   ],
+   "source": "src/editor/core/actions.ts:1103"
+  },
+  {
+   "id": "editor.nextTab",
+   "title": "Select Next Tab",
+   "category": "Window",
+   "when": "editorTabsOpen && !toolWindowFocus",
+   "source": "src/editor/core/actions.ts:1079"
+  },
+  {
+   "id": "editor.openInOppositeGroup",
+   "title": "Open in Opposite Group",
+   "category": "Window",
+   "when": "editorTabsOpen && !toolWindowFocus",
+   "source": "src/editor/core/actions.ts:1152"
+  },
+  {
+   "id": "editor.pasteHistory.paste",
+   "title": "Paste",
+   "when": "pasteHistoryOpen",
+   "keyWhen": "pasteHistoryListFocus",
+   "hidden": true,
+   "source": "src/editor/core/view/PasteHistoryDialog.tsx:41"
+  },
+  {
+   "id": "editor.pasteHistory.remove",
+   "title": "Delete",
+   "when": "pasteHistoryOpen",
+   "keyWhen": "pasteHistoryListFocus",
+   "hidden": true,
+   "source": "src/editor/core/view/PasteHistoryDialog.tsx:49"
+  },
+  {
+   "id": "editor.pinTab",
+   "title": "Pin / Unpin Tab",
+   "category": "Window",
+   "icon": "pin",
+   "when": "editorTabsOpen && !toolWindowFocus",
+   "source": "src/editor/core/actions.ts:1062"
+  },
+  {
+   "id": "editor.prevSplitter",
+   "title": "Go to Previous Splitter",
+   "category": "Window",
+   "when": "editorSplit",
+   "keywords": [
+    "split",
+    "editor group",
+    "pane"
+   ],
+   "source": "src/editor/core/actions.ts:1111"
+  },
+  {
+   "id": "editor.prevTab",
+   "title": "Select Previous Tab",
+   "category": "Window",
+   "when": "editorTabsOpen && !toolWindowFocus",
+   "source": "src/editor/core/actions.ts:1080"
+  },
+  {
+   "id": "editor.reopenClosedTab",
+   "title": "Reopen Closed Tab",
+   "category": "Window",
+   "source": "src/editor/core/actions.ts:1073"
+  },
+  {
+   "id": "editor.resetFontSize",
+   "title": "Reset Font Size in All Editors",
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "zoom",
+    "font size",
+    "mouse wheel"
+   ],
+   "source": "src/editor/core/actions.ts:894"
+  },
+  {
+   "id": "editor.scrollToCenter",
+   "title": "Scroll to Center",
+   "category": "Editor Actions",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "source": "src/editor/core/actions.ts:766"
+  },
+  {
+   "id": "editor.showHint",
+   "title": "Show Editor Hint",
+   "description": "Shows `{ text, tone? }` as a transient hint at the caret of the active editor.",
+   "hidden": true,
+   "source": "src/editor/lsp/actions.ts:353"
+  },
+  {
+   "id": "editor.splitDown",
+   "title": "Split Down",
+   "category": "Window",
+   "icon": "split-horizontal",
+   "when": "editorTabsOpen",
+   "source": "src/editor/core/actions.ts:1095"
+  },
+  {
+   "id": "editor.splitRight",
+   "title": "Split Right",
+   "category": "Window",
+   "icon": "split",
+   "when": "editorTabsOpen",
+   "source": "src/editor/core/actions.ts:1087"
+  },
+  {
+   "id": "editor.toggleColumnSelection",
+   "title": "Column Selection Mode",
+   "category": "Edit",
+   "when": "textEditorActive",
+   "keywords": [
+    "block selection",
+    "rectangular selection"
+   ],
+   "toggle": true,
+   "source": "src/editor/core/actions.ts:849"
+  },
+  {
+   "id": "editor.toggleInsertState",
+   "title": "Toggle Insert/Overwrite",
+   "category": "Editor Actions",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "overwrite mode",
+    "overtype"
+   ],
+   "toggle": true,
+   "source": "src/editor/core/actions.ts:825"
+  },
+  {
+   "id": "editor.toggleRainbowBrackets",
+   "title": "Rainbow Brackets",
+   "category": "Editor",
+   "keywords": [
+    "bracket pair colorization",
+    "rainbow parentheses",
+    "color scheme"
+   ],
+   "toggle": true,
+   "source": "src/editor/core/actions.ts:682"
+  },
+  {
+   "id": "editor.toggleSemanticHighlighting",
+   "title": "Semantic Highlighting",
+   "category": "Editor",
+   "keywords": [
+    "rainbow variables",
+    "rainbow identifiers",
+    "color scheme"
+   ],
+   "toggle": true,
+   "source": "src/editor/core/actions.ts:677"
+  },
+  {
+   "id": "editor.toggleSoftWrap",
+   "title": "Soft-Wrap",
+   "category": "View",
+   "icon": "soft-wrap",
+   "when": "textEditorActive || softWrapSurfaceFocus",
+   "keywords": [
+    "word wrap",
+    "line wrap"
+   ],
+   "toggle": true,
+   "source": "src/editor/core/actions.ts:736"
+  },
+  {
+   "id": "editor.toggleZen",
+   "category": "View",
+   "keywords": [
+    "zen",
+    "distraction free",
+    "toggle distraction free mode"
+   ],
+   "source": "src/workbench/distractionFree.ts:118"
+  },
+  {
+   "id": "editor.unsplit",
+   "title": "Unsplit",
+   "category": "Window",
+   "when": "editorSplit",
+   "source": "src/editor/core/actions.ts:1129"
+  },
+  {
+   "id": "editor.unsplitAll",
+   "title": "Unsplit All",
+   "category": "Window",
+   "when": "editorSplit",
+   "source": "src/editor/core/actions.ts:1138"
+  },
+  {
+   "id": "emmet.updateTag",
+   "title": "Update Tag with Emmet",
+   "category": "Code",
+   "when": "textEditorActive && !editorReadOnly && (editorFocus || popupOpen || !toolWindowFocus) && (editorLangId == html || editorLangId == vue || editorLangId == svelte || editorLangId == xml)",
+   "keywords": [
+    "emmet",
+    "tag",
+    "rename",
+    "class",
+    "attribute"
+   ],
+   "source": "src/features/templates/index.ts:225"
+  },
+  {
+   "id": "file.closeProject",
+   "title": "Close Project",
+   "category": "File",
+   "when": "projectOpen",
+   "source": "src/workbench/shellActions.ts:66"
+  },
+  {
+   "id": "file.exportSettings",
+   "title": "Export Settings…",
+   "category": "File",
+   "keywords": [
+    "backup settings",
+    "keymap",
+    "templates",
+    "manage ide settings"
+   ],
+   "source": "src/features/app/projectActions.ts:202"
+  },
+  {
+   "id": "file.importSettings",
+   "title": "Import Settings…",
+   "category": "File",
+   "keywords": [
+    "restore settings",
+    "keymap",
+    "templates",
+    "manage ide settings"
+   ],
+   "source": "src/features/app/projectActions.ts:209"
+  },
+  {
+   "id": "file.invalidateCaches",
+   "title": "Invalidate Caches…",
+   "category": "File",
+   "icon": "refresh",
+   "keywords": [
+    "clear caches",
+    "repair",
+    "index",
+    "rebuild",
+    "restart"
+   ],
+   "source": "src/features/app/InvalidateCaches.tsx:126"
+  },
+  {
+   "id": "file.new",
+   "title": "New…",
+   "category": "File",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/project-tree/actions.ts:260"
+  },
+  {
+   "id": "file.newProject",
+   "title": "New Project…",
+   "category": "File",
+   "icon": "folder-open",
+   "keywords": [
+    "create project",
+    "empty project",
+    "git init"
+   ],
+   "source": "src/features/app/projectActions.ts:186"
+  },
+  {
+   "id": "file.newProjectsSettings",
+   "title": "Settings for New Projects…",
+   "category": "File",
+   "icon": "settings",
+   "keywords": [
+    "new projects setup",
+    "default settings",
+    "default project",
+    "default jdk",
+    "global settings"
+   ],
+   "source": "src/features/settings/index.ts:73"
+  },
+  {
+   "id": "file.newScratchFile",
+   "title": "New Scratch File…",
+   "category": "File",
+   "icon": "scratches",
+   "when": "projectOpen",
+   "keywords": [
+    "scratch",
+    "temporary file",
+    "buffer"
+   ],
+   "source": "src/features/scratch/index.ts:53"
+  },
+  {
+   "id": "file.openFile",
+   "titleKey": "app.action.openFile",
+   "categoryKey": "app.category.file",
+   "icon": "file",
+   "keywords": [
+    "file",
+    "light edit"
+   ],
+   "source": "src/features/app/windows.ts:472"
+  },
+  {
+   "id": "file.openInNewWindow",
+   "titleKey": "app.action.openInNewWindow",
+   "categoryKey": "app.category.file",
+   "icon": "folder-open",
+   "keywords": [
+    "window",
+    "project",
+    "folder"
+   ],
+   "source": "src/features/app/windows.ts:460"
+  },
+  {
+   "id": "file.openPaths",
+   "title": "Open Paths",
+   "categoryKey": "app.category.file",
+   "hidden": true,
+   "source": "src/features/app/windows.ts:483"
+  },
+  {
+   "id": "file.openProject",
+   "title": "Open…",
+   "category": "File",
+   "icon": "folder-open",
+   "keywords": [
+    "folder",
+    "project"
+   ],
+   "source": "src/workbench/shellActions.ts:58"
+  },
+  {
+   "id": "file.openProjectPath",
+   "title": "Open Project Path",
+   "categoryKey": "app.category.file",
+   "hidden": true,
+   "source": "src/features/app/windows.ts:511"
+  },
+  {
+   "id": "file.openRecent",
+   "title": "Open Recent…",
+   "category": "File",
+   "icon": "history",
+   "keywords": [
+    "recent projects",
+    "reopen"
+   ],
+   "source": "src/features/welcome/index.ts:27"
+  },
+  {
+   "id": "file.openRecentProject",
+   "titleKey": "app.action.openRecentProject",
+   "categoryKey": "app.category.file",
+   "hidden": true,
+   "source": "src/features/app/windows.ts:502"
+  },
+  {
+   "id": "file.overrideFileType",
+   "title": "Override File Type",
+   "category": "File",
+   "hidden": true,
+   "source": "src/features/settings/fileTypesRuntime.ts:109"
+  },
+  {
+   "id": "file.projectStructure",
+   "title": "Project Structure…",
+   "category": "File",
+   "icon": "folder",
+   "keywords": [
+    "project structure",
+    "sdk",
+    "jdk",
+    "modules",
+    "libraries",
+    "facets",
+    "artifacts",
+    "sources"
+   ],
+   "source": "src/features/settings/index.ts:129"
+  },
+  {
+   "id": "file.reloadAllFromDisk",
+   "title": "Reload All from Disk",
+   "category": "File",
+   "icon": "refresh",
+   "when": "projectOpen",
+   "keywords": [
+    "synchronize",
+    "refresh"
+   ],
+   "source": "src/editor/core/actions.ts:879"
+  },
+  {
+   "id": "file.reloadFromDisk",
+   "title": "Reload from Disk",
+   "category": "File",
+   "icon": "refresh",
+   "when": "projectOpen",
+   "keywords": [
+    "synchronize",
+    "refresh",
+    "revert"
+   ],
+   "source": "src/editor/core/actions.ts:861"
+  },
+  {
+   "id": "file.renameProject",
+   "title": "Rename Project…",
+   "category": "File",
+   "when": "projectOpen",
+   "keywords": [
+    "project name"
+   ],
+   "source": "src/features/app/projectActions.ts:194"
+  },
+  {
+   "id": "file.revertFileTypeOverride",
+   "title": "Revert File Type Override",
+   "category": "File",
+   "hidden": true,
+   "source": "src/features/settings/fileTypesRuntime.ts:119"
+  },
+  {
+   "id": "file.save",
+   "title": "Save All",
+   "category": "File",
+   "keywords": [
+    "save"
+   ],
+   "source": "src/editor/core/actions.ts:1199"
+  },
+  {
+   "id": "file.settings",
+   "title": "Settings…",
+   "category": "File",
+   "icon": "settings",
+   "keywords": [
+    "preferences",
+    "options",
+    "configure"
+   ],
+   "source": "src/features/settings/index.ts:65"
+  },
+  {
+   "id": "file.togglePowerSave",
+   "title": "Power Save Mode",
+   "category": "File",
+   "keywords": [
+    "battery",
+    "performance",
+    "code insight"
+   ],
+   "toggle": true,
+   "source": "src/features/app/projectActions.ts:216"
+  },
+  {
+   "id": "file.toggleReadOnly",
+   "title": "Toggle Read-only Attribute",
+   "category": "File",
+   "when": "textEditorActive",
+   "keywords": [
+    "make file writable",
+    "make file read-only",
+    "lock"
+   ],
+   "source": "src/editor/core/actions.ts:924"
+  },
+  {
+   "id": "find.field.newLine",
+   "title": "New Line in Search Field",
+   "category": "Find",
+   "when": "searchFieldNewLine",
+   "hidden": true,
+   "source": "src/workbench/shellActions.ts:133"
+  },
+  {
+   "id": "find.field.recentSearches",
+   "title": "Recent Searches",
+   "category": "Find",
+   "when": "searchFieldHistory",
+   "hidden": true,
+   "source": "src/workbench/shellActions.ts:141"
+  },
+  {
+   "id": "find.highlightUsages",
+   "title": "Highlight Usages in File",
+   "category": "Find",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:273"
+  },
+  {
+   "id": "find.inFile",
+   "title": "Find",
+   "category": "Find",
+   "icon": "search",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/core/actions.ts:951"
+  },
+  {
+   "id": "find.inPath",
+   "title": "Find in Files…",
+   "category": "Find",
+   "icon": "search",
+   "when": "projectOpen",
+   "keywords": [
+    "grep",
+    "search in path"
+   ],
+   "source": "src/features/search/index.ts:341"
+  },
+  {
+   "id": "find.next",
+   "title": "Find Next Occurrence",
+   "category": "Find",
+   "icon": "arrow-down",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/core/actions.ts:967"
+  },
+  {
+   "id": "find.openInWindow",
+   "title": "Open Results in Find Window",
+   "category": "Find",
+   "when": "findBarHasResults",
+   "keyWhen": "findBarFocus",
+   "source": "src/editor/core/actions.ts:935"
+  },
+  {
+   "id": "find.popup.nextResult",
+   "title": "Recent Searches",
+   "titleVariants": [
+    "Recent Searches",
+    "Next Result",
+    "Previous Result",
+    "Open Result"
+   ],
+   "category": "Find",
+   "when": "findPopupOpen",
+   "hidden": true,
+   "source": "src/features/search/index.ts:389"
+  },
+  {
+   "id": "find.popup.openResult",
+   "title": "Recent Searches",
+   "titleVariants": [
+    "Recent Searches",
+    "Next Result",
+    "Previous Result",
+    "Open Result"
+   ],
+   "category": "Find",
+   "when": "findPopupOpen",
+   "hidden": true,
+   "source": "src/features/search/index.ts:389"
+  },
+  {
+   "id": "find.popup.previousResult",
+   "title": "Recent Searches",
+   "titleVariants": [
+    "Recent Searches",
+    "Next Result",
+    "Previous Result",
+    "Open Result"
+   ],
+   "category": "Find",
+   "when": "findPopupOpen",
+   "hidden": true,
+   "source": "src/features/search/index.ts:389"
+  },
+  {
+   "id": "find.popup.recentSearches",
+   "title": "Recent Searches",
+   "titleVariants": [
+    "Recent Searches",
+    "Next Result",
+    "Previous Result",
+    "Open Result"
+   ],
+   "category": "Find",
+   "when": "findPopupOpen",
+   "hidden": true,
+   "source": "src/features/search/index.ts:389"
+  },
+  {
+   "id": "find.previous",
+   "title": "Find Previous Occurrence",
+   "category": "Find",
+   "icon": "arrow-up",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/core/actions.ts:975"
+  },
+  {
+   "id": "find.replaceInFile",
+   "title": "Replace",
+   "category": "Find",
+   "icon": "replace",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/core/actions.ts:959"
+  },
+  {
+   "id": "find.replaceInPath",
+   "title": "Replace in Files…",
+   "category": "Find",
+   "icon": "replace",
+   "when": "projectOpen",
+   "source": "src/features/search/index.ts:370"
+  },
+  {
+   "id": "find.replaceStructural",
+   "title": "Replace Structurally…",
+   "category": "Find",
+   "icon": "replace",
+   "when": "projectOpen",
+   "keywords": [
+    "ssr",
+    "structural replace",
+    "pattern",
+    "ast"
+   ],
+   "source": "src/features/analysis/index.ts:96"
+  },
+  {
+   "id": "find.rerun",
+   "title": "Rerun Search",
+   "category": "Find",
+   "icon": "refresh",
+   "when": "projectOpen && activeToolWindow == 'find'",
+   "source": "src/features/search/index.ts:353"
+  },
+  {
+   "id": "find.scrollToResults",
+   "title": "Scroll to Results During Typing",
+   "category": "Find",
+   "when": "findBarOpen",
+   "toggle": true,
+   "source": "src/editor/core/actions.ts:943"
+  },
+  {
+   "id": "find.showUsageResults",
+   "title": "Show Usage Results",
+   "category": "Find",
+   "description": "Shows `{ symbol, locations }` (found elsewhere, e.g. by Safe Delete) in the Find Usages tool window.",
+   "hidden": true,
+   "source": "src/features/code-insight/index.ts:110"
+  },
+  {
+   "id": "find.showUsages",
+   "title": "Show Usages",
+   "category": "Find",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/features/code-insight/index.ts:94"
+  },
+  {
+   "id": "find.structural",
+   "title": "Search Structurally…",
+   "category": "Find",
+   "icon": "search",
+   "when": "projectOpen",
+   "keywords": [
+    "ssr",
+    "structural search",
+    "pattern",
+    "ast"
+   ],
+   "source": "src/features/analysis/index.ts:87"
+  },
+  {
+   "id": "find.usages",
+   "title": "Find Usages",
+   "category": "Find",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/features/code-insight/index.ts:93"
+  },
+  {
+   "id": "github.pullRequest.diff.addComment",
+   "title": "Add Review Comment",
+   "category": "GitHub",
+   "description": "Create a new code review comment on the line under the caret",
+   "when": "projectOpen && githubConnected && (githubReviewDiff || githubReviewEditor)",
+   "source": "src/features/github/diff/index.ts:36"
+  },
+  {
+   "id": "github.pullRequest.diff.addMultilineComment",
+   "title": "Add Multiline Review Comment",
+   "category": "GitHub",
+   "description": "Create a new code review comment on the selected lines",
+   "when": "projectOpen && githubConnected && (githubReviewDiff || githubReviewEditor)",
+   "source": "src/features/github/diff/index.ts:45"
+  },
+  {
+   "id": "github.pullRequest.diff.nextComment",
+   "title": "Next Comment",
+   "category": "GitHub",
+   "description": "Go to next visible comment",
+   "icon": "arrow-down",
+   "when": "projectOpen && githubConnected && (githubReviewDiff || githubReviewEditor)",
+   "source": "src/features/github/diff/index.ts:63"
+  },
+  {
+   "id": "github.pullRequest.diff.previousComment",
+   "title": "Previous Comment",
+   "category": "GitHub",
+   "description": "Go to previous visible comment",
+   "icon": "arrow-up",
+   "when": "projectOpen && githubConnected && (githubReviewDiff || githubReviewEditor)",
+   "source": "src/features/github/diff/index.ts:53"
+  },
+  {
+   "id": "github.pullRequest.diff.refreshReview",
+   "title": "Refresh Review Data",
+   "category": "GitHub",
+   "icon": "refresh",
+   "when": "projectOpen && githubConnected && (githubReviewDiff || githubReviewEditor)",
+   "source": "src/features/github/diff/index.ts:73"
+  },
+  {
+   "id": "github.pullRequest.reviewMode",
+   "title": "Review Mode",
+   "category": "GitHub",
+   "toggle": true,
+   "source": "src/features/github/index.ts:240"
+  },
+  {
+   "id": "github.pullRequest.reviewMode.showDiff",
+   "title": "Show Review Diff",
+   "category": "GitHub",
+   "icon": "diff",
+   "when": "projectOpen && githubConnected && githubCurrentBranchPullRequest",
+   "source": "src/features/github/reviewMode/index.ts:136"
+  },
+  {
+   "id": "github.pullRequest.showInToolWindow",
+   "title": "Show Pull Request in the Tool Window",
+   "category": "GitHub",
+   "icon": "toolwindow-pull-requests",
+   "source": "src/features/github/index.ts:222"
+  },
+  {
+   "id": "github.pullRequest.updateBranch",
+   "title": "Update to Enable Review Mode…",
+   "category": "GitHub",
+   "icon": "github-warning",
+   "source": "src/features/github/index.ts:231"
+  },
+  {
+   "id": "gradle.analyzeDependencies",
+   "title": "Analyze Dependencies…",
+   "category": "Gradle",
+   "description": "Shows a Gradle project's resolved dependencies per configuration, version conflicts and where each library comes from",
+   "icon": "build-dependencies",
+   "when": "projectOpen && build.gradle",
+   "keywords": [
+    "gradle",
+    "dependency",
+    "dependencies",
+    "conflict",
+    "tree",
+    "configuration",
+    "analyzer"
+   ],
+   "source": "src/features/build-tools/index.ts:409"
+  },
+  {
+   "id": "gradle.cancelReload",
+   "title": "Stop Reloading Gradle Projects",
+   "category": "Gradle",
+   "icon": "stop",
+   "when": "projectOpen && build.gradle",
+   "hidden": true,
+   "source": "src/features/build-tools/index.ts:420"
+  },
+  {
+   "id": "gradle.collapseAll",
+   "title": "Collapse All",
+   "category": "Gradle",
+   "icon": "collapse-all",
+   "when": "projectOpen && build.gradle",
+   "hidden": true,
+   "source": "src/features/build-tools/index.ts:462"
+  },
+  {
+   "id": "gradle.executeTask",
+   "title": "Execute Gradle Task…",
+   "category": "Gradle",
+   "icon": "run-anything",
+   "when": "projectOpen && build.gradle",
+   "keywords": [
+    "gradle",
+    "task",
+    "run anything"
+   ],
+   "source": "src/features/build-tools/index.ts:429"
+  },
+  {
+   "id": "gradle.expandAll",
+   "title": "Expand All",
+   "category": "Gradle",
+   "icon": "expand-all",
+   "when": "projectOpen && build.gradle",
+   "hidden": true,
+   "source": "src/features/build-tools/index.ts:453"
+  },
+  {
+   "id": "gradle.linkProjects",
+   "title": "Link Gradle Projects",
+   "category": "Gradle",
+   "icon": "plus",
+   "when": "projectOpen && !workspaceOpen",
+   "source": "src/features/build-tools/index.ts:268"
+  },
+  {
+   "id": "gradle.reload",
+   "title": "Reload All Gradle Projects",
+   "category": "Gradle",
+   "description": "Re-reads the task list with Gradle",
+   "icon": "refresh",
+   "when": "projectOpen && build.gradle",
+   "keywords": [
+    "gradle",
+    "sync",
+    "refresh"
+   ],
+   "source": "src/features/build-tools/index.ts:396"
+  },
+  {
+   "id": "gradle.toggleOffline",
+   "title": "Toggle Offline Mode",
+   "category": "Gradle",
+   "description": "Runs Gradle with --offline",
+   "icon": "build-offline",
+   "when": "projectOpen && build.gradle",
+   "keywords": [
+    "gradle",
+    "offline"
+   ],
+   "toggle": true,
+   "source": "src/features/build-tools/index.ts:442"
+  },
+  {
+   "id": "gradle.unlinkProjects",
+   "title": "Unlink Gradle Project",
+   "category": "Gradle",
+   "when": "projectOpen && build.gradle && !workspaceOpen",
+   "hidden": true,
+   "source": "src/features/build-tools/index.ts:279"
+  },
+  {
+   "id": "graphql.addConfiguration",
+   "title": "Add Schema Configuration",
+   "category": "Tools",
+   "description": "Open the project's graphql-config, creating graphql.config.yml when there is none",
+   "icon": "plus",
+   "when": "projectOpen",
+   "keywords": [
+    "graphql",
+    "graphql-config",
+    "graphqlrc",
+    "schema"
+   ],
+   "source": "src/features/graphql/index.ts:66"
+  },
+  {
+   "id": "graphql.editConfiguration",
+   "title": "Open Configuration File",
+   "category": "Tools",
+   "description": "Opens the GraphQL config file for the current file's schema",
+   "icon": "settings",
+   "when": "projectOpen",
+   "keywords": [
+    "graphql",
+    "graphql-config",
+    "graphqlrc",
+    "settings"
+   ],
+   "source": "src/features/graphql/index.ts:76"
+  },
+  {
+   "id": "graphql.introspect",
+   "title": "Rerun Introspection Query",
+   "category": "Tools",
+   "description": "Reruns the latest introspection query to update the local schema file",
+   "icon": "refresh",
+   "when": "editorLangId == graphql",
+   "keywords": [
+    "graphql",
+    "introspection",
+    "schema",
+    "endpoint",
+    "download"
+   ],
+   "source": "src/features/graphql/index.ts:86"
+  },
+  {
+   "id": "graphql.restartDiscovery",
+   "title": "Restart Schema Discovery",
+   "category": "Tools",
+   "description": "Find the project's GraphQL schemas and configurations again",
+   "icon": "refresh",
+   "when": "projectOpen",
+   "keywords": [
+    "graphql",
+    "schema",
+    "refresh",
+    "reload"
+   ],
+   "source": "src/features/graphql/index.ts:99"
+  },
+  {
+   "id": "graphql.runQuery",
+   "title": "Execute GraphQL",
+   "category": "Run",
+   "description": "Executes the current GraphQL file against the specified GraphQL endpoint",
+   "icon": "run",
+   "when": "editorTextFocus && editorLangId == graphql",
+   "keywords": [
+    "graphql",
+    "run",
+    "execute",
+    "query",
+    "endpoint"
+   ],
+   "source": "src/features/graphql/index.ts:109"
+  },
+  {
+   "id": "graphql.showToolWindow",
+   "title": "GraphQL",
+   "category": "Tools",
+   "icon": "toolwindow-graphql",
+   "when": "projectOpen",
+   "keywords": [
+    "schema",
+    "endpoints",
+    "graphql-config"
+   ],
+   "source": "src/features/graphql/index.ts:57"
+  },
+  {
+   "id": "help.keymapReference",
+   "titleKey": "app.action.keymapReference",
+   "categoryKey": "app.category.help",
+   "icon": "keyboard",
+   "keywords": [
+    "shortcuts",
+    "keyboard",
+    "keymap",
+    "cheat sheet"
+   ],
+   "source": "src/features/app/appActions.ts:84"
+  },
+  {
+   "id": "help.showLog",
+   "titleKey": "app.action.showLog",
+   "categoryKey": "app.category.help",
+   "keywords": [
+    "log",
+    "logs",
+    "openidea.log"
+   ],
+   "source": "src/features/app/appActions.ts:92"
+  },
+  {
+   "id": "http.generateSpringControllerRequests",
+   "title": "Generate Requests for Controller",
+   "category": "Tools",
+   "icon": "file-http",
+   "when": "editorLangId == java || editorLangId == kotlin",
+   "keywords": [
+    "spring",
+    "request mapping",
+    "rest",
+    "endpoints",
+    "http client"
+   ],
+   "source": "src/features/http-client/index.ts:196"
+  },
+  {
+   "id": "http.generateSpringRequest",
+   "title": "Generate Request in HTTP Client",
+   "category": "Tools",
+   "icon": "file-http",
+   "when": "editorLangId == java || editorLangId == kotlin",
+   "keywords": [
+    "spring",
+    "request mapping",
+    "rest",
+    "endpoint",
+    "http client"
+   ],
+   "source": "src/features/http-client/index.ts:187"
+  },
+  {
+   "id": "http.newRequest",
+   "title": "New HTTP Request",
+   "category": "Tools",
+   "icon": "file-http",
+   "when": "projectOpen",
+   "keywords": [
+    "http client",
+    "rest",
+    "scratch",
+    "curl"
+   ],
+   "source": "src/features/http-client/index.ts:172"
+  },
+  {
+   "id": "http.openEndpoint",
+   "title": "Open in HTTP Client",
+   "category": "Tools",
+   "icon": "file-http",
+   "source": "src/features/http-client/index.ts:144"
+  },
+  {
+   "id": "http.runAll",
+   "title": "Run All HTTP Requests in File",
+   "category": "Tools",
+   "icon": "gutter-run-all",
+   "when": "editorLangId == http",
+   "source": "src/features/http-client/index.ts:161"
+  },
+  {
+   "id": "http.runRequest",
+   "title": "Run HTTP Request at Caret",
+   "category": "Tools",
+   "icon": "run",
+   "when": "editorTextFocus && editorLangId == http",
+   "source": "src/features/http-client/index.ts:153"
+  },
+  {
+   "id": "http.showToolWindow",
+   "title": "HTTP Client",
+   "category": "Tools",
+   "icon": "file-http",
+   "when": "projectOpen",
+   "keywords": [
+    "responses",
+    "http history"
+   ],
+   "source": "src/features/http-client/index.ts:205"
+  },
+  {
+   "id": "ide.toggleMode",
+   "title": "Toggle Blaze/Deep Mode",
+   "category": "File",
+   "description": "Blaze mode keeps language servers off (editor, git and search only); Deep mode starts them",
+   "icon": "ide-mode-full",
+   "keywords": [
+    "Blaze mode",
+    "Deep mode",
+    "language servers",
+    "lsp",
+    "ide mode"
+   ],
+   "toggle": true,
+   "source": "src/features/app/projectActions.ts:176"
+  },
+  {
+   "id": "image.actualSize",
+   "title": "Actual Size",
+   "category": "Image",
+   "icon": "actual-size",
+   "when": "imageViewerActive",
+   "keyWhen": "imageViewerFocus",
+   "source": "src/features/viewers/index.ts:52"
+  },
+  {
+   "id": "image.fitToWindow",
+   "title": "Fit Zoom to Window",
+   "category": "Image",
+   "icon": "maximize",
+   "when": "imageViewerActive",
+   "keyWhen": "imageViewerFocus",
+   "source": "src/features/viewers/index.ts:53"
+  },
+  {
+   "id": "image.toggleChessboard",
+   "title": "Show Chessboard",
+   "category": "Image",
+   "icon": "chessboard",
+   "when": "imageViewerActive",
+   "keyWhen": "imageViewerFocus",
+   "keywords": [
+    "transparency",
+    "background"
+   ],
+   "toggle": true,
+   "source": "src/features/viewers/index.ts:54"
+  },
+  {
+   "id": "image.zoomIn",
+   "title": "Zoom In",
+   "category": "Image",
+   "icon": "zoom-in",
+   "when": "imageViewerActive",
+   "keyWhen": "imageViewerFocus",
+   "source": "src/features/viewers/index.ts:50"
+  },
+  {
+   "id": "image.zoomOut",
+   "title": "Zoom Out",
+   "category": "Image",
+   "icon": "zoom-out",
+   "when": "imageViewerActive",
+   "keyWhen": "imageViewerFocus",
+   "source": "src/features/viewers/index.ts:51"
+  },
+  {
+   "id": "java.downloadJdk",
+   "title": "Download JDK…",
+   "category": "Java",
+   "hidden": true,
+   "source": "src/features/tools/jdk.ts:116"
+  },
+  {
+   "id": "layout.delete",
+   "title": "Delete Tool Window Layout…",
+   "category": "Window",
+   "when": "toolWindowLayoutsSaved",
+   "source": "src/workbench/toolwindows/actions.ts:123"
+  },
+  {
+   "id": "layout.rename",
+   "title": "Rename Tool Window Layout…",
+   "category": "Window",
+   "when": "toolWindowLayoutsSaved",
+   "source": "src/workbench/toolwindows/actions.ts:105"
+  },
+  {
+   "id": "layout.restore",
+   "title": "Restore Tool Window Layout",
+   "category": "Window",
+   "description": "Restores the saved layout named `arg`, or asks which one.",
+   "when": "projectOpen",
+   "keywords": [
+    "tool window layout"
+   ],
+   "source": "src/workbench/toolwindows/actions.ts:81"
+  },
+  {
+   "id": "layout.restoreDefault",
+   "title": "Restore Default Layout",
+   "category": "Window",
+   "when": "projectOpen",
+   "keywords": [
+    "tool window layout",
+    "reset"
+   ],
+   "source": "src/workbench/toolwindows/actions.ts:94"
+  },
+  {
+   "id": "layout.save",
+   "title": "Save Current Layout as…",
+   "category": "Window",
+   "when": "projectOpen",
+   "keywords": [
+    "tool window layout",
+    "store layout"
+   ],
+   "source": "src/workbench/toolwindows/actions.ts:63"
+  },
+  {
+   "id": "libraries.reload",
+   "title": "Reload External Libraries",
+   "category": "Go",
+   "hidden": true,
+   "source": "src/features/libraries/index.ts:181"
+  },
+  {
+   "id": "lightEdit.openProject",
+   "titleKey": "app.action.lightEditOpenProject",
+   "categoryKey": "app.category.file",
+   "icon": "folder-open",
+   "when": "lightEdit",
+   "keywords": [
+    "light edit",
+    "project",
+    "folder"
+   ],
+   "source": "src/features/app/windows.ts:493"
+  },
+  {
+   "id": "localHistory.putLabel",
+   "title": "Local History: Put Label…",
+   "category": "Git",
+   "icon": "bookmark",
+   "when": "projectOpen",
+   "keywords": [
+    "local history",
+    "label",
+    "checkpoint"
+   ],
+   "source": "src/features/vcs/localHistoryActions.ts:34"
+  },
+  {
+   "id": "localHistory.recentChanges",
+   "title": "Recent Changes",
+   "category": "View",
+   "icon": "history",
+   "when": "projectOpen",
+   "keywords": [
+    "local history",
+    "recent changes",
+    "activity"
+   ],
+   "source": "src/features/vcs/localHistoryActions.ts:43"
+  },
+  {
+   "id": "macro.edit",
+   "title": "Edit Macros…",
+   "category": "Edit",
+   "when": "!macroRecording && macrosSaved",
+   "keywords": [
+    "macro",
+    "rename",
+    "delete"
+   ],
+   "source": "src/features/macros/index.ts:188"
+  },
+  {
+   "id": "macro.playBack",
+   "title": "Play Back Last Macro",
+   "category": "Edit",
+   "when": "!macroRecording && macroLastAvailable",
+   "keywords": [
+    "macro",
+    "replay"
+   ],
+   "source": "src/features/macros/index.ts:162"
+  },
+  {
+   "id": "macro.playSaved",
+   "title": "Play Saved Macros…",
+   "category": "Edit",
+   "when": "!macroRecording && macrosSaved",
+   "keywords": [
+    "macro",
+    "replay"
+   ],
+   "source": "src/features/macros/index.ts:173"
+  },
+  {
+   "id": "macro.startRecording",
+   "title": "Start Macro Recording",
+   "category": "Edit",
+   "when": "!macroRecording",
+   "keywords": [
+    "macro",
+    "record"
+   ],
+   "source": "src/features/macros/index.ts:145"
+  },
+  {
+   "id": "macro.stopRecording",
+   "title": "Stop Macro Recording",
+   "category": "Edit",
+   "icon": "stop",
+   "when": "macroRecording",
+   "keywords": [
+    "macro",
+    "record"
+   ],
+   "source": "src/features/macros/index.ts:153"
+  },
+  {
+   "id": "markdown.editorAndPreview",
+   "title": "Editor and Preview",
+   "category": "Markdown",
+   "icon": "editor-preview",
+   "when": "textEditorActive && editorLangId == markdown",
+   "keywords": [
+    "markdown",
+    "preview",
+    "layout"
+   ],
+   "source": "src/features/viewers/index.ts:77"
+  },
+  {
+   "id": "markdown.editorOnly",
+   "title": "Editor Only",
+   "category": "Markdown",
+   "icon": "editor-only",
+   "when": "textEditorActive && editorLangId == markdown",
+   "keywords": [
+    "markdown",
+    "preview",
+    "layout"
+   ],
+   "source": "src/features/viewers/index.ts:76"
+  },
+  {
+   "id": "markdown.previewOnly",
+   "title": "Preview Only",
+   "category": "Markdown",
+   "icon": "preview-only",
+   "when": "textEditorActive && editorLangId == markdown",
+   "keywords": [
+    "markdown",
+    "preview",
+    "layout"
+   ],
+   "source": "src/features/viewers/index.ts:78"
+  },
+  {
+   "id": "maven.addProjects",
+   "title": "Add Maven Projects",
+   "category": "Maven",
+   "icon": "plus",
+   "when": "projectOpen && !workspaceOpen",
+   "source": "src/features/build-tools/index.ts:292"
+  },
+  {
+   "id": "maven.analyzeDependencies",
+   "title": "Analyze Dependencies…",
+   "category": "Maven",
+   "description": "Shows a Maven module's dependency tree, version conflicts and where each library comes from",
+   "icon": "build-dependencies",
+   "when": "projectOpen && build.maven",
+   "keywords": [
+    "maven",
+    "dependency",
+    "dependencies",
+    "conflict",
+    "tree",
+    "exclude",
+    "analyzer"
+   ],
+   "source": "src/features/build-tools/index.ts:336"
+  },
+  {
+   "id": "maven.cancelReload",
+   "title": "Stop Reloading Maven Projects",
+   "category": "Maven",
+   "icon": "stop",
+   "when": "projectOpen && build.maven",
+   "hidden": true,
+   "source": "src/features/build-tools/index.ts:318"
+  },
+  {
+   "id": "maven.collapseAll",
+   "title": "Collapse All",
+   "category": "Maven",
+   "icon": "collapse-all",
+   "when": "projectOpen && build.maven",
+   "hidden": true,
+   "source": "src/features/build-tools/index.ts:377"
+  },
+  {
+   "id": "maven.executeGoal",
+   "title": "Execute Maven Goal…",
+   "category": "Maven",
+   "icon": "run-anything",
+   "when": "projectOpen && build.maven",
+   "keywords": [
+    "maven",
+    "mvn",
+    "goal",
+    "run anything"
+   ],
+   "source": "src/features/build-tools/index.ts:327"
+  },
+  {
+   "id": "maven.expandAll",
+   "title": "Expand All",
+   "category": "Maven",
+   "icon": "expand-all",
+   "when": "projectOpen && build.maven",
+   "hidden": true,
+   "source": "src/features/build-tools/index.ts:368"
+  },
+  {
+   "id": "maven.reload",
+   "title": "Reload All Maven Projects",
+   "category": "Maven",
+   "description": "Re-reads the effective POMs and dependency trees with Maven",
+   "icon": "refresh",
+   "when": "projectOpen && build.maven",
+   "keywords": [
+    "maven",
+    "sync",
+    "reimport",
+    "refresh"
+   ],
+   "source": "src/features/build-tools/index.ts:308"
+  },
+  {
+   "id": "maven.settings",
+   "title": "Maven Settings…",
+   "category": "Maven",
+   "description": "Opens Settings › Build, Execution, Deployment › Maven",
+   "icon": "settings",
+   "when": "projectOpen && build.maven",
+   "keywords": [
+    "maven home",
+    "mvn",
+    "settings",
+    "preferences"
+   ],
+   "source": "src/features/build-tools/index.ts:386"
+  },
+  {
+   "id": "maven.toggleOffline",
+   "title": "Toggle Offline Mode",
+   "category": "Maven",
+   "description": "Runs Maven with -o",
+   "icon": "build-offline",
+   "when": "projectOpen && build.maven",
+   "keywords": [
+    "maven",
+    "offline"
+   ],
+   "toggle": true,
+   "source": "src/features/build-tools/index.ts:346"
+  },
+  {
+   "id": "maven.toggleSkipTests",
+   "title": "Toggle 'Skip Tests' Mode",
+   "category": "Maven",
+   "description": "Runs Maven with -DskipTests",
+   "icon": "skip-tests",
+   "when": "projectOpen && build.maven",
+   "keywords": [
+    "maven",
+    "skip tests"
+   ],
+   "toggle": true,
+   "source": "src/features/build-tools/index.ts:357"
+  },
+  {
+   "id": "maven.unlinkProjects",
+   "title": "Unlink Maven Projects",
+   "category": "Maven",
+   "when": "projectOpen && build.maven && !workspaceOpen",
+   "hidden": true,
+   "source": "src/features/build-tools/index.ts:300"
+  },
+  {
+   "id": "moveDown",
+   "title": "Move Up",
+   "titleVariants": [
+    "Move Up",
+    "Move Down"
+   ],
+   "icon": "arrow-up",
+   "iconVariants": [
+    "arrow-up",
+    "arrow-down"
+   ],
+   "source": "src/features/services/ServicesTree.tsx:123"
+  },
+  {
+   "id": "moveUp",
+   "title": "Move Up",
+   "titleVariants": [
+    "Move Up",
+    "Move Down"
+   ],
+   "icon": "arrow-up",
+   "iconVariants": [
+    "arrow-up",
+    "arrow-down"
+   ],
+   "source": "src/features/services/ServicesTree.tsx:123"
+  },
+  {
+   "id": "navigate.back",
+   "title": "Back",
+   "category": "Navigate",
+   "icon": "arrow-left",
+   "source": "src/editor/core/actions.ts:990"
+  },
+  {
+   "id": "navigate.callHierarchy",
+   "title": "Call Hierarchy",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/features/code-insight/index.ts:119"
+  },
+  {
+   "id": "navigate.customRegion",
+   "title": "Custom Folding…",
+   "category": "Navigate",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "region",
+    "editor-fold",
+    "go to region"
+   ],
+   "source": "src/editor/core/actions.ts:791"
+  },
+  {
+   "id": "navigate.declaration",
+   "title": "Go to Declaration or Usages",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "definition"
+   ],
+   "source": "src/editor/lsp/actions.ts:253"
+  },
+  {
+   "id": "navigate.fileStructure",
+   "title": "File Structure",
+   "category": "Navigate",
+   "icon": "structure",
+   "keywords": [
+    "outline",
+    "members"
+   ],
+   "source": "src/features/search/index.ts:397"
+  },
+  {
+   "id": "navigate.findAction",
+   "title": "Find Action…",
+   "category": "Help",
+   "keywords": [
+    "command",
+    "palette"
+   ],
+   "source": "src/features/search/index.ts:281"
+  },
+  {
+   "id": "navigate.forward",
+   "title": "Forward",
+   "category": "Navigate",
+   "icon": "arrow-right",
+   "source": "src/editor/core/actions.ts:997"
+  },
+  {
+   "id": "navigate.gotoClass",
+   "title": "Go to Class…",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "keywords": [
+    "type",
+    "interface",
+    "struct"
+   ],
+   "source": "src/features/search/index.ts:256"
+  },
+  {
+   "id": "navigate.gotoFile",
+   "title": "Go to File…",
+   "category": "Navigate",
+   "icon": "file",
+   "when": "projectOpen",
+   "keywords": [
+    "open file"
+   ],
+   "source": "src/features/search/index.ts:264"
+  },
+  {
+   "id": "navigate.gotoLine",
+   "title": "Go to Line:Column…",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/core/actions.ts:983"
+  },
+  {
+   "id": "navigate.gotoSymbol",
+   "title": "Go to Symbol…",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "keywords": [
+    "function",
+    "method",
+    "field"
+   ],
+   "source": "src/features/search/index.ts:273"
+  },
+  {
+   "id": "navigate.gotoTest",
+   "title": "Test",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "go to test",
+    "test subject",
+    "create test"
+   ],
+   "source": "src/editor/navigation/index.ts:189"
+  },
+  {
+   "id": "navigate.implementation",
+   "title": "Go to Implementation(s)",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:262"
+  },
+  {
+   "id": "navigate.lastEditLocation",
+   "title": "Last Edit Location",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "source": "src/editor/core/actions.ts:1019"
+  },
+  {
+   "id": "navigate.navigationBar",
+   "title": "Jump to Navigation Bar",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "keyWhen": "!popupOpen",
+   "keywords": [
+    "breadcrumbs"
+   ],
+   "source": "src/editor/core/actions.ts:1004"
+  },
+  {
+   "id": "navigate.nextBookmark",
+   "title": "Next Bookmark",
+   "category": "Bookmarks",
+   "when": "projectOpen",
+   "source": "src/features/search/index.ts:509"
+  },
+  {
+   "id": "navigate.nextEditLocation",
+   "title": "Next Edit Location",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "source": "src/editor/core/actions.ts:1026"
+  },
+  {
+   "id": "navigate.nextError",
+   "title": "Next Highlighted Error",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:268"
+  },
+  {
+   "id": "navigate.nextHighlightedUsage",
+   "title": "Next Highlighted Usage",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keyWhen": "editorTextFocus",
+   "source": "src/editor/lsp/actions.ts:275"
+  },
+  {
+   "id": "navigate.nextMethod",
+   "title": "Next Method",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/navigation/index.ts:193"
+  },
+  {
+   "id": "navigate.nextOccurrence",
+   "title": "Next Occurrence",
+   "category": "Navigate",
+   "icon": "arrow-down",
+   "when": "projectOpen",
+   "keywords": [
+    "usage",
+    "result",
+    "find"
+   ],
+   "source": "src/workbench/toolwindows/actions.ts:217"
+  },
+  {
+   "id": "navigate.prevBookmark",
+   "title": "Previous Bookmark",
+   "category": "Bookmarks",
+   "when": "projectOpen",
+   "source": "src/features/search/index.ts:516"
+  },
+  {
+   "id": "navigate.prevError",
+   "title": "Previous Highlighted Error",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:269"
+  },
+  {
+   "id": "navigate.prevHighlightedUsage",
+   "title": "Previous Highlighted Usage",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keyWhen": "editorTextFocus",
+   "source": "src/editor/lsp/actions.ts:282"
+  },
+  {
+   "id": "navigate.previousMethod",
+   "title": "Previous Method",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/navigation/index.ts:194"
+  },
+  {
+   "id": "navigate.prevOccurrence",
+   "title": "Previous Occurrence",
+   "category": "Navigate",
+   "icon": "arrow-up",
+   "when": "projectOpen",
+   "keywords": [
+    "usage",
+    "result",
+    "find"
+   ],
+   "source": "src/workbench/toolwindows/actions.ts:226"
+  },
+  {
+   "id": "navigate.recentFiles",
+   "title": "Recent Files",
+   "category": "Navigate",
+   "icon": "history",
+   "when": "projectOpen",
+   "keywords": [
+    "switcher"
+   ],
+   "source": "src/features/search/index.ts:296"
+  },
+  {
+   "id": "navigate.recentLocations",
+   "title": "Recent Locations",
+   "category": "Navigate",
+   "icon": "clock",
+   "when": "projectOpen",
+   "source": "src/features/search/index.ts:330"
+  },
+  {
+   "id": "navigate.searchEverywhere",
+   "title": "Search Everywhere",
+   "category": "Navigate",
+   "icon": "search",
+   "keywords": [
+    "find",
+    "goto",
+    "everything"
+   ],
+   "source": "src/features/search/index.ts:248"
+  },
+  {
+   "id": "navigate.searchText",
+   "title": "Search Text Everywhere",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "keywords": [
+    "grep",
+    "find text"
+   ],
+   "source": "src/features/search/index.ts:288"
+  },
+  {
+   "id": "navigate.selectIn",
+   "title": "Select In…",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "keywords": [
+    "locate",
+    "reveal",
+    "show in"
+   ],
+   "source": "src/features/project-tree/actions.ts:199"
+  },
+  {
+   "id": "navigate.selectInProjectView",
+   "title": "Select in Project View",
+   "category": "Navigate",
+   "icon": "locate",
+   "when": "projectOpen",
+   "keywords": [
+    "locate",
+    "reveal",
+    "scroll from source",
+    "select opened file"
+   ],
+   "source": "src/features/project-tree/actions.ts:213"
+  },
+  {
+   "id": "navigate.showBookmarks",
+   "title": "Show Bookmarks",
+   "category": "Bookmarks",
+   "icon": "bookmark",
+   "when": "projectOpen",
+   "source": "src/features/search/index.ts:497"
+  },
+  {
+   "id": "navigate.showFilePath",
+   "title": "File Path",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "keywords": [
+    "reveal in finder",
+    "show in explorer",
+    "path popup"
+   ],
+   "source": "src/features/project-tree/actions.ts:360"
+  },
+  {
+   "id": "navigate.superMethod",
+   "title": "Super Method",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keywords": [
+    "go to super",
+    "overridden",
+    "parent"
+   ],
+   "source": "src/editor/navigation/index.ts:190"
+  },
+  {
+   "id": "navigate.switcher",
+   "title": "Switcher",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "keywords": [
+    "recent files",
+    "tabs"
+   ],
+   "source": "src/features/search/index.ts:308"
+  },
+  {
+   "id": "navigate.switcherBack",
+   "title": "Switcher (Backward)",
+   "category": "Navigate",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/search/index.ts:319"
+  },
+  {
+   "id": "navigate.toggleBookmark",
+   "title": "Toggle Bookmark",
+   "category": "Bookmarks",
+   "icon": "bookmark",
+   "when": "projectOpen",
+   "source": "src/features/search/index.ts:414"
+  },
+  {
+   "id": "navigate.toggleBookmarkWithMnemonic",
+   "title": "Toggle Bookmark with Mnemonic",
+   "category": "Bookmarks",
+   "when": "projectOpen && textEditorActive",
+   "source": "src/features/search/index.ts:463"
+  },
+  {
+   "id": "navigate.typeDeclaration",
+   "title": "Go to Type Declaration",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:265"
+  },
+  {
+   "id": "navigate.typeHierarchy",
+   "title": "Type Hierarchy",
+   "category": "Navigate",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/features/code-insight/index.ts:126"
+  },
+  {
+   "id": "open-browser",
+   "title": "Open in Browser",
+   "icon": "web",
+   "source": "src/features/run/services.tsx:523"
+  },
+  {
+   "id": "perf.clearCaches",
+   "title": "Clear Caches",
+   "category": "Help",
+   "description": "Drop syntax trees and EditorConfig caches, compact the index",
+   "icon": "trash",
+   "keywords": [
+    "memory",
+    "invalidate",
+    "index"
+   ],
+   "source": "src/features/perf/actions.ts:18"
+  },
+  {
+   "id": "perf.showMemory",
+   "title": "Show Memory Indicator Details",
+   "category": "Help",
+   "icon": "info",
+   "keywords": [
+    "memory",
+    "diagnostics",
+    "metrics"
+   ],
+   "source": "src/features/perf/actions.ts:55"
+  },
+  {
+   "id": "perf.toggleMemoryIndicator",
+   "title": "Memory Indicator",
+   "category": "View",
+   "description": "Show or hide the memory indicator in the status bar",
+   "keywords": [
+    "memory",
+    "status bar",
+    "widget",
+    "heap"
+   ],
+   "toggle": true,
+   "source": "src/features/perf/actions.ts:67"
+  },
+  {
+   "id": "perf.toggleOverlay",
+   "title": "Toggle Performance Overlay (Dev)",
+   "category": "Help",
+   "description": "Keystroke-to-paint latency, IPC round trips and long tasks",
+   "keywords": [
+    "latency",
+    "fps",
+    "diagnostics",
+    "typing"
+   ],
+   "source": "src/features/perf/actions.ts:76"
+  },
+  {
+   "id": "php.composerInstall",
+   "title": "Composer Install",
+   "category": "PHP",
+   "when": "projectOpen",
+   "source": "src/features/run/composerInstall.ts:122"
+  },
+  {
+   "id": "php.languageLevelPopup",
+   "title": "PHP Language Level",
+   "category": "Settings",
+   "when": "projectOpen",
+   "keywords": [
+    "php version"
+   ],
+   "source": "src/features/settings/languages/PhpStatus.tsx:153"
+  },
+  {
+   "id": "php.selectLanguageLevel",
+   "title": "Select PHP Language Level",
+   "category": "Settings",
+   "hidden": true,
+   "source": "src/features/settings/languages/PhpStatus.tsx:164"
+  },
+  {
+   "id": "plugins.content.action",
+   "title": "Run Content Editor Action",
+   "category": "Plugins",
+   "hidden": true,
+   "source": "src/features/plugins/views/contentActions.ts:37"
+  },
+  {
+   "id": "plugins.content.find",
+   "title": "Find in Editor",
+   "category": "Plugins",
+   "hidden": true,
+   "source": "src/features/plugins/views/contentActions.ts:30"
+  },
+  {
+   "id": "plugins.importInstalledIntellijTheme",
+   "title": "Import Theme from JetBrains IDE…",
+   "category": "Plugins",
+   "icon": "plugin",
+   "when": "projectOpen",
+   "keywords": [
+    "intellij",
+    "jetbrains",
+    "pycharm",
+    "webstorm",
+    "android studio",
+    "theme",
+    "color scheme",
+    "migrate"
+   ],
+   "source": "src/features/plugins/index.ts:125"
+  },
+  {
+   "id": "plugins.importIntellijTheme",
+   "title": "Import IntelliJ Theme from File…",
+   "category": "Plugins",
+   "icon": "plugin",
+   "when": "projectOpen",
+   "keywords": [
+    "intellij",
+    "jetbrains",
+    "theme",
+    "jar",
+    "theme.json",
+    "color scheme"
+   ],
+   "source": "src/features/plugins/index.ts:113"
+  },
+  {
+   "id": "plugins.installFromDisk",
+   "title": "Install Plugin from Disk…",
+   "category": "Plugins",
+   "icon": "plugin",
+   "keywords": [
+    "extension",
+    "wasm",
+    "plugin.toml"
+   ],
+   "source": "src/features/plugins/index.ts:93"
+  },
+  {
+   "id": "plugins.log.toggleArgument",
+   "title": "Toggle Log Option",
+   "category": "Plugins",
+   "hidden": true,
+   "source": "src/features/plugins/views/logActions.ts:42"
+  },
+  {
+   "id": "plugins.reloadAll",
+   "title": "Reload Plugins",
+   "category": "Plugins",
+   "icon": "refresh",
+   "keywords": [
+    "dev plugin",
+    "rebuild"
+   ],
+   "source": "src/features/plugins/index.ts:143"
+  },
+  {
+   "id": "plugins.settings",
+   "title": "Plugins…",
+   "category": "Plugins",
+   "icon": "plugin",
+   "keywords": [
+    "extensions",
+    "manage plugins"
+   ],
+   "source": "src/features/plugins/index.ts:85"
+  },
+  {
+   "id": "plugins.updateAll",
+   "title": "Update All Plugins",
+   "category": "Plugins",
+   "icon": "plugin",
+   "keywords": [
+    "upgrade",
+    "marketplace",
+    "new version"
+   ],
+   "source": "src/features/plugins/index.ts:103"
+  },
+  {
+   "id": "project.attach",
+   "titleKey": "app.action.attachProject",
+   "categoryKey": "app.category.file",
+   "icon": "folder-open",
+   "when": "projectLocal && !projectOpenAsk",
+   "source": "src/features/app/windows.ts:329"
+  },
+  {
+   "id": "project.collapseAll",
+   "title": "Collapse All",
+   "category": "Project View",
+   "icon": "collapse-all",
+   "when": "projectOpen",
+   "keyWhen": "projectViewFocus",
+   "source": "src/features/project-tree/actions.ts:503"
+  },
+  {
+   "id": "project.compareWith",
+   "title": "Compare With…",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "hidden": true,
+   "source": "src/features/project-tree/actions.ts:465"
+  },
+  {
+   "id": "project.copy",
+   "title": "Copy",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "source": "src/features/project-tree/actions.ts:372"
+  },
+  {
+   "id": "project.copyAbsolutePath",
+   "title": "Copy Absolute Path",
+   "category": "Project View",
+   "when": "projectOpen || textEditorActive",
+   "keyWhen": "projectViewFocus",
+   "keywords": [
+    "path",
+    "clipboard"
+   ],
+   "source": "src/features/project-tree/actions.ts:386"
+  },
+  {
+   "id": "project.copyElement",
+   "title": "Copy…",
+   "category": "Project View",
+   "icon": "copy",
+   "when": "projectOpen",
+   "keyWhen": "projectViewFocus || editorFocus",
+   "keywords": [
+    "copy file",
+    "duplicate file",
+    "clone"
+   ],
+   "source": "src/features/project-tree/actions.ts:345"
+  },
+  {
+   "id": "project.copyFileName",
+   "title": "Copy File Name",
+   "category": "Project View",
+   "when": "projectOpen || textEditorActive",
+   "keyWhen": "projectViewFocus",
+   "keywords": [
+    "path",
+    "clipboard"
+   ],
+   "source": "src/features/project-tree/actions.ts:388"
+  },
+  {
+   "id": "project.copyPath",
+   "title": "Copy Path",
+   "category": "Project View",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/project-tree/actions.ts:375"
+  },
+  {
+   "id": "project.copyRelativePath",
+   "title": "Copy Path From Content Root",
+   "category": "Project View",
+   "when": "projectOpen || textEditorActive",
+   "keyWhen": "projectViewFocus",
+   "keywords": [
+    "path",
+    "clipboard"
+   ],
+   "source": "src/features/project-tree/actions.ts:387"
+  },
+  {
+   "id": "project.copySourceRootPath",
+   "title": "Copy Path From Source Root",
+   "category": "Project View",
+   "when": "projectOpen || textEditorActive",
+   "keyWhen": "projectViewFocus",
+   "keywords": [
+    "path",
+    "clipboard"
+   ],
+   "source": "src/features/project-tree/actions.ts:389"
+  },
+  {
+   "id": "project.cut",
+   "title": "Cut",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "source": "src/features/project-tree/actions.ts:373"
+  },
+  {
+   "id": "project.delete",
+   "title": "Delete…",
+   "category": "Project View",
+   "icon": "trash",
+   "when": "projectViewFocus",
+   "keyWhen": "!popupOpen",
+   "keywords": [
+    "remove",
+    "trash"
+   ],
+   "source": "src/features/project-tree/actions.ts:334"
+  },
+  {
+   "id": "project.detach",
+   "title": "Detach Project",
+   "categoryKey": "app.category.file",
+   "when": "projectAttached",
+   "source": "src/features/app/windows.ts:348"
+  },
+  {
+   "id": "project.dontOpen",
+   "title": "Don't Open",
+   "category": "Project",
+   "hidden": true,
+   "source": "src/features/project-trust/index.tsx:257"
+  },
+  {
+   "id": "project.expandAll",
+   "title": "Expand All",
+   "category": "Project View",
+   "icon": "expand-all",
+   "when": "projectOpen",
+   "keyWhen": "projectViewFocus",
+   "source": "src/features/project-tree/actions.ts:491"
+  },
+  {
+   "id": "project.findInFolder",
+   "title": "Find in Folder…",
+   "category": "Project View",
+   "icon": "search",
+   "when": "projectOpen",
+   "source": "src/features/project-tree/actions.ts:410"
+  },
+  {
+   "id": "project.findUsages",
+   "title": "Find Usages of File",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "keywords": [
+    "references",
+    "imports"
+   ],
+   "source": "src/features/project-tree/actions.ts:432"
+  },
+  {
+   "id": "project.move",
+   "title": "Move File…",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "keywords": [
+    "refactor",
+    "package"
+   ],
+   "source": "src/features/project-tree/actions.ts:315"
+  },
+  {
+   "id": "project.newFile",
+   "title": "New File",
+   "category": "File",
+   "icon": "file",
+   "when": "projectOpen",
+   "keywords": [
+    "create"
+   ],
+   "source": "src/features/project-tree/actions.ts:230"
+  },
+  {
+   "id": "project.newFolder",
+   "title": "New Directory",
+   "category": "File",
+   "icon": "folder",
+   "when": "projectOpen",
+   "keywords": [
+    "create",
+    "folder",
+    "directory"
+   ],
+   "source": "src/features/project-tree/actions.ts:272"
+  },
+  {
+   "id": "project.newInThisDirectory",
+   "title": "New in This Directory…",
+   "category": "File",
+   "icon": "plus",
+   "when": "projectOpen",
+   "keywords": [
+    "create",
+    "file",
+    "same place",
+    "current directory"
+   ],
+   "source": "src/features/project-tree/actions.ts:247"
+  },
+  {
+   "id": "project.open",
+   "title": "Jump to Source",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "source": "src/features/project-tree/actions.ts:285"
+  },
+  {
+   "id": "project.openInTerminal",
+   "title": "Open in Terminal",
+   "category": "Project View",
+   "icon": "terminal",
+   "when": "projectOpen",
+   "source": "src/features/project-tree/actions.ts:399"
+  },
+  {
+   "id": "project.optimizeImports",
+   "title": "Optimize Imports in File",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "hidden": true,
+   "source": "src/features/project-tree/actions.ts:454"
+  },
+  {
+   "id": "project.paste",
+   "title": "Paste",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "source": "src/features/project-tree/actions.ts:374"
+  },
+  {
+   "id": "project.previewRestricted",
+   "title": "Preview in Restricted Mode",
+   "category": "Project",
+   "hidden": true,
+   "source": "src/features/project-trust/index.tsx:250"
+  },
+  {
+   "id": "project.reformatCode",
+   "title": "Reformat File",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "hidden": true,
+   "source": "src/features/project-tree/actions.ts:443"
+  },
+  {
+   "id": "project.refresh",
+   "title": "Reload Project Tree from Disk",
+   "category": "File",
+   "icon": "refresh",
+   "when": "projectOpen",
+   "keywords": [
+    "synchronize",
+    "refresh"
+   ],
+   "source": "src/features/project-tree/actions.ts:515"
+  },
+  {
+   "id": "project.reloadFromDisk",
+   "title": "Reload from Disk",
+   "category": "Project View",
+   "icon": "refresh",
+   "when": "projectOpen",
+   "keyWhen": "projectViewFocus",
+   "keywords": [
+    "synchronize",
+    "refresh"
+   ],
+   "source": "src/features/project-tree/actions.ts:481"
+  },
+  {
+   "id": "project.removeTrustedLocation",
+   "title": "Remove Trusted Location",
+   "category": "Project",
+   "hidden": true,
+   "source": "src/features/project-trust/index.tsx:273"
+  },
+  {
+   "id": "project.rename",
+   "title": "Rename File…",
+   "category": "Project View",
+   "icon": "edit",
+   "when": "projectOpen",
+   "keyWhen": "projectViewFocus",
+   "keywords": [
+    "refactor"
+   ],
+   "source": "src/features/project-tree/actions.ts:292"
+  },
+  {
+   "id": "project.renameInline",
+   "title": "Rename File Inline",
+   "category": "Project View",
+   "when": "projectViewFocus",
+   "hidden": true,
+   "source": "src/features/project-tree/actions.ts:307"
+  },
+  {
+   "id": "project.reveal",
+   "title": "Reveal in Project View",
+   "category": "Project View",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/project-tree/actions.ts:222"
+  },
+  {
+   "id": "project.revealInFinder",
+   "category": "Project View",
+   "icon": "external-link",
+   "when": "projectOpen",
+   "keywords": [
+    "show in explorer",
+    "open in finder"
+   ],
+   "source": "src/features/project-tree/actions.ts:390"
+  },
+  {
+   "id": "project.revokeTrust",
+   "title": "Revoke Trust",
+   "category": "Project",
+   "source": "src/features/project-trust/index.tsx:264"
+  },
+  {
+   "id": "project.showHistory",
+   "title": "Local History: Show History",
+   "category": "Project View",
+   "icon": "history",
+   "when": "projectOpen",
+   "source": "src/features/project-tree/actions.ts:421"
+  },
+  {
+   "id": "project.trust",
+   "title": "Trust Project",
+   "category": "Project",
+   "source": "src/features/project-trust/index.tsx:249"
+  },
+  {
+   "id": "project.undoMove",
+   "title": "Undo Move / Rename",
+   "category": "Project View",
+   "description": "Reverts the last file move or rename and its reference updates",
+   "when": "projectOpen",
+   "keywords": [
+    "refactor",
+    "undo"
+   ],
+   "source": "src/features/project-tree/actions.ts:323"
+  },
+  {
+   "id": "pull",
+   "title": "Pull Image…",
+   "icon": "docker-pull",
+   "source": "src/features/services/docker.tsx:224"
+  },
+  {
+   "id": "python.addInterpreter",
+   "title": "Add New Interpreter…",
+   "category": "Settings",
+   "when": "projectOpen",
+   "source": "src/features/settings/languages/PythonStatus.tsx:211"
+  },
+  {
+   "id": "python.interpreterPopup",
+   "title": "Python Interpreter",
+   "category": "Settings",
+   "when": "projectOpen",
+   "source": "src/features/settings/languages/PythonStatus.tsx:183"
+  },
+  {
+   "id": "python.interpreterSettings",
+   "title": "Interpreter Settings…",
+   "category": "Settings",
+   "when": "projectOpen",
+   "source": "src/features/settings/languages/PythonStatus.tsx:218"
+  },
+  {
+   "id": "python.selectInterpreter",
+   "title": "Select Python Interpreter",
+   "category": "Settings",
+   "hidden": true,
+   "source": "src/features/settings/languages/PythonStatus.tsx:193"
+  },
+  {
+   "id": "refactor.changeSignature",
+   "title": "Change Signature…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:314"
+  },
+  {
+   "id": "refactor.extractConstant",
+   "title": "Introduce Constant…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:306"
+  },
+  {
+   "id": "refactor.extractField",
+   "title": "Introduce Field…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:309"
+  },
+  {
+   "id": "refactor.extractMethod",
+   "title": "Extract Method…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:305"
+  },
+  {
+   "id": "refactor.extractParameter",
+   "title": "Introduce Parameter…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:310"
+  },
+  {
+   "id": "refactor.extractVariable",
+   "title": "Introduce Variable…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:302"
+  },
+  {
+   "id": "refactor.inline",
+   "title": "Inline…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:330"
+  },
+  {
+   "id": "refactor.move",
+   "title": "Move…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:313"
+  },
+  {
+   "id": "refactor.pullMembersUp",
+   "title": "Pull Members Up…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:331"
+  },
+  {
+   "id": "refactor.pushMembersDown",
+   "title": "Push Members Down…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:334"
+  },
+  {
+   "id": "refactor.rename",
+   "title": "Rename…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:301"
+  },
+  {
+   "id": "refactor.safeDelete",
+   "title": "Safe Delete…",
+   "category": "Refactor",
+   "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "source": "src/editor/lsp/actions.ts:317"
+  },
+  {
+   "id": "refactor.thisMenu",
+   "title": "Refactor This…",
+   "category": "Refactor",
+   "when": "projectOpen",
+   "source": "src/editor/lsp/actions.ts:289"
+  },
+  {
+   "id": "refresh",
+   "title": "Refresh",
+   "icon": "refresh",
+   "source": "src/features/services/docker.tsx:212"
+  },
+  {
+   "id": "remote.connect",
+   "title": "Remote Development…",
+   "category": "File",
+   "description": "Opens a project folder on an SSH host; the IDE backend runs on that host.",
+   "icon": "folder",
+   "keywords": [
+    "ssh",
+    "remote",
+    "server",
+    "gateway",
+    "connect",
+    "host"
+   ],
+   "source": "src/features/remote-dev/index.ts:66"
+  },
+  {
+   "id": "remote.disconnect",
+   "title": "Disconnect from Remote Host",
+   "category": "File",
+   "when": "projectOpen",
+   "keywords": [
+    "ssh",
+    "remote",
+    "close"
+   ],
+   "source": "src/features/remote-dev/index.ts:75"
+  },
+  {
+   "id": "remote.reloadEnvironment",
+   "title": "Reload Environment",
+   "category": "File",
+   "description": "Reads the login shell's environment (and devcontainer.json remoteEnv on a remote host) again for new terminals and processes.",
+   "when": "projectOpen",
+   "keywords": [
+    "env",
+    "environment",
+    "variables",
+    "path",
+    "shell",
+    "remoteEnv",
+    "devcontainer",
+    "reload"
+   ],
+   "source": "src/features/remote-dev/index.ts:102"
+  },
+  {
+   "id": "remote.reopenInContainer",
+   "title": "Reopen in Container",
+   "category": "File",
+   "description": "Builds or starts the project's dev container (devcontainer.json) with the Dev Containers CLI and opens the project in it.",
+   "icon": "folder",
+   "when": "projectOpen",
+   "keywords": [
+    "devcontainer",
+    "dev container",
+    "docker",
+    "container",
+    "remote"
+   ],
+   "source": "src/features/remote-dev/index.ts:91"
+  },
+  {
+   "id": "restart",
+   "title": "Restart",
+   "icon": "rerun",
+   "source": "src/features/services/docker.tsx:215"
+  },
+  {
+   "id": "restart-all",
+   "title": "Restart All",
+   "icon": "rerun",
+   "source": "src/features/run/services.tsx:559"
+  },
+  {
+   "id": "run",
+   "title": "Rerun",
+   "titleVariants": [
+    "Rerun",
+    "Run"
+   ],
+   "icon": "rerun",
+   "iconVariants": [
+    "rerun",
+    "run"
+   ],
+   "source": "src/features/run/services.tsx:587"
+  },
+  {
+   "id": "run-all",
+   "title": "Run All",
+   "icon": "run",
+   "source": "src/features/run/services.tsx:552"
+  },
+  {
+   "id": "run.chooseConfig",
+   "title": "Select Run/Debug Configuration…",
+   "category": "Run",
+   "description": "Run a configuration (hold Shift to debug); the title bar widget passes \"select\" to only select one",
+   "when": "projectOpen",
+   "source": "src/features/run/index.ts:526"
+  },
+  {
+   "id": "run.chooseDebugConfig",
+   "title": "Debug…",
+   "category": "Run",
+   "description": "Choose a run/debug configuration and debug it",
+   "when": "projectOpen",
+   "keywords": [
+    "choose and debug configuration"
+   ],
+   "source": "src/features/run/index.ts:542"
+  },
+  {
+   "id": "run.coverage",
+   "title": "Run with Coverage",
+   "category": "Run",
+   "description": "Run the selected configuration with coverage",
+   "icon": "run-coverage",
+   "when": "projectOpen",
+   "keywords": [
+    "coverage",
+    "code coverage"
+   ],
+   "source": "src/features/coverage/index.ts:34"
+  },
+  {
+   "id": "run.coverageContext",
+   "title": "Run Context Configuration with Coverage",
+   "category": "Run",
+   "description": "Run the test or program in the active file with coverage",
+   "icon": "run-coverage",
+   "when": "projectOpen",
+   "keywords": [
+    "coverage"
+   ],
+   "source": "src/features/coverage/index.ts:44"
+  },
+  {
+   "id": "run.createConfig",
+   "title": "Create Run Configuration",
+   "category": "Run",
+   "description": "Saves the given `RunConfig` as a user configuration and opens it in Edit Configurations.",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/run/index.ts:702"
+  },
+  {
+   "id": "run.debug",
+   "title": "Debug",
+   "category": "Run",
+   "icon": "debug",
+   "when": "projectOpen",
+   "source": "src/features/run/index.ts:463"
+  },
+  {
+   "id": "run.debugConfig",
+   "title": "Debug Configuration",
+   "category": "Run",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/run/index.ts:590"
+  },
+  {
+   "id": "run.debugContext",
+   "title": "Debug Context Configuration",
+   "category": "Run",
+   "icon": "debug",
+   "when": "projectOpen",
+   "source": "src/features/run/index.ts:481"
+  },
+  {
+   "id": "run.editConfigs",
+   "title": "Edit Configurations…",
+   "category": "Run",
+   "icon": "settings",
+   "when": "projectOpen",
+   "keywords": [
+    "run configuration",
+    "launch"
+   ],
+   "source": "src/features/run/index.ts:558"
+  },
+  {
+   "id": "run.importJetbrains",
+   "title": "Import Run Configurations from JetBrains (.run, .idea)",
+   "category": "Run",
+   "when": "projectOpen",
+   "keywords": [
+    "pycharm",
+    "webstorm",
+    "intellij",
+    "run.xml",
+    "workspace.xml",
+    "run configuration"
+   ],
+   "source": "src/features/run/index.ts:582"
+  },
+  {
+   "id": "run.importVscodeLaunch",
+   "title": "Import Run Configurations from .vscode/launch.json",
+   "category": "Run",
+   "when": "projectOpen",
+   "keywords": [
+    "launch.json",
+    "vscode",
+    "visual studio code",
+    "debug configuration"
+   ],
+   "source": "src/features/run/index.ts:574"
+  },
+  {
+   "id": "run.modifyContext",
+   "title": "Modify Run Configuration…",
+   "category": "Run",
+   "description": "Edit the configuration that would run the context before saving it",
+   "icon": "edit",
+   "when": "projectOpen",
+   "source": "src/features/run/index.ts:489"
+  },
+  {
+   "id": "run.pluginStart",
+   "title": "Run Plugin Configuration",
+   "category": "Run",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/run/index.ts:635"
+  },
+  {
+   "id": "run.profile",
+   "title": "Profile",
+   "category": "Run",
+   "description": "Run the selected configuration under a sampling profiler",
+   "icon": "profile",
+   "when": "projectOpen",
+   "keywords": [
+    "profiler",
+    "flame graph",
+    "cpu"
+   ],
+   "source": "src/features/profiler/index.ts:26"
+  },
+  {
+   "id": "run.profileContext",
+   "title": "Profile Context Configuration",
+   "category": "Run",
+   "description": "Profile the program or test in the active file",
+   "icon": "profile",
+   "when": "projectOpen",
+   "keywords": [
+    "profiler",
+    "flame graph"
+   ],
+   "source": "src/features/profiler/index.ts:36"
+  },
+  {
+   "id": "run.reloadConfigs",
+   "title": "Reload Run Configurations",
+   "category": "Run",
+   "icon": "refresh",
+   "when": "projectOpen",
+   "source": "src/features/run/index.ts:624"
+  },
+  {
+   "id": "run.rerun",
+   "title": "Rerun",
+   "category": "Run",
+   "icon": "rerun",
+   "when": "projectOpen && activeToolWindow == 'run'",
+   "source": "src/features/run/index.ts:518"
+  },
+  {
+   "id": "run.rerunFailed",
+   "title": "Rerun Failed Tests",
+   "category": "Run",
+   "icon": "rerun",
+   "when": "projectOpen && run.canRerunFailed",
+   "keywords": [
+    "failed tests",
+    "rerun"
+   ],
+   "source": "src/features/run/index.ts:603"
+  },
+  {
+   "id": "run.run",
+   "title": "Run",
+   "category": "Run",
+   "icon": "run",
+   "when": "projectOpen",
+   "source": "src/features/run/index.ts:455"
+  },
+  {
+   "id": "run.runConfig",
+   "title": "Run Configuration",
+   "category": "Run",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/run/index.ts:662"
+  },
+  {
+   "id": "run.runContext",
+   "title": "Run Context Configuration",
+   "category": "Run",
+   "description": "Run the test or program in the active file",
+   "icon": "run",
+   "when": "projectOpen",
+   "keywords": [
+    "run file",
+    "run test"
+   ],
+   "source": "src/features/run/index.ts:471"
+  },
+  {
+   "id": "run.sampleOutput",
+   "title": "Stream Sample Output",
+   "category": "Run",
+   "hidden": true,
+   "source": "src/features/run/index.ts:363"
+  },
+  {
+   "id": "run.services.addType",
+   "title": "Add Service",
+   "category": "Run",
+   "icon": "plus",
+   "hidden": true,
+   "source": "src/features/run/services.tsx:632"
+  },
+  {
+   "id": "run.services.hideConfig",
+   "title": "Remove from Services",
+   "category": "Run",
+   "icon": "close",
+   "hidden": true,
+   "source": "src/features/run/services.tsx:642"
+  },
+  {
+   "id": "run.stop",
+   "title": "Stop",
+   "category": "Run",
+   "icon": "stop",
+   "when": "projectOpen",
+   "source": "src/features/run/index.ts:498"
+  },
+  {
+   "id": "run.stopProcess",
+   "title": "Stop",
+   "category": "Run",
+   "hidden": true,
+   "source": "src/features/run/index.ts:506"
+  },
+  {
+   "id": "run.updateApplication",
+   "title": "Update Application",
+   "category": "Run",
+   "icon": "refresh",
+   "when": "run.updatableRunning",
+   "source": "src/features/run/index.ts:447"
+  },
+  {
+   "id": "run.withExecutor",
+   "title": "Run with Executor",
+   "category": "Run",
+   "description": "Runs with a contributed executor (`{ executor, config? }` or `{ executor, context }`): the given or selected configuration, or the context.",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/run/index.ts:674"
+  },
+  {
+   "id": "runAnything.show",
+   "title": "Run Anything…",
+   "category": "Run",
+   "icon": "run-anything",
+   "when": "projectOpen",
+   "keywords": [
+    "command",
+    "shell",
+    "execute",
+    "npm",
+    "mvn",
+    "gradle"
+   ],
+   "source": "src/features/run-anything/index.ts:14"
+  },
+  {
+   "id": "search.editScopes",
+   "title": "Edit Scopes…",
+   "category": "Find",
+   "when": "projectOpen",
+   "keywords": [
+    "custom scope",
+    "file pattern"
+   ],
+   "source": "src/features/search/index.ts:362"
+  },
+  {
+   "id": "services.addService",
+   "title": "Add Service",
+   "category": "Services",
+   "description": "Add a run configuration type, Docker connection or registry to the Services tool window",
+   "icon": "plus",
+   "when": "projectOpen",
+   "keyWhen": "servicesViewFocus",
+   "keywords": [
+    "docker connection",
+    "docker registry",
+    "run configuration type"
+   ],
+   "source": "src/features/services/index.ts:93"
+  },
+  {
+   "id": "services.show",
+   "title": "Services",
+   "category": "Docker",
+   "icon": "toolwindow-services",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/services/index.ts:84"
+  },
+  {
+   "id": "settings.appearance",
+   "title": "Appearance…",
+   "category": "View",
+   "icon": "sun",
+   "keywords": [
+    "theme",
+    "accent",
+    "font size"
+   ],
+   "source": "src/features/settings/index.ts:89"
+  },
+  {
+   "id": "settings.assignShortcut",
+   "title": "Assign Shortcut…",
+   "category": "Settings",
+   "hidden": true,
+   "source": "src/features/settings/index.ts:146"
+  },
+  {
+   "id": "settings.keymap",
+   "title": "Keymap…",
+   "category": "File",
+   "icon": "keyboard",
+   "keywords": [
+    "shortcuts",
+    "keyboard",
+    "bindings"
+   ],
+   "source": "src/features/settings/index.ts:81"
+  },
+  {
+   "id": "ssh.configurations",
+   "title": "SSH Configurations…",
+   "category": "Tools",
+   "icon": "settings",
+   "keywords": [
+    "ssh",
+    "remote",
+    "host"
+   ],
+   "source": "src/features/ssh/index.ts:29"
+  },
+  {
+   "id": "ssh.startSession",
+   "title": "Start SSH Session…",
+   "category": "Tools",
+   "description": "Opens a terminal tab connected to an SSH configuration (`arg`: its id; otherwise a chooser).",
+   "icon": "terminal",
+   "when": "projectOpen",
+   "keywords": [
+    "ssh",
+    "remote",
+    "terminal",
+    "shell",
+    "connect"
+   ],
+   "source": "src/features/ssh/index.ts:19"
+  },
+  {
+   "id": "start",
+   "title": "Start",
+   "icon": "run",
+   "source": "src/features/services/docker.tsx:213"
+  },
+  {
+   "id": "stop",
+   "title": "Stop",
+   "icon": "stop",
+   "source": "src/features/run/services.tsx:576"
+  },
+  {
+   "id": "stop-all",
+   "title": "Stop All",
+   "icon": "stop",
+   "source": "src/features/run/services.tsx:566"
+  },
+  {
+   "id": "templates.newFromTemplate",
+   "title": "New from Template…",
+   "category": "File",
+   "icon": "plus",
+   "when": "projectOpen",
+   "keywords": [
+    "new",
+    "file",
+    "create",
+    "class"
+   ],
+   "source": "src/features/templates/index.ts:233"
+  },
+  {
+   "id": "terminal",
+   "title": "Create Terminal",
+   "icon": "terminal",
+   "source": "src/features/services/docker.tsx:217"
+  },
+  {
+   "id": "terminal.clear",
+   "title": "Clear Terminal Buffer",
+   "category": "Terminal",
+   "when": "terminalFocus",
+   "source": "src/features/terminal/index.ts:196"
+  },
+  {
+   "id": "terminal.closeSession",
+   "title": "Close Terminal Session",
+   "category": "Terminal",
+   "when": "terminalFocus",
+   "source": "src/features/terminal/index.ts:203"
+  },
+  {
+   "id": "terminal.find",
+   "title": "Find in Terminal",
+   "category": "Terminal",
+   "icon": "search",
+   "when": "terminalFocus || activeToolWindow == 'terminal'",
+   "keywords": [
+    "search",
+    "scrollback"
+   ],
+   "source": "src/features/terminal/index.ts:182"
+  },
+  {
+   "id": "terminal.new",
+   "title": "New Terminal Tab",
+   "category": "Terminal",
+   "icon": "plus",
+   "when": "projectOpen",
+   "keyWhen": "terminalFocus",
+   "keywords": [
+    "shell",
+    "console"
+   ],
+   "source": "src/features/terminal/index.ts:67"
+  },
+  {
+   "id": "terminal.newPredefinedSession",
+   "title": "New Predefined Session",
+   "category": "Terminal",
+   "description": "Opens a terminal tab running the shell at `arg` (a path from `termAvailableShells`).",
+   "icon": "terminal",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/terminal/index.ts:78"
+  },
+  {
+   "id": "terminal.openAt",
+   "title": "Open in Terminal",
+   "category": "Terminal",
+   "icon": "terminal",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/terminal/index.ts:95"
+  },
+  {
+   "id": "terminal.pluginSession",
+   "title": "Open Plugin Terminal Session",
+   "category": "Terminal",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/terminal/index.ts:104"
+  },
+  {
+   "id": "terminal.runCommand",
+   "title": "Run Command in Terminal",
+   "category": "Terminal",
+   "description": "Opens a terminal tab running `{ program, args, name?, cwd? }` instead of the shell.",
+   "icon": "terminal",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/terminal/index.ts:117"
+  },
+  {
+   "id": "terminal.splitAndMoveDown",
+   "title": "Split and Move Down",
+   "category": "Terminal",
+   "when": "projectOpen",
+   "source": "src/features/terminal/index.ts:160"
+  },
+  {
+   "id": "terminal.splitAndMoveRight",
+   "title": "Split and Move Right",
+   "category": "Terminal",
+   "when": "projectOpen",
+   "source": "src/features/terminal/index.ts:153"
+  },
+  {
+   "id": "terminal.splitDown",
+   "title": "Split Down",
+   "category": "Terminal",
+   "icon": "split-horizontal",
+   "when": "projectOpen",
+   "source": "src/features/terminal/index.ts:145"
+  },
+  {
+   "id": "terminal.splitRight",
+   "title": "Split Right",
+   "category": "Terminal",
+   "icon": "split",
+   "when": "projectOpen",
+   "source": "src/features/terminal/index.ts:137"
+  },
+  {
+   "id": "terminal.unsplit",
+   "title": "Unsplit",
+   "category": "Terminal",
+   "when": "projectOpen",
+   "source": "src/features/terminal/index.ts:167"
+  },
+  {
+   "id": "todo.refresh",
+   "title": "Refresh TODO Items",
+   "category": "Tools",
+   "icon": "refresh",
+   "when": "projectOpen",
+   "source": "src/features/todo/index.ts:41"
+  },
+  {
+   "id": "todo.showCurrentFile",
+   "title": "Show TODO Items in Current File",
+   "category": "Tools",
+   "icon": "todo",
+   "when": "projectOpen",
+   "source": "src/features/todo/index.ts:49"
+  },
+  {
+   "id": "toolbar.customize",
+   "title": "Customize Main Toolbar…",
+   "category": "View",
+   "keywords": [
+    "toolbar",
+    "widgets",
+    "title bar"
+   ],
+   "source": "src/workbench/shellActions.ts:103"
+  },
+  {
+   "id": "tools.install",
+   "title": "Install Language Server / Debugger",
+   "category": "Tools",
+   "hidden": true,
+   "source": "src/features/tools/index.ts:66"
+  },
+  {
+   "id": "tools.languageServers",
+   "title": "Language Servers…",
+   "category": "Tools",
+   "icon": "package",
+   "keywords": [
+    "lsp",
+    "install",
+    "debugger",
+    "adapter"
+   ],
+   "source": "src/features/tools/index.ts:58"
+  },
+  {
+   "id": "tools.promptInstall",
+   "title": "Install Missing Tool",
+   "hidden": true,
+   "source": "src/features/tools/index.ts:43"
+  },
+  {
+   "id": "toolwindow.closeContent",
+   "title": "Close Tool Window Tab",
+   "category": "Window",
+   "when": "toolWindowFocus && !popupOpen",
+   "source": "src/workbench/toolwindows/actions.ts:198"
+  },
+  {
+   "id": "toolwindow.focusEditor",
+   "title": "Focus Editor",
+   "category": "Window",
+   "when": "toolWindowFocus && !popupOpen",
+   "source": "src/workbench/toolwindows/actions.ts:210"
+  },
+  {
+   "id": "toolwindow.hideActive",
+   "title": "Hide Active Tool Window",
+   "category": "Window",
+   "when": "projectOpen && !popupOpen",
+   "source": "src/workbench/toolwindows/actions.ts:190"
+  },
+  {
+   "id": "toolwindow.hideAll",
+   "title": "Hide All Tool Windows",
+   "category": "Window",
+   "source": "src/workbench/toolwindows/actions.ts:181"
+  },
+  {
+   "id": "toolwindow.jumpToLast",
+   "title": "Jump to Last Tool Window",
+   "category": "Window",
+   "when": "projectOpen",
+   "keywords": [
+    "tool window",
+    "focus"
+   ],
+   "source": "src/workbench/toolwindows/actions.ts:182"
+  },
+  {
+   "id": "toolwindow.maximize",
+   "title": "Maximize Tool Window",
+   "category": "Window",
+   "when": "toolWindowFocus",
+   "source": "src/workbench/toolwindows/actions.ts:236"
+  },
+  {
+   "id": "update",
+   "title": "Update Application",
+   "icon": "refresh",
+   "source": "src/features/run/services.tsx:599"
+  },
+  {
+   "id": "usages.rerun",
+   "title": "Rerun Find Usages",
+   "category": "Find",
+   "icon": "rerun",
+   "when": "projectOpen && activeToolWindow == 'usages'",
+   "source": "src/features/code-insight/index.ts:101"
+  },
+  {
+   "id": "vcs.acceptBoth",
+   "title": "Accept Both (Conflict at Caret)",
+   "category": "Git",
+   "when": "editorTextFocus",
+   "source": "src/features/vcs/actions.tsx:619"
+  },
+  {
+   "id": "vcs.acceptTheirs",
+   "title": "Accept Theirs (Conflict at Caret)",
+   "category": "Git",
+   "when": "editorTextFocus",
+   "source": "src/features/vcs/actions.tsx:612"
+  },
+  {
+   "id": "vcs.acceptYours",
+   "title": "Accept Yours (Conflict at Caret)",
+   "category": "Git",
+   "when": "editorTextFocus",
+   "source": "src/features/vcs/actions.tsx:605"
+  },
+  {
+   "id": "vcs.addToVcs",
+   "title": "Add to VCS",
+   "category": "Git",
+   "icon": "plus",
+   "when": "vcsAvailable",
+   "keywords": [
+    "git add",
+    "stage"
+   ],
+   "source": "src/features/vcs/actions.tsx:571"
+  },
+  {
+   "id": "vcs.annotate",
+   "title": "Annotate with Git Blame",
+   "category": "Git",
+   "icon": "history",
+   "when": "vcsAvailable",
+   "keywords": [
+    "blame",
+    "annotations"
+   ],
+   "toggle": true,
+   "source": "src/features/vcs/actions.tsx:456"
+  },
+  {
+   "id": "vcs.applyPatch",
+   "title": "Apply Patch…",
+   "category": "Git",
+   "icon": "file-patch",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:626"
+  },
+  {
+   "id": "vcs.applyPatchFromClipboard",
+   "title": "Apply Patch from Clipboard…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:634"
+  },
+  {
+   "id": "vcs.branches",
+   "title": "Branches…",
+   "category": "Git",
+   "icon": "branch",
+   "when": "vcsAvailable",
+   "keywords": [
+    "checkout",
+    "git branches"
+   ],
+   "source": "src/features/vcs/actions.tsx:484"
+  },
+  {
+   "id": "vcs.changelist.commit",
+   "title": "Commit Changelist…",
+   "category": "Git",
+   "icon": "commit",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:505"
+  },
+  {
+   "id": "vcs.changelist.delete",
+   "title": "Delete Changelist",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:477"
+  },
+  {
+   "id": "vcs.changelist.edit",
+   "title": "Edit Changelist…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keyWhen": "vcsAvailable && activeToolWindow == commit",
+   "source": "src/features/vcs/historyActions.tsx:466"
+  },
+  {
+   "id": "vcs.changelist.move",
+   "title": "Move to Another Changelist…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keyWhen": "vcsAvailable && activeToolWindow == commit",
+   "source": "src/features/vcs/historyActions.tsx:497"
+  },
+  {
+   "id": "vcs.changelist.new",
+   "title": "New Changelist…",
+   "category": "Git",
+   "icon": "changelist",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:458"
+  },
+  {
+   "id": "vcs.changelist.setActive",
+   "title": "Set Active Changelist",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:487"
+  },
+  {
+   "id": "vcs.checkoutRevision",
+   "title": "Checkout Tag or Revision…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:505"
+  },
+  {
+   "id": "vcs.cherryPick.abort",
+   "title": "Abort Cherry-Pick",
+   "category": "Git",
+   "when": "vcsAvailable && vcsOperation == cherry-pick",
+   "source": "src/features/vcs/historyActions.tsx:214"
+  },
+  {
+   "id": "vcs.cherryPick.continue",
+   "title": "Continue Cherry-Pick",
+   "category": "Git",
+   "when": "vcsAvailable && vcsOperation == cherry-pick",
+   "source": "src/features/vcs/historyActions.tsx:207"
+  },
+  {
+   "id": "vcs.clone",
+   "title": "Get from Version Control…",
+   "category": "Git",
+   "icon": "git-pull",
+   "keywords": [
+    "clone",
+    "checkout",
+    "git"
+   ],
+   "source": "src/features/vcs/actions.tsx:246"
+  },
+  {
+   "id": "vcs.commit",
+   "title": "Commit…",
+   "category": "Git",
+   "icon": "commit",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:206"
+  },
+  {
+   "id": "vcs.commitAndPush",
+   "title": "Commit and Push…",
+   "category": "Git",
+   "icon": "git-push",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:214"
+  },
+  {
+   "id": "vcs.compareWithBranch",
+   "title": "Compare with Branch or Revision…",
+   "category": "Git",
+   "icon": "diff",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:415"
+  },
+  {
+   "id": "vcs.createPatch",
+   "title": "Create Patch…",
+   "category": "Git",
+   "icon": "file-patch",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:618"
+  },
+  {
+   "id": "vcs.fetch",
+   "title": "Fetch",
+   "category": "Git",
+   "icon": "git-fetch",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:319"
+  },
+  {
+   "id": "vcs.ignoreLocal",
+   "title": "Add to .gitignore",
+   "titleVariants": [
+    "Add to .gitignore",
+    "Add to .git/info/exclude"
+   ],
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keywords": [
+    "ignore",
+    "unversioned",
+    "exclude"
+   ],
+   "source": "src/features/vcs/actions.tsx:563"
+  },
+  {
+   "id": "vcs.ignoreShared",
+   "title": "Add to .gitignore",
+   "titleVariants": [
+    "Add to .gitignore",
+    "Add to .git/info/exclude"
+   ],
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keywords": [
+    "ignore",
+    "unversioned",
+    "exclude"
+   ],
+   "source": "src/features/vcs/actions.tsx:563"
+  },
+  {
+   "id": "vcs.localHistory",
+   "title": "Show Local History",
+   "category": "Git",
+   "icon": "clock",
+   "when": "projectOpen",
+   "source": "src/features/vcs/actions.tsx:469"
+  },
+  {
+   "id": "vcs.log.branches.delete",
+   "title": "Delete Branch",
+   "category": "Git Log",
+   "icon": "trash",
+   "when": "vcsAvailable",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:115"
+  },
+  {
+   "id": "vcs.log.branches.navigate",
+   "title": "Navigate Log to Selected Branch",
+   "category": "Git Log",
+   "icon": "locate",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:133"
+  },
+  {
+   "id": "vcs.log.branches.new",
+   "title": "New Branch…",
+   "category": "Git Log",
+   "icon": "plus",
+   "when": "vcsAvailable",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:93"
+  },
+  {
+   "id": "vcs.log.branches.toggleFavorite",
+   "title": "Mark/Unmark As Favorite",
+   "category": "Git Log",
+   "icon": "star",
+   "when": "vcsAvailable",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:124"
+  },
+  {
+   "id": "vcs.log.branches.update",
+   "title": "Update Selected",
+   "category": "Git Log",
+   "icon": "git-pull",
+   "when": "vcsAvailable",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:106"
+  },
+  {
+   "id": "vcs.log.changes.compareBeforeWithLocal",
+   "title": "Compare Before with Local",
+   "category": "Git Log",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:168"
+  },
+  {
+   "id": "vcs.log.changes.compareWithLocal",
+   "title": "Compare with Local",
+   "category": "Git Log",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:157"
+  },
+  {
+   "id": "vcs.log.changes.diffPreview",
+   "title": "Show Diff Preview",
+   "category": "Git Log",
+   "description": "Selecting a changed file shows its diff in the editor's preview tab",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "toggle": true,
+   "source": "src/features/vcs/logPaneActions.ts:215"
+  },
+  {
+   "id": "vcs.log.changes.getFromRevision",
+   "title": "Get from Revision",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:190"
+  },
+  {
+   "id": "vcs.log.changes.groupByDirectory",
+   "title": "Group by Directory",
+   "category": "Git Log",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "toggle": true,
+   "source": "src/features/vcs/logPaneActions.ts:207"
+  },
+  {
+   "id": "vcs.log.changes.jumpToSource",
+   "title": "Jump to Source",
+   "category": "Git Log",
+   "icon": "edit",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:179"
+  },
+  {
+   "id": "vcs.log.changes.revert",
+   "title": "Revert Selected Changes",
+   "category": "Git Log",
+   "icon": "revert",
+   "when": "vcsAvailable",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:198"
+  },
+  {
+   "id": "vcs.log.changes.showDiff",
+   "title": "Show Diff",
+   "category": "Git Log",
+   "icon": "diff",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "hidden": true,
+   "source": "src/features/vcs/logPaneActions.ts:148"
+  },
+  {
+   "id": "vcs.log.checkoutRevision",
+   "title": "Checkout Revision",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:300"
+  },
+  {
+   "id": "vcs.log.cherryPick",
+   "title": "Cherry-Pick",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:293"
+  },
+  {
+   "id": "vcs.log.collapseLinear",
+   "title": "Collapse Linear Branches",
+   "category": "Git Log",
+   "icon": "collapse-all",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "source": "src/features/vcs/logPaneActions.ts:75"
+  },
+  {
+   "id": "vcs.log.compareVersions",
+   "title": "Compare Versions",
+   "category": "Git Log",
+   "icon": "diff",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:315"
+  },
+  {
+   "id": "vcs.log.compareWithLocal",
+   "title": "Compare with Local",
+   "category": "Git Log",
+   "icon": "diff",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:307"
+  },
+  {
+   "id": "vcs.log.copyRevision",
+   "title": "Copy Revision Number",
+   "category": "Git Log",
+   "icon": "copy",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "keyWhen": "(vcsAvailable || projectOpen) && (activeToolWindow == git || vcsLogFocus)",
+   "source": "src/features/vcs/historyActions.tsx:277"
+  },
+  {
+   "id": "vcs.log.createPatch",
+   "title": "Create Patch…",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:286"
+  },
+  {
+   "id": "vcs.log.dropCommit",
+   "title": "Drop Commit",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:361"
+  },
+  {
+   "id": "vcs.log.editMessage",
+   "title": "Edit Commit Message…",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "keywords": [
+    "reword"
+   ],
+   "source": "src/features/vcs/historyActions.tsx:353"
+  },
+  {
+   "id": "vcs.log.expandLinear",
+   "title": "Expand Linear Branches",
+   "category": "Git Log",
+   "icon": "expand-all",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "source": "src/features/vcs/logPaneActions.ts:83"
+  },
+  {
+   "id": "vcs.log.fixup",
+   "title": "Fixup…",
+   "category": "Git Log",
+   "description": "Prepares a fixup! commit of the local changes for the selected commit.",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:375"
+  },
+  {
+   "id": "vcs.log.goToChild",
+   "title": "Go to Child Commit",
+   "category": "Git Log",
+   "icon": "arrow-left",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "source": "src/features/vcs/historyActions.tsx:409"
+  },
+  {
+   "id": "vcs.log.goToParent",
+   "title": "Go to Parent Commit",
+   "category": "Git Log",
+   "icon": "arrow-right",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "source": "src/features/vcs/historyActions.tsx:417"
+  },
+  {
+   "id": "vcs.log.goToRef",
+   "title": "Go to Hash/Branch/Tag",
+   "category": "Git Log",
+   "icon": "search",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "keyWhen": "(vcsAvailable || projectOpen) && (activeToolWindow == git || vcsLogFocus)",
+   "keywords": [
+    "find commit",
+    "jump"
+   ],
+   "source": "src/features/vcs/historyActions.tsx:254"
+  },
+  {
+   "id": "vcs.log.interactiveRebase",
+   "title": "Interactively Rebase from Here…",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "keywords": [
+    "squash",
+    "fixup",
+    "reword",
+    "reorder"
+   ],
+   "source": "src/features/vcs/historyActions.tsx:433"
+  },
+  {
+   "id": "vcs.log.newBranch",
+   "title": "New Branch…",
+   "category": "Git Log",
+   "icon": "branch",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:441"
+  },
+  {
+   "id": "vcs.log.newTag",
+   "title": "New Tag…",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:449"
+  },
+  {
+   "id": "vcs.log.openExternal",
+   "title": "Open External Git Log…",
+   "category": "Git Log",
+   "source": "src/features/vcs/historyActions.tsx:248"
+  },
+  {
+   "id": "vcs.log.openInBrowser",
+   "title": "View in Browser",
+   "category": "Git Log",
+   "icon": "external-link",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:425"
+  },
+  {
+   "id": "vcs.log.pushUpToHere",
+   "title": "Push All up to Here…",
+   "category": "Git Log",
+   "icon": "git-push",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:391"
+  },
+  {
+   "id": "vcs.log.rebaseOntoCommit",
+   "title": "Rebase Current Branch onto Selected Commit",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:402"
+  },
+  {
+   "id": "vcs.log.resetToHere",
+   "title": "Reset Current Branch to Here…",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:330"
+  },
+  {
+   "id": "vcs.log.revealBookmark",
+   "title": "Show Commit Bookmark",
+   "category": "Git Log",
+   "source": "src/features/vcs/historyActions.tsx:162"
+  },
+  {
+   "id": "vcs.log.revert",
+   "title": "Revert Commit",
+   "category": "Git Log",
+   "icon": "revert",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:337"
+  },
+  {
+   "id": "vcs.log.showBranches",
+   "title": "Show Branches",
+   "category": "Git Log",
+   "when": "vcsAvailable || projectOpen || vcsLogFocus",
+   "toggle": true,
+   "source": "src/features/vcs/logPaneActions.ts:64"
+  },
+  {
+   "id": "vcs.log.squashCommits",
+   "title": "Squash Commits…",
+   "category": "Git Log",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:368"
+  },
+  {
+   "id": "vcs.log.squashInto",
+   "title": "Squash Into…",
+   "category": "Git Log",
+   "description": "Prepares a squash! commit of the local changes for the selected commit.",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:383"
+  },
+  {
+   "id": "vcs.log.undoCommit",
+   "title": "Undo Commit…",
+   "category": "Git Log",
+   "icon": "undo",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:345"
+  },
+  {
+   "id": "vcs.manageRemotes",
+   "title": "Manage Remotes…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keywords": [
+    "remote",
+    "origin",
+    "url"
+   ],
+   "source": "src/features/vcs/actions.tsx:295"
+  },
+  {
+   "id": "vcs.merge",
+   "title": "Merge…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keywords": [
+    "merge branch"
+   ],
+   "source": "src/features/vcs/actions.tsx:279"
+  },
+  {
+   "id": "vcs.merge.abort",
+   "title": "Abort Merge",
+   "category": "Git",
+   "when": "vcsAvailable && vcsOperation == merge",
+   "source": "src/features/vcs/historyActions.tsx:200"
+  },
+  {
+   "id": "vcs.newBranch",
+   "title": "New Branch…",
+   "category": "Git",
+   "icon": "plus",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:493"
+  },
+  {
+   "id": "vcs.newTag",
+   "title": "New Tag…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:237"
+  },
+  {
+   "id": "vcs.newWorktree",
+   "title": "New Worktree…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keywords": [
+    "worktree"
+   ],
+   "source": "src/features/vcs/actions.tsx:303"
+  },
+  {
+   "id": "vcs.nextChange",
+   "title": "Next Change",
+   "category": "Git",
+   "icon": "arrow-down",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:430"
+  },
+  {
+   "id": "vcs.nextConflict",
+   "title": "Next Conflict Marker",
+   "category": "Git",
+   "when": "editorTextFocus",
+   "source": "src/features/vcs/actions.tsx:626"
+  },
+  {
+   "id": "vcs.openDiff",
+   "title": "Open Diff",
+   "category": "Diff",
+   "description": "Opens the diff viewer for a `DiffData` argument (e.g. a pull request file).",
+   "icon": "diff",
+   "when": "projectOpen",
+   "hidden": true,
+   "source": "src/features/vcs/compare.tsx:139"
+  },
+  {
+   "id": "vcs.operations",
+   "title": "VCS Operations…",
+   "category": "Git",
+   "icon": "branch",
+   "when": "projectOpen",
+   "keywords": [
+    "git",
+    "quick list"
+   ],
+   "source": "src/features/vcs/actions.tsx:197"
+  },
+  {
+   "id": "vcs.prevChange",
+   "title": "Previous Change",
+   "category": "Git",
+   "icon": "arrow-up",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:443"
+  },
+  {
+   "id": "vcs.prevConflict",
+   "title": "Previous Conflict Marker",
+   "category": "Git",
+   "when": "editorTextFocus",
+   "source": "src/features/vcs/actions.tsx:633"
+  },
+  {
+   "id": "vcs.pull",
+   "title": "Pull…",
+   "category": "Git",
+   "icon": "git-pull",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:271"
+  },
+  {
+   "id": "vcs.push",
+   "title": "Push…",
+   "category": "Git",
+   "icon": "git-push",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:254"
+  },
+  {
+   "id": "vcs.rebase",
+   "title": "Rebase…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keywords": [
+    "rebase branch"
+   ],
+   "source": "src/features/vcs/actions.tsx:287"
+  },
+  {
+   "id": "vcs.rebase.abort",
+   "title": "Abort Rebase",
+   "category": "Git",
+   "when": "vcsAvailable && vcsOperation == rebase",
+   "source": "src/features/vcs/historyActions.tsx:185"
+  },
+  {
+   "id": "vcs.rebase.continue",
+   "title": "Continue Rebase",
+   "category": "Git",
+   "when": "vcsAvailable && vcsOperation == rebase",
+   "source": "src/features/vcs/historyActions.tsx:178"
+  },
+  {
+   "id": "vcs.rebase.skip",
+   "title": "Skip Commit",
+   "category": "Git",
+   "when": "vcsAvailable && vcsOperation == rebase",
+   "keywords": [
+    "rebase"
+   ],
+   "source": "src/features/vcs/historyActions.tsx:192"
+  },
+  {
+   "id": "vcs.refresh",
+   "title": "Refresh VCS Status",
+   "category": "Git",
+   "icon": "refresh",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:327"
+  },
+  {
+   "id": "vcs.resetHead",
+   "title": "Reset HEAD…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keywords": [
+    "git reset"
+   ],
+   "source": "src/features/vcs/historyActions.tsx:238"
+  },
+  {
+   "id": "vcs.resolveConflicts",
+   "title": "Resolve Conflicts…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keywords": [
+    "merge"
+   ],
+   "source": "src/features/vcs/actions.tsx:597"
+  },
+  {
+   "id": "vcs.revert.abort",
+   "title": "Abort Revert",
+   "category": "Git",
+   "when": "vcsAvailable && vcsOperation == revert",
+   "source": "src/features/vcs/historyActions.tsx:228"
+  },
+  {
+   "id": "vcs.revert.continue",
+   "title": "Continue Revert",
+   "category": "Git",
+   "when": "vcsAvailable && vcsOperation == revert",
+   "source": "src/features/vcs/historyActions.tsx:221"
+  },
+  {
+   "id": "vcs.rollback",
+   "title": "Rollback…",
+   "category": "Git",
+   "icon": "undo",
+   "when": "vcsAvailable",
+   "keywords": [
+    "revert",
+    "discard"
+   ],
+   "source": "src/features/vcs/actions.tsx:335"
+  },
+  {
+   "id": "vcs.shelf.compareLocal",
+   "title": "Compare Shelved Changes with Local",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:585"
+  },
+  {
+   "id": "vcs.shelf.copyPatch",
+   "title": "Copy as Patch to Clipboard",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:599"
+  },
+  {
+   "id": "vcs.shelf.createPatch",
+   "title": "Create Patch from Shelved Changes…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:592"
+  },
+  {
+   "id": "vcs.shelf.delete",
+   "title": "Delete Shelved Changes",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "hidden": true,
+   "source": "src/features/vcs/historyActions.tsx:539"
+  },
+  {
+   "id": "vcs.shelf.importPatches",
+   "title": "Import Patches…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:609"
+  },
+  {
+   "id": "vcs.shelf.refresh",
+   "title": "Refresh Shelf",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:562"
+  },
+  {
+   "id": "vcs.shelf.rename",
+   "title": "Rename Shelved Changes…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "hidden": true,
+   "source": "src/features/vcs/historyActions.tsx:550"
+  },
+  {
+   "id": "vcs.shelf.showDiff",
+   "title": "Show Shelved Diff",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:571"
+  },
+  {
+   "id": "vcs.shelf.showDiffNewTab",
+   "title": "Show Diff in a New Tab",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:578"
+  },
+  {
+   "id": "vcs.shelve",
+   "title": "Shelve Changes…",
+   "category": "Git",
+   "icon": "shelve",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:518"
+  },
+  {
+   "id": "vcs.showCommit",
+   "title": "Show Commit in Git Log",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "hidden": true,
+   "source": "src/features/vcs/actions.tsx:549"
+  },
+  {
+   "id": "vcs.showDiff",
+   "title": "Show Diff",
+   "category": "Git",
+   "icon": "diff",
+   "when": "vcsAvailable",
+   "keyWhen": "!editorTextFocus",
+   "source": "src/features/vcs/actions.tsx:366"
+  },
+  {
+   "id": "vcs.showHistory",
+   "title": "Show History for File",
+   "category": "Git",
+   "icon": "history",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:527"
+  },
+  {
+   "id": "vcs.showHistoryForSelection",
+   "title": "Show History for Selection",
+   "category": "Git",
+   "icon": "history",
+   "when": "vcsAvailable && textEditorActive",
+   "keywords": [
+    "line history",
+    "block history",
+    "git log -L"
+   ],
+   "source": "src/features/vcs/actions.tsx:540"
+  },
+  {
+   "id": "vcs.showLog",
+   "title": "Show Git Log",
+   "category": "Git",
+   "icon": "branch",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:512"
+  },
+  {
+   "id": "vcs.showMessageHistory",
+   "title": "Show Commit Message History",
+   "category": "Git",
+   "icon": "history",
+   "when": "vcsAvailable",
+   "keyWhen": "vcsAvailable && activeToolWindow == commit",
+   "source": "src/features/vcs/actions.tsx:237"
+  },
+  {
+   "id": "vcs.showShelf",
+   "title": "Show Shelf",
+   "category": "Git",
+   "icon": "shelve",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:526"
+  },
+  {
+   "id": "vcs.stash",
+   "title": "Stash Changes…",
+   "category": "Git",
+   "icon": "stash",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:582"
+  },
+  {
+   "id": "vcs.toggleAmend",
+   "title": "Amend Commit",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keyWhen": "vcsAvailable && activeToolWindow == commit",
+   "toggle": true,
+   "source": "src/features/vcs/actions.tsx:228"
+  },
+  {
+   "id": "vcs.unshelve",
+   "title": "Unshelve…",
+   "category": "Git",
+   "icon": "unshelve",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/historyActions.tsx:527"
+  },
+  {
+   "id": "vcs.unstash",
+   "title": "Unstash Changes…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "source": "src/features/vcs/actions.tsx:590"
+  },
+  {
+   "id": "vcs.update",
+   "title": "Update Project…",
+   "category": "Git",
+   "icon": "git-pull",
+   "when": "vcsAvailable",
+   "keywords": [
+    "pull"
+   ],
+   "source": "src/features/vcs/actions.tsx:262"
+  },
+  {
+   "id": "vcs.worktrees",
+   "title": "Worktrees…",
+   "category": "Git",
+   "when": "vcsAvailable",
+   "keywords": [
+    "worktree"
+   ],
+   "source": "src/features/vcs/actions.tsx:311"
+  },
+  {
+   "id": "view.backgroundTasks",
+   "title": "Background Tasks",
+   "category": "View",
+   "keywords": [
+    "progress",
+    "running",
+    "processes"
+   ],
+   "source": "src/workbench/shellActions.ts:118"
+  },
+  {
+   "id": "view.notifications",
+   "title": "Notifications",
+   "category": "View",
+   "icon": "bell",
+   "source": "src/workbench/shellActions.ts:125"
+  },
+  {
+   "id": "view.quickSwitchScheme",
+   "title": "Quick Switch Scheme…",
+   "category": "View",
+   "keywords": [
+    "theme",
+    "color scheme",
+    "keymap",
+    "view mode"
+   ],
+   "source": "src/workbench/shellActions.ts:96"
+  },
+  {
+   "id": "view.resetZoom",
+   "title": "Reset IDE Zoom",
+   "category": "View",
+   "keywords": [
+    "zoom",
+    "scale",
+    "100%",
+    "accessibility"
+   ],
+   "source": "src/features/settings/appearanceRuntime.ts:110"
+  },
+  {
+   "id": "view.toggleCompactMode",
+   "title": "Compact Mode",
+   "category": "View",
+   "keywords": [
+    "appearance",
+    "density",
+    "smaller"
+   ],
+   "toggle": true,
+   "source": "src/features/settings/appearanceRuntime.ts:146"
+  },
+  {
+   "id": "view.toggleStatusBar",
+   "title": "Status Bar",
+   "category": "View",
+   "keywords": [
+    "appearance",
+    "hide"
+   ],
+   "toggle": true,
+   "source": "src/features/settings/appearanceRuntime.ts:153"
+  },
+  {
+   "id": "view.toggleStatusBarWidget",
+   "title": "Status Bar Widget",
+   "category": "View",
+   "hidden": true,
+   "source": "src/workbench/shellActions.ts:110"
+  },
+  {
+   "id": "view.toggleTheme",
+   "title": "Toggle Light/Dark Theme",
+   "category": "View",
+   "icon": "sun",
+   "keywords": [
+    "appearance",
+    "theme"
+   ],
+   "source": "src/workbench/shellActions.ts:88"
+  },
+  {
+   "id": "view.toggleToolbar",
+   "title": "Toolbar",
+   "category": "View",
+   "keywords": [
+    "appearance",
+    "main toolbar",
+    "header",
+    "hide"
+   ],
+   "toggle": true,
+   "source": "src/features/settings/appearanceRuntime.ts:147"
+  },
+  {
+   "id": "view.toggleToolWindowBars",
+   "title": "Tool Window Bars",
+   "category": "View",
+   "keywords": [
+    "appearance",
+    "stripes",
+    "tool window buttons",
+    "hide"
+   ],
+   "toggle": true,
+   "source": "src/features/settings/appearanceRuntime.ts:148"
+  },
+  {
+   "id": "view.zoomIn",
+   "title": "Zoom In IDE",
+   "category": "View",
+   "keywords": [
+    "zoom",
+    "scale",
+    "bigger",
+    "accessibility"
+   ],
+   "source": "src/features/settings/appearanceRuntime.ts:96"
+  },
+  {
+   "id": "view.zoomOut",
+   "title": "Zoom Out IDE",
+   "category": "View",
+   "keywords": [
+    "zoom",
+    "scale",
+    "smaller",
+    "accessibility"
+   ],
+   "source": "src/features/settings/appearanceRuntime.ts:103"
+  },
+  {
+   "id": "vim.reloadRc",
+   "title": "Reload .ideavimrc",
+   "category": "Tools",
+   "when": "vimMode",
+   "keywords": [
+    "vim",
+    "vimrc",
+    "openideavimrc"
+   ],
+   "source": "src/features/vim/index.ts:99"
+  },
+  {
+   "id": "vim.settings",
+   "title": "Vim Settings…",
+   "category": "Tools",
+   "keywords": [
+    "vim",
+    "shortcut conflicts"
+   ],
+   "source": "src/features/vim/index.ts:107"
+  },
+  {
+   "id": "vim.toggle",
+   "title": "Vim",
+   "category": "Tools",
+   "description": "Turn Vim emulation on or off in all editors",
+   "keywords": [
+    "vim",
+    "ideavim",
+    "emulator",
+    "toggle vim mode"
+   ],
+   "toggle": true,
+   "source": "src/features/vim/index.ts:90"
+  },
+  {
+   "id": "web.openInBrowser",
+   "title": "Open in Browser",
+   "category": "View",
+   "description": "Open the HTML or SVG file in the default browser through the built-in server",
+   "icon": "web",
+   "when": "projectOpen",
+   "keyWhen": "textEditorActive && editorLangId == html",
+   "keywords": [
+    "browser",
+    "html",
+    "preview",
+    "chrome",
+    "firefox",
+    "safari",
+    "run"
+   ],
+   "source": "src/features/web/index.ts:68"
+  },
+  {
+   "id": "web.togglePreview",
+   "title": "Built-in Preview",
+   "category": "View",
+   "description": "Show the HTML file rendered beside the editor",
+   "icon": "eye",
+   "when": "textEditorActive && editorLangId == html",
+   "keywords": [
+    "browser",
+    "html",
+    "preview",
+    "live"
+   ],
+   "toggle": true,
+   "source": "src/features/web/index.ts:82"
+  },
+  {
+   "id": "welcome.recentProjects",
+   "title": "Recent Projects…",
+   "category": "File",
+   "icon": "history",
+   "keywords": [
+    "open recent",
+    "projects"
+   ],
+   "source": "src/features/welcome/index.ts:19"
+  },
+  {
+   "id": "window.closeOtherTabs",
+   "title": "Close Other Project Tabs",
+   "categoryKey": "app.category.window",
+   "when": "windowGrouped",
+   "source": "src/features/app/windows.ts:416"
+  },
+  {
+   "id": "window.closeTab",
+   "title": "Close Project Tab",
+   "when": "windowGrouped",
+   "hidden": true,
+   "source": "src/features/app/windows.ts:407"
+  },
+  {
+   "id": "window.closeTabsToLeft",
+   "title": "Close Project Tabs to the Left",
+   "categoryKey": "app.category.window",
+   "when": "windowGrouped",
+   "source": "src/features/app/windows.ts:423"
+  },
+  {
+   "id": "window.closeTabsToRight",
+   "title": "Close Project Tabs to the Right",
+   "categoryKey": "app.category.window",
+   "when": "windowGrouped",
+   "source": "src/features/app/windows.ts:430"
+  },
+  {
+   "id": "window.detachTab",
+   "title": "Move Tab to New Window",
+   "categoryKey": "app.category.window",
+   "when": "windowGrouped",
+   "source": "src/features/app/windows.ts:391"
+  },
+  {
+   "id": "window.mergeAllWindows",
+   "title": "Merge All Project Windows",
+   "categoryKey": "app.category.window",
+   "when": "projectOpen",
+   "source": "src/features/app/windows.ts:382"
+  },
+  {
+   "id": "window.new",
+   "titleKey": "app.action.newWindow",
+   "categoryKey": "app.category.window",
+   "source": "src/features/app/windows.ts:529"
+  },
+  {
+   "id": "window.next",
+   "titleKey": "app.action.nextWindow",
+   "categoryKey": "app.category.window",
+   "source": "src/features/app/windows.ts:540"
+  },
+  {
+   "id": "window.nextTab",
+   "title": "Next Project Tab",
+   "categoryKey": "app.category.window",
+   "when": "windowGrouped",
+   "source": "src/features/app/windows.ts:446"
+  },
+  {
+   "id": "window.previous",
+   "titleKey": "app.action.previousWindow",
+   "categoryKey": "app.category.window",
+   "source": "src/features/app/windows.ts:546"
+  },
+  {
+   "id": "window.previousTab",
+   "title": "Previous Project Tab",
+   "categoryKey": "app.category.window",
+   "when": "windowGrouped",
+   "source": "src/features/app/windows.ts:453"
+  },
+  {
+   "id": "window.reorderTabs",
+   "title": "Reorder Project Tabs",
+   "when": "windowGrouped",
+   "hidden": true,
+   "source": "src/features/app/windows.ts:437"
+  },
+  {
+   "id": "window.selectTab",
+   "title": "Select Project Tab",
+   "when": "windowGrouped",
+   "hidden": true,
+   "source": "src/features/app/windows.ts:398"
+  },
+  {
+   "id": "window.toggleFullScreen",
+   "titleKey": "app.action.toggleFullScreen",
+   "categoryKey": "app.category.view",
+   "icon": "maximize",
+   "keywords": [
+    "full screen",
+    "fullscreen"
+   ],
+   "source": "src/features/app/windows.ts:552"
+  },
+  {
+   "id": "workbench.stopBackgroundProcesses",
+   "title": "Stop Background Processes…",
+   "category": "Window",
+   "keywords": [
+    "cancel task",
+    "background tasks",
+    "progress"
+   ],
+   "source": "src/workbench/shellActions.ts:81"
+  },
+  {
+   "id": "workspace.create",
+   "title": "New Workspace…",
+   "categoryKey": "app.category.file",
+   "icon": "folder",
+   "source": "src/features/app/windows.ts:355"
+  },
+  {
+   "id": "workspace.manage",
+   "title": "Manage Workspace…",
+   "categoryKey": "app.category.file",
+   "when": "workspaceContainer",
+   "source": "src/features/app/windows.ts:375"
+  },
+  {
+   "id": "workspace.open",
+   "title": "Open Workspace…",
+   "categoryKey": "app.category.file",
+   "icon": "folder-open",
+   "source": "src/features/app/windows.ts:364"
+  },
+  {
+   "id": "workspace.removeProject",
+   "title": "Remove from Workspace",
+   "categoryKey": "app.category.file",
+   "when": "workspaceOpen && !projectAttached",
+   "source": "src/features/app/windows.ts:341"
+  }
+ ],
+ "dynamic": [
+  {
+   "category": "Folding",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "unfold",
+    "fold level"
+   ],
+   "source": "src/editor/core/actions.ts:796",
+   "definedAt": "src/editor/core/actions.ts:650"
+  },
+  {
+   "category": "Folding",
+   "when": "editorTextFocus || textEditorActive && popupOpen",
+   "keywords": [
+    "unfold",
+    "fold level"
+   ],
+   "source": "src/editor/core/actions.ts:800",
+   "definedAt": "src/editor/core/actions.ts:650"
+  },
+  {
+   "title": "Build .NET Project",
+   "titleVariants": [
+    "Build .NET Project",
+    "Restore .NET Project",
+    "Clean .NET Project"
+   ],
+   "category": "Build",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:58",
+   "definedAt": "src/features/dotnet/index.ts:58"
+  },
+  {
+   "category": "Macros",
+   "when": "!macroRecording",
+   "keywords": [
+    "macro",
+    "play"
+   ],
+   "source": "src/features/macros/index.ts:101",
+   "definedAt": "src/features/macros/index.ts:101"
+  },
+  {
+   "icon": "package",
+   "verbatim": true,
+   "source": "src/features/plugins/points.tsx:199",
+   "definedAt": "src/features/plugins/points.tsx:199"
+  },
+  {
+   "title": "Find in Logs",
+   "titleVariants": [
+    "Find in Logs",
+    "Clear",
+    "Soft-wrap"
+   ],
+   "category": "Plugins",
+   "hidden": true,
+   "source": "src/features/plugins/views/logActions.ts:35",
+   "definedAt": "src/features/plugins/views/logActions.ts:35"
+  },
+  {
+   "source": "src/features/plugins/views/serviceProvider.tsx:88",
+   "definedAt": "src/features/plugins/views/serviceProvider.tsx:88"
+  },
+  {
+   "category": "View",
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167",
+   "definedAt": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "project",
+    "pane",
+    "scope",
+    "view as"
+   ],
+   "source": "src/features/project-tree/actions.ts:177",
+   "definedAt": "src/features/project-tree/actions.ts:177"
+  },
+  {
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "sort",
+    "order"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:189",
+   "definedAt": "src/features/project-tree/actions.ts:189"
+  },
+  {
+   "icon": "run",
+   "when": "projectOpen",
+   "source": "src/features/run/externalTools.ts:164",
+   "definedAt": "src/features/run/externalTools.ts:164"
+  },
+  {
+   "title": "Go Generate File",
+   "titleVariants": [
+    "Go Generate File",
+    "Go Generate Package"
+   ],
+   "category": "Go",
+   "when": "projectOpen",
+   "source": "src/features/run/goActions.ts:86",
+   "definedAt": "src/features/run/goActions.ts:86"
+  },
+  {
+   "category": "Run",
+   "hidden": true,
+   "source": "src/features/run/services.tsx:620",
+   "definedAt": "src/features/run/services.tsx:620"
+  },
+  {
+   "category": "Bookmarks",
+   "when": "projectOpen && textEditorActive",
+   "source": "src/features/search/index.ts:476",
+   "definedAt": "src/features/search/index.ts:476"
+  },
+  {
+   "category": "Bookmarks",
+   "when": "projectOpen",
+   "source": "src/features/search/index.ts:486",
+   "definedAt": "src/features/search/index.ts:486"
+  },
+  {
+   "title": "Import Scheme",
+   "titleVariants": [
+    "Import Scheme",
+    "Export Scheme",
+    "Delete Scheme"
+   ],
+   "category": "Editor",
+   "source": "src/features/settings/pages/editor/colorScheme.tsx:1217",
+   "definedAt": "src/features/settings/pages/editor/colorScheme.tsx:1217"
+  },
+  {
+   "category": "File",
+   "when": "projectOpen",
+   "source": "src/features/templates/index.ts:130",
+   "definedAt": "src/features/templates/index.ts:79"
+  },
+  {
+   "title": "Copy",
+   "titleVariants": [
+    "Copy",
+    "Cut",
+    "Paste",
+    "Select All",
+    "Annotate with Git Blame",
+    "Reload from Disk",
+    "Accept Yours",
+    "Accept Theirs",
+    "Apply Non-Conflicting Changes from the Left Side",
+    "Apply All Non-Conflicting Changes",
+    "Apply Non-Conflicting Changes from the Right Side",
+    "Resolve Simple Conflicts",
+    "Revert Conflict Resolution",
+    "Apply Merge Result",
+    "Cancel Merge",
+    "Compare Contents",
+    "Merge Settings",
+    "Automatically Apply Non-Conflicting Changes",
+    "Yours and Result",
+    "Result and Theirs",
+    "Yours and Theirs",
+    "Base and Yours",
+    "Base and Result",
+    "Base and Theirs",
+    "Accept",
+    "Resolve Using Yours",
+    "Resolve Using Theirs",
+    "Ignore",
+    "Resolve Automatically",
+    "Resolve Merge Change"
+   ],
+   "category": "Merge",
+   "icon": "refresh",
+   "iconVariants": [
+    "refresh",
+    "settings",
+    "copy",
+    "diff",
+    "diff-apply-left",
+    "diff-apply-all",
+    "diff-apply-right",
+    "diff-magic",
+    "diff-magic-toolbar",
+    "diff-remove",
+    "diff-revert",
+    "changelist"
+   ],
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "toggle": true,
+   "source": "src/features/vcs/mergeActions.ts:64",
+   "definedAt": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "category": "Tool Windows",
+   "keywords": [
+    "tool window",
+    "show",
+    "hide"
+   ],
+   "source": "src/workbench/toolwindows/actions.ts:160",
+   "definedAt": "src/workbench/toolwindows/actions.ts:160"
+  },
+  {
+   "category": "Window",
+   "when": "toolWindowFocus",
+   "keywords": [
+    "resize tool window",
+    "tool window size"
+   ],
+   "source": "src/workbench/toolwindows/actions.ts:247",
+   "definedAt": "src/workbench/toolwindows/actions.ts:247"
+  }
+ ]
+}

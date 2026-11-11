@@ -5,3457 +5,3457 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 
 **Overall: 0/3077 rows at parity, 0 partial.**
 
-| Section                                                | At parity | Partial | Total |
-| ------------------------------------------------------ | --------- | ------- | ----- |
-| Actions                                                | 0         | 0       | 763   |
-| Keymap ids with no statically registered action        | 0         | 0       | 51    |
-| Keymap presets                                         | 0         | 0       | 6     |
-| Context keys                                           | 0         | 0       | 83    |
-| Extension point `registerCloneSource`                  | 0         | 0       | 1     |
-| Extension point `registerCommitCheckProvider`          | 0         | 0       | 1     |
-| Extension point `registerDocumentIndexSync`            | 0         | 0       | 1     |
-| Extension point `registerEditorBanner`                 | 0         | 0       | 5     |
-| Extension point `registerEditorContribution`           | 0         | 0       | 32    |
-| Extension point `registerEditorDropHandler`            | 0         | 0       | 1     |
-| Editor kinds                                           | 0         | 0       | 19    |
-| Extension point `registerEndpointProvider`             | 0         | 0       | 2     |
-| Extension point `registerExtensionBindings`            | 0         | 0       | 1     |
-| Extension point `registerFileDropHandler`              | 0         | 0       | 2     |
-| File editor providers                                  | 0         | 0       | 4     |
-| Extension point `registerFontZoomSurface`              | 0         | 0       | 2     |
-| Extension point `registerGitLogChecks`                 | 0         | 0       | 1     |
-| Extension point `registerKeyClaim`                     | 0         | 0       | 12    |
-| Extension point `registerLanguageMode`                 | 0         | 0       | 1     |
-| Extension point `registerMenuGroup`                    | 0         | 0       | 25    |
-| Extension point `registerMenuSlotItem`                 | 0         | 0       | 2     |
-| Extension point `registerNavigationProvider`           | 0         | 0       | 1     |
-| Extension point `registerOccurrenceNavigator`          | 0         | 0       | 1     |
-| Overlays                                               | 0         | 0       | 56    |
-| Extension point `registerProjectViewRoot`              | 0         | 0       | 4     |
-| Extension point `registerRunAnythingProvider`          | 0         | 0       | 2     |
-| Extension point `registerRunConfigType`                | 0         | 0       | 27    |
-| Extension point `registerRunExecutor`                  | 0         | 0       | 2     |
-| Extension point `registerRunningProcessesProvider`     | 0         | 0       | 1     |
-| Extension point `registerSaveParticipant`              | 0         | 0       | 2     |
-| Extension point `registerServiceProvider`              | 0         | 0       | 3     |
-| Extension point `registerServiceView`                  | 0         | 0       | 3     |
-| Extension point `registerSoftWrapSurface`              | 0         | 0       | 1     |
-| Status bar items                                       | 0         | 0       | 19    |
-| Extension point `registerTextEditorWrapper`            | 0         | 0       | 3     |
-| Title bar items                                        | 0         | 0       | 5     |
-| Tool windows                                           | 0         | 0       | 32    |
-| Extension point `registerUndoHandler`                  | 0         | 0       | 1     |
-| Extension point `registerWorkbenchBanner`              | 0         | 0       | 1     |
-| Extension point `registerShellActions`                 | 0         | 0       | 1     |
-| Extension point `registerDevSamples`                   | 0         | 0       | 1     |
-| Settings pages                                         | 0         | 0       | 68    |
-| Features                                               | 0         | 0       | 43    |
-| Editor, platform, workbench and design-system modules  | 0         | 0       | 253   |
-| Design tokens, icons and locales                       | 0         | 0       | 9     |
-| Native shell modules (src-tauri)                       | 0         | 0       | 21    |
-| IPC commands                                           | 0         | 0       | 599   |
-| Backend events (IdeEvent)                              | 0         | 0       | 31    |
-| Plugin API interfaces (wit/)                           | 0         | 0       | 49    |
-| Behaviour specification: unit tests (vitest)           | 0         | 0       | 753   |
-| Behaviour specification: end-to-end specs (Playwright) | 0         | 0       | 70    |
+| Section | At parity | Partial | Total |
+|---|---|---|---|
+| Actions | 0 | 0 | 763 |
+| Keymap ids with no statically registered action | 0 | 0 | 51 |
+| Keymap presets | 0 | 0 | 6 |
+| Context keys | 0 | 0 | 83 |
+| Extension point `registerCloneSource` | 0 | 0 | 1 |
+| Extension point `registerCommitCheckProvider` | 0 | 0 | 1 |
+| Extension point `registerDocumentIndexSync` | 0 | 0 | 1 |
+| Extension point `registerEditorBanner` | 0 | 0 | 5 |
+| Extension point `registerEditorContribution` | 0 | 0 | 32 |
+| Extension point `registerEditorDropHandler` | 0 | 0 | 1 |
+| Editor kinds | 0 | 0 | 19 |
+| Extension point `registerEndpointProvider` | 0 | 0 | 2 |
+| Extension point `registerExtensionBindings` | 0 | 0 | 1 |
+| Extension point `registerFileDropHandler` | 0 | 0 | 2 |
+| File editor providers | 0 | 0 | 4 |
+| Extension point `registerFontZoomSurface` | 0 | 0 | 2 |
+| Extension point `registerGitLogChecks` | 0 | 0 | 1 |
+| Extension point `registerKeyClaim` | 0 | 0 | 12 |
+| Extension point `registerLanguageMode` | 0 | 0 | 1 |
+| Extension point `registerMenuGroup` | 0 | 0 | 25 |
+| Extension point `registerMenuSlotItem` | 0 | 0 | 2 |
+| Extension point `registerNavigationProvider` | 0 | 0 | 1 |
+| Extension point `registerOccurrenceNavigator` | 0 | 0 | 1 |
+| Overlays | 0 | 0 | 56 |
+| Extension point `registerProjectViewRoot` | 0 | 0 | 4 |
+| Extension point `registerRunAnythingProvider` | 0 | 0 | 2 |
+| Extension point `registerRunConfigType` | 0 | 0 | 27 |
+| Extension point `registerRunExecutor` | 0 | 0 | 2 |
+| Extension point `registerRunningProcessesProvider` | 0 | 0 | 1 |
+| Extension point `registerSaveParticipant` | 0 | 0 | 2 |
+| Extension point `registerServiceProvider` | 0 | 0 | 3 |
+| Extension point `registerServiceView` | 0 | 0 | 3 |
+| Extension point `registerSoftWrapSurface` | 0 | 0 | 1 |
+| Status bar items | 0 | 0 | 19 |
+| Extension point `registerTextEditorWrapper` | 0 | 0 | 3 |
+| Title bar items | 0 | 0 | 5 |
+| Tool windows | 0 | 0 | 32 |
+| Extension point `registerUndoHandler` | 0 | 0 | 1 |
+| Extension point `registerWorkbenchBanner` | 0 | 0 | 1 |
+| Extension point `registerShellActions` | 0 | 0 | 1 |
+| Extension point `registerDevSamples` | 0 | 0 | 1 |
+| Settings pages | 0 | 0 | 68 |
+| Features | 0 | 0 | 43 |
+| Editor, platform, workbench and design-system modules | 0 | 0 | 253 |
+| Design tokens, icons and locales | 0 | 0 | 9 |
+| Native shell modules (src-tauri) | 0 | 0 | 21 |
+| IPC commands | 0 | 0 | 599 |
+| Backend events (IdeEvent) | 0 | 0 | 31 |
+| Plugin API interfaces (wit/) | 0 | 0 | 49 |
+| Behaviour specification: unit tests (vitest) | 0 | 0 | 753 |
+| Behaviour specification: end-to-end specs (Playwright) | 0 | 0 | 70 |
 
 ## Actions (0/763 at parity)
 
 `(dynamic)` rows are actions whose id is built at run time (one per plugin command, tool, run configuration…).
 
-|     | Action id                                                           | intellij-macos binding                             | Source                                                  | Proof |
-| --- | ------------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------- | ----- |
-| [ ] | `(dynamic) src/features/dotnet/index.ts:58`                         |                                                    | src/features/dotnet/index.ts:58                         |       |
-| [ ] | `(dynamic) src/features/macros/index.ts:101`                        |                                                    | src/features/macros/index.ts:101                        |       |
-| [ ] | `(dynamic) src/features/plugins/points.tsx:199`                     |                                                    | src/features/plugins/points.tsx:199                     |       |
-| [ ] | `(dynamic) src/features/plugins/views/logActions.ts:35`             |                                                    | src/features/plugins/views/logActions.ts:35             |       |
-| [ ] | `(dynamic) src/features/plugins/views/serviceProvider.tsx:88`       |                                                    | src/features/plugins/views/serviceProvider.tsx:88       |       |
-| [ ] | `(dynamic) src/features/project-tree/actions.ts:167`                |                                                    | src/features/project-tree/actions.ts:167                |       |
-| [ ] | `(dynamic) src/features/project-tree/actions.ts:177`                |                                                    | src/features/project-tree/actions.ts:177                |       |
-| [ ] | `(dynamic) src/features/project-tree/actions.ts:189`                |                                                    | src/features/project-tree/actions.ts:189                |       |
-| [ ] | `(dynamic) src/features/run/externalTools.ts:164`                   |                                                    | src/features/run/externalTools.ts:164                   |       |
-| [ ] | `(dynamic) src/features/run/goActions.ts:86`                        |                                                    | src/features/run/goActions.ts:86                        |       |
-| [ ] | `(dynamic) src/features/run/services.tsx:620`                       |                                                    | src/features/run/services.tsx:620                       |       |
-| [ ] | `(dynamic) src/features/search/index.ts:476`                        |                                                    | src/features/search/index.ts:476                        |       |
-| [ ] | `(dynamic) src/features/search/index.ts:486`                        |                                                    | src/features/search/index.ts:486                        |       |
-| [ ] | `(dynamic) src/features/settings/pages/editor/colorScheme.tsx:1217` |                                                    | src/features/settings/pages/editor/colorScheme.tsx:1217 |       |
-| [ ] | `(dynamic) src/features/templates/index.ts:79`                      |                                                    | src/features/templates/index.ts:79                      |       |
-| [ ] | `(dynamic) src/features/vcs/mergeActions.ts:64`                     |                                                    | src/features/vcs/mergeActions.ts:64                     |       |
-| [ ] | `(dynamic) src/workbench/toolwindows/actions.ts:160`                |                                                    | src/workbench/toolwindows/actions.ts:160                |       |
-| [ ] | `(dynamic) src/workbench/toolwindows/actions.ts:247`                |                                                    | src/workbench/toolwindows/actions.ts:247                |       |
-| [ ] | `agents.addAgent`                                                   |                                                    | src/features/agents/index.ts:139                        |       |
-| [ ] | `agents.archiveTasks`                                               |                                                    | src/features/agents/taskActions.ts:152                  |       |
-| [ ] | `agents.copyReplyMarkdown`                                          |                                                    | src/features/agents/replyActions.ts:13                  |       |
-| [ ] | `agents.deleteTasks`                                                |                                                    | src/features/agents/taskActions.ts:172                  |       |
-| [ ] | `agents.dockTask`                                                   |                                                    | src/features/agents/taskActions.ts:107                  |       |
-| [ ] | `agents.findInConversation`                                         | `Meta+F`                                           | src/features/agents/index.ts:121                        |       |
-| [ ] | `agents.forkReply`                                                  |                                                    | src/features/agents/replyActions.ts:132                 |       |
-| [ ] | `agents.forkTask`                                                   |                                                    | src/features/agents/taskActions.ts:141                  |       |
-| [ ] | `agents.jumpToLatest`                                               |                                                    | src/features/agents/replyActions.ts:62                  |       |
-| [ ] | `agents.newTask`                                                    | `Meta+Shift+I`                                     | src/features/agents/index.ts:129                        |       |
-| [ ] | `agents.openSampleConversations`                                    |                                                    | src/features/agents/index.ts:51                         |       |
-| [ ] | `agents.openTask`                                                   |                                                    | src/features/agents/taskActions.ts:98                   |       |
-| [ ] | `agents.openTaskInEditor`                                           |                                                    | src/features/agents/taskActions.ts:89                   |       |
-| [ ] | `agents.quoteReply`                                                 |                                                    | src/features/agents/replyActions.ts:104                 |       |
-| [ ] | `agents.regenerateReply`                                            |                                                    | src/features/agents/replyActions.ts:117                 |       |
-| [ ] | `agents.renameTask`                                                 |                                                    | src/features/agents/taskActions.ts:123                  |       |
-| [ ] | `agents.retractMessage`                                             |                                                    | src/features/agents/replyActions.ts:73                  |       |
-| [ ] | `agents.sendToAgent`                                                |                                                    | src/features/agents/index.ts:148                        |       |
-| [ ] | `agents.showToolWindow`                                             |                                                    | src/features/agents/index.ts:162                        |       |
-| [ ] | `agents.unarchiveTasks`                                             |                                                    | src/features/agents/taskActions.ts:160                  |       |
-| [ ] | `agents.undockTask`                                                 |                                                    | src/features/agents/taskActions.ts:116                  |       |
-| [ ] | `agents.useEditor`                                                  |                                                    | src/features/agents/taskActions.ts:82                   |       |
-| [ ] | `agents.useToolWindow`                                              |                                                    | src/features/agents/taskActions.ts:75                   |       |
-| [ ] | `analyze.inspectCode`                                               |                                                    | src/features/analysis/index.ts:52                       |       |
-| [ ] | `analyze.inspectFile`                                               | `Alt+Shift+I`                                      | src/features/analysis/index.ts:61                       |       |
-| [ ] | `analyze.locateDuplicates`                                          |                                                    | src/features/analysis/index.ts:79                       |       |
-| [ ] | `analyze.stackTrace`                                                |                                                    | src/features/run/stackTrace.tsx:155                     |       |
-| [ ] | `app.about`                                                         |                                                    | src/features/app/appActions.ts:82                       |       |
-| [ ] | `app.checkForUpdates`                                               |                                                    | src/features/app/appActions.ts:62                       |       |
-| [ ] | `app.installCli`                                                    |                                                    | src/features/app/cliCommand.ts:58                       |       |
-| [ ] | `app.quit`                                                          |                                                    | src/features/app/appActions.ts:83                       |       |
-| [ ] | `app.restart`                                                       |                                                    | src/features/app/InvalidateCaches.tsx:134               |       |
-| [ ] | `app.uninstallCli`                                                  |                                                    | src/features/app/cliCommand.ts:65                       |       |
-| [ ] | `bookmarks.newList`                                                 |                                                    | src/features/search/index.ts:454                        |       |
-| [ ] | `bookmarks.toggleFileBookmark`                                      |                                                    | src/features/search/index.ts:433                        |       |
-| [ ] | `build.buildArtifacts`                                              |                                                    | src/features/build/index.ts:102                         |       |
-| [ ] | `build.buildModule`                                                 | `Meta+Shift+F9`                                    | src/features/build/index.ts:75                          |       |
-| [ ] | `build.buildProject`                                                | `Meta+F9`                                          | src/features/build/index.ts:55                          |       |
-| [ ] | `build.rebuildProject`                                              |                                                    | src/features/build/index.ts:89                          |       |
-| [ ] | `build.stop`                                                        |                                                    | src/features/build/index.ts:116                         |       |
-| [ ] | `code.addCaretNextOccurrence`                                       | `Ctrl+G`                                           | src/editor/core/actions.ts:663                          |       |
-| [ ] | `code.addCaretsToLineEnds`                                          | `Alt+Shift+G`                                      | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.applyPastedImports`                                           |                                                    | src/editor/lsp/importsOnPaste.ts:389                    |       |
-| [ ] | `code.applyQuickFix`                                                | `Alt+Shift+Enter`                                  | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.autoIndentLines`                                              | `Ctrl+Alt+I`                                       | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.cleanup`                                                      |                                                    | src/features/analysis/index.ts:71                       |       |
-| [ ] | `code.cleanupFile`                                                  |                                                    | src/editor/lsp/actions.ts:232                           |       |
-| [ ] | `code.collapseBlock`                                                | `Meta+Shift+.`                                     | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.collapseRecursively`                                          | `Meta+Alt+-`                                       | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.commentBlock`                                                 | `Meta+Alt+/`, `Ctrl+Shift+/`                       | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.commentLine`                                                  | `Meta+/`                                           | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.completeStatement`                                            | `Meta+Shift+Enter`                                 | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.completion`                                                   | `Ctrl+Space`                                       | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.cyclicExpandWord`                                             | `Alt+/`                                            | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.cyclicExpandWordBackward`                                     | `Alt+Shift+/`                                      | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.deleteLine`                                                   | `Meta+Backspace`                                   | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.duplicateLine`                                                | `Meta+D`                                           | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.expandRecursively`                                            | `Meta+Alt+=`                                       | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.expressionTypeInfo`                                           | `Ctrl+Shift+P`                                     | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.extendSelection`                                              | `Alt+Up`                                           | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.fold`                                                         | `Meta+-`                                           | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.foldAll`                                                      | `Meta+Shift+-`                                     | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.foldSelection`                                                | `Meta+.`                                           | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.foldToggle`                                                   |                                                    | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.generate`                                                     | `Meta+N`                                           | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.implementMethods`                                             | `Ctrl+I`                                           | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.insertLiveTemplate`                                           | `Meta+J`                                           | src/features/templates/index.ts:188                     |       |
-| [ ] | `code.joinLines`                                                    | `Ctrl+Shift+J`                                     | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.moveElementLeft`                                              | `Meta+Alt+Shift+Left`                              | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.moveElementRight`                                             | `Meta+Alt+Shift+Right`                             | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.moveLineDown`                                                 | `Alt+Shift+Down`                                   | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.moveLineUp`                                                   | `Alt+Shift+Up`                                     | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.moveStatementDown`                                            | `Meta+Shift+Down`                                  | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.moveStatementUp`                                              | `Meta+Shift+Up`                                    | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.optimizeImports`                                              | `Ctrl+Alt+O`                                       | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.optimizeImportsFile`                                          |                                                    | src/editor/lsp/actions.ts:245                           |       |
-| [ ] | `code.overrideMethods`                                              | `Ctrl+O`                                           | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.parameterInfo`                                                | `Meta+P`                                           | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.pasteAsPlainText`                                             | `Meta+Alt+Shift+V`                                 | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.pasteFromHistory`                                             | `Meta+Shift+V`                                     | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.quickDefinition`                                              | `Alt+Space`, `Meta+Y`                              | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.quickDocumentation`                                           | `F1`, `Ctrl+J`                                     | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.quickTypeDefinition`                                          |                                                    | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.reformat`                                                     | `Meta+Alt+L`                                       | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.reformatDialog`                                               | `Meta+Alt+Shift+L`                                 | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.reformatFile`                                                 |                                                    | src/editor/lsp/actions.ts:224                           |       |
-| [ ] | `code.reformatWithOxfmt`                                            |                                                    | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.reformatWithPrettier`                                         |                                                    | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.reformatWithRuff`                                             |                                                    | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.reverseLines`                                                 |                                                    | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.selectAllOccurrences`                                         | `Ctrl+Meta+G`                                      | src/editor/core/actions.ts:663                          |       |
-| [ ] | `code.showErrorDescription`                                         | `Meta+F1`                                          | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.showIntentions`                                               | `Alt+Enter`                                        | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `code.shrinkSelection`                                              | `Alt+Down`                                         | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.sortLines`                                                    |                                                    | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.splitLine`                                                    | `Meta+Enter`                                       | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.startNewLine`                                                 | `Shift+Enter`                                      | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.startNewLineBefore`                                           | `Meta+Alt+Enter`                                   | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.surroundWith`                                                 | `Meta+Alt+T`                                       | src/features/templates/index.ts:199                     |       |
-| [ ] | `code.surroundWithLiveTemplate`                                     | `Meta+Alt+J`                                       | src/features/templates/index.ts:212                     |       |
-| [ ] | `code.toggleCase`                                                   | `Meta+Shift+U`                                     | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.unfold`                                                       | `Meta+=`                                           | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.unfoldAll`                                                    | `Meta+Shift+=`                                     | src/editor/core/actions.ts:650                          |       |
-| [ ] | `code.unselectOccurrence`                                           | `Ctrl+Shift+G`                                     | src/editor/core/actions.ts:663                          |       |
-| [ ] | `code.unwrap`                                                       | `Meta+Shift+Delete`                                | src/editor/core/actions.ts:650                          |       |
-| [ ] | `coverage.hide`                                                     |                                                    | src/features/coverage/index.ts:76                       |       |
-| [ ] | `coverage.importReport`                                             |                                                    | src/features/coverage/index.ts:55                       |       |
-| [ ] | `coverage.manageReports`                                            | `Meta+Alt+F6`                                      | src/features/coverage/index.ts:66                       |       |
-| [ ] | `coverage.show`                                                     |                                                    | src/features/coverage/index.ts:85                       |       |
-| [ ] | `db.collapseAll`                                                    |                                                    | src/features/database/treeActions.ts:471                |       |
-| [ ] | `db.copyReference`                                                  | `Meta+Alt+Shift+C`                                 | src/features/database/treeActions.ts:378                |       |
-| [ ] | `db.ddlToClipboard`                                                 | `Meta+Alt+Shift+G`                                 | src/features/database/treeActions.ts:403                |       |
-| [ ] | `db.ddlToConsole`                                                   | `Meta+Alt+Shift+B`                                 | src/features/database/treeActions.ts:414                |       |
-| [ ] | `db.disconnect`                                                     | `Meta+F2`                                          | src/features/database/treeActions.ts:224                |       |
-| [ ] | `db.drop`                                                           | `Delete`, `Meta+Backspace`                         | src/features/database/treeActions.ts:299                |       |
-| [ ] | `db.duplicateSource`                                                | `Meta+D`                                           | src/features/database/treeActions.ts:393                |       |
-| [ ] | `db.editData`                                                       | `F4`                                               | src/features/database/treeActions.ts:253                |       |
-| [ ] | `db.execute`                                                        | `Meta+Enter`                                       | src/features/database/index.ts:184                      |       |
-| [ ] | `db.explainPlan`                                                    |                                                    | src/features/database/index.ts:225                      |       |
-| [ ] | `db.goToColumn`                                                     | `Meta+F12`                                         | src/features/database/index.ts:201                      |       |
-| [ ] | `db.goToDdl`                                                        | `Meta+B`                                           | src/features/database/treeActions.ts:264                |       |
-| [ ] | `db.goToReferencedTable`                                            |                                                    | src/features/database/treeActions.ts:447                |       |
-| [ ] | `db.importData`                                                     |                                                    | src/features/database/treeActions.ts:367                |       |
-| [ ] | `db.jumpToConsole`                                                  | `Meta+Shift+F10`                                   | src/features/database/treeActions.ts:240                |       |
-| [ ] | `db.modifyTable`                                                    | `Meta+F6`                                          | src/features/database/treeActions.ts:323                |       |
-| [ ] | `db.new`                                                            | `Meta+N`                                           | src/features/database/treeActions.ts:456                |       |
-| [ ] | `db.newColumn`                                                      |                                                    | src/features/database/treeActions.ts:355                |       |
-| [ ] | `db.newDataSource`                                                  |                                                    | src/features/database/index.ts:154                      |       |
-| [ ] | `db.newTable`                                                       |                                                    | src/features/database/treeActions.ts:341                |       |
-| [ ] | `db.openConsole`                                                    | `Meta+Shift+L`                                     | src/features/database/index.ts:166                      |       |
-| [ ] | `db.pluginConnect`                                                  |                                                    | src/features/database/index.ts:128                      |       |
-| [ ] | `db.properties`                                                     | `Shift+Enter`                                      | src/features/database/treeActions.ts:206                |       |
-| [ ] | `db.queryHistory`                                                   |                                                    | src/features/database/index.ts:239                      |       |
-| [ ] | `db.quickDoc`                                                       | `F1`                                               | src/features/database/treeActions.ts:277                |       |
-| [ ] | `db.refresh`                                                        | `Meta+R`                                           | src/features/database/treeActions.ts:217                |       |
-| [ ] | `db.rename`                                                         | `Shift+F6`                                         | src/features/database/treeActions.ts:286                |       |
-| [ ] | `db.revertChanges`                                                  | `Meta+Alt+Z`                                       | src/features/database/index.ts:217                      |       |
-| [ ] | `db.runSqlScript`                                                   |                                                    | src/features/database/treeActions.ts:425                |       |
-| [ ] | `db.separateProceduresAndFunctions`                                 |                                                    | src/features/database/treeActions.ts:466                |       |
-| [ ] | `db.showToolWindow`                                                 |                                                    | src/features/database/index.ts:145                      |       |
-| [ ] | `db.sqlScript`                                                      |                                                    | src/features/database/treeActions.ts:437                |       |
-| [ ] | `db.submitChanges`                                                  | `Meta+Enter`                                       | src/features/database/index.ts:209                      |       |
-| [ ] | `db.truncate`                                                       |                                                    | src/features/database/treeActions.ts:313                |       |
-| [ ] | `debug`                                                             |                                                    | src/features/run/services.tsx:594                       |       |
-| [ ] | `debug.attach`                                                      |                                                    | src/features/debugger/actions.ts:450                    |       |
-| [ ] | `debug.attachToProcess`                                             | `Alt+Shift+F5`                                     | src/features/debugger/actions.ts:689                    |       |
-| [ ] | `debug.browseConsoleHistory`                                        | `Meta+Alt+E`                                       | src/features/debugger/actions.ts:853                    |       |
-| [ ] | `debug.cancelHotSwap`                                               |                                                    | src/features/debugger/actions.ts:507                    |       |
-| [ ] | `debug.evaluate`                                                    | `Alt+F8`                                           | src/features/debugger/actions.ts:846                    |       |
-| [ ] | `debug.forceRunToCursor`                                            | `Meta+Alt+F9`                                      | src/features/debugger/actions.ts:713                    |       |
-| [ ] | `debug.forceStepInto`                                               | `Alt+Shift+F7`                                     | src/features/debugger/actions.ts:604                    |       |
-| [ ] | `debug.forceStepOver`                                               | `Alt+Shift+F8`                                     | src/features/debugger/actions.ts:588                    |       |
-| [ ] | `debug.hotReload`                                                   |                                                    | src/features/debugger/actions.ts:561                    |       |
-| [ ] | `debug.hotRestart`                                                  |                                                    | src/features/debugger/actions.ts:573                    |       |
-| [ ] | `debug.jumpToSource`                                                | `F4`, `Meta+Down`                                  | src/features/debugger/actions.ts:672                    |       |
-| [ ] | `debug.muteBreakpoints`                                             |                                                    | src/features/debugger/actions.ts:829                    |       |
-| [ ] | `debug.pause`                                                       |                                                    | src/features/debugger/actions.ts:544                    |       |
-| [ ] | `debug.pluginStart`                                                 |                                                    | src/features/debugger/actions.ts:403                    |       |
-| [ ] | `debug.quickEvaluate`                                               | `Meta+Alt+F8`, `Alt+Button1`                       | src/features/debugger/actions.ts:863                    |       |
-| [ ] | `debug.reloadChangedClasses`                                        |                                                    | src/features/debugger/actions.ts:491                    |       |
-| [ ] | `debug.removeAllBreakpoints`                                        |                                                    | src/features/debugger/actions.ts:837                    |       |
-| [ ] | `debug.rerun`                                                       | `Meta+R`                                           | src/features/debugger/actions.ts:516                    |       |
-| [ ] | `debug.resetFrame`                                                  |                                                    | src/features/debugger/actions.ts:641                    |       |
-| [ ] | `debug.resume`                                                      | `Meta+Alt+R`, `F9`                                 | src/features/debugger/actions.ts:529                    |       |
-| [ ] | `debug.runToCursor`                                                 | `Alt+F9`                                           | src/features/debugger/actions.ts:697                    |       |
-| [ ] | `debug.setValue`                                                    | `F2`                                               | src/features/debugger/actions.ts:663                    |       |
-| [ ] | `debug.showExecutionPoint`                                          | `Alt+F10`                                          | src/features/debugger/actions.ts:630                    |       |
-| [ ] | `debug.showToolWindow`                                              |                                                    | src/features/debugger/actions.ts:871                    |       |
-| [ ] | `debug.smartStepInto`                                               | `Shift+F7`                                         | src/features/debugger/actions.ts:621                    |       |
-| [ ] | `debug.startConfig`                                                 |                                                    | src/features/debugger/actions.ts:442                    |       |
-| [ ] | `debug.stepInto`                                                    | `F7`                                               | src/features/debugger/actions.ts:386                    |       |
-| [ ] | `debug.stepOut`                                                     | `Shift+F8`                                         | src/features/debugger/actions.ts:386                    |       |
-| [ ] | `debug.stepOver`                                                    | `F8`                                               | src/features/debugger/actions.ts:386                    |       |
-| [ ] | `debug.stop`                                                        |                                                    | src/features/debugger/actions.ts:480                    |       |
-| [ ] | `debug.toggleBreakpoint`                                            | `Meta+F8`                                          | src/features/debugger/actions.ts:730                    |       |
-| [ ] | `debug.toggleFieldWatchpoint`                                       |                                                    | src/features/debugger/actions.ts:795                    |       |
-| [ ] | `debug.toggleMethodBreakpoint`                                      |                                                    | src/features/debugger/actions.ts:772                    |       |
-| [ ] | `debug.toggleTemporaryBreakpoint`                                   | `Meta+Alt+Shift+F8`                                | src/features/debugger/actions.ts:757                    |       |
-| [ ] | `debug.viewBreakpoints`                                             | `Meta+Shift+F8`                                    | src/features/debugger/actions.ts:818                    |       |
-| [ ] | `delete`                                                            |                                                    | src/features/services/docker.tsx:216                    |       |
-| [ ] | `deployment.browseRemoteHost`                                       |                                                    | src/features/deployment/actions.tsx:501                 |       |
-| [ ] | `deployment.configure`                                              |                                                    | src/features/deployment/actions.tsx:521                 |       |
-| [ ] | `deployment.deleteFromServer`                                       |                                                    | src/features/deployment/actions.tsx:481                 |       |
-| [ ] | `deployment.downloadFrom`                                           |                                                    | src/features/deployment/actions.tsx:445                 |       |
-| [ ] | `deployment.downloadFromDefault`                                    |                                                    | src/features/deployment/actions.tsx:436                 |       |
-| [ ] | `deployment.openInBrowser`                                          |                                                    | src/features/deployment/actions.tsx:511                 |       |
-| [ ] | `deployment.syncWith`                                               |                                                    | src/features/deployment/actions.tsx:454                 |       |
-| [ ] | `deployment.syncWithDefault`                                        |                                                    | src/features/deployment/actions.tsx:469                 |       |
-| [ ] | `deployment.toggleAutoUpload`                                       |                                                    | src/features/deployment/actions.tsx:491                 |       |
-| [ ] | `deployment.uploadTo`                                               |                                                    | src/features/deployment/actions.tsx:427                 |       |
-| [ ] | `deployment.uploadToDefault`                                        |                                                    | src/features/deployment/actions.tsx:417                 |       |
-| [ ] | `diff.applyLeftSide`                                                | `Ctrl+Meta+Right`                                  | src/features/vcs/compare.tsx:193                        |       |
-| [ ] | `diff.applyRightSide`                                               | `Ctrl+Meta+Left`                                   | src/features/vcs/compare.tsx:202                        |       |
-| [ ] | `diff.compareDirectories`                                           |                                                    | src/features/vcs/compare.tsx:251                        |       |
-| [ ] | `diff.compareFiles`                                                 |                                                    | src/features/vcs/compare.tsx:265                        |       |
-| [ ] | `diff.compareTexts`                                                 |                                                    | src/features/vcs/compare.tsx:298                        |       |
-| [ ] | `diff.compareWith`                                                  |                                                    | src/features/vcs/compare.tsx:219                        |       |
-| [ ] | `diff.compareWithClipboard`                                         |                                                    | src/features/vcs/compare.tsx:277                        |       |
-| [ ] | `diff.jumpToSource`                                                 | `F4`, `Meta+Down`                                  | src/features/vcs/compare.tsx:211                        |       |
-| [ ] | `diff.nextDifference`                                               | `F7`                                               | src/features/vcs/compare.tsx:152                        |       |
-| [ ] | `diff.nextFile`                                                     | `Ctrl+Shift+Right`                                 | src/features/vcs/compare.tsx:177                        |       |
-| [ ] | `diff.prevDifference`                                               | `Shift+F7`                                         | src/features/vcs/compare.tsx:160                        |       |
-| [ ] | `diff.prevFile`                                                     | `Ctrl+Shift+Left`                                  | src/features/vcs/compare.tsx:185                        |       |
-| [ ] | `diff.showSettings`                                                 | `Meta+Shift+D`                                     | src/features/vcs/compare.tsx:168                        |       |
-| [ ] | `docker.execShell`                                                  |                                                    | src/features/services/index.ts:228                      |       |
-| [ ] | `docker.inspect`                                                    |                                                    | src/features/services/index.ts:201                      |       |
-| [ ] | `docker.openLogInEditor`                                            |                                                    | src/features/services/index.ts:168                      |       |
-| [ ] | `docker.prune`                                                      |                                                    | src/features/services/index.ts:251                      |       |
-| [ ] | `docker.pullImage`                                                  |                                                    | src/features/services/index.ts:240                      |       |
-| [ ] | `docker.refresh`                                                    |                                                    | src/features/services/index.ts:107                      |       |
-| [ ] | `docker.remove`                                                     |                                                    | src/features/services/index.ts:139                      |       |
-| [ ] | `docker.restart`                                                    |                                                    | src/features/services/index.ts:131                      |       |
-| [ ] | `docker.showDashboard`                                              |                                                    | src/features/services/index.ts:147                      |       |
-| [ ] | `docker.showLayers`                                                 |                                                    | src/features/services/index.ts:190                      |       |
-| [ ] | `docker.showLog`                                                    |                                                    | src/features/services/index.ts:158                      |       |
-| [ ] | `docker.showProcesses`                                              |                                                    | src/features/services/index.ts:179                      |       |
-| [ ] | `docker.start`                                                      |                                                    | src/features/services/index.ts:115                      |       |
-| [ ] | `docker.stop`                                                       |                                                    | src/features/services/index.ts:123                      |       |
-| [ ] | `docker.toggleStoppedContainers`                                    |                                                    | src/features/services/index.ts:212                      |       |
-| [ ] | `docker.toggleUntaggedImages`                                       |                                                    | src/features/services/index.ts:220                      |       |
-| [ ] | `dotnet.cancel`                                                     |                                                    | src/features/dotnet/index.ts:47                         |       |
-| [ ] | `dotnet.discover`                                                   |                                                    | src/features/dotnet/index.ts:92                         |       |
-| [ ] | `dotnet.installTrx`                                                 |                                                    | src/features/dotnet/index.ts:108                        |       |
-| [ ] | `dotnet.packageChange`                                              |                                                    | src/features/dotnet/index.ts:82                         |       |
-| [ ] | `dotnet.packages`                                                   |                                                    | src/features/dotnet/index.ts:65                         |       |
-| [ ] | `dotnet.reload`                                                     |                                                    | src/features/dotnet/index.ts:40                         |       |
-| [ ] | `dotnet.search`                                                     |                                                    | src/features/dotnet/index.ts:72                         |       |
-| [ ] | `dotnet.select`                                                     |                                                    | src/features/dotnet/index.ts:48                         |       |
-| [ ] | `dotnet.show`                                                       |                                                    | src/features/dotnet/index.ts:30                         |       |
-| [ ] | `dotnet.test`                                                       |                                                    | src/features/dotnet/index.ts:99                         |       |
-| [ ] | `edit.copy`                                                         |                                                    | src/features/app/appActions.ts:74                       |       |
-| [ ] | `edit.cut`                                                          |                                                    | src/features/app/appActions.ts:74                       |       |
-| [ ] | `edit.paste`                                                        |                                                    | src/features/app/appActions.ts:74                       |       |
-| [ ] | `edit.redo`                                                         |                                                    | src/features/app/appActions.ts:74                       |       |
-| [ ] | `edit.selectAll`                                                    |                                                    | src/features/app/appActions.ts:74                       |       |
-| [ ] | `edit.undo`                                                         |                                                    | src/features/app/appActions.ts:74                       |       |
-| [ ] | `editor.addOrRemoveCaret`                                           | `Alt+Shift+Button1`                                | src/editor/core/actions.ts:809                          |       |
-| [ ] | `editor.changeSplitOrientation`                                     |                                                    | src/editor/core/actions.ts:1145                         |       |
-| [ ] | `editor.cloneCaretAbove`                                            | `Alt Alt+Up`                                       | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.cloneCaretBelow`                                            | `Alt Alt+Down`                                     | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.closeAllTabs`                                               |                                                    | src/editor/core/actions.ts:1053                         |       |
-| [ ] | `editor.closeOtherTabs`                                             |                                                    | src/editor/core/actions.ts:1043                         |       |
-| [ ] | `editor.closeTab`                                                   | `Meta+W`                                           | src/editor/core/actions.ts:1033                         |       |
-| [ ] | `editor.codeBlockEnd`                                               |                                                    | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.codeBlockEndWithSelection`                                  |                                                    | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.codeBlockStart`                                             | `Meta+Alt+[`                                       | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.codeBlockStartWithSelection`                                | `Meta+Alt+Shift+[`                                 | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.contextInfo`                                                | `Ctrl+Shift+Q`                                     | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.copyPath`                                                   |                                                    | src/editor/core/actions.ts:1162                         |       |
-| [ ] | `editor.copyPathReference`                                          | `Meta+Shift+C`                                     | src/editor/core/actions.ts:1175                         |       |
-| [ ] | `editor.copyPathWithLineNumber`                                     |                                                    | src/editor/core/actions.ts:1184                         |       |
-| [ ] | `editor.copyReference`                                              | `Meta+Alt+Shift+C`                                 | src/editor/core/actions.ts:721                          |       |
-| [ ] | `editor.decreaseFontSize`                                           | `Alt+Shift+,`                                      | src/editor/core/actions.ts:916                          |       |
-| [ ] | `editor.encodings.toggleNativeToAscii`                              |                                                    | src/features/settings/nativeToAscii.ts:10               |       |
-| [ ] | `editor.increaseFontSize`                                           | `Alt+Shift+.`                                      | src/editor/core/actions.ts:908                          |       |
-| [ ] | `editor.inlineCompletion.accept`                                    | `Tab`                                              | src/editor/lsp/inlineCompletion.ts:297                  |       |
-| [ ] | `editor.inlineCompletion.acceptWord`                                | `Meta+Right`                                       | src/editor/lsp/inlineCompletion.ts:297                  |       |
-| [ ] | `editor.inlineCompletion.dismiss`                                   | `Escape`                                           | src/editor/lsp/inlineCompletion.ts:297                  |       |
-| [ ] | `editor.inlineCompletion.next`                                      |                                                    | src/editor/lsp/inlineCompletion.ts:297                  |       |
-| [ ] | `editor.inlineCompletion.previous`                                  | `Alt+[`                                            | src/editor/lsp/inlineCompletion.ts:297                  |       |
-| [ ] | `editor.inlineCompletion.trigger`                                   | `Alt+\\`                                           | src/editor/lsp/inlineCompletion.ts:305                  |       |
-| [ ] | `editor.matchBrace`                                                 | `Ctrl+M`                                           | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.moveToOppositeGroup`                                        |                                                    | src/editor/core/actions.ts:1119                         |       |
-| [ ] | `editor.nextSplitter`                                               | `Alt+Tab`                                          | src/editor/core/actions.ts:1103                         |       |
-| [ ] | `editor.nextTab`                                                    | `Ctrl+Right`                                       | src/editor/core/actions.ts:1079                         |       |
-| [ ] | `editor.openInOppositeGroup`                                        |                                                    | src/editor/core/actions.ts:1152                         |       |
-| [ ] | `editor.pasteHistory.paste`                                         | `Enter`                                            | src/editor/core/view/PasteHistoryDialog.tsx:41          |       |
-| [ ] | `editor.pasteHistory.remove`                                        | `Delete`, `Backspace`                              | src/editor/core/view/PasteHistoryDialog.tsx:49          |       |
-| [ ] | `editor.pinTab`                                                     |                                                    | src/editor/core/actions.ts:1062                         |       |
-| [ ] | `editor.prevSplitter`                                               | `Alt+Shift+Tab`                                    | src/editor/core/actions.ts:1111                         |       |
-| [ ] | `editor.prevTab`                                                    | `Ctrl+Left`, `Meta+Shift+[`                        | src/editor/core/actions.ts:1080                         |       |
-| [ ] | `editor.reopenClosedTab`                                            |                                                    | src/editor/core/actions.ts:1073                         |       |
-| [ ] | `editor.resetFontSize`                                              |                                                    | src/editor/core/actions.ts:894                          |       |
-| [ ] | `editor.scrollToCenter`                                             | `Ctrl+L`                                           | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.showHint`                                                   |                                                    | src/editor/lsp/actions.ts:353                           |       |
-| [ ] | `editor.splitDown`                                                  |                                                    | src/editor/core/actions.ts:1095                         |       |
-| [ ] | `editor.splitRight`                                                 | `Meta+\\`                                          | src/editor/core/actions.ts:1087                         |       |
-| [ ] | `editor.toggleColumnSelection`                                      | `Meta+Shift+8`                                     | src/editor/core/actions.ts:849                          |       |
-| [ ] | `editor.toggleInsertState`                                          | `Insert`                                           | src/editor/core/actions.ts:650                          |       |
-| [ ] | `editor.toggleRainbowBrackets`                                      |                                                    | src/editor/core/actions.ts:632                          |       |
-| [ ] | `editor.toggleSemanticHighlighting`                                 |                                                    | src/editor/core/actions.ts:632                          |       |
-| [ ] | `editor.toggleSoftWrap`                                             |                                                    | src/editor/core/actions.ts:736                          |       |
-| [ ] | `editor.toggleZen`                                                  |                                                    | src/workbench/distractionFree.ts:103                    |       |
-| [ ] | `editor.unsplit`                                                    |                                                    | src/editor/core/actions.ts:1129                         |       |
-| [ ] | `editor.unsplitAll`                                                 |                                                    | src/editor/core/actions.ts:1138                         |       |
-| [ ] | `emmet.updateTag`                                                   |                                                    | src/features/templates/index.ts:225                     |       |
-| [ ] | `file.closeProject`                                                 |                                                    | src/workbench/shellActions.ts:66                        |       |
-| [ ] | `file.exportSettings`                                               |                                                    | src/features/app/projectActions.ts:202                  |       |
-| [ ] | `file.importSettings`                                               |                                                    | src/features/app/projectActions.ts:209                  |       |
-| [ ] | `file.invalidateCaches`                                             |                                                    | src/features/app/InvalidateCaches.tsx:126               |       |
-| [ ] | `file.new`                                                          |                                                    | src/features/project-tree/actions.ts:260                |       |
-| [ ] | `file.newProject`                                                   |                                                    | src/features/app/projectActions.ts:186                  |       |
-| [ ] | `file.newProjectsSettings`                                          |                                                    | src/features/settings/index.ts:73                       |       |
-| [ ] | `file.newScratchFile`                                               | `Meta+Shift+N`                                     | src/features/scratch/index.ts:53                        |       |
-| [ ] | `file.openFile`                                                     |                                                    | src/features/app/windows.ts:472                         |       |
-| [ ] | `file.openInNewWindow`                                              |                                                    | src/features/app/windows.ts:460                         |       |
-| [ ] | `file.openPaths`                                                    |                                                    | src/features/app/windows.ts:483                         |       |
-| [ ] | `file.openProject`                                                  | `Meta+Shift+Alt+O`                                 | src/workbench/shellActions.ts:58                        |       |
-| [ ] | `file.openProjectPath`                                              |                                                    | src/features/app/windows.ts:511                         |       |
-| [ ] | `file.openRecent`                                                   |                                                    | src/features/welcome/index.ts:27                        |       |
-| [ ] | `file.openRecentProject`                                            |                                                    | src/features/app/windows.ts:502                         |       |
-| [ ] | `file.overrideFileType`                                             |                                                    | src/features/settings/fileTypesRuntime.ts:109           |       |
-| [ ] | `file.projectStructure`                                             | `Meta+;`                                           | src/features/settings/index.ts:129                      |       |
-| [ ] | `file.reloadAllFromDisk`                                            |                                                    | src/editor/core/actions.ts:879                          |       |
-| [ ] | `file.reloadFromDisk`                                               | `Meta+Alt+Y`                                       | src/editor/core/actions.ts:861                          |       |
-| [ ] | `file.renameProject`                                                |                                                    | src/features/app/projectActions.ts:194                  |       |
-| [ ] | `file.revertFileTypeOverride`                                       |                                                    | src/features/settings/fileTypesRuntime.ts:119           |       |
-| [ ] | `file.save`                                                         | `Meta+S`                                           | src/editor/core/actions.ts:1199                         |       |
-| [ ] | `file.settings`                                                     | `Meta+,`                                           | src/features/settings/index.ts:65                       |       |
-| [ ] | `file.togglePowerSave`                                              |                                                    | src/features/app/projectActions.ts:216                  |       |
-| [ ] | `file.toggleReadOnly`                                               |                                                    | src/editor/core/actions.ts:924                          |       |
-| [ ] | `find.field.newLine`                                                | `Meta+Shift+Enter`                                 | src/workbench/shellActions.ts:133                       |       |
-| [ ] | `find.field.recentSearches`                                         | `Alt+Down`                                         | src/workbench/shellActions.ts:141                       |       |
-| [ ] | `find.highlightUsages`                                              | `Meta+Shift+F7`                                    | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `find.inFile`                                                       | `Meta+F`                                           | src/editor/core/actions.ts:951                          |       |
-| [ ] | `find.inPath`                                                       | `Meta+Shift+F`                                     | src/features/search/index.ts:341                        |       |
-| [ ] | `find.next`                                                         | `Meta+G`                                           | src/editor/core/actions.ts:967                          |       |
-| [ ] | `find.openInWindow`                                                 | `Alt+F7`                                           | src/editor/core/actions.ts:935                          |       |
-| [ ] | `find.popup.nextResult`                                             | `Meta+G`                                           | src/features/search/index.ts:389                        |       |
-| [ ] | `find.popup.openResult`                                             | `F4`, `Meta+Down`                                  | src/features/search/index.ts:389                        |       |
-| [ ] | `find.popup.previousResult`                                         | `Meta+Shift+G`                                     | src/features/search/index.ts:389                        |       |
-| [ ] | `find.popup.recentSearches`                                         | `Alt+Down`                                         | src/features/search/index.ts:389                        |       |
-| [ ] | `find.previous`                                                     | `Meta+Shift+G`                                     | src/editor/core/actions.ts:975                          |       |
-| [ ] | `find.replaceInFile`                                                | `Meta+R`                                           | src/editor/core/actions.ts:959                          |       |
-| [ ] | `find.replaceInPath`                                                | `Meta+Shift+R`                                     | src/features/search/index.ts:370                        |       |
-| [ ] | `find.replaceStructural`                                            |                                                    | src/features/analysis/index.ts:96                       |       |
-| [ ] | `find.rerun`                                                        | `Meta+R`                                           | src/features/search/index.ts:353                        |       |
-| [ ] | `find.scrollToResults`                                              |                                                    | src/editor/core/actions.ts:943                          |       |
-| [ ] | `find.showUsageResults`                                             |                                                    | src/features/code-insight/index.ts:110                  |       |
-| [ ] | `find.showUsages`                                                   | `Meta+Alt+F7`                                      | src/features/code-insight/index.ts:94                   |       |
-| [ ] | `find.structural`                                                   |                                                    | src/features/analysis/index.ts:87                       |       |
-| [ ] | `find.usages`                                                       | `Alt+F7`                                           | src/features/code-insight/index.ts:93                   |       |
-| [ ] | `github.pullRequest.diff.addComment`                                |                                                    | src/features/github/diff/index.ts:36                    |       |
-| [ ] | `github.pullRequest.diff.addMultilineComment`                       |                                                    | src/features/github/diff/index.ts:45                    |       |
-| [ ] | `github.pullRequest.diff.nextComment`                               |                                                    | src/features/github/diff/index.ts:63                    |       |
-| [ ] | `github.pullRequest.diff.previousComment`                           |                                                    | src/features/github/diff/index.ts:53                    |       |
-| [ ] | `github.pullRequest.diff.refreshReview`                             |                                                    | src/features/github/diff/index.ts:73                    |       |
-| [ ] | `github.pullRequest.reviewMode`                                     |                                                    | src/features/github/index.ts:240                        |       |
-| [ ] | `github.pullRequest.reviewMode.showDiff`                            |                                                    | src/features/github/reviewMode/index.ts:136             |       |
-| [ ] | `github.pullRequest.showInToolWindow`                               |                                                    | src/features/github/index.ts:222                        |       |
-| [ ] | `github.pullRequest.updateBranch`                                   |                                                    | src/features/github/index.ts:231                        |       |
-| [ ] | `gradle.analyzeDependencies`                                        |                                                    | src/features/build-tools/index.ts:409                   |       |
-| [ ] | `gradle.cancelReload`                                               |                                                    | src/features/build-tools/index.ts:420                   |       |
-| [ ] | `gradle.collapseAll`                                                |                                                    | src/features/build-tools/index.ts:462                   |       |
-| [ ] | `gradle.executeTask`                                                |                                                    | src/features/build-tools/index.ts:429                   |       |
-| [ ] | `gradle.expandAll`                                                  |                                                    | src/features/build-tools/index.ts:453                   |       |
-| [ ] | `gradle.linkProjects`                                               |                                                    | src/features/build-tools/index.ts:268                   |       |
-| [ ] | `gradle.reload`                                                     |                                                    | src/features/build-tools/index.ts:396                   |       |
-| [ ] | `gradle.toggleOffline`                                              |                                                    | src/features/build-tools/index.ts:442                   |       |
-| [ ] | `gradle.unlinkProjects`                                             |                                                    | src/features/build-tools/index.ts:279                   |       |
-| [ ] | `graphql.addConfiguration`                                          |                                                    | src/features/graphql/index.ts:66                        |       |
-| [ ] | `graphql.editConfiguration`                                         |                                                    | src/features/graphql/index.ts:76                        |       |
-| [ ] | `graphql.introspect`                                                |                                                    | src/features/graphql/index.ts:86                        |       |
-| [ ] | `graphql.restartDiscovery`                                          |                                                    | src/features/graphql/index.ts:99                        |       |
-| [ ] | `graphql.runQuery`                                                  | `Meta+Enter`                                       | src/features/graphql/index.ts:109                       |       |
-| [ ] | `graphql.showToolWindow`                                            |                                                    | src/features/graphql/index.ts:57                        |       |
-| [ ] | `help.keymapReference`                                              |                                                    | src/features/app/appActions.ts:84                       |       |
-| [ ] | `help.showLog`                                                      |                                                    | src/features/app/appActions.ts:92                       |       |
-| [ ] | `http.generateSpringControllerRequests`                             |                                                    | src/features/http-client/index.ts:196                   |       |
-| [ ] | `http.generateSpringRequest`                                        |                                                    | src/features/http-client/index.ts:187                   |       |
-| [ ] | `http.newRequest`                                                   |                                                    | src/features/http-client/index.ts:172                   |       |
-| [ ] | `http.openEndpoint`                                                 |                                                    | src/features/http-client/index.ts:144                   |       |
-| [ ] | `http.runAll`                                                       |                                                    | src/features/http-client/index.ts:161                   |       |
-| [ ] | `http.runRequest`                                                   | `Meta+Enter`                                       | src/features/http-client/index.ts:153                   |       |
-| [ ] | `http.showToolWindow`                                               |                                                    | src/features/http-client/index.ts:205                   |       |
-| [ ] | `ide.toggleMode`                                                    | `Ctrl+Alt+Shift+M`                                 | src/features/app/projectActions.ts:176                  |       |
-| [ ] | `image.actualSize`                                                  | `Meta+/`                                           | src/features/viewers/index.ts:39                        |       |
-| [ ] | `image.fitToWindow`                                                 |                                                    | src/features/viewers/index.ts:39                        |       |
-| [ ] | `image.toggleChessboard`                                            |                                                    | src/features/viewers/index.ts:39                        |       |
-| [ ] | `image.zoomIn`                                                      | `Meta+=`                                           | src/features/viewers/index.ts:39                        |       |
-| [ ] | `image.zoomOut`                                                     | `Meta+-`                                           | src/features/viewers/index.ts:39                        |       |
-| [ ] | `java.downloadJdk`                                                  |                                                    | src/features/tools/jdk.ts:116                           |       |
-| [ ] | `layout.delete`                                                     |                                                    | src/workbench/toolwindows/actions.ts:123                |       |
-| [ ] | `layout.rename`                                                     |                                                    | src/workbench/toolwindows/actions.ts:105                |       |
-| [ ] | `layout.restore`                                                    |                                                    | src/workbench/toolwindows/actions.ts:81                 |       |
-| [ ] | `layout.restoreDefault`                                             | `Shift+F12`                                        | src/workbench/toolwindows/actions.ts:94                 |       |
-| [ ] | `layout.save`                                                       |                                                    | src/workbench/toolwindows/actions.ts:63                 |       |
-| [ ] | `libraries.reload`                                                  |                                                    | src/features/libraries/index.ts:181                     |       |
-| [ ] | `lightEdit.openProject`                                             |                                                    | src/features/app/windows.ts:493                         |       |
-| [ ] | `localHistory.putLabel`                                             |                                                    | src/features/vcs/localHistoryActions.ts:34              |       |
-| [ ] | `localHistory.recentChanges`                                        | `Alt+Shift+C`                                      | src/features/vcs/localHistoryActions.ts:43              |       |
-| [ ] | `macro.edit`                                                        |                                                    | src/features/macros/index.ts:188                        |       |
-| [ ] | `macro.playBack`                                                    |                                                    | src/features/macros/index.ts:162                        |       |
-| [ ] | `macro.playSaved`                                                   |                                                    | src/features/macros/index.ts:173                        |       |
-| [ ] | `macro.startRecording`                                              |                                                    | src/features/macros/index.ts:145                        |       |
-| [ ] | `macro.stopRecording`                                               |                                                    | src/features/macros/index.ts:153                        |       |
-| [ ] | `markdown.editorAndPreview`                                         |                                                    | src/features/viewers/index.ts:63                        |       |
-| [ ] | `markdown.editorOnly`                                               |                                                    | src/features/viewers/index.ts:63                        |       |
-| [ ] | `markdown.previewOnly`                                              |                                                    | src/features/viewers/index.ts:63                        |       |
-| [ ] | `maven.addProjects`                                                 |                                                    | src/features/build-tools/index.ts:292                   |       |
-| [ ] | `maven.analyzeDependencies`                                         |                                                    | src/features/build-tools/index.ts:336                   |       |
-| [ ] | `maven.cancelReload`                                                |                                                    | src/features/build-tools/index.ts:318                   |       |
-| [ ] | `maven.collapseAll`                                                 |                                                    | src/features/build-tools/index.ts:377                   |       |
-| [ ] | `maven.executeGoal`                                                 |                                                    | src/features/build-tools/index.ts:327                   |       |
-| [ ] | `maven.expandAll`                                                   |                                                    | src/features/build-tools/index.ts:368                   |       |
-| [ ] | `maven.reload`                                                      |                                                    | src/features/build-tools/index.ts:308                   |       |
-| [ ] | `maven.settings`                                                    |                                                    | src/features/build-tools/index.ts:386                   |       |
-| [ ] | `maven.toggleOffline`                                               |                                                    | src/features/build-tools/index.ts:346                   |       |
-| [ ] | `maven.toggleSkipTests`                                             |                                                    | src/features/build-tools/index.ts:357                   |       |
-| [ ] | `maven.unlinkProjects`                                              |                                                    | src/features/build-tools/index.ts:300                   |       |
-| [ ] | `moveDown`                                                          |                                                    | src/features/services/ServicesTree.tsx:123              |       |
-| [ ] | `moveUp`                                                            |                                                    | src/features/services/ServicesTree.tsx:123              |       |
-| [ ] | `navigate.back`                                                     | `Meta+[`, `Meta+Alt+Left`, `Button4`, `SwipeRight` | src/editor/core/actions.ts:990                          |       |
-| [ ] | `navigate.callHierarchy`                                            | `Ctrl+Alt+H`                                       | src/features/code-insight/index.ts:119                  |       |
-| [ ] | `navigate.customRegion`                                             | `Meta+Alt+.`                                       | src/editor/core/actions.ts:650                          |       |
-| [ ] | `navigate.declaration`                                              | `Meta+B`                                           | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `navigate.fileStructure`                                            | `Meta+F12`                                         | src/features/search/index.ts:397                        |       |
-| [ ] | `navigate.findAction`                                               | `Meta+Shift+A`                                     | src/features/search/index.ts:281                        |       |
-| [ ] | `navigate.forward`                                                  |                                                    | src/editor/core/actions.ts:997                          |       |
-| [ ] | `navigate.gotoClass`                                                | `Meta+O`                                           | src/features/search/index.ts:256                        |       |
-| [ ] | `navigate.gotoFile`                                                 | `Meta+Shift+O`                                     | src/features/search/index.ts:264                        |       |
-| [ ] | `navigate.gotoLine`                                                 | `Meta+L`                                           | src/editor/core/actions.ts:983                          |       |
-| [ ] | `navigate.gotoSymbol`                                               | `Meta+Alt+O`                                       | src/features/search/index.ts:273                        |       |
-| [ ] | `navigate.gotoTest`                                                 | `Meta+Shift+T`                                     | src/editor/navigation/index.ts:174                      |       |
-| [ ] | `navigate.implementation`                                           | `Meta+Alt+B`, `Meta+Alt+Button1`                   | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `navigate.lastEditLocation`                                         | `Meta+Shift+Backspace`                             | src/editor/core/actions.ts:1019                         |       |
-| [ ] | `navigate.navigationBar`                                            | `Meta+Up`, `Alt+Home`                              | src/editor/core/actions.ts:1004                         |       |
-| [ ] | `navigate.nextBookmark`                                             |                                                    | src/features/search/index.ts:509                        |       |
-| [ ] | `navigate.nextEditLocation`                                         |                                                    | src/editor/core/actions.ts:1026                         |       |
-| [ ] | `navigate.nextError`                                                | `F2`                                               | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `navigate.nextHighlightedUsage`                                     | `Ctrl+Alt+Down`                                    | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `navigate.nextMethod`                                               | `Ctrl+Shift+Down`                                  | src/editor/navigation/index.ts:174                      |       |
-| [ ] | `navigate.nextOccurrence`                                           | `Meta+Alt+Down`                                    | src/workbench/toolwindows/actions.ts:217                |       |
-| [ ] | `navigate.prevBookmark`                                             |                                                    | src/features/search/index.ts:516                        |       |
-| [ ] | `navigate.prevError`                                                | `Shift+F2`                                         | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `navigate.prevHighlightedUsage`                                     | `Ctrl+Alt+Up`                                      | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `navigate.previousMethod`                                           | `Ctrl+Shift+Up`                                    | src/editor/navigation/index.ts:174                      |       |
-| [ ] | `navigate.prevOccurrence`                                           | `Meta+Alt+Up`                                      | src/workbench/toolwindows/actions.ts:226                |       |
-| [ ] | `navigate.recentFiles`                                              | `Meta+E`                                           | src/features/search/index.ts:296                        |       |
-| [ ] | `navigate.recentLocations`                                          | `Meta+Shift+E`                                     | src/features/search/index.ts:330                        |       |
-| [ ] | `navigate.searchEverywhere`                                         | `Shift Shift`                                      | src/features/search/index.ts:248                        |       |
-| [ ] | `navigate.searchText`                                               | `Meta+Alt+Shift+E`                                 | src/features/search/index.ts:288                        |       |
-| [ ] | `navigate.selectIn`                                                 | `Alt+F1`                                           | src/features/project-tree/actions.ts:199                |       |
-| [ ] | `navigate.selectInProjectView`                                      |                                                    | src/features/project-tree/actions.ts:213                |       |
-| [ ] | `navigate.showBookmarks`                                            | `Meta+F3`                                          | src/features/search/index.ts:497                        |       |
-| [ ] | `navigate.showFilePath`                                             | `Meta+Alt+F12`                                     | src/features/project-tree/actions.ts:360                |       |
-| [ ] | `navigate.superMethod`                                              | `Meta+U`                                           | src/editor/navigation/index.ts:174                      |       |
-| [ ] | `navigate.switcher`                                                 | `Ctrl+Tab`                                         | src/features/search/index.ts:308                        |       |
-| [ ] | `navigate.switcherBack`                                             | `Ctrl+Shift+Tab`                                   | src/features/search/index.ts:319                        |       |
-| [ ] | `navigate.toggleBookmark`                                           | `F3`                                               | src/features/search/index.ts:414                        |       |
-| [ ] | `navigate.toggleBookmarkWithMnemonic`                               | `Alt+F3`                                           | src/features/search/index.ts:463                        |       |
-| [ ] | `navigate.typeDeclaration`                                          | `Meta+Shift+B`, `Ctrl+Shift+B`                     | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `navigate.typeHierarchy`                                            | `Ctrl+H`                                           | src/features/code-insight/index.ts:126                  |       |
-| [ ] | `open-browser`                                                      |                                                    | src/features/run/services.tsx:523                       |       |
-| [ ] | `perf.clearCaches`                                                  |                                                    | src/features/perf/actions.ts:18                         |       |
-| [ ] | `perf.showMemory`                                                   |                                                    | src/features/perf/actions.ts:55                         |       |
-| [ ] | `perf.toggleMemoryIndicator`                                        |                                                    | src/features/perf/actions.ts:67                         |       |
-| [ ] | `perf.toggleOverlay`                                                |                                                    | src/features/perf/actions.ts:76                         |       |
-| [ ] | `php.composerInstall`                                               |                                                    | src/features/run/composerInstall.ts:122                 |       |
-| [ ] | `php.languageLevelPopup`                                            |                                                    | src/features/settings/languages/PhpStatus.tsx:153       |       |
-| [ ] | `php.selectLanguageLevel`                                           |                                                    | src/features/settings/languages/PhpStatus.tsx:164       |       |
-| [ ] | `plugins.content.action`                                            |                                                    | src/features/plugins/views/contentActions.ts:37         |       |
-| [ ] | `plugins.content.find`                                              |                                                    | src/features/plugins/views/contentActions.ts:30         |       |
-| [ ] | `plugins.importInstalledIntellijTheme`                              |                                                    | src/features/plugins/index.ts:125                       |       |
-| [ ] | `plugins.importIntellijTheme`                                       |                                                    | src/features/plugins/index.ts:113                       |       |
-| [ ] | `plugins.installFromDisk`                                           |                                                    | src/features/plugins/index.ts:93                        |       |
-| [ ] | `plugins.log.toggleArgument`                                        |                                                    | src/features/plugins/views/logActions.ts:42             |       |
-| [ ] | `plugins.reloadAll`                                                 |                                                    | src/features/plugins/index.ts:143                       |       |
-| [ ] | `plugins.settings`                                                  |                                                    | src/features/plugins/index.ts:85                        |       |
-| [ ] | `plugins.updateAll`                                                 |                                                    | src/features/plugins/index.ts:103                       |       |
-| [ ] | `project.attach`                                                    |                                                    | src/features/app/windows.ts:329                         |       |
-| [ ] | `project.collapseAll`                                               | `Meta+-`                                           | src/features/project-tree/actions.ts:503                |       |
-| [ ] | `project.compareWith`                                               | `Meta+D`                                           | src/features/project-tree/actions.ts:465                |       |
-| [ ] | `project.copy`                                                      | `Meta+C`                                           | src/features/project-tree/actions.ts:372                |       |
-| [ ] | `project.copyAbsolutePath`                                          | `Meta+Shift+C`                                     | src/features/project-tree/actions.ts:157                |       |
-| [ ] | `project.copyElement`                                               | `F5`                                               | src/features/project-tree/actions.ts:345                |       |
-| [ ] | `project.copyFileName`                                              |                                                    | src/features/project-tree/actions.ts:157                |       |
-| [ ] | `project.copyPath`                                                  |                                                    | src/features/project-tree/actions.ts:375                |       |
-| [ ] | `project.copyRelativePath`                                          |                                                    | src/features/project-tree/actions.ts:157                |       |
-| [ ] | `project.copySourceRootPath`                                        |                                                    | src/features/project-tree/actions.ts:157                |       |
-| [ ] | `project.cut`                                                       | `Meta+X`                                           | src/features/project-tree/actions.ts:373                |       |
-| [ ] | `project.delete`                                                    | `Delete`, `Backspace`, `Meta+Backspace`            | src/features/project-tree/actions.ts:334                |       |
-| [ ] | `project.detach`                                                    |                                                    | src/features/app/windows.ts:348                         |       |
-| [ ] | `project.dontOpen`                                                  |                                                    | src/features/project-trust/index.tsx:257                |       |
-| [ ] | `project.expandAll`                                                 | `Meta+=`                                           | src/features/project-tree/actions.ts:491                |       |
-| [ ] | `project.findInFolder`                                              |                                                    | src/features/project-tree/actions.ts:410                |       |
-| [ ] | `project.findUsages`                                                | `Alt+F7`                                           | src/features/project-tree/actions.ts:432                |       |
-| [ ] | `project.move`                                                      | `F6`                                               | src/features/project-tree/actions.ts:315                |       |
-| [ ] | `project.newFile`                                                   | `Meta+N`                                           | src/features/project-tree/actions.ts:230                |       |
-| [ ] | `project.newFolder`                                                 |                                                    | src/features/project-tree/actions.ts:272                |       |
-| [ ] | `project.newInThisDirectory`                                        | `Ctrl+Alt+N`                                       | src/features/project-tree/actions.ts:247                |       |
-| [ ] | `project.open`                                                      | `F4`, `Meta+Down`                                  | src/features/project-tree/actions.ts:285                |       |
-| [ ] | `project.openInTerminal`                                            |                                                    | src/features/project-tree/actions.ts:399                |       |
-| [ ] | `project.optimizeImports`                                           | `Ctrl+Alt+O`                                       | src/features/project-tree/actions.ts:454                |       |
-| [ ] | `project.paste`                                                     | `Meta+V`                                           | src/features/project-tree/actions.ts:374                |       |
-| [ ] | `project.previewRestricted`                                         |                                                    | src/features/project-trust/index.tsx:250                |       |
-| [ ] | `project.reformatCode`                                              | `Meta+Alt+L`                                       | src/features/project-tree/actions.ts:443                |       |
-| [ ] | `project.refresh`                                                   |                                                    | src/features/project-tree/actions.ts:515                |       |
-| [ ] | `project.reloadFromDisk`                                            | `Meta+Alt+Y`                                       | src/features/project-tree/actions.ts:481                |       |
-| [ ] | `project.removeTrustedLocation`                                     |                                                    | src/features/project-trust/index.tsx:273                |       |
-| [ ] | `project.rename`                                                    | `Shift+F6`                                         | src/features/project-tree/actions.ts:292                |       |
-| [ ] | `project.renameInline`                                              |                                                    | src/features/project-tree/actions.ts:307                |       |
-| [ ] | `project.reveal`                                                    |                                                    | src/features/project-tree/actions.ts:222                |       |
-| [ ] | `project.revealInFinder`                                            |                                                    | src/features/project-tree/actions.ts:390                |       |
-| [ ] | `project.revokeTrust`                                               |                                                    | src/features/project-trust/index.tsx:264                |       |
-| [ ] | `project.showHistory`                                               |                                                    | src/features/project-tree/actions.ts:421                |       |
-| [ ] | `project.trust`                                                     |                                                    | src/features/project-trust/index.tsx:249                |       |
-| [ ] | `project.undoMove`                                                  |                                                    | src/features/project-tree/actions.ts:323                |       |
-| [ ] | `pull`                                                              |                                                    | src/features/services/docker.tsx:224                    |       |
-| [ ] | `python.addInterpreter`                                             |                                                    | src/features/settings/languages/PythonStatus.tsx:211    |       |
-| [ ] | `python.interpreterPopup`                                           |                                                    | src/features/settings/languages/PythonStatus.tsx:183    |       |
-| [ ] | `python.interpreterSettings`                                        |                                                    | src/features/settings/languages/PythonStatus.tsx:218    |       |
-| [ ] | `python.selectInterpreter`                                          |                                                    | src/features/settings/languages/PythonStatus.tsx:193    |       |
-| [ ] | `refactor.changeSignature`                                          | `Meta+F6`                                          | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.extractConstant`                                          | `Meta+Alt+C`                                       | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.extractField`                                             | `Meta+Alt+F`                                       | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.extractMethod`                                            | `Meta+Alt+M`                                       | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.extractParameter`                                         | `Meta+Alt+P`                                       | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.extractVariable`                                          | `Meta+Alt+V`                                       | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.inline`                                                   | `Meta+Alt+N`                                       | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.move`                                                     | `F6`                                               | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.pullMembersUp`                                            |                                                    | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.pushMembersDown`                                          |                                                    | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.rename`                                                   | `Shift+F6`                                         | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.safeDelete`                                               | `Meta+Delete`                                      | src/editor/lsp/actions.ts:125                           |       |
-| [ ] | `refactor.thisMenu`                                                 | `Ctrl+T`                                           | src/editor/lsp/actions.ts:289                           |       |
-| [ ] | `refresh`                                                           |                                                    | src/features/services/docker.tsx:212                    |       |
-| [ ] | `remote.connect`                                                    |                                                    | src/features/remote-dev/index.ts:66                     |       |
-| [ ] | `remote.disconnect`                                                 |                                                    | src/features/remote-dev/index.ts:75                     |       |
-| [ ] | `remote.reloadEnvironment`                                          |                                                    | src/features/remote-dev/index.ts:102                    |       |
-| [ ] | `remote.reopenInContainer`                                          |                                                    | src/features/remote-dev/index.ts:91                     |       |
-| [ ] | `restart`                                                           |                                                    | src/features/services/docker.tsx:215                    |       |
-| [ ] | `restart-all`                                                       |                                                    | src/features/run/services.tsx:559                       |       |
-| [ ] | `run`                                                               |                                                    | src/features/run/services.tsx:587                       |       |
-| [ ] | `run-all`                                                           |                                                    | src/features/run/services.tsx:552                       |       |
-| [ ] | `run.chooseConfig`                                                  | `Ctrl+Alt+R`                                       | src/features/run/index.ts:526                           |       |
-| [ ] | `run.chooseDebugConfig`                                             | `Ctrl+Alt+D`                                       | src/features/run/index.ts:542                           |       |
-| [ ] | `run.coverage`                                                      |                                                    | src/features/coverage/index.ts:34                       |       |
-| [ ] | `run.coverageContext`                                               |                                                    | src/features/coverage/index.ts:44                       |       |
-| [ ] | `run.createConfig`                                                  |                                                    | src/features/run/index.ts:702                           |       |
-| [ ] | `run.debug`                                                         | `Ctrl+D`                                           | src/features/run/index.ts:463                           |       |
-| [ ] | `run.debugConfig`                                                   |                                                    | src/features/run/index.ts:590                           |       |
-| [ ] | `run.debugContext`                                                  | `Ctrl+Shift+D`                                     | src/features/run/index.ts:481                           |       |
-| [ ] | `run.editConfigs`                                                   | `Ctrl+Alt+Shift+R`                                 | src/features/run/index.ts:558                           |       |
-| [ ] | `run.importJetbrains`                                               |                                                    | src/features/run/index.ts:582                           |       |
-| [ ] | `run.importVscodeLaunch`                                            |                                                    | src/features/run/index.ts:574                           |       |
-| [ ] | `run.modifyContext`                                                 |                                                    | src/features/run/index.ts:489                           |       |
-| [ ] | `run.pluginStart`                                                   |                                                    | src/features/run/index.ts:635                           |       |
-| [ ] | `run.profile`                                                       |                                                    | src/features/profiler/index.ts:26                       |       |
-| [ ] | `run.profileContext`                                                |                                                    | src/features/profiler/index.ts:36                       |       |
-| [ ] | `run.reloadConfigs`                                                 |                                                    | src/features/run/index.ts:624                           |       |
-| [ ] | `run.rerun`                                                         | `Meta+R`                                           | src/features/run/index.ts:518                           |       |
-| [ ] | `run.rerunFailed`                                                   |                                                    | src/features/run/index.ts:603                           |       |
-| [ ] | `run.run`                                                           | `Ctrl+R`                                           | src/features/run/index.ts:455                           |       |
-| [ ] | `run.runConfig`                                                     |                                                    | src/features/run/index.ts:662                           |       |
-| [ ] | `run.runContext`                                                    | `Ctrl+Shift+R`                                     | src/features/run/index.ts:471                           |       |
-| [ ] | `run.sampleOutput`                                                  |                                                    | src/features/run/index.ts:363                           |       |
-| [ ] | `run.services.addType`                                              |                                                    | src/features/run/services.tsx:632                       |       |
-| [ ] | `run.services.hideConfig`                                           |                                                    | src/features/run/services.tsx:642                       |       |
-| [ ] | `run.stop`                                                          | `Meta+F2`                                          | src/features/run/index.ts:498                           |       |
-| [ ] | `run.stopProcess`                                                   |                                                    | src/features/run/index.ts:506                           |       |
-| [ ] | `run.updateApplication`                                             | `Meta+F10`                                         | src/features/run/index.ts:447                           |       |
-| [ ] | `run.withExecutor`                                                  |                                                    | src/features/run/index.ts:674                           |       |
-| [ ] | `runAnything.show`                                                  | `Ctrl Ctrl`                                        | src/features/run-anything/index.ts:14                   |       |
-| [ ] | `search.editScopes`                                                 |                                                    | src/features/search/index.ts:362                        |       |
-| [ ] | `services.addService`                                               | `Meta+N`                                           | src/features/services/index.ts:93                       |       |
-| [ ] | `services.show`                                                     |                                                    | src/features/services/index.ts:84                       |       |
-| [ ] | `settings.appearance`                                               |                                                    | src/features/settings/index.ts:89                       |       |
-| [ ] | `settings.assignShortcut`                                           |                                                    | src/features/settings/index.ts:146                      |       |
-| [ ] | `settings.keymap`                                                   |                                                    | src/features/settings/index.ts:81                       |       |
-| [ ] | `ssh.configurations`                                                |                                                    | src/features/ssh/index.ts:29                            |       |
-| [ ] | `ssh.startSession`                                                  |                                                    | src/features/ssh/index.ts:19                            |       |
-| [ ] | `start`                                                             |                                                    | src/features/services/docker.tsx:213                    |       |
-| [ ] | `stop`                                                              |                                                    | src/features/run/services.tsx:576                       |       |
-| [ ] | `stop-all`                                                          |                                                    | src/features/run/services.tsx:566                       |       |
-| [ ] | `templates.newFromTemplate`                                         |                                                    | src/features/templates/index.ts:233                     |       |
-| [ ] | `terminal`                                                          |                                                    | src/features/services/docker.tsx:217                    |       |
-| [ ] | `terminal.clear`                                                    |                                                    | src/features/terminal/index.ts:196                      |       |
-| [ ] | `terminal.closeSession`                                             |                                                    | src/features/terminal/index.ts:203                      |       |
-| [ ] | `terminal.find`                                                     |                                                    | src/features/terminal/index.ts:182                      |       |
-| [ ] | `terminal.new`                                                      | `Meta+T`                                           | src/features/terminal/index.ts:67                       |       |
-| [ ] | `terminal.newPredefinedSession`                                     |                                                    | src/features/terminal/index.ts:78                       |       |
-| [ ] | `terminal.openAt`                                                   |                                                    | src/features/terminal/index.ts:95                       |       |
-| [ ] | `terminal.pluginSession`                                            |                                                    | src/features/terminal/index.ts:104                      |       |
-| [ ] | `terminal.runCommand`                                               |                                                    | src/features/terminal/index.ts:117                      |       |
-| [ ] | `terminal.splitAndMoveDown`                                         |                                                    | src/features/terminal/index.ts:160                      |       |
-| [ ] | `terminal.splitAndMoveRight`                                        |                                                    | src/features/terminal/index.ts:153                      |       |
-| [ ] | `terminal.splitDown`                                                |                                                    | src/features/terminal/index.ts:145                      |       |
-| [ ] | `terminal.splitRight`                                               |                                                    | src/features/terminal/index.ts:137                      |       |
-| [ ] | `terminal.unsplit`                                                  |                                                    | src/features/terminal/index.ts:167                      |       |
-| [ ] | `todo.refresh`                                                      |                                                    | src/features/todo/index.ts:41                           |       |
-| [ ] | `todo.showCurrentFile`                                              |                                                    | src/features/todo/index.ts:49                           |       |
-| [ ] | `toolbar.customize`                                                 |                                                    | src/workbench/shellActions.ts:103                       |       |
-| [ ] | `tools.install`                                                     |                                                    | src/features/tools/index.ts:66                          |       |
-| [ ] | `tools.languageServers`                                             |                                                    | src/features/tools/index.ts:58                          |       |
-| [ ] | `tools.promptInstall`                                               |                                                    | src/features/tools/index.ts:43                          |       |
-| [ ] | `toolwindow.closeContent`                                           | `Meta+W`, `Ctrl+Shift+F4`                          | src/workbench/toolwindows/actions.ts:198                |       |
-| [ ] | `toolwindow.focusEditor`                                            | `Escape`                                           | src/workbench/toolwindows/actions.ts:210                |       |
-| [ ] | `toolwindow.hideActive`                                             | `Shift+Escape`                                     | src/workbench/toolwindows/actions.ts:190                |       |
-| [ ] | `toolwindow.hideAll`                                                | `Meta+Shift+F12`                                   | src/workbench/toolwindows/actions.ts:181                |       |
-| [ ] | `toolwindow.jumpToLast`                                             | `F12`                                              | src/workbench/toolwindows/actions.ts:182                |       |
-| [ ] | `toolwindow.maximize`                                               | `Meta+Shift+'`                                     | src/workbench/toolwindows/actions.ts:236                |       |
-| [ ] | `update`                                                            |                                                    | src/features/run/services.tsx:599                       |       |
-| [ ] | `usages.rerun`                                                      | `Meta+R`                                           | src/features/code-insight/index.ts:101                  |       |
-| [ ] | `vcs.acceptBoth`                                                    |                                                    | src/features/vcs/actions.tsx:619                        |       |
-| [ ] | `vcs.acceptTheirs`                                                  |                                                    | src/features/vcs/actions.tsx:612                        |       |
-| [ ] | `vcs.acceptYours`                                                   |                                                    | src/features/vcs/actions.tsx:605                        |       |
-| [ ] | `vcs.addToVcs`                                                      | `Meta+Alt+A`                                       | src/features/vcs/actions.tsx:571                        |       |
-| [ ] | `vcs.annotate`                                                      |                                                    | src/features/vcs/actions.tsx:456                        |       |
-| [ ] | `vcs.applyPatch`                                                    |                                                    | src/features/vcs/historyActions.tsx:626                 |       |
-| [ ] | `vcs.applyPatchFromClipboard`                                       |                                                    | src/features/vcs/historyActions.tsx:634                 |       |
-| [ ] | `vcs.branches`                                                      |                                                    | src/features/vcs/actions.tsx:484                        |       |
-| [ ] | `vcs.changelist.commit`                                             |                                                    | src/features/vcs/historyActions.tsx:505                 |       |
-| [ ] | `vcs.changelist.delete`                                             |                                                    | src/features/vcs/historyActions.tsx:477                 |       |
-| [ ] | `vcs.changelist.edit`                                               | `F2`, `Shift+F6`                                   | src/features/vcs/historyActions.tsx:466                 |       |
-| [ ] | `vcs.changelist.move`                                               | `Meta+Shift+M`                                     | src/features/vcs/historyActions.tsx:497                 |       |
-| [ ] | `vcs.changelist.new`                                                |                                                    | src/features/vcs/historyActions.tsx:458                 |       |
-| [ ] | `vcs.changelist.setActive`                                          |                                                    | src/features/vcs/historyActions.tsx:487                 |       |
-| [ ] | `vcs.checkoutRevision`                                              |                                                    | src/features/vcs/actions.tsx:505                        |       |
-| [ ] | `vcs.cherryPick.abort`                                              |                                                    | src/features/vcs/historyActions.tsx:214                 |       |
-| [ ] | `vcs.cherryPick.continue`                                           |                                                    | src/features/vcs/historyActions.tsx:207                 |       |
-| [ ] | `vcs.clone`                                                         |                                                    | src/features/vcs/actions.tsx:246                        |       |
-| [ ] | `vcs.commit`                                                        | `Meta+K`                                           | src/features/vcs/actions.tsx:206                        |       |
-| [ ] | `vcs.commitAndPush`                                                 | `Meta+Alt+K`                                       | src/features/vcs/actions.tsx:214                        |       |
-| [ ] | `vcs.compareWithBranch`                                             |                                                    | src/features/vcs/actions.tsx:415                        |       |
-| [ ] | `vcs.createPatch`                                                   |                                                    | src/features/vcs/historyActions.tsx:618                 |       |
-| [ ] | `vcs.fetch`                                                         |                                                    | src/features/vcs/actions.tsx:319                        |       |
-| [ ] | `vcs.ignoreLocal`                                                   |                                                    | src/features/vcs/actions.tsx:563                        |       |
-| [ ] | `vcs.ignoreShared`                                                  |                                                    | src/features/vcs/actions.tsx:563                        |       |
-| [ ] | `vcs.localHistory`                                                  |                                                    | src/features/vcs/actions.tsx:469                        |       |
-| [ ] | `vcs.log.branches.delete`                                           |                                                    | src/features/vcs/logPaneActions.ts:115                  |       |
-| [ ] | `vcs.log.branches.navigate`                                         |                                                    | src/features/vcs/logPaneActions.ts:133                  |       |
-| [ ] | `vcs.log.branches.new`                                              |                                                    | src/features/vcs/logPaneActions.ts:93                   |       |
-| [ ] | `vcs.log.branches.toggleFavorite`                                   |                                                    | src/features/vcs/logPaneActions.ts:124                  |       |
-| [ ] | `vcs.log.branches.update`                                           |                                                    | src/features/vcs/logPaneActions.ts:106                  |       |
-| [ ] | `vcs.log.changes.compareBeforeWithLocal`                            |                                                    | src/features/vcs/logPaneActions.ts:168                  |       |
-| [ ] | `vcs.log.changes.compareWithLocal`                                  |                                                    | src/features/vcs/logPaneActions.ts:157                  |       |
-| [ ] | `vcs.log.changes.diffPreview`                                       |                                                    | src/features/vcs/logPaneActions.ts:215                  |       |
-| [ ] | `vcs.log.changes.getFromRevision`                                   |                                                    | src/features/vcs/logPaneActions.ts:190                  |       |
-| [ ] | `vcs.log.changes.groupByDirectory`                                  |                                                    | src/features/vcs/logPaneActions.ts:207                  |       |
-| [ ] | `vcs.log.changes.jumpToSource`                                      |                                                    | src/features/vcs/logPaneActions.ts:179                  |       |
-| [ ] | `vcs.log.changes.revert`                                            |                                                    | src/features/vcs/logPaneActions.ts:198                  |       |
-| [ ] | `vcs.log.changes.showDiff`                                          |                                                    | src/features/vcs/logPaneActions.ts:148                  |       |
-| [ ] | `vcs.log.checkoutRevision`                                          |                                                    | src/features/vcs/historyActions.tsx:300                 |       |
-| [ ] | `vcs.log.cherryPick`                                                |                                                    | src/features/vcs/historyActions.tsx:293                 |       |
-| [ ] | `vcs.log.collapseLinear`                                            |                                                    | src/features/vcs/logPaneActions.ts:75                   |       |
-| [ ] | `vcs.log.compareVersions`                                           |                                                    | src/features/vcs/historyActions.tsx:315                 |       |
-| [ ] | `vcs.log.compareWithLocal`                                          |                                                    | src/features/vcs/historyActions.tsx:307                 |       |
-| [ ] | `vcs.log.copyRevision`                                              | `Meta+Alt+Shift+C`                                 | src/features/vcs/historyActions.tsx:277                 |       |
-| [ ] | `vcs.log.createPatch`                                               |                                                    | src/features/vcs/historyActions.tsx:286                 |       |
-| [ ] | `vcs.log.dropCommit`                                                |                                                    | src/features/vcs/historyActions.tsx:361                 |       |
-| [ ] | `vcs.log.editMessage`                                               |                                                    | src/features/vcs/historyActions.tsx:353                 |       |
-| [ ] | `vcs.log.expandLinear`                                              |                                                    | src/features/vcs/logPaneActions.ts:83                   |       |
-| [ ] | `vcs.log.fixup`                                                     |                                                    | src/features/vcs/historyActions.tsx:375                 |       |
-| [ ] | `vcs.log.goToChild`                                                 |                                                    | src/features/vcs/historyActions.tsx:409                 |       |
-| [ ] | `vcs.log.goToParent`                                                |                                                    | src/features/vcs/historyActions.tsx:417                 |       |
-| [ ] | `vcs.log.goToRef`                                                   | `Meta+F`                                           | src/features/vcs/historyActions.tsx:254                 |       |
-| [ ] | `vcs.log.interactiveRebase`                                         |                                                    | src/features/vcs/historyActions.tsx:433                 |       |
-| [ ] | `vcs.log.newBranch`                                                 |                                                    | src/features/vcs/historyActions.tsx:441                 |       |
-| [ ] | `vcs.log.newTag`                                                    |                                                    | src/features/vcs/historyActions.tsx:449                 |       |
-| [ ] | `vcs.log.openExternal`                                              |                                                    | src/features/vcs/historyActions.tsx:248                 |       |
-| [ ] | `vcs.log.openInBrowser`                                             |                                                    | src/features/vcs/historyActions.tsx:425                 |       |
-| [ ] | `vcs.log.pushUpToHere`                                              |                                                    | src/features/vcs/historyActions.tsx:391                 |       |
-| [ ] | `vcs.log.rebaseOntoCommit`                                          |                                                    | src/features/vcs/historyActions.tsx:402                 |       |
-| [ ] | `vcs.log.resetToHere`                                               |                                                    | src/features/vcs/historyActions.tsx:330                 |       |
-| [ ] | `vcs.log.revealBookmark`                                            |                                                    | src/features/vcs/historyActions.tsx:162                 |       |
-| [ ] | `vcs.log.revert`                                                    |                                                    | src/features/vcs/historyActions.tsx:337                 |       |
-| [ ] | `vcs.log.showBranches`                                              |                                                    | src/features/vcs/logPaneActions.ts:64                   |       |
-| [ ] | `vcs.log.squashCommits`                                             |                                                    | src/features/vcs/historyActions.tsx:368                 |       |
-| [ ] | `vcs.log.squashInto`                                                |                                                    | src/features/vcs/historyActions.tsx:383                 |       |
-| [ ] | `vcs.log.undoCommit`                                                |                                                    | src/features/vcs/historyActions.tsx:345                 |       |
-| [ ] | `vcs.manageRemotes`                                                 |                                                    | src/features/vcs/actions.tsx:295                        |       |
-| [ ] | `vcs.merge`                                                         |                                                    | src/features/vcs/actions.tsx:279                        |       |
-| [ ] | `vcs.merge.abort`                                                   |                                                    | src/features/vcs/historyActions.tsx:200                 |       |
-| [ ] | `vcs.newBranch`                                                     | `Meta+Alt+N`                                       | src/features/vcs/actions.tsx:493                        |       |
-| [ ] | `vcs.newTag`                                                        |                                                    | src/features/vcs/historyActions.tsx:237                 |       |
-| [ ] | `vcs.newWorktree`                                                   |                                                    | src/features/vcs/actions.tsx:303                        |       |
-| [ ] | `vcs.nextChange`                                                    | `Ctrl+Alt+Shift+Down`                              | src/features/vcs/actions.tsx:430                        |       |
-| [ ] | `vcs.nextConflict`                                                  |                                                    | src/features/vcs/actions.tsx:626                        |       |
-| [ ] | `vcs.openDiff`                                                      |                                                    | src/features/vcs/compare.tsx:139                        |       |
-| [ ] | `vcs.operations`                                                    | `Ctrl+V`                                           | src/features/vcs/actions.tsx:197                        |       |
-| [ ] | `vcs.prevChange`                                                    | `Ctrl+Alt+Shift+Up`                                | src/features/vcs/actions.tsx:443                        |       |
-| [ ] | `vcs.prevConflict`                                                  |                                                    | src/features/vcs/actions.tsx:633                        |       |
-| [ ] | `vcs.pull`                                                          |                                                    | src/features/vcs/actions.tsx:271                        |       |
-| [ ] | `vcs.push`                                                          | `Meta+Shift+K`                                     | src/features/vcs/actions.tsx:254                        |       |
-| [ ] | `vcs.rebase`                                                        |                                                    | src/features/vcs/actions.tsx:287                        |       |
-| [ ] | `vcs.rebase.abort`                                                  |                                                    | src/features/vcs/historyActions.tsx:185                 |       |
-| [ ] | `vcs.rebase.continue`                                               |                                                    | src/features/vcs/historyActions.tsx:178                 |       |
-| [ ] | `vcs.rebase.skip`                                                   |                                                    | src/features/vcs/historyActions.tsx:192                 |       |
-| [ ] | `vcs.refresh`                                                       |                                                    | src/features/vcs/actions.tsx:327                        |       |
-| [ ] | `vcs.resetHead`                                                     |                                                    | src/features/vcs/historyActions.tsx:238                 |       |
-| [ ] | `vcs.resolveConflicts`                                              |                                                    | src/features/vcs/actions.tsx:597                        |       |
-| [ ] | `vcs.revert.abort`                                                  |                                                    | src/features/vcs/historyActions.tsx:228                 |       |
-| [ ] | `vcs.revert.continue`                                               |                                                    | src/features/vcs/historyActions.tsx:221                 |       |
-| [ ] | `vcs.rollback`                                                      | `Meta+Alt+Z`                                       | src/features/vcs/actions.tsx:335                        |       |
-| [ ] | `vcs.shelf.compareLocal`                                            |                                                    | src/features/vcs/historyActions.tsx:585                 |       |
-| [ ] | `vcs.shelf.copyPatch`                                               |                                                    | src/features/vcs/historyActions.tsx:599                 |       |
-| [ ] | `vcs.shelf.createPatch`                                             |                                                    | src/features/vcs/historyActions.tsx:592                 |       |
-| [ ] | `vcs.shelf.delete`                                                  |                                                    | src/features/vcs/historyActions.tsx:539                 |       |
-| [ ] | `vcs.shelf.importPatches`                                           |                                                    | src/features/vcs/historyActions.tsx:609                 |       |
-| [ ] | `vcs.shelf.refresh`                                                 |                                                    | src/features/vcs/historyActions.tsx:562                 |       |
-| [ ] | `vcs.shelf.rename`                                                  |                                                    | src/features/vcs/historyActions.tsx:550                 |       |
-| [ ] | `vcs.shelf.showDiff`                                                |                                                    | src/features/vcs/historyActions.tsx:571                 |       |
-| [ ] | `vcs.shelf.showDiffNewTab`                                          |                                                    | src/features/vcs/historyActions.tsx:578                 |       |
-| [ ] | `vcs.shelve`                                                        |                                                    | src/features/vcs/historyActions.tsx:518                 |       |
-| [ ] | `vcs.showCommit`                                                    |                                                    | src/features/vcs/actions.tsx:549                        |       |
-| [ ] | `vcs.showDiff`                                                      | `Meta+D`                                           | src/features/vcs/actions.tsx:366                        |       |
-| [ ] | `vcs.showHistory`                                                   |                                                    | src/features/vcs/actions.tsx:527                        |       |
-| [ ] | `vcs.showHistoryForSelection`                                       |                                                    | src/features/vcs/actions.tsx:540                        |       |
-| [ ] | `vcs.showLog`                                                       |                                                    | src/features/vcs/actions.tsx:512                        |       |
-| [ ] | `vcs.showMessageHistory`                                            | `Ctrl+M`                                           | src/features/vcs/actions.tsx:237                        |       |
-| [ ] | `vcs.showShelf`                                                     |                                                    | src/features/vcs/historyActions.tsx:526                 |       |
-| [ ] | `vcs.stash`                                                         |                                                    | src/features/vcs/actions.tsx:582                        |       |
-| [ ] | `vcs.toggleAmend`                                                   | `Ctrl+Alt+M`                                       | src/features/vcs/actions.tsx:228                        |       |
-| [ ] | `vcs.unshelve`                                                      |                                                    | src/features/vcs/historyActions.tsx:527                 |       |
-| [ ] | `vcs.unstash`                                                       |                                                    | src/features/vcs/actions.tsx:590                        |       |
-| [ ] | `vcs.update`                                                        | `Meta+T`                                           | src/features/vcs/actions.tsx:262                        |       |
-| [ ] | `vcs.worktrees`                                                     |                                                    | src/features/vcs/actions.tsx:311                        |       |
-| [ ] | `view.backgroundTasks`                                              |                                                    | src/workbench/shellActions.ts:118                       |       |
-| [ ] | `view.notifications`                                                |                                                    | src/workbench/shellActions.ts:125                       |       |
-| [ ] | `view.quickSwitchScheme`                                            | `Ctrl+``                                           | src/workbench/shellActions.ts:96                        |       |
-| [ ] | `view.resetZoom`                                                    | `Ctrl+Alt+0`                                       | src/features/settings/appearanceRuntime.ts:110          |       |
-| [ ] | `view.toggleCompactMode`                                            |                                                    | src/features/settings/appearanceRuntime.ts:128          |       |
-| [ ] | `view.toggleStatusBar`                                              |                                                    | src/features/settings/appearanceRuntime.ts:128          |       |
-| [ ] | `view.toggleStatusBarWidget`                                        |                                                    | src/workbench/shellActions.ts:110                       |       |
-| [ ] | `view.toggleTheme`                                                  |                                                    | src/workbench/shellActions.ts:88                        |       |
-| [ ] | `view.toggleToolbar`                                                |                                                    | src/features/settings/appearanceRuntime.ts:128          |       |
-| [ ] | `view.toggleToolWindowBars`                                         |                                                    | src/features/settings/appearanceRuntime.ts:128          |       |
-| [ ] | `view.zoomIn`                                                       | `Ctrl+Alt+=`                                       | src/features/settings/appearanceRuntime.ts:96           |       |
-| [ ] | `view.zoomOut`                                                      | `Ctrl+Alt+-`                                       | src/features/settings/appearanceRuntime.ts:103          |       |
-| [ ] | `vim.reloadRc`                                                      |                                                    | src/features/vim/index.ts:99                            |       |
-| [ ] | `vim.settings`                                                      |                                                    | src/features/vim/index.ts:107                           |       |
-| [ ] | `vim.toggle`                                                        |                                                    | src/features/vim/index.ts:90                            |       |
-| [ ] | `web.openInBrowser`                                                 | `Ctrl+Shift+R`                                     | src/features/web/index.ts:68                            |       |
-| [ ] | `web.togglePreview`                                                 |                                                    | src/features/web/index.ts:82                            |       |
-| [ ] | `welcome.recentProjects`                                            |                                                    | src/features/welcome/index.ts:19                        |       |
-| [ ] | `window.closeOtherTabs`                                             |                                                    | src/features/app/windows.ts:416                         |       |
-| [ ] | `window.closeTab`                                                   |                                                    | src/features/app/windows.ts:407                         |       |
-| [ ] | `window.closeTabsToLeft`                                            |                                                    | src/features/app/windows.ts:423                         |       |
-| [ ] | `window.closeTabsToRight`                                           |                                                    | src/features/app/windows.ts:430                         |       |
-| [ ] | `window.detachTab`                                                  |                                                    | src/features/app/windows.ts:391                         |       |
-| [ ] | `window.mergeAllWindows`                                            |                                                    | src/features/app/windows.ts:382                         |       |
-| [ ] | `window.new`                                                        |                                                    | src/features/app/windows.ts:529                         |       |
-| [ ] | `window.next`                                                       | `Meta+Alt+``                                       | src/features/app/windows.ts:540                         |       |
-| [ ] | `window.nextTab`                                                    | `Meta+Alt+PageDown`                                | src/features/app/windows.ts:446                         |       |
-| [ ] | `window.previous`                                                   | `Meta+Alt+Shift+``                                 | src/features/app/windows.ts:546                         |       |
-| [ ] | `window.previousTab`                                                | `Meta+Alt+PageUp`                                  | src/features/app/windows.ts:453                         |       |
-| [ ] | `window.reorderTabs`                                                |                                                    | src/features/app/windows.ts:437                         |       |
-| [ ] | `window.selectTab`                                                  |                                                    | src/features/app/windows.ts:398                         |       |
-| [ ] | `window.toggleFullScreen`                                           | `Meta+Ctrl+F`                                      | src/features/app/windows.ts:552                         |       |
-| [ ] | `workbench.stopBackgroundProcesses`                                 | `Meta+Shift+F2`                                    | src/workbench/shellActions.ts:81                        |       |
-| [ ] | `workspace.create`                                                  |                                                    | src/features/app/windows.ts:355                         |       |
-| [ ] | `workspace.manage`                                                  |                                                    | src/features/app/windows.ts:375                         |       |
-| [ ] | `workspace.open`                                                    |                                                    | src/features/app/windows.ts:364                         |       |
-| [ ] | `workspace.removeProject`                                           |                                                    | src/features/app/windows.ts:341                         |       |
+| | Action id | intellij-macos binding | Source | Proof |
+|---|---|---|---|---|
+| [ ] | `(dynamic) src/features/dotnet/index.ts:58` |  | src/features/dotnet/index.ts:58 |  |
+| [ ] | `(dynamic) src/features/macros/index.ts:101` |  | src/features/macros/index.ts:101 |  |
+| [ ] | `(dynamic) src/features/plugins/points.tsx:199` |  | src/features/plugins/points.tsx:199 |  |
+| [ ] | `(dynamic) src/features/plugins/views/logActions.ts:35` |  | src/features/plugins/views/logActions.ts:35 |  |
+| [ ] | `(dynamic) src/features/plugins/views/serviceProvider.tsx:88` |  | src/features/plugins/views/serviceProvider.tsx:88 |  |
+| [ ] | `(dynamic) src/features/project-tree/actions.ts:167` |  | src/features/project-tree/actions.ts:167 |  |
+| [ ] | `(dynamic) src/features/project-tree/actions.ts:177` |  | src/features/project-tree/actions.ts:177 |  |
+| [ ] | `(dynamic) src/features/project-tree/actions.ts:189` |  | src/features/project-tree/actions.ts:189 |  |
+| [ ] | `(dynamic) src/features/run/externalTools.ts:164` |  | src/features/run/externalTools.ts:164 |  |
+| [ ] | `(dynamic) src/features/run/goActions.ts:86` |  | src/features/run/goActions.ts:86 |  |
+| [ ] | `(dynamic) src/features/run/services.tsx:620` |  | src/features/run/services.tsx:620 |  |
+| [ ] | `(dynamic) src/features/search/index.ts:476` |  | src/features/search/index.ts:476 |  |
+| [ ] | `(dynamic) src/features/search/index.ts:486` |  | src/features/search/index.ts:486 |  |
+| [ ] | `(dynamic) src/features/settings/pages/editor/colorScheme.tsx:1217` |  | src/features/settings/pages/editor/colorScheme.tsx:1217 |  |
+| [ ] | `(dynamic) src/features/templates/index.ts:79` |  | src/features/templates/index.ts:79 |  |
+| [ ] | `(dynamic) src/features/vcs/mergeActions.ts:64` |  | src/features/vcs/mergeActions.ts:64 |  |
+| [ ] | `(dynamic) src/workbench/toolwindows/actions.ts:160` |  | src/workbench/toolwindows/actions.ts:160 |  |
+| [ ] | `(dynamic) src/workbench/toolwindows/actions.ts:247` |  | src/workbench/toolwindows/actions.ts:247 |  |
+| [ ] | `agents.addAgent` |  | src/features/agents/index.ts:139 |  |
+| [ ] | `agents.archiveTasks` |  | src/features/agents/taskActions.ts:152 |  |
+| [ ] | `agents.copyReplyMarkdown` |  | src/features/agents/replyActions.ts:13 |  |
+| [ ] | `agents.deleteTasks` |  | src/features/agents/taskActions.ts:172 |  |
+| [ ] | `agents.dockTask` |  | src/features/agents/taskActions.ts:107 |  |
+| [ ] | `agents.findInConversation` | `Meta+F` | src/features/agents/index.ts:121 |  |
+| [ ] | `agents.forkReply` |  | src/features/agents/replyActions.ts:132 |  |
+| [ ] | `agents.forkTask` |  | src/features/agents/taskActions.ts:141 |  |
+| [ ] | `agents.jumpToLatest` |  | src/features/agents/replyActions.ts:62 |  |
+| [ ] | `agents.newTask` | `Meta+Shift+I` | src/features/agents/index.ts:129 |  |
+| [ ] | `agents.openSampleConversations` |  | src/features/agents/index.ts:51 |  |
+| [ ] | `agents.openTask` |  | src/features/agents/taskActions.ts:98 |  |
+| [ ] | `agents.openTaskInEditor` |  | src/features/agents/taskActions.ts:89 |  |
+| [ ] | `agents.quoteReply` |  | src/features/agents/replyActions.ts:104 |  |
+| [ ] | `agents.regenerateReply` |  | src/features/agents/replyActions.ts:117 |  |
+| [ ] | `agents.renameTask` |  | src/features/agents/taskActions.ts:123 |  |
+| [ ] | `agents.retractMessage` |  | src/features/agents/replyActions.ts:73 |  |
+| [ ] | `agents.sendToAgent` |  | src/features/agents/index.ts:148 |  |
+| [ ] | `agents.showToolWindow` |  | src/features/agents/index.ts:162 |  |
+| [ ] | `agents.unarchiveTasks` |  | src/features/agents/taskActions.ts:160 |  |
+| [ ] | `agents.undockTask` |  | src/features/agents/taskActions.ts:116 |  |
+| [ ] | `agents.useEditor` |  | src/features/agents/taskActions.ts:82 |  |
+| [ ] | `agents.useToolWindow` |  | src/features/agents/taskActions.ts:75 |  |
+| [ ] | `analyze.inspectCode` |  | src/features/analysis/index.ts:52 |  |
+| [ ] | `analyze.inspectFile` | `Alt+Shift+I` | src/features/analysis/index.ts:61 |  |
+| [ ] | `analyze.locateDuplicates` |  | src/features/analysis/index.ts:79 |  |
+| [ ] | `analyze.stackTrace` |  | src/features/run/stackTrace.tsx:155 |  |
+| [ ] | `app.about` |  | src/features/app/appActions.ts:82 |  |
+| [ ] | `app.checkForUpdates` |  | src/features/app/appActions.ts:62 |  |
+| [ ] | `app.installCli` |  | src/features/app/cliCommand.ts:58 |  |
+| [ ] | `app.quit` |  | src/features/app/appActions.ts:83 |  |
+| [ ] | `app.restart` |  | src/features/app/InvalidateCaches.tsx:134 |  |
+| [ ] | `app.uninstallCli` |  | src/features/app/cliCommand.ts:65 |  |
+| [ ] | `bookmarks.newList` |  | src/features/search/index.ts:454 |  |
+| [ ] | `bookmarks.toggleFileBookmark` |  | src/features/search/index.ts:433 |  |
+| [ ] | `build.buildArtifacts` |  | src/features/build/index.ts:102 |  |
+| [ ] | `build.buildModule` | `Meta+Shift+F9` | src/features/build/index.ts:75 |  |
+| [ ] | `build.buildProject` | `Meta+F9` | src/features/build/index.ts:55 |  |
+| [ ] | `build.rebuildProject` |  | src/features/build/index.ts:89 |  |
+| [ ] | `build.stop` |  | src/features/build/index.ts:116 |  |
+| [ ] | `code.addCaretNextOccurrence` | `Ctrl+G` | src/editor/core/actions.ts:663 |  |
+| [ ] | `code.addCaretsToLineEnds` | `Alt+Shift+G` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.applyPastedImports` |  | src/editor/lsp/importsOnPaste.ts:389 |  |
+| [ ] | `code.applyQuickFix` | `Alt+Shift+Enter` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.autoIndentLines` | `Ctrl+Alt+I` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.cleanup` |  | src/features/analysis/index.ts:71 |  |
+| [ ] | `code.cleanupFile` |  | src/editor/lsp/actions.ts:232 |  |
+| [ ] | `code.collapseBlock` | `Meta+Shift+.` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.collapseRecursively` | `Meta+Alt+-` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.commentBlock` | `Meta+Alt+/`, `Ctrl+Shift+/` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.commentLine` | `Meta+/` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.completeStatement` | `Meta+Shift+Enter` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.completion` | `Ctrl+Space` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.cyclicExpandWord` | `Alt+/` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.cyclicExpandWordBackward` | `Alt+Shift+/` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.deleteLine` | `Meta+Backspace` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.duplicateLine` | `Meta+D` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.expandRecursively` | `Meta+Alt+=` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.expressionTypeInfo` | `Ctrl+Shift+P` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.extendSelection` | `Alt+Up` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.fold` | `Meta+-` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.foldAll` | `Meta+Shift+-` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.foldSelection` | `Meta+.` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.foldToggle` |  | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.generate` | `Meta+N` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.implementMethods` | `Ctrl+I` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.insertLiveTemplate` | `Meta+J` | src/features/templates/index.ts:188 |  |
+| [ ] | `code.joinLines` | `Ctrl+Shift+J` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.moveElementLeft` | `Meta+Alt+Shift+Left` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.moveElementRight` | `Meta+Alt+Shift+Right` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.moveLineDown` | `Alt+Shift+Down` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.moveLineUp` | `Alt+Shift+Up` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.moveStatementDown` | `Meta+Shift+Down` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.moveStatementUp` | `Meta+Shift+Up` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.optimizeImports` | `Ctrl+Alt+O` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.optimizeImportsFile` |  | src/editor/lsp/actions.ts:245 |  |
+| [ ] | `code.overrideMethods` | `Ctrl+O` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.parameterInfo` | `Meta+P` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.pasteAsPlainText` | `Meta+Alt+Shift+V` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.pasteFromHistory` | `Meta+Shift+V` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.quickDefinition` | `Alt+Space`, `Meta+Y` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.quickDocumentation` | `F1`, `Ctrl+J` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.quickTypeDefinition` |  | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.reformat` | `Meta+Alt+L` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.reformatDialog` | `Meta+Alt+Shift+L` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.reformatFile` |  | src/editor/lsp/actions.ts:224 |  |
+| [ ] | `code.reformatWithOxfmt` |  | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.reformatWithPrettier` |  | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.reformatWithRuff` |  | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.reverseLines` |  | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.selectAllOccurrences` | `Ctrl+Meta+G` | src/editor/core/actions.ts:663 |  |
+| [ ] | `code.showErrorDescription` | `Meta+F1` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.showIntentions` | `Alt+Enter` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `code.shrinkSelection` | `Alt+Down` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.sortLines` |  | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.splitLine` | `Meta+Enter` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.startNewLine` | `Shift+Enter` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.startNewLineBefore` | `Meta+Alt+Enter` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.surroundWith` | `Meta+Alt+T` | src/features/templates/index.ts:199 |  |
+| [ ] | `code.surroundWithLiveTemplate` | `Meta+Alt+J` | src/features/templates/index.ts:212 |  |
+| [ ] | `code.toggleCase` | `Meta+Shift+U` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.unfold` | `Meta+=` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.unfoldAll` | `Meta+Shift+=` | src/editor/core/actions.ts:650 |  |
+| [ ] | `code.unselectOccurrence` | `Ctrl+Shift+G` | src/editor/core/actions.ts:663 |  |
+| [ ] | `code.unwrap` | `Meta+Shift+Delete` | src/editor/core/actions.ts:650 |  |
+| [ ] | `coverage.hide` |  | src/features/coverage/index.ts:76 |  |
+| [ ] | `coverage.importReport` |  | src/features/coverage/index.ts:55 |  |
+| [ ] | `coverage.manageReports` | `Meta+Alt+F6` | src/features/coverage/index.ts:66 |  |
+| [ ] | `coverage.show` |  | src/features/coverage/index.ts:85 |  |
+| [ ] | `db.collapseAll` |  | src/features/database/treeActions.ts:471 |  |
+| [ ] | `db.copyReference` | `Meta+Alt+Shift+C` | src/features/database/treeActions.ts:378 |  |
+| [ ] | `db.ddlToClipboard` | `Meta+Alt+Shift+G` | src/features/database/treeActions.ts:403 |  |
+| [ ] | `db.ddlToConsole` | `Meta+Alt+Shift+B` | src/features/database/treeActions.ts:414 |  |
+| [ ] | `db.disconnect` | `Meta+F2` | src/features/database/treeActions.ts:224 |  |
+| [ ] | `db.drop` | `Delete`, `Meta+Backspace` | src/features/database/treeActions.ts:299 |  |
+| [ ] | `db.duplicateSource` | `Meta+D` | src/features/database/treeActions.ts:393 |  |
+| [ ] | `db.editData` | `F4` | src/features/database/treeActions.ts:253 |  |
+| [ ] | `db.execute` | `Meta+Enter` | src/features/database/index.ts:184 |  |
+| [ ] | `db.explainPlan` |  | src/features/database/index.ts:225 |  |
+| [ ] | `db.goToColumn` | `Meta+F12` | src/features/database/index.ts:201 |  |
+| [ ] | `db.goToDdl` | `Meta+B` | src/features/database/treeActions.ts:264 |  |
+| [ ] | `db.goToReferencedTable` |  | src/features/database/treeActions.ts:447 |  |
+| [ ] | `db.importData` |  | src/features/database/treeActions.ts:367 |  |
+| [ ] | `db.jumpToConsole` | `Meta+Shift+F10` | src/features/database/treeActions.ts:240 |  |
+| [ ] | `db.modifyTable` | `Meta+F6` | src/features/database/treeActions.ts:323 |  |
+| [ ] | `db.new` | `Meta+N` | src/features/database/treeActions.ts:456 |  |
+| [ ] | `db.newColumn` |  | src/features/database/treeActions.ts:355 |  |
+| [ ] | `db.newDataSource` |  | src/features/database/index.ts:154 |  |
+| [ ] | `db.newTable` |  | src/features/database/treeActions.ts:341 |  |
+| [ ] | `db.openConsole` | `Meta+Shift+L` | src/features/database/index.ts:166 |  |
+| [ ] | `db.pluginConnect` |  | src/features/database/index.ts:128 |  |
+| [ ] | `db.properties` | `Shift+Enter` | src/features/database/treeActions.ts:206 |  |
+| [ ] | `db.queryHistory` |  | src/features/database/index.ts:239 |  |
+| [ ] | `db.quickDoc` | `F1` | src/features/database/treeActions.ts:277 |  |
+| [ ] | `db.refresh` | `Meta+R` | src/features/database/treeActions.ts:217 |  |
+| [ ] | `db.rename` | `Shift+F6` | src/features/database/treeActions.ts:286 |  |
+| [ ] | `db.revertChanges` | `Meta+Alt+Z` | src/features/database/index.ts:217 |  |
+| [ ] | `db.runSqlScript` |  | src/features/database/treeActions.ts:425 |  |
+| [ ] | `db.separateProceduresAndFunctions` |  | src/features/database/treeActions.ts:466 |  |
+| [ ] | `db.showToolWindow` |  | src/features/database/index.ts:145 |  |
+| [ ] | `db.sqlScript` |  | src/features/database/treeActions.ts:437 |  |
+| [ ] | `db.submitChanges` | `Meta+Enter` | src/features/database/index.ts:209 |  |
+| [ ] | `db.truncate` |  | src/features/database/treeActions.ts:313 |  |
+| [ ] | `debug` |  | src/features/run/services.tsx:594 |  |
+| [ ] | `debug.attach` |  | src/features/debugger/actions.ts:450 |  |
+| [ ] | `debug.attachToProcess` | `Alt+Shift+F5` | src/features/debugger/actions.ts:689 |  |
+| [ ] | `debug.browseConsoleHistory` | `Meta+Alt+E` | src/features/debugger/actions.ts:853 |  |
+| [ ] | `debug.cancelHotSwap` |  | src/features/debugger/actions.ts:507 |  |
+| [ ] | `debug.evaluate` | `Alt+F8` | src/features/debugger/actions.ts:846 |  |
+| [ ] | `debug.forceRunToCursor` | `Meta+Alt+F9` | src/features/debugger/actions.ts:713 |  |
+| [ ] | `debug.forceStepInto` | `Alt+Shift+F7` | src/features/debugger/actions.ts:604 |  |
+| [ ] | `debug.forceStepOver` | `Alt+Shift+F8` | src/features/debugger/actions.ts:588 |  |
+| [ ] | `debug.hotReload` |  | src/features/debugger/actions.ts:561 |  |
+| [ ] | `debug.hotRestart` |  | src/features/debugger/actions.ts:573 |  |
+| [ ] | `debug.jumpToSource` | `F4`, `Meta+Down` | src/features/debugger/actions.ts:672 |  |
+| [ ] | `debug.muteBreakpoints` |  | src/features/debugger/actions.ts:829 |  |
+| [ ] | `debug.pause` |  | src/features/debugger/actions.ts:544 |  |
+| [ ] | `debug.pluginStart` |  | src/features/debugger/actions.ts:403 |  |
+| [ ] | `debug.quickEvaluate` | `Meta+Alt+F8`, `Alt+Button1` | src/features/debugger/actions.ts:863 |  |
+| [ ] | `debug.reloadChangedClasses` |  | src/features/debugger/actions.ts:491 |  |
+| [ ] | `debug.removeAllBreakpoints` |  | src/features/debugger/actions.ts:837 |  |
+| [ ] | `debug.rerun` | `Meta+R` | src/features/debugger/actions.ts:516 |  |
+| [ ] | `debug.resetFrame` |  | src/features/debugger/actions.ts:641 |  |
+| [ ] | `debug.resume` | `Meta+Alt+R`, `F9` | src/features/debugger/actions.ts:529 |  |
+| [ ] | `debug.runToCursor` | `Alt+F9` | src/features/debugger/actions.ts:697 |  |
+| [ ] | `debug.setValue` | `F2` | src/features/debugger/actions.ts:663 |  |
+| [ ] | `debug.showExecutionPoint` | `Alt+F10` | src/features/debugger/actions.ts:630 |  |
+| [ ] | `debug.showToolWindow` |  | src/features/debugger/actions.ts:871 |  |
+| [ ] | `debug.smartStepInto` | `Shift+F7` | src/features/debugger/actions.ts:621 |  |
+| [ ] | `debug.startConfig` |  | src/features/debugger/actions.ts:442 |  |
+| [ ] | `debug.stepInto` | `F7` | src/features/debugger/actions.ts:386 |  |
+| [ ] | `debug.stepOut` | `Shift+F8` | src/features/debugger/actions.ts:386 |  |
+| [ ] | `debug.stepOver` | `F8` | src/features/debugger/actions.ts:386 |  |
+| [ ] | `debug.stop` |  | src/features/debugger/actions.ts:480 |  |
+| [ ] | `debug.toggleBreakpoint` | `Meta+F8` | src/features/debugger/actions.ts:730 |  |
+| [ ] | `debug.toggleFieldWatchpoint` |  | src/features/debugger/actions.ts:795 |  |
+| [ ] | `debug.toggleMethodBreakpoint` |  | src/features/debugger/actions.ts:772 |  |
+| [ ] | `debug.toggleTemporaryBreakpoint` | `Meta+Alt+Shift+F8` | src/features/debugger/actions.ts:757 |  |
+| [ ] | `debug.viewBreakpoints` | `Meta+Shift+F8` | src/features/debugger/actions.ts:818 |  |
+| [ ] | `delete` |  | src/features/services/docker.tsx:216 |  |
+| [ ] | `deployment.browseRemoteHost` |  | src/features/deployment/actions.tsx:501 |  |
+| [ ] | `deployment.configure` |  | src/features/deployment/actions.tsx:521 |  |
+| [ ] | `deployment.deleteFromServer` |  | src/features/deployment/actions.tsx:481 |  |
+| [ ] | `deployment.downloadFrom` |  | src/features/deployment/actions.tsx:445 |  |
+| [ ] | `deployment.downloadFromDefault` |  | src/features/deployment/actions.tsx:436 |  |
+| [ ] | `deployment.openInBrowser` |  | src/features/deployment/actions.tsx:511 |  |
+| [ ] | `deployment.syncWith` |  | src/features/deployment/actions.tsx:454 |  |
+| [ ] | `deployment.syncWithDefault` |  | src/features/deployment/actions.tsx:469 |  |
+| [ ] | `deployment.toggleAutoUpload` |  | src/features/deployment/actions.tsx:491 |  |
+| [ ] | `deployment.uploadTo` |  | src/features/deployment/actions.tsx:427 |  |
+| [ ] | `deployment.uploadToDefault` |  | src/features/deployment/actions.tsx:417 |  |
+| [ ] | `diff.applyLeftSide` | `Ctrl+Meta+Right` | src/features/vcs/compare.tsx:193 |  |
+| [ ] | `diff.applyRightSide` | `Ctrl+Meta+Left` | src/features/vcs/compare.tsx:202 |  |
+| [ ] | `diff.compareDirectories` |  | src/features/vcs/compare.tsx:251 |  |
+| [ ] | `diff.compareFiles` |  | src/features/vcs/compare.tsx:265 |  |
+| [ ] | `diff.compareTexts` |  | src/features/vcs/compare.tsx:298 |  |
+| [ ] | `diff.compareWith` |  | src/features/vcs/compare.tsx:219 |  |
+| [ ] | `diff.compareWithClipboard` |  | src/features/vcs/compare.tsx:277 |  |
+| [ ] | `diff.jumpToSource` | `F4`, `Meta+Down` | src/features/vcs/compare.tsx:211 |  |
+| [ ] | `diff.nextDifference` | `F7` | src/features/vcs/compare.tsx:152 |  |
+| [ ] | `diff.nextFile` | `Ctrl+Shift+Right` | src/features/vcs/compare.tsx:177 |  |
+| [ ] | `diff.prevDifference` | `Shift+F7` | src/features/vcs/compare.tsx:160 |  |
+| [ ] | `diff.prevFile` | `Ctrl+Shift+Left` | src/features/vcs/compare.tsx:185 |  |
+| [ ] | `diff.showSettings` | `Meta+Shift+D` | src/features/vcs/compare.tsx:168 |  |
+| [ ] | `docker.execShell` |  | src/features/services/index.ts:228 |  |
+| [ ] | `docker.inspect` |  | src/features/services/index.ts:201 |  |
+| [ ] | `docker.openLogInEditor` |  | src/features/services/index.ts:168 |  |
+| [ ] | `docker.prune` |  | src/features/services/index.ts:251 |  |
+| [ ] | `docker.pullImage` |  | src/features/services/index.ts:240 |  |
+| [ ] | `docker.refresh` |  | src/features/services/index.ts:107 |  |
+| [ ] | `docker.remove` |  | src/features/services/index.ts:139 |  |
+| [ ] | `docker.restart` |  | src/features/services/index.ts:131 |  |
+| [ ] | `docker.showDashboard` |  | src/features/services/index.ts:147 |  |
+| [ ] | `docker.showLayers` |  | src/features/services/index.ts:190 |  |
+| [ ] | `docker.showLog` |  | src/features/services/index.ts:158 |  |
+| [ ] | `docker.showProcesses` |  | src/features/services/index.ts:179 |  |
+| [ ] | `docker.start` |  | src/features/services/index.ts:115 |  |
+| [ ] | `docker.stop` |  | src/features/services/index.ts:123 |  |
+| [ ] | `docker.toggleStoppedContainers` |  | src/features/services/index.ts:212 |  |
+| [ ] | `docker.toggleUntaggedImages` |  | src/features/services/index.ts:220 |  |
+| [ ] | `dotnet.cancel` |  | src/features/dotnet/index.ts:47 |  |
+| [ ] | `dotnet.discover` |  | src/features/dotnet/index.ts:92 |  |
+| [ ] | `dotnet.installTrx` |  | src/features/dotnet/index.ts:108 |  |
+| [ ] | `dotnet.packageChange` |  | src/features/dotnet/index.ts:82 |  |
+| [ ] | `dotnet.packages` |  | src/features/dotnet/index.ts:65 |  |
+| [ ] | `dotnet.reload` |  | src/features/dotnet/index.ts:40 |  |
+| [ ] | `dotnet.search` |  | src/features/dotnet/index.ts:72 |  |
+| [ ] | `dotnet.select` |  | src/features/dotnet/index.ts:48 |  |
+| [ ] | `dotnet.show` |  | src/features/dotnet/index.ts:30 |  |
+| [ ] | `dotnet.test` |  | src/features/dotnet/index.ts:99 |  |
+| [ ] | `edit.copy` |  | src/features/app/appActions.ts:74 |  |
+| [ ] | `edit.cut` |  | src/features/app/appActions.ts:74 |  |
+| [ ] | `edit.paste` |  | src/features/app/appActions.ts:74 |  |
+| [ ] | `edit.redo` |  | src/features/app/appActions.ts:74 |  |
+| [ ] | `edit.selectAll` |  | src/features/app/appActions.ts:74 |  |
+| [ ] | `edit.undo` |  | src/features/app/appActions.ts:74 |  |
+| [ ] | `editor.addOrRemoveCaret` | `Alt+Shift+Button1` | src/editor/core/actions.ts:809 |  |
+| [ ] | `editor.changeSplitOrientation` |  | src/editor/core/actions.ts:1145 |  |
+| [ ] | `editor.cloneCaretAbove` | `Alt Alt+Up` | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.cloneCaretBelow` | `Alt Alt+Down` | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.closeAllTabs` |  | src/editor/core/actions.ts:1053 |  |
+| [ ] | `editor.closeOtherTabs` |  | src/editor/core/actions.ts:1043 |  |
+| [ ] | `editor.closeTab` | `Meta+W` | src/editor/core/actions.ts:1033 |  |
+| [ ] | `editor.codeBlockEnd` |  | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.codeBlockEndWithSelection` |  | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.codeBlockStart` | `Meta+Alt+[` | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.codeBlockStartWithSelection` | `Meta+Alt+Shift+[` | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.contextInfo` | `Ctrl+Shift+Q` | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.copyPath` |  | src/editor/core/actions.ts:1162 |  |
+| [ ] | `editor.copyPathReference` | `Meta+Shift+C` | src/editor/core/actions.ts:1175 |  |
+| [ ] | `editor.copyPathWithLineNumber` |  | src/editor/core/actions.ts:1184 |  |
+| [ ] | `editor.copyReference` | `Meta+Alt+Shift+C` | src/editor/core/actions.ts:721 |  |
+| [ ] | `editor.decreaseFontSize` | `Alt+Shift+,` | src/editor/core/actions.ts:916 |  |
+| [ ] | `editor.encodings.toggleNativeToAscii` |  | src/features/settings/nativeToAscii.ts:10 |  |
+| [ ] | `editor.increaseFontSize` | `Alt+Shift+.` | src/editor/core/actions.ts:908 |  |
+| [ ] | `editor.inlineCompletion.accept` | `Tab` | src/editor/lsp/inlineCompletion.ts:297 |  |
+| [ ] | `editor.inlineCompletion.acceptWord` | `Meta+Right` | src/editor/lsp/inlineCompletion.ts:297 |  |
+| [ ] | `editor.inlineCompletion.dismiss` | `Escape` | src/editor/lsp/inlineCompletion.ts:297 |  |
+| [ ] | `editor.inlineCompletion.next` |  | src/editor/lsp/inlineCompletion.ts:297 |  |
+| [ ] | `editor.inlineCompletion.previous` | `Alt+[` | src/editor/lsp/inlineCompletion.ts:297 |  |
+| [ ] | `editor.inlineCompletion.trigger` | `Alt+\\` | src/editor/lsp/inlineCompletion.ts:305 |  |
+| [ ] | `editor.matchBrace` | `Ctrl+M` | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.moveToOppositeGroup` |  | src/editor/core/actions.ts:1119 |  |
+| [ ] | `editor.nextSplitter` | `Alt+Tab` | src/editor/core/actions.ts:1103 |  |
+| [ ] | `editor.nextTab` | `Ctrl+Right` | src/editor/core/actions.ts:1079 |  |
+| [ ] | `editor.openInOppositeGroup` |  | src/editor/core/actions.ts:1152 |  |
+| [ ] | `editor.pasteHistory.paste` | `Enter` | src/editor/core/view/PasteHistoryDialog.tsx:41 |  |
+| [ ] | `editor.pasteHistory.remove` | `Delete`, `Backspace` | src/editor/core/view/PasteHistoryDialog.tsx:49 |  |
+| [ ] | `editor.pinTab` |  | src/editor/core/actions.ts:1062 |  |
+| [ ] | `editor.prevSplitter` | `Alt+Shift+Tab` | src/editor/core/actions.ts:1111 |  |
+| [ ] | `editor.prevTab` | `Ctrl+Left`, `Meta+Shift+[` | src/editor/core/actions.ts:1080 |  |
+| [ ] | `editor.reopenClosedTab` |  | src/editor/core/actions.ts:1073 |  |
+| [ ] | `editor.resetFontSize` |  | src/editor/core/actions.ts:894 |  |
+| [ ] | `editor.scrollToCenter` | `Ctrl+L` | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.showHint` |  | src/editor/lsp/actions.ts:353 |  |
+| [ ] | `editor.splitDown` |  | src/editor/core/actions.ts:1095 |  |
+| [ ] | `editor.splitRight` | `Meta+\\` | src/editor/core/actions.ts:1087 |  |
+| [ ] | `editor.toggleColumnSelection` | `Meta+Shift+8` | src/editor/core/actions.ts:849 |  |
+| [ ] | `editor.toggleInsertState` | `Insert` | src/editor/core/actions.ts:650 |  |
+| [ ] | `editor.toggleRainbowBrackets` |  | src/editor/core/actions.ts:632 |  |
+| [ ] | `editor.toggleSemanticHighlighting` |  | src/editor/core/actions.ts:632 |  |
+| [ ] | `editor.toggleSoftWrap` |  | src/editor/core/actions.ts:736 |  |
+| [ ] | `editor.toggleZen` |  | src/workbench/distractionFree.ts:103 |  |
+| [ ] | `editor.unsplit` |  | src/editor/core/actions.ts:1129 |  |
+| [ ] | `editor.unsplitAll` |  | src/editor/core/actions.ts:1138 |  |
+| [ ] | `emmet.updateTag` |  | src/features/templates/index.ts:225 |  |
+| [ ] | `file.closeProject` |  | src/workbench/shellActions.ts:66 |  |
+| [ ] | `file.exportSettings` |  | src/features/app/projectActions.ts:202 |  |
+| [ ] | `file.importSettings` |  | src/features/app/projectActions.ts:209 |  |
+| [ ] | `file.invalidateCaches` |  | src/features/app/InvalidateCaches.tsx:126 |  |
+| [ ] | `file.new` |  | src/features/project-tree/actions.ts:260 |  |
+| [ ] | `file.newProject` |  | src/features/app/projectActions.ts:186 |  |
+| [ ] | `file.newProjectsSettings` |  | src/features/settings/index.ts:73 |  |
+| [ ] | `file.newScratchFile` | `Meta+Shift+N` | src/features/scratch/index.ts:53 |  |
+| [ ] | `file.openFile` |  | src/features/app/windows.ts:472 |  |
+| [ ] | `file.openInNewWindow` |  | src/features/app/windows.ts:460 |  |
+| [ ] | `file.openPaths` |  | src/features/app/windows.ts:483 |  |
+| [ ] | `file.openProject` | `Meta+Shift+Alt+O` | src/workbench/shellActions.ts:58 |  |
+| [ ] | `file.openProjectPath` |  | src/features/app/windows.ts:511 |  |
+| [ ] | `file.openRecent` |  | src/features/welcome/index.ts:27 |  |
+| [ ] | `file.openRecentProject` |  | src/features/app/windows.ts:502 |  |
+| [ ] | `file.overrideFileType` |  | src/features/settings/fileTypesRuntime.ts:109 |  |
+| [ ] | `file.projectStructure` | `Meta+;` | src/features/settings/index.ts:129 |  |
+| [ ] | `file.reloadAllFromDisk` |  | src/editor/core/actions.ts:879 |  |
+| [ ] | `file.reloadFromDisk` | `Meta+Alt+Y` | src/editor/core/actions.ts:861 |  |
+| [ ] | `file.renameProject` |  | src/features/app/projectActions.ts:194 |  |
+| [ ] | `file.revertFileTypeOverride` |  | src/features/settings/fileTypesRuntime.ts:119 |  |
+| [ ] | `file.save` | `Meta+S` | src/editor/core/actions.ts:1199 |  |
+| [ ] | `file.settings` | `Meta+,` | src/features/settings/index.ts:65 |  |
+| [ ] | `file.togglePowerSave` |  | src/features/app/projectActions.ts:216 |  |
+| [ ] | `file.toggleReadOnly` |  | src/editor/core/actions.ts:924 |  |
+| [ ] | `find.field.newLine` | `Meta+Shift+Enter` | src/workbench/shellActions.ts:133 |  |
+| [ ] | `find.field.recentSearches` | `Alt+Down` | src/workbench/shellActions.ts:141 |  |
+| [ ] | `find.highlightUsages` | `Meta+Shift+F7` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `find.inFile` | `Meta+F` | src/editor/core/actions.ts:951 |  |
+| [ ] | `find.inPath` | `Meta+Shift+F` | src/features/search/index.ts:341 |  |
+| [ ] | `find.next` | `Meta+G` | src/editor/core/actions.ts:967 |  |
+| [ ] | `find.openInWindow` | `Alt+F7` | src/editor/core/actions.ts:935 |  |
+| [ ] | `find.popup.nextResult` | `Meta+G` | src/features/search/index.ts:389 |  |
+| [ ] | `find.popup.openResult` | `F4`, `Meta+Down` | src/features/search/index.ts:389 |  |
+| [ ] | `find.popup.previousResult` | `Meta+Shift+G` | src/features/search/index.ts:389 |  |
+| [ ] | `find.popup.recentSearches` | `Alt+Down` | src/features/search/index.ts:389 |  |
+| [ ] | `find.previous` | `Meta+Shift+G` | src/editor/core/actions.ts:975 |  |
+| [ ] | `find.replaceInFile` | `Meta+R` | src/editor/core/actions.ts:959 |  |
+| [ ] | `find.replaceInPath` | `Meta+Shift+R` | src/features/search/index.ts:370 |  |
+| [ ] | `find.replaceStructural` |  | src/features/analysis/index.ts:96 |  |
+| [ ] | `find.rerun` | `Meta+R` | src/features/search/index.ts:353 |  |
+| [ ] | `find.scrollToResults` |  | src/editor/core/actions.ts:943 |  |
+| [ ] | `find.showUsageResults` |  | src/features/code-insight/index.ts:110 |  |
+| [ ] | `find.showUsages` | `Meta+Alt+F7` | src/features/code-insight/index.ts:94 |  |
+| [ ] | `find.structural` |  | src/features/analysis/index.ts:87 |  |
+| [ ] | `find.usages` | `Alt+F7` | src/features/code-insight/index.ts:93 |  |
+| [ ] | `github.pullRequest.diff.addComment` |  | src/features/github/diff/index.ts:36 |  |
+| [ ] | `github.pullRequest.diff.addMultilineComment` |  | src/features/github/diff/index.ts:45 |  |
+| [ ] | `github.pullRequest.diff.nextComment` |  | src/features/github/diff/index.ts:63 |  |
+| [ ] | `github.pullRequest.diff.previousComment` |  | src/features/github/diff/index.ts:53 |  |
+| [ ] | `github.pullRequest.diff.refreshReview` |  | src/features/github/diff/index.ts:73 |  |
+| [ ] | `github.pullRequest.reviewMode` |  | src/features/github/index.ts:240 |  |
+| [ ] | `github.pullRequest.reviewMode.showDiff` |  | src/features/github/reviewMode/index.ts:136 |  |
+| [ ] | `github.pullRequest.showInToolWindow` |  | src/features/github/index.ts:222 |  |
+| [ ] | `github.pullRequest.updateBranch` |  | src/features/github/index.ts:231 |  |
+| [ ] | `gradle.analyzeDependencies` |  | src/features/build-tools/index.ts:409 |  |
+| [ ] | `gradle.cancelReload` |  | src/features/build-tools/index.ts:420 |  |
+| [ ] | `gradle.collapseAll` |  | src/features/build-tools/index.ts:462 |  |
+| [ ] | `gradle.executeTask` |  | src/features/build-tools/index.ts:429 |  |
+| [ ] | `gradle.expandAll` |  | src/features/build-tools/index.ts:453 |  |
+| [ ] | `gradle.linkProjects` |  | src/features/build-tools/index.ts:268 |  |
+| [ ] | `gradle.reload` |  | src/features/build-tools/index.ts:396 |  |
+| [ ] | `gradle.toggleOffline` |  | src/features/build-tools/index.ts:442 |  |
+| [ ] | `gradle.unlinkProjects` |  | src/features/build-tools/index.ts:279 |  |
+| [ ] | `graphql.addConfiguration` |  | src/features/graphql/index.ts:66 |  |
+| [ ] | `graphql.editConfiguration` |  | src/features/graphql/index.ts:76 |  |
+| [ ] | `graphql.introspect` |  | src/features/graphql/index.ts:86 |  |
+| [ ] | `graphql.restartDiscovery` |  | src/features/graphql/index.ts:99 |  |
+| [ ] | `graphql.runQuery` | `Meta+Enter` | src/features/graphql/index.ts:109 |  |
+| [ ] | `graphql.showToolWindow` |  | src/features/graphql/index.ts:57 |  |
+| [ ] | `help.keymapReference` |  | src/features/app/appActions.ts:84 |  |
+| [ ] | `help.showLog` |  | src/features/app/appActions.ts:92 |  |
+| [ ] | `http.generateSpringControllerRequests` |  | src/features/http-client/index.ts:196 |  |
+| [ ] | `http.generateSpringRequest` |  | src/features/http-client/index.ts:187 |  |
+| [ ] | `http.newRequest` |  | src/features/http-client/index.ts:172 |  |
+| [ ] | `http.openEndpoint` |  | src/features/http-client/index.ts:144 |  |
+| [ ] | `http.runAll` |  | src/features/http-client/index.ts:161 |  |
+| [ ] | `http.runRequest` | `Meta+Enter` | src/features/http-client/index.ts:153 |  |
+| [ ] | `http.showToolWindow` |  | src/features/http-client/index.ts:205 |  |
+| [ ] | `ide.toggleMode` | `Ctrl+Alt+Shift+M` | src/features/app/projectActions.ts:176 |  |
+| [ ] | `image.actualSize` | `Meta+/` | src/features/viewers/index.ts:39 |  |
+| [ ] | `image.fitToWindow` |  | src/features/viewers/index.ts:39 |  |
+| [ ] | `image.toggleChessboard` |  | src/features/viewers/index.ts:39 |  |
+| [ ] | `image.zoomIn` | `Meta+=` | src/features/viewers/index.ts:39 |  |
+| [ ] | `image.zoomOut` | `Meta+-` | src/features/viewers/index.ts:39 |  |
+| [ ] | `java.downloadJdk` |  | src/features/tools/jdk.ts:116 |  |
+| [ ] | `layout.delete` |  | src/workbench/toolwindows/actions.ts:123 |  |
+| [ ] | `layout.rename` |  | src/workbench/toolwindows/actions.ts:105 |  |
+| [ ] | `layout.restore` |  | src/workbench/toolwindows/actions.ts:81 |  |
+| [ ] | `layout.restoreDefault` | `Shift+F12` | src/workbench/toolwindows/actions.ts:94 |  |
+| [ ] | `layout.save` |  | src/workbench/toolwindows/actions.ts:63 |  |
+| [ ] | `libraries.reload` |  | src/features/libraries/index.ts:181 |  |
+| [ ] | `lightEdit.openProject` |  | src/features/app/windows.ts:493 |  |
+| [ ] | `localHistory.putLabel` |  | src/features/vcs/localHistoryActions.ts:34 |  |
+| [ ] | `localHistory.recentChanges` | `Alt+Shift+C` | src/features/vcs/localHistoryActions.ts:43 |  |
+| [ ] | `macro.edit` |  | src/features/macros/index.ts:188 |  |
+| [ ] | `macro.playBack` |  | src/features/macros/index.ts:162 |  |
+| [ ] | `macro.playSaved` |  | src/features/macros/index.ts:173 |  |
+| [ ] | `macro.startRecording` |  | src/features/macros/index.ts:145 |  |
+| [ ] | `macro.stopRecording` |  | src/features/macros/index.ts:153 |  |
+| [ ] | `markdown.editorAndPreview` |  | src/features/viewers/index.ts:63 |  |
+| [ ] | `markdown.editorOnly` |  | src/features/viewers/index.ts:63 |  |
+| [ ] | `markdown.previewOnly` |  | src/features/viewers/index.ts:63 |  |
+| [ ] | `maven.addProjects` |  | src/features/build-tools/index.ts:292 |  |
+| [ ] | `maven.analyzeDependencies` |  | src/features/build-tools/index.ts:336 |  |
+| [ ] | `maven.cancelReload` |  | src/features/build-tools/index.ts:318 |  |
+| [ ] | `maven.collapseAll` |  | src/features/build-tools/index.ts:377 |  |
+| [ ] | `maven.executeGoal` |  | src/features/build-tools/index.ts:327 |  |
+| [ ] | `maven.expandAll` |  | src/features/build-tools/index.ts:368 |  |
+| [ ] | `maven.reload` |  | src/features/build-tools/index.ts:308 |  |
+| [ ] | `maven.settings` |  | src/features/build-tools/index.ts:386 |  |
+| [ ] | `maven.toggleOffline` |  | src/features/build-tools/index.ts:346 |  |
+| [ ] | `maven.toggleSkipTests` |  | src/features/build-tools/index.ts:357 |  |
+| [ ] | `maven.unlinkProjects` |  | src/features/build-tools/index.ts:300 |  |
+| [ ] | `moveDown` |  | src/features/services/ServicesTree.tsx:123 |  |
+| [ ] | `moveUp` |  | src/features/services/ServicesTree.tsx:123 |  |
+| [ ] | `navigate.back` | `Meta+[`, `Meta+Alt+Left`, `Button4`, `SwipeRight` | src/editor/core/actions.ts:990 |  |
+| [ ] | `navigate.callHierarchy` | `Ctrl+Alt+H` | src/features/code-insight/index.ts:119 |  |
+| [ ] | `navigate.customRegion` | `Meta+Alt+.` | src/editor/core/actions.ts:650 |  |
+| [ ] | `navigate.declaration` | `Meta+B` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `navigate.fileStructure` | `Meta+F12` | src/features/search/index.ts:397 |  |
+| [ ] | `navigate.findAction` | `Meta+Shift+A` | src/features/search/index.ts:281 |  |
+| [ ] | `navigate.forward` |  | src/editor/core/actions.ts:997 |  |
+| [ ] | `navigate.gotoClass` | `Meta+O` | src/features/search/index.ts:256 |  |
+| [ ] | `navigate.gotoFile` | `Meta+Shift+O` | src/features/search/index.ts:264 |  |
+| [ ] | `navigate.gotoLine` | `Meta+L` | src/editor/core/actions.ts:983 |  |
+| [ ] | `navigate.gotoSymbol` | `Meta+Alt+O` | src/features/search/index.ts:273 |  |
+| [ ] | `navigate.gotoTest` | `Meta+Shift+T` | src/editor/navigation/index.ts:174 |  |
+| [ ] | `navigate.implementation` | `Meta+Alt+B`, `Meta+Alt+Button1` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `navigate.lastEditLocation` | `Meta+Shift+Backspace` | src/editor/core/actions.ts:1019 |  |
+| [ ] | `navigate.navigationBar` | `Meta+Up`, `Alt+Home` | src/editor/core/actions.ts:1004 |  |
+| [ ] | `navigate.nextBookmark` |  | src/features/search/index.ts:509 |  |
+| [ ] | `navigate.nextEditLocation` |  | src/editor/core/actions.ts:1026 |  |
+| [ ] | `navigate.nextError` | `F2` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `navigate.nextHighlightedUsage` | `Ctrl+Alt+Down` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `navigate.nextMethod` | `Ctrl+Shift+Down` | src/editor/navigation/index.ts:174 |  |
+| [ ] | `navigate.nextOccurrence` | `Meta+Alt+Down` | src/workbench/toolwindows/actions.ts:217 |  |
+| [ ] | `navigate.prevBookmark` |  | src/features/search/index.ts:516 |  |
+| [ ] | `navigate.prevError` | `Shift+F2` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `navigate.prevHighlightedUsage` | `Ctrl+Alt+Up` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `navigate.previousMethod` | `Ctrl+Shift+Up` | src/editor/navigation/index.ts:174 |  |
+| [ ] | `navigate.prevOccurrence` | `Meta+Alt+Up` | src/workbench/toolwindows/actions.ts:226 |  |
+| [ ] | `navigate.recentFiles` | `Meta+E` | src/features/search/index.ts:296 |  |
+| [ ] | `navigate.recentLocations` | `Meta+Shift+E` | src/features/search/index.ts:330 |  |
+| [ ] | `navigate.searchEverywhere` | `Shift Shift` | src/features/search/index.ts:248 |  |
+| [ ] | `navigate.searchText` | `Meta+Alt+Shift+E` | src/features/search/index.ts:288 |  |
+| [ ] | `navigate.selectIn` | `Alt+F1` | src/features/project-tree/actions.ts:199 |  |
+| [ ] | `navigate.selectInProjectView` |  | src/features/project-tree/actions.ts:213 |  |
+| [ ] | `navigate.showBookmarks` | `Meta+F3` | src/features/search/index.ts:497 |  |
+| [ ] | `navigate.showFilePath` | `Meta+Alt+F12` | src/features/project-tree/actions.ts:360 |  |
+| [ ] | `navigate.superMethod` | `Meta+U` | src/editor/navigation/index.ts:174 |  |
+| [ ] | `navigate.switcher` | `Ctrl+Tab` | src/features/search/index.ts:308 |  |
+| [ ] | `navigate.switcherBack` | `Ctrl+Shift+Tab` | src/features/search/index.ts:319 |  |
+| [ ] | `navigate.toggleBookmark` | `F3` | src/features/search/index.ts:414 |  |
+| [ ] | `navigate.toggleBookmarkWithMnemonic` | `Alt+F3` | src/features/search/index.ts:463 |  |
+| [ ] | `navigate.typeDeclaration` | `Meta+Shift+B`, `Ctrl+Shift+B` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `navigate.typeHierarchy` | `Ctrl+H` | src/features/code-insight/index.ts:126 |  |
+| [ ] | `open-browser` |  | src/features/run/services.tsx:523 |  |
+| [ ] | `perf.clearCaches` |  | src/features/perf/actions.ts:18 |  |
+| [ ] | `perf.showMemory` |  | src/features/perf/actions.ts:55 |  |
+| [ ] | `perf.toggleMemoryIndicator` |  | src/features/perf/actions.ts:67 |  |
+| [ ] | `perf.toggleOverlay` |  | src/features/perf/actions.ts:76 |  |
+| [ ] | `php.composerInstall` |  | src/features/run/composerInstall.ts:122 |  |
+| [ ] | `php.languageLevelPopup` |  | src/features/settings/languages/PhpStatus.tsx:153 |  |
+| [ ] | `php.selectLanguageLevel` |  | src/features/settings/languages/PhpStatus.tsx:164 |  |
+| [ ] | `plugins.content.action` |  | src/features/plugins/views/contentActions.ts:37 |  |
+| [ ] | `plugins.content.find` |  | src/features/plugins/views/contentActions.ts:30 |  |
+| [ ] | `plugins.importInstalledIntellijTheme` |  | src/features/plugins/index.ts:125 |  |
+| [ ] | `plugins.importIntellijTheme` |  | src/features/plugins/index.ts:113 |  |
+| [ ] | `plugins.installFromDisk` |  | src/features/plugins/index.ts:93 |  |
+| [ ] | `plugins.log.toggleArgument` |  | src/features/plugins/views/logActions.ts:42 |  |
+| [ ] | `plugins.reloadAll` |  | src/features/plugins/index.ts:143 |  |
+| [ ] | `plugins.settings` |  | src/features/plugins/index.ts:85 |  |
+| [ ] | `plugins.updateAll` |  | src/features/plugins/index.ts:103 |  |
+| [ ] | `project.attach` |  | src/features/app/windows.ts:329 |  |
+| [ ] | `project.collapseAll` | `Meta+-` | src/features/project-tree/actions.ts:503 |  |
+| [ ] | `project.compareWith` | `Meta+D` | src/features/project-tree/actions.ts:465 |  |
+| [ ] | `project.copy` | `Meta+C` | src/features/project-tree/actions.ts:372 |  |
+| [ ] | `project.copyAbsolutePath` | `Meta+Shift+C` | src/features/project-tree/actions.ts:157 |  |
+| [ ] | `project.copyElement` | `F5` | src/features/project-tree/actions.ts:345 |  |
+| [ ] | `project.copyFileName` |  | src/features/project-tree/actions.ts:157 |  |
+| [ ] | `project.copyPath` |  | src/features/project-tree/actions.ts:375 |  |
+| [ ] | `project.copyRelativePath` |  | src/features/project-tree/actions.ts:157 |  |
+| [ ] | `project.copySourceRootPath` |  | src/features/project-tree/actions.ts:157 |  |
+| [ ] | `project.cut` | `Meta+X` | src/features/project-tree/actions.ts:373 |  |
+| [ ] | `project.delete` | `Delete`, `Backspace`, `Meta+Backspace` | src/features/project-tree/actions.ts:334 |  |
+| [ ] | `project.detach` |  | src/features/app/windows.ts:348 |  |
+| [ ] | `project.dontOpen` |  | src/features/project-trust/index.tsx:257 |  |
+| [ ] | `project.expandAll` | `Meta+=` | src/features/project-tree/actions.ts:491 |  |
+| [ ] | `project.findInFolder` |  | src/features/project-tree/actions.ts:410 |  |
+| [ ] | `project.findUsages` | `Alt+F7` | src/features/project-tree/actions.ts:432 |  |
+| [ ] | `project.move` | `F6` | src/features/project-tree/actions.ts:315 |  |
+| [ ] | `project.newFile` | `Meta+N` | src/features/project-tree/actions.ts:230 |  |
+| [ ] | `project.newFolder` |  | src/features/project-tree/actions.ts:272 |  |
+| [ ] | `project.newInThisDirectory` | `Ctrl+Alt+N` | src/features/project-tree/actions.ts:247 |  |
+| [ ] | `project.open` | `F4`, `Meta+Down` | src/features/project-tree/actions.ts:285 |  |
+| [ ] | `project.openInTerminal` |  | src/features/project-tree/actions.ts:399 |  |
+| [ ] | `project.optimizeImports` | `Ctrl+Alt+O` | src/features/project-tree/actions.ts:454 |  |
+| [ ] | `project.paste` | `Meta+V` | src/features/project-tree/actions.ts:374 |  |
+| [ ] | `project.previewRestricted` |  | src/features/project-trust/index.tsx:250 |  |
+| [ ] | `project.reformatCode` | `Meta+Alt+L` | src/features/project-tree/actions.ts:443 |  |
+| [ ] | `project.refresh` |  | src/features/project-tree/actions.ts:515 |  |
+| [ ] | `project.reloadFromDisk` | `Meta+Alt+Y` | src/features/project-tree/actions.ts:481 |  |
+| [ ] | `project.removeTrustedLocation` |  | src/features/project-trust/index.tsx:273 |  |
+| [ ] | `project.rename` | `Shift+F6` | src/features/project-tree/actions.ts:292 |  |
+| [ ] | `project.renameInline` |  | src/features/project-tree/actions.ts:307 |  |
+| [ ] | `project.reveal` |  | src/features/project-tree/actions.ts:222 |  |
+| [ ] | `project.revealInFinder` |  | src/features/project-tree/actions.ts:390 |  |
+| [ ] | `project.revokeTrust` |  | src/features/project-trust/index.tsx:264 |  |
+| [ ] | `project.showHistory` |  | src/features/project-tree/actions.ts:421 |  |
+| [ ] | `project.trust` |  | src/features/project-trust/index.tsx:249 |  |
+| [ ] | `project.undoMove` |  | src/features/project-tree/actions.ts:323 |  |
+| [ ] | `pull` |  | src/features/services/docker.tsx:224 |  |
+| [ ] | `python.addInterpreter` |  | src/features/settings/languages/PythonStatus.tsx:211 |  |
+| [ ] | `python.interpreterPopup` |  | src/features/settings/languages/PythonStatus.tsx:183 |  |
+| [ ] | `python.interpreterSettings` |  | src/features/settings/languages/PythonStatus.tsx:218 |  |
+| [ ] | `python.selectInterpreter` |  | src/features/settings/languages/PythonStatus.tsx:193 |  |
+| [ ] | `refactor.changeSignature` | `Meta+F6` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.extractConstant` | `Meta+Alt+C` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.extractField` | `Meta+Alt+F` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.extractMethod` | `Meta+Alt+M` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.extractParameter` | `Meta+Alt+P` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.extractVariable` | `Meta+Alt+V` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.inline` | `Meta+Alt+N` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.move` | `F6` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.pullMembersUp` |  | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.pushMembersDown` |  | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.rename` | `Shift+F6` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.safeDelete` | `Meta+Delete` | src/editor/lsp/actions.ts:125 |  |
+| [ ] | `refactor.thisMenu` | `Ctrl+T` | src/editor/lsp/actions.ts:289 |  |
+| [ ] | `refresh` |  | src/features/services/docker.tsx:212 |  |
+| [ ] | `remote.connect` |  | src/features/remote-dev/index.ts:66 |  |
+| [ ] | `remote.disconnect` |  | src/features/remote-dev/index.ts:75 |  |
+| [ ] | `remote.reloadEnvironment` |  | src/features/remote-dev/index.ts:102 |  |
+| [ ] | `remote.reopenInContainer` |  | src/features/remote-dev/index.ts:91 |  |
+| [ ] | `restart` |  | src/features/services/docker.tsx:215 |  |
+| [ ] | `restart-all` |  | src/features/run/services.tsx:559 |  |
+| [ ] | `run` |  | src/features/run/services.tsx:587 |  |
+| [ ] | `run-all` |  | src/features/run/services.tsx:552 |  |
+| [ ] | `run.chooseConfig` | `Ctrl+Alt+R` | src/features/run/index.ts:526 |  |
+| [ ] | `run.chooseDebugConfig` | `Ctrl+Alt+D` | src/features/run/index.ts:542 |  |
+| [ ] | `run.coverage` |  | src/features/coverage/index.ts:34 |  |
+| [ ] | `run.coverageContext` |  | src/features/coverage/index.ts:44 |  |
+| [ ] | `run.createConfig` |  | src/features/run/index.ts:702 |  |
+| [ ] | `run.debug` | `Ctrl+D` | src/features/run/index.ts:463 |  |
+| [ ] | `run.debugConfig` |  | src/features/run/index.ts:590 |  |
+| [ ] | `run.debugContext` | `Ctrl+Shift+D` | src/features/run/index.ts:481 |  |
+| [ ] | `run.editConfigs` | `Ctrl+Alt+Shift+R` | src/features/run/index.ts:558 |  |
+| [ ] | `run.importJetbrains` |  | src/features/run/index.ts:582 |  |
+| [ ] | `run.importVscodeLaunch` |  | src/features/run/index.ts:574 |  |
+| [ ] | `run.modifyContext` |  | src/features/run/index.ts:489 |  |
+| [ ] | `run.pluginStart` |  | src/features/run/index.ts:635 |  |
+| [ ] | `run.profile` |  | src/features/profiler/index.ts:26 |  |
+| [ ] | `run.profileContext` |  | src/features/profiler/index.ts:36 |  |
+| [ ] | `run.reloadConfigs` |  | src/features/run/index.ts:624 |  |
+| [ ] | `run.rerun` | `Meta+R` | src/features/run/index.ts:518 |  |
+| [ ] | `run.rerunFailed` |  | src/features/run/index.ts:603 |  |
+| [ ] | `run.run` | `Ctrl+R` | src/features/run/index.ts:455 |  |
+| [ ] | `run.runConfig` |  | src/features/run/index.ts:662 |  |
+| [ ] | `run.runContext` | `Ctrl+Shift+R` | src/features/run/index.ts:471 |  |
+| [ ] | `run.sampleOutput` |  | src/features/run/index.ts:363 |  |
+| [ ] | `run.services.addType` |  | src/features/run/services.tsx:632 |  |
+| [ ] | `run.services.hideConfig` |  | src/features/run/services.tsx:642 |  |
+| [ ] | `run.stop` | `Meta+F2` | src/features/run/index.ts:498 |  |
+| [ ] | `run.stopProcess` |  | src/features/run/index.ts:506 |  |
+| [ ] | `run.updateApplication` | `Meta+F10` | src/features/run/index.ts:447 |  |
+| [ ] | `run.withExecutor` |  | src/features/run/index.ts:674 |  |
+| [ ] | `runAnything.show` | `Ctrl Ctrl` | src/features/run-anything/index.ts:14 |  |
+| [ ] | `search.editScopes` |  | src/features/search/index.ts:362 |  |
+| [ ] | `services.addService` | `Meta+N` | src/features/services/index.ts:93 |  |
+| [ ] | `services.show` |  | src/features/services/index.ts:84 |  |
+| [ ] | `settings.appearance` |  | src/features/settings/index.ts:89 |  |
+| [ ] | `settings.assignShortcut` |  | src/features/settings/index.ts:146 |  |
+| [ ] | `settings.keymap` |  | src/features/settings/index.ts:81 |  |
+| [ ] | `ssh.configurations` |  | src/features/ssh/index.ts:29 |  |
+| [ ] | `ssh.startSession` |  | src/features/ssh/index.ts:19 |  |
+| [ ] | `start` |  | src/features/services/docker.tsx:213 |  |
+| [ ] | `stop` |  | src/features/run/services.tsx:576 |  |
+| [ ] | `stop-all` |  | src/features/run/services.tsx:566 |  |
+| [ ] | `templates.newFromTemplate` |  | src/features/templates/index.ts:233 |  |
+| [ ] | `terminal` |  | src/features/services/docker.tsx:217 |  |
+| [ ] | `terminal.clear` |  | src/features/terminal/index.ts:196 |  |
+| [ ] | `terminal.closeSession` |  | src/features/terminal/index.ts:203 |  |
+| [ ] | `terminal.find` |  | src/features/terminal/index.ts:182 |  |
+| [ ] | `terminal.new` | `Meta+T` | src/features/terminal/index.ts:67 |  |
+| [ ] | `terminal.newPredefinedSession` |  | src/features/terminal/index.ts:78 |  |
+| [ ] | `terminal.openAt` |  | src/features/terminal/index.ts:95 |  |
+| [ ] | `terminal.pluginSession` |  | src/features/terminal/index.ts:104 |  |
+| [ ] | `terminal.runCommand` |  | src/features/terminal/index.ts:117 |  |
+| [ ] | `terminal.splitAndMoveDown` |  | src/features/terminal/index.ts:160 |  |
+| [ ] | `terminal.splitAndMoveRight` |  | src/features/terminal/index.ts:153 |  |
+| [ ] | `terminal.splitDown` |  | src/features/terminal/index.ts:145 |  |
+| [ ] | `terminal.splitRight` |  | src/features/terminal/index.ts:137 |  |
+| [ ] | `terminal.unsplit` |  | src/features/terminal/index.ts:167 |  |
+| [ ] | `todo.refresh` |  | src/features/todo/index.ts:41 |  |
+| [ ] | `todo.showCurrentFile` |  | src/features/todo/index.ts:49 |  |
+| [ ] | `toolbar.customize` |  | src/workbench/shellActions.ts:103 |  |
+| [ ] | `tools.install` |  | src/features/tools/index.ts:66 |  |
+| [ ] | `tools.languageServers` |  | src/features/tools/index.ts:58 |  |
+| [ ] | `tools.promptInstall` |  | src/features/tools/index.ts:43 |  |
+| [ ] | `toolwindow.closeContent` | `Meta+W`, `Ctrl+Shift+F4` | src/workbench/toolwindows/actions.ts:198 |  |
+| [ ] | `toolwindow.focusEditor` | `Escape` | src/workbench/toolwindows/actions.ts:210 |  |
+| [ ] | `toolwindow.hideActive` | `Shift+Escape` | src/workbench/toolwindows/actions.ts:190 |  |
+| [ ] | `toolwindow.hideAll` | `Meta+Shift+F12` | src/workbench/toolwindows/actions.ts:181 |  |
+| [ ] | `toolwindow.jumpToLast` | `F12` | src/workbench/toolwindows/actions.ts:182 |  |
+| [ ] | `toolwindow.maximize` | `Meta+Shift+'` | src/workbench/toolwindows/actions.ts:236 |  |
+| [ ] | `update` |  | src/features/run/services.tsx:599 |  |
+| [ ] | `usages.rerun` | `Meta+R` | src/features/code-insight/index.ts:101 |  |
+| [ ] | `vcs.acceptBoth` |  | src/features/vcs/actions.tsx:619 |  |
+| [ ] | `vcs.acceptTheirs` |  | src/features/vcs/actions.tsx:612 |  |
+| [ ] | `vcs.acceptYours` |  | src/features/vcs/actions.tsx:605 |  |
+| [ ] | `vcs.addToVcs` | `Meta+Alt+A` | src/features/vcs/actions.tsx:571 |  |
+| [ ] | `vcs.annotate` |  | src/features/vcs/actions.tsx:456 |  |
+| [ ] | `vcs.applyPatch` |  | src/features/vcs/historyActions.tsx:626 |  |
+| [ ] | `vcs.applyPatchFromClipboard` |  | src/features/vcs/historyActions.tsx:634 |  |
+| [ ] | `vcs.branches` |  | src/features/vcs/actions.tsx:484 |  |
+| [ ] | `vcs.changelist.commit` |  | src/features/vcs/historyActions.tsx:505 |  |
+| [ ] | `vcs.changelist.delete` |  | src/features/vcs/historyActions.tsx:477 |  |
+| [ ] | `vcs.changelist.edit` | `F2`, `Shift+F6` | src/features/vcs/historyActions.tsx:466 |  |
+| [ ] | `vcs.changelist.move` | `Meta+Shift+M` | src/features/vcs/historyActions.tsx:497 |  |
+| [ ] | `vcs.changelist.new` |  | src/features/vcs/historyActions.tsx:458 |  |
+| [ ] | `vcs.changelist.setActive` |  | src/features/vcs/historyActions.tsx:487 |  |
+| [ ] | `vcs.checkoutRevision` |  | src/features/vcs/actions.tsx:505 |  |
+| [ ] | `vcs.cherryPick.abort` |  | src/features/vcs/historyActions.tsx:214 |  |
+| [ ] | `vcs.cherryPick.continue` |  | src/features/vcs/historyActions.tsx:207 |  |
+| [ ] | `vcs.clone` |  | src/features/vcs/actions.tsx:246 |  |
+| [ ] | `vcs.commit` | `Meta+K` | src/features/vcs/actions.tsx:206 |  |
+| [ ] | `vcs.commitAndPush` | `Meta+Alt+K` | src/features/vcs/actions.tsx:214 |  |
+| [ ] | `vcs.compareWithBranch` |  | src/features/vcs/actions.tsx:415 |  |
+| [ ] | `vcs.createPatch` |  | src/features/vcs/historyActions.tsx:618 |  |
+| [ ] | `vcs.fetch` |  | src/features/vcs/actions.tsx:319 |  |
+| [ ] | `vcs.ignoreLocal` |  | src/features/vcs/actions.tsx:563 |  |
+| [ ] | `vcs.ignoreShared` |  | src/features/vcs/actions.tsx:563 |  |
+| [ ] | `vcs.localHistory` |  | src/features/vcs/actions.tsx:469 |  |
+| [ ] | `vcs.log.branches.delete` |  | src/features/vcs/logPaneActions.ts:115 |  |
+| [ ] | `vcs.log.branches.navigate` |  | src/features/vcs/logPaneActions.ts:133 |  |
+| [ ] | `vcs.log.branches.new` |  | src/features/vcs/logPaneActions.ts:93 |  |
+| [ ] | `vcs.log.branches.toggleFavorite` |  | src/features/vcs/logPaneActions.ts:124 |  |
+| [ ] | `vcs.log.branches.update` |  | src/features/vcs/logPaneActions.ts:106 |  |
+| [ ] | `vcs.log.changes.compareBeforeWithLocal` |  | src/features/vcs/logPaneActions.ts:168 |  |
+| [ ] | `vcs.log.changes.compareWithLocal` |  | src/features/vcs/logPaneActions.ts:157 |  |
+| [ ] | `vcs.log.changes.diffPreview` |  | src/features/vcs/logPaneActions.ts:215 |  |
+| [ ] | `vcs.log.changes.getFromRevision` |  | src/features/vcs/logPaneActions.ts:190 |  |
+| [ ] | `vcs.log.changes.groupByDirectory` |  | src/features/vcs/logPaneActions.ts:207 |  |
+| [ ] | `vcs.log.changes.jumpToSource` |  | src/features/vcs/logPaneActions.ts:179 |  |
+| [ ] | `vcs.log.changes.revert` |  | src/features/vcs/logPaneActions.ts:198 |  |
+| [ ] | `vcs.log.changes.showDiff` |  | src/features/vcs/logPaneActions.ts:148 |  |
+| [ ] | `vcs.log.checkoutRevision` |  | src/features/vcs/historyActions.tsx:300 |  |
+| [ ] | `vcs.log.cherryPick` |  | src/features/vcs/historyActions.tsx:293 |  |
+| [ ] | `vcs.log.collapseLinear` |  | src/features/vcs/logPaneActions.ts:75 |  |
+| [ ] | `vcs.log.compareVersions` |  | src/features/vcs/historyActions.tsx:315 |  |
+| [ ] | `vcs.log.compareWithLocal` |  | src/features/vcs/historyActions.tsx:307 |  |
+| [ ] | `vcs.log.copyRevision` | `Meta+Alt+Shift+C` | src/features/vcs/historyActions.tsx:277 |  |
+| [ ] | `vcs.log.createPatch` |  | src/features/vcs/historyActions.tsx:286 |  |
+| [ ] | `vcs.log.dropCommit` |  | src/features/vcs/historyActions.tsx:361 |  |
+| [ ] | `vcs.log.editMessage` |  | src/features/vcs/historyActions.tsx:353 |  |
+| [ ] | `vcs.log.expandLinear` |  | src/features/vcs/logPaneActions.ts:83 |  |
+| [ ] | `vcs.log.fixup` |  | src/features/vcs/historyActions.tsx:375 |  |
+| [ ] | `vcs.log.goToChild` |  | src/features/vcs/historyActions.tsx:409 |  |
+| [ ] | `vcs.log.goToParent` |  | src/features/vcs/historyActions.tsx:417 |  |
+| [ ] | `vcs.log.goToRef` | `Meta+F` | src/features/vcs/historyActions.tsx:254 |  |
+| [ ] | `vcs.log.interactiveRebase` |  | src/features/vcs/historyActions.tsx:433 |  |
+| [ ] | `vcs.log.newBranch` |  | src/features/vcs/historyActions.tsx:441 |  |
+| [ ] | `vcs.log.newTag` |  | src/features/vcs/historyActions.tsx:449 |  |
+| [ ] | `vcs.log.openExternal` |  | src/features/vcs/historyActions.tsx:248 |  |
+| [ ] | `vcs.log.openInBrowser` |  | src/features/vcs/historyActions.tsx:425 |  |
+| [ ] | `vcs.log.pushUpToHere` |  | src/features/vcs/historyActions.tsx:391 |  |
+| [ ] | `vcs.log.rebaseOntoCommit` |  | src/features/vcs/historyActions.tsx:402 |  |
+| [ ] | `vcs.log.resetToHere` |  | src/features/vcs/historyActions.tsx:330 |  |
+| [ ] | `vcs.log.revealBookmark` |  | src/features/vcs/historyActions.tsx:162 |  |
+| [ ] | `vcs.log.revert` |  | src/features/vcs/historyActions.tsx:337 |  |
+| [ ] | `vcs.log.showBranches` |  | src/features/vcs/logPaneActions.ts:64 |  |
+| [ ] | `vcs.log.squashCommits` |  | src/features/vcs/historyActions.tsx:368 |  |
+| [ ] | `vcs.log.squashInto` |  | src/features/vcs/historyActions.tsx:383 |  |
+| [ ] | `vcs.log.undoCommit` |  | src/features/vcs/historyActions.tsx:345 |  |
+| [ ] | `vcs.manageRemotes` |  | src/features/vcs/actions.tsx:295 |  |
+| [ ] | `vcs.merge` |  | src/features/vcs/actions.tsx:279 |  |
+| [ ] | `vcs.merge.abort` |  | src/features/vcs/historyActions.tsx:200 |  |
+| [ ] | `vcs.newBranch` | `Meta+Alt+N` | src/features/vcs/actions.tsx:493 |  |
+| [ ] | `vcs.newTag` |  | src/features/vcs/historyActions.tsx:237 |  |
+| [ ] | `vcs.newWorktree` |  | src/features/vcs/actions.tsx:303 |  |
+| [ ] | `vcs.nextChange` | `Ctrl+Alt+Shift+Down` | src/features/vcs/actions.tsx:430 |  |
+| [ ] | `vcs.nextConflict` |  | src/features/vcs/actions.tsx:626 |  |
+| [ ] | `vcs.openDiff` |  | src/features/vcs/compare.tsx:139 |  |
+| [ ] | `vcs.operations` | `Ctrl+V` | src/features/vcs/actions.tsx:197 |  |
+| [ ] | `vcs.prevChange` | `Ctrl+Alt+Shift+Up` | src/features/vcs/actions.tsx:443 |  |
+| [ ] | `vcs.prevConflict` |  | src/features/vcs/actions.tsx:633 |  |
+| [ ] | `vcs.pull` |  | src/features/vcs/actions.tsx:271 |  |
+| [ ] | `vcs.push` | `Meta+Shift+K` | src/features/vcs/actions.tsx:254 |  |
+| [ ] | `vcs.rebase` |  | src/features/vcs/actions.tsx:287 |  |
+| [ ] | `vcs.rebase.abort` |  | src/features/vcs/historyActions.tsx:185 |  |
+| [ ] | `vcs.rebase.continue` |  | src/features/vcs/historyActions.tsx:178 |  |
+| [ ] | `vcs.rebase.skip` |  | src/features/vcs/historyActions.tsx:192 |  |
+| [ ] | `vcs.refresh` |  | src/features/vcs/actions.tsx:327 |  |
+| [ ] | `vcs.resetHead` |  | src/features/vcs/historyActions.tsx:238 |  |
+| [ ] | `vcs.resolveConflicts` |  | src/features/vcs/actions.tsx:597 |  |
+| [ ] | `vcs.revert.abort` |  | src/features/vcs/historyActions.tsx:228 |  |
+| [ ] | `vcs.revert.continue` |  | src/features/vcs/historyActions.tsx:221 |  |
+| [ ] | `vcs.rollback` | `Meta+Alt+Z` | src/features/vcs/actions.tsx:335 |  |
+| [ ] | `vcs.shelf.compareLocal` |  | src/features/vcs/historyActions.tsx:585 |  |
+| [ ] | `vcs.shelf.copyPatch` |  | src/features/vcs/historyActions.tsx:599 |  |
+| [ ] | `vcs.shelf.createPatch` |  | src/features/vcs/historyActions.tsx:592 |  |
+| [ ] | `vcs.shelf.delete` |  | src/features/vcs/historyActions.tsx:539 |  |
+| [ ] | `vcs.shelf.importPatches` |  | src/features/vcs/historyActions.tsx:609 |  |
+| [ ] | `vcs.shelf.refresh` |  | src/features/vcs/historyActions.tsx:562 |  |
+| [ ] | `vcs.shelf.rename` |  | src/features/vcs/historyActions.tsx:550 |  |
+| [ ] | `vcs.shelf.showDiff` |  | src/features/vcs/historyActions.tsx:571 |  |
+| [ ] | `vcs.shelf.showDiffNewTab` |  | src/features/vcs/historyActions.tsx:578 |  |
+| [ ] | `vcs.shelve` |  | src/features/vcs/historyActions.tsx:518 |  |
+| [ ] | `vcs.showCommit` |  | src/features/vcs/actions.tsx:549 |  |
+| [ ] | `vcs.showDiff` | `Meta+D` | src/features/vcs/actions.tsx:366 |  |
+| [ ] | `vcs.showHistory` |  | src/features/vcs/actions.tsx:527 |  |
+| [ ] | `vcs.showHistoryForSelection` |  | src/features/vcs/actions.tsx:540 |  |
+| [ ] | `vcs.showLog` |  | src/features/vcs/actions.tsx:512 |  |
+| [ ] | `vcs.showMessageHistory` | `Ctrl+M` | src/features/vcs/actions.tsx:237 |  |
+| [ ] | `vcs.showShelf` |  | src/features/vcs/historyActions.tsx:526 |  |
+| [ ] | `vcs.stash` |  | src/features/vcs/actions.tsx:582 |  |
+| [ ] | `vcs.toggleAmend` | `Ctrl+Alt+M` | src/features/vcs/actions.tsx:228 |  |
+| [ ] | `vcs.unshelve` |  | src/features/vcs/historyActions.tsx:527 |  |
+| [ ] | `vcs.unstash` |  | src/features/vcs/actions.tsx:590 |  |
+| [ ] | `vcs.update` | `Meta+T` | src/features/vcs/actions.tsx:262 |  |
+| [ ] | `vcs.worktrees` |  | src/features/vcs/actions.tsx:311 |  |
+| [ ] | `view.backgroundTasks` |  | src/workbench/shellActions.ts:118 |  |
+| [ ] | `view.notifications` |  | src/workbench/shellActions.ts:125 |  |
+| [ ] | `view.quickSwitchScheme` | `Ctrl+`` | src/workbench/shellActions.ts:96 |  |
+| [ ] | `view.resetZoom` | `Ctrl+Alt+0` | src/features/settings/appearanceRuntime.ts:110 |  |
+| [ ] | `view.toggleCompactMode` |  | src/features/settings/appearanceRuntime.ts:128 |  |
+| [ ] | `view.toggleStatusBar` |  | src/features/settings/appearanceRuntime.ts:128 |  |
+| [ ] | `view.toggleStatusBarWidget` |  | src/workbench/shellActions.ts:110 |  |
+| [ ] | `view.toggleTheme` |  | src/workbench/shellActions.ts:88 |  |
+| [ ] | `view.toggleToolbar` |  | src/features/settings/appearanceRuntime.ts:128 |  |
+| [ ] | `view.toggleToolWindowBars` |  | src/features/settings/appearanceRuntime.ts:128 |  |
+| [ ] | `view.zoomIn` | `Ctrl+Alt+=` | src/features/settings/appearanceRuntime.ts:96 |  |
+| [ ] | `view.zoomOut` | `Ctrl+Alt+-` | src/features/settings/appearanceRuntime.ts:103 |  |
+| [ ] | `vim.reloadRc` |  | src/features/vim/index.ts:99 |  |
+| [ ] | `vim.settings` |  | src/features/vim/index.ts:107 |  |
+| [ ] | `vim.toggle` |  | src/features/vim/index.ts:90 |  |
+| [ ] | `web.openInBrowser` | `Ctrl+Shift+R` | src/features/web/index.ts:68 |  |
+| [ ] | `web.togglePreview` |  | src/features/web/index.ts:82 |  |
+| [ ] | `welcome.recentProjects` |  | src/features/welcome/index.ts:19 |  |
+| [ ] | `window.closeOtherTabs` |  | src/features/app/windows.ts:416 |  |
+| [ ] | `window.closeTab` |  | src/features/app/windows.ts:407 |  |
+| [ ] | `window.closeTabsToLeft` |  | src/features/app/windows.ts:423 |  |
+| [ ] | `window.closeTabsToRight` |  | src/features/app/windows.ts:430 |  |
+| [ ] | `window.detachTab` |  | src/features/app/windows.ts:391 |  |
+| [ ] | `window.mergeAllWindows` |  | src/features/app/windows.ts:382 |  |
+| [ ] | `window.new` |  | src/features/app/windows.ts:529 |  |
+| [ ] | `window.next` | `Meta+Alt+`` | src/features/app/windows.ts:540 |  |
+| [ ] | `window.nextTab` | `Meta+Alt+PageDown` | src/features/app/windows.ts:446 |  |
+| [ ] | `window.previous` | `Meta+Alt+Shift+`` | src/features/app/windows.ts:546 |  |
+| [ ] | `window.previousTab` | `Meta+Alt+PageUp` | src/features/app/windows.ts:453 |  |
+| [ ] | `window.reorderTabs` |  | src/features/app/windows.ts:437 |  |
+| [ ] | `window.selectTab` |  | src/features/app/windows.ts:398 |  |
+| [ ] | `window.toggleFullScreen` | `Meta+Ctrl+F` | src/features/app/windows.ts:552 |  |
+| [ ] | `workbench.stopBackgroundProcesses` | `Meta+Shift+F2` | src/workbench/shellActions.ts:81 |  |
+| [ ] | `workspace.create` |  | src/features/app/windows.ts:355 |  |
+| [ ] | `workspace.manage` |  | src/features/app/windows.ts:375 |  |
+| [ ] | `workspace.open` |  | src/features/app/windows.ts:364 |  |
+| [ ] | `workspace.removeProject` |  | src/features/app/windows.ts:341 |  |
 
 ## Keymap ids with no statically registered action (0/51 at parity)
 
 Bound in a keymap preset but registered at run time (dynamic rows above) or handled by the editor's own keymap.
 
-|     | Id                                    | Presets                                                                        | Proof |
-| --- | ------------------------------------- | ------------------------------------------------------------------------------ | ----- |
-| [ ] | `code.expandAllToLevel1`              | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `code.expandAllToLevel2`              | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `code.expandAllToLevel3`              | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `code.expandAllToLevel4`              | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `code.expandAllToLevel5`              | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `code.expandToLevel1`                 | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `code.expandToLevel2`                 | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `code.expandToLevel3`                 | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `code.expandToLevel4`                 | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `code.expandToLevel5`                 | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `github.createPullRequest`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `github.pullRequest.refresh`          | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `github.pullRequest.timeline.refresh` | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `github.pullRequest.toggleViewed`     | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `github.refresh`                      | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.gotoBookmark0`              | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.gotoBookmark1`              | eclipse-windows, intellij-macos, intellij-windows, vscode-macos                |       |
-| [ ] | `navigate.gotoBookmark2`              | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.gotoBookmark3`              | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.gotoBookmark4`              | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.gotoBookmark5`              | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.gotoBookmark6`              | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.gotoBookmark7`              | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.gotoBookmark8`              | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.gotoBookmark9`              | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.relatedSymbol`              | vscode-macos                                                                   |       |
-| [ ] | `navigate.toggleBookmark0`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.toggleBookmark1`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.toggleBookmark2`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.toggleBookmark3`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.toggleBookmark4`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.toggleBookmark5`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.toggleBookmark6`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.toggleBookmark7`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.toggleBookmark8`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `navigate.toggleBookmark9`            | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `toolwindow.bookmarks`                | eclipse-macos, intellij-macos, intellij-windows, vscode-macos                  |       |
-| [ ] | `toolwindow.commit`                   | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `toolwindow.debug`                    | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `toolwindow.find`                     | eclipse-macos, intellij-macos, intellij-windows, vscode-macos                  |       |
-| [ ] | `toolwindow.git`                      | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `toolwindow.problems`                 | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `toolwindow.project`                  | eclipse-macos, intellij-macos, intellij-windows, vscode-macos                  |       |
-| [ ] | `toolwindow.resizeDown`               | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `toolwindow.resizeLeft`               | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `toolwindow.resizeRight`              | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `toolwindow.resizeUp`                 | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `toolwindow.run`                      | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `toolwindow.services`                 | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |       |
-| [ ] | `toolwindow.structure`                | intellij-macos, intellij-windows, vscode-macos                                 |       |
-| [ ] | `toolwindow.terminal`                 | intellij-macos, intellij-windows, vscode-macos                                 |       |
+| | Id | Presets | Proof |
+|---|---|---|---|
+| [ ] | `code.expandAllToLevel1` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `code.expandAllToLevel2` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `code.expandAllToLevel3` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `code.expandAllToLevel4` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `code.expandAllToLevel5` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `code.expandToLevel1` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `code.expandToLevel2` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `code.expandToLevel3` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `code.expandToLevel4` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `code.expandToLevel5` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `github.createPullRequest` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `github.pullRequest.refresh` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `github.pullRequest.timeline.refresh` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `github.pullRequest.toggleViewed` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `github.refresh` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark0` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark1` | eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark2` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark3` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark4` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark5` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark6` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark7` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark8` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.gotoBookmark9` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.relatedSymbol` | vscode-macos |  |
+| [ ] | `navigate.toggleBookmark0` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.toggleBookmark1` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.toggleBookmark2` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.toggleBookmark3` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.toggleBookmark4` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.toggleBookmark5` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.toggleBookmark6` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.toggleBookmark7` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.toggleBookmark8` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `navigate.toggleBookmark9` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.bookmarks` | eclipse-macos, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.commit` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.debug` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.find` | eclipse-macos, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.git` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.problems` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.project` | eclipse-macos, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.resizeDown` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.resizeLeft` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.resizeRight` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.resizeUp` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.run` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.services` | eclipse-macos, eclipse-windows, intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.structure` | intellij-macos, intellij-windows, vscode-macos |  |
+| [ ] | `toolwindow.terminal` | intellij-macos, intellij-windows, vscode-macos |  |
 
 ## Keymap presets (0/6 at parity)
 
-|     | Preset             | Actions bound | Bindings | Proof |
-| --- | ------------------ | ------------- | -------- | ----- |
-| [ ] | `eclipse-macos`    | 144           | 88       |       |
-| [ ] | `eclipse-windows`  | 145           | 134      |       |
-| [ ] | `intellij-macos`   | 363           | 350      |       |
-| [ ] | `intellij-windows` | 363           | 338      |       |
-| [ ] | `vscode-macos`     | 365           | 142      |       |
-| [ ] | `vscode-windows`   | 41            | 27       |       |
+| | Preset | Actions bound | Bindings | Proof |
+|---|---|---|---|---|
+| [ ] | `eclipse-macos` | 144 | 88 |  |
+| [ ] | `eclipse-windows` | 145 | 134 |  |
+| [ ] | `intellij-macos` | 363 | 350 |  |
+| [ ] | `intellij-windows` | 363 | 338 |  |
+| [ ] | `vscode-macos` | 365 | 142 |  |
+| [ ] | `vscode-windows` | 41 | 27 |  |
 
 ## Context keys (0/83 at parity)
 
-|     | Key                              | First source                                | Proof |
-| --- | -------------------------------- | ------------------------------------------- | ----- |
-| [ ] | `activeToolWindow`               | src/workbench/toolwindows/store.ts          |       |
-| [ ] | `agentSessionFocus`              | src/features/agents/sessionFocus.ts         |       |
-| [ ] | `build.gradle`                   | src/features/build-tools/index.ts           |       |
-| [ ] | `build.lastStatus`               | src/features/run/buildTask.ts               |       |
-| [ ] | `build.maven`                    | src/features/build-tools/index.ts           |       |
-| [ ] | `command`                        | src/features/vcs/mergeActions.ts            |       |
-| [ ] | `CONNECTED`                      | src/features/github/index.ts                |       |
-| [ ] | `coverageSuites`                 | src/features/coverage/store.ts              |       |
-| [ ] | `coverageVisible`                | src/features/coverage/store.ts              |       |
-| [ ] | `dbTableEditorChanges`           | src/features/database/tableEditorFocus.ts   |       |
-| [ ] | `dbTableEditorFocus`             | src/features/database/tableEditorFocus.ts   |       |
-| [ ] | `debugCanHotSwap`                | src/features/debugger/state.ts              |       |
-| [ ] | `debugCanRerun`                  | src/features/debugger/state.ts              |       |
-| [ ] | `debugFramesFocus`               | src/features/debugger/ui/focusedView.ts     |       |
-| [ ] | `debugHotSwapBuilding`           | src/features/debugger/hotswap.ts            |       |
-| [ ] | `debugSessionActive`             | src/features/debugger/state.ts              |       |
-| [ ] | `debugSessionDart`               | src/features/debugger/state.ts              |       |
-| [ ] | `debugSessionPaused`             | src/features/debugger/state.ts              |       |
-| [ ] | `debugSessionRunning`            | src/features/debugger/state.ts              |       |
-| [ ] | `debugVariablesFocus`            | src/features/debugger/ui/focusedView.ts     |       |
-| [ ] | `diffEditorFocus`                | src/features/vcs/DiffEditor.tsx             |       |
-| [ ] | `EDITOR_WHEN`                    | src/features/templates/index.ts             |       |
-| [ ] | `editorAreaFocus`                | src/workbench/focus.ts                      |       |
-| [ ] | `editorFocus`                    | src/platform/actions.ts                     |       |
-| [ ] | `editorHasSelection`             | src/editor/core/controller.ts               |       |
-| [ ] | `editorLangId`                   | src/editor/core/controller.ts               |       |
-| [ ] | `editorPath`                     | src/editor/core/controller.ts               |       |
-| [ ] | `editorReadOnly`                 | src/editor/core/controller.ts               |       |
-| [ ] | `editorSplit`                    | src/editor/core/controller.ts               |       |
-| [ ] | `editorTabsOpen`                 | src/editor/core/controller.ts               |       |
-| [ ] | `editorTextFocus`                | src/editor/core/controller.ts               |       |
-| [ ] | `findBarFocus`                   | src/editor/core/view/FindBar.tsx            |       |
-| [ ] | `findBarHasResults`              | src/editor/core/view/FindBar.tsx            |       |
-| [ ] | `findBarOpen`                    | src/editor/core/view/FindBar.tsx            |       |
-| [ ] | `findPopupOpen`                  | src/features/search/find/FindInFiles.tsx    |       |
-| [ ] | `focusedDirectory`               | src/ui/treeDirectoryContext.ts              |       |
-| [ ] | `githubConnected`                | src/features/github/reviewMode/index.ts     |       |
-| [ ] | `githubCurrentBranchPullRequest` | src/features/github/reviewMode/index.ts     |       |
-| [ ] | `githubPrTab`                    | src/features/github/toolwindow/store.ts     |       |
-| [ ] | `githubReviewDiff`               | src/features/github/diff/reviewDiff.tsx     |       |
-| [ ] | `githubReviewEditor`             | src/features/github/reviewMode/editor.tsx   |       |
-| [ ] | `githubTimelineActive`           | src/features/github/runtime.ts              |       |
-| [ ] | `GRADLE_WHEN`                    | src/features/build-tools/index.ts           |       |
-| [ ] | `handlerContextKey`              | src/features/github/index.ts                |       |
-| [ ] | `imageViewerActive`              | src/features/viewers/ImageViewer.tsx        |       |
-| [ ] | `imageViewerFocus`               | src/features/viewers/ImageViewer.tsx        |       |
-| [ ] | `lightEdit`                      | src/workbench/activate.ts                   |       |
-| [ ] | `macroLastAvailable`             | src/features/macros/index.ts                |       |
-| [ ] | `macroRecording`                 | src/features/macros/index.ts                |       |
-| [ ] | `macrosSaved`                    | src/features/macros/index.ts                |       |
-| [ ] | `MAVEN_WHEN`                     | src/features/build-tools/index.ts           |       |
-| [ ] | `merge.`                         | src/features/vcs/mergeActions.ts            |       |
-| [ ] | `mergeEditorFocus`               | src/features/vcs/mergeActions.ts            |       |
-| [ ] | `pasteHistoryListFocus`          | src/editor/core/view/PasteHistoryDialog.tsx |       |
-| [ ] | `pasteHistoryOpen`               | src/editor/core/view/PasteHistoryDialog.tsx |       |
-| [ ] | `popupOpen`                      | src/ui/popupState.ts                        |       |
-| [ ] | `projectAttached`                | src/workbench/activate.ts                   |       |
-| [ ] | `projectLocal`                   | src/workbench/activate.ts                   |       |
-| [ ] | `projectOpen`                    | src/workbench/shellActions.ts               |       |
-| [ ] | `projectOpenAsk`                 | src/workbench/activate.ts                   |       |
-| [ ] | `projectOpening`                 | src/platform/project.ts                     |       |
-| [ ] | `run.canRerunFailed`             | src/features/run/index.ts                   |       |
-| [ ] | `run.cmakeBuild`                 | src/features/run/index.ts                   |       |
-| [ ] | `run.selectedKind`               | src/features/run/index.ts                   |       |
-| [ ] | `run.updatableRunning`           | src/features/run/index.ts                   |       |
-| [ ] | `searchFieldHistory`             | src/ui/Input.tsx                            |       |
-| [ ] | `searchFieldNewLine`             | src/ui/Input.tsx                            |       |
-| [ ] | `shelfFocus`                     | src/features/vcs/shelf.tsx                  |       |
-| [ ] | `softWrapSurfaceFocus`           | src/workbench/softWrap.ts                   |       |
-| [ ] | `terminalFocus`                  | src/features/terminal/store.ts              |       |
-| [ ] | `TEXT_WHEN`                      | src/editor/core/actions.ts                  |       |
-| [ ] | `textEditorActive`               | src/editor/core/controller.ts               |       |
-| [ ] | `toolWindowFocus`                | src/workbench/toolwindows/store.ts          |       |
-| [ ] | `toolWindowLayoutsSaved`         | src/workbench/toolwindows/actions.ts        |       |
-| [ ] | `VCS`                            | src/features/vcs/actions.tsx                |       |
-| [ ] | `vcsAvailable`                   | src/features/vcs/store.ts                   |       |
-| [ ] | `vcsLogFocus`                    | src/features/vcs/logStore.ts                |       |
-| [ ] | `vcsOperation`                   | src/features/vcs/historyActions.tsx         |       |
-| [ ] | `vim.mode`                       | src/features/vim/engine.ts                  |       |
-| [ ] | `vimMode`                        | src/features/vim/index.ts                   |       |
-| [ ] | `windowGrouped`                  | src/platform/windowGroups.ts                |       |
-| [ ] | `workspaceContainer`             | src/workbench/activate.ts                   |       |
-| [ ] | `workspaceOpen`                  | src/workbench/activate.ts                   |       |
+| | Key | First source | Proof |
+|---|---|---|---|
+| [ ] | `activeToolWindow` | src/workbench/toolwindows/store.ts |  |
+| [ ] | `agentSessionFocus` | src/features/agents/sessionFocus.ts |  |
+| [ ] | `build.gradle` | src/features/build-tools/index.ts |  |
+| [ ] | `build.lastStatus` | src/features/run/buildTask.ts |  |
+| [ ] | `build.maven` | src/features/build-tools/index.ts |  |
+| [ ] | `command` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `CONNECTED` | src/features/github/index.ts |  |
+| [ ] | `coverageSuites` | src/features/coverage/store.ts |  |
+| [ ] | `coverageVisible` | src/features/coverage/store.ts |  |
+| [ ] | `dbTableEditorChanges` | src/features/database/tableEditorFocus.ts |  |
+| [ ] | `dbTableEditorFocus` | src/features/database/tableEditorFocus.ts |  |
+| [ ] | `debugCanHotSwap` | src/features/debugger/state.ts |  |
+| [ ] | `debugCanRerun` | src/features/debugger/state.ts |  |
+| [ ] | `debugFramesFocus` | src/features/debugger/ui/focusedView.ts |  |
+| [ ] | `debugHotSwapBuilding` | src/features/debugger/hotswap.ts |  |
+| [ ] | `debugSessionActive` | src/features/debugger/state.ts |  |
+| [ ] | `debugSessionDart` | src/features/debugger/state.ts |  |
+| [ ] | `debugSessionPaused` | src/features/debugger/state.ts |  |
+| [ ] | `debugSessionRunning` | src/features/debugger/state.ts |  |
+| [ ] | `debugVariablesFocus` | src/features/debugger/ui/focusedView.ts |  |
+| [ ] | `diffEditorFocus` | src/features/vcs/DiffEditor.tsx |  |
+| [ ] | `EDITOR_WHEN` | src/features/templates/index.ts |  |
+| [ ] | `editorAreaFocus` | src/workbench/focus.ts |  |
+| [ ] | `editorFocus` | src/platform/actions.ts |  |
+| [ ] | `editorHasSelection` | src/editor/core/controller.ts |  |
+| [ ] | `editorLangId` | src/editor/core/controller.ts |  |
+| [ ] | `editorPath` | src/editor/core/controller.ts |  |
+| [ ] | `editorReadOnly` | src/editor/core/controller.ts |  |
+| [ ] | `editorSplit` | src/editor/core/controller.ts |  |
+| [ ] | `editorTabsOpen` | src/editor/core/controller.ts |  |
+| [ ] | `editorTextFocus` | src/editor/core/controller.ts |  |
+| [ ] | `findBarFocus` | src/editor/core/view/FindBar.tsx |  |
+| [ ] | `findBarHasResults` | src/editor/core/view/FindBar.tsx |  |
+| [ ] | `findBarOpen` | src/editor/core/view/FindBar.tsx |  |
+| [ ] | `findPopupOpen` | src/features/search/find/FindInFiles.tsx |  |
+| [ ] | `focusedDirectory` | src/ui/treeDirectoryContext.ts |  |
+| [ ] | `githubConnected` | src/features/github/reviewMode/index.ts |  |
+| [ ] | `githubCurrentBranchPullRequest` | src/features/github/reviewMode/index.ts |  |
+| [ ] | `githubPrTab` | src/features/github/toolwindow/store.ts |  |
+| [ ] | `githubReviewDiff` | src/features/github/diff/reviewDiff.tsx |  |
+| [ ] | `githubReviewEditor` | src/features/github/reviewMode/editor.tsx |  |
+| [ ] | `githubTimelineActive` | src/features/github/runtime.ts |  |
+| [ ] | `GRADLE_WHEN` | src/features/build-tools/index.ts |  |
+| [ ] | `handlerContextKey` | src/features/github/index.ts |  |
+| [ ] | `imageViewerActive` | src/features/viewers/ImageViewer.tsx |  |
+| [ ] | `imageViewerFocus` | src/features/viewers/ImageViewer.tsx |  |
+| [ ] | `lightEdit` | src/workbench/activate.ts |  |
+| [ ] | `macroLastAvailable` | src/features/macros/index.ts |  |
+| [ ] | `macroRecording` | src/features/macros/index.ts |  |
+| [ ] | `macrosSaved` | src/features/macros/index.ts |  |
+| [ ] | `MAVEN_WHEN` | src/features/build-tools/index.ts |  |
+| [ ] | `merge.` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `mergeEditorFocus` | src/features/vcs/mergeActions.ts |  |
+| [ ] | `pasteHistoryListFocus` | src/editor/core/view/PasteHistoryDialog.tsx |  |
+| [ ] | `pasteHistoryOpen` | src/editor/core/view/PasteHistoryDialog.tsx |  |
+| [ ] | `popupOpen` | src/ui/popupState.ts |  |
+| [ ] | `projectAttached` | src/workbench/activate.ts |  |
+| [ ] | `projectLocal` | src/workbench/activate.ts |  |
+| [ ] | `projectOpen` | src/workbench/shellActions.ts |  |
+| [ ] | `projectOpenAsk` | src/workbench/activate.ts |  |
+| [ ] | `projectOpening` | src/platform/project.ts |  |
+| [ ] | `run.canRerunFailed` | src/features/run/index.ts |  |
+| [ ] | `run.cmakeBuild` | src/features/run/index.ts |  |
+| [ ] | `run.selectedKind` | src/features/run/index.ts |  |
+| [ ] | `run.updatableRunning` | src/features/run/index.ts |  |
+| [ ] | `searchFieldHistory` | src/ui/Input.tsx |  |
+| [ ] | `searchFieldNewLine` | src/ui/Input.tsx |  |
+| [ ] | `shelfFocus` | src/features/vcs/shelf.tsx |  |
+| [ ] | `softWrapSurfaceFocus` | src/workbench/softWrap.ts |  |
+| [ ] | `terminalFocus` | src/features/terminal/store.ts |  |
+| [ ] | `TEXT_WHEN` | src/editor/core/actions.ts |  |
+| [ ] | `textEditorActive` | src/editor/core/controller.ts |  |
+| [ ] | `toolWindowFocus` | src/workbench/toolwindows/store.ts |  |
+| [ ] | `toolWindowLayoutsSaved` | src/workbench/toolwindows/actions.ts |  |
+| [ ] | `VCS` | src/features/vcs/actions.tsx |  |
+| [ ] | `vcsAvailable` | src/features/vcs/store.ts |  |
+| [ ] | `vcsLogFocus` | src/features/vcs/logStore.ts |  |
+| [ ] | `vcsOperation` | src/features/vcs/historyActions.tsx |  |
+| [ ] | `vim.mode` | src/features/vim/engine.ts |  |
+| [ ] | `vimMode` | src/features/vim/index.ts |  |
+| [ ] | `windowGrouped` | src/platform/windowGroups.ts |  |
+| [ ] | `workspaceContainer` | src/workbench/activate.ts |  |
+| [ ] | `workspaceOpen` | src/workbench/activate.ts |  |
 
 ## Extension point `registerCloneSource` (0/1 at parity)
 
-|     | Id       | Registered at                    | Proof |
-| --- | -------- | -------------------------------- | ----- |
-| [ ] | `github` | src/features/github/index.ts:262 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `github` | src/features/github/index.ts:262 |  |
 
 ## Extension point `registerCommitCheckProvider` (0/1 at parity)
 
-|     | Id                                           | Registered at                         | Proof |
-| --- | -------------------------------------------- | ------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/uiPoints.tsx:212` | src/features/plugins/uiPoints.tsx:212 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/uiPoints.tsx:212` | src/features/plugins/uiPoints.tsx:212 |  |
 
 ## Extension point `registerDocumentIndexSync` (0/1 at parity)
 
-|     | Id                                            | Registered at                          | Proof |
-| --- | --------------------------------------------- | -------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/navigation.ts:154` | src/features/plugins/navigation.ts:154 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/navigation.ts:154` | src/features/plugins/navigation.ts:154 |  |
 
 ## Extension point `registerEditorBanner` (0/5 at parity)
 
-|     | Id                    | Registered at                           | Proof |
-| --- | --------------------- | --------------------------------------- | ----- |
-| [ ] | `app.powerSave`       | src/features/app/projectActions.ts:229  |       |
-| [ ] | `editor.document`     | src/editor/core/index.ts:70             |       |
-| [ ] | `lsp.outsideProject`  | src/editor/lsp/index.ts:85              |       |
-| [ ] | `php.composerInstall` | src/features/run/composerInstall.ts:120 |       |
-| [ ] | `vcs.conflict`        | src/features/vcs/conflictBanner.ts:13   |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `app.powerSave` | src/features/app/projectActions.ts:229 |  |
+| [ ] | `editor.document` | src/editor/core/index.ts:70 |  |
+| [ ] | `lsp.outsideProject` | src/editor/lsp/index.ts:85 |  |
+| [ ] | `php.composerInstall` | src/features/run/composerInstall.ts:120 |  |
+| [ ] | `vcs.conflict` | src/features/vcs/conflictBanner.ts:13 |  |
 
 ## Extension point `registerEditorContribution` (0/32 at parity)
 
-|     | Id                           | Registered at                               | Proof |
-| --- | ---------------------------- | ------------------------------------------- | ----- |
-| [ ] | `build-tools.pomNavigation`  | src/features/build-tools/index.ts:201       |       |
-| [ ] | `build-tools.versionCatalog` | src/features/build-tools/index.ts:200       |       |
-| [ ] | `colorPreview.gutter`        | src/features/color-preview/index.ts:7       |       |
-| [ ] | `coverage.gutter`            | src/features/coverage/index.ts:30           |       |
-| [ ] | `database.console`           | src/features/database/index.ts:84           |       |
-| [ ] | `debugger`                   | src/features/debugger/index.ts:92           |       |
-| [ ] | `dependency-versions`        | src/features/dependencies/index.ts:208      |       |
-| [ ] | `github.reviewMode`          | src/features/github/reviewMode/index.ts:123 |       |
-| [ ] | `graphql.toolbar`            | src/features/graphql/index.ts:45            |       |
-| [ ] | `http.endpoints`             | src/features/http-client/index.ts:124       |       |
-| [ ] | `http.requests`              | src/features/http-client/index.ts:123       |       |
-| [ ] | `http.spring`                | src/features/http-client/index.ts:125       |       |
-| [ ] | `lsp`                        | src/editor/lsp/index.ts:78                  |       |
-| [ ] | `lsp.lineMarkers`            | src/editor/lsp/index.ts:80                  |       |
-| [ ] | `lsp.parameterTab`           | src/editor/lsp/index.ts:82                  |       |
-| [ ] | `macros.recorder`            | src/features/macros/index.ts:140            |       |
-| [ ] | `merge-conflict-markers`     | src/features/vcs/conflictMarkers.ts:41      |       |
-| [ ] | `plugins.decorations`        | src/features/plugins/decorations.ts:139     |       |
-| [ ] | `plugins.indexedMarkers`     | src/features/plugins/indexedMarkers.ts:163  |       |
-| [ ] | `plugins.languageFeatures`   | src/features/plugins/index.ts:163           |       |
-| [ ] | `plugins.lineMarkers`        | src/features/plugins/index.ts:164           |       |
-| [ ] | `plugins.navigation`         | src/features/plugins/navigation.ts:181      |       |
-| [ ] | `run.npmScripts`             | src/features/run/index.ts:439               |       |
-| [ ] | `run.targets`                | src/features/run/index.ts:438               |       |
-| [ ] | `search.bookmarks`           | src/features/search/index.ts:188            |       |
-| [ ] | `search.tracking`            | src/features/search/common/tracking.ts:130  |       |
-| [ ] | `services.dockerGutter`      | src/features/services/index.ts:81           |       |
-| [ ] | `templates`                  | src/features/templates/index.ts:176         |       |
-| [ ] | `todo.highlight`             | src/features/todo/index.ts:26               |       |
-| [ ] | `vcs.changeMarkers`          | src/features/vcs/index.ts:304               |       |
-| [ ] | `viewers.markdownLive`       | src/features/viewers/markdown/live.ts:105   |       |
-| [ ] | `vim`                        | src/features/vim/index.ts:63                |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `build-tools.pomNavigation` | src/features/build-tools/index.ts:201 |  |
+| [ ] | `build-tools.versionCatalog` | src/features/build-tools/index.ts:200 |  |
+| [ ] | `colorPreview.gutter` | src/features/color-preview/index.ts:7 |  |
+| [ ] | `coverage.gutter` | src/features/coverage/index.ts:30 |  |
+| [ ] | `database.console` | src/features/database/index.ts:84 |  |
+| [ ] | `debugger` | src/features/debugger/index.ts:92 |  |
+| [ ] | `dependency-versions` | src/features/dependencies/index.ts:208 |  |
+| [ ] | `github.reviewMode` | src/features/github/reviewMode/index.ts:123 |  |
+| [ ] | `graphql.toolbar` | src/features/graphql/index.ts:45 |  |
+| [ ] | `http.endpoints` | src/features/http-client/index.ts:124 |  |
+| [ ] | `http.requests` | src/features/http-client/index.ts:123 |  |
+| [ ] | `http.spring` | src/features/http-client/index.ts:125 |  |
+| [ ] | `lsp` | src/editor/lsp/index.ts:78 |  |
+| [ ] | `lsp.lineMarkers` | src/editor/lsp/index.ts:80 |  |
+| [ ] | `lsp.parameterTab` | src/editor/lsp/index.ts:82 |  |
+| [ ] | `macros.recorder` | src/features/macros/index.ts:140 |  |
+| [ ] | `merge-conflict-markers` | src/features/vcs/conflictMarkers.ts:41 |  |
+| [ ] | `plugins.decorations` | src/features/plugins/decorations.ts:139 |  |
+| [ ] | `plugins.indexedMarkers` | src/features/plugins/indexedMarkers.ts:163 |  |
+| [ ] | `plugins.languageFeatures` | src/features/plugins/index.ts:163 |  |
+| [ ] | `plugins.lineMarkers` | src/features/plugins/index.ts:164 |  |
+| [ ] | `plugins.navigation` | src/features/plugins/navigation.ts:181 |  |
+| [ ] | `run.npmScripts` | src/features/run/index.ts:439 |  |
+| [ ] | `run.targets` | src/features/run/index.ts:438 |  |
+| [ ] | `search.bookmarks` | src/features/search/index.ts:188 |  |
+| [ ] | `search.tracking` | src/features/search/common/tracking.ts:130 |  |
+| [ ] | `services.dockerGutter` | src/features/services/index.ts:81 |  |
+| [ ] | `templates` | src/features/templates/index.ts:176 |  |
+| [ ] | `todo.highlight` | src/features/todo/index.ts:26 |  |
+| [ ] | `vcs.changeMarkers` | src/features/vcs/index.ts:304 |  |
+| [ ] | `viewers.markdownLive` | src/features/viewers/markdown/live.ts:105 |  |
+| [ ] | `vim` | src/features/vim/index.ts:63 |  |
 
 ## Extension point `registerEditorDropHandler` (0/1 at parity)
 
-|     | Id                                      | Registered at                    | Proof |
-| --- | --------------------------------------- | -------------------------------- | ----- |
-| [ ] | `(at) src/features/agents/index.ts:104` | src/features/agents/index.ts:104 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/agents/index.ts:104` | src/features/agents/index.ts:104 |  |
 
 ## Editor kinds (0/19 at parity)
 
-|     | Id                         | Registered at                         | Proof |
-| --- | -------------------------- | ------------------------------------- | ----- |
-| [ ] | `agent-home`               | src/features/agents/index.ts:96       |       |
-| [ ] | `agent-session`            | src/features/agents/index.ts:83       |       |
-| [ ] | `binary`                   | src/features/viewers/index.ts:86      |       |
-| [ ] | `db-table`                 | src/features/database/index.ts:74     |       |
-| [ ] | `diff`                     | src/features/vcs/index.ts:156         |       |
-| [ ] | `dockerLog`                | src/features/services/index.ts:73     |       |
-| [ ] | `git-log`                  | src/features/vcs/index.ts:265         |       |
-| [ ] | `git-merge-diff`           | src/features/vcs/index.ts:274         |       |
-| [ ] | `git-revision`             | src/features/vcs/index.ts:254         |       |
-| [ ] | `github.timeline`          | src/features/github/index.ts:282      |       |
-| [ ] | `image`                    | src/features/viewers/index.ts:85      |       |
-| [ ] | `localHistory`             | src/features/vcs/index.ts:289         |       |
-| [ ] | `maven.dependencyAnalyzer` | src/features/build-tools/index.ts:203 |       |
-| [ ] | `merge`                    | src/features/vcs/index.ts:283         |       |
-| [ ] | `notebook`                 | src/features/notebook/index.ts:49     |       |
-| [ ] | `pluginContent`            | src/features/plugins/uiPoints.tsx:561 |       |
-| [ ] | `pluginEditor`             | src/features/plugins/uiPoints.tsx:546 |       |
-| [ ] | `pluginLog`                | src/features/plugins/uiPoints.tsx:554 |       |
-| [ ] | `selectionHistory`         | src/features/vcs/index.ts:295         |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `agent-home` | src/features/agents/index.ts:96 |  |
+| [ ] | `agent-session` | src/features/agents/index.ts:83 |  |
+| [ ] | `binary` | src/features/viewers/index.ts:86 |  |
+| [ ] | `db-table` | src/features/database/index.ts:74 |  |
+| [ ] | `diff` | src/features/vcs/index.ts:156 |  |
+| [ ] | `dockerLog` | src/features/services/index.ts:73 |  |
+| [ ] | `git-log` | src/features/vcs/index.ts:265 |  |
+| [ ] | `git-merge-diff` | src/features/vcs/index.ts:274 |  |
+| [ ] | `git-revision` | src/features/vcs/index.ts:254 |  |
+| [ ] | `github.timeline` | src/features/github/index.ts:282 |  |
+| [ ] | `image` | src/features/viewers/index.ts:85 |  |
+| [ ] | `localHistory` | src/features/vcs/index.ts:289 |  |
+| [ ] | `maven.dependencyAnalyzer` | src/features/build-tools/index.ts:203 |  |
+| [ ] | `merge` | src/features/vcs/index.ts:283 |  |
+| [ ] | `notebook` | src/features/notebook/index.ts:49 |  |
+| [ ] | `pluginContent` | src/features/plugins/uiPoints.tsx:561 |  |
+| [ ] | `pluginEditor` | src/features/plugins/uiPoints.tsx:546 |  |
+| [ ] | `pluginLog` | src/features/plugins/uiPoints.tsx:554 |  |
+| [ ] | `selectionHistory` | src/features/vcs/index.ts:295 |  |
 
 ## Extension point `registerEndpointProvider` (0/2 at parity)
 
-|     | Id                                         | Registered at                                    | Proof |
-| --- | ------------------------------------------ | ------------------------------------------------ | ----- |
-| [ ] | `(at) src/features/plugins/points.tsx:161` | src/features/plugins/points.tsx:161              |       |
-| [ ] | `http.spring`                              | src/features/http-client/spring/routeIndex.ts:10 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/points.tsx:161` | src/features/plugins/points.tsx:161 |  |
+| [ ] | `http.spring` | src/features/http-client/spring/routeIndex.ts:10 |  |
 
 ## Extension point `registerExtensionBindings` (0/1 at parity)
 
-|     | Id                                           | Registered at                         | Proof |
-| --- | -------------------------------------------- | ------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/uiPoints.tsx:439` | src/features/plugins/uiPoints.tsx:439 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/uiPoints.tsx:439` | src/features/plugins/uiPoints.tsx:439 |  |
 
 ## Extension point `registerFileDropHandler` (0/2 at parity)
 
-|     | Id                                              | Registered at                            | Proof |
-| --- | ----------------------------------------------- | ---------------------------------------- | ----- |
-| [ ] | `(at) src/editor/core/cm/markdownImages.ts:117` | src/editor/core/cm/markdownImages.ts:117 |       |
-| [ ] | `(at) src/features/terminal/drop.ts:22`         | src/features/terminal/drop.ts:22         |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/editor/core/cm/markdownImages.ts:117` | src/editor/core/cm/markdownImages.ts:117 |  |
+| [ ] | `(at) src/features/terminal/drop.ts:22` | src/features/terminal/drop.ts:22 |  |
 
 ## File editor providers (0/4 at parity)
 
-|     | Id                                           | Registered at                         | Proof |
-| --- | -------------------------------------------- | ------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/uiPoints.tsx:477` | src/features/plugins/uiPoints.tsx:477 |       |
-| [ ] | `notebook`                                   | src/features/notebook/index.ts:57     |       |
-| [ ] | `viewers.hex`                                | src/features/viewers/index.ts:95      |       |
-| [ ] | `viewers.image`                              | src/features/viewers/index.ts:87      |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/uiPoints.tsx:477` | src/features/plugins/uiPoints.tsx:477 |  |
+| [ ] | `notebook` | src/features/notebook/index.ts:57 |  |
+| [ ] | `viewers.hex` | src/features/viewers/index.ts:95 |  |
+| [ ] | `viewers.image` | src/features/viewers/index.ts:87 |  |
 
 ## Extension point `registerFontZoomSurface` (0/2 at parity)
 
-|     | Id                                                | Registered at                              | Proof |
-| --- | ------------------------------------------------- | ------------------------------------------ | ----- |
-| [ ] | `(at) src/features/plugins/views/WebView.tsx:169` | src/features/plugins/views/WebView.tsx:169 |       |
-| [ ] | `(at) src/features/terminal/session.ts:325`       | src/features/terminal/session.ts:325       |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/views/WebView.tsx:169` | src/features/plugins/views/WebView.tsx:169 |  |
+| [ ] | `(at) src/features/terminal/session.ts:325` | src/features/terminal/session.ts:325 |  |
 
 ## Extension point `registerGitLogChecks` (0/1 at parity)
 
-|     | Id                                      | Registered at                    | Proof |
-| --- | --------------------------------------- | -------------------------------- | ----- |
-| [ ] | `(at) src/features/github/index.ts:269` | src/features/github/index.ts:269 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/github/index.ts:269` | src/features/github/index.ts:269 |  |
 
 ## Extension point `registerKeyClaim` (0/12 at parity)
 
-|     | Id                                                            | Registered at                                          | Proof |
-| --- | ------------------------------------------------------------- | ------------------------------------------------------ | ----- |
-| [ ] | `(at) src/editor/core/view/FindBar.tsx:367`                   | src/editor/core/view/FindBar.tsx:367                   |       |
-| [ ] | `(at) src/features/debugger/ui/DebugConsole.tsx:244`          | src/features/debugger/ui/DebugConsole.tsx:244          |       |
-| [ ] | `(at) src/features/plugins/views/contentEditor.tsx:518`       | src/features/plugins/views/contentEditor.tsx:518       |       |
-| [ ] | `(at) src/features/plugins/views/logEditor.tsx:241`           | src/features/plugins/views/logEditor.tsx:241           |       |
-| [ ] | `(at) src/features/run/ConsoleView.tsx:346`                   | src/features/run/ConsoleView.tsx:346                   |       |
-| [ ] | `(at) src/features/search/everywhere/SearchEverywhere.tsx:82` | src/features/search/everywhere/SearchEverywhere.tsx:82 |       |
-| [ ] | `(at) src/features/search/find/parts.tsx:182`                 | src/features/search/find/parts.tsx:182                 |       |
-| [ ] | `(at) src/features/services/logEditor.tsx:273`                | src/features/services/logEditor.tsx:273                |       |
-| [ ] | `(at) src/features/terminal/keys.ts:136`                      | src/features/terminal/keys.ts:136                      |       |
-| [ ] | `(at) src/features/vcs/BranchWidget.tsx:297`                  | src/features/vcs/BranchWidget.tsx:297                  |       |
-| [ ] | `(at) src/features/vcs/diffDialog.tsx:85`                     | src/features/vcs/diffDialog.tsx:85                     |       |
-| [ ] | `(at) src/features/vim/index.ts:79`                           | src/features/vim/index.ts:79                           |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/editor/core/view/FindBar.tsx:367` | src/editor/core/view/FindBar.tsx:367 |  |
+| [ ] | `(at) src/features/debugger/ui/DebugConsole.tsx:244` | src/features/debugger/ui/DebugConsole.tsx:244 |  |
+| [ ] | `(at) src/features/plugins/views/contentEditor.tsx:518` | src/features/plugins/views/contentEditor.tsx:518 |  |
+| [ ] | `(at) src/features/plugins/views/logEditor.tsx:241` | src/features/plugins/views/logEditor.tsx:241 |  |
+| [ ] | `(at) src/features/run/ConsoleView.tsx:346` | src/features/run/ConsoleView.tsx:346 |  |
+| [ ] | `(at) src/features/search/everywhere/SearchEverywhere.tsx:82` | src/features/search/everywhere/SearchEverywhere.tsx:82 |  |
+| [ ] | `(at) src/features/search/find/parts.tsx:182` | src/features/search/find/parts.tsx:182 |  |
+| [ ] | `(at) src/features/services/logEditor.tsx:273` | src/features/services/logEditor.tsx:273 |  |
+| [ ] | `(at) src/features/terminal/keys.ts:136` | src/features/terminal/keys.ts:136 |  |
+| [ ] | `(at) src/features/vcs/BranchWidget.tsx:297` | src/features/vcs/BranchWidget.tsx:297 |  |
+| [ ] | `(at) src/features/vcs/diffDialog.tsx:85` | src/features/vcs/diffDialog.tsx:85 |  |
+| [ ] | `(at) src/features/vim/index.ts:79` | src/features/vim/index.ts:79 |  |
 
 ## Extension point `registerLanguageMode` (0/1 at parity)
 
-|     | Id                                           | Registered at                         | Proof |
-| --- | -------------------------------------------- | ------------------------------------- | ----- |
-| [ ] | `(at) src/features/http-client/index.ts:122` | src/features/http-client/index.ts:122 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/http-client/index.ts:122` | src/features/http-client/index.ts:122 |  |
 
 ## Extension point `registerMenuGroup` (0/25 at parity)
 
-|     | Id                           | Registered at                                 | Proof |
-| --- | ---------------------------- | --------------------------------------------- | ----- |
-| [ ] | `agents.send`                | src/features/agents/index.ts:109              |       |
-| [ ] | `build.module`               | src/features/build/index.ts:125               |       |
-| [ ] | `debugger.evaluate`          | src/features/debugger/index.ts:73             |       |
-| [ ] | `debugger.hotswap`           | src/features/debugger/index.ts:78             |       |
-| [ ] | `debugger.stop`              | src/features/debugger/index.ts:84             |       |
-| [ ] | `deployment`                 | src/features/deployment/index.ts:88           |       |
-| [ ] | `github.reviewMode`          | src/features/github/reviewMode/index.ts:146   |       |
-| [ ] | `go.modules`                 | src/features/run/goActions.ts:103             |       |
-| [ ] | `gradle.analyzeDependencies` | src/features/build-tools/index.ts:211         |       |
-| [ ] | `http.new`                   | src/features/http-client/index.ts:136         |       |
-| [ ] | `http.spring`                | src/features/http-client/index.ts:126         |       |
-| [ ] | `maven.analyzeDependencies`  | src/features/build-tools/index.ts:224         |       |
-| [ ] | `plugins`                    | src/features/plugins/uiPoints.tsx:569         |       |
-| [ ] | `run.context`                | src/features/run/index.ts:440                 |       |
-| [ ] | `scratch.new`                | src/features/scratch/index.ts:46              |       |
-| [ ] | `search.bookmarks`           | src/features/search/index.ts:209              |       |
-| [ ] | `search.bookmarks.files`     | src/features/search/index.ts:226              |       |
-| [ ] | `search.structure.selectIn`  | src/features/search/index.ts:194              |       |
-| [ ] | `settings.fileType`          | src/features/settings/fileTypesRuntime.ts:130 |       |
-| [ ] | `templates.emmet`            | src/features/templates/index.ts:180           |       |
-| [ ] | `templates.new`              | src/features/templates/index.ts:99            |       |
-| [ ] | `templates.newFromTemplate`  | src/features/templates/index.ts:114           |       |
-| [ ] | `vcs.gutter`                 | src/features/vcs/index.ts:309                 |       |
-| [ ] | `web.open`                   | src/features/web/index.ts:100                 |       |
-| [ ] | `web.openIn`                 | src/features/web/index.ts:118                 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `agents.send` | src/features/agents/index.ts:109 |  |
+| [ ] | `build.module` | src/features/build/index.ts:125 |  |
+| [ ] | `debugger.evaluate` | src/features/debugger/index.ts:73 |  |
+| [ ] | `debugger.hotswap` | src/features/debugger/index.ts:78 |  |
+| [ ] | `debugger.stop` | src/features/debugger/index.ts:84 |  |
+| [ ] | `deployment` | src/features/deployment/index.ts:88 |  |
+| [ ] | `github.reviewMode` | src/features/github/reviewMode/index.ts:146 |  |
+| [ ] | `go.modules` | src/features/run/goActions.ts:103 |  |
+| [ ] | `gradle.analyzeDependencies` | src/features/build-tools/index.ts:211 |  |
+| [ ] | `http.new` | src/features/http-client/index.ts:136 |  |
+| [ ] | `http.spring` | src/features/http-client/index.ts:126 |  |
+| [ ] | `maven.analyzeDependencies` | src/features/build-tools/index.ts:224 |  |
+| [ ] | `plugins` | src/features/plugins/uiPoints.tsx:569 |  |
+| [ ] | `run.context` | src/features/run/index.ts:440 |  |
+| [ ] | `scratch.new` | src/features/scratch/index.ts:46 |  |
+| [ ] | `search.bookmarks` | src/features/search/index.ts:209 |  |
+| [ ] | `search.bookmarks.files` | src/features/search/index.ts:226 |  |
+| [ ] | `search.structure.selectIn` | src/features/search/index.ts:194 |  |
+| [ ] | `settings.fileType` | src/features/settings/fileTypesRuntime.ts:130 |  |
+| [ ] | `templates.emmet` | src/features/templates/index.ts:180 |  |
+| [ ] | `templates.new` | src/features/templates/index.ts:99 |  |
+| [ ] | `templates.newFromTemplate` | src/features/templates/index.ts:114 |  |
+| [ ] | `vcs.gutter` | src/features/vcs/index.ts:309 |  |
+| [ ] | `web.open` | src/features/web/index.ts:100 |  |
+| [ ] | `web.openIn` | src/features/web/index.ts:118 |  |
 
 ## Extension point `registerMenuSlotItem` (0/2 at parity)
 
-|     | Id                                           | Registered at                         | Proof |
-| --- | -------------------------------------------- | ------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/uiPoints.tsx:177` | src/features/plugins/uiPoints.tsx:177 |       |
-| [ ] | `(at) src/features/plugins/uiPoints.tsx:182` | src/features/plugins/uiPoints.tsx:182 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/uiPoints.tsx:177` | src/features/plugins/uiPoints.tsx:177 |  |
+| [ ] | `(at) src/features/plugins/uiPoints.tsx:182` | src/features/plugins/uiPoints.tsx:182 |  |
 
 ## Extension point `registerNavigationProvider` (0/1 at parity)
 
-|     | Id                                            | Registered at                          | Proof |
-| --- | --------------------------------------------- | -------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/navigation.ts:172` | src/features/plugins/navigation.ts:172 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/navigation.ts:172` | src/features/plugins/navigation.ts:172 |  |
 
 ## Extension point `registerOccurrenceNavigator` (0/1 at parity)
 
-|     | Id                                         | Registered at                       | Proof |
-| --- | ------------------------------------------ | ----------------------------------- | ----- |
-| [ ] | `(at) src/workbench/contributions.ts:1362` | src/workbench/contributions.ts:1362 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/workbench/contributions.ts:1362` | src/workbench/contributions.ts:1362 |  |
 
 ## Overlays (0/56 at parity)
 
-|     | Id                           | Registered at                            | Proof |
-| --- | ---------------------------- | ---------------------------------------- | ----- |
-| [ ] | `analysis.dialogs`           | src/features/analysis/index.ts:29        |       |
-| [ ] | `app.about`                  | src/features/app/index.ts:37             |       |
-| [ ] | `app.invalidateCaches`       | src/features/app/index.ts:39             |       |
-| [ ] | `app.keymapReference`        | src/features/app/index.ts:38             |       |
-| [ ] | `app.newProject`             | src/features/app/index.ts:40             |       |
-| [ ] | `app.termination`            | src/features/app/index.ts:41             |       |
-| [ ] | `app.workspace`              | src/features/app/index.ts:58             |       |
-| [ ] | `build-tools.execute`        | src/features/build-tools/index.ts:199    |       |
-| [ ] | `code-insight.usagesPopup`   | src/features/code-insight/index.ts:91    |       |
-| [ ] | `coverage.manageReports`     | src/features/coverage/index.ts:32        |       |
-| [ ] | `database.dialogs`           | src/features/database/index.ts:80        |       |
-| [ ] | `debugger`                   | src/features/debugger/index.ts:69        |       |
-| [ ] | `deployment.dialogs`         | src/features/deployment/index.ts:87      |       |
-| [ ] | `editor-lsp.hierarchyDialog` | src/editor/lsp/index.ts:84               |       |
-| [ ] | `editor-lsp.popups`          | src/editor/lsp/index.ts:83               |       |
-| [ ] | `editor.gotoLine`            | src/editor/core/index.ts:71              |       |
-| [ ] | `editor.navigationBar`       | src/editor/core/index.ts:73              |       |
-| [ ] | `editor.pasteHistory`        | src/editor/core/index.ts:72              |       |
-| [ ] | `github.dialogs`             | src/features/github/index.ts:289         |       |
-| [ ] | `graphql.environment`        | src/features/graphql/index.ts:46         |       |
-| [ ] | `macros.dialogs`             | src/features/macros/index.ts:141         |       |
-| [ ] | `mcp.confirm`                | src/features/mcp/index.ts:12             |       |
-| [ ] | `perf.overlay`               | src/features/perf/index.ts:13            |       |
-| [ ] | `plugins.consent`            | src/features/plugins/index.ts:63         |       |
-| [ ] | `plugins.intellijThemes`     | src/features/plugins/index.ts:64         |       |
-| [ ] | `project.fileRefactor`       | src/features/project-tree/index.ts:204   |       |
-| [ ] | `project.newPopup`           | src/features/project-tree/index.ts:206   |       |
-| [ ] | `project.refactoringPreview` | src/features/project-tree/index.ts:205   |       |
-| [ ] | `project.trustDialog`        | src/features/project-trust/index.tsx:245 |       |
-| [ ] | `remote.connect`             | src/features/remote-dev/index.ts:57      |       |
-| [ ] | `run.chooser`                | src/features/run/index.ts:391            |       |
-| [ ] | `run.dialogs`                | src/features/run/index.ts:396            |       |
-| [ ] | `run.editConfigs`            | src/features/run/index.ts:392            |       |
-| [ ] | `run.serviceImport`          | src/features/run/index.ts:397            |       |
-| [ ] | `run.stackTraceDialog`       | src/features/run/stackTrace.tsx:153      |       |
-| [ ] | `runAnything.popup`          | src/features/run-anything/index.ts:12    |       |
-| [ ] | `scratch.chooser`            | src/features/scratch/index.ts:44         |       |
-| [ ] | `search.bookmarks`           | src/features/search/index.ts:151         |       |
-| [ ] | `search.everywhere`          | src/features/search/index.ts:130         |       |
-| [ ] | `search.fileStructure`       | src/features/search/index.ts:145         |       |
-| [ ] | `search.findInFiles`         | src/features/search/index.ts:140         |       |
-| [ ] | `search.recent`              | src/features/search/index.ts:136         |       |
-| [ ] | `search.scopes`              | src/features/search/index.ts:144         |       |
-| [ ] | `services.dialogs`           | src/features/services/index.ts:80        |       |
-| [ ] | `settings.assignShortcut`    | src/features/settings/index.ts:139       |       |
-| [ ] | `settings.dialog`            | src/features/settings/index.ts:123       |       |
-| [ ] | `settings.projectStructure`  | src/features/settings/index.ts:124       |       |
-| [ ] | `ssh.askpass`                | src/features/ssh/index.ts:15             |       |
-| [ ] | `templates.chooser`          | src/features/templates/index.ts:177      |       |
-| [ ] | `templates.emmetUpdateTag`   | src/features/templates/index.ts:179      |       |
-| [ ] | `templates.newFile`          | src/features/templates/index.ts:178      |       |
-| [ ] | `vcs.branches`               | src/features/vcs/index.ts:241            |       |
-| [ ] | `vcs.dialogs`                | src/features/vcs/index.ts:240            |       |
-| [ ] | `welcome.recentProjects`     | src/features/welcome/index.ts:17         |       |
-| [ ] | `workbench.backgroundTasks`  | src/workbench/activate.ts:82             |       |
-| [ ] | `workbench.customizeToolbar` | src/workbench/activate.ts:81             |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `analysis.dialogs` | src/features/analysis/index.ts:29 |  |
+| [ ] | `app.about` | src/features/app/index.ts:37 |  |
+| [ ] | `app.invalidateCaches` | src/features/app/index.ts:39 |  |
+| [ ] | `app.keymapReference` | src/features/app/index.ts:38 |  |
+| [ ] | `app.newProject` | src/features/app/index.ts:40 |  |
+| [ ] | `app.termination` | src/features/app/index.ts:41 |  |
+| [ ] | `app.workspace` | src/features/app/index.ts:58 |  |
+| [ ] | `build-tools.execute` | src/features/build-tools/index.ts:199 |  |
+| [ ] | `code-insight.usagesPopup` | src/features/code-insight/index.ts:91 |  |
+| [ ] | `coverage.manageReports` | src/features/coverage/index.ts:32 |  |
+| [ ] | `database.dialogs` | src/features/database/index.ts:80 |  |
+| [ ] | `debugger` | src/features/debugger/index.ts:69 |  |
+| [ ] | `deployment.dialogs` | src/features/deployment/index.ts:87 |  |
+| [ ] | `editor-lsp.hierarchyDialog` | src/editor/lsp/index.ts:84 |  |
+| [ ] | `editor-lsp.popups` | src/editor/lsp/index.ts:83 |  |
+| [ ] | `editor.gotoLine` | src/editor/core/index.ts:71 |  |
+| [ ] | `editor.navigationBar` | src/editor/core/index.ts:73 |  |
+| [ ] | `editor.pasteHistory` | src/editor/core/index.ts:72 |  |
+| [ ] | `github.dialogs` | src/features/github/index.ts:289 |  |
+| [ ] | `graphql.environment` | src/features/graphql/index.ts:46 |  |
+| [ ] | `macros.dialogs` | src/features/macros/index.ts:141 |  |
+| [ ] | `mcp.confirm` | src/features/mcp/index.ts:12 |  |
+| [ ] | `perf.overlay` | src/features/perf/index.ts:13 |  |
+| [ ] | `plugins.consent` | src/features/plugins/index.ts:63 |  |
+| [ ] | `plugins.intellijThemes` | src/features/plugins/index.ts:64 |  |
+| [ ] | `project.fileRefactor` | src/features/project-tree/index.ts:204 |  |
+| [ ] | `project.newPopup` | src/features/project-tree/index.ts:206 |  |
+| [ ] | `project.refactoringPreview` | src/features/project-tree/index.ts:205 |  |
+| [ ] | `project.trustDialog` | src/features/project-trust/index.tsx:245 |  |
+| [ ] | `remote.connect` | src/features/remote-dev/index.ts:57 |  |
+| [ ] | `run.chooser` | src/features/run/index.ts:391 |  |
+| [ ] | `run.dialogs` | src/features/run/index.ts:396 |  |
+| [ ] | `run.editConfigs` | src/features/run/index.ts:392 |  |
+| [ ] | `run.serviceImport` | src/features/run/index.ts:397 |  |
+| [ ] | `run.stackTraceDialog` | src/features/run/stackTrace.tsx:153 |  |
+| [ ] | `runAnything.popup` | src/features/run-anything/index.ts:12 |  |
+| [ ] | `scratch.chooser` | src/features/scratch/index.ts:44 |  |
+| [ ] | `search.bookmarks` | src/features/search/index.ts:151 |  |
+| [ ] | `search.everywhere` | src/features/search/index.ts:130 |  |
+| [ ] | `search.fileStructure` | src/features/search/index.ts:145 |  |
+| [ ] | `search.findInFiles` | src/features/search/index.ts:140 |  |
+| [ ] | `search.recent` | src/features/search/index.ts:136 |  |
+| [ ] | `search.scopes` | src/features/search/index.ts:144 |  |
+| [ ] | `services.dialogs` | src/features/services/index.ts:80 |  |
+| [ ] | `settings.assignShortcut` | src/features/settings/index.ts:139 |  |
+| [ ] | `settings.dialog` | src/features/settings/index.ts:123 |  |
+| [ ] | `settings.projectStructure` | src/features/settings/index.ts:124 |  |
+| [ ] | `ssh.askpass` | src/features/ssh/index.ts:15 |  |
+| [ ] | `templates.chooser` | src/features/templates/index.ts:177 |  |
+| [ ] | `templates.emmetUpdateTag` | src/features/templates/index.ts:179 |  |
+| [ ] | `templates.newFile` | src/features/templates/index.ts:178 |  |
+| [ ] | `vcs.branches` | src/features/vcs/index.ts:241 |  |
+| [ ] | `vcs.dialogs` | src/features/vcs/index.ts:240 |  |
+| [ ] | `welcome.recentProjects` | src/features/welcome/index.ts:17 |  |
+| [ ] | `workbench.backgroundTasks` | src/workbench/activate.ts:82 |  |
+| [ ] | `workbench.customizeToolbar` | src/workbench/activate.ts:81 |  |
 
 ## Extension point `registerProjectViewRoot` (0/4 at parity)
 
-|     | Id                                            | Registered at                          | Proof |
-| --- | --------------------------------------------- | -------------------------------------- | ----- |
-| [ ] | `(at) src/features/project-tree/index.ts:131` | src/features/project-tree/index.ts:131 |       |
-| [ ] | `(at) src/features/project-tree/index.ts:141` | src/features/project-tree/index.ts:141 |       |
-| [ ] | `externalLibraries`                           | src/features/libraries/index.ts:159    |       |
-| [ ] | `scratches`                                   | src/features/scratch/index.ts:28       |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/project-tree/index.ts:131` | src/features/project-tree/index.ts:131 |  |
+| [ ] | `(at) src/features/project-tree/index.ts:141` | src/features/project-tree/index.ts:141 |  |
+| [ ] | `externalLibraries` | src/features/libraries/index.ts:159 |  |
+| [ ] | `scratches` | src/features/scratch/index.ts:28 |  |
 
 ## Extension point `registerRunAnythingProvider` (0/2 at parity)
 
-|     | Id            | Registered at                         | Proof |
-| --- | ------------- | ------------------------------------- | ----- |
-| [ ] | `build-tools` | src/features/build-tools/index.ts:202 |       |
-| [ ] | `run.configs` | src/features/run/index.ts:387         |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `build-tools` | src/features/build-tools/index.ts:202 |  |
+| [ ] | `run.configs` | src/features/run/index.ts:387 |  |
 
 ## Extension point `registerRunConfigType` (0/27 at parity)
 
-|     | Id                  | Registered at                         | Proof |
-| --- | ------------------- | ------------------------------------- | ----- |
-| [ ] | `application`       | src/features/run/types.ts:456         |       |
-| [ ] | `compound`          | src/features/run/types.ts:456         |       |
-| [ ] | `django-test`       | src/features/run/types.ts:456         |       |
-| [ ] | `docker-compose`    | src/features/services/runTypes.ts:327 |       |
-| [ ] | `docker-dockerfile` | src/features/services/runTypes.ts:327 |       |
-| [ ] | `docker-image`      | src/features/services/runTypes.ts:327 |       |
-| [ ] | `dotnet`            | src/features/run/types.ts:456         |       |
-| [ ] | `dotnet-test`       | src/features/run/types.ts:456         |       |
-| [ ] | `go`                | src/features/run/types.ts:456         |       |
-| [ ] | `go-remote`         | src/features/debugger/index.ts:58     |       |
-| [ ] | `go-test`           | src/features/run/types.ts:456         |       |
-| [ ] | `godot`             | src/features/run/types.ts:456         |       |
-| [ ] | `godot-attach`      | src/features/debugger/index.ts:58     |       |
-| [ ] | `node-remote`       | src/features/debugger/index.ts:58     |       |
-| [ ] | `npm`               | src/features/run/types.ts:456         |       |
-| [ ] | `php-remote`        | src/features/debugger/index.ts:58     |       |
-| [ ] | `phpunit`           | src/features/run/types.ts:456         |       |
-| [ ] | `program`           | src/features/run/types.ts:456         |       |
-| [ ] | `pytest`            | src/features/run/types.ts:456         |       |
-| [ ] | `python-remote`     | src/features/debugger/index.ts:58     |       |
-| [ ] | `rake`              | src/features/run/types.ts:456         |       |
-| [ ] | `remote-jvm`        | src/features/debugger/index.ts:58     |       |
-| [ ] | `rspec`             | src/features/run/types.ts:456         |       |
-| [ ] | `ruby`              | src/features/run/types.ts:456         |       |
-| [ ] | `shell`             | src/features/run/types.ts:456         |       |
-| [ ] | `spring-boot`       | src/features/run/types.ts:456         |       |
-| [ ] | `tomcat`            | src/features/run/types.ts:456         |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `application` | src/features/run/types.ts:456 |  |
+| [ ] | `compound` | src/features/run/types.ts:456 |  |
+| [ ] | `django-test` | src/features/run/types.ts:456 |  |
+| [ ] | `docker-compose` | src/features/services/runTypes.ts:327 |  |
+| [ ] | `docker-dockerfile` | src/features/services/runTypes.ts:327 |  |
+| [ ] | `docker-image` | src/features/services/runTypes.ts:327 |  |
+| [ ] | `dotnet` | src/features/run/types.ts:456 |  |
+| [ ] | `dotnet-test` | src/features/run/types.ts:456 |  |
+| [ ] | `go` | src/features/run/types.ts:456 |  |
+| [ ] | `go-remote` | src/features/debugger/index.ts:58 |  |
+| [ ] | `go-test` | src/features/run/types.ts:456 |  |
+| [ ] | `godot` | src/features/run/types.ts:456 |  |
+| [ ] | `godot-attach` | src/features/debugger/index.ts:58 |  |
+| [ ] | `node-remote` | src/features/debugger/index.ts:58 |  |
+| [ ] | `npm` | src/features/run/types.ts:456 |  |
+| [ ] | `php-remote` | src/features/debugger/index.ts:58 |  |
+| [ ] | `phpunit` | src/features/run/types.ts:456 |  |
+| [ ] | `program` | src/features/run/types.ts:456 |  |
+| [ ] | `pytest` | src/features/run/types.ts:456 |  |
+| [ ] | `python-remote` | src/features/debugger/index.ts:58 |  |
+| [ ] | `rake` | src/features/run/types.ts:456 |  |
+| [ ] | `remote-jvm` | src/features/debugger/index.ts:58 |  |
+| [ ] | `rspec` | src/features/run/types.ts:456 |  |
+| [ ] | `ruby` | src/features/run/types.ts:456 |  |
+| [ ] | `shell` | src/features/run/types.ts:456 |  |
+| [ ] | `spring-boot` | src/features/run/types.ts:456 |  |
+| [ ] | `tomcat` | src/features/run/types.ts:456 |  |
 
 ## Extension point `registerRunExecutor` (0/2 at parity)
 
-|     | Id         | Registered at                     | Proof |
-| --- | ---------- | --------------------------------- | ----- |
-| [ ] | `coverage` | src/features/coverage/index.ts:18 |       |
-| [ ] | `profiler` | src/features/profiler/index.ts:14 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `coverage` | src/features/coverage/index.ts:18 |  |
+| [ ] | `profiler` | src/features/profiler/index.ts:14 |  |
 
 ## Extension point `registerRunningProcessesProvider` (0/1 at parity)
 
-|     | Id    | Registered at                 | Proof |
-| --- | ----- | ----------------------------- | ----- |
-| [ ] | `run` | src/features/run/index.ts:401 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `run` | src/features/run/index.ts:401 |  |
 
 ## Extension point `registerSaveParticipant` (0/2 at parity)
 
-|     | Id                                   | Registered at                 | Proof |
-| --- | ------------------------------------ | ----------------------------- | ----- |
-| [ ] | `(at) src/editor/lsp/actions.ts:152` | src/editor/lsp/actions.ts:152 |       |
-| [ ] | `lsp.formatOnSave`                   | src/editor/lsp/actions.ts:139 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/editor/lsp/actions.ts:152` | src/editor/lsp/actions.ts:152 |  |
+| [ ] | `lsp.formatOnSave` | src/editor/lsp/actions.ts:139 |  |
 
 ## Extension point `registerServiceProvider` (0/3 at parity)
 
-|     | Id                                           | Registered at                         | Proof |
-| --- | -------------------------------------------- | ------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/uiPoints.tsx:372` | src/features/plugins/uiPoints.tsx:372 |       |
-| [ ] | `docker`                                     | src/features/services/index.ts:72     |       |
-| [ ] | `runConfigurations`                          | src/features/run/index.ts:399         |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/uiPoints.tsx:372` | src/features/plugins/uiPoints.tsx:372 |  |
+| [ ] | `docker` | src/features/services/index.ts:72 |  |
+| [ ] | `runConfigurations` | src/features/run/index.ts:399 |  |
 
 ## Extension point `registerServiceView` (0/3 at parity)
 
-|     | Id           | Registered at                         | Proof |
-| --- | ------------ | ------------------------------------- | ----- |
-| [ ] | `dbResults`  | src/features/database/index.ts:66     |       |
-| [ ] | `httpClient` | src/features/http-client/index.ts:127 |       |
-| [ ] | `services`   | src/features/services/index.ts:65     |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `dbResults` | src/features/database/index.ts:66 |  |
+| [ ] | `httpClient` | src/features/http-client/index.ts:127 |  |
+| [ ] | `services` | src/features/services/index.ts:65 |  |
 
 ## Extension point `registerSoftWrapSurface` (0/1 at parity)
 
-|     | Id                                         | Registered at                       | Proof |
-| --- | ------------------------------------------ | ----------------------------------- | ----- |
-| [ ] | `(at) src/features/vcs/DiffEditor.tsx:384` | src/features/vcs/DiffEditor.tsx:384 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/vcs/DiffEditor.tsx:384` | src/features/vcs/DiffEditor.tsx:384 |  |
 
 ## Status bar items (0/19 at parity)
 
-|     | Id                                            | Registered at                                        | Proof |
-| --- | --------------------------------------------- | ---------------------------------------------------- | ----- |
-| [ ] | `(at) src/features/perf/index.ts:12`          | src/features/perf/index.ts:12                        |       |
-| [ ] | `(at) src/features/plugins/runtimeUi.tsx:159` | src/features/plugins/runtimeUi.tsx:159               |       |
-| [ ] | `agents.status`                               | src/features/agents/index.ts:108                     |       |
-| [ ] | `app.lightEdit`                               | src/features/app/index.ts:42                         |       |
-| [ ] | `code-insight.servers`                        | src/features/code-insight/index.ts:84                |       |
-| [ ] | `editor-lsp.usagesStatus`                     | src/editor/lsp/index.ts:86                           |       |
-| [ ] | `editor.breadcrumbs`                          | src/editor/core/index.ts:75                          |       |
-| [ ] | `editor.caret`                                | src/editor/core/index.ts:82                          |       |
-| [ ] | `editor.encoding`                             | src/editor/core/index.ts:98                          |       |
-| [ ] | `editor.indent`                               | src/editor/core/index.ts:106                         |       |
-| [ ] | `editor.lineEnding`                           | src/editor/core/index.ts:90                          |       |
-| [ ] | `editor.readOnly`                             | src/editor/core/index.ts:114                         |       |
-| [ ] | `macros.recording`                            | src/features/macros/index.ts:142                     |       |
-| [ ] | `php.languageLevel`                           | src/features/settings/languages/PhpStatus.tsx:145    |       |
-| [ ] | `python.interpreter`                          | src/features/settings/languages/PythonStatus.tsx:175 |       |
-| [ ] | `remote.location`                             | src/features/remote-dev/index.ts:58                  |       |
-| [ ] | `vim.mode`                                    | src/features/vim/index.ts:81                         |       |
-| [ ] | `workbench.info`                              | src/workbench/activate.ts:84                         |       |
-| [ ] | `workbench.tasks`                             | src/workbench/activate.ts:83                         |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/perf/index.ts:12` | src/features/perf/index.ts:12 |  |
+| [ ] | `(at) src/features/plugins/runtimeUi.tsx:159` | src/features/plugins/runtimeUi.tsx:159 |  |
+| [ ] | `agents.status` | src/features/agents/index.ts:108 |  |
+| [ ] | `app.lightEdit` | src/features/app/index.ts:42 |  |
+| [ ] | `code-insight.servers` | src/features/code-insight/index.ts:84 |  |
+| [ ] | `editor-lsp.usagesStatus` | src/editor/lsp/index.ts:86 |  |
+| [ ] | `editor.breadcrumbs` | src/editor/core/index.ts:75 |  |
+| [ ] | `editor.caret` | src/editor/core/index.ts:82 |  |
+| [ ] | `editor.encoding` | src/editor/core/index.ts:98 |  |
+| [ ] | `editor.indent` | src/editor/core/index.ts:106 |  |
+| [ ] | `editor.lineEnding` | src/editor/core/index.ts:90 |  |
+| [ ] | `editor.readOnly` | src/editor/core/index.ts:114 |  |
+| [ ] | `macros.recording` | src/features/macros/index.ts:142 |  |
+| [ ] | `php.languageLevel` | src/features/settings/languages/PhpStatus.tsx:145 |  |
+| [ ] | `python.interpreter` | src/features/settings/languages/PythonStatus.tsx:175 |  |
+| [ ] | `remote.location` | src/features/remote-dev/index.ts:58 |  |
+| [ ] | `vim.mode` | src/features/vim/index.ts:81 |  |
+| [ ] | `workbench.info` | src/workbench/activate.ts:84 |  |
+| [ ] | `workbench.tasks` | src/workbench/activate.ts:83 |  |
 
 ## Extension point `registerTextEditorWrapper` (0/3 at parity)
 
-|     | Id                                           | Registered at                         | Proof |
-| --- | -------------------------------------------- | ------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/uiPoints.tsx:471` | src/features/plugins/uiPoints.tsx:471 |       |
-| [ ] | `viewers.markdown`                           | src/features/viewers/index.ts:108     |       |
-| [ ] | `web.html`                                   | src/features/web/index.ts:62          |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/uiPoints.tsx:471` | src/features/plugins/uiPoints.tsx:471 |  |
+| [ ] | `viewers.markdown` | src/features/viewers/index.ts:108 |  |
+| [ ] | `web.html` | src/features/web/index.ts:62 |  |
 
 ## Title bar items (0/5 at parity)
 
-|     | Id                | Registered at                  | Proof |
-| --- | ----------------- | ------------------------------ | ----- |
-| [ ] | `app.ideMode`     | src/features/app/index.ts:51   |       |
-| [ ] | `build.project`   | src/features/build/index.ts:47 |       |
-| [ ] | `run.widget`      | src/features/run/index.ts:386  |       |
-| [ ] | `vcs.branch`      | src/features/vcs/index.ts:84   |       |
-| [ ] | `vcs.mergeRebase` | src/features/vcs/index.ts:60   |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `app.ideMode` | src/features/app/index.ts:51 |  |
+| [ ] | `build.project` | src/features/build/index.ts:47 |  |
+| [ ] | `run.widget` | src/features/run/index.ts:386 |  |
+| [ ] | `vcs.branch` | src/features/vcs/index.ts:84 |  |
+| [ ] | `vcs.mergeRebase` | src/features/vcs/index.ts:60 |  |
 
 ## Tool windows (0/32 at parity)
 
-|     | Id                                                    | Registered at                                  | Proof |
-| --- | ----------------------------------------------------- | ---------------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/views/viewWindows.tsx:118` | src/features/plugins/views/viewWindows.tsx:118 |       |
-| [ ] | `agents`                                              | src/features/agents/index.ts:67                |       |
-| [ ] | `bookmarks`                                           | src/features/search/index.ts:163               |       |
-| [ ] | `build`                                               | src/features/build/index.ts:36                 |       |
-| [ ] | `commit`                                              | src/features/vcs/index.ts:115                  |       |
-| [ ] | `coverage`                                            | src/features/coverage/index.ts:19              |       |
-| [ ] | `database`                                            | src/features/database/index.ts:56              |       |
-| [ ] | `debug`                                               | src/features/debugger/index.ts:59              |       |
-| [ ] | `documentation`                                       | src/editor/lsp/index.ts:88                     |       |
-| [ ] | `dotnet`                                              | src/features/dotnet/index.ts:20                |       |
-| [ ] | `duplicates`                                          | src/features/analysis/index.ts:41              |       |
-| [ ] | `find`                                                | src/features/search/index.ts:175               |       |
-| [ ] | `git`                                                 | src/features/vcs/index.ts:245                  |       |
-| [ ] | `gradle`                                              | src/features/build-tools/index.ts:146          |       |
-| [ ] | `graphql`                                             | src/features/graphql/index.ts:34               |       |
-| [ ] | `hierarchy`                                           | src/features/code-insight/index.ts:74          |       |
-| [ ] | `inspection`                                          | src/features/analysis/index.ts:30              |       |
-| [ ] | `logcat`                                              | src/features/logcat/index.ts:10                |       |
-| [ ] | `maven`                                               | src/features/build-tools/index.ts:138          |       |
-| [ ] | `notifications`                                       | src/workbench/activate.ts:85                   |       |
-| [ ] | `problems`                                            | src/features/code-insight/index.ts:51          |       |
-| [ ] | `profiler`                                            | src/features/profiler/index.ts:15              |       |
-| [ ] | `project`                                             | src/features/project-tree/index.ts:193         |       |
-| [ ] | `pullRequests`                                        | src/features/github/index.ts:270               |       |
-| [ ] | `remote.ports`                                        | src/features/remote-dev/index.ts:31            |       |
-| [ ] | `remoteHost`                                          | src/features/deployment/index.ts:77            |       |
-| [ ] | `run`                                                 | src/features/run/index.ts:375                  |       |
-| [ ] | `services`                                            | src/features/services/index.ts:54              |       |
-| [ ] | `structure`                                           | src/features/search/index.ts:153               |       |
-| [ ] | `terminal`                                            | src/features/terminal/index.ts:57              |       |
-| [ ] | `todo`                                                | src/features/todo/index.ts:27                  |       |
-| [ ] | `usages`                                              | src/features/code-insight/index.ts:63          |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/views/viewWindows.tsx:118` | src/features/plugins/views/viewWindows.tsx:118 |  |
+| [ ] | `agents` | src/features/agents/index.ts:67 |  |
+| [ ] | `bookmarks` | src/features/search/index.ts:163 |  |
+| [ ] | `build` | src/features/build/index.ts:36 |  |
+| [ ] | `commit` | src/features/vcs/index.ts:115 |  |
+| [ ] | `coverage` | src/features/coverage/index.ts:19 |  |
+| [ ] | `database` | src/features/database/index.ts:56 |  |
+| [ ] | `debug` | src/features/debugger/index.ts:59 |  |
+| [ ] | `documentation` | src/editor/lsp/index.ts:88 |  |
+| [ ] | `dotnet` | src/features/dotnet/index.ts:20 |  |
+| [ ] | `duplicates` | src/features/analysis/index.ts:41 |  |
+| [ ] | `find` | src/features/search/index.ts:175 |  |
+| [ ] | `git` | src/features/vcs/index.ts:245 |  |
+| [ ] | `gradle` | src/features/build-tools/index.ts:146 |  |
+| [ ] | `graphql` | src/features/graphql/index.ts:34 |  |
+| [ ] | `hierarchy` | src/features/code-insight/index.ts:74 |  |
+| [ ] | `inspection` | src/features/analysis/index.ts:30 |  |
+| [ ] | `logcat` | src/features/logcat/index.ts:10 |  |
+| [ ] | `maven` | src/features/build-tools/index.ts:138 |  |
+| [ ] | `notifications` | src/workbench/activate.ts:85 |  |
+| [ ] | `problems` | src/features/code-insight/index.ts:51 |  |
+| [ ] | `profiler` | src/features/profiler/index.ts:15 |  |
+| [ ] | `project` | src/features/project-tree/index.ts:193 |  |
+| [ ] | `pullRequests` | src/features/github/index.ts:270 |  |
+| [ ] | `remote.ports` | src/features/remote-dev/index.ts:31 |  |
+| [ ] | `remoteHost` | src/features/deployment/index.ts:77 |  |
+| [ ] | `run` | src/features/run/index.ts:375 |  |
+| [ ] | `services` | src/features/services/index.ts:54 |  |
+| [ ] | `structure` | src/features/search/index.ts:153 |  |
+| [ ] | `terminal` | src/features/terminal/index.ts:57 |  |
+| [ ] | `todo` | src/features/todo/index.ts:27 |  |
+| [ ] | `usages` | src/features/code-insight/index.ts:63 |  |
 
 ## Extension point `registerUndoHandler` (0/1 at parity)
 
-|     | Id                                            | Registered at                          | Proof |
-| --- | --------------------------------------------- | -------------------------------------- | ----- |
-| [ ] | `(at) src/features/project-tree/index.ts:209` | src/features/project-tree/index.ts:209 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/project-tree/index.ts:209` | src/features/project-tree/index.ts:209 |  |
 
 ## Extension point `registerWorkbenchBanner` (0/1 at parity)
 
-|     | Id                       | Registered at                            | Proof |
-| --- | ------------------------ | ---------------------------------------- | ----- |
-| [ ] | `project.restrictedMode` | src/features/project-trust/index.tsx:246 |       |
+| | Id | Registered at | Proof |
+|---|---|---|---|
+| [ ] | `project.restrictedMode` | src/features/project-trust/index.tsx:246 |  |
 
 ## Extension point `registerShellActions` (0/1 at parity)
 
-|     | Id                            | Declared in                   | Proof |
-| --- | ----------------------------- | ----------------------------- | ----- |
-| [ ] | (registered at run time only) | src/workbench/shellActions.ts |       |
+| | Id | Declared in | Proof |
+|---|---|---|---|
+| [ ] | (registered at run time only) | src/workbench/shellActions.ts |  |
 
 ## Extension point `registerDevSamples` (0/1 at parity)
 
-|     | Id                            | Declared in                  | Proof |
-| --- | ----------------------------- | ---------------------------- | ----- |
-| [ ] | (registered at run time only) | src/workbench/devSamples.tsx |       |
+| | Id | Declared in | Proof |
+|---|---|---|---|
+| [ ] | (registered at run time only) | src/workbench/devSamples.tsx |  |
 
 ## Settings pages (0/68 at parity)
 
-|     | Page id                                            | Source                                      | Proof |
-| --- | -------------------------------------------------- | ------------------------------------------- | ----- |
-| [ ] | `(at) src/features/plugins/settings.tsx:327`       | src/features/plugins/settings.tsx:327       |       |
-| [ ] | `(at) src/features/plugins/settings.tsx:337`       | src/features/plugins/settings.tsx:337       |       |
-| [ ] | `(at) src/features/settings/iconThemePages.tsx:18` | src/features/settings/iconThemePages.tsx:18 |       |
-| [ ] | `(at) src/features/settings/pages/registry.tsx:62` | src/features/settings/pages/registry.tsx:62 |       |
-| [ ] | `(at) src/features/settings/pages/registry.tsx:69` | src/features/settings/pages/registry.tsx:69 |       |
-| [ ] | `(at) src/features/settings/pages/registry.tsx:82` | src/features/settings/pages/registry.tsx:82 |       |
-| [ ] | `appearance`                                       | src/features/settings/pages/behavior.tsx    |       |
-| [ ] | `build.cmake`                                      | src/features/settings/pages/execution.tsx   |       |
-| [ ] | `build.console`                                    | src/features/settings/pages/execution.tsx   |       |
-| [ ] | `build.debugger`                                   | src/features/settings/pages/execution.tsx   |       |
-| [ ] | `build.debugger.dataViews`                         | src/features/settings/pages/execution.tsx   |       |
-| [ ] | `build.debugger.stepping`                          | src/features/settings/pages/execution.tsx   |       |
-| [ ] | `build.deployment`                                 | src/features/settings/pages/deployment.tsx  |       |
-| [ ] | `build.deployment.options`                         | src/features/settings/pages/deployment.tsx  |       |
-| [ ] | `build.gradle`                                     | src/features/settings/pages/execution.tsx   |       |
-| [ ] | `build.maven`                                      | src/features/settings/pages/execution.tsx   |       |
-| [ ] | `build.pythonDebugger`                             | src/features/settings/pages/execution.tsx   |       |
-| [ ] | `build.run`                                        | src/features/settings/pages/execution.tsx   |       |
-| [ ] | `build.runTargets`                                 | src/features/settings/pages/runTargets.tsx  |       |
-| [ ] | `editor.files`                                     | src/features/settings/pages/builtins.tsx    |       |
-| [ ] | `editor.fileTemplates`                             | src/features/templates/index.ts:162         |       |
-| [ ] | `editor.general.postfixCompletion`                 | src/features/templates/index.ts:153         |       |
-| [ ] | `editor.liveTemplates`                             | src/features/templates/index.ts:145         |       |
-| [ ] | `editor.todo`                                      | src/features/todo/index.ts:12               |       |
-| [ ] | `editor.vim`                                       | src/features/vim/index.ts:22                |       |
-| [ ] | `general`                                          | src/features/settings/pages/behavior.tsx    |       |
-| [ ] | `general.dateFormats`                              | src/features/settings/pages/behavior.tsx    |       |
-| [ ] | `general.httpProxy`                                | src/features/settings/pages/httpProxy.tsx   |       |
-| [ ] | `general.language`                                 | src/features/settings/pages/behavior.tsx    |       |
-| [ ] | `general.mode`                                     | src/features/settings/pages/behavior.tsx    |       |
-| [ ] | `general.updates`                                  | src/features/settings/pages/updates.tsx     |       |
-| [ ] | `keymap`                                           | src/features/settings/pages/builtins.tsx    |       |
-| [ ] | `languages.go`                                     | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.go.buildTags`                           | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.go.modules`                             | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.java`                                   | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.markdown`                               | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.node`                                   | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.oxfmt`                                  | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.php`                                    | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.pluginFormatters`                       | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.prettier`                               | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.ruby`                                   | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.ruff`                                   | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.rust`                                   | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.servers`                                | src/features/tools/index.ts:17              |       |
-| [ ] | `languages.serverTargets`                          | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `languages.typescript`                             | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `notifications`                                    | src/features/settings/pages/behavior.tsx    |       |
-| [ ] | `plugins`                                          | src/features/plugins/index.ts:44            |       |
-| [ ] | `projectStructure`                                 | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `projectTrust`                                     | src/features/project-trust/index.tsx:247    |       |
-| [ ] | `python.interpreter`                               | src/features/settings/pages/languages.tsx   |       |
-| [ ] | `tools.actionsOnSave`                              | src/features/settings/pages/tools.tsx       |       |
-| [ ] | `tools.agents`                                     | src/features/agents/index.ts:30             |       |
-| [ ] | `tools.agents.chat`                                | src/features/settings/pages/tools.tsx       |       |
-| [ ] | `tools.externalTools`                              | src/features/settings/pages/tools.tsx       |       |
-| [ ] | `tools.mcpServer`                                  | src/features/settings/pages/mcpServer.tsx   |       |
-| [ ] | `tools.sshConfigurations`                          | src/features/settings/pages/ssh.tsx         |       |
-| [ ] | `tools.terminal`                                   | src/features/settings/pages/tools.tsx       |       |
-| [ ] | `vcs.commit`                                       | src/features/settings/pages/vcs.tsx         |       |
-| [ ] | `vcs.confirmation`                                 | src/features/settings/pages/vcs.tsx         |       |
-| [ ] | `vcs.git`                                          | src/features/settings/pages/vcs.tsx         |       |
-| [ ] | `vcs.github`                                       | src/features/github/settingsPages.ts:5      |       |
-| [ ] | `vcs.issueNavigation`                              | src/features/settings/pages/vcs.tsx         |       |
-| [ ] | `vcs.log`                                          | src/features/vcs/index.ts:166               |       |
-| [ ] | `vcs.mappings`                                     | src/features/settings/pages/vcs.tsx         |       |
-| [ ] | `vcs.shelf`                                        | src/features/settings/pages/vcs.tsx         |       |
+| | Page id | Source | Proof |
+|---|---|---|---|
+| [ ] | `(at) src/features/plugins/settings.tsx:327` | src/features/plugins/settings.tsx:327 |  |
+| [ ] | `(at) src/features/plugins/settings.tsx:337` | src/features/plugins/settings.tsx:337 |  |
+| [ ] | `(at) src/features/settings/iconThemePages.tsx:18` | src/features/settings/iconThemePages.tsx:18 |  |
+| [ ] | `(at) src/features/settings/pages/registry.tsx:62` | src/features/settings/pages/registry.tsx:62 |  |
+| [ ] | `(at) src/features/settings/pages/registry.tsx:69` | src/features/settings/pages/registry.tsx:69 |  |
+| [ ] | `(at) src/features/settings/pages/registry.tsx:82` | src/features/settings/pages/registry.tsx:82 |  |
+| [ ] | `appearance` | src/features/settings/pages/behavior.tsx |  |
+| [ ] | `build.cmake` | src/features/settings/pages/execution.tsx |  |
+| [ ] | `build.console` | src/features/settings/pages/execution.tsx |  |
+| [ ] | `build.debugger` | src/features/settings/pages/execution.tsx |  |
+| [ ] | `build.debugger.dataViews` | src/features/settings/pages/execution.tsx |  |
+| [ ] | `build.debugger.stepping` | src/features/settings/pages/execution.tsx |  |
+| [ ] | `build.deployment` | src/features/settings/pages/deployment.tsx |  |
+| [ ] | `build.deployment.options` | src/features/settings/pages/deployment.tsx |  |
+| [ ] | `build.gradle` | src/features/settings/pages/execution.tsx |  |
+| [ ] | `build.maven` | src/features/settings/pages/execution.tsx |  |
+| [ ] | `build.pythonDebugger` | src/features/settings/pages/execution.tsx |  |
+| [ ] | `build.run` | src/features/settings/pages/execution.tsx |  |
+| [ ] | `build.runTargets` | src/features/settings/pages/runTargets.tsx |  |
+| [ ] | `editor.files` | src/features/settings/pages/builtins.tsx |  |
+| [ ] | `editor.fileTemplates` | src/features/templates/index.ts:162 |  |
+| [ ] | `editor.general.postfixCompletion` | src/features/templates/index.ts:153 |  |
+| [ ] | `editor.liveTemplates` | src/features/templates/index.ts:145 |  |
+| [ ] | `editor.todo` | src/features/todo/index.ts:12 |  |
+| [ ] | `editor.vim` | src/features/vim/index.ts:22 |  |
+| [ ] | `general` | src/features/settings/pages/behavior.tsx |  |
+| [ ] | `general.dateFormats` | src/features/settings/pages/behavior.tsx |  |
+| [ ] | `general.httpProxy` | src/features/settings/pages/httpProxy.tsx |  |
+| [ ] | `general.language` | src/features/settings/pages/behavior.tsx |  |
+| [ ] | `general.mode` | src/features/settings/pages/behavior.tsx |  |
+| [ ] | `general.updates` | src/features/settings/pages/updates.tsx |  |
+| [ ] | `keymap` | src/features/settings/pages/builtins.tsx |  |
+| [ ] | `languages.go` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.go.buildTags` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.go.modules` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.java` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.markdown` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.node` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.oxfmt` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.php` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.pluginFormatters` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.prettier` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.ruby` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.ruff` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.rust` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.servers` | src/features/tools/index.ts:17 |  |
+| [ ] | `languages.serverTargets` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `languages.typescript` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `notifications` | src/features/settings/pages/behavior.tsx |  |
+| [ ] | `plugins` | src/features/plugins/index.ts:44 |  |
+| [ ] | `projectStructure` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `projectTrust` | src/features/project-trust/index.tsx:247 |  |
+| [ ] | `python.interpreter` | src/features/settings/pages/languages.tsx |  |
+| [ ] | `tools.actionsOnSave` | src/features/settings/pages/tools.tsx |  |
+| [ ] | `tools.agents` | src/features/agents/index.ts:30 |  |
+| [ ] | `tools.agents.chat` | src/features/settings/pages/tools.tsx |  |
+| [ ] | `tools.externalTools` | src/features/settings/pages/tools.tsx |  |
+| [ ] | `tools.mcpServer` | src/features/settings/pages/mcpServer.tsx |  |
+| [ ] | `tools.sshConfigurations` | src/features/settings/pages/ssh.tsx |  |
+| [ ] | `tools.terminal` | src/features/settings/pages/tools.tsx |  |
+| [ ] | `vcs.commit` | src/features/settings/pages/vcs.tsx |  |
+| [ ] | `vcs.confirmation` | src/features/settings/pages/vcs.tsx |  |
+| [ ] | `vcs.git` | src/features/settings/pages/vcs.tsx |  |
+| [ ] | `vcs.github` | src/features/github/settingsPages.ts:5 |  |
+| [ ] | `vcs.issueNavigation` | src/features/settings/pages/vcs.tsx |  |
+| [ ] | `vcs.log` | src/features/vcs/index.ts:166 |  |
+| [ ] | `vcs.mappings` | src/features/settings/pages/vcs.tsx |  |
+| [ ] | `vcs.shelf` | src/features/settings/pages/vcs.tsx |  |
 
 ## Features (0/43 at parity)
 
-|     | Feature         | TS lines | Proof |
-| --- | --------------- | -------- | ----- |
-| [ ] | `agents`        | 7437     |       |
-| [ ] | `analysis`      | 2086     |       |
-| [ ] | `app`           | 3284     |       |
-| [ ] | `build`         | 956      |       |
-| [ ] | `build-tools`   | 3664     |       |
-| [ ] | `code-insight`  | 3259     |       |
-| [ ] | `color-preview` | 438      |       |
-| [ ] | `coverage`      | 1031     |       |
-| [ ] | `database`      | 13067    |       |
-| [ ] | `debugger`      | 9287     |       |
-| [ ] | `dependencies`  | 218      |       |
-| [ ] | `deployment`    | 2341     |       |
-| [ ] | `dotnet`        | 668      |       |
-| [ ] | `github`        | 16853    |       |
-| [ ] | `graphql`       | 2281     |       |
-| [ ] | `http-client`   | 2822     |       |
-| [ ] | `libraries`     | 202      |       |
-| [ ] | `logcat`        | 776      |       |
-| [ ] | `macros`        | 597      |       |
-| [ ] | `mcp`           | 203      |       |
-| [ ] | `notebook`      | 1766     |       |
-| [ ] | `perf`          | 725      |       |
-| [ ] | `plugins`       | 11849    |       |
-| [ ] | `profiler`      | 607      |       |
-| [ ] | `project-tree`  | 6286     |       |
-| [ ] | `project-trust` | 293      |       |
-| [ ] | `remote-dev`    | 754      |       |
-| [ ] | `run`           | 21444    |       |
-| [ ] | `run-anything`  | 333      |       |
-| [ ] | `scratch`       | 409      |       |
-| [ ] | `search`        | 10069    |       |
-| [ ] | `services`      | 5330     |       |
-| [ ] | `settings`      | 19951    |       |
-| [ ] | `ssh`           | 229      |       |
-| [ ] | `templates`     | 5851     |       |
-| [ ] | `terminal`      | 3916     |       |
-| [ ] | `todo`          | 1589     |       |
-| [ ] | `tools`         | 1937     |       |
-| [ ] | `vcs`           | 33703    |       |
-| [ ] | `viewers`       | 1845     |       |
-| [ ] | `vim`           | 1278     |       |
-| [ ] | `web`           | 283      |       |
-| [ ] | `welcome`       | 1944     |       |
+| | Feature | TS lines | Proof |
+|---|---|---|---|
+| [ ] | `agents` | 7437 |  |
+| [ ] | `analysis` | 2086 |  |
+| [ ] | `app` | 3284 |  |
+| [ ] | `build` | 956 |  |
+| [ ] | `build-tools` | 3664 |  |
+| [ ] | `code-insight` | 3259 |  |
+| [ ] | `color-preview` | 438 |  |
+| [ ] | `coverage` | 1031 |  |
+| [ ] | `database` | 13067 |  |
+| [ ] | `debugger` | 9287 |  |
+| [ ] | `dependencies` | 218 |  |
+| [ ] | `deployment` | 2341 |  |
+| [ ] | `dotnet` | 668 |  |
+| [ ] | `github` | 16853 |  |
+| [ ] | `graphql` | 2281 |  |
+| [ ] | `http-client` | 2822 |  |
+| [ ] | `libraries` | 202 |  |
+| [ ] | `logcat` | 776 |  |
+| [ ] | `macros` | 597 |  |
+| [ ] | `mcp` | 203 |  |
+| [ ] | `notebook` | 1766 |  |
+| [ ] | `perf` | 725 |  |
+| [ ] | `plugins` | 11849 |  |
+| [ ] | `profiler` | 607 |  |
+| [ ] | `project-tree` | 6286 |  |
+| [ ] | `project-trust` | 293 |  |
+| [ ] | `remote-dev` | 754 |  |
+| [ ] | `run` | 21444 |  |
+| [ ] | `run-anything` | 333 |  |
+| [ ] | `scratch` | 409 |  |
+| [ ] | `search` | 10069 |  |
+| [ ] | `services` | 5330 |  |
+| [ ] | `settings` | 19951 |  |
+| [ ] | `ssh` | 229 |  |
+| [ ] | `templates` | 5851 |  |
+| [ ] | `terminal` | 3916 |  |
+| [ ] | `todo` | 1589 |  |
+| [ ] | `tools` | 1937 |  |
+| [ ] | `vcs` | 33703 |  |
+| [ ] | `viewers` | 1845 |  |
+| [ ] | `vim` | 1278 |  |
+| [ ] | `web` | 283 |  |
+| [ ] | `welcome` | 1944 |  |
 
 ## Editor, platform, workbench and design-system modules (0/253 at parity)
 
 Outside `src/features/`: the text editor (CodeMirror today), the platform layer, the workbench shell and the `src/ui` primitives.
 
-|     | Module                                          | TS lines | Proof |
-| --- | ----------------------------------------------- | -------- | ----- |
-| [ ] | `src/editor/api.ts`                             | 787      |       |
-| [ ] | `src/editor/core/actions.ts`                    | 1208     |       |
-| [ ] | `src/editor/core/backend.ts`                    | 630      |       |
-| [ ] | `src/editor/core/clipboardHistory.ts`           | 106      |       |
-| [ ] | `src/editor/core/cm`                            | 10347    |       |
-| [ ] | `src/editor/core/colorSchemeRuntime.ts`         | 81       |       |
-| [ ] | `src/editor/core/controller.ts`                 | 2001     |       |
-| [ ] | `src/editor/core/copyReference.ts`              | 126      |       |
-| [ ] | `src/editor/core/diskSync.ts`                   | 52       |       |
-| [ ] | `src/editor/core/embeddedDocuments.ts`          | 50       |       |
-| [ ] | `src/editor/core/extras.ts`                     | 114      |       |
-| [ ] | `src/editor/core/fileAttributes.ts`             | 44       |       |
-| [ ] | `src/editor/core/gutterMenu.ts`                 | 52       |       |
-| [ ] | `src/editor/core/index.ts`                      | 130      |       |
-| [ ] | `src/editor/core/model`                         | 2814     |       |
-| [ ] | `src/editor/core/sync`                          | 364      |       |
-| [ ] | `src/editor/core/view`                          | 2518     |       |
-| [ ] | `src/editor/core/wordCompletion.ts`             | 104      |       |
-| [ ] | `src/editor/lineTokens.tsx`                     | 143      |       |
-| [ ] | `src/editor/lsp/actions.ts`                     | 366      |       |
-| [ ] | `src/editor/lsp/authorLens.ts`                  | 89       |       |
-| [ ] | `src/editor/lsp/autoImport.ts`                  | 129      |       |
-| [ ] | `src/editor/lsp/availability.ts`                | 150      |       |
-| [ ] | `src/editor/lsp/codeLens.ts`                    | 273      |       |
-| [ ] | `src/editor/lsp/completion.ts`                  | 836      |       |
-| [ ] | `src/editor/lsp/completionItems.ts`             | 140      |       |
-| [ ] | `src/editor/lsp/configurationNavigation.ts`     | 161      |       |
-| [ ] | `src/editor/lsp/diagnostics.ts`                 | 343      |       |
-| [ ] | `src/editor/lsp/docs.ts`                        | 167      |       |
-| [ ] | `src/editor/lsp/fileReferences.ts`              | 160      |       |
-| [ ] | `src/editor/lsp/files.ts`                       | 87       |       |
-| [ ] | `src/editor/lsp/format.ts`                      | 298      |       |
-| [ ] | `src/editor/lsp/generate.ts`                    | 10       |       |
-| [ ] | `src/editor/lsp/hint.ts`                        | 109      |       |
-| [ ] | `src/editor/lsp/hover.ts`                       | 382      |       |
-| [ ] | `src/editor/lsp/iconMarkup.ts`                  | 11       |       |
-| [ ] | `src/editor/lsp/importsOnPaste.ts`              | 401      |       |
-| [ ] | `src/editor/lsp/index.ts`                       | 108      |       |
-| [ ] | `src/editor/lsp/inlay.ts`                       | 227      |       |
-| [ ] | `src/editor/lsp/inlineCompletion.ts`            | 328      |       |
-| [ ] | `src/editor/lsp/inplaceRename.ts`               | 256      |       |
-| [ ] | `src/editor/lsp/inspectionWidget.ts`            | 168      |       |
-| [ ] | `src/editor/lsp/intentions.ts`                  | 704      |       |
-| [ ] | `src/editor/lsp/interactiveCommand.ts`          | 85       |       |
-| [ ] | `src/editor/lsp/links.ts`                       | 216      |       |
-| [ ] | `src/editor/lsp/lsp.ts`                         | 110      |       |
-| [ ] | `src/editor/lsp/markdown.ts`                    | 277      |       |
-| [ ] | `src/editor/lsp/markdownParser.ts`              | 20       |       |
-| [ ] | `src/editor/lsp/navigation.ts`                  | 955      |       |
-| [ ] | `src/editor/lsp/outsideProject.ts`              | 96       |       |
-| [ ] | `src/editor/lsp/pluginVisuals.ts`               | 17       |       |
-| [ ] | `src/editor/lsp/Popups.tsx`                     | 742      |       |
-| [ ] | `src/editor/lsp/popupStore.ts`                  | 190      |       |
-| [ ] | `src/editor/lsp/positions.ts`                   | 64       |       |
-| [ ] | `src/editor/lsp/rename.ts`                      | 425      |       |
-| [ ] | `src/editor/lsp/semantic`                       | 1350     |       |
-| [ ] | `src/editor/lsp/serverCodeLens.ts`              | 85       |       |
-| [ ] | `src/editor/lsp/signature.ts`                   | 297      |       |
-| [ ] | `src/editor/lsp/snippet.ts`                     | 237      |       |
-| [ ] | `src/editor/lsp/spelling.ts`                    | 272      |       |
-| [ ] | `src/editor/lsp/syntaxErrors.ts`                | 95       |       |
-| [ ] | `src/editor/lsp/syntaxFallback.ts`              | 294      |       |
-| [ ] | `src/editor/lsp/tempHighlight.ts`               | 60       |       |
-| [ ] | `src/editor/lsp/theme.ts`                       | 443      |       |
-| [ ] | `src/editor/lsp/typeInfo.ts`                    | 83       |       |
-| [ ] | `src/editor/lsp/workspaceEdit.ts`               | 146      |       |
-| [ ] | `src/editor/navigation/gotoTest.ts`             | 131      |       |
-| [ ] | `src/editor/navigation/implementationGutter.ts` | 453      |       |
-| [ ] | `src/editor/navigation/index.ts`                | 199      |       |
-| [ ] | `src/editor/navigation/lineMarkers.ts`          | 220      |       |
-| [ ] | `src/editor/navigation/structureNav.ts`         | 147      |       |
-| [ ] | `src/editor/navigation/testNaming.ts`           | 115      |       |
-| [ ] | `src/editor/navigationProviders.ts`             | 86       |       |
-| [ ] | `src/editor/refactor/catalog.ts`                | 194      |       |
-| [ ] | `src/editor/refactor/hierarchy.ts`              | 208      |       |
-| [ ] | `src/editor/refactor/HierarchyDialog.tsx`       | 144      |       |
-| [ ] | `src/editor/refactor/index.ts`                  | 5        |       |
-| [ ] | `src/editor/refactor/introduce.ts`              | 710      |       |
-| [ ] | `src/editor/refactor/names.ts`                  | 257      |       |
-| [ ] | `src/editor/refactor/occurrences.ts`            | 120      |       |
-| [ ] | `src/editor/refactor/projectLevel.ts`           | 143      |       |
-| [ ] | `src/editor/refactor/query.ts`                  | 58       |       |
-| [ ] | `src/editor/refactor/refactorThis.ts`           | 319      |       |
-| [ ] | `src/editor/refactor/safeDelete.ts`             | 591      |       |
-| [ ] | `src/editor/refactor/serverIntroduce.ts`        | 335      |       |
-| [ ] | `src/editor/refactor/templates.ts`              | 252      |       |
-| [ ] | `src/editor/structure/index.ts`                 | 188      |       |
-| [ ] | `src/platform/actions.ts`                       | 220      |       |
-| [ ] | `src/platform/auxWindow.ts`                     | 79       |       |
-| [ ] | `src/platform/buildFiles.ts`                    | 7        |       |
-| [ ] | `src/platform/buildModel.ts`                    | 17       |       |
-| [ ] | `src/platform/buildToolRecovery.ts`             | 38       |       |
-| [ ] | `src/platform/candidateFonts.ts`                | 79       |       |
-| [ ] | `src/platform/classFiles.ts`                    | 9        |       |
-| [ ] | `src/platform/clientSettings.ts`                | 107      |       |
-| [ ] | `src/platform/clipboard.ts`                     | 52       |       |
-| [ ] | `src/platform/cmakeSettings.ts`                 | 39       |       |
-| [ ] | `src/platform/colorScheme.ts`                   | 546      |       |
-| [ ] | `src/platform/commandLine.ts`                   | 96       |       |
-| [ ] | `src/platform/context.ts`                       | 136      |       |
-| [ ] | `src/platform/copyPath.ts`                      | 24       |       |
-| [ ] | `src/platform/cssColor.ts`                      | 68       |       |
-| [ ] | `src/platform/dateFormat.ts`                    | 92       |       |
-| [ ] | `src/platform/dotnet.ts`                        | 286      |       |
-| [ ] | `src/platform/doubleClick.ts`                   | 56       |       |
-| [ ] | `src/platform/editorSettings.ts`                | 317      |       |
-| [ ] | `src/platform/errorLog.ts`                      | 55       |       |
-| [ ] | `src/platform/fileManager.ts`                   | 54       |       |
-| [ ] | `src/platform/fileOps.ts`                       | 28       |       |
-| [ ] | `src/platform/filePresentation.ts`              | 193      |       |
-| [ ] | `src/platform/fileTemplates.ts`                 | 35       |       |
-| [ ] | `src/platform/fileTypes.ts`                     | 166      |       |
-| [ ] | `src/platform/fonts.ts`                         | 150      |       |
-| [ ] | `src/platform/formatGuard.ts`                   | 223      |       |
-| [ ] | `src/platform/gitRefName.ts`                    | 33       |       |
-| [ ] | `src/platform/i18n.ts`                          | 490      |       |
-| [ ] | `src/platform/icls.ts`                          | 436      |       |
-| [ ] | `src/platform/iconThemeOptions.ts`              | 59       |       |
-| [ ] | `src/platform/ignoredNames.ts`                  | 50       |       |
-| [ ] | `src/platform/ime.ts`                           | 9        |       |
-| [ ] | `src/platform/inspectionControls.ts`            | 140      |       |
-| [ ] | `src/platform/inspections.ts`                   | 559      |       |
-| [ ] | `src/platform/ipc.ts`                           | 109      |       |
-| [ ] | `src/platform/javaLaunch.ts`                    | 252      |       |
-| [ ] | `src/platform/jdk.ts`                           | 69       |       |
-| [ ] | `src/platform/keymap.ts`                        | 688      |       |
-| [ ] | `src/platform/keymaps/eclipse-macos.ts`         | 158      |       |
-| [ ] | `src/platform/keymaps/eclipse-windows.ts`       | 158      |       |
-| [ ] | `src/platform/keymaps/intellij-macos.ts`        | 417      |       |
-| [ ] | `src/platform/keymaps/intellij-windows.ts`      | 415      |       |
-| [ ] | `src/platform/keymaps/vscode-macos.ts`          | 403      |       |
-| [ ] | `src/platform/keymaps/vscode-windows.ts`        | 67       |       |
-| [ ] | `src/platform/languageList.ts`                  | 21       |       |
-| [ ] | `src/platform/languageSettings.ts`              | 699      |       |
-| [ ] | `src/platform/libraries.ts`                     | 18       |       |
-| [ ] | `src/platform/localDiagnostics.ts`              | 20       |       |
-| [ ] | `src/platform/nativeDrop.ts`                    | 22       |       |
-| [ ] | `src/platform/navigationModifier.ts`            | 78       |       |
-| [ ] | `src/platform/openUrl.ts`                       | 12       |       |
-| [ ] | `src/platform/pageSwipe.ts`                     | 39       |       |
-| [ ] | `src/platform/paths.ts`                         | 30       |       |
-| [ ] | `src/platform/platformInfo.ts`                  | 55       |       |
-| [ ] | `src/platform/pluginRunTargets.ts`              | 25       |       |
-| [ ] | `src/platform/pointerFocus.ts`                  | 35       |       |
-| [ ] | `src/platform/project.ts`                       | 126      |       |
-| [ ] | `src/platform/projectPresentation.ts`           | 89       |       |
-| [ ] | `src/platform/projectRoots.ts`                  | 174      |       |
-| [ ] | `src/platform/projectTrust.ts`                  | 21       |       |
-| [ ] | `src/platform/proxySettings.ts`                 | 83       |       |
-| [ ] | `src/platform/remote.ts`                        | 372      |       |
-| [ ] | `src/platform/remoteSettings.ts`                | 252      |       |
-| [ ] | `src/platform/reordered-tap-click.ts`           | 139      |       |
-| [ ] | `src/platform/runTargetSelection.ts`            | 25       |       |
-| [ ] | `src/platform/search.ts`                        | 150      |       |
-| [ ] | `src/platform/serverPort.ts`                    | 16       |       |
-| [ ] | `src/platform/splash.ts`                        | 53       |       |
-| [ ] | `src/platform/systemFonts.ts`                   | 73       |       |
-| [ ] | `src/platform/tauriCore.ts`                     | 30       |       |
-| [ ] | `src/platform/textSearch.ts`                    | 50       |       |
-| [ ] | `src/platform/themes.ts`                        | 218      |       |
-| [ ] | `src/platform/themeWatch.ts`                    | 26       |       |
-| [ ] | `src/platform/virtualDocs.ts`                   | 82       |       |
-| [ ] | `src/platform/windowGroups.ts`                  | 56       |       |
-| [ ] | `src/platform/workflowSettings.ts`              | 561      |       |
-| [ ] | `src/platform/zoom.ts`                          | 8        |       |
-| [ ] | `src/workbench/activate.ts`                     | 105      |       |
-| [ ] | `src/workbench/browserGuards.ts`                | 66       |       |
-| [ ] | `src/workbench/confirmTerminate.ts`             | 27       |       |
-| [ ] | `src/workbench/ContributedToolbar.tsx`          | 27       |       |
-| [ ] | `src/workbench/contributions.ts`                | 1779     |       |
-| [ ] | `src/workbench/devSamples.tsx`                  | 17       |       |
-| [ ] | `src/workbench/distractionFree.ts`              | 146      |       |
-| [ ] | `src/workbench/documentTitle.ts`                | 13       |       |
-| [ ] | `src/workbench/EditorArea.tsx`                  | 69       |       |
-| [ ] | `src/workbench/ErrorBoundary.tsx`               | 32       |       |
-| [ ] | `src/workbench/fileDrop.ts`                     | 88       |       |
-| [ ] | `src/workbench/focus.ts`                        | 92       |       |
-| [ ] | `src/workbench/inputDialogs.tsx`                | 332      |       |
-| [ ] | `src/workbench/MainMenu.tsx`                    | 302      |       |
-| [ ] | `src/workbench/mainToolbar.ts`                  | 114      |       |
-| [ ] | `src/workbench/MainToolbarDialog.tsx`           | 229      |       |
-| [ ] | `src/workbench/messages.tsx`                    | 160      |       |
-| [ ] | `src/workbench/nativeTitlebar.ts`               | 48       |       |
-| [ ] | `src/workbench/Notifications.tsx`               | 184      |       |
-| [ ] | `src/workbench/notificationStore.ts`            | 217      |       |
-| [ ] | `src/workbench/OverlayHost.tsx`                 | 26       |       |
-| [ ] | `src/workbench/perfProbe.ts`                    | 190      |       |
-| [ ] | `src/workbench/projectColor.ts`                 | 66       |       |
-| [ ] | `src/workbench/projectWindow.ts`                | 77       |       |
-| [ ] | `src/workbench/providerAcquisition.ts`          | 64       |       |
-| [ ] | `src/workbench/quickSwitch.ts`                  | 162      |       |
-| [ ] | `src/workbench/shellActions.ts`                 | 151      |       |
-| [ ] | `src/workbench/softWrap.ts`                     | 40       |       |
-| [ ] | `src/workbench/StatusBar.tsx`                   | 171      |       |
-| [ ] | `src/workbench/statusBarWidgets.ts`             | 74       |       |
-| [ ] | `src/workbench/tasks.ts`                        | 220      |       |
-| [ ] | `src/workbench/theme.ts`                        | 300      |       |
-| [ ] | `src/workbench/TitleBar.tsx`                    | 373      |       |
-| [ ] | `src/workbench/toolwindows/actions.ts`          | 267      |       |
-| [ ] | `src/workbench/toolwindows/content.ts`          | 27       |       |
-| [ ] | `src/workbench/toolwindows/layouts.ts`          | 101      |       |
-| [ ] | `src/workbench/toolwindows/store.ts`            | 660      |       |
-| [ ] | `src/workbench/toolwindows/ToolWindows.tsx`     | 1207     |       |
-| [ ] | `src/workbench/useFullscreen.ts`                | 29       |       |
-| [ ] | `src/workbench/Welcome.tsx`                     | 70       |       |
-| [ ] | `src/workbench/window-drag.ts`                  | 87       |       |
-| [ ] | `src/workbench/WindowControls.tsx`              | 83       |       |
-| [ ] | `src/workbench/WindowGroupTabs.tsx`             | 124      |       |
-| [ ] | `src/workbench/WindowResizeHandles.tsx`         | 78       |       |
-| [ ] | `src/workbench/Workbench.tsx`                   | 111      |       |
-| [ ] | `src/ui/ansi.ts`                                | 161      |       |
-| [ ] | `src/ui/BarButton.tsx`                          | 35       |       |
-| [ ] | `src/ui/Button.tsx`                             | 96       |       |
-| [ ] | `src/ui/Checkbox.tsx`                           | 110      |       |
-| [ ] | `src/ui/consoleFind.ts`                         | 82       |       |
-| [ ] | `src/ui/ConsoleFindBar.tsx`                     | 149      |       |
-| [ ] | `src/ui/Dialog.tsx`                             | 491      |       |
-| [ ] | `src/ui/Feedback.tsx`                           | 190      |       |
-| [ ] | `src/ui/FloatingToolbar.tsx`                    | 82       |       |
-| [ ] | `src/ui/HighlightedText.tsx`                    | 43       |       |
-| [ ] | `src/ui/iconAppearance.ts`                      | 70       |       |
-| [ ] | `src/ui/icons.tsx`                              | 1166     |       |
-| [ ] | `src/ui/index.ts`                               | 44       |       |
-| [ ] | `src/ui/InlineTag.tsx`                          | 9        |       |
-| [ ] | `src/ui/Input.tsx`                              | 278      |       |
-| [ ] | `src/ui/Kbd.tsx`                                | 21       |       |
-| [ ] | `src/ui/lazy.tsx`                               | 80       |       |
-| [ ] | `src/ui/List.tsx`                               | 243      |       |
-| [ ] | `src/ui/LogPane.tsx`                            | 156      |       |
-| [ ] | `src/ui/match.ts`                               | 72       |       |
-| [ ] | `src/ui/Menu.tsx`                               | 461      |       |
-| [ ] | `src/ui/menuAim.ts`                             | 21       |       |
-| [ ] | `src/ui/Mnemonic.tsx`                           | 35       |       |
-| [ ] | `src/ui/patternIndex.ts`                        | 220      |       |
-| [ ] | `src/ui/pointerDrag.ts`                         | 214      |       |
-| [ ] | `src/ui/Popup.tsx`                              | 195      |       |
-| [ ] | `src/ui/popupState.ts`                          | 109      |       |
-| [ ] | `src/ui/rowSelection.ts`                        | 75       |       |
-| [ ] | `src/ui/Scrollbar.tsx`                          | 112      |       |
-| [ ] | `src/ui/Select.tsx`                             | 341      |       |
-| [ ] | `src/ui/selectableText.ts`                      | 95       |       |
-| [ ] | `src/ui/SourcePreview.tsx`                      | 245      |       |
-| [ ] | `src/ui/Splitter.tsx`                           | 70       |       |
-| [ ] | `src/ui/symbolKind.ts`                          | 21       |       |
-| [ ] | `src/ui/T.tsx`                                  | 12       |       |
-| [ ] | `src/ui/Tabs.tsx`                               | 512      |       |
-| [ ] | `src/ui/tokenSpans.tsx`                         | 40       |       |
-| [ ] | `src/ui/Tooltip.tsx`                            | 146      |       |
-| [ ] | `src/ui/Tree.tsx`                               | 831      |       |
-| [ ] | `src/ui/treeDirectoryContext.ts`                | 37       |       |
-| [ ] | `src/ui/treeReorder.ts`                         | 136      |       |
-| [ ] | `src/ui/useSanitizedField.ts`                   | 35       |       |
-| [ ] | `src/ui/useSelectionBoundary.ts`                | 47       |       |
+| | Module | TS lines | Proof |
+|---|---|---|---|
+| [ ] | `src/editor/api.ts` | 787 |  |
+| [ ] | `src/editor/core/actions.ts` | 1208 |  |
+| [ ] | `src/editor/core/backend.ts` | 630 |  |
+| [ ] | `src/editor/core/clipboardHistory.ts` | 106 |  |
+| [ ] | `src/editor/core/cm` | 10347 |  |
+| [ ] | `src/editor/core/colorSchemeRuntime.ts` | 81 |  |
+| [ ] | `src/editor/core/controller.ts` | 2001 |  |
+| [ ] | `src/editor/core/copyReference.ts` | 126 |  |
+| [ ] | `src/editor/core/diskSync.ts` | 52 |  |
+| [ ] | `src/editor/core/embeddedDocuments.ts` | 50 |  |
+| [ ] | `src/editor/core/extras.ts` | 114 |  |
+| [ ] | `src/editor/core/fileAttributes.ts` | 44 |  |
+| [ ] | `src/editor/core/gutterMenu.ts` | 52 |  |
+| [ ] | `src/editor/core/index.ts` | 130 |  |
+| [ ] | `src/editor/core/model` | 2814 |  |
+| [ ] | `src/editor/core/sync` | 364 |  |
+| [ ] | `src/editor/core/view` | 2518 |  |
+| [ ] | `src/editor/core/wordCompletion.ts` | 104 |  |
+| [ ] | `src/editor/lineTokens.tsx` | 143 |  |
+| [ ] | `src/editor/lsp/actions.ts` | 366 |  |
+| [ ] | `src/editor/lsp/authorLens.ts` | 89 |  |
+| [ ] | `src/editor/lsp/autoImport.ts` | 129 |  |
+| [ ] | `src/editor/lsp/availability.ts` | 150 |  |
+| [ ] | `src/editor/lsp/codeLens.ts` | 273 |  |
+| [ ] | `src/editor/lsp/completion.ts` | 836 |  |
+| [ ] | `src/editor/lsp/completionItems.ts` | 140 |  |
+| [ ] | `src/editor/lsp/configurationNavigation.ts` | 161 |  |
+| [ ] | `src/editor/lsp/diagnostics.ts` | 343 |  |
+| [ ] | `src/editor/lsp/docs.ts` | 167 |  |
+| [ ] | `src/editor/lsp/fileReferences.ts` | 160 |  |
+| [ ] | `src/editor/lsp/files.ts` | 87 |  |
+| [ ] | `src/editor/lsp/format.ts` | 298 |  |
+| [ ] | `src/editor/lsp/generate.ts` | 10 |  |
+| [ ] | `src/editor/lsp/hint.ts` | 109 |  |
+| [ ] | `src/editor/lsp/hover.ts` | 382 |  |
+| [ ] | `src/editor/lsp/iconMarkup.ts` | 11 |  |
+| [ ] | `src/editor/lsp/importsOnPaste.ts` | 401 |  |
+| [ ] | `src/editor/lsp/index.ts` | 108 |  |
+| [ ] | `src/editor/lsp/inlay.ts` | 227 |  |
+| [ ] | `src/editor/lsp/inlineCompletion.ts` | 328 |  |
+| [ ] | `src/editor/lsp/inplaceRename.ts` | 256 |  |
+| [ ] | `src/editor/lsp/inspectionWidget.ts` | 168 |  |
+| [ ] | `src/editor/lsp/intentions.ts` | 704 |  |
+| [ ] | `src/editor/lsp/interactiveCommand.ts` | 85 |  |
+| [ ] | `src/editor/lsp/links.ts` | 216 |  |
+| [ ] | `src/editor/lsp/lsp.ts` | 110 |  |
+| [ ] | `src/editor/lsp/markdown.ts` | 277 |  |
+| [ ] | `src/editor/lsp/markdownParser.ts` | 20 |  |
+| [ ] | `src/editor/lsp/navigation.ts` | 955 |  |
+| [ ] | `src/editor/lsp/outsideProject.ts` | 96 |  |
+| [ ] | `src/editor/lsp/pluginVisuals.ts` | 17 |  |
+| [ ] | `src/editor/lsp/Popups.tsx` | 742 |  |
+| [ ] | `src/editor/lsp/popupStore.ts` | 190 |  |
+| [ ] | `src/editor/lsp/positions.ts` | 64 |  |
+| [ ] | `src/editor/lsp/rename.ts` | 425 |  |
+| [ ] | `src/editor/lsp/semantic` | 1350 |  |
+| [ ] | `src/editor/lsp/serverCodeLens.ts` | 85 |  |
+| [ ] | `src/editor/lsp/signature.ts` | 297 |  |
+| [ ] | `src/editor/lsp/snippet.ts` | 237 |  |
+| [ ] | `src/editor/lsp/spelling.ts` | 272 |  |
+| [ ] | `src/editor/lsp/syntaxErrors.ts` | 95 |  |
+| [ ] | `src/editor/lsp/syntaxFallback.ts` | 294 |  |
+| [ ] | `src/editor/lsp/tempHighlight.ts` | 60 |  |
+| [ ] | `src/editor/lsp/theme.ts` | 443 |  |
+| [ ] | `src/editor/lsp/typeInfo.ts` | 83 |  |
+| [ ] | `src/editor/lsp/workspaceEdit.ts` | 146 |  |
+| [ ] | `src/editor/navigation/gotoTest.ts` | 131 |  |
+| [ ] | `src/editor/navigation/implementationGutter.ts` | 453 |  |
+| [ ] | `src/editor/navigation/index.ts` | 199 |  |
+| [ ] | `src/editor/navigation/lineMarkers.ts` | 220 |  |
+| [ ] | `src/editor/navigation/structureNav.ts` | 147 |  |
+| [ ] | `src/editor/navigation/testNaming.ts` | 115 |  |
+| [ ] | `src/editor/navigationProviders.ts` | 86 |  |
+| [ ] | `src/editor/refactor/catalog.ts` | 194 |  |
+| [ ] | `src/editor/refactor/hierarchy.ts` | 208 |  |
+| [ ] | `src/editor/refactor/HierarchyDialog.tsx` | 144 |  |
+| [ ] | `src/editor/refactor/index.ts` | 5 |  |
+| [ ] | `src/editor/refactor/introduce.ts` | 710 |  |
+| [ ] | `src/editor/refactor/names.ts` | 257 |  |
+| [ ] | `src/editor/refactor/occurrences.ts` | 120 |  |
+| [ ] | `src/editor/refactor/projectLevel.ts` | 143 |  |
+| [ ] | `src/editor/refactor/query.ts` | 58 |  |
+| [ ] | `src/editor/refactor/refactorThis.ts` | 319 |  |
+| [ ] | `src/editor/refactor/safeDelete.ts` | 591 |  |
+| [ ] | `src/editor/refactor/serverIntroduce.ts` | 335 |  |
+| [ ] | `src/editor/refactor/templates.ts` | 252 |  |
+| [ ] | `src/editor/structure/index.ts` | 188 |  |
+| [ ] | `src/platform/actions.ts` | 220 |  |
+| [ ] | `src/platform/auxWindow.ts` | 79 |  |
+| [ ] | `src/platform/buildFiles.ts` | 7 |  |
+| [ ] | `src/platform/buildModel.ts` | 17 |  |
+| [ ] | `src/platform/buildToolRecovery.ts` | 38 |  |
+| [ ] | `src/platform/candidateFonts.ts` | 79 |  |
+| [ ] | `src/platform/classFiles.ts` | 9 |  |
+| [ ] | `src/platform/clientSettings.ts` | 107 |  |
+| [ ] | `src/platform/clipboard.ts` | 52 |  |
+| [ ] | `src/platform/cmakeSettings.ts` | 39 |  |
+| [ ] | `src/platform/colorScheme.ts` | 546 |  |
+| [ ] | `src/platform/commandLine.ts` | 96 |  |
+| [ ] | `src/platform/context.ts` | 136 |  |
+| [ ] | `src/platform/copyPath.ts` | 24 |  |
+| [ ] | `src/platform/cssColor.ts` | 68 |  |
+| [ ] | `src/platform/dateFormat.ts` | 92 |  |
+| [ ] | `src/platform/dotnet.ts` | 286 |  |
+| [ ] | `src/platform/doubleClick.ts` | 56 |  |
+| [ ] | `src/platform/editorSettings.ts` | 317 |  |
+| [ ] | `src/platform/errorLog.ts` | 55 |  |
+| [ ] | `src/platform/fileManager.ts` | 54 |  |
+| [ ] | `src/platform/fileOps.ts` | 28 |  |
+| [ ] | `src/platform/filePresentation.ts` | 193 |  |
+| [ ] | `src/platform/fileTemplates.ts` | 35 |  |
+| [ ] | `src/platform/fileTypes.ts` | 166 |  |
+| [ ] | `src/platform/fonts.ts` | 150 |  |
+| [ ] | `src/platform/formatGuard.ts` | 223 |  |
+| [ ] | `src/platform/gitRefName.ts` | 33 |  |
+| [ ] | `src/platform/i18n.ts` | 490 |  |
+| [ ] | `src/platform/icls.ts` | 436 |  |
+| [ ] | `src/platform/iconThemeOptions.ts` | 59 |  |
+| [ ] | `src/platform/ignoredNames.ts` | 50 |  |
+| [ ] | `src/platform/ime.ts` | 9 |  |
+| [ ] | `src/platform/inspectionControls.ts` | 140 |  |
+| [ ] | `src/platform/inspections.ts` | 559 |  |
+| [ ] | `src/platform/ipc.ts` | 109 |  |
+| [ ] | `src/platform/javaLaunch.ts` | 252 |  |
+| [ ] | `src/platform/jdk.ts` | 69 |  |
+| [ ] | `src/platform/keymap.ts` | 688 |  |
+| [ ] | `src/platform/keymaps/eclipse-macos.ts` | 158 |  |
+| [ ] | `src/platform/keymaps/eclipse-windows.ts` | 158 |  |
+| [ ] | `src/platform/keymaps/intellij-macos.ts` | 417 |  |
+| [ ] | `src/platform/keymaps/intellij-windows.ts` | 415 |  |
+| [ ] | `src/platform/keymaps/vscode-macos.ts` | 403 |  |
+| [ ] | `src/platform/keymaps/vscode-windows.ts` | 67 |  |
+| [ ] | `src/platform/languageList.ts` | 21 |  |
+| [ ] | `src/platform/languageSettings.ts` | 699 |  |
+| [ ] | `src/platform/libraries.ts` | 18 |  |
+| [ ] | `src/platform/localDiagnostics.ts` | 20 |  |
+| [ ] | `src/platform/nativeDrop.ts` | 22 |  |
+| [ ] | `src/platform/navigationModifier.ts` | 78 |  |
+| [ ] | `src/platform/openUrl.ts` | 12 |  |
+| [ ] | `src/platform/pageSwipe.ts` | 39 |  |
+| [ ] | `src/platform/paths.ts` | 30 |  |
+| [ ] | `src/platform/platformInfo.ts` | 55 |  |
+| [ ] | `src/platform/pluginRunTargets.ts` | 25 |  |
+| [ ] | `src/platform/pointerFocus.ts` | 35 |  |
+| [ ] | `src/platform/project.ts` | 126 |  |
+| [ ] | `src/platform/projectPresentation.ts` | 89 |  |
+| [ ] | `src/platform/projectRoots.ts` | 174 |  |
+| [ ] | `src/platform/projectTrust.ts` | 21 |  |
+| [ ] | `src/platform/proxySettings.ts` | 83 |  |
+| [ ] | `src/platform/remote.ts` | 372 |  |
+| [ ] | `src/platform/remoteSettings.ts` | 252 |  |
+| [ ] | `src/platform/reordered-tap-click.ts` | 139 |  |
+| [ ] | `src/platform/runTargetSelection.ts` | 25 |  |
+| [ ] | `src/platform/search.ts` | 150 |  |
+| [ ] | `src/platform/serverPort.ts` | 16 |  |
+| [ ] | `src/platform/splash.ts` | 53 |  |
+| [ ] | `src/platform/systemFonts.ts` | 73 |  |
+| [ ] | `src/platform/tauriCore.ts` | 30 |  |
+| [ ] | `src/platform/textSearch.ts` | 50 |  |
+| [ ] | `src/platform/themes.ts` | 218 |  |
+| [ ] | `src/platform/themeWatch.ts` | 26 |  |
+| [ ] | `src/platform/virtualDocs.ts` | 82 |  |
+| [ ] | `src/platform/windowGroups.ts` | 56 |  |
+| [ ] | `src/platform/workflowSettings.ts` | 561 |  |
+| [ ] | `src/platform/zoom.ts` | 8 |  |
+| [ ] | `src/workbench/activate.ts` | 105 |  |
+| [ ] | `src/workbench/browserGuards.ts` | 66 |  |
+| [ ] | `src/workbench/confirmTerminate.ts` | 27 |  |
+| [ ] | `src/workbench/ContributedToolbar.tsx` | 27 |  |
+| [ ] | `src/workbench/contributions.ts` | 1779 |  |
+| [ ] | `src/workbench/devSamples.tsx` | 17 |  |
+| [ ] | `src/workbench/distractionFree.ts` | 146 |  |
+| [ ] | `src/workbench/documentTitle.ts` | 13 |  |
+| [ ] | `src/workbench/EditorArea.tsx` | 69 |  |
+| [ ] | `src/workbench/ErrorBoundary.tsx` | 32 |  |
+| [ ] | `src/workbench/fileDrop.ts` | 88 |  |
+| [ ] | `src/workbench/focus.ts` | 92 |  |
+| [ ] | `src/workbench/inputDialogs.tsx` | 332 |  |
+| [ ] | `src/workbench/MainMenu.tsx` | 302 |  |
+| [ ] | `src/workbench/mainToolbar.ts` | 114 |  |
+| [ ] | `src/workbench/MainToolbarDialog.tsx` | 229 |  |
+| [ ] | `src/workbench/messages.tsx` | 160 |  |
+| [ ] | `src/workbench/nativeTitlebar.ts` | 48 |  |
+| [ ] | `src/workbench/Notifications.tsx` | 184 |  |
+| [ ] | `src/workbench/notificationStore.ts` | 217 |  |
+| [ ] | `src/workbench/OverlayHost.tsx` | 26 |  |
+| [ ] | `src/workbench/perfProbe.ts` | 190 |  |
+| [ ] | `src/workbench/projectColor.ts` | 66 |  |
+| [ ] | `src/workbench/projectWindow.ts` | 77 |  |
+| [ ] | `src/workbench/providerAcquisition.ts` | 64 |  |
+| [ ] | `src/workbench/quickSwitch.ts` | 162 |  |
+| [ ] | `src/workbench/shellActions.ts` | 151 |  |
+| [ ] | `src/workbench/softWrap.ts` | 40 |  |
+| [ ] | `src/workbench/StatusBar.tsx` | 171 |  |
+| [ ] | `src/workbench/statusBarWidgets.ts` | 74 |  |
+| [ ] | `src/workbench/tasks.ts` | 220 |  |
+| [ ] | `src/workbench/theme.ts` | 300 |  |
+| [ ] | `src/workbench/TitleBar.tsx` | 373 |  |
+| [ ] | `src/workbench/toolwindows/actions.ts` | 267 |  |
+| [ ] | `src/workbench/toolwindows/content.ts` | 27 |  |
+| [ ] | `src/workbench/toolwindows/layouts.ts` | 101 |  |
+| [ ] | `src/workbench/toolwindows/store.ts` | 660 |  |
+| [ ] | `src/workbench/toolwindows/ToolWindows.tsx` | 1207 |  |
+| [ ] | `src/workbench/useFullscreen.ts` | 29 |  |
+| [ ] | `src/workbench/Welcome.tsx` | 70 |  |
+| [ ] | `src/workbench/window-drag.ts` | 87 |  |
+| [ ] | `src/workbench/WindowControls.tsx` | 83 |  |
+| [ ] | `src/workbench/WindowGroupTabs.tsx` | 124 |  |
+| [ ] | `src/workbench/WindowResizeHandles.tsx` | 78 |  |
+| [ ] | `src/workbench/Workbench.tsx` | 111 |  |
+| [ ] | `src/ui/ansi.ts` | 161 |  |
+| [ ] | `src/ui/BarButton.tsx` | 35 |  |
+| [ ] | `src/ui/Button.tsx` | 96 |  |
+| [ ] | `src/ui/Checkbox.tsx` | 110 |  |
+| [ ] | `src/ui/consoleFind.ts` | 82 |  |
+| [ ] | `src/ui/ConsoleFindBar.tsx` | 149 |  |
+| [ ] | `src/ui/Dialog.tsx` | 491 |  |
+| [ ] | `src/ui/Feedback.tsx` | 190 |  |
+| [ ] | `src/ui/FloatingToolbar.tsx` | 82 |  |
+| [ ] | `src/ui/HighlightedText.tsx` | 43 |  |
+| [ ] | `src/ui/iconAppearance.ts` | 70 |  |
+| [ ] | `src/ui/icons.tsx` | 1166 |  |
+| [ ] | `src/ui/index.ts` | 44 |  |
+| [ ] | `src/ui/InlineTag.tsx` | 9 |  |
+| [ ] | `src/ui/Input.tsx` | 278 |  |
+| [ ] | `src/ui/Kbd.tsx` | 21 |  |
+| [ ] | `src/ui/lazy.tsx` | 80 |  |
+| [ ] | `src/ui/List.tsx` | 243 |  |
+| [ ] | `src/ui/LogPane.tsx` | 156 |  |
+| [ ] | `src/ui/match.ts` | 72 |  |
+| [ ] | `src/ui/Menu.tsx` | 461 |  |
+| [ ] | `src/ui/menuAim.ts` | 21 |  |
+| [ ] | `src/ui/Mnemonic.tsx` | 35 |  |
+| [ ] | `src/ui/patternIndex.ts` | 220 |  |
+| [ ] | `src/ui/pointerDrag.ts` | 214 |  |
+| [ ] | `src/ui/Popup.tsx` | 195 |  |
+| [ ] | `src/ui/popupState.ts` | 109 |  |
+| [ ] | `src/ui/rowSelection.ts` | 75 |  |
+| [ ] | `src/ui/Scrollbar.tsx` | 112 |  |
+| [ ] | `src/ui/Select.tsx` | 341 |  |
+| [ ] | `src/ui/selectableText.ts` | 95 |  |
+| [ ] | `src/ui/SourcePreview.tsx` | 245 |  |
+| [ ] | `src/ui/Splitter.tsx` | 70 |  |
+| [ ] | `src/ui/symbolKind.ts` | 21 |  |
+| [ ] | `src/ui/T.tsx` | 12 |  |
+| [ ] | `src/ui/Tabs.tsx` | 512 |  |
+| [ ] | `src/ui/tokenSpans.tsx` | 40 |  |
+| [ ] | `src/ui/Tooltip.tsx` | 146 |  |
+| [ ] | `src/ui/Tree.tsx` | 831 |  |
+| [ ] | `src/ui/treeDirectoryContext.ts` | 37 |  |
+| [ ] | `src/ui/treeReorder.ts` | 136 |  |
+| [ ] | `src/ui/useSanitizedField.ts` | 35 |  |
+| [ ] | `src/ui/useSelectionBoundary.ts` | 47 |  |
 
 ## Design tokens, icons and locales (0/9 at parity)
 
-|     | Item                                      | Entries | Proof |
-| --- | ----------------------------------------- | ------- | ----- |
-| [ ] | `src/styles/tokens.css` custom properties | 413     |       |
-| [ ] | `src/ui/icons.tsx` icons                  | 0       |       |
-| [ ] | text catalog `en.json`                    | 773     |       |
-| [ ] | text catalog `es.json`                    | 6175    |       |
-| [ ] | text catalog `fr.json`                    | 5802    |       |
-| [ ] | text catalog `ko.json`                    | 6292    |       |
-| [ ] | text catalog `pl.json`                    | 5980    |       |
-| [ ] | text catalog `pt.json`                    | 5994    |       |
-| [ ] | text catalog `zh.json`                    | 7095    |       |
+| | Item | Entries | Proof |
+|---|---|---|---|
+| [ ] | `src/styles/tokens.css` custom properties | 413 |  |
+| [ ] | `src/ui/icons.tsx` icons | 0 |  |
+| [ ] | text catalog `en.json` | 773 |  |
+| [ ] | text catalog `es.json` | 6175 |  |
+| [ ] | text catalog `fr.json` | 5802 |  |
+| [ ] | text catalog `ko.json` | 6292 |  |
+| [ ] | text catalog `pl.json` | 5980 |  |
+| [ ] | text catalog `pt.json` | 5994 |  |
+| [ ] | text catalog `zh.json` | 7095 |  |
 
 ## Native shell modules (src-tauri) (0/21 at parity)
 
 Desktop-shell behaviour implemented in Rust next to the webview (menus, title bar, window groups, updates, CLI…).
 
-|     | Module                                | Rust lines | Proof |
-| --- | ------------------------------------- | ---------- | ----- |
-| [ ] | `src-tauri/src/application_focus.rs`  | 121        |       |
-| [ ] | `src-tauri/src/cli.rs`                | 170        |       |
-| [ ] | `src-tauri/src/dev.rs`                | 25         |       |
-| [ ] | `src-tauri/src/jump_list.rs`          | 171        |       |
-| [ ] | `src-tauri/src/linux_webkit.rs`       | 52         |       |
-| [ ] | `src-tauri/src/linux_window_state.rs` | 522        |       |
-| [ ] | `src-tauri/src/logging.rs`            | 139        |       |
-| [ ] | `src-tauri/src/macos.rs`              | 192        |       |
-| [ ] | `src-tauri/src/menu.rs`               | 2253       |       |
-| [ ] | `src-tauri/src/page_swipe.rs`         | 171        |       |
-| [ ] | `src-tauri/src/plugin_web.rs`         | 108        |       |
-| [ ] | `src-tauri/src/relaunch.rs`           | 89         |       |
-| [ ] | `src-tauri/src/remote_container.rs`   | 423        |       |
-| [ ] | `src-tauri/src/remote_dev.rs`         | 897        |       |
-| [ ] | `src-tauri/src/remote_wsl.rs`         | 309        |       |
-| [ ] | `src-tauri/src/theme_frame.rs`        | 160        |       |
-| [ ] | `src-tauri/src/titlebar.rs`           | 245        |       |
-| [ ] | `src-tauri/src/updates.rs`            | 177        |       |
-| [ ] | `src-tauri/src/window_groups.rs`      | 370        |       |
-| [ ] | `src-tauri/src/window_work_area.rs`   | 209        |       |
-| [ ] | `src-tauri/src/windows.rs`            | 2281       |       |
+| | Module | Rust lines | Proof |
+|---|---|---|---|
+| [ ] | `src-tauri/src/application_focus.rs` | 121 |  |
+| [ ] | `src-tauri/src/cli.rs` | 170 |  |
+| [ ] | `src-tauri/src/dev.rs` | 25 |  |
+| [ ] | `src-tauri/src/jump_list.rs` | 171 |  |
+| [ ] | `src-tauri/src/linux_webkit.rs` | 52 |  |
+| [ ] | `src-tauri/src/linux_window_state.rs` | 522 |  |
+| [ ] | `src-tauri/src/logging.rs` | 139 |  |
+| [ ] | `src-tauri/src/macos.rs` | 192 |  |
+| [ ] | `src-tauri/src/menu.rs` | 2253 |  |
+| [ ] | `src-tauri/src/page_swipe.rs` | 171 |  |
+| [ ] | `src-tauri/src/plugin_web.rs` | 108 |  |
+| [ ] | `src-tauri/src/relaunch.rs` | 89 |  |
+| [ ] | `src-tauri/src/remote_container.rs` | 423 |  |
+| [ ] | `src-tauri/src/remote_dev.rs` | 897 |  |
+| [ ] | `src-tauri/src/remote_wsl.rs` | 309 |  |
+| [ ] | `src-tauri/src/theme_frame.rs` | 160 |  |
+| [ ] | `src-tauri/src/titlebar.rs` | 245 |  |
+| [ ] | `src-tauri/src/updates.rs` | 177 |  |
+| [ ] | `src-tauri/src/window_groups.rs` | 370 |  |
+| [ ] | `src-tauri/src/window_work_area.rs` | 209 |  |
+| [ ] | `src-tauri/src/windows.rs` | 2281 |  |
 
 ## IPC commands (0/599 at parity)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
-|     | Command                            | Adapter                                | Implementation  | In bindings.ts | Proof |
-| --- | ---------------------------------- | -------------------------------------- | --------------- | -------------- | ----- |
-| [ ] | `agent_archive`                    | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_base_text`                  | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_cancel`                     | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_changes`                    | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_commands`                   | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_create`                     | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_delete`                     | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_entries`                    | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_fork`                       | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_probe`                      | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_prompt`                     | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_providers`                  | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_registry_install`           | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_registry_list`              | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_registry_remove`            | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_rename`                     | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_respond`                    | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_rollback`                   | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_send_queued_now`            | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_set_command`                | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_set_config`                 | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_set_env`                    | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_stop_background`            | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_subscribe`                  | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_unarchive`                  | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `agent_unqueue`                    | src-tauri/src/commands/agent.rs        | desktop shell   | yes            |       |
-| [ ] | `analysis_locate_duplicates`       | src-tauri/src/commands/analysis.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `android_devices`                  | src-tauri/src/commands/android.rs      | desktop shell   | yes            |       |
-| [ ] | `android_logcat`                   | src-tauri/src/commands/android.rs      | desktop shell   | yes            |       |
-| [ ] | `app_build_info`                   | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_cancel_quit`                  | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_check_update`                 | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_cli_install`                  | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_cli_uninstall`                | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_info`                         | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `app_install_update`               | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_log_location`                 | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_metrics`                      | src-tauri/src/commands/perf.rs         | desktop shell   | yes            |       |
-| [ ] | `app_quit`                         | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_restart`                      | src-tauri/src/commands/caches.rs       | desktop shell   | yes            |       |
-| [ ] | `app_update_announcement`          | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_update_status`                | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `app_update_window_ready`          | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `apply_workspace_edit`             | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `build_model`                      | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `build_run`                        | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `build_sync`                       | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `caches_schedule_invalidation`     | src-tauri/src/commands/caches.rs       | desktop shell   | yes            |       |
-| [ ] | `cancel_request`                   | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `cancel_task`                      | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `clear_caches`                     | src-tauri/src/commands/perf.rs         | desktop shell   | yes            |       |
-| [ ] | `clipboard_file_list`              | src-tauri/src/commands/clipboard.rs    | desktop shell   | yes            |       |
-| [ ] | `clipboard_has_files`              | src-tauri/src/commands/clipboard.rs    | desktop shell   | yes            |       |
-| [ ] | `clipboard_image`                  | src-tauri/src/commands/clipboard.rs    | desktop shell   | yes            |       |
-| [ ] | `clipboard_set_file_list`          | src-tauri/src/commands/clipboard.rs    | desktop shell   | yes            |       |
-| [ ] | `close_project`                    | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `coverage_collect`                 | src-tauri/src/commands/coverage.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `coverage_import`                  | src-tauri/src/commands/coverage.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `coverage_prepare`                 | src-tauri/src/commands/coverage.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `db_apply_edits`                   | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_completion`                    | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_connect`                       | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_connected`                     | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_console_path`                  | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_databases`                     | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_ddl`                           | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_disconnect`                    | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_execute`                       | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_explain`                       | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_export_file`                   | src-tauri/src/commands/db.rs           | desktop shell   | yes            |       |
-| [ ] | `db_finish_transaction`            | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_history`                       | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_object_ddl`                    | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_remove_history`                | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_save_sources`                  | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_schema_objects`                | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_schemas`                       | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_set_manual_commit`             | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_set_password`                  | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_set_ssh_secret`                | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_sources`                       | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_statements`                    | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_table_details`                 | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_table_page`                    | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_tables`                        | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_test`                          | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `db_trust_ssh_host`                | src-tauri/src/commands/db.rs           | `ide_host::ops` | yes            |       |
-| [ ] | `debug_attachable_processes`       | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_breakpoint_states`          | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_capabilities`               | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_completions`                | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_data_breakpoint_info`       | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_evaluate`                   | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_evaluate_in`                | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_exception_filters`          | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_force_step_over`            | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_free_port`                  | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_hot_reload`                 | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_hot_restart`                | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_listen_for_jvm`             | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_pause`                      | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_redefine_classes`           | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_restart_frame`              | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_resume`                     | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_run_to`                     | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_scopes`                     | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_send_input`                 | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_sessions`                   | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_set_breakpoints`            | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_set_data_breakpoints`       | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_set_exception_breakpoints`  | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_set_function_breakpoints`   | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_set_variable`               | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_stack_trace`                | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_start`                      | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_step`                       | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_step_in_target`             | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_step_in_targets`            | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_stop`                       | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_threads`                    | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `debug_variables`                  | src-tauri/src/commands/debug.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `dependency_versions`              | src-tauri/src/commands/dependencies.rs | `ide_host::ops` | yes            |       |
-| [ ] | `deploy_compare`                   | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `deploy_coverage`                  | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `deploy_delete_remote`             | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `deploy_download`                  | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `deploy_info`                      | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `deploy_server_root`               | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `deploy_sync`                      | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `deploy_test_connection`           | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `deploy_upload`                    | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `doc_close`                        | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_edit`                         | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_folding`                      | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_highlights`                   | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_open`                         | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_open_virtual`                 | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_outline`                      | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_save`                         | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_save_all`                     | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_selection_ranges`             | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_set_encoding`                 | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_set_line_ending`              | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_snapshot`                     | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_sync_from_disk`               | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `doc_ui_mode`                      | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `docker_compose_op`                | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_container_op`              | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_container_stats`           | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_container_top`             | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_events`                    | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_image_history`             | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_inspect`                   | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_logs`                      | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_prune`                     | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_pull`                      | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_registry_login`            | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_remove`                    | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_run_env`                   | src-tauri/src/commands/docker.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `docker_save_settings`             | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_set_registry_password`     | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_settings`                  | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `docker_snapshot`                  | src-tauri/src/commands/docker.rs       | desktop shell   | yes            |       |
-| [ ] | `env_reload`                       | src-tauri/src/commands/env.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `find_dirs`                        | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `find_files`                       | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `find_symbols`                     | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `fs_compare_directories`           | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_copy`                          | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_copy_merge`                    | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_create_dir`                    | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_create_file`                   | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_create_file_bytes`             | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_delete`                        | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_entry_kind`                    | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_probe`                         | src-tauri/src/commands/bytes.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `fs_read_dir`                      | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_read_image`                    | src-tauri/src/commands/bytes.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `fs_read_range`                    | src-tauri/src/commands/bytes.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `fs_read_text`                     | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_rename`                        | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `fs_resolve_reference`             | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `fs_set_writable`                  | src-tauri/src/commands/fs.rs           | desktop shell   | yes            |       |
-| [ ] | `gh_account_repos`                 | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_api`                           | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_availability`                  | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_pr_checkout`                   | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_pr_comment`                    | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_pr_create`                     | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_pr_list`                       | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_pr_prepare_diff`               | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_pr_review`                     | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_pr_review_comments`            | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `gh_pr_view`                       | src-tauri/src/commands/github.rs       | desktop shell   | yes            |       |
-| [ ] | `git_credential_forget`            | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `git_credentials`                  | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `gradle_dependencies`              | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `gradle_link_projects`             | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `gradle_published_catalog`         | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `gradle_unlink_projects`           | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `history_content`                  | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `history_list`                     | src-tauri/src/commands/doc.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `history_list_dir`                 | src-tauri/src/commands/history.rs      | `ide_host::ops` | yes            |       |
-| [ ] | `history_put_label`                | src-tauri/src/commands/history.rs      | `ide_host::ops` | yes            |       |
-| [ ] | `history_restore`                  | src-tauri/src/commands/history.rs      | `ide_host::ops` | yes            |       |
-| [ ] | `http_environments`                | src-tauri/src/commands/http.rs         | desktop shell   | yes            |       |
-| [ ] | `http_execute`                     | src-tauri/src/commands/http.rs         | desktop shell   | yes            |       |
-| [ ] | `http_history`                     | src-tauri/src/commands/http.rs         | desktop shell   | yes            |       |
-| [ ] | `http_history_clear`               | src-tauri/src/commands/http.rs         | desktop shell   | yes            |       |
-| [ ] | `http_history_get`                 | src-tauri/src/commands/http.rs         | desktop shell   | yes            |       |
-| [ ] | `http_requests`                    | src-tauri/src/commands/http.rs         | desktop shell   | yes            |       |
-| [ ] | `index_file_extensions`            | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `index_status`                     | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `inspect_code`                     | src-tauri/src/commands/analysis.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `java_build_workspace`             | src-tauri/src/commands/java.rs         | `ide_host::ops` | yes            |       |
-| [ ] | `java_debug_server`                | src-tauri/src/commands/java.rs         | `ide_host::ops` | yes            |       |
-| [ ] | `java_resolve_launch`              | src-tauri/src/commands/java.rs         | `ide_host::ops` | yes            |       |
-| [ ] | `jdk_download`                     | src-tauri/src/commands/tools.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `jdk_download_location`            | src-tauri/src/commands/tools.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `jdk_download_releases`            | src-tauri/src/commands/tools.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `jdk_download_vendors`             | src-tauri/src/commands/tools.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `jvm_file_presentations`           | src-tauri/src/commands/syntax.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `languages`                        | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `light_edit_open`                  | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `log_frontend`                     | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `lsp_apply_code_action`            | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_call_hierarchy`               | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_code_action_query`            | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_code_actions`                 | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_code_lens`                    | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_completion`                   | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_document_highlights`          | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_document_links`               | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_execute_code_action`          | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_execute_command`              | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_format`                       | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_goto`                         | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_goto_implementation`          | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_hierarchy_members`            | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_hierarchy_refactor`           | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_hover`                        | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_implementations`              | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_inlay_hints`                  | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_inline_completion`            | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_prepare_rename`               | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_references`                   | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_rename`                       | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_resend_diagnostics`           | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_resolve_class_file`           | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_resolve_code_action`          | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_resolve_command`              | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_resolve_completion`           | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_restart`                      | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_semantic_tokens`              | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_servers`                      | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_signature_help`               | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_type_hierarchy`               | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_virtual_document`             | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `lsp_workspace_symbols`            | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `mark_recent`                      | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `maven_dependency_declaration`     | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `maven_exclude_dependency`         | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `maven_goto_declaration`           | src-tauri/src/commands/build.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `mcp_report_problems`              | src-tauri/src/commands/mcp.rs          | desktop shell   | yes            |       |
-| [ ] | `mcp_respond`                      | src-tauri/src/commands/mcp.rs          | desktop shell   | yes            |       |
-| [ ] | `mcp_server_status`                | src-tauri/src/commands/mcp.rs          | desktop shell   | yes            |       |
-| [ ] | `mcp_set_focused_editor`           | src-tauri/src/commands/mcp.rs          | desktop shell   | yes            |       |
-| [ ] | `mcp_set_open_editors`             | src-tauri/src/commands/mcp.rs          | desktop shell   | yes            |       |
-| [ ] | `mcp_ui_ready`                     | src-tauri/src/commands/mcp.rs          | desktop shell   | yes            |       |
-| [ ] | `menu_configure`                   | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `menu_model`                       | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `menu_refresh`                     | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `menu_set_disabled`                | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `notebook_close`                   | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_edit`                    | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_execute`                 | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_get`                     | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_interrupt`               | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_open`                    | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_redo`                    | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_reload`                  | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_restart`                 | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_save`                    | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `notebook_undo`                    | src-tauri/src/commands/notebook.rs     | desktop shell   | yes            |       |
-| [ ] | `open_project`                     | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `path_completions`                 | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `plugin_activation_event`          | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_answer_command`            | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_answer_commit`             | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_answer_prompt`             | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_answer_run_target`         | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_assets`                    | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_cancel_task`               | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_catalog`                   | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_choose_program`            | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_color_presentations`       | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `plugin_commit_checks`             | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_content_tab_action`        | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_context_keys`              | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_decoration_sets`           | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_endpoints`                 | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_event_kinds`               | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_finish_operation`          | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_formatters`                | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `plugin_grant`                     | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_install_dir`               | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_installed_intellij_themes` | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_language_visuals`          | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `plugin_line_markers`              | src-tauri/src/commands/plugin.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `plugin_link`                      | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_list`                      | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_log_tab_spawn`             | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_market`                    | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_market_download`           | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_market_url`                | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_navigation_files`          | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_navigation_goto`           | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_navigation_index`          | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_navigation_invalidate`     | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_navigation_markers`        | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_parse_test_results`        | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_post_events`               | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_prepare_debug_run`         | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_preview_install`           | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_program`                   | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_read_intellij_theme`       | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_reload`                    | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_roll_back`                 | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_run_command`               | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_run_targets`               | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_secrets`                   | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_select_tests`              | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_service_detail`            | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_service_log`               | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_set_active_file`           | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_set_capability`            | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_set_enabled`               | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_set_market_url`            | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_set_secret`                | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_set_theme`                 | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_set_theme_frame`           | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_set_ui_locale`             | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_stage_package`             | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_status_items`              | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_subscribe`                 | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_terminal_session_close`    | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_terminal_session_spawn`    | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_uninstall`                 | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_unlink`                    | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_unpack_package`            | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_view_event`                | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_view_render`               | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_web_page`                  | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_web_pty_spawn`             | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_web_read_file`             | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `plugin_web_save_file`             | src-tauri/src/commands/plugin.rs       | desktop shell   | yes            |       |
-| [ ] | `prepare_workspace_edit`           | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `profiler_collect`                 | src-tauri/src/commands/profiler.rs     | desktop shell   | yes            |       |
-| [ ] | `profiler_prepare`                 | src-tauri/src/commands/profiler.rs     | desktop shell   | yes            |       |
-| [ ] | `project_current`                  | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `project_rename`                   | src-tauri/src/commands/app.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `project_roots`                    | src-tauri/src/commands/app.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `project_trust_add_location`       | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `project_trust_list`               | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `project_trust_remove_location`    | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `project_trust_set`                | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `project_trust_status`             | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `proxy_check_connection`           | src-tauri/src/commands/http.rs         | desktop shell   | yes            |       |
-| [ ] | `recent_files`                     | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `recent_project_groups`            | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `recent_projects`                  | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `redo_workspace_edit`              | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `refactor_can_undo_file_move`      | src-tauri/src/commands/refactor.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `refactor_file_move_edits`         | src-tauri/src/commands/refactor.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `refactor_file_move_text_edits`    | src-tauri/src/commands/refactor.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `refactor_move_files`              | src-tauri/src/commands/refactor.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `refactor_undo_file_move`          | src-tauri/src/commands/refactor.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `remote_bootstrap_list`            | src-tauri/src/remote_dev.rs            | desktop shell   | yes            |       |
-| [ ] | `remote_connect`                   | src-tauri/src/remote_dev.rs            | `ide_host::ops` | yes            |       |
-| [ ] | `remote_current`                   | src-tauri/src/remote_dev.rs            | desktop shell   | yes            |       |
-| [ ] | `remote_delete`                    | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `remote_disconnect`                | src-tauri/src/remote_dev.rs            | desktop shell   | yes            |       |
-| [ ] | `remote_forward_port`              | src-tauri/src/remote_dev.rs            | desktop shell   | yes            |       |
-| [ ] | `remote_forwarded_ports`           | src-tauri/src/remote_dev.rs            | desktop shell   | yes            |       |
-| [ ] | `remote_import_local`              | src-tauri/src/remote_dev.rs            | desktop shell   | yes            |       |
-| [ ] | `remote_invoke`                    | src-tauri/src/remote_dev.rs            | desktop shell   | yes            |       |
-| [ ] | `remote_list`                      | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `remote_mkdir`                     | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `remote_of`                        | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `remote_open`                      | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `remote_rename`                    | src-tauri/src/commands/deploy.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `remote_stop_forwarding`           | src-tauri/src/remote_dev.rs            | desktop shell   | yes            |       |
-| [ ] | `remove_recent`                    | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `remove_recent_project`            | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `replace_in_files`                 | src-tauri/src/commands/search.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `replace_preview`                  | src-tauri/src/commands/search.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `run_application_build`            | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_application_publish`          | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_apply_settings`               | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_close_stdin`                  | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_configs`                      | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_dotnet_resolve`               | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_gradle_init_script`           | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_gradle_jvm_args_script`       | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_import_configs`               | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_import_sources`               | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_list`                         | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_resize`                       | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_save_configs`                 | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_save_templates`               | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_start`                        | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_stdin`                        | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_stop`                         | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_system_env`                   | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_templates`                    | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_test_reports`                 | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_tomcat_artifacts`             | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_tomcat_build`                 | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_tomcat_home`                  | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_tomcat_installations`         | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_tomcat_sync`                  | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_tomcat_update`                | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `run_without_derived`              | src-tauri/src/commands/run.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_detect`                       | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_locate_tools`                 | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_php_composer_install`         | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_php_effective`                | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_php_language_level`           | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_php_xdebug`                   | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_project_libraries`            | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_python_create_venv`           | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_python_effective`             | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_python_interpreter`           | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_python_packages`              | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `sdk_python_pip`                   | src-tauri/src/commands/sdk.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `search_start`                     | src-tauri/src/commands/search.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `search_validate`                  | src-tauri/src/commands/search.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `set_recent_project_groups`        | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `settings_export`                  | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `settings_get`                     | src-tauri/src/commands/app.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `settings_get_global`              | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `settings_import`                  | src-tauri/src/commands/app.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `settings_read_jetbrains`          | src-tauri/src/commands/app.rs          | desktop shell   | yes            |       |
-| [ ] | `settings_set`                     | src-tauri/src/commands/app.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `spell_check`                      | src-tauri/src/commands/spell.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `spell_suggest`                    | src-tauri/src/commands/spell.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `spring_route_sources`             | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `ssh_askpass_answer`               | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `ssh_connected`                    | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `ssh_disconnect`                   | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `ssh_needs_secret`                 | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `ssh_set_secret`                   | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `ssh_terminal_command`             | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `ssh_test`                         | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `ssh_trust_host`                   | src-tauri/src/commands/ssh.rs          | desktop shell   | yes            |       |
-| [ ] | `structural_languages`             | src-tauri/src/commands/analysis.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `structural_search`                | src-tauri/src/commands/analysis.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `structural_validate`              | src-tauri/src/commands/analysis.rs     | `ide_host::ops` | yes            |       |
-| [ ] | `syntax_errors`                    | src-tauri/src/commands/syntax.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `syntax_expression_at`             | src-tauri/src/commands/syntax.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `syntax_identifiers`               | src-tauri/src/commands/syntax.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `syntax_identifiers_in_files`      | src-tauri/src/commands/syntax.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `syntax_locals`                    | src-tauri/src/commands/syntax.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `syntax_node_at`                   | src-tauri/src/commands/syntax.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `syntax_structural_ranges`         | src-tauri/src/commands/syntax.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `syntax_support`                   | src-tauri/src/commands/syntax.rs       | `ide_host::ops` | yes            |       |
-| [ ] | `system_font_families`             | src-tauri/src/commands/fonts.rs        | desktop shell   | yes            |       |
-| [ ] | `term_available_shells`            | src-tauri/src/commands/term.rs         | desktop shell   | yes            |       |
-| [ ] | `term_default_shell`               | src-tauri/src/commands/term.rs         | desktop shell   | yes            |       |
-| [ ] | `term_is_busy`                     | src-tauri/src/commands/term.rs         | desktop shell   | yes            |       |
-| [ ] | `term_kill`                        | src-tauri/src/commands/term.rs         | desktop shell   | yes            |       |
-| [ ] | `term_resize`                      | src-tauri/src/commands/term.rs         | desktop shell   | yes            |       |
-| [ ] | `term_spawn`                       | src-tauri/src/commands/term.rs         | `ide_host::ops` | yes            |       |
-| [ ] | `term_store_image`                 | src-tauri/src/commands/term.rs         | `ide_host::ops` | yes            |       |
-| [ ] | `term_write`                       | src-tauri/src/commands/term.rs         | desktop shell   | yes            |       |
-| [ ] | `tools_install`                    | src-tauri/src/commands/tools.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `tools_list`                       | src-tauri/src/commands/tools.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `tools_uninstall`                  | src-tauri/src/commands/tools.rs        | `ide_host::ops` | yes            |       |
-| [ ] | `undo_workspace_edit`              | src-tauri/src/commands/lsp.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `user_font_data`                   | src-tauri/src/commands/fonts.rs        | desktop shell   | no             |       |
-| [ ] | `vcs_add_to_ignore`                | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_add_worktree`                 | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_apply_patch`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_blame`                        | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_block_history`                | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_branch_info`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_branches`                     | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_changelists_load`             | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_changelists_save`             | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_checkout`                     | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_clone`                        | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_commit`                       | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_commit_files`                 | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_commits_changes`              | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_compare_paths`                | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_compare_scope`                | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_config_get`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_conflict_versions`            | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_create_branch`                | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_create_patch`                 | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_create_tag`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_delete_branch`                | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_delete_tag`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_detected_git`                 | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_diff_hunks`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_diff_numstat`                 | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_diff_revisions`               | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_diff_text`                    | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_diff_with_worktree`           | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_discard`                      | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_edit_remote`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_file_at`                      | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_git_version`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_has_hook`                     | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_init`                         | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_line_hunks`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_log`                          | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_log_details`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_log_details_batch`            | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_log_refs`                     | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_log_users`                    | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_merge`                        | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_merge_base`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_merge_with`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_open_external_log`            | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_operation`                    | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_patch_preview`                | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_rebase`                       | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_rebase_with`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_remote`                       | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_remotes`                      | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_remove_worktree`              | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_rename_branch`                | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_restore_branch`               | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_restore_head`                 | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_restore_tag`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_revision_children`            | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_revision_files`               | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_reword`                       | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_roots`                        | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_shelf_delete`                 | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_shelf_diff`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_shelf_import`                 | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_shelf_patch`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_shelf_rename`                 | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_shelve`                       | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_shelves`                      | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_stage`                        | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_stage_hunks`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_stage_patch`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_stash_apply`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_stash_drop`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_stash_push`                   | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_stashes`                      | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_status`                       | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_tags`                         | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_undo_commit`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_unshelve`                     | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_unstage`                      | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_worktrees`                    | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `vcs_write_patch`                  | src-tauri/src/commands/vcs.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `web_browsers`                     | src-tauri/src/commands/web.rs          | desktop shell   | yes            |       |
-| [ ] | `web_goto`                         | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `web_open`                         | src-tauri/src/commands/web.rs          | desktop shell   | yes            |       |
-| [ ] | `web_unresolved_references`        | src-tauri/src/commands/nav.rs          | `ide_host::ops` | yes            |       |
-| [ ] | `web_url`                          | src-tauri/src/commands/web.rs          | desktop shell   | yes            |       |
-| [ ] | `window_close_context`             | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_complete_launch`           | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_cycle`                     | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_flash_taskbar`             | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_group_cancel_close`        | src-tauri/src/commands/window_group.rs | desktop shell   | yes            |       |
-| [ ] | `window_group_close`               | src-tauri/src/commands/window_group.rs | desktop shell   | yes            |       |
-| [ ] | `window_group_close_tabs`          | src-tauri/src/commands/window_group.rs | desktop shell   | yes            |       |
-| [ ] | `window_group_current`             | src-tauri/src/commands/window_group.rs | desktop shell   | yes            |       |
-| [ ] | `window_group_detach`              | src-tauri/src/commands/window_group.rs | desktop shell   | yes            |       |
-| [ ] | `window_group_merge`               | src-tauri/src/commands/window_group.rs | desktop shell   | yes            |       |
-| [ ] | `window_group_reorder`             | src-tauri/src/commands/window_group.rs | desktop shell   | yes            |       |
-| [ ] | `window_group_restore`             | src-tauri/src/commands/window_group.rs | desktop shell   | yes            |       |
-| [ ] | `window_group_select`              | src-tauri/src/commands/window_group.rs | desktop shell   | yes            |       |
-| [ ] | `window_is_fullscreen`             | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_new`                       | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_open_comparison`           | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_open_deployment`           | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_open_file_in_new_window`   | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_open_files`                | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_open_project`              | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_open_projects`             | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_open_remote`               | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_open_settings`             | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_set_titlebar_height`       | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `window_start_drag`                | src-tauri/src/commands/window_drag.rs  | desktop shell   | yes            |       |
-| [ ] | `window_take_launch`               | src-tauri/src/commands/window.rs       | desktop shell   | no             |       |
-| [ ] | `window_toggle_fullscreen`         | src-tauri/src/commands/window.rs       | desktop shell   | yes            |       |
-| [ ] | `workspace_attach`                 | src-tauri/src/commands/workspace.rs    | `ide_host::ops` | yes            |       |
-| [ ] | `workspace_create`                 | src-tauri/src/commands/workspace.rs    | desktop shell   | yes            |       |
-| [ ] | `workspace_discover_projects`      | src-tauri/src/commands/workspace.rs    | desktop shell   | yes            |       |
-| [ ] | `workspace_update`                 | src-tauri/src/commands/workspace.rs    | `ide_host::ops` | yes            |       |
-| [ ] | `wsl_distros`                      | src-tauri/src/commands/wsl.rs          | desktop shell   | yes            |       |
-| [ ] | `wsl_resolve`                      | src-tauri/src/commands/wsl.rs          | desktop shell   | yes            |       |
+| | Command | Adapter | Implementation | In bindings.ts | Proof |
+|---|---|---|---|---|---|
+| [ ] | `agent_archive` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_base_text` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_cancel` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_changes` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_commands` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_create` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_delete` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_entries` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_fork` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_probe` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_prompt` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_providers` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_registry_install` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_registry_list` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_registry_remove` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_rename` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_respond` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_rollback` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_send_queued_now` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_set_command` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_set_config` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_set_env` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_stop_background` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_subscribe` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_unarchive` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `agent_unqueue` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [ ] | `analysis_locate_duplicates` | src-tauri/src/commands/analysis.rs | `ide_host::ops` | yes |  |
+| [ ] | `android_devices` | src-tauri/src/commands/android.rs | desktop shell | yes |  |
+| [ ] | `android_logcat` | src-tauri/src/commands/android.rs | desktop shell | yes |  |
+| [ ] | `app_build_info` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_cancel_quit` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_check_update` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_cli_install` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_cli_uninstall` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_info` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `app_install_update` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_log_location` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_metrics` | src-tauri/src/commands/perf.rs | desktop shell | yes |  |
+| [ ] | `app_quit` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_restart` | src-tauri/src/commands/caches.rs | desktop shell | yes |  |
+| [ ] | `app_update_announcement` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_update_status` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `app_update_window_ready` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `apply_workspace_edit` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `build_model` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `build_run` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `build_sync` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `caches_schedule_invalidation` | src-tauri/src/commands/caches.rs | desktop shell | yes |  |
+| [ ] | `cancel_request` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `cancel_task` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `clear_caches` | src-tauri/src/commands/perf.rs | desktop shell | yes |  |
+| [ ] | `clipboard_file_list` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
+| [ ] | `clipboard_has_files` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
+| [ ] | `clipboard_image` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
+| [ ] | `clipboard_set_file_list` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
+| [ ] | `close_project` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `coverage_collect` | src-tauri/src/commands/coverage.rs | `ide_host::ops` | yes |  |
+| [ ] | `coverage_import` | src-tauri/src/commands/coverage.rs | `ide_host::ops` | yes |  |
+| [ ] | `coverage_prepare` | src-tauri/src/commands/coverage.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_apply_edits` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_completion` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_connect` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_connected` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_console_path` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_databases` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_ddl` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_disconnect` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_execute` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_explain` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_export_file` | src-tauri/src/commands/db.rs | desktop shell | yes |  |
+| [ ] | `db_finish_transaction` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_history` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_object_ddl` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_remove_history` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_save_sources` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_schema_objects` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_schemas` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_set_manual_commit` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_set_password` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_set_ssh_secret` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_sources` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_statements` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_table_details` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_table_page` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_tables` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_test` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `db_trust_ssh_host` | src-tauri/src/commands/db.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_attachable_processes` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_breakpoint_states` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_capabilities` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_completions` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_data_breakpoint_info` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_evaluate` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_evaluate_in` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_exception_filters` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_force_step_over` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_free_port` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_hot_reload` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_hot_restart` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_listen_for_jvm` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_pause` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_redefine_classes` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_restart_frame` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_resume` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_run_to` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_scopes` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_send_input` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_sessions` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_set_breakpoints` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_set_data_breakpoints` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_set_exception_breakpoints` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_set_function_breakpoints` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_set_variable` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_stack_trace` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_start` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_step` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_step_in_target` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_step_in_targets` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_stop` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_threads` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `debug_variables` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes |  |
+| [ ] | `dependency_versions` | src-tauri/src/commands/dependencies.rs | `ide_host::ops` | yes |  |
+| [ ] | `deploy_compare` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `deploy_coverage` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `deploy_delete_remote` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `deploy_download` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `deploy_info` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `deploy_server_root` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `deploy_sync` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `deploy_test_connection` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `deploy_upload` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_close` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_edit` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_folding` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_highlights` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_open` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_open_virtual` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_outline` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_save` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_save_all` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_selection_ranges` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_set_encoding` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_set_line_ending` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_snapshot` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_sync_from_disk` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `doc_ui_mode` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `docker_compose_op` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_container_op` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_container_stats` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_container_top` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_events` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_image_history` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_inspect` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_logs` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_prune` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_pull` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_registry_login` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_remove` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_run_env` | src-tauri/src/commands/docker.rs | `ide_host::ops` | yes |  |
+| [ ] | `docker_save_settings` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_set_registry_password` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_settings` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `docker_snapshot` | src-tauri/src/commands/docker.rs | desktop shell | yes |  |
+| [ ] | `env_reload` | src-tauri/src/commands/env.rs | `ide_host::ops` | yes |  |
+| [ ] | `find_dirs` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `find_files` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `find_symbols` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `fs_compare_directories` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_copy` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_copy_merge` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_create_dir` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_create_file` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_create_file_bytes` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_delete` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_entry_kind` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_probe` | src-tauri/src/commands/bytes.rs | `ide_host::ops` | yes |  |
+| [ ] | `fs_read_dir` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_read_image` | src-tauri/src/commands/bytes.rs | `ide_host::ops` | yes |  |
+| [ ] | `fs_read_range` | src-tauri/src/commands/bytes.rs | `ide_host::ops` | yes |  |
+| [ ] | `fs_read_text` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_rename` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `fs_resolve_reference` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `fs_set_writable` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [ ] | `gh_account_repos` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_api` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_availability` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_pr_checkout` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_pr_comment` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_pr_create` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_pr_list` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_pr_prepare_diff` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_pr_review` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_pr_review_comments` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `gh_pr_view` | src-tauri/src/commands/github.rs | desktop shell | yes |  |
+| [ ] | `git_credential_forget` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `git_credentials` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `gradle_dependencies` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `gradle_link_projects` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `gradle_published_catalog` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `gradle_unlink_projects` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `history_content` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `history_list` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes |  |
+| [ ] | `history_list_dir` | src-tauri/src/commands/history.rs | `ide_host::ops` | yes |  |
+| [ ] | `history_put_label` | src-tauri/src/commands/history.rs | `ide_host::ops` | yes |  |
+| [ ] | `history_restore` | src-tauri/src/commands/history.rs | `ide_host::ops` | yes |  |
+| [ ] | `http_environments` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
+| [ ] | `http_execute` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
+| [ ] | `http_history` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
+| [ ] | `http_history_clear` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
+| [ ] | `http_history_get` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
+| [ ] | `http_requests` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
+| [ ] | `index_file_extensions` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `index_status` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `inspect_code` | src-tauri/src/commands/analysis.rs | `ide_host::ops` | yes |  |
+| [ ] | `java_build_workspace` | src-tauri/src/commands/java.rs | `ide_host::ops` | yes |  |
+| [ ] | `java_debug_server` | src-tauri/src/commands/java.rs | `ide_host::ops` | yes |  |
+| [ ] | `java_resolve_launch` | src-tauri/src/commands/java.rs | `ide_host::ops` | yes |  |
+| [ ] | `jdk_download` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
+| [ ] | `jdk_download_location` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
+| [ ] | `jdk_download_releases` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
+| [ ] | `jdk_download_vendors` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
+| [ ] | `jvm_file_presentations` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes |  |
+| [ ] | `languages` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `light_edit_open` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `log_frontend` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `lsp_apply_code_action` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_call_hierarchy` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_code_action_query` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_code_actions` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_code_lens` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_completion` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_document_highlights` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_document_links` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_execute_code_action` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_execute_command` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_format` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_goto` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_goto_implementation` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_hierarchy_members` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_hierarchy_refactor` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_hover` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_implementations` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_inlay_hints` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_inline_completion` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_prepare_rename` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_references` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_rename` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_resend_diagnostics` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_resolve_class_file` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_resolve_code_action` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_resolve_command` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_resolve_completion` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_restart` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_semantic_tokens` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_servers` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_signature_help` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_type_hierarchy` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_virtual_document` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `lsp_workspace_symbols` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `mark_recent` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `maven_dependency_declaration` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `maven_exclude_dependency` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `maven_goto_declaration` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [ ] | `mcp_report_problems` | src-tauri/src/commands/mcp.rs | desktop shell | yes |  |
+| [ ] | `mcp_respond` | src-tauri/src/commands/mcp.rs | desktop shell | yes |  |
+| [ ] | `mcp_server_status` | src-tauri/src/commands/mcp.rs | desktop shell | yes |  |
+| [ ] | `mcp_set_focused_editor` | src-tauri/src/commands/mcp.rs | desktop shell | yes |  |
+| [ ] | `mcp_set_open_editors` | src-tauri/src/commands/mcp.rs | desktop shell | yes |  |
+| [ ] | `mcp_ui_ready` | src-tauri/src/commands/mcp.rs | desktop shell | yes |  |
+| [ ] | `menu_configure` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `menu_model` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `menu_refresh` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `menu_set_disabled` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `notebook_close` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_edit` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_execute` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_get` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_interrupt` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_open` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_redo` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_reload` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_restart` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_save` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `notebook_undo` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [ ] | `open_project` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `path_completions` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `plugin_activation_event` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_answer_command` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_answer_commit` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_answer_prompt` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_answer_run_target` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_assets` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_cancel_task` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_catalog` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_choose_program` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_color_presentations` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `plugin_commit_checks` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_content_tab_action` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_context_keys` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_decoration_sets` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_endpoints` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_event_kinds` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_finish_operation` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_formatters` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `plugin_grant` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_install_dir` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_installed_intellij_themes` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_language_visuals` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `plugin_line_markers` | src-tauri/src/commands/plugin.rs | `ide_host::ops` | yes |  |
+| [ ] | `plugin_link` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_list` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_log_tab_spawn` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_market` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_market_download` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_market_url` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_navigation_files` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_navigation_goto` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_navigation_index` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_navigation_invalidate` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_navigation_markers` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_parse_test_results` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_post_events` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_prepare_debug_run` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_preview_install` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_program` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_read_intellij_theme` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_reload` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_roll_back` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_run_command` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_run_targets` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_secrets` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_select_tests` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_service_detail` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_service_log` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_set_active_file` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_set_capability` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_set_enabled` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_set_market_url` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_set_secret` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_set_theme` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_set_theme_frame` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_set_ui_locale` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_stage_package` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_status_items` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_subscribe` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_terminal_session_close` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_terminal_session_spawn` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_uninstall` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_unlink` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_unpack_package` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_view_event` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_view_render` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_web_page` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_web_pty_spawn` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_web_read_file` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `plugin_web_save_file` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
+| [ ] | `prepare_workspace_edit` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `profiler_collect` | src-tauri/src/commands/profiler.rs | desktop shell | yes |  |
+| [ ] | `profiler_prepare` | src-tauri/src/commands/profiler.rs | desktop shell | yes |  |
+| [ ] | `project_current` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `project_rename` | src-tauri/src/commands/app.rs | `ide_host::ops` | yes |  |
+| [ ] | `project_roots` | src-tauri/src/commands/app.rs | `ide_host::ops` | yes |  |
+| [ ] | `project_trust_add_location` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `project_trust_list` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `project_trust_remove_location` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `project_trust_set` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `project_trust_status` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `proxy_check_connection` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
+| [ ] | `recent_files` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `recent_project_groups` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `recent_projects` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `redo_workspace_edit` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `refactor_can_undo_file_move` | src-tauri/src/commands/refactor.rs | `ide_host::ops` | yes |  |
+| [ ] | `refactor_file_move_edits` | src-tauri/src/commands/refactor.rs | `ide_host::ops` | yes |  |
+| [ ] | `refactor_file_move_text_edits` | src-tauri/src/commands/refactor.rs | `ide_host::ops` | yes |  |
+| [ ] | `refactor_move_files` | src-tauri/src/commands/refactor.rs | `ide_host::ops` | yes |  |
+| [ ] | `refactor_undo_file_move` | src-tauri/src/commands/refactor.rs | `ide_host::ops` | yes |  |
+| [ ] | `remote_bootstrap_list` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
+| [ ] | `remote_connect` | src-tauri/src/remote_dev.rs | `ide_host::ops` | yes |  |
+| [ ] | `remote_current` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
+| [ ] | `remote_delete` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `remote_disconnect` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
+| [ ] | `remote_forward_port` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
+| [ ] | `remote_forwarded_ports` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
+| [ ] | `remote_import_local` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
+| [ ] | `remote_invoke` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
+| [ ] | `remote_list` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `remote_mkdir` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `remote_of` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `remote_open` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `remote_rename` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [ ] | `remote_stop_forwarding` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
+| [ ] | `remove_recent` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `remove_recent_project` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `replace_in_files` | src-tauri/src/commands/search.rs | `ide_host::ops` | yes |  |
+| [ ] | `replace_preview` | src-tauri/src/commands/search.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_application_build` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_application_publish` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_apply_settings` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_close_stdin` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_configs` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_dotnet_resolve` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_gradle_init_script` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_gradle_jvm_args_script` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_import_configs` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_import_sources` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_list` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_resize` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_save_configs` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_save_templates` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_start` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_stdin` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_stop` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_system_env` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_templates` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_test_reports` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_tomcat_artifacts` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_tomcat_build` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_tomcat_home` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_tomcat_installations` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_tomcat_sync` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_tomcat_update` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `run_without_derived` | src-tauri/src/commands/run.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_detect` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_locate_tools` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_php_composer_install` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_php_effective` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_php_language_level` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_php_xdebug` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_project_libraries` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_python_create_venv` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_python_effective` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_python_interpreter` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_python_packages` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `sdk_python_pip` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [ ] | `search_start` | src-tauri/src/commands/search.rs | `ide_host::ops` | yes |  |
+| [ ] | `search_validate` | src-tauri/src/commands/search.rs | `ide_host::ops` | yes |  |
+| [ ] | `set_recent_project_groups` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `settings_export` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `settings_get` | src-tauri/src/commands/app.rs | `ide_host::ops` | yes |  |
+| [ ] | `settings_get_global` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `settings_import` | src-tauri/src/commands/app.rs | `ide_host::ops` | yes |  |
+| [ ] | `settings_read_jetbrains` | src-tauri/src/commands/app.rs | desktop shell | yes |  |
+| [ ] | `settings_set` | src-tauri/src/commands/app.rs | `ide_host::ops` | yes |  |
+| [ ] | `spell_check` | src-tauri/src/commands/spell.rs | `ide_host::ops` | yes |  |
+| [ ] | `spell_suggest` | src-tauri/src/commands/spell.rs | `ide_host::ops` | yes |  |
+| [ ] | `spring_route_sources` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `ssh_askpass_answer` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `ssh_connected` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `ssh_disconnect` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `ssh_needs_secret` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `ssh_set_secret` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `ssh_terminal_command` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `ssh_test` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `ssh_trust_host` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
+| [ ] | `structural_languages` | src-tauri/src/commands/analysis.rs | `ide_host::ops` | yes |  |
+| [ ] | `structural_search` | src-tauri/src/commands/analysis.rs | `ide_host::ops` | yes |  |
+| [ ] | `structural_validate` | src-tauri/src/commands/analysis.rs | `ide_host::ops` | yes |  |
+| [ ] | `syntax_errors` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes |  |
+| [ ] | `syntax_expression_at` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes |  |
+| [ ] | `syntax_identifiers` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes |  |
+| [ ] | `syntax_identifiers_in_files` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes |  |
+| [ ] | `syntax_locals` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes |  |
+| [ ] | `syntax_node_at` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes |  |
+| [ ] | `syntax_structural_ranges` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes |  |
+| [ ] | `syntax_support` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes |  |
+| [ ] | `system_font_families` | src-tauri/src/commands/fonts.rs | desktop shell | yes |  |
+| [ ] | `term_available_shells` | src-tauri/src/commands/term.rs | desktop shell | yes |  |
+| [ ] | `term_default_shell` | src-tauri/src/commands/term.rs | desktop shell | yes |  |
+| [ ] | `term_is_busy` | src-tauri/src/commands/term.rs | desktop shell | yes |  |
+| [ ] | `term_kill` | src-tauri/src/commands/term.rs | desktop shell | yes |  |
+| [ ] | `term_resize` | src-tauri/src/commands/term.rs | desktop shell | yes |  |
+| [ ] | `term_spawn` | src-tauri/src/commands/term.rs | `ide_host::ops` | yes |  |
+| [ ] | `term_store_image` | src-tauri/src/commands/term.rs | `ide_host::ops` | yes |  |
+| [ ] | `term_write` | src-tauri/src/commands/term.rs | desktop shell | yes |  |
+| [ ] | `tools_install` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
+| [ ] | `tools_list` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
+| [ ] | `tools_uninstall` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
+| [ ] | `undo_workspace_edit` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [ ] | `user_font_data` | src-tauri/src/commands/fonts.rs | desktop shell | no |  |
+| [ ] | `vcs_add_to_ignore` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_add_worktree` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_apply_patch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_blame` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_block_history` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_branch_info` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_branches` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_changelists_load` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_changelists_save` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_checkout` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_clone` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_commit` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_commit_files` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_commits_changes` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_compare_paths` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_compare_scope` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_config_get` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_conflict_versions` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_create_branch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_create_patch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_create_tag` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_delete_branch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_delete_tag` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_detected_git` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_diff_hunks` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_diff_numstat` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_diff_revisions` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_diff_text` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_diff_with_worktree` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_discard` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_edit_remote` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_file_at` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_git_version` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_has_hook` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_init` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_line_hunks` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_log` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_log_details` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_log_details_batch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_log_refs` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_log_users` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_merge` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_merge_base` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_merge_with` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_open_external_log` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_operation` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_patch_preview` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_rebase` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_rebase_with` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_remote` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_remotes` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_remove_worktree` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_rename_branch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_restore_branch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_restore_head` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_restore_tag` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_revision_children` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_revision_files` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_reword` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_roots` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_shelf_delete` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_shelf_diff` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_shelf_import` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_shelf_patch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_shelf_rename` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_shelve` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_shelves` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_stage` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_stage_hunks` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_stage_patch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_stash_apply` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_stash_drop` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_stash_push` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_stashes` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_status` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_tags` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_undo_commit` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_unshelve` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_unstage` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_worktrees` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `vcs_write_patch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
+| [ ] | `web_browsers` | src-tauri/src/commands/web.rs | desktop shell | yes |  |
+| [ ] | `web_goto` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `web_open` | src-tauri/src/commands/web.rs | desktop shell | yes |  |
+| [ ] | `web_unresolved_references` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [ ] | `web_url` | src-tauri/src/commands/web.rs | desktop shell | yes |  |
+| [ ] | `window_close_context` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_complete_launch` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_cycle` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_flash_taskbar` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_group_cancel_close` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [ ] | `window_group_close` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [ ] | `window_group_close_tabs` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [ ] | `window_group_current` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [ ] | `window_group_detach` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [ ] | `window_group_merge` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [ ] | `window_group_reorder` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [ ] | `window_group_restore` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [ ] | `window_group_select` | src-tauri/src/commands/window_group.rs | desktop shell | yes |  |
+| [ ] | `window_is_fullscreen` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_new` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_open_comparison` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_open_deployment` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_open_file_in_new_window` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_open_files` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_open_project` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_open_projects` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_open_remote` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_open_settings` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_set_titlebar_height` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `window_start_drag` | src-tauri/src/commands/window_drag.rs | desktop shell | yes |  |
+| [ ] | `window_take_launch` | src-tauri/src/commands/window.rs | desktop shell | no |  |
+| [ ] | `window_toggle_fullscreen` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [ ] | `workspace_attach` | src-tauri/src/commands/workspace.rs | `ide_host::ops` | yes |  |
+| [ ] | `workspace_create` | src-tauri/src/commands/workspace.rs | desktop shell | yes |  |
+| [ ] | `workspace_discover_projects` | src-tauri/src/commands/workspace.rs | desktop shell | yes |  |
+| [ ] | `workspace_update` | src-tauri/src/commands/workspace.rs | `ide_host::ops` | yes |  |
+| [ ] | `wsl_distros` | src-tauri/src/commands/wsl.rs | desktop shell | yes |  |
+| [ ] | `wsl_resolve` | src-tauri/src/commands/wsl.rs | desktop shell | yes |  |
 
 ## Backend events (IdeEvent) (0/31 at parity)
 
-|     | Variant                   | Proof |
-| --- | ------------------------- | ----- |
-| [ ] | `DbSourcesChanged`        |       |
-| [ ] | `McpRequest`              |       |
-| [ ] | `McpRequestClosed`        |       |
-| [ ] | `WindowGroupsChanged`     |       |
-| [ ] | `WindowFullscreenChanged` |       |
-| [ ] | `ProjectTrustChanged`     |       |
-| [ ] | `FsChanged`               |       |
-| [ ] | `ExcludedDirsChanged`     |       |
-| [ ] | `DocPatched`              |       |
-| [ ] | `DocDirty`                |       |
-| [ ] | `WorkspaceEditApplied`    |       |
-| [ ] | `DocLanguage`             |       |
-| [ ] | `Diagnostics`             |       |
-| [ ] | `Task`                    |       |
-| [ ] | `IndexState`              |       |
-| [ ] | `VcsChanged`              |       |
-| [ ] | `LanguageServer`          |       |
-| [ ] | `LanguageServerWarning`   |       |
-| [ ] | `LanguageServerRemoved`   |       |
-| [ ] | `LspRefresh`              |       |
-| [ ] | `TerminalExited`          |       |
-| [ ] | `RunExited`               |       |
-| [ ] | `Debug`                   |       |
-| [ ] | `Notify`                  |       |
-| [ ] | `SettingsChanged`         |       |
-| [ ] | `UpdateStatusChanged`     |       |
-| [ ] | `UpdateAvailable`         |       |
-| [ ] | `ProjectRootsChanged`     |       |
-| [ ] | `Askpass`                 |       |
-| [ ] | `AskpassDone`             |       |
-| [ ] | `NotebookKernel`          |       |
+| | Variant | Proof |
+|---|---|---|
+| [ ] | `DbSourcesChanged` |  |
+| [ ] | `McpRequest` |  |
+| [ ] | `McpRequestClosed` |  |
+| [ ] | `WindowGroupsChanged` |  |
+| [ ] | `WindowFullscreenChanged` |  |
+| [ ] | `ProjectTrustChanged` |  |
+| [ ] | `FsChanged` |  |
+| [ ] | `ExcludedDirsChanged` |  |
+| [ ] | `DocPatched` |  |
+| [ ] | `DocDirty` |  |
+| [ ] | `WorkspaceEditApplied` |  |
+| [ ] | `DocLanguage` |  |
+| [ ] | `Diagnostics` |  |
+| [ ] | `Task` |  |
+| [ ] | `IndexState` |  |
+| [ ] | `VcsChanged` |  |
+| [ ] | `LanguageServer` |  |
+| [ ] | `LanguageServerWarning` |  |
+| [ ] | `LanguageServerRemoved` |  |
+| [ ] | `LspRefresh` |  |
+| [ ] | `TerminalExited` |  |
+| [ ] | `RunExited` |  |
+| [ ] | `Debug` |  |
+| [ ] | `Notify` |  |
+| [ ] | `SettingsChanged` |  |
+| [ ] | `UpdateStatusChanged` |  |
+| [ ] | `UpdateAvailable` |  |
+| [ ] | `ProjectRootsChanged` |  |
+| [ ] | `Askpass` |  |
+| [ ] | `AskpassDone` |  |
+| [ ] | `NotebookKernel` |  |
 
 ## Plugin API interfaces (wit/) (0/49 at parity)
 
-|     | Interface                  | File                      | Proof |
-| --- | -------------------------- | ------------------------- | ----- |
-| [ ] | `commit`                   | wit/commit.wit            |       |
-| [ ] | `commit-checker`           | wit/commit.wit            |       |
-| [ ] | `database`                 | wit/database.wit          |       |
-| [ ] | `decorations`              | wit/decorations.wit       |       |
-| [ ] | `detail-types`             | wit/details.wit           |       |
-| [ ] | `detail-provider`          | wit/details.wit           |       |
-| [ ] | `diagnostics-provider`     | wit/diagnostics.wit       |       |
-| [ ] | `endpoints-provider`       | wit/endpoints.wit         |       |
-| [ ] | `events`                   | wit/events.wit            |       |
-| [ ] | `tasks`                    | wit/events.wit            |       |
-| [ ] | `lifecycle`                | wit/exports.wit           |       |
-| [ ] | `commands`                 | wit/exports.wit           |       |
-| [ ] | `event-handler`            | wit/exports.wit           |       |
-| [ ] | `syntax-provider`          | wit/exports.wit           |       |
-| [ ] | `file-actions`             | wit/file-actions.wit      |       |
-| [ ] | `fs`                       | wit/fs.wit                |       |
-| [ ] | `log`                      | wit/host.wit              |       |
-| [ ] | `ui`                       | wit/host.wit              |       |
-| [ ] | `storage`                  | wit/host.wit              |       |
-| [ ] | `command-runner`           | wit/host.wit              |       |
-| [ ] | `output`                   | wit/host.wit              |       |
-| [ ] | `hover-provider`           | wit/hover.wit             |       |
-| [ ] | `document-indexer`         | wit/indexing.wit          |       |
-| [ ] | `injections`               | wit/injections.wit        |       |
-| [ ] | `inlay-hints-provider`     | wit/inlay.wit             |       |
-| [ ] | `diagnostics`              | wit/io.wit                |       |
-| [ ] | `net`                      | wit/io.wit                |       |
-| [ ] | `secrets`                  | wit/io.wit                |       |
-| [ ] | `process`                  | wit/io.wit                |       |
-| [ ] | `ipc`                      | wit/io.wit                |       |
-| [ ] | `auth`                     | wit/io.wit                |       |
-| [ ] | `language-features`        | wit/language-features.wit |       |
-| [ ] | `mcp`                      | wit/mcp.wit               |       |
-| [ ] | `mcp-provider`             | wit/mcp.wit               |       |
-| [ ] | `providers`                | wit/providers.wit         |       |
-| [ ] | `run-targets`              | wit/run-targets.wit       |       |
-| [ ] | `run`                      | wit/run.wit               |       |
-| [ ] | `run-configurations`       | wit/run.wit               |       |
-| [ ] | `test-results`             | wit/run.wit               |       |
-| [ ] | `semantic-tokens-provider` | wit/semantic.wit          |       |
-| [ ] | `types`                    | wit/types.wit             |       |
-| [ ] | `view-types`               | wit/views.wit             |       |
-| [ ] | `views`                    | wit/views.wit             |       |
-| [ ] | `settings`                 | wit/views.wit             |       |
-| [ ] | `view-provider`            | wit/views.wit             |       |
-| [ ] | `workspace`                | wit/workspace.wit         |       |
-| [ ] | `editor`                   | wit/workspace.wit         |       |
-| [ ] | `invocation`               | wit/workspace.wit         |       |
-| [ ] | `vcs`                      | wit/workspace.wit         |       |
+| | Interface | File | Proof |
+|---|---|---|---|
+| [ ] | `commit` | wit/commit.wit |  |
+| [ ] | `commit-checker` | wit/commit.wit |  |
+| [ ] | `database` | wit/database.wit |  |
+| [ ] | `decorations` | wit/decorations.wit |  |
+| [ ] | `detail-types` | wit/details.wit |  |
+| [ ] | `detail-provider` | wit/details.wit |  |
+| [ ] | `diagnostics-provider` | wit/diagnostics.wit |  |
+| [ ] | `endpoints-provider` | wit/endpoints.wit |  |
+| [ ] | `events` | wit/events.wit |  |
+| [ ] | `tasks` | wit/events.wit |  |
+| [ ] | `lifecycle` | wit/exports.wit |  |
+| [ ] | `commands` | wit/exports.wit |  |
+| [ ] | `event-handler` | wit/exports.wit |  |
+| [ ] | `syntax-provider` | wit/exports.wit |  |
+| [ ] | `file-actions` | wit/file-actions.wit |  |
+| [ ] | `fs` | wit/fs.wit |  |
+| [ ] | `log` | wit/host.wit |  |
+| [ ] | `ui` | wit/host.wit |  |
+| [ ] | `storage` | wit/host.wit |  |
+| [ ] | `command-runner` | wit/host.wit |  |
+| [ ] | `output` | wit/host.wit |  |
+| [ ] | `hover-provider` | wit/hover.wit |  |
+| [ ] | `document-indexer` | wit/indexing.wit |  |
+| [ ] | `injections` | wit/injections.wit |  |
+| [ ] | `inlay-hints-provider` | wit/inlay.wit |  |
+| [ ] | `diagnostics` | wit/io.wit |  |
+| [ ] | `net` | wit/io.wit |  |
+| [ ] | `secrets` | wit/io.wit |  |
+| [ ] | `process` | wit/io.wit |  |
+| [ ] | `ipc` | wit/io.wit |  |
+| [ ] | `auth` | wit/io.wit |  |
+| [ ] | `language-features` | wit/language-features.wit |  |
+| [ ] | `mcp` | wit/mcp.wit |  |
+| [ ] | `mcp-provider` | wit/mcp.wit |  |
+| [ ] | `providers` | wit/providers.wit |  |
+| [ ] | `run-targets` | wit/run-targets.wit |  |
+| [ ] | `run` | wit/run.wit |  |
+| [ ] | `run-configurations` | wit/run.wit |  |
+| [ ] | `test-results` | wit/run.wit |  |
+| [ ] | `semantic-tokens-provider` | wit/semantic.wit |  |
+| [ ] | `types` | wit/types.wit |  |
+| [ ] | `view-types` | wit/views.wit |  |
+| [ ] | `views` | wit/views.wit |  |
+| [ ] | `settings` | wit/views.wit |  |
+| [ ] | `view-provider` | wit/views.wit |  |
+| [ ] | `workspace` | wit/workspace.wit |  |
+| [ ] | `editor` | wit/workspace.wit |  |
+| [ ] | `invocation` | wit/workspace.wit |  |
+| [ ] | `vcs` | wit/workspace.wit |  |
 
 ## Behaviour specification: unit tests (vitest) (0/753 at parity)
 
 753 files, 6287 cases. A row is at parity when the behaviour its cases assert is covered by Rust tests of the GPUI app.
 
-| Area                                 | Files | Cases |
-| ------------------------------------ | ----- | ----- |
-| `editor/core`                        | 80    | 652   |
-| `editor/lazyEditorExtension.test.ts` | 1     | 1     |
-| `editor/lineTokens.test.ts`          | 1     | 6     |
-| `editor/lsp`                         | 44    | 378   |
-| `editor/navigation`                  | 4     | 32    |
-| `editor/navigationProviders.test.ts` | 1     | 4     |
-| `editor/refactor`                    | 8     | 94    |
-| `editor/structure`                   | 1     | 6     |
-| `features/agents`                    | 19    | 226   |
-| `features/analysis`                  | 3     | 12    |
-| `features/app`                       | 16    | 156   |
-| `features/build`                     | 1     | 13    |
-| `features/build-tools`               | 12    | 81    |
-| `features/code-insight`              | 12    | 69    |
-| `features/color-preview`             | 2     | 8     |
-| `features/coverage`                  | 1     | 8     |
-| `features/database`                  | 18    | 178   |
-| `features/debugger`                  | 33    | 268   |
-| `features/dependencies`              | 1     | 11    |
-| `features/deployment`                | 7     | 47    |
-| `features/dotnet`                    | 1     | 6     |
-| `features/github`                    | 16    | 178   |
-| `features/graphql`                   | 2     | 31    |
-| `features/http-client`               | 5     | 45    |
-| `features/libraries`                 | 1     | 7     |
-| `features/logcat`                    | 2     | 19    |
-| `features/macros`                    | 1     | 8     |
-| `features/mcp`                       | 2     | 8     |
-| `features/notebook`                  | 4     | 37    |
-| `features/perf`                      | 2     | 15    |
-| `features/plugins`                   | 31    | 288   |
-| `features/profiler`                  | 1     | 3     |
-| `features/project-tree`              | 21    | 174   |
-| `features/project-trust`             | 1     | 7     |
-| `features/remote-dev`                | 5     | 34    |
-| `features/run`                       | 66    | 734   |
-| `features/run-anything`              | 1     | 8     |
-| `features/scratch`                   | 1     | 10    |
-| `features/search`                    | 28    | 217   |
-| `features/services`                  | 4     | 42    |
-| `features/settings`                  | 36    | 269   |
-| `features/ssh`                       | 1     | 6     |
-| `features/templates`                 | 11    | 105   |
-| `features/terminal`                  | 14    | 151   |
-| `features/todo`                      | 3     | 24    |
-| `features/tools`                     | 3     | 39    |
-| `features/vcs`                       | 94    | 716   |
-| `features/viewers`                   | 8     | 57    |
-| `features/vim`                       | 3     | 41    |
-| `features/welcome`                   | 4     | 26    |
-| `platform`                           | 57    | 349   |
-| `test`                               | 1     | 3     |
-| `ui`                                 | 23    | 194   |
-| `workbench`                          | 35    | 186   |
+| Area | Files | Cases |
+|---|---|---|
+| `editor/core` | 80 | 652 |
+| `editor/lazyEditorExtension.test.ts` | 1 | 1 |
+| `editor/lineTokens.test.ts` | 1 | 6 |
+| `editor/lsp` | 44 | 378 |
+| `editor/navigation` | 4 | 32 |
+| `editor/navigationProviders.test.ts` | 1 | 4 |
+| `editor/refactor` | 8 | 94 |
+| `editor/structure` | 1 | 6 |
+| `features/agents` | 19 | 226 |
+| `features/analysis` | 3 | 12 |
+| `features/app` | 16 | 156 |
+| `features/build` | 1 | 13 |
+| `features/build-tools` | 12 | 81 |
+| `features/code-insight` | 12 | 69 |
+| `features/color-preview` | 2 | 8 |
+| `features/coverage` | 1 | 8 |
+| `features/database` | 18 | 178 |
+| `features/debugger` | 33 | 268 |
+| `features/dependencies` | 1 | 11 |
+| `features/deployment` | 7 | 47 |
+| `features/dotnet` | 1 | 6 |
+| `features/github` | 16 | 178 |
+| `features/graphql` | 2 | 31 |
+| `features/http-client` | 5 | 45 |
+| `features/libraries` | 1 | 7 |
+| `features/logcat` | 2 | 19 |
+| `features/macros` | 1 | 8 |
+| `features/mcp` | 2 | 8 |
+| `features/notebook` | 4 | 37 |
+| `features/perf` | 2 | 15 |
+| `features/plugins` | 31 | 288 |
+| `features/profiler` | 1 | 3 |
+| `features/project-tree` | 21 | 174 |
+| `features/project-trust` | 1 | 7 |
+| `features/remote-dev` | 5 | 34 |
+| `features/run` | 66 | 734 |
+| `features/run-anything` | 1 | 8 |
+| `features/scratch` | 1 | 10 |
+| `features/search` | 28 | 217 |
+| `features/services` | 4 | 42 |
+| `features/settings` | 36 | 269 |
+| `features/ssh` | 1 | 6 |
+| `features/templates` | 11 | 105 |
+| `features/terminal` | 14 | 151 |
+| `features/todo` | 3 | 24 |
+| `features/tools` | 3 | 39 |
+| `features/vcs` | 94 | 716 |
+| `features/viewers` | 8 | 57 |
+| `features/vim` | 3 | 41 |
+| `features/welcome` | 4 | 26 |
+| `platform` | 57 | 349 |
+| `test` | 1 | 3 |
+| `ui` | 23 | 194 |
+| `workbench` | 35 | 186 |
 
-|     | Test file                                                        | Cases | Proof |
-| --- | ---------------------------------------------------------------- | ----- | ----- |
-| [ ] | `src/editor/core/clipboardHistory.test.ts`                       | 8     |       |
-| [ ] | `src/editor/core/cm/angular/angular.test.ts`                     | 24    |       |
-| [ ] | `src/editor/core/cm/angular/inline.test.ts`                      | 8     |       |
-| [ ] | `src/editor/core/cm/angularLoading.test.ts`                      | 1     |       |
-| [ ] | `src/editor/core/cm/astro/astro.test.ts`                         | 7     |       |
-| [ ] | `src/editor/core/cm/caretCommands.test.ts`                       | 6     |       |
-| [ ] | `src/editor/core/cm/clipboard.test.ts`                           | 25    |       |
-| [ ] | `src/editor/core/cm/cmake.test.ts`                               | 7     |       |
-| [ ] | `src/editor/core/cm/codeLens.test.ts`                            | 3     |       |
-| [ ] | `src/editor/core/cm/collapseBlock.test.ts`                       | 6     |       |
-| [ ] | `src/editor/core/cm/columnMode.test.ts`                          | 6     |       |
-| [ ] | `src/editor/core/cm/cornerInset.test.ts`                         | 4     |       |
-| [ ] | `src/editor/core/cm/distractionFree.test.ts`                     | 3     |       |
-| [ ] | `src/editor/core/cm/docComment.test.ts`                          | 5     |       |
-| [ ] | `src/editor/core/cm/docCommentTags.test.ts`                      | 13    |       |
-| [ ] | `src/editor/core/cm/editing.test.ts`                             | 43    |       |
-| [ ] | `src/editor/core/cm/erb.test.ts`                                 | 2     |       |
-| [ ] | `src/editor/core/cm/find.test.ts`                                | 17    |       |
-| [ ] | `src/editor/core/cm/folding.test.ts`                             | 11    |       |
-| [ ] | `src/editor/core/cm/gomod.test.ts`                               | 3     |       |
-| [ ] | `src/editor/core/cm/ideaParity.test.ts`                          | 27    |       |
-| [ ] | `src/editor/core/cm/indentGuides.test.ts`                        | 4     |       |
-| [ ] | `src/editor/core/cm/interpolation.test.ts`                       | 8     |       |
-| [ ] | `src/editor/core/cm/interpolationIncremental.test.ts`            | 2     |       |
-| [ ] | `src/editor/core/cm/jsp/jsp.test.ts`                             | 14    |       |
-| [ ] | `src/editor/core/cm/languages.test.ts`                           | 7     |       |
-| [ ] | `src/editor/core/cm/lines.test.ts`                               | 4     |       |
-| [ ] | `src/editor/core/cm/markdownImages.test.ts`                      | 7     |       |
-| [ ] | `src/editor/core/cm/moveElement.test.ts`                         | 5     |       |
-| [ ] | `src/editor/core/cm/multiCaret.test.ts`                          | 6     |       |
-| [ ] | `src/editor/core/cm/prefs.test.ts`                               | 6     |       |
-| [ ] | `src/editor/core/cm/preview.test.ts`                             | 2     |       |
-| [ ] | `src/editor/core/cm/rainbowBrackets.test.ts`                     | 6     |       |
-| [ ] | `src/editor/core/cm/regions.test.ts`                             | 6     |       |
-| [ ] | `src/editor/core/cm/selectionLayer.test.ts`                      | 2     |       |
-| [ ] | `src/editor/core/cm/selectionMarks.test.ts`                      | 3     |       |
-| [ ] | `src/editor/core/cm/shellInterpolation.test.ts`                  | 4     |       |
-| [ ] | `src/editor/core/cm/smartKeys.test.ts`                           | 14    |       |
-| [ ] | `src/editor/core/cm/stringClipboard.test.ts`                     | 16    |       |
-| [ ] | `src/editor/core/cm/structural.test.ts`                          | 27    |       |
-| [ ] | `src/editor/core/cm/syntaxHighlight.test.ts`                     | 2     |       |
-| [ ] | `src/editor/core/cm/tooltipBounds.test.ts`                       | 1     |       |
-| [ ] | `src/editor/core/cm/unwrap.test.ts`                              | 5     |       |
-| [ ] | `src/editor/core/cm/verticalMotion.test.ts`                      | 8     |       |
-| [ ] | `src/editor/core/cm/visibleColumn.test.ts`                       | 6     |       |
-| [ ] | `src/editor/core/cm/vue.test.ts`                                 | 2     |       |
-| [ ] | `src/editor/core/controller.test.ts`                             | 13    |       |
-| [ ] | `src/editor/core/copyPathPopup.test.tsx`                         | 10    |       |
-| [ ] | `src/editor/core/customDocuments.test.ts`                        | 31    |       |
-| [ ] | `src/editor/core/detachTab.test.ts`                              | 5     |       |
-| [ ] | `src/editor/core/diskSync.test.ts`                               | 7     |       |
-| [ ] | `src/editor/core/editingExtras.test.ts`                          | 14    |       |
-| [ ] | `src/editor/core/embeddedDocuments.test.ts`                      | 1     |       |
-| [ ] | `src/editor/core/extendSelection.test.ts`                        | 2     |       |
-| [ ] | `src/editor/core/extras.test.ts`                                 | 5     |       |
-| [ ] | `src/editor/core/file-open-order.test.ts`                        | 14    |       |
-| [ ] | `src/editor/core/fileAttributes.test.ts`                         | 3     |       |
-| [ ] | `src/editor/core/inputClose.test.ts`                             | 1     |       |
-| [ ] | `src/editor/core/lightedit-launch.test.ts`                       | 10    |       |
-| [ ] | `src/editor/core/model/attachment.test.ts`                       | 6     |       |
-| [ ] | `src/editor/core/model/document-open-latency.test.ts`            | 4     |       |
-| [ ] | `src/editor/core/model/document.test.ts`                         | 19    |       |
-| [ ] | `src/editor/core/model/documentLanguage.test.ts`                 | 1     |       |
-| [ ] | `src/editor/core/model/editHistory.test.ts`                      | 4     |       |
-| [ ] | `src/editor/core/model/model.test.ts`                            | 21    |       |
-| [ ] | `src/editor/core/model/session.test.ts`                          | 9     |       |
-| [ ] | `src/editor/core/model/tabTitles.test.ts`                        | 5     |       |
-| [ ] | `src/editor/core/model/workspaceHistory.test.ts`                 | 11    |       |
-| [ ] | `src/editor/core/sync/DocSync.test.ts`                           | 15    |       |
-| [ ] | `src/editor/core/view/banner.test.tsx`                           | 2     |       |
-| [ ] | `src/editor/core/view/editorLayoutActions.test.tsx`              | 3     |       |
-| [ ] | `src/editor/core/view/FindBar.test.tsx`                          | 8     |       |
-| [ ] | `src/editor/core/view/keptTabs.test.tsx`                         | 2     |       |
-| [ ] | `src/editor/core/view/navBar.test.ts`                            | 4     |       |
-| [ ] | `src/editor/core/view/navChildren.test.tsx`                      | 1     |       |
-| [ ] | `src/editor/core/view/PasteHistoryDialog.test.tsx`               | 12    |       |
-| [ ] | `src/editor/core/view/pinnedTabsRow.test.tsx`                    | 3     |       |
-| [ ] | `src/editor/core/view/statusItems.test.tsx`                      | 2     |       |
-| [ ] | `src/editor/core/view/tabTitleRevision.test.tsx`                 | 3     |       |
-| [ ] | `src/editor/core/virtual.test.ts`                                | 5     |       |
-| [ ] | `src/editor/lazyEditorExtension.test.ts`                         | 1     |       |
-| [ ] | `src/editor/lineTokens.test.ts`                                  | 6     |       |
-| [ ] | `src/editor/lsp/authorLens.test.ts`                              | 3     |       |
-| [ ] | `src/editor/lsp/availability.test.ts`                            | 8     |       |
-| [ ] | `src/editor/lsp/codeLens.test.ts`                                | 10    |       |
-| [ ] | `src/editor/lsp/completion.test.ts`                              | 37    |       |
-| [ ] | `src/editor/lsp/configurationNavigation.test.ts`                 | 15    |       |
-| [ ] | `src/editor/lsp/diagnostics.test.ts`                             | 5     |       |
-| [ ] | `src/editor/lsp/features.test.ts`                                | 20    |       |
-| [ ] | `src/editor/lsp/fileReferences.test.ts`                          | 2     |       |
-| [ ] | `src/editor/lsp/files.test.ts`                                   | 3     |       |
-| [ ] | `src/editor/lsp/format.test.ts`                                  | 12    |       |
-| [ ] | `src/editor/lsp/formatErrors.test.tsx`                           | 5     |       |
-| [ ] | `src/editor/lsp/generate.test.ts`                                | 3     |       |
-| [ ] | `src/editor/lsp/hint.test.ts`                                    | 5     |       |
-| [ ] | `src/editor/lsp/hoverPrecedence.test.ts`                         | 8     |       |
-| [ ] | `src/editor/lsp/importsOnPaste.test.ts`                          | 25    |       |
-| [ ] | `src/editor/lsp/inlay.test.ts`                                   | 5     |       |
-| [ ] | `src/editor/lsp/inlineCompletion.test.ts`                        | 8     |       |
-| [ ] | `src/editor/lsp/inplaceRename.test.ts`                           | 8     |       |
-| [ ] | `src/editor/lsp/intentions.test.ts`                              | 15    |       |
-| [ ] | `src/editor/lsp/interactiveCommand.test.tsx`                     | 7     |       |
-| [ ] | `src/editor/lsp/links.test.ts`                                   | 10    |       |
-| [ ] | `src/editor/lsp/lsp.test.ts`                                     | 4     |       |
-| [ ] | `src/editor/lsp/markdown.test.ts`                                | 4     |       |
-| [ ] | `src/editor/lsp/navigationMouse.test.ts`                         | 14    |       |
-| [ ] | `src/editor/lsp/navigationPending.test.ts`                       | 5     |       |
-| [ ] | `src/editor/lsp/outsideProject.test.ts`                          | 3     |       |
-| [ ] | `src/editor/lsp/Popups.test.tsx`                                 | 13    |       |
-| [ ] | `src/editor/lsp/positions.test.ts`                               | 5     |       |
-| [ ] | `src/editor/lsp/resultNote.test.ts`                              | 2     |       |
-| [ ] | `src/editor/lsp/semantic/go/index.test.ts`                       | 4     |       |
-| [ ] | `src/editor/lsp/semantic/index.test.ts`                          | 2     |       |
-| [ ] | `src/editor/lsp/semantic/kotlin/index.test.ts`                   | 2     |       |
-| [ ] | `src/editor/lsp/semantic/php/constructs.test.ts`                 | 4     |       |
-| [ ] | `src/editor/lsp/semantic/python/highlight.test.ts`               | 10    |       |
-| [ ] | `src/editor/lsp/semantic/python/members.test.ts`                 | 5     |       |
-| [ ] | `src/editor/lsp/semantic/typing.test.ts`                         | 2     |       |
-| [ ] | `src/editor/lsp/serverCodeLens.test.ts`                          | 1     |       |
-| [ ] | `src/editor/lsp/signature.test.ts`                               | 5     |       |
-| [ ] | `src/editor/lsp/snippet.test.ts`                                 | 11    |       |
-| [ ] | `src/editor/lsp/spelling.test.ts`                                | 7     |       |
-| [ ] | `src/editor/lsp/syntaxErrors.test.ts`                            | 2     |       |
-| [ ] | `src/editor/lsp/syntaxFallback.test.ts`                          | 50    |       |
-| [ ] | `src/editor/lsp/typeInfo.test.ts`                                | 3     |       |
-| [ ] | `src/editor/lsp/workspaceEdit.test.ts`                           | 6     |       |
-| [ ] | `src/editor/navigation/gotoTest.test.ts`                         | 9     |       |
-| [ ] | `src/editor/navigation/lineMarkers.test.ts`                      | 12    |       |
-| [ ] | `src/editor/navigation/structureNav.test.ts`                     | 5     |       |
-| [ ] | `src/editor/navigation/testNaming.test.ts`                       | 6     |       |
-| [ ] | `src/editor/navigationProviders.test.ts`                         | 4     |       |
-| [ ] | `src/editor/refactor/hierarchy.test.ts`                          | 10    |       |
-| [ ] | `src/editor/refactor/introduce.test.ts`                          | 11    |       |
-| [ ] | `src/editor/refactor/occurrences.test.ts`                        | 4     |       |
-| [ ] | `src/editor/refactor/refactor.test.ts`                           | 18    |       |
-| [ ] | `src/editor/refactor/refactorThis.test.ts`                       | 17    |       |
-| [ ] | `src/editor/refactor/runKind.test.ts`                            | 3     |       |
-| [ ] | `src/editor/refactor/safeDelete.test.ts`                         | 26    |       |
-| [ ] | `src/editor/refactor/serverIntroduce.test.ts`                    | 5     |       |
-| [ ] | `src/editor/structure/structure.test.ts`                         | 6     |       |
-| [ ] | `src/features/agents/agentRegistry.test.tsx`                     | 26    |       |
-| [ ] | `src/features/agents/AgentReply.test.tsx`                        | 4     |       |
-| [ ] | `src/features/agents/agents.test.ts`                             | 22    |       |
-| [ ] | `src/features/agents/AgentsView.test.tsx`                        | 19    |       |
-| [ ] | `src/features/agents/composerCommands.test.tsx`                  | 12    |       |
-| [ ] | `src/features/agents/composerFolders.test.tsx`                   | 11    |       |
-| [ ] | `src/features/agents/ConfigPickers.test.tsx`                     | 13    |       |
-| [ ] | `src/features/agents/conversation.test.ts`                       | 7     |       |
-| [ ] | `src/features/agents/draft.test.ts`                              | 1     |       |
-| [ ] | `src/features/agents/HomeEditor.test.tsx`                        | 4     |       |
-| [ ] | `src/features/agents/loginHint.test.ts`                          | 3     |       |
-| [ ] | `src/features/agents/Markdown.test.tsx`                          | 18    |       |
-| [ ] | `src/features/agents/markdownImages.test.ts`                     | 3     |       |
-| [ ] | `src/features/agents/mermaidFollow.test.tsx`                     | 1     |       |
-| [ ] | `src/features/agents/messageEditing.test.tsx`                    | 18    |       |
-| [ ] | `src/features/agents/permission.test.ts`                         | 6     |       |
-| [ ] | `src/features/agents/replyActions.test.ts`                       | 9     |       |
-| [ ] | `src/features/agents/sessionState.test.tsx`                      | 31    |       |
-| [ ] | `src/features/agents/unread.test.tsx`                            | 18    |       |
-| [ ] | `src/features/analysis/analysis.test.ts`                         | 8     |       |
-| [ ] | `src/features/analysis/inspect.test.ts`                          | 2     |       |
-| [ ] | `src/features/analysis/replacePreview.test.tsx`                  | 2     |       |
-| [ ] | `src/features/app/__tests__/cliCommand.test.ts`                  | 4     |       |
-| [ ] | `src/features/app/__tests__/closeGuard.test.ts`                  | 22    |       |
-| [ ] | `src/features/app/__tests__/consoleCopy.test.ts`                 | 12    |       |
-| [ ] | `src/features/app/__tests__/editCommand.test.ts`                 | 2     |       |
-| [ ] | `src/features/app/__tests__/host.test.ts`                        | 3     |       |
-| [ ] | `src/features/app/__tests__/ideMode.test.tsx`                    | 3     |       |
-| [ ] | `src/features/app/__tests__/invalidateCaches.test.tsx`           | 2     |       |
-| [ ] | `src/features/app/__tests__/jetbrainsSettings.test.ts`           | 4     |       |
-| [ ] | `src/features/app/__tests__/lightEditClose.test.ts`              | 2     |       |
-| [ ] | `src/features/app/__tests__/menuBridge.test.ts`                  | 15    |       |
-| [ ] | `src/features/app/__tests__/newProject.test.ts`                  | 3     |       |
-| [ ] | `src/features/app/__tests__/projectName.test.ts`                 | 1     |       |
-| [ ] | `src/features/app/__tests__/shell.test.tsx`                      | 9     |       |
-| [ ] | `src/features/app/__tests__/updates.test.ts`                     | 17    |       |
-| [ ] | `src/features/app/__tests__/windows.test.ts`                     | 48    |       |
-| [ ] | `src/features/app/__tests__/WorkspaceDialog.test.tsx`            | 9     |       |
-| [ ] | `src/features/build-tools/actions.test.tsx`                      | 4     |       |
-| [ ] | `src/features/build-tools/analyzer.test.ts`                      | 7     |       |
-| [ ] | `src/features/build-tools/autoReload.test.ts`                    | 3     |       |
-| [ ] | `src/features/build-tools/DependencyAnalyzer.test.tsx`           | 6     |       |
-| [ ] | `src/features/build-tools/ExecutePopup.test.tsx`                 | 9     |       |
-| [ ] | `src/features/build-tools/firstImport.test.ts`                   | 2     |       |
-| [ ] | `src/features/build-tools/linkage.test.tsx`                      | 16    |       |
-| [ ] | `src/features/build-tools/model.test.ts`                         | 15    |       |
-| [ ] | `src/features/build-tools/pomNavigation.test.ts`                 | 7     |       |
-| [ ] | `src/features/build-tools/profileReload.test.ts`                 | 3     |       |
-| [ ] | `src/features/build-tools/versionCatalog.test.ts`                | 5     |       |
-| [ ] | `src/features/build-tools/workspace.test.tsx`                    | 4     |       |
-| [ ] | `src/features/build/build.test.tsx`                              | 13    |       |
-| [ ] | `src/features/code-insight/hierarchy.test.ts`                    | 6     |       |
-| [ ] | `src/features/code-insight/problemsReport.test.ts`               | 3     |       |
-| [ ] | `src/features/code-insight/problemsStore.test.ts`                | 7     |       |
-| [ ] | `src/features/code-insight/servers.test.ts`                      | 4     |       |
-| [ ] | `src/features/code-insight/ServerStatus.test.tsx`                | 3     |       |
-| [ ] | `src/features/code-insight/syntaxUsages.test.ts`                 | 6     |       |
-| [ ] | `src/features/code-insight/usageAccessFilter.test.tsx`           | 3     |       |
-| [ ] | `src/features/code-insight/usagePreview.test.tsx`                | 3     |       |
-| [ ] | `src/features/code-insight/usageResults.test.ts`                 | 7     |       |
-| [ ] | `src/features/code-insight/usagesPopup.test.tsx`                 | 15    |       |
-| [ ] | `src/features/code-insight/views.test.ts`                        | 9     |       |
-| [ ] | `src/features/code-insight/workspaceUndo.test.ts`                | 3     |       |
-| [ ] | `src/features/color-preview/colors.test.ts`                      | 7     |       |
-| [ ] | `src/features/color-preview/pluginColors.test.ts`                | 1     |       |
-| [ ] | `src/features/coverage/coverage.test.ts`                         | 8     |       |
-| [ ] | `src/features/database/ColumnsPopup.test.ts`                     | 2     |       |
-| [ ] | `src/features/database/database.test.ts`                         | 27    |       |
-| [ ] | `src/features/database/DatabaseView.test.tsx`                    | 3     |       |
-| [ ] | `src/features/database/ExportDialog.test.tsx`                    | 1     |       |
-| [ ] | `src/features/database/Grid.test.tsx`                            | 12    |       |
-| [ ] | `src/features/database/nodes.test.ts`                            | 2     |       |
-| [ ] | `src/features/database/objects.test.ts`                          | 14    |       |
-| [ ] | `src/features/database/resultEditing.test.ts`                    | 27    |       |
-| [ ] | `src/features/database/results-view.test.tsx`                    | 14    |       |
-| [ ] | `src/features/database/resultView.test.ts`                       | 19    |       |
-| [ ] | `src/features/database/SourceDialog.test.tsx`                    | 2     |       |
-| [ ] | `src/features/database/sql/format.test.ts`                       | 4     |       |
-| [ ] | `src/features/database/sql/readOnly.test.ts`                     | 2     |       |
-| [ ] | `src/features/database/sql/sql.test.ts`                          | 36    |       |
-| [ ] | `src/features/database/SqlFilterInput.test.tsx`                  | 3     |       |
-| [ ] | `src/features/database/SqlHighlight.test.tsx`                    | 2     |       |
-| [ ] | `src/features/database/sshConfig.test.ts`                        | 4     |       |
-| [ ] | `src/features/database/table-editor.test.tsx`                    | 4     |       |
-| [ ] | `src/features/debugger/__tests__/actions.test.ts`                | 18    |       |
-| [ ] | `src/features/debugger/__tests__/attach.test.ts`                 | 4     |       |
-| [ ] | `src/features/debugger/__tests__/breakpoints.test.ts`            | 15    |       |
-| [ ] | `src/features/debugger/__tests__/codeLines.test.ts`              | 2     |       |
-| [ ] | `src/features/debugger/__tests__/console.test.ts`                | 6     |       |
-| [ ] | `src/features/debugger/__tests__/debugConsoleLinks.test.tsx`     | 4     |       |
-| [ ] | `src/features/debugger/__tests__/debugFind.test.tsx`             | 10    |       |
-| [ ] | `src/features/debugger/__tests__/editor.test.ts`                 | 14    |       |
-| [ ] | `src/features/debugger/__tests__/exceptions.test.ts`             | 4     |       |
-| [ ] | `src/features/debugger/__tests__/executionState.test.ts`         | 10    |       |
-| [ ] | `src/features/debugger/__tests__/expressionCompletion.test.tsx`  | 2     |       |
-| [ ] | `src/features/debugger/__tests__/hotswap.test.ts`                | 19    |       |
-| [ ] | `src/features/debugger/__tests__/java.test.ts`                   | 12    |       |
-| [ ] | `src/features/debugger/__tests__/javaCancel.test.ts`             | 7     |       |
-| [ ] | `src/features/debugger/__tests__/javaSeparator.test.ts`          | 2     |       |
-| [ ] | `src/features/debugger/__tests__/launch.test.ts`                 | 21    |       |
-| [ ] | `src/features/debugger/__tests__/missingAdapter.test.ts`         | 4     |       |
-| [ ] | `src/features/debugger/__tests__/quickEvaluate.test.ts`          | 9     |       |
-| [ ] | `src/features/debugger/__tests__/relisten.test.ts`               | 3     |       |
-| [ ] | `src/features/debugger/__tests__/remote.test.ts`                 | 18    |       |
-| [ ] | `src/features/debugger/__tests__/runOrigin.test.ts`              | 12    |       |
-| [ ] | `src/features/debugger/__tests__/serviceConsole.test.tsx`        | 4     |       |
-| [ ] | `src/features/debugger/__tests__/smartStep.test.ts`              | 7     |       |
-| [ ] | `src/features/debugger/__tests__/special.test.ts`                | 6     |       |
-| [ ] | `src/features/debugger/__tests__/startFailure.test.ts`           | 4     |       |
-| [ ] | `src/features/debugger/__tests__/startupBreakpoints.test.ts`     | 10    |       |
-| [ ] | `src/features/debugger/__tests__/symbols.test.ts`                | 3     |       |
-| [ ] | `src/features/debugger/__tests__/taskbarFlash.test.ts`           | 9     |       |
-| [ ] | `src/features/debugger/__tests__/toolWindow.test.tsx`            | 8     |       |
-| [ ] | `src/features/debugger/__tests__/valueChanges.test.ts`           | 1     |       |
-| [ ] | `src/features/debugger/__tests__/values.test.ts`                 | 13    |       |
-| [ ] | `src/features/debugger/__tests__/valueText.test.ts`              | 5     |       |
-| [ ] | `src/features/debugger/editor/runToCursor.test.ts`               | 2     |       |
-| [ ] | `src/features/dependencies/dependencies.test.ts`                 | 11    |       |
-| [ ] | `src/features/deployment/actions.test.tsx`                       | 11    |       |
-| [ ] | `src/features/deployment/comparison.test.ts`                     | 7     |       |
-| [ ] | `src/features/deployment/Dialogs.test.tsx`                       | 7     |       |
-| [ ] | `src/features/deployment/model.test.ts`                          | 14    |       |
-| [ ] | `src/features/deployment/remoteHost.test.ts`                     | 3     |       |
-| [ ] | `src/features/deployment/SyncPreview.test.tsx`                   | 3     |       |
-| [ ] | `src/features/deployment/window.test.ts`                         | 2     |       |
-| [ ] | `src/features/dotnet/store.test.ts`                              | 6     |       |
-| [ ] | `src/features/github/api/api.test.ts`                            | 10    |       |
-| [ ] | `src/features/github/clone/GitHubCloneSource.test.tsx`           | 3     |       |
-| [ ] | `src/features/github/create/create.test.ts`                      | 15    |       |
-| [ ] | `src/features/github/create/RemoteBranchDialog.test.tsx`         | 1     |       |
-| [ ] | `src/features/github/data/data.test.ts`                          | 24    |       |
-| [ ] | `src/features/github/data/repository.test.ts`                    | 1     |       |
-| [ ] | `src/features/github/details/details.test.tsx`                   | 5     |       |
-| [ ] | `src/features/github/details/model.test.ts`                      | 19    |       |
-| [ ] | `src/features/github/diff/model.test.ts`                         | 12    |       |
-| [ ] | `src/features/github/diff/reviewDiff.test.tsx`                   | 11    |       |
-| [ ] | `src/features/github/list/list.test.tsx`                         | 15    |       |
-| [ ] | `src/features/github/reviewMode/reviewMode.test.tsx`             | 20    |       |
-| [ ] | `src/features/github/settingsPages.test.tsx`                     | 3     |       |
-| [ ] | `src/features/github/timeline/model.test.ts`                     | 21    |       |
-| [ ] | `src/features/github/toolwindow/toolwindow.test.tsx`             | 8     |       |
-| [ ] | `src/features/github/ui/ui.test.tsx`                             | 10    |       |
-| [ ] | `src/features/graphql/graphql.test.ts`                           | 29    |       |
-| [ ] | `src/features/graphql/store.test.ts`                             | 2     |       |
-| [ ] | `src/features/http-client/endpoints.test.ts`                     | 3     |       |
-| [ ] | `src/features/http-client/httpClient.test.ts`                    | 18    |       |
-| [ ] | `src/features/http-client/spring/generate.test.ts`               | 1     |       |
-| [ ] | `src/features/http-client/spring/routeIndex.test.ts`             | 6     |       |
-| [ ] | `src/features/http-client/spring/spring.test.ts`                 | 17    |       |
-| [ ] | `src/features/libraries/libraries.test.ts`                       | 7     |       |
-| [ ] | `src/features/logcat/history.test.ts`                            | 4     |       |
-| [ ] | `src/features/logcat/model.test.ts`                              | 15    |       |
-| [ ] | `src/features/macros/model.test.ts`                              | 8     |       |
-| [ ] | `src/features/mcp/reporters.test.ts`                             | 4     |       |
-| [ ] | `src/features/mcp/requests.test.tsx`                             | 4     |       |
-| [ ] | `src/features/notebook/outputs.test.ts`                          | 8     |       |
-| [ ] | `src/features/notebook/OutputView.test.tsx`                      | 9     |       |
-| [ ] | `src/features/notebook/security.test.ts`                         | 4     |       |
-| [ ] | `src/features/notebook/session.test.ts`                          | 16    |       |
-| [ ] | `src/features/perf/__tests__/perf.test.ts`                       | 12    |       |
-| [ ] | `src/features/perf/__tests__/views.test.tsx`                     | 3     |       |
-| [ ] | `src/features/plugins/__tests__/contentEditor.test.tsx`          | 10    |       |
-| [ ] | `src/features/plugins/__tests__/decorations.test.ts`             | 4     |       |
-| [ ] | `src/features/plugins/__tests__/detailViews.test.tsx`            | 12    |       |
-| [ ] | `src/features/plugins/__tests__/iconThemeResolver.test.ts`       | 8     |       |
-| [ ] | `src/features/plugins/__tests__/iconThemes.test.ts`              | 2     |       |
-| [ ] | `src/features/plugins/__tests__/intellijImport.test.tsx`         | 6     |       |
-| [ ] | `src/features/plugins/__tests__/logEditor.test.tsx`              | 8     |       |
-| [ ] | `src/features/plugins/__tests__/pluginIcon.test.tsx`             | 7     |       |
-| [ ] | `src/features/plugins/__tests__/plugins.test.tsx`                | 61    |       |
-| [ ] | `src/features/plugins/__tests__/projectUi.test.tsx`              | 5     |       |
-| [ ] | `src/features/plugins/__tests__/ptyBackend.test.ts`              | 1     |       |
-| [ ] | `src/features/plugins/__tests__/ptyBridge.test.ts`               | 7     |       |
-| [ ] | `src/features/plugins/__tests__/runTargets.test.ts`              | 4     |       |
-| [ ] | `src/features/plugins/__tests__/servicePane.test.tsx`            | 4     |       |
-| [ ] | `src/features/plugins/__tests__/serviceProvider.test.tsx`        | 10    |       |
-| [ ] | `src/features/plugins/__tests__/settings.test.tsx`               | 12    |       |
-| [ ] | `src/features/plugins/__tests__/startupTheme.test.ts`            | 4     |       |
-| [ ] | `src/features/plugins/__tests__/verbatimText.test.tsx`           | 4     |       |
-| [ ] | `src/features/plugins/__tests__/viewProjection.test.tsx`         | 6     |       |
-| [ ] | `src/features/plugins/__tests__/views.test.tsx`                  | 26    |       |
-| [ ] | `src/features/plugins/__tests__/viewWindows.test.tsx`            | 12    |       |
-| [ ] | `src/features/plugins/__tests__/webViews.test.tsx`               | 18    |       |
-| [ ] | `src/features/plugins/__tests__/workspaceContains.test.ts`       | 13    |       |
-| [ ] | `src/features/plugins/activeFile.test.ts`                        | 1     |       |
-| [ ] | `src/features/plugins/indexedMarkers.test.ts`                    | 8     |       |
-| [ ] | `src/features/plugins/languageVisuals.test.ts`                   | 3     |       |
-| [ ] | `src/features/plugins/lineMarkerGutter.test.ts`                  | 3     |       |
-| [ ] | `src/features/plugins/markerIcons.test.ts`                       | 5     |       |
-| [ ] | `src/features/plugins/markerStore.test.ts`                       | 3     |       |
-| [ ] | `src/features/plugins/navigation.test.ts`                        | 9     |       |
-| [ ] | `src/features/plugins/pluginText.test.ts`                        | 12    |       |
-| [ ] | `src/features/profiler/profiler.test.ts`                         | 3     |       |
-| [ ] | `src/features/project-tree/contextMenu.test.ts`                  | 13    |       |
-| [ ] | `src/features/project-tree/extraRoots.test.ts`                   | 4     |       |
-| [ ] | `src/features/project-tree/filePath.test.ts`                     | 2     |       |
-| [ ] | `src/features/project-tree/fileRefactor.test.tsx`                | 6     |       |
-| [ ] | `src/features/project-tree/folderKind.test.ts`                   | 5     |       |
-| [ ] | `src/features/project-tree/fs.test.ts`                           | 4     |       |
-| [ ] | `src/features/project-tree/model.test.ts`                        | 16    |       |
-| [ ] | `src/features/project-tree/moduleGroups.test.ts`                 | 6     |       |
-| [ ] | `src/features/project-tree/NewPopup.test.tsx`                    | 2     |       |
-| [ ] | `src/features/project-tree/newPopupModel.test.ts`                | 5     |       |
-| [ ] | `src/features/project-tree/operations.test.ts`                   | 23    |       |
-| [ ] | `src/features/project-tree/paths.test.ts`                        | 9     |       |
-| [ ] | `src/features/project-tree/ProjectView.test.tsx`                 | 27    |       |
-| [ ] | `src/features/project-tree/roots.test.ts`                        | 7     |       |
-| [ ] | `src/features/project-tree/safeDelete.test.ts`                   | 4     |       |
-| [ ] | `src/features/project-tree/selectIn.test.ts`                     | 5     |       |
-| [ ] | `src/features/project-tree/store.test.ts`                        | 18    |       |
-| [ ] | `src/features/project-tree/undoDelete.test.ts`                   | 1     |       |
-| [ ] | `src/features/project-tree/unity.test.ts`                        | 4     |       |
-| [ ] | `src/features/project-tree/unityRefresh.test.ts`                 | 2     |       |
-| [ ] | `src/features/project-tree/viewModes.test.ts`                    | 11    |       |
-| [ ] | `src/features/project-trust/trust.test.tsx`                      | 7     |       |
-| [ ] | `src/features/remote-dev/ConnectDialog.test.tsx`                 | 5     |       |
-| [ ] | `src/features/remote-dev/container.test.ts`                      | 3     |       |
-| [ ] | `src/features/remote-dev/environment.test.ts`                    | 4     |       |
-| [ ] | `src/features/remote-dev/ports.test.tsx`                         | 8     |       |
-| [ ] | `src/features/remote-dev/remoteDev.test.ts`                      | 14    |       |
-| [ ] | `src/features/run-anything/model.test.ts`                        | 8     |       |
-| [ ] | `src/features/run/applicationUpdate.test.ts`                     | 15    |       |
-| [ ] | `src/features/run/browsePaths.test.tsx`                          | 3     |       |
-| [ ] | `src/features/run/buildCommand.test.ts`                          | 3     |       |
-| [ ] | `src/features/run/buildTask.test.ts`                             | 2     |       |
-| [ ] | `src/features/run/chooserPinned.test.tsx`                        | 5     |       |
-| [ ] | `src/features/run/chooserRunning.test.tsx`                       | 3     |       |
-| [ ] | `src/features/run/cmake.test.ts`                                 | 4     |       |
-| [ ] | `src/features/run/composerInstall.test.tsx`                      | 2     |       |
-| [ ] | `src/features/run/configs.test.ts`                               | 32    |       |
-| [ ] | `src/features/run/console.test.ts`                               | 15    |       |
-| [ ] | `src/features/run/consoleFlush.test.ts`                          | 1     |       |
-| [ ] | `src/features/run/containerDebug.test.ts`                        | 2     |       |
-| [ ] | `src/features/run/contextRun.test.ts`                            | 10    |       |
-| [ ] | `src/features/run/csharpTargets.test.ts`                         | 5     |       |
-| [ ] | `src/features/run/dotnetTypes.test.tsx`                          | 4     |       |
-| [ ] | `src/features/run/executors.test.ts`                             | 2     |       |
-| [ ] | `src/features/run/findBar.test.tsx`                              | 9     |       |
-| [ ] | `src/features/run/goActions.test.ts`                             | 3     |       |
-| [ ] | `src/features/run/goGenerate.test.ts`                            | 3     |       |
-| [ ] | `src/features/run/goTypes.test.ts`                               | 3     |       |
-| [ ] | `src/features/run/gradleRun.test.ts`                             | 17    |       |
-| [ ] | `src/features/run/importAction.test.tsx`                         | 3     |       |
-| [ ] | `src/features/run/importConfigs.test.tsx`                        | 7     |       |
-| [ ] | `src/features/run/inheritedMain.test.ts`                         | 10    |       |
-| [ ] | `src/features/run/java.test.ts`                                  | 36    |       |
-| [ ] | `src/features/run/javaModule.test.ts`                            | 19    |       |
-| [ ] | `src/features/run/jvmTypes.test.ts`                              | 17    |       |
-| [ ] | `src/features/run/links.test.ts`                                 | 10    |       |
-| [ ] | `src/features/run/navigate.test.ts`                              | 3     |       |
-| [ ] | `src/features/run/npmGutter.test.ts`                             | 31    |       |
-| [ ] | `src/features/run/producers.ruby.test.ts`                        | 10    |       |
-| [ ] | `src/features/run/producers.test.ts`                             | 62    |       |
-| [ ] | `src/features/run/remote.test.tsx`                               | 22    |       |
-| [ ] | `src/features/run/removal.test.tsx`                              | 11    |       |
-| [ ] | `src/features/run/resolveCancellation.test.ts`                   | 2     |       |
-| [ ] | `src/features/run/rubyTargets.test.ts`                           | 5     |       |
-| [ ] | `src/features/run/rubyTests.test.ts`                             | 4     |       |
-| [ ] | `src/features/run/runConfigTypes.test.tsx`                       | 39    |       |
-| [ ] | `src/features/run/runtimes.test.ts`                              | 4     |       |
-| [ ] | `src/features/run/RunView.test.tsx`                              | 7     |       |
-| [ ] | `src/features/run/RunWidget.test.tsx`                            | 21    |       |
-| [ ] | `src/features/run/segments.test.ts`                              | 3     |       |
-| [ ] | `src/features/run/serviceOrder.test.ts`                          | 8     |       |
-| [ ] | `src/features/run/services.test.ts`                              | 44    |       |
-| [ ] | `src/features/run/serviceSessions.test.ts`                       | 9     |       |
-| [ ] | `src/features/run/session.test.tsx`                              | 17    |       |
-| [ ] | `src/features/run/stackTrace.test.ts`                            | 4     |       |
-| [ ] | `src/features/run/stopStatus.test.ts`                            | 3     |       |
-| [ ] | `src/features/run/targets.test.ts`                               | 20    |       |
-| [ ] | `src/features/run/temporarySettings.test.ts`                     | 1     |       |
-| [ ] | `src/features/run/terminal.test.tsx`                             | 7     |       |
-| [ ] | `src/features/run/testing/comparison.test.ts`                    | 7     |       |
-| [ ] | `src/features/run/testing/dotnet.test.ts`                        | 8     |       |
-| [ ] | `src/features/run/testing/go.test.ts`                            | 8     |       |
-| [ ] | `src/features/run/testing/parsers.test.ts`                       | 30    |       |
-| [ ] | `src/features/run/testing/phpunit.test.ts`                       | 12    |       |
-| [ ] | `src/features/run/testing/plugin.test.ts`                        | 3     |       |
-| [ ] | `src/features/run/testing/rerun.test.ts`                         | 24    |       |
-| [ ] | `src/features/run/testing/ruby.test.ts`                          | 14    |       |
-| [ ] | `src/features/run/testing/states.test.ts`                        | 5     |       |
-| [ ] | `src/features/run/testing/unittest.test.ts`                      | 8     |       |
-| [ ] | `src/features/run/TestTreeView.test.tsx`                         | 4     |       |
-| [ ] | `src/features/run/tomcat.test.tsx`                               | 14    |       |
-| [ ] | `src/features/run/updatePolicies.test.ts`                        | 4     |       |
-| [ ] | `src/features/run/useConsoleSelection.test.tsx`                  | 5     |       |
-| [ ] | `src/features/run/workflow.test.ts`                              | 6     |       |
-| [ ] | `src/features/scratch/__tests__/scratch.test.tsx`                | 10    |       |
-| [ ] | `src/features/search/__tests__/bookmarkLists.test.ts`            | 8     |       |
-| [ ] | `src/features/search/__tests__/bookmarkPopups.test.tsx`          | 5     |       |
-| [ ] | `src/features/search/__tests__/bookmarks.test.ts`                | 9     |       |
-| [ ] | `src/features/search/__tests__/codePreview.test.tsx`             | 8     |       |
-| [ ] | `src/features/search/__tests__/controller.test.ts`               | 9     |       |
-| [ ] | `src/features/search/__tests__/dialogs.test.tsx`                 | 22    |       |
-| [ ] | `src/features/search/__tests__/editorResults.test.tsx`           | 1     |       |
-| [ ] | `src/features/search/__tests__/everywhereFilters.test.ts`        | 10    |       |
-| [ ] | `src/features/search/__tests__/everywhereGroups.test.ts`         | 4     |       |
-| [ ] | `src/features/search/__tests__/everywhereModel.test.ts`          | 25    |       |
-| [ ] | `src/features/search/__tests__/fileMasks.test.ts`                | 1     |       |
-| [ ] | `src/features/search/__tests__/fileStructure.test.tsx`           | 4     |       |
-| [ ] | `src/features/search/__tests__/findPopup.test.tsx`               | 25    |       |
-| [ ] | `src/features/search/__tests__/findScopes.test.ts`               | 7     |       |
-| [ ] | `src/features/search/__tests__/findSession.test.ts`              | 12    |       |
-| [ ] | `src/features/search/__tests__/findWindow.test.ts`               | 5     |       |
-| [ ] | `src/features/search/__tests__/inherited.test.ts`                | 2     |       |
-| [ ] | `src/features/search/__tests__/matchText.test.tsx`               | 3     |       |
-| [ ] | `src/features/search/__tests__/outline.test.ts`                  | 11    |       |
-| [ ] | `src/features/search/__tests__/pathScopeActions.test.tsx`        | 4     |       |
-| [ ] | `src/features/search/__tests__/query.test.ts`                    | 7     |       |
-| [ ] | `src/features/search/__tests__/rank.test.ts`                     | 3     |       |
-| [ ] | `src/features/search/__tests__/recent.test.ts`                   | 15    |       |
-| [ ] | `src/features/search/__tests__/replaceFlow.test.ts`              | 9     |       |
-| [ ] | `src/features/search/__tests__/routes.test.ts`                   | 5     |       |
-| [ ] | `src/features/search/__tests__/searchKeys.test.ts`               | 1     |       |
-| [ ] | `src/features/search/__tests__/structureAutoscroll.test.tsx`     | 1     |       |
-| [ ] | `src/features/search/__tests__/toggleActions.test.ts`            | 1     |       |
-| [ ] | `src/features/services/services.test.ts`                         | 16    |       |
-| [ ] | `src/features/services/ServicesTree.debug.test.tsx`              | 10    |       |
-| [ ] | `src/features/services/ServicesTree.reorder.test.tsx`            | 5     |       |
-| [ ] | `src/features/services/ServicesTree.test.tsx`                    | 11    |       |
-| [ ] | `src/features/settings/__tests__/addInterpreter.test.tsx`        | 10    |       |
-| [ ] | `src/features/settings/__tests__/agents.test.ts`                 | 1     |       |
-| [ ] | `src/features/settings/__tests__/appearanceToggles.test.ts`      | 2     |       |
-| [ ] | `src/features/settings/__tests__/assignShortcut.test.ts`         | 3     |       |
-| [ ] | `src/features/settings/__tests__/behavior.test.ts`               | 11    |       |
-| [ ] | `src/features/settings/__tests__/cmake.test.ts`                  | 3     |       |
-| [ ] | `src/features/settings/__tests__/cmakeEditor.test.tsx`           | 2     |       |
-| [ ] | `src/features/settings/__tests__/colorScheme.test.tsx`           | 12    |       |
-| [ ] | `src/features/settings/__tests__/contrast.test.ts`               | 10    |       |
-| [ ] | `src/features/settings/__tests__/dialog.test.tsx`                | 41    |       |
-| [ ] | `src/features/settings/__tests__/downloadJdk.test.tsx`           | 2     |       |
-| [ ] | `src/features/settings/__tests__/fileTypes.test.ts`              | 6     |       |
-| [ ] | `src/features/settings/__tests__/fontSync.test.ts`               | 1     |       |
-| [ ] | `src/features/settings/__tests__/goBuildTags.test.ts`            | 2     |       |
-| [ ] | `src/features/settings/__tests__/iconThemeSettings.test.tsx`     | 5     |       |
-| [ ] | `src/features/settings/__tests__/inspections.test.ts`            | 13    |       |
-| [ ] | `src/features/settings/__tests__/javaFormatter.test.tsx`         | 2     |       |
-| [ ] | `src/features/settings/__tests__/keymap.test.ts`                 | 21    |       |
-| [ ] | `src/features/settings/__tests__/languages.test.ts`              | 17    |       |
-| [ ] | `src/features/settings/__tests__/languageServerTargets.test.tsx` | 2     |       |
-| [ ] | `src/features/settings/__tests__/mainMenuStyle.test.tsx`         | 3     |       |
-| [ ] | `src/features/settings/__tests__/mavenRunner.test.tsx`           | 1     |       |
-| [ ] | `src/features/settings/__tests__/mcpServer.test.ts`              | 3     |       |
-| [ ] | `src/features/settings/__tests__/mouseShortcut.test.tsx`         | 3     |       |
-| [ ] | `src/features/settings/__tests__/pages.test.ts`                  | 5     |       |
-| [ ] | `src/features/settings/__tests__/phpStatus.test.tsx`             | 11    |       |
-| [ ] | `src/features/settings/__tests__/phpXdebug.test.tsx`             | 4     |       |
-| [ ] | `src/features/settings/__tests__/pythonStatus.test.tsx`          | 12    |       |
-| [ ] | `src/features/settings/__tests__/runTargets.test.ts`             | 4     |       |
-| [ ] | `src/features/settings/__tests__/settingsWindowOpen.test.ts`     | 1     |       |
-| [ ] | `src/features/settings/__tests__/ssh.test.tsx`                   | 15    |       |
-| [ ] | `src/features/settings/__tests__/sshConnection.test.ts`          | 3     |       |
-| [ ] | `src/features/settings/__tests__/staging.test.ts`                | 22    |       |
-| [ ] | `src/features/settings/__tests__/window.test.ts`                 | 2     |       |
-| [ ] | `src/features/settings/components/FontPicker.test.tsx`           | 5     |       |
-| [ ] | `src/features/settings/pages/deploymentModel.test.ts`            | 9     |       |
-| [ ] | `src/features/ssh/ssh.test.ts`                                   | 6     |       |
-| [ ] | `src/features/templates/__tests__/editor.test.ts`                | 14    |       |
-| [ ] | `src/features/templates/__tests__/emmet.test.ts`                 | 7     |       |
-| [ ] | `src/features/templates/__tests__/files.test.ts`                 | 25    |       |
-| [ ] | `src/features/templates/__tests__/live.test.ts`                  | 18    |       |
-| [ ] | `src/features/templates/__tests__/pluginFiles.test.tsx`          | 6     |       |
-| [ ] | `src/features/templates/__tests__/pluginPackages.test.ts`        | 7     |       |
-| [ ] | `src/features/templates/__tests__/postfix.test.ts`               | 9     |       |
-| [ ] | `src/features/templates/__tests__/snippets.test.ts`              | 2     |       |
-| [ ] | `src/features/templates/__tests__/surround.test.ts`              | 2     |       |
-| [ ] | `src/features/templates/__tests__/surrounders.test.ts`           | 3     |       |
-| [ ] | `src/features/templates/__tests__/views.test.tsx`                | 12    |       |
-| [ ] | `src/features/terminal/copyKeys.test.ts`                         | 4     |       |
-| [ ] | `src/features/terminal/domRowCache.test.ts`                      | 4     |       |
-| [ ] | `src/features/terminal/drop.test.ts`                             | 5     |       |
-| [ ] | `src/features/terminal/embedded.test.ts`                         | 4     |       |
-| [ ] | `src/features/terminal/embeddedFit.test.ts`                      | 2     |       |
-| [ ] | `src/features/terminal/fontLoading.test.ts`                      | 1     |       |
-| [ ] | `src/features/terminal/groups.test.ts`                           | 9     |       |
-| [ ] | `src/features/terminal/imeCommit.test.ts`                        | 12    |       |
-| [ ] | `src/features/terminal/imeInput.test.ts`                         | 20    |       |
-| [ ] | `src/features/terminal/paste.test.ts`                            | 24    |       |
-| [ ] | `src/features/terminal/persist.test.ts`                          | 7     |       |
-| [ ] | `src/features/terminal/session.test.ts`                          | 16    |       |
-| [ ] | `src/features/terminal/terminal.test.ts`                         | 42    |       |
-| [ ] | `src/features/terminal/windowsPty.test.ts`                       | 1     |       |
-| [ ] | `src/features/todo/PreviewEditor.test.tsx`                       | 7     |       |
-| [ ] | `src/features/todo/todo.test.ts`                                 | 13    |       |
-| [ ] | `src/features/todo/TodoView.test.tsx`                            | 4     |       |
-| [ ] | `src/features/tools/__tests__/jdk.test.ts`                       | 5     |       |
-| [ ] | `src/features/tools/__tests__/serverSettings.test.tsx`           | 10    |       |
-| [ ] | `src/features/tools/__tests__/tools.test.tsx`                    | 24    |       |
-| [ ] | `src/features/vcs/__tests__/branches.test.ts`                    | 13    |       |
-| [ ] | `src/features/vcs/__tests__/branchesPopupHost.test.tsx`          | 1     |       |
-| [ ] | `src/features/vcs/__tests__/branchFilterPopup.test.tsx`          | 4     |       |
-| [ ] | `src/features/vcs/__tests__/branchOps.test.ts`                   | 18    |       |
-| [ ] | `src/features/vcs/__tests__/branchWidgetExtensions.test.ts`      | 1     |       |
-| [ ] | `src/features/vcs/__tests__/changelistMenu.test.ts`              | 3     |       |
-| [ ] | `src/features/vcs/__tests__/changelists.test.ts`                 | 8     |       |
-| [ ] | `src/features/vcs/__tests__/changes.test.ts`                     | 22    |       |
-| [ ] | `src/features/vcs/__tests__/changesCopy.test.tsx`                | 4     |       |
-| [ ] | `src/features/vcs/__tests__/changesDirectory.test.tsx`           | 1     |       |
-| [ ] | `src/features/vcs/__tests__/chunkOptimizer.test.ts`              | 4     |       |
-| [ ] | `src/features/vcs/__tests__/clone.test.ts`                       | 5     |       |
-| [ ] | `src/features/vcs/__tests__/commitChecks.test.ts`                | 3     |       |
-| [ ] | `src/features/vcs/__tests__/commitInclusion.test.ts`             | 2     |       |
-| [ ] | `src/features/vcs/__tests__/commitMode.test.ts`                  | 13    |       |
-| [ ] | `src/features/vcs/__tests__/commitPreviewDiff.test.tsx`          | 13    |       |
-| [ ] | `src/features/vcs/__tests__/compareActions.test.ts`              | 1     |       |
-| [ ] | `src/features/vcs/__tests__/compareFlow.test.ts`                 | 4     |       |
-| [ ] | `src/features/vcs/__tests__/confirmations.test.ts`               | 31    |       |
-| [ ] | `src/features/vcs/__tests__/conflictBanner.test.tsx`             | 2     |       |
-| [ ] | `src/features/vcs/__tests__/conflictMarkerEdits.test.ts`         | 1     |       |
-| [ ] | `src/features/vcs/__tests__/conflictMarkers.test.ts`             | 5     |       |
-| [ ] | `src/features/vcs/__tests__/conflicts.test.ts`                   | 6     |       |
-| [ ] | `src/features/vcs/__tests__/decorations.test.ts`                 | 4     |       |
-| [ ] | `src/features/vcs/__tests__/deleteBranches.test.ts`              | 11    |       |
-| [ ] | `src/features/vcs/__tests__/deleteFiles.test.ts`                 | 3     |       |
-| [ ] | `src/features/vcs/__tests__/diffChain.test.ts`                   | 5     |       |
-| [ ] | `src/features/vcs/__tests__/diffDialog.test.tsx`                 | 8     |       |
-| [ ] | `src/features/vcs/__tests__/diffFind.test.tsx`                   | 9     |       |
-| [ ] | `src/features/vcs/__tests__/diffNavigation.test.ts`              | 4     |       |
-| [ ] | `src/features/vcs/__tests__/diffOptions.test.ts`                 | 25    |       |
-| [ ] | `src/features/vcs/__tests__/diffScroll.test.ts`                  | 10    |       |
-| [ ] | `src/features/vcs/__tests__/diffStripe.test.ts`                  | 7     |       |
-| [ ] | `src/features/vcs/__tests__/diffToolbar.test.tsx`                | 25    |       |
-| [ ] | `src/features/vcs/__tests__/diffViewerProviders.test.tsx`        | 5     |       |
-| [ ] | `src/features/vcs/__tests__/directoryCompare.test.tsx`           | 6     |       |
-| [ ] | `src/features/vcs/__tests__/directoryCompareActions.test.ts`     | 5     |       |
-| [ ] | `src/features/vcs/__tests__/fileTree.test.ts`                    | 2     |       |
-| [ ] | `src/features/vcs/__tests__/folderCompare.test.tsx`              | 8     |       |
-| [ ] | `src/features/vcs/__tests__/GitMergeDiff.test.tsx`               | 1     |       |
-| [ ] | `src/features/vcs/__tests__/gitOps.test.ts`                      | 14    |       |
-| [ ] | `src/features/vcs/__tests__/graph.test.ts`                       | 9     |       |
-| [ ] | `src/features/vcs/__tests__/historyOps.test.ts`                  | 10    |       |
-| [ ] | `src/features/vcs/__tests__/hunks.test.ts`                       | 15    |       |
-| [ ] | `src/features/vcs/__tests__/ignore.test.ts`                      | 7     |       |
-| [ ] | `src/features/vcs/__tests__/inlineBlame.test.ts`                 | 15    |       |
-| [ ] | `src/features/vcs/__tests__/localChanges.test.tsx`               | 13    |       |
-| [ ] | `src/features/vcs/__tests__/localHistory.test.tsx`               | 5     |       |
-| [ ] | `src/features/vcs/__tests__/logBranches.test.tsx`                | 13    |       |
-| [ ] | `src/features/vcs/__tests__/logBranchMemory.test.ts`             | 10    |       |
-| [ ] | `src/features/vcs/__tests__/logDetails.test.tsx`                 | 3     |       |
-| [ ] | `src/features/vcs/__tests__/logFilters.test.ts`                  | 7     |       |
-| [ ] | `src/features/vcs/__tests__/logGraphCorrectness.test.tsx`        | 10    |       |
-| [ ] | `src/features/vcs/__tests__/logLoading.test.ts`                  | 14    |       |
-| [ ] | `src/features/vcs/__tests__/logOptions.test.ts`                  | 17    |       |
-| [ ] | `src/features/vcs/__tests__/logPanes.test.tsx`                   | 13    |       |
-| [ ] | `src/features/vcs/__tests__/logSearch.test.ts`                   | 1     |       |
-| [ ] | `src/features/vcs/__tests__/logUiFeatures.test.tsx`              | 11    |       |
-| [ ] | `src/features/vcs/__tests__/logViews.test.tsx`                   | 3     |       |
-| [ ] | `src/features/vcs/__tests__/mergeActions.test.ts`                | 3     |       |
-| [ ] | `src/features/vcs/__tests__/mergeDiff3.test.ts`                  | 23    |       |
-| [ ] | `src/features/vcs/__tests__/mergeModel.test.ts`                  | 32    |       |
-| [ ] | `src/features/vcs/__tests__/mergeRebaseWidget.test.tsx`          | 4     |       |
-| [ ] | `src/features/vcs/__tests__/mergeScroll.test.ts`                 | 3     |       |
-| [ ] | `src/features/vcs/__tests__/modalDiffWindow.test.ts`             | 4     |       |
-| [ ] | `src/features/vcs/__tests__/movedCode.test.tsx`                  | 15    |       |
-| [ ] | `src/features/vcs/__tests__/multiPushTarget.test.tsx`            | 1     |       |
-| [ ] | `src/features/vcs/__tests__/multiRepoRollback.test.ts`           | 4     |       |
-| [ ] | `src/features/vcs/__tests__/multiRoot.test.ts`                   | 14    |       |
-| [ ] | `src/features/vcs/__tests__/multiRootStashes.test.tsx`           | 2     |       |
-| [ ] | `src/features/vcs/__tests__/multiRootTags.test.ts`               | 1     |       |
-| [ ] | `src/features/vcs/__tests__/patchFileManager.test.ts`            | 1     |       |
-| [ ] | `src/features/vcs/__tests__/pluginCommit.test.ts`                | 3     |       |
-| [ ] | `src/features/vcs/__tests__/projectSwitch.test.ts`               | 1     |       |
-| [ ] | `src/features/vcs/__tests__/promptDialog.test.tsx`               | 3     |       |
-| [ ] | `src/features/vcs/__tests__/pushChanges.test.tsx`                | 4     |       |
-| [ ] | `src/features/vcs/__tests__/pushRejected.test.ts`                | 6     |       |
-| [ ] | `src/features/vcs/__tests__/pushTarget.test.ts`                  | 7     |       |
-| [ ] | `src/features/vcs/__tests__/recentChanges.test.ts`               | 2     |       |
-| [ ] | `src/features/vcs/__tests__/remoteResults.test.ts`               | 6     |       |
-| [ ] | `src/features/vcs/__tests__/repoBranches.test.ts`                | 17    |       |
-| [ ] | `src/features/vcs/__tests__/repositoryPaths.test.ts`             | 1     |       |
-| [ ] | `src/features/vcs/__tests__/rollback.test.ts`                    | 3     |       |
-| [ ] | `src/features/vcs/__tests__/selectionHistory.test.tsx`           | 6     |       |
-| [ ] | `src/features/vcs/__tests__/shelf.test.tsx`                      | 9     |       |
-| [ ] | `src/features/vcs/__tests__/show-diff-chain.test.ts`             | 16    |       |
-| [ ] | `src/features/vcs/__tests__/testFileColor.test.tsx`              | 2     |       |
-| [ ] | `src/features/vcs/__tests__/viewerCaret.test.ts`                 | 1     |       |
-| [ ] | `src/features/vcs/__tests__/viewerFont.test.ts`                  | 1     |       |
-| [ ] | `src/features/vcs/__tests__/workflow.test.ts`                    | 11    |       |
-| [ ] | `src/features/vcs/__tests__/worktreesPanel.test.tsx`             | 5     |       |
-| [ ] | `src/features/vcs/comparison/__tests__/idea.test.ts`             | 1     |       |
-| [ ] | `src/features/vcs/diffBlame.test.ts`                             | 3     |       |
-| [ ] | `src/features/vcs/worktrees.test.ts`                             | 8     |       |
-| [ ] | `src/features/viewers/file-probe.test.ts`                        | 3     |       |
-| [ ] | `src/features/viewers/markdown/mermaid.test.ts`                  | 13    |       |
-| [ ] | `src/features/viewers/markdown/previewDetails.test.tsx`          | 1     |       |
-| [ ] | `src/features/viewers/markdown/previewOnly.test.tsx`             | 5     |       |
-| [ ] | `src/features/viewers/markdown/previewScroll.test.tsx`           | 1     |       |
-| [ ] | `src/features/viewers/markdown/render.test.ts`                   | 16    |       |
-| [ ] | `src/features/viewers/markdown/zoom.test.tsx`                    | 7     |       |
-| [ ] | `src/features/viewers/viewers.test.ts`                           | 11    |       |
-| [ ] | `src/features/vim/__tests__/conflicts.test.ts`                   | 7     |       |
-| [ ] | `src/features/vim/__tests__/rc.test.ts`                          | 17    |       |
-| [ ] | `src/features/vim/__tests__/vim.test.ts`                         | 17    |       |
-| [ ] | `src/features/welcome/openRecent.test.ts`                        | 2     |       |
-| [ ] | `src/features/welcome/recent.test.ts`                            | 9     |       |
-| [ ] | `src/features/welcome/session.test.ts`                           | 6     |       |
-| [ ] | `src/features/welcome/welcome.test.tsx`                          | 9     |       |
-| [ ] | `src/platform/actions.test.ts`                                   | 1     |       |
-| [ ] | `src/platform/auxWindow.test.ts`                                 | 2     |       |
-| [ ] | `src/platform/boot.test.ts`                                      | 11    |       |
-| [ ] | `src/platform/buildFiles.test.ts`                                | 1     |       |
-| [ ] | `src/platform/buildToolRecovery.test.ts`                         | 3     |       |
-| [ ] | `src/platform/candidateFonts.test.ts`                            | 5     |       |
-| [ ] | `src/platform/classFiles.test.ts`                                | 3     |       |
-| [ ] | `src/platform/clipboard.test.ts`                                 | 3     |       |
-| [ ] | `src/platform/colorScheme.test.ts`                               | 14    |       |
-| [ ] | `src/platform/commandLine.test.ts`                               | 5     |       |
-| [ ] | `src/platform/context.test.ts`                                   | 4     |       |
-| [ ] | `src/platform/copyPath.test.ts`                                  | 3     |       |
-| [ ] | `src/platform/cssColor.test.ts`                                  | 2     |       |
-| [ ] | `src/platform/dateFormat.test.ts`                                | 2     |       |
-| [ ] | `src/platform/deploymentSettings.test.ts`                        | 3     |       |
-| [ ] | `src/platform/dotnet.test.ts`                                    | 6     |       |
-| [ ] | `src/platform/dotnetProcess.test.ts`                             | 4     |       |
-| [ ] | `src/platform/doubleClick.test.ts`                               | 5     |       |
-| [ ] | `src/platform/errorLog.test.ts`                                  | 2     |       |
-| [ ] | `src/platform/fileManager.test.ts`                               | 8     |       |
-| [ ] | `src/platform/filePresentation.cache.test.tsx`                   | 5     |       |
-| [ ] | `src/platform/filePresentation.test.ts`                          | 6     |       |
-| [ ] | `src/platform/fonts.test.ts`                                     | 12    |       |
-| [ ] | `src/platform/gitRefName.test.ts`                                | 2     |       |
-| [ ] | `src/platform/i18n.test.ts`                                      | 31    |       |
-| [ ] | `src/platform/icls.test.ts`                                      | 22    |       |
-| [ ] | `src/platform/inspectionControls.test.ts`                        | 5     |       |
-| [ ] | `src/platform/inspections.test.ts`                               | 8     |       |
-| [ ] | `src/platform/jdk.test.ts`                                       | 4     |       |
-| [ ] | `src/platform/keymap.test.ts`                                    | 18    |       |
-| [ ] | `src/platform/keymapMouse.test.ts`                               | 13    |       |
-| [ ] | `src/platform/keymaps/eclipse.test.ts`                           | 8     |       |
-| [ ] | `src/platform/keymaps/ideaParity.test.ts`                        | 2     |       |
-| [ ] | `src/platform/keymaps/navExtras.test.ts`                         | 2     |       |
-| [ ] | `src/platform/keymaps/newElement.test.ts`                        | 2     |       |
-| [ ] | `src/platform/keymaps/windows.test.ts`                           | 6     |       |
-| [ ] | `src/platform/locales/actionTitles.test.ts`                      | 1     |       |
-| [ ] | `src/platform/locales/textCatalog.test.ts`                       | 9     |       |
-| [ ] | `src/platform/nativeDrop.test.ts`                                | 2     |       |
-| [ ] | `src/platform/pageSwipe.test.ts`                                 | 9     |       |
-| [ ] | `src/platform/paths.test.ts`                                     | 3     |       |
-| [ ] | `src/platform/platformInfo.test.ts`                              | 2     |       |
-| [ ] | `src/platform/pointerFocus.test.ts`                              | 3     |       |
-| [ ] | `src/platform/project.test.ts`                                   | 6     |       |
-| [ ] | `src/platform/projectPresentation.test.ts`                       | 7     |       |
-| [ ] | `src/platform/projectRoots.test.ts`                              | 8     |       |
-| [ ] | `src/platform/proxySettings.test.ts`                             | 6     |       |
-| [ ] | `src/platform/remote.test.ts`                                    | 6     |       |
-| [ ] | `src/platform/remoteSettings.test.ts`                            | 16    |       |
-| [ ] | `src/platform/reordered-tap-click.test.ts`                       | 12    |       |
-| [ ] | `src/platform/search.test.ts`                                    | 4     |       |
-| [ ] | `src/platform/systemFonts.test.ts`                               | 5     |       |
-| [ ] | `src/platform/themes.test.ts`                                    | 8     |       |
-| [ ] | `src/platform/virtualDocs.test.ts`                               | 3     |       |
-| [ ] | `src/platform/webkitCompatibility.test.ts`                       | 1     |       |
-| [ ] | `src/platform/windowGroups.test.ts`                              | 2     |       |
-| [ ] | `src/platform/workflowSettings.test.ts`                          | 3     |       |
-| [ ] | `src/test/syntax.test.ts`                                        | 3     |       |
-| [ ] | `src/ui/consoleFind.test.ts`                                     | 11    |       |
-| [ ] | `src/ui/Dialog.test.tsx`                                         | 17    |       |
-| [ ] | `src/ui/FloatingToolbar.test.tsx`                                | 5     |       |
-| [ ] | `src/ui/iconAppearance.test.tsx`                                 | 2     |       |
-| [ ] | `src/ui/icons.test.tsx`                                          | 14    |       |
-| [ ] | `src/ui/List.test.tsx`                                           | 6     |       |
-| [ ] | `src/ui/LogPane.test.tsx`                                        | 6     |       |
-| [ ] | `src/ui/menuAim.test.ts`                                         | 4     |       |
-| [ ] | `src/ui/Mnemonic.test.tsx`                                       | 2     |       |
-| [ ] | `src/ui/patternIndex.test.ts`                                    | 3     |       |
-| [ ] | `src/ui/pointerDrag.test.ts`                                     | 6     |       |
-| [ ] | `src/ui/Popup.test.tsx`                                          | 13    |       |
-| [ ] | `src/ui/rowSelection.test.ts`                                    | 1     |       |
-| [ ] | `src/ui/Scrollbar.test.tsx`                                      | 1     |       |
-| [ ] | `src/ui/Select.test.tsx`                                         | 13    |       |
-| [ ] | `src/ui/selectableSurfaces.test.tsx`                             | 4     |       |
-| [ ] | `src/ui/selectableText.test.ts`                                  | 10    |       |
-| [ ] | `src/ui/SourcePreview.test.tsx`                                  | 7     |       |
-| [ ] | `src/ui/Tabs.test.tsx`                                           | 21    |       |
-| [ ] | `src/ui/Tooltip.test.tsx`                                        | 4     |       |
-| [ ] | `src/ui/Tree.reorder.test.tsx`                                   | 8     |       |
-| [ ] | `src/ui/Tree.test.tsx`                                           | 30    |       |
-| [ ] | `src/ui/useSelectionBoundary.test.tsx`                           | 6     |       |
-| [ ] | `src/workbench/browserGuards.test.ts`                            | 5     |       |
-| [ ] | `src/workbench/buildToolRecovery.test.ts`                        | 2     |       |
-| [ ] | `src/workbench/ContributedToolbar.test.tsx`                      | 1     |       |
-| [ ] | `src/workbench/decorations.test.ts`                              | 1     |       |
-| [ ] | `src/workbench/distractionFree.test.tsx`                         | 14    |       |
-| [ ] | `src/workbench/endpointProviders.test.ts`                        | 2     |       |
-| [ ] | `src/workbench/fileDrop.test.ts`                                 | 9     |       |
-| [ ] | `src/workbench/fileEditors.test.ts`                              | 3     |       |
-| [ ] | `src/workbench/focus.test.ts`                                    | 6     |       |
-| [ ] | `src/workbench/lightEdit.test.tsx`                               | 7     |       |
-| [ ] | `src/workbench/MainMenu.interaction.test.tsx`                    | 10    |       |
-| [ ] | `src/workbench/MainMenu.test.ts`                                 | 3     |       |
-| [ ] | `src/workbench/mainToolbar.test.ts`                              | 3     |       |
-| [ ] | `src/workbench/messages.test.tsx`                                | 4     |       |
-| [ ] | `src/workbench/nativeTitlebar.test.tsx`                          | 7     |       |
-| [ ] | `src/workbench/projectColor.test.ts`                             | 1     |       |
-| [ ] | `src/workbench/projectNotifications.test.ts`                     | 1     |       |
-| [ ] | `src/workbench/projectWindow.test.ts`                            | 4     |       |
-| [ ] | `src/workbench/providerAcquisition.test.ts`                      | 4     |       |
-| [ ] | `src/workbench/quickSwitch.test.tsx`                             | 5     |       |
-| [ ] | `src/workbench/runningProcesses.test.ts`                         | 3     |       |
-| [ ] | `src/workbench/statusBarWidgets.test.tsx`                        | 4     |       |
-| [ ] | `src/workbench/stopBackground.test.ts`                           | 1     |       |
-| [ ] | `src/workbench/tasks.test.tsx`                                   | 9     |       |
-| [ ] | `src/workbench/theme.test.ts`                                    | 2     |       |
-| [ ] | `src/workbench/TitleBar.test.tsx`                                | 8     |       |
-| [ ] | `src/workbench/toolwindows/badges.test.tsx`                      | 1     |       |
-| [ ] | `src/workbench/toolwindows/content.test.ts`                      | 1     |       |
-| [ ] | `src/workbench/toolwindows/header.test.tsx`                      | 5     |       |
-| [ ] | `src/workbench/toolwindows/layouts.test.ts`                      | 5     |       |
-| [ ] | `src/workbench/toolwindows/occurrences.test.ts`                  | 3     |       |
-| [ ] | `src/workbench/toolwindows/store.test.ts`                        | 26    |       |
-| [ ] | `src/workbench/window-drag.test.ts`                              | 5     |       |
-| [ ] | `src/workbench/WindowGroupTabs.test.tsx`                         | 3     |       |
-| [ ] | `src/workbench/Workbench.test.tsx`                               | 18    |       |
+| | Test file | Cases | Proof |
+|---|---|---|---|
+| [ ] | `src/editor/core/clipboardHistory.test.ts` | 8 |  |
+| [ ] | `src/editor/core/cm/angular/angular.test.ts` | 24 |  |
+| [ ] | `src/editor/core/cm/angular/inline.test.ts` | 8 |  |
+| [ ] | `src/editor/core/cm/angularLoading.test.ts` | 1 |  |
+| [ ] | `src/editor/core/cm/astro/astro.test.ts` | 7 |  |
+| [ ] | `src/editor/core/cm/caretCommands.test.ts` | 6 |  |
+| [ ] | `src/editor/core/cm/clipboard.test.ts` | 25 |  |
+| [ ] | `src/editor/core/cm/cmake.test.ts` | 7 |  |
+| [ ] | `src/editor/core/cm/codeLens.test.ts` | 3 |  |
+| [ ] | `src/editor/core/cm/collapseBlock.test.ts` | 6 |  |
+| [ ] | `src/editor/core/cm/columnMode.test.ts` | 6 |  |
+| [ ] | `src/editor/core/cm/cornerInset.test.ts` | 4 |  |
+| [ ] | `src/editor/core/cm/distractionFree.test.ts` | 3 |  |
+| [ ] | `src/editor/core/cm/docComment.test.ts` | 5 |  |
+| [ ] | `src/editor/core/cm/docCommentTags.test.ts` | 13 |  |
+| [ ] | `src/editor/core/cm/editing.test.ts` | 43 |  |
+| [ ] | `src/editor/core/cm/erb.test.ts` | 2 |  |
+| [ ] | `src/editor/core/cm/find.test.ts` | 17 |  |
+| [ ] | `src/editor/core/cm/folding.test.ts` | 11 |  |
+| [ ] | `src/editor/core/cm/gomod.test.ts` | 3 |  |
+| [ ] | `src/editor/core/cm/ideaParity.test.ts` | 27 |  |
+| [ ] | `src/editor/core/cm/indentGuides.test.ts` | 4 |  |
+| [ ] | `src/editor/core/cm/interpolation.test.ts` | 8 |  |
+| [ ] | `src/editor/core/cm/interpolationIncremental.test.ts` | 2 |  |
+| [ ] | `src/editor/core/cm/jsp/jsp.test.ts` | 14 |  |
+| [ ] | `src/editor/core/cm/languages.test.ts` | 7 |  |
+| [ ] | `src/editor/core/cm/lines.test.ts` | 4 |  |
+| [ ] | `src/editor/core/cm/markdownImages.test.ts` | 7 |  |
+| [ ] | `src/editor/core/cm/moveElement.test.ts` | 5 |  |
+| [ ] | `src/editor/core/cm/multiCaret.test.ts` | 6 |  |
+| [ ] | `src/editor/core/cm/prefs.test.ts` | 6 |  |
+| [ ] | `src/editor/core/cm/preview.test.ts` | 2 |  |
+| [ ] | `src/editor/core/cm/rainbowBrackets.test.ts` | 6 |  |
+| [ ] | `src/editor/core/cm/regions.test.ts` | 6 |  |
+| [ ] | `src/editor/core/cm/selectionLayer.test.ts` | 2 |  |
+| [ ] | `src/editor/core/cm/selectionMarks.test.ts` | 3 |  |
+| [ ] | `src/editor/core/cm/shellInterpolation.test.ts` | 4 |  |
+| [ ] | `src/editor/core/cm/smartKeys.test.ts` | 14 |  |
+| [ ] | `src/editor/core/cm/stringClipboard.test.ts` | 16 |  |
+| [ ] | `src/editor/core/cm/structural.test.ts` | 27 |  |
+| [ ] | `src/editor/core/cm/syntaxHighlight.test.ts` | 2 |  |
+| [ ] | `src/editor/core/cm/tooltipBounds.test.ts` | 1 |  |
+| [ ] | `src/editor/core/cm/unwrap.test.ts` | 5 |  |
+| [ ] | `src/editor/core/cm/verticalMotion.test.ts` | 8 |  |
+| [ ] | `src/editor/core/cm/visibleColumn.test.ts` | 6 |  |
+| [ ] | `src/editor/core/cm/vue.test.ts` | 2 |  |
+| [ ] | `src/editor/core/controller.test.ts` | 13 |  |
+| [ ] | `src/editor/core/copyPathPopup.test.tsx` | 10 |  |
+| [ ] | `src/editor/core/customDocuments.test.ts` | 31 |  |
+| [ ] | `src/editor/core/detachTab.test.ts` | 5 |  |
+| [ ] | `src/editor/core/diskSync.test.ts` | 7 |  |
+| [ ] | `src/editor/core/editingExtras.test.ts` | 14 |  |
+| [ ] | `src/editor/core/embeddedDocuments.test.ts` | 1 |  |
+| [ ] | `src/editor/core/extendSelection.test.ts` | 2 |  |
+| [ ] | `src/editor/core/extras.test.ts` | 5 |  |
+| [ ] | `src/editor/core/file-open-order.test.ts` | 14 |  |
+| [ ] | `src/editor/core/fileAttributes.test.ts` | 3 |  |
+| [ ] | `src/editor/core/inputClose.test.ts` | 1 |  |
+| [ ] | `src/editor/core/lightedit-launch.test.ts` | 10 |  |
+| [ ] | `src/editor/core/model/attachment.test.ts` | 6 |  |
+| [ ] | `src/editor/core/model/document-open-latency.test.ts` | 4 |  |
+| [ ] | `src/editor/core/model/document.test.ts` | 19 |  |
+| [ ] | `src/editor/core/model/documentLanguage.test.ts` | 1 |  |
+| [ ] | `src/editor/core/model/editHistory.test.ts` | 4 |  |
+| [ ] | `src/editor/core/model/model.test.ts` | 21 |  |
+| [ ] | `src/editor/core/model/session.test.ts` | 9 |  |
+| [ ] | `src/editor/core/model/tabTitles.test.ts` | 5 |  |
+| [ ] | `src/editor/core/model/workspaceHistory.test.ts` | 11 |  |
+| [ ] | `src/editor/core/sync/DocSync.test.ts` | 15 |  |
+| [ ] | `src/editor/core/view/banner.test.tsx` | 2 |  |
+| [ ] | `src/editor/core/view/editorLayoutActions.test.tsx` | 3 |  |
+| [ ] | `src/editor/core/view/FindBar.test.tsx` | 8 |  |
+| [ ] | `src/editor/core/view/keptTabs.test.tsx` | 2 |  |
+| [ ] | `src/editor/core/view/navBar.test.ts` | 4 |  |
+| [ ] | `src/editor/core/view/navChildren.test.tsx` | 1 |  |
+| [ ] | `src/editor/core/view/PasteHistoryDialog.test.tsx` | 12 |  |
+| [ ] | `src/editor/core/view/pinnedTabsRow.test.tsx` | 3 |  |
+| [ ] | `src/editor/core/view/statusItems.test.tsx` | 2 |  |
+| [ ] | `src/editor/core/view/tabTitleRevision.test.tsx` | 3 |  |
+| [ ] | `src/editor/core/virtual.test.ts` | 5 |  |
+| [ ] | `src/editor/lazyEditorExtension.test.ts` | 1 |  |
+| [ ] | `src/editor/lineTokens.test.ts` | 6 |  |
+| [ ] | `src/editor/lsp/authorLens.test.ts` | 3 |  |
+| [ ] | `src/editor/lsp/availability.test.ts` | 8 |  |
+| [ ] | `src/editor/lsp/codeLens.test.ts` | 10 |  |
+| [ ] | `src/editor/lsp/completion.test.ts` | 37 |  |
+| [ ] | `src/editor/lsp/configurationNavigation.test.ts` | 15 |  |
+| [ ] | `src/editor/lsp/diagnostics.test.ts` | 5 |  |
+| [ ] | `src/editor/lsp/features.test.ts` | 20 |  |
+| [ ] | `src/editor/lsp/fileReferences.test.ts` | 2 |  |
+| [ ] | `src/editor/lsp/files.test.ts` | 3 |  |
+| [ ] | `src/editor/lsp/format.test.ts` | 12 |  |
+| [ ] | `src/editor/lsp/formatErrors.test.tsx` | 5 |  |
+| [ ] | `src/editor/lsp/generate.test.ts` | 3 |  |
+| [ ] | `src/editor/lsp/hint.test.ts` | 5 |  |
+| [ ] | `src/editor/lsp/hoverPrecedence.test.ts` | 8 |  |
+| [ ] | `src/editor/lsp/importsOnPaste.test.ts` | 25 |  |
+| [ ] | `src/editor/lsp/inlay.test.ts` | 5 |  |
+| [ ] | `src/editor/lsp/inlineCompletion.test.ts` | 8 |  |
+| [ ] | `src/editor/lsp/inplaceRename.test.ts` | 8 |  |
+| [ ] | `src/editor/lsp/intentions.test.ts` | 15 |  |
+| [ ] | `src/editor/lsp/interactiveCommand.test.tsx` | 7 |  |
+| [ ] | `src/editor/lsp/links.test.ts` | 10 |  |
+| [ ] | `src/editor/lsp/lsp.test.ts` | 4 |  |
+| [ ] | `src/editor/lsp/markdown.test.ts` | 4 |  |
+| [ ] | `src/editor/lsp/navigationMouse.test.ts` | 14 |  |
+| [ ] | `src/editor/lsp/navigationPending.test.ts` | 5 |  |
+| [ ] | `src/editor/lsp/outsideProject.test.ts` | 3 |  |
+| [ ] | `src/editor/lsp/Popups.test.tsx` | 13 |  |
+| [ ] | `src/editor/lsp/positions.test.ts` | 5 |  |
+| [ ] | `src/editor/lsp/resultNote.test.ts` | 2 |  |
+| [ ] | `src/editor/lsp/semantic/go/index.test.ts` | 4 |  |
+| [ ] | `src/editor/lsp/semantic/index.test.ts` | 2 |  |
+| [ ] | `src/editor/lsp/semantic/kotlin/index.test.ts` | 2 |  |
+| [ ] | `src/editor/lsp/semantic/php/constructs.test.ts` | 4 |  |
+| [ ] | `src/editor/lsp/semantic/python/highlight.test.ts` | 10 |  |
+| [ ] | `src/editor/lsp/semantic/python/members.test.ts` | 5 |  |
+| [ ] | `src/editor/lsp/semantic/typing.test.ts` | 2 |  |
+| [ ] | `src/editor/lsp/serverCodeLens.test.ts` | 1 |  |
+| [ ] | `src/editor/lsp/signature.test.ts` | 5 |  |
+| [ ] | `src/editor/lsp/snippet.test.ts` | 11 |  |
+| [ ] | `src/editor/lsp/spelling.test.ts` | 7 |  |
+| [ ] | `src/editor/lsp/syntaxErrors.test.ts` | 2 |  |
+| [ ] | `src/editor/lsp/syntaxFallback.test.ts` | 50 |  |
+| [ ] | `src/editor/lsp/typeInfo.test.ts` | 3 |  |
+| [ ] | `src/editor/lsp/workspaceEdit.test.ts` | 6 |  |
+| [ ] | `src/editor/navigation/gotoTest.test.ts` | 9 |  |
+| [ ] | `src/editor/navigation/lineMarkers.test.ts` | 12 |  |
+| [ ] | `src/editor/navigation/structureNav.test.ts` | 5 |  |
+| [ ] | `src/editor/navigation/testNaming.test.ts` | 6 |  |
+| [ ] | `src/editor/navigationProviders.test.ts` | 4 |  |
+| [ ] | `src/editor/refactor/hierarchy.test.ts` | 10 |  |
+| [ ] | `src/editor/refactor/introduce.test.ts` | 11 |  |
+| [ ] | `src/editor/refactor/occurrences.test.ts` | 4 |  |
+| [ ] | `src/editor/refactor/refactor.test.ts` | 18 |  |
+| [ ] | `src/editor/refactor/refactorThis.test.ts` | 17 |  |
+| [ ] | `src/editor/refactor/runKind.test.ts` | 3 |  |
+| [ ] | `src/editor/refactor/safeDelete.test.ts` | 26 |  |
+| [ ] | `src/editor/refactor/serverIntroduce.test.ts` | 5 |  |
+| [ ] | `src/editor/structure/structure.test.ts` | 6 |  |
+| [ ] | `src/features/agents/agentRegistry.test.tsx` | 26 |  |
+| [ ] | `src/features/agents/AgentReply.test.tsx` | 4 |  |
+| [ ] | `src/features/agents/agents.test.ts` | 22 |  |
+| [ ] | `src/features/agents/AgentsView.test.tsx` | 19 |  |
+| [ ] | `src/features/agents/composerCommands.test.tsx` | 12 |  |
+| [ ] | `src/features/agents/composerFolders.test.tsx` | 11 |  |
+| [ ] | `src/features/agents/ConfigPickers.test.tsx` | 13 |  |
+| [ ] | `src/features/agents/conversation.test.ts` | 7 |  |
+| [ ] | `src/features/agents/draft.test.ts` | 1 |  |
+| [ ] | `src/features/agents/HomeEditor.test.tsx` | 4 |  |
+| [ ] | `src/features/agents/loginHint.test.ts` | 3 |  |
+| [ ] | `src/features/agents/Markdown.test.tsx` | 18 |  |
+| [ ] | `src/features/agents/markdownImages.test.ts` | 3 |  |
+| [ ] | `src/features/agents/mermaidFollow.test.tsx` | 1 |  |
+| [ ] | `src/features/agents/messageEditing.test.tsx` | 18 |  |
+| [ ] | `src/features/agents/permission.test.ts` | 6 |  |
+| [ ] | `src/features/agents/replyActions.test.ts` | 9 |  |
+| [ ] | `src/features/agents/sessionState.test.tsx` | 31 |  |
+| [ ] | `src/features/agents/unread.test.tsx` | 18 |  |
+| [ ] | `src/features/analysis/analysis.test.ts` | 8 |  |
+| [ ] | `src/features/analysis/inspect.test.ts` | 2 |  |
+| [ ] | `src/features/analysis/replacePreview.test.tsx` | 2 |  |
+| [ ] | `src/features/app/__tests__/cliCommand.test.ts` | 4 |  |
+| [ ] | `src/features/app/__tests__/closeGuard.test.ts` | 22 |  |
+| [ ] | `src/features/app/__tests__/consoleCopy.test.ts` | 12 |  |
+| [ ] | `src/features/app/__tests__/editCommand.test.ts` | 2 |  |
+| [ ] | `src/features/app/__tests__/host.test.ts` | 3 |  |
+| [ ] | `src/features/app/__tests__/ideMode.test.tsx` | 3 |  |
+| [ ] | `src/features/app/__tests__/invalidateCaches.test.tsx` | 2 |  |
+| [ ] | `src/features/app/__tests__/jetbrainsSettings.test.ts` | 4 |  |
+| [ ] | `src/features/app/__tests__/lightEditClose.test.ts` | 2 |  |
+| [ ] | `src/features/app/__tests__/menuBridge.test.ts` | 15 |  |
+| [ ] | `src/features/app/__tests__/newProject.test.ts` | 3 |  |
+| [ ] | `src/features/app/__tests__/projectName.test.ts` | 1 |  |
+| [ ] | `src/features/app/__tests__/shell.test.tsx` | 9 |  |
+| [ ] | `src/features/app/__tests__/updates.test.ts` | 17 |  |
+| [ ] | `src/features/app/__tests__/windows.test.ts` | 48 |  |
+| [ ] | `src/features/app/__tests__/WorkspaceDialog.test.tsx` | 9 |  |
+| [ ] | `src/features/build-tools/actions.test.tsx` | 4 |  |
+| [ ] | `src/features/build-tools/analyzer.test.ts` | 7 |  |
+| [ ] | `src/features/build-tools/autoReload.test.ts` | 3 |  |
+| [ ] | `src/features/build-tools/DependencyAnalyzer.test.tsx` | 6 |  |
+| [ ] | `src/features/build-tools/ExecutePopup.test.tsx` | 9 |  |
+| [ ] | `src/features/build-tools/firstImport.test.ts` | 2 |  |
+| [ ] | `src/features/build-tools/linkage.test.tsx` | 16 |  |
+| [ ] | `src/features/build-tools/model.test.ts` | 15 |  |
+| [ ] | `src/features/build-tools/pomNavigation.test.ts` | 7 |  |
+| [ ] | `src/features/build-tools/profileReload.test.ts` | 3 |  |
+| [ ] | `src/features/build-tools/versionCatalog.test.ts` | 5 |  |
+| [ ] | `src/features/build-tools/workspace.test.tsx` | 4 |  |
+| [ ] | `src/features/build/build.test.tsx` | 13 |  |
+| [ ] | `src/features/code-insight/hierarchy.test.ts` | 6 |  |
+| [ ] | `src/features/code-insight/problemsReport.test.ts` | 3 |  |
+| [ ] | `src/features/code-insight/problemsStore.test.ts` | 7 |  |
+| [ ] | `src/features/code-insight/servers.test.ts` | 4 |  |
+| [ ] | `src/features/code-insight/ServerStatus.test.tsx` | 3 |  |
+| [ ] | `src/features/code-insight/syntaxUsages.test.ts` | 6 |  |
+| [ ] | `src/features/code-insight/usageAccessFilter.test.tsx` | 3 |  |
+| [ ] | `src/features/code-insight/usagePreview.test.tsx` | 3 |  |
+| [ ] | `src/features/code-insight/usageResults.test.ts` | 7 |  |
+| [ ] | `src/features/code-insight/usagesPopup.test.tsx` | 15 |  |
+| [ ] | `src/features/code-insight/views.test.ts` | 9 |  |
+| [ ] | `src/features/code-insight/workspaceUndo.test.ts` | 3 |  |
+| [ ] | `src/features/color-preview/colors.test.ts` | 7 |  |
+| [ ] | `src/features/color-preview/pluginColors.test.ts` | 1 |  |
+| [ ] | `src/features/coverage/coverage.test.ts` | 8 |  |
+| [ ] | `src/features/database/ColumnsPopup.test.ts` | 2 |  |
+| [ ] | `src/features/database/database.test.ts` | 27 |  |
+| [ ] | `src/features/database/DatabaseView.test.tsx` | 3 |  |
+| [ ] | `src/features/database/ExportDialog.test.tsx` | 1 |  |
+| [ ] | `src/features/database/Grid.test.tsx` | 12 |  |
+| [ ] | `src/features/database/nodes.test.ts` | 2 |  |
+| [ ] | `src/features/database/objects.test.ts` | 14 |  |
+| [ ] | `src/features/database/resultEditing.test.ts` | 27 |  |
+| [ ] | `src/features/database/results-view.test.tsx` | 14 |  |
+| [ ] | `src/features/database/resultView.test.ts` | 19 |  |
+| [ ] | `src/features/database/SourceDialog.test.tsx` | 2 |  |
+| [ ] | `src/features/database/sql/format.test.ts` | 4 |  |
+| [ ] | `src/features/database/sql/readOnly.test.ts` | 2 |  |
+| [ ] | `src/features/database/sql/sql.test.ts` | 36 |  |
+| [ ] | `src/features/database/SqlFilterInput.test.tsx` | 3 |  |
+| [ ] | `src/features/database/SqlHighlight.test.tsx` | 2 |  |
+| [ ] | `src/features/database/sshConfig.test.ts` | 4 |  |
+| [ ] | `src/features/database/table-editor.test.tsx` | 4 |  |
+| [ ] | `src/features/debugger/__tests__/actions.test.ts` | 18 |  |
+| [ ] | `src/features/debugger/__tests__/attach.test.ts` | 4 |  |
+| [ ] | `src/features/debugger/__tests__/breakpoints.test.ts` | 15 |  |
+| [ ] | `src/features/debugger/__tests__/codeLines.test.ts` | 2 |  |
+| [ ] | `src/features/debugger/__tests__/console.test.ts` | 6 |  |
+| [ ] | `src/features/debugger/__tests__/debugConsoleLinks.test.tsx` | 4 |  |
+| [ ] | `src/features/debugger/__tests__/debugFind.test.tsx` | 10 |  |
+| [ ] | `src/features/debugger/__tests__/editor.test.ts` | 14 |  |
+| [ ] | `src/features/debugger/__tests__/exceptions.test.ts` | 4 |  |
+| [ ] | `src/features/debugger/__tests__/executionState.test.ts` | 10 |  |
+| [ ] | `src/features/debugger/__tests__/expressionCompletion.test.tsx` | 2 |  |
+| [ ] | `src/features/debugger/__tests__/hotswap.test.ts` | 19 |  |
+| [ ] | `src/features/debugger/__tests__/java.test.ts` | 12 |  |
+| [ ] | `src/features/debugger/__tests__/javaCancel.test.ts` | 7 |  |
+| [ ] | `src/features/debugger/__tests__/javaSeparator.test.ts` | 2 |  |
+| [ ] | `src/features/debugger/__tests__/launch.test.ts` | 21 |  |
+| [ ] | `src/features/debugger/__tests__/missingAdapter.test.ts` | 4 |  |
+| [ ] | `src/features/debugger/__tests__/quickEvaluate.test.ts` | 9 |  |
+| [ ] | `src/features/debugger/__tests__/relisten.test.ts` | 3 |  |
+| [ ] | `src/features/debugger/__tests__/remote.test.ts` | 18 |  |
+| [ ] | `src/features/debugger/__tests__/runOrigin.test.ts` | 12 |  |
+| [ ] | `src/features/debugger/__tests__/serviceConsole.test.tsx` | 4 |  |
+| [ ] | `src/features/debugger/__tests__/smartStep.test.ts` | 7 |  |
+| [ ] | `src/features/debugger/__tests__/special.test.ts` | 6 |  |
+| [ ] | `src/features/debugger/__tests__/startFailure.test.ts` | 4 |  |
+| [ ] | `src/features/debugger/__tests__/startupBreakpoints.test.ts` | 10 |  |
+| [ ] | `src/features/debugger/__tests__/symbols.test.ts` | 3 |  |
+| [ ] | `src/features/debugger/__tests__/taskbarFlash.test.ts` | 9 |  |
+| [ ] | `src/features/debugger/__tests__/toolWindow.test.tsx` | 8 |  |
+| [ ] | `src/features/debugger/__tests__/valueChanges.test.ts` | 1 |  |
+| [ ] | `src/features/debugger/__tests__/values.test.ts` | 13 |  |
+| [ ] | `src/features/debugger/__tests__/valueText.test.ts` | 5 |  |
+| [ ] | `src/features/debugger/editor/runToCursor.test.ts` | 2 |  |
+| [ ] | `src/features/dependencies/dependencies.test.ts` | 11 |  |
+| [ ] | `src/features/deployment/actions.test.tsx` | 11 |  |
+| [ ] | `src/features/deployment/comparison.test.ts` | 7 |  |
+| [ ] | `src/features/deployment/Dialogs.test.tsx` | 7 |  |
+| [ ] | `src/features/deployment/model.test.ts` | 14 |  |
+| [ ] | `src/features/deployment/remoteHost.test.ts` | 3 |  |
+| [ ] | `src/features/deployment/SyncPreview.test.tsx` | 3 |  |
+| [ ] | `src/features/deployment/window.test.ts` | 2 |  |
+| [ ] | `src/features/dotnet/store.test.ts` | 6 |  |
+| [ ] | `src/features/github/api/api.test.ts` | 10 |  |
+| [ ] | `src/features/github/clone/GitHubCloneSource.test.tsx` | 3 |  |
+| [ ] | `src/features/github/create/create.test.ts` | 15 |  |
+| [ ] | `src/features/github/create/RemoteBranchDialog.test.tsx` | 1 |  |
+| [ ] | `src/features/github/data/data.test.ts` | 24 |  |
+| [ ] | `src/features/github/data/repository.test.ts` | 1 |  |
+| [ ] | `src/features/github/details/details.test.tsx` | 5 |  |
+| [ ] | `src/features/github/details/model.test.ts` | 19 |  |
+| [ ] | `src/features/github/diff/model.test.ts` | 12 |  |
+| [ ] | `src/features/github/diff/reviewDiff.test.tsx` | 11 |  |
+| [ ] | `src/features/github/list/list.test.tsx` | 15 |  |
+| [ ] | `src/features/github/reviewMode/reviewMode.test.tsx` | 20 |  |
+| [ ] | `src/features/github/settingsPages.test.tsx` | 3 |  |
+| [ ] | `src/features/github/timeline/model.test.ts` | 21 |  |
+| [ ] | `src/features/github/toolwindow/toolwindow.test.tsx` | 8 |  |
+| [ ] | `src/features/github/ui/ui.test.tsx` | 10 |  |
+| [ ] | `src/features/graphql/graphql.test.ts` | 29 |  |
+| [ ] | `src/features/graphql/store.test.ts` | 2 |  |
+| [ ] | `src/features/http-client/endpoints.test.ts` | 3 |  |
+| [ ] | `src/features/http-client/httpClient.test.ts` | 18 |  |
+| [ ] | `src/features/http-client/spring/generate.test.ts` | 1 |  |
+| [ ] | `src/features/http-client/spring/routeIndex.test.ts` | 6 |  |
+| [ ] | `src/features/http-client/spring/spring.test.ts` | 17 |  |
+| [ ] | `src/features/libraries/libraries.test.ts` | 7 |  |
+| [ ] | `src/features/logcat/history.test.ts` | 4 |  |
+| [ ] | `src/features/logcat/model.test.ts` | 15 |  |
+| [ ] | `src/features/macros/model.test.ts` | 8 |  |
+| [ ] | `src/features/mcp/reporters.test.ts` | 4 |  |
+| [ ] | `src/features/mcp/requests.test.tsx` | 4 |  |
+| [ ] | `src/features/notebook/outputs.test.ts` | 8 |  |
+| [ ] | `src/features/notebook/OutputView.test.tsx` | 9 |  |
+| [ ] | `src/features/notebook/security.test.ts` | 4 |  |
+| [ ] | `src/features/notebook/session.test.ts` | 16 |  |
+| [ ] | `src/features/perf/__tests__/perf.test.ts` | 12 |  |
+| [ ] | `src/features/perf/__tests__/views.test.tsx` | 3 |  |
+| [ ] | `src/features/plugins/__tests__/contentEditor.test.tsx` | 10 |  |
+| [ ] | `src/features/plugins/__tests__/decorations.test.ts` | 4 |  |
+| [ ] | `src/features/plugins/__tests__/detailViews.test.tsx` | 12 |  |
+| [ ] | `src/features/plugins/__tests__/iconThemeResolver.test.ts` | 8 |  |
+| [ ] | `src/features/plugins/__tests__/iconThemes.test.ts` | 2 |  |
+| [ ] | `src/features/plugins/__tests__/intellijImport.test.tsx` | 6 |  |
+| [ ] | `src/features/plugins/__tests__/logEditor.test.tsx` | 8 |  |
+| [ ] | `src/features/plugins/__tests__/pluginIcon.test.tsx` | 7 |  |
+| [ ] | `src/features/plugins/__tests__/plugins.test.tsx` | 61 |  |
+| [ ] | `src/features/plugins/__tests__/projectUi.test.tsx` | 5 |  |
+| [ ] | `src/features/plugins/__tests__/ptyBackend.test.ts` | 1 |  |
+| [ ] | `src/features/plugins/__tests__/ptyBridge.test.ts` | 7 |  |
+| [ ] | `src/features/plugins/__tests__/runTargets.test.ts` | 4 |  |
+| [ ] | `src/features/plugins/__tests__/servicePane.test.tsx` | 4 |  |
+| [ ] | `src/features/plugins/__tests__/serviceProvider.test.tsx` | 10 |  |
+| [ ] | `src/features/plugins/__tests__/settings.test.tsx` | 12 |  |
+| [ ] | `src/features/plugins/__tests__/startupTheme.test.ts` | 4 |  |
+| [ ] | `src/features/plugins/__tests__/verbatimText.test.tsx` | 4 |  |
+| [ ] | `src/features/plugins/__tests__/viewProjection.test.tsx` | 6 |  |
+| [ ] | `src/features/plugins/__tests__/views.test.tsx` | 26 |  |
+| [ ] | `src/features/plugins/__tests__/viewWindows.test.tsx` | 12 |  |
+| [ ] | `src/features/plugins/__tests__/webViews.test.tsx` | 18 |  |
+| [ ] | `src/features/plugins/__tests__/workspaceContains.test.ts` | 13 |  |
+| [ ] | `src/features/plugins/activeFile.test.ts` | 1 |  |
+| [ ] | `src/features/plugins/indexedMarkers.test.ts` | 8 |  |
+| [ ] | `src/features/plugins/languageVisuals.test.ts` | 3 |  |
+| [ ] | `src/features/plugins/lineMarkerGutter.test.ts` | 3 |  |
+| [ ] | `src/features/plugins/markerIcons.test.ts` | 5 |  |
+| [ ] | `src/features/plugins/markerStore.test.ts` | 3 |  |
+| [ ] | `src/features/plugins/navigation.test.ts` | 9 |  |
+| [ ] | `src/features/plugins/pluginText.test.ts` | 12 |  |
+| [ ] | `src/features/profiler/profiler.test.ts` | 3 |  |
+| [ ] | `src/features/project-tree/contextMenu.test.ts` | 13 |  |
+| [ ] | `src/features/project-tree/extraRoots.test.ts` | 4 |  |
+| [ ] | `src/features/project-tree/filePath.test.ts` | 2 |  |
+| [ ] | `src/features/project-tree/fileRefactor.test.tsx` | 6 |  |
+| [ ] | `src/features/project-tree/folderKind.test.ts` | 5 |  |
+| [ ] | `src/features/project-tree/fs.test.ts` | 4 |  |
+| [ ] | `src/features/project-tree/model.test.ts` | 16 |  |
+| [ ] | `src/features/project-tree/moduleGroups.test.ts` | 6 |  |
+| [ ] | `src/features/project-tree/NewPopup.test.tsx` | 2 |  |
+| [ ] | `src/features/project-tree/newPopupModel.test.ts` | 5 |  |
+| [ ] | `src/features/project-tree/operations.test.ts` | 23 |  |
+| [ ] | `src/features/project-tree/paths.test.ts` | 9 |  |
+| [ ] | `src/features/project-tree/ProjectView.test.tsx` | 27 |  |
+| [ ] | `src/features/project-tree/roots.test.ts` | 7 |  |
+| [ ] | `src/features/project-tree/safeDelete.test.ts` | 4 |  |
+| [ ] | `src/features/project-tree/selectIn.test.ts` | 5 |  |
+| [ ] | `src/features/project-tree/store.test.ts` | 18 |  |
+| [ ] | `src/features/project-tree/undoDelete.test.ts` | 1 |  |
+| [ ] | `src/features/project-tree/unity.test.ts` | 4 |  |
+| [ ] | `src/features/project-tree/unityRefresh.test.ts` | 2 |  |
+| [ ] | `src/features/project-tree/viewModes.test.ts` | 11 |  |
+| [ ] | `src/features/project-trust/trust.test.tsx` | 7 |  |
+| [ ] | `src/features/remote-dev/ConnectDialog.test.tsx` | 5 |  |
+| [ ] | `src/features/remote-dev/container.test.ts` | 3 |  |
+| [ ] | `src/features/remote-dev/environment.test.ts` | 4 |  |
+| [ ] | `src/features/remote-dev/ports.test.tsx` | 8 |  |
+| [ ] | `src/features/remote-dev/remoteDev.test.ts` | 14 |  |
+| [ ] | `src/features/run-anything/model.test.ts` | 8 |  |
+| [ ] | `src/features/run/applicationUpdate.test.ts` | 15 |  |
+| [ ] | `src/features/run/browsePaths.test.tsx` | 3 |  |
+| [ ] | `src/features/run/buildCommand.test.ts` | 3 |  |
+| [ ] | `src/features/run/buildTask.test.ts` | 2 |  |
+| [ ] | `src/features/run/chooserPinned.test.tsx` | 5 |  |
+| [ ] | `src/features/run/chooserRunning.test.tsx` | 3 |  |
+| [ ] | `src/features/run/cmake.test.ts` | 4 |  |
+| [ ] | `src/features/run/composerInstall.test.tsx` | 2 |  |
+| [ ] | `src/features/run/configs.test.ts` | 32 |  |
+| [ ] | `src/features/run/console.test.ts` | 15 |  |
+| [ ] | `src/features/run/consoleFlush.test.ts` | 1 |  |
+| [ ] | `src/features/run/containerDebug.test.ts` | 2 |  |
+| [ ] | `src/features/run/contextRun.test.ts` | 10 |  |
+| [ ] | `src/features/run/csharpTargets.test.ts` | 5 |  |
+| [ ] | `src/features/run/dotnetTypes.test.tsx` | 4 |  |
+| [ ] | `src/features/run/executors.test.ts` | 2 |  |
+| [ ] | `src/features/run/findBar.test.tsx` | 9 |  |
+| [ ] | `src/features/run/goActions.test.ts` | 3 |  |
+| [ ] | `src/features/run/goGenerate.test.ts` | 3 |  |
+| [ ] | `src/features/run/goTypes.test.ts` | 3 |  |
+| [ ] | `src/features/run/gradleRun.test.ts` | 17 |  |
+| [ ] | `src/features/run/importAction.test.tsx` | 3 |  |
+| [ ] | `src/features/run/importConfigs.test.tsx` | 7 |  |
+| [ ] | `src/features/run/inheritedMain.test.ts` | 10 |  |
+| [ ] | `src/features/run/java.test.ts` | 36 |  |
+| [ ] | `src/features/run/javaModule.test.ts` | 19 |  |
+| [ ] | `src/features/run/jvmTypes.test.ts` | 17 |  |
+| [ ] | `src/features/run/links.test.ts` | 10 |  |
+| [ ] | `src/features/run/navigate.test.ts` | 3 |  |
+| [ ] | `src/features/run/npmGutter.test.ts` | 31 |  |
+| [ ] | `src/features/run/producers.ruby.test.ts` | 10 |  |
+| [ ] | `src/features/run/producers.test.ts` | 62 |  |
+| [ ] | `src/features/run/remote.test.tsx` | 22 |  |
+| [ ] | `src/features/run/removal.test.tsx` | 11 |  |
+| [ ] | `src/features/run/resolveCancellation.test.ts` | 2 |  |
+| [ ] | `src/features/run/rubyTargets.test.ts` | 5 |  |
+| [ ] | `src/features/run/rubyTests.test.ts` | 4 |  |
+| [ ] | `src/features/run/runConfigTypes.test.tsx` | 39 |  |
+| [ ] | `src/features/run/runtimes.test.ts` | 4 |  |
+| [ ] | `src/features/run/RunView.test.tsx` | 7 |  |
+| [ ] | `src/features/run/RunWidget.test.tsx` | 21 |  |
+| [ ] | `src/features/run/segments.test.ts` | 3 |  |
+| [ ] | `src/features/run/serviceOrder.test.ts` | 8 |  |
+| [ ] | `src/features/run/services.test.ts` | 44 |  |
+| [ ] | `src/features/run/serviceSessions.test.ts` | 9 |  |
+| [ ] | `src/features/run/session.test.tsx` | 17 |  |
+| [ ] | `src/features/run/stackTrace.test.ts` | 4 |  |
+| [ ] | `src/features/run/stopStatus.test.ts` | 3 |  |
+| [ ] | `src/features/run/targets.test.ts` | 20 |  |
+| [ ] | `src/features/run/temporarySettings.test.ts` | 1 |  |
+| [ ] | `src/features/run/terminal.test.tsx` | 7 |  |
+| [ ] | `src/features/run/testing/comparison.test.ts` | 7 |  |
+| [ ] | `src/features/run/testing/dotnet.test.ts` | 8 |  |
+| [ ] | `src/features/run/testing/go.test.ts` | 8 |  |
+| [ ] | `src/features/run/testing/parsers.test.ts` | 30 |  |
+| [ ] | `src/features/run/testing/phpunit.test.ts` | 12 |  |
+| [ ] | `src/features/run/testing/plugin.test.ts` | 3 |  |
+| [ ] | `src/features/run/testing/rerun.test.ts` | 24 |  |
+| [ ] | `src/features/run/testing/ruby.test.ts` | 14 |  |
+| [ ] | `src/features/run/testing/states.test.ts` | 5 |  |
+| [ ] | `src/features/run/testing/unittest.test.ts` | 8 |  |
+| [ ] | `src/features/run/TestTreeView.test.tsx` | 4 |  |
+| [ ] | `src/features/run/tomcat.test.tsx` | 14 |  |
+| [ ] | `src/features/run/updatePolicies.test.ts` | 4 |  |
+| [ ] | `src/features/run/useConsoleSelection.test.tsx` | 5 |  |
+| [ ] | `src/features/run/workflow.test.ts` | 6 |  |
+| [ ] | `src/features/scratch/__tests__/scratch.test.tsx` | 10 |  |
+| [ ] | `src/features/search/__tests__/bookmarkLists.test.ts` | 8 |  |
+| [ ] | `src/features/search/__tests__/bookmarkPopups.test.tsx` | 5 |  |
+| [ ] | `src/features/search/__tests__/bookmarks.test.ts` | 9 |  |
+| [ ] | `src/features/search/__tests__/codePreview.test.tsx` | 8 |  |
+| [ ] | `src/features/search/__tests__/controller.test.ts` | 9 |  |
+| [ ] | `src/features/search/__tests__/dialogs.test.tsx` | 22 |  |
+| [ ] | `src/features/search/__tests__/editorResults.test.tsx` | 1 |  |
+| [ ] | `src/features/search/__tests__/everywhereFilters.test.ts` | 10 |  |
+| [ ] | `src/features/search/__tests__/everywhereGroups.test.ts` | 4 |  |
+| [ ] | `src/features/search/__tests__/everywhereModel.test.ts` | 25 |  |
+| [ ] | `src/features/search/__tests__/fileMasks.test.ts` | 1 |  |
+| [ ] | `src/features/search/__tests__/fileStructure.test.tsx` | 4 |  |
+| [ ] | `src/features/search/__tests__/findPopup.test.tsx` | 25 |  |
+| [ ] | `src/features/search/__tests__/findScopes.test.ts` | 7 |  |
+| [ ] | `src/features/search/__tests__/findSession.test.ts` | 12 |  |
+| [ ] | `src/features/search/__tests__/findWindow.test.ts` | 5 |  |
+| [ ] | `src/features/search/__tests__/inherited.test.ts` | 2 |  |
+| [ ] | `src/features/search/__tests__/matchText.test.tsx` | 3 |  |
+| [ ] | `src/features/search/__tests__/outline.test.ts` | 11 |  |
+| [ ] | `src/features/search/__tests__/pathScopeActions.test.tsx` | 4 |  |
+| [ ] | `src/features/search/__tests__/query.test.ts` | 7 |  |
+| [ ] | `src/features/search/__tests__/rank.test.ts` | 3 |  |
+| [ ] | `src/features/search/__tests__/recent.test.ts` | 15 |  |
+| [ ] | `src/features/search/__tests__/replaceFlow.test.ts` | 9 |  |
+| [ ] | `src/features/search/__tests__/routes.test.ts` | 5 |  |
+| [ ] | `src/features/search/__tests__/searchKeys.test.ts` | 1 |  |
+| [ ] | `src/features/search/__tests__/structureAutoscroll.test.tsx` | 1 |  |
+| [ ] | `src/features/search/__tests__/toggleActions.test.ts` | 1 |  |
+| [ ] | `src/features/services/services.test.ts` | 16 |  |
+| [ ] | `src/features/services/ServicesTree.debug.test.tsx` | 10 |  |
+| [ ] | `src/features/services/ServicesTree.reorder.test.tsx` | 5 |  |
+| [ ] | `src/features/services/ServicesTree.test.tsx` | 11 |  |
+| [ ] | `src/features/settings/__tests__/addInterpreter.test.tsx` | 10 |  |
+| [ ] | `src/features/settings/__tests__/agents.test.ts` | 1 |  |
+| [ ] | `src/features/settings/__tests__/appearanceToggles.test.ts` | 2 |  |
+| [ ] | `src/features/settings/__tests__/assignShortcut.test.ts` | 3 |  |
+| [ ] | `src/features/settings/__tests__/behavior.test.ts` | 11 |  |
+| [ ] | `src/features/settings/__tests__/cmake.test.ts` | 3 |  |
+| [ ] | `src/features/settings/__tests__/cmakeEditor.test.tsx` | 2 |  |
+| [ ] | `src/features/settings/__tests__/colorScheme.test.tsx` | 12 |  |
+| [ ] | `src/features/settings/__tests__/contrast.test.ts` | 10 |  |
+| [ ] | `src/features/settings/__tests__/dialog.test.tsx` | 41 |  |
+| [ ] | `src/features/settings/__tests__/downloadJdk.test.tsx` | 2 |  |
+| [ ] | `src/features/settings/__tests__/fileTypes.test.ts` | 6 |  |
+| [ ] | `src/features/settings/__tests__/fontSync.test.ts` | 1 |  |
+| [ ] | `src/features/settings/__tests__/goBuildTags.test.ts` | 2 |  |
+| [ ] | `src/features/settings/__tests__/iconThemeSettings.test.tsx` | 5 |  |
+| [ ] | `src/features/settings/__tests__/inspections.test.ts` | 13 |  |
+| [ ] | `src/features/settings/__tests__/javaFormatter.test.tsx` | 2 |  |
+| [ ] | `src/features/settings/__tests__/keymap.test.ts` | 21 |  |
+| [ ] | `src/features/settings/__tests__/languages.test.ts` | 17 |  |
+| [ ] | `src/features/settings/__tests__/languageServerTargets.test.tsx` | 2 |  |
+| [ ] | `src/features/settings/__tests__/mainMenuStyle.test.tsx` | 3 |  |
+| [ ] | `src/features/settings/__tests__/mavenRunner.test.tsx` | 1 |  |
+| [ ] | `src/features/settings/__tests__/mcpServer.test.ts` | 3 |  |
+| [ ] | `src/features/settings/__tests__/mouseShortcut.test.tsx` | 3 |  |
+| [ ] | `src/features/settings/__tests__/pages.test.ts` | 5 |  |
+| [ ] | `src/features/settings/__tests__/phpStatus.test.tsx` | 11 |  |
+| [ ] | `src/features/settings/__tests__/phpXdebug.test.tsx` | 4 |  |
+| [ ] | `src/features/settings/__tests__/pythonStatus.test.tsx` | 12 |  |
+| [ ] | `src/features/settings/__tests__/runTargets.test.ts` | 4 |  |
+| [ ] | `src/features/settings/__tests__/settingsWindowOpen.test.ts` | 1 |  |
+| [ ] | `src/features/settings/__tests__/ssh.test.tsx` | 15 |  |
+| [ ] | `src/features/settings/__tests__/sshConnection.test.ts` | 3 |  |
+| [ ] | `src/features/settings/__tests__/staging.test.ts` | 22 |  |
+| [ ] | `src/features/settings/__tests__/window.test.ts` | 2 |  |
+| [ ] | `src/features/settings/components/FontPicker.test.tsx` | 5 |  |
+| [ ] | `src/features/settings/pages/deploymentModel.test.ts` | 9 |  |
+| [ ] | `src/features/ssh/ssh.test.ts` | 6 |  |
+| [ ] | `src/features/templates/__tests__/editor.test.ts` | 14 |  |
+| [ ] | `src/features/templates/__tests__/emmet.test.ts` | 7 |  |
+| [ ] | `src/features/templates/__tests__/files.test.ts` | 25 |  |
+| [ ] | `src/features/templates/__tests__/live.test.ts` | 18 |  |
+| [ ] | `src/features/templates/__tests__/pluginFiles.test.tsx` | 6 |  |
+| [ ] | `src/features/templates/__tests__/pluginPackages.test.ts` | 7 |  |
+| [ ] | `src/features/templates/__tests__/postfix.test.ts` | 9 |  |
+| [ ] | `src/features/templates/__tests__/snippets.test.ts` | 2 |  |
+| [ ] | `src/features/templates/__tests__/surround.test.ts` | 2 |  |
+| [ ] | `src/features/templates/__tests__/surrounders.test.ts` | 3 |  |
+| [ ] | `src/features/templates/__tests__/views.test.tsx` | 12 |  |
+| [ ] | `src/features/terminal/copyKeys.test.ts` | 4 |  |
+| [ ] | `src/features/terminal/domRowCache.test.ts` | 4 |  |
+| [ ] | `src/features/terminal/drop.test.ts` | 5 |  |
+| [ ] | `src/features/terminal/embedded.test.ts` | 4 |  |
+| [ ] | `src/features/terminal/embeddedFit.test.ts` | 2 |  |
+| [ ] | `src/features/terminal/fontLoading.test.ts` | 1 |  |
+| [ ] | `src/features/terminal/groups.test.ts` | 9 |  |
+| [ ] | `src/features/terminal/imeCommit.test.ts` | 12 |  |
+| [ ] | `src/features/terminal/imeInput.test.ts` | 20 |  |
+| [ ] | `src/features/terminal/paste.test.ts` | 24 |  |
+| [ ] | `src/features/terminal/persist.test.ts` | 7 |  |
+| [ ] | `src/features/terminal/session.test.ts` | 16 |  |
+| [ ] | `src/features/terminal/terminal.test.ts` | 42 |  |
+| [ ] | `src/features/terminal/windowsPty.test.ts` | 1 |  |
+| [ ] | `src/features/todo/PreviewEditor.test.tsx` | 7 |  |
+| [ ] | `src/features/todo/todo.test.ts` | 13 |  |
+| [ ] | `src/features/todo/TodoView.test.tsx` | 4 |  |
+| [ ] | `src/features/tools/__tests__/jdk.test.ts` | 5 |  |
+| [ ] | `src/features/tools/__tests__/serverSettings.test.tsx` | 10 |  |
+| [ ] | `src/features/tools/__tests__/tools.test.tsx` | 24 |  |
+| [ ] | `src/features/vcs/__tests__/branches.test.ts` | 13 |  |
+| [ ] | `src/features/vcs/__tests__/branchesPopupHost.test.tsx` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/branchFilterPopup.test.tsx` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/branchOps.test.ts` | 18 |  |
+| [ ] | `src/features/vcs/__tests__/branchWidgetExtensions.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/changelistMenu.test.ts` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/changelists.test.ts` | 8 |  |
+| [ ] | `src/features/vcs/__tests__/changes.test.ts` | 22 |  |
+| [ ] | `src/features/vcs/__tests__/changesCopy.test.tsx` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/changesDirectory.test.tsx` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/chunkOptimizer.test.ts` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/clone.test.ts` | 5 |  |
+| [ ] | `src/features/vcs/__tests__/commitChecks.test.ts` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/commitInclusion.test.ts` | 2 |  |
+| [ ] | `src/features/vcs/__tests__/commitMode.test.ts` | 13 |  |
+| [ ] | `src/features/vcs/__tests__/commitPreviewDiff.test.tsx` | 13 |  |
+| [ ] | `src/features/vcs/__tests__/compareActions.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/compareFlow.test.ts` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/confirmations.test.ts` | 31 |  |
+| [ ] | `src/features/vcs/__tests__/conflictBanner.test.tsx` | 2 |  |
+| [ ] | `src/features/vcs/__tests__/conflictMarkerEdits.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/conflictMarkers.test.ts` | 5 |  |
+| [ ] | `src/features/vcs/__tests__/conflicts.test.ts` | 6 |  |
+| [ ] | `src/features/vcs/__tests__/decorations.test.ts` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/deleteBranches.test.ts` | 11 |  |
+| [ ] | `src/features/vcs/__tests__/deleteFiles.test.ts` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/diffChain.test.ts` | 5 |  |
+| [ ] | `src/features/vcs/__tests__/diffDialog.test.tsx` | 8 |  |
+| [ ] | `src/features/vcs/__tests__/diffFind.test.tsx` | 9 |  |
+| [ ] | `src/features/vcs/__tests__/diffNavigation.test.ts` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/diffOptions.test.ts` | 25 |  |
+| [ ] | `src/features/vcs/__tests__/diffScroll.test.ts` | 10 |  |
+| [ ] | `src/features/vcs/__tests__/diffStripe.test.ts` | 7 |  |
+| [ ] | `src/features/vcs/__tests__/diffToolbar.test.tsx` | 25 |  |
+| [ ] | `src/features/vcs/__tests__/diffViewerProviders.test.tsx` | 5 |  |
+| [ ] | `src/features/vcs/__tests__/directoryCompare.test.tsx` | 6 |  |
+| [ ] | `src/features/vcs/__tests__/directoryCompareActions.test.ts` | 5 |  |
+| [ ] | `src/features/vcs/__tests__/fileTree.test.ts` | 2 |  |
+| [ ] | `src/features/vcs/__tests__/folderCompare.test.tsx` | 8 |  |
+| [ ] | `src/features/vcs/__tests__/GitMergeDiff.test.tsx` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/gitOps.test.ts` | 14 |  |
+| [ ] | `src/features/vcs/__tests__/graph.test.ts` | 9 |  |
+| [ ] | `src/features/vcs/__tests__/historyOps.test.ts` | 10 |  |
+| [ ] | `src/features/vcs/__tests__/hunks.test.ts` | 15 |  |
+| [ ] | `src/features/vcs/__tests__/ignore.test.ts` | 7 |  |
+| [ ] | `src/features/vcs/__tests__/inlineBlame.test.ts` | 15 |  |
+| [ ] | `src/features/vcs/__tests__/localChanges.test.tsx` | 13 |  |
+| [ ] | `src/features/vcs/__tests__/localHistory.test.tsx` | 5 |  |
+| [ ] | `src/features/vcs/__tests__/logBranches.test.tsx` | 13 |  |
+| [ ] | `src/features/vcs/__tests__/logBranchMemory.test.ts` | 10 |  |
+| [ ] | `src/features/vcs/__tests__/logDetails.test.tsx` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/logFilters.test.ts` | 7 |  |
+| [ ] | `src/features/vcs/__tests__/logGraphCorrectness.test.tsx` | 10 |  |
+| [ ] | `src/features/vcs/__tests__/logLoading.test.ts` | 14 |  |
+| [ ] | `src/features/vcs/__tests__/logOptions.test.ts` | 17 |  |
+| [ ] | `src/features/vcs/__tests__/logPanes.test.tsx` | 13 |  |
+| [ ] | `src/features/vcs/__tests__/logSearch.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/logUiFeatures.test.tsx` | 11 |  |
+| [ ] | `src/features/vcs/__tests__/logViews.test.tsx` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/mergeActions.test.ts` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/mergeDiff3.test.ts` | 23 |  |
+| [ ] | `src/features/vcs/__tests__/mergeModel.test.ts` | 32 |  |
+| [ ] | `src/features/vcs/__tests__/mergeRebaseWidget.test.tsx` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/mergeScroll.test.ts` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/modalDiffWindow.test.ts` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/movedCode.test.tsx` | 15 |  |
+| [ ] | `src/features/vcs/__tests__/multiPushTarget.test.tsx` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/multiRepoRollback.test.ts` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/multiRoot.test.ts` | 14 |  |
+| [ ] | `src/features/vcs/__tests__/multiRootStashes.test.tsx` | 2 |  |
+| [ ] | `src/features/vcs/__tests__/multiRootTags.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/patchFileManager.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/pluginCommit.test.ts` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/projectSwitch.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/promptDialog.test.tsx` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/pushChanges.test.tsx` | 4 |  |
+| [ ] | `src/features/vcs/__tests__/pushRejected.test.ts` | 6 |  |
+| [ ] | `src/features/vcs/__tests__/pushTarget.test.ts` | 7 |  |
+| [ ] | `src/features/vcs/__tests__/recentChanges.test.ts` | 2 |  |
+| [ ] | `src/features/vcs/__tests__/remoteResults.test.ts` | 6 |  |
+| [ ] | `src/features/vcs/__tests__/repoBranches.test.ts` | 17 |  |
+| [ ] | `src/features/vcs/__tests__/repositoryPaths.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/rollback.test.ts` | 3 |  |
+| [ ] | `src/features/vcs/__tests__/selectionHistory.test.tsx` | 6 |  |
+| [ ] | `src/features/vcs/__tests__/shelf.test.tsx` | 9 |  |
+| [ ] | `src/features/vcs/__tests__/show-diff-chain.test.ts` | 16 |  |
+| [ ] | `src/features/vcs/__tests__/testFileColor.test.tsx` | 2 |  |
+| [ ] | `src/features/vcs/__tests__/viewerCaret.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/viewerFont.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/__tests__/workflow.test.ts` | 11 |  |
+| [ ] | `src/features/vcs/__tests__/worktreesPanel.test.tsx` | 5 |  |
+| [ ] | `src/features/vcs/comparison/__tests__/idea.test.ts` | 1 |  |
+| [ ] | `src/features/vcs/diffBlame.test.ts` | 3 |  |
+| [ ] | `src/features/vcs/worktrees.test.ts` | 8 |  |
+| [ ] | `src/features/viewers/file-probe.test.ts` | 3 |  |
+| [ ] | `src/features/viewers/markdown/mermaid.test.ts` | 13 |  |
+| [ ] | `src/features/viewers/markdown/previewDetails.test.tsx` | 1 |  |
+| [ ] | `src/features/viewers/markdown/previewOnly.test.tsx` | 5 |  |
+| [ ] | `src/features/viewers/markdown/previewScroll.test.tsx` | 1 |  |
+| [ ] | `src/features/viewers/markdown/render.test.ts` | 16 |  |
+| [ ] | `src/features/viewers/markdown/zoom.test.tsx` | 7 |  |
+| [ ] | `src/features/viewers/viewers.test.ts` | 11 |  |
+| [ ] | `src/features/vim/__tests__/conflicts.test.ts` | 7 |  |
+| [ ] | `src/features/vim/__tests__/rc.test.ts` | 17 |  |
+| [ ] | `src/features/vim/__tests__/vim.test.ts` | 17 |  |
+| [ ] | `src/features/welcome/openRecent.test.ts` | 2 |  |
+| [ ] | `src/features/welcome/recent.test.ts` | 9 |  |
+| [ ] | `src/features/welcome/session.test.ts` | 6 |  |
+| [ ] | `src/features/welcome/welcome.test.tsx` | 9 |  |
+| [ ] | `src/platform/actions.test.ts` | 1 |  |
+| [ ] | `src/platform/auxWindow.test.ts` | 2 |  |
+| [ ] | `src/platform/boot.test.ts` | 11 |  |
+| [ ] | `src/platform/buildFiles.test.ts` | 1 |  |
+| [ ] | `src/platform/buildToolRecovery.test.ts` | 3 |  |
+| [ ] | `src/platform/candidateFonts.test.ts` | 5 |  |
+| [ ] | `src/platform/classFiles.test.ts` | 3 |  |
+| [ ] | `src/platform/clipboard.test.ts` | 3 |  |
+| [ ] | `src/platform/colorScheme.test.ts` | 14 |  |
+| [ ] | `src/platform/commandLine.test.ts` | 5 |  |
+| [ ] | `src/platform/context.test.ts` | 4 |  |
+| [ ] | `src/platform/copyPath.test.ts` | 3 |  |
+| [ ] | `src/platform/cssColor.test.ts` | 2 |  |
+| [ ] | `src/platform/dateFormat.test.ts` | 2 |  |
+| [ ] | `src/platform/deploymentSettings.test.ts` | 3 |  |
+| [ ] | `src/platform/dotnet.test.ts` | 6 |  |
+| [ ] | `src/platform/dotnetProcess.test.ts` | 4 |  |
+| [ ] | `src/platform/doubleClick.test.ts` | 5 |  |
+| [ ] | `src/platform/errorLog.test.ts` | 2 |  |
+| [ ] | `src/platform/fileManager.test.ts` | 8 |  |
+| [ ] | `src/platform/filePresentation.cache.test.tsx` | 5 |  |
+| [ ] | `src/platform/filePresentation.test.ts` | 6 |  |
+| [ ] | `src/platform/fonts.test.ts` | 12 |  |
+| [ ] | `src/platform/gitRefName.test.ts` | 2 |  |
+| [ ] | `src/platform/i18n.test.ts` | 31 |  |
+| [ ] | `src/platform/icls.test.ts` | 22 |  |
+| [ ] | `src/platform/inspectionControls.test.ts` | 5 |  |
+| [ ] | `src/platform/inspections.test.ts` | 8 |  |
+| [ ] | `src/platform/jdk.test.ts` | 4 |  |
+| [ ] | `src/platform/keymap.test.ts` | 18 |  |
+| [ ] | `src/platform/keymapMouse.test.ts` | 13 |  |
+| [ ] | `src/platform/keymaps/eclipse.test.ts` | 8 |  |
+| [ ] | `src/platform/keymaps/ideaParity.test.ts` | 2 |  |
+| [ ] | `src/platform/keymaps/navExtras.test.ts` | 2 |  |
+| [ ] | `src/platform/keymaps/newElement.test.ts` | 2 |  |
+| [ ] | `src/platform/keymaps/windows.test.ts` | 6 |  |
+| [ ] | `src/platform/locales/actionTitles.test.ts` | 1 |  |
+| [ ] | `src/platform/locales/textCatalog.test.ts` | 9 |  |
+| [ ] | `src/platform/nativeDrop.test.ts` | 2 |  |
+| [ ] | `src/platform/pageSwipe.test.ts` | 9 |  |
+| [ ] | `src/platform/paths.test.ts` | 3 |  |
+| [ ] | `src/platform/platformInfo.test.ts` | 2 |  |
+| [ ] | `src/platform/pointerFocus.test.ts` | 3 |  |
+| [ ] | `src/platform/project.test.ts` | 6 |  |
+| [ ] | `src/platform/projectPresentation.test.ts` | 7 |  |
+| [ ] | `src/platform/projectRoots.test.ts` | 8 |  |
+| [ ] | `src/platform/proxySettings.test.ts` | 6 |  |
+| [ ] | `src/platform/remote.test.ts` | 6 |  |
+| [ ] | `src/platform/remoteSettings.test.ts` | 16 |  |
+| [ ] | `src/platform/reordered-tap-click.test.ts` | 12 |  |
+| [ ] | `src/platform/search.test.ts` | 4 |  |
+| [ ] | `src/platform/systemFonts.test.ts` | 5 |  |
+| [ ] | `src/platform/themes.test.ts` | 8 |  |
+| [ ] | `src/platform/virtualDocs.test.ts` | 3 |  |
+| [ ] | `src/platform/webkitCompatibility.test.ts` | 1 |  |
+| [ ] | `src/platform/windowGroups.test.ts` | 2 |  |
+| [ ] | `src/platform/workflowSettings.test.ts` | 3 |  |
+| [ ] | `src/test/syntax.test.ts` | 3 |  |
+| [ ] | `src/ui/consoleFind.test.ts` | 11 |  |
+| [ ] | `src/ui/Dialog.test.tsx` | 17 |  |
+| [ ] | `src/ui/FloatingToolbar.test.tsx` | 5 |  |
+| [ ] | `src/ui/iconAppearance.test.tsx` | 2 |  |
+| [ ] | `src/ui/icons.test.tsx` | 14 |  |
+| [ ] | `src/ui/List.test.tsx` | 6 |  |
+| [ ] | `src/ui/LogPane.test.tsx` | 6 |  |
+| [ ] | `src/ui/menuAim.test.ts` | 4 |  |
+| [ ] | `src/ui/Mnemonic.test.tsx` | 2 |  |
+| [ ] | `src/ui/patternIndex.test.ts` | 3 |  |
+| [ ] | `src/ui/pointerDrag.test.ts` | 6 |  |
+| [ ] | `src/ui/Popup.test.tsx` | 13 |  |
+| [ ] | `src/ui/rowSelection.test.ts` | 1 |  |
+| [ ] | `src/ui/Scrollbar.test.tsx` | 1 |  |
+| [ ] | `src/ui/Select.test.tsx` | 13 |  |
+| [ ] | `src/ui/selectableSurfaces.test.tsx` | 4 |  |
+| [ ] | `src/ui/selectableText.test.ts` | 10 |  |
+| [ ] | `src/ui/SourcePreview.test.tsx` | 7 |  |
+| [ ] | `src/ui/Tabs.test.tsx` | 21 |  |
+| [ ] | `src/ui/Tooltip.test.tsx` | 4 |  |
+| [ ] | `src/ui/Tree.reorder.test.tsx` | 8 |  |
+| [ ] | `src/ui/Tree.test.tsx` | 30 |  |
+| [ ] | `src/ui/useSelectionBoundary.test.tsx` | 6 |  |
+| [ ] | `src/workbench/browserGuards.test.ts` | 5 |  |
+| [ ] | `src/workbench/buildToolRecovery.test.ts` | 2 |  |
+| [ ] | `src/workbench/ContributedToolbar.test.tsx` | 1 |  |
+| [ ] | `src/workbench/decorations.test.ts` | 1 |  |
+| [ ] | `src/workbench/distractionFree.test.tsx` | 14 |  |
+| [ ] | `src/workbench/endpointProviders.test.ts` | 2 |  |
+| [ ] | `src/workbench/fileDrop.test.ts` | 9 |  |
+| [ ] | `src/workbench/fileEditors.test.ts` | 3 |  |
+| [ ] | `src/workbench/focus.test.ts` | 6 |  |
+| [ ] | `src/workbench/lightEdit.test.tsx` | 7 |  |
+| [ ] | `src/workbench/MainMenu.interaction.test.tsx` | 10 |  |
+| [ ] | `src/workbench/MainMenu.test.ts` | 3 |  |
+| [ ] | `src/workbench/mainToolbar.test.ts` | 3 |  |
+| [ ] | `src/workbench/messages.test.tsx` | 4 |  |
+| [ ] | `src/workbench/nativeTitlebar.test.tsx` | 7 |  |
+| [ ] | `src/workbench/projectColor.test.ts` | 1 |  |
+| [ ] | `src/workbench/projectNotifications.test.ts` | 1 |  |
+| [ ] | `src/workbench/projectWindow.test.ts` | 4 |  |
+| [ ] | `src/workbench/providerAcquisition.test.ts` | 4 |  |
+| [ ] | `src/workbench/quickSwitch.test.tsx` | 5 |  |
+| [ ] | `src/workbench/runningProcesses.test.ts` | 3 |  |
+| [ ] | `src/workbench/statusBarWidgets.test.tsx` | 4 |  |
+| [ ] | `src/workbench/stopBackground.test.ts` | 1 |  |
+| [ ] | `src/workbench/tasks.test.tsx` | 9 |  |
+| [ ] | `src/workbench/theme.test.ts` | 2 |  |
+| [ ] | `src/workbench/TitleBar.test.tsx` | 8 |  |
+| [ ] | `src/workbench/toolwindows/badges.test.tsx` | 1 |  |
+| [ ] | `src/workbench/toolwindows/content.test.ts` | 1 |  |
+| [ ] | `src/workbench/toolwindows/header.test.tsx` | 5 |  |
+| [ ] | `src/workbench/toolwindows/layouts.test.ts` | 5 |  |
+| [ ] | `src/workbench/toolwindows/occurrences.test.ts` | 3 |  |
+| [ ] | `src/workbench/toolwindows/store.test.ts` | 26 |  |
+| [ ] | `src/workbench/window-drag.test.ts` | 5 |  |
+| [ ] | `src/workbench/WindowGroupTabs.test.tsx` | 3 |  |
+| [ ] | `src/workbench/Workbench.test.tsx` | 18 |  |
 
 ## Behaviour specification: end-to-end specs (Playwright) (0/70 at parity)
 
-|     | Spec                                   | Cases | Proof |
-| --- | -------------------------------------- | ----- | ----- |
-| [ ] | `e2e/agentApproval.spec.ts`            | 1     |       |
-| [ ] | `e2e/agentMarkdown.spec.ts`            | 12    |       |
-| [ ] | `e2e/agentScroll.spec.ts`              | 2     |       |
-| [ ] | `e2e/agentsDock.spec.ts`               | 3     |       |
-| [ ] | `e2e/angularInline.spec.ts`            | 1     |       |
-| [ ] | `e2e/attachProject.spec.ts`            | 3     |       |
-| [ ] | `e2e/boot.spec.ts`                     | 4     |       |
-| [ ] | `e2e/clickhouse-source.spec.ts`        | 1     |       |
-| [ ] | `e2e/codeInsight.spec.ts`              | 7     |       |
-| [ ] | `e2e/commentToggle.spec.ts`            | 1     |       |
-| [ ] | `e2e/commit.spec.ts`                   | 1     |       |
-| [ ] | `e2e/commitInclusion.spec.ts`          | 1     |       |
-| [ ] | `e2e/compactSettingsControls.spec.ts`  | 2     |       |
-| [ ] | `e2e/compareWith.spec.ts`              | 4     |       |
-| [ ] | `e2e/configurationNavigation.spec.ts`  | 3     |       |
-| [ ] | `e2e/conflictMarkers.spec.ts`          | 1     |       |
-| [ ] | `e2e/console-selection.spec.ts`        | 3     |       |
-| [ ] | `e2e/cornerInset.spec.ts`              | 1     |       |
-| [ ] | `e2e/databaseDialogLayout.spec.ts`     | 1     |       |
-| [ ] | `e2e/debug.spec.ts`                    | 1     |       |
-| [ ] | `e2e/deployment.spec.ts`               | 4     |       |
-| [ ] | `e2e/diff-navigation.spec.ts`          | 3     |       |
-| [ ] | `e2e/diff.spec.ts`                     | 11    |       |
-| [ ] | `e2e/editor.spec.ts`                   | 8     |       |
-| [ ] | `e2e/gitIgnore.spec.ts`                | 1     |       |
-| [ ] | `e2e/gitLogBranchMenu.spec.ts`         | 1     |       |
-| [ ] | `e2e/gitLogCommitChecks.spec.ts`       | 1     |       |
-| [ ] | `e2e/gitLogScrollbar.spec.ts`          | 1     |       |
-| [ ] | `e2e/goHighlight.spec.ts`              | 1     |       |
-| [ ] | `e2e/hierarchyRefactor.spec.ts`        | 3     |       |
-| [ ] | `e2e/httpHighlight.spec.ts`            | 1     |       |
-| [ ] | `e2e/icls-php.spec.ts`                 | 1     |       |
-| [ ] | `e2e/keymap.spec.ts`                   | 1     |       |
-| [ ] | `e2e/kotlinHighlight.spec.ts`          | 2     |       |
-| [ ] | `e2e/linkedGradle.spec.ts`             | 1     |       |
-| [ ] | `e2e/mergeEditor.spec.ts`              | 16    |       |
-| [ ] | `e2e/newBranch.spec.ts`                | 4     |       |
-| [ ] | `e2e/openProject.spec.ts`              | 1     |       |
-| [ ] | `e2e/oracle-source.spec.ts`            | 1     |       |
-| [ ] | `e2e/overviewLane.spec.ts`             | 2     |       |
-| [ ] | `e2e/overviewLaneSelection.spec.ts`    | 1     |       |
-| [ ] | `e2e/pageScroll.spec.ts`               | 2     |       |
-| [ ] | `e2e/plugin-settings.spec.ts`          | 1     |       |
-| [ ] | `e2e/pluginDetails.spec.ts`            | 1     |       |
-| [ ] | `e2e/pluginEndpoints.spec.ts`          | 1     |       |
-| [ ] | `e2e/pluginFileTemplates.spec.ts`      | 1     |       |
-| [ ] | `e2e/pluginMarkerIcons.spec.ts`        | 1     |       |
-| [ ] | `e2e/pluginNotifications.spec.ts`      | 1     |       |
-| [ ] | `e2e/pluginViews.spec.ts`              | 1     |       |
-| [ ] | `e2e/postfixRowLayout.spec.ts`         | 1     |       |
-| [ ] | `e2e/projectTree.spec.ts`              | 6     |       |
-| [ ] | `e2e/pythonHighlight.spec.ts`          | 1     |       |
-| [ ] | `e2e/run.spec.ts`                      | 4     |       |
-| [ ] | `e2e/sdkFieldLayout.spec.ts`           | 2     |       |
-| [ ] | `e2e/search.spec.ts`                   | 4     |       |
-| [ ] | `e2e/selectPopupLayout.spec.ts`        | 1     |       |
-| [ ] | `e2e/semanticStyle.spec.ts`            | 1     |       |
-| [ ] | `e2e/services.spec.ts`                 | 2     |       |
-| [ ] | `e2e/settings.spec.ts`                 | 5     |       |
-| [ ] | `e2e/settingsHeaderLayout.spec.ts`     | 1     |       |
-| [ ] | `e2e/settingsListLayout.spec.ts`       | 1     |       |
-| [ ] | `e2e/settingsPaneLayout.spec.ts`       | 4     |       |
-| [ ] | `e2e/stripeTooltip.spec.ts`            | 2     |       |
-| [ ] | `e2e/terminal-clipboard.spec.ts`       | 1     |       |
-| [ ] | `e2e/themes.spec.ts`                   | 5     |       |
-| [ ] | `e2e/toolwindows.spec.ts`              | 10    |       |
-| [ ] | `e2e/treeWidth.spec.ts`                | 6     |       |
-| [ ] | `e2e/updates.spec.ts`                  | 2     |       |
-| [ ] | `e2e/usage-highlight-contrast.spec.ts` | 1     |       |
-| [ ] | `e2e/workbench.spec.ts`                | 3     |       |
+| | Spec | Cases | Proof |
+|---|---|---|---|
+| [ ] | `e2e/agentApproval.spec.ts` | 1 |  |
+| [ ] | `e2e/agentMarkdown.spec.ts` | 12 |  |
+| [ ] | `e2e/agentScroll.spec.ts` | 2 |  |
+| [ ] | `e2e/agentsDock.spec.ts` | 3 |  |
+| [ ] | `e2e/angularInline.spec.ts` | 1 |  |
+| [ ] | `e2e/attachProject.spec.ts` | 3 |  |
+| [ ] | `e2e/boot.spec.ts` | 4 |  |
+| [ ] | `e2e/clickhouse-source.spec.ts` | 1 |  |
+| [ ] | `e2e/codeInsight.spec.ts` | 7 |  |
+| [ ] | `e2e/commentToggle.spec.ts` | 1 |  |
+| [ ] | `e2e/commit.spec.ts` | 1 |  |
+| [ ] | `e2e/commitInclusion.spec.ts` | 1 |  |
+| [ ] | `e2e/compactSettingsControls.spec.ts` | 2 |  |
+| [ ] | `e2e/compareWith.spec.ts` | 4 |  |
+| [ ] | `e2e/configurationNavigation.spec.ts` | 3 |  |
+| [ ] | `e2e/conflictMarkers.spec.ts` | 1 |  |
+| [ ] | `e2e/console-selection.spec.ts` | 3 |  |
+| [ ] | `e2e/cornerInset.spec.ts` | 1 |  |
+| [ ] | `e2e/databaseDialogLayout.spec.ts` | 1 |  |
+| [ ] | `e2e/debug.spec.ts` | 1 |  |
+| [ ] | `e2e/deployment.spec.ts` | 4 |  |
+| [ ] | `e2e/diff-navigation.spec.ts` | 3 |  |
+| [ ] | `e2e/diff.spec.ts` | 11 |  |
+| [ ] | `e2e/editor.spec.ts` | 8 |  |
+| [ ] | `e2e/gitIgnore.spec.ts` | 1 |  |
+| [ ] | `e2e/gitLogBranchMenu.spec.ts` | 1 |  |
+| [ ] | `e2e/gitLogCommitChecks.spec.ts` | 1 |  |
+| [ ] | `e2e/gitLogScrollbar.spec.ts` | 1 |  |
+| [ ] | `e2e/goHighlight.spec.ts` | 1 |  |
+| [ ] | `e2e/hierarchyRefactor.spec.ts` | 3 |  |
+| [ ] | `e2e/httpHighlight.spec.ts` | 1 |  |
+| [ ] | `e2e/icls-php.spec.ts` | 1 |  |
+| [ ] | `e2e/keymap.spec.ts` | 1 |  |
+| [ ] | `e2e/kotlinHighlight.spec.ts` | 2 |  |
+| [ ] | `e2e/linkedGradle.spec.ts` | 1 |  |
+| [ ] | `e2e/mergeEditor.spec.ts` | 16 |  |
+| [ ] | `e2e/newBranch.spec.ts` | 4 |  |
+| [ ] | `e2e/openProject.spec.ts` | 1 |  |
+| [ ] | `e2e/oracle-source.spec.ts` | 1 |  |
+| [ ] | `e2e/overviewLane.spec.ts` | 2 |  |
+| [ ] | `e2e/overviewLaneSelection.spec.ts` | 1 |  |
+| [ ] | `e2e/pageScroll.spec.ts` | 2 |  |
+| [ ] | `e2e/plugin-settings.spec.ts` | 1 |  |
+| [ ] | `e2e/pluginDetails.spec.ts` | 1 |  |
+| [ ] | `e2e/pluginEndpoints.spec.ts` | 1 |  |
+| [ ] | `e2e/pluginFileTemplates.spec.ts` | 1 |  |
+| [ ] | `e2e/pluginMarkerIcons.spec.ts` | 1 |  |
+| [ ] | `e2e/pluginNotifications.spec.ts` | 1 |  |
+| [ ] | `e2e/pluginViews.spec.ts` | 1 |  |
+| [ ] | `e2e/postfixRowLayout.spec.ts` | 1 |  |
+| [ ] | `e2e/projectTree.spec.ts` | 6 |  |
+| [ ] | `e2e/pythonHighlight.spec.ts` | 1 |  |
+| [ ] | `e2e/run.spec.ts` | 4 |  |
+| [ ] | `e2e/sdkFieldLayout.spec.ts` | 2 |  |
+| [ ] | `e2e/search.spec.ts` | 4 |  |
+| [ ] | `e2e/selectPopupLayout.spec.ts` | 1 |  |
+| [ ] | `e2e/semanticStyle.spec.ts` | 1 |  |
+| [ ] | `e2e/services.spec.ts` | 2 |  |
+| [ ] | `e2e/settings.spec.ts` | 5 |  |
+| [ ] | `e2e/settingsHeaderLayout.spec.ts` | 1 |  |
+| [ ] | `e2e/settingsListLayout.spec.ts` | 1 |  |
+| [ ] | `e2e/settingsPaneLayout.spec.ts` | 4 |  |
+| [ ] | `e2e/stripeTooltip.spec.ts` | 2 |  |
+| [ ] | `e2e/terminal-clipboard.spec.ts` | 1 |  |
+| [ ] | `e2e/themes.spec.ts` | 5 |  |
+| [ ] | `e2e/toolwindows.spec.ts` | 10 |  |
+| [ ] | `e2e/treeWidth.spec.ts` | 6 |  |
+| [ ] | `e2e/updates.spec.ts` | 2 |  |
+| [ ] | `e2e/usage-highlight-contrast.spec.ts` | 1 |  |
+| [ ] | `e2e/workbench.spec.ts` | 3 |  |
