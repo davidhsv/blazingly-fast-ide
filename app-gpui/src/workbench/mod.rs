@@ -1,6 +1,8 @@
 //! The window shell. For now: a frame around one editor (LightEdit), which is the part of the
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
+pub mod tool_windows;
+
 use crate::backend::Backend;
 use crate::editor::view::Editor;
 use crate::platform::input;

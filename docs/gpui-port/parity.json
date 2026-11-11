@@ -194,5 +194,69 @@
   "context:editorLangId": {
     "status": "done",
     "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+  },
+  "unit:src/platform/paths.test.ts": {
+    "status": "done",
+    "proof": "`platform::paths::tests`"
+  },
+  "module:src/platform/paths.ts": {
+    "status": "done",
+    "proof": "`platform::paths::tests`"
+  },
+  "unit:src/platform/gitRefName.test.ts": {
+    "status": "done",
+    "proof": "`platform::git_ref_name::tests`"
+  },
+  "module:src/platform/gitRefName.ts": {
+    "status": "done",
+    "proof": "`platform::git_ref_name::tests`"
+  },
+  "unit:src/platform/commandLine.test.ts": {
+    "status": "done",
+    "proof": "`platform::command_line::tests`"
+  },
+  "module:src/platform/commandLine.ts": {
+    "status": "done",
+    "proof": "`platform::command_line::tests`"
+  },
+  "unit:src/platform/cssColor.test.ts": {
+    "status": "partial",
+    "proof": "`platform::css_color::tests`; the computed-style probe of the second case needs a DOM and has no counterpart"
+  },
+  "module:src/platform/cssColor.ts": {
+    "status": "partial",
+    "proof": "`platform::css_color::tests`; `rgb()` parsing is the token engine's, which is stricter about separators and clamps channels"
+  },
+  "unit:src/platform/projectRoots.test.ts": {
+    "status": "done",
+    "proof": "`platform::project_roots::tests`"
+  },
+  "module:src/platform/projectRoots.ts": {
+    "status": "partial",
+    "proof": "`platform::project_roots::tests`; loading detected roots from the backend and its subscriptions are not wired"
+  },
+  "unit:src/workbench/toolwindows/store.test.ts": {
+    "status": "partial",
+    "proof": "`workbench::tool_windows::tests`; the case about `toolwindow.<id>` actions needs the action registrations, which do not exist yet"
+  },
+  "unit:src/workbench/toolwindows/layouts.test.ts": {
+    "status": "partial",
+    "proof": "`workbench::tool_windows::tests`; restoring through the `layout.restore` action is not ported"
+  },
+  "unit:src/workbench/toolwindows/content.test.ts": {
+    "status": "done",
+    "proof": "`workbench::tool_windows::tests`"
+  },
+  "module:src/workbench/toolwindows/store.ts": {
+    "status": "partial",
+    "proof": "`workbench::tool_windows::tests`; the model only: no window uses it yet"
+  },
+  "module:src/workbench/toolwindows/layouts.ts": {
+    "status": "partial",
+    "proof": "`workbench::tool_windows::tests`; the model only: no window uses it yet"
+  },
+  "module:src/workbench/toolwindows/content.ts": {
+    "status": "partial",
+    "proof": "`workbench::tool_windows::tests`; the model only: no window uses it yet"
   }
 }
