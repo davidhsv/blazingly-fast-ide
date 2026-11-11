@@ -86,5 +86,9 @@
   "module:src/platform/actions.ts": {
     "status": "partial",
     "proof": "`platform::actions::tests`, `platform::input::tests`; handlers exist for no feature action yet"
+  },
+  "design:icons": {
+    "status": "done",
+    "proof": "`theme::icons::tests`"
   }
 }

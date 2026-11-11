@@ -28,6 +28,9 @@ ide-workspace = { path = "../crates/ide-workspace" }
 ide-syntax = { path = "../crates/ide-syntax" }
 ide-text = { path = "../crates/ide-text" }
 ide-vfs = { path = "../crates/ide-vfs" }
+ide-ssh = { path = "../crates/ide-ssh" }
+dirs = "6"
+futures = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
@@ -38,6 +41,7 @@ anyhow = "1"
 
 [dev-dependencies]
 gpui-kit = { version = "=0.9.1", features = ["test-support"] }
+tempfile = "3"
 
 [profile.dev]
 opt-level = 0

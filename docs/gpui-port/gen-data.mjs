@@ -298,24 +298,29 @@ function contributionManifest() {
   );
 }
 
-function iconTable() {
+/** The `ICONS` (name → SVG path) and `SYMBOL_ICONS` (symbol kind → SVG path) tables. */
+function iconTables() {
   const source = appSources.find((s) => rel(s.fileName) === "src/ui/icons.tsx");
-  let table = null;
+  const tables = {};
   const visit = (node) => {
-    if (ts.isVariableDeclaration(node) && node.name.getText() === "ICONS" && node.initializer) {
+    if (ts.isVariableDeclaration(node) && ["ICONS", "SYMBOL_ICONS"].includes(node.name.getText()) && node.initializer) {
       const object = objectLiterals(node.initializer)[0];
-      if (object) table = staticObject(object);
+      if (object) tables[node.name.getText()] = staticObject(object);
     }
-    if (!table) ts.forEachChild(node, visit);
+    ts.forEachChild(node, visit);
   };
   visit(source);
-  if (!table || Object.keys(table).length < 300) throw new Error("the ICONS table of src/ui/icons.tsx did not resolve");
-  for (const [name, path] of Object.entries(table)) {
-    const file = path.startsWith("openidea/") ? `src/ui/${path}.svg` : `src/ui/expui/${path}.svg`;
-    if (typeof path !== "string" || !existsSync(join(root, file)))
-      throw new Error(`icon ${name}: ${file} does not exist`);
+  const { ICONS: icons, SYMBOL_ICONS: symbols } = tables;
+  if (!icons || Object.keys(icons).length < 300) throw new Error("the ICONS table of src/ui/icons.tsx did not resolve");
+  if (!symbols || Object.keys(symbols).length < 10)
+    throw new Error("the SYMBOL_ICONS table of src/ui/icons.tsx did not resolve");
+  for (const [name, path] of [...Object.entries(icons), ...Object.entries(symbols)]) {
+    const file =
+      typeof path === "string" && (path.startsWith("openidea/") ? `src/ui/${path}.svg` : `src/ui/expui/${path}.svg`);
+    if (!file || !existsSync(join(root, file))) throw new Error(`icon ${name}: ${file} does not exist`);
   }
-  return Object.fromEntries(Object.entries(table).sort(([a], [b]) => a.localeCompare(b)));
+  const sortedEntries = (table) => Object.fromEntries(Object.entries(table).sort(([a], [b]) => a.localeCompare(b)));
+  return { icons: sortedEntries(icons), symbols: sortedEntries(symbols) };
 }
 
 emit("keymaps.json", keymaps());
@@ -323,7 +328,7 @@ const manifest = actionManifest();
 if (manifest.actions.length < 600) throw new Error(`only ${manifest.actions.length} actions resolved`);
 emit("actions.json", manifest);
 emit("contributions.json", contributionManifest());
-emit("icons.json", iconTable());
+emit("icons.json", iconTables());
 
 if (stale.length) {
   console.error(`stale: ${stale.join(", ")} — run node docs/gpui-port/gen-data.mjs`);
