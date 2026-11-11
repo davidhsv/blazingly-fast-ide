@@ -22,6 +22,7 @@ enum Content {
     Editor(Entity<Editor>),
     /// A project: its file tree and the file being edited.
     Project {
+        name: String,
         tree: Entity<ProjectTree>,
         editor: Option<Entity<Editor>>,
         _opens: Subscription,
@@ -36,6 +37,33 @@ pub struct Workbench {
     content: Content,
     /// Redraws the status bar when the shown editor changes.
     editor_observer: Option<Subscription>,
+    /// The title the window currently carries.
+    shown_title: Option<String>,
+}
+
+/// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
+/// the file's full path. A remote project names its host: `<project> [<user@host>] – <file>`.
+/// Without a project the file alone, or `default` when nothing is open.
+pub fn window_title(
+    project: Option<&str>,
+    file: Option<&std::path::Path>,
+    full_path: bool,
+    host: Option<&str>,
+    default: &str,
+) -> String {
+    let name = file.map(|file| match file.file_name().filter(|_| !full_path) {
+        Some(name) => name.to_string_lossy().into_owned(),
+        None => file.to_string_lossy().into_owned(),
+    });
+    let Some(project) = project.filter(|p| !p.is_empty()) else { return name.unwrap_or_else(|| default.to_owned()) };
+    let place = match host {
+        Some(host) => format!("{project} [{host}]"),
+        None => project.to_owned(),
+    };
+    match name {
+        Some(name) => format!("{place} – {name}"),
+        None => place,
+    }
 }
 
 /// The workbench of each window, so that an action can find what it acts on.
@@ -66,7 +94,7 @@ impl Workbench {
             crate::platform::context::drop_window_context(id, cx);
         })
         .detach();
-        Self { label: label.to_owned(), content: Content::Empty, editor_observer: None }
+        Self { label: label.to_owned(), content: Content::Empty, editor_observer: None, shown_title: None }
     }
 
     pub fn label(&self) -> &str {
@@ -88,6 +116,19 @@ impl Workbench {
         vec![status.caret_text(), status.line_ending_text().to_owned(), status.encoding.to_uppercase()]
     }
 
+    /// The window's title for what it shows now.
+    pub fn title(&self, cx: &App) -> String {
+        let project = match &self.content {
+            Content::Project { name, .. } => Some(name.as_str()),
+            _ => None,
+        };
+        let file = self.editor().map(|editor| editor.read(cx).path().to_path_buf());
+        let default = cx
+            .try_global::<crate::platform::i18n::Localization>()
+            .map_or_else(|| "app.title.default".to_owned(), |l| l.0.t("app.title.default", &[]));
+        window_title(project, file.as_deref(), false, None, &default)
+    }
+
     fn observe_editor(&mut self, editor: &Entity<Editor>, cx: &mut Context<Self>) {
         self.editor_observer = Some(cx.observe(editor, |_, _, cx| cx.notify()));
     }
@@ -107,7 +148,9 @@ impl Workbench {
         let label = self.label.clone();
         let opened = cx.global::<Backend>().with_host(move |host| async move {
             let project = ide_host::ops::project::open(&host, &label, &root).await?;
-            ide_core::IdeResult::Ok(project.root.clone())
+            let info = ide_host::ops::project::info(&project);
+            let name = if info.display_name.is_empty() { info.name } else { info.display_name };
+            ide_core::IdeResult::Ok((project.root.clone(), name))
         });
         cx.spawn_in(window, async move |workbench, cx| {
             let result = opened.await;
@@ -115,7 +158,7 @@ impl Workbench {
                 let opened =
                     result.map_err(|error| error.to_string()).and_then(|opened| opened.map_err(|error| error.message));
                 workbench.content = match opened {
-                    Ok(root) => {
+                    Ok((root, name)) => {
                         let label = workbench.label.clone();
                         let tree = cx.new(|cx| ProjectTree::new(&label, root, cx));
                         let opens = cx.subscribe_in(&tree, window, |workbench, _, event: &OpenFile, window, cx| {
@@ -123,7 +166,7 @@ impl Workbench {
                         });
                         let focus = tree.focus_handle(cx);
                         window.focus(&focus, cx);
-                        Content::Project { tree, editor: None, _opens: opens }
+                        Content::Project { name, tree, editor: None, _opens: opens }
                     }
                     Err(message) => Content::Failed(message.into()),
                 };
@@ -230,7 +273,12 @@ impl Workbench {
 }
 
 impl Render for Workbench {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let title = self.title(cx);
+        if self.shown_title.as_deref() != Some(title.as_str()) {
+            window.set_window_title(&title);
+            self.shown_title = Some(title);
+        }
         let message = |text: SharedString| {
             div()
                 .size_full()
@@ -398,6 +446,10 @@ mod tests {
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
         let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
         assert_eq!(editor.read_with(cx, |e, _| e.text()), "const a = 1;\n");
+        // The window is titled `<project> – <file>`.
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let project_name = root.file_name().expect("a name").to_string_lossy().into_owned();
+        assert_eq!(cx.window_title(), Some(format!("{project_name} – main.zig")));
         // The editor takes focus, so typing edits the file that was opened.
         cx.simulate_input("// ");
         assert_eq!(editor.read_with(cx, |e, _| e.text()), "// const a = 1;\n");
@@ -427,6 +479,22 @@ mod tests {
         assert_eq!(items(cx)[0], "3:1 (6 chars, 2 line breaks)");
         let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
         host.close_project("w1");
+    }
+
+    // src/features/app/title.ts
+    #[test]
+    fn titles_name_the_project_then_the_file() {
+        let file = std::path::Path::new("/work/shop/src/main.rs");
+        assert_eq!(window_title(Some("shop"), Some(file), false, None, "OpenIDEA"), "shop – main.rs");
+        assert_eq!(window_title(Some("shop"), Some(file), true, None, "OpenIDEA"), "shop – /work/shop/src/main.rs");
+        assert_eq!(window_title(Some("shop"), None, false, Some("me@box"), "OpenIDEA"), "shop [me@box]");
+        assert_eq!(
+            window_title(Some("shop"), Some(file), false, Some("me@box"), "OpenIDEA"),
+            "shop [me@box] – main.rs"
+        );
+        assert_eq!(window_title(None, Some(file), false, None, "OpenIDEA"), "main.rs");
+        assert_eq!(window_title(None, None, false, None, "OpenIDEA"), "OpenIDEA");
+        assert_eq!(window_title(Some(""), None, false, None, "OpenIDEA"), "OpenIDEA");
     }
 
     #[gpui_kit::test]
