@@ -2,7 +2,7 @@
 resolver = "3"
 members = ["crates/*", "src-tauri"]
 # Plugins and the guest SDK build for wasm32-wasip2 in their own workspaces.
-exclude = ["sdk", "plugins"]
+exclude = ["sdk", "plugins", "app-gpui"]
 
 [workspace.package]
 version = "0.1.40"

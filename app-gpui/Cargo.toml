@@ -1,0 +1,52 @@
+[package]
+name = "openidea-gpui"
+description = "OpenIDEA desktop shell on GPUI: the Tauri webview replaced by a native Rust UI over the same backend crates"
+version = "0.1.40"
+edition = "2024"
+rust-version = "1.96"
+license = "Apache-2.0"
+publish = false
+
+[[bin]]
+name = "openidea-gpui"
+path = "src/main.rs"
+
+# Its own workspace: the root workspace (and its Cargo.lock, clippy, deny and nextest runs) stay
+# exactly what the Tauri app is built from, so the final comparison is apples to apples.
+[workspace]
+
+[dependencies]
+# `runtime_shaders`: the Metal shaders compile at start-up, so building needs no Xcode.app.
+gpui = { version = "=0.2.2", features = ["runtime_shaders"] }
+ide-core = { path = "../crates/ide-core" }
+ide-host = { path = "../crates/ide-host" }
+ide-language = { path = "../crates/ide-language" }
+ide-workspace = { path = "../crates/ide-workspace" }
+ide-syntax = { path = "../crates/ide-syntax" }
+ide-text = { path = "../crates/ide-text" }
+ide-vfs = { path = "../crates/ide-vfs" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+parking_lot = "0.12"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+anyhow = "1"
+
+[dev-dependencies]
+gpui = { version = "=0.2.2", features = ["runtime_shaders", "test-support"] }
+
+[profile.dev]
+opt-level = 0
+debug = "line-tables-only"
+[profile.dev.package."*"]
+opt-level = 2
+debug = false
+
+# Same as the root workspace's release profile (src-tauri builds with it).
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "unwind"
+strip = "debuginfo"
