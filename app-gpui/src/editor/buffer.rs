@@ -79,6 +79,90 @@ pub fn col_of_byte(text: &str, byte: usize) -> u32 {
     text.char_indices().take_while(|(i, c)| i + c.len_utf8() <= byte).map(|(_, c)| c.len_utf16() as u32).sum()
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Category {
+    Word,
+    Space,
+    Other,
+}
+
+fn category(c: char) -> Category {
+    if c.is_alphanumeric() || c == '_' {
+        Category::Word
+    } else if c.is_whitespace() {
+        Category::Space
+    } else {
+        Category::Other
+    }
+}
+
+/// Where a move by word from `offset` lands: over leading spaces, then to the end of the run of
+/// characters of one kind (word, punctuation). A line boundary is one stop of its own.
+pub fn group_boundary(rope: &Rope, offset: u32, forward: bool) -> u32 {
+    let (line, col) = line_col(rope, offset);
+    let range = line_range(rope, line);
+    let text = slice(rope, range.start, range.end);
+    let at = byte_of_col(&text, col);
+    if forward {
+        if at == text.len() {
+            return if line + 1 < line_count(rope) { line_range(rope, line + 1).start } else { offset };
+        }
+        let mut kind = None;
+        let mut end = text.len();
+        for (i, c) in text[at..].char_indices() {
+            let next = category(c);
+            match kind {
+                None | Some(Category::Space) => kind = Some(next),
+                Some(current) if current != next => {
+                    end = at + i;
+                    break;
+                }
+                Some(_) => {}
+            }
+        }
+        range.start + col_of_byte(&text, end)
+    } else {
+        if at == 0 {
+            return if line > 0 { line_range(rope, line - 1).end } else { offset };
+        }
+        let mut kind = None;
+        let mut start = 0;
+        for (i, c) in text[..at].char_indices().rev() {
+            let next = category(c);
+            match kind {
+                None | Some(Category::Space) => kind = Some(next),
+                Some(current) if current != next => {
+                    start = i + c.len_utf8();
+                    break;
+                }
+                Some(_) => {}
+            }
+        }
+        range.start + col_of_byte(&text, start)
+    }
+}
+
+/// The run of characters of one kind around `offset` (what a double click selects): the word
+/// under it, else the punctuation or spaces. Empty on an empty line.
+pub fn word_at(rope: &Rope, offset: u32) -> std::ops::Range<u32> {
+    let (line, col) = line_col(rope, offset);
+    let range = line_range(rope, line);
+    let text = slice(rope, range.start, range.end);
+    let at = byte_of_col(&text, col);
+    // At the end of a line the character before the position decides.
+    let Some(kind) = text[at..].chars().next().or_else(|| text[..at].chars().next_back()).map(category) else {
+        return offset..offset;
+    };
+    let start = text[..at].char_indices().rev().take_while(|(_, c)| category(*c) == kind).last().map_or(at, |(i, _)| i);
+    let end = at
+        + text[at..]
+            .char_indices()
+            .take_while(|(_, c)| category(*c) == kind)
+            .last()
+            .map_or(0, |(i, c)| i + c.len_utf8());
+    range.start + col_of_byte(&text, start)..range.start + col_of_byte(&text, end)
+}
+
 /// Which side of an insertion a position at that exact place moves to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Assoc {
@@ -151,6 +235,27 @@ mod tests {
         assert_eq!([0, 1, 5, 8, 9].map(|byte| col_of_byte(text, byte)), [0, 1, 3, 4, 5]);
         assert_eq!(col_of_byte(text, 3), 1);
         assert_eq!(col_of_byte(text, 99), 5);
+    }
+
+    // src/editor/core/cm/caretCommands.test.ts (movement by word, as CodeMirror's cursorGroup commands)
+    #[test]
+    fn moves_by_word_and_finds_the_word_at_a_position() {
+        let rope = Rope::from_str("let foo_bar = a.b(😀);\n\n  next");
+        let forward: Vec<u32> =
+            std::iter::successors(Some(0), |&o| Some(group_boundary(&rope, o, true)).filter(|n| *n != o)).collect();
+        // let| foo_bar| =| a|.|b|(😀);| ⏎ (empty line) ⏎ next|: an emoji is punctuation, not a word.
+        assert_eq!(forward, [0, 3, 11, 13, 15, 16, 17, 22, 23, 24, 30]);
+        let backward: Vec<u32> =
+            std::iter::successors(Some(30), |&o| Some(group_boundary(&rope, o, false)).filter(|n| *n != o)).collect();
+        assert_eq!(backward, [30, 26, 24, 23, 22, 17, 16, 15, 14, 12, 4, 0]);
+        assert_eq!(word_at(&rope, 5), 4..11);
+        assert_eq!(word_at(&rope, 4), 4..11);
+        assert_eq!(word_at(&rope, 11), 11..12);
+        assert_eq!(word_at(&rope, 15), 15..16);
+        assert_eq!(word_at(&rope, 18), 17..22);
+        // At a line's end the last word is taken; an empty line has none.
+        assert_eq!(word_at(&rope, 30), 26..30);
+        assert_eq!(word_at(&rope, 23), 23..23);
     }
 
     #[test]

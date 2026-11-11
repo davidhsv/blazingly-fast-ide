@@ -14,6 +14,7 @@ use super::history::{EditKind, History, invert};
 use crate::backend::Backend;
 use crate::platform::input::EDITOR_CONTEXT;
 use crate::theme;
+use gpui_kit::MouseMoveEvent;
 use gpui_kit::{
     App, Bounds, ClipboardItem, Context, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, FocusHandle, Focusable, Font, GlobalElementId, Hsla, InspectorElementId, IntoElement,
@@ -145,6 +146,8 @@ pub struct Editor {
     layout: Option<Layout>,
     listener: u64,
     history: History,
+    /// Where a drag selection began, while the mouse button is down.
+    drag_anchor: Option<u32>,
     /// The document has changes that are not on disk.
     dirty: bool,
     /// Counts edits, so that a highlight request an edit has overtaken is dropped.
@@ -205,6 +208,7 @@ impl Editor {
             layout: None,
             listener,
             history: History::default(),
+            drag_anchor: None,
             dirty: info.dirty,
             generation: 0,
             created: std::time::Instant::now(),
@@ -687,18 +691,49 @@ impl Editor {
         let modifiers = keystroke.modifiers;
         // The editing shortcuts every text field has (⌘Z, ⌘C…; Ctrl on Windows and Linux).
         if modifiers.secondary(cx) && !modifiers.alt && modifiers.number_of_modifiers() <= 2 {
-            match (keystroke.key.as_str(), modifiers.shift) {
-                ("z", false) => self.undo(cx),
-                ("z", true) => self.redo(cx),
-                ("c", false) => self.copy(cx),
-                ("x", false) => self.cut(cx),
-                ("v", false) => self.paste(cx),
+            let handled = match (keystroke.key.as_str(), modifiers.shift) {
+                ("z", false) => Some(self.undo(cx)),
+                ("z", true) => Some(self.redo(cx)),
+                ("c", false) => Some(self.copy(cx)),
+                ("x", false) => Some(self.cut(cx)),
+                ("v", false) => Some(self.paste(cx)),
                 ("a", false) => {
                     self.select_all(cx);
-                    true
+                    Some(true)
+                }
+                _ => None,
+            };
+            if handled.is_some() {
+                window.invalidate_character_coordinates();
+                cx.stop_propagation();
+                return;
+            }
+        }
+        let extend = modifiers.shift;
+        let (line, _) = self.caret_position();
+        let line_range = buffer::line_range(&self.rope, line);
+        // Movement and deletion by word (⌥) and to the line's or document's edge (⌘), as
+        // CodeMirror's standard keymap binds them on macOS.
+        if (modifiers.alt || modifiers.platform) && !modifiers.control && !(modifiers.alt && modifiers.platform) {
+            let end = buffer::len_utf16(&self.rope);
+            match (keystroke.key.as_str(), modifiers.alt) {
+                ("left", true) => self.move_to(buffer::group_boundary(&self.rope, self.head, false), extend, cx),
+                ("right", true) => self.move_to(buffer::group_boundary(&self.rope, self.head, true), extend, cx),
+                ("left", false) => self.move_to(line_range.start, extend, cx),
+                ("right", false) => self.move_to(line_range.end, extend, cx),
+                ("up", false) => self.move_to(0, extend, cx),
+                ("down", false) => self.move_to(end, extend, cx),
+                ("backspace", by_word) if !extend => {
+                    let from =
+                        if by_word { buffer::group_boundary(&self.rope, self.head, false) } else { line_range.start };
+                    self.delete_to(from, cx);
+                }
+                ("delete", true) if !extend => {
+                    let to = buffer::group_boundary(&self.rope, self.head, true);
+                    self.delete_to(to, cx);
                 }
                 _ => return,
-            };
+            }
             window.invalidate_character_coordinates();
             cx.stop_propagation();
             return;
@@ -706,8 +741,6 @@ impl Editor {
         if modifiers.control || modifiers.alt || modifiers.platform {
             return;
         }
-        let extend = modifiers.shift;
-        let (line, _) = self.caret_position();
         match keystroke.key.as_str() {
             "left" if !extend && !self.selection().is_empty() => self.move_to(self.selection().start, false, cx),
             "right" if !extend && !self.selection().is_empty() => self.move_to(self.selection().end, false, cx),
@@ -715,8 +748,10 @@ impl Editor {
             "right" => self.move_to(self.next_offset(self.head), extend, cx),
             "up" => self.vertical(-1, extend, window, cx),
             "down" => self.vertical(1, extend, window, cx),
-            "home" => self.move_to(buffer::line_range(&self.rope, line).start, extend, cx),
-            "end" => self.move_to(buffer::line_range(&self.rope, line).end, extend, cx),
+            "home" => self.move_to(line_range.start, extend, cx),
+            "end" => self.move_to(line_range.end, extend, cx),
+            "pageup" => self.vertical(-self.page_lines(cx), extend, window, cx),
+            "pagedown" => self.vertical(self.page_lines(cx), extend, window, cx),
             "backspace" => {
                 self.delete(false, cx);
             }
@@ -735,10 +770,58 @@ impl Editor {
         cx.stop_propagation();
     }
 
+    /// Lines a Page Up / Page Down moves by: one viewport less a line of context.
+    fn page_lines(&self, cx: &App) -> i64 {
+        let viewport = self.layout.as_ref().map_or(px(0.0), |l| l.bounds.size.height);
+        (((viewport / Self::metrics(cx).1).floor() as i64) - 1).max(1)
+    }
+
+    /// Deletes the selection, or the text between the caret and `other` when there is none.
+    fn delete_to(&mut self, other: u32, cx: &mut Context<Self>) -> bool {
+        self.edit(EditKind::Delete, cx, |editor| {
+            let selection = editor.selection();
+            let range = if selection.is_empty() { other.min(editor.head)..other.max(editor.head) } else { selection };
+            if range.is_empty() {
+                Vec::new()
+            } else {
+                vec![TextChange { from: range.start, to: range.end, insert: String::new() }]
+            }
+        })
+    }
+
+    /// A click places the caret (Shift extends), a double click selects the word, a triple
+    /// click the line; dragging extends from where the press began.
     fn mouse_down(&mut self, event: &MouseDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         window.focus(&self.focus, cx);
-        if let Some(offset) = self.offset_at(event.position) {
-            self.move_to(offset, event.modifiers.shift, cx);
+        let Some(offset) = self.offset_at(event.position) else { return };
+        match event.click_count {
+            0 | 1 => self.move_to(offset, event.modifiers.shift, cx),
+            2 => {
+                let word = buffer::word_at(&self.rope, offset);
+                self.select(word.start, word.end, cx);
+            }
+            _ => {
+                let (line, _) = buffer::line_col(&self.rope, offset);
+                let range = buffer::line_range(&self.rope, line);
+                // The whole line with its break, so that typing replaces the line.
+                let end = if line + 1 < self.line_count() {
+                    buffer::line_range(&self.rope, line + 1).start
+                } else {
+                    range.end
+                };
+                self.select(range.start, end, cx);
+            }
+        }
+        self.drag_anchor = Some(self.anchor);
+    }
+
+    fn mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let Some(anchor) = self.drag_anchor.filter(|_| event.pressed_button == Some(MouseButton::Left)) else {
+            self.drag_anchor = None;
+            return;
+        };
+        if let Some(offset) = self.offset_at(event.position).filter(|offset| *offset != self.head) {
+            self.select(anchor, offset, cx);
         }
     }
 }
@@ -869,6 +952,8 @@ impl Render for Editor {
             .track_focus(&self.focus)
             .on_key_down(cx.listener(Self::key_down))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::mouse_down))
+            .on_mouse_move(cx.listener(Self::mouse_move))
+            .on_mouse_up(MouseButton::Left, cx.listener(|editor, _, _, _| editor.drag_anchor = None))
             .child(EditorElement { editor: cx.entity() })
     }
 }
@@ -1441,6 +1526,81 @@ mod editing_tests {
         assert_eq!(text(&o, cx), "body\n");
         cx.simulate_keystrokes("cmd-shift-z");
         assert_eq!(text(&o, cx), "// formatted\nbody\n");
+        o.host.close_project("w1");
+    }
+
+    // src/editor/core/cm/caretCommands.test.ts, baseKeymap.ts (word, line and document movement)
+    #[gpui_kit::test]
+    async fn option_and_command_move_by_word_line_and_document(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "alpha beta gamma\nsecond line\n").await;
+        let caret = |cx: &mut VisualTestContext| o.editor.read_with(cx, |e, _| e.caret());
+        cx.simulate_keystrokes("alt-right alt-right");
+        assert_eq!(caret(cx), 10);
+        cx.simulate_keystrokes("alt-left");
+        assert_eq!(caret(cx), 6);
+        cx.simulate_keystrokes("cmd-right");
+        assert_eq!(caret(cx), 16);
+        cx.simulate_keystrokes("shift-cmd-left");
+        assert_eq!(o.editor.read_with(cx, |e, _| e.selection()), 0..16);
+        cx.simulate_keystrokes("cmd-down");
+        assert_eq!(caret(cx), 29);
+        cx.simulate_keystrokes("cmd-up alt-right alt-right");
+        // ⌥⌫ deletes the word before the caret, ⌥⌦ the one after, ⌘⌫ to the line's start.
+        cx.simulate_keystrokes("alt-backspace");
+        assert_eq!(text(&o, cx), "alpha  gamma\nsecond line\n");
+        cx.simulate_keystrokes("alt-delete");
+        assert_eq!(text(&o, cx), "alpha \nsecond line\n");
+        cx.simulate_keystrokes("cmd-backspace");
+        assert_eq!(text(&o, cx), "\nsecond line\n");
+        // Each is one undo step.
+        cx.simulate_keystrokes("cmd-z cmd-z cmd-z");
+        assert_eq!(text(&o, cx), "alpha beta gamma\nsecond line\n");
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn the_mouse_selects_by_drag_word_and_line(cx: &mut TestAppContext) {
+        use gpui_kit::{Modifiers, MouseDownEvent, MouseUpEvent};
+        let (o, cx) = open(cx, "alpha beta\nsecond\n").await;
+        let at = |cx: &mut VisualTestContext, offset: u32| {
+            o.editor.read_with(cx, |e, _| e.position_of(offset).expect("painted")) + point(px(0.0), px(3.0))
+        };
+        // Press at 2, drag to 8, release.
+        let (from, to) = (at(cx, 2), at(cx, 8));
+        cx.simulate_mouse_down(from, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(to, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(to, MouseButton::Left, Modifiers::default());
+        assert_eq!(o.editor.read_with(cx, |e, _| (e.selection(), e.caret())), (2..8, 8));
+        // Moving without a button held does not select.
+        let origin = at(cx, 0);
+        cx.simulate_mouse_move(origin, None, Modifiers::default());
+        assert_eq!(o.editor.read_with(cx, |e, _| e.selection()), 2..8);
+        // A double click selects the word, a triple click the line with its break.
+        let word = at(cx, 7);
+        let click = |cx: &mut VisualTestContext, count: usize| {
+            cx.simulate_event(MouseDownEvent {
+                position: word,
+                modifiers: Modifiers::default(),
+                button: MouseButton::Left,
+                click_count: count,
+                first_mouse: false,
+            });
+            cx.simulate_event(MouseUpEvent {
+                position: word,
+                modifiers: Modifiers::default(),
+                button: MouseButton::Left,
+                click_count: count,
+            });
+        };
+        click(cx, 2);
+        assert_eq!(o.editor.read_with(cx, |e, _| e.selected_text()), "beta");
+        click(cx, 3);
+        assert_eq!(o.editor.read_with(cx, |e, _| e.selected_text()), "alpha beta\n");
+        // Shift+click extends from the anchor.
+        let (first, second) = (at(cx, 1), at(cx, 5));
+        cx.simulate_click(first, Modifiers::default());
+        cx.simulate_click(second, Modifiers { shift: true, ..Modifiers::default() });
+        assert_eq!(o.editor.read_with(cx, |e, _| e.selection()), 1..5);
         o.host.close_project("w1");
     }
 
