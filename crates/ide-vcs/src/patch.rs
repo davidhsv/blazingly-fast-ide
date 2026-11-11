@@ -83,7 +83,7 @@ pub(crate) fn commits_patch(r: &Repo, commits: &[String], reverse: bool) -> IdeR
             let repo = r.gix()?;
             let id = crate::repo::resolve(&repo, c)?;
             let commit = repo.find_object(id).map_err(gx)?.peel_to_commit().map_err(gx)?;
-            let parent = commit.parent_ids().next().map(|p| p.detach().to_string());
+            let parent = crate::repo::parent_ids(&repo, &commit)?.first().map(ToString::to_string);
             (parent.unwrap_or_else(|| EMPTY_TREE.to_string()), id.to_string())
         };
         let mut args = vec!["diff", "--binary", "--full-index", "-M", "--no-color", "--no-ext-diff", "--no-textconv"];
