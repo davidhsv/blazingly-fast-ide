@@ -7,6 +7,7 @@ import { onEditorEvent, registerEditorContribution } from "@/editor/api";
 import { executeAction, registerActions } from "@/platform/actions";
 import { setContext } from "@/platform/context";
 import { isGradleBuildInput } from "@/platform/buildFiles";
+import { ideMode } from "@/platform/editorSettings";
 import { onIdeEvent, type BuildModel, type BuildTool } from "@/platform/ipc";
 import { useProject } from "@/platform/project";
 import {
@@ -119,7 +120,10 @@ function analyzerGradle(arg: unknown): string | null {
 
 const synced = new Set<string>();
 
-/** Registers / unregisters the tool windows to match the model; first sync of a never-synced build. */
+/**
+ * Registers / unregisters the tool windows to match the model; in Deep mode, first sync of a
+ * never-synced build (Blaze mode imports builds only on request).
+ */
 function apply(model: BuildModel | null, registered: Partial<Record<BuildTool, () => void>>) {
   const has: Record<BuildTool, boolean> = { maven: !!model?.maven, gradle: !!model?.gradle?.length };
   setContext("build.maven", has.maven);
@@ -150,6 +154,9 @@ function apply(model: BuildModel | null, registered: Partial<Record<BuildTool, (
       delete registered[tool];
     }
   }
+  // Every Maven project was unlinked meanwhile (a plugin took the build over): its import is moot.
+  if (model && !model.maven?.projects.length && useBuild.getState().syncing.maven) cancelSync("maven");
+  if (ideMode() === "light") return;
   // Import each independent build once; linking another build must not be hidden by the first sync.
   const root = useBuild.getState().root;
   for (const member of new Set(model?.maven?.projects.map((p) => p.projectRoot ?? null))) {
@@ -234,6 +241,10 @@ export function activate(): () => void {
       resetBuild();
       if (s.project) void loadModel();
     }),
+    useProject.subscribe((s, prev) => {
+      if (ideMode(s.settings) !== ideMode(prev.settings))
+        apply(useBuild.getState().root ? useBuild.getState().model : null, registered);
+    }),
     onEditorEvent((e) => {
       if (e.type === "docSaved" && isBuildFile(e.path)) noteIdeSave(e.path);
     }),
@@ -246,9 +257,10 @@ export function activate(): () => void {
       scheduleLoad();
     }),
     onIdeEvent("projectRootsChanged", scheduleLoad),
-    // Project JDK / Maven home and options are applied to the model's launchers.
+    // Project JDK / Maven home and options are applied to the model's launchers; an empty key is
+    // `.openidea/settings.toml` written outside Settings (by a tool or plugin).
     onIdeEvent("settingsChanged", (e) => {
-      if (e.key === "languages" || e.key.startsWith("languages.java")) scheduleLoad();
+      if (e.key === "" || e.key === "languages" || e.key.startsWith("languages.java")) scheduleLoad();
     }),
     registerActions([
       {
