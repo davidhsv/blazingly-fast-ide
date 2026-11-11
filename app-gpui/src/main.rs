@@ -1,4 +1,4 @@
-use gpui_kit::{App, AppContext as _, WindowOptions};
+use gpui_kit::{App, AppContext as _};
 use openidea_gpui::theme::icons::IconAssets;
 use openidea_gpui::workbench::Workbench;
 use std::path::PathBuf;
@@ -16,7 +16,7 @@ fn main() {
             cx.quit();
             return;
         }
-        let opened = gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
+        let opened = gpui_kit::open_window(openidea_gpui::workbench::window_options(), cx, |window, cx| {
             cx.new(|cx| {
                 let mut workbench = Workbench::new("main", window, cx);
                 match file.clone() {

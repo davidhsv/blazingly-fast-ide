@@ -66,6 +66,22 @@ pub fn window_title(
     }
 }
 
+/// How a workbench window is created: the title bar is the app's own, drawn under the native
+/// window buttons (the webview's "Overlay" title bar).
+pub fn window_options() -> gpui_kit::WindowOptions {
+    gpui_kit::WindowOptions {
+        titlebar: Some(gpui_kit::TitlebarOptions {
+            title: None,
+            appears_transparent: true,
+            traffic_light_position: Some(gpui_kit::point(gpui_kit::px(13.0), gpui_kit::px(13.0))),
+        }),
+        ..Default::default()
+    }
+}
+
+/// Room the title bar leaves for the native macOS window buttons.
+const WINDOW_BUTTONS_WIDTH: f32 = 82.0;
+
 /// The workbench of each window, so that an action can find what it acts on.
 #[derive(Default)]
 struct Workbenches(HashMap<WindowId, WeakEntity<Workbench>>);
@@ -325,6 +341,20 @@ impl Render for Workbench {
             }))
             .flex()
             .flex_col()
+            .child(
+                // The title bar: the window's title on the frame colour; dragging it moves the window.
+                div()
+                    .h(theme::length(cx, "h-titlebar"))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .pl(gpui_kit::px(if cfg!(target_os = "macos") { WINDOW_BUTTONS_WIDTH } else { 10.0 }))
+                    .pr(gpui_kit::px(8.0))
+                    .bg(theme::color(cx, if self.project_tree().is_some() { "bg-frame" } else { "bg-app" }))
+                    .text_color(theme::color(cx, "fg-strong"))
+                    .window_control_area(gpui_kit::WindowControlArea::Drag)
+                    .child(SharedString::from(self.shown_title.clone().unwrap_or_default())),
+            )
             .child(div().flex_1().min_h_0().w_full().child(body))
             .children(self.editor().is_some().then(|| {
                 // The status bar: plain UI text, items right-aligned as in the webview's footer.
