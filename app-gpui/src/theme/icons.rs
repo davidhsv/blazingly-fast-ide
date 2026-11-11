@@ -83,6 +83,65 @@ pub fn icon_path(name: &str) -> Option<String> {
     tables().icons.get(name).cloned()
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FileIconTables {
+    file_names: HashMap<String, String>,
+    name_patterns: Vec<(String, String)>,
+    extensions: HashMap<String, String>,
+    code_extensions: Vec<String>,
+    /// The cases the webview's spec asserts, replayed by the test below.
+    #[cfg_attr(not(test), allow(dead_code))]
+    cases: Vec<(String, String)>,
+}
+
+struct FileIcons {
+    tables: FileIconTables,
+    patterns: Vec<(regex::Regex, String)>,
+}
+
+fn file_icons() -> &'static FileIcons {
+    static FILE_ICONS: OnceLock<FileIcons> = OnceLock::new();
+    FILE_ICONS.get_or_init(|| {
+        let tables: FileIconTables = serde_json::from_str(include_str!("../../assets/gen/file-icons.json"))
+            .expect("assets/gen/file-icons.json is generated and valid");
+        let patterns = tables
+            .name_patterns
+            .iter()
+            .map(|(pattern, icon)| {
+                (
+                    regex::Regex::new(pattern).unwrap_or_else(|e| panic!("file icon pattern {pattern}: {e}")),
+                    icon.clone(),
+                )
+            })
+            .collect();
+        FileIcons { tables, patterns }
+    })
+}
+
+/// The icon of a file by its name: whole names first (`Dockerfile`, `.gitignore`), then name
+/// patterns, then the double and the last extension. A name without an extension is text; an
+/// unknown extension is a code file when it is a known source extension, else unknown.
+pub fn file_icon_name(file_name: &str) -> &'static str {
+    let icons = file_icons();
+    let lower = file_name.to_lowercase();
+    if let Some(icon) = icons.tables.file_names.get(&lower) {
+        return icon;
+    }
+    if let Some((_, icon)) = icons.patterns.iter().find(|(pattern, _)| pattern.is_match(&lower)) {
+        return icon;
+    }
+    let Some(dot) = lower.rfind('.').filter(|dot| *dot > 0) else { return "file-text" };
+    let extension = &lower[dot + 1..];
+    let double = lower[..dot].rfind('.').filter(|previous| *previous > 0).map(|previous| &lower[previous + 1..]);
+    if let Some(icon) =
+        double.and_then(|double| icons.tables.extensions.get(double)).or_else(|| icons.tables.extensions.get(extension))
+    {
+        return icon;
+    }
+    if icons.tables.code_extensions.iter().any(|code| code == extension) { "file-code" } else { "file-unknown" }
+}
+
 /// Every built-in icon name.
 pub fn icon_names() -> impl Iterator<Item = &'static str> {
     tables().icons.keys().map(String::as_str)
@@ -240,6 +299,29 @@ mod tests {
         // Unknown names draw the generic file icon.
         assert_eq!(icon_asset("no-such-icon", 16.0, false), icon_asset("file", 16.0, false));
         assert!(icon_asset("quote", 16.0, false).mono);
+    }
+
+    // src/ui/icons.test.tsx › "%s → %s" (the cases are read from the spec by gen-data.mjs)
+    #[test]
+    fn files_get_the_icons_the_webview_gives_them() {
+        let cases = &file_icons().tables.cases;
+        assert!(cases.len() > 50, "{} cases", cases.len());
+        let wrong: Vec<String> = cases
+            .iter()
+            .filter(|(file, icon)| file_icon_name(file) != icon)
+            .map(|(file, icon)| format!("{file}: {} instead of {icon}", file_icon_name(file)))
+            .collect();
+        assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+        // Every icon the tables name exists.
+        let tables = &file_icons().tables;
+        for icon in tables
+            .file_names
+            .values()
+            .chain(tables.extensions.values())
+            .chain(tables.name_patterns.iter().map(|(_, icon)| icon))
+        {
+            assert!(icon_path(icon).is_some(), "{icon} is not an icon");
+        }
     }
 
     #[test]

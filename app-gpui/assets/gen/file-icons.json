@@ -1,0 +1,882 @@
+{
+ "fileNames": {
+  ".arcconfig": "file-config",
+  ".bash_aliases": "file-shell",
+  ".bash_login": "file-shell",
+  ".bash_logout": "file-shell",
+  ".bash_profile": "file-shell",
+  ".bashrc": "file-shell",
+  ".bazelrc": "file-bazel",
+  ".bazelversion": "file-bazel",
+  ".browserslistrc": "file-config",
+  ".bzrignore": "file-ignored",
+  ".cfignore": "file-ignored",
+  ".clang-format": "file-config",
+  ".clang-tidy": "file-config",
+  ".clangd": "file-config",
+  ".containerignore": "file-ignored",
+  ".coveragerc": "file-config",
+  ".dockerignore": "file-ignored",
+  ".editorconfig": "file-config",
+  ".envrc": "file-shell",
+  ".eslintignore": "file-ignored",
+  ".fdignore": "file-ignored",
+  ".flake8": "file-config",
+  ".flaskenv": "file-dotenv",
+  ".gcloudignore": "file-ignored",
+  ".gemrc": "file-config",
+  ".git-blame-ignore-revs": "file-git",
+  ".gitattributes": "file-git",
+  ".gitconfig": "file-git",
+  ".gitignore": "file-ignored",
+  ".gitignore_global": "file-ignored",
+  ".gitmodules": "file-git",
+  ".helmignore": "file-ignored",
+  ".hgignore": "file-ignored",
+  ".hgrc": "file-config",
+  ".ignore": "file-ignored",
+  ".irbrc": "file-ruby",
+  ".jshintrc": "file-config",
+  ".kshrc": "file-shell",
+  ".luacheckrc": "file-lua",
+  ".mailmap": "file-git",
+  ".node-version": "file-config",
+  ".npmignore": "file-ignored",
+  ".npmrc": "file-config",
+  ".nvmrc": "file-config",
+  ".prettierignore": "file-ignored",
+  ".profile": "file-shell",
+  ".pryrc": "file-ruby",
+  ".pylintrc": "file-config",
+  ".pypirc": "file-config",
+  ".python-version": "file-config",
+  ".rgignore": "file-ignored",
+  ".rprofile": "file-r",
+  ".ruby-version": "file-config",
+  ".slugignore": "file-ignored",
+  ".stylelintignore": "file-ignored",
+  ".terraformrc": "file-terraform",
+  ".tool-versions": "file-config",
+  ".vscodeignore": "file-ignored",
+  ".watchmanconfig": "file-config",
+  ".yarnrc": "file-config",
+  ".zlogin": "file-shell",
+  ".zlogout": "file-shell",
+  ".zprofile": "file-shell",
+  ".zshenv": "file-shell",
+  ".zshrc": "file-shell",
+  "apkbuild": "file-shell",
+  "appfile": "file-ruby",
+  "authors": "file-text",
+  "bb.edn": "file-clojure",
+  "brewfile": "file-ruby",
+  "bsdmakefile": "file-makefile",
+  "build": "file-bazel",
+  "build.pl": "file-perl",
+  "bun.lockb": "file-lock",
+  "capfile": "file-ruby",
+  "cargo.lock": "file-cargo-lock",
+  "cargo.toml": "file-cargo",
+  "changelog": "file-text",
+  "citation.cff": "file-yaml",
+  "cmakecache.txt": "file-cmake",
+  "cmakelists.txt": "file-cmake",
+  "codeowners": "file-text",
+  "containerfile": "file-docker",
+  "contributors": "file-text",
+  "cpanfile": "file-perl",
+  "credentials": "file-config",
+  "dangerfile": "file-ruby",
+  "deno.lock": "file-lock",
+  "deps.edn": "file-clojure",
+  "dockerfile": "file-docker",
+  "fastfile": "file-ruby",
+  "gemfile": "file-ruby",
+  "gnumakefile": "file-makefile",
+  "go.mod": "file-gomod",
+  "go.sum": "file-lock",
+  "go.work": "file-gowork",
+  "go.work.sum": "file-lock",
+  "gradlew": "file-gradle",
+  "guardfile": "file-ruby",
+  "hgrc": "file-config",
+  "jenkinsfile": "file-jenkins",
+  "justfile": "file-config",
+  "kbuild": "file-makefile",
+  "makefile": "file-makefile",
+  "makefile.am": "file-makefile",
+  "makefile.in": "file-makefile",
+  "makefile.pl": "file-perl",
+  "manifest.mf": "file-manifest",
+  "mvnw": "file-maven",
+  "mypy.ini": "file-config",
+  "notice": "file-text",
+  "npm-shrinkwrap.json": "file-lock",
+  "package-lock.json": "file-lock",
+  "package.json": "file-npm",
+  "package.resolved": "file-lock",
+  "pipfile": "file-pipenv",
+  "pkgbuild": "file-shell",
+  "pnpm-lock.yaml": "file-lock",
+  "podfile": "file-ruby",
+  "pom.xml": "file-maven",
+  "procfile": "file-config",
+  "project.clj": "file-clojure",
+  "pylintrc": "file-config",
+  "pyproject.toml": "file-pyproject",
+  "pytest.ini": "file-config",
+  "rakefile": "file-ruby",
+  "readme": "file-readme",
+  "readme.txt": "file-readme",
+  "rebar.config": "file-erlang",
+  "sconscript": "file-python",
+  "sconstruct": "file-python",
+  "setup.cfg": "file-config",
+  "steepfile": "file-ruby",
+  "sys.config": "file-erlang",
+  "terraform.rc": "file-terraform",
+  "tox.ini": "file-config",
+  "vagrantfile": "file-ruby",
+  "workspace": "file-bazel"
+ },
+ "namePatterns": [
+  [
+   "^(dockerfile|containerfile)[.-]",
+   "file-docker"
+  ],
+  [
+   "^(docker-)?compose([.-][\\w-]+)?\\.ya?ml$",
+   "file-docker"
+  ],
+  [
+   "^\\.env(\\.|$)",
+   "file-dotenv"
+  ],
+  [
+   "^(licen[cs]e|copying)(-[\\w.-]+|\\.(md|txt|rst))?$",
+   "file-license"
+  ],
+  [
+   "^requirements([.-][\\w.-]*)?\\.(txt|in)$",
+   "file-requirements"
+  ],
+  [
+   "^(ts|js)config(\\.[\\w-]+)?\\.json$",
+   "file-config"
+  ],
+  [
+   "\\.config\\.[cm]?[jt]s$",
+   "file-config"
+  ],
+  [
+   "^\\.(eslintrc|prettierrc|stylelintrc|babelrc|swcrc|lintstagedrc|commitlintrc|markdownlintrc)(\\.|$)",
+   "file-config"
+  ]
+ ],
+ "extensions": {
+  "7z": "file-archive",
+  "a": "file-binary",
+  "adoc": "file-asciidoc",
+  "app.src": "file-erlang",
+  "asciidoc": "file-asciidoc",
+  "ash": "file-shell",
+  "astro": "file-astro",
+  "atom": "file-xml",
+  "avif": "file-image",
+  "avsc": "file-json",
+  "axaml": "file-xml",
+  "bash": "file-shell",
+  "bat": "file-windows",
+  "bats": "file-shell",
+  "bazel": "file-bazel",
+  "bb": "file-clojure",
+  "bbx": "file-latex",
+  "bib": "file-latex",
+  "bin": "file-binary",
+  "bmp": "file-image",
+  "bz2": "file-archive",
+  "bzl": "file-bazel",
+  "c": "file-c",
+  "c++": "file-cpp",
+  "cbx": "file-latex",
+  "cc": "file-cpp",
+  "cfg": "file-config",
+  "cgi": "file-perl",
+  "cjs": "file-js",
+  "class": "file-binary",
+  "clj": "file-clojure",
+  "cljc": "file-clojure",
+  "cljd": "file-clojure",
+  "cljs": "file-clojure",
+  "cls": "file-latex",
+  "cmake": "file-cmake",
+  "cmd": "file-windows",
+  "cnf": "file-config",
+  "code-snippets": "file-json",
+  "code-workspace": "file-json",
+  "command": "file-shell",
+  "conf": "file-config",
+  "config": "file-config",
+  "containerfile": "file-docker",
+  "cpp": "file-cpp",
+  "cppm": "file-cpp",
+  "cs": "file-csharp",
+  "csproj": "file-xml",
+  "css": "file-css",
+  "csv": "file-csv",
+  "csx": "file-csharp",
+  "cts": "file-ts",
+  "cxx": "file-cpp",
+  "d": "file-d",
+  "dart": "file-dart",
+  "dash": "file-shell",
+  "dat": "file-binary",
+  "ddl": "file-sql",
+  "desktop": "file-config",
+  "di": "file-d",
+  "diff": "file-patch",
+  "dll": "file-binary",
+  "dml": "file-sql",
+  "dockerfile": "file-docker",
+  "dockerignore": "file-ignored",
+  "dtx": "file-latex",
+  "dylib": "file-binary",
+  "edn": "file-clojure",
+  "egg": "file-archive",
+  "env": "file-dotenv",
+  "erb": "file-ruby",
+  "erl": "file-erlang",
+  "escript": "file-erlang",
+  "ex": "file-elixir",
+  "exe": "file-windows",
+  "exs": "file-elixir",
+  "fish": "file-shell",
+  "fs": "file-fsharp",
+  "fsi": "file-fsharp",
+  "fsproj": "file-xml",
+  "fsx": "file-fsharp",
+  "fxml": "file-xml",
+  "gd": "file-gdscript",
+  "gdshader": "file-gdshader",
+  "gdshaderinc": "file-gdshader",
+  "gemspec": "file-ruby",
+  "geojson": "file-json",
+  "gif": "file-image",
+  "gitignore": "file-ignored",
+  "go": "file-go",
+  "godot": "file-godot",
+  "gql": "file-graphql",
+  "gradle": "file-gradle",
+  "gradle.kts": "file-gradle-kts",
+  "graphql": "file-graphql",
+  "graphqls": "file-graphql",
+  "groovy": "file-groovy",
+  "gsh": "file-groovy",
+  "gvy": "file-groovy",
+  "gy": "file-groovy",
+  "gz": "file-archive",
+  "h": "file-h",
+  "h++": "file-h",
+  "har": "file-json",
+  "hcl": "file-hcl",
+  "hh": "file-h",
+  "hpp": "file-h",
+  "hrl": "file-erlang",
+  "hs": "file-haskell",
+  "hs-boot": "file-haskell",
+  "hsig": "file-haskell",
+  "htm": "file-html",
+  "html": "file-html",
+  "html.tmpl": "file-html",
+  "http": "file-http",
+  "hxx": "file-h",
+  "icns": "file-image",
+  "ico": "file-image",
+  "idl": "file-idl",
+  "iml": "file-xml",
+  "import": "file-godot",
+  "inf": "file-config",
+  "ini": "file-config",
+  "inl": "file-cpp",
+  "ino": "file-cpp",
+  "ins": "file-latex",
+  "ipp": "file-cpp",
+  "ipynb": "file-jupyter",
+  "ixx": "file-cpp",
+  "jar": "file-archive",
+  "java": "file-java",
+  "jbuilder": "file-ruby",
+  "jl": "file-julia",
+  "jnlp": "file-xml",
+  "jpeg": "file-image",
+  "jpg": "file-image",
+  "js": "file-js",
+  "json": "file-json",
+  "json5": "file-json",
+  "jsonc": "file-json",
+  "jsonl": "file-json",
+  "jsp": "file-jsp",
+  "jspf": "file-jsp",
+  "jsph": "file-jsp",
+  "jspx": "file-jsp",
+  "jsx": "file-jsx",
+  "ksh": "file-shell",
+  "kt": "file-kotlin",
+  "kts": "file-kotlin-script",
+  "less": "file-less",
+  "lhs": "file-haskell",
+  "lock": "file-lock",
+  "lockb": "file-lock",
+  "log": "file-log",
+  "ltx": "file-latex",
+  "lua": "file-lua",
+  "luau": "file-lua",
+  "m": "file-objc",
+  "mak": "file-makefile",
+  "make": "file-makefile",
+  "map": "file-json",
+  "markdown": "file-md",
+  "md": "file-md",
+  "mdown": "file-md",
+  "mdwn": "file-md",
+  "mdx": "file-md",
+  "mill": "file-scala",
+  "mjs": "file-js",
+  "mk": "file-makefile",
+  "mkd": "file-md",
+  "mkdn": "file-md",
+  "ml": "file-ocaml",
+  "mli": "file-ocaml",
+  "mll": "file-ocaml",
+  "mly": "file-ocaml",
+  "mm": "file-objcpp",
+  "mts": "file-ts",
+  "mysql": "file-sql",
+  "ndjson": "file-json",
+  "nix": "file-nix",
+  "nomad": "file-hcl",
+  "nuspec": "file-xml",
+  "o": "file-binary",
+  "otf": "file-font",
+  "patch": "file-patch",
+  "pcss": "file-css",
+  "pgsql": "file-sql",
+  "php": "file-php",
+  "php3": "file-php",
+  "php4": "file-php",
+  "php5": "file-php",
+  "phps": "file-php",
+  "phpt": "file-php",
+  "phtml": "file-php",
+  "pkr.hcl": "file-hcl",
+  "pl": "file-perl",
+  "plist": "file-xml",
+  "pm": "file-perl",
+  "png": "file-image",
+  "pod": "file-perl",
+  "podspec": "file-ruby",
+  "pom": "file-xml",
+  "postcss": "file-css",
+  "prefs": "file-properties",
+  "properties": "file-properties",
+  "props": "file-xml",
+  "proto": "file-proto",
+  "ps1": "file-powershell",
+  "psd1": "file-powershell",
+  "psgi": "file-perl",
+  "psm1": "file-powershell",
+  "psql": "file-sql",
+  "psrc": "file-powershell",
+  "pssc": "file-powershell",
+  "pxd": "file-python",
+  "py": "file-python",
+  "pyc": "file-binary",
+  "pyi": "file-python",
+  "pyw": "file-python",
+  "pyx": "file-python",
+  "r": "file-r",
+  "rake": "file-ruby",
+  "rar": "file-archive",
+  "rb": "file-ruby",
+  "rbi": "file-ruby",
+  "reg": "file-config",
+  "regexp": "file-regexp",
+  "rej": "file-patch",
+  "rest": "file-http",
+  "resx": "file-xml",
+  "rhtml": "file-ruby",
+  "rockspec": "file-lua",
+  "ronn": "file-md",
+  "rprofile": "file-r",
+  "rs": "file-rust",
+  "rss": "file-xml",
+  "rst": "file-rst",
+  "ru": "file-ruby",
+  "sass": "file-sass",
+  "sbt": "file-scala",
+  "sc": "file-scala",
+  "scala": "file-scala",
+  "scss": "file-scss",
+  "service": "file-config",
+  "sh": "file-shell",
+  "shtml": "file-html",
+  "so": "file-binary",
+  "socket": "file-config",
+  "sql": "file-sql",
+  "storyboard": "file-xml",
+  "sty": "file-latex",
+  "svelte": "file-svelte",
+  "svg": "file-image",
+  "swift": "file-swift",
+  "swiftinterface": "file-swift",
+  "tag": "file-jsp",
+  "tagf": "file-jsp",
+  "tagx": "file-jsp",
+  "tar": "file-archive",
+  "targets": "file-xml",
+  "tex": "file-latex",
+  "text": "file-text",
+  "tf": "file-terraform",
+  "tftest.hcl": "file-terraform",
+  "tfvars": "file-terraform",
+  "tgz": "file-archive",
+  "tif": "file-image",
+  "tiff": "file-image",
+  "timer": "file-config",
+  "tld": "file-xml",
+  "tofu": "file-terraform",
+  "toml": "file-toml",
+  "topojson": "file-json",
+  "tpp": "file-cpp",
+  "tres": "file-godot",
+  "ts": "file-ts",
+  "tscn": "file-godot",
+  "tsv": "file-csv",
+  "tsx": "file-tsx",
+  "ttf": "file-font",
+  "txt": "file-text",
+  "url": "file-config",
+  "vbproj": "file-xml",
+  "vue": "file-vue",
+  "war": "file-archive",
+  "wasm": "file-binary",
+  "webmanifest": "file-json",
+  "webp": "file-image",
+  "whl": "file-archive",
+  "woff": "file-font",
+  "woff2": "file-font",
+  "workbook": "file-md",
+  "wsdl": "file-xml",
+  "xaml": "file-xml",
+  "xhtml": "file-xhtml",
+  "xib": "file-xml",
+  "xlf": "file-xml",
+  "xliff": "file-xml",
+  "xml": "file-xml",
+  "xsd": "file-xsd",
+  "xsl": "file-xml",
+  "xslt": "file-xml",
+  "xz": "file-archive",
+  "yaml": "file-yaml",
+  "yml": "file-yaml",
+  "zig": "file-zig",
+  "zip": "file-archive",
+  "zon": "file-zig",
+  "zsh": "file-shell",
+  "zst": "file-archive"
+ },
+ "codeExtensions": [
+  "nim",
+  "sol",
+  "sv",
+  "v",
+  "wat",
+  "wit"
+ ],
+ "cases": [
+  [
+   "main.py",
+   "file-python"
+  ],
+  [
+   "requirements.txt",
+   "file-requirements"
+  ],
+  [
+   "requirements-dev.txt",
+   "file-requirements"
+  ],
+  [
+   "pyproject.toml",
+   "file-pyproject"
+  ],
+  [
+   "Pipfile",
+   "file-pipenv"
+  ],
+  [
+   "notebook.ipynb",
+   "file-jupyter"
+  ],
+  [
+   "index.js",
+   "file-js"
+  ],
+  [
+   "App.jsx",
+   "file-jsx"
+  ],
+  [
+   "api.ts",
+   "file-ts"
+  ],
+  [
+   "types.d.ts",
+   "file-ts"
+  ],
+  [
+   "App.TSX",
+   "file-tsx"
+  ],
+  [
+   "package.json",
+   "file-npm"
+  ],
+  [
+   "package-lock.json",
+   "file-lock"
+  ],
+  [
+   "yarn.lock",
+   "file-lock"
+  ],
+  [
+   "pnpm-lock.yaml",
+   "file-lock"
+  ],
+  [
+   "Cargo.toml",
+   "file-cargo"
+  ],
+  [
+   "Cargo.lock",
+   "file-cargo-lock"
+  ],
+  [
+   "poetry.lock",
+   "file-lock"
+  ],
+  [
+   "Gemfile",
+   "file-ruby"
+  ],
+  [
+   "Gemfile.lock",
+   "file-lock"
+  ],
+  [
+   "go.mod",
+   "file-gomod"
+  ],
+  [
+   "go.sum",
+   "file-lock"
+  ],
+  [
+   "go.work",
+   "file-gowork"
+  ],
+  [
+   "tsconfig.json",
+   "file-config"
+  ],
+  [
+   "tsconfig.app.json",
+   "file-config"
+  ],
+  [
+   "vite.config.ts",
+   "file-config"
+  ],
+  [
+   "eslint.config.mjs",
+   "file-config"
+  ],
+  [
+   ".prettierrc",
+   "file-config"
+  ],
+  [
+   ".eslintrc.json",
+   "file-config"
+  ],
+  [
+   "data.json",
+   "file-json"
+  ],
+  [
+   "README.md",
+   "file-md"
+  ],
+  [
+   "README",
+   "file-readme"
+  ],
+  [
+   "LICENSE",
+   "file-license"
+  ],
+  [
+   "LICENSE-MIT",
+   "file-license"
+  ],
+  [
+   "license.ts",
+   "file-ts"
+  ],
+  [
+   "CHANGELOG",
+   "file-text"
+  ],
+  [
+   "config.yml",
+   "file-yaml"
+  ],
+  [
+   "config.toml",
+   "file-toml"
+  ],
+  [
+   "schema.sql",
+   "file-sql"
+  ],
+  [
+   "schema.graphql",
+   "file-graphql"
+  ],
+  [
+   "api.proto",
+   "file-proto"
+  ],
+  [
+   "main.go",
+   "file-go"
+  ],
+  [
+   "main.c",
+   "file-c"
+  ],
+  [
+   "util.h",
+   "file-h"
+  ],
+  [
+   "util.hpp",
+   "file-h"
+  ],
+  [
+   "main.cpp",
+   "file-cpp"
+  ],
+  [
+   "main.cc",
+   "file-cpp"
+  ],
+  [
+   "Program.cs",
+   "file-csharp"
+  ],
+  [
+   "lib.rs",
+   "file-rust"
+  ],
+  [
+   "Main.kt",
+   "file-kotlin"
+  ],
+  [
+   "script.kts",
+   "file-kotlin-script"
+  ],
+  [
+   "build.gradle",
+   "file-gradle"
+  ],
+  [
+   "build.gradle.kts",
+   "file-gradle-kts"
+  ],
+  [
+   "pom.xml",
+   "file-maven"
+  ],
+  [
+   "App.swift",
+   "file-swift"
+  ],
+  [
+   "app.rb",
+   "file-ruby"
+  ],
+  [
+   "init.lua",
+   "file-lua"
+  ],
+  [
+   "build.zig",
+   "file-zig"
+  ],
+  [
+   "main.dart",
+   "file-dart"
+  ],
+  [
+   "App.vue",
+   "file-vue"
+  ],
+  [
+   "App.svelte",
+   "file-svelte"
+  ],
+  [
+   "index.jsp",
+   "file-jsp"
+  ],
+  [
+   "footer.jspf",
+   "file-jsp"
+  ],
+  [
+   "card.tag",
+   "file-jsp"
+  ],
+  [
+   "styles.scss",
+   "file-scss"
+  ],
+  [
+   "styles.sass",
+   "file-sass"
+  ],
+  [
+   "styles.less",
+   "file-less"
+  ],
+  [
+   "Dockerfile",
+   "file-docker"
+  ],
+  [
+   "Dockerfile.dev",
+   "file-docker"
+  ],
+  [
+   "api.Dockerfile",
+   "file-docker"
+  ],
+  [
+   "docker-compose.yml",
+   "file-docker"
+  ],
+  [
+   "compose.yaml",
+   "file-docker"
+  ],
+  [
+   ".dockerignore",
+   "file-ignored"
+  ],
+  [
+   "Makefile",
+   "file-makefile"
+  ],
+  [
+   "rules.mk",
+   "file-makefile"
+  ],
+  [
+   "CMakeLists.txt",
+   "file-cmake"
+  ],
+  [
+   "toolchain.cmake",
+   "file-cmake"
+  ],
+  [
+   "main.tf",
+   "file-terraform"
+  ],
+  [
+   "config.hcl",
+   "file-hcl"
+  ],
+  [
+   "Jenkinsfile",
+   "file-jenkins"
+  ],
+  [
+   "BUILD.bazel",
+   "file-bazel"
+  ],
+  [
+   ".gitignore",
+   "file-ignored"
+  ],
+  [
+   ".editorconfig",
+   "file-config"
+  ],
+  [
+   ".env",
+   "file-dotenv"
+  ],
+  [
+   ".env.example",
+   "file-dotenv"
+  ],
+  [
+   ".envrc",
+   "file-shell"
+  ],
+  [
+   "run.sh",
+   "file-shell"
+  ],
+  [
+   "build.ps1",
+   "file-powershell"
+  ],
+  [
+   "build.bat",
+   "file-windows"
+  ],
+  [
+   "run.cmd",
+   "file-windows"
+  ],
+  [
+   "server.log",
+   "file-log"
+  ],
+  [
+   "paper.tex",
+   "file-latex"
+  ],
+  [
+   "photo.PNG",
+   "file-image"
+  ],
+  [
+   "main.sol",
+   "file-code"
+  ],
+  [
+   ".vimrc",
+   "file-text"
+  ],
+  [
+   "data.xyz",
+   "file-unknown"
+  ]
+ ]
+}

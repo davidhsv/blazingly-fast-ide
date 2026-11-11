@@ -341,7 +341,72 @@ function intlTable() {
   return table;
 }
 
+/**
+ * The file-name → icon tables of `src/ui/icons.tsx` (evaluated, so `table({...})` is expanded),
+ * and the cases `icons.test.tsx` asserts for them, which the Rust test replays.
+ */
+function fileIconTables() {
+  const file = join(root, "src/ui/icons.tsx");
+  const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true);
+  const wanted = ["table", "FILE_NAMES", "NAME_PATTERNS", "EXT_ICONS", "CODE_EXT"];
+  const parts = [];
+  ts.forEachChild(source, (node) => {
+    const name = ts.isFunctionDeclaration(node)
+      ? node.name?.text
+      : ts.isVariableStatement(node)
+        ? node.declarationList.declarations[0]?.name.getText(source)
+        : undefined;
+    if (name && wanted.includes(name)) parts.push(node.getText(source));
+  });
+  if (parts.length !== wanted.length) throw new Error("icons.tsx no longer declares the file icon tables as expected");
+  const js = ts.transpileModule(
+    `${parts.join("\n")}\nexports.result = { FILE_NAMES, NAME_PATTERNS: NAME_PATTERNS.map(([re, icon]) => [re.source, icon]), EXT_ICONS, CODE_EXT: [...CODE_EXT].sort() };`,
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+  ).outputText;
+  const module = { exports: {} };
+  vm.runInNewContext(js, { module, exports: module.exports });
+  const { FILE_NAMES, NAME_PATTERNS, EXT_ICONS, CODE_EXT } = module.exports.result;
+
+  // `it.each([[file, icon], …])("%s → %s", …)` in the spec.
+  const specFile = join(root, "src/ui/icons.test.tsx");
+  const spec = ts.createSourceFile(specFile, readFileSync(specFile, "utf8"), ts.ScriptTarget.ES2022, true);
+  let cases = null;
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isCallExpression(node.expression) &&
+      node.arguments[0] &&
+      ts.isStringLiteralLike(node.arguments[0]) &&
+      node.arguments[0].text === "%s → %s" &&
+      ts.isArrayLiteralExpression(node.expression.arguments[0])
+    ) {
+      const rows = node.expression.arguments[0].elements.map((row) =>
+        ts.isArrayLiteralExpression(row)
+          ? row.elements.map((cell) => (ts.isStringLiteralLike(cell) ? cell.text : null))
+          : [],
+      );
+      if (
+        rows.every((row) => row.length === 2 && row.every((cell) => typeof cell === "string")) &&
+        rows.length > (cases?.length ?? 0)
+      )
+        cases = rows;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(spec);
+  if (!cases || cases.length < 50) throw new Error("the file icon cases of icons.test.tsx were not found");
+  const sortedEntries = (table) => Object.fromEntries(Object.entries(table).sort(([a], [b]) => a.localeCompare(b)));
+  return {
+    fileNames: sortedEntries(FILE_NAMES),
+    namePatterns: NAME_PATTERNS,
+    extensions: sortedEntries(EXT_ICONS),
+    codeExtensions: CODE_EXT,
+    cases,
+  };
+}
+
 emit("keymaps.json", keymaps());
+emit("file-icons.json", fileIconTables());
 emit("intl.json", intlTable());
 const manifest = actionManifest();
 if (manifest.actions.length < 600) throw new Error(`only ${manifest.actions.length} actions resolved`);

@@ -32,6 +32,8 @@ ide-ssh = { path = "../crates/ide-ssh" }
 dirs = "6"
 futures = "0.3"
 ropey = "1.6"
+# File-name patterns of the icon tables (already in the dependency graph).
+regex = "1"
 # Terminal emulation over ide-terminal's PTY bytes (the webview uses xterm.js).
 alacritty_terminal = "0.26"
 # Plugin web views and other HTML surfaces, created on demand (never at start-up).

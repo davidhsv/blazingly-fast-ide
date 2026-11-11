@@ -315,7 +315,12 @@ impl Render for ProjectTree {
                             .text_color(color)
                             .when(selected.as_deref() == Some(row.path.as_path()), |el| el.bg(selected_bg))
                             .child(chevron)
-                            .child(theme::icon(cx, if row.dir { "folder" } else { "file" }, 16.0, color))
+                            .child(theme::icon(
+                                cx,
+                                if row.dir { "folder" } else { theme::icons::file_icon_name(&row.name) },
+                                16.0,
+                                color,
+                            ))
                             .child(div().whitespace_nowrap().child(SharedString::from(row.name.clone())))
                             .on_click(cx.listener(move |tree, event: &ClickEvent, window, cx| {
                                 window.focus(&tree.focus, cx);
