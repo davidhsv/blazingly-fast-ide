@@ -2,4 +2,5 @@
 
 pub mod context;
 pub mod dispatcher;
+pub mod i18n;
 pub mod keymap;

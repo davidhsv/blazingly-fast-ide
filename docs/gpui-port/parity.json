@@ -1,0 +1,67 @@
+{
+  "unit:src/platform/context.test.ts": { "status": "done", "proof": "`platform::context::tests`" },
+  "unit:src/platform/keymap.test.ts": {
+    "status": "done",
+    "proof": "`platform::keymap::tests`, `platform::dispatcher::tests`"
+  },
+  "unit:src/platform/i18n.test.ts": { "status": "done", "proof": "`platform::i18n::tests`" },
+  "module:src/platform/context.ts": { "status": "done", "proof": "`platform::context::tests`" },
+  "module:src/platform/keymap.ts": {
+    "status": "partial",
+    "proof": "`platform::keymap::tests`, `platform::dispatcher::tests`; not yet fed from window events"
+  },
+  "module:src/platform/i18n.ts": { "status": "done", "proof": "`platform::i18n::tests`" },
+  "keymap:intellij-macos": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+  },
+  "keymap:intellij-windows": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+  },
+  "keymap:vscode-macos": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+  },
+  "keymap:vscode-windows": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+  },
+  "keymap:eclipse-macos": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+  },
+  "keymap:eclipse-windows": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+  },
+  "design:tokens": { "status": "done", "proof": "`theme::tokens::tests::every_token_resolves_in_every_builtin_theme`" },
+  "design:locale.en.json": {
+    "status": "done",
+    "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
+  },
+  "design:locale.zh.json": {
+    "status": "done",
+    "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
+  },
+  "design:locale.ko.json": {
+    "status": "done",
+    "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
+  },
+  "design:locale.fr.json": {
+    "status": "done",
+    "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
+  },
+  "design:locale.pl.json": {
+    "status": "done",
+    "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
+  },
+  "design:locale.pt.json": {
+    "status": "done",
+    "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
+  },
+  "design:locale.es.json": {
+    "status": "done",
+    "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
+  }
+}
