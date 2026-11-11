@@ -3061,16 +3061,17 @@ impl ide_language::ExternalSyntax for PluginSyntax {
 }
 
 /// Whether a batch of `kinds` soft-cancels the running batch: a newer one of the same kinds
-/// replaces it. A focus or settings change alone leaves work that started a task (a build
-/// tool's sync on a window's first event, or one that wrote the project's settings file
-/// itself): it isn't about the old focus or settings.
+/// replaces it. A focus change alone leaves work that started a task (a build tool's sync on
+/// a window's first event): it isn't about the old focus. A settings change replaces nothing:
+/// it runs next and reads the settings then, while the running call may be acting on the
+/// previous change (stopping servers as a mode turns off) or have caused it (a sync that wrote
+/// the project's settings file).
 fn replaces_running(
     running: Option<&BTreeSet<EventKind>>,
     kinds: &BTreeSet<EventKind>,
     has_task: impl FnOnce() -> bool,
 ) -> bool {
-    let keeps_task =
-        kinds.iter().all(|k| *k == EventKind::EditorFocused) || kinds.iter().all(|k| *k == EventKind::SettingsChanged);
+    let focus_only = kinds.iter().all(|k| *k == EventKind::EditorFocused);
     running == Some(kinds)
         && !kinds.iter().any(|k| {
             matches!(
@@ -3080,9 +3081,10 @@ fn replaces_running(
                     | EventKind::RunExited
                     | EventKind::TerminalExited
                     | EventKind::ContentTabAction
+                    | EventKind::SettingsChanged
             )
         })
-        && !(keeps_task && has_task())
+        && !(focus_only && has_task())
 }
 
 #[cfg(test)]
@@ -3090,12 +3092,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn focus_or_settings_alone_keep_work_that_started_a_task() {
+    fn focus_keeps_work_that_started_a_task_and_settings_keep_any_work() {
         let set = |kinds: &[EventKind]| kinds.iter().copied().collect::<BTreeSet<_>>();
-        for kinds in [set(&[EventKind::EditorFocused]), set(&[EventKind::SettingsChanged])] {
-            assert!(!replaces_running(Some(&kinds), &kinds, || true), "{kinds:?} with a task");
-            assert!(replaces_running(Some(&kinds), &kinds, || false), "{kinds:?} without a task");
-        }
+        let focus = set(&[EventKind::EditorFocused]);
+        assert!(!replaces_running(Some(&focus), &focus, || true));
+        assert!(replaces_running(Some(&focus), &focus, || false));
+        let settings = set(&[EventKind::SettingsChanged]);
+        assert!(!replaces_running(Some(&settings), &settings, || true));
+        assert!(!replaces_running(Some(&settings), &settings, || false), "a bazel shutdown as Blaze mode starts");
         let saved = set(&[EventKind::FileSaved]);
         assert!(replaces_running(Some(&saved), &saved, || true), "a newer save replaces a task's work");
         let mixed = set(&[EventKind::EditorFocused, EventKind::FileSaved]);
