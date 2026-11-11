@@ -4,7 +4,9 @@
 use crate::backend::Backend;
 use crate::editor::view::Editor;
 use crate::platform::input;
+use crate::project_tree::{OpenFile, ProjectTree};
 use crate::theme;
+use gpui_kit::Subscription;
 use gpui_kit::{
     App, Context, Entity, Focusable, Global, IntoElement, ModifiersChangedEvent, MouseDownEvent, Render, SharedString,
     WeakEntity, Window, WindowId, div, prelude::*,
@@ -18,6 +20,12 @@ enum Content {
     Empty,
     Opening(PathBuf),
     Editor(Entity<Editor>),
+    /// A project: its file tree and the file being edited.
+    Project {
+        tree: Entity<ProjectTree>,
+        editor: Option<Entity<Editor>>,
+        _opens: Subscription,
+    },
     Failed(SharedString),
 }
 
@@ -66,8 +74,87 @@ impl Workbench {
     pub fn editor(&self) -> Option<&Entity<Editor>> {
         match &self.content {
             Content::Editor(editor) => Some(editor),
+            Content::Project { editor, .. } => editor.as_ref(),
             _ => None,
         }
+    }
+
+    /// The file tree, when a project is open.
+    pub fn project_tree(&self) -> Option<&Entity<ProjectTree>> {
+        match &self.content {
+            Content::Project { tree, .. } => Some(tree),
+            _ => None,
+        }
+    }
+
+    /// Opens the folder at `root` as this window's project.
+    pub fn open_project(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        self.content = Content::Opening(root.clone());
+        cx.notify();
+        let label = self.label.clone();
+        let opened = cx.global::<Backend>().with_host(move |host| async move {
+            let project = ide_host::ops::project::open(&host, &label, &root).await?;
+            ide_core::IdeResult::Ok(project.root.clone())
+        });
+        cx.spawn_in(window, async move |workbench, cx| {
+            let result = opened.await;
+            let _ = workbench.update_in(cx, |workbench, window, cx| {
+                let opened =
+                    result.map_err(|error| error.to_string()).and_then(|opened| opened.map_err(|error| error.message));
+                workbench.content = match opened {
+                    Ok(root) => {
+                        let label = workbench.label.clone();
+                        let tree = cx.new(|cx| ProjectTree::new(&label, root, cx));
+                        let opens = cx.subscribe_in(&tree, window, |workbench, _, event: &OpenFile, window, cx| {
+                            workbench.open_project_file(event.0.clone(), window, cx);
+                        });
+                        let focus = tree.focus_handle(cx);
+                        window.focus(&focus, cx);
+                        Content::Project { tree, editor: None, _opens: opens }
+                    }
+                    Err(message) => Content::Failed(message.into()),
+                };
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Opens a file of the project in the editor area.
+    pub fn open_project_file(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        let label = self.label.clone();
+        let opened = cx
+            .global::<Backend>()
+            .with_host(move |host| async move { ide_host::ops::doc::open(&host, &label, path).await });
+        cx.spawn_in(window, async move |workbench, cx| {
+            let result = opened.await;
+            let _ = workbench.update_in(cx, |workbench, window, cx| {
+                let host = cx.global::<Backend>().host.clone();
+                let label = workbench.label.clone();
+                let text = result
+                    .map_err(|error| error.to_string())
+                    .and_then(|opened| opened.map_err(|error| error.message))
+                    .and_then(|info| {
+                        let project = host.project(&label).map_err(|error| error.message)?;
+                        let (version, rope) =
+                            project.documents.rope_snapshot(info.id).map_err(|error| error.message)?;
+                        Ok((info, version, rope))
+                    });
+                match (text, &mut workbench.content) {
+                    (Ok((info, version, rope)), Content::Project { editor, .. }) => {
+                        let opened = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
+                        let focus = opened.focus_handle(cx);
+                        window.focus(&focus, cx);
+                        *editor = Some(opened);
+                    }
+                    // The project was closed while the file was opening.
+                    (Ok(_), _) => {}
+                    (Err(message), _) => tracing::error!("cannot open the file: {message}"),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     /// The message shown instead of an editor, when opening failed.
@@ -139,6 +226,21 @@ impl Render for Workbench {
             Content::Opening(path) => message(format!("Opening {}…", path.display()).into()).into_any_element(),
             Content::Failed(error) => message(error.clone()).into_any_element(),
             Content::Editor(editor) => editor.clone().into_any_element(),
+            Content::Project { tree, editor, .. } => div()
+                .size_full()
+                .flex()
+                .child(
+                    div()
+                        .w(gpui_kit::px(280.0))
+                        .h_full()
+                        .flex_none()
+                        .bg(theme::color(cx, "bg-elev"))
+                        .border_r_1()
+                        .border_color(theme::color(cx, "border"))
+                        .child(tree.clone()),
+                )
+                .child(div().flex_1().h_full().min_w_0().children(editor.clone()))
+                .into_any_element(),
         };
         div()
             .size_full()
@@ -241,6 +343,29 @@ mod tests {
         assert!(cx.update(|window, cx| execute_action_from(ActionSource::Menu, "edit.paste", None, window, cx)));
         assert!(cx.update(|window, cx| execute_action_from(ActionSource::Menu, "edit.copy", None, window, cx)));
         assert_eq!(editor.read_with(cx, |e, _| e.text()), "oat milk\n");
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn a_project_shows_its_tree_and_opens_files_in_the_editor(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        std::fs::write(folder.path().join("main.zig"), "const a = 1;\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench
+            .update_in(cx, |workbench, window, cx| workbench.open_project(folder.path().to_path_buf(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let tree = workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree");
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.model().rows().len() == 2));
+        // The tree has focus after a project opens: Down, Down, Enter opens the file.
+        cx.simulate_keystrokes("down down enter");
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        assert_eq!(editor.read_with(cx, |e, _| e.text()), "const a = 1;\n");
+        // The editor takes focus, so typing edits the file that was opened.
+        cx.simulate_input("// ");
+        assert_eq!(editor.read_with(cx, |e, _| e.text()), "// const a = 1;\n");
         let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
         host.close_project("w1");
     }

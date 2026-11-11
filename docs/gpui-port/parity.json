@@ -130,5 +130,13 @@
   "action:edit.selectAll": {
     "status": "partial",
     "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists"
+  },
+  "feature:project-tree": {
+    "status": "partial",
+    "proof": "`project_tree::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; lazy listing, keyboard navigation and opening files only: no file-type icons, context menu, file operations, view modes, package compaction or VCS colours"
+  },
+  "point.registerToolWindow:project": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; shown in a fixed left pane, not yet a tool window with a stripe button and header"
   }
 }

@@ -3,7 +3,7 @@
 pub mod icons;
 pub mod tokens;
 
-use gpui_kit::{App, Global, Hsla, Pixels, Rgba, px};
+use gpui_kit::{AnyElement, App, Global, Hsla, Pixels, Rgba, img, prelude::*, px, svg};
 use tokens::{Theme, ThemeAttributes, Tokens};
 
 /// The theme every window draws with.
@@ -53,5 +53,19 @@ pub fn length(cx: &App, name: &str) -> Pixels {
             tracing::error!("design token --{name} is not a length");
             px(0.0)
         }
+    }
+}
+
+/// Icon `name` at `size` pixels. A monochrome icon is drawn in `color` (the caller's text
+/// colour, so selected and disabled states apply); a coloured one keeps its palette, in the
+/// variant of the active theme.
+pub fn icon(cx: &App, name: &str, size: f32, color: Hsla) -> AnyElement {
+    let dark = cx.try_global::<ActiveTheme>().is_some_and(ActiveTheme::is_dark);
+    let asset = icons::icon_asset(name, size, dark);
+    if asset.mono {
+        // A mask is painted only in an explicit colour.
+        svg().path(asset.asset).size(px(size)).flex_none().text_color(color).into_any_element()
+    } else {
+        img(asset.asset).size(px(size)).flex_none().into_any_element()
     }
 }

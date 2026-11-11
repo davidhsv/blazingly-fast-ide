@@ -7,7 +7,7 @@ fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
-    // A file given on the command line opens for editing.
+    // A folder given on the command line opens as a project, a file opens for editing.
     let file = std::env::args_os().nth(1).map(PathBuf::from);
     gpui_kit::application().with_assets(IconAssets { fallback: gpui_kit::assets::Assets }).run(move |cx: &mut App| {
         gpui_kit::init(cx);
@@ -19,8 +19,10 @@ fn main() {
         let opened = gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
             cx.new(|cx| {
                 let mut workbench = Workbench::new("main", window, cx);
-                if let Some(file) = file.clone() {
-                    workbench.open_file(file, window, cx);
+                match file.clone() {
+                    Some(folder) if folder.is_dir() => workbench.open_project(folder, window, cx),
+                    Some(file) => workbench.open_file(file, window, cx),
+                    None => {}
                 }
                 workbench
             })

@@ -3,6 +3,7 @@
 pub mod backend;
 pub mod editor;
 pub mod platform;
+pub mod project_tree;
 pub mod theme;
 pub mod workbench;
 
