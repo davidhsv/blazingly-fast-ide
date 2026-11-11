@@ -129,8 +129,11 @@ pub struct IconAsset {
     pub mono: bool,
 }
 
-fn prepared() -> &'static RwLock<HashMap<(String, bool, bool), Option<IconAsset>>> {
-    static PREPARED: OnceLock<RwLock<HashMap<(String, bool, bool), Option<IconAsset>>>> = OnceLock::new();
+/// Resolved assets by (table path, large, dark); `None` for a path with no file.
+type Prepared = RwLock<HashMap<(String, bool, bool), Option<IconAsset>>>;
+
+fn prepared() -> &'static Prepared {
+    static PREPARED: OnceLock<Prepared> = OnceLock::new();
     PREPARED.get_or_init(Default::default)
 }
 

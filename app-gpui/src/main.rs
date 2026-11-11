@@ -18,7 +18,7 @@ fn main() {
         }
         let opened = gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
             cx.new(|cx| {
-                let mut workbench = Workbench::new("main");
+                let mut workbench = Workbench::new("main", window, cx);
                 if let Some(file) = file.clone() {
                     workbench.open_file(file, window, cx);
                 }

@@ -245,12 +245,9 @@ impl Selector {
     /// `None` for selectors that do not address the root element (`.cm-editor[…]`).
     fn parse(text: &str) -> Option<Self> {
         let text = text.trim();
-        let (pseudo_root, mut rest) = if let Some(rest) = text.strip_prefix(":root") {
-            (true, rest)
-        } else if let Some(rest) = text.strip_prefix("html") {
-            (false, rest)
-        } else {
-            return None;
+        let (pseudo_root, mut rest) = match text.strip_prefix(":root") {
+            Some(rest) => (true, rest),
+            None => (false, text.strip_prefix("html")?),
         };
         let mut attributes = Vec::new();
         while let Some(body) = rest.strip_prefix('[') {

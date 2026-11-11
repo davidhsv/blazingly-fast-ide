@@ -4,8 +4,8 @@
     "proof": "`platform::context::tests`"
   },
   "unit:src/platform/keymap.test.ts": {
-    "status": "done",
-    "proof": "`platform::keymap::tests`, `platform::dispatcher::tests`"
+    "status": "partial",
+    "proof": "`platform::keymap::tests`, `platform::dispatcher::tests`, `platform::input::tests`; numeric-keypad operator bindings cannot fire (GPUI reports no physical key, see D16)"
   },
   "unit:src/platform/i18n.test.ts": {
     "status": "done",
@@ -16,8 +16,8 @@
     "proof": "`platform::context::tests`"
   },
   "module:src/platform/keymap.ts": {
-    "status": "done",
-    "proof": "`platform::keymap::tests`, `platform::dispatcher::tests`, `platform::input::tests`"
+    "status": "partial",
+    "proof": "`platform::keymap::tests`, `platform::dispatcher::tests`, `platform::input::tests`; numeric-keypad operator bindings cannot fire (GPUI reports no physical key, see D16)"
   },
   "module:src/platform/i18n.ts": {
     "status": "done",
@@ -102,5 +102,33 @@
   "module:src/workbench/Workbench.tsx": {
     "status": "partial",
     "proof": "`workbench::tests`; LightEdit frame only: no title bar, tool windows, status bar or welcome view"
+  },
+  "action:file.save": {
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::saving_writes_the_file_and_clears_the_dirty_state`"
+  },
+  "action:edit.undo": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`; acts on code editors only, not yet on text fields and lists"
+  },
+  "action:edit.redo": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`; acts on code editors only, not yet on text fields and lists"
+  },
+  "action:edit.copy": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists"
+  },
+  "action:edit.cut": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists"
+  },
+  "action:edit.paste": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists"
+  },
+  "action:edit.selectAll": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists"
   }
 }

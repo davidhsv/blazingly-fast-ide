@@ -211,7 +211,7 @@ pub fn plural_category(n: f64, locale: &str) -> &'static str {
     let i: u128 = integer.parse().unwrap_or(0);
     let v = fraction.len();
     let whole = v == 0;
-    let millions = whole && i != 0 && i % 1_000_000 == 0;
+    let millions = whole && i != 0 && i.is_multiple_of(1_000_000);
     match locale {
         "zh" | "ko" => "other",
         "fr" | "pt" => {

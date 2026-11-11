@@ -844,3 +844,23 @@ fn properties_ascii_noop_and_charset_conversion() {
     assert_eq!(f.docs.snapshot(doc.id).unwrap().text, "a=世界😀");
     assert!(!f.docs.is_dirty(doc.id).unwrap());
 }
+
+#[test]
+fn a_rope_snapshot_is_the_text_at_its_version_and_survives_later_edits() {
+    let f = fixture();
+    let path = f.root.join("a.txt");
+    fs::write(&path, "héllo 😀\nsecond\n").unwrap();
+    let doc = f.docs.open(&path).unwrap();
+    let (version, rope) = f.docs.rope_snapshot(doc.id).unwrap();
+    assert_eq!(version, doc.version);
+    assert_eq!(rope.to_string(), doc.text);
+
+    let edited = f.docs.edit(doc.id, version, change(0, 0, ">> ")).unwrap();
+    // The snapshot is a value: an edit made after it was taken does not change it.
+    assert_eq!(rope.to_string(), "héllo 😀\nsecond\n");
+    let (version, rope) = f.docs.rope_snapshot(doc.id).unwrap();
+    assert_eq!((version, rope.to_string().as_str()), (edited, ">> héllo 😀\nsecond\n"));
+
+    f.docs.close(doc.id);
+    assert_eq!(f.docs.rope_snapshot(doc.id).unwrap_err().kind, ErrorKind::NotFound);
+}

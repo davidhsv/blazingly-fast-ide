@@ -13,6 +13,7 @@ use gpui_kit::App;
 pub fn init(cx: &mut App) -> anyhow::Result<()> {
     cx.set_global(theme::ActiveTheme::default());
     platform::input::init(cx);
+    editor::actions::register(cx);
     cx.default_global::<platform::i18n::Localization>();
     backend::Backend::init(backend::AppDirs::resolve()?, cx)
 }

@@ -10,14 +10,16 @@
 //! length of the document.
 
 use super::buffer::{self, Assoc};
+use super::history::{EditKind, History, invert};
 use crate::backend::Backend;
 use crate::platform::input::EDITOR_CONTEXT;
 use crate::theme;
 use gpui_kit::{
-    App, Bounds, Context, DispatchPhase, Element, ElementId, ElementInputHandler, Entity, EntityInputHandler,
-    FocusHandle, Focusable, Font, GlobalElementId, Hsla, InspectorElementId, IntoElement, KeyDownEvent, LayoutId,
-    MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollEvent, ShapedLine, SharedString, Style, TextAlign,
-    TextRun, UTF16Selection, WeakEntity, Window, div, fill, font, point, prelude::*, px, relative, size,
+    App, Bounds, ClipboardItem, Context, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
+    EntityInputHandler, FocusHandle, Focusable, Font, GlobalElementId, Hsla, InspectorElementId, IntoElement,
+    KeyDownEvent, LayoutId, MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollEvent, ShapedLine, SharedString,
+    Style, TextAlign, TextRun, UTF16Selection, WeakEntity, Window, div, fill, font, point, prelude::*, px, relative,
+    size,
 };
 use ide_core::error::ErrorKind;
 use ide_core::{ChangeSet, DocId, IdeEvent, IdeResult, LanguageId, TextChange};
@@ -25,6 +27,7 @@ use ide_host::Host;
 use ide_language::SyntaxHighlightKind;
 use ide_workspace::DocumentInfo;
 use ropey::Rope;
+use std::future::Future;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -54,6 +57,9 @@ pub fn syntax_token(kind: SyntaxHighlightKind) -> &'static str {
         K::Parameter => "syn-param",
     }
 }
+
+/// How long the text must be still before it is highlighted again.
+const HIGHLIGHT_DELAY: std::time::Duration = std::time::Duration::from_millis(40);
 
 /// A highlighted range: UTF-16 offsets and its kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +102,12 @@ pub struct Editor {
     highlights: Vec<HighlightSpan>,
     layout: Option<Layout>,
     listener: u64,
+    history: History,
+    /// The document has changes that are not on disk.
+    dirty: bool,
+    /// Counts edits, so that a highlight request an edit has overtaken is dropped.
+    generation: u64,
+    created: std::time::Instant,
 }
 
 impl Editor {
@@ -116,12 +128,17 @@ impl Editor {
     ) -> Self {
         let weak: WeakEntity<Self> = cx.weak_entity();
         let doc = info.id;
-        let listener = cx.global_mut::<Backend>().listen(move |event, cx| {
-            if let IdeEvent::DocPatched { doc: patched, base_version, changes, .. } = &event.event
-                && *patched == doc
-            {
-                let _ = weak.update(cx, |editor, cx| editor.remote_patch(*base_version, changes, cx));
+        let listener = cx.global_mut::<Backend>().listen(move |event, cx| match &event.event {
+            IdeEvent::DocPatched { doc: patched, base_version, changes, workspace_edit, .. } if *patched == doc => {
+                let _ = weak.update(cx, |editor, cx| editor.remote_patch(*base_version, changes, *workspace_edit, cx));
             }
+            IdeEvent::DocDirty { doc: changed, dirty } if *changed == doc => {
+                let _ = weak.update(cx, |editor, cx| {
+                    editor.dirty = *dirty;
+                    cx.notify();
+                });
+            }
+            _ => {}
         });
         cx.on_release(|editor, cx| cx.global_mut::<Backend>().unlisten(editor.listener)).detach();
         let mut editor = Self {
@@ -143,6 +160,10 @@ impl Editor {
             highlights: Vec::new(),
             layout: None,
             listener,
+            history: History::default(),
+            dirty: info.dirty,
+            generation: 0,
+            created: std::time::Instant::now(),
         };
         editor.refresh_highlights(cx);
         editor
@@ -219,6 +240,7 @@ impl Editor {
         let len = buffer::len_utf16(&self.rope);
         (self.anchor, self.head) = (anchor.min(len), head.min(len));
         self.goal_x = None;
+        self.history.seal();
         self.reveal_caret(cx);
         cx.notify();
     }
@@ -264,41 +286,62 @@ impl Editor {
     }
 
     /// Takes the backend's current text; the selection follows through `changes` when they are
-    /// known, else through the difference between the old and the new text.
-    fn follow(&mut self, changes: Option<&[TextChange]>, cx: &mut Context<Self>) {
+    /// known, else through the difference between the old and the new text. `record` makes the
+    /// change an undo entry of that kind. Returns the changes that were followed.
+    fn follow(
+        &mut self,
+        changes: Option<&[TextChange]>,
+        record: Option<EditKind>,
+        cx: &mut Context<Self>,
+    ) -> Vec<TextChange> {
         let old = self.rope.clone();
         if let Err(error) = self.snapshot() {
             tracing::warn!("cannot read document {}: {}", self.doc, error.message);
-            return;
+            return Vec::new();
         }
-        let derived;
         let changes = match changes {
-            Some(changes) => changes,
-            None => {
-                derived = difference(&old, &self.rope);
-                derived.as_slice()
-            }
+            Some(changes) => changes.to_vec(),
+            None => difference(&old, &self.rope),
         };
-        self.anchor = buffer::map_offset(self.anchor, changes, Assoc::After);
-        self.head = buffer::map_offset(self.head, changes, Assoc::After);
+        let before = (self.anchor, self.head);
+        self.anchor = buffer::map_offset(self.anchor, &changes, Assoc::After);
+        self.head = buffer::map_offset(self.head, &changes, Assoc::After);
         self.marked = None;
+        if let Some(kind) = record.filter(|_| !changes.is_empty()) {
+            let now = self.created.elapsed().as_secs_f64() * 1000.0;
+            self.history.record(changes.clone(), invert(&old, &changes), before, (self.anchor, self.head), kind, now);
+        }
+        self.generation += 1;
         self.refresh_highlights(cx);
         cx.notify();
+        changes
     }
 
-    /// The backend edited the document itself.
-    fn remote_patch(&mut self, base_version: u32, changes: &[TextChange], cx: &mut Context<Self>) {
+    /// The backend edited the document itself. Like any edit it can be undone here, unless it
+    /// is part of a workspace edit, which is undone as a whole elsewhere: then the changes this
+    /// editor could undo no longer apply to the text, and its history starts over.
+    fn remote_patch(
+        &mut self,
+        base_version: u32,
+        changes: &[TextChange],
+        workspace_edit: bool,
+        cx: &mut Context<Self>,
+    ) {
         let current = self.documents().and_then(|d| d.version(self.doc)).unwrap_or(self.version);
         if current == self.version {
             return; // already reflected (the edit was ours, or a snapshot overtook the event)
         }
-        self.follow((base_version == self.version).then_some(changes), cx);
+        if workspace_edit {
+            self.history.clear();
+        }
+        let record = (!workspace_edit).then_some(EditKind::Other);
+        self.follow((base_version == self.version).then_some(changes), record, cx);
     }
 
     /// Applies the edit `make` describes for the current text and selection. When the backend
     /// has moved on (its own edit not yet delivered here), the text is refreshed and `make` is
     /// asked again, so what the user typed lands at the caret's new place instead of being lost.
-    fn edit(&mut self, cx: &mut Context<Self>, make: impl Fn(&Self) -> Vec<TextChange>) -> bool {
+    fn edit(&mut self, kind: EditKind, cx: &mut Context<Self>, make: impl Fn(&Self) -> Vec<TextChange>) -> bool {
         if self.read_only {
             return false;
         }
@@ -311,12 +354,15 @@ impl Editor {
                 self.documents().and_then(|d| d.edit(self.doc, self.version, ChangeSet { changes: changes.clone() }));
             match result {
                 Ok(_) => {
-                    self.follow(Some(&changes), cx);
+                    self.follow(Some(&changes), Some(kind), cx);
                     self.goal_x = None;
                     self.reveal_caret(cx);
                     return true;
                 }
-                Err(error) if error.kind == ErrorKind::OutOfSync && attempt < 2 => self.follow(None, cx),
+                // The backend's edit becomes an undo entry of its own before the user's.
+                Err(error) if error.kind == ErrorKind::OutOfSync && attempt < 2 => {
+                    self.follow(None, Some(EditKind::Other), cx);
+                }
                 Err(error) => {
                     tracing::warn!("edit of {} rejected: {}", self.path.display(), error.message);
                     return false;
@@ -326,10 +372,108 @@ impl Editor {
         false
     }
 
-    /// Replaces the selection (or `range`) with `text`; the caret ends after it.
-    pub fn insert(&mut self, range: Option<Range<u32>>, text: &str, cx: &mut Context<Self>) -> bool {
+    /// Applies one side of history entries. On a rejection the history no longer describes the
+    /// text: it is dropped and the text refreshed.
+    fn replay(&mut self, steps: &[(Vec<TextChange>, (u32, u32))], cx: &mut Context<Self>) -> bool {
+        for (changes, selection) in steps {
+            let applied =
+                self.documents().and_then(|d| d.edit(self.doc, self.version, ChangeSet { changes: changes.clone() }));
+            if let Err(error) = applied {
+                tracing::warn!("cannot replay an edit of {}: {}", self.path.display(), error.message);
+                self.history.clear();
+                self.follow(None, None, cx);
+                return false;
+            }
+            self.follow(Some(changes), None, cx);
+            (self.anchor, self.head) = *selection;
+        }
+        self.goal_x = None;
+        self.reveal_caret(cx);
+        cx.notify();
+        true
+    }
+
+    /// Undoes the newest group of edits; the selection returns to where it was before them.
+    pub fn undo(&mut self, cx: &mut Context<Self>) -> bool {
+        let entries = self.history.take_undo();
+        if entries.is_empty() || self.read_only {
+            return false;
+        }
+        let steps: Vec<_> = entries.iter().map(|e| (e.inverse.clone(), e.before)).collect();
+        let done = self.replay(&steps, cx);
+        if done {
+            self.history.undone(entries);
+        }
+        done
+    }
+
+    /// Redoes the group that was undone last.
+    pub fn redo(&mut self, cx: &mut Context<Self>) -> bool {
+        let entries = self.history.take_redo();
+        if entries.is_empty() || self.read_only {
+            return false;
+        }
+        let steps: Vec<_> = entries.iter().map(|e| (e.forward.clone(), e.after)).collect();
+        let done = self.replay(&steps, cx);
+        if done {
+            self.history.redone(entries);
+        }
+        done
+    }
+
+    pub fn can_undo(&self) -> bool {
+        self.history.can_undo()
+    }
+
+    pub fn can_redo(&self) -> bool {
+        self.history.can_redo()
+    }
+
+    /// Whether the document has changes that are not on disk.
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// Writes the document to disk; the backend reports the document clean when it is done.
+    pub fn save(&self, cx: &App) -> impl Future<Output = anyhow::Result<IdeResult<()>>> + Send + 'static + use<> {
+        let (host, window, doc) = (self.host.clone(), self.window_label.clone(), self.doc);
+        cx.global::<Backend>().call(async move { ide_host::ops::doc::save(&host, &window, doc).await })
+    }
+
+    pub fn select_all(&mut self, cx: &mut Context<Self>) {
+        self.select(0, buffer::len_utf16(&self.rope), cx);
+    }
+
+    /// The selected text.
+    pub fn selected_text(&self) -> String {
+        let selection = self.selection();
+        buffer::slice(&self.rope, selection.start, selection.end)
+    }
+
+    /// Copies the selection to the clipboard; nothing is copied without one.
+    pub fn copy(&self, cx: &mut Context<Self>) -> bool {
+        if self.selection().is_empty() {
+            return false;
+        }
+        cx.write_to_clipboard(ClipboardItem::new_string(self.selected_text()));
+        true
+    }
+
+    pub fn cut(&mut self, cx: &mut Context<Self>) -> bool {
+        self.copy(cx) && self.replace(None, "", EditKind::Other, cx)
+    }
+
+    /// Replaces the selection with the clipboard's text.
+    pub fn paste(&mut self, cx: &mut Context<Self>) -> bool {
+        match cx.read_from_clipboard().and_then(|item| item.text()) {
+            Some(text) if !text.is_empty() => self.replace(None, &text, EditKind::Other, cx),
+            _ => false,
+        }
+    }
+
+    fn replace(&mut self, range: Option<Range<u32>>, text: &str, kind: EditKind, cx: &mut Context<Self>) -> bool {
         let text = text.replace("\r\n", "\n").replace('\r', "\n");
-        self.edit(cx, |editor| {
+        self.edit(kind, cx, |editor| {
             let range = range.clone().unwrap_or_else(|| editor.selection());
             if range.is_empty() && text.is_empty() {
                 return Vec::new();
@@ -338,9 +482,14 @@ impl Editor {
         })
     }
 
+    /// Replaces the selection (or `range`) with typed `text`; the caret ends after it.
+    pub fn insert(&mut self, range: Option<Range<u32>>, text: &str, cx: &mut Context<Self>) -> bool {
+        self.replace(range, text, EditKind::Insert, cx)
+    }
+
     /// Deletes the selection, or the character before (`forward` false) or after the caret.
     pub fn delete(&mut self, forward: bool, cx: &mut Context<Self>) -> bool {
-        self.edit(cx, |editor| {
+        self.edit(EditKind::Delete, cx, |editor| {
             let selection = editor.selection();
             let range = if !selection.is_empty() {
                 selection
@@ -387,25 +536,30 @@ impl Editor {
             self.highlights.clear();
             return;
         }
-        let (host, window, doc, version) = (self.host.clone(), self.window_label.clone(), self.doc, self.version);
-        let work =
-            cx.global::<Backend>().call(async move { ide_host::ops::doc::doc_highlights(&host, &window, doc).await });
+        let (host, window, doc) = (self.host.clone(), self.window_label.clone(), self.doc);
+        let generation = self.generation;
         cx.spawn(async move |editor, cx| {
+            // Highlighting reads the whole document: while the user types, only the last edit
+            // of a burst asks for it.
+            cx.background_executor().timer(HIGHLIGHT_DELAY).await;
+            let request = editor.update(cx, |editor, cx| {
+                (editor.generation == generation).then(|| {
+                    let work = async move { ide_host::ops::doc::doc_highlights(&host, &window, doc).await };
+                    (editor.version, cx.global::<Backend>().call(work))
+                })
+            });
+            let Ok(Some((version, work))) = request else { return };
             let Ok(Ok(highlights)) = work.await else { return };
             let _ = editor.update(cx, |editor: &mut Editor, cx| {
                 // Highlights of a version the text has already left would colour the wrong ranges.
                 if editor.version != version {
                     return;
                 }
-                editor.highlights = highlights
-                    .data
-                    .chunks_exact(3)
-                    .filter_map(|span| {
-                        Some(HighlightSpan {
-                            from: span[0],
-                            to: span[1],
-                            kind: *highlights.kinds.get(span[2] as usize)?,
-                        })
+                let (triples, _) = highlights.data.as_chunks::<3>();
+                editor.highlights = triples
+                    .iter()
+                    .filter_map(|&[from, to, kind]| {
+                        Some(HighlightSpan { from, to, kind: *highlights.kinds.get(kind as usize)? })
                     })
                     .collect();
                 cx.notify();
@@ -471,6 +625,24 @@ impl Editor {
     fn key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let keystroke = &event.keystroke;
         let modifiers = keystroke.modifiers;
+        // The editing shortcuts every text field has (⌘Z, ⌘C…; Ctrl on Windows and Linux).
+        if modifiers.secondary(cx) && !modifiers.alt && modifiers.number_of_modifiers() <= 2 {
+            match (keystroke.key.as_str(), modifiers.shift) {
+                ("z", false) => self.undo(cx),
+                ("z", true) => self.redo(cx),
+                ("c", false) => self.copy(cx),
+                ("x", false) => self.cut(cx),
+                ("v", false) => self.paste(cx),
+                ("a", false) => {
+                    self.select_all(cx);
+                    true
+                }
+                _ => return,
+            };
+            window.invalidate_character_coordinates();
+            cx.stop_propagation();
+            return;
+        }
         if modifiers.control || modifiers.alt || modifiers.platform {
             return;
         }
@@ -898,6 +1070,8 @@ mod tests {
     /// Waits for work on the backend's own threads to reach the UI.
     fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
         for _ in 0..200 {
+            // Timers run on the test clock; the backend's threads run on the real one.
+            cx.executor().advance_clock(Duration::from_millis(50));
             cx.run_until_parked();
             if done(cx) {
                 return;
@@ -1084,5 +1258,145 @@ mod tests {
         assert_eq!(diff("hello world", "hello"), [TextChange { from: 5, to: 11, insert: String::new() }]);
         assert_eq!(diff("aaa", "aa"), [TextChange { from: 2, to: 3, insert: String::new() }]);
         assert_eq!(diff("", "x"), [TextChange { from: 0, to: 0, insert: "x".to_owned() }]);
+    }
+}
+
+#[cfg(test)]
+mod editing_tests {
+    use super::*;
+    use crate::backend::AppDirs;
+    use gpui_kit::{TestAppContext, VisualTestContext};
+    use ide_core::{Pos, TextEdit};
+    use std::time::Duration;
+
+    struct Opened {
+        editor: Entity<Editor>,
+        host: Arc<Host>,
+        path: PathBuf,
+        _folders: (tempfile::TempDir, tempfile::TempDir),
+    }
+
+    async fn open<'a>(cx: &'a mut TestAppContext, text: &str) -> (Opened, &'a mut VisualTestContext) {
+        cx.executor().allow_parking();
+        let (home, project) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a project"));
+        let root = project.path().canonicalize().expect("the project folder exists");
+        let path = root.join("notes.txt");
+        std::fs::write(&path, text).expect("the file is written");
+        cx.update(|cx| {
+            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            cx.set_global(theme::ActiveTheme::default());
+        });
+        let (open_root, open_path) = (root.clone(), path.clone());
+        let opened = cx.update(|cx| {
+            cx.global::<Backend>().with_host(move |host| async move {
+                ide_host::ops::project::open(&host, "w1", &open_root).await?;
+                ide_host::ops::doc::open(&host, "w1", open_path).await
+            })
+        });
+        let info = opened.await.expect("the task completes").expect("the document opens");
+        let host = cx.update(|cx| cx.global::<Backend>().host.clone());
+        let editor_host = host.clone();
+        let (editor, cx) =
+            cx.add_window_view(move |_, cx| Editor::new(editor_host, "w1", &info, cx).expect("the editor opens"));
+        cx.update(|window, cx| {
+            let focus = editor.read(cx).focus.clone();
+            window.focus(&focus, cx);
+        });
+        cx.run_until_parked();
+        (Opened { editor, host, path, _folders: (home, project) }, cx)
+    }
+
+    fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
+        for _ in 0..300 {
+            cx.executor().advance_clock(Duration::from_millis(50));
+            cx.run_until_parked();
+            if done(cx) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("the backend did not deliver within three seconds");
+    }
+
+    fn text(o: &Opened, cx: &mut VisualTestContext) -> String {
+        o.editor.read_with(cx, |e, _| e.text())
+    }
+
+    #[gpui_kit::test]
+    async fn undo_and_redo_walk_groups_of_typing(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "end\n").await;
+        cx.simulate_input("one ");
+        // Moving the caret ends the group; typing after it is a second one.
+        cx.simulate_keystrokes("right left");
+        cx.simulate_input("two ");
+        assert_eq!(text(&o, cx), "one two end\n");
+        cx.simulate_keystrokes("cmd-z");
+        assert_eq!(text(&o, cx), "one end\n");
+        assert_eq!(o.editor.read_with(cx, |e, _| e.caret()), 4);
+        cx.simulate_keystrokes("cmd-z");
+        assert_eq!((text(&o, cx).as_str(), o.editor.read_with(cx, |e, _| e.caret())), ("end\n", 0));
+        // Nothing left to undo: the key does nothing.
+        cx.simulate_keystrokes("cmd-z");
+        assert_eq!(text(&o, cx), "end\n");
+        cx.simulate_keystrokes("cmd-shift-z cmd-shift-z");
+        assert_eq!((text(&o, cx).as_str(), o.editor.read_with(cx, |e, _| e.caret())), ("one two end\n", 8));
+        // The backend holds the same text after every step.
+        assert_eq!(o.host.project("w1").unwrap().documents.text_of(&o.path).as_deref(), Some("one two end\n"));
+        // A new edit after an undo drops what could be redone.
+        cx.simulate_keystrokes("cmd-z");
+        cx.simulate_input("x");
+        assert!(!o.editor.read_with(cx, |e, _| e.can_redo()));
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn a_backend_edit_is_undone_like_any_other(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "body\n").await;
+        let doc = o.editor.read_with(cx, |e, _| e.doc());
+        let start = Pos { line: 0, col: 0 };
+        let edit = TextEdit { range: ide_core::Range { start, end: start }, new_text: "// formatted\n".to_owned() };
+        o.host.project("w1").unwrap().documents.apply_edits(doc, &[edit]).expect("the edit applies");
+        settle(cx, |cx| o.editor.read_with(cx, |e, _| e.text().starts_with("// formatted")));
+        cx.simulate_keystrokes("cmd-z");
+        assert_eq!(text(&o, cx), "body\n");
+        cx.simulate_keystrokes("cmd-shift-z");
+        assert_eq!(text(&o, cx), "// formatted\nbody\n");
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn clipboard_keys_copy_cut_and_paste(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "alpha beta\n").await;
+        o.editor.update(cx, |e, cx| e.select(0, 6, cx));
+        cx.simulate_keystrokes("cmd-c");
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("alpha "));
+        cx.simulate_keystrokes("end cmd-v");
+        assert_eq!(text(&o, cx), "alpha betaalpha \n");
+        o.editor.update(cx, |e, cx| e.select(0, 6, cx));
+        cx.simulate_keystrokes("cmd-x");
+        assert_eq!(text(&o, cx), "betaalpha \n");
+        // Without a selection nothing is copied: the clipboard keeps the cut text.
+        cx.simulate_keystrokes("cmd-c");
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("alpha "));
+        cx.simulate_keystrokes("cmd-a");
+        assert_eq!(o.editor.read_with(cx, |e, _| e.selection()), 0..11);
+        // A paste is one undo step, whatever its length.
+        cx.simulate_keystrokes("cmd-v cmd-z");
+        assert_eq!(text(&o, cx), "betaalpha \n");
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn saving_writes_the_file_and_clears_the_dirty_state(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "draft\n").await;
+        assert!(!o.editor.read_with(cx, |e, _| e.is_dirty()));
+        cx.simulate_input("final ");
+        settle(cx, |cx| o.editor.read_with(cx, |e, _| e.is_dirty()));
+        assert_eq!(std::fs::read_to_string(&o.path).expect("readable"), "draft\n");
+        let saved = o.editor.read_with(cx, |e, cx| e.save(cx));
+        saved.await.expect("the task completes").expect("the file saves");
+        assert_eq!(std::fs::read_to_string(&o.path).expect("readable"), "final draft\n");
+        settle(cx, |cx| !o.editor.read_with(cx, |e, _| e.is_dirty()));
+        o.host.close_project("w1");
     }
 }
