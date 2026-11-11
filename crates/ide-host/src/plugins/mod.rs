@@ -1968,17 +1968,7 @@ impl PluginHost {
         let token = Arc::new(());
         {
             let mut batches = plugin.batches.lock();
-            // A newer batch replaces the running one. A focus change alone leaves work that started a
-            // task (a build tool's sync on a window's first event): it isn't about the old focus.
-            let focus_only = kinds.iter().all(|k| *k == EventKind::EditorFocused);
-            if batches.running.as_ref() == Some(&kinds)
-                && !(focus_only && self.shared.has_task(plugin.id()))
-                && !kinds.contains(&EventKind::Scheduled)
-                && !kinds.contains(&EventKind::FilesChanged)
-                && !kinds.iter().any(|k| {
-                    matches!(k, EventKind::RunExited | EventKind::TerminalExited | EventKind::ContentTabAction)
-                })
-            {
+            if replaces_running(batches.running.as_ref(), &kinds, || self.shared.has_task(plugin.id())) {
                 actor.cancel_soft();
             }
             if filesystem {
@@ -3070,9 +3060,50 @@ impl ide_language::ExternalSyntax for PluginSyntax {
     }
 }
 
+/// Whether a batch of `kinds` soft-cancels the running batch: a newer one of the same kinds
+/// replaces it. A focus or settings change alone leaves work that started a task (a build
+/// tool's sync on a window's first event, or one that wrote the project's settings file
+/// itself): it isn't about the old focus or settings.
+fn replaces_running(
+    running: Option<&BTreeSet<EventKind>>,
+    kinds: &BTreeSet<EventKind>,
+    has_task: impl FnOnce() -> bool,
+) -> bool {
+    let keeps_task =
+        kinds.iter().all(|k| *k == EventKind::EditorFocused) || kinds.iter().all(|k| *k == EventKind::SettingsChanged);
+    running == Some(kinds)
+        && !kinds.iter().any(|k| {
+            matches!(
+                k,
+                EventKind::Scheduled
+                    | EventKind::FilesChanged
+                    | EventKind::RunExited
+                    | EventKind::TerminalExited
+                    | EventKind::ContentTabAction
+            )
+        })
+        && !(keeps_task && has_task())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn focus_or_settings_alone_keep_work_that_started_a_task() {
+        let set = |kinds: &[EventKind]| kinds.iter().copied().collect::<BTreeSet<_>>();
+        for kinds in [set(&[EventKind::EditorFocused]), set(&[EventKind::SettingsChanged])] {
+            assert!(!replaces_running(Some(&kinds), &kinds, || true), "{kinds:?} with a task");
+            assert!(replaces_running(Some(&kinds), &kinds, || false), "{kinds:?} without a task");
+        }
+        let saved = set(&[EventKind::FileSaved]);
+        assert!(replaces_running(Some(&saved), &saved, || true), "a newer save replaces a task's work");
+        let mixed = set(&[EventKind::EditorFocused, EventKind::FileSaved]);
+        assert!(replaces_running(Some(&mixed), &mixed, || true));
+        assert!(!replaces_running(Some(&saved), &mixed, || false), "different kinds run side by side");
+        let files = set(&[EventKind::FilesChanged]);
+        assert!(!replaces_running(Some(&files), &files, || false));
+    }
 
     #[test]
     fn host_panics_stop_actor_and_reply_on_every_call_path() {
