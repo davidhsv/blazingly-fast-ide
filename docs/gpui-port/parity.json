@@ -137,7 +137,7 @@
   },
   "point.registerToolWindow:project": {
     "status": "partial",
-    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; shown in a fixed left pane, not yet a tool window with a stripe button and header"
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; a tool window with a stripe button and title: no header actions or menus"
   },
   "point.registerStatusItem:editor.caret": {
     "status": "partial",
@@ -237,7 +237,7 @@
   },
   "unit:src/workbench/toolwindows/store.test.ts": {
     "status": "partial",
-    "proof": "`workbench::tool_windows::tests`; the case about `toolwindow.<id>` actions needs the action registrations, which do not exist yet"
+    "proof": "`workbench::tool_windows::tests`, `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`; `toolwindow.<id>` exists for the Project view only"
   },
   "unit:src/workbench/toolwindows/layouts.test.ts": {
     "status": "partial",
@@ -249,7 +249,7 @@
   },
   "module:src/workbench/toolwindows/store.ts": {
     "status": "partial",
-    "proof": "`workbench::tool_windows::tests`; the model only: no window uses it yet"
+    "proof": "`workbench::tool_windows::tests`, `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`; drives the left stripe and the Project view: no right or bottom sides, splits, resizing or maximizing in the window yet"
   },
   "module:src/workbench/toolwindows/layouts.ts": {
     "status": "partial",
@@ -294,5 +294,29 @@
   "module:src/platform/search.ts": {
     "status": "partial",
     "proof": "`platform::search::tests`; the pure parts only: no storage, no scope store"
+  },
+  "action:toolwindow.hideAll": {
+    "status": "done",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`"
+  },
+  "action:toolwindow.jumpToLast": {
+    "status": "done",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`"
+  },
+  "action:toolwindow.hideActive": {
+    "status": "partial",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`; registered, but the test does not exercise it"
+  },
+  "action:toolwindow.focusEditor": {
+    "status": "done",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`"
+  },
+  "context:toolWindowFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`"
+  },
+  "module:src/workbench/toolwindows/ToolWindows.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`; left stripe, one island and its title: no header actions, drag and drop, resize handles or other sides"
   }
 }

@@ -17,5 +17,9 @@ pub fn init(cx: &mut App) -> anyhow::Result<()> {
     platform::input::init(cx);
     editor::actions::register(cx);
     cx.default_global::<platform::i18n::Localization>();
-    backend::Backend::init(backend::AppDirs::resolve()?, cx)
+    let dirs = backend::AppDirs::resolve()?;
+    backend::Backend::init(dirs.clone(), cx)?;
+    cx.set_global(platform::storage::UiStorage::load(&dirs.config));
+    workbench::register_actions(cx);
+    Ok(())
 }

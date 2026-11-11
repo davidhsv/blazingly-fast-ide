@@ -101,3 +101,11 @@ The manifest has no actions for arrows, Home/End, Backspace or Enter: in the web
 ## D20. What has been seen on screen
 
 A window-only capture of the running debug build (2026-11-11) shows the editor drawing a Zig file with gutter numbers, caret, current-line band and syntax colours in Islands Light. Nothing else has been looked at: the window tests run on GPUI's test text system, whose glyph metrics are not the real shaper's, so pixel positions asserted there prove the mapping logic, not the rendering.
+
+## D21. `localStorage` becomes one JSON file
+
+The webview keeps session-outliving UI state (tool window layouts, named layouts, search history, dialog choices) in `localStorage` under string keys. The GPUI app keeps the same keys with the same JSON values in `ui-storage.json` in its configuration directory, written through on every change by rename, so a layout stored by one app parses in the other. The two apps do not share the file (D13).
+
+## D22. A tool window appears on a stripe only once it has a view here
+
+The webview registers 36 tool windows. The GPUI stripes show a button only for those this app can draw (today: Project), so no button opens an empty pane. Their declarations (title, icon, side, order) come from the contributions manifest, and each gets its `toolwindow.<id>` action when its view is ported.

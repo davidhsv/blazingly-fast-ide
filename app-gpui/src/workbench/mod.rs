@@ -5,7 +5,9 @@ pub mod tool_windows;
 
 use crate::backend::Backend;
 use crate::editor::view::Editor;
+use crate::platform::actions::{Action, ActionMeta, ActionRegistry, ActionSource, execute_action_from, manifest};
 use crate::platform::input;
+use crate::platform::storage::UiStorage;
 use crate::project_tree::{OpenFile, ProjectTree};
 use crate::theme;
 use gpui_kit::Subscription;
@@ -15,6 +17,7 @@ use gpui_kit::{
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
+use tool_windows::{Anchor, Effects, Slot, Stripe, ToolWindow, ToolWindowLayout, storage_key};
 
 /// What a window shows.
 enum Content {
@@ -25,6 +28,10 @@ enum Content {
     /// A project: its file tree and the file being edited.
     Project {
         name: String,
+        /// Which tool windows are shown, where and how large.
+        layout: Box<ToolWindowLayout>,
+        /// The last focus request of `layout` that was carried out.
+        focus_served: u64,
         tree: Entity<ProjectTree>,
         editor: Option<Entity<Editor>>,
         _opens: Subscription,
@@ -83,6 +90,73 @@ pub fn window_options() -> gpui_kit::WindowOptions {
 
 /// Room the title bar leaves for the native macOS window buttons.
 const WINDOW_BUTTONS_WIDTH: f32 = 82.0;
+
+/// The Project view's tool window id.
+pub const PROJECT_TOOL_WINDOW: &str = "project";
+
+/// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
+/// contributions manifest.
+pub fn tool_window_declaration(id: &str) -> Option<ToolWindow> {
+    static DECLARED: std::sync::OnceLock<serde_json::Value> = std::sync::OnceLock::new();
+    let manifest = DECLARED.get_or_init(|| {
+        serde_json::from_str(include_str!("../../assets/gen/contributions.json"))
+            .expect("assets/gen/contributions.json is generated and valid")
+    });
+    let declared = manifest
+        .get("registerToolWindow")?
+        .as_array()?
+        .iter()
+        .find(|w| w.get("id").and_then(|v| v.as_str()) == Some(id))?;
+    let text = |key: &str| declared.get(key).and_then(|v| v.as_str());
+    let anchor = match text("anchor")? {
+        "left" => Anchor::Left,
+        "right" => Anchor::Right,
+        "bottom" => Anchor::Bottom,
+        _ => return None,
+    };
+    let flag = |key: &str| declared.get(key).and_then(|v| v.as_bool());
+    Some(ToolWindow {
+        order: declared.get("order").and_then(|v| v.as_f64()),
+        secondary: flag("secondary").unwrap_or(false),
+        stripe: if text("stripe") == Some("onUse") { Stripe::OnUse } else { Stripe::Shown },
+        verbatim: flag("verbatim").unwrap_or(false),
+        requires_project: flag("requiresProject").unwrap_or(true),
+        ..ToolWindow::new(id, text("title")?, text("icon")?, anchor)
+    })
+}
+
+/// Registers the workbench's actions: one `toolwindow.<id>` per tool window this app has a view
+/// for, and the window-level ones (hide all, jump to last, hide active, focus editor).
+pub fn register_actions(cx: &mut App) {
+    fn on_layout(
+        window: &mut Window,
+        cx: &mut App,
+        change: impl FnOnce(&mut ToolWindowLayout) -> Effects,
+    ) -> anyhow::Result<()> {
+        let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+        workbench.update(cx, |workbench, cx| workbench.with_layout(window, cx, change));
+        Ok(())
+    }
+    let registry = cx.default_global::<ActionRegistry>();
+    for id in [PROJECT_TOOL_WINDOW] {
+        let Some(declared) = tool_window_declaration(id) else { continue };
+        let meta = ActionMeta {
+            category: Some("Tool Windows".to_owned()),
+            icon: Some(declared.icon.clone()),
+            keywords: ["tool window", "show", "hide"].map(str::to_owned).to_vec(),
+            verbatim: declared.verbatim,
+            ..ActionMeta::new(&format!("toolwindow.{id}"), &declared.title)
+        };
+        registry.register(Action::new(meta, move |_, window, cx| on_layout(window, cx, |layout| layout.activate(id))));
+    }
+    debug_assert!(manifest().contains_key("toolwindow.hideAll"));
+    registry.handle("toolwindow.hideAll", |_, window, cx| on_layout(window, cx, ToolWindowLayout::hide_all));
+    registry.handle("toolwindow.jumpToLast", |_, window, cx| on_layout(window, cx, ToolWindowLayout::jump_to_last));
+    registry.handle("toolwindow.hideActive", |_, window, cx| on_layout(window, cx, ToolWindowLayout::hide_active));
+    registry.handle("toolwindow.focusEditor", |_, window, cx| {
+        on_layout(window, cx, |_| Effects { persist: false, focus_editor: true })
+    });
+}
 
 /// The workbench of each window, so that an action can find what it acts on.
 #[derive(Default)]
@@ -149,7 +223,7 @@ impl Workbench {
 
     /// Publishes the facts `when` clauses read about this window: what is open and where the
     /// focus is. Unchanged values cost nothing.
-    fn publish_context(&self, window: &mut Window, cx: &mut App) {
+    fn publish_context(&mut self, window: &mut Window, cx: &mut App) {
         use crate::platform::context::{clear_context, set_context};
         let editor = self.editor().cloned();
         let focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
@@ -163,6 +237,17 @@ impl Workbench {
         }
         let tree_focused = self.project_tree().is_some_and(|tree| tree.focus_handle(cx).is_focused(window));
         set_context(window, cx, "toolWindowFocus", tree_focused);
+        if let Content::Project { layout, .. } = &mut self.content {
+            // The layout decides by this what `toolwindow.<id>` does: focus, or hide.
+            layout.set_focused(tree_focused.then_some(PROJECT_TOOL_WINDOW));
+            for (key, visible) in layout.visibility_context() {
+                set_context(window, cx, &key, visible);
+            }
+            match layout.focused().map(str::to_owned) {
+                Some(id) => set_context(window, cx, "activeToolWindow", id),
+                None => clear_context(window, cx, "activeToolWindow"),
+            }
+        }
         match editor.map(|editor| {
             let editor = editor.read(cx);
             (editor.path().to_string_lossy().into_owned(), editor.language().to_string(), editor.status())
@@ -184,6 +269,50 @@ impl Workbench {
 
     fn observe_editor(&mut self, editor: &Entity<Editor>, cx: &mut Context<Self>) {
         self.editor_observer = Some(cx.observe(editor, |_, _, cx| cx.notify()));
+    }
+
+    /// The tool window layout, when a project is open.
+    pub fn tool_windows(&self) -> Option<&ToolWindowLayout> {
+        match &self.content {
+            Content::Project { layout, .. } => Some(layout.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Changes the tool window layout with `change` and carries out what it asks for: storing
+    /// the layout, moving the focus to the editor, or to the tool window that requested it.
+    pub fn with_layout(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        change: impl FnOnce(&mut ToolWindowLayout) -> Effects,
+    ) {
+        let Content::Project { layout, focus_served, tree, editor, .. } = &mut self.content else { return };
+        let effects = change(layout);
+        if effects.persist {
+            match serde_json::to_string(&layout.serialized()) {
+                Ok(json) => cx.default_global::<UiStorage>().set(&storage_key(layout.scope()), json),
+                Err(error) => tracing::warn!("cannot store the tool window layout: {error}"),
+            }
+        }
+        let request = layout.focus_request().filter(|request| request.seq > *focus_served).cloned();
+        if let Some(request) = request {
+            *focus_served = request.seq;
+            if request.id == PROJECT_TOOL_WINDOW {
+                let focus = tree.focus_handle(cx);
+                window.focus(&focus, cx);
+            }
+        } else if effects.focus_editor {
+            match editor {
+                Some(editor) => {
+                    let focus = editor.focus_handle(cx);
+                    window.focus(&focus, cx);
+                }
+                // Nothing to edit: the focus leaves the tool window all the same.
+                None => window.blur(cx),
+            }
+        }
+        cx.notify();
     }
 
     /// The file tree, when a project is open.
@@ -213,16 +342,37 @@ impl Workbench {
                 workbench.content = match opened {
                     Ok((root, name)) => {
                         let label = workbench.label.clone();
+                        // The layout is stored per project folder, as the webview keys it.
+                        let scope = root.to_string_lossy().into_owned();
+                        let stored =
+                            cx.try_global::<UiStorage>().and_then(|s| s.get(&storage_key(&scope)).map(str::to_owned));
+                        let mut layout = Box::new(ToolWindowLayout::new());
+                        layout.load(&scope, stored.as_deref());
                         let tree = cx.new(|cx| ProjectTree::new(&label, root, cx));
                         let opens = cx.subscribe_in(&tree, window, |workbench, _, event: &OpenFile, window, cx| {
                             workbench.open_project_file(event.0.clone(), window, cx);
                         });
-                        let focus = tree.focus_handle(cx);
-                        window.focus(&focus, cx);
-                        Content::Project { name, tree, editor: None, _opens: opens }
+                        Content::Project { name, layout, focus_served: 0, tree, editor: None, _opens: opens }
                     }
                     Err(message) => Content::Failed(message.into()),
                 };
+                // Registering a window reconciles the stored layout with what exists; a project
+                // opens with the focus in its Project view when that is showing.
+                workbench.with_layout(window, cx, |layout| match tool_window_declaration(PROJECT_TOOL_WINDOW) {
+                    Some(declared) => {
+                        let (_, registered) = layout.register(declared);
+                        let focused = if layout.is_visible(PROJECT_TOOL_WINDOW) {
+                            layout.focus(PROJECT_TOOL_WINDOW)
+                        } else {
+                            Effects::default()
+                        };
+                        Effects {
+                            persist: registered.persist || focused.persist,
+                            focus_editor: registered.focus_editor || focused.focus_editor,
+                        }
+                    }
+                    None => Effects::default(),
+                });
                 cx.notify();
             });
         })
@@ -347,25 +497,85 @@ impl Render for Workbench {
             Content::Opening(path) => message(format!("Opening {}…", path.display()).into()).into_any_element(),
             Content::Failed(error) => message(error.clone()).into_any_element(),
             Content::Editor(editor) => editor.clone().into_any_element(),
-            Content::Project { tree, editor, .. } => div()
-                .size_full()
-                .flex()
-                .child(
+            Content::Project { tree, editor, layout, .. } => {
+                let gap = theme::length(cx, "island-gap");
+                let island = || {
                     div()
-                        .w(gpui_kit::px(280.0))
+                        .bg(theme::color(cx, "bg-island"))
+                        .rounded(theme::length(cx, "island-radius"))
+                        .overflow_hidden()
+                };
+                let button = theme::length(cx, "stripe-icon-button");
+                // The left stripe: one button per tool window docked on that side.
+                let stripe = div()
+                    .w(button + theme::length(cx, "stripe-outer-padding") + gap)
+                    .h_full()
+                    .flex_none()
+                    .flex()
+                    .flex_col()
+                    .items_center()
+                    .gap(theme::length(cx, "h-titlebar") - button)
+                    .pl(theme::length(cx, "stripe-outer-padding"))
+                    .pr(gap)
+                    .children(layout.windows_in(Slot::Left).into_iter().filter(|w| layout.has_stripe_button(w)).map(
+                        |declared| {
+                            let shown = layout.is_visible(&declared.id);
+                            let color = theme::color(cx, if shown { "fg-emphasis" } else { "fg-muted" });
+                            let action = format!("toolwindow.{}", declared.id);
+                            div()
+                                .id(SharedString::from(format!("stripe:{}", declared.id)))
+                                .size(button)
+                                .flex_none()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded(theme::length(cx, "radius-toolbar-button"))
+                                .when(shown, |el| el.bg(theme::color(cx, "bg-stripe-selected")))
+                                .hover(|el| el.bg(theme::color(cx, "bg-stripe-hover")))
+                                .child(theme::icon(cx, &declared.icon, 20.0, color))
+                                .on_click(cx.listener(move |_, _, window, cx| {
+                                    execute_action_from(ActionSource::Toolbar, &action, None, window, cx);
+                                }))
+                        },
+                    ));
+                let project = layout.is_visible(PROJECT_TOOL_WINDOW).then(|| {
+                    let title = layout.window(PROJECT_TOOL_WINDOW).map(|w| w.title.clone()).unwrap_or_default();
+                    island()
+                        .w(gpui_kit::px(layout.sizes().left as f32))
                         .h_full()
                         .flex_none()
-                        .bg(theme::color(cx, "bg-elev"))
-                        .border_r_1()
-                        .border_color(theme::color(cx, "border"))
-                        .child(tree.clone()),
-                )
-                .child(div().flex_1().h_full().min_w_0().children(editor.clone()))
-                .into_any_element(),
+                        .flex()
+                        .flex_col()
+                        .mr(gap)
+                        .child(
+                            div()
+                                .h(theme::length(cx, "h-header"))
+                                .flex_none()
+                                .flex()
+                                .items_center()
+                                .pl(gpui_kit::px(12.0))
+                                .pr(gpui_kit::px(6.0))
+                                .text_color(theme::color(cx, "fg-strong"))
+                                .child(SharedString::from(title)),
+                        )
+                        .child(div().flex_1().min_h_0().child(tree.clone()))
+                });
+                div()
+                    .size_full()
+                    .flex()
+                    .pr(gap)
+                    // Without a status bar the islands keep their distance from the window's edge.
+                    .when(editor.is_none(), |el| el.pb(gap))
+                    .child(stripe)
+                    .children(project)
+                    .child(island().flex_1().h_full().min_w_0().children(editor.clone()))
+                    .into_any_element()
+            }
         };
+        let framed = self.project_tree().is_some();
         div()
             .size_full()
-            .bg(theme::color(cx, "bg-app"))
+            .bg(theme::color(cx, if framed { "bg-frame" } else { "bg-app" }))
             .text_color(theme::color(cx, "fg"))
             .text_size(theme::length(cx, "fs-ui"))
             // Modifier taps and mouse buttons have no application-level hook: forward them.
@@ -388,7 +598,6 @@ impl Render for Workbench {
                     .items_center()
                     .pl(gpui_kit::px(if cfg!(target_os = "macos") { WINDOW_BUTTONS_WIDTH } else { 10.0 }))
                     .pr(gpui_kit::px(8.0))
-                    .bg(theme::color(cx, if self.project_tree().is_some() { "bg-frame" } else { "bg-app" }))
                     .text_color(theme::color(cx, "fg-strong"))
                     .window_control_area(gpui_kit::WindowControlArea::Drag)
                     .child(SharedString::from(self.shown_title.clone().unwrap_or_default())),
@@ -425,6 +634,8 @@ mod tests {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);
             crate::editor::actions::register(cx);
+            register_actions(cx);
+            cx.set_global(UiStorage::default());
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
         });
         home
@@ -562,6 +773,67 @@ mod tests {
         // A line break is one character of the selection, whatever the file's line separator.
         cx.simulate_keystrokes("cmd-a");
         assert_eq!(items(cx)[0], "3:1 (6 chars, 2 line breaks)");
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.close_project("w1");
+    }
+
+    // src/workbench/toolwindows/store.test.ts › registers toolwindow.<id> and generic actions
+    #[gpui_kit::test]
+    async fn tool_window_actions_show_focus_and_hide_the_project_view(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        std::fs::write(folder.path().join("main.zig"), "const a = 1;\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench
+            .update_in(cx, |workbench, window, cx| workbench.open_project(folder.path().to_path_buf(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let tree = workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree");
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.model().rows().len() == 2));
+        let shown = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| w.tool_windows().expect("a layout").is_visible("project"))
+        };
+        let truthy = |cx: &mut VisualTestContext, key: &str| {
+            cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy(key))
+        };
+        let tree_focused =
+            |cx: &mut VisualTestContext| cx.update(|window, cx| tree.focus_handle(cx).is_focused(window));
+        // A project opens with its Project view shown and focused.
+        assert!(shown(cx) && tree_focused(cx));
+        assert!(truthy(cx, "toolWindow.project.visible") && truthy(cx, "toolWindowFocus"));
+
+        // ⌘1 on the focused window hides it; again shows and focuses it.
+        cx.simulate_keystrokes("cmd-1");
+        cx.run_until_parked();
+        assert!(!shown(cx) && !tree_focused(cx));
+        assert!(!truthy(cx, "toolWindow.project.visible") && !truthy(cx, "toolWindowFocus"));
+        cx.simulate_keystrokes("cmd-1");
+        cx.run_until_parked();
+        assert!(shown(cx) && tree_focused(cx));
+
+        // With an editor open, Escape in the tool window goes to the editor and ⌘1 comes back.
+        cx.simulate_keystrokes("down down enter");
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.simulate_keystrokes("cmd-1");
+        cx.run_until_parked();
+        assert!(shown(cx) && tree_focused(cx));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(shown(cx) && !tree_focused(cx) && truthy(cx, "editorFocus"));
+        // Hide All Tool Windows hides it; Jump to Last Tool Window (F12) brings it back, focused.
+        cx.simulate_keystrokes("cmd-shift-f12");
+        cx.run_until_parked();
+        assert!(!shown(cx));
+        cx.simulate_keystrokes("f12");
+        cx.run_until_parked();
+        assert!(shown(cx) && tree_focused(cx));
+
+        // The layout is stored under the webview's key for the project folder, in its JSON shape.
+        let scope = folder.path().canonicalize().expect("the folder exists").to_string_lossy().into_owned();
+        let stored =
+            cx.update(|_, cx| cx.global::<UiStorage>().get(&storage_key(&scope)).map(str::to_owned)).expect("stored");
+        let stored: serde_json::Value = serde_json::from_str(&stored).expect("JSON");
+        assert_eq!(stored["v"], 2);
+        assert_eq!(stored["visible"]["left"], "project");
         let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
         host.close_project("w1");
     }

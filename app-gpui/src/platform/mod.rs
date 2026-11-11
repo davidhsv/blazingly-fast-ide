@@ -12,3 +12,4 @@ pub mod keymap;
 pub mod paths;
 pub mod project_roots;
 pub mod search;
+pub mod storage;
