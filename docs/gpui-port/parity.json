@@ -150,5 +150,25 @@
   "point.registerStatusItem:editor.encoding": {
     "status": "partial",
     "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; label only: no reload / convert menu"
+  },
+  "unit:src/ui/icons.test.tsx": {
+    "status": "partial",
+    "proof": "`theme::icons::tests::files_get_the_icons_the_webview_gives_them`, `theme::icons::tests::picks_variants_like_the_webview_icon_component`; folder kinds, symbol icons in lists and icon themes are not covered"
+  },
+  "module:src/ui/icons.tsx": {
+    "status": "partial",
+    "proof": "`theme::icons::tests`; no folder-kind icons, file icon providers or icon themes yet"
+  },
+  "module:src/editor/core/cm": {
+    "status": "partial",
+    "proof": "`editor::view::editing_tests`, `editor::view::tests`, `editor::buffer::tests`; caret movement, selection, undo, clipboard and highlighting only: no multiple carets, folding, find, completion, gutters, brackets or indentation rules"
+  },
+  "module:src/workbench/StatusBar.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; three editor items only"
+  },
+  "module:src/workbench/TitleBar.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tests::titles_name_the_project_then_the_file`; the title only: no project, branch or run widgets, no main menu"
   }
 }

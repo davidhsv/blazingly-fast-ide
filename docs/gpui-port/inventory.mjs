@@ -284,8 +284,10 @@ section("Editor, platform, workbench and design-system modules", "module", modul
 
 const tokens = readFileSync(join(root, "src/styles/tokens.css"), "utf8");
 const tokenNames = new Set([...tokens.matchAll(/^\s*(--[\w-]+)\s*:/gm)].map((m) => m[1]));
-const icons = readFileSync(join(root, "src/ui/icons.tsx"), "utf8");
-const iconNames = new Set([...icons.matchAll(/^\s{2}([A-Za-z][\w]*):\s*(?:\(|<|icon\(|svg\()/gm)].map((m) => m[1]));
+// The `ICONS` table as `gen-data.mjs` resolved it from the TypeScript program.
+const iconNames = new Set(
+  Object.keys(JSON.parse(readFileSync(join(root, "app-gpui/assets/gen/icons.json"), "utf8")).icons),
+);
 const localeDir = join(root, "src/platform/locales/text");
 section(
   "Design tokens, icons and locales",
@@ -303,6 +305,7 @@ section(
   ["Item", "Entries"],
 );
 if (tokenNames.size < 50) problems.push(`only ${tokenNames.size} design tokens parsed`);
+if (iconNames.size < 300) problems.push(`only ${iconNames.size} icons found`);
 
 const shellDir = join(root, "src-tauri/src");
 section(
