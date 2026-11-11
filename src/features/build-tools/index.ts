@@ -135,7 +135,9 @@ type Registered = Partial<Record<BuildTool | "sbt", () => void>>;
  * never-synced build (Blaze mode imports builds only on request).
  */
 function apply(model: BuildModel | null, registered: Registered) {
-  const has: Record<BuildTool, boolean> = { maven: !!model?.maven, gradle: !!model?.gradle?.length };
+  // Every Maven project unlinked (another build tool owns the project): no Maven tool window;
+  // Add Maven Projects (Find Action) brings them back.
+  const has: Record<BuildTool, boolean> = { maven: !!model?.maven?.projects.length, gradle: !!model?.gradle?.length };
   setContext("build.maven", has.maven);
   setContext("build.gradle", has.gradle);
   for (const tool of ["maven", "gradle"] as const) {

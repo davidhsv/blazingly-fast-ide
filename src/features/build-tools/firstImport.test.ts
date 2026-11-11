@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act } from "@testing-library/react";
 import type { BuildModel, MavenProject, ProjectInfo } from "@/platform/ipc";
+import { getContext } from "@/platform/context";
 import { useProject } from "@/platform/project";
 import { activate } from "./index";
 import { loadModel, resetBuild, useBuild } from "./store";
@@ -78,4 +79,5 @@ it("cancels the first import once every Maven project is unlinked", async () => 
     await loadModel();
   });
   expect(mocks.cancel).toHaveBeenCalledWith(useBuild.getState().syncing.maven?.request);
+  expect(getContext()["build.maven"]).toBe(false);
 });
