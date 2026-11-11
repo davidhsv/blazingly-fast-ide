@@ -399,13 +399,38 @@ fn shallow_boundaries_do_not_reconnect_to_locally_present_ancestors() {
             let log = repo.log(&LogQuery { order, text, path: Some("a".into()), ..Default::default() }).unwrap();
             let boundary_row = log.iter().find(|c| c.id == boundary);
             if let Some(row) = boundary_row {
-                assert_eq!(row.parents, vec![root.clone()]);
+                // As `git log` reports them: the boundary has none, even with the parent present.
+                assert_eq!(git(dir, &["log", "-1", "--format=%P", &boundary]), "");
+                assert!(row.parents.is_empty());
                 assert_eq!(row.graph_parents, Some(vec![]));
             } else {
                 assert_eq!(log.iter().find(|c| c.id == tip).unwrap().graph_parents, Some(vec![]));
             }
         }
     }
+}
+
+#[test]
+fn a_shallow_clone_boundary_has_no_parents_and_adds_its_files() {
+    let tmp = tempfile::tempdir().unwrap();
+    let source = tmp.path().join("source");
+    std::fs::create_dir(&source).unwrap();
+    git(&source, &["init", "-q"]);
+    commit(&source, "a", "first");
+    commit(&source, "b", "second");
+    commit(&source, "a", "third");
+    let url = format!("file://{}", source.display());
+    git(tmp.path(), &["clone", "-q", "--depth=2", &url, "shallow"]);
+    let dir = tmp.path().join("shallow");
+    let boundary = git(&dir, &["rev-parse", "HEAD~1"]);
+    let repo = Repo::discover(&dir).unwrap().unwrap();
+
+    let log = repo.log(&LogQuery { branches: vec!["HEAD".into()], ..Default::default() }).unwrap();
+    assert_eq!(log.len(), 2);
+    assert!(log.iter().find(|c| c.id == boundary).unwrap().parents.is_empty(), "its parent was never fetched");
+    let files: Vec<_> = repo.commit_files(&boundary).unwrap().into_iter().map(|f| f.path).collect();
+    assert_eq!(files.len(), 2, "the boundary adds every file it has: {files:?}");
+    assert!(repo.create_commits_patch(&[boundary], false).unwrap().contains("new file mode"));
 }
 
 #[test]

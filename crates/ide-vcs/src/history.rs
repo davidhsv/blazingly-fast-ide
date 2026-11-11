@@ -1028,7 +1028,7 @@ fn first_parent_changes(repo: &gix::Repository, rev: &str) -> IdeResult<CommitCh
     let id = resolve(repo, rev)?;
     let commit = repo.find_object(id).map_err(gx)?.peel_to_commit().map_err(gx)?;
     let id = commit.id;
-    let parent = commit.parent_ids().next().map(|p| p.detach());
+    let parent = crate::repo::parent_ids(repo, &commit)?.first().copied();
     let new_tree = commit.tree().map_err(gx)?;
     let old_tree = match parent {
         Some(p) => Some(repo.find_commit(p).map_err(gx)?.tree().map_err(gx)?),

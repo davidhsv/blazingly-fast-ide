@@ -126,7 +126,7 @@ impl LogIndex {
             let record = Arc::new(Commit {
                 id: key.clone(),
                 short_id: key[..key.len().min(8)].to_string(),
-                parents: commit.parent_ids().map(|p| p.to_string()).collect(),
+                parents: crate::repo::parent_ids(repo, &commit)?.iter().map(ToString::to_string).collect(),
                 graph_parents: None,
                 graph_dashed: Vec::new(),
                 dashed: Vec::new(),

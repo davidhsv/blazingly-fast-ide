@@ -251,6 +251,16 @@ pub(crate) fn tree_of<'r>(repo: &'r gix::Repository, rev: &str) -> IdeResult<Opt
 }
 
 /// Resolves a revision spec to an object id.
+/// A commit's parents as `git log` reports them: none for a shallow clone's boundary commits
+/// (`.git/shallow`), whose parents were never fetched.
+pub(crate) fn parent_ids(repo: &gix::Repository, commit: &gix::Commit<'_>) -> IdeResult<Vec<gix::ObjectId>> {
+    let shallow = repo.shallow_commits().map_err(gx)?;
+    if shallow.is_some_and(|ids| ids.contains(&commit.id)) {
+        return Ok(Vec::new());
+    }
+    Ok(commit.parent_ids().map(|p| p.detach()).collect())
+}
+
 pub(crate) fn resolve(repo: &gix::Repository, rev: &str) -> IdeResult<gix::ObjectId> {
     repo.rev_parse_single(BStr::new(rev.as_bytes()))
         .map(|id| id.detach())
