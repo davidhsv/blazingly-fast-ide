@@ -170,5 +170,29 @@
   "module:src/workbench/TitleBar.tsx": {
     "status": "partial",
     "proof": "`workbench::tests::titles_name_the_project_then_the_file`; the title only: no project, branch or run widgets, no main menu"
+  },
+  "context:projectOpen": {
+    "status": "done",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+  },
+  "context:textEditorActive": {
+    "status": "done",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+  },
+  "context:editorFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+  },
+  "context:editorTextFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+  },
+  "context:editorHasSelection": {
+    "status": "done",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+  },
+  "context:editorLangId": {
+    "status": "done",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
   }
 }

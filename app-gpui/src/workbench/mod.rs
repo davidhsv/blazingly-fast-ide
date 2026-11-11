@@ -145,6 +145,41 @@ impl Workbench {
         window_title(project, file.as_deref(), false, None, &default)
     }
 
+    /// Publishes the facts `when` clauses read about this window: what is open and where the
+    /// focus is. Unchanged values cost nothing.
+    fn publish_context(&self, window: &mut Window, cx: &mut App) {
+        use crate::platform::context::{clear_context, set_context};
+        let editor = self.editor().cloned();
+        let focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
+        set_context(window, cx, "projectOpening", matches!(self.content, Content::Opening(_)));
+        set_context(window, cx, "projectOpen", self.project_tree().is_some());
+        set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor(_)));
+        set_context(window, cx, "textEditorActive", editor.is_some());
+        set_context(window, cx, "editorSplit", false);
+        for key in ["editorFocus", "editorTextFocus", "editorAreaFocus"] {
+            set_context(window, cx, key, focused);
+        }
+        let tree_focused = self.project_tree().is_some_and(|tree| tree.focus_handle(cx).is_focused(window));
+        set_context(window, cx, "toolWindowFocus", tree_focused);
+        match editor.map(|editor| {
+            let editor = editor.read(cx);
+            (editor.path().to_string_lossy().into_owned(), editor.language().to_string(), editor.status())
+        }) {
+            Some((path, language, status)) => {
+                set_context(window, cx, "editorPath", path);
+                set_context(window, cx, "editorLangId", language);
+                set_context(window, cx, "editorReadOnly", status.read_only);
+                set_context(window, cx, "editorHasSelection", status.selected_chars > 0);
+            }
+            None => {
+                clear_context(window, cx, "editorPath");
+                clear_context(window, cx, "editorLangId");
+                set_context(window, cx, "editorReadOnly", false);
+                set_context(window, cx, "editorHasSelection", false);
+            }
+        }
+    }
+
     fn observe_editor(&mut self, editor: &Entity<Editor>, cx: &mut Context<Self>) {
         self.editor_observer = Some(cx.observe(editor, |_, _, cx| cx.notify()));
     }
@@ -295,6 +330,7 @@ impl Render for Workbench {
             window.set_window_title(&title);
             self.shown_title = Some(title);
         }
+        self.publish_context(window, cx);
         let message = |text: SharedString| {
             div()
                 .size_full()
@@ -480,6 +516,23 @@ mod tests {
         let root = folder.path().canonicalize().expect("the folder exists");
         let project_name = root.file_name().expect("a name").to_string_lossy().into_owned();
         assert_eq!(cx.window_title(), Some(format!("{project_name} – main.zig")));
+        // The facts `when` clauses read follow what is open and focused.
+        let truthy = |cx: &mut VisualTestContext, key: &str| {
+            cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy(key))
+        };
+        for key in ["projectOpen", "textEditorActive", "editorFocus", "editorTextFocus"] {
+            assert!(truthy(cx, key), "{key}");
+        }
+        for key in ["lightEdit", "editorHasSelection", "toolWindowFocus", "projectOpening", "editorReadOnly"] {
+            assert!(!truthy(cx, key), "{key}");
+        }
+        let language =
+            cx.update(|window, cx| crate::platform::context::window_context(window, cx).get("editorLangId").cloned());
+        assert_eq!(language, Some(crate::platform::context::ContextValue::from("zig")));
+        cx.simulate_keystrokes("cmd-a");
+        cx.run_until_parked();
+        assert!(truthy(cx, "editorHasSelection"));
+        cx.simulate_keystrokes("left");
         // The editor takes focus, so typing edits the file that was opened.
         cx.simulate_input("// ");
         assert_eq!(editor.read_with(cx, |e, _| e.text()), "// const a = 1;\n");
