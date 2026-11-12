@@ -235,3 +235,11 @@ Choices the subagent made, kept: the web editor's own fallback diff is not porte
 Subagent choices in earlier batches, recorded here as they are judgment calls too. Search Everywhere: a translated action's English title matches through its keywords, with their lower weight, where the webview has a branch of its own for the English title. Version control: commit messages wrap at the margin counting characters, where the webview counts UTF-16 units (they differ only beyond the Basic Multilingual Plane), and commits not loaded yet sort after loaded ones when ordering newest first.
 
 Search types still exist twice (`find/ipc.rs` and `everywhere/model.rs`: symbol and line matches, workspace symbols). D32 justifies one UI-side copy, not two: they are to be merged into one when Search Everywhere gets its view.
+
+## D37. Costs that grow with the project are paid once
+
+Three places did work proportional to everything loaded each time a little more arrived; all three are measured scenarios or count towards them.
+
+- A terminal tab's shell starts when the tab first shows, as in the webview ("hidden tabs stay unopened"): tabs remembered from the last run cost no process until selected. `terminal::panel::tests::remembered_tabs_start_their_shells_when_first_shown`.
+- The Git log continues the graph from the lanes left open by the last page instead of recomputing it from the first commit. `vcs::log_view::tests::a_graph_continued_page_by_page_is_the_whole_graph` checks that the two are the same for every way of splitting a branching history.
+- Find in Files adds rows for the files found since the last batch instead of rebuilding every row. A new search keeps the previous rows until it has a result of its own or ends, as the session model intends.

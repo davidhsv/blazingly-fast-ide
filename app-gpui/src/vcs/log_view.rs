@@ -37,6 +37,8 @@ pub struct GitLog {
     /// Shared with the rows being drawn, so a frame copies no commit.
     commits: Rc<Vec<Commit>>,
     graph: Rc<Vec<GraphRow>>,
+    /// The lanes open below the last commit read, from which the next page's graph continues.
+    lanes: GraphState,
     /// Index of the selected commit.
     selected: Option<usize>,
     options: LogOptions,
@@ -83,6 +85,7 @@ impl GitLog {
             window_label: window_label.to_owned(),
             commits: Rc::default(),
             graph: Rc::default(),
+            lanes: GraphState::default(),
             selected: None,
             options,
             loading: false,
@@ -180,16 +183,16 @@ impl GitLog {
         self.error = None;
         self.finished = (page.len() as u32) < asked;
         let selected = self.selected().map(|commit| commit.id.clone());
-        let commits = if again {
-            page
-        } else {
-            let mut all = self.commits.as_ref().clone();
-            all.extend(page);
-            all
-        };
-        let lanes: Vec<GraphCommit> = commits.iter().map(graph_commit).collect();
-        self.graph = Rc::new(compute_graph(&lanes, GraphState::default()).rows);
-        self.commits = Rc::new(commits);
+        // A page continues the graph where the last one stopped: what is already drawn is not
+        // computed again, however far the log has been scrolled.
+        if again {
+            (self.commits, self.graph, self.lanes) = (Rc::default(), Rc::default(), GraphState::default());
+        }
+        let lanes: Vec<GraphCommit> = page.iter().map(graph_commit).collect();
+        let computed = compute_graph(&lanes, std::mem::take(&mut self.lanes));
+        self.lanes = computed.state;
+        Rc::make_mut(&mut self.graph).extend(computed.rows);
+        Rc::make_mut(&mut self.commits).extend(page);
         self.selected = selected.and_then(|id| self.commits.iter().position(|commit| commit.id == id));
     }
 
@@ -607,6 +610,35 @@ mod tests {
         assert_eq!(log.read_with(cx, |log, _| log.selected().map(|c| c.summary.clone())).as_deref(), Some("first"));
         let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
         host.close_project("w1");
+    }
+
+    // Not from a spec: the graph of a log read in pages is the graph of the log read at once.
+    #[test]
+    fn a_graph_continued_page_by_page_is_the_whole_graph() {
+        let commit = |id: &str, parents: &[&str]| GraphCommit {
+            id: id.to_owned(),
+            parents: parents.iter().map(|parent| (*parent).to_owned()).collect(),
+            ..GraphCommit::default()
+        };
+        // A branch that forks at `c`, is merged at `g`, and a second root.
+        let commits = [
+            commit("h", &["g"]),
+            commit("g", &["f", "e"]),
+            commit("f", &["d"]),
+            commit("e", &["c"]),
+            commit("d", &["c"]),
+            commit("c", &["b"]),
+            commit("b", &["a"]),
+            commit("a", &[]),
+            commit("z", &[]),
+        ];
+        let whole = compute_graph(&commits, GraphState::default()).rows;
+        for split in 1..commits.len() {
+            let first = compute_graph(&commits[..split], GraphState::default());
+            let mut rows = first.rows;
+            rows.extend(compute_graph(&commits[split..], first.state).rows);
+            assert_eq!(rows, whole, "split after {split} commits");
+        }
     }
 
     /// A folder that is not a repository: the log says so instead of staying empty.

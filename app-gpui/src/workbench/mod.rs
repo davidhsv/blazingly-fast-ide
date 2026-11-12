@@ -2548,6 +2548,14 @@ mod tests {
         settle(cx, |cx| find.read_with(cx, |find, _| find.status() == FindStatus::Done && find.match_count() == 3));
         assert_eq!(find.read_with(cx, |find, _| find.results()), [("src/b.txt".to_owned(), vec![0, 2])]);
 
+        // The same search again lists the same results once, not twice.
+        find.update(cx, |find, cx| find.search(cx));
+        settle(cx, |cx| find.read_with(cx, |find, _| find.status() == FindStatus::Done));
+        assert_eq!(
+            find.read_with(cx, |find, _| (find.results(), find.row_count())),
+            (vec![("src/b.txt".to_owned(), vec![0, 2])], 3)
+        );
+
         // Down selects the next matching line; Enter opens it with the caret on the match.
         cx.simulate_keystrokes("down enter");
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));

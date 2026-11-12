@@ -52,6 +52,11 @@ pub struct FindPanel {
     regex: bool,
     /// The result rows, shared with the list being drawn.
     rows: Rc<Vec<Row>>,
+    /// How many of the session's files `rows` covers: a search that goes on only adds files.
+    listed: usize,
+    /// A new search was started and none of its results is listed yet: the rows are still the
+    /// previous search's, shown until the new one finds its first file or ends.
+    restarted: bool,
     /// Index into `rows` of the selected match.
     selected: Option<usize>,
     /// The query the rows are for.
@@ -90,6 +95,8 @@ impl FindPanel {
             words: false,
             regex: false,
             rows: Rc::default(),
+            listed: 0,
+            restarted: false,
             selected: None,
             searched: None,
             scroll: UniformListScrollHandle::new(),
@@ -124,6 +131,11 @@ impl FindPanel {
 
     pub fn error(&self) -> Option<&str> {
         self.session.state().error.as_deref()
+    }
+
+    /// How many lines the results list shows: a line per file and one per matching line.
+    pub fn row_count(&self) -> usize {
+        self.rows.len()
     }
 
     /// Turns a search option on or off; a search already made is made again with it.
@@ -163,7 +175,7 @@ impl FindPanel {
     pub fn search(&mut self, cx: &mut Context<Self>) {
         let query = self.query(cx);
         self.searched = Some(query.clone());
-        self.selected = None;
+        self.restarted = true;
         let effects = self.session.search(query);
         self.carry_out(effects, cx);
         self.refresh_rows();
@@ -265,26 +277,31 @@ impl FindPanel {
         }));
     }
 
-    /// Rebuilds the rows from what the session holds, keeping the selected match selected.
+    /// Brings the rows up to what the session holds. Files found since the last time are added
+    /// below the ones listed, so a search streaming thousands of files lists each once. The rows
+    /// of the previous search stay until the new one has something to show.
     fn refresh_rows(&mut self) {
-        let selected = self.selected.and_then(|index| match self.rows.get(index) {
-            Some(Row::Match(row)) => Some(row.key.clone()),
-            _ => None,
-        });
-        let mut rows = Vec::new();
-        let files = self.session.state().files.clone();
-        for file in files.iter() {
-            let matches = match_rows(std::slice::from_ref(file));
-            rows.push(Row::File {
-                rel_path: file.rel_path.clone(),
-                matches: matches.iter().map(|row| row.ranges.len()).sum(),
-            });
-            rows.extend(matches.into_iter().map(Row::Match));
+        let state = self.session.state();
+        if self.restarted {
+            if state.stale {
+                return;
+            }
+            (self.rows, self.listed, self.selected, self.restarted) = (Rc::default(), 0, None, false);
         }
-        self.selected = selected
-            .and_then(|key| rows.iter().position(|row| matches!(row, Row::Match(row) if row.key == key)))
-            .or_else(|| rows.iter().position(|row| matches!(row, Row::Match(_))));
-        self.rows = Rc::new(rows);
+        let files = &state.files;
+        if self.listed < files.len() {
+            let rows = Rc::make_mut(&mut self.rows);
+            for file in &files[self.listed..] {
+                let matches = match_rows(std::slice::from_ref(file));
+                let count = matches.iter().map(|row| row.ranges.len()).sum();
+                rows.push(Row::File { rel_path: file.rel_path.clone(), matches: count });
+                rows.extend(matches.into_iter().map(Row::Match));
+            }
+            self.listed = files.len();
+        }
+        if self.selected.is_none() {
+            self.selected = self.rows.iter().position(|row| matches!(row, Row::Match(_)));
+        }
     }
 
     /// Selects the next (`forward`) or previous matching line.

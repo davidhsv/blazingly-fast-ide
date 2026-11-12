@@ -153,19 +153,8 @@ impl TerminalPanel {
     fn carry_out(&mut self, cx: &mut Context<Self>) {
         for effect in self.terminals.take_effects() {
             match effect {
-                TerminalEffect::SessionCreated(key) => {
-                    let Some(options) = self.options(&key, cx) else { continue };
-                    let label = self.window_label.clone();
-                    let view = cx.new(|cx| TerminalView::new(&label, options, cx));
-                    let session = key.clone();
-                    let events =
-                        cx.subscribe(&view, move |panel: &mut TerminalPanel, view, event: &TerminalEvent, cx| {
-                            panel.terminal_event(&session, &view, event, cx);
-                        });
-                    let state = self.snapshot(&key, &view, cx);
-                    self.views.insert(key.clone(), (view, events));
-                    self.terminals.set_session_state(&key, state);
-                }
+                // A session's shell starts when its tab first shows: see `start_active`.
+                TerminalEffect::SessionCreated(_) => {}
                 // Dropping the terminal ends its shell.
                 TerminalEffect::SessionDisposed { key, .. } => {
                     self.views.remove(&key);
@@ -177,6 +166,7 @@ impl TerminalPanel {
                 }
             }
         }
+        self.start_active(cx);
         // Reporting a session's state may have asked for more (the remembered tabs).
         for effect in self.terminals.take_effects() {
             if let TerminalEffect::Store { key, value } = effect
@@ -189,6 +179,30 @@ impl TerminalPanel {
             cx.emit(TerminalPanelEvent::Emptied);
         }
         cx.notify();
+    }
+
+    /// Starts the shell of the active tab's session if it has none yet. A tab that is not
+    /// showing, such as one remembered from the last run, costs no process until it is selected.
+    fn start_active(&mut self, cx: &mut Context<Self>) {
+        let Some(key) = self.terminals.active_session().map(|session| session.key.clone()) else { return };
+        if self.views.contains_key(&key) {
+            return;
+        }
+        let Some(options) = self.options(&key, cx) else { return };
+        let label = self.window_label.clone();
+        let view = cx.new(|cx| TerminalView::new(&label, options, cx));
+        let session = key.clone();
+        let events = cx.subscribe(&view, move |panel: &mut TerminalPanel, view, event: &TerminalEvent, cx| {
+            panel.terminal_event(&session, &view, event, cx);
+        });
+        let state = self.snapshot(&key, &view, cx);
+        self.views.insert(key.clone(), (view, events));
+        self.terminals.set_session_state(&key, state);
+    }
+
+    /// How many sessions have a running terminal behind them.
+    pub fn started(&self) -> usize {
+        self.views.len()
     }
 
     /// What the terminal of session `key` reports about itself.
@@ -419,5 +433,42 @@ mod tests {
         panel.update(cx, |panel, cx| panel.close_active_tab(cx));
         cx.run_until_parked();
         assert!(emptied.get() && titles(cx).is_empty());
+    }
+
+    /// Tabs remembered for a project come back with it, but only the one that shows gets a
+    /// shell; another starts its shell when it is first selected.
+    #[gpui_kit::test]
+    async fn remembered_tabs_start_their_shells_when_first_shown(cx: &mut TestAppContext) {
+        cx.executor().allow_parking();
+        let (home, folder) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a folder"));
+        let root = folder.path().canonicalize().expect("the folder exists");
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            cx.set_global(UiStorage::default());
+            crate::platform::input::init(cx);
+            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            crate::terminal::test_support::isolate_shells(home.path(), cx);
+        });
+        {
+            let panel_root = root.clone();
+            let (panel, cx) = cx.add_window_view(|_, cx| TerminalPanel::new("w1", panel_root, cx));
+            panel.update(cx, |panel, cx| {
+                panel.open_tab(cx);
+                panel.open_tab(cx);
+            });
+            assert_eq!(panel.read_with(cx, |panel, _| (panel.tab_titles().len(), panel.started())), (3, 3));
+        }
+        let panel_root = root.clone();
+        let (panel, cx) = cx.add_window_view(|_, cx| TerminalPanel::new("w2", panel_root, cx));
+        let titles: Vec<String> =
+            panel.read_with(cx, |panel, _| panel.tab_titles().into_iter().map(|(title, _)| title).collect());
+        assert_eq!(titles, ["Local", "Local (2)", "Local (3)"]);
+        assert_eq!(panel.read_with(cx, |panel, _| panel.started()), 1, "only the tab that shows has a shell");
+        let first = panel.read_with(cx, |panel, _| panel.terminals().tabs()[0].id.clone());
+        let shown = panel.read_with(cx, |panel, _| panel.terminals().active_tab().map(str::to_owned));
+        assert_ne!(shown.as_deref(), Some(first.as_str()), "the last tab opened was the one showing");
+        panel.update(cx, |panel, cx| panel.select_tab(&first, cx));
+        assert_eq!(panel.read_with(cx, |panel, _| panel.started()), 2);
+        assert!(panel.read_with(cx, |panel, _| panel.active_view().is_some()));
     }
 }
