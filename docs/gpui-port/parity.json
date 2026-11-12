@@ -1606,5 +1606,45 @@
   "unit:src/features/debugger/editor/runToCursor.test.ts": {
     "status": "done",
     "proof": "`debugger::editor::run_to_cursor::tests`"
+  },
+  "action:editor.splitRight": {
+    "status": "done",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`"
+  },
+  "action:editor.splitDown": {
+    "status": "done",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`"
+  },
+  "action:editor.unsplit": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`; closes the active pane with its tabs; with autosave off the webview asks about unsaved tabs first, here each closed tab asks on its own"
+  },
+  "action:editor.unsplitAll": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`; same as Unsplit for the question about unsaved tabs"
+  },
+  "action:editor.changeSplitOrientation": {
+    "status": "done",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`"
+  },
+  "action:editor.moveToOppositeGroup": {
+    "status": "done",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`"
+  },
+  "action:editor.openInOppositeGroup": {
+    "status": "done",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`"
+  },
+  "action:editor.nextSplitter": {
+    "status": "done",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`"
+  },
+  "action:editor.prevSplitter": {
+    "status": "done",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`"
+  },
+  "context:editorSplit": {
+    "status": "done",
+    "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`"
   }
 }

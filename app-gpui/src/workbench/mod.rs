@@ -14,7 +14,9 @@ pub mod windows;
 
 use crate::backend::{Backend, BackendEvent};
 use crate::editor::session::{self, FileViewState};
-use crate::editor::tabs::{EditorInput, OpenTabOptions, TabsState, disambiguate_titles};
+use crate::editor::tabs::{
+    EditorInput, LayoutNode, OpenTabOptions, SplitDir, SplitEdge, TabsState, disambiguate_titles,
+};
 use crate::editor::view::Editor;
 use crate::everywhere::model::SeTab;
 use crate::everywhere::recent_model::OpenEditorTab;
@@ -70,6 +72,9 @@ enum Content {
         restored_views: std::collections::BTreeMap<String, FileViewState>,
         /// Where to put the caret in a file that is being opened: its line and UTF-16 column.
         reveals: HashMap<String, (u32, u32)>,
+        /// What tells the window that a tab's editor took the keyboard, by tab id: its pane is
+        /// the active one from then on.
+        editor_focus: HashMap<String, Subscription>,
         _opens: Subscription,
     },
     Failed(SharedString),
@@ -421,6 +426,31 @@ pub fn register_actions(cx: &mut App) {
     });
     registry.handle("editor.nextTab", |_, window, cx| on_tabs(window, cx, |tabs, _| tabs.cycle_tab(1, None)));
     registry.handle("editor.prevTab", |_, window, cx| on_tabs(window, cx, |tabs, _| tabs.cycle_tab(-1, None)));
+    type OnWorkbench = fn(&mut Workbench, &mut Window, &mut Context<Workbench>);
+    let on_panes: [(&str, OnWorkbench); 8] = [
+        ("editor.splitRight", |workbench, window, cx| workbench.split_editor(SplitDir::Row, window, cx)),
+        ("editor.splitDown", |workbench, window, cx| workbench.split_editor(SplitDir::Column, window, cx)),
+        ("editor.moveToOppositeGroup", Workbench::move_tab_to_opposite_group),
+        ("editor.openInOppositeGroup", Workbench::open_in_opposite_group),
+        ("editor.nextSplitter", |workbench, window, cx| workbench.focus_splitter(true, window, cx)),
+        ("editor.prevSplitter", |workbench, window, cx| workbench.focus_splitter(false, window, cx)),
+        ("editor.unsplit", |workbench, window, cx| {
+            workbench.with_tabs(window, cx, |tabs, pane| tabs.remove_pane(pane))
+        }),
+        ("editor.unsplitAll", |workbench, window, cx| {
+            workbench.with_tabs(window, cx, |tabs, pane| tabs.unsplit_all(pane))
+        }),
+    ];
+    for (id, act) in on_panes {
+        registry.handle(id, move |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            workbench.update(cx, |workbench, cx| act(workbench, window, cx));
+            Ok(())
+        });
+    }
+    registry.handle("editor.changeSplitOrientation", |_, window, cx| {
+        on_tabs(window, cx, |tabs, pane| tabs.change_split_orientation(pane))
+    });
     registry.handle("editor.reopenClosedTab", |_, window, cx| {
         let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
         workbench.update(cx, |workbench, cx| workbench.reopen_closed_tab(window, cx));
@@ -580,7 +610,12 @@ impl Workbench {
     /// The titles of the active pane's tabs, in strip order. Files of the same name carry the
     /// folder that tells them apart as a hint.
     pub fn tab_titles(&self) -> Vec<TabTitle> {
-        let Some(pane) = self.tabs().and_then(|tabs| tabs.pane(&tabs.active_pane)) else { return Vec::new() };
+        self.tabs().map(|tabs| self.tab_titles_of(&tabs.active_pane)).unwrap_or_default()
+    }
+
+    /// The titles of the tabs of `pane`, in strip order.
+    pub fn tab_titles_of(&self, pane: &str) -> Vec<TabTitle> {
+        let Some(pane) = self.tabs().and_then(|tabs| tabs.pane(pane)) else { return Vec::new() };
         let paths: Vec<&str> = pane.tabs.iter().filter_map(|tab| tab.input.path.as_deref()).collect();
         let hints = disambiguate_titles(&paths);
         pane.tabs
@@ -594,6 +629,120 @@ impl Workbench {
                 }
             })
             .collect()
+    }
+
+    /// One pane of the editor area: its tabs over the editor of the selected one.
+    fn pane_element(&self, pane_id: &str, window: &Window, cx: &mut Context<Self>) -> gpui_kit::Div {
+        let editor = match &self.content {
+            Content::Project { tabs, editors, .. } => {
+                tabs.pane(pane_id).and_then(|pane| pane.active.as_ref()).and_then(|id| editors.get(id)).cloned()
+            }
+            _ => None,
+        };
+        let editor_focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
+        let titles = self.tab_titles_of(pane_id);
+        let ids: Vec<String> = self
+            .tabs()
+            .and_then(|tabs| tabs.pane(pane_id))
+            .map(|pane| pane.tabs.iter().map(|tab| tab.id.clone()).collect())
+            .unwrap_or_default();
+        // The tab strip: the selected tab is a rounded pill; the rest are plain titles.
+        let strip =
+            (!titles.is_empty()).then(|| {
+                div()
+                    .h(theme::length(cx, "h-header"))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap(gpui_kit::px(2.0))
+                    .px(gpui_kit::px(4.0))
+                    .border_b_1()
+                    .border_color(theme::color(cx, "border-editor-tabs"))
+                    .children(titles.into_iter().zip(ids).map(|(TabTitle { name, hint, active }, id)| {
+                        let (select, close) = (id.clone(), id.clone());
+                        let (select_pane, close_pane) = (pane_id.to_owned(), pane_id.to_owned());
+                        let selected = if editor_focused { "bg-tab-selected" } else { "bg-tab-selected-inactive" };
+                        div()
+                            .id(SharedString::from(format!("tab:{id}")))
+                            .debug_selector(|| format!("tab:{id}"))
+                            .h(theme::length(cx, "h-tab"))
+                            .flex_none()
+                            .flex()
+                            .items_center()
+                            .gap(gpui_kit::px(6.0))
+                            .pl(gpui_kit::px(8.0))
+                            .pr(gpui_kit::px(4.0))
+                            .rounded(gpui_kit::px(6.0))
+                            .text_color(theme::color(cx, "fg-strong"))
+                            .when(active, |el| el.bg(theme::color(cx, selected)))
+                            .when(!active, |el| el.hover(|el| el.bg(theme::color(cx, "bg-tab-hover"))))
+                            .child(theme::icon(
+                                cx,
+                                theme::icons::file_icon_name(&name),
+                                16.0,
+                                theme::color(cx, "fg-strong"),
+                            ))
+                            .child(SharedString::from(name))
+                            .children(hint.map(|hint| {
+                                div().text_color(theme::color(cx, "fg-muted")).child(SharedString::from(hint))
+                            }))
+                            .child(
+                                div()
+                                    .id(SharedString::from(format!("close:{id}")))
+                                    .size(gpui_kit::px(16.0))
+                                    .flex_none()
+                                    .rounded(gpui_kit::px(4.0))
+                                    .hover(|el| el.bg(theme::color(cx, "bg-tab-hover")))
+                                    .child(theme::icon(cx, "close", 16.0, theme::color(cx, "fg-muted")))
+                                    .on_click(cx.listener(move |workbench, _, window, cx| {
+                                        workbench.with_tabs(window, cx, |tabs, _| tabs.close_tab(&close_pane, &close));
+                                        cx.stop_propagation();
+                                    })),
+                            )
+                            .on_click(cx.listener(move |workbench, _, window, cx| {
+                                workbench.with_tabs(window, cx, |tabs, _| {
+                                    tabs.set_active_pane(&select_pane);
+                                    tabs.activate_tab(&select_pane, &select);
+                                    true
+                                });
+                            }))
+                    }))
+            });
+        div()
+            .size_full()
+            .min_w_0()
+            .min_h_0()
+            .flex()
+            .flex_col()
+            .children(strip)
+            .child(div().flex_1().min_h_0().children(editor))
+    }
+
+    /// The editor area: the panes as the splits arrange them, side by side or stacked, sharing
+    /// the room evenly with a line between them.
+    fn editor_area(&self, node: &LayoutNode, window: &Window, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
+        match node {
+            LayoutNode::Pane { pane_id } => self.pane_element(pane_id, window, cx).into_any_element(),
+            LayoutNode::Split { dir, children, .. } => {
+                let stacked = *dir == SplitDir::Column;
+                let line = theme::color(cx, "border-editor-tabs");
+                let parts: Vec<gpui_kit::AnyElement> = children
+                    .iter()
+                    .enumerate()
+                    .map(|(index, child)| {
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .min_h_0()
+                            .when(index > 0 && stacked, |el| el.border_t_1().border_color(line))
+                            .when(index > 0 && !stacked, |el| el.border_l_1().border_color(line))
+                            .child(self.editor_area(child, window, cx))
+                            .into_any_element()
+                    })
+                    .collect();
+                div().size_full().flex().when(stacked, |el| el.flex_col()).children(parts).into_any_element()
+            }
+        }
     }
 
     /// Changes the editor tabs with `change` (given the model and the active pane's id), then
@@ -614,11 +763,12 @@ impl Workbench {
 
     fn tabs_changed(&mut self, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
         let auto_save = self.auto_save(cx);
-        let Content::Project { tabs, editors, .. } = &mut self.content else { return };
+        let Content::Project { tabs, editors, editor_focus, .. } = &mut self.content else { return };
         let open: std::collections::HashSet<&str> =
             tabs.panes.iter().flat_map(|pane| pane.tabs.iter().map(|tab| tab.id.as_str())).collect();
         let closed: Vec<String> = editors.keys().filter(|id| !open.contains(id.as_str())).cloned().collect();
         for id in closed {
+            editor_focus.remove(&id);
             let Some(editor) = editors.remove(&id) else { continue };
             // Closing never loses edits: an unsaved document is written before it is released,
             // and when it cannot be written its tab comes back with the text still in it. With
@@ -1352,6 +1502,7 @@ impl Workbench {
                             loading: Default::default(),
                             restored_views,
                             reveals: HashMap::new(),
+                            editor_focus: HashMap::new(),
                             _opens: opens,
                         }
                     }
@@ -1573,12 +1724,97 @@ impl Workbench {
     /// is only a title until it is shown.
     fn load_active_tab(&mut self, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
         let Content::Project { tabs, editors, loading, .. } = &self.content else { return };
-        let Some(tab) = tabs.pane(&tabs.active_pane).and_then(|pane| pane.active_tab()) else { return };
-        if editors.contains_key(&tab.id) || loading.contains(&tab.id) || tab.input.kind != "file" {
+        // Every pane shows its selected tab; only the active pane's takes the keyboard.
+        let wanted: Vec<(String, PathBuf, bool)> = tabs
+            .panes
+            .iter()
+            .filter_map(|pane| {
+                let tab = pane.active_tab()?;
+                if editors.contains_key(&tab.id) || loading.contains(&tab.id) || tab.input.kind != "file" {
+                    return None;
+                }
+                Some((tab.id.clone(), PathBuf::from(tab.input.path.clone()?), focus && pane.id == tabs.active_pane))
+            })
+            .collect();
+        for (tab, path, focus) in wanted {
+            self.load_tab(tab, path, focus, window, cx);
+        }
+    }
+
+    /// The editor of `tab` took the keyboard: its pane is the active one.
+    fn editor_took_focus(&mut self, tab: &str, window: &mut Window, cx: &mut Context<Self>) {
+        let Content::Project { tabs, .. } = &mut self.content else { return };
+        let Some(pane) = tabs.panes.iter().find(|pane| pane.tab(tab).is_some()).map(|pane| pane.id.clone()) else {
+            return;
+        };
+        if tabs.active_pane != pane && tabs.set_active_pane(&pane) {
+            // The keyboard is already where it belongs.
+            self.tabs_changed(false, window, cx);
+            cx.notify();
+        }
+    }
+
+    /// Splits the active pane: a second view of its file opens beside (or below) it, at the same
+    /// place, and takes the keyboard.
+    pub fn split_editor(&mut self, dir: SplitDir, window: &mut Window, cx: &mut Context<Self>) {
+        let at = self.editor().map(|editor| {
+            let editor = editor.read(cx);
+            (editor.path().to_string_lossy().into_owned(), editor.caret_position())
+        });
+        let Content::Project { tabs, reveals, .. } = &mut self.content else { return };
+        let pane = tabs.active_pane.clone();
+        if tabs.split_pane(&pane, dir).is_none() {
             return;
         }
-        let Some(path) = tab.input.path.clone() else { return };
-        self.load_tab(tab.id.clone(), PathBuf::from(path), focus, window, cx);
+        if let Some((path, caret)) = at {
+            reveals.insert(path, caret);
+        }
+        self.tabs_changed(true, window, cx);
+    }
+
+    /// Moves the active tab to the neighbouring pane, or into a new pane on the right when there
+    /// is none.
+    pub fn move_tab_to_opposite_group(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.with_tabs(window, cx, |tabs, pane| {
+            let Some(tab) = tabs.pane(pane).and_then(|pane| pane.active.clone()) else { return false };
+            match tabs.neighbour_pane(pane).filter(|other| *other != pane).map(str::to_owned) {
+                Some(target) => {
+                    let end = tabs.pane(&target).map_or(0, |pane| pane.tabs.len());
+                    tabs.move_tab(pane, &tab, &target, end, None) | tabs.set_active_pane(&target)
+                }
+                None => tabs.move_tab_to_new_split(pane, &tab, pane, SplitEdge::Right).is_some(),
+            }
+        });
+    }
+
+    /// Opens the active tab's file in the neighbouring pane as well, or splits when there is none.
+    pub fn open_in_opposite_group(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tabs) = self.tabs() else { return };
+        let pane = tabs.active_pane.clone();
+        let Some(input) = tabs.pane(&pane).and_then(|pane| pane.active_tab()).map(|tab| tab.input.clone()) else {
+            return;
+        };
+        match tabs.neighbour_pane(&pane).filter(|other| *other != pane).map(str::to_owned) {
+            None => self.split_editor(SplitDir::Row, window, cx),
+            Some(target) => self.with_tabs(window, cx, |tabs, _| {
+                tabs.open_tab(&target, input, OpenTabOptions::default()).is_some() | tabs.set_active_pane(&target)
+            }),
+        }
+    }
+
+    /// Gives the keyboard to the next (or previous) pane that shows a tab, going round.
+    pub fn focus_splitter(&mut self, forward: bool, window: &mut Window, cx: &mut Context<Self>) {
+        self.with_tabs(window, cx, |tabs, pane| {
+            let shown: Vec<String> = tabs
+                .pane_ids()
+                .into_iter()
+                .filter(|id| tabs.pane(id).is_some_and(|pane| pane.active.is_some()))
+                .map(str::to_owned)
+                .collect();
+            let Some(at) = shown.iter().position(|id| id == pane).filter(|_| shown.len() > 1) else { return false };
+            let next = if forward { (at + 1) % shown.len() } else { (at + shown.len() - 1) % shown.len() };
+            tabs.set_active_pane(&shown[next])
+        });
     }
 
     /// Stores the project's editor session now: its tabs and splits, and where each file's
@@ -1650,7 +1886,15 @@ impl Workbench {
                                     }
                                 });
                             }
+                            let focused = tab_id.clone();
+                            let took_focus =
+                                cx.on_focus_in(&editor.focus_handle(cx), window, move |workbench, window, cx| {
+                                    workbench.editor_took_focus(&focused, window, cx);
+                                });
                             editors.insert(tab_id.clone(), editor);
+                            if let Content::Project { editor_focus, .. } = &mut workbench.content {
+                                editor_focus.insert(tab_id.clone(), took_focus);
+                            }
                         }
                         workbench.serve_reveal(cx);
                     }
@@ -1752,75 +1996,7 @@ impl Render for Workbench {
             Content::Failed(error) => message(error.clone()).into_any_element(),
             Content::Editor(editor) => editor.clone().into_any_element(),
             Content::Project { layout, panels, .. } => {
-                let editor = self.editor().cloned();
-                let editor_focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
-                // The tab strip: the selected tab is a rounded pill; the rest are plain titles.
-                let strip = (!self.tab_titles().is_empty()).then(|| {
-                    let ids: Vec<String> = self
-                        .tabs()
-                        .and_then(|tabs| tabs.pane(&tabs.active_pane))
-                        .map(|pane| pane.tabs.iter().map(|tab| tab.id.clone()).collect())
-                        .unwrap_or_default();
-                    div()
-                        .h(theme::length(cx, "h-header"))
-                        .flex_none()
-                        .flex()
-                        .items_center()
-                        .gap(gpui_kit::px(2.0))
-                        .px(gpui_kit::px(4.0))
-                        .border_b_1()
-                        .border_color(theme::color(cx, "border-editor-tabs"))
-                        .children(self.tab_titles().into_iter().zip(ids).map(
-                            |(TabTitle { name, hint, active }, id)| {
-                                let (select, close) = (id.clone(), id.clone());
-                                let selected =
-                                    if editor_focused { "bg-tab-selected" } else { "bg-tab-selected-inactive" };
-                                div()
-                                    .id(SharedString::from(format!("tab:{id}")))
-                                    .h(theme::length(cx, "h-tab"))
-                                    .flex_none()
-                                    .flex()
-                                    .items_center()
-                                    .gap(gpui_kit::px(6.0))
-                                    .pl(gpui_kit::px(8.0))
-                                    .pr(gpui_kit::px(4.0))
-                                    .rounded(gpui_kit::px(6.0))
-                                    .text_color(theme::color(cx, "fg-strong"))
-                                    .when(active, |el| el.bg(theme::color(cx, selected)))
-                                    .when(!active, |el| el.hover(|el| el.bg(theme::color(cx, "bg-tab-hover"))))
-                                    .child(theme::icon(
-                                        cx,
-                                        theme::icons::file_icon_name(&name),
-                                        16.0,
-                                        theme::color(cx, "fg-strong"),
-                                    ))
-                                    .child(SharedString::from(name))
-                                    .children(hint.map(|hint| {
-                                        div().text_color(theme::color(cx, "fg-muted")).child(SharedString::from(hint))
-                                    }))
-                                    .child(
-                                        div()
-                                            .id(SharedString::from(format!("close:{id}")))
-                                            .size(gpui_kit::px(16.0))
-                                            .flex_none()
-                                            .rounded(gpui_kit::px(4.0))
-                                            .hover(|el| el.bg(theme::color(cx, "bg-tab-hover")))
-                                            .child(theme::icon(cx, "close", 16.0, theme::color(cx, "fg-muted")))
-                                            .on_click(cx.listener(move |workbench, _, window, cx| {
-                                                workbench
-                                                    .with_tabs(window, cx, |tabs, pane| tabs.close_tab(pane, &close));
-                                                cx.stop_propagation();
-                                            })),
-                                    )
-                                    .on_click(cx.listener(move |workbench, _, window, cx| {
-                                        workbench.with_tabs(window, cx, |tabs, pane| {
-                                            tabs.activate_tab(pane, &select);
-                                            true
-                                        });
-                                    }))
-                            },
-                        ))
-                });
+                let area = self.tabs().map(|tabs| self.editor_area(&tabs.layout, window, cx));
                 let gap = theme::length(cx, "island-gap");
                 let island = || {
                     div()
@@ -1970,16 +2146,7 @@ impl Render for Workbench {
                     .children(
                         side(Anchor::Left).map(|s| s.w(gpui_kit::px(sizes.left as f32)).h_full().flex_none().mr(gap)),
                     )
-                    .child(
-                        island()
-                            .flex_1()
-                            .h_full()
-                            .min_w_0()
-                            .flex()
-                            .flex_col()
-                            .children(strip)
-                            .child(div().flex_1().min_h_0().children(editor)),
-                    )
+                    .child(island().flex_1().h_full().min_w_0().flex().flex_col().children(area))
                     .children(
                         side(Anchor::Right).map(|s| s.w(gpui_kit::px(sizes.right as f32)).h_full().flex_none().ml(gap)),
                     );
@@ -3776,6 +3943,105 @@ mod tests {
         workbench.update(cx, |_, cx| cx.notify());
         cx.run_until_parked();
         assert!(!cx.update(|_, cx| cx.global::<MenuBar>().is_sync_pending()));
+    }
+
+    /// Split Right shows the file a second time beside itself, at the same place and with the
+    /// keyboard; what is typed in one pane shows in the other. Tabs move and open across the
+    /// panes, the keyboard goes from pane to pane, a click in a pane makes it the active one, and
+    /// Unsplit takes a pane away again.
+    #[gpui_kit::test]
+    async fn the_editor_splits_into_panes_that_show_and_edit_the_same_file(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use gpui_kit::Modifiers;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("src/alpha.rs"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let run = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| execute_action_or_throw(id, None, window, cx)).expect("it runs");
+            cx.run_until_parked();
+        };
+        let panes = |cx: &mut VisualTestContext| -> Vec<(bool, Vec<String>)> {
+            workbench.read_with(cx, |w, _| {
+                let tabs = w.tabs().expect("a project is open");
+                let ids: Vec<String> = tabs.pane_ids().into_iter().map(str::to_owned).collect();
+                ids.iter()
+                    .map(|id| (*id == tabs.active_pane, w.tab_titles_of(id).into_iter().map(|tab| tab.name).collect()))
+                    .collect()
+            })
+        };
+        let split = |cx: &mut VisualTestContext| {
+            cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy("editorSplit"))
+        };
+        let first = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        first.update(cx, |editor, cx| {
+            let at = editor.offset_of(2, 4);
+            editor.select(at, at, cx);
+        });
+        assert!(!split(cx));
+
+        run(cx, "editor.splitRight");
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some_and(|editor| *editor != first)));
+        assert_eq!(panes(cx), [(false, vec!["alpha.rs".to_owned()]), (true, vec!["alpha.rs".to_owned()])]);
+        let second = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("the new pane's editor");
+        assert_eq!(second.read_with(cx, |editor, _| editor.caret_position()), (2, 4), "it opens where the first was");
+        assert!(cx.update(|window, cx| second.focus_handle(cx).is_focused(window)));
+        cx.run_until_parked();
+        assert!(split(cx));
+
+        // Both panes are views of one document.
+        cx.simulate_input("xyz");
+        settle(cx, |cx| first.read_with(cx, |editor, _| editor.text().contains("xyz")));
+        assert_eq!(first.read_with(cx, |editor, _| editor.text()), second.read_with(cx, |editor, _| editor.text()));
+
+        // Go to Next Splitter hands the keyboard to the other pane, and round again.
+        run(cx, "editor.nextSplitter");
+        assert!(cx.update(|window, cx| first.focus_handle(cx).is_focused(window)));
+        assert_eq!(panes(cx).iter().map(|pane| pane.0).collect::<Vec<_>>(), [true, false]);
+        run(cx, "editor.prevSplitter");
+        assert!(cx.update(|window, cx| second.focus_handle(cx).is_focused(window)));
+
+        // A file opened in the active pane moves to the other with Move to Opposite Group.
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("src/beta.rs"), window, cx));
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path().ends_with("beta.rs")))
+        });
+        assert_eq!(panes(cx)[1], (true, vec!["alpha.rs".to_owned(), "beta.rs".to_owned()]));
+        run(cx, "editor.moveToOppositeGroup");
+        assert_eq!(
+            panes(cx),
+            [(true, vec!["alpha.rs".to_owned(), "beta.rs".to_owned()]), (false, vec!["alpha.rs".to_owned()])]
+        );
+
+        // A click on the other pane's tab makes that pane the active one.
+        let other_tab = workbench.read_with(cx, |w, _| {
+            let tabs = w.tabs().expect("a project is open");
+            let pane = tabs.pane(tabs.pane_ids()[1]).expect("the second pane");
+            pane.tabs[0].id.clone()
+        });
+        let tab = cx.debug_bounds(Box::leak(format!("tab:{other_tab}").into_boxed_str())).expect("the tab is drawn");
+        cx.simulate_click(tab.center(), Modifiers::default());
+        assert_eq!(panes(cx).iter().map(|pane| pane.0).collect::<Vec<_>>(), [false, true]);
+
+        // The splitter turns, and Unsplit closes the active pane.
+        let stacked = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| matches!(&w.tabs().expect("tabs").layout, LayoutNode::Split { dir, .. } if *dir == SplitDir::Column))
+        };
+        assert!(!stacked(cx));
+        run(cx, "editor.changeSplitOrientation");
+        assert!(stacked(cx));
+        run(cx, "editor.unsplit");
+        assert_eq!(panes(cx), [(true, vec!["alpha.rs".to_owned(), "beta.rs".to_owned()])]);
+        cx.run_until_parked();
+        assert!(!split(cx));
+
+        // Open in Opposite Group splits when there is no other pane; Unsplit All keeps this one.
+        run(cx, "editor.openInOppositeGroup");
+        settle(cx, |cx| panes(cx).len() == 2);
+        run(cx, "editor.splitDown");
+        settle(cx, |cx| panes(cx).len() == 3);
+        run(cx, "editor.unsplitAll");
+        assert_eq!(panes(cx).len(), 1);
     }
 
     #[test]

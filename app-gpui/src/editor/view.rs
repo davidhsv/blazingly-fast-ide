@@ -120,6 +120,13 @@ struct Layout {
     lines: Vec<(String, ShapedLine)>,
 }
 
+/// The editors that show each document. The backend reports the edits it makes itself, not the
+/// ones an editor sends it: an editor tells the others of its document about those.
+#[derive(Default)]
+struct DocumentEditors(std::collections::HashMap<DocId, Vec<WeakEntity<Editor>>>);
+
+impl gpui_kit::Global for DocumentEditors {}
+
 pub struct Editor {
     focus: FocusHandle,
     host: Arc<Host>,
@@ -173,6 +180,7 @@ impl Editor {
     ) -> Self {
         let weak: WeakEntity<Self> = cx.weak_entity();
         let doc = info.id;
+        cx.default_global::<DocumentEditors>().0.entry(doc).or_default().push(weak.clone());
         let listener = cx.global_mut::<Backend>().listen(move |event, cx| match &event.event {
             IdeEvent::DocPatched { doc: patched, base_version, changes, workspace_edit, .. } if *patched == doc => {
                 let _ = weak.update(cx, |editor, cx| editor.remote_patch(*base_version, changes, *workspace_edit, cx));
@@ -186,6 +194,13 @@ impl Editor {
             _ => {}
         });
         cx.on_release(|editor, cx| {
+            let shown = &mut cx.default_global::<DocumentEditors>().0;
+            if let Some(editors) = shown.get_mut(&editor.doc) {
+                editors.retain(|other| other.upgrade().is_some());
+                if editors.is_empty() {
+                    shown.remove(&editor.doc);
+                }
+            }
             cx.global_mut::<Backend>().unlisten(editor.listener);
             // Every editor holds one reference to its document; the backend drops the document
             // with its last reference. A project that is already closed has closed it.
@@ -422,6 +437,24 @@ impl Editor {
         changes
     }
 
+    /// Tells the other editors of the document about `changes`, which this one made to the text
+    /// at `base_version`: they follow them as they follow the backend's own edits.
+    fn tell_other_editors(&self, base_version: u32, changes: &[TextChange], cx: &mut Context<Self>) {
+        let this = cx.entity().downgrade();
+        let others: Vec<Entity<Editor>> = cx
+            .default_global::<DocumentEditors>()
+            .0
+            .get(&self.doc)
+            .into_iter()
+            .flatten()
+            .filter(|other| **other != this)
+            .filter_map(WeakEntity::upgrade)
+            .collect();
+        for other in others {
+            other.update(cx, |other, cx| other.remote_patch(base_version, changes, false, cx));
+        }
+    }
+
     /// The backend edited the document itself. Like any edit it can be undone here, unless it
     /// is part of a workspace edit, which is undone as a whole elsewhere: then the changes this
     /// editor could undo no longer apply to the text, and its history starts over.
@@ -462,7 +495,9 @@ impl Editor {
                     // Known here and now: the backend's own report arrives a moment later, and
                     // closing in between must still see the document as unsaved.
                     self.dirty = true;
+                    let base = self.version;
                     self.follow(Some(&changes), Some(kind), cx);
+                    self.tell_other_editors(base, &changes, cx);
                     self.goal_x = None;
                     self.reveal_caret(cx);
                     return true;
@@ -493,7 +528,9 @@ impl Editor {
                 return false;
             }
             self.dirty = true;
+            let base = self.version;
             self.follow(Some(changes), None, cx);
+            self.tell_other_editors(base, changes, cx);
             (self.anchor, self.head) = *selection;
         }
         self.goal_x = None;

@@ -353,3 +353,11 @@ Subagents report how many cases of each spec they ported, and the rows were firs
 Not ported: the Debug tool window and its views, the console's links and find bar, expression completion, and the cases that test the web editor's DOM (the breakpoint click area, an inline rendering error). No debugger UI is drawn yet.
 
 It depends on `run::{java_launch, ansi, store, config_types, configs}`: the subagent dropped its own copies of those in favour of the run batch's.
+
+## D49. Editor panes; editors of one document tell each other of their edits
+
+The editor area draws the tab model's layout: every pane has its tab strip and the editor of its selected tab, splits share their room evenly with a line between the panes, and the pane whose editor takes the keyboard becomes the active one. The split actions (Split Right and Down, Unsplit, Unsplit All, Change Splitter Orientation, Move to and Open in Opposite Group, Go to Next and Previous Splitter) run the model's operations.
+
+A file shown in two panes has two editors on one backend document. I first assumed they would follow each other through the backend's `DocPatched` event and the test refuted it: the backend announces only the edits it makes itself, not the ones an editor sends. So an editor now tells the other editors of its document about each edit it made (`DocumentEditors`), and they follow it exactly as they follow a backend edit, selection included. Each editor keeps its own undo history, in which the other pane's edits are entries of their own.
+
+Not there: splitters cannot be dragged (the model keeps no sizes; the panes share evenly), and tabs cannot be dragged between panes.
