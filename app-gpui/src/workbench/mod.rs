@@ -12,6 +12,8 @@ pub mod quick_switch;
 pub mod status_bar_widgets;
 pub mod tasks;
 pub mod tool_windows;
+pub mod welcome;
+pub mod welcome_model;
 pub mod windows;
 
 use crate::backend::{Backend, BackendEvent};
@@ -65,6 +67,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use tasks::{TaskEvent, Tasks};
 use tool_windows::{Anchor, Effects, Slot, Stripe, ToolWindow, ToolWindowLayout, storage_key};
+use welcome::{Welcome, WelcomeEvent};
 
 /// What a window shows.
 #[expect(clippy::large_enum_variant, reason = "one per window, replaced only when a project opens or closes")]
@@ -218,6 +221,8 @@ pub struct Workbench {
     /// Wakes the balloons when the next one is due to fade.
     balloon_timer: Option<gpui_kit::Task<()>>,
     _balloon_events: Subscription,
+    /// The Welcome screen, while the window shows nothing, and what the window listens to it for.
+    welcome: Option<(Entity<Welcome>, Subscription)>,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -629,6 +634,17 @@ pub fn register_actions(cx: &mut App) {
         workbench.update(cx, |workbench, cx| workbench.reopen_closed_tab(window, cx));
         Ok(())
     });
+    // In a window showing the Welcome screen the keyboard goes to its search; a window with a
+    // project has no Recent Projects popup to show.
+    for id in ["welcome.recentProjects", "file.openRecent"] {
+        registry.handle(id, |_, window, cx| {
+            let welcome = for_window(window, cx).and_then(|workbench| workbench.read(cx).welcome().cloned());
+            if let Some(welcome) = welcome {
+                welcome.update(cx, |view, cx| view.focus_search(window, cx));
+            }
+            Ok(())
+        });
+    }
     debug_assert!(manifest().contains_key("toolwindow.hideAll"));
     registry.handle("toolwindow.hideAll", |_, window, cx| on_layout(window, cx, ToolWindowLayout::hide_all));
     registry.handle("toolwindow.jumpToLast", |_, window, cx| on_layout(window, cx, ToolWindowLayout::jump_to_last));
@@ -675,6 +691,10 @@ impl Workbench {
             // A balloon does not fade while nobody can see it.
             workbench.balloon_view.window_active = window.is_window_active();
             workbench.sync_notifications(cx);
+            // Another window may have opened or forgotten a project meanwhile.
+            if window.is_window_active() {
+                workbench.sync_welcome(window, cx);
+            }
         })
         .detach();
         let id = window.window_handle().window_id();
@@ -710,7 +730,7 @@ impl Workbench {
             }
             workbench.sync_notifications(cx);
         });
-        Self {
+        let mut workbench = Self {
             label: label.to_owned(),
             content: Content::Empty,
             editor_observer: None,
@@ -731,7 +751,10 @@ impl Workbench {
             balloon_view: BalloonView::default(),
             balloon_timer: None,
             _balloon_events: balloon_events,
-        }
+            welcome: None,
+        };
+        workbench.sync_welcome(window, cx);
+        workbench
     }
 
     pub fn label(&self) -> &str {
@@ -2040,8 +2063,8 @@ impl Workbench {
         self.popup = None;
     }
 
-    /// Closes the window's project; the window stays, showing nothing.
-    pub fn close_project(&mut self, cx: &mut Context<Self>) {
+    /// Closes the window's project; the window stays, showing the Welcome screen.
+    pub fn close_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.project_tree().is_none() {
             return;
         }
@@ -2049,12 +2072,110 @@ impl Workbench {
         // The project's servers and runs stop in the background: this is the UI thread.
         cx.global::<Backend>().host.close_project_detached(&self.label);
         self.content = Content::Empty;
+        self.sync_welcome(window, cx);
         cx.notify();
+    }
+
+    /// The Welcome screen, while the window shows it.
+    pub fn welcome(&self) -> Option<&Entity<Welcome>> {
+        match self.content {
+            Content::Empty => self.welcome.as_ref().map(|(welcome, _)| welcome),
+            _ => None,
+        }
+    }
+
+    /// Keeps a Welcome screen while the window shows nothing, listing the recent projects as they
+    /// are stored now, and drops it once a project or a file opens. Without a backend there are no
+    /// recent projects to show.
+    fn sync_welcome(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.is_empty() {
+            self.welcome = None;
+            return;
+        }
+        let Some(backend) = cx.try_global::<Backend>() else { return };
+        let recent = ide_workspace::RecentProjects::load(&backend.dirs.config);
+        let (list, groups) = (recent.list(), recent.groups());
+        if let Some((welcome, _)) = &self.welcome {
+            welcome.update(cx, |view, cx| view.set_recent(&list, &groups, cx));
+            return;
+        }
+        let home = std::env::var_os("HOME").map(PathBuf::from);
+        let welcome =
+            cx.new(|cx| Welcome::new(&list, &groups, home.as_deref(), cx).with_version(env!("CARGO_PKG_VERSION")));
+        let events = cx.subscribe_in(&welcome, window, Self::welcome_event);
+        // When it is what the window shows, it takes the keyboard: typing searches the recent
+        // projects. Behind a failure's message it is not drawn and leaves the keys alone.
+        if matches!(self.content, Content::Empty) {
+            welcome.update(cx, |view, cx| view.focus_search(window, cx));
+        }
+        self.welcome = Some((welcome, events));
+    }
+
+    /// Carries out what the Welcome screen asks for.
+    fn welcome_event(
+        &mut self,
+        welcome: &Entity<Welcome>,
+        event: &WelcomeEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let config = cx.global::<Backend>().dirs.config.clone();
+        match event.clone() {
+            // Once this update is over: opening replaces what the window shows.
+            WelcomeEvent::Open(path) => window.defer(cx, move |window, cx| {
+                if let Err(error) = windows::open_project_with_policy(&path, window, cx) {
+                    tracing::error!("cannot open {}: {error:#}", path.display());
+                }
+            }),
+            WelcomeEvent::RunAction(id) => window.defer(cx, move |window, cx| {
+                execute_action_from(ActionSource::Other, id, None, window, cx);
+            }),
+            WelcomeEvent::Remove(path) => {
+                match ide_workspace::RecentProjects::load(&config).remove(&path) {
+                    Ok(()) => menu::refresh_recent(cx),
+                    Err(error) => {
+                        let mut request =
+                            NotificationRequest::new(NotificationLevel::Error, "Cannot remove recent project");
+                        request.body = Some(error.message);
+                        self.notify(request, cx);
+                    }
+                }
+                // The list shows what is stored, also when forgetting failed.
+                self.sync_welcome(window, cx);
+            }
+            WelcomeEvent::SetGroups(groups) => {
+                let recent = ide_workspace::RecentProjects::load(&config);
+                match recent.set_groups(groups) {
+                    Ok(groups) => {
+                        let list = recent.list();
+                        welcome.update(cx, |view, cx| view.set_recent(&list, &groups, cx));
+                    }
+                    Err(error) => {
+                        let mut request =
+                            NotificationRequest::new(NotificationLevel::Error, "Cannot save project groups");
+                        request.body = Some(error.message);
+                        self.notify(request, cx);
+                        self.sync_welcome(window, cx);
+                    }
+                }
+            }
+            WelcomeEvent::Reveal(path) => cx.reveal_path(&path),
+            WelcomeEvent::ShowMenu { target, position } => {
+                let items = welcome.update(cx, |view, cx| view.menu(&target, cx));
+                let welcome = welcome.downgrade();
+                let run = move |_: &mut Self, command, window: &mut Window, cx: &mut Context<Self>| {
+                    // The view is gone when the window shows a project by now.
+                    let _ = welcome.update(cx, |view, cx| view.run(command, window, cx));
+                };
+                self.show_menu(&items, position, run, window, cx);
+            }
+        }
     }
 
     pub fn open_project(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
         self.leave(cx);
         self.content = Content::Opening(root.clone());
+        self.sync_welcome(window, cx);
         cx.notify();
         let label = self.label.clone();
         let config = cx.global::<Backend>().dirs.config.clone();
@@ -2117,6 +2238,7 @@ impl Workbench {
                     }
                     Err(message) => Content::Failed(message.into()),
                 };
+                workbench.sync_welcome(window, cx);
                 // Registering a window reconciles the stored layout with what exists; a project
                 // opens with the focus in its Project view when that is showing.
                 workbench.with_layout(window, cx, |layout| {
@@ -2708,6 +2830,7 @@ impl Workbench {
     /// Opens a loose file for editing (LightEdit: no project, no tool windows).
     pub fn open_file(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
         self.content = Content::Opening(path.clone());
+        self.sync_welcome(window, cx);
         cx.notify();
         let label = self.label.clone();
         let opened = cx.global::<Backend>().with_host(move |host| async move {
@@ -2744,6 +2867,7 @@ impl Workbench {
                     }
                     Err(message) => Content::Failed(message.into()),
                 };
+                workbench.sync_welcome(window, cx);
                 cx.notify();
             });
         })
@@ -2772,7 +2896,10 @@ impl Render for Workbench {
                 .child(text)
         };
         let body = match &self.content {
-            Content::Empty => message("".into()).into_any_element(),
+            Content::Empty => match &self.welcome {
+                Some((welcome, _)) => welcome.clone().into_any_element(),
+                None => message("".into()).into_any_element(),
+            },
             Content::Opening(path) => message(format!("Opening {}…", path.display()).into()).into_any_element(),
             Content::Failed(error) => message(error.clone()).into_any_element(),
             Content::Editor(editor) => editor.clone().into_any_element(),
@@ -5251,6 +5378,85 @@ mod tests {
         raise(cx, NotificationLevel::Info, "Indexing finished again");
         assert!(balloons(cx).is_empty(), "the group's balloons are off");
         assert_eq!(workbench.read_with(cx, |w, _| w.notifications().items().len()), 2, "they are still recorded");
+    }
+
+    /// A window with nothing open shows the Welcome screen. A project that was opened and closed
+    /// is listed there; Enter or a click on its row opens it again, and removing it from the list
+    /// forgets it.
+    #[gpui_kit::test]
+    async fn a_window_with_nothing_open_welcomes_with_the_recent_projects(cx: &mut TestAppContext) {
+        use gpui_kit::Modifiers;
+        use welcome_model::WelcomeCommand;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        let name = root.file_name().expect("a folder name").to_string_lossy().into_owned();
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        let welcome = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.welcome().cloned());
+        let names = |cx: &mut VisualTestContext| -> Vec<String> {
+            let view = welcome(cx).expect("the Welcome screen shows");
+            view.read_with(cx, |view, _| view.shown_projects().into_iter().map(|project| project.name).collect())
+        };
+        let close = |cx: &mut VisualTestContext| {
+            workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+            cx.run_until_parked();
+        };
+        let opened = |cx: &mut VisualTestContext| {
+            settle(cx, |cx| workbench.read_with(cx, |w, cx| w.project_root(cx).as_deref() == Some(&*root)));
+            assert!(welcome(cx).is_none(), "a project replaces the Welcome screen");
+        };
+
+        // Nothing has been opened yet: the page that offers to open one.
+        cx.run_until_parked();
+        let first = welcome(cx).expect("the Welcome screen shows");
+        assert_eq!(first.read_with(cx, |view, _| view.empty_text()), Some("Welcome to OpenIDEA"));
+        assert_eq!(
+            first.read_with(cx, |view, _| view.version().map(str::to_owned)),
+            Some(env!("CARGO_PKG_VERSION").into())
+        );
+        assert!(cx.debug_bounds("welcome-brand").is_some(), "the Welcome screen is drawn");
+
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        opened(cx);
+
+        // Closed, the project is the recent one; the keyboard is in the search, and Enter opens it.
+        close(cx);
+        assert_eq!(names(cx), [name]);
+        let field = welcome(cx).expect("the Welcome screen shows").read_with(cx, |view, _| view.field().clone());
+        let searching = |cx: &mut VisualTestContext| cx.update(|window, cx| field.focus_handle(cx).is_focused(window));
+        assert!(searching(cx));
+        // Recent Projects puts the keyboard back in the search.
+        cx.update(|window, cx| window.blur(cx));
+        assert!(!searching(cx));
+        cx.update(|window, cx| {
+            crate::platform::actions::execute_action_or_throw("welcome.recentProjects", None, window, cx)
+        })
+        .expect("it runs");
+        assert!(searching(cx));
+        cx.simulate_keystrokes("enter");
+        opened(cx);
+
+        // A click on its row opens it too.
+        close(cx);
+        let row = cx.debug_bounds("welcome-row-0").expect("the row is drawn").center();
+        cx.simulate_click(row, Modifiers::default());
+        opened(cx);
+
+        // Removing it from the list, once confirmed, forgets it.
+        close(cx);
+        let view = welcome(cx).expect("the Welcome screen shows");
+        let path = root.to_string_lossy().into_owned();
+        view.update_in(cx, |view, window, cx| view.run(WelcomeCommand::AskRemove(path), window, cx));
+        cx.simulate_prompt_answer("Remove");
+        cx.run_until_parked();
+        assert!(names(cx).is_empty());
+        let config = cx.update(|_, cx| cx.global::<Backend>().dirs.config.clone());
+        assert!(ide_workspace::RecentProjects::load(&config).list().is_empty(), "the project is forgotten");
+        assert_eq!(
+            welcome(cx).map(|view| view.read_with(cx, |view, _| view.empty_text())),
+            Some(Some("Welcome to OpenIDEA"))
+        );
     }
 
     #[test]

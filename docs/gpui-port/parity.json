@@ -101,7 +101,7 @@
   },
   "module:src/workbench/Workbench.tsx": {
     "status": "partial",
-    "proof": "`workbench::tests`; LightEdit frame only: no title bar, tool windows, status bar or welcome view"
+    "proof": "`workbench::tests`; the frame with tool windows, status bar, popups and the Welcome view; the title bar has the title only (see its row)"
   },
   "action:file.save": {
     "status": "done",
@@ -1156,8 +1156,8 @@
     "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; see the file.openProjectPath action"
   },
   "ipc:recent_projects": {
-    "status": "partial",
-    "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; opened projects are recorded and listed in Open Recent; the Welcome screen that lists them is not ported"
+    "status": "done",
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`"
   },
   "shell:windows.rs": {
     "status": "partial",
@@ -2086,5 +2086,97 @@
   "module:src/ui/Feedback.tsx": {
     "status": "partial",
     "proof": "`workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`, `workbench::notification_balloons::tests`; balloons with level icon, title, body, links and close, at most three stacked at the bottom right, fading by the model's clocks and pausing under the pointer or while the window is inactive. Not yet: the slide-in animation, the chime, bodies that are components (the update progress), and the links whose commands carry arguments of their own"
+  },
+  "unit:src/features/run/testing/comparison.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::comparison::tests`"
+  },
+  "unit:src/features/run/testing/dotnet.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::dotnet::tests`"
+  },
+  "unit:src/features/run/testing/go.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::go::tests`"
+  },
+  "unit:src/features/run/testing/parsers.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::parsers::tests`"
+  },
+  "unit:src/features/run/testing/phpunit.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::phpunit::tests`"
+  },
+  "unit:src/features/run/testing/plugin.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::plugin::tests`"
+  },
+  "unit:src/features/run/testing/rerun.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::rerun::tests`"
+  },
+  "unit:src/features/run/testing/ruby.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::ruby::tests`"
+  },
+  "unit:src/features/run/testing/states.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::states::tests`"
+  },
+  "unit:src/features/run/testing/unittest.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::unittest::tests`"
+  },
+  "unit:src/features/run/services.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::services::tests`"
+  },
+  "unit:src/features/run/serviceSessions.test.ts": {
+    "status": "done",
+    "proof": "`run_testing::service_sessions::tests`"
+  },
+  "unit:src/features/welcome/recent.test.ts": {
+    "status": "done",
+    "proof": "`workbench::welcome_model::tests`"
+  },
+  "unit:src/features/welcome/openRecent.test.ts": {
+    "status": "done",
+    "proof": "`workbench::welcome_model::tests`"
+  },
+  "unit:src/features/welcome/session.test.ts": {
+    "status": "done",
+    "proof": "`workbench::welcome_model::tests`"
+  },
+  "unit:src/features/welcome/welcome.test.tsx": {
+    "status": "partial",
+    "proof": "`workbench::welcome::tests`, `workbench::welcome_model::tests`; 6 of 9 cases: the Customize page (2 cases) and the Plugins page (1) are not built"
+  },
+  "action:welcome.recentProjects": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`; puts the keyboard in the Welcome screen's search; in a window with a project it does nothing, the Recent Projects popup is not built"
+  },
+  "action:file.openRecent": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`; registered with the handler of welcome.recentProjects, which is the one the test runs; in a window with a project it does nothing, the Recent Projects popup is not built"
+  },
+  "ipc:remove_recent_project": {
+    "status": "done",
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`"
+  },
+  "ipc:recent_project_groups": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`; read when the Welcome screen is built, only with no groups stored"
+  },
+  "ipc:set_recent_project_groups": {
+    "status": "partial",
+    "proof": "`workbench::welcome::tests::a_group_is_named_in_a_form_above_the_list`; the view asks for the groups to be stored and the workbench stores them, but no test goes through the workbench to the stored file"
+  },
+  "module:src/workbench/Welcome.tsx": {
+    "status": "done",
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`; the Welcome view is always the content of an empty window, the bare fallback shows only without a backend"
+  },
+  "feature:welcome": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::welcome::tests`; the Welcome screen with search, groups, row menus, remove and reopen. Not yet: the Customize and Plugins pages, the Recent Projects popup, the project popup of the title bar, reopening the last project at start (its logic is in the model, nothing calls it)"
   }
 }

@@ -268,7 +268,7 @@ pub fn register_actions(cx: &mut App) {
     });
     registry.handle("file.closeProject", |_, window, cx| {
         if let Some(workbench) = for_window(window, cx) {
-            workbench.update(cx, |workbench, cx| workbench.close_project(cx));
+            workbench.update(cx, |workbench, cx| workbench.close_project(window, cx));
         }
         Ok(())
     });

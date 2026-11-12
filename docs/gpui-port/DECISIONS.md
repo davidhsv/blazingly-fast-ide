@@ -450,3 +450,16 @@ No merge editor, diff viewer or multi-repository UI is drawn from these yet.
 - Settings › Notifications are read now (they were passed as "none" before): the effective settings, serialised, give the model's settings. "Don't Show Again" writes the group's display to the global settings; the workbench test checks that the next notification of the group raises no balloon.
 - A link of a notification runs its command when the command is a registered action. Commands that carry arguments in their own form (a run configuration, a repository) have no runner yet and are logged; the notification still shows the link.
 - Balloons are drawn in a deferred layer below the popup slot, so a popup covers them, as the stylesheet orders them.
+
+## D59. The test runners' logic
+
+`run_testing/` (20 files, 174 tests) is a subagent's port of 12 specs: the parsers of test output (JVM, Jest/Vitest, pytest, unittest, Go, Cargo, .NET TRX, PHPUnit, Ruby, TeamCity messages, plugin runners), rerunning failed tests, the comparison of expected and actual, test states, and the Services tool window's run configurations with their sessions. It built on the first try; the integrating agent fixed two lints and changed no test expectation. TRX files are read with a small XML reader written for them, since the crate has no XML dependency and the format is fixed. None of it is drawn yet: the Run tool window's test tree and the Services tree are still open.
+
+## D60. The Welcome screen
+
+`workbench/welcome.rs` and `welcome_model.rs` are a subagent's view and model (43 tests); a second agent wired them into the workbench, which owns the view while the window has nothing open and drops it when a project or a file opens.
+
+- The list is read again from storage when the window becomes active, when a project closes and when an open fails, since another window may have changed it. After a failed remove or a failed save of the groups it is read again too, so the screen never shows a change that was not stored (the agent's addition; the component keeps its optimistic state).
+- While an open has failed the window shows the error, not the Welcome screen, and the hidden view does not take the keyboard.
+- `welcome.recentProjects` and `file.openRecent` put the keyboard in the screen's search. In a window with a project they do nothing yet: the Recent Projects popup is a separate view.
+- Not built: the Customize and Plugins pages of the screen, and reopening the last project at start (the logic is ported, nothing calls it, because the first window is opened from the command line in `main.rs`).
