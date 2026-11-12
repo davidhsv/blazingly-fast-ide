@@ -264,6 +264,12 @@ impl Editor {
         ide_core::Range { start: position(selection.start), end: position(selection.end) }
     }
 
+    /// The UTF-16 offset of the zero-based `line` and UTF-16 column `col`, clamped to the text.
+    pub fn offset_of(&self, line: u32, col: u32) -> u32 {
+        let line = line.min(self.line_count().saturating_sub(1));
+        buffer::offset_at(&self.rope, line, col).min(buffer::line_range(&self.rope, line).end)
+    }
+
     /// The selection's fixed end, as a UTF-16 offset: the caret is its moving end.
     pub fn anchor(&self) -> u32 {
         self.anchor

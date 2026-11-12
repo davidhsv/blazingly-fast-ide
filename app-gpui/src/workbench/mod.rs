@@ -60,6 +60,8 @@ enum Content {
         loading: std::collections::HashSet<String>,
         /// Where the files of the restored session were left, for the ones not opened yet.
         restored_views: std::collections::BTreeMap<String, FileViewState>,
+        /// Where to put the caret in a file that is being opened: its line and UTF-16 column.
+        reveals: HashMap<String, (u32, u32)>,
         _opens: Subscription,
     },
     Failed(SharedString),
@@ -69,6 +71,8 @@ enum Content {
 struct Panel {
     view: AnyView,
     focus: FocusHandle,
+    /// What the window listens to the view for, kept for as long as the view is.
+    _events: Option<Subscription>,
 }
 
 /// How long the tabs rest before the editor session is written.
@@ -157,8 +161,11 @@ pub const TERMINAL_TOOL_WINDOW: &str = "terminal";
 /// The Git log's tool window id.
 pub const GIT_TOOL_WINDOW: &str = "git";
 
+/// The Find tool window's id.
+pub const FIND_TOOL_WINDOW: &str = "find";
+
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 3] = [PROJECT_TOOL_WINDOW, TERMINAL_TOOL_WINDOW, GIT_TOOL_WINDOW];
+const TOOL_WINDOWS: [&str; 4] = [PROJECT_TOOL_WINDOW, TERMINAL_TOOL_WINDOW, GIT_TOOL_WINDOW, FIND_TOOL_WINDOW];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
 /// contributions manifest.
@@ -228,6 +235,7 @@ pub fn register_actions(cx: &mut App) {
     fn active(tabs: &TabsState, pane: &str) -> Option<String> {
         tabs.pane(pane).and_then(|pane| pane.active.clone())
     }
+    registry.handle("find.inPath", |_, window, cx| on_layout(window, cx, |layout| layout.show(FIND_TOOL_WINDOW, true)));
     registry.handle("view.toggleTheme", |_, window, cx| {
         let label = for_window(window, cx).map(|workbench| workbench.read(cx).label.clone()).unwrap_or_default();
         crate::theme::appearance::toggle_theme(&label, cx)
@@ -848,7 +856,7 @@ impl Workbench {
             }
         }
         // A window shown for the first time gets its view before the focus can go to it.
-        self.mount_panels(cx);
+        self.mount_panels(window, cx);
         let Content::Project { layout, focus_served, panels, .. } = &mut self.content else { return };
         let request = layout.focus_request().filter(|request| request.seq > *focus_served).cloned();
         if let Some(request) = request {
@@ -870,7 +878,7 @@ impl Workbench {
     }
 
     /// Creates the view of every visible tool window that has none yet.
-    fn mount_panels(&mut self, cx: &mut Context<Self>) {
+    fn mount_panels(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Content::Project { layout, panels, tree, .. } = &self.content else { return };
         let missing: Vec<String> =
             layout.visible().ids().filter(|id| !panels.contains_key(*id)).map(str::to_owned).collect();
@@ -880,12 +888,22 @@ impl Workbench {
                 TERMINAL_TOOL_WINDOW => {
                     let (label, options) = (self.label.clone(), self.terminal_options(&root, cx));
                     let terminal = cx.new(|cx| TerminalView::new(&label, options, cx));
-                    Panel { focus: terminal.focus_handle(cx), view: terminal.into() }
+                    Panel { focus: terminal.focus_handle(cx), view: terminal.into(), _events: None }
                 }
                 GIT_TOOL_WINDOW => {
                     let label = self.label.clone();
                     let log = cx.new(|cx| crate::vcs::log_view::GitLog::new(&label, cx));
-                    Panel { focus: log.focus_handle(cx), view: log.into() }
+                    Panel { focus: log.focus_handle(cx), view: log.into(), _events: None }
+                }
+                FIND_TOOL_WINDOW => {
+                    use crate::find::view::{FindPanel, FindPanelEvent};
+                    let label = self.label.clone();
+                    let find = cx.new(|cx| FindPanel::new(&label, cx));
+                    let opens = cx.subscribe_in(&find, window, |workbench, _, event: &FindPanelEvent, window, cx| {
+                        let FindPanelEvent::Open { path, line, col } = event;
+                        workbench.open_project_file_at(path.clone(), *line, *col, window, cx);
+                    });
+                    Panel { focus: find.focus_handle(cx), view: find.into(), _events: Some(opens) }
                 }
                 _ => continue,
             };
@@ -972,7 +990,8 @@ impl Workbench {
                         let opens = cx.subscribe_in(&tree, window, |workbench, _, event: &OpenFile, window, cx| {
                             workbench.open_project_file(event.0.clone(), window, cx);
                         });
-                        let project_panel = Panel { focus: tree.focus_handle(cx), view: tree.clone().into() };
+                        let project_panel =
+                            Panel { focus: tree.focus_handle(cx), view: tree.clone().into(), _events: None };
                         // The tabs, splits and carets the project was left with.
                         let saved = cx.try_global::<UiStorage>().and_then(|s| session::load_session(s, &scope));
                         let (tabs, restored_views) = match saved {
@@ -989,6 +1008,7 @@ impl Workbench {
                             editors: HashMap::new(),
                             loading: Default::default(),
                             restored_views,
+                            reveals: HashMap::new(),
                             _opens: opens,
                         }
                     }
@@ -1040,6 +1060,38 @@ impl Workbench {
         self.tabs_changed(true, window, cx);
         if !loaded {
             self.load_tab(tab_id, path, true, window, cx);
+        }
+    }
+
+    /// Opens a file of the project with the caret at the zero-based `line` and UTF-16 column
+    /// `col`: a search match, a commit's file, an error's location.
+    pub fn open_project_file_at(
+        &mut self,
+        path: PathBuf,
+        line: u32,
+        col: u32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let key = path.to_string_lossy().into_owned();
+        if let Content::Project { reveals, .. } = &mut self.content {
+            reveals.insert(key, (line, col));
+        }
+        self.open_project_file(path, window, cx);
+        self.serve_reveal(cx);
+    }
+
+    /// Moves the caret of the active editor to where its file was asked to be shown.
+    fn serve_reveal(&mut self, cx: &mut Context<Self>) {
+        let Some(editor) = self.editor().cloned() else { return };
+        let path = editor.read(cx).path().to_string_lossy().into_owned();
+        let Content::Project { reveals, .. } = &mut self.content else { return };
+        if let Some((line, col)) = reveals.remove(&path) {
+            editor.update(cx, |editor, cx| {
+                let at = editor.offset_of(line, col);
+                editor.select(at, at, cx);
+                editor.scroll_to_line(line.saturating_sub(5), cx);
+            });
         }
     }
 
@@ -1140,6 +1192,7 @@ impl Workbench {
                             }
                             editors.insert(tab_id.clone(), editor);
                         }
+                        workbench.serve_reveal(cx);
                     }
                     Err(message) => {
                         tracing::error!("cannot open the file: {message}");
@@ -2316,6 +2369,66 @@ mod tests {
             log.read_with(cx, |log, _| log.commits().iter().map(|c| c.summary.clone()).collect());
         assert_eq!(subjects, ["notes"]);
         assert!(cx.update(|window, cx| log.focus_handle(cx).is_focused(window)), "showing it gives it the keyboard");
+    }
+
+    /// Find in Files: the action shows the Find window with the keyboard in its query, Enter
+    /// searches the project, the options narrow the search, and Enter on the results opens the
+    /// selected match with the caret on it.
+    #[gpui_kit::test]
+    async fn find_in_files_searches_the_project_and_opens_a_match(cx: &mut TestAppContext) {
+        use crate::find::session::FindStatus;
+        use crate::find::view::{FindOption, FindPanel};
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::create_dir(root.join("src")).expect("a folder");
+        std::fs::write(root.join("src/a.txt"), "first line\n  a Needle here\nlast\n").expect("the file is written");
+        std::fs::write(root.join("src/b.txt"), "needle one\nnothing\nneedle two, needle three\n")
+            .expect("the file is written");
+        std::fs::write(root.join("c.txt"), "hay\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+
+        cx.update(|window, cx| execute_action_or_throw("find.inPath", None, window, cx)).expect("it runs");
+        let find = workbench
+            .read_with(cx, |w, _| w.tool_window_view(FIND_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<FindPanel>().ok())
+            .expect("the Find window holds the panel");
+        assert!(cx.update(|window, cx| find.focus_handle(cx).is_focused(window)), "the query has the keyboard");
+        cx.simulate_input("needle");
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| find.read_with(cx, |find, _| find.status() == FindStatus::Done));
+        // Case is ignored by default: four matches on three lines of two files.
+        let mut results = find.read_with(cx, |find, _| find.results());
+        results.sort();
+        assert_eq!(results, [("src/a.txt".to_owned(), vec![1]), ("src/b.txt".to_owned(), vec![0, 2])]);
+        assert_eq!(find.read_with(cx, |find, _| find.match_count()), 4);
+
+        // Match Case searches again with it.
+        find.update(cx, |find, cx| find.toggle(FindOption::MatchCase, cx));
+        settle(cx, |cx| find.read_with(cx, |find, _| find.status() == FindStatus::Done && find.match_count() == 3));
+        assert_eq!(find.read_with(cx, |find, _| find.results()), [("src/b.txt".to_owned(), vec![0, 2])]);
+
+        // Down selects the next matching line; Enter opens it with the caret on the match.
+        cx.simulate_keystrokes("down enter");
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        settle(cx, |cx| editor.read_with(cx, |editor, _| editor.caret_position() == (2, 0)));
+        assert_eq!(editor.read_with(cx, |editor, _| editor.path().to_path_buf()), root.join("src/b.txt"));
+
+        // A pattern that is not a valid expression says so and finds nothing.
+        find.update(cx, |find, cx| {
+            find.toggle(FindOption::Regex, cx);
+            find.field().update(cx, |field, cx| field.set_text("(", cx));
+            find.search(cx);
+        });
+        cx.run_until_parked();
+        find.read_with(cx, |find, _| {
+            assert_eq!(find.status(), FindStatus::Invalid);
+            assert!(find.error().is_some() && find.results().is_empty());
+        });
     }
 
     #[test]

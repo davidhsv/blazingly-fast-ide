@@ -818,5 +818,21 @@
   "unit:src/features/search/__tests__/searchKeys.test.ts": {
     "status": "done",
     "proof": "`find::search_keys::tests`"
+  },
+  "action:find.inPath": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`; opens the Find tool window with the query focused and searches the project, instead of the Find in Files popup with its preview, scopes and file masks"
+  },
+  "point.registerToolWindow:find": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`, `find::window_store::tests`; one search with its results by file. Not yet: result tabs, grouping options, replace, preview, the header menu"
+  },
+  "ipc:search_start": {
+    "status": "done",
+    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`"
+  },
+  "ipc:search_validate": {
+    "status": "done",
+    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`"
   }
 }

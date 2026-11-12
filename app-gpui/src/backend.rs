@@ -184,6 +184,12 @@ impl Backend {
         let _ = self.events.unbounded_send(BackendEvent { window: window.map(str::to_owned), event });
     }
 
+    /// A fresh id for a cancellable backend request, unique in this process.
+    pub fn next_request_id() -> ide_core::RequestId {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        ide_core::RequestId(NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed) as _)
+    }
+
     /// Calls `listener` for every backend event; returns its id for [`Backend::unlisten`].
     pub fn listen(&mut self, listener: impl Fn(&BackendEvent, &mut App) + 'static) -> u64 {
         self.next_listener += 1;

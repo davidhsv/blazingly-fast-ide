@@ -4,6 +4,7 @@
 //! Nothing here touches the backend, storage or a window. A model that needs a backend answer returns the
 //! request as an effect and is handed the answer through a method, so a view can drive it.
 
+pub mod backend;
 pub mod find_tool_window;
 pub mod ipc;
 pub mod open;
@@ -15,4 +16,5 @@ pub mod search_keys;
 pub mod session;
 pub mod store;
 pub mod utf16;
+pub mod view;
 pub mod window_store;
