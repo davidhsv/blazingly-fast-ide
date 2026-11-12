@@ -100,7 +100,8 @@ pub fn init(cx: &mut App) {
 
 /// Resolves the theme from the settings as they stand and switches every window to it.
 pub fn apply(cx: &mut App) {
-    let appearance = selection(&settings::global(cx).appearance);
+    let options = settings::global(cx).appearance;
+    let appearance = selection(&options);
     let state = cx.default_global::<ThemeState>();
     // The stylesheet is cascaded afresh from the base attributes, so nothing of the previous
     // theme (its palette, contrast or accent) carries over.
@@ -110,6 +111,16 @@ pub fn apply(cx: &mut App) {
             .with(PLUGIN_THEME_KIND_ATTRIBUTE, plugin.kind.as_str()),
         None => ThemeAttributes::light(),
     };
+    // The Appearance options that are attributes of the root in the stylesheet.
+    let flags = [
+        ("data-compact", options.compact_mode, ""),
+        ("data-contrast-scrollbars", options.contrast_scrollbars, ""),
+        ("data-red-green", options.red_green_vision, ""),
+        ("data-tool-window-bg", options.different_tool_window_background, "different"),
+        ("data-project-colors", !options.project_colors_in_toolbar, "off"),
+        ("data-menu-icons", !options.menu_icons, "off"),
+    ];
+    let root = flags.into_iter().filter(|(_, on, _)| *on).fold(root, |root, (name, _, value)| root.with(name, value));
     let applied =
         apply_theme(state.session_override.as_ref(), Some(&appearance), state.system_light, &state.contributed, root);
     if let Some(applied) = applied {

@@ -1230,5 +1230,41 @@
   "unit:src/features/project-tree/viewModes.test.ts": {
     "status": "done",
     "proof": "`project_view::store::tests`, `project_view::context_menu::tests`, `project_view::index::tests`"
+  },
+  "action:view.toggleStatusBar": {
+    "status": "done",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`"
+  },
+  "action:view.toggleToolWindowBars": {
+    "status": "done",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`"
+  },
+  "action:view.toggleCompactMode": {
+    "status": "done",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`"
+  },
+  "action:view.toggleToolbar": {
+    "status": "partial",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; flips the setting and shows as on or off, but the title bar has no toolbar items to hide yet"
+  },
+  "action:toolwindow.maximize": {
+    "status": "partial",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; the side is maximized in the layout and drawn over the editor and the other sides; the test checks the layout, not what is drawn"
+  },
+  "boundid:toolwindow.resizeLeft": {
+    "status": "done",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`"
+  },
+  "boundid:toolwindow.resizeRight": {
+    "status": "done",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`"
+  },
+  "boundid:toolwindow.resizeUp": {
+    "status": "partial",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; registered with the other two on the same layout step; the test resizes a left window only"
+  },
+  "boundid:toolwindow.resizeDown": {
+    "status": "partial",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; registered with the other two on the same layout step; the test resizes a left window only"
   }
 }

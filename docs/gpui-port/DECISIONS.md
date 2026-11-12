@@ -292,3 +292,9 @@ Choices the subagent made, kept:
 - The import and Unity refresh specs mock backend calls; here they are checked on the pure models (`LocalImport`, `UnityRefresh`) and marked partial.
 - Menu rows reuse `vcs_ops::menu::MenuItem` and are identified by command or label, since it has no id; the Select In header is a title field.
 - Not ported: the file refactoring dialogs (only their request and the undo ordering), the React component specs, and every action handler: `actions.rs` computes the actions' titles and targets but registers nothing.
+
+## D42. Appearance options are attributes of the theme
+
+The Appearance options the webview sets as attributes on the document root (`data-compact`, contrast scrollbars, red-green palette, a different tool window background, project colours, menu icons) are passed as attributes when the theme is cascaded, so the stylesheet's own blocks for them apply and nothing is restated in Rust. The four View › Appearance toggles flip their global setting; the status bar and the tool window stripes are drawn only when theirs is on. The four Stretch actions have ids built from a direction in the webview, so they are registered with their metadata written out instead of read from the generated list.
+
+IDE zoom is not ported: sizes come from tokens and from literals in the views, and scaling only the tokens would zoom half the UI. It needs one scale applied where GPUI resolves pixels, which is a change of its own.

@@ -243,6 +243,52 @@ pub fn register_actions(cx: &mut App) {
     }
     windows::register_actions(cx);
     let registry = cx.default_global::<ActionRegistry>();
+    // View › Appearance: each item shows and flips one global appearance setting.
+    type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
+    let flags: [(&str, &str, Flag); 4] = [
+        ("view.toggleCompactMode", "appearance.compactMode", |a| a.compact_mode),
+        ("view.toggleToolbar", "appearance.showMainToolbar", |a| a.show_main_toolbar),
+        ("view.toggleToolWindowBars", "appearance.showToolWindowBars", |a| a.show_tool_window_bars),
+        ("view.toggleStatusBar", "appearance.showStatusBar", |a| a.show_status_bar),
+    ];
+    for (id, key, flag) in flags {
+        registry.handle_toggle(
+            id,
+            move |_, cx| flag(&crate::platform::settings::global(cx).appearance),
+            move |_, _, cx| {
+                use ide_workspace::settings::SettingsScope;
+                let next = !flag(&crate::platform::settings::global(cx).appearance);
+                crate::platform::settings::set("", SettingsScope::Global, key, &next.into(), cx)?;
+                Ok(())
+            },
+        );
+    }
+    registry.handle("toolwindow.maximize", |_, window, cx| {
+        on_layout(window, cx, |layout| match layout.focused().or(layout.last_active()).map(str::to_owned) {
+            Some(id) => layout.toggle_maximize(&id),
+            None => Effects::default(),
+        })
+    });
+    use tool_windows::ResizeDirection;
+    // Their ids are built from the direction, so they are not in the generated list of actions.
+    for (id, title, direction) in [
+        ("toolwindow.resizeLeft", "Stretch to Left", ResizeDirection::Left),
+        ("toolwindow.resizeRight", "Stretch to Right", ResizeDirection::Right),
+        ("toolwindow.resizeUp", "Stretch to Top", ResizeDirection::Up),
+        ("toolwindow.resizeDown", "Stretch to Bottom", ResizeDirection::Down),
+    ] {
+        let meta = ActionMeta {
+            category: Some("Window".to_owned()),
+            keywords: ["resize tool window", "tool window size"].map(str::to_owned).to_vec(),
+            ..ActionMeta::new(id, title).when("toolWindowFocus")
+        };
+        registry.register(Action::new(meta, move |_, window, cx| {
+            let size = window.viewport_size();
+            on_layout(window, cx, |layout| {
+                layout.resize_active(direction, f64::from(f32::from(size.width)), f64::from(f32::from(size.height)))
+            })
+        }));
+    }
     for id in TOOL_WINDOWS {
         let Some(declared) = tool_window_declaration(id) else { continue };
         let meta = ActionMeta {
@@ -1054,6 +1100,13 @@ impl Workbench {
     }
 
     /// Opens the folder at `root` as this window's project.
+    /// Whether the status bar is drawn: there is something for it to say and View › Appearance ›
+    /// Status Bar is on.
+    pub fn shows_status_bar(&self, cx: &App) -> bool {
+        (self.editor().is_some() || self.task_status().is_some())
+            && crate::platform::settings::global(cx).appearance.show_status_bar
+    }
+
     /// Whether the window shows nothing: no project, no file.
     pub fn is_empty(&self) -> bool {
         matches!(self.content, Content::Empty | Content::Failed(_))
@@ -1580,6 +1633,7 @@ impl Render for Workbench {
                     let action = format!("toolwindow.{}", declared.id);
                     div()
                         .id(SharedString::from(format!("stripe:{}", declared.id)))
+                        .debug_selector(|| format!("stripe:{}", declared.id))
                         .size(button)
                         .flex_none()
                         .flex()
@@ -1698,9 +1752,11 @@ impl Render for Workbench {
                     )
                 };
                 let sizes = layout.sizes();
+                // "Tool Window Bars" off hides the stripes; the windows stay reachable by action.
+                let bars = crate::platform::settings::global(cx).appearance.show_tool_window_bars;
                 let right_stripe = [Slot::Right, Slot::RightSplit, Slot::BottomSplit]
                     .into_iter()
-                    .any(|slot| !on_stripe(slot).is_empty())
+                    .any(|slot| bars && !on_stripe(slot).is_empty())
                     .then(|| stripe(Anchor::Right));
                 // The editor between the left and right sides; the bottom side spans below all three.
                 let top = div()
@@ -1726,15 +1782,21 @@ impl Render for Workbench {
                     );
                 let bottom =
                     side(Anchor::Bottom).map(|s| s.h(gpui_kit::px(sizes.bottom as f32)).w_full().flex_none().mt(gap));
+                // A maximized side covers the editor and the other sides.
+                let centre = match layout.maximized().and_then(side) {
+                    Some(maximized) => div().flex_1().min_w_0().h_full().child(maximized.size_full()),
+                    None => div().flex_1().min_w_0().h_full().flex().flex_col().child(top).children(bottom),
+                };
                 div()
                     .size_full()
                     .flex()
-                    // Without a right stripe the islands keep the gap it would have given them.
+                    // Without a stripe the islands keep the gap it would have given them.
                     .when(right_stripe.is_none(), |el| el.pr(gap))
+                    .when(!bars, |el| el.pl(gap))
                     // Without a status bar the islands keep their distance from the window's edge.
-                    .when(self.editor().is_none(), |el| el.pb(gap))
-                    .child(stripe(Anchor::Left))
-                    .child(div().flex_1().min_w_0().h_full().flex().flex_col().child(top).children(bottom))
+                    .when(!self.shows_status_bar(cx), |el| el.pb(gap))
+                    .children(bars.then(|| stripe(Anchor::Left)))
+                    .child(centre)
                     .children(right_stripe)
                     .into_any_element()
             }
@@ -1816,7 +1878,7 @@ impl Render for Workbench {
                 )
                 .with_priority(1)
             }))
-            .children((self.editor().is_some() || self.task_status().is_some()).then(|| {
+            .children(self.shows_status_bar(cx).then(|| {
                 // The status bar: plain UI text, items right-aligned as in the webview's footer.
                 div()
                     .h(theme::length(cx, "h-statusbar") + gpui_kit::px(4.0))
@@ -3295,6 +3357,77 @@ mod tests {
         run(cx, second, "file.openRecentProject", Some(&roots[1]));
         assert!(!cx.has_pending_prompt());
         wait(cx, &|cx| project(cx, "project-1").as_deref() == Some(&roots[1]));
+    }
+
+    /// View › Appearance: each toggle flips its setting and shows as on or off; the status bar and
+    /// the tool window bars go when theirs is off, and Compact Mode makes the rows lower. Maximize
+    /// gives a tool window's side the whole frame, and the resize actions move its inner edge.
+    #[gpui_kit::test]
+    async fn appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        cx.update(crate::theme::appearance::init);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let run = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| execute_action_or_throw(id, None, window, cx)).expect("it runs");
+            cx.run_until_parked();
+        };
+        let on = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| cx.global::<ActionRegistry>().get(id).expect("registered").is_toggled(window, cx))
+        };
+        let appearance =
+            |cx: &mut VisualTestContext| cx.update(|_, cx| crate::platform::settings::global(cx).appearance);
+
+        assert_eq!(on(cx, "view.toggleStatusBar"), Some(true));
+        assert!(workbench.read_with(cx, |w, cx| w.shows_status_bar(cx)));
+        run(cx, "view.toggleStatusBar");
+        assert_eq!((on(cx, "view.toggleStatusBar"), appearance(cx).show_status_bar), (Some(false), false));
+        assert!(!workbench.read_with(cx, |w, cx| w.shows_status_bar(cx)));
+        run(cx, "view.toggleStatusBar");
+        assert!(workbench.read_with(cx, |w, cx| w.shows_status_bar(cx)));
+
+        // The stripe's buttons are drawn only while the bars are on.
+        assert!(cx.debug_bounds("stripe:project").is_some());
+        run(cx, "view.toggleToolWindowBars");
+        assert_eq!((on(cx, "view.toggleToolWindowBars"), appearance(cx).show_tool_window_bars), (Some(false), false));
+        assert!(cx.debug_bounds("stripe:project").is_none());
+        run(cx, "view.toggleToolWindowBars");
+        assert!(cx.debug_bounds("stripe:project").is_some());
+
+        let row = |cx: &mut VisualTestContext| cx.update(|_, cx| f32::from(theme::length(cx, "h-row")));
+        let tall = row(cx);
+        run(cx, "view.toggleCompactMode");
+        assert_eq!(on(cx, "view.toggleCompactMode"), Some(true));
+        assert!(row(cx) < tall, "compact rows are lower: {} < {tall}", row(cx));
+        run(cx, "view.toggleCompactMode");
+        assert_eq!(row(cx), tall);
+        run(cx, "view.toggleToolbar");
+        assert_eq!((on(cx, "view.toggleToolbar"), appearance(cx).show_main_toolbar), (Some(false), false));
+        run(cx, "view.toggleToolbar");
+
+        // The Project view has the keyboard: its side grows by a step to the right and shrinks
+        // back to the left; maximized it covers the editor, and again restores it.
+        run(cx, "toolwindow.project");
+        let layout = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| {
+                let layout = w.tool_windows().expect("a project is open");
+                (layout.sizes().left, layout.maximized())
+            })
+        };
+        assert!(
+            cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy("toolWindowFocus"))
+        );
+        let (width, _) = layout(cx);
+        run(cx, "toolwindow.resizeRight");
+        assert!(layout(cx).0 > width);
+        run(cx, "toolwindow.resizeLeft");
+        assert_eq!(layout(cx).0, width);
+        run(cx, "toolwindow.maximize");
+        assert_eq!(layout(cx).1, Some(Anchor::Left));
+        run(cx, "toolwindow.maximize");
+        assert_eq!(layout(cx).1, None);
     }
 
     #[test]
