@@ -2504,20 +2504,20 @@
     "proof": "`editor::find_bar::tests`; the table of the spec is a loop inside one test"
   },
   "action:find.inFile": {
-    "status": "partial",
-    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the occurrences are selected but not marked in the editor, Escape in the editor does not close the bar, and a single-file window has no bar"
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`, `workbench::tests::a_single_file_window_opens_the_find_bar_over_its_editor`"
   },
   "action:find.replaceInFile": {
-    "status": "partial",
-    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the occurrences are selected but not marked in the editor, Escape in the editor does not close the bar, and a single-file window has no bar"
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`, `workbench::tests::a_single_file_window_opens_the_find_bar_over_its_editor`"
   },
   "action:find.next": {
-    "status": "partial",
-    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the occurrences are selected but not marked in the editor, Escape in the editor does not close the bar, and a single-file window has no bar"
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`, `workbench::tests::a_single_file_window_opens_the_find_bar_over_its_editor`"
   },
   "action:find.previous": {
-    "status": "partial",
-    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the occurrences are selected but not marked in the editor, Escape in the editor does not close the bar, and a single-file window has no bar"
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`, `workbench::tests::a_single_file_window_opens_the_find_bar_over_its_editor`"
   },
   "action:find.openInWindow": {
     "status": "partial",
@@ -2878,5 +2878,145 @@
   "unit:src/features/plugins/pluginText.test.ts": {
     "status": "done",
     "proof": "`plugin_models::plugin_text::tests`"
+  },
+  "action:code.duplicateLine": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.deleteLine": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.moveLineUp": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.moveLineDown": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.joinLines": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.sortLines": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.reverseLines": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.splitLine": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.startNewLine": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.startNewLineBefore": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`"
+  },
+  "action:code.selectAllOccurrences": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:code.unselectOccurrence": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:code.addCaretsToLineEnds": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:editor.cloneCaretAbove": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:editor.cloneCaretBelow": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:editor.matchBrace": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:editor.codeBlockStart": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:editor.codeBlockEnd": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:editor.codeBlockStartWithSelection": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:editor.codeBlockEndWithSelection": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:code.pasteAsPlainText": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::paste_as_plain_text_keeps_the_copied_indentation`"
+  },
+  "action:editor.toggleInsertState": {
+    "status": "done",
+    "proof": "`editor::command_actions::tests::toggles_switch_column_selection_and_overwrite`"
+  },
+  "action:editor.toggleColumnSelection": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::toggles_switch_column_selection_and_overwrite`; the toggle and Shift+arrows extend a block; dragging a block with the mouse is not built"
+  },
+  "action:editor.addOrRemoveCaret": {
+    "status": "done",
+    "proof": "`editor::view::editing_tests::the_keymaps_caret_click_adds_and_removes_carets`, `editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`"
+  },
+  "action:code.moveStatementUp": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; moves the line: without a syntax tree of the document it cannot move a whole statement or keep it inside its block"
+  },
+  "action:code.moveStatementDown": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; moves the line: without a syntax tree of the document it cannot move a whole statement or keep it inside its block"
+  },
+  "action:code.toggleCase": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; escapes inside strings are not protected, which needs a syntax tree of the document"
+  },
+  "action:code.completeStatement": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; the text rules only; the structural answers of the backend are not asked"
+  },
+  "action:code.commentLine": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; a block comment that contains its own closing token is refused, since the editor has no syntax tree to confirm its span"
+  },
+  "action:code.commentBlock": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; a block comment that contains its own closing token is refused, since the editor has no syntax tree to confirm its span"
+  },
+  "action:code.moveElementLeft": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; elements are found from brackets and from comment and string spans, not from a syntax tree"
+  },
+  "action:code.moveElementRight": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; elements are found from brackets and from comment and string spans, not from a syntax tree"
+  },
+  "action:code.cyclicExpandWord": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; the hint shown when nothing expands is only logged"
+  },
+  "action:code.cyclicExpandWordBackward": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; the hint shown when nothing expands is only logged"
+  },
+  "action:code.addCaretNextOccurrence": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`; the hint shown when there is no further occurrence is only logged"
   }
 }

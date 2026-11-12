@@ -524,3 +524,16 @@ The inventory now tells apart a row whose tests prove a behaviour of the applica
 - The reachability is by name, so it can err: a missed form of reference marks live code as model only (the safe direction), a child module whose name also appears for another reason inside its own parent may be counted as reached. It is an estimate at the level of files, not of functions: a reached file can still hold functions nobody calls.
 - The four Find actions went back to partial: the bar works, but the editor does not mark occurrences, Escape in the editor does not close the bar, and a single-file window has none.
 - A third browser key name was found by a search of the model directories (`is_chip_reset_key` in the GitHub list matched "Delete"); fixed. Briefs for models now say that keys arrive with GPUI's names.
+
+## D67. The editor's core: several carets, one edit of several changes, marks, live commands
+
+A subagent rebuilt the editor's core in one slice (20 new tests through the application; one old expectation changed).
+
+- The editor keeps a list of selections with a main one. The old single-selection accessors stay as a view of the main range, so the Find bar, the status bar and every earlier test work unchanged.
+- An edit is a list of changes with the selections to restore: one backend edit, one undo step, followed by the other editors of the document. Replace All uses it, which removes the merged edit of D64.
+- Marks are ranges of a layer that follow edits until replaced. The Find bar marks its occurrences, the current one, its scope and the excluded ones, with the tokens of the component. With that, Escape in the editor closing the bar, and a bar in a single-file window, the four Find actions are at parity again.
+- The editing commands run as actions (`editor/command_actions.rs`), each through the registry in a test that also checks one undo. A test asserts that the ids the tests run are exactly the registered ones, so a command cannot be registered without a test.
+- No syntax tree. The backend has no tree of a document, only position queries and the highlight spans. The editor builds a small tree of comment and string runs from the highlight spans of the current version and gives it only to commands that ask "is this code, a comment or a string" (match brace, code-block navigation, move element, Enter in a comment, skipping a closing quote). Commands that need real structure get no tree and take their text path, so they are partial: Move Statement moves the line, Toggle Case does not protect escapes, comment toggling refuses a block comment that contains its own closer. `code.unwrap`, `code.extendSelection` and all folding actions are not registered.
+- Copy without a selection now copies the caret line, as the clipboard spec demands; the earlier view test expected the clipboard to be kept and was changed (the spec's lines are in the report kept with the session).
+- In a workbench window the keymap's bindings for the new actions are live, e.g. ⌘⌫ is Delete Line as in the IntelliJ preset.
+- Not wired in this slice: auto-closing of brackets and quotes (so Tab-out of a pair never fires), string escapes on paste, dragging a column block with the mouse, the hints of "no further occurrence" and "nothing to expand" (logged only), detecting indentation from the file's text.
