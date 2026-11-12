@@ -243,3 +243,15 @@ Three places did work proportional to everything loaded each time a little more 
 - A terminal tab's shell starts when the tab first shows, as in the webview ("hidden tabs stay unopened"): tabs remembered from the last run cost no process until selected. `terminal::panel::tests::remembered_tabs_start_their_shells_when_first_shown`.
 - The Git log continues the graph from the lanes left open by the last page instead of recomputing it from the first commit. `vcs::log_view::tests::a_graph_continued_page_by_page_is_the_whole_graph` checks that the two are the same for every way of splitting a branching history.
 - Find in Files adds rows for the files found since the last batch instead of rebuilding every row. A new search keeps the previous rows until it has a result of its own or ends, as the session model intends.
+
+## D38. Search Everywhere: the popup on the ported controller
+
+`everywhere/view.rs` is the first overlay in the app: a popup the workbench draws over the whole window (`deferred`, with an occluding backdrop that closes it on a click beside it), opened by the six `navigate.*` actions on their tabs. `SeController` decides which sources a query needs; the view asks `ide_host::ops::nav` (`find_files`, `find_symbols`, `recent_files`) and `ide_host::ops::search::start` for them and feeds the answers back. The webview's rules that decide what Enter opens are kept: the query rests 60 ms before it is searched, the selection is the top result until the user moves it, and Enter typed before the top result is final waits for it instead of opening a row of the previous query.
+
+Choices:
+
+- Sources the app cannot answer yet reply at once instead of staying "loading": language-server workspace symbols answer "no server", endpoints and settings pages answer "failed", which the controller treats as empty. Recent actions are an empty list. Each is a gap in the `search.everywhere` overlay row, not hidden.
+- An action that shows a state (a toggle) leaves the popup open after it runs, as in the webview; any other result closes the popup first and then acts, so the action finds the window as it was. The action runs after the workbench's own update is over (`window.defer`), since it may reach for the workbench.
+- `popupOpen` is published while the popup is open. It is the only popup so far, so the key is marked partial.
+- A click on a row opens it. The webview selects on click and supports several selected rows; multi-selection is not ported, and with one row a second click would be the only way to open, so a single click opens.
+- The search types that existed twice are now one: `everywhere::model` uses `find::ipc::LineMatch`, and the copies of `SymbolMatch` and `WorkspaceSymbol` nothing in `find/` used are gone. `ide-index` is a direct dependency, to name the types `ide_host::ops::nav` returns.

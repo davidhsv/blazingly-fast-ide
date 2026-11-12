@@ -8593,6 +8593,7 @@ dependencies = [
  "icu_collator",
  "ide-core",
  "ide-host",
+ "ide-index",
  "ide-language",
  "ide-plugin",
  "ide-run",

@@ -1,8 +1,8 @@
 //! The backend's search types as the search models hold them.
 //!
-//! The crates that define them (`ide-search`, `ide-index`, `ide-lsp`) are not dependencies of this app, so
-//! each type here mirrors one of theirs field for field, with paths as the `/`-separated strings the UI
-//! compares. Lines are 0-based; columns and match indices are UTF-16 code units.
+//! Each type here mirrors one of `ide-search`, `ide-index` or `ide-lsp` field for field, with paths as the
+//! `/`-separated strings the UI compares; `find::backend` and the views convert at the edge. Lines are
+//! 0-based; columns and match indices are UTF-16 code units.
 
 pub use crate::platform::project_roots::ProjectFileSet;
 pub use crate::platform::search::SearchContext;
@@ -47,7 +47,8 @@ pub struct SearchQuery {
 }
 
 /// The matches on one line. Mirrors `ide_search::LineMatch`.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LineMatch {
     pub line: u32,
     /// Line text, cut around the match for very long lines.
@@ -126,37 +127,12 @@ pub struct FileMatch {
     pub indices: Vec<u32>,
 }
 
-/// A symbol found in the index. Mirrors `ide_index::SymbolMatch`.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SymbolMatch {
-    pub name: String,
-    pub kind: SymbolKind,
-    pub container: Option<String>,
-    pub path: String,
-    pub rel_path: String,
-    pub range: Range,
-    pub score: u32,
-    /// Matched indices within `name`.
-    pub indices: Vec<u32>,
-}
-
 /// Which symbols the index is asked for. Mirrors `ide_index::SymbolFilter`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SymbolFilter {
     All,
     /// Classes, interfaces, structs, enums, traits and type aliases.
     Types,
-}
-
-/// A symbol a language server reports. Mirrors `ide_lsp::types::WorkspaceSymbol`, with its location's path
-/// and range held directly.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WorkspaceSymbol {
-    pub name: String,
-    pub kind: SymbolKind,
-    pub container: Option<String>,
-    pub path: String,
-    pub range: Range,
 }
 
 /// How many indexed files share an extension (lower case, without the dot). Mirrors

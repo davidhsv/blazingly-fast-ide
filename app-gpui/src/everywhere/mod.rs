@@ -18,3 +18,4 @@ pub mod rank;
 pub mod recent_model;
 pub mod routes;
 pub mod store;
+pub mod view;

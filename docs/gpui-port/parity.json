@@ -945,7 +945,7 @@
   },
   "feature:search": {
     "status": "partial",
-    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`, `find::session::tests`, `everywhere::model::tests`; Find in Files runs in the Find tool window, and the models of Search Everywhere, recent files, bookmarks and the structure outline are ported. Not yet: the Find in Files popup with scopes, masks and preview, Replace in Files, Search Everywhere, Recent Files, bookmarks and Structure views"
+    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`, `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`, `find::session::tests`, `everywhere::model::tests`; Find in Files runs in the Find tool window, Search Everywhere opens files, symbols, actions and text matches, and the models of recent files, bookmarks and the structure outline are ported. Not yet: the Find in Files popup with scopes, masks and preview, Replace in Files, Search Everywhere's preview, filters and history, Recent Files, bookmarks and Structure views"
   },
   "action:terminal.new": {
     "status": "done",
@@ -1022,5 +1022,49 @@
   "unit:src/features/vcs/__tests__/directoryCompareActions.test.ts": {
     "status": "done",
     "proof": "`vcs_diff::compare::tests`"
+  },
+  "action:navigate.gotoFile": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay"
+  },
+  "action:navigate.searchEverywhere": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay"
+  },
+  "action:navigate.findAction": {
+    "status": "partial",
+    "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay"
+  },
+  "action:navigate.gotoSymbol": {
+    "status": "partial",
+    "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay"
+  },
+  "action:navigate.searchText": {
+    "status": "partial",
+    "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`, `workbench::tests::search_everywhere_starts_with_the_editor_selection`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay"
+  },
+  "action:navigate.gotoClass": {
+    "status": "partial",
+    "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`; registered with the other five and reached there by Shift+Tab, but the action itself is not run by a test; it opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay"
+  },
+  "point.registerOverlay:search.everywhere": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`, `workbench::tests::search_everywhere_starts_with_the_editor_selection`, `everywhere::controller::tests`, `everywhere::model::tests`; the popup with its six tabs, results from the file and symbol index, the actions and the text search, the 60 ms rest, a selection that stays on the top result until moved, Enter waiting for the final top result, `name:line`, `/` scope commands, Show more, group and wrap navigation. Not yet: the preview pane, the funnel filters and the file-set scope, include non-project items and the retry everywhere, the search history, several rows selected at once, Open to the Side, the context menu (copy path, Find in Directory, assign shortcut), language server symbols, endpoints and settings as sources, recent actions, shortcuts shown beside actions, highlighted match characters"
+  },
+  "context:popupOpen": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`; set while Search Everywhere is open, the only popup there is so far"
+  },
+  "ipc:find_files": {
+    "status": "done",
+    "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`"
+  },
+  "ipc:recent_files": {
+    "status": "done",
+    "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`"
+  },
+  "ipc:find_symbols": {
+    "status": "done",
+    "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`"
   }
 }

@@ -23,6 +23,7 @@ path = "src/main.rs"
 gpui-kit = "=0.9.1"
 ide-core = { path = "../crates/ide-core" }
 ide-host = { path = "../crates/ide-host" }
+ide-index = { path = "../crates/ide-index" }
 ide-plugin = { path = "../crates/ide-plugin" }
 ide-run = { path = "../crates/ide-run" }
 ide-search = { path = "../crates/ide-search" }

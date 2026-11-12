@@ -13,6 +13,8 @@ use crate::backend::{Backend, BackendEvent};
 use crate::editor::session::{self, FileViewState};
 use crate::editor::tabs::{EditorInput, OpenTabOptions, TabsState, disambiguate_titles};
 use crate::editor::view::Editor;
+use crate::everywhere::model::SeTab;
+use crate::everywhere::view::{SearchEverywhere, SearchEverywhereEvent};
 use crate::platform::actions::{Action, ActionMeta, ActionRegistry, ActionSource, execute_action_from, manifest};
 use crate::platform::input;
 use crate::platform::local_time::now_ms;
@@ -77,6 +79,9 @@ struct Panel {
     _events: Option<Subscription>,
 }
 
+/// The longest editor selection, in UTF-16 code units, that Search Everywhere starts with.
+const SELECTION_QUERY_LIMIT: usize = 200;
+
 /// How long the tabs rest before the editor session is written.
 const SESSION_SAVE_DELAY: std::time::Duration = std::time::Duration::from_millis(400);
 
@@ -109,6 +114,8 @@ pub struct Workbench {
     closing: bool,
     /// A pending write of the editor session.
     session_save: Option<gpui_kit::Task<()>>,
+    /// The Search Everywhere popup while it is open, over everything else in the window.
+    everywhere: Option<(Entity<SearchEverywhere>, Subscription)>,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -289,6 +296,20 @@ pub fn register_actions(cx: &mut App) {
     registry.handle("terminal.closeSession", |_, window, cx| {
         on_terminals(window, cx, |terminals, cx| terminals.close_active_tab(cx))
     });
+    for (id, tab) in [
+        ("navigate.searchEverywhere", SeTab::All),
+        ("navigate.gotoClass", SeTab::Classes),
+        ("navigate.gotoFile", SeTab::Files),
+        ("navigate.gotoSymbol", SeTab::Symbols),
+        ("navigate.findAction", SeTab::Actions),
+        ("navigate.searchText", SeTab::Text),
+    ] {
+        registry.handle(id, move |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            workbench.update(cx, |workbench, cx| workbench.show_search_everywhere(tab, window, cx));
+            Ok(())
+        });
+    }
     registry.handle("find.inPath", |_, window, cx| on_layout(window, cx, |layout| layout.show(FIND_TOOL_WINDOW, true)));
     registry.handle("view.toggleTheme", |_, window, cx| {
         let label = for_window(window, cx).map(|workbench| workbench.read(cx).label.clone()).unwrap_or_default();
@@ -399,6 +420,7 @@ impl Workbench {
             previous_editor: None,
             closing: false,
             session_save: None,
+            everywhere: None,
         }
     }
 
@@ -833,6 +855,7 @@ impl Workbench {
         let editor = self.editor().cloned();
         let focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
         set_context(window, cx, "projectOpening", matches!(self.content, Content::Opening(_)));
+        set_context(window, cx, "popupOpen", self.everywhere.is_some());
         set_context(window, cx, "projectOpen", self.project_tree().is_some());
         set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor(_)));
         set_context(window, cx, "textEditorActive", editor.is_some());
@@ -1135,6 +1158,59 @@ impl Workbench {
         }
         self.open_project_file(path, window, cx);
         self.serve_reveal(cx);
+    }
+
+    /// Opens Search Everywhere on `tab`, or moves the open one to it. A short selection on one
+    /// line of the editor is what it starts searching for.
+    pub fn show_search_everywhere(&mut self, tab: SeTab, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some((popup, _)) = &self.everywhere {
+            popup.update(cx, |popup, cx| popup.select_tab(tab, cx));
+            return;
+        }
+        let selected = self.editor().map(|editor| editor.read(cx).selected_text());
+        let query = selected.filter(|text| {
+            !text.is_empty() && text.encode_utf16().count() <= SELECTION_QUERY_LIMIT && !text.contains('\n')
+        });
+        let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned());
+        let context = crate::platform::context::window_context(window, cx);
+        let label = self.label.clone();
+        let popup = cx.new(|cx| SearchEverywhere::new(&label, tab, query.as_deref(), root, context, cx));
+        let events = cx.subscribe_in(&popup, window, |workbench, _, event: &SearchEverywhereEvent, window, cx| {
+            // An action that shows a state stays in the list, where its new state is shown.
+            let stays = matches!(event, SearchEverywhereEvent::RunAction(id)
+                if cx.global::<ActionRegistry>().get(id).is_some_and(|action| action.is_toggled(window, cx).is_some()));
+            if !stays {
+                // The popup goes first, so what the result does finds the window as it was.
+                workbench.everywhere = None;
+                if let Some(editor) = workbench.editor() {
+                    window.focus(&editor.focus_handle(cx), cx);
+                }
+            }
+            match event {
+                SearchEverywhereEvent::Dismissed => {}
+                SearchEverywhereEvent::OpenFile { path, position: Some((line, col)) } => {
+                    workbench.open_project_file_at(path.clone(), *line, *col, window, cx);
+                }
+                SearchEverywhereEvent::OpenFile { path, position: None } => {
+                    workbench.open_project_file(path.clone(), window, cx);
+                }
+                SearchEverywhereEvent::RunAction(id) => {
+                    let id = id.clone();
+                    // Run once this update is over: the action may reach for the workbench.
+                    window.defer(cx, move |window, cx| {
+                        execute_action_from(ActionSource::Search, &id, None, window, cx);
+                    });
+                }
+            }
+            cx.notify();
+        });
+        window.focus(&popup.focus_handle(cx), cx);
+        self.everywhere = Some((popup, events));
+        cx.notify();
+    }
+
+    pub fn search_everywhere(&self) -> Option<&Entity<SearchEverywhere>> {
+        self.everywhere.as_ref().map(|(popup, _)| popup)
     }
 
     /// Moves the caret of the active editor to where its file was asked to be shown.
@@ -1642,6 +1718,29 @@ impl Render for Workbench {
                     })),
             )
             .child(div().flex_1().min_h_0().w_full().child(body))
+            .children(self.everywhere.as_ref().map(|(popup, _)| {
+                // Over the whole window; a click beside the popup closes it.
+                let closing = popup.clone();
+                gpui_kit::deferred(
+                    div()
+                        .id("search-everywhere-backdrop")
+                        .absolute()
+                        .inset_0()
+                        .occlude()
+                        .flex()
+                        .justify_center()
+                        .pt(gpui_kit::px(80.0))
+                        .on_mouse_down(gpui_kit::MouseButton::Left, move |_, _, cx| {
+                            closing.update(cx, |_, cx| cx.emit(SearchEverywhereEvent::Dismissed));
+                        })
+                        .child(
+                            div()
+                                .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                                .child(popup.clone()),
+                        ),
+                )
+                .with_priority(1)
+            }))
             .children((self.editor().is_some() || self.task_status().is_some()).then(|| {
                 // The status bar: plain UI text, items right-aligned as in the webview's footer.
                 div()
@@ -2574,6 +2673,200 @@ mod tests {
             assert_eq!(find.status(), FindStatus::Invalid);
             assert!(find.error().is_some() && find.results().is_empty());
         });
+    }
+
+    /// Types `text` into the Search Everywhere field and lets the query rest.
+    fn type_query(cx: &mut VisualTestContext, text: &str) {
+        cx.simulate_input(text);
+        cx.executor().advance_clock(crate::everywhere::view::DEBOUNCE);
+    }
+
+    /// A project with a Rust file, a text file and a second Rust file, opened in a window.
+    fn search_project(
+        cx: &mut TestAppContext,
+    ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &mut VisualTestContext) {
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::create_dir(root.join("src")).expect("a folder");
+        std::fs::write(
+            root.join("src/alpha.rs"),
+            "pub struct Widget;\n\npub fn make_widget() -> Widget {\n    Widget\n}\n",
+        )
+        .expect("the file is written");
+        std::fs::write(root.join("src/beta.rs"), "pub fn other() {}\n").expect("the file is written");
+        std::fs::write(root.join("notes.txt"), "first\n  a needle here\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        // The index lists the files once it has walked the project.
+        settle(cx, |cx| {
+            let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+            ide_host::ops::nav::find_files(&host, "w1", "alpha".to_owned(), 5).is_ok_and(|found| !found.is_empty())
+        });
+        (folder, root, workbench, cx)
+    }
+
+    fn popup(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Entity<SearchEverywhere> {
+        workbench.read_with(cx, |w, _| w.search_everywhere().cloned()).expect("Search Everywhere is open")
+    }
+
+    /// Go to File: the action opens Search Everywhere on Files with the keyboard in its query,
+    /// the typed name finds the file, and Enter opens it and closes the popup. Escape closes it
+    /// and gives the keyboard back to the editor.
+    #[gpui_kit::test]
+    async fn go_to_file_finds_a_file_by_name_and_opens_it(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+
+        cx.update(|window, cx| execute_action_or_throw("navigate.gotoFile", None, window, cx)).expect("it runs");
+        let everywhere = popup(&workbench, cx);
+        assert_eq!(everywhere.read_with(cx, |popup, _| popup.tab()), SeTab::Files);
+        assert!(cx.update(|window, cx| everywhere.focus_handle(cx).is_focused(window)), "the query has the keyboard");
+        cx.run_until_parked();
+        assert!(cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy("popupOpen")));
+
+        type_query(cx, "alph");
+        settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.lines() == ["src/alpha.rs"]));
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == root.join("src/alpha.rs")))
+        });
+        assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()), "choosing a result closes the popup");
+
+        // Enter typed before the results are in opens the top result of the new query once it is final.
+        cx.update(|window, cx| execute_action_or_throw("navigate.gotoFile", None, window, cx)).expect("it runs");
+        cx.simulate_input("beta");
+        cx.simulate_keystrokes("enter");
+        assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_some()), "Enter waits for the results");
+        cx.executor().advance_clock(crate::everywhere::view::DEBOUNCE);
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == root.join("src/beta.rs")))
+        });
+
+        // `name:line` opens the file with the caret on that line.
+        cx.update(|window, cx| execute_action_or_throw("navigate.gotoFile", None, window, cx)).expect("it runs");
+        let everywhere = popup(&workbench, cx);
+        type_query(cx, "alpha:3");
+        settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.lines() == ["src/alpha.rs"]));
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().is_some_and(|e| {
+                    e.read(cx).path() == root.join("src/alpha.rs") && e.read(cx).caret_position().0 == 2
+                })
+            })
+        });
+
+        // Escape closes the popup; the keyboard is the editor's again.
+        cx.update(|window, cx| execute_action_or_throw("navigate.searchEverywhere", None, window, cx))
+            .expect("it runs");
+        assert_eq!(popup(&workbench, cx).read_with(cx, |popup, _| popup.tab()), SeTab::All);
+        cx.simulate_keystrokes("escape");
+        assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)));
+        cx.run_until_parked();
+        assert!(!cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy("popupOpen")));
+    }
+
+    /// Find Action lists the actions matching the query and Enter runs the selected one; Search
+    /// Text lists matching lines and opens one with the caret on the match; Tab moves along the
+    /// tabs; `/` lists the scope commands and `/files x` moves to Files with `x`.
+    #[gpui_kit::test]
+    async fn search_everywhere_runs_actions_finds_text_and_switches_tabs(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        cx.update(crate::theme::appearance::init);
+        let (_folder, root, workbench, cx) = search_project(cx);
+
+        cx.update(|window, cx| execute_action_or_throw("navigate.findAction", None, window, cx)).expect("it runs");
+        let everywhere = popup(&workbench, cx);
+        assert_eq!(everywhere.read_with(cx, |popup, _| popup.tab()), SeTab::Actions);
+        let toggle = cx.update(|_, cx| {
+            let registry = cx.global::<ActionRegistry>();
+            let action = registry.get("view.toggleTheme").expect("the theme toggle is registered");
+            action.meta.localized(&cx.default_global::<crate::platform::i18n::Localization>().0).title
+        });
+        type_query(cx, &toggle);
+        settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.lines().first() == Some(&toggle)));
+        assert!(!cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+        assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()));
+
+        cx.update(|window, cx| execute_action_or_throw("navigate.searchText", None, window, cx)).expect("it runs");
+        let everywhere = popup(&workbench, cx);
+        type_query(cx, "needle");
+        settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.lines() == ["notes.txt:2 a needle here"]));
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().is_some_and(|e| {
+                    e.read(cx).path() == root.join("notes.txt") && e.read(cx).caret_position() == (1, 4)
+                })
+            })
+        });
+
+        // Go to Symbol finds a function by name and opens its file with the caret on the name.
+        cx.update(|window, cx| execute_action_or_throw("navigate.gotoSymbol", None, window, cx)).expect("it runs");
+        let everywhere = popup(&workbench, cx);
+        type_query(cx, "make_wid");
+        settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.lines().len() == 1));
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().is_some_and(|e| {
+                    e.read(cx).path() == root.join("src/alpha.rs") && e.read(cx).caret_position() == (2, 7)
+                })
+            })
+        });
+
+        // Tab and Shift+Tab move along the tabs; the action for another tab moves the open popup.
+        cx.update(|window, cx| execute_action_or_throw("navigate.gotoFile", None, window, cx)).expect("it runs");
+        let everywhere = popup(&workbench, cx);
+        cx.simulate_keystrokes("tab");
+        assert_eq!(everywhere.read_with(cx, |popup, _| popup.tab()), SeTab::Symbols);
+        cx.simulate_keystrokes("shift-tab shift-tab");
+        assert_eq!(everywhere.read_with(cx, |popup, _| popup.tab()), SeTab::Classes);
+        cx.update(|window, cx| execute_action_or_throw("navigate.searchText", None, window, cx)).expect("it runs");
+        assert_eq!(everywhere.read_with(cx, |popup, _| popup.tab()), SeTab::Text);
+        assert_eq!(popup(&workbench, cx), everywhere, "the open popup is the one that moved");
+
+        // `/` lists the scopes; `/files be` moves to Files and searches for `be`.
+        cx.simulate_input("/");
+        assert_eq!(
+            everywhere.read_with(cx, |popup, _| popup.lines()),
+            ["/classes", "/files", "/symbols", "/actions", "/text"]
+        );
+        type_query(cx, "files beta");
+        assert_eq!(
+            everywhere.read_with(cx, |popup, cx| (popup.tab(), popup.field().read(cx).text().to_owned())),
+            (SeTab::Files, "beta".to_owned())
+        );
+        settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.lines() == ["src/beta.rs"]));
+    }
+
+    /// A short selection on one line of the editor is what Search Everywhere starts with, selected
+    /// so that typing replaces it; a selection over several lines is not taken.
+    #[gpui_kit::test]
+    async fn search_everywhere_starts_with_the_editor_selection(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        editor.update(cx, |editor, cx| editor.select(editor.offset_of(1, 4), editor.offset_of(1, 10), cx));
+        cx.update(|window, cx| execute_action_or_throw("navigate.searchText", None, window, cx)).expect("it runs");
+        let everywhere = popup(&workbench, cx);
+        assert_eq!(everywhere.read_with(cx, |popup, cx| popup.field().read(cx).selected_text().to_owned()), "needle");
+        settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.lines() == ["notes.txt:2 a needle here"]));
+        cx.simulate_keystrokes("escape");
+
+        editor.update(cx, |editor, cx| editor.select(0, editor.offset_of(1, 4), cx));
+        cx.update(|window, cx| execute_action_or_throw("navigate.searchText", None, window, cx)).expect("it runs");
+        assert_eq!(popup(&workbench, cx).read_with(cx, |popup, cx| popup.field().read(cx).text().to_owned()), "");
     }
 
     #[test]

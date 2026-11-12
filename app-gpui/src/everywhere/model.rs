@@ -7,6 +7,7 @@
 
 use super::open::{rel_dir, symbol_display_name, utf16_len};
 use super::rank::{MatchOptions, WORD_ALIGNED, by_score, match_text};
+pub use crate::find::ipc::LineMatch;
 use crate::platform::actions::ActionMeta;
 use crate::platform::i18n::I18n;
 use crate::platform::virtual_docs::basename;
@@ -165,20 +166,6 @@ pub struct WorkspaceSymbol {
     pub kind: SymbolKind,
     pub container: Option<String>,
     pub location: Location,
-}
-
-/// The matches on one line of a text search. Mirrors `ide_search::LineMatch`.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LineMatch {
-    /// 0-based line.
-    pub line: u32,
-    /// Line text, cut around the match on very long lines.
-    pub text: String,
-    /// UTF-16 column ranges within `text`.
-    pub ranges: Vec<(u32, u32)>,
-    /// Column of `text` in the real line (non-zero when it is cut).
-    pub text_offset: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
