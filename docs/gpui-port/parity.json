@@ -330,5 +330,37 @@
   "unit:src/features/project-tree/folderKind.test.ts": {
     "status": "done",
     "proof": "`project_tree_paths::tests`"
+  },
+  "unit:src/editor/core/model/model.test.ts": {
+    "status": "partial",
+    "proof": "`editor::tabs::tests`, `editor::nav_history::tests`; the camel-humps case is not ported, and tab titles sort without ICU collation"
+  },
+  "unit:src/editor/core/model/tabTitles.test.ts": {
+    "status": "done",
+    "proof": "`editor::tabs::tests`"
+  },
+  "unit:src/editor/core/model/editHistory.test.ts": {
+    "status": "done",
+    "proof": "`editor::nav_history::tests`"
+  },
+  "unit:src/editor/core/model/session.test.ts": {
+    "status": "partial",
+    "proof": "`editor::tabs::tests`; the split cases only: saving and restoring the editor session is not ported"
+  },
+  "unit:src/editor/core/lightedit-launch.test.ts": {
+    "status": "partial",
+    "proof": "`editor::tabs::tests`; merging a restored session into live tabs only: no launch admission or tab-limit enforcement by the controller"
+  },
+  "unit:src/editor/core/view/keptTabs.test.tsx": {
+    "status": "partial",
+    "proof": "`editor::tabs::tests`; which tabs stay mounted, not the rendering"
+  },
+  "unit:src/editor/core/view/pinnedTabsRow.test.tsx": {
+    "status": "partial",
+    "proof": "`editor::tabs::tests`; the pinned row's contents, not its placement or the middle-click close"
+  },
+  "module:src/editor/core/model": {
+    "status": "partial",
+    "proof": "`editor::tabs::tests`, `editor::nav_history::tests`; tabs, panes, splits and navigation history as models: no window shows tabs yet, and sessions, documents and camel humps are not ported"
   }
 }
