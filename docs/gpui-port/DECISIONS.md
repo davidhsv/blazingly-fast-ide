@@ -413,3 +413,9 @@ Choices, the subagent's unless noted:
 - The view's tests were written from the component; the webview's own popup spec (25 cases) was not in the subagent's brief and is marked partial, not done.
 
 Not there: see the `search.findInFiles` overlay row; the largest are the preview editor and multi-line queries (the text field is one line).
+
+## D55. Status bar items are buttons
+
+The editor's three status bar items answer a click as in the webview: the position opens Go to Line, the line separator and the encoding open a menu at the pointer (the popup menu keeps itself inside the window, so it opens upwards from the bar). The rows call `Documents::set_line_ending` and `set_encoding` through the editor, and a refusal by the backend (reloading with unsaved changes, a read-only file) is told in a notification under the webview's titles.
+
+The check mark of the current line separator is drawn as the row's icon: the shared menu model has no "checked" for rows of a menu's own, and adding the field while subagents write against the type would have broken their files. It is to become a field when the menus with real toggles arrive.

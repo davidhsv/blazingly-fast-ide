@@ -580,6 +580,34 @@ impl Editor {
         self.history.can_redo()
     }
 
+    /// Changes the line separator the document is saved with; the document then has unsaved changes.
+    pub fn set_line_ending(&mut self, line_ending: LineEnding, cx: &mut Context<Self>) -> IdeResult<()> {
+        if line_ending == self.line_ending {
+            return Ok(());
+        }
+        self.documents()?.set_line_ending(self.doc, line_ending)?;
+        (self.line_ending, self.dirty) = (line_ending, true);
+        cx.notify();
+        Ok(())
+    }
+
+    /// Changes the document's encoding. With `reload` the file is read again from disk in that
+    /// encoding, which the backend refuses while there are unsaved changes; without, the text
+    /// stays and is written in the encoding on the next save.
+    pub fn set_encoding(&mut self, encoding: &str, reload: bool, cx: &mut Context<Self>) -> IdeResult<()> {
+        self.encoding = self.documents()?.set_encoding(self.doc, encoding, reload)?;
+        if reload {
+            // The text is another one: what could be undone no longer applies to it.
+            self.history.clear();
+            self.follow(None, None, cx);
+            self.dirty = false;
+        } else {
+            self.dirty = true;
+        }
+        cx.notify();
+        Ok(())
+    }
+
     /// Whether the document has changes that are not on disk.
     pub fn is_dirty(&self) -> bool {
         self.dirty

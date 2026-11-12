@@ -130,6 +130,31 @@ pub enum TabCommand {
     UnsplitAll,
 }
 
+/// The encodings a file can be reloaded in or converted to, with the names they are shown under.
+pub const ENCODINGS: [(&str, &str); 11] = [
+    ("utf-8", "UTF-8"),
+    ("utf-16le", "UTF-16LE"),
+    ("utf-16be", "UTF-16BE"),
+    ("gbk", "GBK"),
+    ("gb18030", "GB18030"),
+    ("big5", "Big5"),
+    ("shift_jis", "Shift_JIS"),
+    ("euc-kr", "EUC-KR"),
+    ("windows-1252", "windows-1252"),
+    ("iso-8859-1", "ISO-8859-1"),
+    ("koi8-r", "KOI8-R"),
+];
+
+/// What a row of a status bar item's menu does to the file being edited.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StatusCommand {
+    LineEnding(ide_text::LineEnding),
+    /// Read the file again in this encoding.
+    Reload(String),
+    /// Keep the text and save it in this encoding.
+    Convert(String),
+}
+
 /// A popup over the window and where the keyboard goes when it closes.
 struct Popup {
     view: AnyView,
@@ -1209,7 +1234,92 @@ impl Workbench {
     /// and encoding, in that order.
     pub fn status_items(&self, cx: &App) -> Vec<String> {
         let Some(status) = self.editor().map(|editor| editor.read(cx).status()) else { return Vec::new() };
-        vec![status.caret_text(), status.line_ending_text().to_owned(), status.encoding.to_uppercase()]
+        let encoding = status.encoding.to_lowercase();
+        let shown = ENCODINGS.iter().find(|(id, _)| *id == encoding).map_or(status.encoding.as_str(), |(_, name)| name);
+        vec![status.caret_text(), status.line_ending_text().to_owned(), shown.to_owned()]
+    }
+
+    /// The Line Separator item's menu: the three separators, the file's own marked.
+    pub fn line_ending_menu(&self, cx: &App) -> Vec<MenuItem<StatusCommand>> {
+        use ide_text::LineEnding;
+        let Some(status) = self.editor().map(|editor| editor.read(cx).status()) else { return Vec::new() };
+        [
+            (LineEnding::Lf, "LF – Unix and macOS (\\n)"),
+            (LineEnding::CrLf, "CRLF – Windows (\\r\\n)"),
+            (LineEnding::Cr, "CR – Classic Mac OS (\\r)"),
+        ]
+        .into_iter()
+        .map(|(line_ending, label)| {
+            let row = MenuItem::item(label, StatusCommand::LineEnding(line_ending));
+            if line_ending == status.line_ending { row.icon("check") } else { row }
+        })
+        .collect()
+    }
+
+    /// The File Encoding item's menu: reload the file in another encoding, or convert it to one.
+    pub fn encoding_menu(&self, cx: &App) -> Vec<MenuItem<StatusCommand>> {
+        use crate::vcs_ops::menu::MenuEntry;
+        let Some(editor) = self.editor().map(|editor| editor.read(cx)) else { return Vec::new() };
+        let (status, dirty) = (editor.status(), editor.is_dirty());
+        let current = status.encoding.to_lowercase();
+        let others = |reload: bool| -> Vec<MenuItem<StatusCommand>> {
+            ENCODINGS
+                .iter()
+                .filter(|(id, _)| *id != current)
+                .map(|(id, name)| {
+                    let command = if reload {
+                        StatusCommand::Reload((*id).to_owned())
+                    } else {
+                        StatusCommand::Convert((*id).to_owned())
+                    };
+                    MenuItem::item(*name, command)
+                })
+                .collect()
+        };
+        let group = |label: &str, disabled: bool, submenu: Vec<MenuItem<StatusCommand>>| {
+            MenuItem::Item(MenuEntry {
+                label: label.to_owned(),
+                icon: None,
+                shortcut: None,
+                disabled,
+                danger: false,
+                run: None,
+                submenu,
+            })
+        };
+        vec![
+            // Reloading would lose what is not saved; a read-only file cannot be written in another encoding.
+            group("Reload with Encoding", dirty, others(true)),
+            group("Convert to Encoding", status.read_only, others(false)),
+            MenuItem::Separator,
+            MenuItem::action_with("file.settings", "editor.fileEncodings".into()).labelled("File Encodings Settings…"),
+        ]
+    }
+
+    /// Carries out a row of a status bar item's menu on the file being edited; a refusal is told
+    /// in a notification.
+    pub fn run_status_command(&mut self, command: StatusCommand, cx: &mut Context<Self>) {
+        let Some(editor) = self.editor().cloned() else { return };
+        let (title, done) = match &command {
+            StatusCommand::LineEnding(line_ending) => (
+                "Cannot change line separators",
+                editor.update(cx, |editor, cx| editor.set_line_ending(*line_ending, cx)),
+            ),
+            StatusCommand::Reload(encoding) => {
+                ("Cannot reload with encoding", editor.update(cx, |editor, cx| editor.set_encoding(encoding, true, cx)))
+            }
+            StatusCommand::Convert(encoding) => {
+                ("Cannot convert encoding", editor.update(cx, |editor, cx| editor.set_encoding(encoding, false, cx)))
+            }
+        };
+        if let Err(error) = done {
+            let request = NotificationRequest {
+                body: Some(error.message),
+                ..NotificationRequest::new(NotificationLevel::Error, title)
+            };
+            self.notify(request, cx);
+        }
+        cx.notify();
     }
 
     /// The window's title for what it shows now.
@@ -2808,7 +2918,38 @@ impl Render for Workbench {
                     .pr(gpui_kit::px(10.0))
                     .text_color(theme::color(cx, "fg-muted"))
                     .children(self.task_status().map(SharedString::from))
-                    .children(self.status_items(cx).into_iter().map(SharedString::from))
+                    .children(self.status_items(cx).into_iter().zip(["caret", "lineEnding", "encoding"]).map(
+                        |(text, item)| {
+                            let read_only = self.editor().is_some_and(|editor| editor.read(cx).status().read_only);
+                            // A read-only file's line separator cannot be changed.
+                            let enabled = !(item == "lineEnding" && read_only);
+                            div()
+                                .id(SharedString::from(format!("status:editor.{item}")))
+                                .debug_selector(|| format!("status:editor.{item}"))
+                                .px(gpui_kit::px(4.0))
+                                .rounded(gpui_kit::px(4.0))
+                                .when(enabled, |el| el.hover(|el| el.bg(theme::color(cx, "bg-hover"))))
+                                .child(SharedString::from(text))
+                                .when(enabled, |el| {
+                                    el.on_click(cx.listener(
+                                        move |workbench, event: &gpui_kit::ClickEvent, window, cx| {
+                                            let items = match item {
+                                                "caret" => return workbench.show_goto_line(window, cx),
+                                                "lineEnding" => workbench.line_ending_menu(cx),
+                                                _ => workbench.encoding_menu(cx),
+                                            };
+                                            workbench.show_menu(
+                                                &items,
+                                                event.position(),
+                                                |workbench, command, _, cx| workbench.run_status_command(command, cx),
+                                                window,
+                                                cx,
+                                            );
+                                        },
+                                    ))
+                                })
+                        },
+                    ))
             }))
     }
 }
@@ -4848,6 +4989,64 @@ mod tests {
         run(cx, "find.inPath");
         assert_eq!(workbench.read_with(cx, |w, _| w.find_popup()), Some(popup.clone()));
         assert!(!popup.read_with(cx, |popup, _| popup.is_replace()));
+    }
+
+    /// The status bar's items answer a click: the position opens Go to Line, the line separator
+    /// and the encoding open their menus, whose rows change the file. What the backend refuses
+    /// is told in a notification.
+    #[gpui_kit::test]
+    async fn the_status_bars_items_open_go_to_line_and_their_menus(cx: &mut TestAppContext) {
+        use gpui_kit::Modifiers;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        let click = |cx: &mut VisualTestContext, item: &'static str| {
+            cx.run_until_parked();
+            let at = cx.debug_bounds(item).expect("the status bar item is drawn").center();
+            cx.simulate_click(at, Modifiers::default());
+        };
+        let items = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, cx| w.status_items(cx));
+        let menu = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| w.open_menu::<StatusCommand>()).expect("the item's menu is open")
+        };
+        assert_eq!(items(cx), ["1:1", "LF", "UTF-8"]);
+
+        click(cx, "status:editor.caret");
+        cx.simulate_input("2");
+        cx.simulate_keystrokes("enter");
+        assert_eq!(items(cx)[0], "2:1");
+
+        // The file's own separator is marked; choosing another changes it and the file is unsaved.
+        click(cx, "status:editor.lineEnding");
+        let rows: Vec<(String, bool)> = menu(cx)
+            .read_with(cx, |menu, _| menu.rows().iter().map(|row| (row.label.clone(), row.icon.is_some())).collect());
+        assert_eq!(rows.iter().map(|(_, marked)| *marked).collect::<Vec<_>>(), [true, false, false]);
+        assert!(rows[1].0.starts_with("CRLF"));
+        cx.simulate_keystrokes("down enter");
+        assert_eq!(items(cx)[1], "CRLF");
+        assert!(editor.read_with(cx, |editor, _| editor.is_dirty()));
+
+        // With unsaved changes the file cannot be reloaded in another encoding, but converted.
+        click(cx, "status:editor.encoding");
+        let rows: Vec<(String, bool)> =
+            menu(cx).read_with(cx, |menu, _| menu.rows().iter().map(|row| (row.label.clone(), row.disabled)).collect());
+        assert_eq!(rows[..2], [("Reload with Encoding".to_owned(), true), ("Convert to Encoding".to_owned(), false)]);
+        // The first row cannot be chosen, so the selection starts on Convert; its list leaves out
+        // the file's own encoding.
+        cx.simulate_keystrokes("right");
+        let offered: Vec<String> =
+            menu(cx).read_with(cx, |menu, _| menu.rows().iter().map(|row| row.label.clone()).collect());
+        assert!(!offered.contains(&"UTF-8".to_owned()) && offered[0] == "UTF-16LE", "{offered:?}");
+        cx.simulate_keystrokes("enter");
+        assert_eq!(items(cx)[2], "UTF-16LE");
+
+        // A refusal by the backend is told.
+        workbench.update(cx, |w, cx| w.run_status_command(StatusCommand::Reload("gbk".to_owned()), cx));
+        let told = workbench.read_with(cx, |w, _| format!("{:?}", w.notifications()));
+        assert!(told.contains("Cannot reload with encoding"), "{told}");
+        assert_eq!(items(cx)[2], "UTF-16LE");
     }
 
     #[test]

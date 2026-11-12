@@ -141,15 +141,15 @@
   },
   "point.registerStatusItem:editor.caret": {
     "status": "partial",
-    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; text only: no Go to Line popup on click, no multi-caret count"
+    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; the position with the selection's size, and a click opens Go to Line. No count of carets (the editor has one) and no tooltip"
   },
   "point.registerStatusItem:editor.lineEnding": {
     "status": "partial",
-    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; label only: no menu to change the separator"
+    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; the separator, and its menu changes it; no tooltip, and a second pane showing the file keeps the old label until it is reopened"
   },
   "point.registerStatusItem:editor.encoding": {
     "status": "partial",
-    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; label only: no reload / convert menu"
+    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; the encoding, and its menu reloads the file in another or converts it; reloading is tested only as refused with unsaved changes; no tooltip, and File Encodings Settings is missing with the Settings dialog"
   },
   "unit:src/ui/icons.test.tsx": {
     "status": "partial",
@@ -1753,7 +1753,7 @@
   },
   "action:navigate.gotoLine": {
     "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`; opens Go to Line:Column and moves the caret; it is a popup in the popup slot, which a click beside it closes, where the webview has a dialog; the status bar's position does not open it yet"
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`; opens Go to Line:Column and moves the caret; it is a popup in the popup slot, which a click beside it closes, where the webview has a dialog"
   },
   "point.registerOverlay:editor.gotoLine": {
     "status": "partial",
@@ -1902,5 +1902,13 @@
   "unit:src/features/search/__tests__/findPopup.test.tsx": {
     "status": "partial",
     "proof": "`find::popup_view::tests`; the view has its own twenty-three tests of the same behaviours (typing, options, mask, scopes, navigation, replace, history), written from the component and not from this spec: its twenty-five cases were not matched one by one"
+  },
+  "ipc:doc_set_line_ending": {
+    "status": "done",
+    "proof": "`workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`"
+  },
+  "ipc:doc_set_encoding": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; converting is tested, reloading only as the refusal with unsaved changes"
   }
 }
