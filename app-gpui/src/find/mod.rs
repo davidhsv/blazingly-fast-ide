@@ -6,6 +6,7 @@
 pub mod backend;
 pub mod find_tool_window;
 pub mod ipc;
+pub mod popup_view;
 pub mod query;
 pub mod replace_flow;
 pub mod row_selection;

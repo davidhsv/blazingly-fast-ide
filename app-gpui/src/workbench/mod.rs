@@ -33,6 +33,8 @@ use crate::everywhere::recent_model::OpenEditorTab;
 use crate::everywhere::recent_view::{RecentFiles, RecentFilesEvent, RecentFilesInput, RecentFilesKind};
 use crate::everywhere::structure_view::{FileStructure, FileStructureEvent, StructureFile};
 use crate::everywhere::view::{SearchEverywhere, SearchEverywhereEvent};
+use crate::find::popup_view::{FindPopup, FindPopupEvent, FindPopupInput};
+use crate::find::store::{FindArg, FindPopupCommand, parse_find_arg};
 use crate::platform::actions::{Action, ActionMeta, ActionRegistry, ActionSource, execute_action_from, manifest};
 use crate::platform::input;
 use crate::platform::local_time::now_ms;
@@ -498,7 +500,28 @@ pub fn register_actions(cx: &mut App) {
         workbench.update(cx, |workbench, cx| workbench.show_file_structure(window, cx));
         Ok(())
     });
-    registry.handle("find.inPath", |_, window, cx| on_layout(window, cx, |layout| layout.show(FIND_TOOL_WINDOW, true)));
+    for (id, replace) in [("find.inPath", false), ("find.replaceInPath", true)] {
+        registry.handle(id, move |call, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            let arg = parse_find_arg(call.arg, call.ctx);
+            workbench.update(cx, |workbench, cx| workbench.show_find_popup(replace, arg, window, cx));
+            Ok(())
+        });
+    }
+    for (id, command) in [
+        ("find.popup.nextResult", FindPopupCommand::NextResult),
+        ("find.popup.previousResult", FindPopupCommand::PreviousResult),
+        ("find.popup.openResult", FindPopupCommand::OpenResult),
+        ("find.popup.recentSearches", FindPopupCommand::RecentSearches),
+    ] {
+        registry.handle(id, move |_, window, cx| {
+            let popup = for_window(window, cx).and_then(|workbench| workbench.read(cx).find_popup());
+            if let Some(popup) = popup {
+                popup.update(cx, |popup, cx| popup.run_command(command, window, cx));
+            }
+            Ok(())
+        });
+    }
     registry.handle("view.toggleTheme", |_, window, cx| {
         let label = for_window(window, cx).map(|workbench| workbench.read(cx).label.clone()).unwrap_or_default();
         crate::theme::appearance::toggle_theme(&label, cx)
@@ -1210,6 +1233,7 @@ impl Workbench {
         let focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
         set_context(window, cx, "projectOpening", matches!(self.content, Content::Opening(_)));
         set_context(window, cx, "popupOpen", self.popup.is_some());
+        set_context(window, cx, "findPopupOpen", self.find_popup().is_some());
         set_context(window, cx, "projectOpen", self.project_tree().is_some());
         set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor(_)));
         set_context(window, cx, "textEditorActive", editor.is_some());
@@ -1610,6 +1634,61 @@ impl Workbench {
                     editor.select(at, at, cx);
                     editor.scroll_to_line(line.saturating_sub(5), cx);
                 });
+            }
+        });
+        self.open_popup(&popup, events, window, cx);
+    }
+
+    pub fn find_popup(&self) -> Option<Entity<FindPopup>> {
+        self.popup.as_ref().and_then(|popup| popup.view.clone().downcast().ok())
+    }
+
+    /// Opens Find in Files (or Replace in Files), starting with the editor's selection; asked
+    /// for again while it is open, the open popup takes the new mode and argument.
+    pub fn show_find_popup(&mut self, replace: bool, arg: FindArg, window: &mut Window, cx: &mut Context<Self>) {
+        let selection = self.editor().map(|editor| editor.read(cx).selected_text()).filter(|text| !text.is_empty());
+        if let Some(open) = self.find_popup() {
+            open.update(cx, |popup, cx| popup.show(replace, &arg, selection.as_deref(), window, cx));
+            return;
+        }
+        let input = FindPopupInput {
+            window_label: self.label.clone(),
+            root: self.project_root(cx).map(|root| root.to_string_lossy().into_owned()),
+            workspace_folders: Vec::new(),
+            replace,
+            arg,
+            selection,
+            active_path: self.editor().map(|editor| editor.read(cx).path().to_string_lossy().into_owned()),
+            open_paths: self.open_editor_tabs().into_iter().filter_map(|tab| tab.input.path).collect(),
+            modules: Vec::new(),
+        };
+        let popup = cx.new(|cx| FindPopup::new(input, cx));
+        let events = cx.subscribe_in(&popup, window, |workbench, popup, event: &FindPopupEvent, window, cx| {
+            match event.clone() {
+                FindPopupEvent::Dismissed => workbench.close_popup(window, cx),
+                FindPopupEvent::Open { path, line, col, keep_open, .. } => {
+                    if keep_open {
+                        // A pinned popup stays, with the keyboard.
+                        workbench.open_project_file_at(path, line, col, window, cx);
+                        window.focus(&popup.focus_handle(cx), cx);
+                    } else {
+                        workbench.close_popup(window, cx);
+                        workbench.open_project_file_at(path, line, col, window, cx);
+                    }
+                }
+                FindPopupEvent::OpenInFindWindow { query, .. } => {
+                    workbench.close_popup(window, cx);
+                    workbench.with_layout(window, cx, |layout| layout.show(FIND_TOOL_WINDOW, true));
+                    let panel = workbench
+                        .tool_window_view(FIND_TOOL_WINDOW)
+                        .and_then(|view| view.downcast::<crate::find::view::FindPanel>().ok());
+                    if let Some(panel) = panel {
+                        panel.update(cx, |panel, cx| panel.run_query(query, cx));
+                    }
+                }
+                // No scope editor exists yet for the popup to send the user to.
+                FindPopupEvent::EditScopes { .. } => {}
+                FindPopupEvent::Notify(request) => workbench.notify(request, cx),
             }
         });
         self.open_popup(&popup, events, window, cx);
@@ -2700,7 +2779,13 @@ impl Render for Workbench {
                         .pt(gpui_kit::px(80.0))
                         .on_mouse_down(
                             gpui_kit::MouseButton::Left,
-                            cx.listener(|workbench, _, window, cx| workbench.close_popup(window, cx)),
+                            cx.listener(|workbench, _, window, cx| {
+                                // A pinned Find in Files stays when the click is beside it.
+                                let pinned = workbench.find_popup().is_some_and(|popup| popup.read(cx).pinned());
+                                if !pinned {
+                                    workbench.close_popup(window, cx);
+                                }
+                            }),
                         )
                         .child(
                             div()
@@ -3597,7 +3682,7 @@ mod tests {
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
 
-        cx.update(|window, cx| execute_action_or_throw("find.inPath", None, window, cx)).expect("it runs");
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.find", None, window, cx)).expect("it runs");
         let find = workbench
             .read_with(cx, |w, _| w.tool_window_view(FIND_TOOL_WINDOW))
             .and_then(|view| view.downcast::<FindPanel>().ok())
@@ -4682,6 +4767,87 @@ mod tests {
         // Toggling where a bookmark is removes it.
         run(cx, "navigate.toggleBookmark", None);
         assert!(marks(cx).is_empty());
+    }
+
+    /// Find in Files opens as a popup that searches as the query is typed; Enter opens the
+    /// selected match and closes it. Open in Find Window hands the search to the Find tool
+    /// window, and Replace in Files opens the same popup in its replace mode.
+    #[gpui_kit::test]
+    async fn find_in_files_opens_a_popup_that_searches_opens_and_hands_over(cx: &mut TestAppContext) {
+        use crate::find::popup_view::SEARCH_DEBOUNCE;
+        use crate::find::session::FindStatus;
+        use crate::find::view::FindPanel;
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        let run = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| execute_action_or_throw(id, None, window, cx)).expect("it runs");
+            cx.run_until_parked();
+        };
+        let found = |popup: &Entity<FindPopup>, cx: &mut VisualTestContext| {
+            for _ in 0..300 {
+                cx.executor().advance_clock(SEARCH_DEBOUNCE);
+                cx.run_until_parked();
+                if popup.read_with(cx, |popup, _| popup.status() == FindStatus::Done) {
+                    return popup.read_with(cx, |popup, _| popup.lines());
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("the search did not finish within three seconds");
+        };
+
+        run(cx, "find.inPath");
+        let popup = workbench.read_with(cx, |w, _| w.find_popup()).expect("Find in Files is open");
+        assert!(!popup.read_with(cx, |popup, _| popup.is_replace()));
+        assert!(cx.update(|window, cx| popup.focus_handle(cx).is_focused(window)), "the query has the keyboard");
+        assert!(
+            cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy("findPopupOpen"))
+        );
+        cx.simulate_input("needle");
+        let lines = found(&popup, cx);
+        assert_eq!(lines.len(), 1, "one line matches: {lines:?}");
+        assert!(lines[0].contains("notes.txt") && lines[0].contains("a needle here"), "{lines:?}");
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().is_some_and(|e| {
+                    e.read(cx).path() == root.join("notes.txt") && e.read(cx).caret_position() == (1, 4)
+                })
+            })
+        });
+        assert!(workbench.read_with(cx, |w, _| w.find_popup().is_none()));
+        cx.run_until_parked();
+        assert!(
+            !cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy("findPopupOpen"))
+        );
+
+        // Open in Find Window: the popup goes and the tool window runs the same search.
+        run(cx, "find.inPath");
+        let popup = workbench.read_with(cx, |w, _| w.find_popup()).expect("Find in Files is open");
+        popup.update(cx, |popup, cx| popup.set_pattern("widget", cx));
+        found(&popup, cx);
+        popup.update(cx, |popup, cx| popup.open_in_find_window(cx));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.find_popup().is_none() && w.is_tool_window_visible(FIND_TOOL_WINDOW)));
+        let panel = workbench
+            .read_with(cx, |w, _| w.tool_window_view(FIND_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<FindPanel>().ok())
+            .expect("the Find window holds the panel");
+        settle(cx, |cx| panel.read_with(cx, |panel, _| panel.status() == FindStatus::Done));
+        assert_eq!(panel.read_with(cx, |panel, cx| panel.field().read(cx).text().to_owned()), "widget");
+        assert_eq!(
+            panel.read_with(cx, |panel, _| panel.results().into_iter().map(|(file, _)| file).collect::<Vec<_>>()),
+            ["src/alpha.rs"]
+        );
+
+        // Replace in Files is the same popup with a replacement; Find in Files asked for while
+        // it is open turns that popup back.
+        run(cx, "find.replaceInPath");
+        let popup = workbench.read_with(cx, |w, _| w.find_popup()).expect("Replace in Files is open");
+        assert!(popup.read_with(cx, |popup, _| popup.is_replace()));
+        run(cx, "find.inPath");
+        assert_eq!(workbench.read_with(cx, |w, _| w.find_popup()), Some(popup.clone()));
+        assert!(!popup.read_with(cx, |popup, _| popup.is_replace()));
     }
 
     #[test]

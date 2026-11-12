@@ -171,9 +171,21 @@ impl FindPanel {
         }
     }
 
+    /// Runs `query` as it is: its text and options show in the panel, and its scope and file
+    /// masks hold for this search. A search made from the panel afterwards covers the project.
+    pub fn run_query(&mut self, query: SearchQuery, cx: &mut Context<Self>) {
+        self.field.update(cx, |field, cx| field.set_text(&query.pattern, cx));
+        (self.match_case, self.words, self.regex) = (query.case_sensitive, query.whole_word, query.is_regex);
+        self.run(query, cx);
+    }
+
     /// Searches the project for what is typed.
     pub fn search(&mut self, cx: &mut Context<Self>) {
         let query = self.query(cx);
+        self.run(query, cx);
+    }
+
+    fn run(&mut self, query: SearchQuery, cx: &mut Context<Self>) {
         self.searched = Some(query.clone());
         self.restarted = true;
         let effects = self.session.search(query);

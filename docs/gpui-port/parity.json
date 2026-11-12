@@ -821,7 +821,7 @@
   },
   "action:find.inPath": {
     "status": "partial",
-    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`; opens the Find tool window with the query focused and searches the project, instead of the Find in Files popup with its preview, scopes and file masks"
+    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `find::popup_view::tests`; opens the Find in Files popup, which searches as you type with its options, file mask, scopes and history, and opens the selected match. Not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match, masks from the project's file types"
   },
   "point.registerToolWindow:find": {
     "status": "partial",
@@ -945,7 +945,7 @@
   },
   "feature:search": {
     "status": "partial",
-    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`, `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`, `find::session::tests`, `everywhere::model::tests`; Find in Files runs in the Find tool window, Search Everywhere opens files, symbols, actions and text matches, and the models of recent files, bookmarks and the structure outline are ported. Not yet: the Find in Files popup with scopes, masks and preview, Replace in Files, Search Everywhere's preview, filters and history, Recent Files, bookmarks and Structure views"
+    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `workbench::tests::file_structure_lists_the_editors_symbols_and_goes_to_the_chosen_one`, `workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; Find and Replace in Files, Search Everywhere, Recent Files and the Switcher, File Structure and Bookmarks all open and work as popups, the Find tool window lists results. Each has its gaps listed on its own overlay row; none has the webview's preview editor, and the Structure and Bookmarks tool windows are missing"
   },
   "action:terminal.new": {
     "status": "done",
@@ -1870,5 +1870,37 @@
   "boundid:navigate.gotoBookmark9": {
     "status": "partial",
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "action:find.replaceInPath": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `find::popup_view::tests`; the popup in replace mode: Replace and Replace All with the confirmation flow are tested in the view, the workbench test checks the mode only. Not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match, masks from the project's file types"
+  },
+  "action:find.popup.nextResult": {
+    "status": "partial",
+    "proof": "`find::popup_view::tests`; registered to drive the open popup; the commands are tested in the view, no test runs them as actions"
+  },
+  "action:find.popup.previousResult": {
+    "status": "partial",
+    "proof": "`find::popup_view::tests`; registered to drive the open popup; the commands are tested in the view, no test runs them as actions"
+  },
+  "action:find.popup.openResult": {
+    "status": "partial",
+    "proof": "`find::popup_view::tests`; registered to drive the open popup; the commands are tested in the view, no test runs them as actions"
+  },
+  "action:find.popup.recentSearches": {
+    "status": "partial",
+    "proof": "`find::popup_view::tests`; registered to drive the open popup; the commands are tested in the view, no test runs them as actions"
+  },
+  "context:findPopupOpen": {
+    "status": "done",
+    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`"
+  },
+  "point.registerOverlay:search.findInFiles": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `find::popup_view::tests`, `find::session::tests`, `find::store::tests`, `find::replace_flow::tests`; not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match, masks from the project's file types"
+  },
+  "unit:src/features/search/__tests__/findPopup.test.tsx": {
+    "status": "partial",
+    "proof": "`find::popup_view::tests`; the view has its own twenty-three tests of the same behaviours (typing, options, mask, scopes, navigation, replace, history), written from the component and not from this spec: its twenty-five cases were not matched one by one"
   }
 }

@@ -399,3 +399,17 @@ The same subagent found the keymap order bug (D51).
 - After Delete the selection stays at the same index, as in the webview, even when that is now a header.
 
 Not there: the Bookmarks tool window, bookmark marks in the gutter, and bookmarks following lines as the text is edited (the model has `set_file_lines`; the editor does not call it).
+
+## D54. Find in Files is the popup again
+
+`find/popup_view.rs` is a subagent's view of the Find and Replace in Files popup on the ported models (`FindSession`, `store`, `replace_flow`, scopes). About 3,800 lines written without a compiler built on the first try and its 23 tests passed. `find.inPath` and `find.replaceInPath` now open it, as in the webview; before, `find.inPath` showed the Find tool window (D33), which stays as the place results are kept: Open in Find Window hands the popup's query to the panel (`FindPanel::run_query`), with its scope and masks for that one search.
+
+Choices, the subagent's unless noted:
+
+- What the popup remembers between openings (options, scope, mask) is kept per window in a process global and written when the popup goes away, because the popup slot drops a view without asking it. If the workbench is to own that state later, it is one input field and one accessor away.
+- Replace All asks through the OS prompt and checks afterwards that the results are still the ones asked about.
+- The popup's keys are claimed ahead of the keymap; ⌘G, ⇧⌘G, F4 and ⌘↓ are left to the `find.popup.*` actions and the `findPopupOpen` context key, which the workbench now publishes.
+- A pinned popup stays open when a match is opened and when the click is beside it (mine: the popup slot's backdrop asks the Find popup whether it is pinned).
+- The view's tests were written from the component; the webview's own popup spec (25 cases) was not in the subagent's brief and is marked partial, not done.
+
+Not there: see the `search.findInFiles` overlay row; the largest are the preview editor and multi-line queries (the text field is one line).
