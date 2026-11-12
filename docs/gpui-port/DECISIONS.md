@@ -548,3 +548,14 @@ A subagent rebuilt the editor's core in one slice (20 new tests through the appl
 - Adding a type that has several configurations adds all of them: the picker is not built.
 - One fix came from running the tests and reading the focus code: a double click opened the grid's cell editor and the grid took the focus back on the same press; the press is now marked handled.
 - The views of the Database and Pull Requests features are compiled and tested (65 tests) but not shown by any window yet; their rows stay model only until they are.
+
+## D69. Show Diff, and seven more batches compiled
+
+An integrating agent compiled the diff viewer, the Settings dialog shell, the Debug tool window's views and four model batches (refactoring and navigation, documents and tabs, and 22 small features): 735 new tests, about 20 compile fixes, three real defects.
+
+- Defects found by the tests: undo and redo of a workspace edit were both refused (an inverted condition in the history model); two more browser key names used as keys (macros, the Vim mode's Escape), now GPUI's names.
+- Show Diff works from the Commit tool window: Enter or a double click on a changed file shows its diff, F4 opens the file, as the component does (two earlier tests pressed Enter to open a file and now press F4). The diff is drawn as a front window in a layer of its own, below the popup slot, so its toolbar menus open over it; a popup would have been closed by its own menus.
+- A diff as an editor tab is not built. The editor area holds file editors only; a tab that holds another view is a foundation piece several features wait for (diffs, agent sessions, table editors, previews).
+- `vcsAvailable` is published now (a project with a repository), which enables every action gated on it; most of those are not registered yet.
+- The panes are read-only: applying a change from the viewer is not wired.
+- The Settings dialog shell, the Debug views and the diff viewer's tests pass, but only the diff viewer is shown by the app; the others are model only until wired. The Debug views need a driver for the debug adapter; the Settings dialog needs its built-in pages, which are written and wait for the compiler.

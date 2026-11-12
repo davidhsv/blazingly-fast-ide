@@ -3062,5 +3062,385 @@
   "feature:services": {
     "status": "partial",
     "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`, `services::view::tests`, `services::docker::tests`; the Services tool window for run configurations end to end; Docker is read (settings, snapshot) but its operations, streams, dashboards and dialogs are not carried out"
+  },
+  "unit:src/editor/navigation/gotoTest.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::goto_test::tests`"
+  },
+  "unit:src/editor/navigation/structureNav.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::structure_nav::tests`"
+  },
+  "unit:src/editor/navigation/testNaming.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::test_naming::tests`; the tables of the spec are loops inside one test each"
+  },
+  "unit:src/editor/navigationProviders.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::navigation_providers::tests`"
+  },
+  "unit:src/editor/refactor/occurrences.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::occurrences::tests`"
+  },
+  "unit:src/editor/refactor/refactor.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::names::tests`, `editor_refactor::templates::tests`, `editor_refactor::project_level::tests`, `editor_refactor::occurrences::tests`"
+  },
+  "unit:src/editor/refactor/refactorThis.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::catalog::tests`, `editor_refactor::refactor_this::tests`"
+  },
+  "unit:src/editor/refactor/runKind.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::run_kind::tests`"
+  },
+  "unit:src/editor/refactor/safeDelete.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::safe_delete::tests`"
+  },
+  "unit:src/editor/refactor/serverIntroduce.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::server_introduce::tests`"
+  },
+  "unit:src/editor/structure/structure.test.ts": {
+    "status": "done",
+    "proof": "`editor_refactor::structure_fallback::tests`"
+  },
+  "unit:src/editor/core/cm/prefs.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::editor_prefs::tests`, `editor_commands::paste::tests::re_indents_a_pasted_block_to_the_caret_column`, `editor::tabs::tests::closes_unchanged_least_recently_used_tabs_beyond_the_limit`"
+  },
+  "unit:src/editor/core/controller.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::controller::tests`; 6 of 13 cases by name"
+  },
+  "unit:src/editor/core/customDocuments.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::removal::tests`"
+  },
+  "unit:src/editor/core/detachTab.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::detach::tests`"
+  },
+  "unit:src/editor/core/diskSync.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::disk_sync::tests`; 6 of 7 cases by name"
+  },
+  "unit:src/editor/core/file-open-order.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::guard::tests`; 13 of 14 cases by name"
+  },
+  "unit:src/editor/core/fileAttributes.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::file_attributes::tests`"
+  },
+  "unit:src/editor/core/inputClose.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::documents::tests`"
+  },
+  "unit:src/editor/core/model/attachment.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::document::tests`; 1 of 6 cases by name"
+  },
+  "unit:src/editor/core/model/document.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::document::tests`; 6 of 19 cases by name"
+  },
+  "unit:src/editor/core/model/workspaceHistory.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::workspace_history::tests`"
+  },
+  "unit:src/editor/core/view/navBar.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::nav_bar::tests`"
+  },
+  "unit:src/editor/core/virtual.test.ts": {
+    "status": "partial",
+    "proof": "`editor_model::virtual_input::tests`; 3 of 5 cases by name"
+  },
+  "unit:src/editor/lsp/semantic/go/index.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::semantic_tokens::tests`"
+  },
+  "unit:src/editor/lsp/semantic/kotlin/index.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::semantic_tokens::tests`; the tables of the spec are loops inside one test each"
+  },
+  "unit:src/editor/lsp/semantic/php/constructs.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::semantic_php::tests`"
+  },
+  "unit:src/editor/lsp/semantic/python/members.test.ts": {
+    "status": "done",
+    "proof": "`editor_model::python_members::tests`"
+  },
+  "unit:src/features/graphql/graphql.test.ts": {
+    "status": "done",
+    "proof": "`features_a::graphql::tests`; the tables of the spec are loops inside one test each"
+  },
+  "unit:src/features/graphql/store.test.ts": {
+    "status": "done",
+    "proof": "`features_a::graphql::tests`"
+  },
+  "unit:src/features/http-client/endpoints.test.ts": {
+    "status": "done",
+    "proof": "`features_a::http_client::endpoints::tests`"
+  },
+  "unit:src/features/http-client/httpClient.test.ts": {
+    "status": "done",
+    "proof": "`features_a::http_client::format::tests`, `features_a::http_client::highlight::tests`; the tables of the spec are loops inside one test each"
+  },
+  "unit:src/features/http-client/spring/generate.test.ts": {
+    "status": "done",
+    "proof": "`features_a::http_client::generate::tests`"
+  },
+  "unit:src/features/http-client/spring/routeIndex.test.ts": {
+    "status": "done",
+    "proof": "`features_a::http_client::route_index::tests`"
+  },
+  "unit:src/features/http-client/spring/spring.test.ts": {
+    "status": "done",
+    "proof": "`features_a::http_client::spring::tests`, `features_a::http_client::request::tests`"
+  },
+  "unit:src/features/logcat/history.test.ts": {
+    "status": "done",
+    "proof": "`features_a::logcat::tests`"
+  },
+  "unit:src/features/logcat/model.test.ts": {
+    "status": "done",
+    "proof": "`features_a::logcat::tests`"
+  },
+  "unit:src/features/notebook/OutputView.test.tsx": {
+    "status": "partial",
+    "proof": "`features_a::notebook::view::tests`; 2 of 9 cases by name"
+  },
+  "unit:src/features/notebook/outputs.test.ts": {
+    "status": "done",
+    "proof": "`features_a::notebook::outputs::tests`"
+  },
+  "unit:src/features/notebook/session.test.ts": {
+    "status": "done",
+    "proof": "`features_a::notebook::session::tests`"
+  },
+  "unit:src/features/todo/PreviewEditor.test.tsx": {
+    "status": "partial",
+    "proof": "`features_a::todo::tests`; the state and logic of 4 of 7 cases, on the model; the view is not built"
+  },
+  "unit:src/features/todo/TodoView.test.tsx": {
+    "status": "partial",
+    "proof": "`features_a::todo::tests`; the state and logic of 3 of 4 cases, on the model; the view is not built"
+  },
+  "unit:src/features/todo/todo.test.ts": {
+    "status": "partial",
+    "proof": "`features_a::todo::tests`; 10 of 13 cases by name"
+  },
+  "unit:src/features/vim/__tests__/conflicts.test.ts": {
+    "status": "done",
+    "proof": "`features_a::vim::conflicts::tests`, `features_a::vim::settings::tests`"
+  },
+  "unit:src/features/vim/__tests__/rc.test.ts": {
+    "status": "done",
+    "proof": "`features_a::vim::rc::tests`"
+  },
+  "unit:src/features/vim/__tests__/vim.test.ts": {
+    "status": "partial",
+    "proof": "`features_a::vim::mode::tests`, `features_a::vim::engine::tests`, `features_a::vim::ime::tests`; 15 of 17 cases by name"
+  },
+  "unit:src/features/analysis/analysis.test.ts": {
+    "status": "done",
+    "proof": "`features_b::analysis::inspect::tests`, `features_b::analysis::tree::tests`, `features_b::analysis::structural::tests`, `features_b::analysis::scope::tests`, `features_b::analysis::duplicates::tests`"
+  },
+  "unit:src/features/analysis/inspect.test.ts": {
+    "status": "done",
+    "proof": "`features_b::analysis::inspect::tests`"
+  },
+  "unit:src/features/color-preview/colors.test.ts": {
+    "status": "done",
+    "proof": "`features_b::color_preview::colors::tests`"
+  },
+  "unit:src/features/color-preview/pluginColors.test.ts": {
+    "status": "done",
+    "proof": "`features_b::color_preview::plugin_colors::tests`"
+  },
+  "unit:src/features/coverage/coverage.test.ts": {
+    "status": "done",
+    "proof": "`features_b::coverage::tests`"
+  },
+  "unit:src/features/dependencies/dependencies.test.ts": {
+    "status": "done",
+    "proof": "`features_b::dependencies::tests`"
+  },
+  "unit:src/features/deployment/Dialogs.test.tsx": {
+    "status": "done",
+    "proof": "`features_b::deployment::sync_view::tests`"
+  },
+  "unit:src/features/deployment/SyncPreview.test.tsx": {
+    "status": "partial",
+    "proof": "`features_b::deployment::preview::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built"
+  },
+  "unit:src/features/deployment/actions.test.tsx": {
+    "status": "partial",
+    "proof": "`features_b::deployment::actions::tests`, `features_b::deployment::store::tests`; the state and logic of 11 of 11 cases, on the model; the view is not built"
+  },
+  "unit:src/features/deployment/comparison.test.ts": {
+    "status": "done",
+    "proof": "`features_b::deployment::comparison::tests`"
+  },
+  "unit:src/features/deployment/model.test.ts": {
+    "status": "done",
+    "proof": "`features_b::deployment::model::tests`"
+  },
+  "unit:src/features/deployment/remoteHost.test.ts": {
+    "status": "done",
+    "proof": "`features_b::deployment::remote_host::tests`"
+  },
+  "unit:src/features/deployment/window.test.ts": {
+    "status": "done",
+    "proof": "`features_b::deployment::window::tests`"
+  },
+  "unit:src/features/dotnet/store.test.ts": {
+    "status": "done",
+    "proof": "`features_b::dotnet::tests`"
+  },
+  "unit:src/features/libraries/libraries.test.ts": {
+    "status": "done",
+    "proof": "`features_b::libraries::tests`"
+  },
+  "unit:src/features/macros/model.test.ts": {
+    "status": "done",
+    "proof": "`features_b::macros::tests`"
+  },
+  "unit:src/features/mcp/reporters.test.ts": {
+    "status": "done",
+    "proof": "`features_b::mcp::tests`"
+  },
+  "unit:src/features/perf/__tests__/perf.test.ts": {
+    "status": "done",
+    "proof": "`features_b::perf::tests`"
+  },
+  "unit:src/features/profiler/profiler.test.ts": {
+    "status": "done",
+    "proof": "`features_b::profiler::tests`"
+  },
+  "unit:src/features/remote-dev/ConnectDialog.test.tsx": {
+    "status": "done",
+    "proof": "`features_b::remote_dev::connect_dialog::tests`"
+  },
+  "unit:src/features/remote-dev/container.test.ts": {
+    "status": "done",
+    "proof": "`features_b::remote_dev::container::tests`"
+  },
+  "unit:src/features/remote-dev/environment.test.ts": {
+    "status": "done",
+    "proof": "`features_b::remote_dev::environment::tests`"
+  },
+  "unit:src/features/remote-dev/ports.test.tsx": {
+    "status": "partial",
+    "proof": "`features_b::remote_dev::ports::tests`; the state and logic of 8 of 8 cases, on the model; the view is not built"
+  },
+  "unit:src/features/remote-dev/remoteDev.test.ts": {
+    "status": "done",
+    "proof": "`features_b::remote_dev::model::tests`, `features_b::remote_dev::recents::tests`"
+  },
+  "unit:src/features/run-anything/model.test.ts": {
+    "status": "done",
+    "proof": "`features_b::run_anything::tests`"
+  },
+  "unit:src/features/ssh/ssh.test.ts": {
+    "status": "done",
+    "proof": "`features_b::ssh::tests`"
+  },
+  "unit:src/features/terminal/session.test.ts": {
+    "status": "done",
+    "proof": "`features_b::terminal::tests`, `terminal::windows_pty::tests::configures_local_terminals_for_the_os_and_build`"
+  },
+  "unit:src/features/viewers/file-probe.test.ts": {
+    "status": "done",
+    "proof": "`features_b::viewers::file_kinds::tests`"
+  },
+  "unit:src/features/viewers/markdown/mermaid.test.ts": {
+    "status": "done",
+    "proof": "`features_b::viewers::mermaid::tests`"
+  },
+  "unit:src/features/viewers/markdown/previewDetails.test.tsx": {
+    "status": "partial",
+    "proof": "`features_b::viewers::preview::tests`; the state and logic of 1 of 1 cases, on the model; the view is not built"
+  },
+  "unit:src/features/viewers/markdown/previewOnly.test.tsx": {
+    "status": "partial",
+    "proof": "`features_b::viewers::preview::tests`; the state and logic of 5 of 5 cases, on the model; the view is not built"
+  },
+  "unit:src/features/viewers/markdown/previewScroll.test.tsx": {
+    "status": "partial",
+    "proof": "`features_b::viewers::preview::tests`; the state and logic of 1 of 1 cases, on the model; the view is not built"
+  },
+  "unit:src/features/viewers/markdown/render.test.ts": {
+    "status": "done",
+    "proof": "`features_b::viewers::render::tests`"
+  },
+  "unit:src/features/viewers/markdown/zoom.test.tsx": {
+    "status": "partial",
+    "proof": "`features_b::viewers::font_zoom::tests`, `features_b::viewers::preview::tests`; the state and logic of 6 of 7 cases, on the model; the view is not built"
+  },
+  "unit:src/features/viewers/viewers.test.ts": {
+    "status": "done",
+    "proof": "`features_b::viewers::file_kinds::tests`, `features_b::viewers::hex::tests`, `features_b::viewers::image_zoom::tests`"
+  },
+  "unit:src/features/vcs/__tests__/diffDialog.test.tsx": {
+    "status": "partial",
+    "proof": "`vcs_diff::dialog_view::tests`; 3 of 8 cases by name"
+  },
+  "unit:src/features/vcs/__tests__/diffToolbar.test.tsx": {
+    "status": "partial",
+    "proof": "`vcs_diff::view::tests`, `vcs_diff::toolbar_view::tests`; 14 of 25 cases by name"
+  },
+  "unit:src/features/vcs/__tests__/movedCode.test.tsx": {
+    "status": "partial",
+    "proof": "`vcs_diff::view::tests`; 3 of 15 cases by name"
+  },
+  "unit:src/features/settings/__tests__/dialog.test.tsx": {
+    "status": "partial",
+    "proof": "`settings_view::dialog::tests`; 9 of 41 cases by name"
+  },
+  "unit:src/features/debugger/__tests__/toolWindow.test.tsx": {
+    "status": "done",
+    "proof": "`debugger::window_view::tests`"
+  },
+  "action:vcs.showDiff": {
+    "status": "partial",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`; a changed file of the Commit window in a front window over the workbench; a folder (directory diff) and the editor-tab form are not built, and the panes are read-only"
+  },
+  "action:diff.nextDifference": {
+    "status": "done",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+  },
+  "action:diff.prevDifference": {
+    "status": "partial",
+    "proof": "`vcs_diff::view::tests`; registered on the viewer's Previous Difference, which the view tests cover; no test runs the action"
+  },
+  "action:diff.nextFile": {
+    "status": "done",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+  },
+  "action:diff.jumpToSource": {
+    "status": "done",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+  },
+  "action:diff.prevFile": {
+    "status": "partial",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; the same search as Next File in the other direction; no test runs it"
+  },
+  "action:diff.showSettings": {
+    "status": "partial",
+    "proof": "`vcs_diff::toolbar_view::tests`; opens the settings menu of the viewer; no test runs the action"
+  },
+  "context:diffEditorFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+  },
+  "context:vcsAvailable": {
+    "status": "done",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
   }
 }
