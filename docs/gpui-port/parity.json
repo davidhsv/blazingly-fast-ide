@@ -1298,5 +1298,121 @@
   "point.registerOverlay:search.recent": {
     "status": "partial",
     "proof": "`workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `everywhere::recent_view::tests`, `everywhere::recent_model::tests`; Recent Files with its speed search, tool window column, several files selected and opened, Delete closing a tab, and the Switcher with its stepping and Ctrl release. Not yet: Recent Locations, edited files, opening to the side, version control colours"
+  },
+  "unit:src/features/settings/__tests__/agents.test.ts": {
+    "status": "partial",
+    "proof": "`settings_model::schema::tests`; the settings are the backend's typed ones here, so a value of the wrong type is refused where the spec expects it replaced by a default, and text and numbers are not trimmed or clamped"
+  },
+  "unit:src/features/settings/__tests__/cmake.test.ts": {
+    "status": "partial",
+    "proof": "`settings_model::schema::tests`; the settings are the backend's typed ones here, so a value of the wrong type is refused where the spec expects it replaced by a default, and text and numbers are not trimmed or clamped"
+  },
+  "unit:src/features/settings/__tests__/goBuildTags.test.ts": {
+    "status": "partial",
+    "proof": "`settings_model::schema::tests`; the settings are the backend's typed ones here, so a value of the wrong type is refused where the spec expects it replaced by a default, and text and numbers are not trimmed or clamped"
+  },
+  "unit:src/features/settings/__tests__/behavior.test.ts": {
+    "status": "partial",
+    "proof": "`settings_model::schema::tests`, `theme::themes::tests`, `platform::date_format::tests`; nine of eleven cases here, theme resolution and date formats in their own modules; the settings are the backend's typed ones here, so a value of the wrong type is refused where the spec expects it replaced by a default, and text and numbers are not trimmed or clamped"
+  },
+  "unit:src/features/settings/__tests__/appearanceToggles.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::appearance_runtime::tests`, `workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`"
+  },
+  "unit:src/features/settings/__tests__/assignShortcut.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::assign_shortcut::tests`"
+  },
+  "unit:src/features/settings/__tests__/contrast.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::contrast::tests`"
+  },
+  "unit:src/features/settings/__tests__/fileTypes.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::file_types::tests`"
+  },
+  "unit:src/features/settings/__tests__/fontSync.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::runtime::tests`"
+  },
+  "unit:src/features/settings/__tests__/inspections.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::inspections_model::tests`"
+  },
+  "unit:src/features/settings/__tests__/keymap.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::keymap_model::tests`, `settings_model::keymap_groups::tests`, `settings_model::keymap_page::tests`, `platform::keymap::tests`, `platform::dispatcher::tests`"
+  },
+  "unit:src/features/settings/__tests__/languages.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::language_pages::tests`, `platform::project_roots::tests`"
+  },
+  "unit:src/features/settings/__tests__/mcpServer.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::mcp_server::tests`"
+  },
+  "unit:src/features/settings/__tests__/pages.test.ts": {
+    "status": "partial",
+    "proof": "`settings_model::pages::tests`, `settings_model::page_spec::tests`; three of five cases: the two about option labels need the option tables of the Behavior and Editor General pages, which are not ported"
+  },
+  "unit:src/features/settings/__tests__/runTargets.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::run_targets::tests`"
+  },
+  "unit:src/features/settings/__tests__/settingsWindowOpen.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::settings_window::tests`"
+  },
+  "unit:src/features/settings/__tests__/sshConnection.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::ssh_connection::tests`"
+  },
+  "unit:src/features/settings/__tests__/staging.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::staging::tests`"
+  },
+  "unit:src/features/settings/__tests__/window.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::window_bridge::tests`, `settings_model::settings_window::tests`"
+  },
+  "unit:src/features/settings/pages/deploymentModel.test.ts": {
+    "status": "done",
+    "proof": "`settings_model::deployment_model::tests`"
+  },
+  "unit:src/features/templates/__tests__/editor.test.ts": {
+    "status": "done",
+    "proof": "`templates::editor::tests`, `templates::editor_context::tests`"
+  },
+  "unit:src/features/templates/__tests__/emmet.test.ts": {
+    "status": "partial",
+    "proof": "`templates::emmet_model::tests`; four of seven cases: the three expansions need the Emmet engine's tables, which are behind a trait with no implementation yet"
+  },
+  "unit:src/features/templates/__tests__/files.test.ts": {
+    "status": "done",
+    "proof": "`templates::files_model::tests`, `templates::files_builtins::tests`, `templates::files_create::tests`"
+  },
+  "unit:src/features/templates/__tests__/live.test.ts": {
+    "status": "done",
+    "proof": "`templates::live_model::tests`, `templates::live_builtins::tests`, `templates::live_store::tests`"
+  },
+  "unit:src/features/templates/__tests__/pluginPackages.test.ts": {
+    "status": "done",
+    "proof": "`templates::files_create::tests`"
+  },
+  "unit:src/features/templates/__tests__/postfix.test.ts": {
+    "status": "done",
+    "proof": "`templates::postfix_model::tests`, `templates::postfix_store::tests`"
+  },
+  "unit:src/features/templates/__tests__/snippets.test.ts": {
+    "status": "done",
+    "proof": "`templates::live_snippets::tests`, `templates::snippet::tests`"
+  },
+  "unit:src/features/templates/__tests__/surround.test.ts": {
+    "status": "done",
+    "proof": "`templates::editor::tests`"
+  },
+  "unit:src/features/templates/__tests__/surrounders.test.ts": {
+    "status": "done",
+    "proof": "`templates::live_surrounders::tests`"
   }
 }

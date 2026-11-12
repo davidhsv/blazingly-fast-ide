@@ -324,3 +324,11 @@ What the workbench does for it:
 Choices the subagent made, kept: the popup's keys are claimed ahead of the keymap, so ⌃⇥ inside it is always the popup's; releasing Ctrl opens the selection only when Ctrl was seen held, so a Switcher opened from the menu stays open; tool window titles are shown untranslated, as the tool window headers are.
 
 Not there: Recent Locations (its link closes the popup), the set of files edited in this session, opening to the side, and keeping a row when its tab refuses to close (with autosave on, the default, a tab never refuses).
+
+## D45. Settings and templates as models; the backend's settings are the schema
+
+`settings_model/` (22 files) and `templates/` (17 files) are a subagent's port of 29 specs, 260 tests, written without a compiler; wiring them needed two one-line compile fixes and eleven lint fixes. No Settings dialog and no template expansion in the editor exist yet: these are the models they will be drawn from.
+
+- The webview validates settings itself (`validateSettings`: a malformed value becomes the default, text is trimmed, numbers clamped, unknown names dropped). Here the settings are `ide_core::settings::Settings`, the backend's own types, read through serde: a value of the wrong type is refused instead of defaulted, and text and numbers are kept as stored. The specs that test the webview's repairs (`agents`, `cmake`, `goBuildTags`, `behavior`) are marked partial for that reason rather than given a second validator that the backend would not agree with.
+- Syntax-tree cases of the templates (the context a template applies in, postfix targets) are driven with hand-built node chains, not a parser; the editor is to pass its real nodes.
+- Emmet expansion is behind an `EmmetEngine` trait with no implementation: the webview uses the `emmet` package's tables, and porting those is a job of its own.
