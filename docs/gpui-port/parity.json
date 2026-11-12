@@ -2542,5 +2542,341 @@
   "point.registerKeyClaim:(at) src/editor/core/view/FindBar.tsx:367": {
     "status": "done",
     "proof": "`editor::find_bar::tests::opens_current_results_from_the_menu_and_reserves_alt_f7_while_focused`, `editor::find_bar::tests::honors_a_rebound_shortcut_and_releases_it_outside_the_bar`"
+  },
+  "unit:src/features/database/ColumnsPopup.test.ts": {
+    "status": "done",
+    "proof": "`database::nodes::tests`"
+  },
+  "unit:src/features/database/DatabaseView.test.tsx": {
+    "status": "partial",
+    "proof": "`database::tree::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built"
+  },
+  "unit:src/features/database/ExportDialog.test.tsx": {
+    "status": "partial",
+    "proof": "`database::dialogs::tests`; the state and logic of 1 of 1 cases, on the model; the view is not built"
+  },
+  "unit:src/features/database/Grid.test.tsx": {
+    "status": "partial",
+    "proof": "`database::grid::tests`, `database::result_view::tests`; the state and logic of 12 of 12 cases, on the model; the view is not built"
+  },
+  "unit:src/features/database/SourceDialog.test.tsx": {
+    "status": "partial",
+    "proof": "`database::dialogs::tests`; the state and logic of 2 of 2 cases, on the model; the view is not built"
+  },
+  "unit:src/features/database/SqlFilterInput.test.tsx": {
+    "status": "partial",
+    "proof": "`database::sql_filter::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built"
+  },
+  "unit:src/features/database/database.test.ts": {
+    "status": "done",
+    "proof": "`database::model::tests`, `database::export::tests`, `database::vendors::tests`"
+  },
+  "unit:src/features/database/nodes.test.ts": {
+    "status": "done",
+    "proof": "`database::nodes::tests`"
+  },
+  "unit:src/features/database/objects.test.ts": {
+    "status": "done",
+    "proof": "`database::objects::tests`"
+  },
+  "unit:src/features/database/resultEditing.test.ts": {
+    "status": "done",
+    "proof": "`database::result_editing::tests`"
+  },
+  "unit:src/features/database/resultView.test.ts": {
+    "status": "done",
+    "proof": "`database::result_view::tests`, `database::objects::tests`"
+  },
+  "unit:src/features/database/results-view.test.tsx": {
+    "status": "partial",
+    "proof": "`database::result_session::tests`; the state and logic of 14 of 14 cases, on the model; the view is not built"
+  },
+  "unit:src/features/database/sql/format.test.ts": {
+    "status": "done",
+    "proof": "`database::sql::format::tests`"
+  },
+  "unit:src/features/database/sql/readOnly.test.ts": {
+    "status": "done",
+    "proof": "`database::sql::read_only::tests`"
+  },
+  "unit:src/features/database/sql/sql.test.ts": {
+    "status": "done",
+    "proof": "`database::sql::lexer::tests`, `database::sql::analyze::tests`, `database::sql::complete::tests`, `database::sql::resolve::tests`, `database::sql::params::tests`"
+  },
+  "unit:src/features/database/sshConfig.test.ts": {
+    "status": "done",
+    "proof": "`database::model::tests`"
+  },
+  "unit:src/features/database/table-editor.test.tsx": {
+    "status": "partial",
+    "proof": "`database::table_editor::tests`; the state and logic of 4 of 4 cases, on the model; the view is not built"
+  },
+  "unit:src/features/github/api/api.test.ts": {
+    "status": "done",
+    "proof": "`github::api::tests`"
+  },
+  "unit:src/features/github/clone/GitHubCloneSource.test.tsx": {
+    "status": "partial",
+    "proof": "`github::clone::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built"
+  },
+  "unit:src/features/github/create/RemoteBranchDialog.test.tsx": {
+    "status": "partial",
+    "proof": "`github::create::tests`; the state and logic of 1 of 1 cases, on the model; the view is not built"
+  },
+  "unit:src/features/github/create/create.test.ts": {
+    "status": "done",
+    "proof": "`github::create::tests`"
+  },
+  "unit:src/features/github/data/data.test.ts": {
+    "status": "done",
+    "proof": "`github::data_model::tests`, `github::search_history::tests`, `github::repository::tests`, `github::batches::tests`"
+  },
+  "unit:src/features/github/data/repository.test.ts": {
+    "status": "done",
+    "proof": "`github::repository::tests`"
+  },
+  "unit:src/features/github/details/details.test.tsx": {
+    "status": "partial",
+    "proof": "`github::details_view::tests`; the state and logic of 5 of 5 cases, on the model; the view is not built"
+  },
+  "unit:src/features/github/details/model.test.ts": {
+    "status": "done",
+    "proof": "`github::details::tests`"
+  },
+  "unit:src/features/github/diff/model.test.ts": {
+    "status": "done",
+    "proof": "`github::diff::tests`"
+  },
+  "unit:src/features/github/diff/reviewDiff.test.tsx": {
+    "status": "partial",
+    "proof": "`github::review_diff::tests`; the state and logic of 11 of 11 cases, on the model; the view is not built"
+  },
+  "unit:src/features/github/list/list.test.tsx": {
+    "status": "partial",
+    "proof": "`github::list::tests`; the state and logic of 15 of 15 cases, on the model; the view is not built"
+  },
+  "unit:src/features/github/reviewMode/reviewMode.test.tsx": {
+    "status": "partial",
+    "proof": "`github::review_mode::tests`, `github::review_editor::tests`, `github::review_diff::tests`; the state and logic of 20 of 20 cases, on the model; the view is not built"
+  },
+  "unit:src/features/github/settingsPages.test.tsx": {
+    "status": "partial",
+    "proof": "`github::diff::tests`; the state and logic of 2 of 3 cases, on the model; the view is not built"
+  },
+  "unit:src/features/github/timeline/model.test.ts": {
+    "status": "done",
+    "proof": "`github::timeline::tests`"
+  },
+  "unit:src/features/github/toolwindow/toolwindow.test.tsx": {
+    "status": "partial",
+    "proof": "`github::toolwindow::tests`; the state and logic of 7 of 8 cases, on the model; the view is not built"
+  },
+  "unit:src/features/github/ui/ui.test.tsx": {
+    "status": "partial",
+    "proof": "`github::ui_model::tests`; the state and logic of 10 of 10 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/AgentReply.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::reply_actions::tests`; the state and logic of 4 of 4 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/AgentsView.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::task_list::tests`, `agents::task_actions::tests`; the state and logic of 19 of 19 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/ConfigPickers.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::config_pickers::tests`, `agents::config_bar::tests`; the state and logic of 13 of 13 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/HomeEditor.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::store::tests`; the state and logic of 4 of 4 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/Markdown.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::markdown::tests`; the state and logic of 18 of 18 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/agentRegistry.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::registry::tests`, `agents::builtin_agents::tests`; the state and logic of 25 of 26 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/agents.test.ts": {
+    "status": "done",
+    "proof": "`agents::composer::tests`, `agents::model::tests`, `agents::markdown::tests`"
+  },
+  "unit:src/features/agents/composerCommands.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::store::tests`; the state and logic of 2 of 12 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/conversation.test.ts": {
+    "status": "done",
+    "proof": "`agents::conversation::tests`"
+  },
+  "unit:src/features/agents/draft.test.ts": {
+    "status": "done",
+    "proof": "`agents::store::tests`"
+  },
+  "unit:src/features/agents/loginHint.test.ts": {
+    "status": "done",
+    "proof": "`agents::login_hint::tests`"
+  },
+  "unit:src/features/agents/markdownImages.test.ts": {
+    "status": "done",
+    "proof": "`agents::markdown_images::tests`"
+  },
+  "unit:src/features/agents/messageEditing.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::store::tests`, `agents::reply_actions::tests`, `agents::message_editor::tests`; the state and logic of 18 of 18 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/permission.test.ts": {
+    "status": "done",
+    "proof": "`agents::permission::tests`"
+  },
+  "unit:src/features/agents/replyActions.test.ts": {
+    "status": "done",
+    "proof": "`agents::model::tests`, `agents::reply_actions::tests`"
+  },
+  "unit:src/features/agents/sessionState.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::session::tests`, `agents::follow::tests`, `agents::cards::tests`, `agents::store::tests`; the state and logic of 30 of 30 cases, on the model; the view is not built"
+  },
+  "unit:src/features/agents/unread.test.tsx": {
+    "status": "partial",
+    "proof": "`agents::store::tests`; the state and logic of 18 of 18 cases, on the model; the view is not built"
+  },
+  "unit:src/features/app/__tests__/WorkspaceDialog.test.tsx": {
+    "status": "partial",
+    "proof": "`app_models::workspace_dialog::tests`; the state and logic of 9 of 9 cases, on the model; the view is not built"
+  },
+  "unit:src/features/app/__tests__/cliCommand.test.ts": {
+    "status": "done",
+    "proof": "`app_models::cli_command::tests`"
+  },
+  "unit:src/features/app/__tests__/closeGuard.test.ts": {
+    "status": "partial",
+    "proof": "`app_models::close_guard::tests`; every case on the model; closing a window still asks only about unsaved changes"
+  },
+  "unit:src/features/app/__tests__/consoleCopy.test.ts": {
+    "status": "partial",
+    "proof": "`app_models::console_copy::tests`, `platform_more::selectable_text::tests::copies_the_panes_own_selection_on_the_copy_keys`; the key decisions; copying from the build output, database results and terminal (4 cases) needs those views"
+  },
+  "unit:src/features/app/__tests__/editCommand.test.ts": {
+    "status": "partial",
+    "proof": "`app_models::edit_command::tests`; 1 of 2 cases: undo through the focused editor's own history needs a workbench test"
+  },
+  "unit:src/features/app/__tests__/ideMode.test.tsx": {
+    "status": "partial",
+    "proof": "`app_models::project_actions::tests`; the state and logic of 1 of 3 cases, on the model; the view is not built"
+  },
+  "unit:src/features/app/__tests__/invalidateCaches.test.tsx": {
+    "status": "partial",
+    "proof": "`app_models::invalidate_caches::tests`; the state and logic of 2 of 2 cases, on the model; the view is not built"
+  },
+  "unit:src/features/app/__tests__/jetbrainsSettings.test.ts": {
+    "status": "done",
+    "proof": "`app_models::jetbrains_settings::tests`"
+  },
+  "unit:src/features/app/__tests__/lightEditClose.test.ts": {
+    "status": "partial",
+    "proof": "`app_models::windows::tests`; the decision on the model; nothing closes a single-file window on it yet"
+  },
+  "unit:src/features/app/__tests__/newProject.test.ts": {
+    "status": "done",
+    "proof": "`app_models::project_actions::tests`"
+  },
+  "unit:src/features/app/__tests__/projectName.test.ts": {
+    "status": "done",
+    "proof": "`app_models::project_actions::tests`"
+  },
+  "unit:src/features/app/__tests__/shell.test.tsx": {
+    "status": "partial",
+    "proof": "`app_models::shell::tests`; the state and logic of 3 of 9 cases, on the model; the view is not built"
+  },
+  "unit:src/features/app/__tests__/updates.test.ts": {
+    "status": "done",
+    "proof": "`app_models::updates::tests`, `workbench::notifications::tests::a_manual_update_check_still_pops_up_when_ide_updates_is_set_to_no_popup`"
+  },
+  "unit:src/features/app/__tests__/windows.test.ts": {
+    "status": "partial",
+    "proof": "`app_models::windows::tests`; every case on the model; the workbench still opens projects and files with its older, simpler code, which differs (no Attach, no leave guard, one file per empty window)"
+  },
+  "unit:src/features/plugins/__tests__/decorations.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::decorations::tests`, `plugin_models::consent::tests`"
+  },
+  "unit:src/features/plugins/__tests__/iconThemeResolver.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::icon_theme_resolver::tests`"
+  },
+  "unit:src/features/plugins/__tests__/iconThemes.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::icon_themes::tests`"
+  },
+  "unit:src/features/plugins/__tests__/pluginIcon.test.tsx": {
+    "status": "partial",
+    "proof": "`plugin_models::plugin_icon::tests`; the state and logic of 7 of 7 cases, on the model; the view is not built"
+  },
+  "unit:src/features/plugins/__tests__/plugins.test.tsx": {
+    "status": "partial",
+    "proof": "`plugin_models::store::tests`, `plugin_models::runtime_ui::tests`, `plugin_models::icon_themes::tests`, `plugin_models::icon_theme_resolver::tests`; the state and logic of 23 of 61 cases, on the model; the view is not built"
+  },
+  "unit:src/features/plugins/__tests__/ptyBackend.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::pty_bridge::tests`"
+  },
+  "unit:src/features/plugins/__tests__/ptyBridge.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::pty_bridge::tests`"
+  },
+  "unit:src/features/plugins/__tests__/runTargets.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::run_targets::tests`, `run::store::tests::language_run_targets_apply_to_their_tools`"
+  },
+  "unit:src/features/plugins/__tests__/startupTheme.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::startup_theme::tests`"
+  },
+  "unit:src/features/plugins/__tests__/views.test.tsx": {
+    "status": "partial",
+    "proof": "`plugin_models::view_helpers::tests`; the state and logic of 4 of 26 cases, on the model; the view is not built"
+  },
+  "unit:src/features/plugins/__tests__/webViews.test.tsx": {
+    "status": "partial",
+    "proof": "`plugin_models::web_frames::tests`; the state and logic of 3 of 18 cases, on the model; the view is not built"
+  },
+  "unit:src/features/plugins/__tests__/workspaceContains.test.ts": {
+    "status": "partial",
+    "proof": "`plugin_models::workspace_contains::tests`; 12 of 13 cases: stopping to listen on disposal is the caller's part, which is not wired"
+  },
+  "unit:src/features/plugins/activeFile.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::active_file::tests`"
+  },
+  "unit:src/features/plugins/indexedMarkers.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::indexed_markers::tests`"
+  },
+  "unit:src/features/plugins/languageVisuals.test.ts": {
+    "status": "partial",
+    "proof": "`plugin_models::language_visuals::tests`; 2 of 3 cases: highlighting an embedded slice with its own grammar needs the editor"
+  },
+  "unit:src/features/plugins/lineMarkerGutter.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::line_markers::tests`"
+  },
+  "unit:src/features/plugins/markerIcons.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::marker_icons::tests`"
+  },
+  "unit:src/features/plugins/markerStore.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::marker_store::tests`"
+  },
+  "unit:src/features/plugins/navigation.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::navigation::tests`"
+  },
+  "unit:src/features/plugins/pluginText.test.ts": {
+    "status": "done",
+    "proof": "`plugin_models::plugin_text::tests`"
   }
 }

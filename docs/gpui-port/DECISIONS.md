@@ -503,3 +503,15 @@ No merge editor, diff viewer or multi-repository UI is drawn from these yet.
 - "Open in Find Window" searches the file again through the backend. The bar's In Selection scope, its excluded occurrences and unsaved text are not carried over.
 - The bar's multiple-cursor buttons ask for actions that no handler exists for yet, so they do nothing. Escape in the editor does not close the bar (Escape in the bar does). A window with a single file and no project has no bar.
 - A query of several lines shows on one line with a mark per line break, because the text field holds one line.
+
+## D65. Five features as models, and what a model-only row means
+
+`database/`, `github/`, `agents/`, `app_models/` and `plugin_models/` (817 tests) are subagents' work on 84 specs, compiled by an integrating agent with about 25 small fixes. None of it is drawn or called yet.
+
+- How these rows are marked: a `.test.ts` spec whose cases all have a named Rust test is at parity as a spec. A `.test.tsx` spec whose state and logic are proven on a model is partial until its view exists, whatever the count. The feature, tool window and action rows of these features stay open.
+- The integrating agent found one real defect by a failing test and its sibling by reading: two GitHub models matched keys by their browser names ("ArrowUp", "Enter") where this crate's views pass GPUI's ("up", "enter"). Both fixed, with their tests.
+- Four backend crates are now dependencies of the app crate (`ide-db`, `ide-github`, `ide-agent`, `ide-tools`); the lock check still passes.
+- The plugin models use their own copies of four types of the extension crate, which is not a dependency and is not re-exported by the host. They are swapped when the plugin views are wired.
+- The app-shell models describe what the specs demand of opening and closing; the workbench's own older code is simpler and differs (reported by the model's author from reading, file and line in the commit's code): opening a project has no Attach answer, no remembered policy and no leave guard; opening files into an empty window opens only the last; closing asks only about unsaved changes, not about running processes or exit confirmation. Replacing that code with these models is a slice of its own, so `windows`, `closeGuard` and `lightEditClose` are partial.
+- GitHub has no operations in the host crate: they exist only as commands of the desktop shell. The native app will call the GitHub crate directly.
+- Not started in these features: the agents' composer popups (21 cases), most of the Plugins page and contributed views (about 180 cases), `menuBridge` (15, the webview side of the native menu, which the native menu replaces), `host` (3, a build-info request that is a compile-time constant here).
