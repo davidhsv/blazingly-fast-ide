@@ -133,7 +133,7 @@
   },
   "feature:project-tree": {
     "status": "partial",
-    "proof": "`project_tree::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; lazy listing, keyboard navigation and opening files only: no file-type icons, context menu, file operations, view modes, package compaction or VCS colours"
+    "proof": "`project_tree::tests`, `project_tree_model::tests`, `project_tree_paths::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; the view still uses the simple listing: the ported model (compacted packages, folder kinds, extra roots) is not wired to it, and there is no context menu, file operation or VCS colour"
   },
   "point.registerToolWindow:project": {
     "status": "partial",
@@ -318,5 +318,17 @@
   "module:src/workbench/toolwindows/ToolWindows.tsx": {
     "status": "partial",
     "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`; left stripe, one island and its title: no header actions, drag and drop, resize handles or other sides"
+  },
+  "unit:src/features/project-tree/model.test.ts": {
+    "status": "partial",
+    "proof": "`project_tree_model::tests`; all 16 cases, but names are ordered without ICU collation: punctuation, accents and non-ASCII digits sort differently from the webview"
+  },
+  "unit:src/features/project-tree/paths.test.ts": {
+    "status": "done",
+    "proof": "`project_tree_paths::tests`"
+  },
+  "unit:src/features/project-tree/folderKind.test.ts": {
+    "status": "done",
+    "proof": "`project_tree_paths::tests`"
   }
 }
