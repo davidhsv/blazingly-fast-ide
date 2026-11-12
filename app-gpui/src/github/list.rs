@@ -231,9 +231,9 @@ pub fn with_chip(search: &SearchValue, chip: Chip, value: Option<ChipValue>) -> 
     next
 }
 
-/// A key pressed on a chip resets it (Delete / Backspace).
+/// A key pressed on a chip resets it (Delete / Backspace), by the name a keystroke carries.
 pub fn is_chip_reset_key(key: &str) -> bool {
-    matches!(key, "Delete" | "Backspace")
+    matches!(key, "delete" | "backspace")
 }
 
 /// The history popup's text of a search (`getShortText`), e.g.
@@ -1002,7 +1002,7 @@ mod tests {
         let mut list = PrList::default();
         mount(&mut list);
         assert_eq!(Chip::State.text(&list.search, &i18n), ("Open".into(), true));
-        assert!(is_chip_reset_key("Delete"));
+        assert!(is_chip_reset_key("delete") && is_chip_reset_key("backspace") && !is_chip_reset_key("enter"));
         let request = list.set_search(&with_chip(&list.search, Chip::State, None), Some(&repo())).expect("connected");
         assert_eq!(query_of(&request), "type:pr repo:org/app");
     }

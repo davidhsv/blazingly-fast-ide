@@ -2504,20 +2504,20 @@
     "proof": "`editor::find_bar::tests`; the table of the spec is a loop inside one test"
   },
   "action:find.inFile": {
-    "status": "done",
-    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+    "status": "partial",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the occurrences are selected but not marked in the editor, Escape in the editor does not close the bar, and a single-file window has no bar"
   },
   "action:find.replaceInFile": {
-    "status": "done",
-    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+    "status": "partial",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the occurrences are selected but not marked in the editor, Escape in the editor does not close the bar, and a single-file window has no bar"
   },
   "action:find.next": {
-    "status": "done",
-    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+    "status": "partial",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the occurrences are selected but not marked in the editor, Escape in the editor does not close the bar, and a single-file window has no bar"
   },
   "action:find.previous": {
-    "status": "done",
-    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+    "status": "partial",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the occurrences are selected but not marked in the editor, Escape in the editor does not close the bar, and a single-file window has no bar"
   },
   "action:find.openInWindow": {
     "status": "partial",
