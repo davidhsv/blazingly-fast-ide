@@ -195,3 +195,11 @@ The shortcut dispatcher sees every keystroke before the focused view (D12). The 
 ⌘K clears inside the emulator as xterm.js does (the cursor's line becomes the first, the rest and the scrollback go) and does not involve the shell. A first version sent the shell a form feed after clearing the scrollback; measured in the real-shell test, the shell's redraw scrolled the old screen back into the scrollback.
 
 The terminal's colours now come from the ported `terminal::theme::build_theme` (including the palette derived for themes without ANSI tokens), replacing the view's own reduced copy. Still the view's own and to be replaced by the ported modules as the tool window grows: tabs and groups (`terminal::store`), the resize debounce (`terminal::fit`), links, the find bar, drop and image paste.
+
+## D32. Find in Files: the models are in; their search types are the UI's own, converted at the edge
+
+`find/` holds the ported Find in Files and Replace in Files models (query, scopes and file masks, a find session, the Find tool window's tree, the replace flow, the search popup's keys): 60 spec cases, no view yet.
+
+`find/ipc.rs` keeps UI-side copies of the backend's search types (`ide_search`, `ide_index`, `ide_lsp`), with paths as the `/`-separated strings the models compare and with equality and defaults the tests rely on. They are not replaced by the backend's types: the copies are what the models were specified against. The view that will call the backend converts in both directions in one place, where the compiler checks every field.
+
+Delivered by the same subagent but not wired: its Search Everywhere controller, routes and a second copy of the model, ranking and filters, which duplicate the Search Everywhere batch another subagent is still writing. They stay out of the build until the two are reconciled into one.

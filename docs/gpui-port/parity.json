@@ -790,5 +790,33 @@
   "unit:src/features/terminal/terminal.test.ts": {
     "status": "done",
     "proof": "`terminal::fit::tests`, `terminal::keys::tests`, `terminal::find_bar::tests`, `terminal::theme::tests`, `terminal::links::tests`, `terminal::store::tests`"
+  },
+  "unit:src/features/search/__tests__/findScopes.test.ts": {
+    "status": "done",
+    "proof": "`find::store::tests`, `find::scopes_dialog::tests`, `find::row_selection::tests`"
+  },
+  "unit:src/features/search/__tests__/findSession.test.ts": {
+    "status": "done",
+    "proof": "`find::session::tests`"
+  },
+  "unit:src/features/search/__tests__/findWindow.test.ts": {
+    "status": "done",
+    "proof": "`find::window_store::tests`, `find::find_tool_window::tests`"
+  },
+  "unit:src/features/search/__tests__/fileMasks.test.ts": {
+    "status": "done",
+    "proof": "`find::store::tests::masks_are_the_projects_most_common_language_file_types_recent_masks_first`"
+  },
+  "unit:src/features/search/__tests__/query.test.ts": {
+    "status": "done",
+    "proof": "`find::query::tests`"
+  },
+  "unit:src/features/search/__tests__/replaceFlow.test.ts": {
+    "status": "done",
+    "proof": "`find::replace_flow::tests`"
+  },
+  "unit:src/features/search/__tests__/searchKeys.test.ts": {
+    "status": "done",
+    "proof": "`find::search_keys::tests`"
   }
 }

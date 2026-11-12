@@ -2,6 +2,7 @@
 
 pub mod backend;
 pub mod editor;
+pub mod find;
 pub mod platform;
 pub mod plugins;
 pub mod project_tree;
