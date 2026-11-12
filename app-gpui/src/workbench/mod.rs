@@ -11,6 +11,7 @@ pub mod notifications;
 pub mod notifications_view;
 pub mod project_color;
 pub mod quick_switch;
+mod run_configs;
 mod services_window;
 pub mod status_bar_widgets;
 pub mod tasks;
@@ -243,6 +244,10 @@ pub struct Workbench {
     services: Option<services_window::ServicesWindow>,
     /// The diff shown in front of the window.
     diff_window: Option<diff_window::DiffWindow>,
+    /// The run widget of the project's title bar.
+    run_widget: Option<run_configs::RunWidgetSlot>,
+    /// Edit Configurations, while it is open.
+    edit_configs: Option<run_configs::EditConfigsWindow>,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -377,6 +382,7 @@ pub fn register_actions(cx: &mut App) {
     let registry = cx.default_global::<ActionRegistry>();
     services_window::register_actions(registry);
     diff_window::register_actions(registry);
+    run_configs::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
     let flags: [(&str, &str, Flag); 4] = [
@@ -587,9 +593,7 @@ pub fn register_actions(cx: &mut App) {
         driver.update(cx, act);
         Ok(())
     }
-    registry.handle("run.run", |_, window, cx| {
-        on_run(window, cx, |driver, cx| driver.when_loaded(|driver, cx| driver.run_selected(cx), cx))
-    });
+    registry.handle("run.run", |_, window, cx| on_run(window, cx, |driver, cx| driver.launch_selected(cx).detach()));
     registry.handle("run.runConfig", |call, window, cx| {
         let arg = call.arg.cloned();
         on_run(window, cx, move |driver, cx| {
@@ -862,6 +866,8 @@ impl Workbench {
             light_find_bar: None,
             services: None,
             diff_window: None,
+            run_widget: None,
+            edit_configs: None,
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
@@ -1642,6 +1648,7 @@ impl Workbench {
         let focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
         set_context(window, cx, "projectOpening", matches!(self.content, Content::Opening(_)));
         set_context(window, cx, "popupOpen", self.popup.is_some());
+        self.publish_run_context(window, cx);
         set_context(window, cx, "findPopupOpen", self.find_popup().is_some());
         let focused_bar = self.focused_find_bar(window, cx);
         set_context(window, cx, "findBarOpen", !self.shown_find_bars().is_empty());
@@ -1884,11 +1891,13 @@ impl Workbench {
             RunDriver::new(&label, store).with_window(handle).with_save_all(save_all).with_tool_windows(tool_windows)
         });
         driver.update(cx, |driver, cx| driver.load(root, cx));
+        self.mount_run_widget(&driver, window, cx);
         driver
     }
 
     /// The project goes: its processes stop and its sessions are forgotten.
     fn reset_runs(&mut self, cx: &mut Context<Self>) {
+        self.drop_run_configs();
         if let Some(driver) = self.run_driver().cloned() {
             driver.update(cx, |driver, cx| driver.reset(cx));
         }
@@ -2679,6 +2688,7 @@ impl Workbench {
     /// against the window as it is without it.
     pub fn close_popup(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(popup) = self.popup.take() else { return };
+        self.run_popup_closed(&popup.view, cx);
         if let Some(target) = popup.restore.or_else(|| self.editor().map(|editor| editor.focus_handle(cx))) {
             window.focus(&target, cx);
         }
@@ -3463,6 +3473,7 @@ impl Render for Workbench {
                     .window_control_area(gpui_kit::WindowControlArea::Drag)
                     .child(SharedString::from(self.shown_title.clone().unwrap_or_default()))
                     .child(div().flex_1())
+                    .children(self.run_widget().cloned())
                     // The IDE mode of the window's project; a click switches it.
                     .children(framed.then(|| {
                         let full = self.ide_mode(cx).is_full();
@@ -3489,6 +3500,7 @@ impl Render for Workbench {
             .child(div().flex_1().min_h_0().w_full().child(body))
             .child(notification_balloons::layer(&self.balloons, cx))
             .children(self.diff_window_layer(cx))
+            .children(self.edit_configs_layer())
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
                 gpui_kit::deferred(
@@ -6299,6 +6311,286 @@ mod tests {
         let nap = session(cx, "nap").expect("a session");
         assert_eq!((nap.status, nap.stopped), (SessionStatus::Finished, true));
         assert_eq!(row(cx, nap_key).and_then(|row| row.detail), Some("Stopped".to_owned()));
+    }
+
+    /// A program configuration that runs `command arg`.
+    fn program(id: &str, command: &str, arg: &str) -> ide_run::RunConfig {
+        ide_run::RunConfig {
+            command: command.to_owned(),
+            args: vec![arg.to_owned()],
+            ..crate::run::configs::blank_config(id, id, "program")
+        }
+    }
+
+    /// A trusted project whose saved configurations are `configs`, open in a window whose run
+    /// configurations are listed: the window, the project's folder (kept while it lives) and its root,
+    /// and its run store.
+    fn run_project(
+        cx: &mut TestAppContext,
+        configs: Vec<ide_run::RunConfig>,
+    ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf, Entity<RunStore>) {
+        let home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        ide_run::save_user_configs(&root, &configs).expect("the configurations are saved");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let driver = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
+        let store = driver.read_with(cx, |driver, _| driver.store().clone());
+        wait_long(cx, "listing the configurations", |cx| store.read_with(cx, |store, _| store.loaded));
+        (workbench, cx, [home, folder], root, store)
+    }
+
+    /// Waits for `done` while processes run and their timers fire: real time passes, and so does the
+    /// executor's clock.
+    fn wait_long(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
+        for _ in 0..3000 {
+            cx.executor().advance_clock(Duration::from_millis(20));
+            cx.run_until_parked();
+            if done(cx) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("{what} did not happen within thirty seconds");
+    }
+
+    fn click_on(cx: &mut VisualTestContext, selector: &'static str) {
+        cx.run_until_parked();
+        let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
+        cx.simulate_click(bounds.center(), gpui_kit::Modifiers::default());
+        cx.run_until_parked();
+    }
+
+    fn run_action(cx: &mut VisualTestContext, id: &str, arg: Option<serde_json::Value>) {
+        cx.update(|window, cx| crate::platform::actions::execute_action_or_throw(id, arg.as_ref(), window, cx))
+            .unwrap_or_else(|error| panic!("{id} runs: {error}"));
+        cx.run_until_parked();
+    }
+
+    /// The names of the configurations saved in the project's file.
+    fn saved_names(root: &std::path::Path) -> Vec<String> {
+        let saved = ide_run::load_user_configs(root).expect("the saved configurations are read");
+        saved.into_iter().map(|config| config.name).collect()
+    }
+
+    fn chooser_lines(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<Vec<String>> {
+        let chooser = workbench.read_with(cx, |w, _| w.config_chooser())?;
+        Some(chooser.read_with(cx, |chooser, _| chooser.lines()))
+    }
+
+    /// Selects the chooser's row `name` (the chooser is open).
+    fn select_in_chooser(workbench: &Entity<Workbench>, name: &str, cx: &mut VisualTestContext) {
+        let chooser = workbench.read_with(cx, |w, _| w.config_chooser()).expect("the chooser is open");
+        let lines = chooser.read_with(cx, |chooser, _| chooser.lines());
+        let index = lines.iter().position(|line| line == name).unwrap_or_else(|| panic!("{name} is in {lines:?}"));
+        chooser.update(cx, |chooser, cx| chooser.select(index, cx));
+    }
+
+    /// The title bar's run widget names the selected configuration and its name opens the chooser, which
+    /// lists the project's configurations: choosing one selects it, Enter in the Run mode of Select
+    /// Run/Debug Configuration runs it into the Run tool window, Escape closes it, and the action closes an
+    /// open one. Run in the widget runs the selection and the widget stops showing it starting.
+    #[gpui_kit::test]
+    async fn the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes(cx: &mut TestAppContext) {
+        let configs = vec![program("hello", "/bin/echo", "hello"), program("bye", "/bin/echo", "bye")];
+        let (workbench, cx, _folders, _, store) = run_project(cx, configs);
+        let widget = workbench.read_with(cx, |w, _| w.run_widget().cloned()).expect("the title bar has the widget");
+        let label = |cx: &mut VisualTestContext| widget.read_with(cx, |widget, cx| widget.label(cx));
+        assert_eq!(store.read_with(cx, |store, _| store.selected_id.clone()).as_deref(), Some("hello"));
+        assert_eq!(label(cx), "hello");
+        let selected_kind = |cx: &mut VisualTestContext| {
+            cx.update(|window, cx| {
+                let context = crate::platform::context::window_context(window, cx);
+                let kind = context.get("run.selectedKind");
+                matches!(kind, Some(crate::platform::context::ContextValue::Text(kind)) if &**kind == "program")
+            })
+        };
+        assert!(selected_kind(cx), "the selection's kind is published");
+        let debug = widget.read_with(cx, |widget, cx| widget.buttons(cx)).iter().any(|b| b.id == "run-widget-debug");
+        assert!(!debug, "without a debugger Debug is not offered");
+
+        // The name opens the chooser to select: choosing a row selects it and runs nothing.
+        click_on(cx, "run-widget-chooser");
+        let lines = chooser_lines(&workbench, cx).expect("the chooser is open");
+        assert!(lines.contains(&"hello".to_owned()) && lines.contains(&"bye".to_owned()), "{lines:?}");
+        let chooser = workbench.read_with(cx, |w, _| w.config_chooser()).expect("the chooser is open");
+        assert_eq!(chooser.read_with(cx, |chooser, _| chooser.mode()), crate::run::store::ChooserMode::Select);
+        assert!(widget.read_with(cx, |widget, cx| widget.chooser_open(cx)));
+        select_in_chooser(&workbench, "bye", cx);
+        cx.simulate_keystrokes("enter");
+        cx.run_until_parked();
+        assert!(chooser_lines(&workbench, cx).is_none(), "choosing closes the chooser");
+        assert_eq!(label(cx), "bye");
+        assert!(!widget.read_with(cx, |widget, cx| widget.chooser_open(cx)));
+        assert!(store.read_with(cx, |store, _| store.sessions.is_empty()), "selecting runs nothing");
+        let stored = cx.update(|_, cx| {
+            let root = store.read(cx).project_root.clone().unwrap_or_default();
+            let key = format!("{}{root}", crate::run::store::SELECTED_KEY);
+            cx.global::<UiStorage>().get(&key).map(str::to_owned)
+        });
+        assert_eq!(stored.as_deref(), Some("bye"), "the selection is stored");
+
+        // Select Run/Debug Configuration runs: Enter on the selected row runs it.
+        run_action(cx, "run.chooseConfig", None);
+        let chooser = workbench.read_with(cx, |w, _| w.config_chooser()).expect("the chooser is open");
+        assert_eq!(chooser.read_with(cx, |chooser, _| chooser.mode()), crate::run::store::ChooserMode::Run);
+        assert_eq!(chooser.read_with(cx, |chooser, _| chooser.selected()).as_deref(), Some("bye"));
+        cx.simulate_keystrokes("enter");
+        let session = |cx: &mut VisualTestContext, name: &str| {
+            store.read_with(cx, |store, _| store.sessions.iter().find(|s| s.config.name == name).cloned())
+        };
+        wait_long(cx, "the exit of echo", |cx| session(cx, "bye").is_some_and(|s| !s.is_live()));
+        assert_eq!(session(cx, "bye").and_then(|s| s.exit_code), Some(0));
+        let view = workbench
+            .read_with(cx, |w, _| w.tool_window_view(RUN_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<RunView>().ok())
+            .expect("the Run tool window holds its view");
+        wait_long(cx, "the output", |cx| view.read_with(cx, |view, cx| view.lines(cx)).iter().any(|l| l == "bye"));
+        assert!(chooser_lines(&workbench, cx).is_none());
+
+        // Escape closes the chooser; the action closes an open one.
+        run_action(cx, "run.chooseConfig", None);
+        assert!(chooser_lines(&workbench, cx).is_some());
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(chooser_lines(&workbench, cx).is_none(), "Escape closes the chooser");
+        assert!(!store.read_with(cx, |store, _| store.chooser_open));
+        run_action(cx, "run.chooseConfig", None);
+        run_action(cx, "run.chooseConfig", None);
+        assert!(chooser_lines(&workbench, cx).is_none(), "the action closes an open chooser");
+
+        // More Actions opens its menu; Escape closes it.
+        click_on(cx, "run-widget-more");
+        let more = workbench.read_with(cx, |w, _| w.open_menu::<std::convert::Infallible>());
+        assert!(more.is_some(), "More Actions shows its menu");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.open_menu::<std::convert::Infallible>()).is_none());
+
+        // Run with nothing selected opens the chooser to run one.
+        let driver = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
+        driver.update(cx, |driver, cx| driver.select_config(None, cx));
+        assert_eq!(label(cx), "Select Configuration");
+        run_action(cx, "run.run", None);
+        let chooser = workbench.read_with(cx, |w, _| w.config_chooser()).expect("Run opens the chooser");
+        assert_eq!(chooser.read_with(cx, |chooser, _| chooser.mode()), crate::run::store::ChooserMode::Run);
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        driver.update(cx, |driver, cx| driver.select_config(Some("bye"), cx));
+
+        // Run in the widget runs the selection; once it started, the widget no longer shows it starting.
+        let first = session(cx, "bye").expect("a tab").started_at;
+        click_on(cx, "run-widget-run");
+        wait_long(cx, "the second run of echo", |cx| {
+            session(cx, "bye").is_some_and(|s| s.started_at > first && !s.is_live())
+                && !widget.read_with(cx, |widget, cx| widget.loading(cx))
+        });
+    }
+
+    /// Edit Configurations adds a configuration: its type from Add New Configuration, its executable from
+    /// the file dialog, its name and arguments typed into the form; OK saves it to the project, selects it
+    /// and closes the dialog. Cancel after an edit saves nothing. Create Run Configuration saves the
+    /// configuration it is given and opens it in the dialog.
+    #[gpui_kit::test]
+    async fn edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing(
+        cx: &mut TestAppContext,
+    ) {
+        let (workbench, cx, _folders, root, store) = run_project(cx, vec![program("hello", "/bin/echo", "hello")]);
+        let dialog = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.edit_configs_dialog().cloned());
+        let type_into = |cx: &mut VisualTestContext, key: &str, text: &str| {
+            cx.run_until_parked();
+            let open = dialog(cx).expect("the dialog is open");
+            let field = open.read_with(cx, |dialog, _| dialog.field(key)).unwrap_or_else(|| panic!("{key} is drawn"));
+            cx.update(|window, cx| {
+                let focus = field.focus_handle(cx);
+                window.focus(&focus, cx);
+            });
+            cx.simulate_keystrokes("cmd-a backspace");
+            cx.simulate_input(text);
+            cx.run_until_parked();
+        };
+
+        run_action(cx, "run.editConfigs", None);
+        // The dialog opens once the project's templates are read.
+        wait_long(cx, "opening Edit Configurations", |cx| dialog(cx).is_some());
+        let open = dialog(cx).expect("Edit Configurations opens");
+        assert!(store.read_with(cx, |store, _| store.editor_open));
+        assert!(open.read_with(cx, |dialog, _| dialog.tree_lines()).contains(&"hello".to_owned()));
+
+        // Add New Configuration › Program.
+        click_on(cx, "run-edit-add");
+        cx.simulate_input("Program");
+        cx.simulate_keystrokes("enter");
+        cx.run_until_parked();
+        assert_eq!(open.read_with(cx, |dialog, _| dialog.selected()).as_deref(), Some("Unnamed"));
+        type_into(cx, "name", "greet");
+        click_on(cx, "run-edit-browse-param:program");
+        assert!(cx.did_prompt_for_paths());
+        cx.simulate_path_prompt_response(|options| {
+            assert!(options.files && !options.directories && !options.multiple);
+            Some(vec![PathBuf::from("/bin/echo")])
+        });
+        cx.run_until_parked();
+        let program_field = open.read_with(cx, |dialog, _| dialog.field("param:program")).expect("the field is drawn");
+        assert_eq!(program_field.read_with(cx, |field, _| field.text().to_owned()), "/bin/echo");
+        type_into(cx, "param:arguments", "hi");
+        click_on(cx, "run-edit-ok");
+        wait_long(cx, "saving the configurations", |cx| dialog(cx).is_none());
+        assert_eq!(saved_names(&root), ["hello", "greet"]);
+        let saved = ide_run::load_user_configs(&root).expect("the configurations are read");
+        let greet = saved.iter().find(|config| config.name == "greet").expect("greet is saved");
+        assert_eq!((greet.command.as_str(), greet.args.clone()), ("/bin/echo", vec!["hi".to_owned()]));
+        let listed: Vec<String> =
+            store.read_with(cx, |store, _| store.configs().iter().map(|c| c.name.clone()).collect());
+        assert_eq!(listed, ["hello", "greet"], "the configurations are listed again");
+        let selected = store.read_with(cx, |store, _| store.selected_config().map(|c| c.name.clone()));
+        assert_eq!(selected.as_deref(), Some("greet"));
+        assert!(!store.read_with(cx, |store, _| store.editor_open));
+
+        // Cancel after an edit saves nothing.
+        run_action(cx, "run.editConfigs", Some(serde_json::Value::from("hello")));
+        wait_long(cx, "opening Edit Configurations", |cx| dialog(cx).is_some());
+        let open = dialog(cx).expect("Edit Configurations opens");
+        assert_eq!(open.read_with(cx, |dialog, _| dialog.selected()).as_deref(), Some("hello"));
+        type_into(cx, "name", "changed");
+        assert!(open.read_with(cx, |dialog, _| dialog.is_dirty()));
+        click_on(cx, "run-edit-cancel");
+        assert!(dialog(cx).is_none(), "Cancel closes the dialog");
+        assert_eq!(saved_names(&root), ["hello", "greet"]);
+
+        // Create Run Configuration saves what it is given and opens it in the dialog.
+        let made = serde_json::to_value(program("made", "/bin/echo", "made")).expect("a configuration is JSON");
+        run_action(cx, "run.createConfig", Some(made));
+        wait_long(cx, "creating the configuration", |cx| dialog(cx).is_some());
+        // A configuration added in the dialog is kept in the workspace's own file, read after the project's.
+        assert_eq!(saved_names(&root), ["hello", "made", "greet"]);
+        let local = std::fs::read_to_string(root.join(".openidea/run.local.toml")).unwrap_or_default();
+        assert!(local.contains("greet") && !local.contains("made"), "{local}");
+        let open = dialog(cx).expect("the dialog is open");
+        assert_eq!(open.read_with(cx, |dialog, _| dialog.selected()).as_deref(), Some("made"));
+        assert_eq!(store.read_with(cx, |store, _| store.selected_id.clone()).as_deref(), Some("made"));
+        click_on(cx, "run-edit-cancel");
+        assert!(dialog(cx).is_none());
+    }
+
+    /// Delete on a configuration of the chooser removes it from the project; the chooser stays open on
+    /// the rest.
+    #[gpui_kit::test]
+    async fn deleting_a_configuration_in_the_chooser_removes_it_from_the_project(cx: &mut TestAppContext) {
+        let configs = vec![program("hello", "/bin/echo", "hello"), program("bye", "/bin/echo", "bye")];
+        let (workbench, cx, _folders, root, store) = run_project(cx, configs);
+        run_action(cx, "run.chooseConfig", None);
+        select_in_chooser(&workbench, "hello", cx);
+        cx.simulate_keystrokes("delete");
+        wait_long(cx, "deleting the configuration", |cx| {
+            store.read_with(cx, |store, _| store.configs().iter().map(|c| c.id.clone()).collect::<Vec<_>>()) == ["bye"]
+        });
+        assert_eq!(saved_names(&root), ["bye"]);
+        let lines = chooser_lines(&workbench, cx).expect("the chooser stays open");
+        assert!(!lines.contains(&"hello".to_owned()) && lines.contains(&"bye".to_owned()), "{lines:?}");
     }
 
     #[test]

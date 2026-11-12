@@ -17,15 +17,15 @@ use crate::run::config_types::{RunConfigTypes, TypeEnv};
 use crate::run::configs::param;
 use crate::run::console::ChunkKind;
 use crate::run::gradle_run::{GradleDelegation, gradle_boot_script, gradle_test_script, launch_with_script};
-use crate::run::java_launch::{FoundSource, JavaLaunchError, PrepareStep, PreparedLaunch};
+use crate::run::java_launch::{FoundSource, JavaLaunchError, ModuleStep, PrepareStep, PreparedLaunch};
 use crate::run::jvm_types::{gradle_jvm_args_script, with_jvm_args_script};
 use crate::run::links::FileTarget;
 use crate::run::navigate::{OpenAction, ResolveStep, TargetResolver, open_resolved};
 use crate::run::sessions::selected_target;
 use crate::run::store::{
     CloseTab, FINISH_DELAY_MS, FinishContext, FlushSchedule, PINNED_KEY, Persist, RECENT_KEY, RunSettings, RunStore,
-    SELECTED_KEY, SessionStatus, StartEffect, StartEnv, StartOptions, StartRun, StartStep, StopAction, StorageWrite,
-    TEMPORARY_KEY,
+    SELECTED_KEY, SaveConfigs, SaveStep, SessionStatus, StartEffect, StartEnv, StartOptions, StartRun, StartStep,
+    StopAction, StorageWrite, TEMPORARY_KEY,
 };
 use crate::run::types::register_builtin_types;
 use crate::run_testing::parsers::with_test_reporting;
@@ -415,24 +415,253 @@ impl RunDriver {
     }
 
     /// Run: the selected configuration, restarting its live session; the active file's context when
-    /// "Current File" is selected; the configuration chooser when nothing is.
-    pub fn run_selected(&mut self, cx: &mut Context<Self>) {
+    /// "Current File" is selected; the configuration chooser when nothing is. The task ends with the
+    /// session the launch started, if any.
+    pub fn run_selected(&mut self, cx: &mut Context<Self>) -> Task<Option<String>> {
         let store = self.store.read(cx);
         if store.current_file_selected() {
             cx.emit(RunDriverEvent::RunAction { id: "run.runContext", arg: None });
-            return;
+            return Task::ready(None);
         }
         let Some(config) = store.selected_config().cloned() else {
             cx.emit(RunDriverEvent::RunAction { id: "run.chooseConfig", arg: None });
-            return;
+            return Task::ready(None);
         };
         if let Some(live) = selected_target(store, Some(&config.id)).map(|session| session.id.clone()) {
-            if let Some(rerun) = self.rerun(&live, cx) {
-                rerun.detach();
-            }
-            return;
+            return self.rerun(&live, cx).unwrap_or_else(|| Task::ready(None));
         }
-        self.start(config, StartOptions::default(), cx).detach();
+        self.start(config, StartOptions::default(), cx)
+    }
+
+    /// [`Self::run_selected`] once the configurations are listed.
+    pub fn launch_selected(&mut self, cx: &mut Context<Self>) -> Task<Option<String>> {
+        let (sender, launched) = oneshot::channel();
+        self.when_loaded(
+            move |driver, cx| {
+                // The receiver is gone only when the caller dropped the launch.
+                let _ = sender.send(driver.run_selected(cx));
+            },
+            cx,
+        );
+        cx.spawn(async move |_, _| match launched.await {
+            Ok(launch) => launch.await,
+            // The project closed before its configurations were listed.
+            Err(_) => None,
+        })
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Changing the configurations
+
+    /// Selects a configuration (or "Current File", or nothing) and stores the selection.
+    pub fn select_config(&mut self, id: Option<&str>, cx: &mut Context<Self>) {
+        let write = self.store.update(cx, |store, cx| {
+            let write = store.select_config(id);
+            cx.notify();
+            write
+        });
+        Self::persist(write, cx);
+    }
+
+    /// Pins a configuration to the top of the chooser, or unpins it.
+    pub fn toggle_pinned(&mut self, id: &str, cx: &mut Context<Self>) {
+        let write = self.store.update(cx, |store, cx| {
+            let write = store.toggle_pinned(id);
+            cx.notify();
+            write
+        });
+        Self::persist(write, cx);
+    }
+
+    /// Deletes a configuration: a temporary one is forgotten, any other is removed from the project's
+    /// saved configurations (a detected one is suppressed), which are listed again.
+    pub fn delete_config(&mut self, id: &str, cx: &mut Context<Self>) -> Task<Result<(), String>> {
+        let (persist, saved) = self.store.update(cx, |store, cx| {
+            let deleted = store.delete_config(id);
+            cx.notify();
+            deleted
+        });
+        self.carry_out_persist(persist, cx);
+        match saved {
+            Some((user, removed)) => self.save_configs(user, removed, cx),
+            None => Task::ready(Ok(())),
+        }
+    }
+
+    /// "Save Configuration": the temporary configuration `id` becomes a saved one, and stays selected.
+    pub fn save_temporary(&mut self, id: &str, cx: &mut Context<Self>) -> Task<Result<(), String>> {
+        let saved = self.store.update(cx, |store, cx| {
+            let saved = store.save_temporary(id);
+            cx.notify();
+            saved
+        });
+        let Some((persist, user)) = saved else { return Task::ready(Ok(())) };
+        self.carry_out_persist(persist, cx);
+        let saving = self.save_configs(user, Vec::new(), cx);
+        let id = id.to_owned();
+        cx.spawn(async move |this, cx| {
+            saving.await?;
+            this.update(cx, |driver, cx| driver.select_config(Some(&id), cx)).map_err(|error| error.to_string())
+        })
+    }
+
+    /// Edit Configurations' OK / Apply: saves the dialog's working copy `draft`, suppressing the detected
+    /// configurations `removed_detected_ids`, and lists the configurations again.
+    pub fn save_edited_configs(
+        &mut self,
+        draft: &[RunConfig],
+        removed_detected_ids: Vec<String>,
+        cx: &mut Context<Self>,
+    ) -> Task<Result<(), String>> {
+        let (persist, user) = self.store.update(cx, |store, cx| {
+            let saved = store.save_edited_configs(draft);
+            cx.notify();
+            saved
+        });
+        self.carry_out_persist(persist, cx);
+        self.save_configs(user, removed_detected_ids, cx)
+    }
+
+    /// The edit dialog closed: a configuration it was opened to modify and that was not saved goes back
+    /// to an ordinary temporary one.
+    pub fn editor_closed(&mut self, cx: &mut Context<Self>) {
+        let persist = self.store.update(cx, |store, cx| {
+            let persist = store.editor_closed();
+            cx.notify();
+            persist
+        });
+        self.carry_out_persist(persist, cx);
+    }
+
+    /// The project's configuration templates: per-type defaults for added configurations.
+    pub fn load_templates(&self, cx: &mut Context<Self>) -> Task<Result<Vec<RunConfig>, String>> {
+        let label = self.label.clone();
+        cx.spawn(async move |_, cx| {
+            Self::on_host(cx, move |host| async move { ide_host::ops::run::run_templates(&host, &label) })
+                .await
+                .map_err(|error| error.message)
+        })
+    }
+
+    /// Saves `user` as the project's configurations (an application without a module gets the module of
+    /// its main class first), suppressing the detected `removed`, then lists them again. A failure is
+    /// told in a notification too.
+    pub fn save_configs(
+        &mut self,
+        user: Vec<RunConfig>,
+        removed: Vec<String>,
+        cx: &mut Context<Self>,
+    ) -> Task<Result<(), String>> {
+        cx.spawn(async move |this, cx| {
+            if let Err(error) = Self::write_configs(&this, user, removed, cx).await {
+                let mut request = NotificationRequest::new(NotificationLevel::Error, "Cannot save run configurations");
+                request.group = Some("run".to_owned());
+                request.body = Some(error.clone());
+                let _ = this.update(cx, |driver, cx| driver.notify(request, cx));
+                return Err(error);
+            }
+            let listed = this.update(cx, |driver, cx| driver.reload(cx)).map_err(|error| error.to_string())?;
+            // The sender goes only with the driver: there is nothing left to list then.
+            let _ = listed.await;
+            Ok(())
+        })
+    }
+
+    /// Answers the steps of a [`SaveConfigs`] and writes what it settles on.
+    async fn write_configs(
+        this: &WeakEntity<Self>,
+        user: Vec<RunConfig>,
+        removed: Vec<String>,
+        cx: &mut AsyncApp,
+    ) -> Result<(), String> {
+        let label = this.update(cx, |driver, _| driver.label.clone()).map_err(|error| error.to_string())?;
+        let (mut save, mut step) = SaveConfigs::start(user, removed);
+        loop {
+            step = match step {
+                SaveStep::Save { configs, removed_detected_ids } => {
+                    let saving = Self::on_host(cx, move |host| async move {
+                        ide_host::ops::run::save_configs(&host, &label, &configs, &removed_detected_ids)
+                    });
+                    return saving.await.map_err(|error| error.message);
+                }
+                // A search that fails finds no source: the configuration is saved without a module.
+                SaveStep::Module(ModuleStep::FindFiles { names, limit }) => {
+                    let found = Self::find_sources(cx, label.clone(), names, limit).await;
+                    save.files_found(found.unwrap_or_else(|error| {
+                        tracing::warn!("cannot look for the main class of a run configuration: {}", error.message);
+                        Vec::new()
+                    }))
+                }
+                SaveStep::Module(ModuleStep::ListConfigs) => {
+                    let configs = this
+                        .update(cx, |driver, cx| driver.store.read(cx).configs().to_vec())
+                        .map_err(|error| error.to_string())?;
+                    save.configs_listed(configs)
+                }
+                SaveStep::Module(ModuleStep::ReadSources { paths }) => {
+                    let texts = Self::read_sources(cx, label.clone(), paths).await.map_err(|error| error.message)?;
+                    // The build model's module directories are not loaded in this window.
+                    save.sources_read(&texts, &[])
+                }
+                SaveStep::Module(ModuleStep::Done(_)) => {
+                    return Err("the module search of a configuration ended without its answer".to_owned());
+                }
+            };
+        }
+    }
+
+    /// Lists the configurations again; resolves once they are listed, or could not be.
+    fn reload(&mut self, cx: &mut Context<Self>) -> oneshot::Receiver<()> {
+        let (sender, listed) = oneshot::channel();
+        let Some(root) = self.store.read(cx).project_root.clone() else {
+            let _ = sender.send(());
+            return listed;
+        };
+        self.after_load.push(Box::new(move |_, _| {
+            let _ = sender.send(());
+        }));
+        self.load(&root, cx);
+        listed
+    }
+
+    /// The files of the project named `names` (at most `limit` of each), by their file name.
+    async fn find_sources(
+        cx: &mut AsyncApp,
+        window: String,
+        names: Vec<String>,
+        limit: u32,
+    ) -> Result<Vec<FoundSource>, IdeError> {
+        Self::on_host(cx, move |host| async move {
+            let inner = Arc::clone(&host);
+            host.blocking(move || {
+                let mut found = Vec::new();
+                for name in names {
+                    let hits = ide_host::ops::nav::find_files(&inner, &window, name.clone(), limit)?;
+                    let named = hits.into_iter().filter(|hit| hit.rel_path.rsplit('/').next() == Some(&name));
+                    found.extend(named.map(|hit| FoundSource {
+                        path: hit.path.0.to_string_lossy().into_owned(),
+                        rel_path: hit.rel_path,
+                    }));
+                }
+                Ok(found)
+            })
+            .await
+        })
+        .await
+    }
+
+    /// The texts of `paths`, in their order; a source that cannot be read is empty (it declares no
+    /// package).
+    async fn read_sources(cx: &mut AsyncApp, window: String, paths: Vec<String>) -> Result<Vec<String>, IdeError> {
+        Self::on_host(cx, move |host| async move {
+            let mut texts = Vec::with_capacity(paths.len());
+            for path in paths {
+                let text = ide_host::ops::fs::read_text(&host, &window, PathBuf::from(path)).await;
+                texts.push(text.unwrap_or_default());
+            }
+            Ok(texts)
+        })
+        .await
     }
 
     /// The configuration an action argument names: a configuration id, a configuration, or
@@ -743,25 +972,8 @@ impl RunDriver {
                     Self::with_i18n(cx, |i18n| start.preparation().map(|p| p.saved(saved, i18n))).ok_or_else(ended)?
                 }
                 PrepareStep::FindFiles { names, limit } => {
-                    let window = label.clone();
-                    let found = Self::on_host(cx, move |host| async move {
-                        let inner = Arc::clone(&host);
-                        host.blocking(move || {
-                            let mut found = Vec::new();
-                            for name in names {
-                                let hits = ide_host::ops::nav::find_files(&inner, &window, name.clone(), limit)?;
-                                let named =
-                                    hits.into_iter().filter(|hit| hit.rel_path.rsplit('/').next() == Some(&name));
-                                found.extend(named.map(|hit| FoundSource {
-                                    path: hit.path.0.to_string_lossy().into_owned(),
-                                    rel_path: hit.rel_path,
-                                }));
-                            }
-                            Ok(found)
-                        })
-                        .await
-                    });
-                    let found = found.await.map_err(JavaLaunchError::Backend)?;
+                    let found =
+                        Self::find_sources(cx, label.clone(), names, limit).await.map_err(JavaLaunchError::Backend)?;
                     Self::with_i18n(cx, |i18n| start.preparation().map(|p| p.files_found(found, i18n)))
                         .ok_or_else(ended)?
                 }
@@ -772,17 +984,7 @@ impl RunDriver {
                         .ok_or_else(ended)?
                 }
                 PrepareStep::ReadSources { paths } => {
-                    let window = label.clone();
-                    // A source that cannot be read declares no package.
-                    let texts = Self::on_host(cx, move |host| async move {
-                        let mut texts = Vec::with_capacity(paths.len());
-                        for path in paths {
-                            let text = ide_host::ops::fs::read_text(&host, &window, PathBuf::from(path)).await;
-                            texts.push(text.unwrap_or_default());
-                        }
-                        Ok(texts)
-                    });
-                    let texts = texts.await.map_err(JavaLaunchError::Backend)?;
+                    let texts = Self::read_sources(cx, label.clone(), paths).await.map_err(JavaLaunchError::Backend)?;
                     // The build model's module directories are not loaded in this window.
                     Self::with_i18n(cx, |i18n| start.preparation().map(|p| p.sources_read(&texts, &[], i18n)))
                         .ok_or_else(ended)?
@@ -1452,5 +1654,206 @@ mod tests {
         cx.run_until_parked();
         assert_eq!(session(&driver, cx).status, SessionStatus::Running);
         assert!(matches!(events.borrow().as_slice(), [RunDriverEvent::Notify(r)] if r.title == "Cannot stop process"));
+    }
+
+    /// A program configuration that runs `command arg`.
+    fn program(id: &str, command: &str, arg: &str) -> RunConfig {
+        RunConfig { command: command.to_owned(), args: vec![arg.to_owned()], ..blank_config(id, id, "program") }
+    }
+
+    /// The temporary folders a project test lives in: the app's home and the project.
+    struct Folders {
+        _home: tempfile::TempDir,
+        _project: tempfile::TempDir,
+        root: PathBuf,
+    }
+
+    impl Folders {
+        fn root_text(&self) -> String {
+            self.root.to_string_lossy().into_owned()
+        }
+
+        fn saved(&self) -> Vec<String> {
+            let saved = ide_run::load_user_configs(&self.root).expect("the saved configurations are read");
+            saved.into_iter().map(|config| config.name).collect()
+        }
+    }
+
+    /// A backend with a trusted project opened in window `w1` whose saved configurations are `configs`,
+    /// and a driver of window `label` over it (`w1` drives that project, any other label has none).
+    async fn project(
+        cx: &mut TestAppContext,
+        label: &str,
+        configs: &[RunConfig],
+    ) -> (Entity<RunDriver>, Rc<RefCell<Vec<RunDriverEvent>>>, Folders) {
+        use crate::backend::AppDirs;
+        cx.executor().allow_parking();
+        let home = tempfile::tempdir().expect("a temporary home");
+        let project = tempfile::tempdir().expect("a temporary project");
+        let root = project.path().canonicalize().expect("the project folder exists");
+        ide_run::save_user_configs(&root, configs).expect("the configurations are saved");
+        cx.update(|cx| {
+            cx.set_global(UiStorage::default());
+            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            cx.global::<Backend>().host.trust.decide(&root, true, false).expect("the project is trusted");
+        });
+        let open_root = root.clone();
+        let opening = cx.update(|cx| {
+            cx.global::<Backend>().with_host(move |host| async move {
+                ide_host::ops::project::open(&host, "w1", &open_root).await.map(|_| ())
+            })
+        });
+        opening.await.expect("the task completes").expect("the project opens");
+        let driver = cx.update(|cx| {
+            let store = cx.new(|_| RunStore::new());
+            cx.new(|_| RunDriver::new(label, store))
+        });
+        let events: Rc<RefCell<Vec<RunDriverEvent>>> = Rc::default();
+        let seen = Rc::clone(&events);
+        cx.update(|cx| {
+            cx.subscribe(&driver, move |_, event: &RunDriverEvent, _| seen.borrow_mut().push(event.clone())).detach();
+        });
+        (driver, events, Folders { _home: home, _project: project, root })
+    }
+
+    /// Lists the configurations of the project and waits until they are.
+    async fn listed(driver: &Entity<RunDriver>, folders: &Folders, cx: &mut TestAppContext) {
+        let root = folders.root_text();
+        let (sender, done) = oneshot::channel();
+        driver.update(cx, |driver, cx| {
+            driver.load(&root, cx);
+            driver.when_loaded(
+                move |_, _| {
+                    let _ = sender.send(());
+                },
+                cx,
+            );
+        });
+        done.await.expect("the configurations are listed");
+    }
+
+    fn ids(driver: &Entity<RunDriver>, cx: &mut TestAppContext) -> Vec<String> {
+        driver.read_with(cx, |driver, cx| driver.store.read(cx).configs().iter().map(|c| c.id.clone()).collect())
+    }
+
+    fn stored(cx: &mut TestAppContext, prefix: &str, folders: &Folders) -> Option<String> {
+        let key = format!("{prefix}{}", folders.root_text());
+        cx.update(|cx| cx.global::<UiStorage>().get(&key).map(str::to_owned))
+    }
+
+    // Not from a spec: selecting and pinning are stored per project; deleting a saved configuration
+    // removes it from the project's file and from the list read back.
+    #[gpui_kit::test]
+    async fn selecting_pinning_and_deleting_are_stored_and_saved(cx: &mut TestAppContext) {
+        let configs = [program("hello", "/bin/echo", "hello"), program("nap", "/bin/sleep", "30")];
+        let (driver, events, folders) = project(cx, "w1", &configs).await;
+        listed(&driver, &folders, cx).await;
+        assert_eq!(ids(&driver, cx), ["hello", "nap"]);
+
+        driver.update(cx, |driver, cx| driver.select_config(Some("nap"), cx));
+        assert_eq!(stored(cx, SELECTED_KEY, &folders).as_deref(), Some("nap"));
+        driver.update(cx, |driver, cx| driver.toggle_pinned("nap", cx));
+        assert_eq!(driver.read_with(cx, |driver, cx| driver.store.read(cx).pinned.clone()), ["nap"]);
+        assert!(stored(cx, PINNED_KEY, &folders).is_some_and(|pinned| pinned.contains("nap")));
+        driver.update(cx, |driver, cx| driver.toggle_pinned("nap", cx));
+        assert_eq!(stored(cx, PINNED_KEY, &folders), None);
+
+        let deleting = driver.update(cx, |driver, cx| driver.delete_config("hello", cx));
+        assert_eq!(deleting.await, Ok(()));
+        assert_eq!(folders.saved(), ["nap"]);
+        assert_eq!(ids(&driver, cx), ["nap"]);
+        assert!(events.borrow().is_empty(), "{:?}", events.borrow());
+    }
+
+    // Not from a spec: Save Configuration makes a temporary configuration a saved one that stays
+    // selected; Edit Configurations' working copy is saved and read back.
+    #[gpui_kit::test]
+    async fn a_temporary_configuration_and_edited_ones_are_saved_and_listed_again(cx: &mut TestAppContext) {
+        let (driver, _, folders) = project(cx, "w1", &[program("hello", "/bin/echo", "hello")]).await;
+        listed(&driver, &folders, cx).await;
+        driver.update(cx, |driver, cx| {
+            let (_, persist) =
+                driver.store.update(cx, |store, _| store.adopt_temporary(program("scratch", "/bin/echo", "x"), &[]));
+            driver.carry_out_persist(persist, cx);
+        });
+        assert!(stored(cx, TEMPORARY_KEY, &folders).is_some_and(|temporary| temporary.contains("scratch")));
+
+        let saving = driver.update(cx, |driver, cx| driver.save_temporary("scratch", cx));
+        assert_eq!(saving.await, Ok(()));
+        assert_eq!(folders.saved(), ["hello", "scratch"]);
+        driver.read_with(cx, |driver, cx| {
+            let store = driver.store.read(cx);
+            assert!(store.temporary.is_empty());
+            assert_eq!(store.selected_id.as_deref(), Some("scratch"));
+        });
+        assert_eq!(ids(&driver, cx), ["hello", "scratch"]);
+
+        let mut draft = driver.read_with(cx, |driver, cx| driver.store.read(cx).configs().to_vec());
+        draft[0].name = "greeting".to_owned();
+        draft.pop();
+        let saving = driver.update(cx, |driver, cx| driver.save_edited_configs(&draft, Vec::new(), cx));
+        assert_eq!(saving.await, Ok(()));
+        assert_eq!(folders.saved(), ["greeting"]);
+        assert_eq!(ids(&driver, cx), ["hello"]);
+    }
+
+    // Not from a spec: a save that fails is an error and a notification, and lists nothing again.
+    #[gpui_kit::test]
+    async fn a_failed_save_is_an_error_and_a_notification(cx: &mut TestAppContext) {
+        let (driver, events, folders) = project(cx, "w2", &[]).await;
+        let saving = driver.update(cx, |driver, cx| {
+            driver.save_edited_configs(&[program("hello", "/bin/echo", "hello")], Vec::new(), cx)
+        });
+        assert!(saving.await.is_err());
+        assert!(folders.saved().is_empty());
+        let notified = events
+            .borrow()
+            .iter()
+            .any(|event| matches!(event, RunDriverEvent::Notify(r) if r.title == "Cannot save run configurations"));
+        assert!(notified, "{:?}", events.borrow());
+    }
+
+    // Not from a spec: the templates are the project's own.
+    #[gpui_kit::test]
+    async fn templates_are_read_from_the_project(cx: &mut TestAppContext) {
+        let (driver, _, folders) = project(cx, "w1", &[]).await;
+        let template = RunConfig { env: [("MODE".to_owned(), "dev".to_owned())].into(), ..program("t", "", "") };
+        ide_run::save_templates(&folders.root, std::slice::from_ref(&template)).expect("the template is saved");
+        let loading = driver.update(cx, |driver, cx| driver.load_templates(cx));
+        let templates = loading.await.expect("the templates are read");
+        assert_eq!(templates.iter().map(|t| t.kind.as_str()).collect::<Vec<_>>(), ["program"]);
+        let failing = cx.update(|cx| {
+            let store = cx.new(|_| RunStore::new());
+            cx.new(|_| RunDriver::new("w2", store))
+        });
+        let loading = failing.update(cx, |driver, cx| driver.load_templates(cx));
+        assert!(loading.await.is_err(), "a window without a project has no templates");
+    }
+
+    // Not from a spec: Run waits for the configurations to be listed and ends with the session it
+    // started; with nothing selected it opens the configuration chooser instead.
+    #[gpui_kit::test]
+    async fn run_waits_for_the_list_and_ends_with_the_session_it_started(cx: &mut TestAppContext) {
+        let (driver, events, folders) = project(cx, "w1", &[program("hello", "/bin/echo", "hello")]).await;
+        let key = format!("{SELECTED_KEY}{}", folders.root_text());
+        cx.update(|cx| cx.global_mut::<UiStorage>().set(&key, "hello".to_owned()));
+        let root = folders.root_text();
+        let launching = driver.update(cx, |driver, cx| {
+            driver.load(&root, cx);
+            driver.launch_selected(cx)
+        });
+        let session = launching.await.expect("a session started");
+        let name =
+            driver.read_with(cx, |driver, cx| driver.store.read(cx).session(&session).map(|s| s.config.name.clone()));
+        assert_eq!(name.as_deref(), Some("hello"));
+
+        driver.update(cx, |driver, cx| driver.select_config(None, cx));
+        let launching = driver.update(cx, |driver, cx| driver.launch_selected(cx));
+        assert_eq!(launching.await, None);
+        let chooser = events
+            .borrow()
+            .iter()
+            .any(|event| matches!(event, RunDriverEvent::RunAction { id: "run.chooseConfig", arg: None }));
+        assert!(chooser, "{:?}", events.borrow());
     }
 }
