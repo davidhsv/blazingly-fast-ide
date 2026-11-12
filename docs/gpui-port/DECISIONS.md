@@ -537,3 +537,14 @@ A subagent rebuilt the editor's core in one slice (20 new tests through the appl
 - Copy without a selection now copies the caret line, as the clipboard spec demands; the earlier view test expected the clipboard to be kept and was changed (the spec's lines are in the report kept with the session).
 - In a workbench window the keymap's bindings for the new actions are live, e.g. ⌘⌫ is Delete Line as in the IntelliJ preset.
 - Not wired in this slice: auto-closing of brackets and quotes (so Tab-out of a pair never fires), string escapes on paste, dragging a column block with the mouse, the hints of "no further occurrence" and "nothing to expand" (logged only), detecting indentation from the file's text.
+
+## D68. The Services tool window
+
+`services/` (model, Docker model, view; 57 new tests) was written by a subagent without a compiler and compiled by another with two fixes; that agent then wired the window (`workbench/services_window.rs`) with one end-to-end test on real processes.
+
+- Run configurations work end to end: adding a type, the tree, Run and Stop from a row or the toolbar, the detail pane following the session. The pane is a small read-only list of the session's console lines, because the Run tool window's console cannot draw one session on its own yet.
+- Docker is read, not operated: settings and the snapshot are loaded off the main thread (a machine without Docker shows "not running" or "not installed"), the tree and menus are drawn, and the filters are stored. Container operations, pull/prune/compose streams, the dashboards and the connection and registry dialogs are logged and not carried out, so the thirteen `docker.*` actions that need them are not registered. A Docker task started from a menu would leave its banner up; this is a known gap, since nothing ends the task.
+- No debugger: debug sessions of a service, Rerun Debugger and Show Debug are logged.
+- Adding a type that has several configurations adds all of them: the picker is not built.
+- One fix came from running the tests and reading the focus code: a double click opened the grid's cell editor and the grid took the focus back on the same press; the press is now marked handled.
+- The views of the Database and Pull Requests features are compiled and tested (65 tests) but not shown by any window yet; their rows stay model only until they are.

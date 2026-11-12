@@ -3018,5 +3018,49 @@
   "action:code.addCaretNextOccurrence": {
     "status": "partial",
     "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`; the hint shown when there is no further occurrence is only logged"
+  },
+  "unit:src/features/services/services.test.ts": {
+    "status": "done",
+    "proof": "`services::docker::tests`, `services::model::tests`, `services::run_types::tests`, `services::dashboard::tests`"
+  },
+  "unit:src/features/services/ServicesTree.test.tsx": {
+    "status": "done",
+    "proof": "`services::model::tests`, `services::view::tests`"
+  },
+  "unit:src/features/services/ServicesTree.reorder.test.tsx": {
+    "status": "partial",
+    "proof": "`services::model::tests`, `services::view::tests`; 3 of 5 cases: rows move with Move Up and Move Down; dragging a row is not built, and keeping local and remote projects apart is not tested"
+  },
+  "unit:src/features/services/ServicesTree.debug.test.tsx": {
+    "status": "partial",
+    "proof": "`services::model::tests`; 5 of 10 cases on the model; the debugger is not drawn, so the cases about the debug toolbar and console of the detail pane are open"
+  },
+  "action:services.show": {
+    "status": "done",
+    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`"
+  },
+  "action:services.addService": {
+    "status": "partial",
+    "proof": "`services::view::tests::shows_the_empty_state_with_add_service_while_no_provider_has_a_node`; the menu opens near the top of the window rather than under the button, a type with several configurations adds all of them without the picker, and no test runs the action"
+  },
+  "action:docker.refresh": {
+    "status": "partial",
+    "proof": "`services::docker::tests`; registered on the Docker model of the window; no test runs the action, and no daemon is reached in tests"
+  },
+  "action:docker.toggleStoppedContainers": {
+    "status": "partial",
+    "proof": "`services::docker::tests`; registered on the Docker model of the window; no test runs the action, and no daemon is reached in tests"
+  },
+  "action:docker.toggleUntaggedImages": {
+    "status": "partial",
+    "proof": "`services::docker::tests`; registered on the Docker model of the window; no test runs the action, and no daemon is reached in tests"
+  },
+  "point.registerToolWindow:services": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`, `services::view::tests`; the tree with run configurations and Docker nodes, toolbar, menus, selection and the detail pane of a run. Not yet: Docker operations, dashboards and dialogs, the picker of Add Service, dragging rows, a resizable split, debug sessions"
+  },
+  "feature:services": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`, `services::view::tests`, `services::docker::tests`; the Services tool window for run configurations end to end; Docker is read (settings, snapshot) but its operations, streams, dashboards and dialogs are not carried out"
   }
 }
