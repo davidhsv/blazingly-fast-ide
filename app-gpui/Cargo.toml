@@ -25,6 +25,7 @@ ide-core = { path = "../crates/ide-core" }
 ide-host = { path = "../crates/ide-host" }
 ide-plugin = { path = "../crates/ide-plugin" }
 ide-run = { path = "../crates/ide-run" }
+ide-terminal = { path = "../crates/ide-terminal" }
 ide-language = { path = "../crates/ide-language", features = ["native-highlights"] }
 ide-workspace = { path = "../crates/ide-workspace" }
 ide-syntax = { path = "../crates/ide-syntax" }

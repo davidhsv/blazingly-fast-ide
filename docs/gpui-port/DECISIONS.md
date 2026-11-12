@@ -35,7 +35,7 @@ Measured at the pinned commit: `crates/editor`, `crates/terminal` and `crates/ui
 
 `ide-terminal` owns the PTY and streams bytes; the webview parses them with xterm.js. The GPUI app feeds the same bytes to `alacritty_terminal`'s grid and paints the grid.
 
-Status: planned. The crate is a dependency, resolves next to the backend (`lockcheck.mjs` passes) and compiles; no terminal view exists yet.
+Status: a terminal view exists and runs a real shell (D27). It is not in a tool window yet.
 
 ## D8. HTML surfaces
 
@@ -149,3 +149,15 @@ First contribution projected: the `themes` point. A plugin's theme is offered ne
 **The Bazel plugin.** `/Users/davidvieira/code/openidea-bazel` was linked into a temporary home by the opt-in test `a_plugin_folder_named_by_the_environment_loads` (run with `OPENIDEA_GPUI_TEST_PLUGIN`). Measured result: `davidhsv.bazel 0.1.0: Inactive` (contributions live, no Wasm instance yet), 9 commands, 6 menus, 1 settings contribution, and the languages `starlark`, `bazelproject`, `bazelrc` registered. With `OPENIDEA_GPUI_TEST_COMMAND=open-sync-log` the same test runs that command without a project: the plugin's Wasm loaded (status `Active`) and answered `no project is open`, its own message. The installed app's folders were not touched.
 
 **Commands.** Every declared command of a live plugin is an action `plugin.<plugin id>.<command id>` with its title, category and `when`, registered before any of its code is loaded. Running one passes the window's project, its active editor (path, language, selection as lines and UTF-16 columns) and the selected paths; a failure is a notification in that window unless the plugin was stopped or lacks a permission. `plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection` does this with `plugins/official/string-tools`: the command turns the selected `hello big world` into `hello_big_world` through the plugin's Wasm, the backend's document and the editor's patch path. A command's own image icon is not loaded yet (a named icon is used, otherwise the package icon).
+
+## D27. The terminal: emulator, keys and view
+
+Three parts, each tested on its own:
+
+- `terminal::emulator` wraps `alacritty_terminal`'s `Term`: output in, rows of styled runs out (a wide character is its own two-cell run, so text stays on the grid), cursor, scrollback of 10,000 lines as in the webview, selection by cell, word and line, and the answers a program is owed (device reports, colour queries, text-area size) as effects to write to the PTY. A program may set the clipboard (OSC 52) but never read it.
+- `terminal::encode` is what xterm.js did implicitly: xterm's key sequences (cursor keys in normal and application mode, modifiers, function keys, control characters, Option as Meta from `terminal.optionAsMeta`, Option+Left/Right as word movement) and paste encoding (Enter line ends, bracketed-paste markers, a marker inside the pasted text removed so it cannot end the bracket early). Bold text is not brightened, as the webview sets `drawBoldTextInBrightColors: false`.
+- `terminal::view::TerminalView` spawns the shell through `ide_host::ops::term`, feeds its output to the emulator, sizes the grid to the room it is painted in and tells the PTY, and reports the exit with the webview's `[Process completed (exit code N)]` line.
+
+`terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit` runs the login shell on a real PTY: typed text and Enter reach it, its output is on the grid, `stty size` prints the fitted grid's size, ⌘V pastes, and `exit 3` is reported as exit code 3.
+
+Not done: the Terminal tool window with its tabs and groups, restart on Enter after exit, the find bar, links, mouse reporting to programs, the resize debounce, cursor blink, the Nerd-font fallbacks, and the derived palette for themes that define neither `--terminal-ansi-*` nor `--ansi-*` (every built-in theme defines them). The cell is the font's `M` advance by its ascent plus descent times `terminal.lineHeight`; xterm.js measures its cells its own way, so the grid may differ by a column or a row from the webview's at the same pixel size.

@@ -8597,6 +8597,7 @@ dependencies = [
  "ide-run",
  "ide-ssh",
  "ide-syntax",
+ "ide-terminal",
  "ide-text",
  "ide-vfs",
  "ide-workspace",
