@@ -14,13 +14,14 @@ use crate::find::query::parse_location_query;
 use crate::platform::actions::{ActionMeta, ActionRegistry, is_action_enabled};
 use crate::platform::context::ContextKeys;
 use crate::platform::i18n::Localization;
+use crate::platform::input;
 use crate::platform::local_time::now_ms;
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use futures::StreamExt as _;
 use futures::channel::mpsc::unbounded;
 use gpui_kit::{
-    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, Render, ScrollStrategy,
+    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke, Render, ScrollStrategy,
     SharedString, Subscription, Task, UniformListScrollHandle, Window, div, prelude::*, px, uniform_list,
 };
 use ide_host::ops::search::SearchEvent;
@@ -60,6 +61,8 @@ pub struct SearchEverywhere {
     active: Option<usize>,
     /// The key of the row the user selected; unset while the top result is the selection.
     selected_key: Option<String>,
+    /// Where the user last put the selection: it stays near there when that row is gone.
+    lead: Option<usize>,
     /// The user moved the selection since the query or the tab changed.
     moved: bool,
     /// The query that was last searched for; the field's text is ahead of it while it rests.
@@ -73,6 +76,8 @@ pub struct SearchEverywhere {
     /// The questions still out with the backend; a new query drops the old ones.
     fetches: Vec<Task<()>>,
     scroll: UniformListScrollHandle,
+    /// The claim on the keys the popup handles itself, ahead of the keymap.
+    key_claim: u64,
     _field_events: Subscription,
 }
 
@@ -100,10 +105,18 @@ impl SearchEverywhere {
         });
         let events = cx.subscribe(&field, |popup: &mut SearchEverywhere, _, event: &TextFieldEvent, cx| match event {
             TextFieldEvent::Changed => popup.query_changed(cx),
-            TextFieldEvent::Submitted => popup.enter(cx),
+            // Enter is the popup's own key: it is claimed before the field sees it.
+            TextFieldEvent::Submitted => {}
             TextFieldEvent::Cancelled => cx.emit(SearchEverywhereEvent::Dismissed),
         });
+        let claimant = cx.weak_entity();
+        let key_claim = input::claim_keys(
+            field.focus_handle(cx),
+            move |keystroke, _, cx| claimant.update(cx, |popup, cx| popup.claim_key(keystroke, cx)).unwrap_or(false),
+            cx,
+        );
         cx.on_release(|popup, cx| {
+            input::release_keys(popup.key_claim, cx);
             let Some(backend) = cx.try_global::<Backend>() else { return };
             for effect in popup.controller.dispose() {
                 if let SeEffect::Cancel(request) = effect {
@@ -121,6 +134,7 @@ impl SearchEverywhere {
             rows: Rc::default(),
             active: None,
             selected_key: None,
+            lead: None,
             moved: false,
             searched: query.unwrap_or_default().to_owned(),
             debounce: None,
@@ -129,6 +143,7 @@ impl SearchEverywhere {
             root,
             fetches: Vec::new(),
             scroll: UniformListScrollHandle::new(),
+            key_claim,
             _field_events: events,
         };
         popup.run(cx);
@@ -164,6 +179,11 @@ impl SearchEverywhere {
                 },
             })
             .collect()
+    }
+
+    /// The selected row, as [`Self::lines`] shows it.
+    pub fn selected(&self) -> Option<String> {
+        self.lines().into_iter().nth(self.active?)
     }
 
     /// Runs `with` on the controller with what it reads from the app.
@@ -209,7 +229,7 @@ impl SearchEverywhere {
     }
 
     fn reset_selection(&mut self) {
-        (self.selected_key, self.moved, self.active) = (None, false, None);
+        (self.selected_key, self.lead, self.moved, self.active) = (None, None, false, None);
     }
 
     /// The scope commands a query starting with `/` lists, in place of results.
@@ -365,7 +385,7 @@ impl SearchEverywhere {
         let mix = (self.tab == SeTab::All).then_some(text.as_str());
         let rows =
             self.listing(cx).unwrap_or_else(|| build_rows(self.controller.sections(), text.trim().is_empty(), mix));
-        self.active = stable_index(&rows, self.selected_key.as_deref(), self.active, self.moved);
+        self.active = stable_index(&rows, self.selected_key.as_deref(), self.lead, self.moved);
         self.rows = Rc::new(rows);
         if self.pending_enter && self.settled(cx) {
             self.pending_enter = false;
@@ -386,7 +406,7 @@ impl SearchEverywhere {
 
     fn select(&mut self, index: usize, cx: &mut Context<Self>) {
         self.selected_key = self.rows.get(index).map(|row| row.key().to_owned());
-        (self.active, self.moved) = (Some(index), true);
+        (self.active, self.lead, self.moved) = (Some(index), Some(index), true);
         self.scroll.scroll_to_item(index, ScrollStrategy::Top);
         cx.notify();
     }
@@ -439,7 +459,7 @@ impl SearchEverywhere {
                 let step = if self.tab == SeTab::All { MORE_STEP_ALL } else { MORE_STEP_TAB };
                 *self.extra.entry(section).or_default() += step;
                 // The selection stays where "Show more" was: on the first of the new rows.
-                (self.selected_key, self.moved) = (None, true);
+                (self.selected_key, self.lead, self.moved) = (None, self.active, true);
                 self.run(cx);
                 return;
             }
@@ -456,40 +476,42 @@ impl SearchEverywhere {
         cx.emit(event);
     }
 
-    fn key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
-        let modifiers = event.keystroke.modifiers;
-        if modifiers.control || modifiers.alt {
-            return;
-        }
-        let key = event.keystroke.key.as_str();
+    /// The keys the popup handles itself, in every modifier combination, while the keyboard is in
+    /// its query: the keymap's bindings for them (an editor action on ⌥↵, the navigation bar on
+    /// ⌘↑) do not run. Returns whether `keystroke` is one of them.
+    fn claim_key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
+        let modifiers = keystroke.modifiers;
+        let key = keystroke.key.as_str();
         let forward = matches!(key, "down" | "pagedown");
-        // Page Up, Page Down and the primary modifier with an arrow go to the neighbouring group
-        // of results, where there is one.
-        let to_group = matches!(key, "pageup" | "pagedown") || (modifiers.platform && matches!(key, "up" | "down"));
-        let group = to_group
-            .then(|| {
-                let direction = if forward { GroupDirection::Next } else { GroupDirection::Previous };
-                group_jump(&self.rows, self.active?, direction)
-            })
-            .flatten();
-        match (key, group) {
-            (_, Some(index)) => self.select(index, cx),
-            ("down" | "up", None) if !modifiers.platform => {
-                self.step(if forward { 1 } else { -1 }, !modifiers.shift, cx);
-            }
-            ("pagedown" | "pageup", None) => {
-                let by = PAGE_ROWS.cast_signed();
-                self.step(if forward { by } else { -by }, false, cx);
-            }
+        match key {
             // Tab moves along the tabs, Shift+Tab back.
-            ("tab", None) if !modifiers.platform => {
+            "tab" => {
                 let at = TABS.iter().position(|tab| *tab == self.tab).unwrap_or(0);
                 let next = if modifiers.shift { at + TABS.len() - 1 } else { at + 1 } % TABS.len();
                 self.select_tab(TABS[next], cx);
             }
-            _ => return,
+            "enter" if !modifiers.alt && !modifiers.platform => self.enter(cx),
+            "enter" => {}
+            "up" | "down" if modifiers.alt => {}
+            "up" | "down" | "pageup" | "pagedown" => {
+                // Page Up, Page Down and the primary modifier with an arrow go to the neighbouring
+                // group of results, where there is one.
+                let paging = matches!(key, "pageup" | "pagedown");
+                let group = (paging || modifiers.platform)
+                    .then(|| {
+                        let direction = if forward { GroupDirection::Next } else { GroupDirection::Previous };
+                        group_jump(&self.rows, self.active?, direction)
+                    })
+                    .flatten();
+                let by = if paging { PAGE_ROWS.cast_signed() } else { 1 };
+                match group {
+                    Some(index) => self.select(index, cx),
+                    None => self.step(if forward { by } else { -by }, !paging && !modifiers.shift, cx),
+                }
+            }
+            _ => return false,
         }
-        cx.stop_propagation();
+        true
     }
 }
 
@@ -540,6 +562,7 @@ impl Render for SearchEverywhere {
                     .map(|index| {
                         let line = div()
                             .id(index)
+                            .debug_selector(|| format!("search-everywhere-row-{index}"))
                             .h(theme::length(cx, "h-row"))
                             .w_full()
                             .flex()
@@ -606,7 +629,6 @@ impl Render for SearchEverywhere {
             .rounded(px(10.0))
             .overflow_hidden()
             .text_size(theme::length(cx, "fs-ui"))
-            .on_key_down(cx.listener(Self::key_down))
             .child(
                 div()
                     .flex_none()
