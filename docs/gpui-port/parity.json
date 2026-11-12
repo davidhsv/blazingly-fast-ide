@@ -834,5 +834,41 @@
   "ipc:search_validate": {
     "status": "done",
     "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`"
+  },
+  "unit:src/features/search/__tests__/everywhereFilters.test.ts": {
+    "status": "partial",
+    "proof": "`everywhere::filters::tests`; all 10 cases, but the five that drive the Search Everywhere controller assert only what the filter resolves to: the controller is not wired yet"
+  },
+  "unit:src/features/search/__tests__/everywhereGroups.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::model::tests`"
+  },
+  "unit:src/features/search/__tests__/everywhereModel.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::model::tests`, `everywhere::store::tests`"
+  },
+  "unit:src/features/search/__tests__/rank.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::rank::tests`"
+  },
+  "unit:src/features/search/__tests__/recent.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::recent_model::tests`, `everywhere::locations::tests`"
+  },
+  "unit:src/features/search/__tests__/bookmarks.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::bookmarks_store::tests`"
+  },
+  "unit:src/features/search/__tests__/bookmarkLists.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::bookmarks_view::tests`, `everywhere::bookmarks_store::tests`"
+  },
+  "unit:src/features/search/__tests__/inherited.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::inherited::tests`"
+  },
+  "unit:src/features/search/__tests__/outline.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::outline::tests`"
   }
 }
