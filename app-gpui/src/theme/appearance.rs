@@ -5,8 +5,9 @@
 //! mode. A theme picked while the settings cannot be saved still applies, for this session.
 
 use super::themes::{
-    Appearance, ContributedThemes, KINDS_KEY, ThemeChoiceId, ThemeKind, ThemeSetting, apply_theme, current_theme,
-    theme_setting_writes, toggled_theme,
+    Appearance, ContributedThemes, KINDS_KEY, PLUGIN_THEME_ATTRIBUTE, PLUGIN_THEME_KIND_ATTRIBUTE, ThemeChoice,
+    ThemeChoiceId, ThemeKind, ThemeSetting, apply_theme, current_theme, current_theme_choice, theme_setting_writes,
+    toggled_theme,
 };
 use super::tokens::Tokens;
 use super::{ActiveTheme, tokens::ThemeAttributes};
@@ -16,6 +17,21 @@ use crate::platform::storage::UiStorage;
 use gpui_kit::{App, Global, WindowAppearance};
 use ide_core::IdeEvent;
 use ide_core::settings::AppearanceSettings;
+use std::collections::BTreeMap;
+use std::rc::Rc;
+
+/// A plugin's theme as it is applied: its tokens over the built-in base of its kind.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginTheme {
+    /// `<plugin id>/<theme id>`.
+    pub reference: String,
+    pub kind: ThemeKind,
+    /// Token names with their `--`, to their values.
+    pub tokens: BTreeMap<String, String>,
+}
+
+/// Something to do after the theme was applied.
+type Follower = Rc<dyn Fn(&mut App)>;
 
 /// What the theme is resolved from besides the settings.
 pub struct ThemeState {
@@ -23,8 +39,12 @@ pub struct ThemeState {
     session_override: Option<ThemeSetting>,
     /// The themes plugins contribute.
     pub contributed: ContributedThemes,
+    /// The plugin theme the plugin host has selected.
+    plugin_theme: Option<PluginTheme>,
     /// Whether the OS is in light mode.
     system_light: bool,
+    /// Called after every [`apply`]: what follows the theme choice (the plugin host's selection).
+    after_apply: Vec<Follower>,
 }
 
 impl Global for ThemeState {}
@@ -32,7 +52,13 @@ impl Global for ThemeState {}
 impl Default for ThemeState {
     /// No plugin themes, the OS in light mode.
     fn default() -> Self {
-        Self { session_override: None, contributed: ContributedThemes::new(None), system_light: true }
+        Self {
+            session_override: None,
+            contributed: ContributedThemes::new(None),
+            plugin_theme: None,
+            system_light: true,
+            after_apply: Vec::new(),
+        }
     }
 }
 
@@ -55,9 +81,9 @@ fn selection(settings: &AppearanceSettings) -> Appearance {
 pub fn init(cx: &mut App) {
     let stored_kinds = cx.try_global::<UiStorage>().and_then(|storage| storage.get(KINDS_KEY)).map(str::to_owned);
     let state = ThemeState {
-        session_override: None,
         contributed: ContributedThemes::new(stored_kinds.as_deref()),
         system_light: is_light(cx.window_appearance()),
+        ..ThemeState::default()
     };
     cx.set_global(state);
     if cx.has_global::<Backend>() {
@@ -78,21 +104,90 @@ pub fn apply(cx: &mut App) {
     let state = cx.default_global::<ThemeState>();
     // The stylesheet is cascaded afresh from the base attributes, so nothing of the previous
     // theme (its palette, contrast or accent) carries over.
-    let Some(applied) = apply_theme(
-        state.session_override.as_ref(),
-        Some(&appearance),
-        state.system_light,
-        &state.contributed,
-        ThemeAttributes::light(),
-    ) else {
-        return;
+    let root = match &state.plugin_theme {
+        Some(plugin) => ThemeAttributes::light()
+            .with(PLUGIN_THEME_ATTRIBUTE, &plugin.reference)
+            .with(PLUGIN_THEME_KIND_ATTRIBUTE, plugin.kind.as_str()),
+        None => ThemeAttributes::light(),
     };
-    let mut theme = Tokens::builtin().theme(&applied.attributes);
-    for (name, value) in &applied.overrides {
-        theme.set(name, value);
+    let applied =
+        apply_theme(state.session_override.as_ref(), Some(&appearance), state.system_light, &state.contributed, root);
+    if let Some(applied) = applied {
+        let mut theme = Tokens::builtin().theme(&applied.attributes);
+        // A plugin theme's tokens outrank every built-in theme block; a custom accent outranks
+        // them in turn.
+        for (name, value) in state.plugin_theme.iter().flat_map(|plugin| &plugin.tokens) {
+            if is_token_declaration(name, value) {
+                theme.set(name, value);
+            }
+        }
+        for (name, value) in &applied.overrides {
+            theme.set(name, value);
+        }
+        cx.set_global(ActiveTheme { theme });
+        cx.refresh_windows();
     }
-    cx.set_global(ActiveTheme { theme });
-    cx.refresh_windows();
+    let followers = cx.default_global::<ThemeState>().after_apply.clone();
+    for follower in followers {
+        follower(cx);
+    }
+}
+
+/// Whether a plugin theme's entry is a token and a plain value: a name of lowercase letters,
+/// digits and dashes after `--`, and a value that cannot end the declaration or open a block.
+fn is_token_declaration(name: &str, value: &str) -> bool {
+    let named = name.strip_prefix("--").is_some_and(|rest| {
+        !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    });
+    named && !value.contains([';', '{', '}', '<', '>', '\\'])
+}
+
+/// Calls `follower` after every [`apply`], from now on.
+pub fn after_apply(follower: impl Fn(&mut App) + 'static, cx: &mut App) {
+    cx.default_global::<ThemeState>().after_apply.push(Rc::new(follower));
+}
+
+/// The theme the settings select, as selected: a built-in theme or a plugin's.
+pub fn current_choice(cx: &App) -> ThemeChoiceId {
+    let appearance = selection(&settings::global(cx).appearance);
+    match cx.try_global::<ThemeState>() {
+        Some(state) => current_theme_choice(state.session_override.as_ref(), Some(&appearance), state.system_light),
+        None => current_theme_choice(None, Some(&appearance), true),
+    }
+}
+
+/// The plugin theme in effect, as `<plugin id>/<theme id>`.
+pub fn plugin_theme(cx: &App) -> Option<&str> {
+    cx.try_global::<ThemeState>()?.plugin_theme.as_ref().map(|plugin| plugin.reference.as_str())
+}
+
+/// The plugin host selected a plugin theme, or none.
+pub fn set_plugin_theme(theme: Option<PluginTheme>, cx: &mut App) {
+    let state = cx.default_global::<ThemeState>();
+    if state.plugin_theme != theme {
+        state.plugin_theme = theme;
+        apply(cx);
+    }
+}
+
+/// The themes live plugins offer are now exactly `themes`. The kind each has is remembered, so
+/// that a theme whose plugin is off later still shows the built-in base of its kind.
+pub fn set_contributed(themes: Vec<ThemeChoice>, cx: &mut App) {
+    let state = cx.default_global::<ThemeState>();
+    if state.contributed.themes() == themes.as_slice() {
+        return;
+    }
+    for gone in state.contributed.themes().iter().filter(|theme| !themes.contains(theme)).cloned().collect::<Vec<_>>() {
+        state.contributed.remove(&gone);
+    }
+    let mut kinds = None;
+    for theme in themes {
+        kinds = state.contributed.add(theme).or(kinds);
+    }
+    if let Some(kinds) = kinds.filter(|_| cx.has_global::<UiStorage>()) {
+        cx.global_mut::<UiStorage>().set(KINDS_KEY, kinds);
+    }
+    apply(cx);
 }
 
 /// The OS switched between light and dark mode.

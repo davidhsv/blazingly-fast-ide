@@ -23,6 +23,8 @@ path = "src/main.rs"
 gpui-kit = "=0.9.1"
 ide-core = { path = "../crates/ide-core" }
 ide-host = { path = "../crates/ide-host" }
+ide-plugin = { path = "../crates/ide-plugin" }
+ide-run = { path = "../crates/ide-run" }
 ide-language = { path = "../crates/ide-language", features = ["native-highlights"] }
 ide-workspace = { path = "../crates/ide-workspace" }
 ide-syntax = { path = "../crates/ide-syntax" }
@@ -47,6 +49,10 @@ parking_lot = "0.12"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 anyhow = "1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Plugin secrets in the login keychain (the version the backend's keyring already locks).
+security-framework = "3"
 
 [dev-dependencies]
 gpui-kit = { version = "=0.9.1", features = ["test-support"] }

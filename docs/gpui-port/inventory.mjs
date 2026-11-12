@@ -401,6 +401,17 @@ const listed = spawnSync("cargo", ["test", "--lib", "--", "--list"], { cwd: join
 if (listed.status !== 0)
   problems.push(`cargo test --list failed in app-gpui:\n${(listed.stderr ?? "").split("\n").slice(-8).join("\n")}`);
 const rustTests = [...(listed.stdout ?? "").matchAll(/^([\w:]+): test$/gm)].map((m) => m[1]);
+// Integration tests (they run the application itself) are cited as `tests::<file>::<case>`.
+for (const file of readdirSync(join(root, "app-gpui/tests")).filter((f) => f.endsWith(".rs"))) {
+  const name = file.slice(0, -3);
+  const cases = spawnSync("cargo", ["test", "--test", name, "--", "--list"], {
+    cwd: join(root, "app-gpui"),
+    encoding: "utf8",
+  });
+  if (cases.status !== 0)
+    problems.push(`cargo test --test ${name} --list failed:\n${(cases.stderr ?? "").split("\n").slice(-8).join("\n")}`);
+  for (const m of (cases.stdout ?? "").matchAll(/^([\w:]+): test$/gm)) rustTests.push(`tests::${name}::${m[1]}`);
+}
 for (const [key, p] of Object.entries(parity)) {
   const named = [...(p.proof ?? "").matchAll(/`([a-z_]\w*(?:::\w+)+)`/g)].map((m) => m[1]);
   if (p.status === "done" && !named.length) problems.push(`parity.json: the proof of ${key} names no test`);

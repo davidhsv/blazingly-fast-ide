@@ -3,12 +3,15 @@
 pub mod backend;
 pub mod editor;
 pub mod platform;
+pub mod plugins;
 pub mod project_tree;
 pub mod project_tree_model;
 pub mod project_tree_paths;
+pub mod self_check;
 pub mod theme;
 pub mod ui;
 pub mod vcs;
+pub mod web_view;
 pub mod workbench;
 
 use gpui_kit::App;
@@ -24,6 +27,7 @@ pub fn init(cx: &mut App) -> anyhow::Result<()> {
     backend::Backend::init(dirs.clone(), cx)?;
     cx.set_global(platform::storage::UiStorage::load(&dirs.config));
     theme::appearance::init(cx);
+    plugins::Plugins::init(cx)?;
     workbench::register_actions(cx);
     Ok(())
 }
