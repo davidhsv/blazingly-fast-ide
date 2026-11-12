@@ -10,6 +10,7 @@ pub mod quick_switch;
 pub mod status_bar_widgets;
 pub mod tasks;
 pub mod tool_windows;
+pub mod windows;
 
 use crate::backend::{Backend, BackendEvent};
 use crate::editor::session::{self, FileViewState};
@@ -240,6 +241,7 @@ pub fn register_actions(cx: &mut App) {
         workbench.update(cx, |workbench, cx| workbench.with_layout(window, cx, change));
         Ok(())
     }
+    windows::register_actions(cx);
     let registry = cx.default_global::<ActionRegistry>();
     for id in TOOL_WINDOWS {
         let Some(declared) = tool_window_declaration(id) else { continue };
@@ -1052,13 +1054,47 @@ impl Workbench {
     }
 
     /// Opens the folder at `root` as this window's project.
+    /// Whether the window shows nothing: no project, no file.
+    pub fn is_empty(&self) -> bool {
+        matches!(self.content, Content::Empty | Content::Failed(_))
+    }
+
+    /// What is unsaved is saved and the tabs are remembered, before the window shows something else.
+    fn leave(&mut self, cx: &mut Context<Self>) {
+        self.autosave(None, cx);
+        self.save_session(cx);
+        self.popup = None;
+    }
+
+    /// Closes the window's project; the window stays, showing nothing.
+    pub fn close_project(&mut self, cx: &mut Context<Self>) {
+        if self.project_tree().is_none() {
+            return;
+        }
+        self.leave(cx);
+        // The project's servers and runs stop in the background: this is the UI thread.
+        cx.global::<Backend>().host.close_project_detached(&self.label);
+        self.content = Content::Empty;
+        cx.notify();
+    }
+
     pub fn open_project(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        self.leave(cx);
         self.content = Content::Opening(root.clone());
         cx.notify();
         let label = self.label.clone();
+        let config = cx.global::<Backend>().dirs.config.clone();
         let opened = cx.global::<Backend>().with_host(move |host| async move {
             let project = ide_host::ops::project::open(&host, &label, &root).await?;
             let info = ide_host::ops::project::info(&project);
+            // An opened project is a recent one, under the name it shows.
+            let attached = info.workspace.as_ref().is_some_and(|workspace| !workspace.is_container(&project.root));
+            let branch = (!attached)
+                .then(|| project.repos.read().primary().and_then(|repo| repo.branch_info().ok()).and_then(|b| b.head))
+                .flatten();
+            let recent = ide_workspace::RecentProjects::load(&config);
+            recent.touch(&project.root, branch)?;
+            recent.rename(&project.root, Some(&info.display_name))?;
             let name = if info.display_name.is_empty() { info.name } else { info.display_name };
             ide_core::IdeResult::Ok((project.root.clone(), name))
         });
@@ -1069,6 +1105,8 @@ impl Workbench {
                     result.map_err(|error| error.to_string()).and_then(|opened| opened.map_err(|error| error.message));
                 workbench.content = match opened {
                     Ok((root, name)) => {
+                        // It is the most recent project now: Open Recent lists it first.
+                        menu::refresh_recent(cx);
                         let label = workbench.label.clone();
                         // The layout is stored per project folder, as the webview keys it.
                         let scope = root.to_string_lossy().into_owned();
@@ -3132,6 +3170,131 @@ mod tests {
         assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()));
         // Once the bar has followed the keymap it shows no shortcut for it.
         assert!(matches!(shown(cx, "navigate.gotoFile"), Some(MenuNode::Item { shortcut: None, .. })));
+    }
+
+    /// Projects open where "Open project in" says; the window that has a project comes to the
+    /// front instead of opening it twice; windows are labelled, cycled and closed over.
+    #[gpui_kit::test]
+    async fn projects_open_in_this_window_a_new_one_or_the_one_that_has_them(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use windows::Target;
+        let _home = start(cx);
+        cx.update(gpui_kit::init);
+        let folders: Vec<tempfile::TempDir> =
+            (0..3).map(|_| tempfile::tempdir().expect("a temporary folder")).collect();
+        let roots: Vec<PathBuf> = folders.iter().map(|f| f.path().canonicalize().expect("the folder exists")).collect();
+        for root in &roots {
+            std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        }
+        let run = |cx: &mut TestAppContext,
+                   window: gpui_kit::AnyWindowHandle,
+                   id: &'static str,
+                   arg: Option<&std::path::Path>| {
+            let arg = arg.map(|path| serde_json::Value::String(path.to_string_lossy().into_owned()));
+            window
+                .update(cx, |_, window, cx| execute_action_or_throw(id, arg.as_ref(), window, cx))
+                .expect("the window is open")
+                .expect("the action runs");
+            cx.run_until_parked();
+        };
+        let labels = |cx: &mut TestAppContext| -> Vec<String> {
+            cx.update(|cx| windows::windows(cx).into_iter().map(|(label, _)| label).collect())
+        };
+        let window = |cx: &mut TestAppContext, label: &str| {
+            cx.update(|cx| {
+                windows::windows(cx).into_iter().find(|(known, _)| known == label).expect("the window is open").1
+            })
+        };
+        let project = |cx: &mut TestAppContext, label: &str| -> Option<PathBuf> {
+            let handle = window(cx, label);
+            handle
+                .update(cx, |_, window, cx| for_window(window, cx).and_then(|w| w.read(cx).project_root(cx)))
+                .expect("the window is open")
+        };
+        let wait = |cx: &mut TestAppContext, done: &dyn Fn(&mut TestAppContext) -> bool| {
+            for _ in 0..300 {
+                cx.run_until_parked();
+                if done(cx) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("the backend did not deliver within three seconds");
+        };
+
+        // A window that shows nothing takes the project.
+        let main = cx.update(|cx| windows::open_window(Target::Empty, cx)).expect("a window opens");
+        assert_eq!(labels(cx), ["main"]);
+        run(cx, main, "file.openProjectPath", Some(&roots[0]));
+        wait(cx, &|cx| project(cx, "main").as_deref() == Some(&roots[0]));
+
+        // One with a project asks; New Window opens the next label.
+        run(cx, main, "file.openProjectPath", Some(&roots[1]));
+        assert!(cx.has_pending_prompt());
+        cx.simulate_prompt_answer("New Window");
+        wait(cx, &|cx| labels(cx) == ["main", "project-1"] && project(cx, "project-1").as_deref() == Some(&roots[1]));
+        assert_eq!(project(cx, "main").as_deref(), Some(&*roots[0]));
+
+        // A project that a window has is not opened again: that window comes to the front.
+        let second = window(cx, "project-1");
+        run(cx, second, "file.openProjectPath", Some(&roots[0]));
+        assert!(!cx.has_pending_prompt());
+        assert_eq!(labels(cx).len(), 2);
+        assert_eq!(cx.update(|cx| cx.active_window()), Some(main));
+
+        // Cancel leaves everything as it is; This Window replaces the window's project.
+        run(cx, second, "file.openProjectPath", Some(&roots[2]));
+        cx.simulate_prompt_answer("Cancel");
+        cx.run_until_parked();
+        assert_eq!(project(cx, "project-1").as_deref(), Some(&*roots[1]));
+        run(cx, second, "file.openProjectPath", Some(&roots[2]));
+        cx.simulate_prompt_answer("This Window");
+        wait(cx, &|cx| project(cx, "project-1").as_deref() == Some(&roots[2]));
+        assert_eq!(labels(cx).len(), 2);
+
+        // With the answer stored, nothing is asked.
+        cx.update(|cx| {
+            use ide_workspace::settings::SettingsScope;
+            crate::platform::settings::set("", SettingsScope::Global, "general.openProjectIn", &"same".into(), cx)
+                .expect("the setting is stored");
+        });
+        run(cx, second, "file.openProjectPath", Some(&roots[1]));
+        assert!(!cx.has_pending_prompt());
+        wait(cx, &|cx| project(cx, "project-1").as_deref() == Some(&roots[1]));
+
+        // Open… asks for a folder and opens what was picked the same way.
+        run(cx, second, "file.openProject", None);
+        assert!(cx.did_prompt_for_paths());
+        let picked = roots[2].clone();
+        cx.simulate_path_prompt_response(move |options| {
+            assert!(options.directories && !options.files);
+            Some(vec![picked])
+        });
+        wait(cx, &|cx| project(cx, "project-1").as_deref() == Some(&roots[2]));
+
+        // Every project that was opened is a recent one, the last first.
+        let recent: Vec<PathBuf> = cx.update(|cx| {
+            let config = &cx.global::<Backend>().dirs.config;
+            ide_workspace::RecentProjects::load(config).list().into_iter().map(|project| project.path.0).collect()
+        });
+        assert_eq!(recent, [roots[2].clone(), roots[1].clone(), roots[0].clone()]);
+
+        // Next and Previous Project Window go round the windows in label order.
+        run(cx, main, "window.new", None);
+        assert_eq!(labels(cx), ["main", "project-1", "project-2"]);
+        let third = window(cx, "project-2");
+        run(cx, third, "window.next", None);
+        assert_eq!(cx.update(|cx| cx.active_window()), Some(main));
+        run(cx, main, "window.previous", None);
+        assert_eq!(cx.update(|cx| cx.active_window()), Some(third));
+
+        // Close Project leaves the window, showing nothing; it takes the next project itself.
+        run(cx, second, "file.closeProject", None);
+        assert_eq!(project(cx, "project-1"), None);
+        assert!(cx.update(|cx| cx.global::<Backend>().host.project("project-1").is_err()));
+        run(cx, second, "file.openRecentProject", Some(&roots[1]));
+        assert!(!cx.has_pending_prompt());
+        wait(cx, &|cx| project(cx, "project-1").as_deref() == Some(&roots[1]));
     }
 
     #[test]

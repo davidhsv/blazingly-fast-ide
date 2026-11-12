@@ -1,6 +1,6 @@
-use gpui_kit::{App, AppContext as _};
+use gpui_kit::App;
 use openidea_gpui::theme::icons::IconAssets;
-use openidea_gpui::workbench::Workbench;
+use openidea_gpui::workbench::windows::{self, Target};
 use std::path::PathBuf;
 
 fn main() {
@@ -25,17 +25,12 @@ fn main() {
             cx.quit();
             return;
         }
-        let opened = gpui_kit::open_window(openidea_gpui::workbench::window_options(), cx, |window, cx| {
-            cx.new(|cx| {
-                let mut workbench = Workbench::new("main", window, cx);
-                match file.clone() {
-                    Some(folder) if folder.is_dir() => workbench.open_project(folder, window, cx),
-                    Some(file) => workbench.open_file(file, window, cx),
-                    None => {}
-                }
-                workbench
-            })
-        });
+        let target = match file.clone() {
+            Some(folder) if folder.is_dir() => Target::Project(folder),
+            Some(file) => Target::File(file),
+            None => Target::Empty,
+        };
+        let opened = windows::open_window(target, cx);
         if let Err(error) = opened {
             tracing::error!("cannot open a window: {error:#}");
             cx.quit();

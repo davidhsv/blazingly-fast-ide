@@ -271,3 +271,13 @@ Choices:
 - Undo, Redo, Cut, Copy, Paste and Select All are the OS's roles on macOS. Chosen from the bar they run the editor's `edit.*` action in the focused window. A text field that is not the editor does not get them from the bar yet (its own keys work).
 - Check for Updates is left out, as the Tauri app does when no updater is configured: this app has none.
 - `app.quit` is registered here because the bar is its first user: each window is asked to close, and the app quits when all agree. A window with unsaved changes asks its question and, once answered, closes itself, but the app does not go on to quit. Marked partial.
+
+## D40. Windows are labelled and opened as the Tauri shell does it
+
+`workbench/windows.rs` opens the app's windows (`main`, then `project-<n>` with the lowest free number, the Tauri shell's labels and order) and decides where a project opens: the window that already has it comes to the front, a window showing nothing takes it, and one with a project follows `general.openProjectIn` or asks. `main.rs` opens its first window through it.
+
+Choices:
+
+- The question is the OS's own prompt, so it has This Window, New Window and Cancel but no "Don't ask again" box, and no Attach (attaching a project to a workspace is not ported). The stored setting is honoured when it is set elsewhere.
+- Replacing a window's project saves what is unsaved and writes the editor session first, then lets the backend swap the project (`Host::open_project` closes the previous one itself). Close Project uses `close_project_detached`: it runs on the UI thread and must not wait for language servers to stop.
+- An opened project is recorded as recent where it is opened (in the workbench, after the backend opened it), with its branch and display name as `AppState::record_project` does, and Open Recent is read again then.
