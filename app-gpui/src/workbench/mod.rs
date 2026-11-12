@@ -224,6 +224,15 @@ pub fn register_actions(cx: &mut App) {
         let label = for_window(window, cx).map(|workbench| workbench.read(cx).label.clone()).unwrap_or_default();
         crate::theme::appearance::toggle_theme(&label, cx)
     });
+    registry.handle_toggle(
+        "ide.toggleMode",
+        |window, cx| for_window(window, cx).is_some_and(|workbench| workbench.read(cx).ide_mode(cx).is_full()),
+        |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            workbench.update(cx, |workbench, cx| workbench.toggle_ide_mode(cx));
+            Ok(())
+        },
+    );
     registry.handle("editor.closeTab", |_, window, cx| {
         on_tabs(window, cx, |tabs, pane| active(tabs, pane).is_some_and(|tab| tabs.close_tab(pane, &tab)))
     });
@@ -321,6 +330,37 @@ impl Workbench {
 
     pub fn label(&self) -> &str {
         &self.label
+    }
+
+    /// How much of the IDE runs for this window: Blaze (editor, git and search only) or Deep
+    /// (language servers and the tooling feeding them too).
+    pub fn ide_mode(&self, cx: &App) -> ide_core::settings::IdeMode {
+        crate::platform::settings::effective(&self.label, cx).ide.mode
+    }
+
+    /// Switches between Blaze and Deep mode, for every project; a project whose own settings
+    /// name the mode is switched too, so the toggle always takes effect in this window.
+    pub fn toggle_ide_mode(&mut self, cx: &mut Context<Self>) {
+        use crate::platform::settings::set;
+        use ide_core::settings::IdeMode;
+        use ide_workspace::settings::SettingsScope;
+        let next = if self.ide_mode(cx).is_full() { IdeMode::Light } else { IdeMode::Full };
+        let value = serde_json::Value::from(next.as_str());
+        let label = self.label.clone();
+        let in_project = matches!(self.content, Content::Project { .. });
+        let switched = set(&label, SettingsScope::Global, "ide.mode", &value, cx).and_then(|settings| {
+            if in_project && settings.ide.mode != next {
+                set(&label, SettingsScope::Project, "ide.mode", &value, cx).map(|_| ())
+            } else {
+                Ok(())
+            }
+        });
+        if let Err(error) = switched {
+            let mut request = NotificationRequest::new(NotificationLevel::Error, "Cannot change the IDE mode");
+            request.body = Some(error.message);
+            self.notify(request, cx);
+        }
+        cx.notify();
     }
 
     /// The folder of the project open in this window.
@@ -1382,7 +1422,30 @@ impl Render for Workbench {
                     .pr(gpui_kit::px(8.0))
                     .text_color(theme::color(cx, "fg-strong"))
                     .window_control_area(gpui_kit::WindowControlArea::Drag)
-                    .child(SharedString::from(self.shown_title.clone().unwrap_or_default())),
+                    .child(SharedString::from(self.shown_title.clone().unwrap_or_default()))
+                    .child(div().flex_1())
+                    // The IDE mode of the window's project; a click switches it.
+                    .children(framed.then(|| {
+                        let full = self.ide_mode(cx).is_full();
+                        let i18n = &cx.default_global::<crate::platform::i18n::Localization>().0;
+                        let label = i18n.tx(if full { "Deep mode" } else { "Blaze mode" });
+                        let color = theme::color(cx, "fg-strong");
+                        div()
+                            .id("title:app.ideMode")
+                            .h(gpui_kit::px(30.0))
+                            .flex_none()
+                            .flex()
+                            .items_center()
+                            .gap(gpui_kit::px(5.0))
+                            .px(gpui_kit::px(8.0))
+                            .rounded(theme::length(cx, "radius-toolbar-button"))
+                            .hover(|el| el.bg(theme::color(cx, "bg-hover")))
+                            .child(theme::icon(cx, if full { "ide-mode-full" } else { "ide-mode-light" }, 16.0, color))
+                            .child(SharedString::from(label))
+                            .on_click(cx.listener(|_, _, window, cx| {
+                                execute_action_from(ActionSource::Toolbar, "ide.toggleMode", None, window, cx);
+                            }))
+                    })),
             )
             .child(div().flex_1().min_h_0().w_full().child(body))
             .children((self.editor().is_some() || self.task_status().is_some()).then(|| {
@@ -1987,6 +2050,54 @@ mod tests {
             .and_then(|view| view.downcast::<TerminalView>().ok())
             .expect("the terminal has a view");
         assert_eq!(again.entity_id(), terminal.entity_id(), "the same session");
+    }
+
+    /// Blaze and Deep mode: the toggle writes `ide.mode` for every project and the backend
+    /// applies it to this one; a project that names the mode itself is switched too.
+    #[gpui_kit::test]
+    async fn the_ide_mode_toggle_switches_between_blaze_and_deep(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use crate::platform::settings;
+        use ide_core::settings::IdeMode;
+        use ide_workspace::settings::SettingsScope;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let toggle = |cx: &mut VisualTestContext| {
+            cx.update(|window, cx| execute_action_or_throw("ide.toggleMode", None, window, cx)).expect("it runs");
+        };
+        let backend_mode = |cx: &mut VisualTestContext| {
+            cx.update(|_, cx| cx.global::<Backend>().host.project("w1").map(|p| p.ide_mode()))
+        };
+        let toggled = |cx: &mut VisualTestContext| {
+            cx.update(|window, cx| {
+                let action = cx.global::<ActionRegistry>().get("ide.toggleMode").expect("registered");
+                action.is_toggled(window, cx)
+            })
+        };
+        assert_eq!(workbench.read_with(cx, |w, cx| w.ide_mode(cx)), IdeMode::Light);
+        assert_eq!(toggled(cx), Some(false));
+
+        toggle(cx);
+        assert_eq!(workbench.read_with(cx, |w, cx| w.ide_mode(cx)), IdeMode::Full);
+        assert_eq!(cx.update(|_, cx| settings::global(cx).ide.mode), IdeMode::Full);
+        assert_eq!(backend_mode(cx).ok(), Some(IdeMode::Full));
+        assert_eq!(toggled(cx), Some(true));
+        toggle(cx);
+        assert_eq!(backend_mode(cx).ok(), Some(IdeMode::Light));
+
+        // The project says Blaze itself: the global switch alone would change nothing here.
+        cx.update(|_, cx| {
+            settings::set("w1", SettingsScope::Project, "ide.mode", &"light".into(), cx).expect("stored");
+        });
+        toggle(cx);
+        assert_eq!(cx.update(|_, cx| settings::global(cx).ide.mode), IdeMode::Full);
+        assert_eq!(workbench.read_with(cx, |w, cx| w.ide_mode(cx)), IdeMode::Full);
+        assert_eq!(backend_mode(cx).ok(), Some(IdeMode::Full));
     }
 
     #[test]

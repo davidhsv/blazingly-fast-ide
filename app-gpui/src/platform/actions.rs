@@ -195,6 +195,11 @@ impl Action {
         self.toggled = Some(Rc::new(toggled));
         self
     }
+
+    /// Whether a toggle action is on in `window`; none for an action that is not a toggle.
+    pub fn is_toggled(&self, window: &Window, cx: &App) -> Option<bool> {
+        self.toggled.as_ref().map(|toggled| toggled(window, cx))
+    }
 }
 
 /// Why an action could not be run.

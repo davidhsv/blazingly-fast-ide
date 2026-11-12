@@ -662,5 +662,13 @@
   "point.registerToolWindow:terminal": {
     "status": "partial",
     "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; one session, no tabs"
+  },
+  "action:ide.toggleMode": {
+    "status": "done",
+    "proof": "`workbench::tests::the_ide_mode_toggle_switches_between_blaze_and_deep`"
+  },
+  "point.registerTitleItem:app.ideMode": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_ide_mode_toggle_switches_between_blaze_and_deep`; the title bar button shows the mode and runs the tested action, but no test clicks it, and it has no tooltip or shortcut hint yet"
   }
 }
