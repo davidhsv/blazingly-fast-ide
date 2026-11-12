@@ -8,6 +8,7 @@ pub mod project_tree_model;
 pub mod project_tree_paths;
 pub mod theme;
 pub mod ui;
+pub mod vcs;
 pub mod workbench;
 
 use gpui_kit::App;
