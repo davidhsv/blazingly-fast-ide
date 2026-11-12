@@ -1266,5 +1266,13 @@
   "boundid:toolwindow.resizeDown": {
     "status": "partial",
     "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; registered with the other two on the same layout step; the test resizes a left window only"
+  },
+  "action:navigate.fileStructure": {
+    "status": "partial",
+    "proof": "`workbench::tests::file_structure_lists_the_editors_symbols_and_goes_to_the_chosen_one`, `everywhere::structure_view::tests`; opens the popup for the active editor and, asked again, toggles the inherited members; see the search.fileStructure overlay for what the popup lacks"
+  },
+  "point.registerOverlay:search.fileStructure": {
+    "status": "partial",
+    "proof": "`workbench::tests::file_structure_lists_the_editors_symbols_and_goes_to_the_chosen_one`, `everywhere::structure_view::tests`, `everywhere::outline::tests`, `everywhere::inherited::tests`; the popup with the outline as a tree, the symbol at the caret selected, folding, speed search that narrows or highlights, sort and visibility options stored as the webview stores them, inherited members, Enter and double click going to the symbol. Not yet: the last outline shown at once on reopening, reloading while open, tooltips, the query in the monospace font, going to a member that lives in a library class (a virtual document)"
   }
 }

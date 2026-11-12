@@ -298,3 +298,16 @@ Choices the subagent made, kept:
 The Appearance options the webview sets as attributes on the document root (`data-compact`, contrast scrollbars, red-green palette, a different tool window background, project colours, menu icons) are passed as attributes when the theme is cascaded, so the stylesheet's own blocks for them apply and nothing is restated in Rust. The four View › Appearance toggles flip their global setting; the status bar and the tool window stripes are drawn only when theirs is on. The four Stretch actions have ids built from a direction in the webview, so they are registered with their metadata written out instead of read from the generated list.
 
 IDE zoom is not ported: sizes come from tokens and from literals in the views, and scaling only the tokens would zoom half the UI. It needs one scale applied where GPUI resolves pixels, which is a change of its own.
+
+## D43. Views written by subagents: File Structure
+
+`everywhere/structure_view.rs` is the first view (not model) written by a subagent without a compiler, against `everywhere/view.rs` as its template; it was wired here, built on the first try and its twelve tests passed, one of them against the real backend (a Makefile's outline, which needs no language server). It is the ⌘F12 popup only: the Structure tool window is a separate component in the webview and is not ported.
+
+Choices the subagent made, kept:
+
+- The popup loads the outline once when it opens and again when inherited members are toggled; the webview also reloads it 500 ms after an edit, which cannot happen under a popup that has the keyboard.
+- The selection goes back to the symbol at the caret (or the best match) whenever the shown tree changes, as the webview's effect does: after a sort or visibility option, and when inherited members arrive.
+- Keys are claimed where the webview prevents the default: Enter, Up and Down always; Right when the selected node has children; Left when something is selected; Escape only while there is a query, which it clears.
+- The selected row uses the inactive selection colour, since the keyboard is in the query field, not in the tree. Search Everywhere's rows use the active one; one of the two is to change when the popups get a common list.
+- Supertypes for inherited members are asked through `ide_host::ops::lsp` with the direction built from JSON, because `ide-lsp` is not a dependency of the app; a supertype's file is opened and closed again in the backend to read its outline, which marks it as recent.
+- An outline that fails to load shows "No symbols" and logs the error, as the webview's popup does.

@@ -17,6 +17,7 @@ use crate::editor::session::{self, FileViewState};
 use crate::editor::tabs::{EditorInput, OpenTabOptions, TabsState, disambiguate_titles};
 use crate::editor::view::Editor;
 use crate::everywhere::model::SeTab;
+use crate::everywhere::structure_view::{FileStructure, FileStructureEvent, StructureFile};
 use crate::everywhere::view::{SearchEverywhere, SearchEverywhereEvent};
 use crate::platform::actions::{Action, ActionMeta, ActionRegistry, ActionSource, execute_action_from, manifest};
 use crate::platform::input;
@@ -368,6 +369,11 @@ pub fn register_actions(cx: &mut App) {
             Ok(())
         });
     }
+    registry.handle("navigate.fileStructure", |_, window, cx| {
+        let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+        workbench.update(cx, |workbench, cx| workbench.show_file_structure(window, cx));
+        Ok(())
+    });
     registry.handle("find.inPath", |_, window, cx| on_layout(window, cx, |layout| layout.show(FIND_TOOL_WINDOW, true)));
     registry.handle("view.toggleTheme", |_, window, cx| {
         let label = for_window(window, cx).map(|workbench| workbench.read(cx).label.clone()).unwrap_or_default();
@@ -1332,6 +1338,35 @@ impl Workbench {
             }
         });
         self.open_popup(&popup, events, window, cx);
+    }
+
+    /// Opens the File Structure popup for the active editor. Asked for again while it is open,
+    /// it shows or hides the members the file's types inherit.
+    pub fn show_file_structure(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(open) = self.file_structure() {
+            open.update(cx, |popup, cx| popup.toggle_show_inherited(cx));
+            return;
+        }
+        let editor = self.editor().map(|editor| editor.read(cx));
+        let file = editor
+            .map(|editor| StructureFile { path: editor.path().to_string_lossy().into_owned(), doc: editor.doc() });
+        let caret = editor.map(|editor| {
+            let (line, col) = editor.caret_position();
+            ide_core::Pos::new(line, col)
+        });
+        let label = self.label.clone();
+        let popup = cx.new(|cx| FileStructure::new(&label, file, caret, cx));
+        let events = cx.subscribe_in(&popup, window, |workbench, _, event: &FileStructureEvent, window, cx| {
+            workbench.close_popup(window, cx);
+            if let FileStructureEvent::Reveal { path, line, col } = event {
+                workbench.open_project_file_at(path.clone(), *line, *col, window, cx);
+            }
+        });
+        self.open_popup(&popup, events, window, cx);
+    }
+
+    pub fn file_structure(&self) -> Option<Entity<FileStructure>> {
+        self.popup.as_ref().and_then(|popup| popup.view.clone().downcast().ok())
     }
 
     pub fn search_everywhere(&self) -> Option<Entity<SearchEverywhere>> {
@@ -3428,6 +3463,36 @@ mod tests {
         assert_eq!(layout(cx).1, Some(Anchor::Left));
         run(cx, "toolwindow.maximize");
         assert_eq!(layout(cx).1, None);
+    }
+
+    /// File Structure lists the symbols of the file being edited with the one at the caret
+    /// selected; Enter on another puts the caret on it and closes the popup, with the keyboard
+    /// back in the editor.
+    #[gpui_kit::test]
+    async fn file_structure_lists_the_editors_symbols_and_goes_to_the_chosen_one(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        std::fs::write(root.join("Makefile"), "CC = gcc\n\nbuild: main.o\n\t$(CC) -o app main.o\n\nall: build\n")
+            .expect("the file is written");
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("Makefile"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        editor.update(cx, |editor, cx| {
+            let at = editor.offset_of(3, 2);
+            editor.select(at, at, cx);
+        });
+
+        cx.update(|window, cx| execute_action_or_throw("navigate.fileStructure", None, window, cx)).expect("it runs");
+        let structure = workbench.read_with(cx, |w, _| w.file_structure()).expect("File Structure is open");
+        settle(cx, |cx| structure.read_with(cx, |popup, _| !popup.is_loading() && !popup.lines().is_empty()));
+        assert_eq!(structure.read_with(cx, |popup, _| popup.lines()), ["CC", "build", "all"]);
+        assert_eq!(structure.read_with(cx, |popup, _| popup.selected()).as_deref(), Some("build"));
+
+        cx.simulate_keystrokes("down enter");
+        settle(cx, |cx| editor.read_with(cx, |editor, _| editor.caret_position() == (5, 0)));
+        assert!(workbench.read_with(cx, |w, _| w.file_structure().is_none()));
+        assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)));
     }
 
     #[test]
