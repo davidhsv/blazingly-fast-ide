@@ -1,10 +1,10 @@
 //! The Find tool window's results tree: files with their matching lines, flat or grouped by directory.
 
 use super::ipc::{FileMatches, Pos};
-use super::open::rel_dir;
 use super::replace_flow::UsageGroup;
 use super::row_selection::Keyed;
 use super::session::{count_file_matches, line_preview};
+use crate::everywhere::open::rel_dir;
 use crate::platform::collate;
 use crate::platform::virtual_docs::basename;
 use std::collections::{BTreeSet, HashMap};

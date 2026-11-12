@@ -13,9 +13,12 @@ pub mod ime_commit;
 pub mod ime_input;
 pub mod keys;
 pub mod links;
+pub mod panel;
 pub mod paste;
 pub mod persist;
 pub mod store;
+#[cfg(test)]
+pub mod test_support;
 pub mod theme;
 pub mod view;
 pub mod windows_pty;

@@ -645,7 +645,7 @@
   },
   "feature:vcs": {
     "status": "partial",
-    "proof": "`vcs::graph::tests`, `vcs::changes::tests`, `vcs::branches::tests`, `vcs::conflicts::tests`; models only: no Git tool window, commit view, log, diff or branch popup is drawn, and nothing calls the backend's VCS operations"
+    "proof": "`vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`, `vcs_ops::branch_ops::tests`, `vcs::graph::tests`; the Git log with its graph and the Commit window's list of changes are shown, and the models of branch, history, commit and change-list operations are ported. Not yet: committing, staging, diffs, branches popup and tree, log filters and details, merge and rebase, shelf and stash, blame, GitHub"
   },
   "action:view.toggleTheme": {
     "status": "done",
@@ -657,11 +657,11 @@
   },
   "feature:terminal": {
     "status": "partial",
-    "proof": "`terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `terminal::emulator::tests`, `terminal::encode::tests`; the Terminal tool window runs a shell in the project folder (typing, paste, selection, scrollback, resize, exit) and keeps it while hidden. Not yet: tabs and groups, restart, find, links, mouse reporting, blink"
+    "proof": "`terminal::panel::tests::tabs_are_shells_of_their_own`, `terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `terminal::store::tests`; the Terminal tool window with tabs, each a shell (typing, paste, selection, scrollback, resize, clear, exit), remembered per project. Not yet: splits drawn, rename and tab menus, find, links, mouse reporting, predefined and plugin sessions, command titles (needs shell-integration marks)"
   },
   "point.registerToolWindow:terminal": {
     "status": "partial",
-    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; one session, no tabs"
+    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `terminal::panel::tests::tabs_are_shells_of_their_own`; tabs in the window's body rather than its header, no splits drawn"
   },
   "action:ide.toggleMode": {
     "status": "done",
@@ -836,8 +836,8 @@
     "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`"
   },
   "unit:src/features/search/__tests__/everywhereFilters.test.ts": {
-    "status": "partial",
-    "proof": "`everywhere::filters::tests`; all 10 cases, but the five that drive the Search Everywhere controller assert only what the filter resolves to: the controller is not wired yet"
+    "status": "done",
+    "proof": "`everywhere::filters::tests`, `everywhere::controller::tests`"
   },
   "unit:src/features/search/__tests__/everywhereGroups.test.ts": {
     "status": "done",
@@ -942,5 +942,37 @@
   "ipc:vcs_status": {
     "status": "done",
     "proof": "`vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`"
+  },
+  "feature:search": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`, `find::session::tests`, `everywhere::model::tests`; Find in Files runs in the Find tool window, and the models of Search Everywhere, recent files, bookmarks and the structure outline are ported. Not yet: the Find in Files popup with scopes, masks and preview, Replace in Files, Search Everywhere, Recent Files, bookmarks and Structure views"
+  },
+  "action:terminal.new": {
+    "status": "done",
+    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `workbench::tests::a_new_terminal_tab_opens_the_terminal_with_one_tab`"
+  },
+  "action:terminal.clear": {
+    "status": "done",
+    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`"
+  },
+  "action:terminal.closeSession": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; closes the active tab at once: the question asked when a command is still running is not there"
+  },
+  "context:terminalFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`"
+  },
+  "unit:src/features/search/__tests__/controller.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::controller::tests`"
+  },
+  "unit:src/features/search/__tests__/routes.test.ts": {
+    "status": "done",
+    "proof": "`everywhere::routes::tests`"
+  },
+  "point.registerKeyClaim:(at) src/features/terminal/keys.ts:136": {
+    "status": "done",
+    "proof": "`terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`, `terminal::keys::tests`"
   }
 }

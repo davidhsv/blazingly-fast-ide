@@ -18,7 +18,6 @@ use crate::platform::input;
 use crate::platform::local_time::now_ms;
 use crate::platform::storage::UiStorage;
 use crate::project_tree::{OpenFile, ProjectTree};
-use crate::terminal::view::TerminalView;
 use crate::theme;
 use gpui_kit::Subscription;
 use gpui_kit::{AnyView, FocusHandle};
@@ -32,6 +31,7 @@ use notifications::{NotificationLevel, NotificationRequest, Notifications};
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::PathBuf;
+use std::rc::Rc;
 use tasks::{TaskEvent, Tasks};
 use tool_windows::{Anchor, Effects, Slot, Stripe, ToolWindow, ToolWindowLayout, storage_key};
 
@@ -70,13 +70,22 @@ enum Content {
 /// A tool window's content and where its keyboard focus goes.
 struct Panel {
     view: AnyView,
-    focus: FocusHandle,
+    /// Where the keyboard goes when the window is given it: asked each time, since a view may
+    /// hand it on to a part of itself that changes (the terminal's active tab).
+    focus: Rc<dyn Fn(&App) -> FocusHandle>,
     /// What the window listens to the view for, kept for as long as the view is.
     _events: Option<Subscription>,
 }
 
 /// How long the tabs rest before the editor session is written.
 const SESSION_SAVE_DELAY: std::time::Duration = std::time::Duration::from_millis(400);
+
+impl Panel {
+    fn new<V: Focusable + Render>(view: Entity<V>, events: Option<Subscription>) -> Self {
+        let focused = view.clone();
+        Self { view: view.into(), focus: Rc::new(move |cx| focused.focus_handle(cx)), _events: events }
+    }
+}
 
 /// One window: its backend label and what it shows.
 pub struct Workbench {
@@ -239,6 +248,47 @@ pub fn register_actions(cx: &mut App) {
     fn active(tabs: &TabsState, pane: &str) -> Option<String> {
         tabs.pane(pane).and_then(|pane| pane.active.clone())
     }
+    use crate::terminal::panel::TerminalPanel;
+    fn on_terminals(
+        window: &mut Window,
+        cx: &mut App,
+        act: impl FnOnce(&mut TerminalPanel, &mut Context<TerminalPanel>),
+    ) -> anyhow::Result<()> {
+        let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+        let terminals = workbench
+            .read(cx)
+            .tool_window_view(TERMINAL_TOOL_WINDOW)
+            .and_then(|view| view.downcast::<TerminalPanel>().ok())
+            .ok_or_else(|| anyhow::anyhow!("the Terminal has not been opened"))?;
+        terminals.update(cx, act);
+        Ok(())
+    }
+    registry.handle("terminal.new", |_, window, cx| {
+        // A Terminal that exists gets the tab first and is shown then. One that this shows for
+        // the first time starts with a tab of its own, which is the new tab, unless it came
+        // back with remembered tabs: then the new one is added to them.
+        let existed = on_terminals(window, cx, |terminals, cx| terminals.open_tab(cx)).is_ok();
+        on_layout(window, cx, |layout| layout.show(TERMINAL_TOOL_WINDOW, true))?;
+        if !existed {
+            on_terminals(window, cx, |terminals, cx| {
+                if !terminals.take_fresh() {
+                    terminals.open_tab(cx);
+                }
+            })?;
+        }
+        // The keyboard goes to the tab that was opened.
+        on_layout(window, cx, |layout| layout.focus(TERMINAL_TOOL_WINDOW))
+    });
+    registry.handle("terminal.clear", |_, window, cx| {
+        on_terminals(window, cx, |terminals, cx| {
+            if let Some(terminal) = terminals.active_view().cloned() {
+                terminal.update(cx, |terminal, cx| terminal.clear(cx));
+            }
+        })
+    });
+    registry.handle("terminal.closeSession", |_, window, cx| {
+        on_terminals(window, cx, |terminals, cx| terminals.close_active_tab(cx))
+    });
     registry.handle("find.inPath", |_, window, cx| on_layout(window, cx, |layout| layout.show(FIND_TOOL_WINDOW, true)));
     registry.handle("view.toggleTheme", |_, window, cx| {
         let label = for_window(window, cx).map(|workbench| workbench.read(cx).label.clone()).unwrap_or_default();
@@ -794,12 +844,14 @@ impl Workbench {
             set_context(window, cx, key, focused);
         }
         let focused_panel = match &self.content {
-            Content::Project { panels, .. } => {
-                panels.iter().find(|(_, panel)| panel.focus.contains_focused(window, cx)).map(|(id, _)| id.clone())
-            }
+            Content::Project { panels, .. } => panels
+                .iter()
+                .find(|(_, panel)| (panel.focus)(cx).contains_focused(window, cx))
+                .map(|(id, _)| id.clone()),
             _ => None,
         };
         set_context(window, cx, "toolWindowFocus", focused_panel.is_some());
+        set_context(window, cx, "terminalFocus", focused_panel.as_deref() == Some(TERMINAL_TOOL_WINDOW));
         if let Content::Project { layout, .. } = &mut self.content {
             // The layout decides by this what `toolwindow.<id>` does: focus, or hide.
             layout.set_focused(focused_panel.as_deref());
@@ -866,7 +918,8 @@ impl Workbench {
         if let Some(request) = request {
             *focus_served = request.seq;
             if let Some(panel) = panels.get(&request.id) {
-                window.focus(&panel.focus, cx);
+                let focus = (panel.focus)(cx);
+                window.focus(&focus, cx);
             }
         } else if effects.focus_editor {
             match editor {
@@ -890,14 +943,21 @@ impl Workbench {
         for id in missing {
             let panel = match id.as_str() {
                 TERMINAL_TOOL_WINDOW => {
-                    let (label, options) = (self.label.clone(), self.terminal_options(&root, cx));
-                    let terminal = cx.new(|cx| TerminalView::new(&label, options, cx));
-                    Panel { focus: terminal.focus_handle(cx), view: terminal.into(), _events: None }
+                    use crate::terminal::panel::{TerminalPanel, TerminalPanelEvent};
+                    let (label, root) = (self.label.clone(), root.clone());
+                    let terminals = cx.new(|cx| TerminalPanel::new(&label, root, cx));
+                    // The last tab closing leaves nothing to show.
+                    let closes =
+                        cx.subscribe_in(&terminals, window, |workbench, _, event: &TerminalPanelEvent, window, cx| {
+                            let TerminalPanelEvent::Emptied = event;
+                            workbench.with_layout(window, cx, |layout| layout.hide(TERMINAL_TOOL_WINDOW));
+                        });
+                    Panel::new(terminals, Some(closes))
                 }
                 GIT_TOOL_WINDOW => {
                     let label = self.label.clone();
                     let log = cx.new(|cx| crate::vcs::log_view::GitLog::new(&label, cx));
-                    Panel { focus: log.focus_handle(cx), view: log.into(), _events: None }
+                    Panel::new(log, None)
                 }
                 COMMIT_TOOL_WINDOW => {
                     use crate::vcs::commit_view::{CommitPanel, CommitPanelEvent};
@@ -908,7 +968,7 @@ impl Workbench {
                             let CommitPanelEvent::Open(path) = event;
                             workbench.open_project_file(path.clone(), window, cx);
                         });
-                    Panel { focus: changes.focus_handle(cx), view: changes.into(), _events: Some(opens) }
+                    Panel::new(changes, Some(opens))
                 }
                 FIND_TOOL_WINDOW => {
                     use crate::find::view::{FindPanel, FindPanelEvent};
@@ -918,7 +978,7 @@ impl Workbench {
                         let FindPanelEvent::Open { path, line, col } = event;
                         workbench.open_project_file_at(path.clone(), *line, *col, window, cx);
                     });
-                    Panel { focus: find.focus_handle(cx), view: find.into(), _events: Some(opens) }
+                    Panel::new(find, Some(opens))
                 }
                 _ => continue,
             };
@@ -926,32 +986,14 @@ impl Workbench {
                 panels.insert(id, panel);
             }
         }
-    }
-
-    /// How a terminal of this window's project starts: Settings › Terminal's start directory
-    /// (the project folder unless set; relative to it unless absolute or under `~`), shell
-    /// command line, environment and shell integration.
-    fn terminal_options(&self, root: &std::path::Path, cx: &App) -> ide_terminal::TerminalOptions {
-        let terminal = crate::platform::settings::effective(&self.label, cx).terminal;
-        let directory = terminal.start_directory.trim_end_matches('/');
-        let cwd = if directory.is_empty() {
-            root.to_path_buf()
-        } else if directory.starts_with('/') || directory.starts_with("~/") {
-            PathBuf::from(directory)
-        } else {
-            root.join(directory.strip_prefix("./").unwrap_or(directory))
-        };
-        let mut command = crate::platform::command_line::parse_shell_command(&terminal.shell_path, cfg!(windows));
-        let shell = (!command.is_empty()).then(|| command.remove(0));
-        ide_terminal::TerminalOptions {
-            cwd: ide_core::IpcPath(cwd),
-            shell,
-            args: command,
-            env: terminal.env,
-            // The grid is fitted to the tool window as soon as it is painted.
-            cols: 80,
-            rows: 24,
-            shell_integration: terminal.shell_integration,
+        // The Terminal shown again after its last tab closed starts a new one.
+        if self.is_tool_window_visible(TERMINAL_TOOL_WINDOW)
+            && let Some(terminals) = self
+                .tool_window_view(TERMINAL_TOOL_WINDOW)
+                .and_then(|view| view.downcast::<crate::terminal::panel::TerminalPanel>().ok())
+            && terminals.read(cx).terminals().tabs().is_empty()
+        {
+            terminals.update(cx, |terminals, cx| terminals.open_tab(cx));
         }
     }
 
@@ -1005,8 +1047,7 @@ impl Workbench {
                         let opens = cx.subscribe_in(&tree, window, |workbench, _, event: &OpenFile, window, cx| {
                             workbench.open_project_file(event.0.clone(), window, cx);
                         });
-                        let project_panel =
-                            Panel { focus: tree.focus_handle(cx), view: tree.clone().into(), _events: None };
+                        let project_panel = Panel::new(tree.clone(), None);
                         // The tabs, splits and carets the project was left with.
                         let saved = cx.try_global::<UiStorage>().and_then(|s| session::load_session(s, &scope));
                         let (tabs, restored_views) = match saved {
@@ -1636,6 +1677,7 @@ mod tests {
             register_actions(cx);
             cx.set_global(UiStorage::default());
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            crate::terminal::test_support::isolate_shells(home.path(), cx);
         });
         home
     }
@@ -2165,10 +2207,14 @@ mod tests {
         });
 
         cx.update(|window, cx| execute_action_or_throw("toolwindow.terminal", None, window, cx)).expect("it runs");
-        let terminal = workbench
-            .read_with(cx, |w, _| w.tool_window_view(TERMINAL_TOOL_WINDOW))
-            .and_then(|view| view.downcast::<TerminalView>().ok())
-            .expect("the terminal has a view");
+        let terminals = |cx: &mut VisualTestContext| {
+            workbench
+                .read_with(cx, |w, _| w.tool_window_view(TERMINAL_TOOL_WINDOW))
+                .and_then(|view| view.downcast::<crate::terminal::panel::TerminalPanel>().ok())
+                .expect("the Terminal window holds its tabs")
+        };
+        let terminal: Entity<TerminalView> =
+            terminals(cx).read_with(cx, |panel, _| panel.active_view().cloned()).expect("a first tab");
         assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
         assert_eq!(terminal.read_with(cx, |terminal, _| terminal.error().map(str::to_owned)), None);
         let long = |cx: &mut VisualTestContext, done: &dyn Fn(&mut VisualTestContext) -> bool| {
@@ -2198,11 +2244,68 @@ mod tests {
         cx.update(|window, cx| execute_action_or_throw("toolwindow.terminal", None, window, cx)).expect("it runs");
         assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
         assert!(screen(cx).contains(&expected));
-        let again = workbench
-            .read_with(cx, |w, _| w.tool_window_view(TERMINAL_TOOL_WINDOW))
-            .and_then(|view| view.downcast::<TerminalView>().ok())
-            .expect("the terminal has a view");
+        let again = terminals(cx).read_with(cx, |panel, _| panel.active_view().cloned()).expect("a tab");
         assert_eq!(again.entity_id(), terminal.entity_id(), "the same session");
+
+        // New Terminal Tab opens a second shell with the keyboard in it; Close Terminal Session
+        // ends it and the first tab shows again.
+        cx.update(|window, cx| execute_action_or_throw("terminal.new", None, window, cx)).expect("it runs");
+        let titles = |cx: &mut VisualTestContext| terminals(cx).read_with(cx, |panel, _| panel.tab_titles());
+        assert_eq!(titles(cx), [("Local".to_owned(), false), ("Local (2)".to_owned(), true)]);
+        cx.run_until_parked();
+        let second = terminals(cx).read_with(cx, |panel, _| panel.active_view().cloned()).expect("a tab");
+        assert!(cx.update(|window, cx| second.focus_handle(cx).is_focused(window)));
+        cx.update(|window, cx| execute_action_or_throw("terminal.closeSession", None, window, cx)).expect("it runs");
+        assert_eq!(titles(cx), [("Local".to_owned(), true)]);
+        // Clear Terminal Buffer empties the first tab's screen down to its prompt.
+        cx.update(|window, cx| {
+            let focus = terminal.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.run_until_parked();
+        cx.update(|window, cx| execute_action_or_throw("terminal.clear", None, window, cx)).expect("it runs");
+        assert!(!screen(cx).contains(&expected));
+
+        // The shell ends: its tab closes, and with the last tab the tool window hides. Shown
+        // again, it starts a new shell.
+        cx.simulate_input("exit");
+        cx.simulate_keystrokes("enter");
+        long(cx, &|cx| !workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.terminal", None, window, cx)).expect("it runs");
+        let fresh = terminals(cx).read_with(cx, |panel, _| panel.active_view().cloned()).expect("a new tab");
+        assert_ne!(fresh.entity_id(), terminal.entity_id());
+        assert_eq!(titles(cx).len(), 1);
+
+        // With no tab left, New Terminal Tab opens exactly one and shows the window.
+        cx.update(|window, cx| execute_action_or_throw("terminal.closeSession", None, window, cx)).expect("it runs");
+        cx.run_until_parked();
+        assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
+        cx.update(|window, cx| execute_action_or_throw("terminal.new", None, window, cx)).expect("it runs");
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
+        assert_eq!(titles(cx), [("Local".to_owned(), true)]);
+    }
+
+    /// New Terminal Tab on a project whose Terminal was never opened shows it with one tab,
+    /// the keyboard in it.
+    #[gpui_kit::test]
+    async fn a_new_terminal_tab_opens_the_terminal_with_one_tab(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use crate::terminal::panel::TerminalPanel;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        cx.update(|window, cx| execute_action_or_throw("terminal.new", None, window, cx)).expect("it runs");
+        let terminals = workbench
+            .read_with(cx, |w, _| w.tool_window_view(TERMINAL_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<TerminalPanel>().ok())
+            .expect("the Terminal window holds its tabs");
+        assert_eq!(terminals.read_with(cx, |panel, _| panel.tab_titles()), [("Local".to_owned(), true)]);
+        cx.run_until_parked();
+        let shell = terminals.read_with(cx, |panel, _| panel.active_view().cloned()).expect("a tab");
+        assert!(cx.update(|window, cx| shell.focus_handle(cx).is_focused(window)));
     }
 
     /// Blaze and Deep mode: the toggle writes `ide.mode` for every project and the backend

@@ -1,5 +1,4 @@
-//! Find in Files, Replace in Files and Search Everywhere: the models behind the popups and the Find tool
-//! window.
+//! Find in Files and Replace in Files: the models behind the popup and the Find tool window.
 //!
 //! Nothing here touches the backend, storage or a window. A model that needs a backend answer returns the
 //! request as an effect and is handed the answer through a method, so a view can drive it.
@@ -7,7 +6,6 @@
 pub mod backend;
 pub mod find_tool_window;
 pub mod ipc;
-pub mod open;
 pub mod query;
 pub mod replace_flow;
 pub mod row_selection;

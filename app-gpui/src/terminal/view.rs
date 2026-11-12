@@ -214,6 +214,16 @@ impl TerminalView {
         self.program_title.as_deref().unwrap_or(&self.spawned_title)
     }
 
+    /// The session's own title: the shell's name.
+    pub fn shell_title(&self) -> &str {
+        &self.spawned_title
+    }
+
+    /// The title the running program set, if it set one.
+    pub fn program_title(&self) -> Option<&str> {
+        self.program_title.as_deref()
+    }
+
     /// The exit code once the shell has ended (`Some(None)`: ended without one).
     pub fn exit(&self) -> Option<Option<i32>> {
         self.exit
@@ -290,6 +300,12 @@ impl TerminalView {
         cx.notify();
     }
 
+    /// Clears the terminal down to the line the cursor is on.
+    pub fn clear(&mut self, cx: &mut Context<Self>) {
+        self.emulator.clear();
+        cx.notify();
+    }
+
     /// Copies the selection; false when nothing is selected.
     pub fn copy(&self, cx: &mut Context<Self>) -> bool {
         let Some(text) = self.emulator.selected_text() else { return false };
@@ -350,10 +366,7 @@ impl TerminalView {
                 self.emulator.clear_selection();
                 cx.notify();
             }
-            KeyHandling::Clear => {
-                self.emulator.clear();
-                cx.notify();
-            }
+            KeyHandling::Clear => self.clear(cx),
             KeyHandling::RunAction(CLOSE_SESSION_ACTION) => cx.emit(TerminalEvent::CloseRequested),
             KeyHandling::RunAction(FIND_ACTION) => cx.emit(TerminalEvent::FindRequested),
             // The find bar's keys: there is no find bar in this view.
@@ -778,6 +791,7 @@ mod tests {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            crate::terminal::test_support::isolate_shells(home.path(), cx);
         });
         let options = TerminalOptions {
             cwd: ide_core::IpcPath(folder.path().to_path_buf()),

@@ -209,3 +209,19 @@ Delivered by the same subagent but not wired: its Search Everywhere controller, 
 `ui::text_field::TextField` is the app's single-line input (query boxes, later dialog fields): its own text, caret, selection, clipboard, word and line movement, and the OS input method through GPUI's input handler. The component library's input was not used: it brings its own styling and key contexts, and the dispatcher already knows `TextField` as the context where plain typing stays in the field.
 
 `find.inPath` shows the Find tool window with the query focused, where the webview opens the Find in Files popup (query, scope, file mask, preview) and only sends results to the tool window on request. This is a deliberate first slice, not parity: the popup, scopes, file masks, the preview, Replace in Files and result tabs are not there. What is there is driven by the ported models: `FindSession` validates and runs the search through `ide_host::ops::search`, results stream in by file, the case, word and regex options search again, and Enter or a double click opens the match with the caret on it. `find::backend` is the one place the UI's search types and `ide_search`'s are converted (D32).
+
+## D34. The Terminal tool window has tabs; a tool window says where its keyboard goes
+
+`terminal::panel::TerminalPanel` drives the ported tab model (`terminal::store::Terminals`): it creates a terminal for each session the model adds, drops it when the model disposes the session (which ends the shell), and writes the remembered tabs under the webview's key (`openidea.terminal.tabs.v1:<project>`). New tabs take the next default name (`Local`, `Local (2)`), a shell that exits closes its tab when Settings › Terminal › Close session when it ends is on, the last tab closing hides the tool window, and showing the Terminal without a tab starts one: all as the webview does.
+
+The workbench no longer keeps a fixed focus handle per tool window. It asks the window's view each time (`Focusable`), because the Terminal hands the keyboard to whichever tab is showing.
+
+A tab of a shell keeps its own name at the prompt and while a command runs. The webview shows the running command's title, which it knows from shell integration's command marks (OSC 133); `alacritty_terminal` does not report those, so this is a gap until the marks are parsed here. Splits within the Terminal are in the model and restored from storage, but only the active group is drawn. Not there yet: renaming, drag and drop between groups, the tab context menu, predefined sessions, plugin sessions, restart on Enter after exit when Close on exit is off.
+
+## D35. Tests that start a shell give it a home of its own (after they had written to the owner's history)
+
+What happened: the terminal tests start the account's login shell on a real PTY and type commands into it. Until this change the shell was the owner's own interactive zsh with the owner's startup files, so every run appended the tests' commands to `~/.zsh_history`. Measured on 2026-11-12 with `grep -cF`: 34 lines `echo marker-$((6*7)); stty size`, 34 `echo pasted-$((40+2))`, 30 `exit 3`, 29 starting `echo in-$(basename`, 10 `sleep 30`, 10 `echo back-$((1+1))`, 2 `echo second-$((1+1))` (about 150 lines of 10,840), plus a few bare `exit`. Nothing else of the owner's was written. The history file was not edited: it is the owner's, and the lines are harmless to leave or to delete.
+
+The fix: `terminal::test_support::isolate_shells` sets the global `terminal.env` of the test's temporary settings to a `HOME` and `ZDOTDIR` under the test's temporary directory (with an empty `.zshrc`) and `HISTFILE=/dev/null`, before any terminal starts. Every test that starts a shell calls it. Verified: the marker count stayed at 34 across the full suite run twice.
+
+The app itself is unaffected: a real terminal is meant to be the user's own shell.

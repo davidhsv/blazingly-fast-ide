@@ -7,6 +7,7 @@
 
 pub mod bookmarks_store;
 pub mod bookmarks_view;
+pub mod controller;
 pub mod filters;
 pub mod inherited;
 pub mod locations;
@@ -15,4 +16,5 @@ pub mod open;
 pub mod outline;
 pub mod rank;
 pub mod recent_model;
+pub mod routes;
 pub mod store;
