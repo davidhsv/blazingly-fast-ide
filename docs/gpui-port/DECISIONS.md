@@ -257,3 +257,17 @@ Choices:
 - An action that shows a state (a toggle) leaves the popup open after it runs, as in the webview; any other result closes the popup first and then acts. Whether an action is a toggle is asked, and the action run, after the workbench's own update is over (`window.defer`): both may read the workbench, and asking inside the update panicked in the test.
 - A plain click on a row selects and opens it, as in the webview (`List` calls `onActivate` on a single-selection click). Its modifier clicks, which select several rows, are not ported.
 - The search types that existed twice are now one: `everywhere::model` uses `find::ipc::LineMatch`, and the copies of `SymbolMatch` and `WorkspaceSymbol` nothing in `find/` used are gone. `ide-index` is a direct dependency, to name the types `ide_host::ops::nav` returns.
+
+## D39. The menu bar is drawn from the Tauri app's table
+
+`src-tauri/src/menu.rs` already holds the menu bar as a pure table (`spec(os)`) with the functions that route an item and say whether it is enabled; the rest of the file draws it with Tauri. `docs/gpui-port/menuspec.mjs` writes those pure parts to `app-gpui/src/workbench/menu_spec.rs`, and with `--check` fails when the written file differs, so both apps show the same menus and the table is edited in one place. The alternatives were to move the table into a crate both apps use, which means editing the Tauri app that this work has left untouched, or to copy it by hand, which drifts. The written file is excluded from rustfmt so that the comparison is byte for byte. When the Tauri app is retired the table simply stays where the script wrote it.
+
+`workbench/menu.rs` does what the webview's `menuBridge.ts` and the drawing half of `menu.rs` did between them: the focused window's state (`MenuState`) plus the table give the bar (`model`), which is installed with GPUI's `set_menus` only when it differs from the one shown, 120 ms after the window last changed.
+
+Choices:
+
+- An item shows a shortcut only through a GPUI key binding for its command, so the bar binds each shown shortcut to `MenuCommand`. The keymap stays the only dispatcher: the keystroke interceptor marks a key the keymap let pass as "in flight", and a command that arrives while one is in flight is dropped and the key goes on to whatever has the keyboard. Only the items whose shortcut the table itself gives (Quit, window cycling) and the OS roles the keymap never binds (Hide, Hide Others, Minimize) run from the key. `the_menu_bar_follows_the_window_and_runs_chosen_items` fails without the drop.
+- Bindings from an earlier keymap are left bound: GPUI shows the last binding of a command, and a stale one can only fire a command that is then dropped. Clearing all bindings would also remove any other GPUI bindings the app gains later.
+- Undo, Redo, Cut, Copy, Paste and Select All are the OS's roles on macOS. Chosen from the bar they run the editor's `edit.*` action in the focused window. A text field that is not the editor does not get them from the bar yet (its own keys work).
+- Check for Updates is left out, as the Tauri app does when no updater is configured: this app has none.
+- `app.quit` is registered here because the bar is its first user: each window is asked to close, and the app quits when all agree. A window with unsaved changes asks its question and, once answered, closes itself, but the app does not go on to quit. Marked partial.

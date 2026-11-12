@@ -2,6 +2,10 @@
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
 pub mod main_toolbar;
+pub mod menu;
+// Written by a script from the Tauri app's table and compared with it byte for byte.
+#[rustfmt::skip]
+pub mod menu_spec;
 pub mod notifications;
 pub mod project_color;
 pub mod quick_switch;
@@ -1438,6 +1442,9 @@ impl Render for Workbench {
             self.shown_title = Some(title);
         }
         self.publish_context(window, cx);
+        if window.is_window_active() {
+            menu::schedule_sync(window, cx);
+        }
         let message = |text: SharedString| {
             div()
                 .size_full()
@@ -1808,6 +1815,7 @@ mod tests {
             register_actions(cx);
             cx.set_global(UiStorage::default());
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            menu::init(cx);
             crate::terminal::test_support::isolate_shells(home.path(), cx);
         });
         home
@@ -3056,6 +3064,76 @@ mod tests {
         assert!(empty.read_with(cx, |w, _| w.search_everywhere().is_some()));
         cx.simulate_keystrokes("escape");
         assert!(empty.read_with(cx, |w, _| w.search_everywhere().is_none()));
+    }
+
+    /// The menu bar follows the focused window: what cannot run there is greyed out, items show
+    /// their action's shortcut, the window's tool windows are listed. A chosen item runs its
+    /// action; a key that reaches an item's shortcut after the keymap declined it does not.
+    #[gpui_kit::test]
+    async fn the_menu_bar_follows_the_window_and_runs_chosen_items(cx: &mut TestAppContext) {
+        use menu::{MenuBar, MenuCommand, MenuNode};
+        fn item<'a>(nodes: &'a [MenuNode], wanted: &str) -> Option<&'a MenuNode> {
+            nodes.iter().find_map(|node| match node {
+                MenuNode::Submenu { children, .. } => item(children, wanted),
+                MenuNode::Item { action, .. } if action == wanted => Some(node),
+                _ => None,
+            })
+        }
+        let shown = |cx: &mut VisualTestContext, wanted: &str| {
+            cx.update(|window, cx| {
+                menu::sync(window, cx);
+                item(cx.global::<MenuBar>().shown().expect("a bar is installed"), wanted).cloned()
+            })
+        };
+        let _home = start(cx);
+        cx.update(crate::theme::appearance::init);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.run_until_parked();
+        let shortcut = cx.update(|_, cx| {
+            let binding = cx.global::<input::Keymap>().0.primary_key_binding("navigate.gotoFile").map(str::to_owned);
+            binding.and_then(|binding| menu::menu_accelerator(&binding)).expect("Go to File has a shortcut")
+        });
+        // Nothing is open: Go to File cannot run.
+        assert!(matches!(shown(cx, "navigate.gotoFile"),
+            Some(MenuNode::Item { enabled: false, shortcut: Some(shown), .. }) if shown == shortcut));
+
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        cx.run_until_parked();
+        assert!(matches!(shown(cx, "navigate.gotoFile"), Some(MenuNode::Item { enabled: true, .. })));
+        for id in TOOL_WINDOWS {
+            let wanted = format!("toolwindow.{id}");
+            assert!(matches!(shown(cx, &wanted), Some(MenuNode::Item { enabled: true, .. })), "{wanted} is listed");
+        }
+
+        // An item chosen in the bar runs its action in the window.
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+        assert!(!cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+        cx.dispatch_action(MenuCommand { action: "view.toggleTheme".to_owned(), arg: None });
+        cx.run_until_parked();
+        assert!(cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+        cx.dispatch_action(MenuCommand { action: "navigate.gotoFile".to_owned(), arg: None });
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_some()));
+        cx.simulate_keystrokes("escape");
+
+        // The keymap no longer binds the key the bar still shows for Go to File: pressing it is
+        // not the keymap's doing, so the item does not run.
+        cx.update(|_, cx| {
+            let keymap = &mut cx.global_mut::<input::Keymap>().0;
+            keymap.set_overrides(std::collections::BTreeMap::from([("navigate.gotoFile".to_owned(), Vec::new())]));
+            assert_eq!(keymap.primary_key_binding("navigate.gotoFile"), None);
+        });
+        let stroke = menu::gpui_keystroke(&shortcut).expect("the shortcut is one GPUI can press");
+        cx.simulate_keystrokes(&stroke);
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()));
+        // Once the bar has followed the keymap it shows no shortcut for it.
+        assert!(matches!(shown(cx, "navigate.gotoFile"), Some(MenuNode::Item { shortcut: None, .. })));
     }
 
     #[test]

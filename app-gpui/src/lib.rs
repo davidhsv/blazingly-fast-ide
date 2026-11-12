@@ -34,5 +34,6 @@ pub fn init(cx: &mut App) -> anyhow::Result<()> {
     theme::appearance::init(cx);
     plugins::Plugins::init(cx)?;
     workbench::register_actions(cx);
+    workbench::menu::init(cx);
     Ok(())
 }

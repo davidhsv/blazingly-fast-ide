@@ -1070,5 +1070,33 @@
   "point.registerKeyClaim:(at) src/features/search/everywhere/SearchEverywhere.tsx:82": {
     "status": "partial",
     "proof": "`workbench::tests::search_everywhere_moves_its_selection_shows_more_and_answers_the_mouse`, `workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`; Enter, Tab, the arrows and Page Up/Down are the popup's in every modifier combination while its query has the keyboard. ⌥↵, ⌘↵ and ⌥↑/⌥↓ are claimed but do nothing yet"
+  },
+  "shell:menu.rs": {
+    "status": "partial",
+    "proof": "`workbench::menu::tests`, `workbench::tests::the_menu_bar_follows_the_window_and_runs_chosen_items`; the macOS menu bar from the Tauri app's own table (menu_spec.rs, compared byte for byte by menuspec.mjs --check): labels in the language, each action's first shortcut, check marks, greyed-out items, the window's tool windows and the recent projects, replaced only when it changes. Not yet: the in-window menu of Windows and Linux, the saved layouts, status bar widgets and plugin entries in their slots, the Enter / Exit Distraction Free label, Check for Updates, and most of the bar's actions have no handler yet"
+  },
+  "unit:src/features/app/__tests__/menuBridge.test.ts": {
+    "status": "partial",
+    "proof": "`workbench::menu::tests`, `workbench::tests::the_menu_bar_follows_the_window_and_runs_chosen_items`; shortcuts a menu can and cannot show, labels, tool windows by title, the registered actions that cannot run, check marks of the toggles that are on, a chosen item running its action with its argument. Not yet: saved layouts, status bar widgets, the distraction-free label, the debounce under a changing context"
+  },
+  "ipc:menu_configure": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_menu_bar_follows_the_window_and_runs_chosen_items`; the menu module's sync builds the bar from the focused window's state in one step; see the menu.rs shell row for what the bar does not hold yet"
+  },
+  "ipc:menu_set_disabled": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_menu_bar_follows_the_window_and_runs_chosen_items`; the menu module's sync builds the bar from the focused window's state in one step; see the menu.rs shell row for what the bar does not hold yet"
+  },
+  "ipc:menu_model": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_menu_bar_follows_the_window_and_runs_chosen_items`; the menu module's sync builds the bar from the focused window's state in one step; see the menu.rs shell row for what the bar does not hold yet"
+  },
+  "ipc:menu_refresh": {
+    "status": "partial",
+    "proof": "`workbench::menu::tests`; the menu module reads the recent projects for Open Recent at start; no test opens a project and reads the list again, and its items have no handler yet (file.openRecentProject)"
+  },
+  "action:app.quit": {
+    "status": "partial",
+    "proof": "`workbench::menu::tests`; on the bar with its own ⌘Q, asks every window to close and quits when none has unsaved changes; no test runs it, and with unsaved changes it leaves the app open after the question instead of quitting once it is answered"
   }
 }

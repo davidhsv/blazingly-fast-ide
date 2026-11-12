@@ -38,13 +38,15 @@ struct WindowInput {
 pub struct Input {
     windows: HashMap<WindowId, WindowInput>,
     started: Instant,
+    /// A key the keymap let pass is on its way to whatever else handles keys.
+    key_in_flight: bool,
 }
 
 impl Global for Input {}
 
 impl Default for Input {
     fn default() -> Self {
-        Self { windows: HashMap::new(), started: Instant::now() }
+        Self { windows: HashMap::new(), started: Instant::now(), key_in_flight: false }
     }
 }
 
@@ -102,9 +104,19 @@ pub fn init(cx: &mut App) {
             .collect();
         if claims.iter().any(|claim| claim(&event.keystroke, window, cx)) || keystroke(event, window, cx).consumed() {
             cx.stop_propagation();
+        } else {
+            // Until this key has been dispatched: what it reaches next knows the keymap declined it.
+            cx.global_mut::<Input>().key_in_flight = true;
+            cx.defer(|cx| cx.global_mut::<Input>().key_in_flight = false);
         }
     })
     .detach();
+}
+
+/// Whether a key the keymap declined is being dispatched right now: a shortcut that fires then
+/// was not the keymap's to run.
+pub fn key_in_flight(cx: &App) -> bool {
+    cx.try_global::<Input>().is_some_and(|input| input.key_in_flight)
 }
 
 pub fn mods(modifiers: &Modifiers) -> Mods {
