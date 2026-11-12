@@ -1,6 +1,12 @@
 //! The window shell. For now: a frame around one editor (LightEdit), which is the part of the
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
+pub mod main_toolbar;
+pub mod notifications;
+pub mod project_color;
+pub mod quick_switch;
+pub mod status_bar_widgets;
+pub mod tasks;
 pub mod tool_windows;
 
 use crate::backend::Backend;

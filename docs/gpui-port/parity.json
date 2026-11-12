@@ -398,5 +398,53 @@
   "module:src/editor/core/view": {
     "status": "partial",
     "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`, `workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; a tab strip and three status items: no find bar, breadcrumbs, banners, go-to-line or tab context menu"
+  },
+  "unit:src/workbench/projectColor.test.ts": {
+    "status": "done",
+    "proof": "`workbench::project_color::tests`"
+  },
+  "module:src/workbench/projectColor.ts": {
+    "status": "partial",
+    "proof": "`workbench::project_color::tests`; the model only: no window uses it yet"
+  },
+  "unit:src/workbench/mainToolbar.test.ts": {
+    "status": "done",
+    "proof": "`workbench::main_toolbar::tests`"
+  },
+  "module:src/workbench/mainToolbar.ts": {
+    "status": "partial",
+    "proof": "`workbench::main_toolbar::tests`; the model only: no window uses it yet"
+  },
+  "unit:src/workbench/statusBarWidgets.test.tsx": {
+    "status": "partial",
+    "proof": "`workbench::status_bar_widgets::tests`; the context menu and the toggle action are not rendered or registered"
+  },
+  "module:src/workbench/statusBarWidgets.ts": {
+    "status": "partial",
+    "proof": "`workbench::status_bar_widgets::tests`; the model only: no window uses it yet"
+  },
+  "unit:src/workbench/quickSwitch.test.tsx": {
+    "status": "partial",
+    "proof": "`workbench::quick_switch::tests`; menu rendering, pointer events and applying the previewed theme are not ported"
+  },
+  "module:src/workbench/quickSwitch.ts": {
+    "status": "partial",
+    "proof": "`workbench::quick_switch::tests`; the model only: no window uses it yet"
+  },
+  "unit:src/workbench/tasks.test.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tasks::tests`; the popup, its buttons and the Background Tasks dialog are not rendered"
+  },
+  "module:src/workbench/tasks.ts": {
+    "status": "partial",
+    "proof": "`workbench::tasks::tests`; not fed from backend task events yet"
+  },
+  "unit:src/workbench/projectNotifications.test.ts": {
+    "status": "done",
+    "proof": "`workbench::notifications::tests`"
+  },
+  "module:src/workbench/notificationStore.ts": {
+    "status": "partial",
+    "proof": "`workbench::notifications::tests`; not fed from backend notify events, and no balloons are drawn"
   }
 }
