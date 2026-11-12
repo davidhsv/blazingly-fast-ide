@@ -2074,5 +2074,17 @@
   "unit:src/features/vcs/worktrees.test.ts": {
     "status": "done",
     "proof": "`vcs_more::worktrees::tests`"
+  },
+  "action:view.notifications": {
+    "status": "done",
+    "proof": "`workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`"
+  },
+  "point.registerToolWindow:notifications": {
+    "status": "partial",
+    "proof": "`workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`, `workbench::notifications_view::tests`, `workbench::notifications::tests`; the history newest first with times, the entries' links, close and Clear All, everything marked read while it shows. Not yet: the unread badge on its stripe button, Clear All in the tool window's header (it is a row of the view), tooltips, selectable text"
+  },
+  "module:src/ui/Feedback.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`, `workbench::notification_balloons::tests`; balloons with level icon, title, body, links and close, at most three stacked at the bottom right, fading by the model's clocks and pausing under the pointer or while the window is inactive. Not yet: the slide-in animation, the chime, bodies that are components (the update progress), and the links whose commands carry arguments of their own"
   }
 }

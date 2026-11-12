@@ -4,7 +4,9 @@
 pub mod main_toolbar;
 pub mod menu;
 pub mod menu_spec;
+pub mod notification_balloons;
 pub mod notifications;
+pub mod notifications_view;
 pub mod project_color;
 pub mod quick_switch;
 pub mod status_bar_widgets;
@@ -51,7 +53,12 @@ use gpui_kit::{
 };
 use ide_core::IdeEvent;
 use ide_core::event::NotifyLevel;
-use notifications::{NotificationLevel, NotificationRequest, Notifications};
+use notification_balloons::{BalloonEvent, EntryAction, NotificationBalloons, balloon_entries};
+use notifications::{
+    BalloonClocks, BalloonView, NotificationLevel, NotificationRequest, NotificationSettings, Notifications,
+    notification_settings, suppress_group,
+};
+use notifications_view::{NotificationsEvent, NotificationsView, logged_entries};
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::PathBuf;
@@ -204,6 +211,13 @@ pub struct Workbench {
     active_key: Option<String>,
     /// The bookmarks of the window's project.
     bookmarks: BookmarkStore,
+    /// The balloons at the bottom right of the window, and what times their fading.
+    balloons: Entity<NotificationBalloons>,
+    balloon_clocks: BalloonClocks,
+    balloon_view: BalloonView,
+    /// Wakes the balloons when the next one is due to fade.
+    balloon_timer: Option<gpui_kit::Task<()>>,
+    _balloon_events: Subscription,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -271,9 +285,18 @@ pub const FIND_TOOL_WINDOW: &str = "find";
 /// The Commit tool window's id.
 pub const COMMIT_TOOL_WINDOW: &str = "commit";
 
+/// The Notifications tool window's id.
+pub const NOTIFICATIONS_TOOL_WINDOW: &str = "notifications";
+
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 5] =
-    [PROJECT_TOOL_WINDOW, COMMIT_TOOL_WINDOW, TERMINAL_TOOL_WINDOW, GIT_TOOL_WINDOW, FIND_TOOL_WINDOW];
+const TOOL_WINDOWS: [&str; 6] = [
+    PROJECT_TOOL_WINDOW,
+    COMMIT_TOOL_WINDOW,
+    TERMINAL_TOOL_WINDOW,
+    GIT_TOOL_WINDOW,
+    FIND_TOOL_WINDOW,
+    NOTIFICATIONS_TOOL_WINDOW,
+];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
 /// contributions manifest.
@@ -520,6 +543,9 @@ pub fn register_actions(cx: &mut App) {
             Ok(())
         }));
     }
+    registry.handle("view.notifications", |_, window, cx| {
+        on_layout(window, cx, |layout| layout.activate(NOTIFICATIONS_TOOL_WINDOW))
+    });
     registry.handle("navigate.fileStructure", |_, window, cx| {
         let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
         workbench.update(cx, |workbench, cx| workbench.show_file_structure(window, cx));
@@ -646,6 +672,9 @@ impl Workbench {
                 workbench.autosave(None, cx);
                 workbench.save_session(cx);
             }
+            // A balloon does not fade while nobody can see it.
+            workbench.balloon_view.window_active = window.is_window_active();
+            workbench.sync_notifications(cx);
         })
         .detach();
         let id = window.window_handle().window_id();
@@ -669,6 +698,18 @@ impl Workbench {
             crate::platform::context::drop_window_context(id, cx);
         })
         .detach();
+        let balloons = cx.new(|_| NotificationBalloons::new());
+        let balloon_events = cx.subscribe_in(&balloons, window, |workbench, _, event: &BalloonEvent, window, cx| {
+            match event.clone() {
+                BalloonEvent::Dismissed(id) => workbench.notifications.dismiss_balloon(id),
+                BalloonEvent::ActionChosen { id, action } => {
+                    workbench.notifications.dismiss_balloon(id);
+                    workbench.run_notification_action(action, window, cx);
+                }
+                BalloonEvent::HoverChanged(hovered) => workbench.balloon_view.hovered = hovered,
+            }
+            workbench.sync_notifications(cx);
+        });
         Self {
             label: label.to_owned(),
             content: Content::Empty,
@@ -685,6 +726,11 @@ impl Workbench {
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
+            balloons,
+            balloon_clocks: BalloonClocks::default(),
+            balloon_view: BalloonView::default(),
+            balloon_timer: None,
+            _balloon_events: balloon_events,
         }
     }
 
@@ -733,8 +779,75 @@ impl Workbench {
 
     /// Shows `request` in this window, subject to the notification settings.
     pub fn notify(&mut self, request: NotificationRequest, cx: &mut Context<Self>) {
-        let _ = self.notifications.notify(request, None, now_ms());
+        let settings = self.notification_settings(cx);
+        let _ = self.notifications.notify(request, settings.as_ref(), now_ms());
+        self.sync_notifications(cx);
+    }
+
+    /// Settings › Notifications as they are in effect for the window.
+    fn notification_settings(&self, cx: &App) -> Option<NotificationSettings> {
+        let settings = serde_json::to_value(crate::platform::settings::effective(&self.label, cx)).ok()?;
+        notification_settings(&settings)
+    }
+
+    /// Brings the balloons and the Notifications tool window in line with the notifications:
+    /// after one was raised, dismissed or faded, and when the tool window shows or hides.
+    fn sync_notifications(&mut self, cx: &mut Context<Self>) {
+        let settings = self.notification_settings(cx);
+        let list_open = self.is_tool_window_visible(NOTIFICATIONS_TOOL_WINDOW);
+        // What is listed in front of the user has been seen.
+        if list_open && self.notifications.has_unseen() {
+            self.notifications.mark_all_read();
+        }
+        self.balloon_view.list_open = list_open;
+        self.balloon_clocks.sync(&self.notifications, self.balloon_view, now_ms());
+        let shown = balloon_entries(&self.notifications, settings.as_ref(), list_open);
+        self.balloons.update(cx, |balloons, cx| balloons.set(shown, cx));
+        let list =
+            self.tool_window_view(NOTIFICATIONS_TOOL_WINDOW).and_then(|view| view.downcast::<NotificationsView>().ok());
+        if let Some(list) = list {
+            let logged = logged_entries(&self.notifications, settings.as_ref());
+            list.update(cx, |list, cx| list.set(logged, cx));
+        }
+        self.balloon_timer = self.balloon_clocks.next_deadline().map(|due| {
+            let wait = std::time::Duration::from_secs_f64(((due - now_ms()) / 1000.0).max(0.0));
+            cx.spawn(async move |workbench, cx| {
+                cx.background_executor().timer(wait).await;
+                let _ = workbench.update(cx, |workbench, cx| {
+                    let view = workbench.balloon_view;
+                    workbench.balloon_clocks.fade_out(&mut workbench.notifications, view, now_ms());
+                    workbench.sync_notifications(cx);
+                });
+            })
+        });
         cx.notify();
+    }
+
+    /// Does what a notification's link says: "Don't Show Again" turns its group's balloons off,
+    /// a link of the notification's own runs its command when that is a registered action.
+    fn run_notification_action(&mut self, action: EntryAction, window: &mut Window, cx: &mut Context<Self>) {
+        match action {
+            EntryAction::DontShowAgain { group } => {
+                let write = suppress_group(self.notification_settings(cx).as_ref(), &group);
+                if let Err(error) = crate::platform::settings::set_global(&self.label, &[write], cx) {
+                    tracing::warn!("cannot store the notification setting: {}", error.message);
+                }
+                self.notifications.hide_group_balloons(&group);
+            }
+            EntryAction::Own(own) => {
+                let registered =
+                    cx.try_global::<ActionRegistry>().is_some_and(|registry| registry.contains(&own.command));
+                if registered {
+                    window.defer(cx, move |window, cx| {
+                        execute_action_from(ActionSource::Other, &own.command, None, window, cx);
+                    });
+                } else {
+                    // Commands with arguments of their own (a run configuration, a repository) have
+                    // no runner yet.
+                    tracing::debug!("the notification command {} has no handler", own.command);
+                }
+            }
+        }
     }
 
     pub fn editor(&self) -> Option<&Entity<Editor>> {
@@ -1031,8 +1144,7 @@ impl Workbench {
         let title = cx.default_global::<crate::platform::i18n::Localization>().0.t("app.unsaved.saveFailed", &[]);
         let mut request = NotificationRequest::new(NotificationLevel::Error, title);
         request.body = Some(failure);
-        let _ = self.notifications.notify(request, None, now_ms());
-        cx.notify();
+        self.notify(request, cx);
     }
 
     /// Every open editor, of every tab.
@@ -1204,8 +1316,9 @@ impl Workbench {
                 };
                 let mut request = NotificationRequest::new(level, title.clone());
                 request.body = body.clone();
-                // Balloon settings are not read yet: every group uses its defaults.
-                let _ = self.notifications.notify(request, None, now);
+                let settings = self.notification_settings(cx);
+                let _ = self.notifications.notify(request, settings.as_ref(), now);
+                self.sync_notifications(cx);
             }
             _ => return,
         }
@@ -1442,7 +1555,8 @@ impl Workbench {
                 None => window.blur(cx),
             }
         }
-        cx.notify();
+        // The Notifications window may have opened or closed, or just got its view.
+        self.sync_notifications(cx);
     }
 
     /// Creates the view of every visible tool window that has none yet.
@@ -1469,6 +1583,22 @@ impl Workbench {
                     let label = self.label.clone();
                     let log = cx.new(|cx| crate::vcs::log_view::GitLog::new(&label, cx));
                     Panel::new(log, None)
+                }
+                NOTIFICATIONS_TOOL_WINDOW => {
+                    let list = cx.new(NotificationsView::new);
+                    let events =
+                        cx.subscribe_in(&list, window, |workbench, _, event: &NotificationsEvent, window, cx| {
+                            match event.clone() {
+                                NotificationsEvent::Removed(id) => workbench.notifications.remove_notification(id),
+                                // An entry of the list stays after its link was used.
+                                NotificationsEvent::ActionChosen { action, .. } => {
+                                    workbench.run_notification_action(action, window, cx);
+                                }
+                                NotificationsEvent::ClearAll => workbench.notifications.clear(),
+                            }
+                            workbench.sync_notifications(cx);
+                        });
+                    Panel::new(list, Some(events))
                 }
                 COMMIT_TOOL_WINDOW => {
                     use crate::vcs::commit_view::{CommitPanel, CommitPanelEvent};
@@ -2876,6 +3006,7 @@ impl Render for Workbench {
                     })),
             )
             .child(div().flex_1().min_h_0().w_full().child(body))
+            .child(notification_balloons::layer(&self.balloons, cx))
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
                 gpui_kit::deferred(
@@ -5047,6 +5178,79 @@ mod tests {
         let told = workbench.read_with(cx, |w, _| format!("{:?}", w.notifications()));
         assert!(told.contains("Cannot reload with encoding"), "{told}");
         assert_eq!(items(cx)[2], "UTF-16LE");
+    }
+
+    /// A raised notification shows as a balloon; closing the balloon keeps it in the history.
+    /// The Notifications tool window lists the history, hides the balloons and marks everything
+    /// read; Clear All empties it. "Don't Show Again" turns a group's balloons off in the settings.
+    #[gpui_kit::test]
+    async fn notifications_show_as_balloons_and_in_their_tool_window(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use gpui_kit::Modifiers;
+        let _home = start(cx);
+        let (_folder, _root, workbench, cx) = search_project(cx);
+        let raise = |cx: &mut VisualTestContext, level: NotificationLevel, title: &str| {
+            workbench.update(cx, |w, cx| w.notify(NotificationRequest::new(level, title), cx));
+            cx.run_until_parked();
+        };
+        let balloons = |cx: &mut VisualTestContext| -> Vec<String> {
+            workbench
+                .read_with(cx, |w, cx| w.balloons.read(cx).shown().iter().map(|entry| entry.title.clone()).collect())
+        };
+        let click = |cx: &mut VisualTestContext, selector: String| {
+            cx.run_until_parked();
+            let at = cx.debug_bounds(Box::leak(selector.into_boxed_str())).expect("it is drawn").center();
+            cx.simulate_click(at, Modifiers::default());
+            cx.run_until_parked();
+        };
+
+        raise(cx, NotificationLevel::Warning, "Disk is almost full");
+        raise(cx, NotificationLevel::Error, "Build failed");
+        assert_eq!(balloons(cx), ["Disk is almost full", "Build failed"]);
+        assert_eq!(workbench.read_with(cx, |w, _| w.notifications().unread_count()), 2);
+
+        // The close button takes the balloon away; the notification stays in the history.
+        let first = workbench.read_with(cx, |w, cx| w.balloons.read(cx).shown()[0].id);
+        click(cx, format!("balloon-{first}-close"));
+        assert_eq!(balloons(cx), ["Build failed"]);
+        assert_eq!(workbench.read_with(cx, |w, _| w.notifications().items().len()), 2);
+
+        // The tool window lists both, newest first; while it shows there are no balloons and
+        // nothing is unread.
+        cx.update(|window, cx| execute_action_or_throw("view.notifications", None, window, cx)).expect("it runs");
+        cx.run_until_parked();
+        let list = workbench
+            .read_with(cx, |w, _| w.tool_window_view(NOTIFICATIONS_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<NotificationsView>().ok())
+            .expect("the Notifications window holds the list");
+        let listed: Vec<String> =
+            list.read_with(cx, |list, _| list.entries().iter().map(|entry| entry.title.clone()).collect());
+        assert_eq!(listed, ["Build failed", "Disk is almost full"]);
+        assert!(balloons(cx).is_empty());
+        assert_eq!(workbench.read_with(cx, |w, _| w.notifications().unread_count()), 0);
+
+        click(cx, "notifications-clear-all".to_owned());
+        assert!(list.read_with(cx, |list, _| list.entries().is_empty()));
+        assert!(workbench.read_with(cx, |w, _| w.notifications().items().is_empty()));
+
+        // With the window hidden again a new notification is a balloon; its Don't Show Again
+        // stores the choice, and the next one of its group does not pop up.
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.notifications", None, window, cx)).expect("it runs");
+        cx.run_until_parked();
+        assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(NOTIFICATIONS_TOOL_WINDOW)));
+        raise(cx, NotificationLevel::Info, "Indexing finished");
+        assert_eq!(balloons(cx), ["Indexing finished"]);
+        let entry = workbench.read_with(cx, |w, cx| w.balloons.read(cx).shown()[0].clone());
+        let dont_show = entry
+            .actions
+            .iter()
+            .position(|action| matches!(action, EntryAction::DontShowAgain { .. }))
+            .expect("an information balloon offers it");
+        click(cx, format!("balloon-{}-action-{dont_show}", entry.id));
+        assert!(balloons(cx).is_empty());
+        raise(cx, NotificationLevel::Info, "Indexing finished again");
+        assert!(balloons(cx).is_empty(), "the group's balloons are off");
+        assert_eq!(workbench.read_with(cx, |w, _| w.notifications().items().len()), 2, "they are still recorded");
     }
 
     #[test]

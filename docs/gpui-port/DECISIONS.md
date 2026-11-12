@@ -441,3 +441,12 @@ Choices the subagent made, kept, with the one that matters most first:
 - Loading the log is a set of step machines the view drives (`PageLoad`, `GoToRef`); session restore, bookmark sync and revealing a commit are left out of the store.
 
 No merge editor, diff viewer or multi-repository UI is drawn from these yet.
+
+## D58. Notifications are drawn
+
+`workbench/notification_balloons.rs` and `workbench/notifications_view.rs` are a subagent's views on the notifications model; both built on the first try and their 25 tests passed. The workbench owns the model and keeps the two views in step with one routine (`sync_notifications`), called wherever a notification is raised, dismissed or fades and whenever the Notifications tool window shows or hides. A timer wakes it for the next balloon due to fade.
+
+- The views follow the component, not my brief, in three places the subagent checked in the source: a long body scrolls instead of expanding, the list is flat and newest first, and the tool window is reached from its stripe button and `view.notifications`; there is no bell in the status bar.
+- Settings › Notifications are read now (they were passed as "none" before): the effective settings, serialised, give the model's settings. "Don't Show Again" writes the group's display to the global settings; the workbench test checks that the next notification of the group raises no balloon.
+- A link of a notification runs its command when the command is a registered action. Commands that carry arguments in their own form (a run configuration, a repository) have no runner yet and are logged; the notification still shows the link.
+- Balloons are drawn in a deferred layer below the popup slot, so a popup covers them, as the stylesheet orders them.
