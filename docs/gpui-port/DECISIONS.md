@@ -369,3 +369,11 @@ Not there: splitters cannot be dragged (the model keeps no sizes; the panes shar
 The editor tab's menu is the first user (`tab_menu`, `run_tab_command`), with the webview's rows in its order. Rows bound to actions that are not registered yet (Compare With, Copy Path, Rename File, Configure Editor Tabs) do not show, exactly as the webview's `resolveMenuItems` drops an unknown action; a submenu left with no row is not offered either, which the webview never has to decide because there all of them are registered. Not in the menu yet: Close All Read-Only Tabs (no document metadata is kept per tab), Open in New Window, and the groups other features contribute (Run, Local History, Git, Open In, Bookmarks).
 
 The pointer opens a submenu after 120 ms on its row and closes another after 200 ms, as in the webview. The webview also keeps a submenu open while the pointer moves diagonally towards it; that needs the submenu's drawn rectangle, which this view does not measure yet.
+
+## D51. Presets keep their declaration order (a bug in rows that were marked done)
+
+Where two actions share a key, the webview tries the one declared later first (`effectiveBindings` walks the preset in object order, and dispatch takes the last pair whose action is enabled). `gen-data.mjs` sorted each preset by action id before writing it, and the port held presets in a sorted map, so shared keys resolved alphabetically: for example New File could take ⌘N from Generate, and New Branch ⌥⌘N from Inline. The six "Keymap presets" rows were marked at parity on a test that only checked that every binding is well formed. A subagent porting the keymap specs found it by reading; I confirmed it in the generator's source.
+
+Fixed: the generator writes each preset as pairs in declaration order, `preset_order` exposes that order, and the effective keymap walks it. A user override of an action the preset binds keeps the preset's place with the user's keys, which is what JavaScript's object spread does in `{...preset, ...overrides}` (my earlier test asserted the opposite and is corrected); an action only the user binds comes last. `lets_scoped_actions_win_shared_keys` carries the spec's fourteen pairs for both IntelliJ presets.
+
+Lesson kept in D47's spirit: a row is not at parity because a test exists that mentions it. The preset rows now cite the order tests too.

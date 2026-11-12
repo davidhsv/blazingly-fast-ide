@@ -25,27 +25,27 @@
   },
   "keymap:intellij-macos": {
     "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
   },
   "keymap:intellij-windows": {
     "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
   },
   "keymap:vscode-macos": {
     "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
   },
   "keymap:vscode-windows": {
     "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
   },
   "keymap:eclipse-macos": {
     "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
   },
   "keymap:eclipse-windows": {
     "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`"
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
   },
   "design:tokens": {
     "status": "done",
@@ -1650,5 +1650,13 @@
   "module:src/ui/Menu.tsx": {
     "status": "partial",
     "proof": "`ui::popup_menu::tests`, `workbench::tests::a_tabs_menu_closes_pins_and_splits`; rows from actions and from the menu's own entries, separators tidied, keyboard (arrows, Home, End, typed letter, Right and Left for submenus, Enter, Space, Escape), pointer selection with the submenu delay, the menu kept inside the window. Not yet: header rows, check marks on rows of the menu's own, the pointer's aim towards an open submenu (its model is `ui::menu_aim::tests`), menus anchored to a button"
+  },
+  "unit:src/platform/keymaps/ideaParity.test.ts": {
+    "status": "partial",
+    "proof": "`platform::keymap::tests::lets_scoped_actions_win_shared_keys`; the order in which actions sharing a key are declared. The table of seventy bindings checked against IDEA's own is not repeated: the presets are the webview's files, evaluated, not a copy"
+  },
+  "unit:src/platform/keymaps/newElement.test.ts": {
+    "status": "partial",
+    "proof": "`platform::keymap::tests::lets_generate_win_the_new_key_only_where_it_applies`; Generate declared after New File on the same key. The languages in which Generate applies are a `when` of the action, checked where it is registered, which it is not yet"
   }
 }

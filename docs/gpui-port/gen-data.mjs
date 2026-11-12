@@ -75,7 +75,9 @@ function keymaps() {
   ]) {
     const map = load(file)[symbol];
     if (!map || Object.keys(map).length < 100) throw new Error(`keymap preset ${id} did not evaluate`);
-    presets[id] = Object.fromEntries(Object.entries(map).sort(([a], [b]) => a.localeCompare(b)));
+    // In declaration order, as pairs: where two actions share a key the later one wins, and a
+    // JSON object's order does not survive every reader.
+    presets[id] = Object.entries(map);
   }
   return presets;
 }

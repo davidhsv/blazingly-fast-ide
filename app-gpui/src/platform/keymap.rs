@@ -26,16 +26,39 @@ pub const PRESET_TITLES: [(&str, &str); 6] = [
     ("eclipse-windows", "Eclipse"),
 ];
 
-/// The built-in preset `id`. The presets are generated from `src/platform/keymaps/*.ts`
-/// (`docs/gpui-port/gen-data.mjs`) and parsed once.
-pub fn preset(id: &str) -> Option<&'static Keymap> {
-    static PRESETS: OnceLock<BTreeMap<String, Keymap>> = OnceLock::new();
-    PRESETS
-        .get_or_init(|| {
+/// A built-in preset: its bindings by action, and the actions in the order the preset declares
+/// them. Where two actions share a key, the one declared later wins it.
+struct Preset {
+    bindings: Keymap,
+    order: Vec<String>,
+}
+
+/// The built-in presets, generated from `src/platform/keymaps/*.ts` (`docs/gpui-port/gen-data.mjs`)
+/// and parsed once.
+fn presets() -> &'static BTreeMap<String, Preset> {
+    static PRESETS: OnceLock<BTreeMap<String, Preset>> = OnceLock::new();
+    PRESETS.get_or_init(|| {
+        let declared: BTreeMap<String, Vec<(String, Vec<String>)>> =
             serde_json::from_str(include_str!("../../assets/gen/keymaps.json"))
-                .expect("assets/gen/keymaps.json is generated and valid")
-        })
-        .get(id)
+                .expect("assets/gen/keymaps.json is generated and valid");
+        declared
+            .into_iter()
+            .map(|(id, pairs)| {
+                let order = pairs.iter().map(|(action, _)| action.clone()).collect();
+                (id, Preset { bindings: pairs.into_iter().collect(), order })
+            })
+            .collect()
+    })
+}
+
+/// The bindings of the built-in preset `id`, by action.
+pub fn preset(id: &str) -> Option<&'static Keymap> {
+    presets().get(id).map(|preset| &preset.bindings)
+}
+
+/// The actions of the built-in preset `id`, in the order it declares them.
+pub fn preset_order(id: &str) -> &'static [String] {
+    presets().get(id).map_or(&[], |preset| preset.order.as_slice())
 }
 
 /// macOS spells the primary modifier ⌘ (`Meta`); Windows and Linux use Ctrl.
@@ -415,11 +438,17 @@ impl KeymapState {
             }
         }
         self.usable_extensions = usable;
+        // Extensions first, then the preset as declared, then what the user bound that the preset
+        // does not know. An action the user rebound keeps the preset's place with the user's keys.
+        let declared = preset_order(&self.preset).iter().filter_map(|id| {
+            let keys = self.overrides.get(id).or_else(|| preset.get(id))?;
+            Some((id, keys))
+        });
         let layers = self
             .usable_extensions
             .iter()
-            .chain(preset.iter().filter(|(id, _)| !self.overrides.contains_key(*id)))
-            .chain(&self.overrides);
+            .chain(declared)
+            .chain(self.overrides.iter().filter(|(id, _)| !preset.contains_key(*id)));
         self.effective =
             layers.flat_map(|(id, keys)| keys.iter().map(move |k| (normalize_binding(k), id.clone()))).collect();
     }
@@ -536,8 +565,66 @@ mod tests {
         assert_eq!(preset("intellij-macos").unwrap()["navigate.searchEverywhere"], ["Shift Shift"]);
     }
 
+    /// The place of `id` among the pairs of the effective keymap that bind `key`.
+    fn rank(state: &KeymapState, key: &str, id: &str) -> Option<usize> {
+        let key = normalize_binding(key);
+        state.effective_bindings().iter().filter(|(bound, _)| *bound == key).position(|(_, action)| action == id)
+    }
+
     #[test]
-    fn overrides_replace_preset_bindings_and_later_layers_win() {
+    fn lets_scoped_actions_win_shared_keys() {
+        // A later declaration wins a shared key while its `when` holds: each pair is declared
+        // in this order, in both IntelliJ presets.
+        let pairs = [
+            ("code.splitLine", "http.runRequest"),
+            ("code.splitLine", "db.execute"),
+            ("editor.copyPathReference", "project.copyAbsolutePath"),
+            ("file.reloadFromDisk", "project.reloadFromDisk"),
+            ("code.unfold", "project.expandAll"),
+            ("code.fold", "project.collapseAll"),
+            ("navigate.nextError", "vcs.changelist.edit"),
+            ("debug.setValue", "vcs.changelist.edit"),
+            ("find.replaceInFile", "find.rerun"),
+            ("navigate.nextOccurrence", "navigate.nextHighlightedUsage"),
+            ("code.moveElementLeft", "toolwindow.resizeLeft"),
+            ("find.inFile", "vcs.log.goToRef"),
+            ("vcs.newBranch", "refactor.inline"),
+            ("vcs.addToVcs", "diff.applyRightSide"),
+        ];
+        for name in ["intellij-macos", "intellij-windows"] {
+            let order = preset_order(name);
+            let place = |id: &str| order.iter().position(|declared| declared == id);
+            for (earlier, later) in pairs {
+                assert!(place(earlier).is_some() && place(earlier) < place(later), "{name}: {earlier} before {later}");
+            }
+        }
+    }
+
+    #[test]
+    fn lets_generate_win_the_new_key_only_where_it_applies() {
+        for name in ["intellij-macos", "intellij-windows"] {
+            let state = KeymapState::new(name);
+            let key = preset(name).unwrap()["project.newFile"][0].clone();
+            assert!(preset(name).unwrap()["code.generate"].contains(&key), "{name}: Generate is on {key}");
+            // In the effective keymap the later pair is the one dispatch tries first.
+            assert!(rank(&state, &key, "project.newFile") < rank(&state, &key, "code.generate"), "{name}");
+        }
+    }
+
+    #[test]
+    fn a_rebound_action_keeps_its_place_and_a_new_one_comes_last() {
+        let mut state = KeymapState::new("intellij-macos");
+        let key = preset("intellij-macos").unwrap()["project.newFile"][0].clone();
+        // New File moved to another key and back by the user: it is still tried after Generate.
+        state.set_overrides(Keymap::from([("project.newFile".to_owned(), vec![key.clone()])]));
+        assert!(rank(&state, &key, "project.newFile") < rank(&state, &key, "code.generate"));
+        // An action the preset does not bind, bound by the user to the same key, wins it.
+        state.set_overrides(Keymap::from([("zz.userAction".to_owned(), vec![key.clone()])]));
+        assert!(rank(&state, &key, "code.generate") < rank(&state, &key, "zz.userAction"));
+    }
+
+    #[test]
+    fn overrides_replace_preset_bindings_in_place() {
         let mut state = KeymapState::new("intellij-macos");
         assert_eq!(state.bindings_for("navigate.searchEverywhere"), ["Shift Shift"]);
         state.set_overrides(Keymap::from([
@@ -552,10 +639,13 @@ mod tests {
         assert_eq!(state.shortcut_label("navigate.searchEverywhere", true).as_deref(), Some("⌘P"));
         let effective = state.effective_bindings();
         assert!(!effective.iter().any(|(b, id)| b == "Shift Shift" && id == "navigate.searchEverywhere"));
-        assert_eq!(
-            effective.last().map(|(b, id)| (b.as_str(), id.as_str())),
-            Some(("Meta+P", "navigate.searchEverywhere"))
-        );
+        // The action keeps the place the preset declares it at, with the user's key.
+        let bound: Vec<&str> = effective.iter().map(|(_, id)| id.as_str()).collect();
+        let place = |id: &str| bound.iter().position(|action| *action == id);
+        let order = preset_order("intellij-macos");
+        let declared_after = &order[order.iter().position(|id| id == "navigate.searchEverywhere").unwrap() + 1];
+        assert!(effective.contains(&("Meta+P".to_owned(), "navigate.searchEverywhere".to_owned())));
+        assert!(place("navigate.searchEverywhere") < place(declared_after));
     }
 
     #[test]
