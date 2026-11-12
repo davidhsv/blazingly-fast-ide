@@ -23,6 +23,7 @@ pub mod run;
 pub mod run_producers;
 pub mod run_testing;
 pub mod self_check;
+pub mod services;
 pub mod settings_model;
 pub mod templates;
 pub mod terminal;

@@ -10,6 +10,7 @@ pub mod notifications;
 pub mod notifications_view;
 pub mod project_color;
 pub mod quick_switch;
+mod services_window;
 pub mod status_bar_widgets;
 pub mod tasks;
 pub mod tool_windows;
@@ -237,6 +238,8 @@ pub struct Workbench {
     welcome: Option<(Entity<Welcome>, Subscription)>,
     /// The Find / Replace bar of a single-file window's editor.
     light_find_bar: Option<TabFindBar>,
+    /// The Services tool window of the open project, once it was shown or used.
+    services: Option<services_window::ServicesWindow>,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -310,8 +313,10 @@ pub const NOTIFICATIONS_TOOL_WINDOW: &str = "notifications";
 /// The Run tool window's id.
 pub const RUN_TOOL_WINDOW: &str = "run";
 
+pub use crate::services::model::SERVICES_TOOL_WINDOW;
+
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 7] = [
+const TOOL_WINDOWS: [&str; 8] = [
     PROJECT_TOOL_WINDOW,
     COMMIT_TOOL_WINDOW,
     TERMINAL_TOOL_WINDOW,
@@ -319,6 +324,7 @@ const TOOL_WINDOWS: [&str; 7] = [
     FIND_TOOL_WINDOW,
     NOTIFICATIONS_TOOL_WINDOW,
     RUN_TOOL_WINDOW,
+    SERVICES_TOOL_WINDOW,
 ];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
@@ -366,6 +372,7 @@ pub fn register_actions(cx: &mut App) {
     }
     windows::register_actions(cx);
     let registry = cx.default_global::<ActionRegistry>();
+    services_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
     let flags: [(&str, &str, Flag); 4] = [
@@ -849,6 +856,7 @@ impl Workbench {
             session_save: None,
             popup: None,
             light_find_bar: None,
+            services: None,
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
@@ -1653,6 +1661,7 @@ impl Workbench {
         };
         set_context(window, cx, "toolWindowFocus", focused_panel.is_some());
         set_context(window, cx, "terminalFocus", focused_panel.as_deref() == Some(TERMINAL_TOOL_WINDOW));
+        set_context(window, cx, "servicesViewFocus", focused_panel.as_deref() == Some(SERVICES_TOOL_WINDOW));
         if let Content::Project { layout, .. } = &mut self.content {
             // The layout decides by this what `toolwindow.<id>` does: focus, or hide.
             layout.set_focused(focused_panel.as_deref());
@@ -1796,6 +1805,10 @@ impl Workbench {
                     let events = cx.subscribe_in(&view, window, Self::run_view_event);
                     Panel::new(view, Some(events))
                 }
+                SERVICES_TOOL_WINDOW => match self.mount_services(window, cx) {
+                    Some(panel) => panel,
+                    None => continue,
+                },
                 FIND_TOOL_WINDOW => {
                     use crate::find::view::{FindPanel, FindPanelEvent};
                     let label = self.label.clone();
@@ -1821,6 +1834,7 @@ impl Workbench {
         {
             terminals.update(cx, |terminals, cx| terminals.open_tab(cx));
         }
+        self.sync_services_window(cx);
     }
 
     /// The view of tool window `id`, once it has been shown.
@@ -6101,6 +6115,99 @@ mod tests {
         let nap = session(cx, "nap").expect("a tab");
         assert_eq!((nap.status, nap.stopped), (SessionStatus::Finished, true));
         assert_eq!(view.read_with(cx, |view, cx| view.tab_icons(cx)), ["file-binary", "file-binary"]);
+    }
+
+    #[gpui_kit::test]
+    async fn a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::platform::actions::execute_action_or_throw;
+        use crate::run::configs::blank_config;
+        use crate::run::store::SessionStatus;
+        use crate::services::view::ServicesView;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let program = |id: &str, command: &str, arg: &str| ide_run::RunConfig {
+            command: command.to_owned(),
+            args: vec![arg.to_owned()],
+            ..blank_config(id, id, "program")
+        };
+        let configs = [program("hello", "/bin/echo", "hello"), program("nap", "/bin/sleep", "30")];
+        ide_run::save_user_configs(&root, &configs).expect("the configurations are saved");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let driver = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
+        let store = driver.read_with(cx, |driver, _| driver.store().clone());
+        let long = |cx: &mut VisualTestContext, what: &str, done: &dyn Fn(&mut VisualTestContext) -> bool| {
+            for _ in 0..3000 {
+                cx.executor().advance_clock(Duration::from_millis(20));
+                cx.run_until_parked();
+                if done(cx) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("{what} did not happen within thirty seconds");
+        };
+        long(cx, "listing the configurations", &|cx| store.read_with(cx, |store, _| store.loaded));
+
+        // "Program" is not a default type: Add Service lists its configurations in the window.
+        cx.update(|window, cx| execute_action_or_throw("services.show", None, window, cx)).expect("it shows");
+        let arg = serde_json::Value::from("program");
+        cx.update(|window, cx| execute_action_or_throw("run.services.addType", Some(&arg), window, cx))
+            .expect("the type is added");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(SERVICES_TOOL_WINDOW)));
+        let view = workbench
+            .read_with(cx, |w, _| w.tool_window_view(SERVICES_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<ServicesView>().ok())
+            .expect("the Services tool window holds its view");
+        let row = |cx: &mut VisualTestContext, key: &str| {
+            view.read_with(cx, |view, _| view.rows().into_iter().find(|row| row.key == key))
+        };
+        let (hello_key, nap_key) = ("run:config:hello", "run:config:nap");
+        assert_eq!(row(cx, "run:type:program").map(|row| row.label), Some("Program".to_owned()));
+        assert_eq!(row(cx, hello_key).map(|row| row.label), Some("hello".to_owned()));
+        assert!(row(cx, nap_key).is_some());
+
+        let click = |cx: &mut VisualTestContext, selector: &'static str| {
+            cx.run_until_parked();
+            let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
+            cx.simulate_click(bounds.center(), gpui_kit::Modifiers::default());
+            cx.run_until_parked();
+        };
+        let session = |cx: &mut VisualTestContext, name: &str| {
+            store.read_with(cx, |store, _| store.sessions.iter().find(|s| s.config.name == name).cloned())
+        };
+        let detail_lines = |cx: &mut VisualTestContext| {
+            let pane = workbench.read_with(cx, |w, _| w.services.as_ref().and_then(|s| s.detail().cloned()));
+            pane.map(|pane| pane.read_with(cx, |pane, cx| pane.lines(cx))).unwrap_or_default()
+        };
+
+        // Run on the selected row runs it in place: the output shows in the detail pane.
+        click(cx, "services-row:run:config:hello");
+        assert_eq!(detail_lines(cx), ["hello", "Program", "/bin/echo hello"]);
+        click(cx, "services-action:run");
+        long(cx, "the exit of echo", &|cx| session(cx, "hello").is_some_and(|s| !s.is_live()));
+        let hello = session(cx, "hello").expect("a session");
+        assert_eq!((hello.status, hello.exit_code), (SessionStatus::Finished, Some(0)));
+        long(cx, "the output in the detail pane", &|cx| detail_lines(cx).iter().any(|line| line == "hello"));
+        assert_eq!(row(cx, hello_key).and_then(|row| row.detail), Some("Finished".to_owned()));
+        assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(RUN_TOOL_WINDOW)), "it ran in place");
+
+        // Stop on a running service ends it.
+        click(cx, "services-row:run:config:nap");
+        click(cx, "services-action:run");
+        long(cx, "the start of sleep", &|cx| session(cx, "nap").is_some_and(|s| s.status == SessionStatus::Running));
+        assert_eq!(row(cx, nap_key).and_then(|row| row.detail), Some("Running".to_owned()));
+        click(cx, "services-action:stop");
+        long(cx, "the end of sleep", &|cx| session(cx, "nap").is_some_and(|s| !s.is_live()));
+        let nap = session(cx, "nap").expect("a session");
+        assert_eq!((nap.status, nap.stopped), (SessionStatus::Finished, true));
+        assert_eq!(row(cx, nap_key).and_then(|row| row.detail), Some("Stopped".to_owned()));
     }
 
     #[test]

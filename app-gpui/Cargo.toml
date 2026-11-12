@@ -26,6 +26,7 @@ ide-core = { path = "../crates/ide-core" }
 ide-build = { path = "../crates/ide-build" }
 ide-dap = { path = "../crates/ide-dap" }
 ide-db = { path = "../crates/ide-db" }
+ide-docker = { path = "../crates/ide-docker" }
 ide-github = { path = "../crates/ide-github" }
 ide-host = { path = "../crates/ide-host" }
 ide-index = { path = "../crates/ide-index" }

@@ -6,14 +6,17 @@
 pub mod dialogs;
 pub mod export;
 pub mod grid;
+pub mod grid_view;
 pub mod model;
 pub mod nodes;
 pub mod objects;
 pub mod result_editing;
 pub mod result_session;
 pub mod result_view;
+pub mod results_view;
 pub mod sql;
 pub mod sql_filter;
 pub mod table_editor;
 pub mod tree;
+pub mod tree_view;
 pub mod vendors;
