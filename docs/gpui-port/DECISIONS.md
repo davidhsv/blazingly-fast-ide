@@ -463,3 +463,15 @@ No merge editor, diff viewer or multi-repository UI is drawn from these yet.
 - While an open has failed the window shows the error, not the Welcome screen, and the hidden view does not take the keyboard.
 - `welcome.recentProjects` and `file.openRecent` put the keyboard in the screen's search. In a window with a project they do nothing yet: the Recent Projects popup is a separate view.
 - Not built: the Customize and Plugins pages of the screen, and reopening the last project at start (the logic is ported, nothing calls it, because the first window is opened from the command line in `main.rs`).
+
+## D61. The Run tool window
+
+`run/view.rs`, `run/driver.rs` and `run/sessions.rs` are a subagent's slice, built and tested by it (37 new tests, one of them end to end with real processes). The view reads the run store and reports what it wants; the driver carries out every step of a start against the backend and feeds output and exits back.
+
+- Session tabs are drawn inside the view, as the Terminal's are, because a tool window's header has no slot for content yet.
+- Close tab, clear, soft wraps, scroll to end and find are buttons of the view, not actions: the component has no ids for them either.
+- Steps that need something not built answer in the way the component does without it: Gradle delegation resolves to the language server's classpath (no build model), a Build step or a before-launch build task without a build action ends with "Building is not available", an unknown external tool fails the launch. The SSH password retry of run targets is not built: such a start fails with the backend's message.
+- `run.debug` is not registered. Its fallback is to run without the debugger when no debug action exists, which would make Debug a plain Run until the debugger is drawn.
+- With "Current File" selected, which is the default of a project without configurations, `run.run` hands over to `run.runContext`; that action is not built, so Run does nothing visible there and logs it.
+- Runs are stopped when their project closes. Stopping them when the window closes is not built.
+- The console has no mouse selection (Select All, Copy and Copy All work on the whole text), cuts long lines when soft wraps are off, and shows "Emulate terminal" output as plain lines.

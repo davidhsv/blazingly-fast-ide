@@ -2178,5 +2178,93 @@
   "feature:welcome": {
     "status": "partial",
     "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::welcome::tests`; the Welcome screen with search, groups, row menus, remove and reopen. Not yet: the Customize and Plugins pages, the Recent Projects popup, the project popup of the title bar, reopening the last project at start (its logic is in the model, nothing calls it)"
+  },
+  "unit:src/features/run/RunView.test.tsx": {
+    "status": "done",
+    "proof": "`run::view::tests`"
+  },
+  "unit:src/features/run/findBar.test.tsx": {
+    "status": "partial",
+    "proof": "`run::view::tests`; 7 of 9 cases: a console without a toolbar does not exist here, and the field is not seeded from a selection because the console has no mouse selection yet"
+  },
+  "unit:src/features/run/session.test.tsx": {
+    "status": "partial",
+    "proof": "`run::driver::tests`, `run::sessions::tests`, `run::view::tests`; 6 of 17 cases (console input, the Tomcat session cases, Stop in the focused window). Open: the rerun questions and parallel instances at this level, the port from a started line, the configuration numbers of the chooser, tree test runs, plugin test filters, Go settings"
+  },
+  "action:run.run": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; restarts or starts the selected configuration. With Current File selected or nothing selected it hands over to run.runContext or run.chooseConfig, which are not built"
+  },
+  "action:run.rerun": {
+    "status": "done",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`"
+  },
+  "action:run.stop": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `run::sessions::tests`; the focused window, the widget argument, the only running process and the menu of several. Contributed debug sessions are not counted: the debugger is not drawn"
+  },
+  "action:run.runConfig": {
+    "status": "partial",
+    "proof": "`run::driver::tests`; registered and reads an id, a configuration or a temporary one from its argument; no test runs it through the action"
+  },
+  "action:run.stopProcess": {
+    "status": "partial",
+    "proof": "`run::driver::tests`; registered; no test runs it through the action"
+  },
+  "action:run.reloadConfigs": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; the same listing a project open does; no test runs the action itself"
+  },
+  "point.registerToolWindow:run": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `run::view::tests`; tabs drawn in the body rather than the header, no stripe badge with the running count, no terminal console, test tree or stack-trace tabs"
+  },
+  "ipc:run_start": {
+    "status": "done",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`"
+  },
+  "ipc:run_stop": {
+    "status": "done",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`"
+  },
+  "ipc:run_configs": {
+    "status": "done",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`"
+  },
+  "ipc:run_stdin": {
+    "status": "partial",
+    "proof": "`run::view::tests::types_erases_and_sends_a_line`; the view asks for the line to be sent and the driver sends it; no test reads it back from a process"
+  },
+  "ipc:run_close_stdin": {
+    "status": "partial",
+    "proof": "the driver calls it for the end-of-input key; no test"
+  },
+  "ipc:run_resize": {
+    "status": "partial",
+    "proof": "the driver calls it; no test"
+  },
+  "ipc:run_apply_settings": {
+    "status": "partial",
+    "proof": "called when configurations load; no test changes settings"
+  },
+  "ipc:run_without_derived": {
+    "status": "partial",
+    "proof": "called when a temporary configuration is kept; the store test proves the model, no test goes through the backend"
+  },
+  "ipc:run_gradle_init_script": {
+    "status": "partial",
+    "proof": "called for Gradle launches; no test"
+  },
+  "ipc:run_gradle_jvm_args_script": {
+    "status": "partial",
+    "proof": "called for Gradle VM options; no test"
+  },
+  "ipc:java_resolve_launch": {
+    "status": "partial",
+    "proof": "called while a Java launch is prepared, with a request Stop cancels; needs the language server, no test"
+  },
+  "feature:run": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `run::view::tests`, `run::driver::tests`; the Run tool window (tabs, console with ANSI colours, folds, links, input, find, soft wraps, follow), starting, rerunning and stopping processes with before-launch tasks. Not yet: the configuration chooser and the run widget, Edit Configurations, context runs and gutter markers, the test tree, the terminal console, Services, mouse selection in the console, tooltips"
   }
 }
