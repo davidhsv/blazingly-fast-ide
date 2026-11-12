@@ -6059,6 +6059,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ide-android"
+version = "0.1.40"
+dependencies = [
+ "ide-core",
+ "serde",
+ "specta",
+ "which",
+]
+
+[[package]]
 name = "ide-build"
 version = "0.1.40"
 dependencies = [
@@ -8605,6 +8615,7 @@ dependencies = [
  "gpui-kit",
  "icu_collator",
  "ide-agent",
+ "ide-android",
  "ide-build",
  "ide-core",
  "ide-dap",
@@ -8615,6 +8626,7 @@ dependencies = [
  "ide-index",
  "ide-language",
  "ide-lsp",
+ "ide-notebook",
  "ide-plugin",
  "ide-run",
  "ide-search",

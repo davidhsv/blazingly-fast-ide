@@ -257,7 +257,7 @@ impl Render for ServiceDetailPane {
 }
 
 /// Runs `f` with the workbench of the action's window.
-fn on_workbench(
+pub(super) fn on_workbench(
     window: &mut Window,
     cx: &mut App,
     f: impl FnOnce(&mut Workbench, &mut Window, &mut Context<Workbench>),

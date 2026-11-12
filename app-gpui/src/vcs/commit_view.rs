@@ -1,14 +1,17 @@
 //! The Commit tool window's changes: the files that differ from the last commit, grouped as
 //! merge conflicts, changes and unversioned files, by directory, each in the colour of what
 //! happened to it. Read from the backend when shown and again when the repository changes.
+//! Enter or a double click shows a changed file's diff, F4 opens the file, and the context menu
+//! offers both.
 
 use super::changes::{ChangeKind, ChangeNode, EffectiveKind, FileStatus, NodeType, build_change_tree, strip_slash};
 use crate::backend::{Backend, BackendEvent};
 use crate::platform::i18n::Localization;
 use crate::theme;
 use gpui_kit::{
-    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, Render, ScrollStrategy,
-    SharedString, Task, UniformListScrollHandle, Window, div, prelude::*, px, uniform_list,
+    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, MouseButton,
+    MouseDownEvent, Render, ScrollStrategy, SharedString, Task, UniformListScrollHandle, Window, div, prelude::*, px,
+    uniform_list,
 };
 use ide_core::IdeEvent;
 use std::collections::BTreeSet;
@@ -18,8 +21,12 @@ use std::rc::Rc;
 /// What the changes view asks of its window.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CommitPanelEvent {
-    /// Open this changed file.
+    /// Open this changed file (Jump to Source).
     Open(PathBuf),
+    /// Show the diff of this changed file.
+    ShowDiff(PathBuf),
+    /// Show the context menu of the selected file here.
+    ShowMenu(gpui_kit::Point<gpui_kit::Pixels>),
 }
 
 /// One visible line: a group, a directory or a changed file.
@@ -179,6 +186,31 @@ impl CommitPanel {
         }
     }
 
+    /// The project folder the changes are listed under.
+    pub fn root(&self) -> &str {
+        &self.root
+    }
+
+    /// The key of the selected row.
+    pub fn selected_key(&self) -> Option<&str> {
+        self.selected.as_deref()
+    }
+
+    /// The path of the selected row, when it is a changed file.
+    pub fn selected_file(&self) -> Option<String> {
+        let key = self.selected.as_deref()?;
+        let row = self.rows.iter().find(|row| row.key == key && row.node_type == NodeType::File)?;
+        row.path.as_deref().map(|path| strip_slash(path).to_owned())
+    }
+
+    /// Whether the selected file can be opened: it is a changed file that was not deleted.
+    pub fn selected_file_opens(&self) -> bool {
+        let Some(key) = self.selected.as_deref() else { return false };
+        self.rows
+            .iter()
+            .any(|row| row.key == key && row.node_type == NodeType::File && row.kind != Some(EffectiveKind::Deleted))
+    }
+
     /// Reads the changes again.
     pub fn read(&mut self, cx: &mut Context<Self>) {
         let Some(backend) = cx.try_global::<Backend>() else { return };
@@ -228,16 +260,24 @@ impl CommitPanel {
         cx.notify();
     }
 
-    /// Opens the file of row `key`, or toggles its group or directory (Enter, double click).
+    /// Shows the diff of row `key`'s file, or toggles its group or directory (Enter, double click).
     pub fn activate(&mut self, key: &str, cx: &mut Context<Self>) {
         let Some(row) = self.rows.iter().find(|row| row.key == key).cloned() else { return };
         match (row.node_type, row.path) {
-            // A deleted file has nothing to open.
-            (NodeType::File, Some(path)) if row.kind != Some(EffectiveKind::Deleted) => {
-                cx.emit(CommitPanelEvent::Open(PathBuf::from(strip_slash(&path))));
-            }
-            (NodeType::File, _) => {}
+            (NodeType::File, Some(path)) => cx.emit(CommitPanelEvent::ShowDiff(PathBuf::from(strip_slash(&path)))),
+            (NodeType::File, None) => {}
             _ => self.toggle(key, cx),
+        }
+    }
+
+    /// Opens the file of row `key` (F4, Jump to Source). A deleted file has nothing to open.
+    pub fn open(&mut self, key: &str, cx: &mut Context<Self>) {
+        let Some(row) = self.rows.iter().find(|row| row.key == key) else { return };
+        if row.node_type == NodeType::File
+            && row.kind != Some(EffectiveKind::Deleted)
+            && let Some(path) = &row.path
+        {
+            cx.emit(CommitPanelEvent::Open(PathBuf::from(strip_slash(path))));
         }
     }
 
@@ -258,6 +298,7 @@ impl CommitPanel {
             }
             ("left", Some(row)) if row.node_type != NodeType::File && row.expanded => self.toggle(&row.key.clone(), cx),
             ("enter", Some(row)) => self.activate(&row.key.clone(), cx),
+            ("f4", Some(row)) => self.open(&row.key.clone(), cx),
             _ => return,
         }
         if let Some(at) = self.selected.as_ref().and_then(|key| self.rows.iter().position(|row| &row.key == key)) {
@@ -319,7 +360,7 @@ impl Render for CommitPanel {
                             NodeType::Dir => Some(theme::icon(cx, "folder", 16.0, fg)),
                             NodeType::Group => None,
                         };
-                        let (clicked, toggled) = (row.key.clone(), row.key.clone());
+                        let (clicked, toggled, pressed) = (row.key.clone(), row.key.clone(), row.key.clone());
                         div()
                             .id(SharedString::from(format!("change:{}", row.key)))
                             .h(theme::length(cx, "h-row"))
@@ -357,6 +398,18 @@ impl Render for CommitPanel {
                                 let count = crate::vcs_diff::model::file_count(row.files, i18n);
                                 el.child(div().text_color(muted).child(SharedString::from(count)))
                             })
+                            .on_mouse_down(
+                                MouseButton::Right,
+                                cx.listener(move |panel, event: &MouseDownEvent, window, cx| {
+                                    window.focus(&panel.focus, cx);
+                                    panel.selected = Some(pressed.clone());
+                                    if panel.selected_file().is_some() {
+                                        cx.emit(CommitPanelEvent::ShowMenu(event.position));
+                                    }
+                                    cx.stop_propagation();
+                                    cx.notify();
+                                }),
+                            )
                             .on_click(cx.listener(move |panel, event: &ClickEvent, window, cx| {
                                 window.focus(&panel.focus, cx);
                                 panel.selected = Some(clicked.clone());
@@ -421,8 +474,7 @@ mod tests {
 
     /// A real repository with a modified, a deleted and a new file: they are listed under
     /// Changes and Unversioned Files by directory, each with its kind, folders close and open,
-    /// Enter asks for a file to be opened, and a change outside is picked up on the backend's
-    /// event.
+    /// F4 asks for a file to be opened, Enter for its diff, and a change outside is picked up on the backend's event.
     #[gpui_kit::test]
     async fn lists_the_repositorys_changes_by_group_and_directory(cx: &mut TestAppContext) {
         cx.executor().allow_parking();
@@ -476,11 +528,13 @@ mod tests {
         });
 
         let opened: Rc<std::cell::RefCell<Vec<PathBuf>>> = Rc::default();
-        let log = opened.clone();
+        let shown: Rc<std::cell::RefCell<Vec<PathBuf>>> = Rc::default();
+        let (log, shown_log) = (opened.clone(), shown.clone());
         let _subscription = cx.update(|_, cx| {
-            cx.subscribe(&panel, move |_, event: &CommitPanelEvent, _| {
-                let CommitPanelEvent::Open(path) = event;
-                log.borrow_mut().push(path.clone());
+            cx.subscribe(&panel, move |_, event: &CommitPanelEvent, _| match event {
+                CommitPanelEvent::Open(path) => log.borrow_mut().push(path.clone()),
+                CommitPanelEvent::ShowDiff(path) => shown_log.borrow_mut().push(path.clone()),
+                CommitPanelEvent::ShowMenu(_) => {}
             })
         });
         cx.update(|window, cx| {
@@ -490,10 +544,13 @@ mod tests {
         // Down to Changes, to src; Left closes the folder, Right opens it again.
         cx.simulate_keystrokes("down down left");
         assert_eq!(lines(&panel, cx), ["Changes (2)", "  src (2)", "Unversioned Files (1)", "  notes.txt"]);
-        cx.simulate_keystrokes("right down enter");
+        cx.simulate_keystrokes("right down f4");
         assert!(opened.borrow().is_empty(), "a deleted file has nothing to open");
-        cx.simulate_keystrokes("down enter");
+        cx.simulate_keystrokes("down f4");
         assert_eq!(*opened.borrow(), [root.join("src/main.rs")]);
+        // Enter shows the diff of a changed file, a deleted one included.
+        cx.simulate_keystrokes("enter up enter");
+        assert_eq!(*shown.borrow(), [root.join("src/main.rs"), root.join("src/gone.rs")]);
 
         // The change is committed outside: the list follows on the backend's event.
         git(&root, &["add", "-A"]);

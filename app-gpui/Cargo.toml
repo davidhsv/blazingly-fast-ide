@@ -22,6 +22,7 @@ path = "src/main.rs"
 [dependencies]
 gpui-kit = "=0.9.1"
 ide-agent = { path = "../crates/ide-agent" }
+ide-android = { path = "../crates/ide-android" }
 ide-core = { path = "../crates/ide-core" }
 ide-build = { path = "../crates/ide-build" }
 ide-dap = { path = "../crates/ide-dap" }
@@ -31,6 +32,7 @@ ide-github = { path = "../crates/ide-github" }
 ide-host = { path = "../crates/ide-host" }
 ide-index = { path = "../crates/ide-index" }
 ide-lsp = { path = "../crates/ide-lsp" }
+ide-notebook = { path = "../crates/ide-notebook" }
 ide-plugin = { path = "../crates/ide-plugin" }
 ide-run = { path = "../crates/ide-run" }
 ide-search = { path = "../crates/ide-search" }

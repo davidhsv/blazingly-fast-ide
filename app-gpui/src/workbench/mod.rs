@@ -1,6 +1,7 @@
 //! The window shell. For now: a frame around one editor (LightEdit), which is the part of the
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
+mod diff_window;
 mod editor_find;
 pub mod main_toolbar;
 pub mod menu;
@@ -240,6 +241,8 @@ pub struct Workbench {
     light_find_bar: Option<TabFindBar>,
     /// The Services tool window of the open project, once it was shown or used.
     services: Option<services_window::ServicesWindow>,
+    /// The diff shown in front of the window.
+    diff_window: Option<diff_window::DiffWindow>,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -373,6 +376,7 @@ pub fn register_actions(cx: &mut App) {
     windows::register_actions(cx);
     let registry = cx.default_global::<ActionRegistry>();
     services_window::register_actions(registry);
+    diff_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
     let flags: [(&str, &str, Flag); 4] = [
@@ -857,6 +861,7 @@ impl Workbench {
             popup: None,
             light_find_bar: None,
             services: None,
+            diff_window: None,
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
@@ -1662,6 +1667,7 @@ impl Workbench {
         set_context(window, cx, "toolWindowFocus", focused_panel.is_some());
         set_context(window, cx, "terminalFocus", focused_panel.as_deref() == Some(TERMINAL_TOOL_WINDOW));
         set_context(window, cx, "servicesViewFocus", focused_panel.as_deref() == Some(SERVICES_TOOL_WINDOW));
+        self.publish_diff_context(window, cx);
         if let Content::Project { layout, .. } = &mut self.content {
             // The layout decides by this what `toolwindow.<id>` does: focus, or hide.
             layout.set_focused(focused_panel.as_deref());
@@ -1793,8 +1799,7 @@ impl Workbench {
                     let changes = cx.new(|cx| CommitPanel::new(&label, root, cx));
                     let opens =
                         cx.subscribe_in(&changes, window, |workbench, _, event: &CommitPanelEvent, window, cx| {
-                            let CommitPanelEvent::Open(path) = event;
-                            workbench.open_project_file(path.clone(), window, cx);
+                            workbench.commit_panel_event(event, window, cx);
                         });
                     Panel::new(changes, Some(opens))
                 }
@@ -3483,6 +3488,7 @@ impl Render for Workbench {
             )
             .child(div().flex_1().min_h_0().w_full().child(body))
             .child(notification_balloons::layer(&self.balloons, cx))
+            .children(self.diff_window_layer(cx))
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
                 gpui_kit::deferred(
@@ -4391,7 +4397,7 @@ mod tests {
         assert!(cx.update(|window, cx| log.focus_handle(cx).is_focused(window)), "showing it gives it the keyboard");
 
         // The Commit window shares the left side with the Project view: it takes its place, and
-        // a changed file opens from it.
+        // a changed file opens from it (F4, Jump to Source).
         std::fs::write(root.join("notes.txt"), "changed\n").expect("the file is written");
         cx.update(|window, cx| execute_action_or_throw("toolwindow.commit", None, window, cx)).expect("it runs");
         let changes = workbench
@@ -4404,10 +4410,95 @@ mod tests {
         });
         settle(cx, |cx| changes.read_with(cx, |changes, _| !changes.is_loading()));
         assert_eq!(changes.read_with(cx, |changes, _| changes.lines()), ["Changes (1)", "  notes.txt"]);
-        cx.simulate_keystrokes("down down enter");
+        cx.simulate_keystrokes("down down f4");
         settle(cx, |cx| {
             workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == root.join("notes.txt")))
         });
+    }
+
+    /// Show Diff on a change of the Commit tool window shows the diff in front of the window: HEAD's
+    /// line on the left, the working copy's on the right, one difference. Next Difference makes it
+    /// the current one, Compare Next File shows the group's other changed file, Jump to Source opens
+    /// the file at the changed line and closes the diff, and Escape closes it.
+    #[gpui_kit::test]
+    async fn show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use crate::vcs::commit_view::CommitPanel;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("a.txt"), "one\ntwo\nthree\n").expect("the file is written");
+        std::fs::write(root.join("b.txt"), "x\ny\nz\n").expect("the file is written");
+        let git = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&root)
+                .env("GIT_CONFIG_GLOBAL", "/dev/null")
+                .env("GIT_CONFIG_SYSTEM", "/dev/null")
+                .output()
+                .expect("git runs");
+            assert!(output.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&output.stderr));
+        };
+        git(&["init", "-q", "-b", "main"]);
+        git(&["add", "."]);
+        git(&["-c", "user.name=Ada", "-c", "user.email=ada@example.test", "commit", "-q", "-m", "first"]);
+        std::fs::write(root.join("a.txt"), "one\nTWO\nthree\n").expect("the file is written");
+        std::fs::write(root.join("b.txt"), "x\nY\nz\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.commit", None, window, cx)).expect("it runs");
+        let changes = workbench
+            .read_with(cx, |w, _| w.tool_window_view(COMMIT_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<CommitPanel>().ok())
+            .expect("the Commit window holds the changes");
+        settle(cx, |cx| changes.read_with(cx, |changes, _| changes.lines().len() == 3));
+        assert_eq!(changes.read_with(cx, |changes, _| changes.lines()), ["Changes (2)", "  a.txt", "  b.txt"]);
+
+        // Show Diff on the selected change.
+        cx.simulate_keystrokes("down down");
+        cx.update(|window, cx| execute_action_or_throw("vcs.showDiff", None, window, cx)).expect("it runs");
+        let dialog = workbench.read_with(cx, |w, _| w.diff_dialog().cloned()).expect("the diff is shown");
+        let viewer = dialog.read_with(cx, |dialog, _| dialog.viewer().clone());
+        settle(cx, |cx| viewer.read_with(cx, |viewer, _| viewer.difference_count() == 1));
+        let changed = |lines: Vec<crate::vcs_diff::view::PaneLine>| -> Vec<String> {
+            lines.into_iter().filter(|line| line.kind.is_some()).map(|line| line.text).collect()
+        };
+        assert_eq!(changed(viewer.read_with(cx, |viewer, _| viewer.left_lines())), ["two"]);
+        assert_eq!(changed(viewer.read_with(cx, |viewer, _| viewer.right_lines())), ["TWO"]);
+        assert!(dialog.read_with(cx, |dialog, _| dialog.data().path.ends_with("a.txt")));
+
+        // Next Difference makes the change the current one.
+        assert_eq!(viewer.read_with(cx, |viewer, _| viewer.current_difference()), None);
+        cx.update(|window, cx| execute_action_or_throw("diff.nextDifference", None, window, cx)).expect("it runs");
+        assert_eq!(viewer.read_with(cx, |viewer, _| viewer.current_difference()), Some(0));
+
+        // Compare Next File shows the other changed file of the group.
+        cx.update(|window, cx| execute_action_or_throw("diff.nextFile", None, window, cx)).expect("it runs");
+        settle(cx, |cx| {
+            dialog.read_with(cx, |dialog, _| dialog.data().path.ends_with("b.txt"))
+                && changed(viewer.read_with(cx, |viewer, _| viewer.right_lines())) == ["Y"]
+        });
+        assert_eq!(changed(viewer.read_with(cx, |viewer, _| viewer.left_lines())), ["y"]);
+
+        // Jump to Source opens the file at the changed line and closes the diff.
+        cx.update(|window, cx| execute_action_or_throw("diff.nextDifference", None, window, cx)).expect("it runs");
+        cx.update(|window, cx| execute_action_or_throw("diff.jumpToSource", None, window, cx)).expect("it runs");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()), "Jump to Source closes the diff");
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == root.join("b.txt")))
+        });
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("the file is open");
+        settle(cx, |cx| editor.read_with(cx, |editor, _| editor.caret_position().0 == 1));
+
+        // Escape closes the diff window.
+        cx.update(|window, cx| execute_action_or_throw("vcs.showDiff", None, window, cx)).expect("it runs");
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_some()), "the active file's diff is shown");
+        cx.run_until_parked();
+        cx.simulate_keystrokes("escape");
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()), "Escape closes the diff");
     }
 
     /// Find in Files: the action shows the Find window with the keyboard in its query, Enter
