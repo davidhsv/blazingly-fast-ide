@@ -6184,6 +6184,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ide-github"
+version = "0.1.40"
+dependencies = [
+ "ide-core",
+ "ide-vcs",
+ "serde",
+ "serde_json",
+ "specta",
+ "tracing",
+ "which",
+]
+
+[[package]]
 name = "ide-host"
 version = "0.1.40"
 dependencies = [
@@ -8591,9 +8604,12 @@ dependencies = [
  "futures",
  "gpui-kit",
  "icu_collator",
+ "ide-agent",
  "ide-build",
  "ide-core",
  "ide-dap",
+ "ide-db",
+ "ide-github",
  "ide-host",
  "ide-index",
  "ide-language",
@@ -8605,6 +8621,7 @@ dependencies = [
  "ide-syntax",
  "ide-terminal",
  "ide-text",
+ "ide-tools",
  "ide-vcs",
  "ide-vfs",
  "ide-workspace",

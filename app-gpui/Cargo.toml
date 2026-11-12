@@ -21,9 +21,12 @@ path = "src/main.rs"
 
 [dependencies]
 gpui-kit = "=0.9.1"
+ide-agent = { path = "../crates/ide-agent" }
 ide-core = { path = "../crates/ide-core" }
 ide-build = { path = "../crates/ide-build" }
 ide-dap = { path = "../crates/ide-dap" }
+ide-db = { path = "../crates/ide-db" }
+ide-github = { path = "../crates/ide-github" }
 ide-host = { path = "../crates/ide-host" }
 ide-index = { path = "../crates/ide-index" }
 ide-lsp = { path = "../crates/ide-lsp" }
@@ -36,6 +39,7 @@ ide-language = { path = "../crates/ide-language", features = ["native-highlights
 ide-workspace = { path = "../crates/ide-workspace" }
 ide-syntax = { path = "../crates/ide-syntax" }
 ide-text = { path = "../crates/ide-text" }
+ide-tools = { path = "../crates/ide-tools" }
 ide-vfs = { path = "../crates/ide-vfs" }
 ide-ssh = { path = "../crates/ide-ssh" }
 dirs = "6"

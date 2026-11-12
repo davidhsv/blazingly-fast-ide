@@ -1,14 +1,19 @@
 //! OpenIDEA's desktop shell on GPUI.
 
+pub mod agents;
+pub mod app_models;
 pub mod backend;
+pub mod database;
 pub mod debugger;
 pub mod editor;
 pub mod editor_commands;
 pub mod editor_lsp;
 pub mod everywhere;
 pub mod find;
+pub mod github;
 pub mod platform;
 pub mod platform_more;
+pub mod plugin_models;
 pub mod plugins;
 pub mod project_tree;
 pub mod project_tree_model;
