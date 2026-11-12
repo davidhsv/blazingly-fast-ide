@@ -419,3 +419,11 @@ Not there: see the `search.findInFiles` overlay row; the largest are the preview
 The editor's three status bar items answer a click as in the webview: the position opens Go to Line, the line separator and the encoding open a menu at the pointer (the popup menu keeps itself inside the window, so it opens upwards from the bar). The rows call `Documents::set_line_ending` and `set_encoding` through the editor, and a refusal by the backend (reloading with unsaved changes, a read-only file) is told in a notification under the webview's titles.
 
 The check mark of the current line separator is drawn as the row's icon: the shared menu model has no "checked" for rows of a menu's own, and adding the field while subagents write against the type would have broken their files. It is to become a field when the menus with real toggles arrive.
+
+## D56. Run producers, and a stop that was not honoured
+
+`run_producers/` (14 files, 184 tests) completes the run feature's models: the producers that make a configuration from a file, the caret or a directory for every language the webview knows, the context Run/Debug menu, npm script gutters, runtime and tool lookup, Ruby tests, stack traces, service order, console folds and external tools. It built on the first try.
+
+Its one failing test was a real bug in the earlier run batch, which the subagent had predicted from reading: in `StartRun::java_prepared`, a successful classpath answer that arrived after Stop was pressed went on to launch the program. The webview's spec says the opposite ("cancels the request and ignores a late success response"). Fixed in `run/store.rs`: whether the launch was aborted is asked before the answer is looked at.
+
+Choices the subagent made, kept: what the producers read from global stores in the webview (Go modules, Python packages, the Gradle model, tools on the PATH) is passed in as data; the context menu has rows of its own, since the shared menu model has no header rows; the test-state icons use a small model fed with results, because the test tree is not ported yet (the test runner batch is still being written).

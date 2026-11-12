@@ -1802,22 +1802,25 @@ impl StartRun {
         if self.stale(store) {
             return self.done();
         }
+        // Stop was pressed while the launch was being prepared: an answer that still arrives,
+        // a successful one too, starts nothing.
+        let aborted = self.session_id.as_deref().is_some_and(|id| store.resolve_aborted(id));
         let error = match outcome {
-            Ok(prepared) => {
+            Ok(prepared) if !aborted => {
                 self.launch = Some(prepared.resolved);
                 return self.prepare_type(store, env);
             }
-            Err(error) => error,
+            Ok(_) => None,
+            Err(error) => Some(error),
         };
-        let aborted = self.session_id.as_deref().is_some_and(|id| store.resolve_aborted(id));
-        if aborted || error.is_cancelled() {
+        let Some(error) = error.filter(|error| !aborted && !error.is_cancelled()) else {
             if let Some(id) = &self.session_id
                 && let Some(session) = store.session_mut(id)
             {
                 session.stopped = true;
             }
             return self.launch_ended(store, now_ms);
-        }
+        };
         let message = error.message().to_string();
         let text = match error {
             JavaLaunchError::BuildFailed(_) => format!("{message}\n"),

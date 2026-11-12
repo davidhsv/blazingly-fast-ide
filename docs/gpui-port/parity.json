@@ -1488,12 +1488,12 @@
     "proof": "`run::gradle_run::tests`; sixteen of seventeen cases: the remaining one is what the webview does outside the desktop app, which this app never is"
   },
   "unit:src/features/run/csharpTargets.test.ts": {
-    "status": "partial",
-    "proof": "`run::csharp_targets::tests`; three of five cases: the two that produce a configuration from a file or the caret need the producers, which are not ported"
+    "status": "done",
+    "proof": "`run::csharp_targets::tests`, `run_producers::producers::tests`, `run::targets::tests`"
   },
   "unit:src/features/run/goGenerate.test.ts": {
-    "status": "partial",
-    "proof": "`run::go_generate::tests`; two of three cases: the one that produces a configuration from the caret needs the producers"
+    "status": "done",
+    "proof": "`run::go_generate::tests`, `run_producers::producers::tests`"
   },
   "unit:src/features/debugger/__tests__/actions.test.ts": {
     "status": "done",
@@ -1910,5 +1910,65 @@
   "ipc:doc_set_encoding": {
     "status": "partial",
     "proof": "`workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; converting is tested, reloading only as the refusal with unsaved changes"
+  },
+  "unit:src/features/run/producers.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::producers::tests`, `run_producers::languages::tests`"
+  },
+  "unit:src/features/run/producers.ruby.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::producers::tests`"
+  },
+  "unit:src/features/run/contextRun.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::context_run::tests`"
+  },
+  "unit:src/features/run/npmGutter.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::npm_gutter::tests`"
+  },
+  "unit:src/features/run/targets.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::target_cases`"
+  },
+  "unit:src/features/run/rubyTargets.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::target_cases`"
+  },
+  "unit:src/features/run/rubyTests.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::ruby_tests::tests`"
+  },
+  "unit:src/features/run/runtimes.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::runtimes::tests`"
+  },
+  "unit:src/features/run/stackTrace.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::stack_trace::tests`"
+  },
+  "unit:src/features/run/stopStatus.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::store_cases`"
+  },
+  "unit:src/features/run/temporarySettings.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::store_cases`"
+  },
+  "unit:src/features/run/updatePolicies.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::update_policy_cases`, `run::application_update::tests`"
+  },
+  "unit:src/features/run/workflow.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::console_folds::tests`, `run_producers::external_tools::tests`"
+  },
+  "unit:src/features/run/serviceOrder.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::service_order::tests`"
+  },
+  "unit:src/features/run/resolveCancellation.test.ts": {
+    "status": "done",
+    "proof": "`run_producers::store_cases`"
   }
 }
