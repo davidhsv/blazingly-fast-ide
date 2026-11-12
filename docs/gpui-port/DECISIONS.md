@@ -169,3 +169,11 @@ The workbench lays tool windows out as the webview's grid does: the editor betwe
 A window's view is created the first time it is shown and kept while hidden, as the webview keeps mounted windows: hiding the Terminal does not end its shell. The Terminal starts as Settings › Terminal says (start directory, shell command line, environment, shell integration).
 
 Not carried over yet: resize handles, maximize, the widescreen layout (side windows at full height), tool window names under the icons, drag and drop on the stripes, header actions and menus.
+
+## D29. The editor session: same stored JSON, tabs loaded when shown
+
+`editor::session` stores a project's tabs, splits, active pane and per-file caret and scroll position under the webview's key (`openidea.editorSession.v1:<project folder>`) in the webview's JSON shape, validated on the way in. It is written 400 ms after the tabs last changed, when the window loses focus and when it goes away.
+
+A restored tab is only a title until it is shown: its document is opened in the backend when the tab becomes the active one, and its saved selection and first visible line are applied then. The webview does the same (`ensureSlot` on the active tab of each pane). Opening a tab's document is idempotent per tab: the first version of this change opened it twice, and the second arrival took the focus back from wherever the user had gone (caught as a 1-in-4 test failure).
+
+Only one pane is drawn so far: a saved split layout is restored into the model and kept on save, but its other panes are not visible. Tabs of non-file editor kinds are not saved, because no such kind exists here yet.

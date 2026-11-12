@@ -10,6 +10,7 @@ pub mod tasks;
 pub mod tool_windows;
 
 use crate::backend::{Backend, BackendEvent};
+use crate::editor::session::{self, FileViewState};
 use crate::editor::tabs::{EditorInput, OpenTabOptions, TabsState, disambiguate_titles};
 use crate::editor::view::Editor;
 use crate::platform::actions::{Action, ActionMeta, ActionRegistry, ActionSource, execute_action_from, manifest};
@@ -34,6 +35,7 @@ use tasks::{TaskEvent, Tasks};
 use tool_windows::{Anchor, Effects, Slot, Stripe, ToolWindow, ToolWindowLayout, storage_key};
 
 /// What a window shows.
+#[expect(clippy::large_enum_variant, reason = "one per window, replaced only when a project opens or closes")]
 enum Content {
     /// Nothing is open.
     Empty,
@@ -53,6 +55,10 @@ enum Content {
         /// The editor tabs, and the editor of each tab that has finished opening, by tab id.
         tabs: Box<TabsState>,
         editors: HashMap<String, Entity<Editor>>,
+        /// Tabs whose document is being opened.
+        loading: std::collections::HashSet<String>,
+        /// Where the files of the restored session were left, for the ones not opened yet.
+        restored_views: std::collections::BTreeMap<String, FileViewState>,
         _opens: Subscription,
     },
     Failed(SharedString),
@@ -63,6 +69,9 @@ struct Panel {
     view: AnyView,
     focus: FocusHandle,
 }
+
+/// How long the tabs rest before the editor session is written.
+const SESSION_SAVE_DELAY: std::time::Duration = std::time::Duration::from_millis(400);
 
 /// One window: its backend label and what it shows.
 pub struct Workbench {
@@ -84,6 +93,8 @@ pub struct Workbench {
     previous_editor: Option<gpui_kit::WeakEntity<Editor>>,
     /// The unsaved-changes question is on screen.
     closing: bool,
+    /// A pending write of the editor session.
+    session_save: Option<gpui_kit::Task<()>>,
 }
 
 /// Milliseconds since the Unix epoch, the clock the task and notification models are given.
@@ -292,6 +303,7 @@ impl Workbench {
         cx.observe_window_activation(window, |workbench, window, cx| {
             if !window.is_window_active() {
                 workbench.autosave(None, cx);
+                workbench.save_session(cx);
             }
         })
         .detach();
@@ -306,6 +318,8 @@ impl Workbench {
             })
         });
         cx.on_release(move |workbench, cx| {
+            // The window is going: the session is written as it stands.
+            workbench.save_session(cx);
             if cx.has_global::<Backend>() {
                 cx.global_mut::<Backend>().unlisten(workbench.listener);
             }
@@ -325,6 +339,7 @@ impl Workbench {
             listener: listener.unwrap_or_default(),
             previous_editor: None,
             closing: false,
+            session_save: None,
         }
     }
 
@@ -480,6 +495,11 @@ impl Workbench {
             })
             .detach();
         }
+        self.load_active_tab(window, cx);
+        self.session_save = Some(cx.spawn(async move |workbench, cx| {
+            cx.background_executor().timer(SESSION_SAVE_DELAY).await;
+            let _ = workbench.update(cx, |workbench, cx| workbench.save_session(cx));
+        }));
         let active = self.editor().cloned();
         // The editor that was active is saved when another one takes its place.
         let previous = self.previous_editor.take().and_then(|previous| previous.upgrade());
@@ -951,14 +971,22 @@ impl Workbench {
                             workbench.open_project_file(event.0.clone(), window, cx);
                         });
                         let project_panel = Panel { focus: tree.focus_handle(cx), view: tree.clone().into() };
+                        // The tabs, splits and carets the project was left with.
+                        let saved = cx.try_global::<UiStorage>().and_then(|s| session::load_session(s, &scope));
+                        let (tabs, restored_views) = match saved {
+                            Some(saved) => (session::restore_tabs_state(&saved, |path| path.to_owned()), saved.files),
+                            None => (TabsState::new(), Default::default()),
+                        };
                         Content::Project {
                             name,
                             layout,
                             focus_served: 0,
                             tree,
                             panels: HashMap::from([(PROJECT_TOOL_WINDOW.to_owned(), project_panel)]),
-                            tabs: Box::new(TabsState::new()),
+                            tabs: Box::new(tabs),
                             editors: HashMap::new(),
+                            loading: Default::default(),
+                            restored_views,
                             _opens: opens,
                         }
                     }
@@ -980,6 +1008,8 @@ impl Workbench {
                     }
                     effects
                 });
+                // A restored tab gets its editor when it is the one showing.
+                workbench.tabs_changed(false, window, cx);
                 cx.notify();
             });
         })
@@ -1025,8 +1055,44 @@ impl Workbench {
         }
     }
 
+    /// Opens the document of the active tab if it has none yet: a tab restored with the project
+    /// is only a title until it is shown.
+    fn load_active_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Content::Project { tabs, editors, loading, .. } = &self.content else { return };
+        let Some(tab) = tabs.pane(&tabs.active_pane).and_then(|pane| pane.active_tab()) else { return };
+        if editors.contains_key(&tab.id) || loading.contains(&tab.id) || tab.input.kind != "file" {
+            return;
+        }
+        let Some(path) = tab.input.path.clone() else { return };
+        self.load_tab(tab.id.clone(), PathBuf::from(path), window, cx);
+    }
+
+    /// Stores the project's editor session now: its tabs and splits, and where each file's
+    /// editor is; a file not opened since the session was restored keeps what was saved for it.
+    pub fn save_session(&mut self, cx: &mut App) {
+        self.session_save = None;
+        let Content::Project { tabs, editors, restored_views, layout, .. } = &self.content else { return };
+        let mut files = restored_views.clone();
+        for editor in editors.values() {
+            let editor = editor.read(cx);
+            let view =
+                FileViewState { anchor: editor.anchor(), head: editor.caret(), top_line: Some(editor.top_line(cx)) };
+            files.insert(editor.path().to_string_lossy().into_owned(), view);
+        }
+        let saved = session::serialize_session(tabs, &files, |_| false);
+        let root = layout.scope().to_owned();
+        if cx.has_global::<UiStorage>() {
+            session::store_session(cx.global_mut::<UiStorage>(), &root, saved.as_ref());
+        }
+    }
+
     /// Opens the document of tab `tab_id` in the backend and gives the tab its editor.
     fn load_tab(&mut self, tab_id: String, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        // One document per tab: a tab that has its editor, or is getting it, is left alone.
+        let Content::Project { loading, editors, .. } = &mut self.content else { return };
+        if editors.contains_key(&tab_id) || !loading.insert(tab_id.clone()) {
+            return;
+        }
         let label = self.label.clone();
         let opened = cx
             .global::<Backend>()
@@ -1047,12 +1113,27 @@ impl Workbench {
                     });
                 let still_open =
                     workbench.tabs().is_some_and(|tabs| tabs.panes.iter().any(|pane| pane.tab(&tab_id).is_some()));
+                if let Content::Project { loading, .. } = &mut workbench.content {
+                    loading.remove(&tab_id);
+                }
                 match text {
                     Ok((info, version, rope)) => {
                         let editor = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
                         // A tab closed while its file was opening has no use for the editor;
                         // dropping it releases the document.
-                        if let (true, Content::Project { editors, .. }) = (still_open, &mut workbench.content) {
+                        if let (true, Content::Project { editors, restored_views, .. }) =
+                            (still_open, &mut workbench.content)
+                        {
+                            // The file is where it was left when the project was last open.
+                            let path = editor.read(cx).path().to_string_lossy().into_owned();
+                            if let Some(view) = restored_views.remove(&path) {
+                                editor.update(cx, |editor, cx| {
+                                    editor.select(view.anchor, view.head, cx);
+                                    if let Some(line) = view.top_line {
+                                        editor.scroll_to_line(line, cx);
+                                    }
+                                });
+                            }
                             editors.insert(tab_id.clone(), editor);
                         }
                     }
@@ -2098,6 +2179,80 @@ mod tests {
         assert_eq!(cx.update(|_, cx| settings::global(cx).ide.mode), IdeMode::Full);
         assert_eq!(workbench.read_with(cx, |w, cx| w.ide_mode(cx)), IdeMode::Full);
         assert_eq!(backend_mode(cx).ok(), Some(IdeMode::Full));
+    }
+
+    /// A project's tabs come back when it is opened again: the same files in the same order,
+    /// the same one active with its selection and scroll position, and the others loaded only
+    /// when they are shown.
+    #[gpui_kit::test]
+    async fn a_projects_tabs_and_carets_are_restored(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let long: String = (1..=200).map(|n| format!("line {n}\n")).collect();
+        for name in ["a.txt", "b.txt", "c.txt"] {
+            std::fs::write(root.join(name), &long).expect("the file is written");
+        }
+        let scope = root.to_string_lossy().into_owned();
+        let key = format!("{}{scope}", session::STORAGE_PREFIX);
+        let (first, cx1) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        first.update_in(cx1, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx1, |cx| first.read_with(cx, |w, _| w.project_tree().is_some()));
+        assert_eq!(cx1.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned)), None);
+        for name in ["a.txt", "b.txt"] {
+            let path = root.join(name);
+            first.update_in(cx1, |workbench, window, cx| workbench.open_project_file(path.clone(), window, cx));
+            settle(cx1, |cx| {
+                first.read_with(cx, |w, cx| w.editor().is_some_and(|editor| editor.read(cx).path() == path))
+            });
+        }
+        let editor = first.read_with(cx1, |w, _| w.editor().cloned()).expect("b.txt is showing");
+        editor.update(cx1, |editor, cx| {
+            editor.select(700, 706, cx);
+            editor.scroll_to_line(90, cx);
+        });
+        // Leaving the window writes the session as it stands.
+        first.update(cx1, |workbench, cx| workbench.save_session(cx));
+        let stored: serde_json::Value = cx1
+            .update(|_, cx| serde_json::from_str(cx.global::<UiStorage>().get(&key).expect("stored")))
+            .expect("JSON");
+        let b = root.join("b.txt").to_string_lossy().into_owned();
+        assert_eq!(stored["layout"]["active"], 1);
+        assert_eq!(stored["layout"]["tabs"][1]["path"], b.as_str());
+        assert_eq!(stored["files"][b.as_str()], serde_json::json!({ "anchor": 700, "head": 706, "topLine": 90 }));
+        cx1.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+
+        let (second, cx2) = cx.add_window_view(|window, cx| Workbench::new("w2", window, cx));
+        second.update_in(cx2, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx2, |cx| second.read_with(cx, |w, _| w.editor().is_some()));
+        let names: Vec<(String, bool)> =
+            second.read_with(cx2, |w, _| w.tab_titles().into_iter().map(|tab| (tab.name, tab.active)).collect());
+        assert_eq!(names, [("a.txt".to_owned(), false), ("b.txt".to_owned(), true)]);
+        let restored = second.read_with(cx2, |w, _| w.editor().cloned()).expect("an editor");
+        restored.read_with(cx2, |editor, cx| {
+            assert_eq!(editor.path(), root.join("b.txt"));
+            assert_eq!((editor.anchor(), editor.caret(), editor.top_line(cx)), (700, 706, 90));
+        });
+        // Only the tab that shows has a document; the other gets its own when it is shown.
+        let open_documents = |cx: &mut VisualTestContext| {
+            second.read_with(cx, |w, _| match &w.content {
+                Content::Project { editors, .. } => editors.len(),
+                _ => 0,
+            })
+        };
+        assert_eq!(open_documents(cx2), 1);
+        cx2.update(|window, cx| execute_action_or_throw("editor.prevTab", None, window, cx)).expect("it runs");
+        settle(cx2, |cx| {
+            second.read_with(cx, |w, cx| w.editor().is_some_and(|editor| editor.read(cx).path() == root.join("a.txt")))
+        });
+        assert_eq!(open_documents(cx2), 2);
+
+        // Closing every tab leaves no session behind once the change has rested.
+        cx2.update(|window, cx| execute_action_or_throw("editor.closeAllTabs", None, window, cx)).expect("it runs");
+        cx2.executor().advance_clock(SESSION_SAVE_DELAY);
+        cx2.run_until_parked();
+        assert_eq!(cx2.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned)), None);
     }
 
     #[test]

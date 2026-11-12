@@ -344,8 +344,8 @@
     "proof": "`editor::nav_history::tests`"
   },
   "unit:src/editor/core/model/session.test.ts": {
-    "status": "partial",
-    "proof": "`editor::tabs::tests`; the split cases only: saving and restoring the editor session is not ported"
+    "status": "done",
+    "proof": "`editor::session::tests`, `editor::tabs::tests`, `platform::paths::tests`, `workbench::tests::a_projects_tabs_and_carets_are_restored`"
   },
   "unit:src/editor/core/lightedit-launch.test.ts": {
     "status": "partial",

@@ -264,6 +264,23 @@ impl Editor {
         ide_core::Range { start: position(selection.start), end: position(selection.end) }
     }
 
+    /// The selection's fixed end, as a UTF-16 offset: the caret is its moving end.
+    pub fn anchor(&self) -> u32 {
+        self.anchor
+    }
+
+    /// The first line the view shows, as scrolled.
+    pub fn top_line(&self, cx: &App) -> u32 {
+        (self.scroll_top / Self::metrics(cx).1).floor() as u32
+    }
+
+    /// Scrolls so that `line` is the first one shown (the last line, if the document is shorter).
+    pub fn scroll_to_line(&mut self, line: u32, cx: &mut Context<Self>) {
+        let line = line.min(self.line_count().saturating_sub(1));
+        self.scroll_top = Self::metrics(cx).1 * line as f32;
+        cx.notify();
+    }
+
     /// The caret's UTF-16 offset.
     pub fn caret(&self) -> u32 {
         self.head
