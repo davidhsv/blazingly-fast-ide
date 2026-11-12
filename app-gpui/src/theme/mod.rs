@@ -1,6 +1,10 @@
 //! The visual design: tokens, themes and icons, all read from the webview UI's sources.
 
+pub mod color_scheme;
+pub mod fonts;
+pub mod icls;
 pub mod icons;
+pub mod themes;
 pub mod tokens;
 
 use gpui_kit::{AnyElement, App, Global, Hsla, Pixels, Rgba, img, prelude::*, px, svg};

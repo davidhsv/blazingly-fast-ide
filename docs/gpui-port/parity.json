@@ -558,5 +558,61 @@
   "module:src/platform/filePresentation.ts": {
     "status": "partial",
     "proof": "`platform::file_presentation::tests`; the batching model is not driven by a view, and file icon themes are not consulted"
+  },
+  "unit:src/platform/themes.test.ts": {
+    "status": "partial",
+    "proof": "`theme::themes::tests`; the settings-schema and quick-switch menu assertions are not ported"
+  },
+  "module:src/platform/themes.ts": {
+    "status": "partial",
+    "proof": "`theme::themes::tests`; not applied to the running window yet, and plugin theme previews have no counterpart"
+  },
+  "unit:src/workbench/theme.test.ts": {
+    "status": "done",
+    "proof": "`theme::themes::tests`"
+  },
+  "module:src/workbench/theme.ts": {
+    "status": "partial",
+    "proof": "`theme::themes::tests`; choosing and resolving a theme as a model: the window still starts in the default theme and does not follow the OS"
+  },
+  "unit:src/platform/colorScheme.test.ts": {
+    "status": "partial",
+    "proof": "`theme::color_scheme::tests`; 11 of 14 cases: font-weight settings and the scheme observer belong to modules that are not ported"
+  },
+  "module:src/platform/colorScheme.ts": {
+    "status": "partial",
+    "proof": "`theme::color_scheme::tests`; the editor does not read scheme overrides yet"
+  },
+  "unit:src/platform/icls.test.ts": {
+    "status": "partial",
+    "proof": "`theme::icls::tests`; all 22 cases, but XML is read by a hand-written parser that accepts some input DOMParser rejects, and the settings round trip is by JSON only"
+  },
+  "module:src/platform/icls.ts": {
+    "status": "partial",
+    "proof": "`theme::icls::tests`; no import or export command uses it yet"
+  },
+  "unit:src/platform/fonts.test.ts": {
+    "status": "partial",
+    "proof": "`theme::fonts::tests`; font loading and canvas probing are returned as requests, not carried out"
+  },
+  "module:src/platform/fonts.ts": {
+    "status": "partial",
+    "proof": "`theme::fonts::tests`; not connected to GPUI's text system"
+  },
+  "unit:src/platform/candidateFonts.test.ts": {
+    "status": "done",
+    "proof": "`theme::fonts::tests`"
+  },
+  "module:src/platform/candidateFonts.ts": {
+    "status": "partial",
+    "proof": "`theme::fonts::tests`; nothing measures fonts for it yet"
+  },
+  "unit:src/platform/systemFonts.test.ts": {
+    "status": "done",
+    "proof": "`theme::fonts::tests`"
+  },
+  "module:src/platform/systemFonts.ts": {
+    "status": "partial",
+    "proof": "`theme::fonts::tests`; not fed from the backend's font list"
   }
 }
