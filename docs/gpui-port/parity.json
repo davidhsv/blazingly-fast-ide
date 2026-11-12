@@ -1494,5 +1494,117 @@
   "unit:src/features/run/goGenerate.test.ts": {
     "status": "partial",
     "proof": "`run::go_generate::tests`; two of three cases: the one that produces a configuration from the caret needs the producers"
+  },
+  "unit:src/features/debugger/__tests__/actions.test.ts": {
+    "status": "done",
+    "proof": "`debugger::actions::tests`"
+  },
+  "unit:src/features/debugger/__tests__/attach.test.ts": {
+    "status": "done",
+    "proof": "`debugger::attach::tests`"
+  },
+  "unit:src/features/debugger/__tests__/breakpoints.test.ts": {
+    "status": "done",
+    "proof": "`debugger::breakpoints::model::tests`, `debugger::breakpoints::store::tests`"
+  },
+  "unit:src/features/debugger/__tests__/codeLines.test.ts": {
+    "status": "done",
+    "proof": "`debugger::breakpoints::code_lines::tests`"
+  },
+  "unit:src/features/debugger/__tests__/console.test.ts": {
+    "status": "done",
+    "proof": "`debugger::state::tests`"
+  },
+  "unit:src/features/debugger/__tests__/editor.test.ts": {
+    "status": "partial",
+    "proof": "`debugger::editor::breakpoint_gutter::tests`, `debugger::editor::execution::tests`, `debugger::state::tests`; the breakpoint click area in other gutters and the execution line surviving an inline rendering error are properties of the web editor's DOM and are not ported; a cached editor state refreshed on remounting was not found by name"
+  },
+  "unit:src/features/debugger/__tests__/exceptions.test.ts": {
+    "status": "done",
+    "proof": "`debugger::breakpoints::exceptions::tests`"
+  },
+  "unit:src/features/debugger/__tests__/executionState.test.ts": {
+    "status": "partial",
+    "proof": "`debugger::state::tests`, `debugger::actions::tests::each_resuming_action_clears_the_old_execution_point_before_its_request`; nine of ten cases found by name; the one about locals named like Object.prototype properties was not found and is not verified"
+  },
+  "unit:src/features/debugger/__tests__/hotswap.test.ts": {
+    "status": "done",
+    "proof": "`debugger::hotswap::tests`"
+  },
+  "unit:src/features/debugger/__tests__/java.test.ts": {
+    "status": "done",
+    "proof": "`debugger::java::tests`"
+  },
+  "unit:src/features/debugger/__tests__/javaCancel.test.ts": {
+    "status": "done",
+    "proof": "`debugger::actions::tests`, `run::java_launch::tests`"
+  },
+  "unit:src/features/debugger/__tests__/javaSeparator.test.ts": {
+    "status": "partial",
+    "proof": "`debugger::java::tests`; joining class and module paths with the host separator is `run::java_launch` logic and was not found by name there"
+  },
+  "unit:src/features/debugger/__tests__/launch.test.ts": {
+    "status": "done",
+    "proof": "`debugger::launch::tests`"
+  },
+  "unit:src/features/debugger/__tests__/missingAdapter.test.ts": {
+    "status": "done",
+    "proof": "`debugger::missing_adapter::tests`"
+  },
+  "unit:src/features/debugger/__tests__/quickEvaluate.test.ts": {
+    "status": "partial",
+    "proof": "`debugger::editor::quick_evaluate::tests`, `debugger::actions::tests`; keymap priority of a custom mouse action, a removed binding and the multi-caret cases are not ported"
+  },
+  "unit:src/features/debugger/__tests__/relisten.test.ts": {
+    "status": "done",
+    "proof": "`debugger::state::tests`"
+  },
+  "unit:src/features/debugger/__tests__/remote.test.ts": {
+    "status": "partial",
+    "proof": "`debugger::remote::tests`; the PHP Remote Debug form case and the assertions that need the run feature's validation are not ported"
+  },
+  "unit:src/features/debugger/__tests__/runOrigin.test.ts": {
+    "status": "done",
+    "proof": "`debugger::state::tests`, `debugger::actions::tests`"
+  },
+  "unit:src/features/debugger/__tests__/smartStep.test.ts": {
+    "status": "done",
+    "proof": "`debugger::editor::smart_step::tests`"
+  },
+  "unit:src/features/debugger/__tests__/special.test.ts": {
+    "status": "done",
+    "proof": "`debugger::breakpoints::special::tests`, `debugger::breakpoints::store::tests`, `debugger::breakpoints::toggle::tests`"
+  },
+  "unit:src/features/debugger/__tests__/startFailure.test.ts": {
+    "status": "done",
+    "proof": "`debugger::start_failure::tests`, `debugger::state::tests`"
+  },
+  "unit:src/features/debugger/__tests__/startupBreakpoints.test.ts": {
+    "status": "done",
+    "proof": "`debugger::state::tests`, `debugger::breakpoints::store::tests`"
+  },
+  "unit:src/features/debugger/__tests__/symbols.test.ts": {
+    "status": "done",
+    "proof": "`debugger::breakpoints::symbols::tests`"
+  },
+  "unit:src/features/debugger/__tests__/taskbarFlash.test.ts": {
+    "status": "done",
+    "proof": "`debugger::state::tests`"
+  },
+  "unit:src/features/debugger/__tests__/valueChanges.test.ts": {
+    "status": "done",
+    "proof": "`debugger::value_changes::tests`"
+  },
+  "unit:src/features/debugger/__tests__/valueText.test.ts": {
+    "status": "done",
+    "proof": "`debugger::value_text::tests`"
+  },
+  "unit:src/features/debugger/__tests__/values.test.ts": {
+    "status": "done",
+    "proof": "`debugger::values::tests`, `debugger::frames::tests`, `debugger::editor::execution::tests`, `debugger::editor::value_tooltip::tests`"
+  },
+  "unit:src/features/debugger/editor/runToCursor.test.ts": {
+    "status": "done",
+    "proof": "`debugger::editor::run_to_cursor::tests`"
   }
 }

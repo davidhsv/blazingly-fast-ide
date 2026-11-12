@@ -1,6 +1,7 @@
 //! OpenIDEA's desktop shell on GPUI.
 
 pub mod backend;
+pub mod debugger;
 pub mod editor;
 pub mod everywhere;
 pub mod find;

@@ -345,3 +345,11 @@ Choices the subagent made, kept: the store hands completed console lines back to
 ## D47. A spec row is checked against the tests it cites
 
 Subagents report how many cases of each spec they ported, and the rows were first marked from those reports with the test modules guessed from file names. `inventory.mjs` now refuses a spec row marked done when the tests it cites are fewer than the spec's cases, counted over all rows that cite the same tests, unless the proof says after a semicolon why fewer suffice. Running it found four groups: three where the cases existed but in modules the proof did not cite (corrected), and one of my own early rows where several cases are one test (now said in the proof). A second pass matched every case title against Rust test names; it found no missing case in the subagent batches, and two rows whose "covered elsewhere" claims could not be found by name, which are now partial (`settings keymap`, `settings languages`). The check is a lower bound on honesty, not a proof of equivalence: it cannot tell a test that asserts the wrong thing.
+
+## D48. The debugger as models
+
+`debugger/` (34 files, 274 tests) is a subagent's port of 28 of the debugger's specs: the session state with its console, frames, values and execution point, the actions (start, attach, step, rerun, hot swap), breakpoints of every kind with their store, the Java launch path, remote and attach configurations, start failures and the missing-adapter flow, and the editor-side models (gutter, run to cursor, smart step, quick evaluate, value tooltips). It built on the first try and needed four lint fixes. `ide-dap` is a dependency now; the lock check passes. Its rows were marked from a match of every spec case title against the test names, not from the subagent's counts (D47).
+
+Not ported: the Debug tool window and its views, the console's links and find bar, expression completion, and the cases that test the web editor's DOM (the breakpoint click area, an inline rendering error). No debugger UI is drawn yet.
+
+It depends on `run::{java_launch, ansi, store, config_types, configs}`: the subagent dropped its own copies of those in favour of the run batch's.
