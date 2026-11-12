@@ -44,6 +44,10 @@ use crate::platform::input;
 use crate::platform::local_time::now_ms;
 use crate::platform::storage::UiStorage;
 use crate::project_tree::{OpenFile, ProjectTree};
+use crate::run::driver::{RunDriver, RunDriverEvent, SaveAll};
+use crate::run::sessions::{StopTarget, rerun_target, stop_target};
+use crate::run::store::RunStore;
+use crate::run::view::{RunView, RunViewEvent};
 use crate::theme;
 use crate::ui::popup_menu::{Choice, PopupMenu, PopupMenuEvent};
 use crate::vcs_ops::menu::MenuItem;
@@ -100,6 +104,9 @@ enum Content {
         /// the active one from then on.
         editor_focus: HashMap<String, Subscription>,
         _opens: Subscription,
+        /// What runs the project's run configurations, and what the window listens to it for.
+        run: Entity<RunDriver>,
+        _run_events: Subscription,
     },
     Failed(SharedString),
 }
@@ -293,14 +300,18 @@ pub const COMMIT_TOOL_WINDOW: &str = "commit";
 /// The Notifications tool window's id.
 pub const NOTIFICATIONS_TOOL_WINDOW: &str = "notifications";
 
+/// The Run tool window's id.
+pub const RUN_TOOL_WINDOW: &str = "run";
+
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 6] = [
+const TOOL_WINDOWS: [&str; 7] = [
     PROJECT_TOOL_WINDOW,
     COMMIT_TOOL_WINDOW,
     TERMINAL_TOOL_WINDOW,
     GIT_TOOL_WINDOW,
     FIND_TOOL_WINDOW,
     NOTIFICATIONS_TOOL_WINDOW,
+    RUN_TOOL_WINDOW,
 ];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
@@ -548,6 +559,64 @@ pub fn register_actions(cx: &mut App) {
             Ok(())
         }));
     }
+    fn on_run(
+        window: &mut Window,
+        cx: &mut App,
+        act: impl FnOnce(&mut RunDriver, &mut Context<RunDriver>),
+    ) -> anyhow::Result<()> {
+        let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+        let driver = workbench.read(cx).run_driver().cloned().ok_or_else(|| anyhow::anyhow!("no project is open"))?;
+        driver.update(cx, act);
+        Ok(())
+    }
+    registry.handle("run.run", |_, window, cx| {
+        on_run(window, cx, |driver, cx| driver.when_loaded(|driver, cx| driver.run_selected(cx), cx))
+    });
+    registry.handle("run.runConfig", |call, window, cx| {
+        let arg = call.arg.cloned();
+        on_run(window, cx, move |driver, cx| {
+            driver.when_loaded(
+                move |driver, cx| {
+                    if let Some(config) = driver.config_from_arg(arg.as_ref(), cx) {
+                        driver.start(config, Default::default(), cx).detach();
+                    }
+                },
+                cx,
+            )
+        })
+    });
+    registry.handle("run.rerun", |_, window, cx| {
+        on_run(window, cx, |driver, cx| {
+            let target = rerun_target(driver.store().read(cx)).map(str::to_owned);
+            if let Some(rerun) = target.and_then(|session| driver.rerun(&session, cx)) {
+                rerun.detach();
+            }
+        })
+    });
+    registry.handle("run.stop", |call, window, cx| {
+        let focused = call.ctx.is_truthy("toolWindowFocus")
+            && matches!(
+                call.ctx.get("activeToolWindow"),
+                Some(crate::platform::context::ContextValue::Text(id)) if &**id == RUN_TOOL_WINDOW
+            );
+        let from_widget = call.arg.and_then(serde_json::Value::as_str) == Some("widget");
+        let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+        workbench.update(cx, |workbench, cx| workbench.stop_runs(focused, from_widget, window, cx));
+        Ok(())
+    });
+    registry.handle("run.stopProcess", |call, window, cx| {
+        let Some(run) = call.arg.and_then(serde_json::Value::as_u64).and_then(|run| u32::try_from(run).ok()) else {
+            return Ok(());
+        };
+        on_run(window, cx, move |driver, cx| driver.stop_run(ide_core::RunId(run), cx))
+    });
+    registry.handle("run.reloadConfigs", |_, window, cx| {
+        on_run(window, cx, |driver, cx| {
+            if let Some(root) = driver.store().read(cx).project_root.clone() {
+                driver.load(&root, cx);
+            }
+        })
+    });
     registry.handle("view.notifications", |_, window, cx| {
         on_layout(window, cx, |layout| layout.activate(NOTIFICATIONS_TOOL_WINDOW))
     });
@@ -856,6 +925,28 @@ impl Workbench {
                     tracing::warn!("cannot store the notification setting: {}", error.message);
                 }
                 self.notifications.hide_group_balloons(&group);
+            }
+            EntryAction::Own(own)
+                if own.command.starts_with("run.showSession:") || own.command.starts_with("run.rerunSession:") =>
+            {
+                let Some(driver) = self.run_driver().cloned() else { return };
+                let (command, session) = own.command.split_once(':').unwrap_or_default();
+                let session = session.to_owned();
+                if command == "run.rerunSession" {
+                    driver.update(cx, |driver, cx| {
+                        if let Some(rerun) = driver.rerun(&session, cx) {
+                            rerun.detach();
+                        }
+                    });
+                } else {
+                    driver.update(cx, |driver, cx| {
+                        driver.store().update(cx, |store, cx| {
+                            store.active_session = Some(session.clone());
+                            cx.notify();
+                        });
+                    });
+                    self.with_layout(window, cx, |layout| layout.show(RUN_TOOL_WINDOW, true));
+                }
             }
             EntryAction::Own(own) => {
                 let registered =
@@ -1331,6 +1422,20 @@ impl Workbench {
             IdeEvent::IndexState { indexing, files, symbols } => {
                 self.tasks.set_indexing(*indexing, u64::from(*files), u64::from(*symbols), now);
             }
+            IdeEvent::RunExited { .. } => {
+                if let Some(driver) = self.run_driver().cloned() {
+                    driver.update(cx, |driver, cx| driver.backend_event(&event.event, cx));
+                }
+                return;
+            }
+            // Settings › Console reaches the consoles and the Run tool window.
+            IdeEvent::SettingsChanged { .. } => {
+                if let Some(driver) = self.run_driver().cloned() {
+                    driver.update(cx, |driver, cx| driver.apply_console_settings(cx));
+                    self.sync_run_window(cx);
+                }
+                return;
+            }
             IdeEvent::Notify { level, title, body } => {
                 let level = match level {
                     NotifyLevel::Info => NotificationLevel::Info,
@@ -1580,6 +1685,7 @@ impl Workbench {
         }
         // The Notifications window may have opened or closed, or just got its view.
         self.sync_notifications(cx);
+        self.sync_run_window(cx);
     }
 
     /// Creates the view of every visible tool window that has none yet.
@@ -1634,6 +1740,13 @@ impl Workbench {
                         });
                     Panel::new(changes, Some(opens))
                 }
+                RUN_TOOL_WINDOW => {
+                    let Content::Project { run, .. } = &self.content else { continue };
+                    let (store, types) = (run.read(cx).store().clone(), run.read(cx).types());
+                    let view = cx.new(|cx| RunView::new(store, types, cx));
+                    let events = cx.subscribe_in(&view, window, Self::run_view_event);
+                    Panel::new(view, Some(events))
+                }
                 FIND_TOOL_WINDOW => {
                     use crate::find::view::{FindPanel, FindPanelEvent};
                     let label = self.label.clone();
@@ -1672,6 +1785,169 @@ impl Workbench {
     /// Whether tool window `id` is showing.
     pub fn is_tool_window_visible(&self, id: &str) -> bool {
         matches!(&self.content, Content::Project { layout, .. } if layout.is_visible(id))
+    }
+
+    /// The run driver of the window's project, which starts and stops its processes.
+    pub fn run_driver(&self) -> Option<&Entity<RunDriver>> {
+        match &self.content {
+            Content::Project { run, .. } => Some(run),
+            _ => None,
+        }
+    }
+
+    /// The run driver of a project just opened at `root`, listing its run configurations.
+    fn new_run_driver(&mut self, root: &str, window: &mut Window, cx: &mut Context<Self>) -> Entity<RunDriver> {
+        let store = cx.new(|_| RunStore::new());
+        let weak = cx.weak_entity();
+        let save_all: SaveAll = Rc::new(move |cx: &mut App| {
+            use futures::FutureExt as _;
+            match weak.upgrade() {
+                Some(workbench) => workbench.read(cx).save_all(cx).boxed_local(),
+                None => futures::future::ready(Ok(())).boxed_local(),
+            }
+        });
+        let tool_windows = TOOL_WINDOWS
+            .into_iter()
+            .filter_map(tool_window_declaration)
+            .map(|declared| (declared.id.clone(), declared.title.clone()))
+            .collect();
+        let (label, handle) = (self.label.clone(), window.window_handle());
+        let driver = cx.new(|_| {
+            RunDriver::new(&label, store).with_window(handle).with_save_all(save_all).with_tool_windows(tool_windows)
+        });
+        driver.update(cx, |driver, cx| driver.load(root, cx));
+        driver
+    }
+
+    /// The project goes: its processes stop and its sessions are forgotten.
+    fn reset_runs(&mut self, cx: &mut Context<Self>) {
+        if let Some(driver) = self.run_driver().cloned() {
+            driver.update(cx, |driver, cx| driver.reset(cx));
+        }
+    }
+
+    /// Tells the run driver whether the Run tool window shows, and the Run view what it reads from the
+    /// settings and the registered actions.
+    fn sync_run_window(&mut self, cx: &mut Context<Self>) {
+        let Some(driver) = self.run_driver().cloned() else { return };
+        let visible = self.is_tool_window_visible(RUN_TOOL_WINDOW);
+        driver.update(cx, |driver, _| driver.run_window_visible = visible);
+        let Some(view) = self.tool_window_view(RUN_TOOL_WINDOW).and_then(|view| view.downcast::<RunView>().ok()) else {
+            return;
+        };
+        let console = crate::platform::settings::effective(&self.label, cx).console;
+        let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned());
+        let registered = |id: &str| cx.try_global::<ActionRegistry>().is_some_and(|registry| registry.contains(id));
+        let (debug, edit) = (registered("run.debugConfig"), registered("run.editConfigs"));
+        let chooser = registered("run.chooseConfig")
+            .then(|| {
+                let keymap = cx.try_global::<crate::platform::input::Keymap>()?;
+                keymap.0.shortcut_label("run.chooseConfig", crate::platform::keymap::is_mac_host())
+            })
+            .flatten();
+        view.update(cx, |view, cx| {
+            view.set_console_settings(console, cx);
+            view.set_project_root(root);
+            view.set_capabilities(debug, edit, chooser, cx);
+        });
+    }
+
+    /// Carries out what the run driver asks of the window.
+    fn run_driver_event(
+        &mut self,
+        _: &Entity<RunDriver>,
+        event: &RunDriverEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event.clone() {
+            RunDriverEvent::ShowRunWindow { focus } => {
+                self.with_layout(window, cx, |layout| layout.show(RUN_TOOL_WINDOW, focus));
+            }
+            RunDriverEvent::Notify(request) => self.notify(request, cx),
+            RunDriverEvent::ShowToolWindow(id) => self.with_layout(window, cx, |layout| layout.focus(&id)),
+            RunDriverEvent::OpenFile { path, line, col } => self.open_project_file_at(path, line, col, window, cx),
+            RunDriverEvent::RunAction { id, arg } => window.defer(cx, move |window, cx| {
+                if !execute_action_from(ActionSource::Other, id, arg.as_ref(), window, cx) {
+                    tracing::info!("{id} is not available in this window");
+                }
+            }),
+        }
+    }
+
+    /// Carries out what the Run tool window asks for.
+    fn run_view_event(
+        &mut self,
+        view: &Entity<RunView>,
+        event: &RunViewEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(driver) = self.run_driver().cloned() else { return };
+        match event.clone() {
+            RunViewEvent::Rerun(session) => driver.update(cx, |driver, cx| {
+                if let Some(rerun) = driver.rerun(&session, cx) {
+                    rerun.detach();
+                }
+            }),
+            RunViewEvent::Debug(config) => match serde_json::to_value(&config) {
+                Ok(arg) => window.defer(cx, move |window, cx| {
+                    execute_action_from(ActionSource::Toolbar, "run.debugConfig", Some(&arg), window, cx);
+                }),
+                Err(error) => tracing::error!("cannot pass the configuration to the debugger: {error}"),
+            },
+            RunViewEvent::Stop(session) => driver.update(cx, |driver, cx| driver.stop(&session, cx)),
+            RunViewEvent::CloseTab(session) => driver.update(cx, |driver, cx| driver.close_tab(&session, cx)),
+            RunViewEvent::EditConfigs(config) => window.defer(cx, move |window, cx| {
+                let arg = config.map(serde_json::Value::from);
+                execute_action_from(ActionSource::Toolbar, "run.editConfigs", arg.as_ref(), window, cx);
+            }),
+            RunViewEvent::SendInput { session, line } => {
+                driver.update(cx, |driver, cx| driver.send_input(&session, &line, cx));
+            }
+            RunViewEvent::SendEof(session) => driver.update(cx, |driver, cx| driver.close_stdin(&session, cx)),
+            RunViewEvent::OpenUrl(url) => driver.update(cx, |driver, cx| driver.open_url(&url, cx)),
+            RunViewEvent::OpenLocation { target, cwd } => {
+                driver.update(cx, |driver, cx| driver.open_location(target, cwd, cx));
+            }
+            RunViewEvent::ShowMenu(position) => {
+                let items = view.read(cx).console_menu(cx);
+                let view = view.clone();
+                let run = move |_: &mut Self, command, window: &mut Window, cx: &mut Context<Self>| {
+                    view.update(cx, |view, cx| view.run_console_command(command, window, cx));
+                };
+                self.show_menu(&items, position, run, window, cx);
+            }
+        }
+    }
+
+    /// Stop: the target [`stop_target`] picks; several running processes are offered in a menu with
+    /// Stop All.
+    pub fn stop_runs(&mut self, focused: bool, from_widget: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(driver) = self.run_driver().cloned() else { return };
+        let target = stop_target(driver.read(cx).store().read(cx), focused, from_widget);
+        let sessions = match target {
+            StopTarget::Nothing => return,
+            StopTarget::Sessions(sessions) => sessions,
+            StopTarget::Choose(sessions) => {
+                let store = driver.read(cx).store().read(cx);
+                let mut items: Vec<MenuItem<Vec<String>>> = sessions
+                    .iter()
+                    .filter_map(|id| store.session(id).map(|session| (id, session.config.name.clone())))
+                    .map(|(id, name)| MenuItem::item(name, vec![id.clone()]).icon("run"))
+                    .collect();
+                items.push(MenuItem::Separator);
+                items.push(MenuItem::item("Stop All", sessions).icon("stop").danger());
+                let width = f32::from(window.viewport_size().width);
+                let position = gpui_kit::point(gpui_kit::px((width / 2.0 - 120.0).max(0.0)), gpui_kit::px(44.0));
+                let run = move |_: &mut Self, sessions: Vec<String>, _: &mut Window, cx: &mut Context<Self>| {
+                    driver.update(cx, |driver, cx| sessions.iter().for_each(|id| driver.stop(id, cx)));
+                };
+                self.show_menu(&items, position, run, window, cx);
+                return;
+            }
+        };
+        driver.update(cx, |driver, cx| sessions.iter().for_each(|id| driver.stop(id, cx)));
     }
 
     /// The file tree, when a project is open.
@@ -2069,6 +2345,7 @@ impl Workbench {
             return;
         }
         self.leave(cx);
+        self.reset_runs(cx);
         // The project's servers and runs stop in the background: this is the UI thread.
         cx.global::<Backend>().host.close_project_detached(&self.label);
         self.content = Content::Empty;
@@ -2174,6 +2451,7 @@ impl Workbench {
 
     pub fn open_project(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
         self.leave(cx);
+        self.reset_runs(cx);
         self.content = Content::Opening(root.clone());
         self.sync_welcome(window, cx);
         cx.notify();
@@ -2210,6 +2488,8 @@ impl Workbench {
                             cx.try_global::<UiStorage>().and_then(|s| s.get(&storage_key(&scope)).map(str::to_owned));
                         let mut layout = Box::new(ToolWindowLayout::new());
                         layout.load(&scope, stored.as_deref());
+                        let run = workbench.new_run_driver(&root.to_string_lossy(), window, cx);
+                        let run_events = cx.subscribe_in(&run, window, Self::run_driver_event);
                         let tree = cx.new(|cx| ProjectTree::new(&label, root, cx));
                         let opens = cx.subscribe_in(&tree, window, |workbench, _, event: &OpenFile, window, cx| {
                             workbench.open_project_file(event.0.clone(), window, cx);
@@ -2234,6 +2514,8 @@ impl Workbench {
                             reveals: HashMap::new(),
                             editor_focus: HashMap::new(),
                             _opens: opens,
+                            run,
+                            _run_events: run_events,
                         }
                     }
                     Err(message) => Content::Failed(message.into()),
@@ -5457,6 +5739,103 @@ mod tests {
             welcome(cx).map(|view| view.read_with(cx, |view, _| view.empty_text())),
             Some(Some("Welcome to OpenIDEA"))
         );
+    }
+
+    /// Run › Run starts the selected configuration of the project: its output shows in the Run tool
+    /// window and the session ends with the process's exit code; Run › Stop ends a long-running one.
+    #[gpui_kit::test]
+    async fn a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::platform::actions::execute_action_or_throw;
+        use crate::run::configs::blank_config;
+        use crate::run::store::SessionStatus;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let program = |id: &str, command: &str, arg: &str| ide_run::RunConfig {
+            command: command.to_owned(),
+            args: vec![arg.to_owned()],
+            ..blank_config(id, id, "program")
+        };
+        let configs = [program("hello", "/bin/echo", "hello"), program("nap", "/bin/sleep", "30")];
+        ide_run::save_user_configs(&root, &configs).expect("the configurations are saved");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let driver = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
+        let store = driver.read_with(cx, |driver, _| driver.store().clone());
+        // Processes and their timers: real time passes, and so does the executor's clock.
+        let long = |cx: &mut VisualTestContext, what: &str, done: &dyn Fn(&mut VisualTestContext) -> bool| {
+            for _ in 0..3000 {
+                cx.executor().advance_clock(Duration::from_millis(20));
+                cx.run_until_parked();
+                if done(cx) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("{what} did not happen within thirty seconds");
+        };
+        long(cx, "listing the configurations", &|cx| store.read_with(cx, |store, _| store.loaded));
+        let listed: Vec<String> =
+            store.read_with(cx, |store, _| store.configs().iter().map(|c| c.id.clone()).collect());
+        assert_eq!(listed, ["hello", "nap"]);
+        assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(RUN_TOOL_WINDOW)));
+
+        store.update(cx, |store, _| store.select_config(Some("hello")));
+        cx.update(|window, cx| execute_action_or_throw("run.run", None, window, cx)).expect("it runs");
+        let session = |cx: &mut VisualTestContext, name: &str| {
+            store.read_with(cx, |store, _| store.sessions.iter().find(|s| s.config.name == name).cloned())
+        };
+        long(cx, "the exit of echo", &|cx| session(cx, "hello").is_some_and(|s| !s.is_live()));
+        let hello = session(cx, "hello").expect("a tab");
+        assert_eq!((hello.status, hello.exit_code, hello.stopped), (SessionStatus::Finished, Some(0), false));
+        // Settings › Run › Show the Run tool window when a process starts.
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(RUN_TOOL_WINDOW)));
+        let view = workbench
+            .read_with(cx, |w, _| w.tool_window_view(RUN_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<RunView>().ok())
+            .expect("the Run tool window holds its view");
+        assert_eq!(view.read_with(cx, |view, cx| view.tab_titles(cx)), ["hello"]);
+        let lines = view.read_with(cx, |view, cx| view.lines(cx));
+        assert!(lines.iter().any(|line| line == "hello"), "{lines:?}");
+        assert_eq!(view.read_with(cx, |view, cx| view.tab_icons(cx)), ["file-binary"]);
+
+        // With the keyboard in the console's find bar the Run tool window is the active one: Rerun
+        // restarts its tab.
+        cx.update(|window, cx| {
+            let focus = view.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.simulate_keystrokes("cmd-f");
+        workbench.update(cx, |_, cx| cx.notify());
+        cx.run_until_parked();
+        assert!(view.read_with(cx, |view, _| view.find_open()));
+        let active = cx.update(|window, cx| {
+            let context = crate::platform::context::window_context(window, cx);
+            matches!(context.get("activeToolWindow"), Some(crate::platform::context::ContextValue::Text(id)) if &**id == "run")
+        });
+        assert!(active, "the Run tool window is the active one");
+        cx.update(|window, cx| execute_action_or_throw("run.rerun", None, window, cx)).expect("it reruns");
+        let first = hello.started_at;
+        long(cx, "the rerun of echo", &|cx| {
+            session(cx, "hello").is_some_and(|s| s.started_at > first && s.status == SessionStatus::Finished)
+        });
+        assert_eq!(view.read_with(cx, |view, cx| view.tab_titles(cx)), ["hello"], "the same tab");
+        cx.simulate_keystrokes("escape");
+
+        store.update(cx, |store, _| store.select_config(Some("nap")));
+        cx.update(|window, cx| execute_action_or_throw("run.run", None, window, cx)).expect("it runs");
+        long(cx, "the start of sleep", &|cx| session(cx, "nap").is_some_and(|s| s.status == SessionStatus::Running));
+        assert_eq!(view.read_with(cx, |view, cx| view.tab_icons(cx)), ["file-binary", "run"]);
+        // Outside the Run tool window Stop reaches the only running process.
+        cx.update(|window, cx| execute_action_or_throw("run.stop", None, window, cx)).expect("it runs");
+        long(cx, "the end of sleep", &|cx| session(cx, "nap").is_some_and(|s| !s.is_live()));
+        let nap = session(cx, "nap").expect("a tab");
+        assert_eq!((nap.status, nap.stopped), (SessionStatus::Finished, true));
+        assert_eq!(view.read_with(cx, |view, cx| view.tab_icons(cx)), ["file-binary", "file-binary"]);
     }
 
     #[test]
