@@ -3,7 +3,9 @@
 // around it, taken from `src-tauri/src/menu.rs` without the parts that draw it with Tauri.
 // Both apps then show the same menus from one table, which is edited in `src-tauri` only.
 // Run from the repository root: `node docs/gpui-port/menuspec.mjs`; with `--check` it writes
-// nothing and fails when the written file is out of date.
+// nothing and fails when the written file is out of date. The text is formatted with rustfmt as
+// the commit hook formats it, so the comparison is of the file as it is committed.
+import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const SOURCE = "src-tauri/src/menu.rs";
@@ -49,7 +51,7 @@ body = rewrite(body, /^(const|fn) /gm, "pub $1 ");
 body = rewrite(body, /^pub struct RecentItem/m, "#[derive(Debug, Clone, PartialEq, Eq)]\npub struct RecentItem");
 body = rewrite(body, /^ {4}fn (key|default_label)\(self\)/gm, "    pub fn $1(self)");
 
-const text = `//! The menu bar's table: which menus there are on each OS, what they hold and which action
+const unformatted = `//! The menu bar's table: which menus there are on each OS, what they hold and which action
 //! each item runs, with the functions that route a chosen item and say whether it is enabled.
 //!
 //! Written by \`docs/gpui-port/menuspec.mjs\` from \`${SOURCE}\`. Do not edit: change the
@@ -59,6 +61,10 @@ use std::collections::HashSet;
 use std::path::Path;
 
 ${body}`;
+const text = execFileSync("rustfmt", ["--edition", "2024", "--config-path", "rustfmt.toml"], {
+  input: unformatted,
+  encoding: "utf8",
+});
 
 if (process.argv.includes("--check")) {
   if (readFileSync(TARGET, "utf8") !== text) {

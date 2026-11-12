@@ -3,8 +3,6 @@
 
 pub mod main_toolbar;
 pub mod menu;
-// Written by a script from the Tauri app's table and compared with it byte for byte.
-#[rustfmt::skip]
 pub mod menu_spec;
 pub mod notifications;
 pub mod project_color;
