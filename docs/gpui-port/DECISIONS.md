@@ -117,3 +117,11 @@ Measured in the webview's sources: when a text document's last tab closes, `Docu
 The GPUI app saves on the same three occasions and asks the same question on window close. It differs in two places, both on the side of keeping the text: a tab whose save fails reopens with its editor and an error notification instead of being disposed, and a document is saved on close whatever `files.autoSave` says, because settings are not read yet. When they are, `files.autoSave = false` will need a decision: the webview's behaviour there discards edits without asking.
 
 The editor marks itself unsaved on its own successful edit rather than waiting for the backend's `DocDirty` event, so typing and closing in the same instant cannot slip between the two.
+
+## D24. One collation, on ICU, checked against `Intl.Collator`
+
+The webview sorts every list with `localeCompare` or `Intl.Collator`, in four option sets: default, `sensitivity: "base"`, `numeric: true`, and both. `platform::collate` gives the same four on `icu_collator` 2.4.0, the ICU version GPUI already locks (no new version in the lock; `lockcheck.mjs` passes). It is one new direct dependency, justified because code-point ordering visibly differs from the webview's for case, accents and punctuation (`_build` before `1`, `main` before `Main`, `résumé` next to `resume`).
+
+`gen-data.mjs` writes `assets/gen/collation.json`: 75 awkward names sorted by Node's `Intl.Collator("en", …)` under each option set. `platform::collate::tests::orders_names_as_intl_collator_does` requires the same order from the Rust side. The webview passes `undefined` as the locale, so it follows the system's; the GPUI app uses the root collation, which is what English and most European locales resolve to. Locale tailorings (Swedish `ä` after `z`, for example) are not applied.
+
+The six hand-written orderings this replaces (tool windows, tabs, main toolbar, project tree, themes and fonts, version control lists) are gone.

@@ -5,7 +5,7 @@
 //! Nothing here reads settings, storage or the OS: callers pass that state in and persist what
 //! the functions hand back.
 
-use std::cmp::Ordering;
+use crate::platform::collate;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -313,24 +313,6 @@ pub struct ThemeGroup {
     pub themes: Vec<ThemeChoice>,
 }
 
-/// Orders names for display the way a locale-aware comparison does for plain names: case is
-/// ignored unless the names are otherwise equal (then lowercase first), and spaces sort before
-/// punctuation, digits and letters. Accents and scripts are compared by code point, not by a
-/// collation table.
-pub fn locale_compare(a: &str, b: &str) -> Ordering {
-    fn class(c: char) -> u8 {
-        match c {
-            c if c.is_whitespace() => 0,
-            c if c.is_ascii_punctuation() => 1,
-            c if c.is_numeric() => 2,
-            _ => 3,
-        }
-    }
-    let primary = |text: &str| text.chars().flat_map(char::to_lowercase).map(|c| (class(c), c)).collect::<Vec<_>>();
-    let case = |text: &str| text.chars().map(|c| (c.is_uppercase(), c)).collect::<Vec<_>>();
-    primary(a).cmp(&primary(b)).then_with(|| case(a).cmp(&case(b)))
-}
-
 /// The selectable themes by origin: the built-in ones, then each plugin's by its name, themes
 /// by name.
 pub fn theme_groups(contributed: &[ThemeChoice]) -> Vec<ThemeGroup> {
@@ -353,11 +335,11 @@ pub fn theme_groups(contributed: &[ThemeChoice]) -> Vec<ThemeGroup> {
         }
     }
     plugins.sort_by(|a, b| {
-        locale_compare(name(a), name(b))
-            .then_with(|| locale_compare(a.plugin_id.as_deref().unwrap_or(""), b.plugin_id.as_deref().unwrap_or("")))
+        collate::compare(name(a), name(b))
+            .then_with(|| collate::compare(a.plugin_id.as_deref().unwrap_or(""), b.plugin_id.as_deref().unwrap_or("")))
     });
     for group in &mut plugins {
-        group.themes.sort_by(|a, b| locale_compare(&a.label, &b.label));
+        group.themes.sort_by(|a, b| collate::compare(&a.label, &b.label));
     }
     let builtin =
         ThemeGroup { plugin_id: None, origin: None, themes: BUILTIN_THEMES.iter().map(BuiltinTheme::choice).collect() };

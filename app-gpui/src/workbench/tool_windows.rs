@@ -8,6 +8,7 @@
 //! Window › Tool Window Layouts, shared by every project, and [`ContentTabs`] the content tab
 //! strips of the tool window headers.
 
+use crate::platform::collate;
 use serde::{Serialize, Serializer};
 use serde_json::Value;
 use std::cmp::Ordering;
@@ -293,12 +294,7 @@ fn docking(window: &ToolWindow, placement: Option<&Placement>) -> (Slot, Option<
 /// Stripe order: by order, then by title.
 fn by_order(a: &(&ToolWindow, Option<f64>), b: &(&ToolWindow, Option<f64>)) -> Ordering {
     let key = |order: Option<f64>| order.filter(|value| !value.is_nan()).unwrap_or(DEFAULT_ORDER);
-    key(a.1).partial_cmp(&key(b.1)).unwrap_or(Ordering::Equal).then_with(|| compare_titles(&a.0.title, &b.0.title))
-}
-
-/// Alphabetical regardless of case; of two titles differing only by case, the lower-case one first.
-fn compare_titles(a: &str, b: &str) -> Ordering {
-    a.to_lowercase().cmp(&b.to_lowercase()).then_with(|| b.cmp(a))
+    key(a.1).partial_cmp(&key(b.1)).unwrap_or(Ordering::Equal).then_with(|| collate::compare(&a.0.title, &b.0.title))
 }
 
 /// What Window › Tool Window Layouts saves and restores.

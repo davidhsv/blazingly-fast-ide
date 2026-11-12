@@ -3,9 +3,9 @@
 //!
 //! Paths are `/`-separated strings, as the backend reports them.
 
+use crate::platform::collate;
 use crate::platform::i18n::{I18n, Param};
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -150,40 +150,6 @@ pub fn base_name(path: &str) -> &str {
 pub fn dir_name(path: &str) -> &str {
     let path = strip_slash(path);
     path.rfind('/').map_or("", |slash| &path[..slash])
-}
-
-/// The leading run of ASCII digits of `text`, and what follows it.
-fn split_digits(text: &str) -> (&str, &str) {
-    text.split_at(text.find(|c: char| !c.is_ascii_digit()).unwrap_or(text.len()))
-}
-
-/// Order of two names in the lists of the version control views. The names are compared left to right
-/// by the code points of each character's Unicode lowercase mapping, so letter case does not count
-/// (`README` sorts between `a` and `z`); with `numeric`, where both have an ASCII digit the two whole
-/// digit runs are compared as numbers of any length (`v2` < `v10`). Names this holds equal are
-/// ordered by their UTF-16 code units, so the order is total.
-///
-/// This is not a language's collation: accented letters sort after `z`, an uppercase letter before the
-/// same lowercase one, and punctuation by code point (`_`, `{` and `~` after the digits and, for the
-/// last two, after the letters).
-pub fn compare_text(a: &str, b: &str, numeric: bool) -> Ordering {
-    let (mut x, mut y) = (a, b);
-    let folded = loop {
-        let (Some(p), Some(q)) = (x.chars().next(), y.chars().next()) else { break x.len().cmp(&y.len()) };
-        let order = if numeric && p.is_ascii_digit() && q.is_ascii_digit() {
-            let ((run_x, rest_x), (run_y, rest_y)) = (split_digits(x), split_digits(y));
-            (x, y) = (rest_x, rest_y);
-            let (number_x, number_y) = (run_x.trim_start_matches('0'), run_y.trim_start_matches('0'));
-            number_x.len().cmp(&number_y.len()).then_with(|| number_x.cmp(number_y))
-        } else {
-            (x, y) = (&x[p.len_utf8()..], &y[q.len_utf8()..]);
-            p.to_lowercase().cmp(q.to_lowercase())
-        };
-        if order != Ordering::Equal {
-            break order;
-        }
-    };
-    folded.then_with(|| a.encode_utf16().cmp(b.encode_utf16()))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -377,7 +343,7 @@ impl Trie<'_> {
 fn dir_nodes(trie: &Trie, prefix: &str, root: &str, group: GroupId, scope: &str, i18n: &mut I18n) -> Vec<ChangeNode> {
     let mut out = Vec::new();
     let mut dirs: Vec<&(&str, Trie)> = trie.dirs.iter().collect();
-    dirs.sort_by(|a, b| compare_text(a.0, b.0, false));
+    dirs.sort_by(|a, b| collate::compare(a.0, b.0));
     for (name, sub) in dirs {
         // Compact chains of directories that only contain one directory ("src/main/kotlin").
         let mut label = (*name).to_owned();
@@ -396,7 +362,7 @@ fn dir_nodes(trie: &Trie, prefix: &str, root: &str, group: GroupId, scope: &str,
         out.push(dir);
     }
     let mut files = trie.files.clone();
-    files.sort_by(|a, b| compare_text(base_name(&a.path), base_name(&b.path), false));
+    files.sort_by(|a, b| collate::compare(base_name(&a.path), base_name(&b.path)));
     out.extend(files.into_iter().map(|f| file_node(f, root, group, false, scope, i18n)));
     out
 }
@@ -430,7 +396,7 @@ fn child_nodes(
     }
     let mut sorted = files.to_vec();
     sorted.sort_by(|a, b| {
-        compare_text(base_name(&a.path), base_name(&b.path), false).then_with(|| compare_text(&a.path, &b.path, false))
+        collate::compare(base_name(&a.path), base_name(&b.path)).then_with(|| collate::compare(&a.path, &b.path))
     });
     sorted.into_iter().map(|f| file_node(f, root, group, true, scope, i18n)).collect()
 }
@@ -1199,18 +1165,6 @@ mod tests {
             files: BTreeMap::new(),
         };
         assert!(list_tree(&[], false, &only_default).is_empty());
-    }
-
-    // Not from a spec: the ordering that stands in for the locale's collation.
-    #[test]
-    fn compares_names_ignoring_case_and_optionally_by_number() {
-        assert_eq!(compare_text("README.md", "a.ts", false), Ordering::Greater);
-        assert_eq!(compare_text("App.kt", "AppTest.kt", false), Ordering::Less);
-        assert_eq!(compare_text("v10", "v2", false), Ordering::Less);
-        assert_eq!(compare_text("v10", "v2", true), Ordering::Greater);
-        assert_eq!(compare_text("v1.10", "v1.9", true), Ordering::Greater);
-        assert_eq!(compare_text("Main", "main", false), Ordering::Less);
-        assert_eq!(compare_text("main", "main", true), Ordering::Equal);
     }
 
     // Not from a spec: toggling a file's checkbox.

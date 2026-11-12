@@ -1,7 +1,7 @@
 //! Commit graph lanes for the Git log (computed from parents, for commits in topological order,
 //! children before parents), plus the graph transformations of the log's Graph / View options.
 
-use super::changes::compare_text;
+use crate::platform::collate;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
@@ -435,7 +435,7 @@ pub fn graph_layout(commits: &[GraphCommit]) -> GraphLayout {
         .filter(|(i, c)| children[*i].is_empty() || !c.refs().is_empty())
         .map(|(i, c)| (priority(c), i))
         .collect();
-    heads.sort_by(|a, b| compare_text(&a.0, &b.0, false));
+    heads.sort_by(|a, b| collate::compare(&a.0, &b.0));
 
     let mut layout = vec![0usize; commits.len()];
     let mut owners = vec![String::new(); commits.len()];
@@ -447,7 +447,7 @@ pub fn graph_layout(commits: &[GraphCommit]) -> GraphLayout {
         let commit = &commits[head];
         let branches = commit.refs().iter().map(String::as_str).filter(|name| *name != "HEAD");
         let owner = branches
-            .min_by(|a, b| compare_text(&ref_rank(commit, a), &ref_rank(commit, b), false))
+            .min_by(|a, b| collate::compare(&ref_rank(commit, a), &ref_rank(commit, b)))
             .unwrap_or(if commit.refs().iter().any(|name| name == "HEAD") { "HEAD" } else { commit.id.as_str() });
         let start = next;
         let mut stack = vec![head];

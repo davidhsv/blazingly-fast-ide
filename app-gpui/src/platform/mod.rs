@@ -1,6 +1,7 @@
 //! The platform layer: context keys, actions, keymaps and dispatch, shared by every feature.
 
 pub mod actions;
+pub mod collate;
 pub mod command_line;
 pub mod context;
 pub mod css_color;

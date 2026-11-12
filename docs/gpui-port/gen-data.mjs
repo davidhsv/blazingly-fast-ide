@@ -405,7 +405,106 @@ function fileIconTables() {
   };
 }
 
+/**
+ * How `Intl.Collator` orders a list of awkward names under the three option sets the UI uses:
+ * the reference the Rust collation is tested against.
+ */
+function collationTable() {
+  const names = [
+    "main",
+    "Main",
+    "MAIN",
+    "a",
+    "A",
+    "b",
+    "B",
+    "a1",
+    "a2",
+    "a10",
+    "a01",
+    "A2",
+    "file2.txt",
+    "file10.txt",
+    "file1.txt",
+    "_build",
+    ".gitignore",
+    "-dash",
+    "a_b",
+    "a-b",
+    "a.b",
+    "a b",
+    "a+b",
+    "ab",
+    "aB",
+    "Ab",
+    "~tilde",
+    "{brace}",
+    "@at",
+    "=eq",
+    ":colon",
+    "1",
+    "2",
+    "10",
+    "02",
+    "résumé",
+    "resume",
+    "Resume",
+    "é",
+    "e",
+    "f",
+    "z",
+    "ä",
+    "ß",
+    "ss",
+    "ﬁ",
+    "fi",
+    "σ",
+    "ς",
+    "İ",
+    "i",
+    "I",
+    "Привет",
+    "αβγ",
+    "中文",
+    "日本",
+    "😀",
+    "zebra",
+    "Zebra",
+    "apple",
+    "Apple",
+    "src",
+    "Src",
+    "tests",
+    "target",
+    "README.md",
+    "readme.md",
+    "feature/x",
+    "feature-x",
+    "feature_x",
+    "release/1.2",
+    "release/1.10",
+    "v1.9",
+    "v1.10",
+    "",
+    " ",
+  ];
+  const variants = {
+    default: {},
+    base: { sensitivity: "base" },
+    numericBase: { numeric: true, sensitivity: "base" },
+    numeric: { numeric: true },
+  };
+  const table = { names };
+  for (const [key, options] of Object.entries(variants)) {
+    const collator = new Intl.Collator("en", options);
+    // Indices into `names`, sorted stably: names the collator holds equal keep their order.
+    table[key] = names.map((_, i) => i).sort((a, b) => collator.compare(names[a], names[b]));
+  }
+  return table;
+}
+
 emit("keymaps.json", keymaps());
+emit("collation.json", collationTable());
 emit("file-icons.json", fileIconTables());
 emit("intl.json", intlTable());
 const manifest = actionManifest();

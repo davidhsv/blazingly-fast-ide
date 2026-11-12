@@ -4,7 +4,8 @@
 //! Highlighted characters are byte offsets into the text they highlight, as
 //! [`crate::ui::matching`] reports them.
 
-use super::changes::{compare_text, root_of};
+use super::changes::root_of;
+use crate::platform::collate;
 use crate::platform::i18n::{I18n, Param};
 use crate::ui::matching::fuzzy_match;
 use serde::{Deserialize, Serialize};
@@ -175,7 +176,7 @@ fn prefix_level<'a, T>(
         matches: entry.it.matches.as_ref().map(|m| m.iter().filter_map(|at| at.checked_sub(entry.offset)).collect()),
     };
     let mut out: Vec<PrefixRow<'a, T>> = leaves.iter().filter(|entry| entry.it.pinned).map(leaf).collect();
-    folders.sort_by(|a, b| compare_text(a.0, b.0, false));
+    folders.sort_by(|a, b| collate::compare(a.0, b.0));
     for (segment, inner) in folders {
         let folder_path = format!("{path}{segment}");
         let key = format!("{key_prefix}{folder_path}");
@@ -277,7 +278,7 @@ fn by_rank(a: &Branch, b: &Branch, favorites: Option<&[String]>) -> Ordering {
             2
         }
     };
-    rank(a).cmp(&rank(b)).then_with(|| compare_text(&a.name, &b.name, false))
+    rank(a).cmp(&rank(b)).then_with(|| collate::compare(&a.name, &b.name))
 }
 
 pub fn sort_local<'a>(branches: &'a [Branch], favorites: Option<&[String]>) -> Vec<&'a Branch> {
@@ -309,7 +310,7 @@ pub fn recent_local<'a>(local: &[&'a Branch], recent: &[String]) -> Vec<&'a Bran
 /// Tags, newest version first.
 pub fn sort_tags(tags: &[String]) -> Vec<&str> {
     let mut out: Vec<&str> = tags.iter().map(String::as_str).collect();
-    out.sort_by(|a, b| compare_text(b, a, true));
+    out.sort_by(|a, b| collate::compare_numeric(b, a));
     out
 }
 
@@ -536,7 +537,7 @@ impl BranchTreeNode {
 type Unplaced<'a> = (&'a Branch, &'a str);
 
 fn by_label(a: &BranchTreeNode, b: &BranchTreeNode) -> Ordering {
-    compare_text(&a.label, &b.label, false)
+    collate::compare(&a.label, &b.label)
 }
 
 /// One level of the Branches pane: the branches whose remaining name has no folder, and a folder for

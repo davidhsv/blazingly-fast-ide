@@ -4,6 +4,7 @@
 //!
 //! Paths and node keys are `/`-separated strings, as the backend reports them.
 
+use crate::platform::collate;
 use crate::project_tree_paths::{
     JVM_SOURCE_DIRS, ancestors_within, is_inside, is_same_or_inside, name_of, parent_of, relative_to,
 };
@@ -149,50 +150,10 @@ pub fn is_visible(entry: &FileEntry, opts: &TreeOptions, ignored: &IgnoredNames)
     opts.show_excluded || !entry.ignored
 }
 
-/// The leading run of ASCII digits of `text`, and what follows it.
-fn split_digits(text: &str) -> (&str, &str) {
-    text.split_at(text.find(|c: char| !c.is_ascii_digit()).unwrap_or(text.len()))
-}
-
-/// Natural, case-insensitive order of two names. They are compared left to right:
-///
-/// - where both have an ASCII digit, the two whole digit runs are compared as numbers of any
-///   length (leading zeros do not count, so `a2` < `a10` and `a01` equals `a1`);
-/// - otherwise one character of each is compared by the code points of its Unicode lowercase
-///   mapping (`A` equals `a`; `é` differs from `e` and sorts after `z`);
-/// - a name that ends first sorts first.
-///
-/// `Equal` therefore means the names differ at most in letter case and leading zeros. Characters
-/// are not decomposed or reordered by language: accents, punctuation and digits of other scripts
-/// order by code point.
-pub fn collate(a: &str, b: &str) -> Ordering {
-    let (mut a, mut b) = (a, b);
-    loop {
-        let (x, y) = match (a.chars().next(), b.chars().next()) {
-            (None, None) => return Ordering::Equal,
-            (None, Some(_)) => return Ordering::Less,
-            (Some(_), None) => return Ordering::Greater,
-            (Some(x), Some(y)) => (x, y),
-        };
-        let order = if x.is_ascii_digit() && y.is_ascii_digit() {
-            let ((run_a, rest_a), (run_b, rest_b)) = (split_digits(a), split_digits(b));
-            let (number_a, number_b) = (run_a.trim_start_matches('0'), run_b.trim_start_matches('0'));
-            (a, b) = (rest_a, rest_b);
-            number_a.len().cmp(&number_b.len()).then_with(|| number_a.cmp(number_b))
-        } else {
-            (a, b) = (&a[x.len_utf8()..], &b[y.len_utf8()..]);
-            x.to_lowercase().cmp(y.to_lowercase())
-        };
-        if order != Ordering::Equal {
-            return order;
-        }
-    }
-}
-
-/// Total order of names: [`collate`], and for names it holds equal the order of their UTF-16
-/// code units (so `A` sorts before `a`, and `a01` before `a1`).
+/// Total order of names: natural and case-insensitive, and for names that holds equal (they
+/// differ in case, accents or leading zeros only) by UTF-16 code units.
 pub fn compare_names(a: &str, b: &str) -> Ordering {
-    collate(a, b).then_with(|| a.encode_utf16().cmp(b.encode_utf16()))
+    collate::compare_natural(a, b).then_with(|| collate::compare_code_units(a, b))
 }
 
 /// Whether the tree shows `entry` as a folder. Symlinks report the target's metadata, and
@@ -211,7 +172,7 @@ fn sort_in_place(entries: &mut [&FileEntry], folders_first: bool, sort_by: SortK
         let folders = if folders_first { is_dir_entry(b).cmp(&is_dir_entry(a)) } else { Ordering::Equal };
         let key = match sort_by {
             SortKey::Name => Ordering::Equal,
-            SortKey::Type => collate(extension_of(&a.name), extension_of(&b.name)),
+            SortKey::Type => collate::compare_natural(extension_of(&a.name), extension_of(&b.name)),
             // A total order even for times that are not numbers, which sorting requires.
             SortKey::Modified => b.mtime_ms.total_cmp(&a.mtime_ms),
         };
@@ -757,10 +718,12 @@ pub fn build_paths_model(roots: &[ExtraRoot], paths: &[String], folders_first: b
     for kids in model.children.values_mut() {
         kids.sort_by(|a, b| {
             let folders = if folders_first { b.dir.cmp(&a.dir) } else { Ordering::Equal };
-            folders.then_with(|| collate(&a.label, &b.label))
+            folders.then_with(|| collate::compare_natural(&a.label, &b.label))
         });
     }
-    root_nodes.sort_by(|(rank_a, a), (rank_b, b)| rank_a.cmp(rank_b).then_with(|| collate(&a.label, &b.label)));
+    root_nodes.sort_by(|(rank_a, a), (rank_b, b)| {
+        rank_a.cmp(rank_b).then_with(|| collate::compare_natural(&a.label, &b.label))
+    });
     model.roots = root_nodes.into_iter().map(|(_, node)| node).collect();
     model
 }
@@ -1236,17 +1199,17 @@ mod tests {
 
     #[test]
     fn names_order_naturally_whatever_their_case() {
-        assert_eq!(collate("a2.txt", "a10.txt"), Ordering::Less);
-        assert_eq!(collate("a", "B"), Ordering::Less);
-        assert_eq!(collate("file", "file1"), Ordering::Less);
-        assert_eq!(collate("x10y10", "x10y2"), Ordering::Greater);
+        assert_eq!(collate::compare_natural("a2.txt", "a10.txt"), Ordering::Less);
+        assert_eq!(collate::compare_natural("a", "B"), Ordering::Less);
+        assert_eq!(collate::compare_natural("file", "file1"), Ordering::Less);
+        assert_eq!(collate::compare_natural("x10y10", "x10y2"), Ordering::Greater);
         // Digit runs of any length are numbers, and leading zeros do not count.
-        assert_eq!(collate("12345678901234567890124", "12345678901234567890123"), Ordering::Greater);
-        assert_eq!(collate("a01a", "a1b"), Ordering::Less);
+        assert_eq!(collate::compare_natural("12345678901234567890124", "12345678901234567890123"), Ordering::Greater);
+        assert_eq!(collate::compare_natural("a01a", "a1b"), Ordering::Less);
         // Names that only differ in case or leading zeros are equal, and then order by code units.
-        assert_eq!(collate("README.md", "readme.MD"), Ordering::Equal);
+        assert_eq!(collate::compare_natural("README.md", "readme.MD"), Ordering::Equal);
         assert_eq!(compare_names("A", "a"), Ordering::Less);
-        assert_eq!(collate("a01", "a1"), Ordering::Equal);
+        assert_eq!(collate::compare_natural("a01", "a1"), Ordering::Equal);
         assert_eq!(compare_names("a01", "a1"), Ordering::Less);
     }
 }

@@ -5,6 +5,7 @@
 //! Nothing here does I/O: the saved value and the registered title items are arguments, and
 //! [`save_toolbar`] returns the [`SettingsWrite`] its caller carries out.
 
+use crate::platform::collate;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::cmp::Ordering;
@@ -86,15 +87,10 @@ pub fn entry_action(id: &str) -> &str {
     id.strip_prefix(ACTION_PREFIX).unwrap_or(id)
 }
 
-/// Alphabetical regardless of case; of two ids differing only by case, the lower-case one first.
-fn compare_ids(a: &str, b: &str) -> Ordering {
-    a.to_lowercase().cmp(&b.to_lowercase()).then_with(|| b.cmp(a))
-}
-
 /// By priority, then by id. Priorities that do not order (NaN) count as equal.
 fn by_priority(a: &TitleItem, b: &TitleItem) -> Ordering {
     match a.priority.partial_cmp(&b.priority) {
-        Some(Ordering::Equal) | None => compare_ids(&a.id, &b.id),
+        Some(Ordering::Equal) | None => collate::compare(&a.id, &b.id),
         Some(order) => order,
     }
 }

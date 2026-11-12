@@ -14,8 +14,8 @@ use std::fmt::Write as _;
 
 use serde::{Deserialize, Serialize};
 
-use super::themes::locale_compare;
 use super::tokens::Theme;
+use crate::platform::collate;
 
 pub const BUNDLED_MONO_FAMILY: &str = "JetBrains Mono";
 pub const BUNDLED_UI_FAMILY: &str = "Inter";
@@ -330,7 +330,7 @@ pub fn merge_font_families(fonts: &[FontFamily]) -> Vec<FontFamily> {
             }
         }
     }
-    unique.sort_by(|a, b| locale_compare(&a.name, &b.name));
+    unique.sort_by(|a, b| collate::compare(&a.name, &b.name));
     unique
 }
 

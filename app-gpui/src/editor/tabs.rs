@@ -10,6 +10,7 @@
 //!
 //! Transitions that change nothing return `false` (or `None`), so the owner knows when to repaint.
 
+use crate::platform::collate::{self, Sensitivity};
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -905,9 +906,9 @@ fn place(tabs: &mut Vec<Tab>, mut tab: Tab, at: usize, pin: Option<bool>) {
     tabs.insert(index, tab);
 }
 
-/// Alphabetical order ignoring case; titles that differ in case only put the lowercase one first.
+/// Alphabetical order ignoring case and accents; titles equal that way order by those.
 fn compare_titles(a: &str, b: &str) -> Ordering {
-    a.to_lowercase().cmp(&b.to_lowercase()).then_with(|| b.cmp(a))
+    collate::compare_with(a, b, false, Sensitivity::Base).then_with(|| collate::compare(a, b))
 }
 
 fn base_name(path: &str) -> &str {
