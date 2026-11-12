@@ -78,21 +78,39 @@ mod tests {
         base: Vec<usize>,
         numeric_base: Vec<usize>,
         numeric: Vec<usize>,
+        default_signs: Vec<String>,
+        base_signs: Vec<String>,
+        numeric_base_signs: Vec<String>,
+        numeric_signs: Vec<String>,
     }
 
     /// Every option set orders the reference names exactly as Node's `Intl.Collator("en")` does
-    /// (`assets/gen/collation.json`, written by `docs/gpui-port/gen-data.mjs`).
+    /// (`assets/gen/collation.json`, written by `docs/gpui-port/gen-data.mjs`): the sorted list,
+    /// and the sign of every pair, so names held equal are told from names in order.
     #[test]
     fn orders_names_as_intl_collator_does() {
         let table: Table =
             serde_json::from_str(include_str!("../../assets/gen/collation.json")).expect("the table parses");
         assert!(table.names.len() > 60);
-        for (label, expected, numeric, sensitivity) in [
-            ("default", &table.default, false, Sensitivity::Variant),
-            ("base", &table.base, false, Sensitivity::Base),
-            ("numericBase", &table.numeric_base, true, Sensitivity::Base),
-            ("numeric", &table.numeric, true, Sensitivity::Variant),
+        for (label, expected, signs, numeric, sensitivity) in [
+            ("default", &table.default, &table.default_signs, false, Sensitivity::Variant),
+            ("base", &table.base, &table.base_signs, false, Sensitivity::Base),
+            ("numericBase", &table.numeric_base, &table.numeric_base_signs, true, Sensitivity::Base),
+            ("numeric", &table.numeric, &table.numeric_signs, true, Sensitivity::Variant),
         ] {
+            assert_eq!(signs.len(), table.names.len(), "{label}");
+            for (a, row) in table.names.iter().zip(signs) {
+                let ours: String = table
+                    .names
+                    .iter()
+                    .map(|b| match compare_with(a, b, numeric, sensitivity) {
+                        Ordering::Equal => '=',
+                        Ordering::Less => '<',
+                        Ordering::Greater => '>',
+                    })
+                    .collect();
+                assert_eq!(&ours, row, "{label}: {a:?} against every name");
+            }
             let mut order: Vec<usize> = (0..table.names.len()).collect();
             // Stable, like `Array.prototype.sort`: names held equal keep their order.
             order.sort_by(|&a, &b| compare_with(&table.names[a], &table.names[b], numeric, sensitivity));

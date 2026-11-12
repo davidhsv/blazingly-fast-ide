@@ -3320,7 +3320,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `src/platform/reordered-tap-click.test.ts` | 12 |  |
 | [~] | `src/platform/search.test.ts` | 4 | `platform::search::tests`; history shared through storage and per-project scope reloads are not ported |
 | [x] | `src/platform/systemFonts.test.ts` | 5 | `theme::fonts::tests` |
-| [~] | `src/platform/themes.test.ts` | 8 | `theme::themes::tests`; the settings-schema and quick-switch menu assertions are not ported |
+| [~] | `src/platform/themes.test.ts` | 8 | `theme::themes::tests`, `theme::appearance::tests`; the settings-schema and quick-switch menu assertions are not ported, and a project-level `appearance.*` override does not give its window its own theme (the theme is per process, D25) |
 | [x] | `src/platform/virtualDocs.test.ts` | 3 | `platform::virtual_docs::tests` |
 | [ ] | `src/platform/webkitCompatibility.test.ts` | 1 |  |
 | [x] | `src/platform/windowGroups.test.ts` | 2 | `platform::window_groups::tests` |

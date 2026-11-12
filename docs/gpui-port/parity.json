@@ -561,7 +561,7 @@
   },
   "unit:src/platform/themes.test.ts": {
     "status": "partial",
-    "proof": "`theme::themes::tests`; the settings-schema and quick-switch menu assertions are not ported"
+    "proof": "`theme::themes::tests`, `theme::appearance::tests`; the settings-schema and quick-switch menu assertions are not ported, and a project-level `appearance.*` override does not give its window its own theme (the theme is per process, D25)"
   },
   "module:src/platform/themes.ts": {
     "status": "partial",

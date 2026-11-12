@@ -360,6 +360,7 @@ impl Workbench {
     }
 
     fn tabs_changed(&mut self, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let auto_save = self.auto_save(cx);
         let Content::Project { tabs, editors, .. } = &mut self.content else { return };
         let open: std::collections::HashSet<&str> =
             tabs.panes.iter().flat_map(|pane| pane.tabs.iter().map(|tab| tab.id.as_str())).collect();
@@ -367,20 +368,46 @@ impl Workbench {
         for id in closed {
             let Some(editor) = editors.remove(&id) else { continue };
             // Closing never loses edits: an unsaved document is written before it is released,
-            // and when it cannot be written its tab comes back with the text still in it.
-            if editor.read(cx).is_dirty() {
-                let saving = editor.read(cx).save(cx);
-                cx.spawn_in(window, async move |workbench, cx| {
-                    let failure = match saving.await {
-                        Ok(Ok(())) => return,
-                        Ok(Err(error)) => error.message,
-                        Err(error) => error.to_string(),
-                    };
-                    let _ = workbench
-                        .update_in(cx, |workbench, window, cx| workbench.restore_unsaved(editor, failure, window, cx));
-                })
-                .detach();
+            // and when it cannot be written its tab comes back with the text still in it. With
+            // autosave off the user decides instead.
+            if !editor.read(cx).is_dirty() {
+                continue;
             }
+            let decision = (!auto_save).then(|| {
+                let path = editor.read(cx).path().to_string_lossy().into_owned();
+                let i18n = &cx.default_global::<crate::platform::i18n::Localization>().0;
+                let (title, body) = (
+                    i18n.t("app.unsaved.title", &[]),
+                    i18n.t("app.unsaved.body", &[("count", 1usize.into()), ("project", path.into())]),
+                );
+                let answers =
+                    [i18n.t("app.unsaved.save", &[]), i18n.t("app.unsaved.discard", &[]), i18n.t("common.cancel", &[])];
+                let answers: Vec<&str> = answers.iter().map(String::as_str).collect();
+                window.prompt(gpui_kit::PromptLevel::Warning, &title, Some(&body), &answers, cx)
+            });
+            cx.spawn_in(window, async move |workbench, cx| {
+                let answer = match decision {
+                    Some(decision) => decision.await.ok(),
+                    None => Some(0),
+                };
+                let failure = match answer {
+                    Some(0) => {
+                        let saving = editor.read_with(cx, |editor, cx| editor.save(cx));
+                        match saving.await {
+                            Ok(Ok(())) => return,
+                            Ok(Err(error)) => Some(error.message),
+                            Err(error) => Some(error.to_string()),
+                        }
+                    }
+                    // Don't Save.
+                    Some(1) => return,
+                    // Cancel, or the question went away unanswered: the tab stays.
+                    _ => None,
+                };
+                let _ = workbench
+                    .update_in(cx, |workbench, window, cx| workbench.restore_unsaved(editor, failure, window, cx));
+            })
+            .detach();
         }
         let active = self.editor().cloned();
         // The editor that was active is saved when another one takes its place.
@@ -402,17 +429,19 @@ impl Workbench {
         cx.notify();
     }
 
-    /// A closed tab whose document could not be saved: it reopens with its editor, and the
-    /// failure is reported.
+    /// A closed tab whose document was not saved, because saving failed or the user chose to
+    /// stay: it reopens with its editor, and a failure is reported.
     fn restore_unsaved(
         &mut self,
         editor: Entity<Editor>,
-        failure: String,
+        failure: Option<String>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let path = editor.read(cx).path().to_string_lossy().into_owned();
-        self.report_save_failure(failure, cx);
+        if let Some(failure) = failure {
+            self.report_save_failure(failure, cx);
+        }
         let Content::Project { tabs, editors, .. } = &mut self.content else { return };
         let pane = tabs.active_pane.clone();
         let input = EditorInput { kind: "file".to_owned(), key: path.clone(), path: Some(path), data: None };
@@ -446,9 +475,18 @@ impl Workbench {
         self.editors().iter().filter(|editor| editor.read(cx).is_dirty()).count()
     }
 
-    /// Saves `editor` if it is unsaved, or every unsaved editor when none is named. A failure is
-    /// reported; the text stays in its editor.
+    /// Files › Autosave (`files.autoSave`): save when a tab is left or closed and when the
+    /// window loses focus.
+    fn auto_save(&self, cx: &App) -> bool {
+        crate::platform::settings::effective(&self.label, cx).files.auto_save
+    }
+
+    /// With autosave on, saves `editor` if it is unsaved, or every unsaved editor when none is
+    /// named. A failure is reported; the text stays in its editor.
     fn autosave(&mut self, editor: Option<&Entity<Editor>>, cx: &mut Context<Self>) {
+        if !self.auto_save(cx) {
+            return;
+        }
         let editors = match editor {
             Some(editor) => vec![editor.clone()],
             None => self.editors(),
@@ -1627,6 +1665,77 @@ mod tests {
     }
 
     // src/features/app/title.ts
+    /// With Files › Autosave off nothing is saved behind the user's back: leaving a tab keeps
+    /// it unsaved, and closing it asks. Cancel brings the tab back, Don't Save drops the edits,
+    /// Save All writes them.
+    #[gpui_kit::test]
+    async fn without_autosave_closing_an_unsaved_tab_asks(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use ide_workspace::settings::SettingsScope;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("a.txt"), "a\n").expect("the file is written");
+        std::fs::write(root.join("b.txt"), "b\n").expect("the file is written");
+        cx.update(|cx| {
+            crate::platform::settings::set("w1", SettingsScope::Global, "files.autoSave", &false.into(), cx)
+                .expect("the setting is stored");
+        });
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let open = |name: &str, cx: &mut VisualTestContext| {
+            let path = root.join(name);
+            workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(path.clone(), window, cx));
+            settle(cx, |cx| {
+                workbench.read_with(cx, |w, cx| w.editor().is_some_and(|editor| editor.read(cx).path() == path))
+            });
+        };
+        let on_disk = |name: &str| std::fs::read_to_string(root.join(name)).expect("readable");
+        let close = |cx: &mut VisualTestContext| {
+            cx.update(|window, cx| execute_action_or_throw("editor.closeTab", None, window, cx)).expect("it runs");
+        };
+        let names = |cx: &mut VisualTestContext| -> Vec<String> {
+            workbench.read_with(cx, |w, _| w.tab_titles().into_iter().map(|tab| tab.name).collect())
+        };
+
+        open("a.txt", cx);
+        cx.simulate_input("my ");
+        // Leaving the tab does not save it.
+        open("b.txt", cx);
+        cx.run_until_parked();
+        assert_eq!(on_disk("a.txt"), "a\n");
+        assert_eq!(workbench.read_with(cx, |w, cx| w.unsaved_count(cx)), 1);
+
+        // Closing it asks; Cancel brings the tab back with its text.
+        open("a.txt", cx);
+        close(cx);
+        let (title, body) = cx.pending_prompt().expect("the question is asked");
+        assert_eq!(title, "Unsaved Changes");
+        let path = root.join("a.txt").to_string_lossy().into_owned();
+        assert_eq!(body, format!("1 file has unsaved changes in {path}. Save before closing?"));
+        cx.simulate_prompt_answer("Cancel");
+        cx.run_until_parked();
+        assert_eq!(names(cx), ["b.txt", "a.txt"]);
+        assert_eq!(workbench.read_with(cx, |w, cx| w.editor().map(|e| e.read(cx).text())).as_deref(), Some("my a\n"));
+        assert_eq!(on_disk("a.txt"), "a\n");
+
+        // Save All writes it and the tab stays closed.
+        close(cx);
+        cx.simulate_prompt_answer("Save All");
+        settle(cx, |_| on_disk("a.txt") == "my a\n");
+        assert_eq!(names(cx), ["b.txt"]);
+
+        // Don't Save drops the edits.
+        cx.simulate_input("their ");
+        close(cx);
+        cx.simulate_prompt_answer("Don't Save");
+        cx.run_until_parked();
+        assert!(names(cx).is_empty());
+        assert_eq!(on_disk("b.txt"), "b\n");
+        assert_eq!(workbench.read_with(cx, |w, cx| w.unsaved_count(cx)), 0);
+    }
+
     #[test]
     fn titles_name_the_project_then_the_file() {
         let file = std::path::Path::new("/work/shop/src/main.rs");

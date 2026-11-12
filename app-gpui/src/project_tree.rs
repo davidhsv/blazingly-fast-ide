@@ -189,9 +189,7 @@ impl ProjectTree {
             .and_then(|storage| storage.get(&expanded_key(&root)))
             .and_then(|text| serde_json::from_str::<Vec<String>>(text).ok())
             .map_or_else(|| BTreeSet::from([root.clone()]), BTreeSet::from_iter);
-        let ignored = cx.try_global::<Backend>().map_or_else(IgnoredNames::default, |backend| {
-            IgnoredNames::new(&ide_host::ops::project::settings(&backend.host, window_label).files.ignored_names)
-        });
+        let ignored = Self::ignored_names(window_label, cx);
         let weak = cx.weak_entity();
         let listener = cx.try_global::<Backend>().is_some().then(|| {
             cx.global_mut::<Backend>().listen(move |event, cx| {
@@ -224,6 +222,11 @@ impl ProjectTree {
         };
         tree.rebuild(cx);
         tree
+    }
+
+    /// `files.ignoredNames` as in effect for the window.
+    fn ignored_names(window_label: &str, cx: &App) -> IgnoredNames {
+        IgnoredNames::new(&crate::platform::settings::effective(window_label, cx).files.ignored_names)
     }
 
     pub fn root(&self) -> &str {
@@ -362,6 +365,11 @@ impl ProjectTree {
         match &event.event {
             IdeEvent::FsChanged { created, modified, removed } => {
                 self.apply_fs_change(&paths(created), &paths(modified), &paths(removed), cx);
+            }
+            // Ignored Files and Folders is read live: the rows follow the setting.
+            IdeEvent::SettingsChanged { key } if key.is_empty() || key == "files" || key.starts_with("files.") => {
+                self.ignored = Self::ignored_names(&self.window_label, cx);
+                self.rebuild(cx);
             }
             IdeEvent::ExcludedDirsChanged { dirs } => {
                 for dir in paths(dirs) {
@@ -805,6 +813,15 @@ mod tests {
         assert_eq!(labels(&tree, cx), ["src", ".gitignore"]);
         tree.update(cx, |tree, cx| tree.set_options(|options| options.show_hidden = true, cx));
         assert_eq!(labels(&tree, cx), ["src", ".DS_Store", ".gitignore"]);
+
+        // The ignored names are the setting's, as it stands: a name added to it goes at once.
+        tree.update(cx, |tree, cx| tree.set_options(|options| options.show_hidden = false, cx));
+        cx.update(|_, cx| {
+            let names = serde_json::json!([".DS_Store", ".gitignore"]);
+            let scope = ide_workspace::settings::SettingsScope::Global;
+            crate::platform::settings::set("w1", scope, "files.ignoredNames", &names, cx).expect("stored");
+        });
+        settle(cx, |cx| labels(&tree, cx) == ["src"]);
         close(cx);
     }
 

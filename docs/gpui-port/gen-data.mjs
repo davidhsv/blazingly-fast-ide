@@ -499,6 +499,9 @@ function collationTable() {
     const collator = new Intl.Collator("en", options);
     // Indices into `names`, sorted stably: names the collator holds equal keep their order.
     table[key] = names.map((_, i) => i).sort((a, b) => collator.compare(names[a], names[b]));
+    // Every pair's sign, row by row as `<`, `=`, `>`: a sorted list alone cannot tell names held
+    // equal from names that happened to be listed in order.
+    table[`${key}Signs`] = names.map((a) => names.map((b) => "<=>"[Math.sign(collator.compare(a, b)) + 1]).join(""));
   }
   return table;
 }
