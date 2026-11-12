@@ -306,6 +306,20 @@ impl Workbench {
         &self.label
     }
 
+    /// The folder of the project open in this window.
+    pub fn project_root(&self, cx: &App) -> Option<PathBuf> {
+        match &self.content {
+            Content::Project { tree, .. } => Some(PathBuf::from(tree.read(cx).root())),
+            _ => None,
+        }
+    }
+
+    /// Shows `request` in this window, subject to the notification settings.
+    pub fn notify(&mut self, request: NotificationRequest, cx: &mut Context<Self>) {
+        let _ = self.notifications.notify(request, None, now_ms());
+        cx.notify();
+    }
+
     pub fn editor(&self) -> Option<&Entity<Editor>> {
         match &self.content {
             Content::Editor(editor) => Some(editor),

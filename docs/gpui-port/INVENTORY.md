@@ -1548,7 +1548,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `mcp` | 203 |  |
 | [ ] | `notebook` | 1766 |  |
 | [ ] | `perf` | 725 |  |
-| [~] | `plugins` | 11849 | `plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `tests::web_view::a_web_view_lives_in_a_gpui_window_and_talks_both_ways`; the plugin host runs in the app and plugin themes are offered and applied. Not yet: every other extension point (commands, menus, settings, views, web views, status items, decorations…), the Plugins settings page, consent, marketplace, project plugins |
+| [~] | `plugins` | 11849 | `plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`, `tests::web_view::a_web_view_lives_in_a_gpui_window_and_talks_both_ways`; the plugin host runs in the app, plugin themes are offered and applied, and plugin commands are actions that run the plugin's Wasm. Not yet: every other extension point (menus, settings, views, web views, status items, decorations…), window requests from plugins, the Plugins settings page, the consent dialog, marketplace, project plugins |
 | [ ] | `profiler` | 607 |  |
 | [~] | `project-tree` | 6286 | `project_tree::tests`, `project_tree_model::tests`, `project_tree_paths::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; the tree lists, compacts, filters by option, follows the disk, remembers its expansion and reveals a path. Not yet: multi-selection, inline new/rename, file operations and clipboard, drag and drop, context menu, header actions, view modes, contributed roots, Show Members |
 | [ ] | `project-trust` | 293 |  |

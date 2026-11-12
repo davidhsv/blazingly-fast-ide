@@ -5,13 +5,20 @@
 //! development). Loading instantiates no Wasm: a plugin's code runs on its activation events.
 
 use crate::backend::{APP_IDENTIFIER, Backend};
+use crate::platform::actions::{Action, ActionMeta, ActionRegistry};
 use crate::theme::appearance::{self, PluginTheme};
 use crate::theme::themes::{ThemeChoice, ThemeChoiceId, ThemeKind, parse_plugin_theme_ref, plugin_theme_ref};
+use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
+use crate::workbench::{self, Workbench};
 use futures::StreamExt as _;
 use futures::channel::mpsc::{UnboundedReceiver, unbounded};
-use gpui_kit::{App, AsyncApp, Global, Task};
-use ide_host::plugins::{ActiveTheme, HostWorkspace, PluginEvent, PluginHost, PluginsSnapshot, ThemeDef};
-use ide_plugin::Limits;
+use gpui_kit::{App, AsyncApp, Entity, Global, Task, Window};
+use ide_host::plugins::{
+    ActiveTheme, HostWorkspace, PluginEditor, PluginEvent, PluginHost, PluginStatus, PluginsSnapshot, ThemeDef,
+};
+use ide_plugin::{Invocation, Limits};
+use serde::Deserialize;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -31,6 +38,51 @@ const TICKS_PER_SUPERVISION: u32 = 20;
 /// The extension point plugin themes are contributed to.
 const THEMES_POINT: &str = "themes";
 
+/// The extension point plugin commands are contributed to.
+const COMMANDS_POINT: &str = "commands";
+
+/// A declared command, as the `commands` point carries it.
+#[derive(Debug, Clone, Deserialize)]
+struct CommandDecl {
+    id: String,
+    title: String,
+    #[serde(default)]
+    icon: Option<String>,
+    #[serde(default)]
+    category: Option<String>,
+    /// Enablement, evaluated against the window's context keys.
+    #[serde(default)]
+    when: Option<String>,
+}
+
+/// The id of the action that runs command `command` of plugin `plugin`.
+pub fn plugin_action_id(plugin: &str, command: &str) -> String {
+    format!("plugin.{plugin}.{command}")
+}
+
+/// What an action's argument means to a plugin command: its string argument and the selected
+/// paths. A string is the argument itself; `{ path, paths }` (a menu on files) passes the path
+/// and the selection; with `line` and `column` (an editor menu) the argument is that position
+/// as JSON.
+pub fn command_args(arg: Option<&serde_json::Value>) -> (Option<String>, Vec<PathBuf>) {
+    let Some(arg) = arg else { return (None, Vec::new()) };
+    if let Some(text) = arg.as_str() {
+        return (Some(text.to_owned()), Vec::new());
+    }
+    let (Some(path), Some(paths)) =
+        (arg.get("path").and_then(|p| p.as_str()), arg.get("paths").and_then(|p| p.as_array()))
+    else {
+        return (None, Vec::new());
+    };
+    let paths = paths.iter().filter_map(|path| path.as_str().map(PathBuf::from)).collect();
+    match (arg.get("line").filter(|v| v.is_number()), arg.get("column").filter(|v| v.is_number())) {
+        (Some(line), Some(column)) => {
+            (Some(serde_json::json!({ "path": path, "line": line, "column": column }).to_string()), paths)
+        }
+        _ => (Some(path.to_owned()), paths),
+    }
+}
+
 /// A plugin event for one window (by label), or for every window.
 type Delivery = (Option<String>, PluginEvent);
 type Listener = dyn Fn(Option<&str>, &PluginEvent, &mut App);
@@ -44,6 +96,8 @@ pub struct Plugins {
     next_listener: u64,
     /// A listing in progress; a newer one replaces it.
     listing: Option<Task<()>>,
+    /// Ids of the actions registered for plugin commands.
+    command_actions: Vec<String>,
     _pump: Task<()>,
 }
 
@@ -131,6 +185,7 @@ impl Plugins {
             listeners: Vec::new(),
             next_listener: 0,
             listing: None,
+            command_actions: Vec::new(),
             _pump: pump,
         });
         // The plugin host's selected theme follows the theme the settings name.
@@ -246,11 +301,111 @@ impl Plugins {
             })
             .collect();
         let active = applied_theme(&snapshot.active_theme);
+        Self::project_commands(&snapshot, cx);
         cx.global_mut::<Plugins>().snapshot = Some(snapshot);
         appearance::set_plugin_theme(active, cx);
         appearance::set_contributed(themes, cx);
         follow_theme_setting(cx);
     }
+}
+
+impl Plugins {
+    /// Makes every declared command of a live plugin an action (Find Action, the keymap, menus),
+    /// in place of the ones registered for the previous listing. Running one runs the command
+    /// in the plugin, loading its code on first use.
+    fn project_commands(snapshot: &PluginsSnapshot, cx: &mut App) {
+        let previous = std::mem::take(&mut cx.global_mut::<Plugins>().command_actions);
+        let registry = cx.default_global::<ActionRegistry>();
+        for id in &previous {
+            registry.unregister(id);
+        }
+        let mut registered = Vec::new();
+        for contribution in snapshot.ui.iter().filter(|contribution| contribution.point == COMMANDS_POINT) {
+            let Ok(decl) = serde_json::from_value::<CommandDecl>(contribution.decl.clone()) else { continue };
+            let Some(plugin) = snapshot.plugins.iter().find(|plugin| plugin.id == contribution.plugin_id) else {
+                continue;
+            };
+            let id = plugin_action_id(&plugin.id, &decl.id);
+            let meta = ActionMeta {
+                category: Some(decl.category.clone().unwrap_or_else(|| plugin.name.clone())),
+                // A named icon is used as is; a plugin's own image is not loaded yet.
+                icon: Some(
+                    decl.icon.clone().filter(|icon| !icon.ends_with(".svg")).unwrap_or_else(|| "package".to_owned()),
+                ),
+                when: decl.when.clone(),
+                verbatim: true,
+                keywords: vec!["plugin".to_owned(), plugin.name.clone(), plugin.id.clone()],
+                description: Some(format!("From plugin {}", plugin.name)),
+                ..ActionMeta::new(&id, &decl.title)
+            };
+            let (plugin_id, command_id, title) = (plugin.id.clone(), decl.id.clone(), decl.title.clone());
+            registry.register(Action::new(meta, move |call, window, cx| {
+                let (arg, paths) = command_args(call.arg);
+                run_command(&plugin_id, &command_id, &title, arg, paths, window, cx);
+                Ok(())
+            }));
+            registered.push(id);
+        }
+        cx.global_mut::<Plugins>().command_actions = registered;
+    }
+}
+
+/// The editor a plugin call is about: the window's active editor, with its selection as lines
+/// and UTF-16 columns.
+fn editor_context(workbench: &Entity<Workbench>, cx: &App) -> Option<PluginEditor> {
+    let editor = workbench.read(cx).editor()?.read(cx);
+    Some(PluginEditor {
+        path: editor.path().to_string_lossy().into_owned(),
+        language: editor.language().0.clone(),
+        selections: vec![editor.selection_range()],
+    })
+}
+
+/// Runs command `command_id` of plugin `plugin_id` for `window`: its project, its focused
+/// editor and the given selection of paths. A failure is shown in the window, unless the
+/// plugin was stopped (the host says why) or lacks a permission (it asks for it).
+fn run_command(
+    plugin_id: &str,
+    command_id: &str,
+    title: &str,
+    arg: Option<String>,
+    paths: Vec<PathBuf>,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let Some(workbench) = workbench::for_window(window, cx) else { return };
+    let invocation = Invocation {
+        command_chain: Vec::new(),
+        client: Some(workbench.read(cx).label().to_owned()),
+        workspace_root: workbench.read(cx).project_root(cx),
+        editor: editor_context(&workbench, cx).map(PluginEditor::context),
+        selected_paths: paths,
+        global_settings: false,
+    };
+    let host = cx.global::<Plugins>().host.clone();
+    let (plugin, command, title) = (plugin_id.to_owned(), command_id.to_owned(), title.to_owned());
+    // A command may run for as long as the host's time limit allows: never on the main thread.
+    let ran = cx.background_executor().spawn({
+        let (host, plugin) = (host.clone(), plugin.clone());
+        async move { host.run_command(&plugin, &command, arg.as_deref(), invocation) }
+    });
+    cx.spawn(async move |cx: &mut AsyncApp| {
+        let Err(error) = ran.await else { return };
+        cx.update(|cx| {
+            Plugins::refresh(cx);
+            let stopped = host.list(None).plugins.iter().any(|p| p.id == plugin && p.status == PluginStatus::Failed);
+            if stopped || error.kind == ide_core::error::ErrorKind::PermissionDenied {
+                return;
+            }
+            let request = NotificationRequest {
+                body: Some(error.message.clone()),
+                group: Some("plugins".to_owned()),
+                ..NotificationRequest::new(NotificationLevel::Error, format!("{title} failed"))
+            };
+            workbench.update(cx, |workbench, cx| workbench.notify(request, cx));
+        });
+    })
+    .detach();
 }
 
 fn kind_of(kind: ide_host::plugins::ThemeKind) -> ThemeKind {
@@ -385,10 +540,105 @@ mod tests {
         assert!(home.path().join("data/plugins").is_dir());
     }
 
+    // src/features/plugins/points.tsx › commandArgs
+    #[test]
+    fn an_actions_argument_becomes_a_commands_argument_and_paths() {
+        assert_eq!(command_args(None), (None, Vec::new()));
+        assert_eq!(command_args(Some(&json!("text"))), (Some("text".to_owned()), Vec::new()));
+        assert_eq!(command_args(Some(&json!({ "path": "/p/a" }))), (None, Vec::new()));
+        assert_eq!(
+            command_args(Some(&json!({ "path": "/p/a", "paths": ["/p/a", 7, "/p/b"] }))),
+            (Some("/p/a".to_owned()), vec![PathBuf::from("/p/a"), PathBuf::from("/p/b")])
+        );
+        let (arg, paths) = command_args(Some(&json!({ "path": "/p/a", "paths": [], "line": 3, "column": 9 })));
+        assert_eq!(paths, Vec::<PathBuf>::new());
+        let position: serde_json::Value = serde_json::from_str(&arg.expect("a position")).expect("JSON");
+        assert_eq!(position, json!({ "path": "/p/a", "line": 3, "column": 9 }));
+        assert_eq!(plugin_action_id("openidea.string-tools", "snake-case"), "plugin.openidea.string-tools.snake-case");
+    }
+
+    /// A plugin with code: its commands are actions as soon as it is agreed to, before any of
+    /// its code is loaded; running one loads the Wasm, which reads the editor's selection and
+    /// rewrites it through the backend, and the editor follows. A command that fails says so
+    /// in the window.
+    #[gpui_kit::test]
+    async fn a_plugins_command_runs_its_wasm_on_the_editors_selection(cx: &mut TestAppContext) {
+        use crate::platform::actions::{execute_action_or_throw, is_action_enabled};
+        use crate::platform::context::window_context;
+        /// Whether the action may run in `window` now.
+        fn available(id: &str, window: &Window, cx: &App) -> bool {
+            let action = cx.global::<ActionRegistry>().get(id).expect("registered");
+            is_action_enabled(&action.meta, &window_context(window, cx))
+        }
+        use ide_host::plugins::Consent;
+        cx.executor().allow_parking();
+        let home = tempfile::tempdir().expect("a home");
+        let folder = tempfile::tempdir().expect("a folder");
+        let file = folder.path().canonicalize().expect("the folder exists").join("names.txt");
+        std::fs::write(&file, "hello big world\n").expect("the file is written");
+        let plugin = Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/official/string-tools");
+        cx.update(|cx| {
+            cx.set_global(ActiveTheme::default());
+            cx.set_global(UiStorage::default());
+            crate::platform::input::init(cx);
+            crate::editor::actions::register(cx);
+            workbench::register_actions(cx);
+            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            appearance::init(cx);
+            Plugins::init(cx).expect("the plugin host starts");
+        });
+        settle(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());
+        const SNAKE_CASE: &str = "plugin.openidea.string-tools.snake-case";
+        cx.update(|cx| {
+            let host = cx.global::<Plugins>().host.clone();
+            let info = host.link(&plugin).expect("the plugin links");
+            assert!(cx.global::<ActionRegistry>().get(SNAKE_CASE).is_none(), "nothing before consent");
+            let info = host.grant(&info.id, &Consent::default()).expect("consent is recorded");
+            assert_eq!(info.status, PluginStatus::Inactive, "agreed to, its code not loaded");
+        });
+        settle(cx, "the commands are actions", |cx| cx.global::<ActionRegistry>().get(SNAKE_CASE).is_some());
+        cx.update(|cx| {
+            let action = cx.global::<ActionRegistry>().get(SNAKE_CASE).expect("registered");
+            assert_eq!(action.meta.title, "String Tools: To snake_case");
+            assert_eq!(action.meta.category.as_deref(), Some("String Tools › Case"));
+            assert!(action.meta.verbatim);
+            assert_eq!(cx.global::<Plugins>().command_actions.len(), 26);
+        });
+
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        let visual =
+            |cx: &mut gpui_kit::VisualTestContext, what: &str, done: &dyn Fn(&mut Window, &mut App) -> bool| {
+                for _ in 0..6000 {
+                    cx.run_until_parked();
+                    if cx.update(|window, cx| done(window, cx)) {
+                        return;
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                panic!("{what}: not within a minute");
+            };
+        // `when = "editorFocus"`: without an editor the command is not available.
+        assert!(!cx.update(|window, cx| available(SNAKE_CASE, window, cx)));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_file(file.clone(), window, cx));
+        visual(cx, "the file opens", &|_, cx| workbench.read(cx).editor().is_some());
+        let editor = workbench.read_with(cx, |workbench, _| workbench.editor().cloned()).expect("an editor");
+        editor.update(cx, |editor, cx| editor.select(0, 15, cx));
+        visual(cx, "the command is available", &|window, cx| available(SNAKE_CASE, window, cx));
+        cx.update(|window, cx| execute_action_or_throw(SNAKE_CASE, None, window, cx)).expect("it runs");
+        visual(cx, "the plugin rewrote the selection", &|_, cx| editor.read(cx).text() == "hello_big_world\n");
+        assert_eq!(
+            cx.update(|_, cx| cx.global::<Plugins>().host.list(None).plugins[0].status),
+            PluginStatus::Active,
+            "running a command loaded the plugin's code"
+        );
+    }
+
     /// For a plugin outside this repository: `OPENIDEA_GPUI_TEST_PLUGIN=<folder> cargo test --lib
     /// a_plugin_folder_named_by_the_environment_loads -- --ignored --nocapture`. The folder is
     /// linked into a temporary home, agreed to with its required capabilities only, and must
-    /// come up without an error, contributing to the UI.
+    /// come up without an error, contributing to the UI. With `OPENIDEA_GPUI_TEST_COMMAND=<id>`
+    /// that command is run without a project or an editor, which loads the plugin's code: the
+    /// plugin must be active afterwards, whatever the command itself answers.
     #[gpui_kit::test]
     #[ignore = "needs OPENIDEA_GPUI_TEST_PLUGIN to name a plugin folder"]
     async fn a_plugin_folder_named_by_the_environment_loads(cx: &mut TestAppContext) {
@@ -437,5 +687,21 @@ mod tests {
                 info.version, info.status
             );
         });
+        if let Some(command) = std::env::var_os("OPENIDEA_GPUI_TEST_COMMAND") {
+            let command = command.to_string_lossy().into_owned();
+            let host = cx.update(|cx| cx.global::<Plugins>().host.clone());
+            let invocation = Invocation {
+                command_chain: Vec::new(),
+                client: None,
+                workspace_root: None,
+                editor: None,
+                selected_paths: Vec::new(),
+                global_settings: false,
+            };
+            let answer = host.run_command(&id, &command, None, invocation);
+            let status = host.list(None).plugins.iter().find(|plugin| plugin.id == id).map(|plugin| plugin.status);
+            println!("{id} {command}: {:?}; the plugin is now {status:?}", answer.map_err(|error| error.message));
+            assert_eq!(status, Some(PluginStatus::Active), "running a command loads the plugin's code");
+        }
     }
 }

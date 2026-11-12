@@ -254,6 +254,16 @@ impl Editor {
         self.anchor.min(self.head)..self.anchor.max(self.head)
     }
 
+    /// The selection as zero-based lines and UTF-16 columns: what the backend and plugins take.
+    pub fn selection_range(&self) -> ide_core::Range {
+        let selection = self.selection();
+        let position = |offset| {
+            let (line, col) = buffer::line_col(&self.rope, offset);
+            ide_core::Pos { line, col }
+        };
+        ide_core::Range { start: position(selection.start), end: position(selection.end) }
+    }
+
     /// The caret's UTF-16 offset.
     pub fn caret(&self) -> u32 {
         self.head
