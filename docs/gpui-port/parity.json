@@ -462,5 +462,101 @@
   "point.registerStatusItem:workbench.tasks": {
     "status": "partial",
     "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; the current task's text only"
+  },
+  "unit:src/platform/virtualDocs.test.ts": {
+    "status": "done",
+    "proof": "`platform::virtual_docs::tests`"
+  },
+  "module:src/platform/virtualDocs.ts": {
+    "status": "partial",
+    "proof": "`platform::virtual_docs::tests`; fetching a virtual document's text from the backend is not wired"
+  },
+  "unit:src/platform/classFiles.test.ts": {
+    "status": "partial",
+    "proof": "`platform::virtual_docs::tests`; the debugger's can-place-breakpoint assertions belong to a feature that is not ported"
+  },
+  "module:src/platform/classFiles.ts": {
+    "status": "done",
+    "proof": "`platform::virtual_docs::tests`"
+  },
+  "unit:src/platform/buildFiles.test.ts": {
+    "status": "done",
+    "proof": "`platform::virtual_docs::tests`"
+  },
+  "module:src/platform/buildFiles.ts": {
+    "status": "done",
+    "proof": "`platform::virtual_docs::tests`"
+  },
+  "unit:src/platform/projectPresentation.test.ts": {
+    "status": "done",
+    "proof": "`platform::project_presentation::tests`"
+  },
+  "module:src/platform/projectPresentation.ts": {
+    "status": "partial",
+    "proof": "`platform::project_presentation::tests`; the build model is not loaded from the backend yet"
+  },
+  "unit:src/platform/windowGroups.test.ts": {
+    "status": "done",
+    "proof": "`platform::window_groups::tests`"
+  },
+  "module:src/platform/windowGroups.ts": {
+    "status": "partial",
+    "proof": "`platform::window_groups::tests`; window groups themselves do not exist yet"
+  },
+  "unit:src/platform/dateFormat.test.ts": {
+    "status": "partial",
+    "proof": "`platform::date_format::tests`; system formats are implemented for en-US only (Node prints `09:07 AM` with a plain space; what WebKit prints was not measured)"
+  },
+  "module:src/platform/dateFormat.ts": {
+    "status": "partial",
+    "proof": "`platform::date_format::tests`; en-US only when the system format is used"
+  },
+  "unit:src/platform/copyPath.test.ts": {
+    "status": "done",
+    "proof": "`platform::misc::copy_path::tests`"
+  },
+  "module:src/platform/copyPath.ts": {
+    "status": "done",
+    "proof": "`platform::misc::copy_path::tests`"
+  },
+  "unit:src/platform/fileManager.test.ts": {
+    "status": "done",
+    "proof": "`platform::misc::file_manager::tests`"
+  },
+  "module:src/platform/fileManager.ts": {
+    "status": "partial",
+    "proof": "`platform::misc::file_manager::tests`; the reveal call itself is not wired"
+  },
+  "unit:src/platform/errorLog.test.ts": {
+    "status": "partial",
+    "proof": "`platform::misc::error_log::tests`; window error events and the log sink are not wired"
+  },
+  "module:src/platform/errorLog.ts": {
+    "status": "partial",
+    "proof": "`platform::misc::error_log::tests`; nothing reports to it yet"
+  },
+  "unit:src/platform/platformInfo.test.ts": {
+    "status": "done",
+    "proof": "`platform::misc::platform_info::tests`"
+  },
+  "module:src/platform/platformInfo.ts": {
+    "status": "partial",
+    "proof": "`platform::misc::platform_info::tests`; not filled from the running app"
+  },
+  "unit:src/platform/jdk.test.ts": {
+    "status": "partial",
+    "proof": "`platform::misc::jdk::tests`; running the Download JDK action is not ported"
+  },
+  "module:src/platform/jdk.ts": {
+    "status": "partial",
+    "proof": "`platform::misc::jdk::tests`; the download itself is not wired"
+  },
+  "unit:src/platform/filePresentation.test.ts": {
+    "status": "done",
+    "proof": "`platform::file_presentation::tests`"
+  },
+  "module:src/platform/filePresentation.ts": {
+    "status": "partial",
+    "proof": "`platform::file_presentation::tests`; the batching model is not driven by a view, and file icon themes are not consulted"
   }
 }
