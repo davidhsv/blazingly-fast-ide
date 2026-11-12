@@ -185,7 +185,15 @@ impl Editor {
             }
             _ => {}
         });
-        cx.on_release(|editor, cx| cx.global_mut::<Backend>().unlisten(editor.listener)).detach();
+        cx.on_release(|editor, cx| {
+            cx.global_mut::<Backend>().unlisten(editor.listener);
+            // Every editor holds one reference to its document; the backend drops the document
+            // with its last reference. A project that is already closed has closed it.
+            if let Ok(documents) = editor.documents() {
+                documents.close(editor.doc);
+            }
+        })
+        .detach();
         let mut editor = Self {
             focus: cx.focus_handle(),
             host,

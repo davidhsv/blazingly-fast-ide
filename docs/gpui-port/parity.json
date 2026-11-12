@@ -361,6 +361,42 @@
   },
   "module:src/editor/core/model": {
     "status": "partial",
-    "proof": "`editor::tabs::tests`, `editor::nav_history::tests`; tabs, panes, splits and navigation history as models: no window shows tabs yet, and sessions, documents and camel humps are not ported"
+    "proof": "`editor::tabs::tests`, `editor::nav_history::tests`, `workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; one pane of tabs in the window: no splits, pinned or preview tabs drawn, no saved session, and camel humps are not ported"
+  },
+  "action:editor.closeTab": {
+    "status": "done",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`"
+  },
+  "action:editor.nextTab": {
+    "status": "done",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`"
+  },
+  "action:editor.prevTab": {
+    "status": "done",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`"
+  },
+  "action:editor.closeOtherTabs": {
+    "status": "done",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`"
+  },
+  "action:editor.reopenClosedTab": {
+    "status": "done",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`"
+  },
+  "action:editor.closeAllTabs": {
+    "status": "partial",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; registered on the tab model, but no window test exercises it and pinned tabs are not drawn differently"
+  },
+  "action:editor.pinTab": {
+    "status": "partial",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; registered on the tab model, but no window test exercises it and pinned tabs are not drawn differently"
+  },
+  "context:editorTabsOpen": {
+    "status": "done",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`"
+  },
+  "module:src/editor/core/view": {
+    "status": "partial",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`, `workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; a tab strip and three status items: no find bar, breadcrumbs, banners, go-to-line or tab context menu"
   }
 }
