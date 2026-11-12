@@ -187,3 +187,11 @@ The Git tool window (bottom, as declared) holds `vcs::log_view::GitLog`: commits
 Restoring a project's tabs does not take the keyboard: a restored tab's editor loads without focus, which stays in the Project view as on any open (the webview focuses only when tabs were already live). The first version of the restore did take it; an assertion in `workbench::tests::a_projects_tabs_and_carets_are_restored` holds this now.
 
 Not in this slice: the branches tree, filters, commit details and changed files, context menus, column headers and resizing, long-edge and linear-branch options, multiple repositories.
+
+## D31. A focused view may claim keys before the keymap; the terminal does
+
+The shortcut dispatcher sees every keystroke before the focused view (D12). The terminal needs the opposite for its own keys, as the webview's terminal key handler runs before its keymap: Ctrl+C must interrupt the program, not run an IDE action. `platform::input::claim_keys` lets a view see keys first while its focus handle is focused; the terminal's claim applies the ported rules (`terminal::keys::route_terminal_key`): copy and paste, ⌘K, ⌘W, ⌘F, the shell's line-editing strokes for ⌘ and ⌥ with the arrows, Ctrl with a letter by the letter it types, Escape, and Settings › Terminal › Override IDE shortcuts and Escape-to-editor.
+
+⌘K clears inside the emulator as xterm.js does (the cursor's line becomes the first, the rest and the scrollback go) and does not involve the shell. A first version sent the shell a form feed after clearing the scrollback; measured in the real-shell test, the shell's redraw scrolled the old screen back into the scrollback.
+
+The terminal's colours now come from the ported `terminal::theme::build_theme` (including the palette derived for themes without ANSI tokens), replacing the view's own reduced copy. Still the view's own and to be replaced by the ported modules as the tool window grows: tabs and groups (`terminal::store`), the resize debounce (`terminal::fit`), links, the find bar, drop and image paste.

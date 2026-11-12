@@ -746,5 +746,49 @@
   "ipc:open_project": {
     "status": "done",
     "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+  },
+  "unit:src/features/terminal/copyKeys.test.ts": {
+    "status": "done",
+    "proof": "`terminal::keys::tests`, `terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`"
+  },
+  "unit:src/features/terminal/drop.test.ts": {
+    "status": "partial",
+    "proof": "`terminal::drop::tests`; 4 of 5 cases: hit-testing detached and hidden hosts is the view's, and no view takes drops yet"
+  },
+  "unit:src/features/terminal/groups.test.ts": {
+    "status": "done",
+    "proof": "`terminal::store::tests`"
+  },
+  "unit:src/features/terminal/paste.test.ts": {
+    "status": "partial",
+    "proof": "`terminal::paste::tests`, `terminal::encode::tests`; 20 of 25 cases: the five about a target disposed or replaced while a paste is read are the view's, which pastes text only"
+  },
+  "unit:src/features/terminal/persist.test.ts": {
+    "status": "done",
+    "proof": "`terminal::persist::tests`, `terminal::store::tests`"
+  },
+  "unit:src/features/terminal/imeCommit.test.ts": {
+    "status": "done",
+    "proof": "`terminal::ime_commit::tests`"
+  },
+  "unit:src/features/terminal/imeInput.test.ts": {
+    "status": "partial",
+    "proof": "`terminal::ime_input::tests`; 2 of 20 cases: the rest assert which DOM events reach xterm's textarea, which has no counterpart here (the view takes composed text from the OS input handler)"
+  },
+  "unit:src/features/terminal/embedded.test.ts": {
+    "status": "partial",
+    "proof": "`terminal::embedded::tests`, `terminal::windows_pty::tests`; 3 of 4 cases: IME delivery through DOM events has no counterpart"
+  },
+  "unit:src/features/terminal/embeddedFit.test.ts": {
+    "status": "done",
+    "proof": "`terminal::embedded::tests`, `terminal::fit::tests`"
+  },
+  "unit:src/features/terminal/windowsPty.test.ts": {
+    "status": "done",
+    "proof": "`terminal::windows_pty::tests`"
+  },
+  "unit:src/features/terminal/terminal.test.ts": {
+    "status": "done",
+    "proof": "`terminal::fit::tests`, `terminal::keys::tests`, `terminal::find_bar::tests`, `terminal::theme::tests`, `terminal::links::tests`, `terminal::store::tests`"
   }
 }

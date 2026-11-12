@@ -8,11 +8,7 @@ pub mod project_tree;
 pub mod project_tree_model;
 pub mod project_tree_paths;
 pub mod self_check;
-pub mod terminal {
-    pub mod emulator;
-    pub mod encode;
-    pub mod view;
-}
+pub mod terminal;
 pub mod theme;
 pub mod ui;
 pub mod vcs;

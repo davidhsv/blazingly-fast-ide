@@ -11,10 +11,11 @@ use super::context::{ContextKeys, window_context};
 use super::dispatcher::{DispatchEnv, Dispatcher, KeyPress, KeyTarget, Mods, Outcome};
 use super::keymap::{KeymapState, Modifier, is_mac_host};
 use gpui_kit::{
-    App, Global, InputPreference, KeyContext, Keystroke, KeystrokeEvent, Modifiers, MouseButton, NavigationDirection,
-    Window, WindowId,
+    App, FocusHandle, Global, InputPreference, KeyContext, Keystroke, KeystrokeEvent, Modifiers, MouseButton,
+    NavigationDirection, Window, WindowId,
 };
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::time::Instant;
 
 /// Key contexts of text inputs: plain typing stays in them.
@@ -53,13 +54,53 @@ impl Input {
     }
 }
 
+type Claim = Rc<dyn Fn(&Keystroke, &mut Window, &mut App) -> bool>;
+
+/// Views that take their keys before the keymap while the focus is in them: a terminal's
+/// Ctrl+letter goes to the shell, not to an IDE shortcut.
+#[derive(Default)]
+pub struct KeyClaims {
+    next: u64,
+    claims: Vec<(u64, FocusHandle, Claim)>,
+}
+
+impl Global for KeyClaims {}
+
+/// Has `claim` see every key pressed while `focus` is focused, before the keymap does; a key it
+/// returns true for goes no further. Returns the id for [`release_keys`].
+pub fn claim_keys(
+    focus: FocusHandle,
+    claim: impl Fn(&Keystroke, &mut Window, &mut App) -> bool + 'static,
+    cx: &mut App,
+) -> u64 {
+    let claims = cx.default_global::<KeyClaims>();
+    claims.next += 1;
+    let id = claims.next;
+    claims.claims.push((id, focus, Rc::new(claim)));
+    id
+}
+
+pub fn release_keys(id: u64, cx: &mut App) {
+    if cx.has_global::<KeyClaims>() {
+        cx.global_mut::<KeyClaims>().claims.retain(|(claim, _, _)| *claim != id);
+    }
+}
+
 /// Installs the keymap, the dispatch state and the keystroke interceptor.
 pub fn init(cx: &mut App) {
     cx.default_global::<Keymap>();
     cx.default_global::<Input>();
     cx.default_global::<ActionRegistry>();
+    cx.default_global::<KeyClaims>();
     cx.intercept_keystrokes(|event, window, cx| {
-        if keystroke(event, window, cx).consumed() {
+        let claims: Vec<Claim> = cx
+            .global::<KeyClaims>()
+            .claims
+            .iter()
+            .filter(|(_, focus, _)| focus.is_focused(window))
+            .map(|(_, _, claim)| claim.clone())
+            .collect();
+        if claims.iter().any(|claim| claim(&event.keystroke, window, cx)) || keystroke(event, window, cx).consumed() {
             cx.stop_propagation();
         }
     })

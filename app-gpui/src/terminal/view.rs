@@ -6,7 +6,11 @@
 
 use super::emulator::{Effect, Emulator, Palette, SelectBy};
 use super::encode::{KeyModes, KeyMods, encode_key, encode_paste};
+use super::keys::{CLOSE_SESSION_ACTION, FIND_ACTION, KeyContext, KeyEvent, KeyFocus, KeyHandling, route_terminal_key};
+use super::theme::terminal_theme;
 use crate::backend::{Backend, BackendEvent};
+use crate::platform::dispatcher::{Mods, stroke};
+use crate::platform::input::{self, Keymap};
 use crate::platform::settings;
 use crate::theme;
 use alacritty_terminal::vte::ansi::{CursorShape, Rgb};
@@ -33,6 +37,10 @@ pub enum TerminalEvent {
     /// The shell ended, with its exit code when it has one.
     Exited(Option<i32>),
     Bell,
+    /// The user asked to close this terminal (⌘W).
+    CloseRequested,
+    /// The user asked to search its output (⌘F).
+    FindRequested,
 }
 
 /// Where the grid was last painted.
@@ -61,6 +69,8 @@ pub struct TerminalView {
     /// A selection is being dragged out.
     selecting: bool,
     listener: Option<u64>,
+    /// The claim on this terminal's keys, ahead of the keymap.
+    key_claim: Option<u64>,
     _output: Task<()>,
 }
 
@@ -70,30 +80,51 @@ fn hsla(color: Rgb) -> Hsla {
     Rgba { r: f32::from(color.r) / 255.0, g: f32::from(color.g) / 255.0, b: f32::from(color.b) / 255.0, a: 1.0 }.into()
 }
 
-/// The terminal's colours in the active theme: its own ANSI palette where the theme has one,
-/// else the console's.
+/// The terminal's colours in the active theme.
 fn palette(cx: &App) -> Palette {
     let Some(active) = cx.try_global::<theme::ActiveTheme>() else { return Palette::default() };
-    let rgb = |name: &str| {
-        active.theme.color(name).map(|color| {
-            let byte = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
-            Rgb { r: byte(color.r), g: byte(color.g), b: byte(color.b) }
-        })
+    let colors = terminal_theme(&active.theme);
+    let rgb = |color: theme::tokens::Color| {
+        let byte = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
+        Rgb { r: byte(color.r), g: byte(color.g), b: byte(color.b) }
     };
-    let fallback = Palette::default();
-    const NAMES: [&str; 8] = ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"];
-    let mut ansi = fallback.ansi;
-    for (index, slot) in ansi.iter_mut().enumerate() {
-        let name = if index < 8 { NAMES[index].to_owned() } else { format!("bright-{}", NAMES[index - 8]) };
-        if let Some(color) = rgb(&format!("terminal-ansi-{name}")).or_else(|| rgb(&format!("ansi-{name}"))) {
-            *slot = color;
-        }
-    }
     Palette {
-        ansi,
-        foreground: rgb("fg-editor").or_else(|| rgb("fg")).unwrap_or(fallback.foreground),
-        background: rgb("bg-island").or_else(|| rgb("bg-app")).unwrap_or(fallback.background),
-        cursor: rgb("caret").or_else(|| rgb("accent")).unwrap_or(fallback.cursor),
+        ansi: colors.ansi().map(rgb),
+        foreground: rgb(colors.foreground),
+        background: rgb(colors.background),
+        cursor: rgb(colors.cursor),
+    }
+}
+
+/// The key as a page would name it, which is how the terminal's key rules are written: `Enter`,
+/// `ArrowLeft`, or the character typed.
+fn dom_key(key: &str, shift: bool) -> String {
+    match key {
+        "enter" => "Enter".to_owned(),
+        "escape" => "Escape".to_owned(),
+        "backspace" => "Backspace".to_owned(),
+        "tab" => "Tab".to_owned(),
+        "left" => "ArrowLeft".to_owned(),
+        "right" => "ArrowRight".to_owned(),
+        "up" => "ArrowUp".to_owned(),
+        "down" => "ArrowDown".to_owned(),
+        "space" => " ".to_owned(),
+        typed if shift && typed.chars().count() == 1 => typed.to_uppercase(),
+        other => other.to_owned(),
+    }
+}
+
+/// The physical key, for the keys whose control code does not depend on the layout.
+fn dom_code(key: &str) -> String {
+    match key {
+        "[" => "BracketLeft".to_owned(),
+        "]" => "BracketRight".to_owned(),
+        "\\" => "Backslash".to_owned(),
+        "space" => "Space".to_owned(),
+        letter if letter.len() == 1 && letter.as_bytes()[0].is_ascii_alphabetic() => {
+            format!("Key{}", letter.to_ascii_uppercase())
+        }
+        _ => String::new(),
     }
 }
 
@@ -127,7 +158,17 @@ impl TerminalView {
         let listener = cx.global_mut::<Backend>().listen(move |event, cx| {
             let _ = weak.update(cx, |view, cx| view.backend_event(event, cx));
         });
+        let focus = cx.focus_handle();
+        let claimant = cx.weak_entity();
+        let key_claim = input::claim_keys(
+            focus.clone(),
+            move |keystroke, _, cx| claimant.update(cx, |view, cx| view.claim_key(keystroke, cx)).unwrap_or(false),
+            cx,
+        );
         cx.on_release(|view, cx| {
+            if let Some(claim) = view.key_claim {
+                input::release_keys(claim, cx);
+            }
             if let Some(listener) = view.listener.filter(|_| cx.has_global::<Backend>()) {
                 cx.global_mut::<Backend>().unlisten(listener);
             }
@@ -146,7 +187,7 @@ impl TerminalView {
             Err(error) => (None, String::new(), Some(error.message)),
         };
         Self {
-            focus: cx.focus_handle(),
+            focus,
             host,
             id,
             spawned_title,
@@ -158,6 +199,7 @@ impl TerminalView {
             composing: None,
             selecting: false,
             listener: Some(listener),
+            key_claim: Some(key_claim),
             _output: output,
         }
     }
@@ -272,19 +314,60 @@ impl TerminalView {
         }
     }
 
+    /// The terminal's own keys, taken before the IDE's shortcuts: copy and paste, clear, the
+    /// shell's line-editing strokes for ⌘ and ⌥ with the arrows, Ctrl with a letter by the letter
+    /// it types, and Escape. With Settings › Terminal › Override IDE shortcuts off, Ctrl strokes
+    /// and Escape go to the keymap first. True when the key was the terminal's.
+    fn claim_key(&mut self, keystroke: &gpui_kit::Keystroke, cx: &mut Context<Self>) -> bool {
+        let modifiers = keystroke.modifiers;
+        let mods =
+            Mods { meta: modifiers.platform, ctrl: modifiers.control, alt: modifiers.alt, shift: modifiers.shift };
+        let (named, code) = (dom_key(&keystroke.key, modifiers.shift), dom_code(&keystroke.key));
+        let canonical = stroke(&input::key_name(&keystroke.key), mods);
+        let terminal = settings::global(cx).terminal;
+        let handling = {
+            let event = KeyEvent { ime: keystroke.is_ime_in_progress(), ..KeyEvent::new(&named, &code, mods) };
+            let context = KeyContext {
+                stroke: Some(&canonical),
+                focus: KeyFocus::Session { has_selection: self.emulator.selected_text().is_some() },
+                override_ide_shortcuts: terminal.override_ide_shortcuts,
+                escape_to_editor: terminal.escape_to_editor,
+                bindings: cx.global::<Keymap>().0.effective_bindings(),
+                mac: cfg!(target_os = "macos"),
+            };
+            route_terminal_key(&event, &context)
+        };
+        match handling {
+            KeyHandling::Pass => return false,
+            KeyHandling::Send(text) => self.write(&text, cx),
+            KeyHandling::Copy => {
+                self.copy(cx);
+            }
+            KeyHandling::Paste => {
+                self.paste(cx);
+            }
+            KeyHandling::ClearSelection => {
+                self.emulator.clear_selection();
+                cx.notify();
+            }
+            KeyHandling::Clear => {
+                self.emulator.clear();
+                cx.notify();
+            }
+            KeyHandling::RunAction(CLOSE_SESSION_ACTION) => cx.emit(TerminalEvent::CloseRequested),
+            KeyHandling::RunAction(FIND_ACTION) => cx.emit(TerminalEvent::FindRequested),
+            // The find bar's keys: there is no find bar in this view.
+            KeyHandling::RunAction(_) | KeyHandling::CloseFind | KeyHandling::OpenFind => return false,
+        }
+        true
+    }
+
     fn key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
         let keystroke = &event.keystroke;
         let modifiers = keystroke.modifiers;
         let key = keystroke.key.as_str();
+        // Any other ⌘ shortcut is the application's.
         if modifiers.platform {
-            let handled = match key {
-                "c" => self.copy(cx),
-                "v" => self.paste(cx),
-                _ => false,
-            };
-            if handled {
-                cx.stop_propagation();
-            }
             return;
         }
         // Shift with the paging keys looks back through the output instead of reaching the program.
@@ -693,6 +776,7 @@ mod tests {
         let (home, folder) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a folder"));
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
+            input::init(cx);
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
         });
         let options = TerminalOptions {
@@ -731,6 +815,18 @@ mod tests {
         cx.write_to_clipboard(ClipboardItem::new_string("echo pasted-$((40+2))".to_owned()));
         cx.simulate_keystrokes("cmd-v enter");
         settle(cx, "the paste ran", |cx| screen(&view, cx).contains("pasted-42"));
+
+        // ⌘K clears the terminal down to the prompt's line.
+        cx.simulate_keystrokes("cmd-k");
+        settle(cx, "the screen is cleared", |cx| {
+            !screen(&view, cx).contains("pasted-42") && view.read_with(cx, |view, _| view.emulator.history() == 0)
+        });
+        // Ctrl+C reaches the program as an interrupt: the shell is back for the next command.
+        cx.simulate_input("sleep 30");
+        cx.simulate_keystrokes("enter ctrl-c");
+        cx.simulate_input("echo back-$((1+1))");
+        cx.simulate_keystrokes("enter");
+        settle(cx, "the interrupt ended the sleep", |cx| screen(&view, cx).contains("back-2"));
 
         cx.simulate_input("exit 3");
         cx.simulate_keystrokes("enter");

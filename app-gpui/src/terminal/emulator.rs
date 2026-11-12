@@ -353,6 +353,27 @@ impl Emulator {
         (row < self.rows()).then_some(Cursor { row, col: content.cursor.point.column.0, shape: content.cursor.shape })
     }
 
+    /// Clears the terminal: the line the cursor is on becomes the first line, and everything
+    /// else, on the screen and above it, is gone. The program is not told; a shell at its prompt
+    /// simply finds itself at the top of an empty terminal.
+    pub fn clear(&mut self) {
+        self.scroll_to_bottom();
+        self.clear_selection();
+        let row = usize::try_from(self.term.grid().cursor.point.line.0).unwrap_or(0);
+        let mut sequence = String::new();
+        if row > 0 {
+            // The screen scrolls up until the cursor's line is the first, and the cursor follows it.
+            sequence.push_str(&format!("\x1b[{row}S\x1b[{row}A"));
+        }
+        if self.rows() > 1 {
+            // What was below the cursor's line goes; the cursor stays where it is.
+            sequence.push_str("\x1b7\x1b[2;1H\x1b[J\x1b8");
+        }
+        // And so does what scrolled off the top.
+        sequence.push_str("\x1b[3J");
+        let _ = self.feed(sequence.as_bytes());
+    }
+
     /// Scrolls the view by `lines` towards older output (negative: towards newer).
     pub fn scroll_lines(&mut self, lines: i32) {
         self.term.scroll_display(Scroll::Delta(lines));
@@ -541,6 +562,28 @@ mod tests {
         assert_eq!((emulator.lines()[0].as_str(), emulator.scrolled_back()), ("line 1", 6));
         emulator.scroll_to_bottom();
         assert_eq!(emulator.lines(), ["line 7", "line 8", ""]);
+    }
+
+    #[test]
+    fn clearing_keeps_only_the_cursors_line() {
+        let mut emulator = Emulator::new(12, 4);
+        let output: String = (1..=8).map(|n| format!("line {n}\r\n")).collect();
+        emulator.feed(output.as_bytes());
+        emulator.feed(b"$ typed");
+        assert_eq!(emulator.lines(), ["line 6", "line 7", "line 8", "$ typed"]);
+        emulator.scroll_lines(2);
+        emulator.clear();
+        assert_eq!(emulator.lines(), ["$ typed", "", "", ""]);
+        assert_eq!((emulator.history(), emulator.scrolled_back()), (0, 0));
+        assert_eq!(emulator.cursor().map(|cursor| (cursor.row, cursor.col)), Some((0, 7)));
+        // Typing goes on where it was, and clearing an already clear terminal changes nothing.
+        emulator.feed(b"!");
+        emulator.clear();
+        assert_eq!(emulator.lines(), ["$ typed!", "", "", ""]);
+        // Output below the cursor's line goes too.
+        emulator.feed(b"\r\nbelow\x1b[A");
+        emulator.clear();
+        assert_eq!(emulator.lines(), ["$ typed!", "", "", ""]);
     }
 
     #[test]
