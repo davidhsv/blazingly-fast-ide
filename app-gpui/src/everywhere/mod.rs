@@ -5,6 +5,7 @@
 //! from the stored text the caller passes in and comes back as writes to save; a model that needs a
 //! backend answer says what to ask and is handed the answer.
 
+pub mod bookmarks_popup;
 pub mod bookmarks_store;
 pub mod bookmarks_view;
 pub mod controller;

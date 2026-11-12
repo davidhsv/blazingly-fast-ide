@@ -323,6 +323,11 @@ impl Editor {
         }
     }
 
+    /// The text of the zero-based `line`, without its line break; empty past the last line.
+    pub fn line_text(&self, line: u32) -> String {
+        if line >= self.line_count() { String::new() } else { buffer::line_text(&self.rope, line) }
+    }
+
     /// The caret's zero-based line and UTF-16 column.
     pub fn caret_position(&self) -> (u32, u32) {
         buffer::line_col(&self.rope, self.head)

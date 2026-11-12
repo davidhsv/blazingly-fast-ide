@@ -13,12 +13,22 @@ pub mod tool_windows;
 pub mod windows;
 
 use crate::backend::{Backend, BackendEvent};
+use crate::editor::goto_line::{GotoLine, GotoLineEvent};
 use crate::editor::session::{self, FileViewState};
 use crate::editor::tabs::{
     EditorInput, LayoutNode, OpenTabOptions, SplitDir, SplitEdge, TabsState, disambiguate_titles,
 };
 use crate::editor::view::Editor;
+use crate::everywhere::bookmarks_popup::{
+    BookmarksPopup, BookmarksPopupEvent, MnemonicChooser, MnemonicChooserEvent, neighbour_bookmark,
+    selection_description,
+};
+use crate::everywhere::bookmarks_store::{
+    BookmarkStore, MnemonicTarget, bookmark_by_mnemonic, bookmarks_key, lists_key, toggle_bookmark, toggle_mnemonic,
+    toggle_path_bookmarks,
+};
 use crate::everywhere::model::SeTab;
+use crate::everywhere::open::StorageWrite;
 use crate::everywhere::recent_model::OpenEditorTab;
 use crate::everywhere::recent_view::{RecentFiles, RecentFilesEvent, RecentFilesInput, RecentFilesKind};
 use crate::everywhere::structure_view::{FileStructure, FileStructureEvent, StructureFile};
@@ -165,6 +175,8 @@ pub struct Workbench {
     activations: HashMap<String, u64>,
     /// The key of the editor that is active, to tell a change from a repeat.
     active_key: Option<String>,
+    /// The bookmarks of the window's project.
+    bookmarks: BookmarkStore,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -419,6 +431,68 @@ pub fn register_actions(cx: &mut App) {
             Ok(())
         });
     }
+    type Shown = fn(&mut Workbench, &mut Window, &mut Context<Workbench>);
+    let shown: [(&str, Shown); 5] = [
+        ("navigate.gotoLine", Workbench::show_goto_line),
+        ("navigate.showBookmarks", Workbench::show_bookmarks),
+        ("navigate.toggleBookmarkWithMnemonic", Workbench::show_mnemonic_chooser),
+        ("navigate.nextBookmark", |workbench, window, cx| workbench.go_to_neighbour_bookmark(true, window, cx)),
+        ("navigate.prevBookmark", |workbench, window, cx| workbench.go_to_neighbour_bookmark(false, window, cx)),
+    ];
+    for (id, show) in shown {
+        registry.handle(id, move |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            workbench.update(cx, |workbench, cx| show(workbench, window, cx));
+            Ok(())
+        });
+    }
+    registry.handle("navigate.toggleBookmark", |call, window, cx| {
+        let place = call.arg.and_then(|arg| {
+            Some((arg.get("path")?.as_str()?.to_owned(), u32::try_from(arg.get("line")?.as_u64()?).ok()?))
+        });
+        let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+        workbench.update(cx, |workbench, cx| workbench.toggle_bookmark(place, cx));
+        Ok(())
+    });
+    registry.handle("bookmarks.toggleFileBookmark", |call, window, cx| {
+        let targets: Vec<(String, bool)> = call
+            .arg
+            .and_then(|arg| arg.get("targets")?.as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|target| {
+                let dir = target.get("dir").and_then(serde_json::Value::as_bool).unwrap_or(false);
+                Some((target.get("path")?.as_str()?.to_owned(), dir))
+            })
+            .collect();
+        let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+        workbench.update(cx, |workbench, cx| workbench.toggle_file_bookmarks(targets, cx));
+        Ok(())
+    });
+    // One pair of actions per digit: their ids are built from it, so they are not in the
+    // generated list of actions.
+    for digit in '0'..='9' {
+        let toggle = ActionMeta {
+            category: Some("Bookmarks".to_owned()),
+            ..ActionMeta::new(&format!("navigate.toggleBookmark{digit}"), &format!("Toggle Bookmark {digit}"))
+                .when("projectOpen && textEditorActive")
+        };
+        registry.register(Action::new(toggle, move |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            workbench.update(cx, |workbench, cx| workbench.toggle_bookmark_digit(digit, cx));
+            Ok(())
+        }));
+        let go = ActionMeta {
+            category: Some("Bookmarks".to_owned()),
+            ..ActionMeta::new(&format!("navigate.gotoBookmark{digit}"), &format!("Go to Bookmark {digit}"))
+                .when("projectOpen")
+        };
+        registry.register(Action::new(go, move |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            workbench.update(cx, |workbench, cx| workbench.go_to_bookmark(digit, window, cx));
+            Ok(())
+        }));
+    }
     registry.handle("navigate.fileStructure", |_, window, cx| {
         let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
         workbench.update(cx, |workbench, cx| workbench.show_file_structure(window, cx));
@@ -562,6 +636,7 @@ impl Workbench {
             popup: None,
             activations: HashMap::new(),
             active_key: None,
+            bookmarks: BookmarkStore::default(),
         }
     }
 
@@ -1368,6 +1443,178 @@ impl Workbench {
         open
     }
 
+    /// Reads the bookmarks stored for the project at `root`.
+    fn load_bookmarks(&mut self, root: &str, cx: &App) {
+        let storage = cx.try_global::<UiStorage>();
+        let stored = |key: String| storage.and_then(|storage| storage.get(&key));
+        self.bookmarks.load(Some(root), stored(bookmarks_key(root)), stored(lists_key(root)));
+    }
+
+    pub fn bookmarks(&self) -> &BookmarkStore {
+        &self.bookmarks
+    }
+
+    /// Saves what a change of the bookmarks says to save.
+    fn save_bookmark_writes(writes: Vec<StorageWrite>, cx: &mut App) {
+        if let Some(storage) = cx.try_global::<UiStorage>().is_some().then(|| cx.global_mut::<UiStorage>()) {
+            for write in writes {
+                storage.set(&write.key, write.value);
+            }
+        }
+    }
+
+    /// The file, caret line and that line's text of the active editor.
+    fn caret_line(&self, cx: &App) -> Option<(String, u32, String)> {
+        let editor = self.editor()?.read(cx);
+        let line = editor.caret_position().0;
+        Some((editor.path().to_string_lossy().into_owned(), line, editor.line_text(line)))
+    }
+
+    /// Adds a bookmark on `line` of `path`, or removes the one there. Without a place it is the
+    /// caret's line of the active editor, described by a short selection.
+    pub fn toggle_bookmark(&mut self, place: Option<(String, u32)>, cx: &mut Context<Self>) {
+        let now = now_ms() as u64;
+        let at = match place {
+            Some((path, line)) => {
+                let text = self
+                    .editor()
+                    .map(|editor| editor.read(cx))
+                    .filter(|editor| editor.path().to_string_lossy() == path.as_str())
+                    .map(|editor| editor.line_text(line))
+                    .unwrap_or_default();
+                Some((path, line, text, None))
+            }
+            None => self.caret_line(cx).map(|(path, line, text)| {
+                let selected = self.editor().map(|editor| editor.read(cx).selected_text()).unwrap_or_default();
+                (path, line, text, selection_description(&selected))
+            }),
+        };
+        let Some((path, line, text, description)) = at else { return };
+        let writes =
+            self.bookmarks.update(|items| toggle_bookmark(items, &path, line, &text, now, description.as_deref()));
+        Self::save_bookmark_writes(writes, cx);
+        cx.notify();
+    }
+
+    /// Gives the caret's line the bookmark `digit`, or takes it away again.
+    pub fn toggle_bookmark_digit(&mut self, digit: char, cx: &mut Context<Self>) {
+        let Some((path, line, text)) = self.caret_line(cx) else { return };
+        let now = now_ms() as u64;
+        let writes = self.bookmarks.update(|items| toggle_mnemonic(items, &path, line, &text, digit, now));
+        Self::save_bookmark_writes(writes, cx);
+        cx.notify();
+    }
+
+    /// Bookmarks the given files and folders, or the active editor's file, or removes their bookmarks.
+    pub fn toggle_file_bookmarks(&mut self, targets: Vec<(String, bool)>, cx: &mut Context<Self>) {
+        let targets = if targets.is_empty() {
+            self.editor()
+                .map(|editor| (editor.read(cx).path().to_string_lossy().into_owned(), false))
+                .into_iter()
+                .collect()
+        } else {
+            targets
+        };
+        let now = now_ms() as u64;
+        let borrowed: Vec<(&str, bool)> = targets.iter().map(|(path, dir)| (path.as_str(), *dir)).collect();
+        let writes = self.bookmarks.update_data(|data| toggle_path_bookmarks(data, &borrowed, now));
+        Self::save_bookmark_writes(writes, cx);
+        cx.notify();
+    }
+
+    /// Goes to the bookmark after (or before) the caret, in file and line order, going round.
+    pub fn go_to_neighbour_bookmark(&mut self, forward: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let at = self.caret_line(cx);
+        let (path, line) = (at.as_ref().map(|at| at.0.as_str()), at.as_ref().map(|at| at.1));
+        let Some(target) = neighbour_bookmark(&self.bookmarks.data().items, path, line, forward) else { return };
+        let (path, line) = (PathBuf::from(&target.path), target.line);
+        self.open_project_file_at(path, line, 0, window, cx);
+    }
+
+    /// Goes to the bookmark that has the mnemonic `digit`.
+    pub fn go_to_bookmark(&mut self, digit: char, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(target) = bookmark_by_mnemonic(&self.bookmarks.data().items, digit) else { return };
+        let (path, line) = (PathBuf::from(&target.path), target.line);
+        self.open_project_file_at(path, line, 0, window, cx);
+    }
+
+    /// Opens the Bookmarks popup; asked for again while it is open, it stays as it is.
+    pub fn show_bookmarks(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.popup.as_ref().is_some_and(|popup| popup.view.clone().downcast::<BookmarksPopup>().is_ok()) {
+            return;
+        }
+        let (label, store) = (self.label.clone(), self.bookmarks.clone());
+        let popup = cx.new(|cx| BookmarksPopup::new(&label, store, cx));
+        let events = cx.subscribe_in(&popup, window, |workbench, popup, event: &BookmarksPopupEvent, window, cx| {
+            match event.clone() {
+                BookmarksPopupEvent::Dismissed => workbench.close_popup(window, cx),
+                BookmarksPopupEvent::Open { path, line } => {
+                    workbench.close_popup(window, cx);
+                    match line {
+                        Some(line) => workbench.open_project_file_at(path, line, 0, window, cx),
+                        None => workbench.open_project_file(path, window, cx),
+                    }
+                }
+                BookmarksPopupEvent::SelectInProjectView(path) => {
+                    workbench.close_popup(window, cx);
+                    let arg = serde_json::json!({ "path": path.to_string_lossy() });
+                    window.defer(cx, move |window, cx| {
+                        execute_action_from(
+                            ActionSource::Other,
+                            "navigate.selectInProjectView",
+                            Some(&arg),
+                            window,
+                            cx,
+                        );
+                    });
+                }
+                // The popup changed its own copy: the window takes it over and saves it.
+                BookmarksPopupEvent::Changed(writes) => {
+                    workbench.bookmarks = popup.read(cx).store().clone();
+                    Self::save_bookmark_writes(writes, cx);
+                }
+            }
+        });
+        self.open_popup(&popup, events, window, cx);
+    }
+
+    /// Opens the chooser that gives the caret's line a bookmark with a mnemonic.
+    pub fn show_mnemonic_chooser(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((path, line, text)) = self.caret_line(cx) else { return };
+        let target = MnemonicTarget { path, line, text, at: None };
+        let store = self.bookmarks.clone();
+        let chooser = cx.new(|cx| MnemonicChooser::new(store, target, cx));
+        let events =
+            cx.subscribe_in(&chooser, window, |workbench, chooser, event: &MnemonicChooserEvent, window, cx| {
+                if let MnemonicChooserEvent::Done(writes) = event.clone() {
+                    workbench.bookmarks = chooser.read(cx).store().clone();
+                    Self::save_bookmark_writes(writes, cx);
+                }
+                workbench.close_popup(window, cx);
+            });
+        self.open_popup(&chooser, events, window, cx);
+    }
+
+    /// Opens Go to Line:Column for the active editor; the chosen place gets the caret.
+    pub fn show_goto_line(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let position = self.editor().map(|editor| editor.read(cx).caret_position());
+        let popup = cx.new(|cx| GotoLine::new(position, cx));
+        let events = cx.subscribe_in(&popup, window, |workbench, _, event: &GotoLineEvent, window, cx| {
+            workbench.close_popup(window, cx);
+            if let GotoLineEvent::Go { line, col } = *event
+                && let Some(editor) = workbench.editor().cloned()
+            {
+                editor.update(cx, |editor, cx| {
+                    // The line and the column are held inside the document.
+                    let at = editor.offset_of(line, col);
+                    editor.select(at, at, cx);
+                    editor.scroll_to_line(line.saturating_sub(5), cx);
+                });
+            }
+        });
+        self.open_popup(&popup, events, window, cx);
+    }
+
     /// Opens Recent Files or the Switcher. Recent Files asked for again shows only the files
     /// edited in this session, and back; the Switcher asked for again moves its selection.
     pub fn show_recent_files(&mut self, kind: RecentFilesKind, window: &mut Window, cx: &mut Context<Self>) {
@@ -1515,6 +1762,7 @@ impl Workbench {
                     Ok((root, name)) => {
                         // It is the most recent project now: Open Recent lists it first.
                         menu::refresh_recent(cx);
+                        workbench.load_bookmarks(&root.to_string_lossy(), cx);
                         let label = workbench.label.clone();
                         // The layout is stored per project folder, as the webview keys it.
                         let scope = root.to_string_lossy().into_owned();
@@ -4357,6 +4605,83 @@ mod tests {
         // With two panes the menu has the rows for the other group.
         let menu = right_click(cx, 0);
         assert!(labels(&menu, cx).iter().any(|(label, _)| label == "Move to Opposite Group"));
+    }
+
+    /// Go to Line puts the caret on the typed line and column. Bookmarks are toggled at the caret
+    /// or at a given line, stored with the project, visited in order and by their digit, and
+    /// listed in the Bookmarks popup, whose Enter opens one and whose Delete removes it.
+    #[gpui_kit::test]
+    async fn go_to_line_and_bookmarks_move_the_caret_through_the_project(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        let run = |cx: &mut VisualTestContext, id: &str, arg: Option<serde_json::Value>| {
+            cx.update(|window, cx| execute_action_or_throw(id, arg.as_ref(), window, cx)).expect("it runs");
+            cx.run_until_parked();
+        };
+        let at = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().map(|editor| (editor.read(cx).path().to_path_buf(), editor.read(cx).caret_position()))
+            })
+        };
+        let marks = |cx: &mut VisualTestContext| -> Vec<(String, u32, Option<char>)> {
+            workbench.read_with(cx, |w, _| {
+                let strip = |path: &str| path.rsplit('/').next().unwrap_or(path).to_owned();
+                w.bookmarks().data().items.iter().map(|b| (strip(&b.path), b.line, b.mnemonic)).collect()
+            })
+        };
+        let (alpha, beta) = (root.join("src/alpha.rs"), root.join("src/beta.rs"));
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(alpha.clone(), window, cx));
+        settle(cx, |cx| at(cx).is_some());
+
+        run(cx, "navigate.gotoLine", None);
+        assert!(workbench.read_with(cx, |w, _| w.popup.is_some()));
+        cx.simulate_input("3:5");
+        cx.simulate_keystrokes("enter");
+        assert_eq!(at(cx), Some((alpha.clone(), (2, 4))));
+        assert!(workbench.read_with(cx, |w, _| w.popup.is_none()));
+
+        // A bookmark at the caret, one on a line of a file that is not open, one with a digit.
+        run(cx, "navigate.toggleBookmark", None);
+        let other = serde_json::json!({ "path": beta.to_string_lossy(), "line": 0 });
+        run(cx, "navigate.toggleBookmark", Some(other));
+        assert_eq!(marks(cx), [("alpha.rs".to_owned(), 2, None), ("beta.rs".to_owned(), 0, None)]);
+        let stored = cx.update(|_, cx| {
+            let key = bookmarks_key(&root.to_string_lossy());
+            cx.global::<UiStorage>().get(&key).map(str::to_owned)
+        });
+        assert!(stored.is_some_and(|stored| stored.contains("beta.rs")), "the bookmarks are stored with the project");
+
+        // Next Bookmark goes on in file and line order and round again.
+        run(cx, "navigate.nextBookmark", None);
+        settle(cx, |cx| at(cx) == Some((beta.clone(), (0, 0))));
+        run(cx, "navigate.toggleBookmark7", None);
+        assert_eq!(marks(cx)[1], ("beta.rs".to_owned(), 0, Some('7')));
+        run(cx, "navigate.nextBookmark", None);
+        settle(cx, |cx| at(cx) == Some((alpha.clone(), (2, 0))));
+        run(cx, "navigate.gotoBookmark7", None);
+        settle(cx, |cx| at(cx) == Some((beta.clone(), (0, 0))));
+
+        // The popup lists them; Delete removes the selected one, Enter opens the one left.
+        run(cx, "navigate.showBookmarks", None);
+        let popup = workbench
+            .read_with(cx, |w, _| {
+                w.popup.as_ref().and_then(|popup| popup.view.clone().downcast::<BookmarksPopup>().ok())
+            })
+            .expect("the Bookmarks popup is open");
+        let listed = popup.read_with(cx, |popup, _| popup.lines().join("\n"));
+        assert!(listed.contains("alpha.rs") && listed.contains("beta.rs"), "both files are listed:\n{listed}");
+        cx.simulate_keystrokes("delete");
+        cx.run_until_parked();
+        assert_eq!(marks(cx).len(), 1, "what the popup removed is gone from the window's bookmarks");
+        let left = marks(cx)[0].clone();
+        cx.simulate_keystrokes("down up enter");
+        settle(cx, |cx| at(cx).is_some_and(|(path, (line, _))| path.ends_with(&left.0) && line == left.1));
+        assert!(workbench.read_with(cx, |w, _| w.popup.is_none()));
+
+        // Toggling where a bookmark is removes it.
+        run(cx, "navigate.toggleBookmark", None);
+        assert!(marks(cx).is_empty());
     }
 
     #[test]

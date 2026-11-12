@@ -387,3 +387,15 @@ Some specs test the web platform itself and have nothing to port: WebKit's doubl
 As in D45, settings validators are normalisers over the backend's typed settings; a value of the wrong type is refused by serde rather than defaulted.
 
 The same subagent found the keymap order bug (D51).
+
+## D53. Go to Line and bookmarks
+
+`editor/goto_line.rs` and `everywhere/bookmarks_popup.rs` (the Bookmarks popup and the mnemonic chooser) are a subagent's views; both built on the first try and their 33 tests passed, including the ones the subagent expected to fail. The workbench keeps the project's bookmarks (`BookmarkStore`, read from the UI storage when a project opens) and registers the actions that are not popups: toggle at the caret or at a given line, toggle and go to the ten digit bookmarks, next and previous, file bookmarks.
+
+- The popups work on their own copy of the store and report what to save; the workbench takes the copy back and writes it. That is how the store model is meant to be used and keeps the views free of the workbench.
+- Go to Line is a popup in the popup slot, so a click beside it closes it; the webview's is a dialog that stays. Numbers typed beyond half of `u32` saturate, where the webview passes any digits on and clamps when it opens the place.
+- The Bookmarks preview shows the file as plain text with the bookmarked line marked. The webview's preview is a second editor on the document. The file is read without opening it as a document, so that previewing does not make it a recent file.
+- Editing a description happens in a row of the popup instead of a second dialog, since the slot holds one popup.
+- After Delete the selection stays at the same index, as in the webview, even when that is now a header.
+
+Not there: the Bookmarks tool window, bookmark marks in the gutter, and bookmarks following lines as the text is edited (the model has `set_file_lines`; the editor does not call it).

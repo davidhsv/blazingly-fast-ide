@@ -1750,5 +1750,125 @@
   "unit:src/ui/pointerDrag.test.ts": {
     "status": "done",
     "proof": "`platform_more::pointer_drag::tests`"
+  },
+  "action:navigate.gotoLine": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`; opens Go to Line:Column and moves the caret; it is a popup in the popup slot, which a click beside it closes, where the webview has a dialog; the status bar's position does not open it yet"
+  },
+  "point.registerOverlay:editor.gotoLine": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`; see the navigate.gotoLine action"
+  },
+  "action:navigate.toggleBookmark": {
+    "status": "done",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_store::tests`"
+  },
+  "action:navigate.nextBookmark": {
+    "status": "done",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_popup::tests`"
+  },
+  "action:navigate.prevBookmark": {
+    "status": "partial",
+    "proof": "`everywhere::bookmarks_popup::tests`; registered on the same routine as Next Bookmark, whose order is tested in the view; no workbench test runs it"
+  },
+  "action:navigate.showBookmarks": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_popup::tests`; the popup lists the bookmarks by list and file, opens, removes and describes them. Its preview is the file's plain text, not a second editor on the document"
+  },
+  "action:navigate.toggleBookmarkWithMnemonic": {
+    "status": "partial",
+    "proof": "`everywhere::bookmarks_popup::tests`; opens the chooser for the caret's line; the chooser is tested as a view, not through the action, and shows in the popup slot instead of at the caret"
+  },
+  "action:bookmarks.toggleFileBookmark": {
+    "status": "partial",
+    "proof": "`everywhere::bookmarks_store::tests`; registered: bookmarks the given files or the active editor's; no workbench test runs it, and the menus that offer it are not there"
+  },
+  "point.registerOverlay:search.bookmarks": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_popup::tests`; the Bookmarks popup and the mnemonic chooser. Not yet: the Bookmarks tool window, bookmark marks in the editor gutter, new and renamed lists"
+  },
+  "unit:src/features/search/__tests__/bookmarkPopups.test.tsx": {
+    "status": "done",
+    "proof": "`everywhere::bookmarks_popup::tests`"
+  },
+  "boundid:navigate.toggleBookmark0": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.gotoBookmark0": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.toggleBookmark1": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.gotoBookmark1": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.toggleBookmark2": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.gotoBookmark2": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.toggleBookmark3": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.gotoBookmark3": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.toggleBookmark4": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.gotoBookmark4": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.toggleBookmark5": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.gotoBookmark5": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.toggleBookmark6": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.gotoBookmark6": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.toggleBookmark7": {
+    "status": "done",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`"
+  },
+  "boundid:navigate.gotoBookmark7": {
+    "status": "done",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`"
+  },
+  "boundid:navigate.toggleBookmark8": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.gotoBookmark8": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.toggleBookmark9": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+  },
+  "boundid:navigate.gotoBookmark9": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
   }
 }

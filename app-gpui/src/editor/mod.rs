@@ -2,6 +2,7 @@
 
 pub mod actions;
 pub mod buffer;
+pub mod goto_line;
 pub mod history;
 pub mod nav_history;
 pub mod session;
