@@ -475,3 +475,31 @@ No merge editor, diff viewer or multi-repository UI is drawn from these yet.
 - With "Current File" selected, which is the default of a project without configurations, `run.run` hands over to `run.runContext`; that action is not built, so Run does nothing visible there and logs it.
 - Runs are stopped when their project closes. Stopping them when the window closes is not built.
 - The console has no mouse selection (Select All, Copy and Copy All work on the whole text), cuts long lines when soft wraps are off, and shows "Emulate terminal" output as plain lines.
+
+## D62. The editor's editing commands, as functions
+
+`editor_commands/` (33 files, 263 tests) is subagents' work on 25 specs: comments, duplicate and delete line, move statement, occurrences, complete statement, join and split lines, case, humps, smart keys, tab and backspace, the clipboard with string escapes and paste reindent, column mode, vertical motion, folding, structural selection, move element, unwrap, doc comments, sort and reverse lines. A command takes the text, the selections and the language's facts and returns the changes and the new selections; nothing in the editor calls them yet.
+
+- The editor today has one selection, no syntax tree per document and no folded ranges. The commands take several selections, a tree of plain nodes and the folded ranges as arguments, so wiring them is the editor's next slice, not a rewrite of these.
+- Vertical motion moves by document line: soft wraps and folds are not taken into account until the editor can give visual lines.
+- Two fixtures in the tests were wrong when first compiled (a node span that counted the selection markers, one quote too many in a C++ raw string); the integrating agent corrected the tests after reading the specs. No command needed a fix.
+- Not started: `multiCaret` (6 cases about which mouse gesture adds a caret; it needs mouse bindings in the editor).
+
+## D63. Code intelligence, as models
+
+`editor_lsp/` (32 files, 277 tests) is subagents' work on 33 of the 34 specs of the editor's language-server side: completion (query, rows, ranking, applying an item with its extra edits and snippet), formatting with its guard, diagnostics, intentions and the bulb, hover precedence, signature help, lenses, inlays, inline completion, imports on paste, links, go to declaration with its chooser and pending hint, mouse navigation, rename in place, navigation in configuration files, spelling. Each takes the server's answer as an argument and returns what to show or the next request; nothing in the editor calls them yet. It compiled without an error.
+
+- `hint.rs` had a real defect found on reading by the second agent: a delay timer reported after the request had finished still showed "Waiting…". Fixed with a flag and a test.
+- `spelling.rs` declares its own copies of the speller's three types, because the speller's crate is not a dependency of this one. They are swapped for the real ones when the editor wires spelling.
+- Rename in place ends with the typed name and whether to commit; the rename request itself and its preview belong to a flow that is not written.
+- Not started: `syntaxFallback` (50 cases: navigation, highlights and rename from the syntax tree alone), which needs that rename flow and a tree per document.
+
+## D64. Find and Replace in the editor
+
+`editor/find_model.rs` and `editor/find_bar.rs` (51 tests) are a subagent's model and view; they compiled and passed on the first run. The workbench keeps one bar per editor tab, draws the active tab's bar between the tab strip and the editor, and registers `find.inFile`, `find.replaceInFile`, `find.next`, `find.previous`, `find.openInWindow` and `find.scrollToResults`.
+
+- The editor does not mark the occurrences: it has no decorations yet. The current occurrence is selected, and the bar exposes its matches for the editor to draw later.
+- Replace All sends one edit from the first occurrence to the last, since the editor applies one range at a time. It is one undo step, as in the component, but the backend sees a larger change.
+- "Open in Find Window" searches the file again through the backend. The bar's In Selection scope, its excluded occurrences and unsaved text are not carried over.
+- The bar's multiple-cursor buttons ask for actions that no handler exists for yet, so they do nothing. Escape in the editor does not close the bar (Escape in the bar does). A window with a single file and no project has no bar.
+- A query of several lines shows on one line with a mark per line break, because the text field holds one line.

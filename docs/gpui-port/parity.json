@@ -2266,5 +2266,281 @@
   "feature:run": {
     "status": "partial",
     "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `run::view::tests`, `run::driver::tests`; the Run tool window (tabs, console with ANSI colours, folds, links, input, find, soft wraps, follow), starting, rerunning and stopping processes with before-launch tasks. Not yet: the configuration chooser and the run widget, Edit Configurations, context runs and gutter markers, the test tree, the terminal console, Services, mouse selection in the console, tooltips"
+  },
+  "unit:src/editor/core/cm/editing.test.ts": {
+    "status": "partial",
+    "proof": "`editor_commands::editing::tests`, `editor_commands::comments::tests`, `editor_commands::indent::tests`; 42 of 43 cases: highlighting of Batch files is not built"
+  },
+  "unit:src/editor/core/cm/ideaParity.test.ts": {
+    "status": "partial",
+    "proof": "`editor_commands::editing::tests`, `editor_commands::paste::tests`, `editor_commands::smart_keys::tests`, `editor_commands::folding::tests`, `editor_commands::column_mode::tests`, `editor_commands::lanes::tests`, `editor_commands::gutter_drag::tests`, `editor_commands::caret_commands::tests`, `editor_commands::overwrite::tests`; 25 of 27 cases: the smooth caret (2 cases) is not built"
+  },
+  "unit:src/editor/core/cm/structural.test.ts": {
+    "status": "partial",
+    "proof": "`editor_commands::structural::tests`; 23 of 27 cases: whether a document has a syntax tree and the cache of structure queries (4 cases) belong to the editor that will call these commands"
+  },
+  "unit:src/editor/core/cm/clipboard.test.ts": {
+    "status": "partial",
+    "proof": "`editor_commands::clipboard::tests`; 18 of 25 cases: pasting file paths and images as Markdown, the fallback while a native paste is pending and the read-only editor (7 cases) need the editor wiring"
+  },
+  "unit:src/editor/core/cm/stringClipboard.test.ts": {
+    "status": "partial",
+    "proof": "`editor_commands::string_clipboard::tests`; 15 of 16 cases: leaving plain paste, typing and drops alone is the calling editor's part, which is not wired"
+  },
+  "unit:src/editor/core/cm/smartKeys.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::smart_keys::tests`"
+  },
+  "unit:src/editor/core/cm/verticalMotion.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::vertical_motion::tests`"
+  },
+  "unit:src/editor/core/cm/caretCommands.test.ts": {
+    "status": "partial",
+    "proof": "`editor_commands::caret_commands::tests`; 5 of 6 cases: the base keymap case needs the commands bound in the editor"
+  },
+  "unit:src/editor/core/cm/columnMode.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::column_mode::tests`"
+  },
+  "unit:src/editor/core/cm/collapseBlock.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::collapse_block::tests`"
+  },
+  "unit:src/editor/core/cm/visibleColumn.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::visible_column::tests`"
+  },
+  "unit:src/editor/core/cm/moveElement.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::move_element::tests`"
+  },
+  "unit:src/editor/core/cm/unwrap.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::unwrap::tests`"
+  },
+  "unit:src/editor/core/cm/docComment.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::doc_comment::tests`"
+  },
+  "unit:src/editor/core/cm/docCommentTags.test.ts": {
+    "status": "partial",
+    "proof": "`editor_commands::doc_comment_tags::tests`; 9 of 13 cases: redrawing on a highlighter change, on a language switch, nesting inside comment marks and the style class (4 cases) need the editor to draw the tags"
+  },
+  "unit:src/editor/core/cm/lines.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::lines::tests`"
+  },
+  "unit:src/editor/core/cm/indentGuides.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::indent_guides::tests`"
+  },
+  "unit:src/editor/core/cm/selectionMarks.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::selection_marks::tests`"
+  },
+  "unit:src/editor/core/cm/regions.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::regions::tests`; the tables of the spec are loops inside one test each"
+  },
+  "unit:src/editor/core/cm/folding.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::folding::tests`"
+  },
+  "unit:src/editor/core/editingExtras.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::word_completion::tests`, `editor_commands::copy_reference::tests`, `editor_commands::outline::tests`; the 2 cases left are about the timing of the browser clipboard API, which has no counterpart here"
+  },
+  "unit:src/editor/core/extendSelection.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::extend_selection::tests`"
+  },
+  "unit:src/editor/core/extras.test.ts": {
+    "status": "done",
+    "proof": "`editor_commands::extras::tests`"
+  },
+  "unit:src/editor/core/clipboardHistory.test.ts": {
+    "status": "partial",
+    "proof": "`editor_commands::clipboard_history::tests`; 7 of 8 cases: copies made in text fields are not recorded"
+  },
+  "unit:src/editor/lsp/authorLens.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::code_lens::tests`"
+  },
+  "unit:src/editor/lsp/availability.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::availability::tests`"
+  },
+  "unit:src/editor/lsp/codeLens.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::code_lens::tests`"
+  },
+  "unit:src/editor/lsp/completion.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::completion::tests`, `editor_lsp::completion_items::tests`"
+  },
+  "unit:src/editor/lsp/configurationNavigation.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::configuration_navigation::tests`"
+  },
+  "unit:src/editor/lsp/diagnostics.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::diagnostics::tests`"
+  },
+  "unit:src/editor/lsp/features.test.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::semantic::tests`, `editor_lsp::intentions::tests`, `editor_lsp::signature::tests`, `editor_lsp::navigation::tests`, `editor_lsp::markdown::tests`, `editor_lsp::rename::tests`, `editor_lsp::hover::tests`; the token-level semantic hooks (Python, Kotlin, Go); the tree-based Python symbol kinds and syntax ranges are not built"
+  },
+  "unit:src/editor/lsp/fileReferences.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::file_references::tests`"
+  },
+  "unit:src/editor/lsp/files.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::files::tests`"
+  },
+  "unit:src/editor/lsp/format.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::format::tests`, `editor_lsp::format_guard::tests`"
+  },
+  "unit:src/editor/lsp/generate.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::generate::tests`"
+  },
+  "unit:src/editor/lsp/hint.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::hint::tests`"
+  },
+  "unit:src/editor/lsp/hoverPrecedence.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::hover::tests`"
+  },
+  "unit:src/editor/lsp/importsOnPaste.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::imports_on_paste::tests`, `editor_lsp::snippet::tests`"
+  },
+  "unit:src/editor/lsp/inlay.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::inlay::tests`"
+  },
+  "unit:src/editor/lsp/inlineCompletion.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::inline_completion::tests`; the table of the spec is a loop inside one test"
+  },
+  "unit:src/editor/lsp/inplaceRename.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::inplace_rename::tests`"
+  },
+  "unit:src/editor/lsp/intentions.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::intentions::tests`"
+  },
+  "unit:src/editor/lsp/links.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::links::tests`"
+  },
+  "unit:src/editor/lsp/lsp.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::lsp::tests`"
+  },
+  "unit:src/editor/lsp/markdown.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::markdown::tests`"
+  },
+  "unit:src/editor/lsp/navigationMouse.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::navigation::tests`; the case left keeps WebKit's force-click Look Up popover away, which has no counterpart here"
+  },
+  "unit:src/editor/lsp/navigationPending.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::navigation::tests`"
+  },
+  "unit:src/editor/lsp/outsideProject.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::outside_project::tests`"
+  },
+  "unit:src/editor/lsp/positions.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::positions::tests`"
+  },
+  "unit:src/editor/lsp/resultNote.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::lsp::tests`"
+  },
+  "unit:src/editor/lsp/serverCodeLens.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::code_lens::tests`"
+  },
+  "unit:src/editor/lsp/signature.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::signature::tests`"
+  },
+  "unit:src/editor/lsp/snippet.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::snippet::tests`"
+  },
+  "unit:src/editor/lsp/spelling.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::spelling::tests`"
+  },
+  "unit:src/editor/lsp/syntaxErrors.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::syntax_errors::tests`"
+  },
+  "unit:src/editor/lsp/typeInfo.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::type_info::tests`, `editor_lsp::generate::tests`"
+  },
+  "unit:src/editor/lsp/workspaceEdit.test.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::workspace_edit::tests`"
+  },
+  "unit:src/editor/core/cm/find.test.ts": {
+    "status": "done",
+    "proof": "`editor::find_model::tests`"
+  },
+  "unit:src/editor/core/view/FindBar.test.tsx": {
+    "status": "done",
+    "proof": "`editor::find_bar::tests`; the table of the spec is a loop inside one test"
+  },
+  "action:find.inFile": {
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+  },
+  "action:find.replaceInFile": {
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+  },
+  "action:find.next": {
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+  },
+  "action:find.previous": {
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+  },
+  "action:find.openInWindow": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the Find window searches the file again through the backend: the bar's In Selection scope, its excluded occurrences and unsaved text are not carried over"
+  },
+  "action:find.scrollToResults": {
+    "status": "partial",
+    "proof": "`editor::find_bar::tests`; registered as a toggle on the bar's preference; no test runs the action"
+  },
+  "context:findBarOpen": {
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+  },
+  "context:findBarFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`"
+  },
+  "context:findBarHasResults": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; follows the bar that has the keyboard, where the component keeps the value of the last focused bar"
+  },
+  "point.registerKeyClaim:(at) src/editor/core/view/FindBar.tsx:367": {
+    "status": "done",
+    "proof": "`editor::find_bar::tests::opens_current_results_from_the_menu_and_reserves_alt_f7_while_focused`, `editor::find_bar::tests::honors_a_rebound_shortcut_and_releases_it_outside_the_bar`"
   }
 }
