@@ -2193,7 +2193,7 @@
   },
   "action:run.run": {
     "status": "partial",
-    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; restarts or starts the selected configuration. With Current File selected or nothing selected it hands over to run.runContext or run.chooseConfig, which are not built"
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; runs the selection, and opens the chooser when nothing is selected. With Current File selected it hands over to run.runContext, which is not built"
   },
   "action:run.rerun": {
     "status": "done",
@@ -2265,7 +2265,7 @@
   },
   "feature:run": {
     "status": "partial",
-    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `run::view::tests`, `run::driver::tests`; the Run tool window (tabs, console with ANSI colours, folds, links, input, find, soft wraps, follow), starting, rerunning and stopping processes with before-launch tasks. Not yet: the configuration chooser and the run widget, Edit Configurations, context runs and gutter markers, the test tree, the terminal console, Services, mouse selection in the console, tooltips"
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`, `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `run::view::tests`; the Run tool window, the run widget in the title bar, the configuration chooser and Edit Configurations, on real processes. Not yet: context runs and gutter markers, the test tree, the terminal console, debugging, importing configurations, templates"
   },
   "unit:src/editor/core/cm/editing.test.ts": {
     "status": "partial",
@@ -3442,5 +3442,53 @@
   "context:vcsAvailable": {
     "status": "done",
     "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+  },
+  "unit:src/features/run/RunWidget.test.tsx": {
+    "status": "partial",
+    "proof": "`run::widget_view::tests`; 16 of 21 cases by name: the cases about debug sessions are open: the debugger is not drawn"
+  },
+  "unit:src/features/run/chooserPinned.test.tsx": {
+    "status": "partial",
+    "proof": "`run::chooser_view::tests`; 2 of 5 cases by name"
+  },
+  "unit:src/features/run/chooserRunning.test.tsx": {
+    "status": "done",
+    "proof": "`run::chooser_view::tests`"
+  },
+  "unit:src/features/run/removal.test.tsx": {
+    "status": "partial",
+    "proof": "`run::edit_configs_view::tests`, `run::chooser_view::tests`; 7 of 11 cases by name"
+  },
+  "unit:src/features/run/runConfigTypes.test.tsx": {
+    "status": "partial",
+    "proof": "`run::edit_configs_view::tests`, `run::chooser_view::tests`; 11 of 39 cases by name: update policies of Tomcat and Spring, delegated Gradle builds and the rest of the type forms are open"
+  },
+  "unit:src/features/run/browsePaths.test.tsx": {
+    "status": "done",
+    "proof": "`run::edit_configs_view::tests`"
+  },
+  "action:run.chooseConfig": {
+    "status": "done",
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::deleting_a_configuration_in_the_chooser_removes_it_from_the_project`"
+  },
+  "action:run.createConfig": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`"
+  },
+  "action:run.editConfigs": {
+    "status": "partial",
+    "proof": "`workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`, `run::edit_configs_view::tests`; add, edit, copy, move, remove and save through the form. Not yet: editing templates, importing configurations, run targets, the environment table, loading choices from the backend, Tomcat settings"
+  },
+  "context:run.selectedKind": {
+    "status": "done",
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`"
+  },
+  "context:run.cmakeBuild": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`; published with the other run keys; no test sets a CMake build or an updatable session"
+  },
+  "context:run.updatableRunning": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`; published with the other run keys; no test sets a CMake build or an updatable session"
   }
 }

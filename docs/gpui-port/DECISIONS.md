@@ -559,3 +559,14 @@ An integrating agent compiled the diff viewer, the Settings dialog shell, the De
 - `vcsAvailable` is published now (a project with a repository), which enables every action gated on it; most of those are not registered yet.
 - The panes are read-only: applying a change from the viewer is not wired.
 - The Settings dialog shell, the Debug views and the diff viewer's tests pass, but only the diff viewer is shown by the app; the others are model only until wired. The Debug views need a driver for the debug adapter; the Settings dialog needs its built-in pages, which are written and wait for the compiler.
+
+## D70. Choosing and editing run configurations
+
+The run widget sits in the title bar of a project window; the configuration chooser and the Edit Configurations dialog are live, on views a subagent wrote without a compiler (48 tests, no fix needed) and wiring by another (three end-to-end tests on a real project).
+
+- The chooser is a popup. Edit Configurations is a front window in its own layer, like the diff: in the popup slot a click beside it, or any menu opening, would have dropped the working copy without telling the store the editor closed.
+- Saving goes through the driver, which answers the save's module questions with real file searches, saves through the backend and waits for the reload. A failed save shows in the dialog and as a notification.
+- A configuration added in the dialog is stored in the project's local file, as the backend decides for configurations marked local; the test checks that file.
+- Debug is not offered anywhere in these views (the buttons follow whether the debug action exists), and `run.chooseDebugConfig` is not registered: every row would lead to an action that does not exist.
+- The file dialog cannot start in a given folder with this GPUI version, so Browse ignores the field's current path.
+- Not built: template editing, import of other tools' configurations, run targets, the environment table (one line with the same parsing instead), choices loaded from the backend, Tomcat settings.
