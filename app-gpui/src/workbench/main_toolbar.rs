@@ -6,6 +6,7 @@
 //! [`save_toolbar`] returns the [`SettingsWrite`] its caller carries out.
 
 use crate::platform::collate;
+use crate::platform::settings::SettingsWrite;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::cmp::Ordering;
@@ -68,14 +69,6 @@ impl From<&ToolbarLayout> for MainToolbarSettings {
 pub struct ToolbarSides {
     pub left: Vec<String>,
     pub right: Vec<String>,
-}
-
-/// A value to write to the global settings.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[must_use]
-pub struct SettingsWrite {
-    pub key: &'static str,
-    pub value: Value,
 }
 
 pub fn is_action_entry(id: &str) -> bool {

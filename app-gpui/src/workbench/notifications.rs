@@ -9,6 +9,7 @@
 //! [`BalloonClocks::fade_out`], running only while the balloon is on screen, the window active
 //! and the pointer elsewhere.
 
+use crate::platform::settings::SettingsWrite;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -144,14 +145,6 @@ pub fn notification_prefs(settings: Option<&NotificationSettings>, group: &str) 
 /// Errors always show; other notifications offer "Don't Show Again" for their group.
 pub fn can_suppress(settings: Option<&NotificationSettings>, level: NotificationLevel, group: &str) -> bool {
     level != NotificationLevel::Error && notification_prefs(settings, group).display != NotificationDisplay::NoPopup
-}
-
-/// A value to write to the global settings.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[must_use]
-pub struct SettingsWrite {
-    pub key: &'static str,
-    pub value: Value,
 }
 
 /// "Don't Show Again": the write that turns the group's balloons off (Settings › Notifications ›

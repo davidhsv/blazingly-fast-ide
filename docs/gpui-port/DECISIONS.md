@@ -125,3 +125,13 @@ The webview sorts every list with `localeCompare` or `Intl.Collator`, in four op
 `gen-data.mjs` writes `assets/gen/collation.json`: 75 awkward names sorted by Node's `Intl.Collator("en", …)` under each option set. `platform::collate::tests::orders_names_as_intl_collator_does` requires the same order from the Rust side. The webview passes `undefined` as the locale, so it follows the system's; the GPUI app uses the root collation, which is what English and most European locales resolve to. Locale tailorings (Swedish `ä` after `z`, for example) are not applied.
 
 The six hand-written orderings this replaces (tool windows, tabs, main toolbar, project tree, themes and fonts, version control lists) are gone.
+
+## D25. One settings service; the theme is per process
+
+`platform::settings` is the only way the UI reads and writes settings: it calls the backend's store directly and then announces `SettingsChanged` to the windows the value concerns, the writing window included (the Tauri glue did the announcing; here `Backend::emit` puts UI-side events on the same ordered queue as the backend's). What depends on a setting listens for that event, so it is refreshed the same way whoever wrote the value. The four ported copies of `SettingsWrite` and the theme module's own variant are this module's one type now. A write runs on the main thread: it is one small TOML file, and the work a value may trigger (language servers, file types) is already spawned by the backend.
+
+Not carried over from the Tauri glue, because their features are not ported yet: re-applying the MCP server on `mcpServer.*` and waking the update checker on a global write.
+
+`theme::appearance` applies the `appearance` settings: the chosen theme, or with Sync with OS the preferred light/dark theme for the OS mode (GPUI's window-appearance observer), a custom accent, and a session override when the choice cannot be saved. It reads the **global** settings and sets one theme for the process, because the theme is a process global here (D11). The webview applies each window's effective settings, so a project whose own settings file overrides `appearance.*` gets its own theme in its window; the GPUI app ignores such a project-level override. Plugin themes resolve to their light/dark base until the plugin host is connected.
+
+Seen on screen (D20): the first frame of a window with `appearance.theme = "dark"` is dark. Nothing after the first frame could be captured in that session: the display was asleep and the screen locked (measured with `CGDisplayIsAsleep`), and GPUI draws further frames from the display link.

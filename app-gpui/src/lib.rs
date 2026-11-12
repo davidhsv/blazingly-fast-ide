@@ -23,6 +23,7 @@ pub fn init(cx: &mut App) -> anyhow::Result<()> {
     let dirs = backend::AppDirs::resolve()?;
     backend::Backend::init(dirs.clone(), cx)?;
     cx.set_global(platform::storage::UiStorage::load(&dirs.config));
+    theme::appearance::init(cx);
     workbench::register_actions(cx);
     Ok(())
 }

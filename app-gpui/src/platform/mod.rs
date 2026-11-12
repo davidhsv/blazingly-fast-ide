@@ -17,6 +17,7 @@ pub mod paths;
 pub mod project_presentation;
 pub mod project_roots;
 pub mod search;
+pub mod settings;
 pub mod storage;
 pub mod virtual_docs;
 pub mod window_groups;

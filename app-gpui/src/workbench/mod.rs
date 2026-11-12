@@ -203,6 +203,10 @@ pub fn register_actions(cx: &mut App) {
     fn active(tabs: &TabsState, pane: &str) -> Option<String> {
         tabs.pane(pane).and_then(|pane| pane.active.clone())
     }
+    registry.handle("view.toggleTheme", |_, window, cx| {
+        let label = for_window(window, cx).map(|workbench| workbench.read(cx).label.clone()).unwrap_or_default();
+        crate::theme::appearance::toggle_theme(&label, cx)
+    });
     registry.handle("editor.closeTab", |_, window, cx| {
         on_tabs(window, cx, |tabs, pane| active(tabs, pane).is_some_and(|tab| tabs.close_tab(pane, &tab)))
     });
@@ -254,6 +258,10 @@ impl Workbench {
         window.on_window_should_close(cx, move |window, cx| {
             guard.update(cx, |workbench, cx| workbench.confirm_close(window, cx)).unwrap_or(true)
         });
+        cx.observe_window_appearance(window, |_, window, cx| {
+            crate::theme::appearance::system_appearance_changed(window.appearance(), cx);
+        })
+        .detach();
         // Leaving the window saves what is unsaved, as switching tabs does.
         cx.observe_window_activation(window, |workbench, window, cx| {
             if !window.is_window_active() {
@@ -1185,6 +1193,21 @@ mod tests {
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
         });
         home
+    }
+
+    /// View › Toggle Light/Dark Theme switches every window and stores the choice.
+    #[gpui_kit::test]
+    async fn the_theme_toggle_action_switches_and_stores_the_theme(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        cx.update(crate::theme::appearance::init);
+        let (_workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        assert!(!cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+        cx.update(|window, cx| execute_action_or_throw("view.toggleTheme", None, window, cx)).expect("it runs");
+        assert!(cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+        assert_eq!(cx.update(|_, cx| crate::platform::settings::global(cx).appearance.theme), "dark");
+        cx.update(|window, cx| execute_action_or_throw("view.toggleTheme", None, window, cx)).expect("it runs");
+        assert!(!cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
     }
 
     fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {

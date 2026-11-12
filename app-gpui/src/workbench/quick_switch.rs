@@ -6,6 +6,7 @@
 //! switch of Quick Switch; its delay is a deadline the host checks with [`ThemePreview::expire`].
 
 use crate::platform::keymap::PRESET_TITLES;
+use crate::platform::settings::SettingsWrite;
 use serde_json::Value;
 
 /// How long a theme stays under the pointer or keyboard before Quick Switch shows it (IDEA's delay).
@@ -17,14 +18,6 @@ pub const KEYMAP_KEY: &str = "keymap";
 pub const COLOR_SCHEME_KEY: &str = "editor.colorScheme";
 /// The colour scheme that follows the theme.
 pub const THEME_DEFAULT_SCHEME: &str = "theme-default";
-
-/// A value to write to the global settings.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[must_use]
-pub struct SettingsWrite {
-    pub key: &'static str,
-    pub value: Value,
-}
 
 fn set_global(key: &'static str, value: &str) -> SettingsWrite {
     SettingsWrite { key, value: Value::String(value.to_owned()) }

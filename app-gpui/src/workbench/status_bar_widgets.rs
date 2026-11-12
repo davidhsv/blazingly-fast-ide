@@ -4,6 +4,7 @@
 //! Nothing here does I/O: the overrides and the registered status items are arguments, and a
 //! change returns the [`SettingsWrite`] its caller carries out.
 
+use crate::platform::settings::SettingsWrite;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -30,14 +31,6 @@ impl StatusItem {
     fn menu_title(&self) -> Option<&str> {
         self.title.as_deref().filter(|title| !title.is_empty())
     }
-}
-
-/// A value to write to the global settings.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[must_use]
-pub struct SettingsWrite {
-    pub key: &'static str,
-    pub value: Value,
 }
 
 pub fn is_status_item_visible(item: &StatusItem, overrides: Option<&WidgetOverrides>) -> bool {

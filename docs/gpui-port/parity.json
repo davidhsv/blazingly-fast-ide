@@ -646,5 +646,9 @@
   "feature:vcs": {
     "status": "partial",
     "proof": "`vcs::graph::tests`, `vcs::changes::tests`, `vcs::branches::tests`, `vcs::conflicts::tests`; models only: no Git tool window, commit view, log, diff or branch popup is drawn, and nothing calls the backend's VCS operations"
+  },
+  "action:view.toggleTheme": {
+    "status": "done",
+    "proof": "`workbench::tests::the_theme_toggle_action_switches_and_stores_the_theme`, `theme::appearance::tests::follows_the_os_mode_until_a_theme_is_chosen`"
   }
 }

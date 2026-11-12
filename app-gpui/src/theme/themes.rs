@@ -6,6 +6,7 @@
 //! the functions hand back.
 
 use crate::platform::collate;
+use crate::platform::settings::SettingsWrite;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -713,19 +714,11 @@ pub fn startup_theme(theme: &Theme) -> StartupTheme {
     }
 }
 
-/// One `settings_set` call: a key and its value as JSON.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SettingWrite {
-    pub scope: &'static str,
-    pub key: &'static str,
-    pub value: String,
-}
-
 /// The settings to write when the user picks theme `next`. An explicit choice ends "Sync with
 /// OS", as in IDEA: `sync_with_os` is the setting as it stands after the theme is written.
 /// Until the writes succeed, `next` is the session override.
-pub fn theme_setting_writes(next: &ThemeSetting, sync_with_os: bool) -> Vec<SettingWrite> {
-    let write = |key: &'static str, value: Value| SettingWrite { scope: "global", key, value: value.to_string() };
+pub fn theme_setting_writes(next: &ThemeSetting, sync_with_os: bool) -> Vec<SettingsWrite> {
+    let write = |key: &'static str, value: Value| SettingsWrite { key, value };
     let theme = write("appearance.theme", Value::from(next.to_string()));
     let sync = sync_with_os.then(|| write("appearance.syncWithOs", Value::Bool(false)));
     std::iter::once(theme).chain(sync).collect()

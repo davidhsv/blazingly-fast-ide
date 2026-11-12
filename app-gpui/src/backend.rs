@@ -73,6 +73,7 @@ pub struct Backend {
     runtime: tokio::runtime::Runtime,
     listeners: Vec<(u64, Rc<Listener>)>,
     next_listener: u64,
+    events: UnboundedSender<BackendEvent>,
     /// Kept so the event pump lives as long as the backend.
     _pump: Task<()>,
 }
@@ -137,14 +138,25 @@ impl Backend {
             local_data_dir: dirs.local_data.clone(),
             languages,
             syntax,
-            sink_for: Box::new(move |window| -> SharedSink {
-                Arc::new(ChannelSink { window: Some(window.to_owned()), events: sender.clone() })
+            sink_for: Box::new({
+                let sender = sender.clone();
+                move |window| -> SharedSink {
+                    Arc::new(ChannelSink { window: Some(window.to_owned()), events: sender.clone() })
+                }
             }),
             owner: owner_window,
             runtime: runtime.handle().clone(),
             project_environment: false,
         }));
-        let backend = Self { host, dirs, runtime, listeners: Vec::new(), next_listener: 0, _pump: Task::ready(()) };
+        let backend = Self {
+            host,
+            dirs,
+            runtime,
+            listeners: Vec::new(),
+            next_listener: 0,
+            events: sender,
+            _pump: Task::ready(()),
+        };
         let _ = cx;
         Ok((backend, events))
     }
@@ -163,6 +175,13 @@ impl Backend {
             }
         });
         cx.global_mut::<Backend>()._pump = pump;
+    }
+
+    /// Announces `event` from the UI side to `window`, or to every window: it reaches the
+    /// listeners in order with the backend's own events.
+    pub fn emit(&self, window: Option<&str>, event: IdeEvent) {
+        // The receiver is gone only while the app shuts down.
+        let _ = self.events.unbounded_send(BackendEvent { window: window.map(str::to_owned), event });
     }
 
     /// Calls `listener` for every backend event; returns its id for [`Backend::unlisten`].
