@@ -25,8 +25,9 @@ use gpui_kit::{
     uniform_list,
 };
 use ide_core::error::ErrorKind;
-use ide_core::{DocId, IdeError, IdeResult, OutlineItem, Pos, SymbolKind};
+use ide_core::{DocId, IdeResult, OutlineItem, Pos, SymbolKind};
 use ide_host::Host;
+use ide_lsp::types::HierarchyDirection;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
@@ -172,20 +173,17 @@ pub struct FileStructure {
 
 impl EventEmitter<FileStructureEvent> for FileStructure {}
 
-fn internal(error: serde_json::Error) -> IdeError {
-    IdeError::internal(error.to_string())
-}
-
 /// The supertypes of the type whose identifier is at `pos` in `doc`.
 async fn supertypes_of(host: &Arc<Host>, window: &str, doc: DocId, pos: Pos) -> IdeResult<Vec<HierarchyItem>> {
-    // The direction and the answer are types of the language-server crate, which this crate does
-    // not name: both cross as the JSON the backend's protocol gives them.
-    let direction = serde_json::from_value(serde_json::json!("incoming")).map_err(internal)?;
-    let found = ide_host::ops::lsp::lsp_type_hierarchy(host, window, doc, pos, direction).await?;
-    found
-        .iter()
-        .map(|item| serde_json::to_value(item).and_then(serde_json::from_value::<HierarchyItem>).map_err(internal))
-        .collect()
+    let found = ide_host::ops::lsp::lsp_type_hierarchy(host, window, doc, pos, HierarchyDirection::Incoming).await?;
+    Ok(found
+        .into_iter()
+        .map(|item| HierarchyItem {
+            name: item.name,
+            path: item.path.0.to_string_lossy().into_owned(),
+            selection_range: item.selection_range,
+        })
+        .collect())
 }
 
 /// Runs `ask` on the document of `path`, opened for as long as it runs. The backend counts the

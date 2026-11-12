@@ -330,6 +330,8 @@ pub fn evaluate_when(expr: Option<&str>, ctx: &ContextKeys) -> Result<bool, When
 #[derive(Default)]
 pub struct ContextStore {
     windows: HashMap<WindowId, Rc<ContextKeys>>,
+    /// How many times a fact of any window changed: what follows the facts compares it.
+    changes: u64,
 }
 
 impl Global for ContextStore {}
@@ -344,10 +346,16 @@ pub fn window_context(window: &Window, cx: &App) -> Rc<ContextKeys> {
 /// Publishes a fact for `window`; the window is redrawn when the value changed.
 pub fn set_context(window: &mut Window, cx: &mut App, key: &str, value: impl Into<ContextValue>) {
     let id = window.window_handle().window_id();
-    let keys = cx.default_global::<ContextStore>().windows.entry(id).or_default();
-    if Rc::make_mut(keys).set(key, value) {
+    let store = cx.default_global::<ContextStore>();
+    if Rc::make_mut(store.windows.entry(id).or_default()).set(key, value) {
+        store.changes += 1;
         window.refresh();
     }
+}
+
+/// A count that grows whenever a fact of any window changes.
+pub fn context_changes(cx: &App) -> u64 {
+    cx.try_global::<ContextStore>().map_or(0, |store| store.changes)
 }
 
 /// Withdraws a fact of `window`.
@@ -359,6 +367,7 @@ pub fn clear_context(window: &mut Window, cx: &mut App, key: &str) {
         .get_mut(&id)
         .is_some_and(|keys| keys.contains(key) && Rc::make_mut(keys).clear(key));
     if cleared {
+        cx.default_global::<ContextStore>().changes += 1;
         window.refresh();
     }
 }

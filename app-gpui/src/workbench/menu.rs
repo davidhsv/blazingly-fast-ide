@@ -18,13 +18,14 @@ use super::menu_spec::{
 use crate::backend::Backend;
 use crate::platform::actions::{ActionRegistry, ActionSource, execute_action_from, is_action_enabled};
 use crate::platform::collate;
-use crate::platform::context::window_context;
+use crate::platform::context::{context_changes, window_context};
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::input::{self, Keymap};
 use crate::platform::keymap::{is_mouse_binding, normalize_binding, parse_double_modifier};
 use gpui_kit::{App, Global, KeyBinding, Menu, MenuItem, OsAction, SystemMenuType, Task, Window};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::time::Duration;
 
 pub use command::MenuCommand;
@@ -43,7 +44,7 @@ mod command {
 }
 
 /// How long the window's state rests before the bar follows it.
-const SYNC_DELAY: Duration = Duration::from_millis(120);
+pub const SYNC_DELAY: Duration = Duration::from_millis(120);
 /// The action that checks for a new version; the app has no updater, so its item is left out.
 const CHECK_FOR_UPDATES: &str = "app.checkForUpdates";
 
@@ -83,7 +84,7 @@ pub enum MenuNode {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MenuState {
     /// `menu.<id>` → label, for submenus, actions and `native.*` roles.
-    pub labels: HashMap<String, String>,
+    pub labels: Rc<HashMap<String, String>>,
     /// Action id → its first binding, where a menu can show it.
     pub accelerators: HashMap<String, String>,
     /// The items of each [`Entry::Dynamic`] slot.
@@ -339,9 +340,14 @@ fn shortcuts(nodes: &[MenuNode], out: &mut Vec<(String, String)>) {
 pub struct MenuBar {
     shown: Option<Vec<MenuNode>>,
     /// The labels of the locale they were read in: formatting them again is the costly part.
-    labels: Option<(&'static str, HashMap<String, String>)>,
+    labels: Option<(&'static str, Rc<HashMap<String, String>>)>,
     recent: Vec<RecentItem>,
     pending: Option<Task<()>>,
+    /// Grows when something the bar shows changed that no window's context tells of: the
+    /// settings (labels, shortcuts, check marks) or the recent projects.
+    changes: u64,
+    /// What the bar was last asked to follow: the window, its context and `changes` then.
+    followed: Option<(gpui_kit::WindowId, u64, u64)>,
 }
 
 impl Global for MenuBar {}
@@ -351,11 +357,22 @@ impl MenuBar {
     pub fn shown(&self) -> Option<&[MenuNode]> {
         self.shown.as_deref()
     }
+
+    /// Whether the bar has been asked to follow a window and has not done so yet.
+    pub fn is_sync_pending(&self) -> bool {
+        self.pending.is_some()
+    }
 }
 
-/// The table for this OS, without what the app cannot do.
-fn entries(os: Os) -> Vec<Entry> {
+/// The table for `os`, without what the app cannot do.
+fn entries_for(os: Os) -> Vec<Entry> {
     without_action(spec(os), CHECK_FOR_UPDATES)
+}
+
+/// The table of the OS the app runs on: built once, it never changes.
+fn entries() -> &'static [Entry] {
+    static ENTRIES: std::sync::LazyLock<Vec<Entry>> = std::sync::LazyLock::new(|| entries_for(Os::current()));
+    &ENTRIES
 }
 
 /// Handles chosen items and reads the recent projects. The bar itself follows the focused
@@ -364,6 +381,14 @@ pub fn init(cx: &mut App) {
     cx.default_global::<MenuBar>();
     refresh_recent(cx);
     cx.on_action(run);
+    if cx.has_global::<Backend>() {
+        cx.global_mut::<Backend>().listen(|event, cx| {
+            if matches!(event.event, ide_core::IdeEvent::SettingsChanged { .. }) {
+                cx.default_global::<MenuBar>().changes += 1;
+                cx.refresh_windows();
+            }
+        });
+    }
     let registry = cx.default_global::<ActionRegistry>();
     registry.handle("app.quit", |_, _, cx| {
         // Each window is asked first; one with unsaved changes keeps the app open while it asks.
@@ -391,7 +416,9 @@ pub fn refresh_recent(cx: &mut App) {
     let Some(backend) = cx.try_global::<Backend>() else { return };
     let recent = ide_workspace::RecentProjects::load(&backend.dirs.config).list();
     let home = std::env::var_os("HOME").map(PathBuf::from);
-    cx.default_global::<MenuBar>().recent = recent_items(&recent, home.as_deref());
+    let bar = cx.default_global::<MenuBar>();
+    bar.recent = recent_items(&recent, home.as_deref());
+    bar.changes += 1;
 }
 
 fn os_name(os: Os) -> &'static str {
@@ -410,15 +437,15 @@ fn labels(i18n: &I18n, os: Os) -> HashMap<String, String> {
 /// What `window` has the bar show.
 pub fn state(window: &Window, cx: &mut App) -> MenuState {
     let os = Os::current();
-    let entries = entries(os);
+    let entries = entries();
     let locale = cx.default_global::<Localization>().0.locale();
     if cx.default_global::<MenuBar>().labels.as_ref().is_none_or(|(known, _)| *known != locale) {
         let read = labels(&cx.default_global::<Localization>().0, os);
-        cx.default_global::<MenuBar>().labels = Some((locale, read));
+        cx.default_global::<MenuBar>().labels = Some((locale, Rc::new(read)));
     }
     let bar = cx.global::<MenuBar>();
     let (labels, recent) =
-        (bar.labels.as_ref().map(|(_, labels)| labels.clone()).unwrap_or_default(), bar.recent.clone());
+        (bar.labels.as_ref().map(|(_, labels)| Rc::clone(labels)).unwrap_or_default(), bar.recent.clone());
 
     let i18n = &cx.global::<Localization>().0;
     let declared: Vec<super::ToolWindow> = match super::for_window(window, cx) {
@@ -438,7 +465,7 @@ pub fn state(window: &Window, cx: &mut App) -> MenuState {
     tool_windows.sort_by(|a, b| collate::compare(&a.label, &b.label));
     let dynamic = HashMap::from([(DYNAMIC_TOOL_WINDOWS.to_owned(), tool_windows)]);
 
-    let mut ids: Vec<&str> = action_ids(&entries);
+    let mut ids: Vec<&str> = action_ids(entries);
     ids.extend(dynamic.values().flatten().map(|item| item.action.as_str()));
     let keymap = &cx.global::<Keymap>().0;
     let accelerators = ids
@@ -465,7 +492,7 @@ pub fn state(window: &Window, cx: &mut App) -> MenuState {
 pub fn sync(window: &mut Window, cx: &mut App) {
     let os = Os::current();
     let state = state(window, cx);
-    let nodes = model(&entries(os), &state, os);
+    let nodes = model(entries(), &state, os);
     if cx.global::<MenuBar>().shown.as_ref() == Some(&nodes) {
         return;
     }
@@ -487,9 +514,14 @@ pub fn sync(window: &mut Window, cx: &mut App) {
 
 /// Has the bar follow `window` once its state has rested: called whenever it may have changed.
 pub fn schedule_sync(window: &mut Window, cx: &mut App) {
-    if cx.default_global::<MenuBar>().pending.is_some() {
+    // Called on every draw of the focused window: nothing is done unless what the bar shows
+    // could have changed since it was last asked.
+    let following = (window.window_handle().window_id(), context_changes(cx), cx.default_global::<MenuBar>().changes);
+    let bar = cx.global_mut::<MenuBar>();
+    if bar.followed == Some(following) || bar.pending.is_some() {
         return;
     }
+    bar.followed = Some(following);
     let handle = window.window_handle();
     let task = cx.spawn(async move |cx| {
         cx.background_executor().timer(SYNC_DELAY).await;
@@ -502,12 +534,29 @@ pub fn schedule_sync(window: &mut Window, cx: &mut App) {
     cx.global_mut::<MenuBar>().pending = Some(task);
 }
 
+/// Whether AppKit is delivering a key press right now. A key nothing in the window handled is
+/// offered to the menu bar, which then performs the item whose shortcut it is: that arrives as a
+/// chosen item, after the keystroke's own dispatch is over, and only the current event tells it
+/// from a click.
+#[cfg(target_os = "macos")]
+fn chosen_by_key_press() -> bool {
+    let Some(main_thread) = objc2::MainThreadMarker::new() else { return false };
+    objc2_app_kit::NSApplication::sharedApplication(main_thread)
+        .currentEvent()
+        .is_some_and(|event| event.r#type() == objc2_app_kit::NSEventType::KeyDown)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn chosen_by_key_press() -> bool {
+    false
+}
+
 /// Runs a chosen item in the focused window.
 fn run(command: &MenuCommand, cx: &mut App) {
     // A key that reaches an item's shortcut was declined by the keymap, which is the only
     // dispatcher of shortcuts: the key goes on to whatever has the keyboard.
-    let native = role_fires_natively(&command.action) || fires_natively(&entries(Os::current()), &command.action);
-    if input::key_in_flight(cx) && !native {
+    let native = role_fires_natively(&command.action) || fires_natively(entries(), &command.action);
+    if (input::key_in_flight(cx) || chosen_by_key_press()) && !native {
         cx.propagate();
         return;
     }
@@ -577,12 +626,12 @@ mod tests {
 
     #[test]
     fn the_bar_is_the_table_in_the_windows_state() {
-        let entries = entries(Os::Mac);
+        let entries = entries_for(Os::Mac);
         let state = MenuState {
-            labels: HashMap::from([
+            labels: Rc::new(HashMap::from([
                 ("menu.view".to_owned(), "Ansicht".to_owned()),
                 ("menu.native.undo".to_owned(), "Widerrufen".to_owned()),
-            ]),
+            ])),
             accelerators: HashMap::from([
                 ("navigate.gotoFile".to_owned(), "Meta+Shift+O".to_owned()),
                 ("toolwindow.project".to_owned(), "Meta+1".to_owned()),
@@ -660,7 +709,7 @@ mod tests {
     #[gpui_kit::test]
     fn every_shortcut_of_the_bar_is_one_gpui_can_bind(cx: &mut gpui_kit::TestAppContext) {
         let os = Os::Mac;
-        let entries = entries(os);
+        let entries = entries_for(os);
         let keymap = crate::platform::keymap::KeymapState::new(crate::platform::keymap::default_preset(true));
         let accelerators = action_ids(&entries)
             .into_iter()

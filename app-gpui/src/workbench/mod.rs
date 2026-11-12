@@ -3735,6 +3735,49 @@ mod tests {
         assert!(workbench.read_with(cx, |w, _| w.recent_files().is_none()));
     }
 
+    /// The bar follows the focused window by itself: a change of what the window can do reaches
+    /// it once the window has rested, and a draw that changes nothing asks for nothing.
+    #[gpui_kit::test]
+    async fn the_menu_bar_follows_the_focused_window_when_it_changes(cx: &mut TestAppContext) {
+        use menu::{MenuBar, MenuNode};
+        fn enabled(nodes: &[MenuNode], wanted: &str) -> Option<bool> {
+            nodes.iter().find_map(|node| match node {
+                MenuNode::Submenu { children, .. } => enabled(children, wanted),
+                MenuNode::Item { action, enabled, .. } if action == wanted => Some(*enabled),
+                _ => None,
+            })
+        }
+        let go_to_file = |cx: &mut VisualTestContext| {
+            cx.update(|_, cx| cx.global::<MenuBar>().shown().and_then(|bar| enabled(bar, "navigate.gotoFile")))
+        };
+        let rest = |cx: &mut VisualTestContext| {
+            cx.run_until_parked();
+            cx.executor().advance_clock(menu::SYNC_DELAY);
+            cx.run_until_parked();
+        };
+        let _home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        rest(cx);
+        assert_eq!(go_to_file(cx), Some(false), "nothing is open");
+
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        rest(cx);
+        assert_eq!(go_to_file(cx), Some(true), "the project made it possible");
+
+        // What changed while the bar was waiting is followed by one more look; after that, drawing
+        // again without a change leaves the bar alone: no new request is pending.
+        rest(cx);
+        assert!(!cx.update(|_, cx| cx.global::<MenuBar>().is_sync_pending()));
+        workbench.update(cx, |_, cx| cx.notify());
+        cx.run_until_parked();
+        assert!(!cx.update(|_, cx| cx.global::<MenuBar>().is_sync_pending()));
+    }
+
     #[test]
     fn titles_name_the_project_then_the_file() {
         let file = std::path::Path::new("/work/shop/src/main.rs");

@@ -420,6 +420,36 @@ for (const [key, p] of Object.entries(parity)) {
       problems.push(`parity.json: ${key} cites ${name}, which is not a test of app-gpui`);
 }
 
+// A spec is checked off on the strength of Rust tests, so there must be at least as many of them
+// as the spec has cases: counted per row, and over the rows that cite the same tests, which
+// cannot each count them. A proof that says why fewer tests suffice (text after ";") is exempt.
+const specCases = new Map(unit.map((t) => [`unit:${t.file}`, t.cases]));
+const cited = new Map();
+for (const [key, p] of Object.entries(parity)) {
+  if (p.status !== "done" || !specCases.has(key) || p.proof.includes(";")) continue;
+  const named = [...p.proof.matchAll(/`([a-z_]\w*(?:::\w+)+)`/g)].map((m) => m[1]);
+  cited.set(key, new Set(rustTests.filter((t) => named.some((n) => t === n || t.startsWith(`${n}::`)))));
+}
+const group = new Map([...cited.keys()].map((key) => [key, key]));
+const find = (key) => (group.get(key) === key ? key : find(group.get(key)));
+const owner = new Map();
+for (const [key, tests] of cited)
+  for (const test of tests) {
+    if (owner.has(test)) group.set(find(key), find(owner.get(test)));
+    else owner.set(test, key);
+  }
+const groups = new Map();
+for (const key of cited.keys()) groups.set(find(key), [...(groups.get(find(key)) ?? []), key]);
+for (const keys of groups.values()) {
+  const tests = new Set(keys.flatMap((key) => [...cited.get(key)]));
+  const cases = keys.reduce((n, key) => n + specCases.get(key), 0);
+  if (cases > tests.size)
+    problems.push(
+      `${keys.map((k) => k.slice(5)).join(", ")}: ${cases} spec cases are marked done on ${tests.size} Rust tests; ` +
+        "mark the rows partial or say in each proof, after a semicolon, why fewer tests cover them",
+    );
+}
+
 if (problems.length) {
   console.error(problems.map((p) => `inventory: ${p}`).join("\n"));
   process.exit(1);

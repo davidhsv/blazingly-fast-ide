@@ -9,7 +9,7 @@
   },
   "unit:src/platform/i18n.test.ts": {
     "status": "done",
-    "proof": "`platform::i18n::tests`"
+    "proof": "`platform::i18n::tests`; the spec's per-locale and catalog cases (each locale loads, same keys as English, well-formed messages, same parameters) are one test here, `platform::i18n::tests::catalogs_are_complete_and_well_formed`, and the locale switches are `platform::i18n::tests::resolves_locale_tags`"
   },
   "module:src/platform/context.ts": {
     "status": "done",
@@ -1340,12 +1340,12 @@
     "proof": "`settings_model::inspections_model::tests`"
   },
   "unit:src/features/settings/__tests__/keymap.test.ts": {
-    "status": "done",
-    "proof": "`settings_model::keymap_model::tests`, `settings_model::keymap_groups::tests`, `settings_model::keymap_page::tests`, `platform::keymap::tests`, `platform::dispatcher::tests`"
+    "status": "partial",
+    "proof": "`settings_model::keymap_model::tests`, `settings_model::keymap_groups::tests`, `settings_model::keymap_page::tests`, `platform::keymap::tests`, `platform::dispatcher::tests`; fifteen of twenty-one cases here. Of the six left to the platform's own keymap tests, two are there by name (canonical strokes, validated bindings); a user keymap on its parent preset, the VS Code preset covering every IntelliJ action id, and the dispatcher suspended while a shortcut is recorded were not found and are not verified"
   },
   "unit:src/features/settings/__tests__/languages.test.ts": {
-    "status": "done",
-    "proof": "`settings_model::language_pages::tests`, `platform::project_roots::tests`"
+    "status": "partial",
+    "proof": "`settings_model::language_pages::tests`, `platform::project_roots::tests`; sixteen of seventeen cases here; the folder roles case is left to the project roots tests and was not found there by name, and malformed values are refused by the typed settings instead of normalised"
   },
   "unit:src/features/settings/__tests__/mcpServer.test.ts": {
     "status": "done",
@@ -1369,7 +1369,7 @@
   },
   "unit:src/features/settings/__tests__/staging.test.ts": {
     "status": "done",
-    "proof": "`settings_model::staging::tests`"
+    "proof": "`settings_model::staging::tests`, `settings_model::schema::tests`"
   },
   "unit:src/features/settings/__tests__/window.test.ts": {
     "status": "done",
@@ -1429,15 +1429,15 @@
   },
   "unit:src/features/run/cmake.test.ts": {
     "status": "done",
-    "proof": "`run::cmake::tests`"
+    "proof": "`run::cmake::tests`, `run::before_launch::tests`, `run::store::tests`"
   },
   "unit:src/features/run/configs.test.ts": {
     "status": "done",
-    "proof": "`run::configs::tests`, `run::store::tests`"
+    "proof": "`run::configs::tests`, `run::store::tests`, `run::context::tests`, `run::env_dialog::tests`, `run::config_types::tests`"
   },
   "unit:src/features/run/console.test.ts": {
     "status": "done",
-    "proof": "`run::console::tests`, `run::ansi::tests`"
+    "proof": "`run::console::tests`, `run::ansi::tests`, `run::segments::tests`"
   },
   "unit:src/features/run/consoleFlush.test.ts": {
     "status": "done",
@@ -1465,11 +1465,11 @@
   },
   "unit:src/features/run/java.test.ts": {
     "status": "done",
-    "proof": "`run::java_launch::tests`, `run::java_debug::tests`, `run::jvm_targets::tests`"
+    "proof": "`run::java_launch::tests`, `run::java_debug::tests`, `run::jvm_targets::tests`, `run::application::tests`, `run::store::tests`"
   },
   "unit:src/features/run/javaModule.test.ts": {
     "status": "done",
-    "proof": "`run::java_launch::tests`, `run::jvm_targets::tests`"
+    "proof": "`run::java_launch::tests`, `run::jvm_targets::tests`, `run::application::tests`, `run::store::tests`"
   },
   "unit:src/features/run/jvmTypes.test.ts": {
     "status": "done",
