@@ -164,8 +164,12 @@ pub const GIT_TOOL_WINDOW: &str = "git";
 /// The Find tool window's id.
 pub const FIND_TOOL_WINDOW: &str = "find";
 
+/// The Commit tool window's id.
+pub const COMMIT_TOOL_WINDOW: &str = "commit";
+
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 4] = [PROJECT_TOOL_WINDOW, TERMINAL_TOOL_WINDOW, GIT_TOOL_WINDOW, FIND_TOOL_WINDOW];
+const TOOL_WINDOWS: [&str; 5] =
+    [PROJECT_TOOL_WINDOW, COMMIT_TOOL_WINDOW, TERMINAL_TOOL_WINDOW, GIT_TOOL_WINDOW, FIND_TOOL_WINDOW];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
 /// contributions manifest.
@@ -894,6 +898,17 @@ impl Workbench {
                     let label = self.label.clone();
                     let log = cx.new(|cx| crate::vcs::log_view::GitLog::new(&label, cx));
                     Panel { focus: log.focus_handle(cx), view: log.into(), _events: None }
+                }
+                COMMIT_TOOL_WINDOW => {
+                    use crate::vcs::commit_view::{CommitPanel, CommitPanelEvent};
+                    let (label, root) = (self.label.clone(), root.clone());
+                    let changes = cx.new(|cx| CommitPanel::new(&label, root, cx));
+                    let opens =
+                        cx.subscribe_in(&changes, window, |workbench, _, event: &CommitPanelEvent, window, cx| {
+                            let CommitPanelEvent::Open(path) = event;
+                            workbench.open_project_file(path.clone(), window, cx);
+                        });
+                    Panel { focus: changes.focus_handle(cx), view: changes.into(), _events: Some(opens) }
                 }
                 FIND_TOOL_WINDOW => {
                     use crate::find::view::{FindPanel, FindPanelEvent};
@@ -2369,6 +2384,25 @@ mod tests {
             log.read_with(cx, |log, _| log.commits().iter().map(|c| c.summary.clone()).collect());
         assert_eq!(subjects, ["notes"]);
         assert!(cx.update(|window, cx| log.focus_handle(cx).is_focused(window)), "showing it gives it the keyboard");
+
+        // The Commit window shares the left side with the Project view: it takes its place, and
+        // a changed file opens from it.
+        std::fs::write(root.join("notes.txt"), "changed\n").expect("the file is written");
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.commit", None, window, cx)).expect("it runs");
+        let changes = workbench
+            .read_with(cx, |w, _| w.tool_window_view(COMMIT_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<crate::vcs::commit_view::CommitPanel>().ok())
+            .expect("the Commit window holds the changes");
+        workbench.read_with(cx, |workbench, _| {
+            assert!(workbench.is_tool_window_visible(COMMIT_TOOL_WINDOW));
+            assert!(!workbench.is_tool_window_visible(PROJECT_TOOL_WINDOW));
+        });
+        settle(cx, |cx| changes.read_with(cx, |changes, _| !changes.is_loading()));
+        assert_eq!(changes.read_with(cx, |changes, _| changes.lines()), ["Changes (1)", "  notes.txt"]);
+        cx.simulate_keystrokes("down down enter");
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == root.join("notes.txt")))
+        });
     }
 
     /// Find in Files: the action shows the Find window with the keyboard in its query, Enter

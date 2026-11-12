@@ -2,6 +2,7 @@
 
 pub mod branches;
 pub mod changes;
+pub mod commit_view;
 pub mod conflicts;
 pub mod graph;
 pub mod log_options;

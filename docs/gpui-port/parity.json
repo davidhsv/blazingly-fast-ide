@@ -934,5 +934,13 @@
   "unit:src/features/vcs/__tests__/branchWidgetExtensions.test.ts": {
     "status": "done",
     "proof": "`vcs_ops::branch_widget_extensions::tests`"
+  },
+  "point.registerToolWindow:commit": {
+    "status": "partial",
+    "proof": "`vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`, `workbench::tests::the_git_tool_window_shows_the_projects_log`; the changes by group and directory, in their status colours, opening a file. Not yet: check boxes, the commit message and Commit, change lists, staging, diffs, shelf and stash, context menus"
+  },
+  "ipc:vcs_status": {
+    "status": "done",
+    "proof": "`vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`"
   }
 }
