@@ -1,6 +1,7 @@
 //! The window shell. For now: a frame around one editor (LightEdit), which is the part of the
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
+mod editor_find;
 pub mod main_toolbar;
 pub mod menu;
 pub mod menu_spec;
@@ -17,9 +18,7 @@ pub mod welcome_model;
 pub mod windows;
 
 use crate::backend::{Backend, BackendEvent};
-use crate::editor::find_bar::{
-    FindBar, FindBarEvent, FindResults, find_again_in, scroll_to_results, toggle_scroll_to_results,
-};
+use crate::editor::find_bar::{FindBar, scroll_to_results, toggle_scroll_to_results};
 use crate::editor::goto_line::{GotoLine, GotoLineEvent};
 use crate::editor::session::{self, FileViewState};
 use crate::editor::tabs::{
@@ -54,6 +53,7 @@ use crate::run::view::{RunView, RunViewEvent};
 use crate::theme;
 use crate::ui::popup_menu::{Choice, PopupMenu, PopupMenuEvent};
 use crate::vcs_ops::menu::MenuItem;
+use editor_find::TabFindBar;
 use gpui_kit::Subscription;
 use gpui_kit::{AnyView, FocusHandle};
 use gpui_kit::{
@@ -114,12 +114,6 @@ enum Content {
         _run_events: Subscription,
     },
     Failed(SharedString),
-}
-
-/// An editor tab's Find / Replace bar, with what the window listens to it for.
-struct TabFindBar {
-    bar: Entity<FindBar>,
-    _subscriptions: Vec<Subscription>,
 }
 
 /// A tool window's content and where its keyboard focus goes.
@@ -241,6 +235,8 @@ pub struct Workbench {
     _balloon_events: Subscription,
     /// The Welcome screen, while the window shows nothing, and what the window listens to it for.
     welcome: Option<(Entity<Welcome>, Subscription)>,
+    /// The Find / Replace bar of a single-file window's editor.
+    light_find_bar: Option<TabFindBar>,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -852,6 +848,7 @@ impl Workbench {
             closing: false,
             session_save: None,
             popup: None,
+            light_find_bar: None,
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
@@ -2230,120 +2227,6 @@ impl Workbench {
         self.open_popup(&popup, events, window, cx);
     }
 
-    /// The id of the active pane's selected tab.
-    fn active_tab_id(&self) -> Option<&str> {
-        let tabs = self.tabs()?;
-        tabs.pane(&tabs.active_pane)?.active.as_deref()
-    }
-
-    /// The Find / Replace bar of the active tab, when it has one open.
-    pub fn find_bar(&self) -> Option<Entity<FindBar>> {
-        let Content::Project { find_bars, .. } = &self.content else { return None };
-        find_bars.get(self.active_tab_id()?).map(|bar| bar.bar.clone())
-    }
-
-    /// The bars drawn: those of each pane's selected tab.
-    fn shown_find_bars(&self) -> Vec<Entity<FindBar>> {
-        let Content::Project { tabs, find_bars, .. } = &self.content else { return Vec::new() };
-        tabs.panes
-            .iter()
-            .filter_map(|pane| pane.active.as_ref().and_then(|id| find_bars.get(id)))
-            .map(|bar| bar.bar.clone())
-            .collect()
-    }
-
-    /// The drawn bar that has the keyboard.
-    fn focused_find_bar(&self, window: &Window, cx: &App) -> Option<Entity<FindBar>> {
-        self.shown_find_bars().into_iter().find(|bar| bar.read(cx).has_focus(window, cx))
-    }
-
-    /// Find (`replace` false) or Replace in the active tab: its open bar takes the keyboard again, or a
-    /// new one opens above the editor.
-    pub fn show_find_bar(&mut self, replace: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(tab) = self.active_tab_id().map(str::to_owned) else { return };
-        let Some(editor) = self.editor().cloned() else { return };
-        if let Some(bar) = self.find_bar().filter(|bar| bar.read(cx).editor() == &editor) {
-            bar.update(cx, |bar, cx| bar.show(replace, window, cx));
-            return;
-        }
-        let bar = cx.new(|cx| FindBar::new(editor, replace, window, cx));
-        let events = {
-            let tab = tab.clone();
-            cx.subscribe_in(&bar, window, move |workbench, bar, event: &FindBarEvent, window, cx| {
-                workbench.find_bar_event(&tab, bar, event, window, cx);
-            })
-        };
-        // The bar redraws the window's context keys (whether it has results) as it changes.
-        let changes = cx.observe(&bar, |_, _, cx| cx.notify());
-        let mut subscriptions = vec![events, changes];
-        // The keyboard in a bar makes its pane the active one, as it does in an editor.
-        let (find_field, replace_field) = {
-            let bar = bar.read(cx);
-            (bar.find_field().focus_handle(cx), bar.replace_field().focus_handle(cx))
-        };
-        for field in [find_field, replace_field] {
-            let tab = tab.clone();
-            subscriptions.push(cx.on_focus_in(&field, window, move |workbench, window, cx| {
-                workbench.editor_took_focus(&tab, window, cx);
-            }));
-        }
-        if let Content::Project { find_bars, .. } = &mut self.content {
-            find_bars.insert(tab, TabFindBar { bar, _subscriptions: subscriptions });
-        }
-        cx.notify();
-    }
-
-    /// Find Next / Previous Occurrence: the active tab's bar goes to the next or previous occurrence of its
-    /// search; without a bar the last search is used. With nothing to search for the bar opens instead.
-    pub fn find_again(&mut self, forward: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(editor) = self.editor().cloned() else { return };
-        let found = match self.find_bar() {
-            Some(bar) => bar.update(cx, |bar, cx| bar.find_again(forward, cx)),
-            None => find_again_in(&editor, forward, cx),
-        };
-        if !found {
-            self.show_find_bar(false, window, cx);
-        }
-    }
-
-    fn find_bar_event(
-        &mut self,
-        tab: &str,
-        bar: &Entity<FindBar>,
-        event: &FindBarEvent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        match event {
-            FindBarEvent::Closed => {
-                if let Content::Project { find_bars, .. } = &mut self.content
-                    && find_bars.get(tab).is_some_and(|open| &open.bar == bar)
-                {
-                    find_bars.remove(tab);
-                }
-                cx.notify();
-            }
-            FindBarEvent::OpenResults(results) => self.show_find_results(results, window, cx),
-            &FindBarEvent::RunAction(id) => {
-                window.defer(cx, move |window, cx| {
-                    execute_action_from(ActionSource::Other, id, None, window, cx);
-                });
-            }
-        }
-    }
-
-    /// Shows a bar's occurrences in the Find tool window: it searches the bar's file with the bar's query.
-    fn show_find_results(&mut self, results: &FindResults, window: &mut Window, cx: &mut Context<Self>) {
-        self.with_layout(window, cx, |layout| layout.show(FIND_TOOL_WINDOW, true));
-        let panel = self
-            .tool_window_view(FIND_TOOL_WINDOW)
-            .and_then(|view| view.downcast::<crate::find::view::FindPanel>().ok());
-        if let Some(panel) = panel {
-            let query = results.query.clone();
-            panel.update(cx, |panel, cx| panel.run_query(query, cx));
-        }
-    }
-
     pub fn find_popup(&self) -> Option<Entity<FindPopup>> {
         self.popup.as_ref().and_then(|popup| popup.view.clone().downcast().ok())
     }
@@ -2515,6 +2398,7 @@ impl Workbench {
         // The project's servers and runs stop in the background: this is the UI thread.
         cx.global::<Backend>().host.close_project_detached(&self.label);
         self.content = Content::Empty;
+        self.light_find_bar = None;
         self.sync_welcome(window, cx);
         cx.notify();
     }
@@ -2619,6 +2503,7 @@ impl Workbench {
         self.leave(cx);
         self.reset_runs(cx);
         self.content = Content::Opening(root.clone());
+        self.light_find_bar = None;
         self.sync_welcome(window, cx);
         cx.notify();
         let label = self.label.clone();
@@ -3279,6 +3164,7 @@ impl Workbench {
     /// Opens a loose file for editing (LightEdit: no project, no tool windows).
     pub fn open_file(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
         self.content = Content::Opening(path.clone());
+        self.light_find_bar = None;
         self.sync_welcome(window, cx);
         cx.notify();
         let label = self.label.clone();
@@ -3351,7 +3237,7 @@ impl Render for Workbench {
             },
             Content::Opening(path) => message(format!("Opening {}…", path.display()).into()).into_any_element(),
             Content::Failed(error) => message(error.clone()).into_any_element(),
-            Content::Editor(editor) => editor.clone().into_any_element(),
+            Content::Editor(editor) => self.light_editor_element(editor),
             Content::Project { layout, panels, .. } => {
                 let area = self.tabs().map(|tabs| self.editor_area(&tabs.layout, window, cx));
                 let gap = theme::length(cx, "island-gap");
@@ -5789,6 +5675,125 @@ mod tests {
             .expect("the Find window holds the panel");
         settle(cx, |cx| panel.read_with(cx, |panel, _| panel.status() == crate::find::session::FindStatus::Done));
         assert_eq!(panel.read_with(cx, |panel, _| panel.results()), [("src/alpha.rs".to_owned(), vec![0, 2, 3])]);
+    }
+
+    /// While the bar searches, the editor marks the occurrences (the current one apart) and clears them
+    /// when the bar closes; Replace All is one edit and one undo step; the bar's Add Selection for Next
+    /// Occurrence adds a caret; Escape in the editor closes the bar.
+    #[gpui_kit::test]
+    async fn the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape(cx: &mut TestAppContext) {
+        use crate::editor::find_bar::FindBarMenu;
+        use crate::editor::marks::{MarkKind, MarkLayer};
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        let run = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| execute_action_or_throw(id, None, window, cx)).expect("it runs");
+            cx.run_until_parked();
+        };
+        let path = root.join("src/alpha.rs");
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(path.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == path)));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        let marks = |cx: &mut VisualTestContext| {
+            editor.read_with(cx, |e, _| {
+                e.marks(MarkLayer::Find).iter().map(|mark| (mark.range.clone(), mark.kind)).collect::<Vec<_>>()
+            })
+        };
+
+        run(cx, "find.inFile");
+        let bar = workbench.read_with(cx, |w, _| w.find_bar()).expect("the bar is open");
+        cx.simulate_input("widget");
+        cx.run_until_parked();
+        // "pub struct Widget;\n\npub fn make_widget() -> Widget {\n    Widget\n}\n"
+        let found = [11..17, 32..38, 44..50, 57..63];
+        let kinds = |current: usize| {
+            let kind =
+                |index| if index == current { MarkKind::CurrentFindOccurrence } else { MarkKind::FindOccurrence };
+            found.iter().cloned().enumerate().map(|(index, range)| (range, kind(index))).collect::<Vec<_>>()
+        };
+        assert_eq!(marks(cx), kinds(0));
+        cx.simulate_keystrokes("enter");
+        assert_eq!(marks(cx), kinds(1));
+        cx.simulate_keystrokes("enter");
+        assert_eq!(marks(cx), kinds(2));
+
+        // The bar's Add Selection for Next Occurrence runs on its editor.
+        bar.update(cx, |bar, cx| {
+            bar.open_menu(FindBarMenu::More, cx);
+            bar.choose_menu_item(3, cx);
+        });
+        cx.run_until_parked();
+        assert_eq!(editor.read_with(cx, |e, _| e.selections().to_vec()), [(44, 50), (57, 63)]);
+
+        // Replace All: one edit of the document of one change per occurrence, taken back by one undo. A
+        // second editor of the file keeps its caret between two occurrences, where one change spanning
+        // them all would have moved it.
+        let opened = cx.update(|_, cx| {
+            let path = path.clone();
+            cx.global::<Backend>()
+                .with_host(move |host| async move { ide_host::ops::doc::open(&host, "w1", path).await })
+        });
+        let info = opened.await.expect("the task completes").expect("the document opens again");
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        let sibling = cx.new(|cx| Editor::new(host, "w1", &info, cx).expect("a second editor"));
+        sibling.update(cx, |e, cx| e.select(25, 25, cx));
+        let version = editor.read_with(cx, |e, _| e.version());
+        bar.update(cx, |bar, cx| bar.set_replacement("Gadget", cx));
+        bar.update(cx, FindBar::replace_all);
+        cx.run_until_parked();
+        assert_eq!(
+            editor.read_with(cx, |e, _| e.text()),
+            "pub struct Gadget;\n\npub fn make_Gadget() -> Gadget {\n    Gadget\n}\n"
+        );
+        assert_eq!(editor.read_with(cx, |e, _| e.version()), version + 1);
+        assert_eq!(sibling.read_with(cx, |e, _| (e.text(), e.caret())), (editor.read_with(cx, |e, _| e.text()), 25));
+        assert!(marks(cx).is_empty());
+        run(cx, "edit.undo");
+        assert_eq!(
+            editor.read_with(cx, |e, _| e.text()),
+            "pub struct Widget;\n\npub fn make_widget() -> Widget {\n    Widget\n}\n"
+        );
+        assert_eq!(marks(cx).len(), 4);
+
+        // Escape in the editor closes the bar and clears its marks; another Escape is the editor's own.
+        cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert_eq!(workbench.read_with(cx, |w, _| w.find_bar()), None);
+        assert!(marks(cx).is_empty());
+        assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)));
+    }
+
+    /// A single-file window has the bar too, over its editor.
+    #[gpui_kit::test]
+    async fn a_single_file_window_opens_the_find_bar_over_its_editor(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let file = folder.path().join("todo.txt");
+        std::fs::write(&file, "milk\noat milk\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_file(file.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        cx.run_until_parked();
+        cx.update(|window, cx| execute_action_or_throw("find.inFile", None, window, cx)).expect("it runs");
+        cx.run_until_parked();
+        let bar = workbench.read_with(cx, |w, _| w.find_bar()).expect("the bar is open");
+        assert!(cx.update(|window, cx| bar.read(cx).has_focus(window, cx)));
+        cx.simulate_input("milk");
+        cx.run_until_parked();
+        assert_eq!(bar.read_with(cx, |bar, _| bar.match_count()), 2);
+        assert_eq!(editor.read_with(cx, |e, _| e.selection()), 0..4);
+        cx.simulate_keystrokes("enter");
+        assert_eq!(editor.read_with(cx, |e, _| e.selection()), 9..13);
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert_eq!(workbench.read_with(cx, |w, _| w.find_bar()), None);
+        assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)));
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.close_project("w1");
     }
 
     /// The status bar's items answer a click: the position opens Go to Line, the line separator

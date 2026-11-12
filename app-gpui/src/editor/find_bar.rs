@@ -10,9 +10,9 @@
 //! What only the window can do is asked for through [`FindBarEvent`].
 
 use super::find_model::{
-    self, FindOptions, FindState, LiteralRange, Matches, SeedScope, difference, line_of, literal_ranges, merged,
-    seed_options,
+    self, FindOptions, FindState, LiteralRange, Matches, SeedScope, difference, line_of, literal_ranges, seed_options,
 };
+use super::marks::{Mark, MarkKind, MarkLayer};
 use super::view::{Editor, HighlightSpan};
 use crate::find::ipc::{LineMatch, SearchQuery, SearchScope};
 use crate::platform::dispatcher::stroke;
@@ -398,6 +398,7 @@ impl FindBar {
             for claim in &bar.key_claims {
                 input::release_keys(*claim, cx);
             }
+            bar.editor.update(cx, |editor, cx| editor.set_marks(MarkLayer::Find, Vec::new(), cx));
         })
         .detach();
 
@@ -605,7 +606,33 @@ impl FindBar {
 
     fn recount(&mut self, cx: &mut Context<Self>) {
         self.matches = self.state.count();
+        self.push_marks(cx);
         cx.notify();
+    }
+
+    /// What the editor marks for the search: the scope, the occurrences (the current one apart) and the
+    /// excluded occurrences in the scope.
+    fn marks(&self) -> Vec<Mark> {
+        let scope = self.state.scope.clone();
+        let in_scope = |range: &Range<u32>| scope.as_ref().is_none_or(|s| s.start <= range.start && range.end <= s.end);
+        let mut marks: Vec<Mark> = scope.iter().map(|scope| Mark::new(scope.clone(), MarkKind::FindScope)).collect();
+        let excluded: Vec<&Range<u32>> = self.state.excluded.iter().filter(|range| in_scope(range)).collect();
+        for (index, range) in self.matches.ranges.iter().enumerate() {
+            if excluded.contains(&range) {
+                continue;
+            }
+            let current = self.matches.current == Some(index);
+            let kind = if current { MarkKind::CurrentFindOccurrence } else { MarkKind::FindOccurrence };
+            marks.push(Mark::new(range.clone(), kind));
+        }
+        marks.extend(excluded.into_iter().map(|range| Mark::new(range.clone(), MarkKind::ExcludedOccurrence)));
+        marks
+    }
+
+    /// Shows the search's marks in the editor.
+    fn push_marks(&self, cx: &mut Context<Self>) {
+        let marks = self.marks();
+        self.editor.update(cx, |editor, cx| editor.set_marks(MarkLayer::Find, marks, cx));
     }
 
     /// The editor changed: its text, its selection, its highlights or only what it shows.
@@ -615,6 +642,7 @@ impl FindBar {
             self.recount(cx);
         } else if self.state.selection != selection {
             self.matches.select(&self.state.selection);
+            self.push_marks(cx);
             cx.notify();
         }
     }
@@ -730,7 +758,7 @@ impl FindBar {
     }
 
     /// Runs a command that edits: on a copy of the state first, then in the editor, and the state follows
-    /// only when the editor took the edit. Several edits reach the editor as one, so one undo takes them
+    /// only when the editor took the edit. Its changes reach the editor as one edit, so one undo takes them
     /// back. A read-only editor is left alone.
     fn edit(
         &mut self,
@@ -744,12 +772,9 @@ impl FindBar {
         }
         let mut next = self.state.clone();
         let changes = command(&mut next, self.options.preserve_case);
-        let written = match merged(&self.state.text, &changes) {
-            Some(change) => {
-                self.editor.update(cx, |editor, cx| editor.insert(Some(change.from..change.to), &change.insert, cx))
-            }
-            None => true,
-        };
+        let selection = (next.selection.start, next.selection.end);
+        let written = changes.is_empty()
+            || self.editor.update(cx, |editor, cx| editor.apply_edit(&changes, vec![selection], 0, cx));
         if written {
             self.state = next;
             let on_occurrence = !self.state.selection.is_empty();
@@ -827,6 +852,7 @@ impl FindBar {
     pub fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.remember(self.replace, cx);
         self.menu = None;
+        self.editor.update(cx, |editor, cx| editor.set_marks(MarkLayer::Find, Vec::new(), cx));
         window.focus(&self.editor.focus_handle(cx), cx);
         cx.emit(FindBarEvent::Closed);
     }

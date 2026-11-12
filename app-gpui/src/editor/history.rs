@@ -21,8 +21,18 @@ pub enum EditKind {
     Other,
 }
 
-/// Anchor and head of a selection, in UTF-16 offsets.
-pub type Selection = (u32, u32);
+/// The selection ranges (anchor and head, in UTF-16 offsets) and the index of the main one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Selection {
+    pub ranges: Vec<(u32, u32)>,
+    pub main: usize,
+}
+
+impl From<(u32, u32)> for Selection {
+    fn from(range: (u32, u32)) -> Self {
+        Self { ranges: vec![range], main: 0 }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entry {
@@ -67,11 +77,12 @@ impl History {
         &mut self,
         forward: Vec<TextChange>,
         inverse: Vec<TextChange>,
-        before: Selection,
-        after: Selection,
+        before: impl Into<Selection>,
+        after: impl Into<Selection>,
         kind: EditKind,
         now_ms: f64,
     ) {
+        let (before, after) = (before.into(), after.into());
         self.redo.clear();
         let joins = self.undo.last().is_some_and(|last| {
             !self.sealed

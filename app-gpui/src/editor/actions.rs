@@ -8,7 +8,7 @@ use crate::workbench;
 use gpui_kit::{App, Context, Window};
 
 /// Runs `act` on the editor of the window an action was invoked in.
-fn on_editor(
+pub(super) fn on_editor(
     window: &mut Window,
     cx: &mut App,
     act: impl FnOnce(&mut Editor, &mut Context<Editor>),
@@ -60,4 +60,5 @@ pub fn register(cx: &mut App) {
         .detach();
         Ok(())
     });
+    super::command_actions::register(cx);
 }

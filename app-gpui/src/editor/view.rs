@@ -6,32 +6,49 @@
 //! without a copy of the document on the UI side. Edits the backend makes itself (formatting,
 //! refactorings, reloads from disk) arrive as `DocPatched` events and move the selection.
 //!
+//! The selection is one or more ranges, one of them the main one: typing, deleting and moving
+//! act on every range, and an edit of several ranges is one edit of the document and one undo
+//! step.
+//!
 //! Only the visible lines are shaped and painted, so the cost of a frame does not depend on the
 //! length of the document.
 
 use super::buffer::{self, Assoc};
-use super::history::{EditKind, History, invert};
+use super::command_actions::{CommandMemory, recall};
+use super::history::{self, EditKind, History, invert};
+use super::language_facts::EditorFacts;
+use super::marks::{Mark, MarkLayer, map_marks};
 use crate::backend::Backend;
-use crate::platform::input::EDITOR_CONTEXT;
+use crate::editor_commands::clipboard_history::ClipboardHistory;
+use crate::editor_commands::smart_keys::{self, PairScope};
+use crate::editor_commands::tree::{SyntaxTree, TreeNode};
+use crate::editor_commands::{
+    self as commands, Edit, EditState, RangeEdit, Selection, SelectionExt, caret, change, change_by_range, editing,
+    vertical_motion,
+};
+use crate::platform::input::{self, EDITOR_CONTEXT};
+use crate::platform::keymap::normalize_binding;
 use crate::theme;
 use gpui_kit::MouseMoveEvent;
 use gpui_kit::{
     App, Bounds, ClipboardItem, Context, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, FocusHandle, Focusable, Font, GlobalElementId, Hsla, InspectorElementId, IntoElement,
     KeyDownEvent, LayoutId, MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollEvent, ShapedLine, SharedString,
-    Style, TextAlign, TextRun, UTF16Selection, WeakEntity, Window, div, fill, font, point, prelude::*, px, relative,
-    size,
+    Style, TextAlign, TextRun, UTF16Selection, WeakEntity, Window, div, fill, font, point, prelude::*, px, quad,
+    relative, size,
 };
 use ide_core::error::ErrorKind;
 use ide_core::{ChangeSet, DocId, IdeEvent, IdeResult, LanguageId, TextChange};
 use ide_host::Host;
 use ide_language::SyntaxHighlightKind;
 use ide_text::LineEnding;
-use ide_workspace::DocumentInfo;
+use ide_workspace::{DocumentInfo, EditorConfigProps};
 use ropey::Rope;
+use std::collections::HashMap;
 use std::future::Future;
 use std::ops::Range;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// The colour token of a highlight kind, as the webview's highlight style assigns them.
@@ -62,6 +79,9 @@ pub fn syntax_token(kind: SyntaxHighlightKind) -> &'static str {
 
 /// How long the text must be still before it is highlighted again.
 const HIGHLIGHT_DELAY: std::time::Duration = std::time::Duration::from_millis(40);
+
+/// The action whose mouse binding adds or removes a caret where the editor is clicked.
+const ADD_CARET_ACTION: &str = "editor.addOrRemoveCaret";
 
 /// A highlighted range: UTF-16 offsets and its kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,6 +147,24 @@ struct DocumentEditors(std::collections::HashMap<DocId, Vec<WeakEntity<Editor>>>
 
 impl gpui_kit::Global for DocumentEditors {}
 
+/// What every editor copied or cut, newest first: the latest entry tells whether the clipboard
+/// holds a line-wise copy.
+#[derive(Default)]
+pub struct EditorClipboard(pub ClipboardHistory);
+
+impl gpui_kit::Global for EditorClipboard {}
+
+/// Asked first when Escape is pressed in the editor; answers whether it used the key (it closed
+/// something the editor's tab shows).
+pub type EscapeHandler = Rc<dyn Fn(&mut Window, &mut App) -> bool>;
+
+/// Where a caret-adding mouse gesture started: the selection before it, and the press offset.
+struct AddingCaret {
+    ranges: Vec<Selection>,
+    main: usize,
+    anchor: u32,
+}
+
 pub struct Editor {
     focus: FocusHandle,
     host: Arc<Host>,
@@ -139,22 +177,37 @@ pub struct Editor {
     large: bool,
     line_ending: LineEnding,
     encoding: String,
+    editorconfig: Option<EditorConfigProps>,
     rope: Rope,
     version: u32,
-    /// The selection in UTF-16 offsets: `anchor` stays, `head` is the caret.
-    anchor: u32,
-    head: u32,
-    /// Text being composed by an input method.
+    /// The selection ranges in UTF-16 offsets, `(anchor, head)` each, sorted and merged as
+    /// [`commands::normalize`] does; never empty. `main` indexes the main one.
+    selections: Vec<Selection>,
+    main: usize,
+    /// Text being composed by an input method, at the main caret.
     marked: Option<Range<u32>>,
-    /// The column Up/Down try to keep, in pixels from the text's left edge.
-    goal_x: Option<Pixels>,
     scroll_top: Pixels,
     highlights: Vec<HighlightSpan>,
+    /// The version `highlights` were computed for.
+    highlights_version: u32,
+    /// Ranges drawn behind or over the text, by who set them.
+    marks: HashMap<MarkLayer, Vec<Mark>>,
+    /// The language's facts and the settings the commands read.
+    facts: EditorFacts,
+    /// What the commands remember between two invocations.
+    pub(super) memory: CommandMemory,
+    /// The bracket and quote pairs the editor inserted, that Tab steps out of.
+    pub(super) pair_scopes: Vec<PairScope>,
+    /// Overwrite mode: typed characters replace the ones after the caret.
+    pub(super) overwrite: bool,
+    escape: Option<EscapeHandler>,
     layout: Option<Layout>,
     listener: u64,
     history: History,
     /// Where a drag selection began, while the mouse button is down.
     drag_anchor: Option<u32>,
+    /// A caret-adding press, while the mouse button is down.
+    adding: Option<AddingCaret>,
     /// The document has changes that are not on disk.
     dirty: bool,
     /// Counts edits, so that a highlight request an edit has overtaken is dropped.
@@ -191,6 +244,9 @@ impl Editor {
                     cx.notify();
                 });
             }
+            IdeEvent::SettingsChanged { .. } => {
+                let _ = weak.update(cx, |editor, _| editor.read_facts());
+            }
             _ => {}
         });
         cx.on_release(|editor, cx| {
@@ -209,6 +265,7 @@ impl Editor {
             }
         })
         .detach();
+        let facts = EditorFacts::read(&host, window_label, &info.language, info.editorconfig.as_ref());
         let mut editor = Self {
             focus: cx.focus_handle(),
             host,
@@ -220,24 +277,37 @@ impl Editor {
             large: info.large,
             line_ending: info.line_ending,
             encoding: info.encoding.clone(),
+            editorconfig: info.editorconfig.clone(),
             rope,
             version,
-            anchor: 0,
-            head: 0,
+            selections: vec![caret(0)],
+            main: 0,
             marked: None,
-            goal_x: None,
             scroll_top: px(0.0),
             highlights: Vec::new(),
+            highlights_version: version,
+            marks: HashMap::new(),
+            facts,
+            memory: CommandMemory::default(),
+            pair_scopes: Vec::new(),
+            overwrite: false,
+            escape: None,
             layout: None,
             listener,
             history: History::default(),
             drag_anchor: None,
+            adding: None,
             dirty: info.dirty,
             generation: 0,
             created: std::time::Instant::now(),
         };
         editor.refresh_highlights(cx);
         editor
+    }
+
+    /// Reads the language's facts and the settings the commands follow again.
+    fn read_facts(&mut self) {
+        self.facts = EditorFacts::read(&self.host, &self.window_label, &self.language, self.editorconfig.as_ref());
     }
 
     pub fn doc(&self) -> DocId {
@@ -252,6 +322,11 @@ impl Editor {
         &self.language
     }
 
+    /// The language's facts and the settings the editing commands read.
+    pub fn facts(&self) -> &EditorFacts {
+        &self.facts
+    }
+
     pub fn version(&self) -> u32 {
         self.version
     }
@@ -264,12 +339,28 @@ impl Editor {
         buffer::line_count(&self.rope)
     }
 
-    /// The selection as `from..to` UTF-16 offsets.
-    pub fn selection(&self) -> Range<u32> {
-        self.anchor.min(self.head)..self.anchor.max(self.head)
+    /// The main selection range.
+    fn main_range(&self) -> Selection {
+        self.selections.get(self.main).copied().unwrap_or_default()
     }
 
-    /// The selection as zero-based lines and UTF-16 columns: what the backend and plugins take.
+    /// The main selection as `from..to` UTF-16 offsets.
+    pub fn selection(&self) -> Range<u32> {
+        let main = self.main_range();
+        main.start()..main.end()
+    }
+
+    /// Every selection range, `(anchor, head)` in UTF-16 offsets, in document order.
+    pub fn selections(&self) -> &[(u32, u32)] {
+        &self.selections
+    }
+
+    /// The index of the main range in [`Editor::selections`].
+    pub fn main_index(&self) -> usize {
+        self.main
+    }
+
+    /// The main selection as zero-based lines and UTF-16 columns: what the backend and plugins take.
     pub fn selection_range(&self) -> ide_core::Range {
         let selection = self.selection();
         let position = |offset| {
@@ -285,9 +376,9 @@ impl Editor {
         buffer::offset_at(&self.rope, line, col).min(buffer::line_range(&self.rope, line).end)
     }
 
-    /// The selection's fixed end, as a UTF-16 offset: the caret is its moving end.
+    /// The main selection's fixed end, as a UTF-16 offset: the caret is its moving end.
     pub fn anchor(&self) -> u32 {
-        self.anchor
+        self.main_range().anchor()
     }
 
     /// The first line the view shows, as scrolled.
@@ -302,9 +393,9 @@ impl Editor {
         cx.notify();
     }
 
-    /// The caret's UTF-16 offset.
+    /// The main caret's UTF-16 offset.
     pub fn caret(&self) -> u32 {
-        self.head
+        self.main_range().head()
     }
 
     /// What the status bar shows about this editor.
@@ -328,9 +419,9 @@ impl Editor {
         if line >= self.line_count() { String::new() } else { buffer::line_text(&self.rope, line) }
     }
 
-    /// The caret's zero-based line and UTF-16 column.
+    /// The main caret's zero-based line and UTF-16 column.
     pub fn caret_position(&self) -> (u32, u32) {
-        buffer::line_col(&self.rope, self.head)
+        buffer::line_col(&self.rope, self.caret())
     }
 
     pub fn highlights(&self) -> &[HighlightSpan] {
@@ -344,6 +435,32 @@ impl Editor {
     /// The lines the last frame shaped: the first one's index and how many.
     pub fn painted_lines(&self) -> Option<Range<u32>> {
         self.layout.as_ref().map(|l| l.first_line..l.first_line + l.lines.len() as u32)
+    }
+
+    /// The marks `layer` set, in document order.
+    pub fn marks(&self, layer: MarkLayer) -> &[Mark] {
+        self.marks.get(&layer).map_or(&[], Vec::as_slice)
+    }
+
+    /// Replaces the marks of `layer`; they follow the edits of the document until replaced again.
+    pub fn set_marks(&mut self, layer: MarkLayer, mut marks: Vec<Mark>, cx: &mut Context<Self>) {
+        let len = buffer::len_utf16(&self.rope);
+        marks.retain(|mark| mark.range.start < mark.range.end && mark.range.end <= len);
+        marks.sort_by_key(|mark| (mark.range.start, mark.range.end));
+        if self.marks(layer) == marks.as_slice() {
+            return;
+        }
+        if marks.is_empty() {
+            self.marks.remove(&layer);
+        } else {
+            self.marks.insert(layer, marks);
+        }
+        cx.notify();
+    }
+
+    /// What Escape asks first: `handler` answers whether it used the key.
+    pub fn set_escape_handler(&mut self, handler: Option<EscapeHandler>) {
+        self.escape = handler;
     }
 
     fn metrics(cx: &App) -> (Pixels, Pixels, Pixels) {
@@ -360,22 +477,97 @@ impl Editor {
         font(SharedString::from(family))
     }
 
-    /// Sets the selection; offsets are clamped to the document.
+    /// The document's line break as its text holds it.
+    fn line_break(&self) -> &'static str {
+        let end = buffer::line_range(&self.rope, 0).end;
+        if buffer::slice(&self.rope, end, end + 2) == "\r\n" { "\r\n" } else { "\n" }
+    }
+
+    /// The text, the selection and the indentation settings, as the editing commands read them.
+    pub fn edit_state(&self) -> EditState {
+        EditState {
+            rope: self.rope.clone(),
+            selections: self.selections.clone(),
+            main: self.main,
+            tab_size: self.facts.tab_size,
+            indent_unit: self.facts.indent_unit.clone(),
+            line_break: self.line_break().to_owned(),
+        }
+    }
+
+    /// The document's comments and string literals as a tree of their nodes alone, from the
+    /// highlights of the current text. Empty (not parsed) while the highlights are of an older
+    /// version, or for a document without highlights.
+    pub fn literal_tree(&self) -> SyntaxTree {
+        use super::find_model::literal_ranges;
+        use crate::platform::search::LiteralKind;
+        use SyntaxHighlightKind as K;
+        if self.highlights_version != self.version || self.highlights.is_empty() {
+            return SyntaxTree::default();
+        }
+        let literals = literal_ranges(self.highlights.iter().filter_map(|span| {
+            let kind = match span.kind {
+                K::Comment | K::DocComment => LiteralKind::Comment,
+                K::String | K::StringSpecial | K::Escape => LiteralKind::String,
+                _ => return None,
+            };
+            Some((span.from, span.to, kind))
+        }));
+        let mut nodes = vec![TreeNode::new("Document", 0, buffer::len_utf16(&self.rope))];
+        nodes.extend(literals.iter().map(|literal| {
+            let name = if literal.kind == LiteralKind::Comment { "Comment" } else { "String" };
+            TreeNode::new(name, literal.from, literal.to)
+        }));
+        SyntaxTree::new(nodes)
+    }
+
+    /// The texts of the other open editors.
+    pub(super) fn other_texts(&self, cx: &Context<Self>) -> Vec<String> {
+        let me = cx.entity_id();
+        let Some(editors) = cx.try_global::<DocumentEditors>() else { return Vec::new() };
+        let others = editors.0.values().flatten().filter(|other| other.entity_id() != me);
+        others.filter_map(WeakEntity::upgrade).map(|other| other.read(cx).text()).collect()
+    }
+
+    /// Where the editor's state is now: what remembered command state is valid for.
+    pub(super) fn stamp(&self) -> super::command_actions::Stamp {
+        (self.version, self.selections.clone(), self.main)
+    }
+
+    /// Sets a single selection; offsets are clamped to the document.
     pub fn select(&mut self, anchor: u32, head: u32, cx: &mut Context<Self>) {
-        let len = buffer::len_utf16(&self.rope);
-        (self.anchor, self.head) = (anchor.min(len), head.min(len));
-        self.goal_x = None;
+        self.set_selections(vec![(anchor, head)], 0, cx);
+    }
+
+    /// Sets the selection ranges (clamped to the document, sorted and merged where they touch)
+    /// and which of them is the main one.
+    pub fn set_selections(&mut self, ranges: Vec<(u32, u32)>, main: usize, cx: &mut Context<Self>) {
+        self.put_selections(ranges, main);
         self.history.seal();
         self.reveal_caret(cx);
         cx.notify();
     }
 
-    fn move_to(&mut self, offset: u32, extend: bool, cx: &mut Context<Self>) {
-        let anchor = if extend { self.anchor } else { offset };
-        self.select(anchor, offset, cx);
+    fn put_selections(&mut self, ranges: Vec<(u32, u32)>, main: usize) {
+        let len = buffer::len_utf16(&self.rope);
+        let ranges = ranges.into_iter().map(|(anchor, head)| (anchor.min(len), head.min(len))).collect();
+        (self.selections, self.main) = commands::normalize(ranges, main);
     }
 
-    /// Scrolls so that the caret's line is inside the viewport.
+    /// Moves every range: its head goes where `target` says, the anchor stays with `extend`.
+    fn move_carets(&mut self, extend: bool, cx: &mut Context<Self>, target: impl Fn(&Self, Selection) -> u32) {
+        let ranges = self
+            .selections
+            .iter()
+            .map(|range| {
+                let head = target(self, *range);
+                if extend { (range.anchor(), head) } else { caret(head) }
+            })
+            .collect();
+        self.set_selections(ranges, self.main, cx);
+    }
+
+    /// Scrolls so that the main caret's line is inside the viewport.
     fn reveal_caret(&mut self, cx: &App) {
         let Some(layout) = &self.layout else { return };
         let (_, line_height, _) = Self::metrics(cx);
@@ -411,12 +603,15 @@ impl Editor {
     }
 
     /// Takes the backend's current text; the selection follows through `changes` when they are
-    /// known, else through the difference between the old and the new text. `record` makes the
-    /// change an undo entry of that kind. Returns the changes that were followed.
+    /// known, else through the difference between the old and the new text, unless the edit
+    /// says where it goes (`selection`). Marks and the pairs the editor inserted follow too.
+    /// `record` makes the change an undo entry of that kind. Returns the changes that were
+    /// followed.
     fn follow(
         &mut self,
         changes: Option<&[TextChange]>,
         record: Option<EditKind>,
+        selection: Option<(Vec<Selection>, usize)>,
         cx: &mut Context<Self>,
     ) -> Vec<TextChange> {
         let old = self.rope.clone();
@@ -428,13 +623,27 @@ impl Editor {
             Some(changes) => changes.to_vec(),
             None => difference(&old, &self.rope),
         };
-        let before = (self.anchor, self.head);
-        self.anchor = buffer::map_offset(self.anchor, &changes, Assoc::After);
-        self.head = buffer::map_offset(self.head, &changes, Assoc::After);
+        let before_state = EditState { rope: old.clone(), ..self.edit_state() };
+        let before = history::Selection { ranges: self.selections.clone(), main: self.main };
+        let (ranges, main) = selection.unwrap_or_else(|| {
+            let mapped = self.selections.iter().map(|&(anchor, head)| {
+                (buffer::map_offset(anchor, &changes, Assoc::After), buffer::map_offset(head, &changes, Assoc::After))
+            });
+            (mapped.collect(), self.main)
+        });
+        self.put_selections(ranges, main);
         self.marked = None;
+        for marks in self.marks.values_mut() {
+            *marks = map_marks(marks, &changes);
+        }
+        self.marks.retain(|_, marks| !marks.is_empty());
+        let followed = Edit { changes: changes.clone(), selections: self.selections.clone(), main: self.main };
+        let typed = record == Some(EditKind::Insert);
+        self.pair_scopes = smart_keys::track_pair_scopes(&self.pair_scopes, &before_state, &followed, typed);
         if let Some(kind) = record.filter(|_| !changes.is_empty()) {
             let now = self.created.elapsed().as_secs_f64() * 1000.0;
-            self.history.record(changes.clone(), invert(&old, &changes), before, (self.anchor, self.head), kind, now);
+            let after = history::Selection { ranges: self.selections.clone(), main: self.main };
+            self.history.record(changes.clone(), invert(&old, &changes), before, after, kind, now);
         }
         self.generation += 1;
         self.refresh_highlights(cx);
@@ -478,38 +687,49 @@ impl Editor {
             self.history.clear();
         }
         let record = (!workspace_edit).then_some(EditKind::Other);
-        self.follow((base_version == self.version).then_some(changes), record, cx);
+        self.follow((base_version == self.version).then_some(changes), record, None, cx);
     }
 
-    /// Applies the edit `make` describes for the current text and selection. When the backend
-    /// has moved on (its own edit not yet delivered here), the text is refreshed and `make` is
-    /// asked again, so what the user typed lands at the caret's new place instead of being lost.
-    fn edit(&mut self, kind: EditKind, cx: &mut Context<Self>, make: impl Fn(&Self) -> Vec<TextChange>) -> bool {
-        if self.read_only {
-            return false;
-        }
+    /// Sends `edit` (changes in the coordinates of the current text) to the backend as one
+    /// edit; the selection becomes the edit's. Answers the backend's verdict.
+    fn send(&mut self, edit: Edit, kind: EditKind, cx: &mut Context<Self>) -> IdeResult<()> {
+        let changes = ChangeSet { changes: edit.changes.clone() };
+        self.documents().and_then(|d| d.edit(self.doc, self.version, changes))?;
+        // Known here and now: the backend's own report arrives a moment later, and closing in
+        // between must still see the document as unsaved.
+        self.dirty = true;
+        let base = self.version;
+        self.follow(Some(&edit.changes), Some(kind), Some((edit.selections, edit.main)), cx);
+        self.tell_other_editors(base, &edit.changes, cx);
+        self.reveal_caret(cx);
+        Ok(())
+    }
+
+    /// Applies the edit `make` describes for the current text and selection. An edit without
+    /// changes only moves the selection. When the backend has moved on (its own edit not yet
+    /// delivered here), the text is refreshed and `make` is asked again, so what the user typed
+    /// lands at the caret's new place instead of being lost. Answers whether anything changed.
+    pub(super) fn edit_with(
+        &mut self,
+        kind: EditKind,
+        cx: &mut Context<Self>,
+        make: impl Fn(&Self) -> Option<Edit>,
+    ) -> bool {
         for attempt in 0..3 {
-            let changes = make(self);
-            if changes.is_empty() {
+            let Some(edit) = make(self) else { return false };
+            if edit.changes.is_empty() {
+                let moved = (&edit.selections, edit.main) != (&self.selections, self.main);
+                self.set_selections(edit.selections, edit.main, cx);
+                return moved;
+            }
+            if self.read_only {
                 return false;
             }
-            let result =
-                self.documents().and_then(|d| d.edit(self.doc, self.version, ChangeSet { changes: changes.clone() }));
-            match result {
-                Ok(_) => {
-                    // Known here and now: the backend's own report arrives a moment later, and
-                    // closing in between must still see the document as unsaved.
-                    self.dirty = true;
-                    let base = self.version;
-                    self.follow(Some(&changes), Some(kind), cx);
-                    self.tell_other_editors(base, &changes, cx);
-                    self.goal_x = None;
-                    self.reveal_caret(cx);
-                    return true;
-                }
+            match self.send(edit, kind, cx) {
+                Ok(()) => return true,
                 // The backend's edit becomes an undo entry of its own before the user's.
                 Err(error) if error.kind == ErrorKind::OutOfSync && attempt < 2 => {
-                    self.follow(None, Some(EditKind::Other), cx);
+                    self.follow(None, Some(EditKind::Other), None, cx);
                 }
                 Err(error) => {
                     tracing::warn!("edit of {} rejected: {}", self.path.display(), error.message);
@@ -520,25 +740,52 @@ impl Editor {
         false
     }
 
+    /// Applies `changes` (in the coordinates of the current text, sorted and not overlapping) as
+    /// one edit of the document and one undo step, after which `selections` (in the coordinates
+    /// of the new text) is the selection, `main` its main range. A read-only editor refuses; so
+    /// does the backend when the text moved on since the changes were computed (the editor then
+    /// shows the new text). Answers whether the edit was applied.
+    pub fn apply_edit(
+        &mut self,
+        changes: &[TextChange],
+        selections: Vec<(u32, u32)>,
+        main: usize,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if self.read_only || changes.is_empty() {
+            return false;
+        }
+        let edit = Edit { changes: changes.to_vec(), selections, main };
+        match self.send(edit, EditKind::Other, cx) {
+            Ok(()) => true,
+            Err(error) => {
+                if error.kind == ErrorKind::OutOfSync {
+                    self.follow(None, Some(EditKind::Other), None, cx);
+                } else {
+                    tracing::warn!("edit of {} rejected: {}", self.path.display(), error.message);
+                }
+                false
+            }
+        }
+    }
+
     /// Applies one side of history entries. On a rejection the history no longer describes the
     /// text: it is dropped and the text refreshed.
-    fn replay(&mut self, steps: &[(Vec<TextChange>, (u32, u32))], cx: &mut Context<Self>) -> bool {
+    fn replay(&mut self, steps: &[(Vec<TextChange>, history::Selection)], cx: &mut Context<Self>) -> bool {
         for (changes, selection) in steps {
             let applied =
                 self.documents().and_then(|d| d.edit(self.doc, self.version, ChangeSet { changes: changes.clone() }));
             if let Err(error) = applied {
                 tracing::warn!("cannot replay an edit of {}: {}", self.path.display(), error.message);
                 self.history.clear();
-                self.follow(None, None, cx);
+                self.follow(None, None, None, cx);
                 return false;
             }
             self.dirty = true;
             let base = self.version;
-            self.follow(Some(changes), None, cx);
+            self.follow(Some(changes), None, Some((selection.ranges.clone(), selection.main)), cx);
             self.tell_other_editors(base, changes, cx);
-            (self.anchor, self.head) = *selection;
         }
-        self.goal_x = None;
         self.reveal_caret(cx);
         cx.notify();
         true
@@ -550,7 +797,7 @@ impl Editor {
         if entries.is_empty() || self.read_only {
             return false;
         }
-        let steps: Vec<_> = entries.iter().map(|e| (e.inverse.clone(), e.before)).collect();
+        let steps: Vec<_> = entries.iter().map(|e| (e.inverse.clone(), e.before.clone())).collect();
         let done = self.replay(&steps, cx);
         if done {
             self.history.undone(entries);
@@ -564,7 +811,7 @@ impl Editor {
         if entries.is_empty() || self.read_only {
             return false;
         }
-        let steps: Vec<_> = entries.iter().map(|e| (e.forward.clone(), e.after)).collect();
+        let steps: Vec<_> = entries.iter().map(|e| (e.forward.clone(), e.after.clone())).collect();
         let done = self.replay(&steps, cx);
         if done {
             self.history.redone(entries);
@@ -599,7 +846,7 @@ impl Editor {
         if reload {
             // The text is another one: what could be undone no longer applies to it.
             self.history.clear();
-            self.follow(None, None, cx);
+            self.follow(None, None, None, cx);
             self.dirty = false;
         } else {
             self.dirty = true;
@@ -623,66 +870,236 @@ impl Editor {
         self.select(0, buffer::len_utf16(&self.rope), cx);
     }
 
-    /// The selected text.
+    /// The text of the main selection.
     pub fn selected_text(&self) -> String {
         let selection = self.selection();
         buffer::slice(&self.rope, selection.start, selection.end)
     }
 
-    /// Copies the selection to the clipboard; nothing is copied without one.
+    /// Copies the selected ranges to the clipboard, joined by line breaks; without a selection,
+    /// the caret lines (a line-wise copy, which a paste at a caret puts above its line).
     pub fn copy(&self, cx: &mut Context<Self>) -> bool {
-        if self.selection().is_empty() {
-            return false;
-        }
-        cx.write_to_clipboard(ClipboardItem::new_string(self.selected_text()));
+        let copied = crate::editor_commands::clipboard::copy(&self.edit_state());
+        cx.write_to_clipboard(ClipboardItem::new_string(copied.text.clone()));
+        cx.default_global::<EditorClipboard>().0.record(&copied.text, copied.linewise);
         true
     }
 
+    /// Copies as [`Editor::copy`] does and removes what was copied: the selected ranges, or the
+    /// caret lines with their line breaks.
     pub fn cut(&mut self, cx: &mut Context<Self>) -> bool {
-        self.copy(cx) && self.replace(None, "", EditKind::Other, cx)
+        self.copy(cx)
+            && self.edit_with(EditKind::Other, cx, |editor| {
+                let (_, edit) = crate::editor_commands::clipboard::cut(&editor.edit_state());
+                Some(edit)
+            })
     }
 
-    /// Replaces the selection with the clipboard's text.
+    /// Pastes the clipboard's text: a line-wise copy above the caret lines, one line per caret
+    /// when the line count matches, reformatted as Smart Keys › Reformat on paste says.
     pub fn paste(&mut self, cx: &mut Context<Self>) -> bool {
         match cx.read_from_clipboard().and_then(|item| item.text()) {
-            Some(text) if !text.is_empty() => self.replace(None, &text, EditKind::Other, cx),
-            _ => false,
+            Some(text) => self.paste_text(&text, true, cx),
+            None => false,
         }
     }
 
-    fn replace(&mut self, range: Option<Range<u32>>, text: &str, kind: EditKind, cx: &mut Context<Self>) -> bool {
-        let text = text.replace("\r\n", "\n").replace('\r', "\n");
-        self.edit(kind, cx, |editor| {
-            let range = range.clone().unwrap_or_else(|| editor.selection());
-            if range.is_empty() && text.is_empty() {
-                return Vec::new();
+    /// Pastes `text`; `reformat` applies Reformat on Paste.
+    pub(super) fn paste_text(&mut self, text: &str, reformat: bool, cx: &mut Context<Self>) -> bool {
+        use crate::editor_commands::{clipboard, paste};
+        let linewise = cx.try_global::<EditorClipboard>().is_some_and(|history| history.0.is_linewise_text(text));
+        self.edit_with(EditKind::Other, cx, |editor| {
+            let state = editor.edit_state();
+            let pasted = clipboard::paste(&state, text, linewise)?;
+            if !reformat {
+                return Some(pasted);
             }
-            vec![TextChange { from: range.start, to: range.end, insert: text.clone() }]
+            let indent = |context: &commands::IndentContext<'_>| editor.facts.indent(context);
+            Some(paste::reindent_paste(&state, &pasted, editor.facts.reformat_on_paste, Some(&indent)))
         })
     }
 
-    /// Replaces the selection (or `range`) with typed `text`; the caret ends after it.
+    /// `text` with the document's line breaks.
+    fn with_line_breaks(&self, text: &str) -> String {
+        let unix = text.replace("\r\n", "\n").replace('\r', "\n");
+        match self.line_break() {
+            "\n" => unix,
+            line_break => unix.replace('\n', line_break),
+        }
+    }
+
+    /// Replacing `range` (the selection ranges when `None`) with `text`, the caret after it. A
+    /// range around the main selection, with several ranges, is replaced around each of them
+    /// alike, as a composition at every caret.
+    fn typed_edit(&self, range: Option<Range<u32>>, text: &str) -> Option<Edit> {
+        let state = self.edit_state();
+        let length = commands::utf16_len(text);
+        let main = self.main_range();
+        let around = range.clone().map_or(Some((0, 0)), |range| {
+            (range.start <= main.start() && range.end >= main.end())
+                .then(|| (main.start() - range.start, range.end - main.end()))
+        });
+        let ranges = around.and_then(|(before, after)| {
+            let len = buffer::len_utf16(&self.rope);
+            let spans: Vec<(u32, u32)> = self
+                .selections
+                .iter()
+                .map(|range| (range.start().saturating_sub(before), (range.end() + after).min(len)))
+                .collect();
+            spans.windows(2).all(|pair| pair[0].1 <= pair[1].0).then_some(spans)
+        });
+        let edit = match ranges {
+            Some(spans) => change_by_range(&state, |index, _| {
+                let (from, to) = spans[index];
+                RangeEdit { changes: vec![change(from, to, text)], range: caret(from + length) }
+            }),
+            None => {
+                let range = range?;
+                let changes = vec![change(range.start, range.end, text)];
+                let mut edit = Edit::following(&state, changes, Assoc::After);
+                edit.selections[edit.main] = caret(range.start + length);
+                Edit::new(edit.changes, edit.selections, edit.main)
+            }
+        };
+        let empty = edit.changes.iter().all(|change| change.from == change.to && change.insert.is_empty());
+        (!empty).then_some(edit)
+    }
+
+    /// Replaces `range` (every selection range when `None`) with typed `text`; the carets end
+    /// after it.
     pub fn insert(&mut self, range: Option<Range<u32>>, text: &str, cx: &mut Context<Self>) -> bool {
-        self.replace(range, text, EditKind::Insert, cx)
+        let text = self.with_line_breaks(text);
+        self.edit_with(EditKind::Insert, cx, |editor| editor.typed_edit(range.clone(), &text))
     }
 
-    /// Deletes the selection, or the character before (`forward` false) or after the caret.
-    pub fn delete(&mut self, forward: bool, cx: &mut Context<Self>) -> bool {
-        self.edit(EditKind::Delete, cx, |editor| {
-            let selection = editor.selection();
-            let range = if !selection.is_empty() {
-                selection
-            } else if forward {
-                selection.start..editor.next_offset(selection.start)
-            } else {
-                editor.previous_offset(selection.start)..selection.start
-            };
-            if range.is_empty() {
-                Vec::new()
-            } else {
-                vec![TextChange { from: range.start, to: range.end, insert: String::new() }]
+    /// Typing `text` at every caret: over the closing quote of a string literal the caret steps
+    /// past it, in overwrite mode the text replaces what follows the caret.
+    fn type_text(&mut self, text: &str, cx: &mut Context<Self>) -> bool {
+        if self.read_only {
+            return false;
+        }
+        let text = self.with_line_breaks(text);
+        self.edit_with(EditKind::Insert, cx, |editor| {
+            let state = editor.edit_state();
+            if let Some(edit) = smart_keys::skip_closing_quote(&state, &editor.literal_tree(), &text) {
+                return Some(edit);
             }
+            if editor.overwrite
+                && let Some(edit) = crate::editor_commands::overwrite::type_overwriting(&state, &text)
+            {
+                return Some(edit);
+            }
+            editor.typed_edit(None, &text)
         })
+    }
+
+    /// Enter: a documentation comment stub after `/**`, the rest of a line comment on a new
+    /// commented line, else a line break with the indentation the language computes.
+    fn enter(&mut self, cx: &mut Context<Self>) -> bool {
+        use crate::editor_commands::{comments, doc_comment, indent};
+        self.edit_with(EditKind::Insert, cx, |editor| {
+            let state = editor.edit_state();
+            if editor.facts.insert_doc_stub
+                && let Some(edit) = doc_comment::enter_in_doc_comment(&state, &editor.facts.language)
+            {
+                return Some(edit);
+            }
+            let comments_at = |pos: u32| editor.facts.comments_at(pos);
+            if let Some(edit) = comments::enter_in_line_comment(&state, &comments_at, &editor.literal_tree()) {
+                return Some(edit);
+            }
+            let indent = |context: &commands::IndentContext<'_>| editor.facts.indent(context);
+            indent::insert_newline_and_indent(&state, Some(&indent))
+        })
+    }
+
+    /// Tab: out of a pair the editor inserted, else indentation of the selected lines or
+    /// whitespace to the next indent stop.
+    fn tab(&mut self, cx: &mut Context<Self>) -> bool {
+        if let Some((edit, remaining)) = smart_keys::tab_out_of_scope(&self.edit_state(), &self.pair_scopes) {
+            self.set_selections(edit.selections, edit.main, cx);
+            self.pair_scopes = remaining;
+            return true;
+        }
+        self.edit_with(EditKind::Insert, cx, |editor| Some(smart_keys::insert_tab(&editor.edit_state(), &[]).0))
+    }
+
+    /// Backspace: in leading whitespace to the proper indentation (Smart Keys › Backspace ›
+    /// Unindent), else the character before every caret, or the selected ranges.
+    fn backspace(&mut self, cx: &mut Context<Self>) -> bool {
+        self.edit_with(EditKind::Delete, cx, |editor| {
+            if smart_keys::smart_backspace_applies(&editor.facts.backspace_unindent, &editor.facts.language.id) {
+                let indent = |context: &commands::IndentContext<'_>| editor.facts.indent(context);
+                if let Some(edit) = smart_keys::smart_backspace(&editor.edit_state(), Some(&indent)) {
+                    return Some(edit);
+                }
+            }
+            editor.deletion(|editor, head| editor.previous_offset(head))
+        })
+    }
+
+    /// Deletes the selected ranges, or the character before (`forward` false) or after every
+    /// caret.
+    pub fn delete(&mut self, forward: bool, cx: &mut Context<Self>) -> bool {
+        self.edit_with(EditKind::Delete, cx, |editor| {
+            editor
+                .deletion(|editor, head| if forward { editor.next_offset(head) } else { editor.previous_offset(head) })
+        })
+    }
+
+    /// Deletes the selected ranges, and at every caret the text between it and `other(head)`.
+    fn deletion(&self, other: impl Fn(&Self, u32) -> u32) -> Option<Edit> {
+        let edit = change_by_range(&self.edit_state(), |_, range| {
+            let (from, to) = if range.is_caret() {
+                let other = other(self, range.head());
+                (other.min(range.head()), other.max(range.head()))
+            } else {
+                (range.start(), range.end())
+            };
+            let changes = if from < to { vec![change(from, to, "")] } else { Vec::new() };
+            RangeEdit { changes, range: caret(from) }
+        });
+        (!edit.changes.is_empty()).then_some(edit)
+    }
+
+    /// Deletes by word before (`forward` false) or after every caret; by hump with CamelHumps.
+    fn delete_word(&mut self, forward: bool, cx: &mut Context<Self>) -> bool {
+        self.edit_with(EditKind::Delete, cx, |editor| {
+            if editor.facts.camel_humps {
+                let edit = editing::delete_hump(&editor.edit_state(), forward, true);
+                return (!edit.changes.is_empty()).then_some(edit);
+            }
+            editor.deletion(|editor, head| buffer::group_boundary(&editor.rope, head, forward))
+        })
+    }
+
+    /// Moves every caret by word; by hump with CamelHumps.
+    fn move_by_word(&mut self, forward: bool, extend: bool, cx: &mut Context<Self>) {
+        if self.facts.camel_humps {
+            let edit = editing::move_hump(&self.edit_state(), forward, extend);
+            self.set_selections(edit.selections, edit.main, cx);
+        } else {
+            self.move_carets(extend, cx, |editor, range| buffer::group_boundary(&editor.rope, range.head(), forward));
+        }
+    }
+
+    /// Escape: what the editor's tab shows over it closes first (its Find bar); else several
+    /// ranges become the main one, a selection its caret. Answers whether Escape was used.
+    fn escape(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if let Some(handler) = self.escape.clone()
+            && handler(window, cx)
+        {
+            return true;
+        }
+        let main = self.main_range();
+        if self.selections.len() > 1 {
+            self.set_selections(vec![main], 0, cx);
+        } else if !main.is_caret() {
+            self.select(main.head(), main.head(), cx);
+        } else {
+            return false;
+        }
+        true
     }
 
     /// The offset one character (not code unit) after `offset`; a line break counts as one.
@@ -741,6 +1158,7 @@ impl Editor {
                         Some(HighlightSpan { from, to, kind: *highlights.kinds.get(kind as usize)? })
                     })
                     .collect();
+                editor.highlights_version = version;
                 cx.notify();
             });
         })
@@ -770,35 +1188,42 @@ impl Editor {
         Some(buffer::offset_at(&self.rope, line, col))
     }
 
-    fn vertical(&mut self, lines: i64, extend: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let (line, col) = self.caret_position();
-        let target = (i64::from(line) + lines).clamp(0, i64::from(self.line_count()) - 1) as u32;
-        let goal = self.goal_x.or_else(|| {
-            let layout = self.layout.as_ref()?;
-            let (text, shaped) = layout.lines.get(line.checked_sub(layout.first_line)? as usize)?;
-            Some(shaped.x_for_index(buffer::byte_of_col(text, col)))
-        });
-        // Columns are measured on the target line, shaped here when it is off screen.
-        let text = buffer::line_text(&self.rope, target);
-        let col = match goal {
-            Some(x) => {
-                let (font_size, _, _) = Self::metrics(cx);
-                let run = TextRun {
-                    len: text.len(),
-                    font: Self::code_font(cx),
-                    color: Hsla::default(),
-                    background_color: None,
-                    underline: None,
-                    strikethrough: None,
-                };
-                let shaped = window.text_system().shape_line(text.clone().into(), font_size, &[run], None);
-                buffer::col_of_byte(&text, shaped.closest_index_for_x(x))
-            }
-            None => col,
+    /// ↑ / ↓ by `lines` (negative up), every caret keeping its goal column; with `extend` the
+    /// heads move and the anchors stay.
+    fn vertical(&mut self, lines: i64, extend: bool, cx: &mut Context<Self>) {
+        use vertical_motion::{cursor_line_down, cursor_line_up, select_line_down, select_line_up};
+        let step = match (lines > 0, extend) {
+            (false, false) => cursor_line_up,
+            (true, false) => cursor_line_down,
+            (false, true) => select_line_up,
+            (true, true) => select_line_down,
         };
-        let offset = buffer::offset_at(&self.rope, target, col);
-        self.move_to(offset, extend, cx);
-        self.goal_x = goal;
+        let mut goals = recall(&self.memory.goals, &self.stamp()).unwrap_or_default();
+        let mut state = self.edit_state();
+        let mut moved = false;
+        for _ in 0..lines.unsigned_abs() {
+            let Some(motion) = step(&state, &goals) else { break };
+            state = commands::apply(&state, &motion.edit);
+            goals = motion.goals;
+            moved = true;
+        }
+        if moved {
+            self.set_selections(state.selections, state.main, cx);
+            self.memory.goals = Some((self.stamp(), goals));
+        }
+    }
+
+    /// ⇧+arrow in Column Selection Mode: the block grows by `lines` lines and `cols` columns.
+    /// Answers false while the mode is off.
+    fn extend_column(&mut self, lines: i32, cols: i32, cx: &mut Context<Self>) -> bool {
+        let block = self.memory.column_block.as_ref().filter(|(stamp, _)| *stamp == self.stamp()).map(|(_, b)| *b);
+        let mode = commands::column_mode::ColumnMode { on: self.memory.column_on, block };
+        let Some((edit, block)) = commands::column_mode::extend_block(&self.edit_state(), &mode, lines, cols) else {
+            return false;
+        };
+        self.set_selections(edit.selections, edit.main, cx);
+        self.memory.column_block = Some((self.stamp(), block));
+        true
     }
 
     fn key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
@@ -825,27 +1250,33 @@ impl Editor {
             }
         }
         let extend = modifiers.shift;
-        let (line, _) = self.caret_position();
-        let line_range = buffer::line_range(&self.rope, line);
+        let line_start = |editor: &Self, range: Selection| {
+            buffer::line_range(&editor.rope, buffer::line_col(&editor.rope, range.head()).0).start
+        };
+        let line_end = |editor: &Self, range: Selection| {
+            buffer::line_range(&editor.rope, buffer::line_col(&editor.rope, range.head()).0).end
+        };
         // Movement and deletion by word (⌥) and to the line's or document's edge (⌘), as
         // CodeMirror's standard keymap binds them on macOS.
         if (modifiers.alt || modifiers.platform) && !modifiers.control && !(modifiers.alt && modifiers.platform) {
             let end = buffer::len_utf16(&self.rope);
             match (keystroke.key.as_str(), modifiers.alt) {
-                ("left", true) => self.move_to(buffer::group_boundary(&self.rope, self.head, false), extend, cx),
-                ("right", true) => self.move_to(buffer::group_boundary(&self.rope, self.head, true), extend, cx),
-                ("left", false) => self.move_to(line_range.start, extend, cx),
-                ("right", false) => self.move_to(line_range.end, extend, cx),
-                ("up", false) => self.move_to(0, extend, cx),
-                ("down", false) => self.move_to(end, extend, cx),
-                ("backspace", by_word) if !extend => {
-                    let from =
-                        if by_word { buffer::group_boundary(&self.rope, self.head, false) } else { line_range.start };
-                    self.delete_to(from, cx);
+                ("left", true) => self.move_by_word(false, extend, cx),
+                ("right", true) => self.move_by_word(true, extend, cx),
+                ("left", false) => self.move_carets(extend, cx, line_start),
+                ("right", false) => self.move_carets(extend, cx, line_end),
+                ("up", false) => self.move_carets(extend, cx, |_, _| 0),
+                ("down", false) => self.move_carets(extend, cx, |_, _| end),
+                ("backspace", true) if !extend => {
+                    self.delete_word(false, cx);
+                }
+                ("backspace", false) if !extend => {
+                    self.edit_with(EditKind::Delete, cx, |editor| {
+                        editor.deletion(|editor, head| line_start(editor, caret(head)))
+                    });
                 }
                 ("delete", true) if !extend => {
-                    let to = buffer::group_boundary(&self.rope, self.head, true);
-                    self.delete_to(to, cx);
+                    self.delete_word(true, cx);
                 }
                 _ => return,
             }
@@ -856,28 +1287,49 @@ impl Editor {
         if modifiers.control || modifiers.alt || modifiers.platform {
             return;
         }
+        let column_step = match keystroke.key.as_str() {
+            "left" => Some((0, -1)),
+            "right" => Some((0, 1)),
+            "up" => Some((-1, 0)),
+            "down" => Some((1, 0)),
+            _ => None,
+        };
+        if let Some((lines, cols)) = column_step.filter(|_| extend)
+            && self.extend_column(lines, cols, cx)
+        {
+            window.invalidate_character_coordinates();
+            cx.stop_propagation();
+            return;
+        }
         match keystroke.key.as_str() {
-            "left" if !extend && !self.selection().is_empty() => self.move_to(self.selection().start, false, cx),
-            "right" if !extend && !self.selection().is_empty() => self.move_to(self.selection().end, false, cx),
-            "left" => self.move_to(self.previous_offset(self.head), extend, cx),
-            "right" => self.move_to(self.next_offset(self.head), extend, cx),
-            "up" => self.vertical(-1, extend, window, cx),
-            "down" => self.vertical(1, extend, window, cx),
-            "home" => self.move_to(line_range.start, extend, cx),
-            "end" => self.move_to(line_range.end, extend, cx),
-            "pageup" => self.vertical(-self.page_lines(cx), extend, window, cx),
-            "pagedown" => self.vertical(self.page_lines(cx), extend, window, cx),
+            "left" => self.move_carets(extend, cx, |editor, range| {
+                if !extend && !range.is_caret() { range.start() } else { editor.previous_offset(range.head()) }
+            }),
+            "right" => self.move_carets(extend, cx, |editor, range| {
+                if !extend && !range.is_caret() { range.end() } else { editor.next_offset(range.head()) }
+            }),
+            "up" => self.vertical(-1, extend, cx),
+            "down" => self.vertical(1, extend, cx),
+            "home" => self.move_carets(extend, cx, line_start),
+            "end" => self.move_carets(extend, cx, line_end),
+            "pageup" => self.vertical(-self.page_lines(cx), extend, cx),
+            "pagedown" => self.vertical(self.page_lines(cx), extend, cx),
             "backspace" => {
-                self.delete(false, cx);
+                self.backspace(cx);
             }
             "delete" => {
                 self.delete(true, cx);
             }
             "enter" => {
-                self.insert(None, "\n", cx);
+                self.enter(cx);
             }
-            "tab" => {
-                self.insert(None, "    ", cx);
+            "tab" if !extend => {
+                self.tab(cx);
+            }
+            "escape" => {
+                if !self.escape(window, cx) {
+                    return;
+                }
             }
             _ => return,
         }
@@ -891,26 +1343,35 @@ impl Editor {
         (((viewport / Self::metrics(cx).1).floor() as i64) - 1).max(1)
     }
 
-    /// Deletes the selection, or the text between the caret and `other` when there is none.
-    fn delete_to(&mut self, other: u32, cx: &mut Context<Self>) -> bool {
-        self.edit(EditKind::Delete, cx, |editor| {
-            let selection = editor.selection();
-            let range = if selection.is_empty() { other.min(editor.head)..other.max(editor.head) } else { selection };
-            if range.is_empty() {
-                Vec::new()
-            } else {
-                vec![TextChange { from: range.start, to: range.end, insert: String::new() }]
-            }
-        })
+    /// The press is the keymap's mouse shortcut for adding or removing a caret.
+    fn adds_caret(event: &MouseDownEvent, cx: &App) -> bool {
+        let Some(keymap) = cx.try_global::<input::Keymap>() else { return false };
+        let Some(stroke) = crate::platform::dispatcher::mouse_stroke(0, input::mods(&event.modifiers)) else {
+            return false;
+        };
+        keymap.0.bindings_for(ADD_CARET_ACTION).iter().any(|binding| normalize_binding(binding) == stroke)
     }
 
     /// A click places the caret (Shift extends), a double click selects the word, a triple
-    /// click the line; dragging extends from where the press began.
+    /// click the line; dragging extends from where the press began. The add-caret shortcut
+    /// adds a caret where it is pressed (a range, dragging), or removes the caret there.
     fn mouse_down(&mut self, event: &MouseDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         window.focus(&self.focus, cx);
         let Some(offset) = self.offset_at(event.position) else { return };
+        if event.click_count <= 1 && Self::adds_caret(event, cx) {
+            let (ranges, main) = (self.selections.clone(), self.main);
+            let (next, next_main) = editing::toggle_caret(&ranges, main, offset, offset);
+            self.set_selections(next, next_main, cx);
+            self.adding = Some(AddingCaret { ranges, main, anchor: offset });
+            self.drag_anchor = None;
+            return;
+        }
+        self.adding = None;
         match event.click_count {
-            0 | 1 => self.move_to(offset, event.modifiers.shift, cx),
+            0 | 1 => {
+                let anchor = if event.modifiers.shift { self.anchor() } else { offset };
+                self.select(anchor, offset, cx);
+            }
             2 => {
                 let word = buffer::word_at(&self.rope, offset);
                 self.select(word.start, word.end, cx);
@@ -927,15 +1388,24 @@ impl Editor {
                 self.select(range.start, end, cx);
             }
         }
-        self.drag_anchor = Some(self.anchor);
+        self.drag_anchor = Some(self.anchor());
     }
 
     fn mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(anchor) = self.drag_anchor.filter(|_| event.pressed_button == Some(MouseButton::Left)) else {
-            self.drag_anchor = None;
+        if event.pressed_button != Some(MouseButton::Left) {
+            (self.drag_anchor, self.adding) = (None, None);
             return;
-        };
-        if let Some(offset) = self.offset_at(event.position).filter(|offset| *offset != self.head) {
+        }
+        let Some(offset) = self.offset_at(event.position) else { return };
+        if let Some(adding) = &self.adding {
+            if offset != adding.anchor {
+                let (next, main) = editing::toggle_caret(&adding.ranges, adding.main, adding.anchor, offset);
+                self.set_selections(next, main, cx);
+            }
+            return;
+        }
+        let Some(anchor) = self.drag_anchor else { return };
+        if offset != self.caret() {
             self.select(anchor, offset, cx);
         }
     }
@@ -984,9 +1454,10 @@ impl EntityInputHandler for Editor {
 
     fn selected_text_range(&mut self, _: bool, _: &mut Window, _: &mut Context<Self>) -> Option<UTF16Selection> {
         let selection = self.selection();
+        let main = self.main_range();
         Some(UTF16Selection {
             range: selection.start as usize..selection.end as usize,
-            reversed: self.head < self.anchor,
+            reversed: main.head() < main.anchor(),
         })
     }
 
@@ -1006,9 +1477,16 @@ impl EntityInputHandler for Editor {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        // Committed text replaces the composition, else the given range, else the selection.
-        let range = range.map(|r| r.start as u32..r.end as u32).or_else(|| self.marked.clone());
-        self.insert(range, text, cx);
+        // Committed text replaces the composition, else the given range, else every selection
+        // range as typing does.
+        match range.map(|r| r.start as u32..r.end as u32).or_else(|| self.marked.clone()) {
+            Some(range) => {
+                self.insert(Some(range), text, cx);
+            }
+            None => {
+                self.type_text(text, cx);
+            }
+        }
         self.marked = None;
     }
 
@@ -1024,15 +1502,21 @@ impl EntityInputHandler for Editor {
             .map(|r| r.start as u32..r.end as u32)
             .or_else(|| self.marked.clone())
             .unwrap_or_else(|| self.selection());
-        let start = range.start;
-        if !self.insert(Some(range), new_text, cx) && !new_text.is_empty() {
+        let inserted = self.insert(Some(range.clone()), new_text, cx);
+        if !inserted && !new_text.is_empty() {
             return;
         }
         let length = new_text.encode_utf16().count() as u32;
+        // The main caret ends after the composed text, wherever the other carets' copies moved it.
+        let start = if inserted { self.caret().saturating_sub(length) } else { range.start };
         self.marked = (length > 0).then_some(start..start + length);
         // The composition's own selection is relative to the composed text.
         let selected = new_selected.map_or(length..length, |r| r.start as u32..r.end as u32);
-        (self.anchor, self.head) = (start + selected.start.min(length), start + selected.end.min(length));
+        let mut ranges = self.selections.clone();
+        if let Some(main) = ranges.get_mut(self.main) {
+            *main = (start + selected.start.min(length), start + selected.end.min(length));
+        }
+        self.put_selections(ranges, self.main);
         cx.notify();
     }
 
@@ -1068,7 +1552,10 @@ impl Render for Editor {
             .on_key_down(cx.listener(Self::key_down))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::mouse_down))
             .on_mouse_move(cx.listener(Self::mouse_move))
-            .on_mouse_up(MouseButton::Left, cx.listener(|editor, _, _, _| editor.drag_anchor = None))
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(|editor, _, _, _| (editor.drag_anchor, editor.adding) = (None, None)),
+            )
             .child(EditorElement { editor: cx.entity() })
     }
 }
@@ -1089,6 +1576,29 @@ struct Prepared {
     layout: Layout,
     numbers: Vec<ShapedLine>,
     gutter: Pixels,
+    /// The marks that touch the painted lines.
+    marks: Vec<Mark>,
+}
+
+/// `runs` (covering a line's bytes in order) with the bytes `from..to` in `color`.
+fn recolor(runs: Vec<TextRun>, from: usize, to: usize, color: Hsla) -> Vec<TextRun> {
+    let mut out = Vec::with_capacity(runs.len() + 2);
+    let mut at = 0;
+    for run in runs {
+        let (start, end) = (at, at + run.len);
+        at = end;
+        let (cut_from, cut_to) = (from.clamp(start, end), to.clamp(start, end));
+        if cut_from >= cut_to {
+            out.push(run);
+            continue;
+        }
+        for (a, b, recolored) in [(start, cut_from, false), (cut_from, cut_to, true), (cut_to, end, false)] {
+            if b > a {
+                out.push(TextRun { len: b - a, color: if recolored { color } else { run.color }, ..run.clone() });
+            }
+        }
+    }
+    out
 }
 
 impl Element for EditorElement {
@@ -1129,6 +1639,7 @@ impl Element for EditorElement {
         let code_font = Editor::code_font(cx);
         let plain = theme::color(cx, "fg-editor");
         let number_color = theme::color(cx, "fg-gutter");
+        let match_color = theme::color(cx, "fg-search-match");
         let editor = self.editor.read(cx);
         let total = editor.line_count();
         let first_line = ((editor.scroll_top / line_height).floor() as u32).min(total.saturating_sub(1));
@@ -1145,6 +1656,14 @@ impl Element for EditorElement {
 
         // Spans are sorted: skip to the first one that can touch the first visible line.
         let first_offset = buffer::line_range(&editor.rope, first_line).start;
+        let last_offset = buffer::line_range(&editor.rope, last_line.saturating_sub(1)).end;
+        let marks: Vec<Mark> = editor
+            .marks
+            .values()
+            .flatten()
+            .filter(|mark| mark.range.end >= first_offset && mark.range.start <= last_offset)
+            .cloned()
+            .collect();
         let mut span = editor.highlights.partition_point(|s| s.to <= first_offset);
         let mut lines = Vec::with_capacity((last_line - first_line) as usize);
         let mut numbers = Vec::with_capacity(lines.capacity());
@@ -1171,6 +1690,13 @@ impl Element for EditorElement {
             if at < text.len() || runs.is_empty() {
                 runs.push(run(text.len() - at, plain));
             }
+            for mark in marks.iter().filter(|mark| mark.kind.recolors_text()) {
+                if mark.range.end > range.start && mark.range.start < range.end {
+                    let from = buffer::byte_of_col(&text, mark.range.start.saturating_sub(range.start));
+                    let to = buffer::byte_of_col(&text, mark.range.end.min(range.end) - range.start);
+                    runs = recolor(runs, from, to, match_color);
+                }
+            }
             let shaped = window.text_system().shape_line(text.clone().into(), font_size, &runs, None);
             lines.push((text, shaped));
             let label = (line + 1).to_string();
@@ -1181,7 +1707,12 @@ impl Element for EditorElement {
                 None,
             ));
         }
-        Prepared { layout: Layout { bounds, text_left: gutter, line_height, first_line, lines }, numbers, gutter }
+        Prepared {
+            layout: Layout { bounds, text_left: gutter, line_height, first_line, lines },
+            numbers,
+            gutter,
+            marks,
+        }
     }
 
     fn paint(
@@ -1194,9 +1725,10 @@ impl Element for EditorElement {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let (focus, selection, caret, scroll_top, marked) = {
+        use super::marks::MarkKind;
+        let (focus, selections, scroll_top, marked) = {
             let editor = self.editor.read(cx);
-            (editor.focus.clone(), editor.selection(), editor.head, editor.scroll_top, editor.marked.clone())
+            (editor.focus.clone(), editor.selections.clone(), editor.scroll_top, editor.marked.clone())
         };
         window.handle_input(&focus, ElementInputHandler::new(bounds, self.editor.clone()), cx);
         let editor = self.editor.clone();
@@ -1209,13 +1741,20 @@ impl Element for EditorElement {
             }
         });
 
-        let Prepared { layout, numbers, gutter } = prepared;
+        let Prepared { layout, numbers, gutter, marks } = prepared;
         let line_height = layout.line_height;
         let focused = focus.is_focused(window);
+        let mark_color = |cx: &App, kind: MarkKind| match kind {
+            MarkKind::FindOccurrence => theme::color(cx, "bg-search-match"),
+            MarkKind::CurrentFindOccurrence => theme::color(cx, "bg-search-match-current"),
+            MarkKind::FindScope => theme::color(cx, "bg-editor-selection-inactive"),
+            MarkKind::ExcludedOccurrence => theme::color(cx, "fg-muted"),
+        };
         window.with_content_mask(Some(gpui_kit::ContentMask { bounds }), |window| {
             window.paint_quad(fill(bounds, theme::color(cx, "bg-editor")));
             let rope = self.editor.read(cx).rope.clone();
-            let (caret_line, _) = buffer::line_col(&rope, caret);
+            let heads: Vec<(u32, u32)> =
+                selections.iter().map(|range| (buffer::line_col(&rope, range.head()).0, range.head())).collect();
             for (index, (text, shaped)) in layout.lines.iter().enumerate() {
                 let line = layout.first_line + index as u32;
                 let top = bounds.top() + line_height * line as f32 - scroll_top;
@@ -1224,20 +1763,46 @@ impl Element for EditorElement {
                 let x_of = |offset: u32| {
                     shaped.x_for_index(buffer::byte_of_col(text, offset.clamp(range.start, range.end) - range.start))
                 };
-                if selection.is_empty() && line == caret_line && focused {
+                // The area of `from..to` on this line; running past the line end covers the break.
+                let area = |from: u32, to: u32, height: Pixels| {
+                    let left = x_of(from);
+                    let right = if to > range.end { x_of(range.end) + px(6.0) } else { x_of(to) };
+                    Bounds::new(point(text_origin.x + left, top), size((right - left).max(px(0.0)), height))
+                };
+                let touches = |from: u32, to: u32| from <= range.end && to >= range.start && from < to;
+                let on_line = |head: &(u32, u32)| head.0 == line;
+                let caret_here = selections.iter().zip(&heads).any(|(range, head)| range.is_caret() && on_line(head));
+                if focused && caret_here {
                     let row = Bounds::new(
                         point(bounds.left() + *gutter, top),
                         size(bounds.size.width - *gutter, line_height),
                     );
                     window.paint_quad(fill(row, theme::color(cx, "bg-current-line")));
                 }
-                if selection.start <= range.end && selection.end >= range.start && !selection.is_empty() {
-                    let from = x_of(selection.start);
-                    // A selection running past the line end covers the line break too.
-                    let to = if selection.end > range.end { x_of(range.end) + px(6.0) } else { x_of(selection.end) };
-                    let area =
-                        Bounds::new(point(text_origin.x + from, top), size((to - from).max(px(0.0)), line_height));
-                    window.paint_quad(fill(area, theme::color(cx, "bg-selected")));
+                let backgrounds = |below: bool| {
+                    marks.iter().filter(move |mark| {
+                        mark.kind != MarkKind::ExcludedOccurrence && mark.kind.is_below_selection() == below
+                    })
+                };
+                for mark in backgrounds(true).filter(|mark| touches(mark.range.start, mark.range.end)) {
+                    window.paint_quad(fill(
+                        area(mark.range.start, mark.range.end, line_height),
+                        mark_color(cx, mark.kind),
+                    ));
+                }
+                for selected in selections.iter().filter(|range| touches(range.start(), range.end())) {
+                    let selected = area(selected.start(), selected.end(), line_height);
+                    window.paint_quad(fill(selected, theme::color(cx, "bg-selected")));
+                }
+                for mark in backgrounds(false).filter(|mark| touches(mark.range.start, mark.range.end)) {
+                    let color = mark_color(cx, mark.kind);
+                    let area = area(mark.range.start, mark.range.end, line_height);
+                    if mark.kind == MarkKind::CurrentFindOccurrence {
+                        let border = theme::color(cx, "fg-strong").blend(color.opacity(0.6));
+                        window.paint_quad(quad(area, px(2.0), color, px(1.0), border, gpui_kit::BorderStyle::Solid));
+                    } else {
+                        window.paint_quad(quad(area, px(2.0), color, px(0.0), color, gpui_kit::BorderStyle::Solid));
+                    }
                 }
                 if let Some(marked) = marked.as_ref().filter(|m| m.start <= range.end && m.end >= range.start) {
                     let (from, to) = (x_of(marked.start), x_of(marked.end));
@@ -1248,14 +1813,24 @@ impl Element for EditorElement {
                     window.paint_quad(fill(underline, theme::color(cx, "fg-editor")));
                 }
                 let _ = shaped.paint(text_origin, line_height, TextAlign::Left, None, window, cx);
+                for mark in marks.iter().filter(|mark| mark.kind == MarkKind::ExcludedOccurrence) {
+                    if touches(mark.range.start, mark.range.end) {
+                        let struck = area(mark.range.start, mark.range.end.min(range.end), px(1.0));
+                        let struck = Bounds { origin: point(struck.origin.x, top + line_height / 2.0), ..struck };
+                        window.paint_quad(fill(struck, mark_color(cx, mark.kind)));
+                    }
+                }
                 if let Some(number) = numbers.get(index) {
                     let x = bounds.left() + *gutter - number.width - px(12.0);
                     let _ =
                         number.paint(point(x.max(bounds.left()), top), line_height, TextAlign::Left, None, window, cx);
                 }
-                if focused && line == caret_line {
-                    let caret_bounds = Bounds::new(point(text_origin.x + x_of(caret), top), size(px(2.0), line_height));
-                    window.paint_quad(fill(caret_bounds, theme::color(cx, "caret")));
+                if focused {
+                    for &(_, head) in heads.iter().filter(|head| on_line(head)) {
+                        let caret_bounds =
+                            Bounds::new(point(text_origin.x + x_of(head), top), size(px(2.0), line_height));
+                        window.paint_quad(fill(caret_bounds, theme::color(cx, "caret")));
+                    }
                 }
             }
         });
@@ -1545,6 +2120,7 @@ mod tests {
 mod editing_tests {
     use super::*;
     use crate::backend::AppDirs;
+    use crate::editor_commands::change;
     use gpui_kit::{TestAppContext, VisualTestContext};
     use ide_core::{Pos, TextEdit};
     use std::time::Duration;
@@ -1730,9 +2306,9 @@ mod editing_tests {
         o.editor.update(cx, |e, cx| e.select(0, 6, cx));
         cx.simulate_keystrokes("cmd-x");
         assert_eq!(text(&o, cx), "betaalpha \n");
-        // Without a selection nothing is copied: the clipboard keeps the cut text.
+        // Without a selection the caret line is copied, without its line break.
         cx.simulate_keystrokes("cmd-c");
-        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("alpha "));
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("betaalpha "));
         cx.simulate_keystrokes("cmd-a");
         assert_eq!(o.editor.read_with(cx, |e, _| e.selection()), 0..11);
         // A paste is one undo step, whatever its length.
@@ -1752,6 +2328,182 @@ mod editing_tests {
         saved.await.expect("the task completes").expect("the file saves");
         assert_eq!(std::fs::read_to_string(&o.path).expect("readable"), "final draft\n");
         settle(cx, |cx| !o.editor.read_with(cx, |e, _| e.is_dirty()));
+        o.host.close_project("w1");
+    }
+
+    fn selections(o: &Opened, cx: &mut VisualTestContext) -> Vec<(u32, u32)> {
+        o.editor.read_with(cx, |e, _| e.selections().to_vec())
+    }
+
+    #[gpui_kit::test]
+    async fn several_carets_type_delete_and_move_together(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "one\ntwo\nthree\n").await;
+        o.editor.update(cx, |e, cx| e.set_selections(vec![(8, 8), (0, 0), (4, 4)], 0, cx));
+        // Sorted, with the main range still the one at 8.
+        assert_eq!(selections(&o, cx), [(0, 0), (4, 4), (8, 8)]);
+        assert_eq!(o.editor.read_with(cx, |e, _| (e.main_index(), e.caret())), (2, 8));
+        cx.simulate_input("> ");
+        assert_eq!(text(&o, cx), "> one\n> two\n> three\n");
+        assert_eq!(selections(&o, cx), [(2, 2), (8, 8), (14, 14)]);
+        cx.simulate_keystrokes("backspace end");
+        assert_eq!(text(&o, cx), ">one\n>two\n>three\n");
+        assert_eq!(selections(&o, cx), [(4, 4), (9, 9), (16, 16)]);
+        cx.simulate_input("!");
+        cx.simulate_keystrokes("shift-left");
+        assert_eq!(selections(&o, cx), [(5, 4), (11, 10), (19, 18)]);
+        cx.simulate_keystrokes("delete");
+        assert_eq!(text(&o, cx), ">one\n>two\n>three\n");
+        // Each step is one undo for every caret; undo brings the selections back.
+        cx.simulate_keystrokes("cmd-z");
+        assert_eq!(text(&o, cx), ">one!\n>two!\n>three!\n");
+        assert_eq!(selections(&o, cx), [(5, 4), (11, 10), (19, 18)]);
+        // Up and Down move every caret, each keeping its column; carets that meet merge.
+        o.editor.update(cx, |e, cx| e.set_selections(vec![(4, 4), (10, 10)], 1, cx));
+        cx.simulate_keystrokes("up");
+        assert_eq!(selections(&o, cx), [(0, 0), (4, 4)]);
+        cx.simulate_keystrokes("down");
+        assert_eq!(selections(&o, cx), [(10, 10)]);
+        o.editor.update(cx, |e, cx| e.set_selections(vec![(7, 7), (13, 13)], 1, cx));
+        cx.simulate_keystrokes("shift-alt-right");
+        assert_eq!(selections(&o, cx), [(7, 10), (13, 18)]);
+        assert_eq!(o.editor.read_with(cx, |e, _| e.selected_text()), "three");
+        cx.simulate_keystrokes("enter");
+        assert_eq!(text(&o, cx), ">one!\n>\n!\n>\n!\n");
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn several_carets_paste_a_line_each_and_cut_together(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "a\nb\nc").await;
+        o.editor.update(cx, |e, cx| e.set_selections(vec![(1, 1), (3, 3), (5, 5)], 0, cx));
+        cx.write_to_clipboard(ClipboardItem::new_string("1\n2\n3".to_owned()));
+        cx.simulate_keystrokes("cmd-v");
+        assert_eq!(text(&o, cx), "a1\nb2\nc3");
+        assert_eq!(selections(&o, cx), [(2, 2), (5, 5), (8, 8)]);
+        // The same text at every caret when the line counts differ.
+        cx.write_to_clipboard(ClipboardItem::new_string("x".to_owned()));
+        cx.simulate_keystrokes("cmd-v");
+        assert_eq!(text(&o, cx), "a1x\nb2x\nc3x");
+        o.editor.update(cx, |e, cx| e.set_selections(vec![(0, 1), (4, 5)], 1, cx));
+        cx.simulate_keystrokes("cmd-x");
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("a\nb"));
+        assert_eq!(text(&o, cx), "1x\n2x\nc3x");
+        cx.simulate_keystrokes("cmd-z");
+        assert_eq!(text(&o, cx), "a1x\nb2x\nc3x");
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn an_input_method_composes_at_every_caret(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "a\nb").await;
+        o.editor.update_in(cx, |editor, window, cx| {
+            editor.set_selections(vec![(1, 1), (3, 3)], 1, cx);
+            editor.replace_and_mark_text_in_range(None, "n", None, window, cx);
+            editor.replace_and_mark_text_in_range(None, "ni", None, window, cx);
+            assert_eq!(editor.text(), "ani\nbni");
+            assert_eq!(editor.marked_text_range(window, cx), Some(5..7));
+            editor.replace_text_in_range(None, "你", window, cx);
+            assert_eq!(editor.text(), "a你\nb你");
+            assert_eq!(editor.selections(), [(2, 2), (5, 5)]);
+        });
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn escape_keeps_the_main_range_then_collapses_it(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "alpha beta\n").await;
+        o.editor.update(cx, |e, cx| e.set_selections(vec![(0, 0), (6, 10)], 1, cx));
+        cx.simulate_keystrokes("escape");
+        assert_eq!(selections(&o, cx), [(6, 10)]);
+        cx.simulate_keystrokes("escape");
+        assert_eq!(selections(&o, cx), [(10, 10)]);
+        cx.simulate_keystrokes("escape");
+        assert_eq!(selections(&o, cx), [(10, 10)]);
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn the_keymaps_caret_click_adds_and_removes_carets(cx: &mut TestAppContext) {
+        use gpui_kit::Modifiers;
+        let (o, cx) = open(cx, "alpha beta\nsecond\n").await;
+        cx.update(|_, cx| crate::platform::input::init(cx));
+        let at = |cx: &mut VisualTestContext, offset: u32| {
+            o.editor.read_with(cx, |e, _| e.position_of(offset).expect("painted")) + point(px(0.0), px(3.0))
+        };
+        let gesture = Modifiers { alt: true, shift: true, ..Modifiers::default() };
+        o.editor.update(cx, |e, cx| e.select(2, 2, cx));
+        let (seven, thirteen) = (at(cx, 7), at(cx, 13));
+        cx.simulate_click(seven, gesture);
+        cx.simulate_click(thirteen, gesture);
+        assert_eq!(selections(&o, cx), [(2, 2), (7, 7), (13, 13)]);
+        assert_eq!(o.editor.read_with(cx, |e, _| e.caret()), 13);
+        // The gesture on a caret removes it.
+        cx.simulate_click(seven, gesture);
+        assert_eq!(selections(&o, cx), [(2, 2), (13, 13)]);
+        cx.simulate_input("#");
+        assert_eq!(text(&o, cx), "al#pha beta\nse#cond\n");
+        // A plain click goes back to one caret.
+        cx.simulate_click(seven, Modifiers::default());
+        assert_eq!(selections(&o, cx), [(7, 7)]);
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn marks_follow_edits_until_they_are_replaced(cx: &mut TestAppContext) {
+        use super::super::marks::{Mark, MarkKind, MarkLayer};
+        let (o, cx) = open(cx, "find me, find you\n").await;
+        let marks = vec![Mark::new(9..13, MarkKind::FindOccurrence), Mark::new(0..4, MarkKind::CurrentFindOccurrence)];
+        o.editor.update(cx, |e, cx| e.set_marks(MarkLayer::Find, marks, cx));
+        let marks = |cx: &mut VisualTestContext| o.editor.read_with(cx, |e, _| e.marks(MarkLayer::Find).to_vec());
+        assert_eq!(
+            marks(cx),
+            [Mark::new(0..4, MarkKind::CurrentFindOccurrence), Mark::new(9..13, MarkKind::FindOccurrence)]
+        );
+        cx.simulate_input(">> ");
+        assert_eq!(
+            marks(cx),
+            [Mark::new(3..7, MarkKind::CurrentFindOccurrence), Mark::new(12..16, MarkKind::FindOccurrence)]
+        );
+        // A mark whose text goes goes with it.
+        o.editor.update(cx, |e, cx| e.select(3, 8, cx));
+        cx.simulate_keystrokes("delete");
+        assert_eq!(marks(cx), [Mark::new(7..11, MarkKind::FindOccurrence)]);
+        o.editor.update(cx, |e, cx| e.set_marks(MarkLayer::Find, Vec::new(), cx));
+        assert_eq!(marks(cx), []);
+        o.host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn an_edit_of_several_changes_is_one_undo_step_that_sibling_editors_follow(cx: &mut TestAppContext) {
+        let (o, cx) = open(cx, "body\n").await;
+        let documents = o.host.project("w1").expect("the project is open").documents.clone();
+        let doc = o.editor.read_with(cx, |e, _| e.doc());
+        let (host, path) = (o.host.clone(), o.path.clone());
+        let opened = cx.update(|_, cx| {
+            cx.global::<Backend>()
+                .with_host(move |host| async move { ide_host::ops::doc::open(&host, "w1", path).await })
+        });
+        let info = opened.await.expect("the task completes").expect("the document opens again");
+        let sibling = cx.new(|cx| Editor::new(host.clone(), "w1", &info, cx).expect("a second editor"));
+        sibling.update(cx, |e, cx| e.select(2, 2, cx));
+        o.editor.update(cx, |e, cx| e.select(4, 4, cx));
+        let before = documents.version(doc).expect("a version");
+        let changes = [change(0, 0, "<"), change(2, 2, "|"), change(4, 4, ">")];
+        assert!(o.editor.update(cx, |e, cx| e.apply_edit(&changes, vec![(1, 1), (7, 7)], 1, cx)));
+        assert_eq!(text(&o, cx), "<bo|dy>\n");
+        assert_eq!(documents.version(doc).expect("a version"), before + 1);
+        assert_eq!(selections(&o, cx), [(1, 1), (7, 7)]);
+        // The other editor of the document follows each change: its caret stays between "bo" and "dy".
+        assert_eq!(sibling.read_with(cx, |e, _| (e.text(), e.caret())), ("<bo|dy>\n".to_owned(), 4));
+        cx.simulate_keystrokes("cmd-z");
+        assert_eq!(text(&o, cx), "body\n");
+        assert_eq!(selections(&o, cx), [(4, 4)]);
+        assert_eq!(sibling.read_with(cx, |e, _| e.text()), "body\n");
+        // A read-only editor refuses.
+        let read_only = DocumentInfo { read_only: true, ..info };
+        let viewer = cx.new(|cx| Editor::new(host.clone(), "w1", &read_only, cx).expect("a read-only editor"));
+        assert!(!viewer.update(cx, |e, cx| e.apply_edit(&changes, vec![(0, 0)], 0, cx)));
+        assert_eq!(text(&o, cx), "body\n");
         o.host.close_project("w1");
     }
 }
