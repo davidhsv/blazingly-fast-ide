@@ -1646,5 +1646,9 @@
   "context:editorSplit": {
     "status": "done",
     "proof": "`workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`"
+  },
+  "module:src/ui/Menu.tsx": {
+    "status": "partial",
+    "proof": "`ui::popup_menu::tests`, `workbench::tests::a_tabs_menu_closes_pins_and_splits`; rows from actions and from the menu's own entries, separators tidied, keyboard (arrows, Home, End, typed letter, Right and Left for submenus, Enter, Space, Escape), pointer selection with the submenu delay, the menu kept inside the window. Not yet: header rows, check marks on rows of the menu's own, the pointer's aim towards an open submenu (its model is `ui::menu_aim::tests`), menus anchored to a button"
   }
 }

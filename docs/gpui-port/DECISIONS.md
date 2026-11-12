@@ -361,3 +361,11 @@ The editor area draws the tab model's layout: every pane has its tab strip and t
 A file shown in two panes has two editors on one backend document. I first assumed they would follow each other through the backend's `DocPatched` event and the test refuted it: the backend announces only the edits it makes itself, not the ones an editor sends. So an editor now tells the other editors of its document about each edit it made (`DocumentEditors`), and they follow it exactly as they follow a backend edit, selection included. Each editor keeps its own undo history, in which the other pane's edits are entries of their own.
 
 Not there: splitters cannot be dragged (the model keeps no sizes; the panes share evenly), and tabs cannot be dragged between panes.
+
+## D50. One popup menu for every context menu
+
+`ui/popup_menu.rs` draws the menu model the ports already share (`vcs_ops::menu::MenuItem<C>`): rows bound to a registered action, which take the action's title, icon, shortcut, enabled and toggled state, and rows of the menu's own that carry a command `C` back to whoever opened the menu. The workbench opens one with `show_menu` in the popup slot, so it gets the slot's focus restore and context republish, and a chosen action runs through the same deferred path as one chosen in Search Everywhere.
+
+The editor tab's menu is the first user (`tab_menu`, `run_tab_command`), with the webview's rows in its order. Rows bound to actions that are not registered yet (Compare With, Copy Path, Rename File, Configure Editor Tabs) do not show, exactly as the webview's `resolveMenuItems` drops an unknown action; a submenu left with no row is not offered either, which the webview never has to decide because there all of them are registered. Not in the menu yet: Close All Read-Only Tabs (no document metadata is kept per tab), Open in New Window, and the groups other features contribute (Run, Local History, Git, Open In, Bookmarks).
+
+The pointer opens a submenu after 120 ms on its row and closes another after 200 ms, as in the webview. The webview also keeps a submenu open while the pointer moves diagonally towards it; that needs the submenu's drawn rectangle, which this view does not measure yet.

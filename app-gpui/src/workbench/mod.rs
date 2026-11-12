@@ -29,6 +29,8 @@ use crate::platform::local_time::now_ms;
 use crate::platform::storage::UiStorage;
 use crate::project_tree::{OpenFile, ProjectTree};
 use crate::theme;
+use crate::ui::popup_menu::{Choice, PopupMenu, PopupMenuEvent};
+use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::Subscription;
 use gpui_kit::{AnyView, FocusHandle};
 use gpui_kit::{
@@ -92,6 +94,29 @@ struct Panel {
 
 /// The longest editor selection, in UTF-16 code units, that Search Everywhere starts with.
 const SELECTION_QUERY_LIMIT: usize = 200;
+
+/// What a row of an editor tab's menu does to the tab it was opened on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TabCommand {
+    Close,
+    CloseOthers,
+    CloseLeft,
+    CloseRight,
+    CloseAll,
+    CloseUnmodified,
+    CloseAllButPinned,
+    TogglePin,
+    Keep,
+    SplitAndMoveRight,
+    SplitAndMoveDown,
+    SplitRight,
+    SplitDown,
+    MoveToOpposite,
+    OpenInOpposite,
+    ChangeOrientation,
+    Unsplit,
+    UnsplitAll,
+}
 
 /// A popup over the window and where the keyboard goes when it closes.
 struct Popup {
@@ -661,6 +686,7 @@ impl Workbench {
                     .children(titles.into_iter().zip(ids).map(|(TabTitle { name, hint, active }, id)| {
                         let (select, close) = (id.clone(), id.clone());
                         let (select_pane, close_pane) = (pane_id.to_owned(), pane_id.to_owned());
+                        let (menu_pane, menu_tab) = (pane_id.to_owned(), id.clone());
                         let selected = if editor_focused { "bg-tab-selected" } else { "bg-tab-selected-inactive" };
                         div()
                             .id(SharedString::from(format!("tab:{id}")))
@@ -706,6 +732,22 @@ impl Workbench {
                                     true
                                 });
                             }))
+                            .on_mouse_down(
+                                gpui_kit::MouseButton::Right,
+                                cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
+                                    let items = workbench.tab_menu(&menu_pane, &menu_tab, cx);
+                                    let (pane, tab) = (menu_pane.clone(), menu_tab.clone());
+                                    workbench.show_menu(
+                                        &items,
+                                        event.position,
+                                        move |workbench, command, window, cx| {
+                                            workbench.run_tab_command(&pane, &tab, command, window, cx);
+                                        },
+                                        window,
+                                        cx,
+                                    );
+                                }),
+                            )
                     }))
             });
         div()
@@ -1600,6 +1642,178 @@ impl Workbench {
         }
         self.publish_context(window, cx);
         cx.notify();
+    }
+
+    /// Opens a menu of `items` with its corner at `position`. A chosen action runs in the window;
+    /// a chosen row of the menu's own goes to `on_command`. Either way the menu closes first, so
+    /// what was chosen finds the window as it was.
+    pub fn show_menu<C: Clone + 'static>(
+        &mut self,
+        items: &[MenuItem<C>],
+        position: gpui_kit::Point<gpui_kit::Pixels>,
+        on_command: impl Fn(&mut Self, C, &mut Window, &mut Context<Self>) + 'static,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let menu = cx.new(|cx| PopupMenu::new(items, position, window, cx));
+        let events = cx.subscribe_in(&menu, window, move |workbench, _, event: &PopupMenuEvent<C>, window, cx| {
+            workbench.close_popup(window, cx);
+            match event.clone() {
+                PopupMenuEvent::Dismissed => {}
+                PopupMenuEvent::Chosen(Choice::Command(command)) => on_command(workbench, command, window, cx),
+                PopupMenuEvent::Chosen(Choice::Action { id, arg }) => {
+                    // Once this update is over: the action may reach for the workbench.
+                    window.defer(cx, move |window, cx| {
+                        execute_action_from(ActionSource::ContextMenu, &id, arg.as_ref(), window, cx);
+                    });
+                }
+            }
+        });
+        self.open_popup(&menu, events, window, cx);
+    }
+
+    /// The menu that is open, when it is one of commands `C`.
+    pub fn open_menu<C: 'static>(&self) -> Option<Entity<PopupMenu<C>>> {
+        self.popup.as_ref().and_then(|popup| popup.view.clone().downcast().ok())
+    }
+
+    /// The menu of the tab `tab` of `pane`: closing it and its neighbours, pinning, splitting,
+    /// and what can be done with its file.
+    pub fn tab_menu(&self, pane: &str, tab: &str, cx: &App) -> Vec<MenuItem<TabCommand>> {
+        let Some(tabs) = self.tabs() else { return Vec::new() };
+        let Some(open) = tabs.pane(pane) else { return Vec::new() };
+        let Some(index) = open.tabs.iter().position(|other| other.id == tab) else { return Vec::new() };
+        let (this, count) = (&open.tabs[index], open.tabs.len());
+        let shortcut = |action: &str| {
+            cx.try_global::<input::Keymap>()
+                .and_then(|keymap| keymap.0.shortcut_label(action, crate::platform::keymap::is_mac_host()))
+        };
+        let row = |label: &str, command: TabCommand, enabled: bool| MenuItem::entry(label, enabled.then_some(command));
+        let with_shortcut = |item: MenuItem<TabCommand>, action: &str| match (item, shortcut(action)) {
+            (MenuItem::Item(mut entry), Some(shortcut)) => {
+                entry.shortcut = Some(shortcut);
+                MenuItem::Item(entry)
+            }
+            (item, _) => item,
+        };
+        let mut items = vec![
+            with_shortcut(row("Close", TabCommand::Close, true), "editor.closeTab"),
+            row("Close Other Tabs", TabCommand::CloseOthers, count >= 2),
+            row("Close Tabs to the Left", TabCommand::CloseLeft, index > 0),
+            row("Close Tabs to the Right", TabCommand::CloseRight, index + 1 < count),
+            row("Close All Tabs", TabCommand::CloseAll, true),
+            row("Close Unmodified Tabs", TabCommand::CloseUnmodified, true),
+        ];
+        if open.tabs.iter().any(|other| other.pinned) {
+            items.push(row("Close All but Pinned", TabCommand::CloseAllButPinned, true));
+        }
+        items.push(MenuItem::Separator);
+        items.push(row(if this.pinned { "Unpin Tab" } else { "Pin Tab" }, TabCommand::TogglePin, true).icon("pin"));
+        if this.preview {
+            items.push(row("Keep Tab Open", TabCommand::Keep, true));
+        }
+        items.extend([
+            MenuItem::Separator,
+            row("Split and Move Right", TabCommand::SplitAndMoveRight, true),
+            row("Split and Move Down", TabCommand::SplitAndMoveDown, true),
+            with_shortcut(row("Split Right", TabCommand::SplitRight, true).icon("split"), "editor.splitRight"),
+            with_shortcut(row("Split Down", TabCommand::SplitDown, true).icon("split-horizontal"), "editor.splitDown"),
+        ]);
+        if tabs.panes.len() > 1 {
+            items.extend([
+                row("Move to Opposite Group", TabCommand::MoveToOpposite, true),
+                row("Open in Opposite Group", TabCommand::OpenInOpposite, true),
+                row("Change Splitter Orientation", TabCommand::ChangeOrientation, true),
+                row("Unsplit", TabCommand::Unsplit, true),
+                row("Unsplit All", TabCommand::UnsplitAll, true),
+            ]);
+        }
+        items.push(MenuItem::Separator);
+        if let Some(path) = this.input.path.clone().filter(|_| this.input.kind == "file") {
+            let in_project = self.project_root(cx).is_some_and(|root| std::path::Path::new(&path).starts_with(root));
+            let mut copy = vec![
+                MenuItem::action_with("project.copyAbsolutePath", path.clone().into()).labelled("Absolute Path"),
+                MenuItem::action_with("project.copyFileName", path.clone().into()).labelled("File Name"),
+            ];
+            if in_project {
+                copy.push(
+                    MenuItem::action_with("project.copyRelativePath", path.clone().into())
+                        .labelled("Path From Content Root"),
+                );
+            }
+            items.extend([
+                MenuItem::action_with("diff.compareWith", path.clone().into()).labelled("Compare With…"),
+                MenuItem::action_with("diff.compareWithClipboard", serde_json::json!({ "path": path }))
+                    .labelled("Compare with Clipboard"),
+                MenuItem::Separator,
+                MenuItem::submenu("Copy Path/Reference…", copy),
+                MenuItem::action_with("project.rename", path.into()).labelled("Rename File…"),
+                MenuItem::Separator,
+            ]);
+        }
+        items.push(
+            MenuItem::action_with("file.settings", "editor.general.editorTabs".into())
+                .labelled("Configure Editor Tabs…"),
+        );
+        items
+    }
+
+    /// Carries out a row of the menu of the tab `tab` of `pane`.
+    pub fn run_tab_command(
+        &mut self,
+        pane: &str,
+        tab: &str,
+        command: TabCommand,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let (pane, tab) = (pane.to_owned(), tab.to_owned());
+        // The splits copy or move the tab the menu was opened on: it is the active one first.
+        let activate = |workbench: &mut Self, window: &mut Window, cx: &mut Context<Self>| {
+            workbench.with_tabs(window, cx, |tabs, _| tabs.set_active_pane(&pane) | tabs.activate_tab(&pane, &tab));
+        };
+        match command {
+            TabCommand::SplitRight | TabCommand::SplitDown => {
+                activate(self, window, cx);
+                let dir = if command == TabCommand::SplitRight { SplitDir::Row } else { SplitDir::Column };
+                return self.split_editor(dir, window, cx);
+            }
+            TabCommand::MoveToOpposite => {
+                activate(self, window, cx);
+                return self.move_tab_to_opposite_group(window, cx);
+            }
+            TabCommand::OpenInOpposite => {
+                activate(self, window, cx);
+                return self.open_in_opposite_group(window, cx);
+            }
+            _ => {}
+        }
+        let dirty: std::collections::HashSet<String> = match &self.content {
+            Content::Project { editors, .. } => {
+                editors.iter().filter(|(_, editor)| editor.read(cx).is_dirty()).map(|(id, _)| id.clone()).collect()
+            }
+            _ => Default::default(),
+        };
+        self.with_tabs(window, cx, |tabs, _| match command {
+            TabCommand::Close => tabs.close_tab(&pane, &tab),
+            TabCommand::CloseOthers => tabs.close_others(&pane, &tab),
+            TabCommand::CloseLeft => tabs.close_to_left(&pane, &tab),
+            TabCommand::CloseRight => tabs.close_to_right(&pane, &tab),
+            TabCommand::CloseAll => tabs.close_all(&pane, false),
+            TabCommand::CloseAllButPinned => tabs.close_all(&pane, true),
+            TabCommand::CloseUnmodified => tabs.close_unmodified(&pane, |tab| dirty.contains(&tab.id)),
+            TabCommand::TogglePin => tabs.toggle_pin(&pane, &tab),
+            TabCommand::Keep => tabs.promote_tab(&pane, &tab),
+            TabCommand::SplitAndMoveRight => tabs.move_tab_to_new_split(&pane, &tab, &pane, SplitEdge::Right).is_some(),
+            TabCommand::SplitAndMoveDown => tabs.move_tab_to_new_split(&pane, &tab, &pane, SplitEdge::Bottom).is_some(),
+            TabCommand::ChangeOrientation => tabs.change_split_orientation(&pane),
+            TabCommand::Unsplit => tabs.remove_pane(&pane),
+            TabCommand::UnsplitAll => tabs.unsplit_all(&pane),
+            TabCommand::SplitRight
+            | TabCommand::SplitDown
+            | TabCommand::MoveToOpposite
+            | TabCommand::OpenInOpposite => false,
+        });
     }
 
     /// Opens Search Everywhere on `tab`, or moves the open one to it. A short selection on one
@@ -4042,6 +4256,107 @@ mod tests {
         settle(cx, |cx| panes(cx).len() == 3);
         run(cx, "editor.unsplitAll");
         assert_eq!(panes(cx).len(), 1);
+    }
+
+    /// A right click on a tab opens its menu at the pointer. Its rows close tabs around it, pin
+    /// it and split the editor; what cannot be done is greyed out; Escape gives the keyboard back.
+    #[gpui_kit::test]
+    async fn a_tabs_menu_closes_pins_and_splits(cx: &mut TestAppContext) {
+        use gpui_kit::{Modifiers, MouseButton};
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        for name in ["src/alpha.rs", "src/beta.rs", "notes.txt"] {
+            workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join(name), window, cx));
+            settle(cx, |cx| {
+                workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == root.join(name)))
+            });
+        }
+        let names = |cx: &mut VisualTestContext| -> Vec<String> {
+            workbench.read_with(cx, |w, _| w.tab_titles().into_iter().map(|tab| tab.name).collect())
+        };
+        let tab_id = |cx: &mut VisualTestContext, index: usize| {
+            workbench.read_with(cx, |w, _| {
+                let tabs = w.tabs().expect("a project is open");
+                tabs.pane(&tabs.active_pane).expect("the active pane").tabs[index].id.clone()
+            })
+        };
+        let right_click = |cx: &mut VisualTestContext, index: usize| {
+            let id = tab_id(cx, index);
+            let tab = cx.debug_bounds(Box::leak(format!("tab:{id}").into_boxed_str())).expect("the tab is drawn");
+            cx.simulate_mouse_down(tab.center(), MouseButton::Right, Modifiers::default());
+            cx.simulate_mouse_up(tab.center(), MouseButton::Right, Modifiers::default());
+            workbench.read_with(cx, |w, _| w.open_menu::<TabCommand>()).expect("the tab's menu is open")
+        };
+        let labels = |menu: &Entity<PopupMenu<TabCommand>>, cx: &mut VisualTestContext| -> Vec<(String, bool)> {
+            menu.read_with(cx, |menu, _| menu.rows().iter().map(|row| (row.label.clone(), row.disabled)).collect())
+        };
+
+        // The first tab has nothing to its left; one pane has no opposite group.
+        let menu = right_click(cx, 0);
+        let rows = labels(&menu, cx);
+        assert_eq!(
+            rows.iter().map(|(label, _)| label.as_str()).collect::<Vec<_>>(),
+            [
+                "Close",
+                "Close Other Tabs",
+                "Close Tabs to the Left",
+                "Close Tabs to the Right",
+                "Close All Tabs",
+                "Close Unmodified Tabs",
+                "Pin Tab",
+                "Split and Move Right",
+                "Split and Move Down",
+                "Split Right",
+                "Split Down",
+            ]
+        );
+        assert_eq!(
+            rows.iter().filter(|(_, disabled)| *disabled).map(|(label, _)| label.as_str()).collect::<Vec<_>>(),
+            ["Close Tabs to the Left"]
+        );
+        assert!(cx.update(|window, cx| menu.focus_handle(cx).is_focused(window)));
+        // Escape closes the menu and the editor has the keyboard again.
+        cx.simulate_keystrokes("escape");
+        assert!(workbench.read_with(cx, |w, _| w.open_menu::<TabCommand>().is_none()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)));
+
+        // Close Tabs to the Right, chosen with the keyboard, on the middle tab.
+        right_click(cx, 1);
+        cx.simulate_keystrokes("down down down enter");
+        cx.run_until_parked();
+        assert_eq!(names(cx), ["alpha.rs", "beta.rs"]);
+
+        // Pin Tab pins it, and the menu then offers to unpin and to close all but the pinned.
+        right_click(cx, 1);
+        cx.simulate_keystrokes("p enter");
+        cx.run_until_parked();
+        let pinned = workbench.read_with(cx, |w, _| {
+            let tabs = w.tabs().expect("a project is open");
+            tabs.pane(&tabs.active_pane).expect("the active pane").tabs.iter().filter(|tab| tab.pinned).count()
+        });
+        assert_eq!(pinned, 1);
+        let menu = right_click(cx, 0);
+        let rows: Vec<String> = labels(&menu, cx).into_iter().map(|(label, _)| label).collect();
+        assert!(rows.contains(&"Unpin Tab".to_owned()) && rows.contains(&"Close All but Pinned".to_owned()));
+        cx.simulate_keystrokes("escape");
+
+        // Split Right from the menu of a tab that is not the selected one: that tab is split.
+        let menu = right_click(cx, 0);
+        let first = names(cx)[0].clone();
+        menu.update(cx, |_, cx| cx.emit(PopupMenuEvent::Chosen(Choice::Command(TabCommand::SplitRight))));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.tabs().is_some_and(|tabs| tabs.panes.len() == 2)));
+        let split: Vec<Vec<String>> = workbench.read_with(cx, |w, _| {
+            let tabs = w.tabs().expect("a project is open");
+            tabs.pane_ids()
+                .into_iter()
+                .map(|id| w.tab_titles_of(id).into_iter().map(|tab| tab.name).collect())
+                .collect()
+        });
+        assert_eq!(split[1], [first]);
+        // With two panes the menu has the rows for the other group.
+        let menu = right_click(cx, 0);
+        assert!(labels(&menu, cx).iter().any(|(label, _)| label == "Move to Opposite Group"));
     }
 
     #[test]
