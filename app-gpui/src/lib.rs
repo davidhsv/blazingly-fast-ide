@@ -3,6 +3,8 @@
 pub mod backend;
 pub mod debugger;
 pub mod editor;
+pub mod editor_commands;
+pub mod editor_lsp;
 pub mod everywhere;
 pub mod find;
 pub mod platform;

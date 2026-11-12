@@ -17,6 +17,9 @@ pub mod welcome_model;
 pub mod windows;
 
 use crate::backend::{Backend, BackendEvent};
+use crate::editor::find_bar::{
+    FindBar, FindBarEvent, FindResults, find_again_in, scroll_to_results, toggle_scroll_to_results,
+};
 use crate::editor::goto_line::{GotoLine, GotoLineEvent};
 use crate::editor::session::{self, FileViewState};
 use crate::editor::tabs::{
@@ -103,12 +106,20 @@ enum Content {
         /// What tells the window that a tab's editor took the keyboard, by tab id: its pane is
         /// the active one from then on.
         editor_focus: HashMap<String, Subscription>,
+        /// The Find / Replace bar of each tab that has one open, by tab id.
+        find_bars: HashMap<String, TabFindBar>,
         _opens: Subscription,
         /// What runs the project's run configurations, and what the window listens to it for.
         run: Entity<RunDriver>,
         _run_events: Subscription,
     },
     Failed(SharedString),
+}
+
+/// An editor tab's Find / Replace bar, with what the window listens to it for.
+struct TabFindBar {
+    bar: Entity<FindBar>,
+    _subscriptions: Vec<Subscription>,
 }
 
 /// A tool window's content and where its keyboard focus goes.
@@ -633,6 +644,35 @@ pub fn register_actions(cx: &mut App) {
             Ok(())
         });
     }
+    for (id, replace) in [("find.inFile", false), ("find.replaceInFile", true)] {
+        registry.handle(id, move |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            workbench.update(cx, |workbench, cx| workbench.show_find_bar(replace, window, cx));
+            Ok(())
+        });
+    }
+    for (id, forward) in [("find.next", true), ("find.previous", false)] {
+        registry.handle(id, move |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            workbench.update(cx, |workbench, cx| workbench.find_again(forward, window, cx));
+            Ok(())
+        });
+    }
+    registry.handle("find.openInWindow", |_, window, cx| {
+        let bar = for_window(window, cx).and_then(|workbench| workbench.read(cx).focused_find_bar(window, cx));
+        if let Some(bar) = bar {
+            bar.update(cx, FindBar::open_results);
+        }
+        Ok(())
+    });
+    registry.handle_toggle(
+        "find.scrollToResults",
+        |_, cx| scroll_to_results(cx),
+        |_, _, cx| {
+            toggle_scroll_to_results(cx);
+            Ok(())
+        },
+    );
     for (id, command) in [
         ("find.popup.nextResult", FindPopupCommand::NextResult),
         ("find.popup.previousResult", FindPopupCommand::PreviousResult),
@@ -1008,11 +1048,15 @@ impl Workbench {
 
     /// One pane of the editor area: its tabs over the editor of the selected one.
     fn pane_element(&self, pane_id: &str, window: &Window, cx: &mut Context<Self>) -> gpui_kit::Div {
-        let editor = match &self.content {
-            Content::Project { tabs, editors, .. } => {
-                tabs.pane(pane_id).and_then(|pane| pane.active.as_ref()).and_then(|id| editors.get(id)).cloned()
+        let (editor, find_bar) = match &self.content {
+            Content::Project { tabs, editors, find_bars, .. } => {
+                let active = tabs.pane(pane_id).and_then(|pane| pane.active.as_ref());
+                (
+                    active.and_then(|id| editors.get(id)).cloned(),
+                    active.and_then(|id| find_bars.get(id)).map(|bar| bar.bar.clone()),
+                )
             }
-            _ => None,
+            _ => (None, None),
         };
         let editor_focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
         let titles = self.tab_titles_of(pane_id);
@@ -1107,6 +1151,7 @@ impl Workbench {
             .flex()
             .flex_col()
             .children(strip)
+            .children(find_bar.map(|bar| div().flex_none().child(bar)))
             .child(div().flex_1().min_h_0().children(editor))
     }
 
@@ -1155,9 +1200,10 @@ impl Workbench {
 
     fn tabs_changed(&mut self, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
         let auto_save = self.auto_save(cx);
-        let Content::Project { tabs, editors, editor_focus, .. } = &mut self.content else { return };
+        let Content::Project { tabs, editors, editor_focus, find_bars, .. } = &mut self.content else { return };
         let open: std::collections::HashSet<&str> =
             tabs.panes.iter().flat_map(|pane| pane.tabs.iter().map(|tab| tab.id.as_str())).collect();
+        find_bars.retain(|id, _| open.contains(id.as_str()));
         let closed: Vec<String> = editors.keys().filter(|id| !open.contains(id.as_str())).cloned().collect();
         for id in closed {
             editor_focus.remove(&id);
@@ -1243,12 +1289,14 @@ impl Workbench {
         if let Some(failure) = failure {
             self.report_save_failure(failure, cx);
         }
-        let Content::Project { tabs, editors, .. } = &mut self.content else { return };
+        let Content::Project { tabs, editors, find_bars, .. } = &mut self.content else { return };
         let pane = tabs.active_pane.clone();
         let input = EditorInput { kind: "file".to_owned(), key: path.clone(), path: Some(path), data: None };
         if let Some(id) = tabs.open_tab(&pane, input, OpenTabOptions::default()) {
             // A tab for the same file opened meanwhile has its own editor: the unsaved one wins,
-            // since it is the one holding the text that is not on disk.
+            // since it is the one holding the text that is not on disk. A bar over the editor it
+            // replaces goes with that editor.
+            find_bars.remove(&id);
             editors.insert(id, editor);
         }
         self.tabs_changed(true, window, cx);
@@ -1585,6 +1633,10 @@ impl Workbench {
         set_context(window, cx, "projectOpening", matches!(self.content, Content::Opening(_)));
         set_context(window, cx, "popupOpen", self.popup.is_some());
         set_context(window, cx, "findPopupOpen", self.find_popup().is_some());
+        let focused_bar = self.focused_find_bar(window, cx);
+        set_context(window, cx, "findBarOpen", !self.shown_find_bars().is_empty());
+        set_context(window, cx, "findBarFocus", focused_bar.is_some());
+        set_context(window, cx, "findBarHasResults", focused_bar.is_some_and(|bar| bar.read(cx).has_results()));
         set_context(window, cx, "projectOpen", self.project_tree().is_some());
         set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor(_)));
         set_context(window, cx, "textEditorActive", editor.is_some());
@@ -2178,6 +2230,120 @@ impl Workbench {
         self.open_popup(&popup, events, window, cx);
     }
 
+    /// The id of the active pane's selected tab.
+    fn active_tab_id(&self) -> Option<&str> {
+        let tabs = self.tabs()?;
+        tabs.pane(&tabs.active_pane)?.active.as_deref()
+    }
+
+    /// The Find / Replace bar of the active tab, when it has one open.
+    pub fn find_bar(&self) -> Option<Entity<FindBar>> {
+        let Content::Project { find_bars, .. } = &self.content else { return None };
+        find_bars.get(self.active_tab_id()?).map(|bar| bar.bar.clone())
+    }
+
+    /// The bars drawn: those of each pane's selected tab.
+    fn shown_find_bars(&self) -> Vec<Entity<FindBar>> {
+        let Content::Project { tabs, find_bars, .. } = &self.content else { return Vec::new() };
+        tabs.panes
+            .iter()
+            .filter_map(|pane| pane.active.as_ref().and_then(|id| find_bars.get(id)))
+            .map(|bar| bar.bar.clone())
+            .collect()
+    }
+
+    /// The drawn bar that has the keyboard.
+    fn focused_find_bar(&self, window: &Window, cx: &App) -> Option<Entity<FindBar>> {
+        self.shown_find_bars().into_iter().find(|bar| bar.read(cx).has_focus(window, cx))
+    }
+
+    /// Find (`replace` false) or Replace in the active tab: its open bar takes the keyboard again, or a
+    /// new one opens above the editor.
+    pub fn show_find_bar(&mut self, replace: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tab) = self.active_tab_id().map(str::to_owned) else { return };
+        let Some(editor) = self.editor().cloned() else { return };
+        if let Some(bar) = self.find_bar().filter(|bar| bar.read(cx).editor() == &editor) {
+            bar.update(cx, |bar, cx| bar.show(replace, window, cx));
+            return;
+        }
+        let bar = cx.new(|cx| FindBar::new(editor, replace, window, cx));
+        let events = {
+            let tab = tab.clone();
+            cx.subscribe_in(&bar, window, move |workbench, bar, event: &FindBarEvent, window, cx| {
+                workbench.find_bar_event(&tab, bar, event, window, cx);
+            })
+        };
+        // The bar redraws the window's context keys (whether it has results) as it changes.
+        let changes = cx.observe(&bar, |_, _, cx| cx.notify());
+        let mut subscriptions = vec![events, changes];
+        // The keyboard in a bar makes its pane the active one, as it does in an editor.
+        let (find_field, replace_field) = {
+            let bar = bar.read(cx);
+            (bar.find_field().focus_handle(cx), bar.replace_field().focus_handle(cx))
+        };
+        for field in [find_field, replace_field] {
+            let tab = tab.clone();
+            subscriptions.push(cx.on_focus_in(&field, window, move |workbench, window, cx| {
+                workbench.editor_took_focus(&tab, window, cx);
+            }));
+        }
+        if let Content::Project { find_bars, .. } = &mut self.content {
+            find_bars.insert(tab, TabFindBar { bar, _subscriptions: subscriptions });
+        }
+        cx.notify();
+    }
+
+    /// Find Next / Previous Occurrence: the active tab's bar goes to the next or previous occurrence of its
+    /// search; without a bar the last search is used. With nothing to search for the bar opens instead.
+    pub fn find_again(&mut self, forward: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(editor) = self.editor().cloned() else { return };
+        let found = match self.find_bar() {
+            Some(bar) => bar.update(cx, |bar, cx| bar.find_again(forward, cx)),
+            None => find_again_in(&editor, forward, cx),
+        };
+        if !found {
+            self.show_find_bar(false, window, cx);
+        }
+    }
+
+    fn find_bar_event(
+        &mut self,
+        tab: &str,
+        bar: &Entity<FindBar>,
+        event: &FindBarEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            FindBarEvent::Closed => {
+                if let Content::Project { find_bars, .. } = &mut self.content
+                    && find_bars.get(tab).is_some_and(|open| &open.bar == bar)
+                {
+                    find_bars.remove(tab);
+                }
+                cx.notify();
+            }
+            FindBarEvent::OpenResults(results) => self.show_find_results(results, window, cx),
+            &FindBarEvent::RunAction(id) => {
+                window.defer(cx, move |window, cx| {
+                    execute_action_from(ActionSource::Other, id, None, window, cx);
+                });
+            }
+        }
+    }
+
+    /// Shows a bar's occurrences in the Find tool window: it searches the bar's file with the bar's query.
+    fn show_find_results(&mut self, results: &FindResults, window: &mut Window, cx: &mut Context<Self>) {
+        self.with_layout(window, cx, |layout| layout.show(FIND_TOOL_WINDOW, true));
+        let panel = self
+            .tool_window_view(FIND_TOOL_WINDOW)
+            .and_then(|view| view.downcast::<crate::find::view::FindPanel>().ok());
+        if let Some(panel) = panel {
+            let query = results.query.clone();
+            panel.update(cx, |panel, cx| panel.run_query(query, cx));
+        }
+    }
+
     pub fn find_popup(&self) -> Option<Entity<FindPopup>> {
         self.popup.as_ref().and_then(|popup| popup.view.clone().downcast().ok())
     }
@@ -2513,6 +2679,7 @@ impl Workbench {
                             restored_views,
                             reveals: HashMap::new(),
                             editor_focus: HashMap::new(),
+                            find_bars: HashMap::new(),
                             _opens: opens,
                             run,
                             _run_events: run_events,
@@ -5529,6 +5696,99 @@ mod tests {
         run(cx, "find.inPath");
         assert_eq!(workbench.read_with(cx, |w, _| w.find_popup()), Some(popup.clone()));
         assert!(!popup.read_with(cx, |popup, _| popup.is_replace()));
+    }
+
+    /// Find opens a bar above the file's editor with the keyboard in it; typing selects the first
+    /// occurrence, Enter and Find Next go on to the next ones, Replace shows the replacement and replaces
+    /// the selected occurrence, and Escape closes the bar with the keyboard back in the editor. The bar
+    /// belongs to its tab: another tab has none.
+    #[gpui_kit::test]
+    async fn find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use crate::platform::context::window_context;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        let run = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| execute_action_or_throw(id, None, window, cx)).expect("it runs");
+            cx.run_until_parked();
+        };
+        let key =
+            |cx: &mut VisualTestContext, key: &str| cx.update(|window, cx| window_context(window, cx).is_truthy(key));
+        let open = |cx: &mut VisualTestContext, name: &str| {
+            let path = root.join(name);
+            workbench.update_in(cx, |w, window, cx| w.open_project_file(path.clone(), window, cx));
+            settle(cx, |cx| {
+                workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == path))
+                    && cx.update(|window, cx| {
+                        workbench.read(cx).editor().is_some_and(|e| e.focus_handle(cx).is_focused(window))
+                    })
+            });
+            workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor")
+        };
+        let editor = open(cx, "src/alpha.rs");
+        let selection = |cx: &mut VisualTestContext| editor.read_with(cx, |e, _| e.selection());
+
+        run(cx, "find.inFile");
+        let bar = workbench.read_with(cx, |w, _| w.find_bar()).expect("the bar is open");
+        assert!(!bar.read_with(cx, |bar, _| bar.is_replace()));
+        assert!(cx.update(|window, cx| bar.read(cx).find_field().focus_handle(cx).is_focused(window)));
+        assert!(key(cx, "findBarOpen") && key(cx, "findBarFocus"));
+
+        // "pub struct Widget;\n\npub fn make_widget() -> Widget {\n    Widget\n}\n"
+        cx.simulate_input("widget");
+        cx.run_until_parked();
+        assert_eq!(selection(cx), 11..17);
+        assert_eq!(bar.read_with(cx, |bar, _| bar.match_count()), 4);
+        assert!(key(cx, "findBarHasResults"));
+        cx.simulate_keystrokes("enter");
+        assert_eq!(selection(cx), 32..38);
+        run(cx, "find.next");
+        assert_eq!(selection(cx), 44..50);
+        run(cx, "find.previous");
+        assert_eq!(selection(cx), 32..38);
+        run(cx, "find.next");
+
+        // Replace turns the same bar into the replace bar; Replace changes the selected occurrence.
+        run(cx, "find.replaceInFile");
+        assert_eq!(workbench.read_with(cx, |w, _| w.find_bar()), Some(bar.clone()));
+        assert!(bar.read_with(cx, |bar, _| bar.is_replace()));
+        bar.update(cx, |bar, cx| bar.set_replacement("gadget", cx));
+        bar.update(cx, FindBar::replace_one);
+        cx.run_until_parked();
+        assert_eq!(
+            editor.read_with(cx, |e, _| e.text()),
+            "pub struct Widget;\n\npub fn make_widget() -> gadget {\n    Widget\n}\n"
+        );
+
+        // Another tab has no bar; coming back finds this one as it was.
+        open(cx, "notes.txt");
+        assert_eq!(workbench.read_with(cx, |w, _| w.find_bar()), None);
+        assert!(!key(cx, "findBarOpen"));
+        open(cx, "src/alpha.rs");
+        assert_eq!(workbench.read_with(cx, |w, _| w.find_bar()), Some(bar.clone()));
+
+        // Escape in the bar closes it and gives the editor the keyboard.
+        run(cx, "find.inFile");
+        assert!(cx.update(|window, cx| bar.read(cx).has_focus(window, cx)));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert_eq!(workbench.read_with(cx, |w, _| w.find_bar()), None);
+        assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)));
+        assert!(!key(cx, "findBarOpen") && !key(cx, "findBarFocus"));
+
+        // Open Results in Find Window hands the bar's search of its file to the Find tool window.
+        run(cx, "find.inFile");
+        let bar = workbench.read_with(cx, |w, _| w.find_bar()).expect("the bar is open");
+        bar.update(cx, |bar, cx| bar.set_search("widget", cx));
+        cx.run_until_parked();
+        run(cx, "find.openInWindow");
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(FIND_TOOL_WINDOW)));
+        let panel = workbench
+            .read_with(cx, |w, _| w.tool_window_view(FIND_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<crate::find::view::FindPanel>().ok())
+            .expect("the Find window holds the panel");
+        settle(cx, |cx| panel.read_with(cx, |panel, _| panel.status() == crate::find::session::FindStatus::Done));
+        assert_eq!(panel.read_with(cx, |panel, _| panel.results()), [("src/alpha.rs".to_owned(), vec![0, 2, 3])]);
     }
 
     /// The status bar's items answer a click: the position opens Go to Line, the line separator

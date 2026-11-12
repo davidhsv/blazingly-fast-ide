@@ -2,6 +2,8 @@
 
 pub mod actions;
 pub mod buffer;
+pub mod find_bar;
+pub mod find_model;
 pub mod goto_line;
 pub mod history;
 pub mod nav_history;
