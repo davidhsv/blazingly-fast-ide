@@ -12,6 +12,7 @@ pub mod git_ref_name;
 pub mod i18n;
 pub mod input;
 pub mod keymap;
+pub mod local_time;
 pub mod misc;
 pub mod paths;
 pub mod project_presentation;

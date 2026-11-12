@@ -670,5 +670,81 @@
   "point.registerTitleItem:app.ideMode": {
     "status": "partial",
     "proof": "`workbench::tests::the_ide_mode_toggle_switches_between_blaze_and_deep`; the title bar button shows the mode and runs the tested action, but no test clicks it, and it has no tooltip or shortcut hint yet"
+  },
+  "ipc:doc_open": {
+    "status": "done",
+    "proof": "`workbench::tests::opens_a_loose_file_in_an_editor_and_types_into_it`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+  },
+  "ipc:doc_edit": {
+    "status": "done",
+    "proof": "`workbench::tests::opens_a_loose_file_in_an_editor_and_types_into_it`"
+  },
+  "ipc:doc_save": {
+    "status": "done",
+    "proof": "`editor::view::editing_tests::saving_writes_the_file_and_clears_the_dirty_state`"
+  },
+  "ipc:doc_highlights": {
+    "status": "done",
+    "proof": "`editor::view::tests::highlights_come_from_the_backends_grammar`"
+  },
+  "ipc:doc_close": {
+    "status": "partial",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; the document is closed when its editor is dropped, but no test asserts the backend released it"
+  },
+  "ipc:fs_read_dir": {
+    "status": "done",
+    "proof": "`project_tree::tests::lists_a_project_and_opens_files_from_the_keyboard`, `project_tree::tests::follows_changes_on_disk`"
+  },
+  "ipc:settings_get": {
+    "status": "done",
+    "proof": "`platform::settings::tests::a_write_is_stored_and_announced`"
+  },
+  "ipc:settings_set": {
+    "status": "partial",
+    "proof": "`platform::settings::tests::a_write_is_stored_and_announced`; the write and its announcement, without the MCP server re-apply and the update-check wake of the Tauri adapter (their features are not ported)"
+  },
+  "ipc:term_spawn": {
+    "status": "done",
+    "proof": "`terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`"
+  },
+  "ipc:term_write": {
+    "status": "done",
+    "proof": "`terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`"
+  },
+  "ipc:term_resize": {
+    "status": "done",
+    "proof": "`terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`"
+  },
+  "ipc:term_kill": {
+    "status": "partial",
+    "proof": "`terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`; the shell is killed when its view is dropped, but no test asserts it"
+  },
+  "ipc:plugin_list": {
+    "status": "partial",
+    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`; listed per process: a window's project plugins are not included"
+  },
+  "ipc:plugin_set_theme": {
+    "status": "done",
+    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`"
+  },
+  "ipc:plugin_run_command": {
+    "status": "partial",
+    "proof": "`plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`; with the window's project and editor; selected paths, settings scope and command chains are not passed by any caller yet, and the failure notification is untested"
+  },
+  "ipc:vcs_log": {
+    "status": "partial",
+    "proof": "`vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`; the first pages in the chosen order, without branch, user, date, path or text filters"
+  },
+  "point.registerToolWindow:git": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_git_tool_window_shows_the_projects_log`, `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`; the commit list with graph, references, author and date. Not yet: the branches tree, filters, commit details and changed files, context menus, the Console and other tabs"
+  },
+  "unit:src/features/vcs/__tests__/logOptions.test.ts": {
+    "status": "partial",
+    "proof": "`vcs::log_options::tests`, `vcs::graph::tests`; the reference-label and option-parsing cases and the graph cases; the log store cases (isMine, goToRef, reloadLog, dialogs) are not ported"
+  },
+  "ipc:open_project": {
+    "status": "done",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
   }
 }

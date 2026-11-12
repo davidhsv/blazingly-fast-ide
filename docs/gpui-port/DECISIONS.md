@@ -177,3 +177,13 @@ Not carried over yet: resize handles, maximize, the widescreen layout (side wind
 A restored tab is only a title until it is shown: its document is opened in the backend when the tab becomes the active one, and its saved selection and first visible line are applied then. The webview does the same (`ensureSlot` on the active tab of each pane). Opening a tab's document is idempotent per tab: the first version of this change opened it twice, and the second arrival took the focus back from wherever the user had gone (caught as a 1-in-4 test failure).
 
 Only one pane is drawn so far: a saved split layout is restored into the model and kept on save, but its other panes are not visible. Tabs of non-file editor kinds are not saved, because no such kind exists here yet.
+
+## D30. The Git log's first slice, and what the session restore must not do
+
+The Git tool window (bottom, as declared) holds `vcs::log_view::GitLog`: commits read 300 at a time through `ide_host::ops::vcs::vcs_log` as the list nears its end, the graph from the ported `vcs::graph::compute_graph` drawn as the webview draws it (14 px lanes, 26 px rows, straight edges, dashed for commits left out, a ring for HEAD), reference labels by the webview's rules (`vcs::log_options::ref_labels`), author and date in the user's date format and local time. It is read again on the backend's `VcsChanged`, keeping the selected commit selected. The commit and graph rows are shared with the rows being drawn, so a frame copies no commit: this is a measured scenario on a large repository.
+
+`ide-vcs` is a direct dependency now; the ported VCS models still carry their own mirrors of its types and are to be moved onto it as they are wired. `chrono` (the version the backend locks, `clock` only) gives the local UTC offset at a commit's moment, so a winter and a summer date each show their own local time.
+
+Restoring a project's tabs does not take the keyboard: a restored tab's editor loads without focus, which stays in the Project view as on any open (the webview focuses only when tabs were already live). The first version of the restore did take it; an assertion in `workbench::tests::a_projects_tabs_and_carets_are_restored` holds this now.
+
+Not in this slice: the branches tree, filters, commit details and changed files, context menus, column headers and resizing, long-edge and linear-branch options, multiple repositories.

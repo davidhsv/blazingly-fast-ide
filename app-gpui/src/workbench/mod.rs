@@ -15,6 +15,7 @@ use crate::editor::tabs::{EditorInput, OpenTabOptions, TabsState, disambiguate_t
 use crate::editor::view::Editor;
 use crate::platform::actions::{Action, ActionMeta, ActionRegistry, ActionSource, execute_action_from, manifest};
 use crate::platform::input;
+use crate::platform::local_time::now_ms;
 use crate::platform::storage::UiStorage;
 use crate::project_tree::{OpenFile, ProjectTree};
 use crate::terminal::view::TerminalView;
@@ -97,13 +98,6 @@ pub struct Workbench {
     session_save: Option<gpui_kit::Task<()>>,
 }
 
-/// Milliseconds since the Unix epoch, the clock the task and notification models are given.
-fn now_ms() -> f64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0.0, |elapsed| elapsed.as_secs_f64() * 1000.0)
-}
-
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
 /// the file's full path. A remote project names its host: `<project> [<user@host>] – <file>`.
 /// Without a project the file alone, or `default` when nothing is open.
@@ -160,8 +154,11 @@ pub const PROJECT_TOOL_WINDOW: &str = "project";
 /// The Terminal's tool window id.
 pub const TERMINAL_TOOL_WINDOW: &str = "terminal";
 
+/// The Git log's tool window id.
+pub const GIT_TOOL_WINDOW: &str = "git";
+
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 2] = [PROJECT_TOOL_WINDOW, TERMINAL_TOOL_WINDOW];
+const TOOL_WINDOWS: [&str; 3] = [PROJECT_TOOL_WINDOW, TERMINAL_TOOL_WINDOW, GIT_TOOL_WINDOW];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
 /// contributions manifest.
@@ -495,7 +492,7 @@ impl Workbench {
             })
             .detach();
         }
-        self.load_active_tab(window, cx);
+        self.load_active_tab(focus, window, cx);
         self.session_save = Some(cx.spawn(async move |workbench, cx| {
             cx.background_executor().timer(SESSION_SAVE_DELAY).await;
             let _ = workbench.update(cx, |workbench, cx| workbench.save_session(cx));
@@ -885,6 +882,11 @@ impl Workbench {
                     let terminal = cx.new(|cx| TerminalView::new(&label, options, cx));
                     Panel { focus: terminal.focus_handle(cx), view: terminal.into() }
                 }
+                GIT_TOOL_WINDOW => {
+                    let label = self.label.clone();
+                    let log = cx.new(|cx| crate::vcs::log_view::GitLog::new(&label, cx));
+                    Panel { focus: log.focus_handle(cx), view: log.into() }
+                }
                 _ => continue,
             };
             if let Content::Project { panels, .. } = &mut self.content {
@@ -1037,7 +1039,7 @@ impl Workbench {
         let loaded = editors.contains_key(&tab_id);
         self.tabs_changed(true, window, cx);
         if !loaded {
-            self.load_tab(tab_id, path, window, cx);
+            self.load_tab(tab_id, path, true, window, cx);
         }
     }
 
@@ -1051,20 +1053,20 @@ impl Workbench {
             .and_then(|tab| tab.input.path.clone());
         self.tabs_changed(true, window, cx);
         if let Some(path) = path {
-            self.load_tab(reopened.tab_id, PathBuf::from(path), window, cx);
+            self.load_tab(reopened.tab_id, PathBuf::from(path), true, window, cx);
         }
     }
 
     /// Opens the document of the active tab if it has none yet: a tab restored with the project
     /// is only a title until it is shown.
-    fn load_active_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn load_active_tab(&mut self, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
         let Content::Project { tabs, editors, loading, .. } = &self.content else { return };
         let Some(tab) = tabs.pane(&tabs.active_pane).and_then(|pane| pane.active_tab()) else { return };
         if editors.contains_key(&tab.id) || loading.contains(&tab.id) || tab.input.kind != "file" {
             return;
         }
         let Some(path) = tab.input.path.clone() else { return };
-        self.load_tab(tab.id.clone(), PathBuf::from(path), window, cx);
+        self.load_tab(tab.id.clone(), PathBuf::from(path), focus, window, cx);
     }
 
     /// Stores the project's editor session now: its tabs and splits, and where each file's
@@ -1087,7 +1089,9 @@ impl Workbench {
     }
 
     /// Opens the document of tab `tab_id` in the backend and gives the tab its editor.
-    fn load_tab(&mut self, tab_id: String, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+    /// With `focus` the editor takes the keyboard once it is there; a tab restored with the
+    /// project loads without taking it from wherever it is.
+    fn load_tab(&mut self, tab_id: String, path: PathBuf, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
         // One document per tab: a tab that has its editor, or is getting it, is left alone.
         let Content::Project { loading, editors, .. } = &mut self.content else { return };
         if editors.contains_key(&tab_id) || !loading.insert(tab_id.clone()) {
@@ -1149,7 +1153,7 @@ impl Workbench {
                         }
                     }
                 }
-                workbench.tabs_changed(true, window, cx);
+                workbench.tabs_changed(focus, window, cx);
             });
         })
         .detach();
@@ -2230,6 +2234,12 @@ mod tests {
             second.read_with(cx2, |w, _| w.tab_titles().into_iter().map(|tab| (tab.name, tab.active)).collect());
         assert_eq!(names, [("a.txt".to_owned(), false), ("b.txt".to_owned(), true)]);
         let restored = second.read_with(cx2, |w, _| w.editor().cloned()).expect("an editor");
+        // Restoring a tab does not take the keyboard: it is in the Project view, as on any open.
+        cx2.run_until_parked();
+        assert!(cx2.update(|window, cx| {
+            let tree = second.read(cx).project_tree().expect("a tree").focus_handle(cx);
+            tree.is_focused(window) && !restored.focus_handle(cx).is_focused(window)
+        }));
         restored.read_with(cx2, |editor, cx| {
             assert_eq!(editor.path(), root.join("b.txt"));
             assert_eq!((editor.anchor(), editor.caret(), editor.top_line(cx)), (700, 706, 90));
@@ -2242,6 +2252,12 @@ mod tests {
             })
         };
         assert_eq!(open_documents(cx2), 1);
+        // Tab switching belongs to the editor: with the keyboard there, the previous tab shows.
+        cx2.update(|window, cx| {
+            let focus = restored.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx2.run_until_parked();
         cx2.update(|window, cx| execute_action_or_throw("editor.prevTab", None, window, cx)).expect("it runs");
         settle(cx2, |cx| {
             second.read_with(cx, |w, cx| w.editor().is_some_and(|editor| editor.read(cx).path() == root.join("a.txt")))
@@ -2253,6 +2269,53 @@ mod tests {
         cx2.executor().advance_clock(SESSION_SAVE_DELAY);
         cx2.run_until_parked();
         assert_eq!(cx2.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned)), None);
+    }
+
+    /// The Git tool window docks at the bottom and holds the project's log, read when the
+    /// window is first shown.
+    #[gpui_kit::test]
+    async fn the_git_tool_window_shows_the_projects_log(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use crate::vcs::log_view::GitLog;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        let git = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&root)
+                .env("GIT_CONFIG_GLOBAL", "/dev/null")
+                .env("GIT_CONFIG_SYSTEM", "/dev/null")
+                .output()
+                .expect("git runs");
+            assert!(output.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&output.stderr));
+        };
+        git(&["init", "-q", "-b", "main"]);
+        git(&["add", "."]);
+        git(&["-c", "user.name=Ada", "-c", "user.email=ada@example.test", "commit", "-q", "-m", "notes"]);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        assert!(
+            workbench.read_with(cx, |w, _| w.tool_window_view(GIT_TOOL_WINDOW).is_none()),
+            "not read before it shows"
+        );
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.git", None, window, cx)).expect("it runs");
+        let log = workbench
+            .read_with(cx, |w, _| w.tool_window_view(GIT_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<GitLog>().ok())
+            .expect("the Git window holds the log");
+        workbench.read_with(cx, |workbench, _| {
+            let Content::Project { layout, .. } = &workbench.content else { panic!("a project is open") };
+            assert_eq!(layout.slot_of(GIT_TOOL_WINDOW), Some(Slot::Bottom));
+            assert!(workbench.is_tool_window_visible(GIT_TOOL_WINDOW));
+        });
+        settle(cx, |cx| log.read_with(cx, |log, _| !log.is_loading()));
+        let subjects: Vec<String> =
+            log.read_with(cx, |log, _| log.commits().iter().map(|c| c.summary.clone()).collect());
+        assert_eq!(subjects, ["notes"]);
+        assert!(cx.update(|window, cx| log.focus_handle(cx).is_focused(window)), "showing it gives it the keyboard");
     }
 
     #[test]

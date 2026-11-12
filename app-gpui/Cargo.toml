@@ -26,6 +26,7 @@ ide-host = { path = "../crates/ide-host" }
 ide-plugin = { path = "../crates/ide-plugin" }
 ide-run = { path = "../crates/ide-run" }
 ide-terminal = { path = "../crates/ide-terminal" }
+ide-vcs = { path = "../crates/ide-vcs" }
 ide-language = { path = "../crates/ide-language", features = ["native-highlights"] }
 ide-workspace = { path = "../crates/ide-workspace" }
 ide-syntax = { path = "../crates/ide-syntax" }
@@ -37,6 +38,8 @@ futures = "0.3"
 ropey = "1.6"
 # Name ordering as the webview's Intl.Collator does it (the ICU version GPUI already locks).
 icu_collator = "=2.4.0"
+# The local time zone's offset at a given moment (the version the backend already locks).
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # File-name patterns of the icon tables (already in the dependency graph).
 regex = "1"
 # Terminal emulation over ide-terminal's PTY bytes (the webview uses xterm.js).

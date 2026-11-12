@@ -4,3 +4,5 @@ pub mod branches;
 pub mod changes;
 pub mod conflicts;
 pub mod graph;
+pub mod log_options;
+pub mod log_view;
