@@ -3490,5 +3490,57 @@
   "context:run.updatableRunning": {
     "status": "partial",
     "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`; published with the other run keys; no test sets a CMake build or an updatable session"
+  },
+  "unit:src/features/vcs/__tests__/branchesPopupHost.test.tsx": {
+    "status": "done",
+    "proof": "`vcs::branches_popup::tests`"
+  },
+  "unit:src/features/vcs/__tests__/promptDialog.test.tsx": {
+    "status": "done",
+    "proof": "`vcs::prompt_dialogs::tests`"
+  },
+  "unit:src/features/vcs/__tests__/multiPushTarget.test.tsx": {
+    "status": "done",
+    "proof": "`vcs::prompt_dialogs::tests`"
+  },
+  "unit:src/features/vcs/__tests__/mergeRebaseWidget.test.tsx": {
+    "status": "done",
+    "proof": "`vcs::branch_widget_view::tests`"
+  },
+  "action:vcs.branches": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`, `workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`; one repository: checkout with its questions, favourites, options, merge and its abort. Not yet: commands across several repositories, Compare and Show Diff with Working Tree, the tag menu"
+  },
+  "action:vcs.commit": {
+    "status": "done",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`"
+  },
+  "action:vcs.newBranch": {
+    "status": "partial",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`; one repository; a new branch in several repositories at once is refused"
+  },
+  "action:vcs.checkoutRevision": {
+    "status": "done",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`"
+  },
+  "action:vcs.push": {
+    "status": "partial",
+    "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`; the current branch of one repository to a local remote. Not yet: pushing another branch, update and retry of a rejected push, the changed files of a commit, Cancel on the progress notice"
+  },
+  "action:vcs.fetch": {
+    "status": "done",
+    "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`"
+  },
+  "context:vcsOperation": {
+    "status": "done",
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`"
+  },
+  "point.registerOverlay:vcs.branches": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`, `vcs::branches_popup::tests`; see the action"
+  },
+  "point.registerOverlay:vcs.dialogs": {
+    "status": "partial",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`, `vcs::prompt_dialogs::tests`; the prompt, confirmation and Push dialogs; Update Project, the conflicts dialog and the others are not built"
   }
 }

@@ -570,3 +570,13 @@ The run widget sits in the title bar of a project window; the configuration choo
 - Debug is not offered anywhere in these views (the buttons follow whether the debug action exists), and `run.chooseDebugConfig` is not registered: every row would lead to an action that does not exist.
 - The file dialog cannot start in a given folder with this GPUI version, so Browse ignores the field's current path.
 - Not built: template editing, import of other tools' configurations, run targets, the environment table (one line with the same parsing instead), choices loaded from the backend, Tomcat settings.
+
+## D71. Branches
+
+The branch widget and the merge/rebase widget sit on the left of the title bar; the Branches popup, the prompt dialogs and the Push dialog are live (views by one subagent, wiring by another, four end-to-end tests on real temporary repositories with a local bare remote).
+
+- The window holds one version-control state, read on the backend runtime after the project opens, after each operation, when the popup opens, and on the backend's change events with the component's debounce. The Commit and Git Log views keep their own reads; nothing was shared before, and merging the three is not part of this slice.
+- Carried out through the existing models and the backend: checkout with the smart-checkout and diverged questions, new branch, rename, delete with its notice and Restore, merge and rebase (a stop on conflicts shows the title-bar controls; Abort, Continue and Skip work), update of a branch, pull into, fetch, push. Tests run checkout, new branch, rename, delete and restore, checkout of a revision, push, fetch, merge and abort; the others are written and not run by a test.
+- Not carried out: anything across several repositories at once, Compare and Show Diff with Working Tree (the diff window takes a change, not two revisions), update and retry of a rejected push, View Commits on the deleted-branch notice.
+- Not registered because nothing tests or completes them yet: `vcs.update` (needs the Update Project dialog), `vcs.showLog`, `vcs.resolveConflicts` (needs the conflicts dialog; a merge that stops on conflicts raises a notice instead), and the continue/abort actions of rebase, cherry-pick and revert, which the title-bar controls already carry out.
+- Tests that run `git` beside the window retry when the repository's index is locked by the window's own read.
