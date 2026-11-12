@@ -870,5 +870,69 @@
   "unit:src/features/search/__tests__/outline.test.ts": {
     "status": "done",
     "proof": "`everywhere::outline::tests`"
+  },
+  "unit:src/features/vcs/__tests__/branchOps.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::branch_ops::tests`, `vcs_ops::store::tests`"
+  },
+  "unit:src/features/vcs/__tests__/deleteBranches.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_ops::branch_ops::tests`, `vcs_ops::branch_menu::tests`, `vcs_ops::log_pane_actions::tests`; all 12 cases, but the three about where the focus goes assert only the plan the model returns: no view carries it out yet"
+  },
+  "unit:src/features/vcs/__tests__/gitOps.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::change_ops::tests`, `vcs_ops::log_store::tests`, `vcs_ops::operations::tests`, `vcs_ops::store::tests`"
+  },
+  "unit:src/features/vcs/__tests__/historyOps.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::operations::tests`, `vcs_ops::patches::tests`, `vcs_ops::log_store::tests`, `vcs_ops::branch_widget::tests`, `vcs_ops::git_log::tests`"
+  },
+  "unit:src/features/vcs/__tests__/deleteFiles.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_ops::change_ops::tests`; all 3 cases, but the deletion itself is asserted as the plan returned, not carried out"
+  },
+  "unit:src/features/vcs/__tests__/confirmations.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::confirmations::tests`, `vcs_ops::ops::tests`"
+  },
+  "unit:src/features/vcs/__tests__/clone.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::clone::tests`, `vcs_ops::remote_ui::tests`"
+  },
+  "unit:src/features/vcs/__tests__/ignore.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_ops::ignore::tests`; all 7 cases, but refreshing the status afterwards is left to the caller and not asserted"
+  },
+  "unit:src/features/vcs/__tests__/commitChecks.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::commit_checks::tests`"
+  },
+  "unit:src/features/vcs/__tests__/commitInclusion.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::change_ops::tests`, `vcs_ops::commit_store::tests`"
+  },
+  "unit:src/features/vcs/__tests__/commitMode.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::changelists::tests`, `vcs_ops::changelists_ui::tests`, `vcs_ops::commit_ui::tests`, `vcs_ops::git_tabs::tests`, `vcs_ops::log_store::tests`"
+  },
+  "unit:src/features/vcs/__tests__/changelists.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::changelists::tests`, `vcs::changes::tests`"
+  },
+  "unit:src/features/vcs/__tests__/changelistMenu.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::changelists_ui::tests`"
+  },
+  "unit:src/features/vcs/__tests__/compareActions.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::actions::tests`"
+  },
+  "unit:src/features/vcs/__tests__/compareFlow.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::compare_paths::tests`"
+  },
+  "unit:src/features/vcs/__tests__/branchWidgetExtensions.test.ts": {
+    "status": "done",
+    "proof": "`vcs_ops::branch_widget_extensions::tests`"
   }
 }

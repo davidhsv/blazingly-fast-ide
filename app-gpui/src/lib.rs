@@ -14,6 +14,7 @@ pub mod terminal;
 pub mod theme;
 pub mod ui;
 pub mod vcs;
+pub mod vcs_ops;
 pub mod web_view;
 pub mod workbench;
 
