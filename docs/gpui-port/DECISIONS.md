@@ -161,3 +161,11 @@ Three parts, each tested on its own:
 `terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit` runs the login shell on a real PTY: typed text and Enter reach it, its output is on the grid, `stty size` prints the fitted grid's size, ⌘V pastes, and `exit 3` is reported as exit code 3.
 
 Not done: the Terminal tool window with its tabs and groups, restart on Enter after exit, the find bar, links, mouse reporting to programs, the resize debounce, cursor blink, the Nerd-font fallbacks, and the derived palette for themes that define neither `--terminal-ansi-*` nor `--ansi-*` (every built-in theme defines them). The cell is the font's `M` advance by its ascent plus descent times `terminal.lineHeight`; xterm.js measures its cells its own way, so the grid may differ by a column or a row from the webview's at the same pixel size.
+
+## D28. Tool windows dock on three sides; a hidden one keeps its view
+
+The workbench lays tool windows out as the webview's grid does: the editor between the left and right sides, the bottom side spanning below all three, each side with a primary and a split area sharing it by the stored ratio. The left stripe lists Left, Left Bottom and at its foot Bottom Left; the right stripe (shown only when it has a window) lists Right, Right Bottom and Bottom Right. Supersedes D22's "today: Project": the Terminal is the second window.
+
+A window's view is created the first time it is shown and kept while hidden, as the webview keeps mounted windows: hiding the Terminal does not end its shell. The Terminal starts as Settings › Terminal says (start directory, shell command line, environment, shell integration).
+
+Not carried over yet: resize handles, maximize, the widescreen layout (side windows at full height), tool window names under the icons, drag and drop on the stripes, header actions and menus.

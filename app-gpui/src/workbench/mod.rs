@@ -16,8 +16,10 @@ use crate::platform::actions::{Action, ActionMeta, ActionRegistry, ActionSource,
 use crate::platform::input;
 use crate::platform::storage::UiStorage;
 use crate::project_tree::{OpenFile, ProjectTree};
+use crate::terminal::view::TerminalView;
 use crate::theme;
 use gpui_kit::Subscription;
+use gpui_kit::{AnyView, FocusHandle};
 use gpui_kit::{
     App, Context, Entity, Focusable, Global, IntoElement, ModifiersChangedEvent, MouseDownEvent, Render, SharedString,
     WeakEntity, Window, WindowId, div, prelude::*,
@@ -45,12 +47,21 @@ enum Content {
         /// The last focus request of `layout` that was carried out.
         focus_served: u64,
         tree: Entity<ProjectTree>,
+        /// The view of every tool window that has been shown, by tool window id. A hidden
+        /// window keeps its view, and what runs in it.
+        panels: HashMap<String, Panel>,
         /// The editor tabs, and the editor of each tab that has finished opening, by tab id.
         tabs: Box<TabsState>,
         editors: HashMap<String, Entity<Editor>>,
         _opens: Subscription,
     },
     Failed(SharedString),
+}
+
+/// A tool window's content and where its keyboard focus goes.
+struct Panel {
+    view: AnyView,
+    focus: FocusHandle,
 }
 
 /// One window: its backend label and what it shows.
@@ -135,6 +146,12 @@ const WINDOW_BUTTONS_WIDTH: f32 = 82.0;
 /// The Project view's tool window id.
 pub const PROJECT_TOOL_WINDOW: &str = "project";
 
+/// The Terminal's tool window id.
+pub const TERMINAL_TOOL_WINDOW: &str = "terminal";
+
+/// The tool windows this app has a view for.
+const TOOL_WINDOWS: [&str; 2] = [PROJECT_TOOL_WINDOW, TERMINAL_TOOL_WINDOW];
+
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
 /// contributions manifest.
 pub fn tool_window_declaration(id: &str) -> Option<ToolWindow> {
@@ -179,7 +196,7 @@ pub fn register_actions(cx: &mut App) {
         Ok(())
     }
     let registry = cx.default_global::<ActionRegistry>();
-    for id in [PROJECT_TOOL_WINDOW] {
+    for id in TOOL_WINDOWS {
         let Some(declared) = tool_window_declaration(id) else { continue };
         let meta = ActionMeta {
             category: Some("Tool Windows".to_owned()),
@@ -707,11 +724,16 @@ impl Workbench {
         for key in ["editorFocus", "editorTextFocus", "editorAreaFocus"] {
             set_context(window, cx, key, focused);
         }
-        let tree_focused = self.project_tree().is_some_and(|tree| tree.focus_handle(cx).is_focused(window));
-        set_context(window, cx, "toolWindowFocus", tree_focused);
+        let focused_panel = match &self.content {
+            Content::Project { panels, .. } => {
+                panels.iter().find(|(_, panel)| panel.focus.contains_focused(window, cx)).map(|(id, _)| id.clone())
+            }
+            _ => None,
+        };
+        set_context(window, cx, "toolWindowFocus", focused_panel.is_some());
         if let Content::Project { layout, .. } = &mut self.content {
             // The layout decides by this what `toolwindow.<id>` does: focus, or hide.
-            layout.set_focused(tree_focused.then_some(PROJECT_TOOL_WINDOW));
+            layout.set_focused(focused_panel.as_deref());
             for (key, visible) in layout.visibility_context() {
                 set_context(window, cx, &key, visible);
             }
@@ -760,7 +782,7 @@ impl Workbench {
         change: impl FnOnce(&mut ToolWindowLayout) -> Effects,
     ) {
         let editor = self.editor().cloned();
-        let Content::Project { layout, focus_served, tree, .. } = &mut self.content else { return };
+        let Content::Project { layout, .. } = &mut self.content else { return };
         let effects = change(layout);
         if effects.persist {
             match serde_json::to_string(&layout.serialized()) {
@@ -768,12 +790,14 @@ impl Workbench {
                 Err(error) => tracing::warn!("cannot store the tool window layout: {error}"),
             }
         }
+        // A window shown for the first time gets its view before the focus can go to it.
+        self.mount_panels(cx);
+        let Content::Project { layout, focus_served, panels, .. } = &mut self.content else { return };
         let request = layout.focus_request().filter(|request| request.seq > *focus_served).cloned();
         if let Some(request) = request {
             *focus_served = request.seq;
-            if request.id == PROJECT_TOOL_WINDOW {
-                let focus = tree.focus_handle(cx);
-                window.focus(&focus, cx);
+            if let Some(panel) = panels.get(&request.id) {
+                window.focus(&panel.focus, cx);
             }
         } else if effects.focus_editor {
             match editor {
@@ -786,6 +810,67 @@ impl Workbench {
             }
         }
         cx.notify();
+    }
+
+    /// Creates the view of every visible tool window that has none yet.
+    fn mount_panels(&mut self, cx: &mut Context<Self>) {
+        let Content::Project { layout, panels, tree, .. } = &self.content else { return };
+        let missing: Vec<String> =
+            layout.visible().ids().filter(|id| !panels.contains_key(*id)).map(str::to_owned).collect();
+        let root = PathBuf::from(tree.read(cx).root());
+        for id in missing {
+            let panel = match id.as_str() {
+                TERMINAL_TOOL_WINDOW => {
+                    let (label, options) = (self.label.clone(), self.terminal_options(&root, cx));
+                    let terminal = cx.new(|cx| TerminalView::new(&label, options, cx));
+                    Panel { focus: terminal.focus_handle(cx), view: terminal.into() }
+                }
+                _ => continue,
+            };
+            if let Content::Project { panels, .. } = &mut self.content {
+                panels.insert(id, panel);
+            }
+        }
+    }
+
+    /// How a terminal of this window's project starts: Settings › Terminal's start directory
+    /// (the project folder unless set; relative to it unless absolute or under `~`), shell
+    /// command line, environment and shell integration.
+    fn terminal_options(&self, root: &std::path::Path, cx: &App) -> ide_terminal::TerminalOptions {
+        let terminal = crate::platform::settings::effective(&self.label, cx).terminal;
+        let directory = terminal.start_directory.trim_end_matches('/');
+        let cwd = if directory.is_empty() {
+            root.to_path_buf()
+        } else if directory.starts_with('/') || directory.starts_with("~/") {
+            PathBuf::from(directory)
+        } else {
+            root.join(directory.strip_prefix("./").unwrap_or(directory))
+        };
+        let mut command = crate::platform::command_line::parse_shell_command(&terminal.shell_path, cfg!(windows));
+        let shell = (!command.is_empty()).then(|| command.remove(0));
+        ide_terminal::TerminalOptions {
+            cwd: ide_core::IpcPath(cwd),
+            shell,
+            args: command,
+            env: terminal.env,
+            // The grid is fitted to the tool window as soon as it is painted.
+            cols: 80,
+            rows: 24,
+            shell_integration: terminal.shell_integration,
+        }
+    }
+
+    /// The view of tool window `id`, once it has been shown.
+    pub fn tool_window_view(&self, id: &str) -> Option<AnyView> {
+        match &self.content {
+            Content::Project { panels, .. } => panels.get(id).map(|panel| panel.view.clone()),
+            _ => None,
+        }
+    }
+
+    /// Whether tool window `id` is showing.
+    pub fn is_tool_window_visible(&self, id: &str) -> bool {
+        matches!(&self.content, Content::Project { layout, .. } if layout.is_visible(id))
     }
 
     /// The file tree, when a project is open.
@@ -825,11 +910,13 @@ impl Workbench {
                         let opens = cx.subscribe_in(&tree, window, |workbench, _, event: &OpenFile, window, cx| {
                             workbench.open_project_file(event.0.clone(), window, cx);
                         });
+                        let project_panel = Panel { focus: tree.focus_handle(cx), view: tree.clone().into() };
                         Content::Project {
                             name,
                             layout,
                             focus_served: 0,
                             tree,
+                            panels: HashMap::from([(PROJECT_TOOL_WINDOW.to_owned(), project_panel)]),
                             tabs: Box::new(TabsState::new()),
                             editors: HashMap::new(),
                             _opens: opens,
@@ -839,20 +926,19 @@ impl Workbench {
                 };
                 // Registering a window reconciles the stored layout with what exists; a project
                 // opens with the focus in its Project view when that is showing.
-                workbench.with_layout(window, cx, |layout| match tool_window_declaration(PROJECT_TOOL_WINDOW) {
-                    Some(declared) => {
-                        let (_, registered) = layout.register(declared);
-                        let focused = if layout.is_visible(PROJECT_TOOL_WINDOW) {
-                            layout.focus(PROJECT_TOOL_WINDOW)
-                        } else {
-                            Effects::default()
-                        };
-                        Effects {
-                            persist: registered.persist || focused.persist,
-                            focus_editor: registered.focus_editor || focused.focus_editor,
-                        }
+                workbench.with_layout(window, cx, |layout| {
+                    let mut effects = Effects::default();
+                    let mut merge = |more: Effects| {
+                        effects.persist |= more.persist;
+                        effects.focus_editor |= more.focus_editor;
+                    };
+                    for declared in TOOL_WINDOWS.into_iter().filter_map(tool_window_declaration) {
+                        merge(layout.register(declared).1);
                     }
-                    None => Effects::default(),
+                    if layout.is_visible(PROJECT_TOOL_WINDOW) {
+                        merge(layout.focus(PROJECT_TOOL_WINDOW));
+                    }
+                    effects
                 });
                 cx.notify();
             });
@@ -1024,7 +1110,7 @@ impl Render for Workbench {
             Content::Opening(path) => message(format!("Opening {}…", path.display()).into()).into_any_element(),
             Content::Failed(error) => message(error.clone()).into_any_element(),
             Content::Editor(editor) => editor.clone().into_any_element(),
-            Content::Project { tree, layout, .. } => {
+            Content::Project { layout, panels, .. } => {
                 let editor = self.editor().cloned();
                 let editor_focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
                 // The tab strip: the selected tab is a rounded pill; the rest are plain titles.
@@ -1102,68 +1188,144 @@ impl Render for Workbench {
                         .overflow_hidden()
                 };
                 let button = theme::length(cx, "stripe-icon-button");
-                // The left stripe: one button per tool window docked on that side.
-                let stripe = div()
-                    .w(button + theme::length(cx, "stripe-outer-padding") + gap)
-                    .h_full()
-                    .flex_none()
-                    .flex()
-                    .flex_col()
-                    .items_center()
-                    .gap(theme::length(cx, "h-titlebar") - button)
-                    .pl(theme::length(cx, "stripe-outer-padding"))
-                    .pr(gap)
-                    .children(layout.windows_in(Slot::Left).into_iter().filter(|w| layout.has_stripe_button(w)).map(
-                        |declared| {
-                            let shown = layout.is_visible(&declared.id);
-                            let color = theme::color(cx, if shown { "fg-emphasis" } else { "fg-muted" });
-                            let action = format!("toolwindow.{}", declared.id);
+                let stripe_gap = theme::length(cx, "h-titlebar") - button;
+                let stripe_button = |declared: &ToolWindow| {
+                    let shown = layout.is_visible(&declared.id);
+                    let color = theme::color(cx, if shown { "fg-emphasis" } else { "fg-muted" });
+                    let action = format!("toolwindow.{}", declared.id);
+                    div()
+                        .id(SharedString::from(format!("stripe:{}", declared.id)))
+                        .size(button)
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(theme::length(cx, "radius-toolbar-button"))
+                        .when(shown, |el| el.bg(theme::color(cx, "bg-stripe-selected")))
+                        .hover(|el| el.bg(theme::color(cx, "bg-stripe-hover")))
+                        .child(theme::icon(cx, &declared.icon, 20.0, color))
+                        .on_click(cx.listener(move |_, _, window, cx| {
+                            execute_action_from(ActionSource::Toolbar, &action, None, window, cx);
+                        }))
+                };
+                // A stripe lists the windows docked on its side, then the split area's, and at
+                // its foot those of the bottom: Bottom Left on the left stripe, Bottom Right on
+                // the right one.
+                let on_stripe = |slot: Slot| -> Vec<&ToolWindow> {
+                    let showing = layout.visible().get(slot);
+                    layout
+                        .windows_in(slot)
+                        .into_iter()
+                        .filter(|w| layout.has_stripe_button(w) || showing == Some(w.id.as_str()))
+                        .collect()
+                };
+                let stripe = |side: Anchor| {
+                    let group = |slot: Slot| {
+                        let windows = on_stripe(slot);
+                        (!windows.is_empty()).then(|| {
                             div()
-                                .id(SharedString::from(format!("stripe:{}", declared.id)))
-                                .size(button)
-                                .flex_none()
                                 .flex()
+                                .flex_col()
                                 .items_center()
-                                .justify_center()
-                                .rounded(theme::length(cx, "radius-toolbar-button"))
-                                .when(shown, |el| el.bg(theme::color(cx, "bg-stripe-selected")))
-                                .hover(|el| el.bg(theme::color(cx, "bg-stripe-hover")))
-                                .child(theme::icon(cx, &declared.icon, 20.0, color))
-                                .on_click(cx.listener(move |_, _, window, cx| {
-                                    execute_action_from(ActionSource::Toolbar, &action, None, window, cx);
-                                }))
-                        },
-                    ));
-                let project = layout.is_visible(PROJECT_TOOL_WINDOW).then(|| {
-                    let title = layout.window(PROJECT_TOOL_WINDOW).map(|w| w.title.clone()).unwrap_or_default();
-                    island()
-                        .w(gpui_kit::px(layout.sizes().left as f32))
+                                .gap(stripe_gap)
+                                .children(windows.into_iter().map(&stripe_button))
+                        })
+                    };
+                    let lower = if side == Anchor::Left { Slot::Bottom } else { Slot::BottomSplit };
+                    let outer = theme::length(cx, "stripe-outer-padding");
+                    div()
+                        .w(button + outer + gap)
                         .h_full()
                         .flex_none()
                         .flex()
                         .flex_col()
-                        .mr(gap)
-                        .child(
-                            div()
-                                .h(theme::length(cx, "h-header"))
-                                .flex_none()
-                                .flex()
-                                .items_center()
-                                .pl(gpui_kit::px(12.0))
-                                .pr(gpui_kit::px(6.0))
-                                .text_color(theme::color(cx, "fg-strong"))
-                                .child(SharedString::from(title)),
-                        )
-                        .child(div().flex_1().min_h_0().child(tree.clone()))
-                });
-                div()
-                    .size_full()
+                        .items_center()
+                        .gap(stripe_gap)
+                        .when(side == Anchor::Left, |el| el.pl(outer).pr(gap))
+                        .when(side == Anchor::Right, |el| el.pr(outer).pl(gap))
+                        .children(group(Slot::new(side, false)))
+                        .children(group(Slot::new(side, true)))
+                        .child(div().flex_1())
+                        .children(group(lower))
+                };
+                // A tool window: its title, a button to hide it, and its view.
+                let tool_window = |id: &str| {
+                    let (declared, panel) = (layout.window(id)?, panels.get(id)?);
+                    let hidden = id.to_owned();
+                    Some(
+                        island()
+                            .min_w_0()
+                            .min_h_0()
+                            .flex()
+                            .flex_col()
+                            .child(
+                                div()
+                                    .h(theme::length(cx, "h-header"))
+                                    .flex_none()
+                                    .flex()
+                                    .items_center()
+                                    .pl(gpui_kit::px(12.0))
+                                    .pr(gpui_kit::px(6.0))
+                                    .text_color(theme::color(cx, "fg-strong"))
+                                    .child(SharedString::from(declared.title.clone()))
+                                    .child(div().flex_1())
+                                    .child(
+                                        div()
+                                            .id(SharedString::from(format!("hide:{id}")))
+                                            .size(gpui_kit::px(22.0))
+                                            .flex_none()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded(gpui_kit::px(4.0))
+                                            .hover(|el| el.bg(theme::color(cx, "bg-hover")))
+                                            .child(theme::icon(cx, "minus", 16.0, theme::color(cx, "fg-muted")))
+                                            .on_click(cx.listener(move |workbench, _, window, cx| {
+                                                workbench.with_layout(window, cx, |layout| layout.hide(&hidden));
+                                            })),
+                                    ),
+                            )
+                            .child(div().flex_1().min_h_0().child(panel.view.clone())),
+                    )
+                };
+                // A side: its primary and split areas, stacked on the left and right, side by
+                // side at the bottom, sharing it by the stored ratio; a lone area takes it all.
+                let side = |anchor: Anchor| {
+                    let shown = |split: bool| layout.visible().get(Slot::new(anchor, split)).and_then(tool_window);
+                    let (primary, split) = (shown(false), shown(true));
+                    let both = primary.is_some() && split.is_some();
+                    if primary.is_none() && split.is_none() {
+                        return None;
+                    }
+                    let ratio = (layout.splits().get(anchor) as f32).clamp(0.0, 1.0);
+                    let share = |area: gpui_kit::Div, part: f32| match (both, anchor) {
+                        (false, _) => area.size_full(),
+                        (true, Anchor::Bottom) => area.h_full().w(gpui_kit::relative(part)),
+                        (true, _) => area.w_full().h(gpui_kit::relative(part)),
+                    };
+                    Some(
+                        div()
+                            .flex()
+                            .gap(gap)
+                            .when(anchor != Anchor::Bottom, |el| el.flex_col())
+                            .children(primary.map(|area| share(area, ratio)))
+                            .children(split.map(|area| share(area, 1.0 - ratio))),
+                    )
+                };
+                let sizes = layout.sizes();
+                let right_stripe = [Slot::Right, Slot::RightSplit, Slot::BottomSplit]
+                    .into_iter()
+                    .any(|slot| !on_stripe(slot).is_empty())
+                    .then(|| stripe(Anchor::Right));
+                // The editor between the left and right sides; the bottom side spans below all three.
+                let top = div()
+                    .flex_1()
+                    .min_h_0()
+                    .w_full()
                     .flex()
-                    .pr(gap)
-                    // Without a status bar the islands keep their distance from the window's edge.
-                    .when(self.editor().is_none(), |el| el.pb(gap))
-                    .child(stripe)
-                    .children(project)
+                    .children(
+                        side(Anchor::Left).map(|s| s.w(gpui_kit::px(sizes.left as f32)).h_full().flex_none().mr(gap)),
+                    )
                     .child(
                         island()
                             .flex_1()
@@ -1174,6 +1336,21 @@ impl Render for Workbench {
                             .children(strip)
                             .child(div().flex_1().min_h_0().children(editor)),
                     )
+                    .children(
+                        side(Anchor::Right).map(|s| s.w(gpui_kit::px(sizes.right as f32)).h_full().flex_none().ml(gap)),
+                    );
+                let bottom =
+                    side(Anchor::Bottom).map(|s| s.h(gpui_kit::px(sizes.bottom as f32)).w_full().flex_none().mt(gap));
+                div()
+                    .size_full()
+                    .flex()
+                    // Without a right stripe the islands keep the gap it would have given them.
+                    .when(right_stripe.is_none(), |el| el.pr(gap))
+                    // Without a status bar the islands keep their distance from the window's edge.
+                    .when(self.editor().is_none(), |el| el.pb(gap))
+                    .child(stripe(Anchor::Left))
+                    .child(div().flex_1().min_w_0().h_full().flex().flex_col().child(top).children(bottom))
+                    .children(right_stripe)
                     .into_any_element()
             }
         };
@@ -1748,6 +1925,68 @@ mod tests {
         assert!(names(cx).is_empty());
         assert_eq!(on_disk("b.txt"), "b\n");
         assert_eq!(workbench.read_with(cx, |w, cx| w.unsaved_count(cx)), 0);
+    }
+
+    /// The Terminal docks at the bottom: its action shows it with a shell of the project's
+    /// folder and the focus in it, typing reaches the shell, its stripe button is at the foot
+    /// of the left stripe, and hiding it keeps the shell running for the next time.
+    #[gpui_kit::test]
+    async fn the_terminal_tool_window_runs_a_shell_at_the_bottom(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use crate::terminal::view::TerminalView;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        workbench.read_with(cx, |workbench, _| {
+            let Content::Project { layout, .. } = &workbench.content else { panic!("a project is open") };
+            assert_eq!(layout.slot_of(TERMINAL_TOOL_WINDOW), Some(Slot::Bottom));
+            assert!(!workbench.is_tool_window_visible(TERMINAL_TOOL_WINDOW));
+            assert!(workbench.tool_window_view(TERMINAL_TOOL_WINDOW).is_none(), "no shell before it is shown");
+        });
+
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.terminal", None, window, cx)).expect("it runs");
+        let terminal = workbench
+            .read_with(cx, |w, _| w.tool_window_view(TERMINAL_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<TerminalView>().ok())
+            .expect("the terminal has a view");
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
+        assert_eq!(terminal.read_with(cx, |terminal, _| terminal.error().map(str::to_owned)), None);
+        let long = |cx: &mut VisualTestContext, done: &dyn Fn(&mut VisualTestContext) -> bool| {
+            for _ in 0..3000 {
+                cx.run_until_parked();
+                if done(cx) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("the shell did not answer within thirty seconds");
+        };
+        let screen = |cx: &mut VisualTestContext| terminal.read_with(cx, |t, _| t.emulator().lines().join("\n"));
+        // The focus is in the terminal: typing goes to the shell, which starts in the project.
+        cx.simulate_input("echo in-$(basename \"$PWD\")-$((6*7))");
+        cx.simulate_keystrokes("enter");
+        let expected = format!("in-{}-42", root.file_name().expect("a name").to_string_lossy());
+        long(cx, &|cx| screen(cx).contains(&expected));
+        assert!(cx.update(|window, cx| {
+            crate::platform::context::window_context(window, cx).is_truthy("toolWindowFocus")
+        }));
+
+        // The same action hides the focused window; the shell stays, and shows again as it was.
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.terminal", None, window, cx)).expect("it runs");
+        assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
+        assert!(terminal.read_with(cx, |terminal, _| terminal.id().is_some()), "hidden, not ended");
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.terminal", None, window, cx)).expect("it runs");
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
+        assert!(screen(cx).contains(&expected));
+        let again = workbench
+            .read_with(cx, |w, _| w.tool_window_view(TERMINAL_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<TerminalView>().ok())
+            .expect("the terminal has a view");
+        assert_eq!(again.entity_id(), terminal.entity_id(), "the same session");
     }
 
     #[test]
