@@ -1970,5 +1970,109 @@
   "unit:src/features/run/resolveCancellation.test.ts": {
     "status": "done",
     "proof": "`run_producers::store_cases`"
+  },
+  "unit:src/features/vcs/__tests__/mergeModel.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::merge_model::tests`"
+  },
+  "unit:src/features/vcs/__tests__/mergeDiff3.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::merge_diff3::tests`"
+  },
+  "unit:src/features/vcs/__tests__/mergeActions.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::merge_actions::tests`"
+  },
+  "unit:src/features/vcs/__tests__/mergeScroll.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::merge_scroll::tests`"
+  },
+  "unit:src/features/vcs/__tests__/logLoading.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::log_loading::tests`"
+  },
+  "unit:src/features/vcs/__tests__/logBranchMemory.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::log_branch_memory::tests`"
+  },
+  "unit:src/features/vcs/__tests__/logFilters.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::log_filters::tests`"
+  },
+  "unit:src/features/vcs/__tests__/logSearch.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::log_search::tests`"
+  },
+  "unit:src/features/vcs/__tests__/multiRoot.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::multi_root::tests`, `vcs::branches::tests`"
+  },
+  "unit:src/features/vcs/__tests__/multiRootTags.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::new_tag::tests`"
+  },
+  "unit:src/features/vcs/__tests__/multiRepoRollback.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::multi_repo::tests`"
+  },
+  "unit:src/features/vcs/__tests__/rollback.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::rollback::tests`"
+  },
+  "unit:src/features/vcs/__tests__/show-diff-chain.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::show_diff::tests`, `vcs_more::log_changes::tests`"
+  },
+  "unit:src/features/vcs/__tests__/workflow.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::workflow::tests`, `vcs_more::issue_links::tests`"
+  },
+  "unit:src/features/vcs/__tests__/pushTarget.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::push_target::tests`"
+  },
+  "unit:src/features/vcs/__tests__/pushRejected.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::push_rejected::tests`"
+  },
+  "unit:src/features/vcs/__tests__/remoteResults.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::remote_results::tests`"
+  },
+  "unit:src/features/vcs/__tests__/modalDiffWindow.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::log_changes::tests`"
+  },
+  "unit:src/features/vcs/__tests__/recentChanges.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::recent_changes::tests`"
+  },
+  "unit:src/features/vcs/__tests__/patchFileManager.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::patch_file_manager::tests`"
+  },
+  "unit:src/features/vcs/__tests__/projectSwitch.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::project_switch::tests`"
+  },
+  "unit:src/features/vcs/__tests__/repositoryPaths.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::repository_paths::tests`"
+  },
+  "unit:src/features/vcs/__tests__/viewerCaret.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::viewer_look::tests`"
+  },
+  "unit:src/features/vcs/__tests__/viewerFont.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::viewer_look::tests`"
+  },
+  "unit:src/features/vcs/diffBlame.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::diff_blame::tests`"
+  },
+  "unit:src/features/vcs/worktrees.test.ts": {
+    "status": "done",
+    "proof": "`vcs_more::worktrees::tests`"
   }
 }

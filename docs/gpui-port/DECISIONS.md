@@ -427,3 +427,17 @@ The check mark of the current line separator is drawn as the row's icon: the sha
 Its one failing test was a real bug in the earlier run batch, which the subagent had predicted from reading: in `StartRun::java_prepared`, a successful classpath answer that arrived after Stop was pressed went on to launch the program. The webview's spec says the opposite ("cancels the request and ignores a late success response"). Fixed in `run/store.rs`: whether the launch was aborted is asked before the answer is looked at.
 
 Choices the subagent made, kept: what the producers read from global stores in the webview (Go modules, Python packages, the Gradle model, tools on the PATH) is passed in as data; the context menu has rows of its own, since the shared menu model has no header rows; the test-state icons use a small model fed with results, because the test tree is not ported yet (the test runner batch is still being written).
+
+## D57. The rest of the version-control logic, with the three-way merge
+
+`vcs_more/` (28 files, 185 tests) is a subagent's port of 26 of the 27 version-control specs that were open: the three-way merge (its diff3 and the model of the merge editor with accept, ignore, undo and redo), loading the Git log page by page and going to a ref, its filters, search and branch memory, several repositories in one project, show diff, push targets and a rejected push, worktrees, recent changes. It needed one compile fix and one lint fix, and four small changes in existing modules (two comparison modules and one function made visible, `GitLog::view_of_mut`). `pluginCommit` (3 cases) is not started.
+
+Choices the subagent made, kept, with the one that matters most first:
+
+- The webview's diff3 runs on CodeMirror's diff; here it runs on the crate's own comparison (`comparison::lcs` and the chunk optimiser). Where a difference has several equally short answers the boundaries of the clusters may differ from the webview's. The 23 spec cases pass, including the symmetry one; a merge that is ambiguous in that way could still be cut differently. The webview's 3 s and 1 s diff timeouts are not kept.
+- Every transaction of the merge model is one undo step; CodeMirror groups adjacent typing.
+- White space in word and blank patterns is JavaScript's set written out, not the `regex` crate's.
+- An issue-link pattern that needs look-around or backreferences is skipped, as an invalid one is.
+- Loading the log is a set of step machines the view drives (`PageLoad`, `GoToRef`); session restore, bookmark sync and revealing a commit are left out of the store.
+
+No merge editor, diff viewer or multi-repository UI is drawn from these yet.

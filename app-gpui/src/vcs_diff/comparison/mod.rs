@@ -8,8 +8,8 @@
 mod by_char;
 mod by_line;
 pub mod by_word;
-mod chunk_optimizer;
-mod iterables;
+pub(crate) mod chunk_optimizer;
+pub(crate) mod iterables;
 pub mod lcs;
 pub mod moves;
 pub mod text;

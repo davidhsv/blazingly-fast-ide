@@ -307,6 +307,12 @@ impl GitLog {
         if id == self.shown_log { Some(&self.view) } else { self.parked.get(id) }
     }
 
+    /// The view of log `id`, shown or not, to change it: a load of a log that is not shown
+    /// finishes into its parked view.
+    pub fn view_of_mut(&mut self, id: &str) -> Option<&mut LogView> {
+        if id == self.shown_log { Some(&mut self.view) } else { self.parked.get_mut(id) }
+    }
+
     /// Puts the view of log `id` in place, parking the one shown. Returns whether its commits have
     /// to be loaded.
     fn show_log_view(&mut self, id: &str) -> bool {

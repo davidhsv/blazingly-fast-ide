@@ -314,7 +314,7 @@ pub fn change_node_diff_data<'a>(
 }
 
 /// `path`, which git stores relative to its repository, as an absolute path below `root`.
-fn repository_path(root: Option<&str>, path: &str) -> String {
+pub fn repository_path(root: Option<&str>, path: &str) -> String {
     let Some(root) = root.filter(|root| !root.is_empty()) else { return path.to_owned() };
     let root = ipc_path(root);
     let base = root.strip_suffix('/').unwrap_or(&root);
