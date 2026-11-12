@@ -8591,6 +8591,7 @@ dependencies = [
  "futures",
  "gpui-kit",
  "icu_collator",
+ "ide-build",
  "ide-core",
  "ide-host",
  "ide-index",

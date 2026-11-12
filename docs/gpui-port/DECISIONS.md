@@ -281,3 +281,14 @@ Choices:
 - The question is the OS's own prompt, so it has This Window, New Window and Cancel but no "Don't ask again" box, and no Attach (attaching a project to a workspace is not ported). The stored setting is honoured when it is set elsewhere.
 - Replacing a window's project saves what is unsaved and writes the editor session first, then lets the backend swap the project (`Host::open_project` closes the previous one itself). Close Project uses `close_project_detached`: it runs on the UI thread and must not wait for language servers to stop.
 - An opened project is recorded as recent where it is opened (in the workbench, after the backend opened it), with its branch and display name as `AppState::record_project` does, and Open Recent is read again then.
+
+## D41. The Project view's operations are models first
+
+`project_view/` holds what the Project view does beyond listing folders: its panes and view modes, selection and inline editing, clipboard, contributed roots, the file operations behind its actions (new, rename, move, copy, delete with usages, undo), its context and New menus, Select In and module groups. It is a subagent's port of fifteen specs (122 tests), written without a compiler and wired here; it built on the first try and needed three lint fixes. `ide-build` is a dependency for `GradleProject`.
+
+Choices the subagent made, kept:
+
+- The state machine of the tree (load, file-system change, reveal, toggle) exists twice for now: `project_view::store::ProjectViewState`, which the operation specs drive, and the one `project_tree.rs` draws from. The view is to move onto the store when its actions get handlers; until then the overlap is a known cost, not a design.
+- The import and Unity refresh specs mock backend calls; here they are checked on the pure models (`LocalImport`, `UnityRefresh`) and marked partial.
+- Menu rows reuse `vcs_ops::menu::MenuItem` and are identified by command or label, since it has no id; the Select In header is a title field.
+- Not ported: the file refactoring dialogs (only their request and the undo ordering), the React component specs, and every action handler: `actions.rs` computes the actions' titles and targets but registers nothing.

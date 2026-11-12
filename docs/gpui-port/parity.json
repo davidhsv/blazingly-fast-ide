@@ -133,7 +133,7 @@
   },
   "feature:project-tree": {
     "status": "partial",
-    "proof": "`project_tree::tests`, `project_tree_model::tests`, `project_tree_paths::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; the tree lists, compacts, filters by option, follows the disk, remembers its expansion and reveals a path. Not yet: multi-selection, inline new/rename, file operations and clipboard, drag and drop, context menu, header actions, view modes, contributed roots, Show Members"
+    "proof": "`project_tree::tests`, `project_tree_model::tests`, `project_tree_paths::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; the tree lists, compacts, filters by option, follows the disk, remembers its expansion and reveals a path. Not yet: multi-selection, inline new/rename, file operations and clipboard, drag and drop, context menu, header actions, view modes, contributed roots, Show Members. The Project view's operations, menus, panes, clipboard and Select In exist as models (`project_view::operations::tests`, `project_view::store::tests`, `project_view::context_menu::tests`) that no view is drawn from yet: none of the roughly forty project actions has a handler"
   },
   "point.registerToolWindow:project": {
     "status": "partial",
@@ -1170,5 +1170,65 @@
   "unit:src/workbench/projectWindow.test.ts": {
     "status": "partial",
     "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; a window without a project takes it, the stored policy is followed, the question's answers are carried out; the remote cases and Attach are not ported"
+  },
+  "unit:src/features/project-tree/contextMenu.test.ts": {
+    "status": "done",
+    "proof": "`project_view::context_menu::tests`"
+  },
+  "unit:src/features/project-tree/extraRoots.test.ts": {
+    "status": "done",
+    "proof": "`project_tree_model::tests`, `project_view::operations::tests`"
+  },
+  "unit:src/features/project-tree/filePath.test.ts": {
+    "status": "done",
+    "proof": "`project_view::file_path::tests`"
+  },
+  "unit:src/features/project-tree/fs.test.ts": {
+    "status": "partial",
+    "proof": "`project_view::fs::tests`; the import and its task are checked on the model, not against the backend calls the spec mocks, and a disconnected upload is checked only to finish its task"
+  },
+  "unit:src/features/project-tree/moduleGroups.test.ts": {
+    "status": "done",
+    "proof": "`project_view::module_groups::tests`"
+  },
+  "unit:src/features/project-tree/newPopupModel.test.ts": {
+    "status": "done",
+    "proof": "`project_view::new_popup_model::tests`"
+  },
+  "unit:src/features/project-tree/operations.test.ts": {
+    "status": "done",
+    "proof": "`project_view::operations::tests`"
+  },
+  "unit:src/features/project-tree/roots.test.ts": {
+    "status": "done",
+    "proof": "`project_view::operations::tests`, `project_view::context_menu::tests`, `project_view::store::tests`"
+  },
+  "unit:src/features/project-tree/safeDelete.test.ts": {
+    "status": "done",
+    "proof": "`project_view::operations::tests`"
+  },
+  "unit:src/features/project-tree/selectIn.test.ts": {
+    "status": "done",
+    "proof": "`project_view::actions::tests`"
+  },
+  "unit:src/features/project-tree/store.test.ts": {
+    "status": "done",
+    "proof": "`project_view::store::tests`"
+  },
+  "unit:src/features/project-tree/undoDelete.test.ts": {
+    "status": "done",
+    "proof": "`project_view::operations::tests`"
+  },
+  "unit:src/features/project-tree/unity.test.ts": {
+    "status": "done",
+    "proof": "`project_view::store::tests`"
+  },
+  "unit:src/features/project-tree/unityRefresh.test.ts": {
+    "status": "partial",
+    "proof": "`project_view::index::tests`; the refresh is checked on the model, not through backend events"
+  },
+  "unit:src/features/project-tree/viewModes.test.ts": {
+    "status": "done",
+    "proof": "`project_view::store::tests`, `project_view::context_menu::tests`, `project_view::index::tests`"
   }
 }

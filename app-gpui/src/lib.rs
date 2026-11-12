@@ -9,6 +9,7 @@ pub mod plugins;
 pub mod project_tree;
 pub mod project_tree_model;
 pub mod project_tree_paths;
+pub mod project_view;
 pub mod self_check;
 pub mod terminal;
 pub mod theme;
