@@ -6,6 +6,7 @@ pub mod editor;
 pub mod everywhere;
 pub mod find;
 pub mod platform;
+pub mod platform_more;
 pub mod plugins;
 pub mod project_tree;
 pub mod project_tree_model;

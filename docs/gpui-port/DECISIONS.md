@@ -377,3 +377,13 @@ Where two actions share a key, the webview tries the one declared later first (`
 Fixed: the generator writes each preset as pairs in declaration order, `preset_order` exposes that order, and the effective keymap walks it. A user override of an action the preset binds keeps the preset's place with the user's keys, which is what JavaScript's object spread does in `{...preset, ...overrides}` (my earlier test asserted the opposite and is corrected); an action only the user binds comes last. `lets_scoped_actions_win_shared_keys` carries the spec's fourteen pairs for both IntelliJ presets.
 
 Lesson kept in D47's spirit: a row is not at parity because a test exists that mentions it. The preset rows now cite the order tests too.
+
+## D52. Platform and workbench models; specs that test the browser
+
+`platform_more/` (24 modules, 142 tests) is a subagent's port of the platform and workbench specs that were still open: inspections and their controls, remote sessions and which settings go to the remote side, deployment and workflow settings, the .NET project reading, the project session, boot failures, distraction-free mode on the real tool window layout, file drops, file editor and provider registries, running processes, pointer drags and copyable text. It built on the first try with no lint fixes.
+
+Some specs test the web platform itself and have nothing to port: WebKit's double-click and tap ordering quirks (`doubleClick`, `reordered-tap-click`), DOM caret handling on focus changes, script load errors, CSS class names, Tauri channel encoding. Those rows stay unchecked with that reason where they are whole files, and are named in the proof where they are cases of a ported spec. GPUI reports click counts and has no such reordering.
+
+As in D45, settings validators are normalisers over the backend's typed settings; a value of the wrong type is refused by serde rather than defaulted.
+
+The same subagent found the keymap order bug (D51).

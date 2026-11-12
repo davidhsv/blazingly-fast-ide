@@ -1658,5 +1658,97 @@
   "unit:src/platform/keymaps/newElement.test.ts": {
     "status": "partial",
     "proof": "`platform::keymap::tests::lets_generate_win_the_new_key_only_where_it_applies`; Generate declared after New File on the same key. The languages in which Generate applies are a `when` of the action, checked where it is registered, which it is not yet"
+  },
+  "unit:src/platform/boot.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::boot::tests`; script and image load failures and the early failure before the document body exists test the browser; the React-specific failures are one test here. The app has no failure screen yet: this is its model"
+  },
+  "unit:src/platform/buildToolRecovery.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::build_tool_recovery::tests`"
+  },
+  "unit:src/platform/deploymentSettings.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::remote_settings::tests`"
+  },
+  "unit:src/platform/dotnet.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::dotnet::tests`; the two cases about the test runner's arguments belong to the run feature's .NET types and test parsers, which are not ported"
+  },
+  "unit:src/platform/dotnetProcess.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::dotnet_process::tests`"
+  },
+  "unit:src/platform/inspectionControls.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::inspection_controls::tests`"
+  },
+  "unit:src/platform/inspections.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::inspections::tests`"
+  },
+  "unit:src/platform/pageSwipe.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::page_swipe::tests`; the four keymap cases (presets mapping the swipes, rebinding, context and suspension, menu labels) are left to the keymap and dispatcher tests and were not all found there by name"
+  },
+  "unit:src/platform/project.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::project::tests`; the three relative-directory cases are `platform::virtual_docs` logic whose tests cover only the URI branch"
+  },
+  "unit:src/platform/proxySettings.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::proxy_settings::tests`; the two cases about a manual proxy's problems are the backend's (`ProxySettings::problem`), whose message and whitespace rules differ slightly from the webview's"
+  },
+  "unit:src/platform/remote.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::remote::tests`; the two cases about channels in call arguments test the Tauri bridge and have no native counterpart"
+  },
+  "unit:src/platform/remoteSettings.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::remote::tests`"
+  },
+  "unit:src/platform/workflowSettings.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::workflow_settings::tests`, `platform::command_line::tests`"
+  },
+  "unit:src/workbench/distractionFree.test.tsx": {
+    "status": "done",
+    "proof": "`platform_more::distraction_free::tests`, `workbench::notifications::tests`"
+  },
+  "unit:src/workbench/fileDrop.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::file_drop::tests`"
+  },
+  "unit:src/workbench/fileEditors.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::file_editors::tests`"
+  },
+  "unit:src/workbench/focus.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::focus::tests`; three cases about the DOM caret when focus moves test the browser or the DOM and have no native counterpart"
+  },
+  "unit:src/workbench/toolwindows/occurrences.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::occurrences::tests`"
+  },
+  "unit:src/workbench/runningProcesses.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::running_processes::tests`"
+  },
+  "unit:src/workbench/providerAcquisition.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::provider_acquisition::tests`"
+  },
+  "unit:src/workbench/endpointProviders.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::endpoint_providers::tests`"
+  },
+  "unit:src/ui/selectableText.test.ts": {
+    "status": "partial",
+    "proof": "`platform_more::selectable_text::tests`; three cases (a CSS class name, text-node targets, the execCommand fallback) test the DOM and have no native counterpart"
+  },
+  "unit:src/ui/pointerDrag.test.ts": {
+    "status": "done",
+    "proof": "`platform_more::pointer_drag::tests`"
   }
 }
