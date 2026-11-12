@@ -133,7 +133,7 @@
   },
   "feature:project-tree": {
     "status": "partial",
-    "proof": "`project_tree::tests`, `project_tree_model::tests`, `project_tree_paths::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; the view still uses the simple listing: the ported model (compacted packages, folder kinds, extra roots) is not wired to it, and there is no context menu, file operation or VCS colour"
+    "proof": "`project_tree::tests`, `project_tree_model::tests`, `project_tree_paths::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; the tree lists, compacts, filters by option, follows the disk, remembers its expansion and reveals a path. Not yet: multi-selection, inline new/rename, file operations and clipboard, drag and drop, context menu, header actions, view modes, contributed roots, Show Members"
   },
   "point.registerToolWindow:project": {
     "status": "partial",
@@ -320,8 +320,8 @@
     "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`; left stripe, one island and its title: no header actions, drag and drop, resize handles or other sides"
   },
   "unit:src/features/project-tree/model.test.ts": {
-    "status": "partial",
-    "proof": "`project_tree_model::tests`; all 16 cases, but names are ordered without ICU collation: punctuation, accents and non-ASCII digits sort differently from the webview"
+    "status": "done",
+    "proof": "`project_tree_model::tests`, `platform::collate::tests::orders_names_as_intl_collator_does`"
   },
   "unit:src/features/project-tree/paths.test.ts": {
     "status": "done",
@@ -333,7 +333,7 @@
   },
   "unit:src/editor/core/model/model.test.ts": {
     "status": "partial",
-    "proof": "`editor::tabs::tests`, `editor::nav_history::tests`; the camel-humps case is not ported, and tab titles sort without ICU collation"
+    "proof": "`editor::tabs::tests`, `editor::nav_history::tests`; the camel-humps case is not ported"
   },
   "unit:src/editor/core/model/tabTitles.test.ts": {
     "status": "done",
@@ -624,16 +624,16 @@
     "proof": "`vcs::graph::tests`; 7 of 10 cases: the graph cell's drawing and keyboard navigation are not ported"
   },
   "unit:src/features/vcs/__tests__/changes.test.ts": {
-    "status": "partial",
-    "proof": "`vcs::changes::tests`; all 22 cases; names are ordered without ICU collation"
+    "status": "done",
+    "proof": "`vcs::changes::tests`, `platform::collate::tests::orders_names_as_intl_collator_does`"
   },
   "unit:src/features/vcs/__tests__/branches.test.ts": {
     "status": "partial",
-    "proof": "`vcs::branches::tests`; 12 of 13 cases: remote web URLs are not ported; names are ordered without ICU collation"
+    "proof": "`vcs::branches::tests`; 12 of 13 cases: remote web URLs are not ported"
   },
   "unit:src/features/vcs/__tests__/repoBranches.test.ts": {
-    "status": "partial",
-    "proof": "`vcs::branches::tests`; all 28 cases; names are ordered without ICU collation"
+    "status": "done",
+    "proof": "`vcs::branches::tests`, `platform::collate::tests::orders_names_as_intl_collator_does`"
   },
   "unit:src/features/vcs/__tests__/conflicts.test.ts": {
     "status": "done",

@@ -1265,7 +1265,7 @@ mod tests {
             .update_in(cx, |workbench, window, cx| workbench.open_project(folder.path().to_path_buf(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         let tree = workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree");
-        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.model().rows().len() == 2));
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.rows().len() == 2));
         // The tree has focus after a project opens: Down, Down, Enter opens the file.
         cx.simulate_keystrokes("down down enter");
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
@@ -1334,7 +1334,7 @@ mod tests {
             .update_in(cx, |workbench, window, cx| workbench.open_project(folder.path().to_path_buf(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         let tree = workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree");
-        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.model().rows().len() == 2));
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.rows().len() == 2));
         let shown = |cx: &mut VisualTestContext| {
             workbench.read_with(cx, |w, _| w.tool_windows().expect("a layout").is_visible("project"))
         };

@@ -1,141 +1,152 @@
 //! The Project tool window's file tree: the project folder, listed lazily through the backend.
 //!
-//! The backend lists a folder with directories first in natural order and marks what
-//! `.gitignore` and the exclude settings match; the tree shows those dimmed (Show Excluded Files
-//! is on by default) and never lists a folder before it is expanded.
+//! [`crate::project_tree_model`] decides what the rows are (visibility, order, compacted folder
+//! chains); this view owns what is loaded, expanded and selected, keeps the loaded folders in
+//! step with the disk, and remembers the expansion and the view options between sessions.
 
-use crate::backend::Backend;
+use crate::backend::{Backend, BackendEvent};
+use crate::platform::paths::is_same_or_inside;
+use crate::platform::storage::UiStorage;
+use crate::project_tree_model::{
+    FsChange, Listings, ProjectNode, SortKey, TreeModel, TreeOptions, build_model, drop_listings, is_dir_entry,
+    key_like, merge_listing, node_key_for, path_of_key, plan_refresh, visible_entries, visible_info,
+};
+use crate::project_tree_paths::ancestors_within;
 use crate::theme;
 use gpui_kit::{
-    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, Render, SharedString,
-    Window, div, prelude::*, px, uniform_list,
+    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, Render, ScrollStrategy,
+    SharedString, Task, UniformListScrollHandle, Window, div, prelude::*, px, uniform_list,
 };
-use ide_vfs::{EntryKind, FileEntry};
-use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use ide_core::IdeEvent;
+use ide_core::error::ErrorKind;
+use ide_core::ignored::IgnoredNames;
+use ide_vfs::FileEntry;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 
-/// Symlinks report the target's metadata; a symlink of size 0 with a directory target is a folder.
-fn is_dir(entry: &FileEntry) -> bool {
-    match entry.kind {
-        EntryKind::Dir => true,
-        EntryKind::Symlink => entry.target_kind.as_ref().is_some_and(|kind| matches!(kind, EntryKind::Dir)),
-        EntryKind::File => false,
+/// Where the view options are kept.
+pub const OPTIONS_KEY: &str = "openidea.projectTree.options";
+
+/// Where the expanded nodes of the project at `root` are kept.
+pub fn expanded_key(root: &str) -> String {
+    format!("openidea.projectTree.expanded:{root}")
+}
+
+/// No more expanded nodes than this are remembered.
+const MAX_PERSISTED: usize = 3000;
+
+/// How long the expansion rests before it is written, so a burst of toggles is one write.
+const PERSIST_DELAY: Duration = Duration::from_millis(300);
+
+/// The Project view's options as they are stored: what the tree shows and how the view behaves.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ViewOptions {
+    pub show_unity_meta: bool,
+    pub show_unity_generated: bool,
+    pub show_hidden: bool,
+    pub show_excluded: bool,
+    pub compact: bool,
+    pub folders_first: bool,
+    /// `name`, `type` or `modified`; anything else counts as `name`.
+    pub sort_by: String,
+    /// Select the active editor's file in the tree.
+    pub autoscroll_from_source: bool,
+    /// Open the selected file while navigating the tree.
+    pub autoscroll_to_source: bool,
+    /// A single click opens a file.
+    pub single_click_open: bool,
+    /// A single click on a folder expands or collapses it.
+    pub single_click_expand: bool,
+    /// A single click shows a file in the preview tab.
+    pub preview_tab: bool,
+    /// A file's declarations show as rows below it.
+    pub show_members: bool,
+}
+
+impl Default for ViewOptions {
+    fn default() -> Self {
+        Self {
+            show_unity_meta: false,
+            show_unity_generated: false,
+            show_hidden: false,
+            show_excluded: true,
+            compact: true,
+            folders_first: true,
+            sort_by: "name".to_owned(),
+            autoscroll_from_source: false,
+            autoscroll_to_source: false,
+            single_click_open: false,
+            single_click_expand: false,
+            preview_tab: false,
+            show_members: false,
+        }
+    }
+}
+
+impl ViewOptions {
+    /// The stored options; the defaults for whatever is missing or unreadable.
+    pub fn stored(storage: &UiStorage) -> Self {
+        storage.get(OPTIONS_KEY).and_then(|text| serde_json::from_str(text).ok()).unwrap_or_default()
+    }
+
+    pub fn sort_key(&self) -> SortKey {
+        match self.sort_by.as_str() {
+            "type" => SortKey::Type,
+            "modified" => SortKey::Modified,
+            _ => SortKey::Name,
+        }
+    }
+
+    /// What the model needs of these options.
+    pub fn tree_options(&self) -> TreeOptions {
+        TreeOptions {
+            unity_root: None,
+            show_unity_meta: self.show_unity_meta,
+            show_unity_generated: self.show_unity_generated,
+            show_hidden: self.show_hidden,
+            show_excluded: self.show_excluded,
+            compact: self.compact,
+            folders_first: self.folders_first,
+            sort_by: self.sort_key(),
+        }
     }
 }
 
 /// One visible line of the tree.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Row {
-    pub path: PathBuf,
-    pub name: String,
-    pub depth: usize,
-    pub dir: bool,
-    pub expanded: bool,
-    /// Matched by `.gitignore` or the exclude settings: drawn dimmed.
-    pub ignored: bool,
-}
-
-/// What is loaded and expanded.
 #[derive(Debug, Clone)]
-pub struct TreeModel {
-    root: PathBuf,
-    listings: HashMap<PathBuf, Vec<FileEntry>>,
-    expanded: HashSet<PathBuf>,
-    /// Show Excluded Files (on by default): entries the backend marks ignored stay listed.
-    pub show_excluded: bool,
+pub struct Row {
+    pub node: Arc<ProjectNode>,
+    pub depth: usize,
+    pub expanded: bool,
 }
 
-impl TreeModel {
-    /// A tree of `root`, expanded at the root as the Project view opens it.
-    pub fn new(root: PathBuf) -> Self {
-        Self { expanded: HashSet::from([root.clone()]), root, listings: HashMap::new(), show_excluded: true }
-    }
-
-    pub fn root(&self) -> &Path {
-        &self.root
-    }
-
-    pub fn is_loaded(&self, dir: &Path) -> bool {
-        self.listings.contains_key(dir)
-    }
-
-    pub fn is_expanded(&self, dir: &Path) -> bool {
-        self.expanded.contains(dir)
-    }
-
-    /// The backend's listing of `dir`, in its order.
-    pub fn set_listing(&mut self, dir: PathBuf, entries: Vec<FileEntry>) {
-        self.listings.insert(dir, entries);
-    }
-
-    /// Expands or collapses `dir`; returns whether it is now expanded.
-    pub fn toggle(&mut self, dir: &Path) -> bool {
-        if self.expanded.remove(dir) {
-            return false;
-        }
-        self.expanded.insert(dir.to_path_buf());
-        true
-    }
-
-    pub fn set_expanded(&mut self, dir: &Path, expanded: bool) {
-        if expanded {
-            self.expanded.insert(dir.to_path_buf());
-        } else {
-            self.expanded.remove(dir);
-        }
-    }
-
-    /// Expanded folders whose listing has not arrived yet.
-    pub fn missing_listings(&self) -> Vec<PathBuf> {
-        let mut missing: Vec<PathBuf> = self
-            .rows()
-            .into_iter()
-            .filter(|r| r.dir && r.expanded && !self.is_loaded(&r.path))
-            .map(|r| r.path)
-            .collect();
-        missing.sort();
-        missing
-    }
-
-    /// The visible lines, top to bottom: the root, then each expanded folder's entries.
-    pub fn rows(&self) -> Vec<Row> {
-        let name = self
-            .root
-            .file_name()
-            .map_or_else(|| self.root.to_string_lossy().into_owned(), |n| n.to_string_lossy().into_owned());
-        let mut rows = vec![Row {
-            path: self.root.clone(),
-            name,
-            depth: 0,
-            dir: true,
-            expanded: self.is_expanded(&self.root),
-            ignored: false,
-        }];
-        if self.is_expanded(&self.root) {
-            self.push_children(&self.root, 1, &mut rows);
-        }
-        rows
-    }
-
-    fn push_children(&self, dir: &Path, depth: usize, rows: &mut Vec<Row>) {
-        let Some(entries) = self.listings.get(dir) else { return };
-        for entry in entries.iter().filter(|e| self.show_excluded || !e.ignored) {
-            let path = PathBuf::from(entry.path.clone());
-            let dir = is_dir(entry);
-            let expanded = dir && self.is_expanded(&path);
-            rows.push(Row {
-                path: path.clone(),
-                name: entry.name.clone(),
-                depth,
-                dir,
-                expanded,
-                ignored: entry.ignored,
-            });
-            if expanded {
-                self.push_children(&path, depth + 1, rows);
+/// The visible lines of `model`, top to bottom, each node once.
+pub fn rows(model: &TreeModel, expanded: &BTreeSet<String>) -> Vec<Row> {
+    fn walk<'a>(
+        model: &'a TreeModel,
+        expanded: &BTreeSet<String>,
+        nodes: &'a [Arc<ProjectNode>],
+        depth: usize,
+        seen: &mut BTreeSet<&'a str>,
+        rows: &mut Vec<Row>,
+    ) {
+        for node in nodes {
+            let open = node.dir && expanded.contains(&node.key);
+            if seen.insert(node.key.as_str()) {
+                rows.push(Row { node: node.clone(), depth, expanded: open });
+            }
+            if let Some(kids) = model.children.get(&node.key).filter(|_| open) {
+                walk(model, expanded, kids, depth + 1, seen, rows);
             }
         }
     }
+    let mut out = Vec::new();
+    walk(model, expanded, &model.roots, 0, &mut BTreeSet::new(), &mut out);
+    out
 }
 
 /// The user asked to open a file.
@@ -146,79 +157,351 @@ pub struct OpenFile(pub PathBuf);
 pub struct ProjectTree {
     focus: FocusHandle,
     window_label: String,
+    root: String,
+    name: String,
+    listings: Listings,
+    /// Keys of the expanded nodes.
+    expanded: BTreeSet<String>,
+    options: ViewOptions,
+    ignored: IgnoredNames,
     model: TreeModel,
-    selected: Option<PathBuf>,
+    /// Key of the selected node.
+    selected: Option<String>,
+    /// Folders being read.
+    inflight: BTreeSet<String>,
+    /// A path to select and scroll to once its row exists.
+    reveal: Option<String>,
+    scroll: UniformListScrollHandle,
+    listener: Option<u64>,
+    persist: Option<Task<()>>,
 }
 
 impl EventEmitter<OpenFile> for ProjectTree {}
 
 impl ProjectTree {
     pub fn new(window_label: &str, root: PathBuf, cx: &mut Context<Self>) -> Self {
+        let name = root.file_name().map_or_else(|| root.to_string_lossy(), |name| name.to_string_lossy()).into_owned();
+        let root = root.to_string_lossy().into_owned();
+        let storage = cx.try_global::<UiStorage>();
+        let options = storage.map(ViewOptions::stored).unwrap_or_default();
+        // The tree as it was left: a collapsed root stays collapsed. Only a first open expands it.
+        let expanded = storage
+            .and_then(|storage| storage.get(&expanded_key(&root)))
+            .and_then(|text| serde_json::from_str::<Vec<String>>(text).ok())
+            .map_or_else(|| BTreeSet::from([root.clone()]), BTreeSet::from_iter);
+        let ignored = cx.try_global::<Backend>().map_or_else(IgnoredNames::default, |backend| {
+            IgnoredNames::new(&ide_host::ops::project::settings(&backend.host, window_label).files.ignored_names)
+        });
+        let weak = cx.weak_entity();
+        let listener = cx.try_global::<Backend>().is_some().then(|| {
+            cx.global_mut::<Backend>().listen(move |event, cx| {
+                let _ = weak.update(cx, |tree, cx| tree.backend_event(event, cx));
+            })
+        });
+        cx.on_release(|tree, cx| {
+            if let Some(listener) = tree.listener.filter(|_| cx.has_global::<Backend>()) {
+                cx.global_mut::<Backend>().unlisten(listener);
+            }
+            tree.write_expanded(cx);
+        })
+        .detach();
         let mut tree = Self {
             focus: cx.focus_handle(),
             window_label: window_label.to_owned(),
-            model: TreeModel::new(root),
+            root,
+            name,
+            listings: Listings::new(),
+            expanded,
+            options,
+            ignored,
+            model: TreeModel::default(),
             selected: None,
+            inflight: BTreeSet::new(),
+            reveal: None,
+            scroll: UniformListScrollHandle::new(),
+            listener,
+            persist: None,
         };
-        tree.load_missing(cx);
+        tree.rebuild(cx);
         tree
+    }
+
+    pub fn root(&self) -> &str {
+        &self.root
     }
 
     pub fn model(&self) -> &TreeModel {
         &self.model
     }
 
-    pub fn selected(&self) -> Option<&Path> {
+    pub fn options(&self) -> &ViewOptions {
+        &self.options
+    }
+
+    pub fn is_loaded(&self, dir: &str) -> bool {
+        self.listings.contains_key(dir)
+    }
+
+    /// The visible lines, top to bottom.
+    pub fn rows(&self) -> Vec<Row> {
+        rows(&self.model, &self.expanded)
+    }
+
+    /// Key of the selected node.
+    pub fn selected(&self) -> Option<&str> {
         self.selected.as_deref()
     }
 
-    /// Asks the backend for the listing of every expanded folder that has none.
-    fn load_missing(&mut self, cx: &mut Context<Self>) {
-        for dir in self.model.missing_listings() {
-            let (window, path) = (self.window_label.clone(), dir.clone());
-            let listing = cx
-                .global::<Backend>()
-                .with_host(move |host| async move { ide_host::ops::fs::read_dir(&host, &window, path).await });
-            cx.spawn(async move |tree, cx| {
-                let entries = match listing.await {
-                    Ok(Ok(entries)) => entries,
+    /// Path of the selected file or folder.
+    pub fn selected_path(&self) -> Option<&str> {
+        let node = self.model.by_key.get(self.selected.as_deref()?)?;
+        (!node.group && node.member.is_none() && node.placeholder.is_none()).then_some(node.path.as_str())
+    }
+
+    /// Rebuilds the rows from what is loaded, asks for the folders that are open but not read,
+    /// and serves a pending reveal.
+    fn rebuild(&mut self, cx: &mut Context<Self>) {
+        self.model =
+            build_model(&self.root, &self.name, &self.listings, &self.options.tree_options(), &self.ignored, None);
+        for dir in visible_info(&self.model, &self.expanded).pending {
+            self.load_dir(&dir, false, cx);
+        }
+        self.serve_reveal();
+        cx.notify();
+    }
+
+    /// Reads one folder, or re-reads it with `force`. A folder being read is not asked for twice.
+    fn load_dir(&mut self, path: &str, force: bool, cx: &mut Context<Self>) {
+        if (!force && self.listings.contains_key(path)) || !cx.has_global::<Backend>() {
+            return;
+        }
+        if !self.inflight.insert(path.to_owned()) {
+            return;
+        }
+        let (window, dir, path) = (self.window_label.clone(), PathBuf::from(path), path.to_owned());
+        let listing = cx
+            .global::<Backend>()
+            .with_host(move |host| async move { ide_host::ops::fs::read_dir(&host, &window, dir).await });
+        cx.spawn(async move |tree, cx| {
+            let listing = listing.await;
+            let _ = tree.update(cx, |tree: &mut ProjectTree, cx| {
+                tree.inflight.remove(&path);
+                match listing {
+                    Ok(Ok(entries)) => tree.listed(&path, entries, cx),
+                    Ok(Err(error)) if matches!(error.kind, ErrorKind::NotFound | ErrorKind::InvalidInput) => {
+                        tree.folder_gone(&path, cx);
+                    }
                     Ok(Err(error)) => {
-                        tracing::warn!("cannot list {}: {}", dir.display(), error.message);
-                        Vec::new()
+                        tracing::warn!("project view: cannot read {path}: {}", error.message);
+                        tree.listed_unreadable(&path, cx);
                     }
                     Err(error) => {
-                        tracing::warn!("cannot list {}: {error:#}", dir.display());
-                        Vec::new()
+                        tracing::warn!("project view: cannot read {path}: {error:#}");
+                        tree.listed_unreadable(&path, cx);
                     }
-                };
-                let _ = tree.update(cx, |tree: &mut ProjectTree, cx| {
-                    tree.model.set_listing(dir, entries);
-                    cx.notify();
-                });
-            })
-            .detach();
+                }
+            });
+        })
+        .detach();
+    }
+
+    fn put_listing(&mut self, path: &str, entries: Vec<FileEntry>) -> bool {
+        match merge_listing(self.listings.get(path).map(Vec::as_slice), entries) {
+            Some(merged) => {
+                self.listings.insert(path.to_owned(), merged);
+                true
+            }
+            None => false,
         }
     }
 
-    /// Expands or collapses the folder at `path`.
-    pub fn toggle(&mut self, path: &Path, cx: &mut Context<Self>) {
-        self.model.toggle(path);
-        self.load_missing(cx);
+    fn listed(&mut self, path: &str, entries: Vec<FileEntry>, cx: &mut Context<Self>) {
+        let changed = self.put_listing(path, entries);
+        // Compacting a chain of single folders needs the listing one level down.
+        let options = self.options.tree_options();
+        if options.compact
+            && let Some(listing) = self.listings.get(path)
+            && let &[only] = visible_entries(listing, &options, &self.ignored).as_slice()
+            && is_dir_entry(only)
+            && !only.ignored
+        {
+            let below = only.path.to_string_lossy().into_owned();
+            self.load_dir(&below, false, cx);
+        }
+        if changed {
+            self.rebuild(cx);
+        }
+    }
+
+    /// A folder that cannot be read still counts as loaded, with what was last known of it.
+    fn listed_unreadable(&mut self, path: &str, cx: &mut Context<Self>) {
+        if !self.listings.contains_key(path) {
+            self.listings.insert(path.to_owned(), Vec::new());
+            self.rebuild(cx);
+        }
+    }
+
+    /// The folder no longer exists: it and everything loaded or expanded below it goes.
+    fn folder_gone(&mut self, path: &str, cx: &mut Context<Self>) {
+        drop_listings(&mut self.listings, &[path.to_owned()]);
+        let root = self.root.clone();
+        self.expanded.retain(|key| !is_same_or_inside(path_of_key(key), path) || *key == root);
+        if path == root {
+            self.listings.insert(root, Vec::new());
+        }
+        self.rebuild(cx);
+    }
+
+    fn backend_event(&mut self, event: &BackendEvent, cx: &mut Context<Self>) {
+        if event.window.as_deref().is_some_and(|window| window != self.window_label) {
+            return;
+        }
+        let paths = |paths: &[ide_core::IpcPath]| -> Vec<String> {
+            paths.iter().map(|path| path.0.to_string_lossy().into_owned()).collect()
+        };
+        match &event.event {
+            IdeEvent::FsChanged { created, modified, removed } => {
+                self.apply_fs_change(&paths(created), &paths(modified), &paths(removed), cx);
+            }
+            IdeEvent::ExcludedDirsChanged { dirs } => {
+                for dir in paths(dirs) {
+                    if self.listings.contains_key(&dir) {
+                        self.load_dir(&dir, true, cx);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// A change on disk: re-reads the loaded folders it touches, and forgets the ones it removed.
+    pub fn apply_fs_change(
+        &mut self,
+        created: &[String],
+        modified: &[String],
+        removed: &[String],
+        cx: &mut Context<Self>,
+    ) {
+        let loaded: BTreeSet<String> = self.listings.keys().cloned().collect();
+        let plan = plan_refresh(&FsChange { created, modified, removed }, &loaded);
+        let gone = |key: &str| {
+            let path = path_of_key(key);
+            plan.drop.iter().any(|dropped| is_same_or_inside(path, dropped)) || removed.iter().any(|at| at == path)
+        };
+        if self.selected.as_deref().is_some_and(gone) {
+            self.selected = None;
+        }
+        if !plan.drop.is_empty() {
+            drop_listings(&mut self.listings, &plan.drop);
+            self.rebuild(cx);
+        }
+        for dir in &plan.reload {
+            self.load_dir(dir, true, cx);
+        }
         cx.notify();
     }
 
-    pub fn select(&mut self, path: &Path, cx: &mut Context<Self>) {
-        self.selected = Some(path.to_path_buf());
+    /// Re-reads every loaded folder (View › Reload from Disk).
+    pub fn reload_all(&mut self, cx: &mut Context<Self>) {
+        for dir in self.listings.keys().cloned().collect::<Vec<_>>() {
+            self.load_dir(&dir, true, cx);
+        }
+    }
+
+    /// Expands or collapses the folder node `key`. Expanding a compacted chain opens every
+    /// folder in it, so the rows stay open should the chain split.
+    pub fn toggle(&mut self, key: &str, cx: &mut Context<Self>) {
+        let Some(node) = self.model.by_key.get(key).filter(|node| node.dir).cloned() else { return };
+        if !self.expanded.remove(key) {
+            self.expanded.insert(key.to_owned());
+            self.expanded.extend(node.chain.iter().map(|folder| key_like(key, folder)));
+        }
+        self.expansion_changed(cx);
+    }
+
+    fn expansion_changed(&mut self, cx: &mut Context<Self>) {
+        for dir in visible_info(&self.model, &self.expanded).pending {
+            self.load_dir(&dir, false, cx);
+        }
+        self.persist = Some(cx.spawn(async move |tree, cx| {
+            cx.background_executor().timer(PERSIST_DELAY).await;
+            let _ = tree.update(cx, |tree: &mut ProjectTree, cx| tree.write_expanded(cx));
+        }));
         cx.notify();
     }
 
-    /// Opens the file at `path`, or toggles the folder (Enter, double click).
-    pub fn activate(&mut self, path: &Path, cx: &mut Context<Self>) {
-        let Some(row) = self.model.rows().into_iter().find(|row| row.path == path) else { return };
-        if row.dir {
-            self.toggle(path, cx);
-        } else {
-            cx.emit(OpenFile(row.path));
+    fn write_expanded(&self, cx: &mut App) {
+        if !cx.has_global::<UiStorage>() {
+            return;
+        }
+        let keys: Vec<&String> = self.expanded.iter().take(MAX_PERSISTED).collect();
+        match serde_json::to_string(&keys) {
+            Ok(text) => cx.global_mut::<UiStorage>().set(&expanded_key(&self.root), text),
+            Err(error) => tracing::warn!("project view: cannot store the expansion: {error}"),
+        }
+    }
+
+    /// Changes the view options, for every Project view from now on.
+    pub fn set_options(&mut self, change: impl FnOnce(&mut ViewOptions), cx: &mut Context<Self>) {
+        let before = self.options.clone();
+        change(&mut self.options);
+        if self.options == before {
+            return;
+        }
+        if cx.has_global::<UiStorage>() {
+            match serde_json::to_string(&self.options) {
+                Ok(text) => cx.global_mut::<UiStorage>().set(OPTIONS_KEY, text),
+                Err(error) => tracing::warn!("project view: cannot store the options: {error}"),
+            }
+        }
+        self.rebuild(cx);
+    }
+
+    pub fn select(&mut self, key: &str, cx: &mut Context<Self>) {
+        self.selected = Some(key.to_owned());
+        cx.notify();
+    }
+
+    /// Opens the file of the node `key`, or toggles its folder (Enter, double click).
+    pub fn activate(&mut self, key: &str, cx: &mut Context<Self>) {
+        let Some(node) = self.model.by_key.get(key).cloned() else { return };
+        if node.dir {
+            self.toggle(key, cx);
+        } else if node.entry.is_some() {
+            cx.emit(OpenFile(PathBuf::from(&node.path)));
+        }
+    }
+
+    /// Expands the folders above `path` and selects it once its row exists. False when the
+    /// path is outside the project.
+    pub fn reveal_path(&mut self, path: &str, cx: &mut Context<Self>) -> bool {
+        if !is_same_or_inside(path, &self.root) {
+            return false;
+        }
+        let folders: Vec<String> = ancestors_within(&self.root, path).into_iter().map(str::to_owned).collect();
+        self.expanded.extend(folders.iter().cloned());
+        self.reveal = Some(path.to_owned());
+        for folder in &folders {
+            self.load_dir(folder, false, cx);
+        }
+        self.expansion_changed(cx);
+        self.serve_reveal();
+        true
+    }
+
+    /// Selects the revealed path if its row is there: the node showing exactly that path.
+    fn serve_reveal(&mut self) {
+        let Some(path) = self.reveal.as_deref() else { return };
+        let Some(key) = node_key_for(&self.model, path).map(str::to_owned) else { return };
+        let shows_it = self.model.by_key.get(&key).is_some_and(|node| node.chain.iter().any(|at| at == path));
+        if !shows_it {
+            return;
+        }
+        // A compacted chain may be keyed by a folder that was not expanded by path.
+        if let Some(index) = self.rows().iter().position(|row| row.node.key == key) {
+            self.scroll.scroll_to_item(index, ScrollStrategy::Center);
+            self.selected = Some(key);
+            self.reveal = None;
         }
     }
 
@@ -227,34 +510,30 @@ impl ProjectTree {
         if modifiers.control || modifiers.alt || modifiers.platform || modifiers.shift {
             return;
         }
-        let rows = self.model.rows();
-        let current = self.selected.as_ref().and_then(|selected| rows.iter().position(|row| &row.path == selected));
+        let rows = self.rows();
+        let current = self.selected.as_ref().and_then(|selected| rows.iter().position(|row| &row.node.key == selected));
         let row = current.and_then(|index| rows.get(index));
+        let key_at = |index: usize| rows.get(index).map(|row| row.node.key.clone());
         match (event.keystroke.key.as_str(), row) {
-            ("down", _) => {
-                let next = current.map_or(0, |index| (index + 1).min(rows.len() - 1));
-                self.selected = rows.get(next).map(|row| row.path.clone());
-            }
-            ("up", _) => {
-                let previous = current.map_or(0, |index| index.saturating_sub(1));
-                self.selected = rows.get(previous).map(|row| row.path.clone());
-            }
+            ("down", _) => self.selected = key_at(current.map_or(0, |index| (index + 1).min(rows.len() - 1))),
+            ("up", _) => self.selected = key_at(current.map_or(0, |index| index.saturating_sub(1))),
             // Right opens a closed folder, then steps into it; Left closes an open folder, else
             // goes to the parent.
-            ("right", Some(row)) if row.dir && !row.expanded => self.toggle(&row.path.clone(), cx),
-            ("right", Some(row)) if row.dir => {
-                self.selected = current.and_then(|index| rows.get(index + 1)).map(|row| row.path.clone())
-            }
-            ("left", Some(row)) if row.dir && row.expanded => self.toggle(&row.path.clone(), cx),
+            ("right", Some(row)) if row.node.dir && !row.expanded => self.toggle(&row.node.key.clone(), cx),
+            ("right", Some(row)) if row.node.dir => self.selected = current.and_then(|index| key_at(index + 1)),
+            ("left", Some(row)) if row.node.dir && row.expanded => self.toggle(&row.node.key.clone(), cx),
             ("left", Some(row)) => {
                 let parent =
                     current.and_then(|index| rows[..index].iter().rev().find(|candidate| candidate.depth < row.depth));
                 if let Some(parent) = parent {
-                    self.selected = Some(parent.path.clone());
+                    self.selected = Some(parent.node.key.clone());
                 }
             }
-            ("enter", Some(row)) => self.activate(&row.path.clone(), cx),
+            ("enter", Some(row)) => self.activate(&row.node.key.clone(), cx),
             _ => return,
+        }
+        if let Some(index) = self.selected.as_ref().and_then(|key| rows.iter().position(|row| &row.node.key == key)) {
+            self.scroll.scroll_to_item(index, ScrollStrategy::Top);
         }
         cx.stop_propagation();
         cx.notify();
@@ -269,7 +548,7 @@ impl Focusable for ProjectTree {
 
 impl Render for ProjectTree {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let rows = self.model.rows();
+        let rows = self.rows();
         let focused = self.focus.is_focused(window);
         let (row_height, selected_bg) = (
             theme::length(cx, "h-row"),
@@ -285,11 +564,12 @@ impl Render for ProjectTree {
                 rows[range]
                     .iter()
                     .map(|row| {
-                        let chevron = if row.dir {
+                        let node = &row.node;
+                        let chevron = if node.dir {
                             let name = if row.expanded { "chevron-down" } else { "chevron-right" };
-                            let toggled = row.path.clone();
+                            let toggled = node.key.clone();
                             div()
-                                .id(SharedString::from(format!("toggle:{}", row.path.display())))
+                                .id(SharedString::from(format!("toggle:{}", node.key)))
                                 .size(px(16.0))
                                 .flex_none()
                                 .child(theme::icon(cx, name, 16.0, chevron_color))
@@ -301,10 +581,15 @@ impl Render for ProjectTree {
                         } else {
                             div().size(px(16.0)).flex_none().into_any_element()
                         };
-                        let color = if row.ignored { dimmed } else { fg };
-                        let clicked = row.path.clone();
+                        let color = if node.ignored || node.excluded { dimmed } else { fg };
+                        let icon = match &node.icon {
+                            Some(icon) => icon.as_str(),
+                            None if node.dir => "folder",
+                            None => theme::icons::file_icon_name(&node.label),
+                        };
+                        let clicked = node.key.clone();
                         div()
-                            .id(SharedString::from(format!("row:{}", row.path.display())))
+                            .id(SharedString::from(format!("row:{}", node.key)))
                             .h(row_height)
                             .w_full()
                             .flex()
@@ -313,15 +598,13 @@ impl Render for ProjectTree {
                             .pl(px(4.0 + 20.0 * row.depth as f32))
                             .pr(px(8.0))
                             .text_color(color)
-                            .when(selected.as_deref() == Some(row.path.as_path()), |el| el.bg(selected_bg))
+                            .when(selected.as_deref() == Some(node.key.as_str()), |el| el.bg(selected_bg))
                             .child(chevron)
-                            .child(theme::icon(
-                                cx,
-                                if row.dir { "folder" } else { theme::icons::file_icon_name(&row.name) },
-                                16.0,
-                                color,
-                            ))
-                            .child(div().whitespace_nowrap().child(SharedString::from(row.name.clone())))
+                            .child(theme::icon(cx, icon, 16.0, color))
+                            .child(div().whitespace_nowrap().child(SharedString::from(node.label.clone())))
+                            .when_some(node.detail.clone(), |el, detail| {
+                                el.child(div().whitespace_nowrap().text_color(dimmed).child(SharedString::from(detail)))
+                            })
                             .on_click(cx.listener(move |tree, event: &ClickEvent, window, cx| {
                                 window.focus(&tree.focus, cx);
                                 tree.select(&clicked, cx);
@@ -333,6 +616,7 @@ impl Render for ProjectTree {
                     .collect::<Vec<_>>()
             }),
         )
+        .track_scroll(&self.scroll)
         .size_full();
         div()
             .size_full()
@@ -348,66 +632,7 @@ mod tests {
     use super::*;
     use crate::backend::AppDirs;
     use gpui_kit::{Entity, TestAppContext, VisualTestContext};
-    use std::time::Duration;
-
-    fn entry(dir: &Path, name: &str, kind: EntryKind, ignored: bool) -> FileEntry {
-        FileEntry {
-            name: name.to_owned(),
-            path: dir.join(name).into(),
-            kind,
-            size: 0,
-            mtime_ms: 0.0,
-            ignored,
-            excluded: false,
-            hidden: false,
-            target_kind: None,
-        }
-    }
-
-    #[test]
-    fn rows_follow_what_is_expanded_and_loaded() {
-        let root = PathBuf::from("/p");
-        let mut model = TreeModel::new(root.clone());
-        // Before the listing arrives only the root shows, and its listing is asked for.
-        assert_eq!(model.rows().iter().map(|r| r.name.as_str()).collect::<Vec<_>>(), ["p"]);
-        assert_eq!(model.missing_listings(), std::slice::from_ref(&root));
-        model.set_listing(
-            root.clone(),
-            vec![
-                entry(&root, "src", EntryKind::Dir, false),
-                entry(&root, "target", EntryKind::Dir, true),
-                entry(&root, "Cargo.toml", EntryKind::File, false),
-            ],
-        );
-        let names = |model: &TreeModel| {
-            model.rows().iter().map(|r| format!("{}{}", "  ".repeat(r.depth), r.name)).collect::<Vec<_>>()
-        };
-        assert_eq!(names(&model), ["p", "  src", "  target", "  Cargo.toml"]);
-        assert!(model.missing_listings().is_empty());
-
-        // An expanded folder is listed once its entries are known, in the backend's order.
-        assert!(model.toggle(&root.join("src")));
-        assert_eq!(model.missing_listings(), [root.join("src")]);
-        model.set_listing(root.join("src"), vec![entry(&root.join("src"), "main.rs", EntryKind::File, false)]);
-        assert_eq!(names(&model), ["p", "  src", "    main.rs", "  target", "  Cargo.toml"]);
-        assert!(model.rows()[1].expanded && model.rows()[3].ignored);
-
-        // Collapsing keeps the listing; Show Excluded Files off hides ignored entries.
-        assert!(!model.toggle(&root.join("src")));
-        model.show_excluded = false;
-        assert_eq!(names(&model), ["p", "  src", "  Cargo.toml"]);
-        assert!(!model.toggle(&root));
-        assert_eq!(names(&model), ["p"]);
-    }
-
-    #[test]
-    fn a_symlink_to_a_folder_is_a_folder() {
-        let dir = Path::new("/p");
-        let mut link = entry(dir, "link", EntryKind::Symlink, false);
-        assert!(!is_dir(&link));
-        link.target_kind = Some(EntryKind::Dir);
-        assert!(is_dir(&link));
-    }
+    use std::path::Path;
 
     fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
         for _ in 0..300 {
@@ -420,24 +645,40 @@ mod tests {
         panic!("the backend did not deliver within three seconds");
     }
 
-    fn names(tree: &Entity<ProjectTree>, cx: &mut VisualTestContext) -> Vec<String> {
-        tree.read_with(cx, |tree, _| tree.model.rows().into_iter().map(|row| row.name).collect())
+    /// The labels of the visible rows, indented by depth.
+    fn labels(tree: &Entity<ProjectTree>, cx: &mut VisualTestContext) -> Vec<String> {
+        tree.read_with(cx, |tree, _| {
+            tree.rows().iter().skip(1).map(|row| format!("{}{}", "  ".repeat(row.depth - 1), row.node.label)).collect()
+        })
     }
 
-    /// The tree lists a real project through the backend, expands with the keyboard and asks
-    /// for a file to be opened.
-    #[gpui_kit::test]
-    async fn lists_a_project_and_opens_files_from_the_keyboard(cx: &mut TestAppContext) {
+    fn text(path: &Path) -> String {
+        path.to_string_lossy().into_owned()
+    }
+
+    struct Fixture {
+        _home: tempfile::TempDir,
+        _project: tempfile::TempDir,
+        root: PathBuf,
+    }
+
+    /// A backend with the project of `files` (paths ending in `/` are folders) open in window `w1`.
+    async fn project(cx: &mut TestAppContext, files: &[&str]) -> Fixture {
         cx.executor().allow_parking();
         let (home, project) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a project"));
         let root = project.path().canonicalize().expect("the project folder exists");
-        std::fs::create_dir(root.join("src")).expect("a folder");
-        std::fs::write(root.join("src/main.rs"), "fn main() {}\n").expect("a file");
-        std::fs::write(root.join("README.md"), "# readme\n").expect("a file");
-        std::fs::write(root.join("a10.txt"), "").expect("a file");
-        std::fs::write(root.join("a9.txt"), "").expect("a file");
+        for file in files {
+            let path = root.join(file);
+            if file.ends_with('/') {
+                std::fs::create_dir_all(&path).expect("a folder");
+            } else {
+                std::fs::create_dir_all(path.parent().expect("a parent")).expect("a folder");
+                std::fs::write(&path, "").expect("a file");
+            }
+        }
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
+            cx.set_global(UiStorage::default());
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
         });
         let open_root = root.clone();
@@ -447,13 +688,47 @@ mod tests {
             })
         });
         opened.await.expect("the task completes").expect("the project opens");
+        Fixture { _home: home, _project: project, root }
+    }
 
-        let tree_root = root.clone();
+    fn open_tree<'a>(cx: &'a mut TestAppContext, root: &Path) -> (Entity<ProjectTree>, &'a mut VisualTestContext) {
+        let tree_root = root.to_path_buf();
         let (tree, cx) = cx.add_window_view(move |_, cx| ProjectTree::new("w1", tree_root, cx));
-        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.model.is_loaded(tree.model.root())));
-        // Folders first, then files in natural order (a9 before a10).
-        let root_name = root.file_name().expect("a name").to_string_lossy().into_owned();
-        assert_eq!(names(&tree, cx), [root_name.as_str(), "src", "a9.txt", "a10.txt", "README.md"]);
+        let at = text(root);
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.is_loaded(&at)));
+        (tree, cx)
+    }
+
+    fn close(cx: &mut VisualTestContext) {
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.close_project("w1");
+    }
+
+    #[test]
+    fn stored_options_fill_in_what_is_missing() {
+        let options: ViewOptions = serde_json::from_str(r#"{"showExcluded":false,"sortBy":"size"}"#).expect("parses");
+        assert!(!options.show_excluded && options.compact && options.folders_first);
+        assert_eq!(options.sort_key(), SortKey::Name);
+        assert_eq!(ViewOptions::default().tree_options(), TreeOptions::default());
+        let stored = serde_json::to_value(ViewOptions::default()).expect("serializes");
+        assert_eq!(stored["autoscrollFromSource"], false);
+        assert_eq!(stored["sortBy"], "name");
+    }
+
+    /// The tree lists a real project through the backend, expands with the keyboard and asks
+    /// for a file to be opened.
+    #[gpui_kit::test]
+    async fn lists_a_project_and_opens_files_from_the_keyboard(cx: &mut TestAppContext) {
+        let fixture = project(cx, &["src/main.rs", "src/lib.rs", "README.md", "a10.txt", "a9.txt", "_build.txt"]).await;
+        let root = fixture.root.clone();
+        let (tree, cx) = open_tree(cx, &root);
+        // Folders first, then files as the collation orders them: punctuation before letters,
+        // a9 before a10, case ignored.
+        assert_eq!(labels(&tree, cx), ["src", "_build.txt", "a9.txt", "a10.txt", "README.md"]);
+        assert_eq!(
+            tree.read_with(cx, |tree, _| tree.rows()[0].node.label.clone()),
+            text(root.file_name().unwrap().as_ref())
+        );
 
         let opened: std::rc::Rc<std::cell::RefCell<Vec<PathBuf>>> = Default::default();
         let log = opened.clone();
@@ -463,21 +738,187 @@ mod tests {
             let focus = tree.read(cx).focus.clone();
             window.focus(&focus, cx);
         });
-        // Down to the root, down to `src`, Right expands it, Right steps onto main.rs, Enter opens it.
+        // Down to the root, down to `src`, Right expands it, Right steps onto its first file,
+        // Enter opens it.
         cx.simulate_keystrokes("down down right");
-        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.model.is_loaded(&root.join("src"))));
+        let src = text(&root.join("src"));
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.is_loaded(&src)));
         cx.simulate_keystrokes("right");
         assert_eq!(
-            tree.read_with(cx, |tree, _| tree.selected().map(Path::to_path_buf)),
-            Some(root.join("src/main.rs"))
+            tree.read_with(cx, |tree, _| tree.selected_path().map(str::to_owned)),
+            Some(text(&root.join("src/lib.rs")))
         );
         cx.simulate_keystrokes("enter");
-        assert_eq!(*opened.borrow(), [root.join("src/main.rs")]);
+        assert_eq!(*opened.borrow(), [root.join("src/lib.rs")]);
         // Left goes to the parent folder, Left again closes it.
         cx.simulate_keystrokes("left left");
-        assert_eq!(names(&tree, cx).len(), 5);
-        assert_eq!(tree.read_with(cx, |tree, _| tree.selected().map(Path::to_path_buf)), Some(root.join("src")));
-        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
-        host.close_project("w1");
+        assert_eq!(labels(&tree, cx).len(), 5);
+        assert_eq!(tree.read_with(cx, |tree, _| tree.selected().map(str::to_owned)), Some(src));
+        close(cx);
+    }
+
+    /// Single-folder chains show as one row: `/`-joined above a JVM source root, which ends the
+    /// chain, and `.`-joined packages below it.
+    #[gpui_kit::test]
+    async fn compacts_chains_of_single_folders(cx: &mut TestAppContext) {
+        let fixture = project(cx, &["src/main/java/com/acme/App.java", "README.md"]).await;
+        let root = fixture.root.clone();
+        let (tree, cx) = open_tree(cx, &root);
+        assert_eq!(labels(&tree, cx), ["src", "README.md"]);
+        tree.update(cx, |tree, cx| tree.toggle(&text(&root.join("src")), cx));
+        let acme = text(&root.join("src/main/java/com/acme"));
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.is_loaded(&acme)));
+        assert_eq!(labels(&tree, cx), ["src/main/java", "  com.acme", "README.md"]);
+        // The package row is keyed by its first folder and opens its last.
+        tree.update(cx, |tree, cx| tree.toggle(&text(&root.join("src/main/java/com")), cx));
+        assert_eq!(labels(&tree, cx), ["src/main/java", "  com.acme", "    App.java", "README.md"]);
+
+        // Compact Middle Packages off: every folder is a row. `src` was opened before its chain
+        // was known, so the folders it later merged with are closed; the package row was opened
+        // as a chain, so both of its folders are open.
+        tree.update(cx, |tree, cx| tree.set_options(|options| options.compact = false, cx));
+        assert_eq!(labels(&tree, cx), ["src", "  main", "README.md"]);
+        tree.update(cx, |tree, cx| {
+            tree.toggle(&text(&root.join("src/main")), cx);
+            tree.toggle(&text(&root.join("src/main/java")), cx);
+        });
+        assert_eq!(
+            labels(&tree, cx),
+            ["src", "  main", "    java", "      com", "        acme", "          App.java", "README.md"]
+        );
+        let stored = cx.update(|_, cx| cx.global::<UiStorage>().get(OPTIONS_KEY).map(str::to_owned)).expect("stored");
+        assert!(stored.contains(r#""compact":false"#), "{stored}");
+        close(cx);
+    }
+
+    /// What `.gitignore` matches is listed dimmed, and not at all with Show Excluded Files off;
+    /// ignored names (`.git`, `.DS_Store`) only show with Show Hidden Files.
+    #[gpui_kit::test]
+    async fn hides_excluded_and_ignored_entries_by_option(cx: &mut TestAppContext) {
+        let fixture = project(cx, &["target/", "src/main.rs", ".DS_Store"]).await;
+        let root = fixture.root.clone();
+        std::fs::write(root.join(".gitignore"), "target/\n").expect("a file");
+        let (tree, cx) = open_tree(cx, &root);
+        assert_eq!(labels(&tree, cx), ["src", "target", ".gitignore"]);
+        assert!(tree.read_with(cx, |tree, _| tree.rows()[2].node.ignored));
+        tree.update(cx, |tree, cx| tree.set_options(|options| options.show_excluded = false, cx));
+        assert_eq!(labels(&tree, cx), ["src", ".gitignore"]);
+        tree.update(cx, |tree, cx| tree.set_options(|options| options.show_hidden = true, cx));
+        assert_eq!(labels(&tree, cx), ["src", ".DS_Store", ".gitignore"]);
+        close(cx);
+    }
+
+    /// A change on disk re-reads the loaded folders it touches; a removed folder takes its rows,
+    /// its listings and the selection inside it along.
+    #[gpui_kit::test]
+    async fn follows_changes_on_disk(cx: &mut TestAppContext) {
+        let fixture = project(cx, &["src/main.rs", "docs/guide/intro.md", "README.md"]).await;
+        let root = fixture.root.clone();
+        let (tree, cx) = open_tree(cx, &root);
+        let (docs, guide) = (text(&root.join("docs")), text(&root.join("docs/guide")));
+        tree.update(cx, |tree, cx| tree.toggle(&docs, cx));
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.is_loaded(&guide)));
+        assert_eq!(labels(&tree, cx), ["docs/guide", "  intro.md", "src", "README.md"]);
+
+        // A new file in a loaded folder appears; one in a folder never read costs nothing.
+        std::fs::write(root.join("NOTES.md"), "").expect("a file");
+        std::fs::write(root.join("src/lib.rs"), "").expect("a file");
+        let created = [text(&root.join("NOTES.md")), text(&root.join("src/lib.rs"))];
+        tree.update(cx, |tree, cx| tree.apply_fs_change(&created, &[], &[], cx));
+        settle(cx, |cx| labels(&tree, cx).contains(&"NOTES.md".to_owned()));
+        assert_eq!(labels(&tree, cx), ["docs/guide", "  intro.md", "src", "NOTES.md", "README.md"]);
+        assert!(!tree.read_with(cx, |tree, _| tree.is_loaded(&text(&root.join("src")))));
+
+        // The same through the backend's event, for this window only.
+        std::fs::write(root.join("TODO.md"), "").expect("a file");
+        let event = |window: &str| BackendEvent {
+            window: Some(window.to_owned()),
+            event: IdeEvent::FsChanged {
+                created: vec![ide_core::IpcPath(root.join("TODO.md"))],
+                modified: Vec::new(),
+                removed: Vec::new(),
+            },
+        };
+        tree.update(cx, |tree, cx| tree.backend_event(&event("w2"), cx));
+        cx.run_until_parked();
+        assert!(tree.read_with(cx, |tree, _| tree.inflight.is_empty()));
+        tree.update(cx, |tree, cx| tree.backend_event(&event("w1"), cx));
+        settle(cx, |cx| labels(&tree, cx).contains(&"TODO.md".to_owned()));
+
+        // Removing a loaded folder drops it, what was loaded below it and the selection in it.
+        tree.update(cx, |tree, cx| tree.select(&text(&root.join("docs/guide/intro.md")), cx));
+        std::fs::remove_dir_all(root.join("docs")).expect("removed");
+        tree.update(cx, |tree, cx| tree.apply_fs_change(&[], &[], std::slice::from_ref(&docs), cx));
+        settle(cx, |cx| !labels(&tree, cx).iter().any(|label| label.starts_with("docs")));
+        assert_eq!(labels(&tree, cx), ["src", "NOTES.md", "README.md", "TODO.md"]);
+        tree.read_with(cx, |tree, _| {
+            assert!(!tree.is_loaded(&docs) && !tree.is_loaded(&guide));
+            assert_eq!(tree.selected(), None);
+        });
+        close(cx);
+    }
+
+    /// An expanded folder that vanished before it was read collapses instead of staying pending.
+    #[gpui_kit::test]
+    async fn a_folder_that_cannot_be_found_collapses(cx: &mut TestAppContext) {
+        let fixture = project(cx, &["src/main.rs", "README.md"]).await;
+        let root = fixture.root.clone();
+        let (tree, cx) = open_tree(cx, &root);
+        let src = text(&root.join("src"));
+        std::fs::remove_dir_all(root.join("src")).expect("removed");
+        tree.update(cx, |tree, cx| tree.toggle(&src, cx));
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.inflight.is_empty() && !tree.expanded.contains(&src)));
+        assert!(tree.read_with(cx, |tree, _| !tree.is_loaded(&src) && tree.expanded.contains(tree.root())));
+        close(cx);
+    }
+
+    /// The expansion is written once it rests, and the next tree of the same project starts
+    /// from it: also with the root collapsed.
+    #[gpui_kit::test]
+    async fn remembers_the_expansion_per_project(cx: &mut TestAppContext) {
+        let fixture = project(cx, &["src/main.rs", "README.md"]).await;
+        let root = fixture.root.clone();
+        let key = expanded_key(&text(&root));
+        {
+            let (tree, cx) = open_tree(cx, &root);
+            let src = text(&root.join("src"));
+            tree.update(cx, |tree, cx| tree.toggle(&src, cx));
+            settle(cx, |cx| tree.read_with(cx, |tree, _| tree.is_loaded(&src)));
+            assert_eq!(cx.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned)), None);
+            cx.executor().advance_clock(PERSIST_DELAY);
+            cx.run_until_parked();
+            let stored: Vec<String> = cx
+                .update(|_, cx| serde_json::from_str(cx.global::<UiStorage>().get(&key).expect("stored")))
+                .expect("a list");
+            assert_eq!(stored, [text(&root), src]);
+        }
+        let (again, cx) = open_tree(cx, &root);
+        let main = text(&root.join("src"));
+        settle(cx, |cx| again.read_with(cx, |tree, _| tree.is_loaded(&main)));
+        assert_eq!(labels(&again, cx), ["src", "  main.rs", "README.md"]);
+
+        again.update(cx, |tree, cx| tree.toggle(&text(&root), cx));
+        cx.executor().advance_clock(PERSIST_DELAY);
+        cx.run_until_parked();
+        let tree_root = root.clone();
+        let (collapsed, cx) = cx.add_window_view(move |_, cx| ProjectTree::new("w1", tree_root, cx));
+        cx.run_until_parked();
+        assert_eq!(collapsed.read_with(cx, |tree, _| tree.rows().len()), 1);
+        close(cx);
+    }
+
+    /// Revealing a file opens the folders above it, loads them, and selects its row; a path
+    /// outside the project is refused.
+    #[gpui_kit::test]
+    async fn reveals_a_path_by_opening_the_folders_above_it(cx: &mut TestAppContext) {
+        let fixture = project(cx, &["src/app/ui/view.rs", "src/app/model.rs", "README.md"]).await;
+        let root = fixture.root.clone();
+        let (tree, cx) = open_tree(cx, &root);
+        let view = text(&root.join("src/app/ui/view.rs"));
+        assert!(tree.update(cx, |tree, cx| tree.reveal_path(&view, cx)));
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(view.as_str())));
+        assert_eq!(labels(&tree, cx), ["src/app", "  ui", "    view.rs", "  model.rs", "README.md"]);
+        assert!(!tree.update(cx, |tree, cx| tree.reveal_path("/elsewhere/file.rs", cx)));
+        close(cx);
     }
 }
