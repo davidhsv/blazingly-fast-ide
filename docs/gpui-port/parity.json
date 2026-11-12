@@ -437,7 +437,7 @@
   },
   "module:src/workbench/tasks.ts": {
     "status": "partial",
-    "proof": "`workbench::tasks::tests`; not fed from backend task events yet"
+    "proof": "`workbench::tasks::tests`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`; fed from backend events and shown as status text only"
   },
   "unit:src/workbench/projectNotifications.test.ts": {
     "status": "done",
@@ -445,6 +445,22 @@
   },
   "module:src/workbench/notificationStore.ts": {
     "status": "partial",
-    "proof": "`workbench::notifications::tests`; not fed from backend notify events, and no balloons are drawn"
+    "proof": "`workbench::notifications::tests`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`; fed from backend notify events, nothing drawn"
+  },
+  "event:Task": {
+    "status": "partial",
+    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; listed and shown in the status bar: no popup, progress bar or cancel button"
+  },
+  "event:IndexState": {
+    "status": "partial",
+    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; shown as the Indexing task: dumb mode is not applied to other features"
+  },
+  "event:Notify": {
+    "status": "partial",
+    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; kept in the window's list: no balloon or Notifications tool window is drawn"
+  },
+  "point.registerStatusItem:workbench.tasks": {
+    "status": "partial",
+    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; the current task's text only"
   }
 }

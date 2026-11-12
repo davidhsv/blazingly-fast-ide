@@ -9,7 +9,7 @@ pub mod status_bar_widgets;
 pub mod tasks;
 pub mod tool_windows;
 
-use crate::backend::Backend;
+use crate::backend::{Backend, BackendEvent};
 use crate::editor::tabs::{EditorInput, OpenTabOptions, TabsState, disambiguate_titles};
 use crate::editor::view::Editor;
 use crate::platform::actions::{Action, ActionMeta, ActionRegistry, ActionSource, execute_action_from, manifest};
@@ -22,8 +22,12 @@ use gpui_kit::{
     App, Context, Entity, Focusable, Global, IntoElement, ModifiersChangedEvent, MouseDownEvent, Render, SharedString,
     WeakEntity, Window, WindowId, div, prelude::*,
 };
+use ide_core::IdeEvent;
+use ide_core::event::NotifyLevel;
+use notifications::{NotificationLevel, NotificationRequest, Notifications};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use tasks::{TaskEvent, Tasks};
 use tool_windows::{Anchor, Effects, Slot, Stripe, ToolWindow, ToolWindowLayout, storage_key};
 
 /// What a window shows.
@@ -57,6 +61,20 @@ pub struct Workbench {
     editor_observer: Option<Subscription>,
     /// The title the window currently carries.
     shown_title: Option<String>,
+    /// Background work the backend reports for this window, and what it tells the user.
+    tasks: Tasks,
+    notifications: Notifications,
+    /// Wakes the task list when its next deadline (a finished task leaving, a slow one
+    /// appearing) falls due.
+    task_timer: Option<gpui_kit::Task<()>>,
+    listener: u64,
+}
+
+/// Milliseconds since the Unix epoch, the clock the task and notification models are given.
+fn now_ms() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0.0, |elapsed| elapsed.as_secs_f64() * 1000.0)
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -229,13 +247,32 @@ impl Workbench {
         let id = window.window_handle().window_id();
         let this = cx.weak_entity();
         cx.default_global::<Workbenches>().0.insert(id, this);
-        cx.on_release(move |_, cx| {
+        // Events for this window, and those for every window, reach its models.
+        let weak = cx.weak_entity();
+        let listener = cx.try_global::<Backend>().is_some().then(|| {
+            cx.global_mut::<Backend>().listen(move |event, cx| {
+                let _ = weak.update(cx, |workbench, cx| workbench.backend_event(event, cx));
+            })
+        });
+        cx.on_release(move |workbench, cx| {
+            if cx.has_global::<Backend>() {
+                cx.global_mut::<Backend>().unlisten(workbench.listener);
+            }
             cx.default_global::<Workbenches>().0.remove(&id);
             input::window_blurred(id, cx);
             crate::platform::context::drop_window_context(id, cx);
         })
         .detach();
-        Self { label: label.to_owned(), content: Content::Empty, editor_observer: None, shown_title: None }
+        Self {
+            label: label.to_owned(),
+            content: Content::Empty,
+            editor_observer: None,
+            shown_title: None,
+            tasks: Tasks::default(),
+            notifications: Notifications::default(),
+            task_timer: None,
+            listener: listener.unwrap_or_default(),
+        }
     }
 
     pub fn label(&self) -> &str {
@@ -325,6 +362,85 @@ impl Workbench {
             None => self.editor_observer = None,
         }
         cx.notify();
+    }
+
+    /// Background tasks of this window, in listing order.
+    pub fn tasks(&self) -> &Tasks {
+        &self.tasks
+    }
+
+    pub fn notifications(&self) -> &Notifications {
+        &self.notifications
+    }
+
+    /// What the status bar says about background work: the first task's title with its message,
+    /// and how many more are running.
+    pub fn task_status(&self) -> Option<String> {
+        let tasks = self.tasks.tasks();
+        let first = tasks.first()?;
+        let mut text = match &first.message {
+            Some(message) if !message.is_empty() => format!("{}: {message}", first.title),
+            _ => first.title.clone(),
+        };
+        if tasks.len() > 1 {
+            text.push_str(&format!(" (+{})", tasks.len() - 1));
+        }
+        Some(text)
+    }
+
+    /// A backend event: its task, indexing and notification reports feed this window's models.
+    pub fn backend_event(&mut self, event: &BackendEvent, cx: &mut Context<Self>) {
+        if event.window.as_deref().is_some_and(|window| window != self.label) {
+            return;
+        }
+        let now = now_ms();
+        match &event.event {
+            IdeEvent::Task { id, title, message, fraction, done, cancellable } => self.tasks.on_task_event(
+                TaskEvent {
+                    id: u64::from(id.0),
+                    title: title.clone(),
+                    message: message.clone(),
+                    fraction: fraction.map(f64::from),
+                    done: *done,
+                    cancellable: *cancellable,
+                },
+                now,
+            ),
+            IdeEvent::IndexState { indexing, files, symbols } => {
+                self.tasks.set_indexing(*indexing, u64::from(*files), u64::from(*symbols), now);
+            }
+            IdeEvent::Notify { level, title, body } => {
+                let level = match level {
+                    NotifyLevel::Info => NotificationLevel::Info,
+                    NotifyLevel::Warning => NotificationLevel::Warning,
+                    NotifyLevel::Error => NotificationLevel::Error,
+                };
+                let mut request = NotificationRequest::new(level, title.clone());
+                request.body = body.clone();
+                // Balloon settings are not read yet: every group uses its defaults.
+                let _ = self.notifications.notify(request, None, now);
+            }
+            _ => return,
+        }
+        self.schedule_tasks(cx);
+        cx.notify();
+    }
+
+    /// Advances the task list to `now` and arranges to be woken at its next deadline.
+    pub fn tick_tasks(&mut self, now: f64, cx: &mut Context<Self>) {
+        self.tasks.expire(now);
+        self.schedule_tasks(cx);
+        cx.notify();
+    }
+
+    fn schedule_tasks(&mut self, cx: &mut Context<Self>) {
+        self.task_timer = self.tasks.next_deadline().map(|due| {
+            let wait = std::time::Duration::from_secs_f64(((due - now_ms()) / 1000.0).max(0.0));
+            cx.spawn(async move |workbench, cx| {
+                cx.background_executor().timer(wait).await;
+                let _ = workbench.update(cx, |workbench, cx| workbench.tick_tasks(now_ms(), cx));
+            })
+        });
     }
 
     /// The status bar's right-hand items for the shown editor: caret position, line separator
@@ -865,7 +981,7 @@ impl Render for Workbench {
                     .child(SharedString::from(self.shown_title.clone().unwrap_or_default())),
             )
             .child(div().flex_1().min_h_0().w_full().child(body))
-            .children(self.editor().is_some().then(|| {
+            .children((self.editor().is_some() || self.task_status().is_some()).then(|| {
                 // The status bar: plain UI text, items right-aligned as in the webview's footer.
                 div()
                     .h(theme::length(cx, "h-statusbar") + gpui_kit::px(4.0))
@@ -877,6 +993,7 @@ impl Render for Workbench {
                     .pl(gpui_kit::px(12.0))
                     .pr(gpui_kit::px(10.0))
                     .text_color(theme::color(cx, "fg-muted"))
+                    .children(self.task_status().map(SharedString::from))
                     .children(self.status_items(cx).into_iter().map(SharedString::from))
             }))
     }
@@ -1190,6 +1307,50 @@ mod tests {
         let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
         settle(cx, |_| host.project("w1").is_ok_and(|project| project.documents.open_documents().is_empty()));
         host.close_project("w1");
+    }
+
+    // src/workbench/Workbench.test.tsx › background tasks › tracks task events and shows the current task
+    #[gpui_kit::test]
+    async fn backend_tasks_and_notifications_reach_the_window(cx: &mut TestAppContext) {
+        use ide_core::TaskId;
+        let _home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        let send = |cx: &mut VisualTestContext, window: Option<&str>, event: IdeEvent| {
+            let event = BackendEvent { window: window.map(str::to_owned), event };
+            workbench.update(cx, |workbench, cx| workbench.backend_event(&event, cx));
+        };
+        let task = |done: bool, message: &str| IdeEvent::Task {
+            id: TaskId(7),
+            title: "Importing".to_owned(),
+            message: Some(message.to_owned()),
+            fraction: Some(0.5),
+            done,
+            cancellable: true,
+        };
+        let status = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.task_status());
+        // Indexing is listed at once, with its counts; a second task is counted behind it.
+        send(cx, Some("w1"), IdeEvent::IndexState { indexing: true, files: 1200, symbols: 34 });
+        assert_eq!(status(cx).as_deref(), Some("Indexing: 1,200 files · 34 symbols"));
+        // A short task is not shown unless it outlives the show delay; another window's is ignored.
+        send(cx, Some("w1"), task(false, "module a"));
+        send(cx, Some("other"), IdeEvent::IndexState { indexing: false, files: 0, symbols: 0 });
+        assert_eq!(workbench.read_with(cx, |w, _| w.tasks().tasks().len()), 1);
+        workbench.update(cx, |workbench, cx| workbench.tick_tasks(now_ms() + tasks::SHOW_DELAY_MS + 1.0, cx));
+        assert_eq!(status(cx).as_deref(), Some("Indexing: 1,200 files · 34 symbols (+1)"));
+        // Indexing ends and leaves after its linger; the import remains.
+        send(cx, Some("w1"), IdeEvent::IndexState { indexing: false, files: 1200, symbols: 34 });
+        workbench.update(cx, |workbench, cx| workbench.tick_tasks(now_ms() + tasks::DONE_LINGER_MS + 1.0, cx));
+        assert_eq!(status(cx).as_deref(), Some("Importing: module a"));
+
+        // A notification for every window (no window named) is kept in this one's list.
+        send(
+            cx,
+            None,
+            IdeEvent::Notify { level: NotifyLevel::Warning, title: "Disk is almost full".to_owned(), body: None },
+        );
+        let titles: Vec<String> =
+            workbench.read_with(cx, |w, _| w.notifications().items().iter().map(|n| n.title.clone()).collect());
+        assert_eq!(titles, ["Disk is almost full"]);
     }
 
     // src/features/app/title.ts
