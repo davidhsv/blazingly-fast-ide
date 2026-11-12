@@ -332,3 +332,11 @@ Not there: Recent Locations (its link closes the popup), the set of files edited
 - The webview validates settings itself (`validateSettings`: a malformed value becomes the default, text is trimmed, numbers clamped, unknown names dropped). Here the settings are `ide_core::settings::Settings`, the backend's own types, read through serde: a value of the wrong type is refused instead of defaulted, and text and numbers are kept as stored. The specs that test the webview's repairs (`agents`, `cmake`, `goBuildTags`, `behavior`) are marked partial for that reason rather than given a second validator that the backend would not agree with.
 - Syntax-tree cases of the templates (the context a template applies in, postfix targets) are driven with hand-built node chains, not a parser; the editor is to pass its real nodes.
 - Emmet expansion is behind an `EmmetEngine` trait with no implementation: the webview uses the `emmet` package's tables, and porting those is a job of its own.
+
+## D46. Run configurations as models
+
+`run/` (37 files, 268 tests) is a subagent's port of twenty of the run feature's specs: the configuration store and its persistence, the built-in configuration types for the JVM, Go, CMake, Gradle and .NET targets, the console with its ANSI handling and links, build commands and tasks, update policies of a running application, and navigation from console output. It built on the first try and needed six lint fixes. `ide-lsp` is a dependency now (Java launch information and hierarchy items); the lock check still passes.
+
+Not ported, and the largest gap in this area: the producers that make a configuration from a file or from the caret (`producers`, `producers.ruby`, `contextRun`, `npmGutter`, 113 cases), the Ruby, PHPUnit, .NET test and Tomcat types, and the test runner's parsers. No Run tool window, run widget or gutter icon is drawn yet.
+
+Choices the subagent made, kept: the store hands completed console lines back to its caller instead of keeping test parsers itself; console links reuse the terminal's URL trimming, which also drops an unbalanced closing bracket; index and language-server results the specs mock are plain structs of this module (`FoundSource`, `SymbolHit`) until the views pass the real ones.

@@ -8596,6 +8596,7 @@ dependencies = [
  "ide-host",
  "ide-index",
  "ide-language",
+ "ide-lsp",
  "ide-plugin",
  "ide-run",
  "ide-search",

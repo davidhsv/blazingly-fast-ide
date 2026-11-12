@@ -1414,5 +1414,85 @@
   "unit:src/features/templates/__tests__/surrounders.test.ts": {
     "status": "done",
     "proof": "`templates::live_surrounders::tests`"
+  },
+  "unit:src/features/run/applicationUpdate.test.ts": {
+    "status": "done",
+    "proof": "`run::application_update::tests`, `run::application::tests`"
+  },
+  "unit:src/features/run/buildCommand.test.ts": {
+    "status": "done",
+    "proof": "`run::build_command::tests`"
+  },
+  "unit:src/features/run/buildTask.test.ts": {
+    "status": "done",
+    "proof": "`run::build_task::tests`"
+  },
+  "unit:src/features/run/cmake.test.ts": {
+    "status": "done",
+    "proof": "`run::cmake::tests`"
+  },
+  "unit:src/features/run/configs.test.ts": {
+    "status": "done",
+    "proof": "`run::configs::tests`, `run::store::tests`"
+  },
+  "unit:src/features/run/console.test.ts": {
+    "status": "done",
+    "proof": "`run::console::tests`, `run::ansi::tests`"
+  },
+  "unit:src/features/run/consoleFlush.test.ts": {
+    "status": "done",
+    "proof": "`run::store::tests`"
+  },
+  "unit:src/features/run/containerDebug.test.ts": {
+    "status": "done",
+    "proof": "`run::container_debug::tests`"
+  },
+  "unit:src/features/run/executors.test.ts": {
+    "status": "done",
+    "proof": "`run::executors::tests`"
+  },
+  "unit:src/features/run/goActions.test.ts": {
+    "status": "done",
+    "proof": "`run::go_actions::tests`"
+  },
+  "unit:src/features/run/goTypes.test.ts": {
+    "status": "done",
+    "proof": "`run::go_types::tests`"
+  },
+  "unit:src/features/run/inheritedMain.test.ts": {
+    "status": "done",
+    "proof": "`run::inherited_main::tests`"
+  },
+  "unit:src/features/run/java.test.ts": {
+    "status": "done",
+    "proof": "`run::java_launch::tests`, `run::java_debug::tests`, `run::jvm_targets::tests`"
+  },
+  "unit:src/features/run/javaModule.test.ts": {
+    "status": "done",
+    "proof": "`run::java_launch::tests`, `run::jvm_targets::tests`"
+  },
+  "unit:src/features/run/jvmTypes.test.ts": {
+    "status": "done",
+    "proof": "`run::jvm_types::tests`"
+  },
+  "unit:src/features/run/links.test.ts": {
+    "status": "done",
+    "proof": "`run::links::tests`"
+  },
+  "unit:src/features/run/navigate.test.ts": {
+    "status": "done",
+    "proof": "`run::navigate::tests`"
+  },
+  "unit:src/features/run/gradleRun.test.ts": {
+    "status": "done",
+    "proof": "`run::gradle_run::tests`; sixteen of seventeen cases: the remaining one is what the webview does outside the desktop app, which this app never is"
+  },
+  "unit:src/features/run/csharpTargets.test.ts": {
+    "status": "partial",
+    "proof": "`run::csharp_targets::tests`; three of five cases: the two that produce a configuration from a file or the caret need the producers, which are not ported"
+  },
+  "unit:src/features/run/goGenerate.test.ts": {
+    "status": "partial",
+    "proof": "`run::go_generate::tests`; two of three cases: the one that produces a configuration from the caret needs the producers"
   }
 }
