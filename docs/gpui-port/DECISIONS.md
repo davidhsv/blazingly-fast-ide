@@ -311,3 +311,16 @@ Choices the subagent made, kept:
 - The selected row uses the inactive selection colour, since the keyboard is in the query field, not in the tree. Search Everywhere's rows use the active one; one of the two is to change when the popups get a common list.
 - Supertypes for inherited members are asked through `ide_host::ops::lsp` with the direction built from JSON, because `ide-lsp` is not a dependency of the app; a supertype's file is opened and closed again in the backend to read its outline, which marks it as recent.
 - An outline that fails to load shows "No symbols" and logs the error, as the webview's popup does.
+
+## D44. Recent Files and the Switcher
+
+`everywhere/recent_view.rs` is one view for Recent Files (⌘E) and the Switcher (⌃⇥), as `RecentPopups.tsx` is one component; a subagent wrote it without a compiler. It built on the first try; one of its seventeen tests failed, and the measured cause was the test's hand-traced expectation (which file row the presses last touched), not the code, so the test was corrected.
+
+What the workbench does for it:
+
+- A tab's editor becoming the active one is counted (`activations`), which is the order the Switcher lists open editors in, and its file is marked recent in the backend then, as the webview does on every change of the active editor. Without the second, ⌘E and Enter would not go back and forth between two open files. `recent_files_and_the_switcher_go_between_the_editors` checks both.
+- Closing a tab from the popup does not move the keyboard out of it; hiding a tool window from it gives the keyboard back to the popup after the layout handed it to the editor.
+
+Choices the subagent made, kept: the popup's keys are claimed ahead of the keymap, so ⌃⇥ inside it is always the popup's; releasing Ctrl opens the selection only when Ctrl was seen held, so a Switcher opened from the menu stays open; tool window titles are shown untranslated, as the tool window headers are.
+
+Not there: Recent Locations (its link closes the popup), the set of files edited in this session, opening to the side, and keeping a row when its tab refuses to close (with autosave on, the default, a tab never refuses).

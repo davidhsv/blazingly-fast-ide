@@ -17,6 +17,8 @@ use crate::editor::session::{self, FileViewState};
 use crate::editor::tabs::{EditorInput, OpenTabOptions, TabsState, disambiguate_titles};
 use crate::editor::view::Editor;
 use crate::everywhere::model::SeTab;
+use crate::everywhere::recent_model::OpenEditorTab;
+use crate::everywhere::recent_view::{RecentFiles, RecentFilesEvent, RecentFilesInput, RecentFilesKind};
 use crate::everywhere::structure_view::{FileStructure, FileStructureEvent, StructureFile};
 use crate::everywhere::view::{SearchEverywhere, SearchEverywhereEvent};
 use crate::platform::actions::{Action, ActionMeta, ActionRegistry, ActionSource, execute_action_from, manifest};
@@ -128,6 +130,11 @@ pub struct Workbench {
     session_save: Option<gpui_kit::Task<()>>,
     /// The popup that is open over everything else in the window.
     popup: Option<Popup>,
+    /// When each tab's editor was last the active one, by the key of what it shows: a count that
+    /// grows with every change of the active editor. The Switcher lists the open editors by it.
+    activations: HashMap<String, u64>,
+    /// The key of the editor that is active, to tell a change from a repeat.
+    active_key: Option<String>,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -369,6 +376,19 @@ pub fn register_actions(cx: &mut App) {
             Ok(())
         });
     }
+    for (id, kind) in
+        [("navigate.recentFiles", None), ("navigate.switcher", Some(false)), ("navigate.switcherBack", Some(true))]
+    {
+        registry.handle(id, move |_, window, cx| {
+            let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
+            let kind = match kind {
+                None => RecentFilesKind::Recent,
+                Some(backward) => RecentFilesKind::Switcher { backward, control_held: window.modifiers().control },
+            };
+            workbench.update(cx, |workbench, cx| workbench.show_recent_files(kind, window, cx));
+            Ok(())
+        });
+    }
     registry.handle("navigate.fileStructure", |_, window, cx| {
         let workbench = for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no workbench"))?;
         workbench.update(cx, |workbench, cx| workbench.show_file_structure(window, cx));
@@ -485,6 +505,8 @@ impl Workbench {
             closing: false,
             session_save: None,
             popup: None,
+            activations: HashMap::new(),
+            active_key: None,
         }
     }
 
@@ -641,6 +663,7 @@ impl Workbench {
             .detach();
         }
         self.load_active_tab(focus, window, cx);
+        self.note_active_tab(cx);
         self.session_save = Some(cx.spawn(async move |workbench, cx| {
             cx.background_executor().timer(SESSION_SAVE_DELAY).await;
             let _ = workbench.update(cx, |workbench, cx| workbench.save_session(cx));
@@ -1106,6 +1129,140 @@ impl Workbench {
     }
 
     /// Opens the folder at `root` as this window's project.
+    /// Records that another editor became the active one: it is the most recently used tab, and
+    /// its file the most recent of the project's recent files.
+    fn note_active_tab(&mut self, cx: &mut Context<Self>) {
+        let active = self
+            .tabs()
+            .and_then(|tabs| tabs.pane(&tabs.active_pane))
+            .and_then(|pane| pane.active_tab())
+            .map(|tab| (tab.input.key.clone(), tab.input.path.clone().filter(|_| tab.input.kind == "file")));
+        let key = active.as_ref().map(|(key, _)| key.clone());
+        if key == self.active_key {
+            return;
+        }
+        self.active_key = key;
+        let Some((key, path)) = active else { return };
+        let stamp = self.activations.values().max().copied().unwrap_or(0) + 1;
+        self.activations.insert(key, stamp);
+        if let (Some(path), Some(backend)) = (path, cx.try_global::<Backend>())
+            && let Err(error) = ide_host::ops::nav::mark_recent(&backend.host, &self.label, PathBuf::from(path))
+        {
+            tracing::debug!("a file was not marked as recent: {}", error.message);
+        }
+    }
+
+    /// Every open editor once, the most recently active first, as the Switcher lists them.
+    fn open_editor_tabs(&self) -> Vec<OpenEditorTab> {
+        let Some(tabs) = self.tabs() else { return Vec::new() };
+        let mut seen = std::collections::HashSet::new();
+        let mut open: Vec<OpenEditorTab> = tabs
+            .panes
+            .iter()
+            .flat_map(|pane| &pane.tabs)
+            .filter(|tab| seen.insert(tab.input.key.as_str()))
+            .map(|tab| {
+                let path = tab.input.path.as_deref().unwrap_or(&tab.input.key);
+                let title = path.rsplit('/').next().unwrap_or(path).to_owned();
+                OpenEditorTab {
+                    input: tab.input.clone(),
+                    icon: theme::icons::file_icon_name(&title).to_owned(),
+                    title,
+                    last_active: self.activations.get(&tab.input.key).copied().unwrap_or(0),
+                }
+            })
+            .collect();
+        open.sort_by_key(|tab| std::cmp::Reverse(tab.last_active));
+        open
+    }
+
+    /// Opens Recent Files or the Switcher. Recent Files asked for again shows only the files
+    /// edited in this session, and back; the Switcher asked for again moves its selection.
+    pub fn show_recent_files(&mut self, kind: RecentFilesKind, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(open) = self.recent_files() {
+            let switcher = open.read(cx).is_switcher();
+            match kind {
+                RecentFilesKind::Switcher { backward, .. } if switcher => {
+                    open.update(cx, |popup, cx| popup.cycle(if backward { -1 } else { 1 }, cx));
+                    return;
+                }
+                RecentFilesKind::Recent if !switcher => {
+                    open.update(cx, RecentFiles::toggle_edited_only);
+                    return;
+                }
+                _ => {}
+            }
+        }
+        let input = RecentFilesInput {
+            window_label: self.label.clone(),
+            root: self.project_root(cx).map(|root| root.to_string_lossy().into_owned()),
+            active_path: self.editor().map(|editor| editor.read(cx).path().to_string_lossy().into_owned()),
+            tabs: self.open_editor_tabs(),
+            tool_windows: self.tool_windows().map(|layout| layout.windows().cloned().collect()).unwrap_or_default(),
+            ..RecentFilesInput::default()
+        };
+        let popup = cx.new(|cx| RecentFiles::new(kind, input, cx));
+        let events = cx.subscribe_in(&popup, window, |workbench, popup, event: &RecentFilesEvent, window, cx| {
+            let popup = popup.clone();
+            match event.clone() {
+                RecentFilesEvent::Dismissed | RecentFilesEvent::ShowRecentLocations => {
+                    workbench.close_popup(window, cx)
+                }
+                RecentFilesEvent::OpenFile { path, .. } => {
+                    workbench.close_popup(window, cx);
+                    workbench.open_project_file(path, window, cx);
+                }
+                RecentFilesEvent::OpenFiles { paths, lead, .. } => {
+                    workbench.close_popup(window, cx);
+                    for path in paths {
+                        workbench.open_project_file(path, window, cx);
+                    }
+                    // The one the selection was on is the one that shows.
+                    workbench.open_project_file(lead, window, cx);
+                }
+                RecentFilesEvent::OpenEditor { input, .. } => {
+                    workbench.close_popup(window, cx);
+                    workbench.with_tabs(window, cx, |tabs, _| {
+                        let found =
+                            tabs.find_tab(&input.key, None).map(|(pane, tab)| (pane.to_owned(), tab.id.clone()));
+                        found.is_some_and(|(pane, tab)| tabs.set_active_pane(&pane) | tabs.activate_tab(&pane, &tab))
+                    });
+                }
+                RecentFilesEvent::ActivateToolWindow(id) => {
+                    workbench.close_popup(window, cx);
+                    workbench.with_layout(window, cx, |layout| layout.show(&id, true));
+                }
+                RecentFilesEvent::HideToolWindow(id) => {
+                    workbench.with_layout(window, cx, |layout| layout.hide(&id));
+                    // Hiding the window that had the keyboard hands it to the editor: the popup is
+                    // still open and keeps it.
+                    window.focus(&popup.focus_handle(cx), cx);
+                }
+                RecentFilesEvent::ClosePath(key) | RecentFilesEvent::CloseInput(key) => {
+                    if let Content::Project { tabs, .. } = &mut workbench.content {
+                        tabs.close_key(&key);
+                    }
+                    // Without taking the keyboard: the popup stays open.
+                    workbench.tabs_changed(false, window, cx);
+                    popup.update(cx, |popup, cx| popup.removed(&key, cx));
+                }
+                RecentFilesEvent::GoToFile(query) => {
+                    workbench.close_popup(window, cx);
+                    workbench.open_search_everywhere(SeTab::Files, Some(query), window, cx);
+                }
+                RecentFilesEvent::ShowSwitcher { backward } => {
+                    let control_held = window.modifiers().control;
+                    workbench.show_recent_files(RecentFilesKind::Switcher { backward, control_held }, window, cx);
+                }
+            }
+        });
+        self.open_popup(&popup, events, window, cx);
+    }
+
+    pub fn recent_files(&self) -> Option<Entity<RecentFiles>> {
+        self.popup.as_ref().and_then(|popup| popup.view.clone().downcast().ok())
+    }
+
     /// Whether the status bar is drawn: there is something for it to say and View › Appearance ›
     /// Status Bar is on.
     pub fn shows_status_bar(&self, cx: &App) -> bool {
@@ -1305,6 +1462,17 @@ impl Workbench {
         let query = selected.filter(|text| {
             !text.is_empty() && text.encode_utf16().count() <= SELECTION_QUERY_LIMIT && !text.contains('\n')
         });
+        self.open_search_everywhere(tab, query, window, cx);
+    }
+
+    /// Opens Search Everywhere on `tab`, searching for `query`.
+    fn open_search_everywhere(
+        &mut self,
+        tab: SeTab,
+        query: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned());
         let context = crate::platform::context::window_context(window, cx);
         let label = self.label.clone();
@@ -3493,6 +3661,78 @@ mod tests {
         settle(cx, |cx| editor.read_with(cx, |editor, _| editor.caret_position() == (5, 0)));
         assert!(workbench.read_with(cx, |w, _| w.file_structure().is_none()));
         assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)));
+    }
+
+    /// Recent Files lists the project's files by when they were last shown and starts on the
+    /// previous one, so the action and Enter go back and forth between two files; Delete closes
+    /// the selected file's tab and leaves the popup open. The Switcher opens with Ctrl held, moves
+    /// on every press and opens its selection when Ctrl is released.
+    #[gpui_kit::test]
+    async fn recent_files_and_the_switcher_go_between_the_editors(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        use gpui_kit::Modifiers;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        let showing = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, cx| w.editor().map(|editor| editor.read(cx).path().to_path_buf()))
+        };
+        for name in ["src/alpha.rs", "src/beta.rs", "notes.txt"] {
+            workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join(name), window, cx));
+            settle(cx, |cx| showing(cx) == Some(root.join(name)));
+        }
+        let run = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| execute_action_or_throw(id, None, window, cx)).expect("it runs");
+            cx.run_until_parked();
+        };
+        let recent =
+            |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.recent_files()).expect("the popup is open");
+
+        run(cx, "navigate.recentFiles");
+        let popup = recent(cx);
+        settle(cx, |cx| popup.read_with(cx, |popup, _| !popup.is_loading()));
+        assert_eq!(popup.read_with(cx, |popup, _| popup.lines()), ["notes.txt", "src/beta.rs", "src/alpha.rs"]);
+        let beta = root.join("src/beta.rs").to_string_lossy().into_owned();
+        assert_eq!(popup.read_with(cx, |popup, _| popup.selected_file()), Some(beta));
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| showing(cx) == Some(root.join("src/beta.rs")));
+        assert!(workbench.read_with(cx, |w, _| w.recent_files().is_none()));
+
+        // The file that was showing is now the previous one: the same keys go back to it.
+        run(cx, "navigate.recentFiles");
+        let popup = recent(cx);
+        settle(cx, |cx| popup.read_with(cx, |popup, _| !popup.is_loading()));
+        assert_eq!(popup.read_with(cx, |popup, _| popup.lines()), ["src/beta.rs", "notes.txt", "src/alpha.rs"]);
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| showing(cx) == Some(root.join("notes.txt")));
+
+        // Delete closes the tab of the selected file; the popup stays, with the keyboard.
+        run(cx, "navigate.recentFiles");
+        let popup = recent(cx);
+        settle(cx, |cx| popup.read_with(cx, |popup, _| !popup.is_loading()));
+        cx.simulate_keystrokes("delete");
+        cx.run_until_parked();
+        assert_eq!(popup.read_with(cx, |popup, _| popup.lines()), ["notes.txt", "src/alpha.rs"]);
+        assert_eq!(workbench.read_with(cx, |w, _| w.tab_titles().len()), 2);
+        assert!(cx.update(|window, cx| popup.focus_handle(cx).is_focused(window)));
+        cx.simulate_keystrokes("escape");
+        assert!(workbench.read_with(cx, |w, _| w.recent_files().is_none()));
+
+        // The Switcher: Ctrl is down as it opens, on the editor used before this one; a second
+        // press moves on, and letting go of Ctrl opens the selection.
+        cx.simulate_modifiers_change(Modifiers { control: true, ..Modifiers::default() });
+        run(cx, "navigate.switcher");
+        let popup = recent(cx);
+        settle(cx, |cx| popup.read_with(cx, |popup, _| !popup.is_loading()));
+        assert!(popup.read_with(cx, |popup, _| popup.is_switcher()));
+        assert_eq!(popup.read_with(cx, |popup, _| popup.lines()), ["notes.txt", "src/alpha.rs"]);
+        let alpha = root.join("src/alpha.rs").to_string_lossy().into_owned();
+        assert_eq!(popup.read_with(cx, |popup, _| popup.selected_file()), Some(alpha));
+        run(cx, "navigate.switcher");
+        assert_eq!(popup.read_with(cx, |popup, _| popup.selected_file()), None, "past the files come the tool windows");
+        run(cx, "navigate.switcherBack");
+        cx.simulate_modifiers_change(Modifiers::default());
+        settle(cx, |cx| showing(cx) == Some(root.join("src/alpha.rs")));
+        assert!(workbench.read_with(cx, |w, _| w.recent_files().is_none()));
     }
 
     #[test]

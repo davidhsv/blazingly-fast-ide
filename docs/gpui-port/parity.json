@@ -1061,7 +1061,7 @@
   },
   "ipc:recent_files": {
     "status": "done",
-    "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`"
+    "proof": "`workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`"
   },
   "ipc:find_symbols": {
     "status": "done",
@@ -1274,5 +1274,29 @@
   "point.registerOverlay:search.fileStructure": {
     "status": "partial",
     "proof": "`workbench::tests::file_structure_lists_the_editors_symbols_and_goes_to_the_chosen_one`, `everywhere::structure_view::tests`, `everywhere::outline::tests`, `everywhere::inherited::tests`; the popup with the outline as a tree, the symbol at the caret selected, folding, speed search that narrows or highlights, sort and visibility options stored as the webview stores them, inherited members, Enter and double click going to the symbol. Not yet: the last outline shown at once on reopening, reloading while open, tooltips, the query in the monospace font, going to a member that lives in a library class (a virtual document)"
+  },
+  "action:navigate.recentFiles": {
+    "status": "partial",
+    "proof": "`workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `everywhere::recent_view::tests`; opens Recent Files and, asked again, shows only edited files. Not yet: Recent Locations, the files edited in this session (the list is empty, so Show edited only shows nothing), opening to the side, version control colours on names, keeping a row whose tab refused to close"
+  },
+  "action:navigate.switcher": {
+    "status": "partial",
+    "proof": "`workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `everywhere::recent_view::tests`; opens the Switcher on the previous editor with Ctrl held, moves on each press, opens on release. Not yet: Recent Locations, the files edited in this session (the list is empty, so Show edited only shows nothing), opening to the side, version control colours on names, keeping a row whose tab refused to close"
+  },
+  "action:navigate.switcherBack": {
+    "status": "partial",
+    "proof": "`workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `everywhere::recent_view::tests`; moves the open Switcher back; opening it backward is tested in the view only"
+  },
+  "ipc:mark_recent": {
+    "status": "done",
+    "proof": "`workbench::tests::recent_files_and_the_switcher_go_between_the_editors`"
+  },
+  "ipc:remove_recent": {
+    "status": "done",
+    "proof": "`everywhere::recent_view::tests::asks_the_backend_for_the_recent_files_and_forgets_a_closed_one`"
+  },
+  "point.registerOverlay:search.recent": {
+    "status": "partial",
+    "proof": "`workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `everywhere::recent_view::tests`, `everywhere::recent_model::tests`; Recent Files with its speed search, tool window column, several files selected and opened, Delete closing a tab, and the Switcher with its stepping and Ctrl release. Not yet: Recent Locations, edited files, opening to the side, version control colours"
   }
 }

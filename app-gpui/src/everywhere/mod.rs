@@ -16,6 +16,7 @@ pub mod open;
 pub mod outline;
 pub mod rank;
 pub mod recent_model;
+pub mod recent_view;
 pub mod routes;
 pub mod store;
 pub mod structure_view;
