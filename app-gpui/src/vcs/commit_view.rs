@@ -353,10 +353,8 @@ impl Render for CommitPanel {
                                     .map(|detail| div().text_color(muted).child(SharedString::from(detail))),
                             )
                             .when(folder, |el| {
-                                let unit = if row.files == 1 { " file" } else { " files" };
                                 let i18n = &mut cx.default_global::<Localization>().0;
-                                let count =
-                                    i18n.tx_built(&["", unit], &[crate::platform::i18n::Param::from(row.files)]);
+                                let count = crate::vcs_diff::model::file_count(row.files, i18n);
                                 el.child(div().text_color(muted).child(SharedString::from(count)))
                             })
                             .on_click(cx.listener(move |panel, event: &ClickEvent, window, cx| {

@@ -225,3 +225,13 @@ What happened: the terminal tests start the account's login shell on a real PTY 
 The fix: `terminal::test_support::isolate_shells` sets the global `terminal.env` of the test's temporary settings to a `HOME` and `ZDOTDIR` under the test's temporary directory (with an empty `.zshrc`) and `HISTFILE=/dev/null`, before any terminal starts. Every test that starts a shell calls it. Verified: the marker count stayed at 34 across the full suite run twice.
 
 The app itself is unaffected: a real terminal is meant to be the user's own shell.
+
+## D36. The diff models bring their own comparison engine
+
+`vcs_diff/` holds the diff viewer's models (hunks and gutter marks, navigation, options, scroll sync, stripes, conflict markers, inline blame, compare) and `vcs_diff::comparison`, a port of the webview's IntelliJ-style comparison (by line, word and character, with its chunk optimiser and move detection), checked against the webview's 172 fixture cases (`ideaCases.json`, read as-is). No diff view is drawn yet.
+
+Choices the subagent made, kept: the web editor's own fallback diff is not ported, so a comparison too large for the engine degrades to one coarse chunk between the shared leading and trailing lines; blame ages are English "N units ago" through the text catalog instead of the browser's relative-time formatter, so other locales read the catalog's wording; three-way merge chunks are not computed here (the merge-stripe cases use hand-built changes).
+
+Subagent choices in earlier batches, recorded here as they are judgment calls too. Search Everywhere: a translated action's English title matches through its keywords, with their lower weight, where the webview has a branch of its own for the English title. Version control: commit messages wrap at the margin counting characters, where the webview counts UTF-16 units (they differ only beyond the Basic Multilingual Plane), and commits not loaded yet sort after loaded ones when ordering newest first.
+
+Search types still exist twice (`find/ipc.rs` and `everywhere/model.rs`: symbol and line matches, workspace symbols). D32 justifies one UI-side copy, not two: they are to be merged into one when Search Everywhere gets its view.

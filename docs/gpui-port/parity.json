@@ -974,5 +974,53 @@
   "point.registerKeyClaim:(at) src/features/terminal/keys.ts:136": {
     "status": "done",
     "proof": "`terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`, `terminal::keys::tests`"
+  },
+  "unit:src/features/vcs/__tests__/hunks.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::hunks::tests`, `vcs_diff::gutter::tests`"
+  },
+  "unit:src/features/vcs/__tests__/diffNavigation.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::diff_navigation::tests`"
+  },
+  "unit:src/features/vcs/__tests__/diffChain.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::diff_input::tests`"
+  },
+  "unit:src/features/vcs/__tests__/diffOptions.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::diff_options::tests`, `vcs_diff::cm::tests`, `vcs_diff::diff_controls::tests`, `vcs_diff::comparison`"
+  },
+  "unit:src/features/vcs/__tests__/diffScroll.test.ts": {
+    "status": "partial",
+    "proof": "`vcs_diff::diff_scroll::tests`; 11 of 12 cases: the one about keeping the merge view from padding its panes asserts a private method of the web editor"
+  },
+  "unit:src/features/vcs/__tests__/diffStripe.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::merge_gutters::tests`, `vcs_diff::diff_scroll::tests`"
+  },
+  "unit:src/features/vcs/__tests__/decorations.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::model::tests`"
+  },
+  "unit:src/features/vcs/__tests__/conflictMarkers.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::conflict_markers::tests`"
+  },
+  "unit:src/features/vcs/__tests__/conflictMarkerEdits.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::conflict_markers::tests`"
+  },
+  "unit:src/features/vcs/__tests__/inlineBlame.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::inline_blame::tests`"
+  },
+  "unit:src/features/vcs/__tests__/fileTree.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::file_tree::tests`"
+  },
+  "unit:src/features/vcs/__tests__/directoryCompareActions.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::compare::tests`"
   }
 }
