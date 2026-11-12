@@ -364,8 +364,8 @@
     "proof": "`editor::tabs::tests`, `editor::nav_history::tests`, `workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; one pane of tabs in the window: no splits, pinned or preview tabs drawn, no saved session, and camel humps are not ported"
   },
   "action:editor.closeTab": {
-    "status": "done",
-    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`"
+    "status": "partial",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`, `workbench::tests::a_tab_that_cannot_be_saved_reopens_with_its_text`; an unsaved document is always saved on close: the `files.autoSave` setting is not read (see D23)"
   },
   "action:editor.nextTab": {
     "status": "done",

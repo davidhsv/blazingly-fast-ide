@@ -426,6 +426,9 @@ impl Editor {
                 self.documents().and_then(|d| d.edit(self.doc, self.version, ChangeSet { changes: changes.clone() }));
             match result {
                 Ok(_) => {
+                    // Known here and now: the backend's own report arrives a moment later, and
+                    // closing in between must still see the document as unsaved.
+                    self.dirty = true;
                     self.follow(Some(&changes), Some(kind), cx);
                     self.goal_x = None;
                     self.reveal_caret(cx);
@@ -456,6 +459,7 @@ impl Editor {
                 self.follow(None, None, cx);
                 return false;
             }
+            self.dirty = true;
             self.follow(Some(changes), None, cx);
             (self.anchor, self.head) = *selection;
         }

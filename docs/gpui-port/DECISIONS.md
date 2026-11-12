@@ -109,3 +109,11 @@ The webview keeps session-outliving UI state (tool window layouts, named layouts
 ## D22. A tool window appears on a stripe only once it has a view here
 
 The webview registers 36 tool windows. The GPUI stripes show a button only for those this app can draw (today: Project), so no button opens an empty pane. Their declarations (title, icon, side, order) come from the contributions manifest, and each gets its `toolwindow.<id>` action when its view is ported.
+
+## D23. Unsaved text is never dropped
+
+Measured in the webview's sources: when a text document's last tab closes, `DocumentManager.release` saves it if `files.autoSave` is on (the default) and then disposes it whether or not the save worked; with `files.autoSave` off it is disposed unsaved. Switching tabs and the window losing focus also autosave. Closing a window with unsaved documents asks "Unsaved Changes" with Save All / Don't Save (`closeGuard.ts`).
+
+The GPUI app saves on the same three occasions and asks the same question on window close. It differs in two places, both on the side of keeping the text: a tab whose save fails reopens with its editor and an error notification instead of being disposed, and a document is saved on close whatever `files.autoSave` says, because settings are not read yet. When they are, `files.autoSave = false` will need a decision: the webview's behaviour there discards edits without asking.
+
+The editor marks itself unsaved on its own successful edit rather than waiting for the backend's `DocDirty` event, so typing and closing in the same instant cannot slip between the two.
