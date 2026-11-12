@@ -111,6 +111,36 @@ pub fn control_label(op: InProgress, control: Control) -> String {
     }
 }
 
+/// What a control of a stopped operation says while it runs and once it succeeded (English source
+/// text): "Aborting rebase", "Rebase aborted".
+pub fn control_texts(op: InProgress, control: Control) -> (&'static str, &'static str) {
+    use InProgress::{Am, CherryPick, Merge, Rebase, Revert};
+    match (control, op) {
+        (Control::Skip, _) => ("Skipping commit", "Commit skipped"),
+        (Control::Continue, Rebase) => ("Continuing rebase", "Rebase continued"),
+        (Control::Continue, Merge) => ("Continuing merge", "Merge continued"),
+        (Control::Continue, CherryPick) => ("Continuing cherry-pick", "Cherry-pick continued"),
+        (Control::Continue, Revert) => ("Continuing revert", "Revert continued"),
+        (Control::Continue, Am) => ("Continuing patch application", "Patch application continued"),
+        (Control::Abort, Rebase) => ("Aborting rebase", "Rebase aborted"),
+        (Control::Abort, Merge) => ("Aborting merge", "Merge aborted"),
+        (Control::Abort, CherryPick) => ("Aborting cherry-pick", "Cherry-pick aborted"),
+        (Control::Abort, Revert) => ("Aborting revert", "Revert aborted"),
+        (Control::Abort, Am) => ("Aborting patch application", "Patch application aborted"),
+    }
+}
+
+/// What a control reports when its operation is not the one in progress (English source text).
+pub fn none_in_progress(op: InProgress) -> &'static str {
+    match op {
+        InProgress::Rebase => "No rebase in progress",
+        InProgress::Merge => "No merge in progress",
+        InProgress::CherryPick => "No cherry-pick in progress",
+        InProgress::Revert => "No revert in progress",
+        InProgress::Am => "No patch application in progress",
+    }
+}
+
 /// A link of the balloon of an operation that failed and is still stopped.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StoppedAction {
@@ -281,6 +311,19 @@ mod tests {
         assert_eq!(control_label(InProgress::Rebase, Control::Skip), "Skip Commit");
         assert_eq!(operation_title(InProgress::Rebase, Some("feature"), &mut i18n), "Rebasing feature");
         assert_eq!(operation_title(InProgress::Merge, None, &mut i18n), "Merging");
+    }
+
+    // Not from a spec: what a control says while it runs and once it succeeded.
+    #[test]
+    fn words_the_progress_and_the_outcome_of_a_control() {
+        assert_eq!(control_texts(InProgress::Merge, Control::Abort), ("Aborting merge", "Merge aborted"));
+        assert_eq!(control_texts(InProgress::Rebase, Control::Continue), ("Continuing rebase", "Rebase continued"));
+        assert_eq!(control_texts(InProgress::CherryPick, Control::Skip), ("Skipping commit", "Commit skipped"));
+        assert_eq!(
+            control_texts(InProgress::Am, Control::Abort),
+            ("Aborting patch application", "Patch application aborted")
+        );
+        assert_eq!(none_in_progress(InProgress::Merge), "No merge in progress");
     }
 
     // src/features/vcs/__tests__/gitOps.test.ts › log ordering and staleness › orders commits by their position in the log, not by date

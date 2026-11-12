@@ -789,6 +789,12 @@ impl PushDialog {
         self.rows.iter().filter(|row| row.checked).map(|row| row.repo.push.root.clone()).collect()
     }
 
+    /// The outgoing commits listed under the repository at `index`: short id and summary.
+    pub fn commits(&self, index: usize) -> Vec<String> {
+        let Some(row) = self.rows.get(index) else { return Vec::new() };
+        row.repo.push.commits.iter().map(|commit| format!("{} {}", commit.short_id, commit.summary)).collect()
+    }
+
     /// The target branch field of the repository listed at `index`.
     pub fn target_field(&self, index: usize) -> Option<&Entity<TextField>> {
         self.rows.get(index).map(|row| &row.target)

@@ -1,6 +1,7 @@
 //! The window shell. For now: a frame around one editor (LightEdit), which is the part of the
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
+mod branches;
 mod diff_window;
 mod editor_find;
 pub mod main_toolbar;
@@ -248,6 +249,10 @@ pub struct Workbench {
     run_widget: Option<run_configs::RunWidgetSlot>,
     /// Edit Configurations, while it is open.
     edit_configs: Option<run_configs::EditConfigsWindow>,
+    /// The Git state of the project, with the branch widget of the title bar.
+    vcs: Option<branches::VcsSlot>,
+    /// The dialog a Git operation waits on.
+    vcs_dialog: Option<branches::VcsDialog>,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -383,6 +388,7 @@ pub fn register_actions(cx: &mut App) {
     services_window::register_actions(registry);
     diff_window::register_actions(registry);
     run_configs::register_actions(registry);
+    branches::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
     let flags: [(&str, &str, Flag); 4] = [
@@ -868,6 +874,8 @@ impl Workbench {
             diff_window: None,
             run_widget: None,
             edit_configs: None,
+            vcs: None,
+            vcs_dialog: None,
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
@@ -1002,6 +1010,11 @@ impl Workbench {
                         });
                     });
                     self.with_layout(window, cx, |layout| layout.show(RUN_TOOL_WINDOW, true));
+                }
+            }
+            EntryAction::Own(own) if own.command.starts_with("vcs.deleted.") => {
+                if !self.run_vcs_follow_up(&own.command, window, cx) {
+                    tracing::debug!("the notification command {} has no handler any more", own.command);
                 }
             }
             EntryAction::Own(own) => {
@@ -1486,6 +1499,10 @@ impl Workbench {
             IdeEvent::IndexState { indexing, files, symbols } => {
                 self.tasks.set_indexing(*indexing, u64::from(*files), u64::from(*symbols), now);
             }
+            IdeEvent::VcsChanged { .. } | IdeEvent::FsChanged { .. } => {
+                self.vcs_backend_event(&event.event, cx);
+                return;
+            }
             IdeEvent::RunExited { .. } => {
                 if let Some(driver) = self.run_driver().cloned() {
                     driver.update(cx, |driver, cx| driver.backend_event(&event.event, cx));
@@ -1649,6 +1666,7 @@ impl Workbench {
         set_context(window, cx, "projectOpening", matches!(self.content, Content::Opening(_)));
         set_context(window, cx, "popupOpen", self.popup.is_some());
         self.publish_run_context(window, cx);
+        self.publish_vcs_context(window, cx);
         set_context(window, cx, "findPopupOpen", self.find_popup().is_some());
         let focused_bar = self.focused_find_bar(window, cx);
         set_context(window, cx, "findBarOpen", !self.shown_find_bars().is_empty());
@@ -2423,6 +2441,7 @@ impl Workbench {
         }
         self.leave(cx);
         self.reset_runs(cx);
+        self.drop_vcs();
         // The project's servers and runs stop in the background: this is the UI thread.
         cx.global::<Backend>().host.close_project_detached(&self.label);
         self.content = Content::Empty;
@@ -2530,6 +2549,7 @@ impl Workbench {
     pub fn open_project(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
         self.leave(cx);
         self.reset_runs(cx);
+        self.drop_vcs();
         self.content = Content::Opening(root.clone());
         self.light_find_bar = None;
         self.sync_welcome(window, cx);
@@ -2600,6 +2620,7 @@ impl Workbench {
                     }
                     Err(message) => Content::Failed(message.into()),
                 };
+                workbench.mount_vcs(window, cx);
                 workbench.sync_welcome(window, cx);
                 // Registering a window reconciles the stored layout with what exists; a project
                 // opens with the focus in its Project view when that is showing.
@@ -2689,6 +2710,7 @@ impl Workbench {
     pub fn close_popup(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(popup) = self.popup.take() else { return };
         self.run_popup_closed(&popup.view, cx);
+        self.vcs_popup_closed(&popup.view, cx);
         if let Some(target) = popup.restore.or_else(|| self.editor().map(|editor| editor.focus_handle(cx))) {
             window.focus(&target, cx);
         }
@@ -3472,6 +3494,8 @@ impl Render for Workbench {
                     .text_color(theme::color(cx, "fg-strong"))
                     .window_control_area(gpui_kit::WindowControlArea::Drag)
                     .child(SharedString::from(self.shown_title.clone().unwrap_or_default()))
+                    .children(self.branch_widget().cloned())
+                    .children(self.merge_rebase_widget(cx).cloned())
                     .child(div().flex_1())
                     .children(self.run_widget().cloned())
                     // The IDE mode of the window's project; a click switches it.
@@ -3501,6 +3525,7 @@ impl Render for Workbench {
             .child(notification_balloons::layer(&self.balloons, cx))
             .children(self.diff_window_layer(cx))
             .children(self.edit_configs_layer())
+            .children(self.vcs_dialog_layer())
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
                 gpui_kit::deferred(
@@ -6620,5 +6645,399 @@ mod tests {
             assert!(w.editor().is_none());
             assert!(w.failure().is_some_and(|message| message.contains("is a folder")), "{:?}", w.failure());
         });
+    }
+
+    /// Runs git in `dir` without the machine's own configuration; its output, trimmed.
+    fn git_in(dir: &std::path::Path, args: &[&str]) -> String {
+        let run = || {
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(dir)
+                .env("GIT_CONFIG_GLOBAL", "/dev/null")
+                .env("GIT_CONFIG_SYSTEM", "/dev/null")
+                .output()
+                .expect("git runs")
+        };
+        let mut output = run();
+        // The open window reads the repository too, which holds its index for a moment.
+        for _ in 0..100 {
+            if output.status.success() || !String::from_utf8_lossy(&output.stderr).contains("index.lock") {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+            output = run();
+        }
+        assert!(output.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&output.stderr));
+        String::from_utf8_lossy(&output.stdout).trim().to_owned()
+    }
+
+    /// A repository on `main` with an identity of its own and a first commit.
+    fn init_repo(root: &std::path::Path) {
+        git_in(root, &["init", "-q", "-b", "main"]);
+        git_in(root, &["config", "user.name", "Ada"]);
+        git_in(root, &["config", "user.email", "ada@example.test"]);
+        std::fs::write(root.join("a.txt"), "one\n").expect("the file is written");
+        git_in(root, &["add", "."]);
+        git_in(root, &["commit", "-q", "-m", "first"]);
+    }
+
+    /// The branch the repository at `root` is on.
+    fn git_head(root: &std::path::Path) -> String {
+        git_in(root, &["rev-parse", "--abbrev-ref", "HEAD"])
+    }
+
+    /// The local branches of the repository at `root`.
+    fn git_branches(root: &std::path::Path) -> Vec<String> {
+        git_in(root, &["branch", "--format=%(refname:short)"]).lines().map(str::to_owned).collect()
+    }
+
+    /// A trusted project on a repository `prepare` makes, open in a window whose branch widget has
+    /// read it.
+    fn git_project(
+        cx: &mut TestAppContext,
+        prepare: impl FnOnce(&std::path::Path),
+    ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf) {
+        let home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        prepare(&root);
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        wait_long(cx, "the repository is read", |cx| !branch_label(&workbench, cx).is_empty());
+        (workbench, cx, [home, folder], root)
+    }
+
+    /// What the branch widget of the title bar says.
+    fn branch_label(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> String {
+        let Some(widget) = workbench.read_with(cx, |w, _| w.branch_widget().cloned()) else { return String::new() };
+        widget.update(cx, |widget, cx| widget.label(&mut cx.default_global::<crate::platform::i18n::Localization>().0))
+    }
+
+    fn branches_rows(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<Vec<String>> {
+        let popup = workbench.read_with(cx, |w, _| w.branches_popup())?;
+        Some(popup.read_with(cx, |popup, cx| popup.rows(cx)))
+    }
+
+    /// Opens the Branches popup on branch `name`'s submenu and clicks its row `label`.
+    fn choose_in_branch_menu(workbench: &Entity<Workbench>, name: &str, label: &str, cx: &mut VisualTestContext) {
+        run_action(cx, "vcs.branches", None);
+        let popup = workbench.read_with(cx, |w, _| w.branches_popup()).expect("the popup is open");
+        cx.simulate_input(name);
+        cx.run_until_parked();
+        // The search keeps the groups: ↓ goes from the group to the branch.
+        // A row names the branch first, then its marks (★, counts, upstream).
+        let selected = |cx: &mut VisualTestContext| {
+            let row = popup.read_with(cx, |popup, cx| popup.selected(cx)).unwrap_or_default();
+            row.split_whitespace().next().unwrap_or_default().to_owned()
+        };
+        for _ in 0..4 {
+            if selected(cx) == name {
+                break;
+            }
+            cx.simulate_keystrokes("down");
+        }
+        assert_eq!(selected(cx), name, "the search finds the branch");
+        cx.simulate_keystrokes("right");
+        let rows = popup.read_with(cx, |popup, _| popup.submenu_rows());
+        let index = rows
+            .iter()
+            .position(|row| row.trim_start_matches("> ") == label)
+            .unwrap_or_else(|| panic!("{label} is in {rows:?}"));
+        let selector: &'static str = Box::leak(format!("branches-submenu-{index}").into_boxed_str());
+        click_on(cx, selector);
+    }
+
+    /// The dialog a Git operation waits on, once it shows.
+    fn wait_for_prompt(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> Entity<crate::vcs::prompt_dialogs::PromptDialog> {
+        wait_long(cx, "the dialog", |cx| workbench.read_with(cx, |w, _| w.vcs_prompt().is_some()));
+        workbench.read_with(cx, |w, _| w.vcs_prompt()).expect("the dialog is open")
+    }
+
+    fn prompt_text(dialog: &Entity<crate::vcs::prompt_dialogs::PromptDialog>, cx: &mut VisualTestContext) -> String {
+        let field = dialog.read_with(cx, |dialog, _| dialog.field().cloned()).expect("the dialog has a field");
+        field.read_with(cx, |field, _| field.text().to_owned())
+    }
+
+    fn prompt_errors(
+        dialog: &Entity<crate::vcs::prompt_dialogs::PromptDialog>,
+        cx: &mut VisualTestContext,
+    ) -> Vec<String> {
+        dialog.update(cx, |dialog, cx| dialog.errors(cx))
+    }
+
+    /// Replaces the text of the dialog's field by typing.
+    fn retype(dialog: &Entity<crate::vcs::prompt_dialogs::PromptDialog>, text: &str, cx: &mut VisualTestContext) {
+        for _ in 0..prompt_text(dialog, cx).chars().count() {
+            cx.simulate_keystrokes("backspace");
+        }
+        cx.simulate_input(text);
+        cx.run_until_parked();
+    }
+
+    fn notification_titles(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
+        workbench.read_with(cx, |w, _| w.notifications().items().iter().map(|n| n.title.clone()).collect())
+    }
+
+    /// The branch widget names the current branch; Branches… opens the popup listing the local
+    /// branches with the current one marked, and a click on Checkout in another branch's submenu checks
+    /// it out, closes the popup and the widget follows. The action closes an open popup, Escape closes
+    /// it too, and Commit… shows the Commit tool window.
+    #[gpui_kit::test]
+    async fn the_branch_widget_names_the_branch_and_the_popup_checks_out_another(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            git_in(root, &["branch", "feature"]);
+        });
+        assert_eq!(branch_label(&workbench, cx), "main");
+        let widget = workbench.read_with(cx, |w, _| w.branch_widget().cloned()).expect("the title bar has the widget");
+        assert!(widget.read_with(cx, |widget, _| widget.is_shown()));
+
+        click_on(cx, "vcs-branch-widget");
+        wait_long(cx, "the branches are listed", |cx| {
+            branches_rows(&workbench, cx).is_some_and(|rows| rows.iter().any(|row| row.trim() == "feature"))
+        });
+        let rows = branches_rows(&workbench, cx).expect("the popup is open");
+        assert!(rows.iter().any(|row| row.trim() == "main [current]"), "{rows:?}");
+        assert!(rows.iter().any(|row| row == "New Branch…"), "{rows:?}");
+        assert!(widget.read_with(cx, |widget, _| widget.state().open), "the widget is pressed while the popup is open");
+
+        // A gear option and a star are stored, and the popup stays.
+        click_on(cx, "branches-options");
+        click_on(cx, "branches-option-0");
+        click_on(cx, "branches-star-local:feature");
+        assert!(branches_rows(&workbench, cx).is_some(), "the popup stays open");
+        let stored = |key: String, cx: &mut VisualTestContext| {
+            cx.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned))
+        };
+        let options = stored(super::branches::OPTIONS_KEY.to_owned(), cx).expect("the options are stored");
+        let options: serde_json::Value = serde_json::from_str(&options).expect("the options are JSON");
+        assert_eq!(options, serde_json::json!({ "groupByPrefix": false, "showRecent": true, "showTags": true }));
+        let favorites = crate::vcs_ops::branch_ops::favorites_key(Some(&root.to_string_lossy()));
+        assert_eq!(stored(favorites, cx).as_deref(), Some(r#"["main","feature"]"#));
+        let rows = branches_rows(&workbench, cx).expect("the popup is open");
+        assert!(rows.iter().any(|row| row.trim() == "feature ★"), "{rows:?}");
+
+        // The action closes the open popup; Escape closes it too.
+        run_action(cx, "vcs.branches", None);
+        assert!(branches_rows(&workbench, cx).is_none());
+        assert!(!widget.read_with(cx, |widget, _| widget.state().open));
+        run_action(cx, "vcs.branches", None);
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(branches_rows(&workbench, cx).is_none(), "Escape closes the popup");
+
+        // Checkout in the submenu of another branch, with the mouse.
+        choose_in_branch_menu(&workbench, "feature", "Checkout", cx);
+        assert!(branches_rows(&workbench, cx).is_none(), "choosing closes the popup");
+        wait_long(cx, "the checkout", |cx| branch_label(&workbench, cx) == "feature");
+        assert_eq!(git_head(&root), "feature");
+        assert!(notification_titles(&workbench, cx).contains(&"Checked out feature".to_owned()));
+        let recent = cx.update(|_, cx| {
+            let key = crate::vcs_ops::branch_ops::recent_key(Some(&root.to_string_lossy()));
+            cx.global::<UiStorage>().get(&key).map(str::to_owned)
+        });
+        assert_eq!(recent.as_deref(), Some(r#"["feature","main"]"#), "both branches are recent");
+
+        run_action(cx, "vcs.commit", None);
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(COMMIT_TOOL_WINDOW)));
+
+        // A checkout made outside the window reaches the widget through the backend's events.
+        git_in(&root, &["checkout", "-q", "main"]);
+        wait_long(cx, "the outside checkout", |cx| branch_label(&workbench, cx) == "main");
+    }
+
+    /// New Branch… suggests the current branch's name and refuses it and an invalid name as the
+    /// dialog's model says; OK on a free name creates and checks out the branch. Rename… in a branch's
+    /// submenu renames it; Delete deletes an unmerged branch without asking and says its commits were
+    /// discarded, and the notification's Restore brings it back. Checkout Tag or Revision… checks out
+    /// what is typed.
+    #[gpui_kit::test]
+    async fn new_branch_rename_and_delete_change_the_repositorys_branches(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            git_in(root, &["checkout", "-q", "-b", "topic"]);
+            std::fs::write(root.join("t.txt"), "topic\n").expect("the file is written");
+            git_in(root, &["add", "."]);
+            git_in(root, &["commit", "-q", "-m", "topic work"]);
+            git_in(root, &["checkout", "-q", "main"]);
+        });
+        assert_eq!(branch_label(&workbench, cx), "main");
+
+        // New Branch: the current branch is suggested, and refused.
+        run_action(cx, "vcs.newBranch", None);
+        let dialog = wait_for_prompt(&workbench, cx);
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.title().to_owned()), "Create New Branch");
+        assert_eq!(prompt_text(&dialog, cx), "main");
+        assert_eq!(prompt_errors(&dialog, cx), ["Branch 'main' already exists"]);
+        assert!(dialog.read_with(cx, |dialog, _| dialog.offers_overwrite()));
+        retype(&dialog, "bad.", cx);
+        assert_eq!(prompt_errors(&dialog, cx), ["Invalid branch name"]);
+        cx.simulate_keystrokes("enter");
+        assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_some()), "an invalid name is not accepted");
+        retype(&dialog, "topic", cx);
+        assert_eq!(prompt_errors(&dialog, cx), ["Branch 'topic' already exists"]);
+        retype(&dialog, "my next", cx);
+        assert_eq!(prompt_text(&dialog, cx), "my-next", "a space becomes a separator");
+        assert!(prompt_errors(&dialog, cx).is_empty());
+        cx.simulate_keystrokes("enter");
+        assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "OK closes the dialog");
+        wait_long(cx, "the new branch", |cx| branch_label(&workbench, cx) == "my-next");
+        assert_eq!(git_head(&root), "my-next");
+        assert!(notification_titles(&workbench, cx).contains(&"Created and checked out my-next".to_owned()));
+
+        // Rename in the branch's submenu.
+        choose_in_branch_menu(&workbench, "topic", "Rename…", cx);
+        let dialog = wait_for_prompt(&workbench, cx);
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.title().to_owned()), "Rename Branch topic");
+        retype(&dialog, "topical", cx);
+        cx.simulate_keystrokes("enter");
+        wait_long(cx, "the rename", |_| git_branches(&root).contains(&"topical".to_owned()));
+        assert!(!git_branches(&root).contains(&"topic".to_owned()));
+
+        // Delete an unmerged branch: nothing is asked, the notification says what was discarded.
+        wait_long(cx, "the renamed branch is listed", |cx| {
+            workbench.read_with(cx, |w, _| {
+                w.vcs_state().is_some_and(|state| state.branches.iter().any(|branch| branch.name == "topical"))
+            })
+        });
+        choose_in_branch_menu(&workbench, "topical", "Delete", cx);
+        assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "deleting asks nothing");
+        wait_long(cx, "the deletion", |cx| {
+            workbench
+                .read_with(cx, |w, _| w.notifications().items().iter().any(|n| n.title == "Deleted branch topical"))
+        });
+        assert!(!git_branches(&root).contains(&"topical".to_owned()));
+        let notice = workbench.read_with(cx, |w, _| {
+            w.notifications().items().iter().find(|n| n.title == "Deleted branch topical").cloned()
+        });
+        let notice = notice.expect("the deletion is told");
+        assert_eq!(notice.body.as_deref(), Some("Unmerged commits were discarded"));
+        let labels: Vec<&str> = notice.actions.iter().map(|action| action.label.as_str()).collect();
+        assert_eq!(labels, ["Restore", "View Commits"]);
+        let restore = EntryAction::Own(notice.actions[0].clone());
+        workbench.update_in(cx, |w, window, cx| w.run_notification_action(restore, window, cx));
+        wait_long(cx, "the restore", |_| git_branches(&root).contains(&"topical".to_owned()));
+
+        // Checkout Tag or Revision.
+        run_action(cx, "vcs.checkoutRevision", None);
+        let dialog = wait_for_prompt(&workbench, cx);
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.title().to_owned()), "Checkout Tag or Revision");
+        cx.simulate_input("topical");
+        cx.simulate_keystrokes("enter");
+        wait_long(cx, "the checkout", |cx| branch_label(&workbench, cx) == "topical");
+        assert_eq!(git_head(&root), "topical");
+    }
+
+    /// Push… lists the commit made since the last push and sends it to the local bare repository
+    /// `origin`; Fetch brings in a commit another clone pushed, and the widget shows it incoming.
+    #[gpui_kit::test]
+    async fn push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in(cx: &mut TestAppContext) {
+        let remote = tempfile::tempdir().expect("a temporary folder");
+        let bare = remote.path().canonicalize().expect("the folder exists").join("origin.git");
+        let bare_path = bare.to_string_lossy().into_owned();
+        let parent = remote.path().canonicalize().expect("the folder exists");
+        git_in(&parent, &["init", "-q", "--bare", "-b", "main", &bare_path]);
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            git_in(root, &["remote", "add", "origin", &bare_path]);
+            git_in(root, &["push", "-q", "-u", "origin", "main"]);
+        });
+        std::fs::write(root.join("b.txt"), "two\n").expect("the file is written");
+        git_in(&root, &["add", "."]);
+        git_in(&root, &["commit", "-q", "-m", "second"]);
+
+        run_action(cx, "vcs.push", None);
+        wait_long(cx, "the Push dialog", |cx| workbench.read_with(cx, |w, _| w.push_dialog().is_some()));
+        let dialog = workbench.read_with(cx, |w, _| w.push_dialog()).expect("the Push dialog is open");
+        let commits = dialog.read_with(cx, |dialog, _| dialog.commits(0));
+        assert_eq!(commits.len(), 1, "{commits:?}");
+        assert!(commits[0].ends_with(" second"), "{commits:?}");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.checked()), [root.to_string_lossy().into_owned()]);
+        cx.simulate_keystrokes("enter");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.push_dialog().is_none()), "Push closes the dialog");
+        wait_long(cx, "the push", |_| git_in(&bare, &["log", "-1", "--format=%s", "main"]) == "second");
+        wait_long(cx, "the push is told", |cx| {
+            notification_titles(&workbench, cx).contains(&"Pushed 1 commit to origin/main".to_owned())
+        });
+        let widget = workbench.read_with(cx, |w, _| w.branch_widget().cloned()).expect("the title bar has the widget");
+        assert_eq!(widget.read_with(cx, |widget, _| widget.counts()), (0, 0));
+
+        // Another clone pushes a commit; Fetch shows it incoming.
+        let other = parent.join("other");
+        git_in(&parent, &["clone", "-q", &bare_path, &other.to_string_lossy()]);
+        git_in(&other, &["config", "user.name", "Bob"]);
+        git_in(&other, &["config", "user.email", "bob@example.test"]);
+        std::fs::write(other.join("c.txt"), "three\n").expect("the file is written");
+        git_in(&other, &["add", "."]);
+        git_in(&other, &["commit", "-q", "-m", "third"]);
+        git_in(&other, &["push", "-q", "origin", "main"]);
+        run_action(cx, "vcs.fetch", None);
+        wait_long(cx, "the fetch", |cx| widget.read_with(cx, |widget, _| widget.counts()) == (1, 0));
+        assert!(notification_titles(&workbench, cx).contains(&"Fetch successful".to_owned()));
+    }
+
+    /// Merge in a branch's submenu stops on conflicts: the failure offers Resolve Conflicts, the
+    /// widget says the branch is merging and the title bar shows Resolve and Abort Merge, whose click
+    /// aborts the merge. Checkout over local changes in the way asks about Smart Checkout, and Escape
+    /// leaves the branch as it is.
+    #[gpui_kit::test]
+    async fn a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            git_in(root, &["checkout", "-q", "-b", "feature"]);
+            std::fs::write(root.join("a.txt"), "feature\n").expect("the file is written");
+            git_in(root, &["commit", "-q", "-am", "feature side"]);
+            git_in(root, &["checkout", "-q", "main"]);
+            std::fs::write(root.join("a.txt"), "main\n").expect("the file is written");
+            git_in(root, &["commit", "-q", "-am", "main side"]);
+        });
+        assert!(workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).is_none()), "nothing is stopped");
+
+        choose_in_branch_menu(&workbench, "feature", "Merge 'feature' into 'main'", cx);
+        wait_long(cx, "the merge stops", |cx| workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).is_some()));
+        let failed = workbench.read_with(cx, |w, _| {
+            w.notifications().items().iter().find(|n| n.title == "Merge feature into main failed").cloned()
+        });
+        let failed = failed.expect("the stop is told");
+        let actions: Vec<&str> = failed.actions.iter().map(|action| action.label.as_str()).collect();
+        assert_eq!(actions, ["Resolve Conflicts…"]);
+        assert_eq!(branch_label(&workbench, cx), "Merging main");
+        let operation = cx.update(|window, cx| {
+            let context = crate::platform::context::window_context(window, cx);
+            context.get("vcsOperation").cloned()
+        });
+        assert!(
+            matches!(operation, Some(crate::platform::context::ContextValue::Text(op)) if &*op == "merge"),
+            "the operation is published"
+        );
+        let merge = workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).cloned()).expect("the buttons show");
+        assert_eq!(merge.read_with(cx, |merge, cx| merge.labels(cx)), ["Resolve Conflicts…", "Abort Merge"]);
+
+        click_on(cx, "merge-rebase-1");
+        wait_long(cx, "the abort", |cx| workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).is_none()));
+        assert!(!root.join(".git/MERGE_HEAD").exists(), "the merge is aborted");
+        assert!(notification_titles(&workbench, cx).contains(&"Merge aborted".to_owned()));
+        assert_eq!(branch_label(&workbench, cx), "main");
+
+        // Local changes in the way of a checkout: Smart Checkout is asked about.
+        std::fs::write(root.join("a.txt"), "local\n").expect("the file is written");
+        choose_in_branch_menu(&workbench, "feature", "Checkout", cx);
+        let dialog = wait_for_prompt(&workbench, cx);
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.title().to_owned()), "Git Checkout Problem");
+        let buttons: Vec<String> =
+            dialog.read_with(cx, |dialog, _| dialog.buttons().iter().map(|button| button.label.clone()).collect());
+        assert_eq!(buttons, ["Smart Checkout", "Force Checkout", "Don't Checkout"]);
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "Escape closes the question");
+        assert_eq!(git_head(&root), "main");
+        assert_eq!(std::fs::read_to_string(root.join("a.txt")).expect("the file is read"), "local\n");
     }
 }

@@ -77,7 +77,7 @@ fn kind(kind: ide_vcs::ChangeKind) -> ChangeKind {
 }
 
 /// A changed file as the change models hold it.
-fn file_status(status: ide_vcs::FileStatus) -> FileStatus {
+pub(crate) fn file_status(status: ide_vcs::FileStatus) -> FileStatus {
     let ide_vcs::FileStatus { path, rel_path, staged, unstaged, renamed_from } = status;
     FileStatus {
         path: path.0.to_string_lossy().into_owned(),
