@@ -14,6 +14,7 @@ pub mod project_tree_paths;
 pub mod project_view;
 pub mod run;
 pub mod run_producers;
+pub mod run_testing;
 pub mod self_check;
 pub mod settings_model;
 pub mod templates;
