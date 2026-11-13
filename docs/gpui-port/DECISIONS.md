@@ -614,3 +614,11 @@ A commit can be made from the native app: the changes tree has check boxes, the 
 - The log's filters reload the existing list through the model's query. "me" as an author is not resolved; the choose-many, date and folder choosers and the graph and view menus are not built.
 - The branches pane's toolbar actions and Go to Hash/Branch/Tag are drawn and not registered: no test runs them.
 - Tests wait for the commit's notification before asking `git status`: read earlier, the index lags HEAD for a moment.
+
+## D75. The count is checked against what the crate declares, and rows the wiring already proved are recorded
+
+- A hole in the model-only count (found by the advisor): the inventory took every file on disk under the app crate as part of it, and every file under the workbench as the application. Views written ahead of the build sit on disk undeclared, so three rows were counted as reached that were not. The inventory now follows the crate's `mod` declarations from `lib.rs` and `main.rs`: a file no `mod` line names is not compiled and counts for nothing.
+- `inventory.mjs --dry` counts without building (it skips the check that cited tests exist and writes nothing), for use while an agent holds the build.
+- Rows of backend commands, overlays and title-bar items had not been recorded since the Run slice, although the end-to-end tests of branches, commit, project files, build, diff and run configurations reach them. 45 command rows and 8 overlay and title-bar rows are recorded now: at parity where a named test goes through the call, partial with the reason where the call is written and no test reaches it.
+- 43 files written ahead of the build are committed in one commit that says they are not compiled. They were on disk only.
+- Outside the app crate, the branch changes five files of two backend crates and the root manifest since the base commit (a snapshot accessor for documents, highlight queries for grammars, the workspace's exclusion of the app crate); `src/` and `src-tauri/` are untouched (measured with `git diff --stat a950eeca -- src src-tauri crates Cargo.toml Cargo.lock`). The Tauri app has not been rebuilt or retested since those early changes.

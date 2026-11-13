@@ -3714,5 +3714,217 @@
   "action:vcs.log.showBranches": {
     "status": "done",
     "proof": "`workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`"
+  },
+  "ipc:vcs_branch_info": {
+    "status": "done",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`"
+  },
+  "ipc:vcs_branches": {
+    "status": "done",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`"
+  },
+  "ipc:vcs_roots": {
+    "status": "done",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`"
+  },
+  "ipc:vcs_tags": {
+    "status": "done",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`"
+  },
+  "ipc:vcs_checkout": {
+    "status": "done",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`, `workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`"
+  },
+  "ipc:vcs_create_branch": {
+    "status": "done",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`"
+  },
+  "ipc:vcs_rename_branch": {
+    "status": "done",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`"
+  },
+  "ipc:vcs_delete_branch": {
+    "status": "done",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`"
+  },
+  "ipc:vcs_restore_branch": {
+    "status": "done",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`"
+  },
+  "ipc:vcs_worktrees": {
+    "status": "done",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`"
+  },
+  "ipc:vcs_remote": {
+    "status": "done",
+    "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`"
+  },
+  "ipc:vcs_remotes": {
+    "status": "done",
+    "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`"
+  },
+  "ipc:vcs_has_hook": {
+    "status": "done",
+    "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`"
+  },
+  "ipc:vcs_merge": {
+    "status": "done",
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`"
+  },
+  "ipc:vcs_operation": {
+    "status": "done",
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`"
+  },
+  "ipc:fs_create_file": {
+    "status": "done",
+    "proof": "`workbench::tests::new_file_in_the_project_view_creates_selects_and_opens_the_file`"
+  },
+  "ipc:fs_copy": {
+    "status": "done",
+    "proof": "`workbench::tests::move_and_copy_go_through_their_dialogs`"
+  },
+  "ipc:refactor_file_move_edits": {
+    "status": "done",
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`"
+  },
+  "ipc:refactor_file_move_text_edits": {
+    "status": "done",
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`"
+  },
+  "ipc:refactor_move_files": {
+    "status": "done",
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`, `workbench::tests::move_and_copy_go_through_their_dialogs`"
+  },
+  "ipc:refactor_undo_file_move": {
+    "status": "done",
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`"
+  },
+  "ipc:vcs_commit_files": {
+    "status": "done",
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`"
+  },
+  "ipc:vcs_log_details": {
+    "status": "done",
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`"
+  },
+  "ipc:vcs_commit": {
+    "status": "done",
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`"
+  },
+  "ipc:run_save_configs": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`"
+  },
+  "ipc:run_templates": {
+    "status": "done",
+    "proof": "`run::driver::tests::templates_are_read_from_the_project`"
+  },
+  "ipc:vcs_file_at": {
+    "status": "done",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`"
+  },
+  "ipc:fs_read_text": {
+    "status": "done",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+  },
+  "ipc:fs_probe": {
+    "status": "done",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+  },
+  "ipc:build_run": {
+    "status": "done",
+    "proof": "`workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`"
+  },
+  "ipc:doc_outline": {
+    "status": "done",
+    "proof": "`workbench::tests::the_structure_window_follows_the_editor_and_goes_to_the_chosen_symbol`"
+  },
+  "ipc:vcs_rebase": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`; Rebase onto and Checkout and Rebase call it; no test runs them"
+  },
+  "ipc:vcs_merge_base": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`; asked for the diverged-branch question of a checkout; no test reaches that question"
+  },
+  "ipc:vcs_remove_worktree": {
+    "status": "partial",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`; called when a deleted branch has a worktree; no test has one"
+  },
+  "ipc:vcs_diff_revisions": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`; called for merge commits and Pull into; the tests use plain commits"
+  },
+  "ipc:fs_delete": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted`; called with a file that is already gone: a real delete would go to the system Trash"
+  },
+  "ipc:fs_rename": {
+    "status": "partial",
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; renames go through the refactoring; this plain call is the fallback, not run by a test"
+  },
+  "ipc:lsp_references": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted`; asked by the safe-delete search; no language server answers in tests"
+  },
+  "ipc:history_list_dir": {
+    "status": "partial",
+    "proof": "`workbench::tests::new_file_in_the_project_view_creates_selects_and_opens_the_file`; called by the Project view's local-history flow, which no test runs"
+  },
+  "ipc:history_restore": {
+    "status": "partial",
+    "proof": "`workbench::tests::new_file_in_the_project_view_creates_selects_and_opens_the_file`; called by the Project view's local-history flow, which no test runs"
+  },
+  "ipc:history_content": {
+    "status": "partial",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; called for a Local History side of a diff, which no test opens"
+  },
+  "ipc:vcs_diff_numstat": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`; asked for the selected commit; the test does not assert the line counts"
+  },
+  "ipc:vcs_commits_changes": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`; called for a selection of several commits; the test selects one"
+  },
+  "ipc:vcs_log_users": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`; called when the user filter opens; no test opens it"
+  },
+  "ipc:fs_entry_kind": {
+    "status": "partial",
+    "proof": "`workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`; called for a link in run output; no test follows one"
+  },
+  "point.registerTitleItem:run.widget": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`; the selection, Run, Stop and the chooser; Debug is not offered, and the item ignores the main-toolbar setting"
+  },
+  "point.registerTitleItem:vcs.branch": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`; the branch, its state and counts, opening the popup; no tooltip, and the item ignores the main-toolbar setting"
+  },
+  "point.registerTitleItem:vcs.mergeRebase": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`; Abort, Continue and Skip of a stopped operation; Resolve Conflicts has no dialog to open yet"
+  },
+  "point.registerOverlay:run.chooser": {
+    "status": "done",
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`"
+  },
+  "point.registerOverlay:run.editConfigs": {
+    "status": "partial",
+    "proof": "`workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`; see the action run.editConfigs for what the dialog lacks"
+  },
+  "point.registerOverlay:project.newPopup": {
+    "status": "done",
+    "proof": "`workbench::tests::new_file_in_the_project_view_creates_selects_and_opens_the_file`"
+  },
+  "point.registerOverlay:project.fileRefactor": {
+    "status": "done",
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`, `workbench::tests::move_and_copy_go_through_their_dialogs`, `workbench::tests::delete_asks_and_cancelling_keeps_everything`"
+  },
+  "point.registerOverlay:project.refactoringPreview": {
+    "status": "done",
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`"
   }
 }

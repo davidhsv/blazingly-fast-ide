@@ -149,16 +149,34 @@ const withoutTests = (file) => {
   const at = text.indexOf("#[cfg(test)]");
   return at < 0 ? text : text.slice(0, at);
 };
+// Only files the crate declares are part of it: a file on disk that no `mod` line names is not
+// compiled, so it can neither be the application nor make anything reached.
+const declared = new Set();
+const declare = (file, childDir) => {
+  if (declared.has(file) || !existsSync(file)) return;
+  declared.add(file);
+  const text = readFileSync(file, "utf8");
+  for (const m of text.matchAll(/^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([a-z_][a-z0-9_]*)\s*;/gm)) {
+    const flat = join(childDir, `${m[1]}.rs`);
+    if (existsSync(flat)) declare(flat, join(childDir, m[1]));
+    else declare(join(childDir, m[1], "mod.rs"), join(childDir, m[1]));
+  }
+};
+declare(join(gpuiSrc, "lib.rs"), gpuiSrc);
+declare(join(gpuiSrc, "main.rs"), gpuiSrc);
 const rustFiles = (dir) =>
   readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
-    return statSync(path).isDirectory() ? rustFiles(path) : name.endsWith(".rs") ? [path] : [];
+    return statSync(path).isDirectory() ? rustFiles(path) : declared.has(path) ? [path] : [];
   });
 const unitCode = new Map();
 for (const name of readdirSync(gpuiSrc)) {
   const path = join(gpuiSrc, name);
   const top = name.replace(/\.rs$/, "");
-  const add = (unit, files) => unitCode.set(unit, (unitCode.get(unit) ?? "") + files.map(withoutTests).join("\n"));
+  const add = (unit, files) => {
+    const code = files.filter((f) => declared.has(f)).map(withoutTests);
+    if (code.length) unitCode.set(unit, (unitCode.get(unit) ?? "") + code.join("\n"));
+  };
   if (!statSync(path).isDirectory()) add(top, [path]);
   else
     for (const child of readdirSync(path)) {
@@ -458,12 +476,15 @@ for (const [key, p] of Object.entries(parity))
 
 // A proof names Rust tests (`module::tests` or `module::tests::case`, in backticks): each must
 // exist in the GPUI app's test binary, so a renamed or deleted test cannot keep a row checked.
-const listed = spawnSync("cargo", ["test", "--lib", "--", "--list"], { cwd: join(root, "app-gpui"), encoding: "utf8" });
+const dry = process.argv.includes("--dry");
+const listed = dry
+  ? { status: 0, stdout: "" }
+  : spawnSync("cargo", ["test", "--lib", "--", "--list"], { cwd: join(root, "app-gpui"), encoding: "utf8" });
 if (listed.status !== 0)
   problems.push(`cargo test --list failed in app-gpui:\n${(listed.stderr ?? "").split("\n").slice(-8).join("\n")}`);
 const rustTests = [...(listed.stdout ?? "").matchAll(/^([\w:]+): test$/gm)].map((m) => m[1]);
 // Integration tests (they run the application itself) are cited as `tests::<file>::<case>`.
-for (const file of readdirSync(join(root, "app-gpui/tests")).filter((f) => f.endsWith(".rs"))) {
+for (const file of dry ? [] : readdirSync(join(root, "app-gpui/tests")).filter((f) => f.endsWith(".rs"))) {
   const name = file.slice(0, -3);
   const cases = spawnSync("cargo", ["test", "--test", name, "--", "--list"], {
     cwd: join(root, "app-gpui"),
@@ -477,7 +498,7 @@ for (const [key, p] of Object.entries(parity)) {
   const named = [...(p.proof ?? "").matchAll(/`([a-z_]\w*(?:::\w+)+)`/g)].map((m) => m[1]);
   if (p.status === "done" && !named.length) problems.push(`parity.json: the proof of ${key} names no test`);
   for (const name of named)
-    if (!rustTests.some((t) => t === name || t.startsWith(`${name}::`)))
+    if (!dry && !rustTests.some((t) => t === name || t.startsWith(`${name}::`)))
       problems.push(`parity.json: ${key} cites ${name}, which is not a test of app-gpui`);
 }
 
@@ -504,7 +525,7 @@ for (const key of cited.keys()) groups.set(find(key), [...(groups.get(find(key))
 for (const keys of groups.values()) {
   const tests = new Set(keys.flatMap((key) => [...cited.get(key)]));
   const cases = keys.reduce((n, key) => n + specCases.get(key), 0);
-  if (cases > tests.size)
+  if (!dry && cases > tests.size)
     problems.push(
       `${keys.map((k) => k.slice(5)).join(", ")}: ${cases} spec cases are marked done on ${tests.size} Rust tests; ` +
         "mark the rows partial or say in each proof, after a semicolon, why fewer tests cover them",
@@ -534,7 +555,8 @@ const header = [
   ...summary.map((s) => `| ${s.title} | ${s.done} | ${s.model} | ${s.partial} | ${s.total} |`),
   "",
 ];
-writeFileSync(out, header.join("\n") + "\n" + sections.join("\n\n") + "\n");
+// A dry run counts without the test list (no build) and writes nothing.
+if (!dry) writeFileSync(out, header.join("\n") + "\n" + sections.join("\n\n") + "\n");
 console.log(
-  `wrote ${relative(root, out)}: ${totalDone}/${totalRows} rows at parity, ${totalModel} model only, ${totalPartial} partial`,
+  `${dry ? "dry run of" : "wrote"} ${relative(root, out)}: ${totalDone}/${totalRows} rows at parity, ${totalModel} model only, ${totalPartial} partial`,
 );
