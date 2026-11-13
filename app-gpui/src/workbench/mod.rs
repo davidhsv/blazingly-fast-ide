@@ -20,6 +20,7 @@ use crate::debugger::effects::DEBUG_TOOL_WINDOW;
 mod diff_window;
 mod editor_find;
 mod editor_intelligence;
+mod log_actions;
 mod log_window;
 pub mod main_toolbar;
 pub mod menu;
@@ -34,10 +35,12 @@ mod run_configs;
 mod services_window;
 mod settings_window;
 pub use settings_window::apply_keymap_settings;
+mod shelf;
 mod structure_window;
 pub mod tab_views;
 use structure_window::STRUCTURE_TOOL_WINDOW;
 mod todo_window;
+mod vcs_operations;
 use todo_window::TODO_TOOL_WINDOW;
 pub mod status_bar;
 pub mod status_bar_widgets;
@@ -300,6 +303,12 @@ pub struct Workbench {
     /// Resolving the project's merge conflicts: the merge editor, the conflict banners and what the
     /// Conflicts dialog remembers.
     conflicts: conflicts::ConflictsSlot,
+    /// The Git menu's repository operations: Show Commit in Git Log waiting for the log.
+    vcs_operations: vcs_operations::VcsOperationsSlot,
+    /// The project's change lists and shelf.
+    shelf: shelf::ShelfSlot,
+    /// What the Git log's actions keep for their notifications' buttons (Undo of a history rewrite).
+    log_actions: log_actions::LogActionsSlot,
     /// The editor the Structure tool window follows.
     structure: Option<structure_window::StructureFeed>,
     /// What the TODO tool window is fed from.
@@ -467,8 +476,11 @@ pub fn register_actions(cx: &mut App) {
     debug::register_actions(registry);
     branches::register_actions(registry);
     conflicts::register_actions(registry);
+    vcs_operations::register_actions(registry);
+    shelf::register_actions(registry);
     commit::register_actions(registry);
     log_window::register_actions(registry);
+    log_actions::register_actions(registry);
     bookmarks_window::register_actions(registry);
     project_files::register_actions(registry);
     todo_window::register_actions(registry);
@@ -980,6 +992,9 @@ impl Workbench {
             git_log: None,
             vcs_dialog: None,
             conflicts: Default::default(),
+            vcs_operations: Default::default(),
+            shelf: Default::default(),
+            log_actions: Default::default(),
             structure: None,
             todo: None,
             build: None,
@@ -1124,6 +1139,11 @@ impl Workbench {
                         });
                     });
                     self.with_layout(window, cx, |layout| layout.show(RUN_TOOL_WINDOW, true));
+                }
+            }
+            EntryAction::Own(own) if own.command.starts_with(log_actions::UNDO_PREFIX) => {
+                if !self.run_log_undo(&own.command, window, cx) {
+                    tracing::debug!("the notification command {} has no handler any more", own.command);
                 }
             }
             EntryAction::Own(own) if own.command.starts_with(conflicts::FOLLOW_UP_PREFIX) => {
@@ -1830,6 +1850,8 @@ impl Workbench {
         self.publish_vcs_context(window, cx);
         self.publish_agents_context(window, cx);
         self.publish_merge_context(window, cx);
+        self.publish_shelf_context(window, cx);
+        self.publish_log_context(window, cx);
         set_context(window, cx, "findPopupOpen", self.find_popup().is_some());
         let focused_bar = self.focused_find_bar(window, cx);
         set_context(window, cx, "findBarOpen", !self.shown_find_bars().is_empty());
@@ -1997,6 +2019,7 @@ impl Workbench {
                             workbench.commit_panel_event(event, window, cx);
                         });
                     self.attach_commit_box(&changes, window, cx);
+                    self.attach_changes_extras(&changes, cx);
                     Panel::new(changes, Some(opens))
                 }
                 RUN_TOOL_WINDOW => {
@@ -3742,7 +3765,9 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::time::Duration;
 
-    fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
+    mod proofs_vcs;
+
+    pub(super) fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
         cx.executor().allow_parking();
         let home = tempfile::tempdir().expect("a temporary home");
         cx.update(|cx| {
@@ -4950,13 +4975,13 @@ mod tests {
     }
 
     /// Types `text` into the Search Everywhere field and lets the query rest.
-    fn type_query(cx: &mut VisualTestContext, text: &str) {
+    pub(super) fn type_query(cx: &mut VisualTestContext, text: &str) {
         cx.simulate_input(text);
         cx.executor().advance_clock(crate::everywhere::view::DEBOUNCE);
     }
 
     /// A project with a Rust file, a text file and a second Rust file, opened in a window.
-    fn search_project(
+    pub(super) fn search_project(
         cx: &mut TestAppContext,
     ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &mut VisualTestContext) {
         let folder = tempfile::tempdir().expect("a temporary folder");
@@ -7135,7 +7160,7 @@ mod tests {
 
     /// Waits for `done` while processes run and their timers fire: real time passes, and so does the
     /// executor's clock.
-    fn wait_long(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
+    pub(super) fn wait_long(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
         for _ in 0..3000 {
             cx.executor().advance_clock(Duration::from_millis(20));
             cx.run_until_parked();
@@ -7147,14 +7172,14 @@ mod tests {
         panic!("{what} did not happen within thirty seconds");
     }
 
-    fn click_on(cx: &mut VisualTestContext, selector: &'static str) {
+    pub(super) fn click_on(cx: &mut VisualTestContext, selector: &'static str) {
         cx.run_until_parked();
         let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
         cx.simulate_click(bounds.center(), gpui_kit::Modifiers::default());
         cx.run_until_parked();
     }
 
-    fn run_action(cx: &mut VisualTestContext, id: &str, arg: Option<serde_json::Value>) {
+    pub(super) fn run_action(cx: &mut VisualTestContext, id: &str, arg: Option<serde_json::Value>) {
         cx.update(|window, cx| crate::platform::actions::execute_action_or_throw(id, arg.as_ref(), window, cx))
             .unwrap_or_else(|error| panic!("{id} runs: {error}"));
         cx.run_until_parked();
@@ -8024,7 +8049,7 @@ for line in sys.stdin:
     }
 
     /// Runs git in `dir` without the machine's own configuration; its output, trimmed.
-    fn git_in(dir: &std::path::Path, args: &[&str]) -> String {
+    pub(super) fn git_in(dir: &std::path::Path, args: &[&str]) -> String {
         let run = || {
             std::process::Command::new("git")
                 .args(args)
@@ -8048,17 +8073,39 @@ for line in sys.stdin:
     }
 
     /// A repository on `main` with an identity of its own and a first commit.
-    fn init_repo(root: &std::path::Path) {
+    pub(super) fn init_repo(root: &std::path::Path) {
         git_in(root, &["init", "-q", "-b", "main"]);
         git_in(root, &["config", "user.name", "Ada"]);
         git_in(root, &["config", "user.email", "ada@example.test"]);
+        // What the backend's git reads from the machine elsewhere is the repository's own here.
+        for (key, value) in [
+            ("core.autocrlf", "false"),
+            ("core.hooksPath", ".git/hooks"),
+            ("commit.gpgsign", "false"),
+            ("tag.gpgsign", "false"),
+            ("merge.ff", "true"),
+            ("tag.forceSignAnnotated", "false"),
+            ("rerere.enabled", "false"),
+            ("diff.context", "3"),
+            ("core.excludesFile", "/dev/null"),
+            ("pull.rebase", "false"),
+            ("push.default", "simple"),
+            ("status.showUntrackedFiles", "normal"),
+            ("diff.noprefix", "false"),
+            ("diff.mnemonicPrefix", "false"),
+        ] {
+            git_in(root, &["config", key, value]);
+        }
+        // The IDE's per-user files (change lists, shelf) stay out of `git status`.
+        std::fs::create_dir_all(root.join(".git/info")).expect("the folder is made");
+        std::fs::write(root.join(".git/info/exclude"), "/.openidea/\n").expect("the exclude file is written");
         std::fs::write(root.join("a.txt"), "one\n").expect("the file is written");
         git_in(root, &["add", "."]);
         git_in(root, &["commit", "-q", "-m", "first"]);
     }
 
     /// The branch the repository at `root` is on.
-    fn git_head(root: &std::path::Path) -> String {
+    pub(super) fn git_head(root: &std::path::Path) -> String {
         git_in(root, &["rev-parse", "--abbrev-ref", "HEAD"])
     }
 
@@ -8069,7 +8116,7 @@ for line in sys.stdin:
 
     /// A trusted project on a repository `prepare` makes, open in a window whose branch widget has
     /// read it.
-    fn git_project(
+    pub(super) fn git_project(
         cx: &mut TestAppContext,
         prepare: impl FnOnce(&std::path::Path),
     ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf) {
@@ -8121,7 +8168,7 @@ for line in sys.stdin:
         workbench.read_with(cx, |w, _| w.merge_view()).expect("the merge editor is shown")
     }
 
-    fn notice_titled(
+    pub(super) fn notice_titled(
         workbench: &Entity<Workbench>,
         title: &str,
         cx: &mut VisualTestContext,
@@ -8130,7 +8177,7 @@ for line in sys.stdin:
     }
 
     /// What the branch widget of the title bar says.
-    fn branch_label(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> String {
+    pub(super) fn branch_label(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> String {
         let Some(widget) = workbench.read_with(cx, |w, _| w.branch_widget().cloned()) else { return String::new() };
         widget.update(cx, |widget, cx| widget.label(&mut cx.default_global::<crate::platform::i18n::Localization>().0))
     }
@@ -8170,7 +8217,7 @@ for line in sys.stdin:
     }
 
     /// The dialog a Git operation waits on, once it shows.
-    fn wait_for_prompt(
+    pub(super) fn wait_for_prompt(
         workbench: &Entity<Workbench>,
         cx: &mut VisualTestContext,
     ) -> Entity<crate::vcs::prompt_dialogs::PromptDialog> {
@@ -8191,7 +8238,11 @@ for line in sys.stdin:
     }
 
     /// Replaces the text of the dialog's field by typing.
-    fn retype(dialog: &Entity<crate::vcs::prompt_dialogs::PromptDialog>, text: &str, cx: &mut VisualTestContext) {
+    pub(super) fn retype(
+        dialog: &Entity<crate::vcs::prompt_dialogs::PromptDialog>,
+        text: &str,
+        cx: &mut VisualTestContext,
+    ) {
         for _ in 0..prompt_text(dialog, cx).chars().count() {
             cx.simulate_keystrokes("backspace");
         }
@@ -8199,14 +8250,14 @@ for line in sys.stdin:
         cx.run_until_parked();
     }
 
-    fn notification_titles(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
+    pub(super) fn notification_titles(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
         workbench.read_with(cx, |w, _| w.notifications().items().iter().map(|n| n.title.clone()).collect())
     }
 
     /// Waits for the notification `title` of a Git operation. The backend's event on what the operation
     /// changed can refresh the window before the operation's own read returns, and the notice comes only
     /// after that read.
-    fn wait_for_notice(workbench: &Entity<Workbench>, title: &str, cx: &mut VisualTestContext) {
+    pub(super) fn wait_for_notice(workbench: &Entity<Workbench>, title: &str, cx: &mut VisualTestContext) {
         wait_long(cx, &format!("the notice {title}"), |cx| {
             notification_titles(workbench, cx).iter().any(|n| n == title)
         });
@@ -9077,8 +9128,8 @@ for line in sys.stdin:
         assert!(cx.debug_bounds("title:gear").is_some());
     }
 
-    /// The title bar of a project without a repository: no branch widget and, with no Version Control
-    /// action to offer, no "Version Control" either; the project widget's and the gear's menus open in
+    /// The title bar of a project without a repository: no branch widget but "Version Control ▾" with
+    /// Show Git Log; the project widget's and the gear's menus open in
     /// the popup slot; the bar's context menu takes the IDE mode switch off
     /// and Restore Default Toolbar brings it back; Customize Main Toolbar's Escape writes nothing. The
     /// Welcome screen's bar carries its title only.
@@ -9106,10 +9157,14 @@ for line in sys.stdin:
         assert_eq!(rows.first().map(String::as_str), Some("Open…"), "{rows:?}");
         assert_eq!(rows.last().map(String::as_str), Some("Close Project"), "{rows:?}");
         close(cx);
-        // No Version Control action is registered: the fallback has nothing to offer and is not drawn.
+        // Without a repository there is no branch widget: "Version Control ▾" takes its place and offers
+        // the registered actions of its list.
         let (left, _) = cx.update(|window, cx| bar.read(cx).shown(window, cx));
-        assert_eq!(left, [PROJECT_WIDGET], "a project without a repository has no branch widget");
-        assert!(cx.debug_bounds("title:vcs.branch").is_none());
+        assert_eq!(left, [PROJECT_WIDGET, "vcs.branch"], "Show Git Log is registered: the fallback is drawn");
+        click_on(cx, "title:vcs.branch");
+        let rows = menu_labels(cx);
+        assert!(rows.contains(&"Show Git Log".to_owned()), "{rows:?}");
+        close(cx);
         click_on(cx, "title:gear");
         assert!(menu_labels(cx).contains(&"Customize Main Toolbar".to_owned()), "{:?}", menu_labels(cx));
         close(cx);
@@ -9593,7 +9648,7 @@ for line in sys.stdin:
     }
 
     /// The changes tree and the message box of the Commit tool window.
-    fn commit_parts(
+    pub(super) fn commit_parts(
         workbench: &Entity<Workbench>,
         cx: &mut VisualTestContext,
     ) -> (Entity<crate::vcs::commit_view::CommitPanel>, Entity<crate::vcs::commit_box::CommitBox>) {
@@ -9909,9 +9964,10 @@ for line in sys.stdin:
 
         click_on(cx, "commit-options");
         assert!(commit_box.read_with(cx, |commit_box, _| commit_box.options_open()), "the options open");
-        click_on(cx, "commit-check-reformat");
-        let reformat = cx.update(|_, cx| crate::platform::settings::effective("w1", cx).vcs.commit.reformat);
-        assert!(reformat, "the check is written to the settings");
+        // Analyze code is on by default: the click turns it off.
+        click_on(cx, "commit-check-analyze");
+        let analyze = cx.update(|_, cx| crate::platform::settings::effective("w1", cx).vcs.commit.analyze_code);
+        assert!(!analyze, "the check is written to the settings");
         click_on(cx, "commit-run-hooks");
         cx.simulate_keystrokes("escape");
         run_action(cx, "vcs.commit", None);
@@ -9923,7 +9979,7 @@ for line in sys.stdin:
     }
 
     /// A diagnostic as a producer publishes it.
-    fn published(line: u32, col: u32, severity: ide_core::Severity, message: &str) -> ide_core::Diagnostic {
+    pub(super) fn published(line: u32, col: u32, severity: ide_core::Severity, message: &str) -> ide_core::Diagnostic {
         ide_core::Diagnostic {
             range: ide_core::Range::new(ide_core::Pos::new(line, col), ide_core::Pos::new(line, col + 3)),
             severity,
@@ -9937,7 +9993,7 @@ for line in sys.stdin:
     }
 
     /// Hands the window the diagnostics of `path` the way the backend sends them.
-    fn publish(
+    pub(super) fn publish(
         workbench: &Entity<Workbench>,
         cx: &mut VisualTestContext,
         path: &std::path::Path,

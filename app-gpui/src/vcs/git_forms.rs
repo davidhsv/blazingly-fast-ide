@@ -11,7 +11,7 @@
 
 use crate::platform::git_ref_name::clean_up_branch_name_on_typing;
 use crate::platform::i18n::{I18n, Param};
-use crate::vcs::branches::{sort_local, sort_remote};
+use crate::vcs::branches::{self, sort_local, sort_remote};
 use crate::vcs::changes::{ChangeKind, FileStatus, base_name, dir_name, rel_to, strip_slash};
 use crate::vcs_more::worktrees::{RepoWorktrees, is_current_worktree, worktree_contains_project};
 use crate::vcs_ops::branch_ops::{local_names, validate_branch_name};
@@ -162,12 +162,67 @@ pub enum FormInput {
 }
 
 /// What the Git Remotes dialog asks for.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum RemotesCommand {
     Add,
     Edit(Remote),
     Remove(String),
     Close,
+}
+
+impl std::fmt::Debug for RemotesCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Add => f.write_str("Add"),
+            Self::Edit(remote) => write!(f, "Edit({}, {})", remote.name, redacted_url(&remote.url)),
+            Self::Remove(name) => write!(f, "Remove({name})"),
+            Self::Close => f.write_str("Close"),
+        }
+    }
+}
+
+/// Where the user info of `url` is (`scheme://<user info>@host/…`), and its scheme.
+fn user_info(url: &str) -> Option<(&str, std::ops::Range<usize>)> {
+    let scheme_end = url.find("://")?;
+    let start = scheme_end + 3;
+    let authority_end = url[start..].find(['/', '?', '#']).map_or(url.len(), |at| start + at);
+    let end = start + url[start..authority_end].rfind('@')?;
+    Some((&url[..scheme_end], start..end))
+}
+
+/// The user info as it may be shown: a password masked (`ada:***`), and over HTTP(S), where a user
+/// name alone is usually a token, all of it (`***`).
+fn masked_user_info(scheme: &str, info: &str) -> String {
+    match info.split_once(':') {
+        Some((user, _)) => format!("{user}:***"),
+        None if scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https") => "***".to_owned(),
+        None => info.to_owned(),
+    }
+}
+
+/// `url` with its credentials masked (`https://ada:secret@host` → `https://ada:***@host`,
+/// `https://token@host` → `https://***@host`), for showing a remote's URL: a credential typed into
+/// a URL is never shown again.
+pub fn redacted_url(url: &str) -> std::borrow::Cow<'_, str> {
+    let Some((scheme, range)) = user_info(url) else { return url.into() };
+    let masked = masked_user_info(scheme, &url[range.clone()]);
+    if masked == url[range.clone()] {
+        return url.into();
+    }
+    format!("{}{masked}{}", &url[..range.start], &url[range.end..]).into()
+}
+
+/// `typed`, an edit of the remote URL `original` shown redacted: where its user info is still the
+/// mask shown, the original credentials go back in its place.
+fn keep_credentials(typed: &str, original: &str) -> String {
+    let (Some((scheme, kept)), Some((_, range))) = (user_info(original), user_info(typed)) else {
+        return typed.to_owned();
+    };
+    let info = &original[kept];
+    if masked_user_info(scheme, info) == typed[range.clone()] && masked_user_info(scheme, info) != info {
+        return format!("{}{info}{}", &typed[..range.start], &typed[range.end..]);
+    }
+    typed.to_owned()
 }
 
 /// What the Worktrees dialog asks for.
@@ -188,8 +243,9 @@ pub enum WorktreesCommand {
     Close,
 }
 
-/// What a pressed button asks the workbench to do.
-#[derive(Clone, Debug)]
+/// What a pressed button asks the workbench to do. It may hold a remote's URL with its credentials,
+/// so it has no `Debug`.
+#[derive(Clone)]
 pub enum FormAnswer {
     /// `detail`: what the progress and the Git console say of the pull.
     Pull {
@@ -357,8 +413,16 @@ fn toggle_flag(on: &mut BTreeSet<MergeFlag>, flag: MergeFlag, rebase: bool) {
     }
 }
 
+/// The backend's branches as the branch models order them.
+fn sortable(branches: &[Branch]) -> Vec<branches::Branch> {
+    branches
+        .iter()
+        .map(|branch| branches::Branch { name: branch.name.clone(), remote: branch.remote, current: branch.current })
+        .collect()
+}
+
 /// The branches to pick from: names, without the remotes' `HEAD`.
-fn branch_choices<'a>(branches: impl IntoIterator<Item = &'a Branch>) -> Vec<Choice> {
+fn branch_choices<'a>(branches: impl IntoIterator<Item = &'a branches::Branch>) -> Vec<Choice> {
     branches
         .into_iter()
         .filter(|branch| !branch.name.ends_with("/HEAD"))
@@ -368,16 +432,18 @@ fn branch_choices<'a>(branches: impl IntoIterator<Item = &'a Branch>) -> Vec<Cho
 
 /// The local branches but the current one, then the remote ones: what Merge and Rebase offer.
 fn other_branches(branches: &[Branch]) -> Vec<Choice> {
-    let local = sort_local(branches, None).into_iter().filter(|branch| !branch.current);
+    let branches = sortable(branches);
+    let local = sort_local(&branches, None).into_iter().filter(|branch| !branch.current);
     let mut choices = branch_choices(local);
-    choices.extend(branch_choices(sort_remote(branches, None)));
+    choices.extend(branch_choices(sort_remote(&branches, None)));
     choices
 }
 
 /// Remote branches of `remote` without the remote prefix (`origin/main` → `main`).
 pub fn remote_branches_of(branches: &[Branch], remote: &str) -> Vec<String> {
     let prefix = format!("{remote}/");
-    sort_remote(branches, None)
+    let branches = sortable(branches);
+    sort_remote(&branches, None)
         .into_iter()
         .filter_map(|branch| branch.name.strip_prefix(&prefix))
         .filter(|name| *name != "HEAD")
@@ -456,8 +522,10 @@ impl GitForm for PullForm {
         if self.remotes.is_empty() {
             rows.push(FormRow::Hint(i18n.tx("No remotes are configured. Add one with Git › Manage Remotes….")));
         } else {
-            let remotes =
-                self.remotes.iter().map(|remote| Choice::new(&remote.name, &remote.name, Some(remote.url.clone())));
+            let remotes = self
+                .remotes
+                .iter()
+                .map(|remote| Choice::new(&remote.name, &remote.name, Some(redacted_url(&remote.url).into_owned())));
             rows.push(FormRow::Select {
                 id: "remote",
                 value: self.remote.clone(),
@@ -1316,7 +1384,7 @@ impl GitForm for RemotesForm {
             .map(|remote| ListRow {
                 key: remote.name.clone(),
                 label: remote.name.clone(),
-                detail: remote.url.clone(),
+                detail: redacted_url(&remote.url).into_owned(),
                 depth: 0,
                 checked: None,
             })
@@ -1378,7 +1446,8 @@ impl RemoteForm {
             None if existing.iter().any(|name| name == "origin") => String::new(),
             None => "origin".to_owned(),
         };
-        let url = remote.as_ref().map(|remote| remote.url.clone()).unwrap_or_default();
+        // The field shows the URL without its password; left as shown, the URL keeps it.
+        let url = remote.as_ref().map(|remote| redacted_url(&remote.url).into_owned()).unwrap_or_default();
         Self { original: remote, existing, name, url }
     }
 
@@ -1423,7 +1492,10 @@ impl GitForm for RemoteForm {
         }
         let (name, url) = (self.name.trim().to_owned(), self.url.trim().to_owned());
         let edit = match &self.original {
-            Some(original) => RemoteEdit::Edit { name: original.name.clone(), new_name: name, url },
+            Some(original) => {
+                let url = keep_credentials(&url, &original.url);
+                RemoteEdit::Edit { name: original.name.clone(), new_name: name, url }
+            }
             None => RemoteEdit::Add { name, url },
         };
         Some(FormAnswer::EditRemote(edit))
@@ -1674,8 +1746,9 @@ impl NewWorktreeForm {
 
 impl GitForm for NewWorktreeForm {
     fn spec(&self, i18n: &mut I18n) -> FormSpec {
-        let mut options = branch_choices(sort_local(&self.branches, None));
-        options.extend(branch_choices(sort_remote(&self.branches, None)));
+        let branches = sortable(&self.branches);
+        let mut options = branch_choices(sort_local(&branches, None));
+        options.extend(branch_choices(sort_remote(&branches, None)));
         let mut rows = vec![
             FormRow::Label(i18n.tx("Check out:")),
             FormRow::Select {
@@ -2061,5 +2134,49 @@ mod tests {
             panic!("Create answers")
         };
         assert_eq!((name.as_str(), commit.as_str(), message, force), ("v2", "1234abcd5678", None, false));
+    }
+
+    // Not from a spec: a remote's password is never shown, in the list, in Pull's remote choice or in
+    // Edit Remote's field, and Edit Remote left as shown keeps it.
+    #[test]
+    fn a_remotes_password_is_never_shown_and_survives_an_edit() {
+        assert_eq!(redacted_url("https://ada:s3cret@example.test/r.git"), "https://ada:***@example.test/r.git");
+        assert_eq!(redacted_url("https://ghp_t0ken@example.test/r.git"), "https://***@example.test/r.git");
+        assert_eq!(redacted_url("ssh://git@example.test/r.git"), "ssh://git@example.test/r.git");
+        assert_eq!(redacted_url("git@example.test:r.git"), "git@example.test:r.git");
+        assert_eq!(redacted_url("/srv/r.git"), "/srv/r.git");
+        let url = "https://ada:s3cret@example.test/r.git";
+        let origin = Remote { name: "origin".to_owned(), url: url.to_owned() };
+        let mut i18n = I18n::default();
+        let shown = format!("{:?}", RemotesForm::new(vec![origin.clone()], None, None).spec(&mut i18n));
+        assert!(!shown.contains("s3cret"), "{shown}");
+        let pull = PullForm::new(None, vec![origin.clone()], Vec::new());
+        let shown = format!("{:?}", pull.spec(&mut i18n));
+        assert!(!shown.contains("s3cret"), "{shown}");
+        assert!(!format!("{:?}", RemotesCommand::Edit(origin.clone())).contains("s3cret"));
+        let mut edit = RemoteForm::new(Some(origin.clone()), &["origin".to_owned()]);
+        let shown = format!("{:?}", edit.spec(&mut i18n));
+        assert!(!shown.contains("s3cret"), "{shown}");
+        let Some(FormAnswer::EditRemote(RemoteEdit::Edit { url: kept, .. })) = edit.press(OK, &mut i18n) else {
+            panic!("OK answers")
+        };
+        assert_eq!(kept, url, "the URL left as shown keeps its password");
+        // Another host or path with the mask left in place keeps the password too; a new user info
+        // replaces it.
+        edit.edit("url", FormInput::Text("https://ada:***@example.test/moved.git".to_owned()));
+        let Some(FormAnswer::EditRemote(RemoteEdit::Edit { url: moved, .. })) = edit.press(OK, &mut i18n) else {
+            panic!("OK answers")
+        };
+        assert_eq!(moved, "https://ada:s3cret@example.test/moved.git");
+        edit.edit("url", FormInput::Text("https://bob:other@example.test/r.git".to_owned()));
+        let Some(FormAnswer::EditRemote(RemoteEdit::Edit { url: replaced, .. })) = edit.press(OK, &mut i18n) else {
+            panic!("OK answers")
+        };
+        assert_eq!(replaced, "https://bob:other@example.test/r.git");
+        edit.edit("url", FormInput::Text("https://example.test/other.git".to_owned()));
+        let Some(FormAnswer::EditRemote(RemoteEdit::Edit { url: typed, .. })) = edit.press(OK, &mut i18n) else {
+            panic!("OK answers")
+        };
+        assert_eq!(typed, "https://example.test/other.git");
     }
 }

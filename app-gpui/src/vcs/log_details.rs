@@ -342,17 +342,19 @@ pub fn files_under<'a, F>(nodes: &'a [FileTreeNode<F>], keys: Option<&BTreeSet<S
     out
 }
 
-/// The two repository-relative names of a `diff --git` header line.
+/// The two repository-relative names of a `diff --git` header line. A reversed patch (`git diff
+/// -R`) names its sides `b/…` then `a/…`.
 fn patch_header_paths(line: &str) -> Option<(&str, &str)> {
     let rest = line.strip_prefix("diff --git ")?;
-    if let Some(quoted) = rest.strip_prefix("\"a/") {
-        let (old, rest) = quoted.split_once("\" ")?;
-        let new = rest.strip_prefix("\"b/")?.strip_suffix('"')?;
-        return Some((old, new));
-    }
-    let rest = rest.strip_prefix("a/")?;
-    let (old, new) = rest.split_once(" b/")?;
-    Some((old, new))
+    [("a/", "b/"), ("b/", "a/")].into_iter().find_map(|(first, second)| {
+        if let Some(quoted) = rest.strip_prefix('"').and_then(|rest| rest.strip_prefix(first)) {
+            let (old, rest) = quoted.split_once("\" ")?;
+            let new = rest.strip_prefix('"')?.strip_prefix(second)?.strip_suffix('"')?;
+            return Some((old, new));
+        }
+        let (old, new) = rest.strip_prefix(first)?.split_once(&format!(" {second}"))?;
+        Some((old, new))
+    })
 }
 
 /// The sections of a `git diff` patch that touch `paths` (repository-relative; a rename matches by
@@ -1775,6 +1777,16 @@ mod tests {
         let renamed = format!("{}{}", section("old.ts", "new.ts"), section("c.ts", "c.ts"));
         assert_eq!(filter_patch(&patch, &set(&["new.ts", "c.ts"])), renamed);
         assert_eq!(filter_patch(&patch, &set(&["zzz"])), "");
+    }
+
+    // Not from a spec: the reversed patch Revert Selected Changes applies (`git diff -R`) names its
+    // sides `b/…` then `a/…`; its sections are kept too.
+    #[test]
+    fn keeps_the_sections_of_a_reversed_patch() {
+        let patch = "diff --git b/a.txt a/a.txt\n--- b/a.txt\n+++ a/a.txt\n@@ -1 +1 @@\n-two\n+one\n\
+                     diff --git b/src/c.txt a/src/c.txt\ndeleted file mode 100644\n";
+        let kept = filter_patch(patch, &BTreeSet::from(["a.txt".to_owned()]));
+        assert_eq!(kept, "diff --git b/a.txt a/a.txt\n--- b/a.txt\n+++ a/a.txt\n@@ -1 +1 @@\n-two\n+one\n");
     }
 
     // src/features/vcs/__tests__/logPanes.test.tsx › changed files model › offers Compare with Local only for a file that still exists after the change

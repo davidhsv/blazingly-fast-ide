@@ -142,7 +142,7 @@ pub struct PromptDialog {
 impl EventEmitter<PromptDialogEvent> for PromptDialog {}
 
 /// The first font of the theme's `--font-mono` list that is installed: names and revisions are code.
-fn code_font(cx: &App) -> SharedString {
+pub(super) fn code_font(cx: &App) -> SharedString {
     let families =
         cx.try_global::<theme::ActiveTheme>().map(|active| active.theme.font_families("font-mono")).unwrap_or_default();
     let installed = cx.text_system().all_font_names();
@@ -164,7 +164,7 @@ fn minimal_edit(old: &str, new: &str) -> (Range<usize>, String) {
 }
 
 /// A check box with its label.
-fn checkbox(cx: &App, label: String, on: bool) -> Div {
+pub(super) fn checkbox(cx: &App, label: String, on: bool) -> Div {
     let mark = on.then(|| theme::icon(cx, "check", 12.0, theme::color(cx, "fg-button-primary")));
     div()
         .flex_none()
@@ -190,7 +190,7 @@ fn checkbox(cx: &App, label: String, on: bool) -> Div {
 }
 
 /// A button: filled when `primary`, outlined otherwise, greyed out when it cannot be pressed.
-fn button(cx: &App, label: String, primary: bool, danger: bool, enabled: bool) -> Div {
+pub(super) fn button(cx: &App, label: String, primary: bool, danger: bool, enabled: bool) -> Div {
     let face = div()
         .flex_none()
         .h(px(BUTTON_HEIGHT))
@@ -215,7 +215,7 @@ fn button(cx: &App, label: String, primary: bool, danger: bool, enabled: bool) -
 }
 
 /// The frame a text field is drawn in.
-fn field_frame(cx: &App, invalid: bool) -> Div {
+pub(super) fn field_frame(cx: &App, invalid: bool) -> Div {
     div()
         .h(px(FIELD_HEIGHT))
         .flex()
@@ -228,7 +228,7 @@ fn field_frame(cx: &App, invalid: bool) -> Div {
 }
 
 /// `text` in the active locale.
-fn tx(cx: &mut App, text: &str) -> String {
+pub(super) fn tx(cx: &mut App, text: &str) -> String {
     cx.default_global::<Localization>().0.tx(text)
 }
 
@@ -653,6 +653,8 @@ pub struct PushDialogInput {
     pub has_hook: bool,
     /// Settings › Git › Protected branches: a force push to them is not made.
     pub protected_branches: String,
+    /// Push All up to Here…: the commit the selected repository's branch is pushed up to.
+    pub revision: Option<String>,
 }
 
 /// One push the dialog asks for.
@@ -717,6 +719,8 @@ pub struct PushDialog {
     rows: Vec<PushRow>,
     has_hook: bool,
     protected: String,
+    /// The repository pushed only up to a commit, and that commit.
+    revision: Option<(String, String)>,
     force: bool,
     run_hooks: bool,
     push_tags: bool,
@@ -793,6 +797,7 @@ impl PushDialog {
             rows,
             has_hook: input.has_hook,
             protected: input.protected_branches,
+            revision: input.selected.zip(input.revision),
             force: false,
             run_hooks: true,
             push_tags: false,
@@ -854,7 +859,7 @@ impl PushDialog {
             remote: row.remote.clone(),
             target,
             explicit: false,
-            revision: None,
+            revision: self.revision.as_ref().filter(|(root, _)| *root == row.repo.push.root).map(|(_, id)| id.clone()),
             force_with_lease: self.force && !is_protected_branch(&named, &self.protected),
             set_upstream: false,
             tags,

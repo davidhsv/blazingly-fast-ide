@@ -9,21 +9,23 @@
 //! selected row includes or leaves out the row's files. The box is drawn below the tree.
 
 use super::changes::{
-    ChangeKind, ChangeNode, CheckState, EffectiveKind, FileStatus, NodeType, aggregate_check, build_change_tree,
-    check_of, strip_slash, toggled_check,
+    ChangeKind, ChangeNode, ChangelistState, CheckState, EffectiveKind, FileStatus, NodeType, aggregate_check,
+    build_change_tree, check_of, strip_slash, toggled_check,
 };
 use super::commit_box::CommitBox;
 use crate::backend::{Backend, BackendEvent};
 use crate::platform::i18n::Localization;
 use crate::theme;
+use crate::vcs_ops::changelists::with_list_defaults;
 use crate::vcs_ops::commit_store::CommitState;
+use crate::vcs_ops::git_tabs::ContentTab;
 use gpui_kit::{
-    AnyElement, App, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent,
-    MouseButton, MouseDownEvent, Render, ScrollStrategy, SharedString, Subscription, Task, UniformListScrollHandle,
-    Window, div, prelude::*, px, uniform_list,
+    AnyElement, AnyView, App, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, IntoElement,
+    KeyDownEvent, MouseButton, MouseDownEvent, Render, ScrollStrategy, SharedString, Subscription, Task,
+    UniformListScrollHandle, Window, div, prelude::*, px, uniform_list,
 };
 use ide_core::IdeEvent;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -36,6 +38,10 @@ pub enum CommitPanelEvent {
     ShowDiff(PathBuf),
     /// Show the context menu of the selected file here.
     ShowMenu(gpui_kit::Point<gpui_kit::Pixels>),
+    /// Show content tab `id` (Commit, Shelf).
+    SelectTab(String),
+    /// Move the files at `paths` to change list `list` (they were dropped on its group).
+    MoveToChangelist { paths: Vec<String>, list: String },
 }
 
 /// One visible line: a group, a directory or a changed file.
@@ -51,6 +57,7 @@ struct Row {
     /// The files below a group or directory, or the file itself.
     files: Vec<FileStatus>,
     expanded: bool,
+    changelist: Option<String>,
 }
 
 /// What the Commit tool window adds to the tree: the shared commit state, whose inclusion the
@@ -59,6 +66,27 @@ struct CommitParts {
     state: Entity<CommitState>,
     commit_box: Entity<CommitBox>,
     _redraw: Subscription,
+}
+
+/// Changed files dragged onto a change list's group.
+#[derive(Clone, Debug)]
+pub struct DraggedChanges {
+    pub paths: Vec<String>,
+    label: String,
+}
+
+impl Render for DraggedChanges {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .px(px(8.0))
+            .py(px(2.0))
+            .rounded(theme::length(cx, "radius-small"))
+            .bg(theme::color(cx, "bg-popup"))
+            .border_1()
+            .border_color(theme::color(cx, "border-popup"))
+            .text_color(theme::color(cx, "fg-strong"))
+            .child(SharedString::from(self.label.clone()))
+    }
 }
 
 pub struct CommitPanel {
@@ -78,6 +106,13 @@ pub struct CommitPanel {
     listener: Option<u64>,
     reading: Option<Task<()>>,
     commit: Option<CommitParts>,
+    /// The change lists the changes are grouped by.
+    lists: Option<ChangelistState>,
+    /// The content tabs above the tree, the chosen one, and what a tab other than Commit shows in
+    /// place of the changes.
+    tabs: Vec<ContentTab>,
+    tab: String,
+    content: Option<AnyView>,
 }
 
 impl EventEmitter<CommitPanelEvent> for CommitPanel {}
@@ -107,7 +142,7 @@ pub(crate) fn file_status(status: ide_vcs::FileStatus) -> FileStatus {
 }
 
 /// The colour token of a change, by what happened to the file.
-fn kind_color(kind: EffectiveKind) -> &'static str {
+pub(super) fn kind_color(kind: EffectiveKind) -> &'static str {
     match kind {
         EffectiveKind::Modified | EffectiveKind::Renamed => "vcs-modified",
         EffectiveKind::Added => "vcs-added",
@@ -131,6 +166,7 @@ fn flatten(nodes: &[ChangeNode], depth: usize, collapsed: &BTreeSet<String>, row
             path: node.path.clone(),
             files: node.files.clone(),
             expanded,
+            changelist: node.changelist.clone(),
         });
         if expanded {
             flatten(&node.children, depth + 1, collapsed, rows);
@@ -167,6 +203,10 @@ impl CommitPanel {
             listener,
             reading: None,
             commit: None,
+            lists: None,
+            tabs: Vec::new(),
+            tab: "changes".to_owned(),
+            content: None,
         };
         panel.read(cx);
         panel
@@ -212,8 +252,10 @@ impl CommitPanel {
 
     /// The labels of the changed files the next commit includes, fully or in part, in tree order.
     pub fn included_files(&self, cx: &App) -> Vec<String> {
-        let Some(parts) = &self.commit else { return Vec::new() };
-        let checks = &parts.state.read(cx).checks;
+        if self.commit.is_none() {
+            return Vec::new();
+        }
+        let checks = &self.effective_checks(cx);
         self.rows
             .iter()
             .filter(|row| row.node_type == NodeType::File)
@@ -237,16 +279,29 @@ impl CommitPanel {
         if files.is_empty() {
             return;
         }
+        let current = self.effective_checks(cx);
+        let total = aggregate_check(&files, &current);
+        let target = if total.on == files.len() && !total.indeterminate { CheckState::None } else { CheckState::All };
+        let mut next = current.clone();
+        for file in &files {
+            let check = if files.len() == 1 { toggled_check(check_of(file, &current)) } else { target };
+            next.insert(file.path.clone(), check);
+        }
         parts.state.update(cx, |state, cx| {
-            let total = aggregate_check(&files, &state.checks);
-            let target =
-                if total.on == files.len() && !total.indeterminate { CheckState::None } else { CheckState::All };
-            for file in &files {
-                let next = if files.len() == 1 { toggled_check(check_of(file, &state.checks)) } else { target };
-                state.checks.insert(file.path.clone(), next);
-            }
+            state.checks = next;
             cx.notify();
         });
+    }
+
+    /// The inclusion the checkboxes show: what was chosen, and without a choice the changes of the
+    /// active change list only.
+    fn effective_checks(&self, cx: &App) -> HashMap<String, CheckState> {
+        let Some(parts) = &self.commit else { return HashMap::new() };
+        let checks = &parts.state.read(cx).checks;
+        match &self.lists {
+            Some(lists) => with_list_defaults(&self.status, &self.root, lists, checks),
+            None => checks.clone(),
+        }
     }
 
     /// Inclusion choices of files that are no longer changed are forgotten.
@@ -296,6 +351,71 @@ impl CommitPanel {
             .any(|row| row.key == key && row.node_type == NodeType::File && row.kind != Some(EffectiveKind::Deleted))
     }
 
+    /// Groups the changes by `lists`.
+    pub fn set_changelists(&mut self, lists: ChangelistState, cx: &mut Context<Self>) {
+        if self.lists.as_ref() == Some(&lists) {
+            return;
+        }
+        self.lists = Some(lists);
+        self.rebuild(cx);
+        cx.notify();
+    }
+
+    /// The change list of the selected row: a list's group or what is below it.
+    pub fn selected_changelist(&self) -> Option<String> {
+        let key = self.selected.as_deref()?;
+        self.rows.iter().find(|row| row.key == key)?.changelist.clone()
+    }
+
+    /// The change list whose group row is selected.
+    pub fn selected_list_group(&self) -> Option<String> {
+        let key = self.selected.as_deref()?;
+        self.rows.iter().find(|row| row.key == key && row.node_type == NodeType::Group)?.changelist.clone()
+    }
+
+    /// The paths, without a trailing slash, of the selected row's files.
+    pub fn selected_paths(&self) -> Vec<String> {
+        let Some(key) = self.selected.as_deref() else { return Vec::new() };
+        let Some(row) = self.rows.iter().find(|row| row.key == key) else { return Vec::new() };
+        row.files.iter().map(|file| strip_slash(&file.path).to_owned()).collect()
+    }
+
+    /// Shows `tabs` above the tree with `selected` chosen; `content` takes the place of the changes
+    /// and the message box while a tab other than Commit is chosen.
+    pub fn set_content_tabs(
+        &mut self,
+        tabs: Vec<ContentTab>,
+        selected: &str,
+        content: Option<AnyView>,
+        cx: &mut Context<Self>,
+    ) {
+        let same = match (&self.content, &content) {
+            (Some(shown), Some(new)) => shown.entity_id() == new.entity_id(),
+            (None, None) => true,
+            _ => false,
+        };
+        if same && self.tabs == tabs && self.tab == selected {
+            return;
+        }
+        self.tabs = tabs;
+        self.tab = selected.to_owned();
+        self.content = content;
+        cx.notify();
+    }
+
+    pub fn tabs(&self) -> &[ContentTab] {
+        &self.tabs
+    }
+
+    pub fn selected_tab(&self) -> &str {
+        &self.tab
+    }
+
+    /// What a tab other than Commit shows, while it is chosen.
+    pub fn content(&self) -> Option<&AnyView> {
+        self.content.as_ref()
+    }
+
     /// Reads the changes again.
     pub fn read(&mut self, cx: &mut Context<Self>) {
         let Some(backend) = cx.try_global::<Backend>() else { return };
@@ -322,9 +442,22 @@ impl CommitPanel {
         cx.notify();
     }
 
+    /// Shows `status`, the window's own read of the repository, when it differs from what is shown:
+    /// a change in the working tree alone brings no event that would make the view read again.
+    pub fn set_status(&mut self, status: Vec<FileStatus>, cx: &mut Context<Self>) {
+        if self.loading || (self.error.is_none() && self.status == status) {
+            return;
+        }
+        self.error = None;
+        self.status = status;
+        self.rebuild(cx);
+        self.forget_gone_checks(cx);
+        cx.notify();
+    }
+
     fn rebuild(&mut self, cx: &mut Context<Self>) {
         let i18n = &mut cx.default_global::<Localization>().0;
-        self.tree = build_change_tree(&self.status, &self.root, true, None, &[], false, i18n);
+        self.tree = build_change_tree(&self.status, &self.root, true, self.lists.as_ref(), &[], false, i18n);
         self.flatten();
     }
 
@@ -447,7 +580,8 @@ impl CommitPanel {
         let chevron_color = theme::color(cx, "fg-icon");
         let rows = Rc::clone(&self.rows);
         let selected = self.selected.clone();
-        let checks = self.commit.as_ref().map(|parts| parts.state.read(cx).checks.clone());
+        let checks = self.commit.as_ref().map(|_| self.effective_checks(cx));
+        let drop_bg = theme::color(cx, "bg-tree-selected");
         uniform_list(
             "changes",
             rows.len(),
@@ -493,8 +627,27 @@ impl CommitPanel {
                                 )
                         });
                         let (clicked, toggled, pressed) = (row.key.clone(), row.key.clone(), row.key.clone());
+                        let row_label = row.label.clone();
+                        let dragged =
+                            (row.node_type != NodeType::Group && !row.files.is_empty()).then(|| DraggedChanges {
+                                paths: row.files.iter().map(|file| strip_slash(&file.path).to_owned()).collect(),
+                                label: row.label.clone(),
+                            });
+                        let target = row.changelist.clone().filter(|_| row.node_type == NodeType::Group);
                         div()
                             .id(SharedString::from(format!("change:{}", row.key)))
+                            .debug_selector(move || format!("commit-row-{row_label}"))
+                            .when_some(dragged, |el, dragged| {
+                                el.on_drag(dragged, |dragged: &DraggedChanges, _, _, cx| cx.new(|_| dragged.clone()))
+                            })
+                            .when_some(target, |el, list| {
+                                el.drag_over::<DraggedChanges>(move |style, _, _, _| style.bg(drop_bg)).on_drop(
+                                    cx.listener(move |_, dragged: &DraggedChanges, _, cx| {
+                                        let paths = dragged.paths.clone();
+                                        cx.emit(CommitPanelEvent::MoveToChangelist { paths, list: list.clone() });
+                                    }),
+                                )
+                            })
                             .h(theme::length(cx, "h-row"))
                             .w_full()
                             .flex()
@@ -536,9 +689,7 @@ impl CommitPanel {
                                 cx.listener(move |panel, event: &MouseDownEvent, window, cx| {
                                     window.focus(&panel.focus, cx);
                                     panel.selected = Some(pressed.clone());
-                                    if panel.selected_file().is_some() {
-                                        cx.emit(CommitPanelEvent::ShowMenu(event.position));
-                                    }
+                                    cx.emit(CommitPanelEvent::ShowMenu(event.position));
                                     cx.stop_propagation();
                                     cx.notify();
                                 }),
@@ -561,8 +712,64 @@ impl CommitPanel {
     }
 }
 
+impl CommitPanel {
+    /// The content tabs (Commit, Shelf), drawn as `commit-tab-<id>`.
+    fn render_tabs(&self, cx: &mut Context<Self>) -> AnyElement {
+        let (fg, muted) = (theme::color(cx, "fg-strong"), theme::color(cx, "fg-muted"));
+        let accent = theme::color(cx, "bg-button-primary");
+        let tabs: Vec<AnyElement> = self
+            .tabs
+            .iter()
+            .map(|tab| {
+                let selected = tab.id == self.tab;
+                let label = cx.default_global::<Localization>().0.tx(&tab.label);
+                let label = match tab.count {
+                    Some(count) => format!("{label} {count}"),
+                    None => label,
+                };
+                let (id, selector) = (tab.id.clone(), tab.id.clone());
+                div()
+                    .id(SharedString::from(format!("commit-tab-{}", tab.id)))
+                    .debug_selector(move || format!("commit-tab-{selector}"))
+                    .h(px(26.0))
+                    .px(px(8.0))
+                    .flex()
+                    .items_center()
+                    .text_color(if selected { fg } else { muted })
+                    .when(selected, |el| el.border_b_1().border_color(accent))
+                    .child(SharedString::from(label))
+                    .on_click(
+                        cx.listener(move |_, _: &ClickEvent, _, cx| cx.emit(CommitPanelEvent::SelectTab(id.clone()))),
+                    )
+                    .into_any_element()
+            })
+            .collect();
+        div()
+            .flex_none()
+            .flex()
+            .items_center()
+            .gap(px(2.0))
+            .px(px(4.0))
+            .border_b_1()
+            .border_color(theme::color(cx, "border"))
+            .children(tabs)
+            .into_any_element()
+    }
+}
+
 impl Render for CommitPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let strip = (self.tabs.len() > 1).then(|| self.render_tabs(cx));
+        if let Some(content) = self.content.clone() {
+            return div()
+                .size_full()
+                .flex()
+                .flex_col()
+                .text_size(theme::length(cx, "fs-ui"))
+                .children(strip)
+                .child(div().flex_1().min_h_0().w_full().child(content))
+                .into_any_element();
+        }
         let tree = self.render_tree(window, cx);
         // Only the tree takes the keyboard's keys: what is typed in the message box stays there.
         div()
@@ -570,6 +777,7 @@ impl Render for CommitPanel {
             .flex()
             .flex_col()
             .text_size(theme::length(cx, "fs-ui"))
+            .children(strip)
             .child(
                 div()
                     .flex_1()
@@ -587,6 +795,7 @@ impl Render for CommitPanel {
                     .border_color(theme::color(cx, "border"))
                     .child(parts.commit_box.clone())
             }))
+            .into_any_element()
     }
 }
 
@@ -642,6 +851,8 @@ mod tests {
         std::fs::write(root.join("src/gone.rs"), "// gone\n").expect("the file is written");
         std::fs::write(root.join("README.md"), "# readme\n").expect("the file is written");
         git(&root, &["init", "-q", "-b", "main"]);
+        // The backend's git reads the machine's configuration: the untracked files are listed here.
+        git(&root, &["config", "status.showUntrackedFiles", "normal"]);
         git(&root, &["add", "."]);
         git(&root, &["commit", "-q", "-m", "first"]);
         std::fs::write(root.join("src/main.rs"), "fn main() { println!(); }\n").expect("the file is written");
@@ -691,7 +902,9 @@ mod tests {
             cx.subscribe(&panel, move |_, event: &CommitPanelEvent, _| match event {
                 CommitPanelEvent::Open(path) => log.borrow_mut().push(path.clone()),
                 CommitPanelEvent::ShowDiff(path) => shown_log.borrow_mut().push(path.clone()),
-                CommitPanelEvent::ShowMenu(_) => {}
+                CommitPanelEvent::ShowMenu(_)
+                | CommitPanelEvent::SelectTab(_)
+                | CommitPanelEvent::MoveToChangelist { .. } => {}
             })
         });
         cx.update(|window, cx| {
@@ -737,6 +950,8 @@ mod tests {
         std::fs::write(root.join("src/a.rs"), "a\n").expect("the file is written");
         std::fs::write(root.join("src/b.rs"), "b\n").expect("the file is written");
         git(&root, &["init", "-q", "-b", "main"]);
+        // The backend's git reads the machine's configuration: the untracked files are listed here.
+        git(&root, &["config", "status.showUntrackedFiles", "normal"]);
         git(&root, &["add", "."]);
         git(&root, &["commit", "-q", "-m", "first"]);
         std::fs::write(root.join("src/a.rs"), "a2\n").expect("the file is written");

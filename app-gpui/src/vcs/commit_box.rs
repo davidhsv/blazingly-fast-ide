@@ -59,6 +59,8 @@ pub struct CommitBoxInput {
     pub settings: CommitSettings,
     /// Before-commit checks contributed by plugins.
     pub plugin_checks: Vec<PluginCheck>,
+    /// Checks that cannot run here, with why: their rows are disabled with the reason.
+    pub unavailable_checks: Vec<(CommitCheck, String)>,
 }
 
 /// What the Commit buttons ask for.
@@ -327,6 +329,11 @@ impl CommitBox {
         &self.input
     }
 
+    /// Why `check` cannot run here, when it cannot.
+    pub fn unavailable_check(&self, check: CommitCheck) -> Option<&str> {
+        self.input.unavailable_checks.iter().find(|(known, _)| *known == check).map(|(_, reason)| reason.as_str())
+    }
+
     /// The message field.
     pub fn message_area(&self) -> &Entity<TextArea> {
         &self.area
@@ -437,11 +444,11 @@ impl CommitBox {
         let settings = self.input.settings.clone();
         let mut rows = vec![(tx(cx, "Sign-off commit"), sign_off)];
         for check in [CommitCheck::Reformat, CommitCheck::OptimizeImports, CommitCheck::Cleanup] {
-            rows.push((tx(cx, check.label()), check.on(&settings)));
+            rows.push((tx(cx, check.label()), check.on(&settings) && self.unavailable_check(check).is_none()));
         }
         rows.push((tx(cx, "Run Git hooks"), run_hooks));
         for check in [CommitCheck::AnalyzeCode, CommitCheck::CheckTodo] {
-            rows.push((tx(cx, check.label()), check.on(&settings)));
+            rows.push((tx(cx, check.label()), check.on(&settings) && self.unavailable_check(check).is_none()));
         }
         for check in &self.input.plugin_checks {
             rows.push((check.title.clone(), !settings.disabled_plugin_checks.contains(&check.key)));
@@ -855,10 +862,28 @@ impl CommitBox {
         let muted = theme::color(cx, "fg-muted");
         let section = |title: String| div().pt(px(6.0)).text_color(muted).child(SharedString::from(title));
         let row = |el: Div, id: &'static str| el.id(id).debug_selector(move || id.to_owned());
+        let unavailable = self.input.unavailable_checks.clone();
         let check = |check: CommitCheck, id: &'static str, cx: &mut Context<Self>| {
             let label = tx(cx, check.label());
-            row(checkbox(cx, label, check.on(&settings)), id)
-                .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| this.toggle_check(check, cx)))
+            let reason = unavailable.iter().find(|(known, _)| *known == check).map(|(_, reason)| tx(cx, reason));
+            match reason {
+                // A check that cannot run shows unticked and greyed out, with why under it.
+                Some(reason) => div()
+                    .flex()
+                    .flex_col()
+                    .child(row(checkbox(cx, label, false), id).opacity(0.5))
+                    .child(
+                        div()
+                            .pl(px(24.0))
+                            .text_color(theme::color(cx, "fg-muted"))
+                            .text_size(theme::length(cx, "fs-small"))
+                            .child(SharedString::from(reason)),
+                    )
+                    .into_any_element(),
+                None => row(checkbox(cx, label, check.on(&settings)), id)
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| this.toggle_check(check, cx)))
+                    .into_any_element(),
+            }
         };
         let git = tx(cx, "Git");
         let author_label = tx(cx, "Author:");

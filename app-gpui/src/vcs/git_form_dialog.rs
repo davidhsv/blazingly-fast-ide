@@ -26,12 +26,22 @@ const LIST_HEIGHT: f32 = 220.0;
 const OPTIONS_HEIGHT: f32 = 240.0;
 
 /// What the dialog asks of the workbench.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum GitFormEvent {
     /// A button was pressed: carry out its answer, then close the dialog or show a problem in it.
     Answer(FormAnswer),
     /// Cancel, Escape: close the dialog.
     Cancelled,
+}
+
+/// An answer may hold a remote's URL with its credentials: only the kind of event is shown.
+impl std::fmt::Debug for GitFormEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Answer(_) => "Answer(..)",
+            Self::Cancelled => "Cancelled",
+        })
+    }
 }
 
 /// A text field of the form, made for its row.
@@ -498,7 +508,7 @@ impl GitFormDialog {
                     .into_any_element()
             }
             FormRow::Select { id, value, placeholder, options } => {
-                self.render_select(*id, value.as_deref(), placeholder, options, cx)
+                self.render_select(id, value.as_deref(), placeholder, options, cx)
             }
             FormRow::Check { id, label, on, enabled } => {
                 let id = *id;
@@ -512,8 +522,8 @@ impl GitFormDialog {
                     check.opacity(0.5).into_any_element()
                 }
             }
-            FormRow::Radio { id, value, options } => self.render_radio(*id, value, options, cx),
-            FormRow::List { id, rows, selected, empty } => self.render_list(*id, rows, selected.as_deref(), empty, cx),
+            FormRow::Radio { id, value, options } => self.render_radio(id, value, options, cx),
+            FormRow::List { id, rows, selected, empty } => self.render_list(id, rows, selected.as_deref(), empty, cx),
             FormRow::Error(text) => div()
                 .text_color(theme::color(cx, "danger"))
                 .text_size(theme::length(cx, "fs-small"))

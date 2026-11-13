@@ -179,7 +179,10 @@ mod tests {
 
     type Answers = Rc<RefCell<Vec<Option<String>>>>;
 
-    fn open(cx: &mut TestAppContext, initial: &str) -> (Entity<MessageDialog>, Answers, &mut VisualTestContext) {
+    fn open<'a>(
+        cx: &'a mut TestAppContext,
+        initial: &str,
+    ) -> (Entity<MessageDialog>, Answers, &'a mut VisualTestContext) {
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);

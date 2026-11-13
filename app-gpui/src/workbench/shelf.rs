@@ -69,6 +69,7 @@ use crate::vcs_ops::ops::{ConsoleKind, vcs_notice};
 use crate::vcs_ops::patches::{PatchOrigin, suggested_patch_name};
 use crate::vcs_ops::store::VcsState;
 use crate::workbench::notifications::{NotificationAction, NotificationLevel};
+use futures::channel::oneshot;
 use gpui_kit::{
     AppContext, AsyncWindowContext, ClipboardItem, Context, Entity, Focusable, PathPromptOptions, Pixels, Point,
     Subscription, Task, Window,
@@ -127,6 +128,9 @@ pub(super) struct ShelfSlot {
     diffs: HashMap<String, Vec<ShelfDiff>>,
     loading_shelves: Option<Task<()>>,
     panel: Option<(Entity<ShelfPanel>, Subscription)>,
+    /// Files a producer published diagnostics for, none included: Analyze code waits for no other
+    /// report of theirs.
+    analyzed: HashSet<String>,
 }
 
 impl Default for ShelfSlot {
@@ -142,6 +146,7 @@ impl Default for ShelfSlot {
             diffs: HashMap::new(),
             loading_shelves: None,
             panel: None,
+            analyzed: HashSet::new(),
         }
     }
 }
@@ -595,6 +600,14 @@ impl Workbench {
     /// longer changed are forgotten.
     pub(super) fn changelists_follow_status(&mut self, cx: &mut Context<Self>) {
         let Some(vcs) = self.vcs_state() else { return };
+        if vcs.available
+            && vcs.status_loaded
+            && let Some(panel) = self.changes_panel()
+        {
+            let status = vcs.status.clone();
+            panel.update(cx, |panel, cx| panel.set_status(status, cx));
+        }
+        let Some(vcs) = self.vcs_state() else { return };
         if !self.shelf.lists_loaded || !vcs.available || !vcs.status_loaded {
             return;
         }
@@ -701,6 +714,41 @@ impl Workbench {
         });
         let focus = dialog.focus_handle(cx);
         self.open_vcs_dialog(dialog.into(), focus, events, window, cx);
+    }
+
+    /// Select Target Changelist: the list a commit's undone changes go to, an existing one or a new
+    /// one named `suggested` at first. The receiver fails when the dialog is cancelled or replaced.
+    pub(super) fn choose_target_changelist(
+        &mut self,
+        suggested: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> oneshot::Receiver<String> {
+        let (sender, receiver) = oneshot::channel();
+        let mut sender = Some(sender);
+        let lists = self.shelf.lists.clone();
+        let mode = ChangelistDialogMode::Target {
+            title: "Select Target Changelist".to_owned(),
+            hint: None,
+            exclude: Vec::new(),
+        };
+        let dialog = cx.new(|cx| ChangelistDialog::new(lists, mode, suggested, window, cx));
+        let events = cx.subscribe_in(&dialog, window, move |w, _, event: &ChangelistDialogEvent, window, cx| {
+            w.close_vcs_dialog(window, cx);
+            if let ChangelistDialogEvent::Done(answer) = event {
+                let id = match answer.clone() {
+                    ChangelistAnswer::Existing(id) => id,
+                    ChangelistAnswer::Form { name, comment, active } => w.add_changelist(&name, &comment, active, cx),
+                };
+                if let Some(sender) = sender.take() {
+                    // The undo may have ended meanwhile: nothing waits for the list.
+                    let _ = sender.send(id);
+                }
+            }
+        });
+        let focus = dialog.focus_handle(cx);
+        self.open_vcs_dialog(dialog.into(), focus, events, window, cx);
+        receiver
     }
 
     /// New Changelist…; `move_rels` (project-relative) go into the new list.
@@ -1260,6 +1308,16 @@ impl Workbench {
     /// The problems the window holds, by file, as their producers reported them.
     fn reported_problems(&self) -> &ProblemsMap {
         self.problems_map()
+    }
+
+    /// A producer published diagnostics for `path` (an IPC path), possibly none.
+    pub(super) fn diagnostics_arrived(&mut self, path: &str) {
+        self.shelf.analyzed.insert(path.to_owned());
+    }
+
+    /// Whether a producer reported on `key` (an IPC path), even that it found nothing.
+    fn analyzed(&self, key: &str) -> bool {
+        self.shelf.analyzed.contains(key) || self.reported_problems().contains(key)
     }
 
     /// The details link of failed check `index` in the commit box: Review shows the Problems tool
@@ -1883,8 +1941,7 @@ async fn analyze_code(
 ) -> anyhow::Result<Option<CommitProblem>> {
     let keys: Vec<String> = existing.iter().map(|path| ipc_path(path)).collect();
     let unreported: Vec<String> = this.update(cx, |w, _| {
-        let reported = w.reported_problems();
-        existing.iter().zip(&keys).filter(|(_, key)| !reported.contains(key)).map(|(path, _)| path.clone()).collect()
+        existing.iter().zip(&keys).filter(|(_, key)| !w.analyzed(key)).map(|(path, _)| path.clone()).collect()
     })?;
     let opened = call(this, cx, move |host, label| async move {
         let mut docs = Vec::new();
@@ -1901,7 +1958,7 @@ async fn analyze_code(
     if !opened.is_empty() {
         let mut waited = Duration::ZERO;
         while waited < ANALYSIS_WAIT {
-            let all = this.update(cx, |w, _| keys.iter().all(|key| w.reported_problems().contains(key)))?;
+            let all = this.update(cx, |w, _| keys.iter().all(|key| w.analyzed(key)))?;
             if all {
                 break;
             }
@@ -1987,12 +2044,14 @@ pub(super) async fn run_commit_checks(
             let (title, text) = if rebase {
                 (
                     "Commit during rebase",
-                    "A rebase is in progress. The commit will become part of the rebased history; usually you continue the rebase instead.",
+                    "A rebase is in progress. The commit will become part of the rebased history; usually you \
+                     continue the rebase instead.",
                 )
             } else {
                 (
                     "Commit in detached HEAD",
-                    "HEAD is detached: the commit won't belong to any branch and may be lost after checking out another branch. Create a branch first to keep it.",
+                    "HEAD is detached: the commit won't belong to any branch and may be lost after checking out \
+                     another branch. Create a branch first to keep it.",
                 )
             };
             problems.push(CommitProblem { title: title.to_owned(), text: text.to_owned(), details: None });
@@ -2100,7 +2159,8 @@ pub(super) async fn run_commit_checks(
         }
         let names = names.join(", ");
         let text = texts(this, cx, |i18n| {
-            let tail = " contain CRLF line separators and core.autocrlf is not set, so they would be committed with CRLF. Convert them with the line separator widget in the status bar, or set";
+            let tail = " contain CRLF line separators and core.autocrlf is not set, so they would be committed \
+                        with CRLF. Convert them with the line separator widget in the status bar, or set";
             let unit = if n == 1 { " file (" } else { " files (" };
             let sentence =
                 i18n.tx_built(&["", unit, &format!("){tail}")], &[Param::from(n), Param::from(names.as_str())]);
@@ -2467,9 +2527,9 @@ mod tests {
         let unshelve = dialog::<UnshelveDialog>(&workbench, cx);
         assert_eq!(unshelve.read_with(cx, |d, _| d.target().to_owned()), "default");
         cx.simulate_keystrokes("enter");
-        wait_long(cx, "a.txt is back", |cx| {
-            let _ = cx;
-            text(&root.join("a.txt")) == "one changed\n"
+        // The patch rewrites the file: it may be missing for a moment while it is applied.
+        wait_long(cx, "a.txt is back", |_| {
+            std::fs::read_to_string(root.join("a.txt")).is_ok_and(|text| text == "one changed\n")
         });
         wait_long(cx, "the shelf is read again", |cx| {
             workbench.read_with(cx, |w, _| w.shelves().first().is_some_and(|entry| entry.files.len() == 1))
@@ -2532,6 +2592,31 @@ mod tests {
         let data = shown(cx).expect("the diff is shown");
         assert_eq!(data.left, DiffSide::Text { text: "one changed\n".into(), label: "Shelved version".into() });
         assert_eq!(data.chain.map(|chain| chain.len()), Some(2), "the shelf's files are the chain");
+    }
+
+    /// With the Shelf tab's keyboard (`shelfFocus` on) Show Diff without an argument shows the diff of
+    /// the shelved file selected there; once the tab gives the keyboard away the key is off.
+    #[gpui_kit::test]
+    async fn show_diff_in_the_shelf_tab_shows_the_selected_shelved_file(cx: &mut TestAppContext) {
+        use crate::platform::context::window_context;
+        let (workbench, cx, _folders, root) = git_project(cx, two_changes);
+        wait_for_changes(&workbench, 2, cx);
+        let id = shelve_paths(&workbench, &[abs(&root, "a.txt")], "Work", cx);
+        run_action(cx, "vcs.showShelf", None);
+        let panel = workbench.read_with(cx, |w, _| w.shelf_view().cloned()).expect("the Shelf tab");
+        panel.update(cx, |panel, cx| panel.toggle(&id, cx));
+        click_on(cx, "shelf-row-a.txt");
+        let shelf_focus =
+            |cx: &mut VisualTestContext| cx.update(|window, cx| window_context(window, cx).is_truthy("shelfFocus"));
+        assert!(shelf_focus(cx), "the Shelf tab has the keyboard");
+        run_action(cx, "vcs.showDiff", None);
+        let shown = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, cx| w.diff_dialog().map(|dialog| dialog.read(cx).data().clone()))
+        };
+        wait_long(cx, "the shelved diff", |cx| shown(cx).is_some());
+        let data = shown(cx).expect("the diff is shown");
+        assert_eq!(data.left, DiffSide::Text { text: "one\n".into(), label: "Shelved base".into() });
+        assert!(!shelf_focus(cx), "the diff window has the keyboard now");
     }
 
     /// Copy as Patch to Clipboard puts the shelf's patch on the clipboard.
@@ -2651,9 +2736,9 @@ mod tests {
         assert_eq!(apply.update(cx, |d, cx| d.title(cx)), "Apply Patch: Clipboard");
         wait_long(cx, "the preview", |cx| apply.read_with(cx, |d, _| d.can_apply()));
         cx.simulate_keystrokes("enter");
-        wait_long(cx, "the patch is applied", |cx| {
-            let _ = cx;
-            text(&root.join("a.txt")) == "one changed\n"
+        // The patch rewrites the file: it may be missing for a moment while it is applied.
+        wait_long(cx, "the patch is applied", |_| {
+            std::fs::read_to_string(root.join("a.txt")).is_ok_and(|text| text == "one changed\n")
         });
     }
 
@@ -2675,7 +2760,8 @@ mod tests {
         cx.simulate_keystrokes("escape");
 
         let bad = out.path().join("bad.patch");
-        let missing = "diff --git a/missing.txt b/missing.txt\nindex 1111111..2222222 100644\n--- a/missing.txt\n+++ b/missing.txt\n@@ -1 +1 @@\n-old\n+new\n";
+        let missing = "diff --git a/missing.txt b/missing.txt\nindex 1111111..2222222 100644\n\
+                       --- a/missing.txt\n+++ b/missing.txt\n@@ -1 +1 @@\n-old\n+new\n";
         std::fs::write(&bad, missing).expect("the patch is written");
         run_action(cx, "vcs.applyPatch", Some(json!(bad.to_string_lossy())));
         let apply = dialog::<ApplyPatchDialog>(&workbench, cx);
@@ -2756,6 +2842,36 @@ mod tests {
         });
         assert_eq!(list_of_file(&workbench, "c.txt", cx), "default");
         assert_eq!(list_of_file(&workbench, "b.txt", cx), feature, "an assigned file keeps its list");
+    }
+
+    /// The change list keys work only while the Commit window is the active tool window: there F2
+    /// edits the active list and ⇧⌘M moves the selected change; elsewhere neither key opens anything.
+    #[gpui_kit::test]
+    async fn the_change_list_keys_work_only_in_the_commit_window(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, _root) = git_project(cx, two_changes);
+        wait_for_changes(&workbench, 2, cx);
+        let no_dialog = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| w.vcs_dialog_view::<ChangelistDialog>().is_none())
+        };
+        for keys in ["f2", "cmd-shift-m"] {
+            cx.simulate_keystrokes(keys);
+            cx.run_until_parked();
+            assert!(no_dialog(cx), "{keys} needs the Commit window");
+        }
+        run_action(cx, "toolwindow.commit", None);
+        let (panel, _) = commit_parts(&workbench, cx);
+        wait_long(cx, "the tree", |cx| panel.read_with(cx, |p, _| p.lines()).len() == 3);
+        click_on(cx, "commit-row-a.txt");
+        cx.simulate_keystrokes("f2");
+        let form = dialog::<ChangelistDialog>(&workbench, cx);
+        assert_eq!(form.read_with(cx, |d, _| d.title().to_owned()), "Edit Changelist");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(no_dialog(cx), "Escape closes it");
+        click_on(cx, "commit-row-a.txt");
+        cx.simulate_keystrokes("cmd-shift-m");
+        let form = dialog::<ChangelistDialog>(&workbench, cx);
+        assert_eq!(form.read_with(cx, |d, _| d.title().to_owned()), "Move Changes to Another Changelist");
     }
 
     /// Move to Another Changelist… moves a change to an existing list or to a new one; Delete
@@ -2920,6 +3036,28 @@ mod tests {
         click_on(cx, "commit-problem-0");
         assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(PROBLEMS_TOOL_WINDOW)));
         assert_eq!(git_in(&root, &["rev-list", "--count", "HEAD"]), "1");
+    }
+
+    /// A file its language server reported clean (an empty publication) is analysed already: the
+    /// commit waits for no report, here without the executor's clock moving at all.
+    #[gpui_kit::test]
+    async fn a_file_reported_clean_is_committed_without_waiting_for_analysis(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            std::fs::write(root.join("a.txt"), "one changed\n").expect("the file is written");
+        });
+        wait_for_changes(&workbench, 1, cx);
+        publish(&workbench, cx, &root.join("a.txt"), Vec::new());
+        type_commit(&workbench, "Clean", cx);
+        click_on(cx, "commit-commit");
+        for _ in 0..500 {
+            cx.run_until_parked();
+            if git_in(&root, &["rev-list", "--count", "HEAD"]) == "2" {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        panic!("the commit waited for an analysis the file already had");
     }
 
     /// A commit in a detached HEAD is told before the commit; a file with CRLF line separators is not,

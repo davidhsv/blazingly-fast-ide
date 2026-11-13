@@ -26,12 +26,11 @@ use crate::vcs_diff::toolbar_view::{DiffCommand, DiffToolbarEvent, settings_menu
 use crate::vcs_diff::view::{DiffView, DiffViewEvent};
 use crate::vcs_more::show_diff::{ChangesView, SHOW_DIFF, ShowDiffStart, ShownDiffs, show_diff_files, show_diff_start};
 use crate::vcs_ops::actions::{PathContext, commit_window_focused};
-use crate::vcs_ops::menu::MenuItem;
 use crate::vcs_ops::ops::vcs_notice;
 use crate::workbench::notifications::NotificationLevel;
 use gpui_kit::{
-    AnyElement, App, Context, Entity, FocusHandle, Focusable, IntoElement, Pixels, Point, Subscription, Task,
-    WeakEntity, Window, div, prelude::*, px,
+    AnyElement, App, Context, Entity, FocusHandle, Focusable, IntoElement, Subscription, Task, WeakEntity, Window, div,
+    prelude::*, px,
 };
 use ide_host::Host;
 use serde_json::Value;
@@ -198,32 +197,10 @@ impl Workbench {
                 let arg = Value::String(path.to_string_lossy().into_owned());
                 self.show_diff(Some(&arg), window, cx);
             }
-            CommitPanelEvent::ShowMenu(position) => self.show_change_menu(*position, window, cx),
+            CommitPanelEvent::ShowMenu(position) => self.show_changes_menu(*position, window, cx),
+            CommitPanelEvent::SelectTab(tab) => self.select_commit_tab(tab, window, cx),
+            CommitPanelEvent::MoveToChangelist { paths, list } => self.move_dropped_changes(paths, list, cx),
         }
-    }
-
-    /// The context menu of the selected change: Show Diff, and Jump to Source unless it was deleted.
-    fn show_change_menu(&mut self, position: Point<Pixels>, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(panel) = self.commit_panel() else { return };
-        let (file, opens) = {
-            let panel = panel.read(cx);
-            (panel.selected_file(), panel.selected_file_opens())
-        };
-        let Some(file) = file else { return };
-        let i18n = &cx.default_global::<Localization>().0;
-        let items = vec![
-            MenuItem::action_with(SHOW_DIFF, Value::String(file.clone())),
-            MenuItem::entry(i18n.tx("Jump to Source"), opens.then(|| PathBuf::from(&file)))
-                .icon("external-link")
-                .shortcut("F4"),
-        ];
-        self.show_menu(
-            &items,
-            position,
-            |workbench, path, window, cx| workbench.open_project_file(path, window, cx),
-            window,
-            cx,
-        );
     }
 
     fn commit_panel(&self) -> Option<Entity<CommitPanel>> {
@@ -259,17 +236,17 @@ impl Workbench {
             project_selection: &project,
             active_path: active.as_deref(),
         };
-        let paths = match show_diff_start(arg, context, false) {
+        let paths = match show_diff_start(arg, context, self.shelf_focused(window, cx)) {
             ShowDiffStart::Paths(paths) => paths,
             ShowDiffStart::Nothing(notice) => return self.notify(notice, cx),
-            // There is no Shelf view to have the focus.
-            ShowDiffStart::Shelf => return,
+            // The Shelf tab has the keyboard: the diff of its selection.
+            ShowDiffStart::Shelf => return self.show_shelf_diff(None, false, false, window, cx),
         };
         let view = ChangesView {
             status: &status,
             root: root.as_deref(),
             roots: &[],
-            lists: None,
+            lists: Some(self.changelists()),
             group_by_dir: true,
             group_by_staging: false,
             selection_keys: &keys,

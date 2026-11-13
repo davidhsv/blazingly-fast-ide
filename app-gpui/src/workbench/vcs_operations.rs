@@ -18,6 +18,8 @@ use super::branches::{
 };
 use super::services_window::on_workbench;
 use super::{COMMIT_TOOL_WINDOW, GIT_TOOL_WINDOW, Workbench, for_window};
+use crate::editor::buffer::{Assoc, map_offset};
+use crate::editor::view::Editor;
 use crate::platform::actions::ActionRegistry;
 use crate::platform::i18n::{Localization, Param};
 use crate::platform::settings;
@@ -31,6 +33,8 @@ use crate::vcs::git_forms::{
 };
 use crate::vcs::log_view::GitLog;
 use crate::vcs_diff::diff_input::DiffData;
+use crate::vcs_diff::doc::Doc;
+use crate::vcs_diff::gutter::HunkState;
 use crate::vcs_more::worktrees::{RepoWorktrees, group_worktrees};
 use crate::vcs_ops::actions::{PathContext, arg_paths, commit_window_focused, context_paths};
 use crate::vcs_ops::change_ops::{
@@ -44,11 +48,11 @@ use crate::vcs_ops::ops::{all_repos, vcs_notice};
 use crate::workbench::notifications::NotificationLevel;
 use futures::StreamExt;
 use futures::channel::mpsc;
-use gpui_kit::{App, AsyncWindowContext, Context, Entity, Focusable, Subscription, Window, px};
+use gpui_kit::{App, AppContext, AsyncWindowContext, Context, Entity, Focusable, Subscription, Window, px};
 use ide_core::IdeError;
 use ide_host::Host;
 use ide_host::ops::vcs::{self as git, GitOperation, RemoteOp};
-use ide_vcs::{Branch, IgnoreDestination, LogQuery, RemoteEdit};
+use ide_vcs::{Branch, IgnoreDestination, LineHunk, LogQuery, RemoteEdit};
 use ide_workspace::settings::SettingsScope;
 use serde_json::Value;
 use std::convert::Infallible;
@@ -823,9 +827,41 @@ impl Workbench {
         }
     }
 
-    /// Rollback…: the argument's paths, else the selected change while the Commit window is the
-    /// active tool window, else the active file's change, else every change.
+    /// Rollback…: without paths in a focused editor whose selection touches changed lines, Rollback
+    /// Lines restores them; otherwise the dialog of [`Self::rollback_dialog`].
     fn start_rollback(&mut self, arg: Option<&Value>, window: &mut Window, cx: &mut Context<Self>) {
+        let explicit = arg_paths(arg).is_some_and(|paths| !paths.is_empty());
+        let focused = self.editor().filter(|editor| editor.focus_handle(cx).contains_focused(window, cx)).cloned();
+        let Some(editor) = focused.filter(|_| !explicit) else { return self.rollback_dialog(arg, window, cx) };
+        let (path, version) = (editor.read(cx).path().to_path_buf(), editor.read(cx).version());
+        cx.spawn_in(window, async move |this, cx| {
+            let work =
+                move |host: Arc<Host>, label: String| async move { git::vcs_line_hunks(&host, &label, path).await };
+            let hunks = match call(&this, cx, work).await {
+                Ok(hunks) => hunks,
+                Err(error) => return finished(Err(error)),
+            };
+            finished(this.update_in(cx, |workbench, window, cx| {
+                // A file without change markers (not under version control) has no lines to roll back.
+                let hunks = hunks.unwrap_or_else(|error| {
+                    tracing::debug!("no change markers for Rollback Lines: {error}");
+                    Vec::new()
+                });
+                // Hunks of an older text would restore the wrong lines: they are asked for again.
+                if editor.read(cx).version() != version {
+                    return workbench.start_rollback(None, window, cx);
+                }
+                if !editor.update(cx, |editor, cx| rollback_lines(editor, &hunks, cx)) {
+                    workbench.rollback_dialog(None, window, cx);
+                }
+            }));
+        })
+        .detach();
+    }
+
+    /// The Rollback dialog of the argument's paths, else of the selected change while the Commit
+    /// window is the active tool window, else of the active file's change, else of every change.
+    fn rollback_dialog(&mut self, arg: Option<&Value>, window: &mut Window, cx: &mut Context<Self>) {
         let selection = self.selection(cx);
         let Some(state) = self.vcs_state() else { return };
         let (status, roots) = (state.status.clone(), state.roots.clone());
@@ -990,6 +1026,31 @@ impl Workbench {
     }
 }
 
+/// Rollback Lines: restores the hunks of `hunks` (the editor's change markers against HEAD) that the
+/// editor's selection touches, as one edit; whether there were any.
+fn rollback_lines(editor: &mut Editor, hunks: &[LineHunk], cx: &mut Context<Editor>) -> bool {
+    let doc = Doc::new(&editor.text());
+    let mut state = HunkState::default();
+    state.set_hunks(hunks, &doc);
+    let ranges: Vec<std::ops::Range<usize>> = editor
+        .selections()
+        .iter()
+        .map(|&(anchor, head)| anchor.min(head) as usize..anchor.max(head) as usize)
+        .collect();
+    let mut changes = state.rollback_selected_lines(&doc, &ranges);
+    if changes.is_empty() {
+        return false;
+    }
+    changes.sort_by_key(|change| change.from);
+    let selections = editor
+        .selections()
+        .iter()
+        .map(|&(anchor, head)| (map_offset(anchor, &changes, Assoc::Before), map_offset(head, &changes, Assoc::Before)))
+        .collect();
+    let main = editor.main_index();
+    editor.apply_edit(&changes, selections, main, cx)
+}
+
 /// Selects `id` in `log` once the log is read: whether the wait is over (the commit is selected,
 /// or it is not among the commits read).
 fn reveal_in_log(log: &Entity<GitLog>, id: &str, cx: &mut App) -> bool {
@@ -1005,14 +1066,16 @@ fn reveal_in_log(log: &Entity<GitLog>, id: &str, cx: &mut App) -> bool {
 #[cfg(test)]
 mod tests {
     use super::super::tests::{
-        git_head, git_in, git_project, init_repo, notice_titled, notification_titles, run_action, wait_for_notice,
-        wait_for_prompt, wait_long,
+        git_head, git_in, git_project, init_repo, notice_titled, notification_titles, run_action, search_project,
+        start, type_query, wait_for_notice, wait_for_prompt, wait_long,
     };
     use super::*;
     use crate::vcs::git_forms::{FormRow, ListRow, OK, can_press};
     use gpui_kit::{TestAppContext, VisualTestContext};
     use serde_json::json;
     use std::path::Path;
+
+    mod proofs_update;
 
     /// Runs git in `dir` without the machine's configuration; whether it succeeded. For commands
     /// that stop on a conflict, which [`git_in`] would take for a failure.
@@ -1146,6 +1209,8 @@ mod tests {
         dialog.update(cx, |dialog, cx| dialog.choose("type", "rebase", cx));
         press(&dialog, OK, cx);
         wait_long(cx, "the update", |_| git_in(&root, &["log", "-1", "--format=%s"]) == "third");
+        // The update is over once it tells what came in; until then another one is refused.
+        wait_for_notice(&workbench, "1 file updated in 1 commit", cx);
         let method = cx.update(|_, cx| settings::effective("w1", cx).vcs.git.update_method);
         assert_eq!(method, "rebase", "the method chosen is kept");
 
@@ -1446,6 +1511,142 @@ mod tests {
         run_action(cx, "vcs.rollback", None);
         wait_for_notice(&workbench, "No changes to roll back", cx);
         assert!(no_form(&workbench, cx));
+    }
+
+    /// Rollback in a focused editor with the caret on a changed line restores that line's hunk
+    /// alone (Rollback Lines), without a dialog and without touching the file on disk; with the caret
+    /// on an unchanged line it shows the Rollback dialog of the file.
+    #[gpui_kit::test]
+    async fn rollback_in_an_editor_restores_the_changed_lines_under_the_caret(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            std::fs::write(root.join("b.txt"), "one\ntwo\nthree\nfour\nfive\n").expect("the file is written");
+            git_in(root, &["add", "."]);
+            git_in(root, &["commit", "-q", "-m", "second"]);
+        });
+        std::fs::write(root.join("b.txt"), "ONE\ntwo\nthree\nfour\nFIVE\n").expect("the file is written");
+        wait_long(cx, "the change is read", |cx| {
+            workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|state| state.status.len() == 1))
+        });
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("b.txt"), window, cx));
+        wait_long(cx, "the file opens", |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).text().starts_with("ONE")))
+        });
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        // The caret on the last line, the second hunk.
+        workbench.update_in(cx, |_, window, cx| {
+            editor.update(cx, |editor, cx| {
+                let at = editor.text().find("FIVE").expect("the line") as u32;
+                editor.set_selections(vec![(at, at)], 0, cx);
+            });
+            window.focus(&editor.focus_handle(cx), cx);
+        });
+        run_action(cx, "vcs.rollback", None);
+        wait_long(cx, "the line is rolled back", |cx| {
+            editor.read_with(cx, |editor, _| editor.text()) == "ONE\ntwo\nthree\nfour\nfive\n"
+        });
+        assert!(no_form(&workbench, cx), "Rollback Lines asks nothing");
+        assert_eq!(read(&root.join("b.txt")), "ONE\ntwo\nthree\nfour\nFIVE\n", "the edit is the editor's");
+
+        // A line changed by typing, not saved yet, rolls back the same way.
+        workbench.update_in(cx, |_, window, cx| {
+            editor.update(cx, |editor, cx| {
+                let at = editor.text().find("four").expect("the line") as u32;
+                editor.set_selections(vec![(at, at)], 0, cx);
+            });
+            window.focus(&editor.focus_handle(cx), cx);
+        });
+        cx.simulate_input("x");
+        cx.run_until_parked();
+        assert_eq!(editor.read_with(cx, |editor, _| editor.text()), "ONE\ntwo\nthree\nxfour\nfive\n");
+        run_action(cx, "vcs.rollback", None);
+        wait_long(cx, "the typed line is rolled back", |cx| {
+            editor.read_with(cx, |editor, _| editor.text()) == "ONE\ntwo\nthree\nfour\nfive\n"
+        });
+
+        // The caret on an unchanged line: the file's Rollback dialog.
+        workbench.update_in(cx, |_, window, cx| {
+            editor.update(cx, |editor, cx| {
+                let at = editor.text().find("three").expect("the line") as u32;
+                editor.set_selections(vec![(at, at)], 0, cx);
+            });
+            window.focus(&editor.focus_handle(cx), cx);
+        });
+        run_action(cx, "vcs.rollback", None);
+        let dialog = wait_for_form(&workbench, "Rollback Changes", cx);
+        let names: Vec<String> = list(&dialog, cx).into_iter().map(|row| row.label).collect();
+        assert_eq!(names, ["b.txt"]);
+    }
+
+    /// The default shortcuts follow their actions' conditions: without a repository Update Project,
+    /// Rollback and Add to VCS do nothing while VCS Operations still opens; Amend Commit's key works
+    /// only while the Commit window is the active tool window; Update Project's key opens its dialog
+    /// in a repository.
+    #[gpui_kit::test]
+    async fn the_git_shortcuts_run_only_where_their_conditions_hold(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, _root, workbench, cx) = search_project(cx);
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+        let before = notification_titles(&workbench, cx);
+        for keys in ["cmd-t", "cmd-alt-z", "cmd-alt-a"] {
+            cx.simulate_keystrokes(keys);
+            cx.run_until_parked();
+            assert!(no_form(&workbench, cx), "{keys} opens nothing without a repository");
+            assert_eq!(notification_titles(&workbench, cx), before, "{keys} tells nothing without a repository");
+        }
+        cx.simulate_keystrokes("ctrl-v");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.popup.is_some()), "VCS Operations needs a project only");
+    }
+
+    /// In a repository the same keys run: Rollback's opens the dialog of the changes, Add to VCS's
+    /// tells that nothing is selected to add, Update Project's opens its dialog; Amend Commit's
+    /// works only while the Commit window is the active tool window.
+    #[gpui_kit::test]
+    async fn in_a_repository_the_git_shortcuts_run_and_amend_needs_the_commit_window(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, init_repo);
+        std::fs::write(root.join("a.txt"), "changed\n").expect("the file is written");
+        wait_long(cx, "the change is read", |cx| {
+            workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|state| state.status.len() == 1))
+        });
+        cx.simulate_keystrokes("cmd-alt-z");
+        wait_for_form(&workbench, "Rollback Changes", cx);
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(no_form(&workbench, cx));
+        cx.simulate_keystrokes("cmd-alt-a");
+        wait_for_notice(&workbench, "Nothing to add: the files are already under version control", cx);
+
+        let amend = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, cx| w.commit_amend(cx));
+        cx.simulate_keystrokes("ctrl-alt-m");
+        cx.run_until_parked();
+        assert!(!amend(cx), "Amend Commit's key needs the Commit window");
+        run_action(cx, "toolwindow.commit", None);
+        cx.simulate_keystrokes("ctrl-alt-m");
+        wait_long(cx, "amend is checked", |cx| amend(cx));
+
+        // Find Action shows the toggle's state and runs it, reading the window's state outside its
+        // update.
+        // Checking Amend puts the last commit's message in the box, which takes the keyboard then.
+        wait_long(cx, "the last commit's message is in the box", |cx| {
+            let commit_box = workbench.read_with(cx, |w, _| w.commit_box().cloned()).expect("the commit box");
+            commit_box.read_with(cx, |commit_box, cx| commit_box.message(cx)) == "first"
+        });
+        run_action(cx, "navigate.findAction", None);
+        let everywhere = workbench.read_with(cx, |w, _| w.search_everywhere()).expect("Find Action opens");
+        type_query(cx, "Amend Commit");
+        wait_long(cx, "Amend Commit is listed", |cx| {
+            everywhere.read_with(cx, |popup, _| popup.lines().first().map(String::as_str) == Some("Amend Commit"))
+        });
+        cx.simulate_keystrokes("enter");
+        wait_long(cx, "amend is unchecked", |cx| !amend(cx));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+
+        cx.simulate_keystrokes("cmd-t");
+        wait_for_form(&workbench, "Update Project", cx);
     }
 
     /// Add to VCS stages an unversioned file and says when there is none; Add to .gitignore writes

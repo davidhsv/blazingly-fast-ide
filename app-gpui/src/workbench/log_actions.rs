@@ -280,6 +280,39 @@ fn key_id(key: &str) -> &str {
     key.rsplit_once('\0').map_or(key, |(_, id)| id)
 }
 
+/// The commit ids an action's argument names: a key, or a list of keys.
+fn arg_commit_ids(arg: Option<&Value>) -> Vec<String> {
+    match arg {
+        Some(Value::Array(keys)) => keys.iter().filter_map(Value::as_str).map(|key| key_id(key).to_owned()).collect(),
+        Some(Value::String(key)) => vec![key_id(key).to_owned()],
+        _ => Vec::new(),
+    }
+}
+
+/// The commits `ids` of `repo` as the backend reads them, in the order given; those it cannot read
+/// are left out.
+async fn read_commits(
+    this: &This,
+    cx: &mut AsyncWindowContext,
+    repo: Option<String>,
+    ids: Vec<String>,
+) -> anyhow::Result<Vec<Commit>> {
+    let path = repo_path(repo.as_deref());
+    let read = call(this, cx, move |host, label| async move {
+        let mut commits = Vec::new();
+        for id in ids {
+            let query = LogQuery { branch: Some(id), limit: 1, ..LogQuery::default() };
+            match git::vcs_log(&host, &label, path.clone(), query).await {
+                Ok(found) => commits.extend(found.into_iter().next()),
+                Err(error) => tracing::debug!("a commit of the action cannot be read: {}", error.message),
+            }
+        }
+        Ok(commits)
+    })
+    .await?;
+    Ok(read.unwrap_or_default())
+}
+
 /// `f` with the UI language.
 fn texts<R>(this: &This, cx: &mut AsyncWindowContext, f: impl FnOnce(&mut I18n) -> R) -> anyhow::Result<R> {
     this.update(cx, |_, cx| f(&mut cx.default_global::<Localization>().0))
@@ -673,6 +706,18 @@ async fn undo_commit(this: This, cx: &mut AsyncWindowContext, commit: Commit) ->
             return Ok(());
         }
     }
+    // The undone changes go to a change list the user picks (a new one is named after the commit).
+    let chosen = this.update_in(cx, |w, window, cx| w.choose_target_changelist(&commit.summary, window, cx))?;
+    let Ok(list) = chosen.await else { return Ok(()) };
+    let (path, revision) = (repo_path(repo.as_deref()), commit.id.clone());
+    let files =
+        call(&this, cx, move |host, label| async move { git::vcs_commit_files(&host, &label, path, revision).await })
+            .await?;
+    // Files that cannot be listed stay in the list they fall into.
+    let files = files.unwrap_or_else(|error| {
+        tracing::debug!("the files of the undone commit cannot be listed: {error}");
+        Vec::new()
+    });
     let id = short(&commit.id);
     let (title, success) = texts(&this, cx, |i18n| {
         let undid = [Param::from(id.as_str()), Param::from(commit.summary.as_str())];
@@ -686,6 +731,13 @@ async fn undo_commit(this: This, cx: &mut AsyncWindowContext, commit: Commit) ->
     reload_log(&this, cx)?;
     // The undone commit's message becomes the next commit's.
     this.update(cx, |workbench, cx| {
+        let root = repo.clone().or_else(|| workbench.vcs_state().and_then(|state| state.root.clone()));
+        let paths: Vec<String> = files
+            .iter()
+            .flat_map(|file| std::iter::once(&file.path).chain(file.old_path.as_ref()))
+            .map(|rel| repository_path(root.as_deref(), rel))
+            .collect();
+        workbench.move_dropped_changes(&paths, &list, cx);
         let state = workbench.commit_state(cx);
         state.update(cx, |state, cx| {
             state.message = message;
@@ -1138,12 +1190,9 @@ impl Workbench {
     fn log_commits(&self, arg: Option<&Value>, cx: &App) -> Vec<Commit> {
         let Some(log) = self.git_log_view() else { return Vec::new() };
         let log = log.read(cx);
-        let ids: Vec<String> = match arg {
-            Some(Value::Array(keys)) => {
-                keys.iter().filter_map(Value::as_str).map(|key| key_id(key).to_owned()).collect()
-            }
-            Some(Value::String(key)) => vec![key_id(key).to_owned()],
-            _ => log.selected().map(|commit| commit.id.clone()).into_iter().collect(),
+        let ids = match arg_commit_ids(arg) {
+            ids if ids.is_empty() => log.selected().map(|commit| commit.id.clone()).into_iter().collect(),
+            ids => ids,
         };
         log.commits().iter().filter(|commit| ids.contains(&commit.id)).cloned().collect()
     }
@@ -1183,7 +1232,32 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let mut commits = self.log_commits(arg, cx);
+        let commits = self.log_commits(arg, cx);
+        let ids = arg_commit_ids(arg);
+        if commits.is_empty() && !ids.is_empty() {
+            // Commits the log has not read (or a log not shown yet) are read from the repository.
+            let repo = self.vcs_state().and_then(|state| state.repo.clone());
+            cx.spawn_in(window, async move |this, cx| {
+                let acted = async {
+                    let commits = read_commits(&this, cx, repo, ids).await?;
+                    this.update_in(cx, |w, window, cx| w.act_on_commits(action, commits, window, cx))
+                };
+                finished(acted.await);
+            })
+            .detach();
+            return;
+        }
+        self.act_on_commits(action, commits, window, cx);
+    }
+
+    /// Runs `action` on `commits` (newest first), or says that a commit is to be selected.
+    fn act_on_commits(
+        &mut self,
+        action: CommitAction,
+        mut commits: Vec<Commit>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if commits.is_empty() {
             self.notify(vcs_notice(NotificationLevel::Info, "Select a commit in the Git log"), cx);
             return;
@@ -1596,11 +1670,12 @@ impl Workbench {
 mod tests {
     use super::super::COMMIT_TOOL_WINDOW;
     use super::super::tests::{
-        branch_label, git_in, git_project, init_repo, notice_titled, notification_titles, retype, run_action,
+        branch_label, click_on, git_in, git_project, init_repo, notice_titled, notification_titles, retype, run_action,
         wait_for_notice, wait_for_prompt, wait_long,
     };
     use super::*;
     use crate::platform::actions::action_toggled;
+    use crate::vcs::change_dialogs::ChangelistDialog;
     use crate::vcs::git_form_dialog::GitFormDialog;
     use crate::vcs::log_view::GitLog;
     use crate::vcs::patch_dialogs::CreatePatchDialog;
@@ -1629,6 +1704,67 @@ mod tests {
 
     fn read(root: &Path, file: &str) -> String {
         std::fs::read_to_string(root.join(file)).expect("the file is read")
+    }
+
+    /// `vcsLogFocus` is on while the log has the keyboard and off once an editor has it. The log's
+    /// keys follow: ⌥⇧⌘C copies the selected revision and ⌘F asks Go to Hash/Branch/Tag in the log;
+    /// in the editor neither runs (⌘F is the editor's Find there).
+    #[gpui_kit::test]
+    async fn the_logs_keys_work_while_the_log_has_the_keyboard(cx: &mut TestAppContext) {
+        use crate::platform::context::window_context;
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            commit_file(root, "a.txt", "two\n", "Second change");
+        });
+        let log_focus =
+            |cx: &mut VisualTestContext| cx.update(|window, cx| window_context(window, cx).is_truthy("vcsLogFocus"));
+        let log = show_log(&workbench, 2, cx);
+        log.update(cx, |log, cx| log.select(0, cx));
+        workbench.update_in(cx, |_, window, cx| window.focus(&log.focus_handle(cx), cx));
+        cx.run_until_parked();
+        assert!(log_focus(cx), "the log has the keyboard");
+        cx.simulate_keystrokes("cmd-alt-shift-c");
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()), Some(rev(&root, "HEAD")));
+        cx.simulate_keystrokes("cmd-f");
+        let prompt = wait_for_prompt(&workbench, cx);
+        assert_eq!(prompt.read_with(cx, |dialog, _| dialog.title().to_owned()), "Go to Hash/Branch/Tag");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("a.txt"), window, cx));
+        wait_long(cx, "the file opens", |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        workbench.update_in(cx, |_, window, cx| window.focus(&editor.focus_handle(cx), cx));
+        cx.run_until_parked();
+        assert!(!log_focus(cx), "the editor has the keyboard");
+        cx.write_to_clipboard(ClipboardItem::new_string("before".to_owned()));
+        cx.simulate_keystrokes("cmd-alt-shift-c");
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("before"));
+        cx.simulate_keystrokes("cmd-f");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "no Go to prompt");
+    }
+
+    /// A commit action named with a commit the log has not read, here before the Git window was
+    /// ever shown, reads it from the repository: Copy Revision Number copies it, Cherry-Pick applies
+    /// it.
+    #[gpui_kit::test]
+    async fn a_commit_action_reads_a_commit_the_log_has_not_read(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            git_in(root, &["checkout", "-q", "-b", "topic"]);
+            commit_file(root, "t.txt", "topic\n", "On topic");
+            git_in(root, &["checkout", "-q", "main"]);
+        });
+        assert!(workbench.read_with(cx, |w, _| w.git_log_view().is_none()), "the log was never shown");
+        let topic = rev(&root, "topic");
+        run_action(cx, "vcs.log.copyRevision", Some(json!(topic)));
+        wait_long(cx, "the revision is copied", |cx| {
+            cx.read_from_clipboard().and_then(|item| item.text()).as_deref() == Some(topic.as_str())
+        });
+        run_action(cx, "vcs.log.cherryPick", Some(json!(topic)));
+        wait_long(cx, "the commit is picked", |_| subjects_in(&root).first().map(String::as_str) == Some("On topic"));
+        assert_eq!(read(&root, "t.txt"), "topic\n");
     }
 
     /// Shows the Git tool window and waits until its log lists at least `count` commits.
@@ -1785,7 +1921,15 @@ mod tests {
         assert_eq!(rev(&root, "HEAD"), head, "nothing is undone");
 
         run_action(cx, "vcs.log.undoCommit", Some(json!(head)));
+        // The undone changes go to a list chosen first: a new one, named after the commit.
+        let chooser = wait_for_dialog::<ChangelistDialog>(&workbench, cx);
+        assert_eq!(chooser.read_with(cx, |d, _| d.title().to_owned()), "Select Target Changelist");
+        chooser.update_in(cx, |d, window, cx| d.set_existing(false, window, cx));
+        click_on(cx, "changelist-button-ok");
         wait_for_notice(&workbench, &format!("Undid commit {} “Add b”", short(&head)), cx);
+        let lists = workbench.read_with(cx, |w, _| w.changelists().clone());
+        let added = lists.lists.iter().find(|list| list.name == "Add b").expect("the list named after the commit");
+        assert_eq!(lists.files.get("b.txt"), Some(&added.id), "the undone change is in the chosen list");
         assert_eq!(rev(&root, "HEAD"), first);
         assert_eq!(git_in(&root, &["diff", "--cached", "--name-only"]), "b.txt", "the changes are back, staged");
         assert_eq!(commit_message(&workbench, cx).trim(), "Add b\n\nWith a body");
@@ -1847,6 +1991,32 @@ mod tests {
         assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(COMMIT_TOOL_WINDOW)));
         run_action(cx, "vcs.log.squashInto", Some(json!(target)));
         assert_eq!(commit_message(&workbench, cx), "squash! two");
+    }
+
+    /// Commit and Rebase after Fixup… on an older commit makes the fixup commit, then moves it into
+    /// that commit: the history keeps its subjects and the older commit holds the change.
+    #[gpui_kit::test]
+    async fn commit_and_rebase_after_fixup_melds_the_change_into_the_older_commit(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            commit_file(root, "a.txt", "two\n", "two");
+            commit_file(root, "b.txt", "b\n", "three");
+        });
+        show_log(&workbench, 3, cx);
+        let target = rev(&root, "HEAD~1");
+        std::fs::write(root.join("a.txt"), "two fixed\n").expect("the file is written");
+        wait_long(cx, "the change is read", |cx| {
+            workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|state| state.status.len() == 1))
+        });
+        run_action(cx, "vcs.log.fixup", Some(json!(target)));
+        assert_eq!(commit_message(&workbench, cx), "fixup! two");
+        let commit_box = workbench.read_with(cx, |w, _| w.commit_box().cloned()).expect("the commit box");
+        wait_long(cx, "the box counts the change", |cx| commit_box.read_with(cx, |b, _| b.input().included == 1));
+        commit_box.update(cx, |commit_box, cx| commit_box.commit(false, true, cx));
+        wait_for_notice(&workbench, "Rebased", cx);
+        assert_eq!(subjects_in(&root), ["three", "two", "first"]);
+        assert_eq!(git_in(&root, &["show", "HEAD~1:a.txt"]), "two fixed");
+        assert_eq!(git_in(&root, &["status", "--porcelain"]), "");
     }
 
     /// Drop Commit asks and removes the commit with its changes; Drop Commits removes several, and
@@ -2323,7 +2493,9 @@ mod tests {
         let choose = |row: &str, cx: &mut VisualTestContext| {
             let menu = commit_menu_of(&workbench, cx);
             let lines = |cx: &mut VisualTestContext| menu.read_with(cx, |menu, _| menu.lines().remove(0));
-            assert!(lines(cx).iter().any(|line| line == row), "{row} is in {:?}", lines(cx));
+            // The active row is drawn with a "> " marker.
+            let listed = |line: &String| line.strip_prefix("> ").unwrap_or(line) == row;
+            assert!(lines(cx).iter().any(listed), "{row} is in {:?}", lines(cx));
             for _ in 0..lines(cx).len() {
                 if lines(cx).iter().any(|line| *line == format!("> {row}")) {
                     break;
@@ -2337,7 +2509,7 @@ mod tests {
         for row in rows {
             let menu = commit_menu_of(&workbench, cx);
             let lines = menu.read_with(cx, |menu, _| menu.lines().remove(0));
-            assert!(lines.iter().any(|line| line == row), "{row} is in {lines:?}");
+            assert!(lines.iter().any(|line| line.strip_prefix("> ").unwrap_or(line) == row), "{row} is in {lines:?}");
             cx.simulate_keystrokes("escape");
             cx.run_until_parked();
         }

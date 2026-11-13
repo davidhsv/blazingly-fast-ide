@@ -32,7 +32,7 @@ use crate::vcs_more::log_changes::{ChangeSide, LogChange, ShownChanges, compare_
 use crate::vcs_ops::log_store::{LogFiltersPatch, RepoCommit};
 use crate::vcs_ops::ops::vcs_notice;
 use crate::workbench::notifications::NotificationLevel;
-use gpui_kit::{AppContext, ClipboardItem, Context, Entity, Subscription, Task, Window};
+use gpui_kit::{App, AppContext, ClipboardItem, Context, Entity, Focusable, Subscription, Task, Window};
 use ide_core::IdeResult;
 use ide_host::Host;
 use ide_host::ops::vcs as git;
@@ -134,9 +134,9 @@ impl Workbench {
         let chosen = cx.subscribe_in(&branches, window, |workbench, _, event: &BranchesPaneEvent, window, cx| {
             workbench.log_branches_event(event, window, cx);
         });
-        let selected = cx.subscribe_in(&log, window, |workbench, _, event: &GitLogEvent, _, cx| {
-            let GitLogEvent::SelectionChanged = event;
-            workbench.feed_log_details(cx);
+        let selected = cx.subscribe_in(&log, window, |workbench, _, event: &GitLogEvent, window, cx| match event {
+            GitLogEvent::SelectionChanged => workbench.feed_log_details(cx),
+            GitLogEvent::ShowMenu { position } => workbench.show_commit_menu(*position, window, cx),
         });
         let asked = cx.subscribe_in(&details, window, |workbench, _, event: &LogDetailsEvent, window, cx| {
             workbench.log_details_event(event, window, cx);
@@ -160,6 +160,21 @@ impl Workbench {
     /// The project goes: the Git tool window's view and its reads go with it.
     pub(super) fn drop_git_log(&mut self) {
         self.git_log = None;
+    }
+
+    /// Publishes `vcsLogFocus`: the keyboard is in the Git log or one of its panes.
+    pub(super) fn publish_log_context(&self, window: &mut Window, cx: &mut App) {
+        let focused = self.git_log.as_ref().is_some_and(|slot| {
+            [
+                slot.log.focus_handle(cx),
+                slot.details.focus_handle(cx),
+                slot.filter_bar.focus_handle(cx),
+                slot.branches.focus_handle(cx),
+            ]
+            .iter()
+            .any(|handle| handle.contains_focused(window, cx))
+        });
+        crate::platform::context::set_context(window, cx, "vcsLogFocus", focused);
     }
 
     /// The details pane of the Git tool window, once the window was shown.
@@ -411,7 +426,7 @@ impl Workbench {
     }
 
     /// The log's options changed in the pane: they are stored and the log shows them.
-    fn set_log_options(&mut self, options: LogOptions, cx: &mut Context<Self>) {
+    pub(super) fn set_log_options(&mut self, options: LogOptions, cx: &mut Context<Self>) {
         match serde_json::to_string(&options) {
             Ok(json) => cx.default_global::<UiStorage>().set(STORAGE_KEY, json),
             Err(error) => tracing::warn!("cannot store the log options: {error}"),
@@ -476,7 +491,9 @@ impl Workbench {
                 let Some(root) = change.repo.clone().or(root) else { return };
                 self.open_project_file(PathBuf::from(root).join(&change.path), window, cx);
             }
-            ChangesCommand::Revert | ChangesCommand::GetFromRevision | ChangesCommand::ShowHistory { .. } => {
+            ChangesCommand::Revert => self.revert_log_changes(changes, window, cx),
+            ChangesCommand::GetFromRevision => self.get_from_revision(changes, window, cx),
+            ChangesCommand::ShowHistory { .. } => {
                 tracing::info!("{command:?} on the log's changes is not available");
             }
         }

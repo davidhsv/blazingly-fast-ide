@@ -24,9 +24,9 @@ use crate::theme;
 use crate::vcs_ops::log_store::{LogFilters, LogFiltersPatch, resolve_authors};
 use gpui_kit::{
     AnyElement, App, Bounds, Context, Element, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
-    GlobalElementId, Hsla, InspectorElementId, IntoElement, KeyDownEvent, LayoutId, PathBuilder, Pixels, Render,
-    ScrollStrategy, SharedString, Style, Task, UniformListScrollHandle, Window, div, fill, point, prelude::*, px,
-    relative, size, uniform_list,
+    GlobalElementId, Hsla, InspectorElementId, IntoElement, KeyDownEvent, LayoutId, MouseButton, MouseDownEvent,
+    PathBuilder, Pixels, Point, Render, ScrollStrategy, SharedString, Style, Task, UniformListScrollHandle, Window,
+    div, fill, point, prelude::*, px, relative, size, uniform_list,
 };
 use ide_core::IdeEvent;
 use ide_core::IpcPath;
@@ -42,10 +42,12 @@ const ROW: f32 = 26.0;
 const LANE: f32 = 14.0;
 
 /// What the log tells its window.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum GitLogEvent {
     /// Another commit is selected, or none.
     SelectionChanged,
+    /// Show the commit context menu of the selected commit at `position`.
+    ShowMenu { position: Point<Pixels> },
 }
 
 /// The commit log of the project open in a window.
@@ -605,6 +607,15 @@ impl GitLog {
                                 window.focus(&log.focus, cx);
                                 log.select(index, cx);
                             }))
+                            .on_mouse_down(
+                                MouseButton::Right,
+                                cx.listener(move |log, event: &MouseDownEvent, window, cx| {
+                                    window.focus(&log.focus, cx);
+                                    log.select(index, cx);
+                                    cx.emit(GitLogEvent::ShowMenu { position: event.position });
+                                    cx.stop_propagation();
+                                }),
+                            )
                     })
                     .collect::<Vec<_>>()
             }),

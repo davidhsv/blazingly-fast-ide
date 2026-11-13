@@ -141,7 +141,7 @@ fn write_document(documents: &Documents, doc: DocId, text: &str) -> IdeResult<()
 
 /// Writes `text` as the content of `path` through its document, opened for the purpose when no editor
 /// has it.
-async fn save_exact(host: &Host, label: &str, path: PathBuf, text: String) -> IdeResult<()> {
+pub(super) async fn save_exact(host: &Host, label: &str, path: PathBuf, text: String) -> IdeResult<()> {
     let project = host.project(label)?;
     ide_host::ops::doc::blocking(move || {
         let documents = &project.documents;

@@ -7,8 +7,8 @@
 //! the log are read again, the message is kept in the commit message history and the field is left
 //! as the "Clear initial commit message" setting says. A failure is reported and keeps the message.
 //!
-//! The before-commit checks (code analysis, TODO, reformat…) have no runner here: a commit runs
-//! without them whatever they are set to, and nothing reports them as passed.
+//! Before the commit the before-commit checks run (`shelf::run_commit_checks`); what they find shows
+//! in the box and the next Commit, Commit Anyway, skips them.
 
 use super::branches::{This, call, finished, notify, push, refresh, run_action_later, run_op, save_all, vcs_state};
 use super::services_window::on_workbench;
@@ -20,12 +20,11 @@ use crate::platform::storage::UiStorage;
 use crate::vcs::commit_box::{CommitBox, CommitBoxEvent, CommitBoxInput, CommitRequest};
 use crate::vcs::commit_view::CommitPanel;
 use crate::vcs::log_view::GitLog;
-use crate::vcs_ops::change_ops::{commit_precheck, commit_success, commit_title, committed};
-use crate::vcs_ops::changelists::initial_changelists;
+use crate::vcs_ops::change_ops::{commit_candidates, commit_precheck, commit_success, commit_title, committed};
 use crate::vcs_ops::commit_selection::{PartialFiles, current_plan, selection_of};
 use crate::vcs_ops::commit_store::{CommitState, history_key, parse_history, remembered};
 use crate::vcs_ops::commit_ui::{CommitEntry, open_commit};
-use gpui_kit::{AppContext, AsyncWindowContext, Context, Entity, Subscription, Window};
+use gpui_kit::{App, AppContext, AsyncWindowContext, Context, Entity, Subscription, Window};
 use ide_host::ops::vcs as git;
 use ide_vcs::LogQuery;
 use ide_workspace::settings::SettingsScope;
@@ -73,7 +72,10 @@ impl Workbench {
             return slot.state.clone();
         }
         let state = cx.new(|_| CommitState::default());
-        let observe = cx.observe(&state, |workbench, _, cx| workbench.sync_commit_box(cx));
+        let observe = cx.observe(&state, |workbench, _, cx| {
+            workbench.sync_commit_box(cx);
+            workbench.sync_commit_tabs(cx);
+        });
         self.commit = Some(CommitSlot { state: state.clone(), commit_box: None, busy: false, _observe: observe });
         state
     }
@@ -86,6 +88,11 @@ impl Workbench {
     /// The message box of the Commit tool window, once the window was shown.
     pub fn commit_box(&self) -> Option<&Entity<CommitBox>> {
         self.commit.as_ref()?.commit_box.as_ref().map(|(commit_box, _)| commit_box)
+    }
+
+    /// Whether Amend is checked in the window's commit state.
+    pub(super) fn commit_amend(&self, cx: &App) -> bool {
+        self.commit.as_ref().is_some_and(|slot| slot.state.read(cx).amend)
     }
 
     /// Gives the changes tree of the Commit tool window its inclusion checkboxes and the message box.
@@ -112,7 +119,7 @@ impl Workbench {
     fn commit_box_input(&self, cx: &Context<Self>) -> CommitBoxInput {
         let vcs = self.vcs_state();
         let included = match (vcs, self.commit.as_ref()) {
-            (Some(vcs), Some(slot)) => current_plan(vcs, &initial_changelists(), slot.state.read(cx)).included.len(),
+            (Some(vcs), Some(slot)) => current_plan(vcs, self.changelists(), slot.state.read(cx)).included.len(),
             _ => 0,
         };
         let operation = vcs.and_then(|vcs| vcs.branch.as_ref()?.operation.as_deref());
@@ -127,6 +134,7 @@ impl Workbench {
             history: parse_history(stored),
             settings: settings::effective(&self.label, cx).vcs.commit,
             plugin_checks: Vec::new(),
+            unavailable_checks: super::shelf::unavailable_commit_checks(),
         }
     }
 
@@ -222,8 +230,7 @@ impl Workbench {
             CommitBoxEvent::Configure => {
                 run_action_later("file.settings".to_owned(), Some(Value::String("vcs.commit".to_owned())), window, cx);
             }
-            // Only the before-commit checks report problems, and none run here.
-            CommitBoxEvent::ProblemDetails(index) => tracing::debug!("no details for commit problem {index}"),
+            CommitBoxEvent::ProblemDetails(index) => self.commit_problem_details(*index, window, cx),
         }
     }
 
@@ -235,7 +242,7 @@ impl Workbench {
     }
 
     /// Puts `message` first in the project's commit message history, and stores it.
-    fn remember_commit_message(&mut self, message: &str, cx: &mut Context<Self>) {
+    pub(super) fn remember_commit_message(&mut self, message: &str, cx: &mut Context<Self>) {
         let key = history_key(self.vcs_state().and_then(|vcs| vcs.root.as_deref()));
         let history = parse_history(cx.try_global::<UiStorage>().and_then(|storage| storage.get(&key)));
         let Some(history) = remembered(&history, message) else { return };
@@ -267,28 +274,28 @@ async fn commit(this: &This, cx: &mut AsyncWindowContext, request: CommitRequest
     let prepared = this.update(cx, |workbench, cx| {
         let state = workbench.commit_state(cx).read(cx).clone();
         let vcs = workbench.vcs_state().cloned().unwrap_or_default();
-        let plan = current_plan(&vcs, &initial_changelists(), &state);
+        let plan = current_plan(&vcs, workbench.changelists(), &state);
         let merging = vcs.branch.as_ref().and_then(|branch| branch.operation.as_deref()) == Some("merge");
-        let commit = &settings::effective(&workbench.label, cx).vcs.commit;
-        let skipped: Vec<&str> = [
-            (commit.analyze_code, "analyze code"),
-            (commit.check_todo, "check TODO"),
-            (commit.reformat, "reformat"),
-            (commit.optimize_imports, "optimize imports"),
-            (commit.cleanup, "cleanup"),
-        ]
-        .into_iter()
-        .filter_map(|(on, name)| on.then_some(name))
-        .collect();
-        if !skipped.is_empty() && !request.anyway {
-            tracing::info!("before-commit checks are not run: {}", skipped.join(", "));
-        }
-        (state, vcs, plan, merging, commit.clear_initial_message)
+        let clear = settings::effective(&workbench.label, cx).vcs.commit.clear_initial_message;
+        (state, vcs, plan, merging, clear)
     })?;
     let (state, vcs, plan, merging, clear) = prepared;
     let amend = request.options.amend;
     if let Some(notice) = commit_precheck(&request.message, amend, &plan, merging) {
         return notify(this, cx, notice);
+    }
+    // Failed checks show in the box; the next Commit (Commit Anyway) skips them.
+    if !request.anyway {
+        let problems = super::shelf::run_commit_checks(this, cx, commit_candidates(&plan), amend).await?;
+        if !problems.is_empty() {
+            return this.update(cx, |workbench, cx| {
+                let state = workbench.commit_state(cx);
+                state.update(cx, |state, cx| {
+                    state.check_problems = problems;
+                    cx.notify();
+                });
+            });
+        }
     }
     // Changed blocks are left out only from a diff, which has no checkboxes here: every included
     // file goes in whole.
@@ -329,11 +336,11 @@ async fn commit(this: &This, cx: &mut AsyncWindowContext, request: CommitRequest
         workbench.remember_commit_message(&done.remember, cx);
         workbench.reread_commit_views(cx);
     })?;
-    if request.rebase_onto.is_some() {
-        tracing::info!("Commit and Rebase is not available: the fixup commit was made without the rebase");
+    if let Some(target) = request.rebase_onto.clone() {
+        super::log_actions::rebase_after_fixup(this.clone(), cx, target).await?;
     }
     if request.push {
-        push(this.clone(), cx).await?;
+        push(this.clone(), cx, None).await?;
     }
     Ok(())
 }

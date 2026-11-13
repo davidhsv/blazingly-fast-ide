@@ -352,6 +352,11 @@ impl Workbench {
         error_badge(self.code_insight.problems.map())
     }
 
+    /// Every file's problems as their producers reported them, before the inspection profile.
+    pub(super) fn problems_map(&self) -> &problems::ProblemsMap {
+        self.code_insight.problems.raw()
+    }
+
     /// The last hint Find Usages, Show Usages or a hierarchy gave.
     pub fn code_insight_hint(&self) -> Option<&UsageHint> {
         self.code_insight.last_hint.as_ref()
@@ -535,6 +540,7 @@ impl Workbench {
         items: &[Diagnostic],
         cx: &mut Context<Self>,
     ) {
+        self.diagnostics_arrived(&to_ipc(path));
         if self.code_insight.problems.apply(&to_ipc(path), source, items.to_vec()) {
             self.problems_changed(cx);
         }

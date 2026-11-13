@@ -349,7 +349,11 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
     });
     registry.handle("vcs.push", |call, window, cx| {
         let branch = call.arg.and_then(|arg| arg.get("branch")).and_then(Value::as_str).map(str::to_owned);
-        on_workbench(window, cx, |workbench, window, cx| workbench.start_push(branch, window, cx))
+        // A commit id, or a commit object with one.
+        let revision = call.arg.and_then(|arg| arg.get("revision")).and_then(|revision| {
+            revision.as_str().or_else(|| revision.get("id").and_then(Value::as_str)).map(str::to_owned)
+        });
+        on_workbench(window, cx, |workbench, window, cx| workbench.start_push(branch, revision, window, cx))
     });
 }
 
@@ -386,7 +390,7 @@ where
 }
 
 /// `f` with the UI language.
-fn i18n<R>(this: &This, cx: &mut AsyncWindowContext, f: impl FnOnce(&mut I18n) -> R) -> anyhow::Result<R> {
+pub(super) fn i18n<R>(this: &This, cx: &mut AsyncWindowContext, f: impl FnOnce(&mut I18n) -> R) -> anyhow::Result<R> {
     this.update(cx, |_, cx| f(&mut cx.default_global::<Localization>().0))
 }
 
@@ -488,7 +492,7 @@ where
 
 /// A network operation in `repos`: the progress shows until it ends, then what it did or why it
 /// failed. Only one runs at a time. Whether it succeeded.
-async fn run_remote(
+pub(super) async fn run_remote(
     this: &This,
     cx: &mut AsyncWindowContext,
     op: RemoteOp,
@@ -525,6 +529,8 @@ async fn run_remote(
             })
             .collect()
     })?;
+    // A read of the repository still running would hold the index lock a pull or reset takes.
+    refresh(this, cx).await?;
     let ran = {
         let op = op.clone();
         call(this, cx, move |host, label| remote_in_repos(host, label, op, named)).await?
@@ -568,7 +574,7 @@ async fn run_remote(
 }
 
 /// What a completed checkout reports.
-enum Success {
+pub(super) enum Success {
     /// "Checked out" the branch now current (else this name).
     Head(String),
     Fixed(String),
@@ -577,7 +583,7 @@ enum Success {
 /// Checks out `rev` as IDEA does: local changes in the way ask about Smart Checkout, and a remote
 /// branch whose local namesake has commits of its own asks whether to rebase or drop them. Whether it
 /// switched.
-async fn checkout(
+pub(super) async fn checkout(
     this: &This,
     cx: &mut AsyncWindowContext,
     rev: String,
@@ -623,11 +629,11 @@ async fn checkout(
     }
 }
 
-async fn ask(this: &This, cx: &mut AsyncWindowContext, request: AskRequest) -> anyhow::Result<DialogAnswer> {
+pub(super) async fn ask(this: &This, cx: &mut AsyncWindowContext, request: AskRequest) -> anyhow::Result<DialogAnswer> {
     ask_dialog(this, cx, move |window, cx| PromptDialog::ask(request, window, cx)).await
 }
 
-async fn confirm(this: &This, cx: &mut AsyncWindowContext, request: ConfirmRequest) -> anyhow::Result<bool> {
+pub(super) async fn confirm(this: &This, cx: &mut AsyncWindowContext, request: ConfirmRequest) -> anyhow::Result<bool> {
     let answer = ask_dialog(this, cx, move |window, cx| PromptDialog::confirm(request, window, cx)).await?;
     Ok(answer.confirmed())
 }
@@ -894,7 +900,7 @@ async fn fetch(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
 
 /// Push: the dialog lists each repository with something to push and its outgoing commits; each
 /// checked one is pushed, even when another fails, and the failures are summed up.
-pub(super) async fn push(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
+pub(super) async fn push(this: This, cx: &mut AsyncWindowContext, revision: Option<String>) -> anyhow::Result<()> {
     refresh(&this, cx).await?;
     let (roots, selected) = vcs_state(&this, cx, |state| {
         let roots: Vec<(String, String)> =
@@ -913,7 +919,7 @@ pub(super) async fn push(this: This, cx: &mut AsyncWindowContext) -> anyhow::Res
     let protected = this.update(cx, |workbench, cx| {
         crate::platform::settings::effective(&workbench.label, cx).vcs.git.protected_branches
     })?;
-    let input = PushDialogInput { repos, selected, has_hook, protected_branches: protected };
+    let input = PushDialogInput { repos, selected, has_hook, protected_branches: protected, revision };
     let chosen = this.update_in(cx, |workbench, window, cx| workbench.show_push_dialog(input, window, cx))?;
     // A dialog dropped without an answer pushes nothing.
     let Ok(Some(requests)) = chosen.await else { return Ok(()) };
@@ -937,16 +943,26 @@ pub(super) async fn push(this: This, cx: &mut AsyncWindowContext) -> anyhow::Res
     Ok(())
 }
 
-/// A local Git operation that may take a while (continuing or aborting a stopped one): its progress
-/// shows until it ends, then what it did or why it failed. Only one runs at a time.
-async fn run_git_operation(
-    this: &This,
-    cx: &mut AsyncWindowContext,
-    op: GitOperation,
-    progress: &'static str,
-    success: &'static str,
-    failure: String,
-) -> anyhow::Result<bool> {
+/// Key of the notification of a long Git operation: its progress, then what came of it.
+pub(super) const OPERATION_KEY: &str = "vcs.operation";
+
+/// A long local Git operation and what it says while it runs and after.
+pub(super) struct GitRun {
+    pub(super) op: GitOperation,
+    /// Shown while it runs (English source text).
+    pub(super) progress: &'static str,
+    pub(super) success: String,
+    /// What a rebase that stops for editing reports instead of `success`.
+    pub(super) stopped: Option<String>,
+    pub(super) failure: String,
+    /// A failure that left conflicts opens them for resolving instead of an error notice.
+    pub(super) conflicts_instead: bool,
+}
+
+/// A local Git operation that may take a while: its progress shows until it ends, then what it did
+/// or why it failed. Only one runs at a time. Whether it succeeded.
+pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, run: GitRun) -> anyhow::Result<bool> {
+    let GitRun { op, progress, success, stopped, failure, conflicts_instead } = run;
     let started = this.update(cx, |workbench, cx| {
         let slot = workbench.vcs.as_mut()?;
         if slot.state.remote_busy.is_some() {
@@ -956,18 +972,20 @@ async fn run_git_operation(
         }
         Some((slot.state.repo.clone(), slot.state.branch.as_ref().and_then(|branch| branch.operation.clone())))
     })?;
-    let Some((repo, stopped)) = started else { return Ok(false) };
+    let Some((repo, before)) = started else { return Ok(false) };
     save_all(this, cx).await?;
     this.update(cx, |workbench, cx| {
         let Some(slot) = workbench.vcs.as_mut() else { return };
         let progress = cx.default_global::<Localization>().0.tx(progress);
         slot.state.remote_busy = Some(progress.clone());
-        slot.console.log(ConsoleKind::Cmd, &format!("git {}", describe_operation(&op, stopped.as_deref())), now_ms());
+        slot.console.log(ConsoleKind::Cmd, &format!("git {}", describe_operation(&op, before.as_deref())), now_ms());
         let mut notice = vcs_notice(NotificationLevel::Info, format!("{progress}…"));
-        notice.key = Some("vcs.operation".to_owned());
+        notice.key = Some(OPERATION_KEY.to_owned());
         notice.sticky = Some(true);
         workbench.notify(notice, cx);
     })?;
+    // A read of the repository still running would hold the index lock the operation takes.
+    refresh(this, cx).await?;
     let lines: Arc<Mutex<Vec<String>>> = Arc::default();
     let sink = Arc::clone(&lines);
     let path = repo_path(repo.as_deref());
@@ -985,26 +1003,41 @@ async fn run_git_operation(
         Err(poisoned) => poisoned.into_inner().clone(),
     };
     let ok = ran.is_ok();
-    this.update(cx, |workbench, cx| {
+    this.update_in(cx, |workbench, window, cx| {
+        let resolver = cx.try_global::<ActionRegistry>().is_some_and(|registry| registry.contains(RESOLVE_CONFLICTS));
+        let Some(slot) = workbench.vcs.as_mut() else { return };
+        slot.state.remote_busy = None;
+        for line in &output {
+            slot.console.log(ConsoleKind::Out, line, now_ms());
+        }
+        let rebasing = in_progress(slot.state.branch.as_ref().and_then(|branch| branch.operation.as_deref()))
+            == Some(InProgress::Rebase);
         let notice = match &ran {
-            Ok(()) => vcs_notice(NotificationLevel::Info, success),
+            Ok(()) => {
+                let text = match stopped {
+                    Some(stopped) if rebasing => stopped,
+                    _ => success,
+                };
+                slot.console.log(ConsoleKind::Info, &text, now_ms());
+                Some(vcs_notice(NotificationLevel::Info, text))
+            }
             Err(message) => {
-                let mut notice = vcs_notice(NotificationLevel::Error, failure);
-                notice.body = Some(message.clone());
-                notice
+                slot.console.log(ConsoleKind::Err, message, now_ms());
+                // An operation stopped on conflicts is not an error: they open for resolving.
+                if conflicts_instead && resolver && !slot.state.conflicted_files().is_empty() {
+                    run_action_later(RESOLVE_CONFLICTS.to_owned(), None, window, cx);
+                    None
+                } else {
+                    let mut notice = vcs_notice(NotificationLevel::Error, failure);
+                    notice.body = Some(message.clone());
+                    Some(notice)
+                }
             }
         };
-        if let Some(slot) = workbench.vcs.as_mut() {
-            slot.state.remote_busy = None;
-            for line in &output {
-                slot.console.log(ConsoleKind::Out, line, now_ms());
-            }
-            match &ran {
-                Ok(()) => slot.console.log(ConsoleKind::Info, success, now_ms()),
-                Err(message) => slot.console.log(ConsoleKind::Err, message, now_ms()),
-            }
+        match notice {
+            Some(notice) => workbench.notify(NotificationRequest { key: Some(OPERATION_KEY.to_owned()), ..notice }, cx),
+            None => workbench.notifications.expire_notification(OPERATION_KEY),
         }
-        workbench.notify(NotificationRequest { key: Some("vcs.operation".to_owned()), ..notice }, cx);
         workbench.vcs_state_changed(cx);
     })?;
     Ok(ok)
@@ -1041,7 +1074,10 @@ pub(super) async fn control_operation(
         Control::Skip => GitOperation::Skip,
         Control::Abort => GitOperation::Abort,
     };
-    run_git_operation(&this, cx, git_op, progress, success, failure).await?;
+    // Continue and Skip that stop on the next conflict open them, as Abort cannot.
+    let conflicts_instead = control != Control::Abort;
+    let run = GitRun { op: git_op, progress, success: success.to_owned(), stopped: None, failure, conflicts_instead };
+    run_git_operation(&this, cx, run).await?;
     Ok(())
 }
 
@@ -1090,6 +1126,13 @@ impl Workbench {
     /// The Git console of the window's operations.
     pub fn vcs_console(&self) -> Option<&VcsConsole> {
         self.vcs.as_ref().map(|slot| &slot.console)
+    }
+
+    /// Writes `text` to the window's Git console.
+    pub(super) fn log_vcs_console(&mut self, kind: ConsoleKind, text: &str) {
+        if let Some(slot) = self.vcs.as_mut() {
+            slot.console.log(kind, text, now_ms());
+        }
     }
 
     /// The Branches popup, while it is open.
@@ -1153,6 +1196,7 @@ impl Workbench {
             _widget_events: [events, controls],
         });
         self.mount_conflicts(window);
+        self.mount_shelf(window, cx);
         self.refresh_vcs(cx);
     }
 
@@ -1160,7 +1204,9 @@ impl Workbench {
     pub(super) fn drop_vcs(&mut self) {
         self.vcs = None;
         self.vcs_dialog = None;
+        self.log_actions = Default::default();
         self.drop_conflicts();
+        self.drop_shelf();
     }
 
     /// Whether the window's project holds a Git repository.
@@ -1202,7 +1248,14 @@ impl Workbench {
         slot.debounce = Some(cx.spawn(async move |workbench, cx| {
             cx.background_executor().timer(delay).await;
             // The window is gone: there is nothing to read for.
-            let _ = workbench.update(cx, |workbench, cx| workbench.refresh_vcs(cx));
+            let _ = workbench.update(cx, |workbench, cx| {
+                // A running Git operation reads the repository once it ends. A read meanwhile would
+                // write the refreshed index back and hold the index lock the operation needs.
+                if workbench.vcs.as_ref().is_some_and(|slot| slot.state.remote_busy.is_some()) {
+                    return;
+                }
+                workbench.refresh_vcs(cx);
+            });
         }));
     }
 
@@ -1274,6 +1327,7 @@ impl Workbench {
                 && matches!(slot.queue.request(slot.state.available), RefreshRequest::Run { start: true, .. }));
         self.vcs_state_changed(cx);
         self.conflicts_changed(conflicts, cx);
+        self.changelists_follow_status(cx);
         for (_, sender) in settled {
             // The waiter may be gone.
             let _ = sender.send(());
@@ -1560,13 +1614,19 @@ impl Workbench {
     }
 
     /// Push…: of the current branch. Another branch than the current one cannot be pushed from here.
-    fn start_push(&mut self, branch: Option<String>, window: &mut Window, cx: &mut Context<Self>) {
+    fn start_push(
+        &mut self,
+        branch: Option<String>,
+        revision: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let head = self.vcs_state().and_then(|state| state.branch.as_ref()).and_then(|info| info.head.clone());
         if let Some(branch) = branch.filter(|branch| head.as_ref() != Some(branch)) {
             tracing::warn!("pushing branch {branch}, which is not checked out, is not available");
             return;
         }
-        cx.spawn_in(window, async move |this, cx| finished(push(this, cx).await)).detach();
+        cx.spawn_in(window, async move |this, cx| finished(push(this, cx, revision).await)).detach();
     }
 
     /// A button of a notification raised here: whether it was one.
