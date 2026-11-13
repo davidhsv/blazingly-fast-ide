@@ -121,16 +121,46 @@ function returnOf(fn) {
     : null;
 }
 
+/**
+ * Binds a parameter or binding-element `name` to `arg` (a node, a `Bound` value or null) in `env`;
+ * a destructuring pattern binds each of its names to the matching part of the argument's value.
+ */
+function bindName(env, name, arg, initializer) {
+  if (ts.isIdentifier(name)) {
+    const symbol = checker.getSymbolAtLocation(name);
+    if (symbol) env.set(symbol, arg ?? initializer ?? null);
+    return;
+  }
+  let value = arg instanceof Bound ? arg.value : arg ? staticValue(arg, env.outer) : NONE;
+  if (value === NONE && initializer) value = staticValue(initializer, env.outer);
+  const known = value !== NONE && value !== null && typeof value === "object";
+  name.elements.forEach((element, i) => {
+    if (ts.isOmittedExpression(element)) return;
+    const key = ts.isArrayBindingPattern(name) ? i : (element.propertyName ?? element.name).getText();
+    const part = known && !element.dotDotDotToken && value[key] !== undefined ? new Bound(value[key]) : null;
+    bindName(env, element.name, part, element.initializer);
+  });
+}
+
 /** `fn`'s parameters bound to `args` (nodes, or `Bound` values), evaluated in `outer`. */
 function bind(fn, args, outer) {
   const env = new Map();
   env.outer = outer;
-  fn.parameters.forEach((parameter, i) => {
-    const symbol = checker.getSymbolAtLocation(parameter.name);
-    if (symbol) env.set(symbol, args[i] ?? parameter.initializer ?? null);
-  });
+  fn.parameters.forEach((parameter, i) => bindName(env, parameter.name, args[i], parameter.initializer));
   return env;
 }
+
+const COMPARISONS = {
+  [ts.SyntaxKind.EqualsEqualsEqualsToken]: (a, b) => a === b,
+  [ts.SyntaxKind.EqualsEqualsToken]: (a, b) => a === b,
+  [ts.SyntaxKind.ExclamationEqualsEqualsToken]: (a, b) => a !== b,
+  [ts.SyntaxKind.ExclamationEqualsToken]: (a, b) => a !== b,
+  [ts.SyntaxKind.LessThanToken]: (a, b) => a < b,
+  [ts.SyntaxKind.LessThanEqualsToken]: (a, b) => a <= b,
+  [ts.SyntaxKind.GreaterThanToken]: (a, b) => a > b,
+  [ts.SyntaxKind.GreaterThanEqualsToken]: (a, b) => a >= b,
+};
+const isScalar = (v) => v === null || ["string", "number", "boolean"].includes(typeof v);
 
 /** The value of `fn(...args)` when `fn` returns a single expression of its parameters. */
 function staticCall(fn, args, env, depth) {
@@ -175,6 +205,22 @@ function staticValue(node, env, depth = 0) {
       out += String(v) + span.literal.text;
     }
     return out;
+  }
+  // `a === "x" ? … : …` and `delta < 0 ? … : …` when the condition is static (a factory's bound
+  // parameter); otherwise not static, so the branches stay variants.
+  if (ts.isConditionalExpression(node)) {
+    const condition = staticValue(node.condition, env, depth + 1);
+    if (typeof condition !== "boolean") return NONE;
+    return staticValue(condition ? node.whenTrue : node.whenFalse, env, depth + 1);
+  }
+  if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
+    const v = staticValue(node.operand, env, depth + 1);
+    return typeof v === "boolean" ? !v : NONE;
+  }
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind in COMPARISONS) {
+    const l = staticValue(node.left, env, depth + 1);
+    const r = staticValue(node.right, env, depth + 1);
+    return isScalar(l) && isScalar(r) ? COMPARISONS[node.operatorToken.kind](l, r) : NONE;
   }
   if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
     const l = staticValue(node.left, env, depth + 1);
@@ -232,6 +278,16 @@ function staticValue(node, env, depth = 0) {
   return NONE;
 }
 
+/** `node`, or the branch a conditional with a static condition takes (through nested conditionals). */
+function branchOf(node, env, depth) {
+  for (let inner = unwrap(node); ts.isConditionalExpression(inner); inner = unwrap(node)) {
+    const condition = staticValue(inner.condition, env, depth + 1);
+    if (typeof condition !== "boolean") break;
+    node = condition ? inner.whenTrue : inner.whenFalse;
+  }
+  return node;
+}
+
 /** The statically known properties of an object literal; computed ones are left out. */
 function staticObject(object, env, depth = 0) {
   const out = {};
@@ -249,8 +305,10 @@ function staticObject(object, env, depth = 0) {
       out[`$${name}`] = "function";
       continue;
     }
-    const initializer = ts.isPropertyAssignment(p) ? p.initializer : p.name;
+    const initializer = branchOf(ts.isPropertyAssignment(p) ? p.initializer : p.name, env, depth);
     const inner = unwrap(initializer);
+    // `x ? () => … : undefined` with a static `x` that picks `undefined`: the property is absent.
+    if (initializer !== p.name && ts.isIdentifier(inner) && inner.text === "undefined") continue;
     if (ts.isArrowFunction(inner) || ts.isFunctionExpression(inner)) {
       out[`$${name}`] = "function";
       continue;
@@ -269,6 +327,23 @@ function staticObject(object, env, depth = 0) {
       }
       if (inner.expression.text === "tx" && typeof first === "string") {
         out[name] = first;
+        continue;
+      }
+    }
+    // ``tx`Project View: ${label}` `` is source text built from static parts; the catalog translates
+    // it through its template (`"Project View: {label}"`), kept beside the English text.
+    if (ts.isTaggedTemplateExpression(inner) && ts.isIdentifier(inner.tag) && inner.tag.text === "tx") {
+      const text = staticValue(inner.template, env, depth + 1);
+      if (typeof text === "string") {
+        out[name] = text;
+        if (ts.isTemplateExpression(inner.template)) {
+          const { head, templateSpans } = inner.template;
+          const placeholder = (e) => (ts.isIdentifier(unwrap(e)) ? unwrap(e).text : "value");
+          out[`${name}Template`] = templateSpans.reduce(
+            (shape, span) => `${shape}{${placeholder(span.expression)}}${span.literal.text}`,
+            head.text,
+          );
+        }
         continue;
       }
     }
@@ -298,7 +373,7 @@ function instances(object) {
         const symbol = ts.isShorthandPropertyAssignment(n.parent)
           ? checker.getShorthandAssignmentValueSymbol(n.parent)
           : checker.getSymbolAtLocation(n);
-        if (symbol?.declarations?.some((d) => ts.isParameter(d) && d.parent === fn)) found = true;
+        if (symbol?.declarations?.some((d) => parameterOf(d)?.parent === fn)) found = true;
       }
       if (!ts.isFunctionLike(n)) ts.forEachChild(n, visit);
     };
@@ -306,16 +381,33 @@ function instances(object) {
     return found;
   };
   if (!fn || !ts.isFunctionLike(fn) || !readsParameter()) return [{ record: staticObject(object), site: object }];
+  // The callback of `LIST.map(…)` over a static array: one instance per element.
+  const elements = mappedElements(fn);
+  if (elements)
+    return elements.map((element, i) => ({
+      record: staticObject(object, bind(fn, [new Bound(element), new Bound(i)])),
+      site: object,
+    }));
   const calls = callsOf(fn);
   if (!calls.length) return [{ record: staticObject(object), site: object }];
-  return calls.map((call) => {
-    const env = new Map();
-    fn.parameters.forEach((parameter, i) => {
-      const symbol = checker.getSymbolAtLocation(parameter.name);
-      if (symbol) env.set(symbol, call.arguments[i] ?? parameter.initializer ?? null);
-    });
-    return { record: staticObject(object, env), site: call };
-  });
+  return calls.map((call) => ({ record: staticObject(object, bind(fn, call.arguments)), site: call }));
+}
+
+/** The parameter `declaration` is, or belongs to through a destructuring pattern. */
+function parameterOf(declaration) {
+  let d = declaration;
+  while (d && (ts.isBindingElement(d) || ts.isObjectBindingPattern(d) || ts.isArrayBindingPattern(d))) d = d.parent;
+  return d && ts.isParameter(d) ? d : null;
+}
+
+/** The static elements of `LIST` when `fn` is the callback of `LIST.map(fn)`; `null` otherwise. */
+function mappedElements(fn) {
+  const [callback, call] = outerOf(fn);
+  if (!ts.isCallExpression(call) || call.arguments[0] !== callback) return null;
+  const callee = unwrap(call.expression);
+  if (!ts.isPropertyAccessExpression(callee) || callee.name.text !== "map") return null;
+  const list = staticValue(callee.expression);
+  return Array.isArray(list) ? list : null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -389,8 +481,6 @@ function wrapped(record, site) {
  * `keyWhen` fails the generator.
  */
 const UNRESOLVED_CONDITIONS = {
-  "src/features/vcs/mergeActions.ts":
-    "`merge.<command>` (dynamic id): enabled through the per-command context key the merge editor publishes",
   "src/features/plugins/points.tsx": "a plugin command (dynamic id): its `when` is the plugin's manifest, at run time",
 };
 
@@ -432,13 +522,16 @@ function actionManifest() {
             const entry = {};
             for (const field of ACTION_FIELDS) {
               if (field in record) entry[field] = record[field];
-              for (const suffix of ["Variants", "Key"])
+              for (const suffix of ["Variants", "Key", "Template"])
                 if (`${field}${suffix}` in record) entry[`${field}${suffix}`] = record[`${field}${suffix}`];
             }
             if ("$toggled" in record) entry.toggle = true;
             entry.source = at(site);
             const ids = typeof entry.id === "string" ? (record.idVariants ?? [entry.id]) : [];
-            if (!ids.length) dynamic.push({ ...entry, id: undefined, definedAt: at(node) });
+            // Elements of a mapped list whose ids stay dynamic resolve to the same entry: list it once.
+            const definition = { ...entry, id: undefined, definedAt: at(node) };
+            if (!ids.length && !dynamic.some((d) => JSON.stringify(d) === JSON.stringify(definition)))
+              dynamic.push(definition);
             for (const id of ids) if (!byId.has(id)) byId.set(id, { ...entry, id, idVariants: undefined });
           }
         }

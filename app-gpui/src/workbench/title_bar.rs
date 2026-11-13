@@ -746,6 +746,11 @@ impl Render for TitleBar {
                     .children(left)
                     .child(div().flex_1().min_w(px(24.0)).h_full())
                     .children(right)
+                    .children(if self.kind == TitleBarKind::Project && !self.menu_expanded {
+                        super::context_menus::slot_buttons("mainToolbar", window, cx)
+                    } else {
+                        Vec::new()
+                    })
                     .children(gear)
                     .into_any_element()
             }

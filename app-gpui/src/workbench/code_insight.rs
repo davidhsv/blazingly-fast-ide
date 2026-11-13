@@ -643,6 +643,7 @@ impl Workbench {
                 let run = move |_: &mut Self, command: ProblemCommand, _: &mut Window, cx: &mut Context<Self>| {
                     target.update(cx, |view, cx| view.run_command(command, cx));
                 };
+                let items = self.with_problem_groups(items, window, cx);
                 self.show_menu(&items, position, run, window, cx);
             }
             ProblemsViewEvent::Inspection(command) => self.apply_inspection(command, window, cx),

@@ -685,7 +685,7 @@ impl CommitBox {
         }
     }
 
-    fn render_bar(&self, cx: &mut Context<Self>) -> Div {
+    fn render_bar(&self, window: &Window, cx: &mut Context<Self>) -> Div {
         let amend = self.state.read(cx).amend;
         let has_history = !self.input.history.is_empty();
         let history_open = matches!(self.popup, Some(Popup::History { .. }));
@@ -713,6 +713,7 @@ impl CommitBox {
                         el.on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.toggle_history(cx)))
                     }),
             )
+            .children(crate::workbench::context_menus::slot_buttons("commit.message", window, cx))
             .child(div().flex_1())
             .children(
                 length.map(|length| div().text_color(theme::color(cx, "warning")).child(SharedString::from(length))),
@@ -1001,8 +1002,8 @@ impl Focusable for CommitBox {
 }
 
 impl Render for CommitBox {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let bar = self.render_bar(cx);
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let bar = self.render_bar(window, cx);
         let inspections = self.inspections(cx);
         let problems = self.render_problems(cx);
         let actions = self.render_actions(cx);

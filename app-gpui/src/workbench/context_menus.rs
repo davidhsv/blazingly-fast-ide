@@ -1109,9 +1109,12 @@ mod tests {
     use crate::backend::{AppDirs, Backend};
     use crate::editor::intelligence::fake_server::FakeServer;
     use crate::editor::marks::MarkLayer;
+    use crate::editor::view::EditorEvent;
     use crate::platform::actions::ActionRegistry;
+    use crate::platform::keymap::KeymapState;
     use crate::platform::storage::UiStorage;
     use crate::plugins::plugin_action_id;
+    use crate::ui::popup_menu::Choice;
     use gpui_kit::{Modifiers, MouseButton, TestAppContext, VisualTestContext, point};
     use std::collections::HashSet;
     use std::path::PathBuf;
@@ -1331,13 +1334,18 @@ mod tests {
         workbench: Entity<Workbench>,
         root: PathBuf,
         server: Option<FakeServer>,
-        _dirs: (tempfile::TempDir, tempfile::TempDir),
+        /// The temporary home (with the plugin host's lock while a plugin test runs) and the project folder.
+        _dirs: (Box<dyn std::any::Any>, tempfile::TempDir),
     }
 
-    /// The Hello fixture's manifest with entries in the editor's menu (a submenu of two) and the
-    /// editor's tab strip; its Sync command, and Sync's button, only where the workspace has a
-    /// `MODULE.bazel` file.
+    /// The Hello fixture's manifest with entries in the editor's menu (a submenu of two), the
+    /// editor's tab strip and the Find results' menu; its Sync command, Sync's button and the Find
+    /// results' entry only where the workspace has a `MODULE.bazel` file. Toolbar slots need plugin
+    /// API 1.4 (submenus 1.3).
     fn hello_menus(text: &str) -> String {
+        let engine = "engines.openidea = \"^1.0\"";
+        assert!(text.contains(engine), "the fixture names the plugin API it needs");
+        let text = text.replace(engine, "engines.openidea = \"^1.4\"");
         format!(
             "{text}\n\
              [[contributes.commands]]\nid = \"sync\"\ntitle = \"Hello: Sync\"\n\
@@ -1347,6 +1355,8 @@ mod tests {
              [[contributes.menus]]\nmenu = \"editor.context\"\ncommand = \"sync\"\nsubmenu = \"Hello\"\n\n\
              [[contributes.menus]]\nmenu = \"editor.title\"\ncommand = \"insert-date\"\n\n\
              [[contributes.menus]]\nmenu = \"editor.title\"\ncommand = \"sync\"\n\
+             when = \"workspaceContains:MODULE.bazel\"\n\n\
+             [[contributes.menus]]\nmenu = \"searchResults.context\"\ncommand = \"insert-date\"\n\
              when = \"workspaceContains:MODULE.bazel\"\n"
         )
     }
@@ -1380,18 +1390,19 @@ mod tests {
         files: &[(&str, &str)],
         setup: Setup,
     ) -> (Fixture, &'a mut VisualTestContext) {
-        let (home, server) = match &setup.server {
+        let (home, server): (Box<dyn std::any::Any>, _) = match &setup.server {
             Some(answers) => {
                 let (home, server) = start_with_server(cx, answers);
-                (home, Some(server))
+                (Box::new(home), Some(server))
             }
-            None if setup.plugin => (start_with_plugins(cx), None),
-            None => (start(cx), None),
+            None if setup.plugin => {
+                let home = start_with_plugins(cx);
+                let hello = plugin_copy(home.path(), "hello", hello_menus);
+                link(cx, &hello, &[], "insert-date");
+                (Box::new(home), None)
+            }
+            None => (Box::new(start(cx)), None),
         };
-        if setup.plugin {
-            let hello = plugin_copy(home.path(), "hello", hello_menus);
-            link(cx, &hello, &[], "insert-date");
-        }
         let folder = tempfile::tempdir().expect("a folder");
         let root = folder.path().canonicalize().expect("the folder exists");
         for (path, text) in files {
@@ -1581,9 +1592,12 @@ mod tests {
         assert_eq!(editor.read_with(cx, |editor, _| editor.caret()), 7);
         let menu = f.editor_menu(cx).expect("the editor's menu is open");
         choose(&menu, &["Go To", "Declaration or Usages"], cx);
+        // While the other file opens the window has no editor for a moment.
         wait_long(cx, "the declaration opens", |cx| {
-            let editor = f.editor(cx);
-            editor.read_with(cx, |editor, _| editor.path() == b.as_path() && editor.caret_position() == (2, 2))
+            let editor = f.workbench.read_with(cx, |w, _| w.editor().cloned());
+            editor.is_some_and(|editor| {
+                editor.read_with(cx, |editor, _| editor.path() == b.as_path() && editor.caret_position() == (2, 2))
+            })
         });
     }
 
@@ -1597,9 +1611,21 @@ mod tests {
         let line_start = editor.read_with(cx, |editor, _| editor.offset_of(1, 0));
         let text_at = at_offset(&editor, line_start, cx);
         let gutter = point(text_at.x - px(12.0), text_at.y);
+        // A breakpoint is set by the press the editor reports from its gutter: count those.
+        let presses = Rc::new(std::cell::Cell::new(0));
+        let counted = Rc::clone(&presses);
+        cx.update(|_, cx| {
+            cx.subscribe(&editor, move |_, event: &EditorEvent, _| {
+                if matches!(event, EditorEvent::GutterPressed { .. }) {
+                    counted.set(counted.get() + 1);
+                }
+            })
+            .detach();
+        });
         right_click(cx, gutter);
         let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<GutterCommand>()).expect("the gutter's menu is open");
         assert_eq!(editor.read_with(cx, |editor, _| editor.selection()), 0..0, "the caret stays");
+        assert_eq!(presses.get(), 0, "a right press does not reach the breakpoint toggle");
         assert!(editor.read_with(cx, |editor, _| editor.marks(MarkLayer::Breakpoints).is_empty()));
         // The bookmark group (no Annotate outside a repository), then the gutter's own rows.
         assert_eq!(
@@ -1618,6 +1644,12 @@ mod tests {
         assert_eq!(shown(&menu, cx)[0][0], "Remove Bookmark");
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();
+        assert_eq!(presses.get(), 0);
+        // The left button at the same place is the press that toggles a breakpoint.
+        cx.simulate_mouse_down(gutter, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(gutter, MouseButton::Left, Modifiers::default());
+        cx.run_until_parked();
+        assert_eq!(presses.get(), 1, "the left press is reported from the gutter");
     }
 
     /// A tab's menu acts on the tab it was opened on, not on the active one; its file rows are the
@@ -1777,5 +1809,215 @@ mod tests {
         }
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();
+    }
+
+    /// Whether the editor `editor` has the keyboard.
+    fn editor_focused(editor: &Entity<Editor>, cx: &mut VisualTestContext) -> bool {
+        cx.update(|window, cx| editor.focus_handle(cx).is_focused(window))
+    }
+
+    /// A press beside an open menu closes it, and the keyboard goes back to where it was when the
+    /// menu opened: the editor for the editor's menu, the Project view for a tool window's Options
+    /// menu opened from its header (Escape does the same).
+    #[gpui_kit::test]
+    async fn a_press_beside_an_open_menu_closes_it_and_the_keyboard_returns_where_it_was(cx: &mut TestAppContext) {
+        let (f, cx) = open(cx, &[("a.txt", "hello world\n")], Setup::default());
+        let editor = f.open_file("a.txt", cx);
+        let at = at_offset(&editor, 3, cx);
+        right_click(cx, at);
+        assert!(f.editor_menu(cx).is_some(), "the editor's menu is open");
+        assert!(!editor_focused(&editor, cx), "the menu has the keyboard while it is open");
+        let beside = point(px(4.0), px(4.0));
+        cx.simulate_mouse_down(beside, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(beside, MouseButton::Left, Modifiers::default());
+        cx.run_until_parked();
+        assert!(f.editor_menu(cx).is_none(), "the press closes the menu");
+        assert!(editor_focused(&editor, cx), "the editor has the keyboard again");
+        assert_eq!(editor.read_with(cx, |editor, _| editor.selection()), 3..3, "the text is as the menu found it");
+
+        let tree = f.workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("the Project view");
+        cx.update(|window, cx| window.focus(&tree.focus_handle(cx), cx));
+        cx.run_until_parked();
+        let tree_focused =
+            |cx: &mut VisualTestContext| cx.update(|window, cx| tree.focus_handle(cx).is_focused(window));
+        assert!(tree_focused(cx));
+        for close in ["press", "escape"] {
+            click(cx, "more:project".to_owned());
+            assert!(f.workbench.read_with(cx, |w, _| w.open_menu::<ToolWindowCommand>()).is_some(), "the options open");
+            if close == "escape" {
+                cx.simulate_keystrokes("escape");
+                cx.run_until_parked();
+            } else {
+                cx.simulate_mouse_down(beside, MouseButton::Left, Modifiers::default());
+                cx.simulate_mouse_up(beside, MouseButton::Left, Modifiers::default());
+                cx.run_until_parked();
+            }
+            assert!(f.workbench.read_with(cx, |w, _| w.open_menu::<ToolWindowCommand>()).is_none(), "{close} closes");
+            assert!(tree_focused(cx), "after {close} the Project view has the keyboard again");
+        }
+    }
+
+    /// The shortcut beside an action row, and beside Hide in a tool window's Options, is the one
+    /// the active keymap gives the action; another keymap shows its own.
+    #[gpui_kit::test]
+    async fn the_menus_show_the_shortcuts_of_the_active_keymap(cx: &mut TestAppContext) {
+        let (f, cx) = open(cx, &[("a.txt", "hello\n")], Setup::default());
+        let editor = f.open_file("a.txt", cx);
+        let shortcut_of = |menu: &EditorMenu, label: &str, cx: &mut VisualTestContext| {
+            menu.read_with(cx, |menu, _| {
+                menu.rows().iter().find(|row| row.label == label).and_then(|row| row.shortcut.clone())
+            })
+        };
+        let mut seen = Vec::new();
+        for preset in ["intellij-macos", "vscode-macos"] {
+            let state = KeymapState::new(preset);
+            let mac = crate::platform::keymap::is_mac_host();
+            let (intentions, declaration, hide) = (
+                state.shortcut_label("code.showIntentions", mac),
+                state.shortcut_label("navigate.declaration", mac),
+                state.shortcut_label("toolwindow.hideActive", mac),
+            );
+            assert!(intentions.is_some() && declaration.is_some() && hide.is_some(), "{preset} binds the three");
+            cx.update(|_, cx| cx.global_mut::<Keymap>().0 = state);
+            let at = at_offset(&editor, 1, cx);
+            right_click(cx, at);
+            let menu = f.editor_menu(cx).expect("the editor's menu is open");
+            assert_eq!(shortcut_of(&menu, "Show Context Actions", cx), intentions, "{preset}");
+            choose(&menu, &["Go To"], cx);
+            assert_eq!(shortcut_of(&menu, "Declaration or Usages", cx), declaration, "{preset}");
+            cx.simulate_keystrokes("escape");
+            cx.run_until_parked();
+            click(cx, "more:project".to_owned());
+            let options =
+                f.workbench.read_with(cx, |w, _| w.open_menu::<ToolWindowCommand>()).expect("the options are open");
+            let shown_hide = options.read_with(cx, |menu, _| {
+                menu.rows().iter().find(|row| row.label == "Hide").and_then(|row| row.shortcut.clone())
+            });
+            assert_eq!(shown_hide, hide, "{preset}");
+            cx.simulate_keystrokes("escape");
+            cx.run_until_parked();
+            seen.push((intentions, declaration, hide));
+        }
+        assert_ne!(seen[0], seen[1], "the two keymaps bind the rows differently");
+    }
+
+    /// Add Bookmark in a tab's menu bookmarks the file of the tab the menu was opened on, not the
+    /// active one; the row then offers to remove it.
+    #[gpui_kit::test]
+    async fn the_tab_menus_bookmark_row_bookmarks_the_file_of_that_tab(cx: &mut TestAppContext) {
+        use crate::workbench::TabCommand;
+        let (f, cx) = open(cx, &[("a.txt", "a\n"), ("b.txt", "b\n")], Setup::default());
+        f.open_file("a.txt", cx);
+        f.open_file("b.txt", cx);
+        let first = f.workbench.read_with(cx, |w, _| {
+            let tabs = w.tabs().expect("a project is open");
+            tabs.pane(&tabs.active_pane).expect("the active pane").tabs[0].id.clone()
+        });
+        let selector: &'static str = Box::leak(format!("tab:{first}").into_boxed_str());
+        let (a, b) =
+            (f.root.join("a.txt").to_string_lossy().into_owned(), f.root.join("b.txt").to_string_lossy().into_owned());
+        let bookmarked = |path: &str, cx: &mut VisualTestContext| {
+            f.workbench.read_with(cx, |w, _| path_bookmark_at(&w.bookmarks().data().paths, path).is_some())
+        };
+        let bounds = cx.debug_bounds(selector).expect("the tab is drawn");
+        right_click(cx, bounds.center());
+        let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<TabCommand>()).expect("the tab's menu is open");
+        assert!(!disabled(&menu, "Add Bookmark", cx));
+        choose(&menu, &["Add Bookmark"], cx);
+        wait_long(cx, "the file is bookmarked", |cx| bookmarked(&a, cx));
+        assert!(!bookmarked(&b, cx), "the active tab's file is not");
+        right_click(cx, bounds.center());
+        let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<TabCommand>()).expect("the tab's menu is open");
+        assert!(root_rows(&menu, cx).contains(&"Remove Bookmark".to_owned()));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+    }
+
+    /// Git › Add in the editor's menu adds the editor's file to the index.
+    #[gpui_kit::test]
+    async fn the_editor_menus_git_add_adds_the_file_of_the_editor(cx: &mut TestAppContext) {
+        let (f, cx) = open(cx, &[("a.txt", "one\n")], Setup { git: true, ..Setup::default() });
+        std::fs::write(f.root.join("new.txt"), "fresh\n").expect("the file is written");
+        let editor = f.open_file("new.txt", cx);
+        let status = |root: &std::path::Path| super::super::tests::git_in(root, &["status", "--porcelain"]);
+        assert_eq!(status(&f.root), "?? new.txt");
+        // Add stages the files the window knows to be unversioned: once it has read the new one.
+        wait_long(cx, "the file is read", |cx| {
+            f.workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|state| !state.status.is_empty()))
+        });
+        let at = at_offset(&editor, 1, cx);
+        right_click(cx, at);
+        let menu = f.editor_menu(cx).expect("the editor's menu is open");
+        choose(&menu, &["Git", "Add"], cx);
+        wait_long(cx, "the file is added", |_| status(&f.root) == "A  new.txt");
+    }
+
+    /// A plugin's entry in the Find results' menu shows only while its `when` holds; it then runs
+    /// its command on the match the menu was opened on (path, line and column).
+    #[gpui_kit::test]
+    async fn a_plugins_find_results_entry_shows_only_while_its_when_holds(cx: &mut TestAppContext) {
+        use crate::find::session::FindStatus;
+        use crate::find::view::FindPanel;
+        use crate::platform::context::ContextValue;
+        let files = [("notes.txt", "first\nsay needle here\n")];
+        let (f, cx) = open(cx, &files, Setup { plugin: true, ..Setup::default() });
+        let editor = f.open_file("notes.txt", cx);
+        let key_is = |on: bool, cx: &mut VisualTestContext| {
+            cx.update(|window, cx| {
+                window_context(window, cx).get("workspaceContains:MODULE.bazel") == Some(&ContextValue::Bool(on))
+            })
+        };
+        wait_long(cx, "the key is answered", |cx| key_is(false, cx));
+        cx.update(|window, cx| crate::platform::actions::execute_action_or_throw("toolwindow.find", None, window, cx))
+            .expect("the Find window opens");
+        let find = f
+            .workbench
+            .read_with(cx, |w, _| w.tool_window_view(super::super::FIND_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<FindPanel>().ok())
+            .expect("the Find window holds the panel");
+        cx.simulate_input("needle");
+        cx.simulate_keystrokes("enter");
+        wait_long(cx, "the search is done", |cx| find.read_with(cx, |find, _| find.status() == FindStatus::Done));
+        assert_eq!(find.read_with(cx, |find, _| find.results()), [("notes.txt".to_owned(), vec![1])]);
+        // Row 0 is the file, row 1 its match.
+        let press_match = |cx: &mut VisualTestContext| {
+            let bounds = cx.debug_bounds("find-row-1").expect("the match row is drawn");
+            right_click(cx, bounds.center());
+        };
+        press_match(cx);
+        assert!(f.workbench.read_with(cx, |w, _| w.open_menu::<Infallible>()).is_none(), "no entry: no menu");
+
+        std::fs::write(f.root.join("MODULE.bazel"), "module(name = \"x\")\n").expect("the file is written");
+        wait_long(cx, "the key holds", |cx| key_is(true, cx));
+        press_match(cx);
+        let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<Infallible>()).expect("the match's menu is open");
+        assert_eq!(shown(&menu, cx)[0], ["Hello: Insert Date"]);
+        let id = plugin_action_id(HELLO, "insert-date");
+        let path = f.root.join("notes.txt").to_string_lossy().into_owned();
+        let choice = menu.read_with(cx, |menu, _| menu.rows()[0].choice.clone());
+        let expected = json!({ "path": path, "paths": [path], "line": 1, "column": 4 });
+        assert_eq!(choice, Some(Choice::Action { id, arg: Some(expected) }));
+        choose(&menu, &["Hello: Insert Date"], cx);
+        wait_long(cx, "the plugin inserts the date", |cx| {
+            editor.read_with(cx, |editor, _| editor.text().chars().filter(char::is_ascii_digit).count() >= 8)
+        });
+        assert!(f.workbench.read_with(cx, |w, _| w.open_menu::<Infallible>()).is_none());
+    }
+
+    /// The stripe button's menu: Hide takes the button off the stripe, and Show Tool Window Names
+    /// carries the setting's state.
+    #[gpui_kit::test]
+    async fn the_stripe_buttons_menu_hides_the_button(cx: &mut TestAppContext) {
+        let (f, cx) = open(cx, &[("a.txt", "a\n")], Setup::default());
+        let bounds = cx.debug_bounds("stripe:project").expect("the Project button is drawn");
+        right_click(cx, bounds.center());
+        let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<ToolWindowCommand>()).expect("the menu is open");
+        assert_eq!(shown(&menu, cx)[0], ["Hide", "-", "Move To", "-", "Show Tool Window Names"]);
+        choose(&menu, &["Hide"], cx);
+        let on_stripe = f
+            .workbench
+            .read_with(cx, |w, _| w.tool_windows().and_then(|layout| layout.stripe_buttons().get("project").copied()));
+        assert_eq!(on_stripe, Some(false), "the button is off the stripe");
+        assert!(cx.debug_bounds("stripe:project").is_none());
     }
 }

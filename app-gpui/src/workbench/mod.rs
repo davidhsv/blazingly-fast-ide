@@ -16,6 +16,7 @@ mod database;
 mod debug;
 use crate::database::tree_view::DATABASE_TOOL_WINDOW;
 mod conflicts;
+pub mod context_menus;
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 use crate::debugger::effects::DEBUG_TOOL_WINDOW;
 mod diff_window;
@@ -186,6 +187,7 @@ pub enum TabCommand {
     CloseAll,
     CloseUnmodified,
     CloseAllButPinned,
+    CloseReadOnly,
     TogglePin,
     Keep,
     SplitAndMoveRight,
@@ -1315,6 +1317,8 @@ impl Workbench {
         let editor_focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window))
             || view.as_ref().is_some_and(|(_, focus)| focus.contains_focused(window, cx));
         let layout_actions = host.as_ref().map(|host| host.update(cx, |host, cx| host.layout_actions(cx)));
+        // A right click in the editor opens its menu (left of the text: the gutter's).
+        let menu_editor = editor.clone();
         let body: Option<gpui_kit::AnyElement> = match (view, host, editor) {
             (Some((view, _)), _, _) => Some(view.into_any_element()),
             (None, Some(host), _) => Some(host.into_any_element()),
@@ -1398,7 +1402,7 @@ impl Workbench {
                             .on_mouse_down(
                                 gpui_kit::MouseButton::Right,
                                 cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
-                                    let items = workbench.tab_menu(&menu_pane, &menu_tab, cx);
+                                    let items = workbench.tab_menu(&menu_pane, &menu_tab, window, cx);
                                     let (pane, tab) = (menu_pane.clone(), menu_tab.clone());
                                     workbench.show_menu(
                                         &items,
@@ -1413,6 +1417,7 @@ impl Workbench {
                             )
                     }))
                     .child(div().flex_1())
+                    .children(context_menus::slot_buttons("editor.title", window, cx))
                     .children(layout_actions)
             });
         div()
@@ -1424,7 +1429,21 @@ impl Workbench {
             .children(strip)
             .children(banner.map(|banner| div().flex_none().child(banner)))
             .children(find_bar.map(|bar| div().flex_none().child(bar)))
-            .child(div().flex_1().min_h_0().children(body))
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .when_some(menu_editor, |el, editor| {
+                        el.on_mouse_down(
+                            gpui_kit::MouseButton::Right,
+                            cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
+                                workbench.open_editor_context_menu(&editor, event.position, window, cx);
+                                cx.stop_propagation();
+                            }),
+                        )
+                    })
+                    .children(body),
+            )
     }
 
     /// The editor area: the panes as the splits arrange them, side by side or stacked, sharing
@@ -2128,10 +2147,19 @@ impl Workbench {
                     use crate::find::view::{FindPanel, FindPanelEvent};
                     let label = self.label.clone();
                     let find = cx.new(|cx| FindPanel::new(&label, cx));
-                    let opens = cx.subscribe_in(&find, window, |workbench, _, event: &FindPanelEvent, window, cx| {
-                        let FindPanelEvent::Open { path, line, col } = event;
-                        workbench.open_project_file_at(path.clone(), *line, *col, window, cx);
-                    });
+                    let opens =
+                        cx.subscribe_in(
+                            &find,
+                            window,
+                            |workbench, _, event: &FindPanelEvent, window, cx| match event {
+                                FindPanelEvent::Open { path, line, col } => {
+                                    workbench.open_project_file_at(path.clone(), *line, *col, window, cx);
+                                }
+                                FindPanelEvent::ContextMenu { path, line, col, position } => {
+                                    workbench.show_search_result_menu(path.clone(), *line, *col, *position, window, cx);
+                                }
+                            },
+                        );
                     Panel::new(find, Some(opens))
                 }
                 _ => continue,
@@ -3075,6 +3103,17 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let menu = cx.new(|cx| PopupMenu::new(items, position, window, cx));
+        self.show_popup_menu(menu, on_command, window, cx);
+    }
+
+    /// Shows `menu`, built by the caller, as [`Workbench::show_menu`] shows the menu it builds.
+    pub(super) fn show_popup_menu<C: Clone + 'static>(
+        &mut self,
+        menu: Entity<PopupMenu<C>>,
+        on_command: impl Fn(&mut Self, C, &mut Window, &mut Context<Self>) + 'static,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let events = cx.subscribe_in(&menu, window, move |workbench, _, event: &PopupMenuEvent<C>, window, cx| {
             workbench.close_popup(window, cx);
             match event.clone() {
@@ -3098,7 +3137,7 @@ impl Workbench {
 
     /// The menu of the tab `tab` of `pane`: closing it and its neighbours, pinning, splitting,
     /// and what can be done with its file.
-    pub fn tab_menu(&self, pane: &str, tab: &str, cx: &App) -> Vec<MenuItem<TabCommand>> {
+    pub fn tab_menu(&self, pane: &str, tab: &str, window: &Window, cx: &App) -> Vec<MenuItem<TabCommand>> {
         let Some(tabs) = self.tabs() else { return Vec::new() };
         let Some(open) = tabs.pane(pane) else { return Vec::new() };
         let Some(index) = open.tabs.iter().position(|other| other.id == tab) else { return Vec::new() };
@@ -3125,6 +3164,10 @@ impl Workbench {
         ];
         if open.tabs.iter().any(|other| other.pinned) {
             items.push(row("Close All but Pinned", TabCommand::CloseAllButPinned, true));
+        }
+        let read_only = self.read_only_tabs(cx);
+        if open.tabs.iter().any(|other| !other.pinned && other.input.path.is_some() && read_only.contains(&other.id)) {
+            items.push(row("Close All Read-Only Tabs", TabCommand::CloseReadOnly, true));
         }
         items.push(MenuItem::Separator);
         items.push(row(if this.pinned { "Unpin Tab" } else { "Pin Tab" }, TabCommand::TogglePin, true).icon("pin"));
@@ -3160,6 +3203,11 @@ impl Workbench {
                         .labelled("Path From Content Root"),
                 );
             }
+            let text = match &self.content {
+                Content::Project { editors, .. } => editors.get(tab).map(|editor| editor.read(cx).text()),
+                _ => None,
+            };
+            items.extend(self.tab_file_rows(&path, in_project, text.as_deref(), window, cx));
             items.extend([
                 MenuItem::action_with("diff.compareWith", path.clone().into()).labelled("Compare With…"),
                 MenuItem::action_with("diff.compareWithClipboard", serde_json::json!({ "path": path }))
@@ -3175,6 +3223,16 @@ impl Workbench {
                 .labelled("Configure Editor Tabs…"),
         );
         items
+    }
+
+    /// The ids of the tabs whose editor shows a read-only document.
+    fn read_only_tabs(&self, cx: &App) -> std::collections::HashSet<String> {
+        match &self.content {
+            Content::Project { editors, .. } => {
+                editors.iter().filter(|(_, editor)| editor.read(cx).is_read_only()).map(|(id, _)| id.clone()).collect()
+            }
+            _ => Default::default(),
+        }
     }
 
     /// Carries out a row of the menu of the tab `tab` of `pane`.
@@ -3216,6 +3274,7 @@ impl Workbench {
                 .collect(),
             _ => Default::default(),
         };
+        let read_only = self.read_only_tabs(cx);
         self.with_tabs(window, cx, |tabs, _| match command {
             TabCommand::Close => tabs.close_tab(&pane, &tab),
             TabCommand::CloseOthers => tabs.close_others(&pane, &tab),
@@ -3223,6 +3282,7 @@ impl Workbench {
             TabCommand::CloseRight => tabs.close_to_right(&pane, &tab),
             TabCommand::CloseAll => tabs.close_all(&pane, false),
             TabCommand::CloseAllButPinned => tabs.close_all(&pane, true),
+            TabCommand::CloseReadOnly => tabs.close_unmodified(&pane, |tab| !read_only.contains(&tab.id)),
             TabCommand::CloseUnmodified => tabs.close_unmodified(&pane, |tab| dirty.contains(&tab.id)),
             TabCommand::TogglePin => tabs.toggle_pin(&pane, &tab),
             TabCommand::Keep => tabs.promote_tab(&pane, &tab),
@@ -3648,6 +3708,7 @@ impl Render for Workbench {
                     let shown = layout.is_visible(&declared.id);
                     let color = theme::color(cx, if shown { "fg-emphasis" } else { "fg-muted" });
                     let action = format!("toolwindow.{}", declared.id);
+                    let menu_id = declared.id.clone();
                     div()
                         .id(SharedString::from(format!("stripe:{}", declared.id)))
                         .debug_selector(|| format!("stripe:{}", declared.id))
@@ -3664,6 +3725,14 @@ impl Render for Workbench {
                         .on_click(cx.listener(move |_, _, window, cx| {
                             execute_action_from(ActionSource::Toolbar, &action, None, window, cx);
                         }))
+                        .on_mouse_down(
+                            gpui_kit::MouseButton::Right,
+                            cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
+                                window.prevent_default();
+                                cx.stop_propagation();
+                                workbench.show_stripe_button_menu(&menu_id, event.position, window, cx);
+                            }),
+                        )
                 };
                 // A stripe lists the windows docked on its side, then the split area's, and at
                 // its foot those of the bottom: Bottom Left on the left stripe, Bottom Right on
@@ -3708,7 +3777,7 @@ impl Render for Workbench {
                 // A tool window: its title, a button to hide it, and its view.
                 let tool_window = |id: &str| {
                     let (declared, panel) = (layout.window(id)?, panels.get(id)?);
-                    let hidden = id.to_owned();
+                    let (hidden, options) = (id.to_owned(), id.to_owned());
                     Some(
                         island()
                             .min_w_0()
@@ -3726,6 +3795,33 @@ impl Render for Workbench {
                                     .text_color(theme::color(cx, "fg-strong"))
                                     .child(SharedString::from(declared.title.clone()))
                                     .child(div().flex_1())
+                                    .child(
+                                        div()
+                                            .id(SharedString::from(format!("more:{id}")))
+                                            .debug_selector(|| format!("more:{id}"))
+                                            .with_tooltip("Options")
+                                            .size(gpui_kit::px(22.0))
+                                            .flex_none()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .rounded(gpui_kit::px(4.0))
+                                            .hover(|el| el.bg(theme::color(cx, "bg-hover")))
+                                            .child(theme::icon(cx, "more", 16.0, theme::color(cx, "fg-muted")))
+                                            .on_mouse_down(
+                                                gpui_kit::MouseButton::Left,
+                                                cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
+                                                    window.prevent_default();
+                                                    cx.stop_propagation();
+                                                    workbench.show_tool_window_options(
+                                                        &options,
+                                                        event.position,
+                                                        window,
+                                                        cx,
+                                                    );
+                                                }),
+                                            ),
+                                    )
                                     .child(
                                         div()
                                             .id(SharedString::from(format!("hide:{id}")))
@@ -6353,7 +6449,10 @@ mod tests {
                 "Split and Move Down",
                 "Split Right",
                 "Split Down",
-                // The rows of the file actions that are registered: Copy Absolute Path, Rename File…
+                // The file's rows whose actions are registered: the bookmark group, Git, Copy Path/Reference…
+                // (Copy Absolute Path) and Rename File…
+                "Add Bookmark",
+                "Git",
                 "Copy Path/Reference…",
                 "Rename File…",
                 // File › Settings… on the Editor Tabs page.

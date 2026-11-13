@@ -32,7 +32,7 @@ use crate::backend::Backend;
 use crate::debugger::actions::PluginEvent as DebugPluginEvent;
 use crate::editor::view::{Editor, EditorEvent};
 use crate::platform::actions::{ActionError, ActionRegistry, execute_action_or_throw};
-use crate::platform::context::{ContextKeys, evaluate_when, window_context};
+use crate::platform::context::{ContextKeys, evaluate_when};
 use crate::plugin_models::contribution::Contribution;
 use crate::plugin_models::language_visuals::{
     ActionClick, ActionMarker, LanguageVisuals, LineAction, VisualsEffect, VisualsTicket,
@@ -727,19 +727,6 @@ impl Workbench {
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Menus
-
-    /// The plugin group of the Project view's context menu for the selected `paths`.
-    pub(super) fn plugin_project_view_items<C: Clone>(
-        &self,
-        paths: &[String],
-        window: &Window,
-        cx: &App,
-    ) -> Vec<MenuItem<C>> {
-        plugin_menu_items(PluginMenu::ProjectView, paths, None, &window_context(window, cx), cx)
-    }
-
-    // ---------------------------------------------------------------------------------------------
     // Settings pages
 
     /// Gives the Settings dialog a view for each plugin settings page it lists; what their actions
@@ -994,7 +981,7 @@ mod tests {
     use super::*;
     use crate::editor::marks::{Mark, MarkLayer};
     use crate::platform::actions::{ActionSource, execute_action_from};
-    use crate::platform::context::ContextValue;
+    use crate::platform::context::{ContextValue, window_context};
     use crate::run::view::RunView;
     use crate::ui::popup_menu::PopupMenu;
     use gpui_kit::{Focusable as _, Modifiers, TestAppContext, VisualTestContext};

@@ -2462,14 +2462,12 @@
    "source": "src/features/run/types.ts:456"
   },
   {
-   "$id": "computed",
-   "$label": "computed",
-   "$icon": "computed",
-   "$description": "computed",
+   "id": "application",
+   "label": "Application",
+   "icon": "class",
+   "description": "Run a Java main class",
    "defaults": {
-    "classpath": "${classpath}",
-    "onUpdate": "ask",
-    "onDeactivation": "none"
+    "classpath": "${classpath}"
    },
    "debugAdapter": "java-debug",
    "$fields": "computed",
@@ -2478,10 +2476,10 @@
    "source": "src/features/run/types.ts:456"
   },
   {
-   "$id": "computed",
-   "$label": "computed",
-   "$icon": "computed",
-   "$description": "computed",
+   "id": "spring-boot",
+   "label": "Spring Boot",
+   "icon": "spring-boot",
+   "description": "Run a Spring Boot application",
    "defaults": {
     "classpath": "${classpath}",
     "onUpdate": "ask",

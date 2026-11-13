@@ -12,8 +12,9 @@ use crate::ui::text_field::{TextField, TextFieldEvent};
 use futures::StreamExt as _;
 use futures::channel::mpsc::unbounded;
 use gpui_kit::{
-    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, Render, ScrollStrategy,
-    SharedString, Subscription, Task, UniformListScrollHandle, Window, div, prelude::*, px, uniform_list,
+    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent,
+    Pixels, Point, Render, ScrollStrategy, SharedString, Subscription, Task, UniformListScrollHandle, Window, div,
+    prelude::*, px, uniform_list,
 };
 use ide_core::IdeError;
 use ide_host::ops::search::SearchEvent;
@@ -22,10 +23,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 /// What the Find panel asks of its window.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FindPanelEvent {
     /// Open `path` with the caret at the 0-based `line` and UTF-16 column `col`.
     Open { path: PathBuf, line: u32, col: u32 },
+    /// Show the context menu of the match at `path`, 0-based `line`, UTF-16 column `col`, at
+    /// `position` of the window.
+    ContextMenu { path: String, line: u32, col: u32, position: Point<Pixels> },
 }
 
 /// A line of the results: a file with its number of matches, or a matching line of it.
@@ -345,6 +349,15 @@ impl FindPanel {
         }
     }
 
+    /// The right button was pressed on row `index`: a match is selected and its menu asked for.
+    fn menu_requested(&mut self, index: usize, position: Point<Pixels>, cx: &mut Context<Self>) {
+        let Some(Row::Match(row)) = self.rows.get(index) else { return };
+        let (path, line, col) = (row.path.clone(), row.line, row.col);
+        self.selected = Some(index);
+        cx.emit(FindPanelEvent::ContextMenu { path, line, col, position });
+        cx.notify();
+    }
+
     fn key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
         if event.keystroke.modifiers.modified() {
             return;
@@ -406,6 +419,7 @@ impl Render for FindPanel {
                     .map(|index| {
                         let line = div()
                             .id(index)
+                            .debug_selector(move || format!("find-row-{index}"))
                             .h(theme::length(cx, "h-row"))
                             .w_full()
                             .flex()
@@ -459,6 +473,13 @@ impl Render for FindPanel {
                                         }
                                         cx.notify();
                                     }))
+                                    .on_mouse_down(
+                                        MouseButton::Right,
+                                        cx.listener(move |panel, event: &MouseDownEvent, _, cx| {
+                                            panel.menu_requested(index, event.position, cx);
+                                            cx.stop_propagation();
+                                        }),
+                                    )
                             }
                         }
                     })

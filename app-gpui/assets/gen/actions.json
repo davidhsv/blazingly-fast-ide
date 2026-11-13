@@ -2168,10 +2168,24 @@
    "source": "src/features/services/index.ts:220"
   },
   {
+   "id": "dotnet.build",
+   "title": "Build .NET Project",
+   "category": "Build",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:58"
+  },
+  {
    "id": "dotnet.cancel",
    "title": "Cancel .NET Operation",
    "category": "Build",
    "source": "src/features/dotnet/index.ts:47"
+  },
+  {
+   "id": "dotnet.clean",
+   "title": "Clean .NET Project",
+   "category": "Build",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:58"
   },
   {
    "id": "dotnet.discover",
@@ -2207,6 +2221,13 @@
    "category": "Build",
    "when": "projectOpen",
    "source": "src/features/dotnet/index.ts:40"
+  },
+  {
+   "id": "dotnet.restore",
+   "title": "Restore .NET Project",
+   "category": "Build",
+   "when": "projectOpen",
+   "source": "src/features/dotnet/index.ts:58"
   },
   {
    "id": "dotnet.search",
@@ -2356,6 +2377,24 @@
    "category": "Editor Actions",
    "when": "editorTextFocus || textEditorActive && popupOpen",
    "source": "src/editor/core/actions.ts:773"
+  },
+  {
+   "id": "editor.colorScheme.delete",
+   "title": "Delete Scheme",
+   "category": "Editor",
+   "source": "src/features/settings/pages/editor/colorScheme.tsx:1217"
+  },
+  {
+   "id": "editor.colorScheme.export",
+   "title": "Export Scheme",
+   "category": "Editor",
+   "source": "src/features/settings/pages/editor/colorScheme.tsx:1217"
+  },
+  {
+   "id": "editor.colorScheme.import",
+   "title": "Import Scheme",
+   "category": "Editor",
+   "source": "src/features/settings/pages/editor/colorScheme.tsx:1217"
   },
   {
    "id": "editor.contextInfo",
@@ -3046,13 +3085,7 @@
   },
   {
    "id": "find.popup.nextResult",
-   "title": "Recent Searches",
-   "titleVariants": [
-    "Recent Searches",
-    "Next Result",
-    "Previous Result",
-    "Open Result"
-   ],
+   "title": "Next Result",
    "category": "Find",
    "when": "findPopupOpen",
    "hidden": true,
@@ -3060,13 +3093,7 @@
   },
   {
    "id": "find.popup.openResult",
-   "title": "Recent Searches",
-   "titleVariants": [
-    "Recent Searches",
-    "Next Result",
-    "Previous Result",
-    "Open Result"
-   ],
+   "title": "Open Result",
    "category": "Find",
    "when": "findPopupOpen",
    "hidden": true,
@@ -3074,13 +3101,7 @@
   },
   {
    "id": "find.popup.previousResult",
-   "title": "Recent Searches",
-   "titleVariants": [
-    "Recent Searches",
-    "Next Result",
-    "Previous Result",
-    "Open Result"
-   ],
+   "title": "Previous Result",
    "category": "Find",
    "when": "findPopupOpen",
    "hidden": true,
@@ -3089,12 +3110,6 @@
   {
    "id": "find.popup.recentSearches",
    "title": "Recent Searches",
-   "titleVariants": [
-    "Recent Searches",
-    "Next Result",
-    "Previous Result",
-    "Open Result"
-   ],
    "category": "Find",
    "when": "findPopupOpen",
    "hidden": true,
@@ -3441,6 +3456,20 @@
    "icon": "locate",
    "when": "projectOpen && githubConnected && githubTimelineActive",
    "source": "src/features/github/index.ts:115"
+  },
+  {
+   "id": "go.generate.file",
+   "title": "Go Generate File",
+   "category": "Go",
+   "when": "projectOpen",
+   "source": "src/features/run/goActions.ts:86"
+  },
+  {
+   "id": "go.generate.package",
+   "title": "Go Generate Package",
+   "category": "Go",
+   "when": "projectOpen",
+   "source": "src/features/run/goActions.ts:86"
   },
   {
    "id": "gradle.analyzeDependencies",
@@ -4133,31 +4162,388 @@
    "source": "src/features/build-tools/index.ts:300"
   },
   {
+   "id": "merge.accept",
+   "title": "Accept",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.accept",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.acceptTheirs",
+   "title": "Accept Theirs",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.acceptTheirs",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.acceptYours",
+   "title": "Accept Yours",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.acceptYours",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.annotate",
+   "title": "Annotate with Git Blame",
+   "category": "Merge",
+   "icon": "changelist",
+   "when": "mergeEditorFocus && merge.annotate",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.apply",
+   "title": "Apply Merge Result",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.apply",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.applyAll",
+   "title": "Apply All Non-Conflicting Changes",
+   "category": "Merge",
+   "icon": "diff-apply-all",
+   "when": "mergeEditorFocus && merge.applyAll",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.applyLeft",
+   "title": "Apply Non-Conflicting Changes from the Left Side",
+   "category": "Merge",
+   "icon": "diff-apply-left",
+   "when": "mergeEditorFocus && merge.applyLeft",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.applyRight",
+   "title": "Apply Non-Conflicting Changes from the Right Side",
+   "category": "Merge",
+   "icon": "diff-apply-right",
+   "when": "mergeEditorFocus && merge.applyRight",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.autoApply",
+   "title": "Automatically Apply Non-Conflicting Changes",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.autoApply",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "toggle": true,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.cancel",
+   "title": "Cancel Merge",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.cancel",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.change",
+   "title": "Resolve Merge Change",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.change",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": true,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.compare",
+   "title": "Compare Contents",
+   "category": "Merge",
+   "icon": "diff",
+   "when": "mergeEditorFocus && merge.compare",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.compareBaseResult",
+   "title": "Base and Result",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.compareBaseResult",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.compareBaseTheirs",
+   "title": "Base and Theirs",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.compareBaseTheirs",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.compareBaseYours",
+   "title": "Base and Yours",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.compareBaseYours",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.compareResultTheirs",
+   "title": "Result and Theirs",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.compareResultTheirs",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.compareYoursResult",
+   "title": "Yours and Result",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.compareYoursResult",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.compareYoursTheirs",
+   "title": "Yours and Theirs",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.compareYoursTheirs",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.copy",
+   "title": "Copy",
+   "category": "Merge",
+   "icon": "copy",
+   "when": "mergeEditorFocus && merge.copy",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.cut",
+   "title": "Cut",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.cut",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.ignore",
+   "title": "Ignore",
+   "category": "Merge",
+   "icon": "diff-remove",
+   "when": "mergeEditorFocus && merge.ignore",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.paste",
+   "title": "Paste",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.paste",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.reload",
+   "title": "Reload from Disk",
+   "category": "Merge",
+   "icon": "refresh",
+   "when": "mergeEditorFocus && merge.reload",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.resolveAutomatically",
+   "title": "Resolve Automatically",
+   "category": "Merge",
+   "icon": "diff-magic",
+   "when": "mergeEditorFocus && merge.resolveAutomatically",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.resolveSimple",
+   "title": "Resolve Simple Conflicts",
+   "category": "Merge",
+   "icon": "diff-magic-toolbar",
+   "when": "mergeEditorFocus && merge.resolveSimple",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.resolveUsingTheirs",
+   "title": "Resolve Using Theirs",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.resolveUsingTheirs",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.resolveUsingYours",
+   "title": "Resolve Using Yours",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.resolveUsingYours",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.revert",
+   "title": "Revert Conflict Resolution",
+   "category": "Merge",
+   "icon": "diff-revert",
+   "when": "mergeEditorFocus && merge.revert",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.selectAll",
+   "title": "Select All",
+   "category": "Merge",
+   "when": "mergeEditorFocus && merge.selectAll",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
+   "id": "merge.settings",
+   "title": "Merge Settings",
+   "category": "Merge",
+   "icon": "settings",
+   "when": "mergeEditorFocus && merge.settings",
+   "keywords": [
+    "merge",
+    "conflict"
+   ],
+   "hidden": false,
+   "source": "src/features/vcs/mergeActions.ts:64"
+  },
+  {
    "id": "moveDown",
-   "title": "Move Up",
-   "titleVariants": [
-    "Move Up",
-    "Move Down"
-   ],
-   "icon": "arrow-up",
-   "iconVariants": [
-    "arrow-up",
-    "arrow-down"
-   ],
+   "title": "Move Down",
+   "icon": "arrow-down",
    "source": "src/features/services/ServicesTree.tsx:123"
   },
   {
    "id": "moveUp",
    "title": "Move Up",
-   "titleVariants": [
-    "Move Up",
-    "Move Down"
-   ],
    "icon": "arrow-up",
-   "iconVariants": [
-    "arrow-up",
-    "arrow-down"
-   ],
    "source": "src/features/services/ServicesTree.tsx:123"
   },
   {
@@ -4685,11 +5071,32 @@
    "source": "src/features/plugins/index.ts:93"
   },
   {
+   "id": "plugins.log.clear",
+   "title": "Clear",
+   "category": "Plugins",
+   "hidden": true,
+   "source": "src/features/plugins/views/logActions.ts:35"
+  },
+  {
+   "id": "plugins.log.find",
+   "title": "Find in Logs",
+   "category": "Plugins",
+   "hidden": true,
+   "source": "src/features/plugins/views/logActions.ts:35"
+  },
+  {
    "id": "plugins.log.toggleArgument",
    "title": "Toggle Log Option",
    "category": "Plugins",
    "hidden": true,
    "source": "src/features/plugins/views/logActions.ts:42"
+  },
+  {
+   "id": "plugins.log.wrap",
+   "title": "Soft-wrap",
+   "category": "Plugins",
+   "hidden": true,
+   "source": "src/features/plugins/views/logActions.ts:35"
   },
   {
    "id": "plugins.reloadAll",
@@ -4962,6 +5369,137 @@
    "source": "src/features/project-tree/actions.ts:454"
   },
   {
+   "id": "project.option.autoscrollFromSource",
+   "title": "Project View: Always Select Opened File",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle",
+    "autoscroll from source"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "id": "project.option.autoscrollToSource",
+   "title": "Project View: Autoscroll to Source",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "id": "project.option.compact",
+   "title": "Project View: Compact Middle Packages",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "id": "project.option.foldersFirst",
+   "title": "Project View: Sort Folders First",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "id": "project.option.previewTab",
+   "title": "Project View: Enable Preview Tab",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "id": "project.option.showExcluded",
+   "title": "Project View: Show Excluded Files",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "id": "project.option.showHidden",
+   "title": "Project View: Show Hidden Files",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "id": "project.option.showMembers",
+   "title": "Project View: Show Members",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "id": "project.option.singleClickExpand",
+   "title": "Project View: Expand Directories with Single Click",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
+   "id": "project.option.singleClickOpen",
+   "title": "Project View: Open Files with Single Click",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "toggle"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:167"
+  },
+  {
    "id": "project.paste",
    "title": "Paste",
    "category": "Project View",
@@ -5069,6 +5607,48 @@
    "source": "src/features/project-tree/actions.ts:421"
   },
   {
+   "id": "project.sortBy.modified",
+   "title": "Project View: Sort by Modification Time",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "sort",
+    "order"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:189"
+  },
+  {
+   "id": "project.sortBy.name",
+   "title": "Project View: Sort by Name",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "sort",
+    "order"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:189"
+  },
+  {
+   "id": "project.sortBy.type",
+   "title": "Project View: Sort by Type",
+   "titleTemplate": "Project View: {label}",
+   "category": "View",
+   "keywords": [
+    "project",
+    "tree",
+    "sort",
+    "order"
+   ],
+   "toggle": true,
+   "source": "src/features/project-tree/actions.ts:189"
+  },
+  {
    "id": "project.trust",
    "title": "Trust Project",
    "category": "Project",
@@ -5085,6 +5665,90 @@
     "undo"
    ],
    "source": "src/features/project-tree/actions.ts:323"
+  },
+  {
+   "id": "project.viewMode.changedFiles",
+   "title": "Project View: Show All Changed Files",
+   "titleTemplate": "Project View: Show {label}",
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "project",
+    "pane",
+    "scope",
+    "view as"
+   ],
+   "source": "src/features/project-tree/actions.ts:177"
+  },
+  {
+   "id": "project.viewMode.openFiles",
+   "title": "Project View: Show Open Files",
+   "titleTemplate": "Project View: Show {label}",
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "project",
+    "pane",
+    "scope",
+    "view as"
+   ],
+   "source": "src/features/project-tree/actions.ts:177"
+  },
+  {
+   "id": "project.viewMode.project",
+   "title": "Project View: Show Project",
+   "titleTemplate": "Project View: Show {label}",
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "project",
+    "pane",
+    "scope",
+    "view as"
+   ],
+   "source": "src/features/project-tree/actions.ts:177"
+  },
+  {
+   "id": "project.viewMode.projectFiles",
+   "title": "Project View: Show Project Files",
+   "titleTemplate": "Project View: Show {label}",
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "project",
+    "pane",
+    "scope",
+    "view as"
+   ],
+   "source": "src/features/project-tree/actions.ts:177"
+  },
+  {
+   "id": "project.viewMode.scratches",
+   "title": "Project View: Show Scratches and Consoles",
+   "titleTemplate": "Project View: Show {label}",
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "project",
+    "pane",
+    "scope",
+    "view as"
+   ],
+   "source": "src/features/project-tree/actions.ts:177"
+  },
+  {
+   "id": "project.viewMode.unity",
+   "title": "Project View: Show Unity",
+   "titleTemplate": "Project View: Show {label}",
+   "category": "View",
+   "when": "projectOpen",
+   "keywords": [
+    "project",
+    "pane",
+    "scope",
+    "view as"
+   ],
+   "source": "src/features/project-tree/actions.ts:177"
   },
   {
    "id": "pull",
@@ -5551,6 +6215,38 @@
    "icon": "close",
    "hidden": true,
    "source": "src/features/run/services.tsx:642"
+  },
+  {
+   "id": "run.services.openBrowser",
+   "title": "Open in Browser",
+   "category": "Run",
+   "icon": "web",
+   "hidden": true,
+   "source": "src/features/run/services.tsx:620"
+  },
+  {
+   "id": "run.services.restartAll",
+   "title": "Restart All",
+   "category": "Run",
+   "icon": "rerun",
+   "hidden": true,
+   "source": "src/features/run/services.tsx:620"
+  },
+  {
+   "id": "run.services.runAll",
+   "title": "Run All",
+   "category": "Run",
+   "icon": "run",
+   "hidden": true,
+   "source": "src/features/run/services.tsx:620"
+  },
+  {
+   "id": "run.services.stopAll",
+   "title": "Stop All",
+   "category": "Run",
+   "icon": "stop",
+   "hidden": true,
+   "source": "src/features/run/services.tsx:620"
   },
   {
    "id": "run.stop",
@@ -6151,11 +6847,7 @@
   },
   {
    "id": "vcs.ignoreLocal",
-   "title": "Add to .gitignore",
-   "titleVariants": [
-    "Add to .gitignore",
-    "Add to .git/info/exclude"
-   ],
+   "title": "Add to .git/info/exclude",
    "category": "Git",
    "when": "vcsAvailable",
    "keywords": [
@@ -6168,10 +6860,6 @@
   {
    "id": "vcs.ignoreShared",
    "title": "Add to .gitignore",
-   "titleVariants": [
-    "Add to .gitignore",
-    "Add to .git/info/exclude"
-   ],
    "category": "Git",
    "when": "vcsAvailable",
    "keywords": [
@@ -7302,18 +7990,6 @@
    "definedAt": "src/editor/core/actions.ts:650"
   },
   {
-   "title": "Build .NET Project",
-   "titleVariants": [
-    "Build .NET Project",
-    "Restore .NET Project",
-    "Clean .NET Project"
-   ],
-   "category": "Build",
-   "when": "projectOpen",
-   "source": "src/features/dotnet/index.ts:58",
-   "definedAt": "src/features/dotnet/index.ts:58"
-  },
-  {
    "category": "Macros",
    "when": "!macroRecording",
    "keywords": [
@@ -7330,73 +8006,14 @@
    "definedAt": "src/features/plugins/points.tsx:199"
   },
   {
-   "title": "Find in Logs",
-   "titleVariants": [
-    "Find in Logs",
-    "Clear",
-    "Soft-wrap"
-   ],
-   "category": "Plugins",
-   "hidden": true,
-   "source": "src/features/plugins/views/logActions.ts:35",
-   "definedAt": "src/features/plugins/views/logActions.ts:35"
-  },
-  {
    "source": "src/features/plugins/views/serviceProvider.tsx:88",
    "definedAt": "src/features/plugins/views/serviceProvider.tsx:88"
-  },
-  {
-   "category": "View",
-   "toggle": true,
-   "source": "src/features/project-tree/actions.ts:167",
-   "definedAt": "src/features/project-tree/actions.ts:167"
-  },
-  {
-   "category": "View",
-   "when": "projectOpen",
-   "keywords": [
-    "project",
-    "pane",
-    "scope",
-    "view as"
-   ],
-   "source": "src/features/project-tree/actions.ts:177",
-   "definedAt": "src/features/project-tree/actions.ts:177"
-  },
-  {
-   "category": "View",
-   "keywords": [
-    "project",
-    "tree",
-    "sort",
-    "order"
-   ],
-   "toggle": true,
-   "source": "src/features/project-tree/actions.ts:189",
-   "definedAt": "src/features/project-tree/actions.ts:189"
   },
   {
    "icon": "run",
    "when": "projectOpen",
    "source": "src/features/run/externalTools.ts:164",
    "definedAt": "src/features/run/externalTools.ts:164"
-  },
-  {
-   "title": "Go Generate File",
-   "titleVariants": [
-    "Go Generate File",
-    "Go Generate Package"
-   ],
-   "category": "Go",
-   "when": "projectOpen",
-   "source": "src/features/run/goActions.ts:86",
-   "definedAt": "src/features/run/goActions.ts:86"
-  },
-  {
-   "category": "Run",
-   "hidden": true,
-   "source": "src/features/run/services.tsx:620",
-   "definedAt": "src/features/run/services.tsx:620"
   },
   {
    "category": "Bookmarks",
@@ -7411,79 +8028,10 @@
    "definedAt": "src/features/search/index.ts:486"
   },
   {
-   "title": "Import Scheme",
-   "titleVariants": [
-    "Import Scheme",
-    "Export Scheme",
-    "Delete Scheme"
-   ],
-   "category": "Editor",
-   "source": "src/features/settings/pages/editor/colorScheme.tsx:1217",
-   "definedAt": "src/features/settings/pages/editor/colorScheme.tsx:1217"
-  },
-  {
    "category": "File",
    "when": "projectOpen",
    "source": "src/features/templates/index.ts:130",
    "definedAt": "src/features/templates/index.ts:79"
-  },
-  {
-   "title": "Copy",
-   "titleVariants": [
-    "Copy",
-    "Cut",
-    "Paste",
-    "Select All",
-    "Annotate with Git Blame",
-    "Reload from Disk",
-    "Accept Yours",
-    "Accept Theirs",
-    "Apply Non-Conflicting Changes from the Left Side",
-    "Apply All Non-Conflicting Changes",
-    "Apply Non-Conflicting Changes from the Right Side",
-    "Resolve Simple Conflicts",
-    "Revert Conflict Resolution",
-    "Apply Merge Result",
-    "Cancel Merge",
-    "Compare Contents",
-    "Merge Settings",
-    "Automatically Apply Non-Conflicting Changes",
-    "Yours and Result",
-    "Result and Theirs",
-    "Yours and Theirs",
-    "Base and Yours",
-    "Base and Result",
-    "Base and Theirs",
-    "Accept",
-    "Resolve Using Yours",
-    "Resolve Using Theirs",
-    "Ignore",
-    "Resolve Automatically",
-    "Resolve Merge Change"
-   ],
-   "category": "Merge",
-   "icon": "refresh",
-   "iconVariants": [
-    "refresh",
-    "settings",
-    "copy",
-    "diff",
-    "diff-apply-left",
-    "diff-apply-all",
-    "diff-apply-right",
-    "diff-magic",
-    "diff-magic-toolbar",
-    "diff-remove",
-    "diff-revert",
-    "changelist"
-   ],
-   "keywords": [
-    "merge",
-    "conflict"
-   ],
-   "toggle": true,
-   "source": "src/features/vcs/mergeActions.ts:64",
-   "definedAt": "src/features/vcs/mergeActions.ts:64"
   },
   {
    "category": "Tool Windows",

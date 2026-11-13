@@ -974,7 +974,10 @@ impl Workbench {
         let Some(tree) = self.project_tree().cloned() else { return false };
         tree.read(cx).mirror_into(&mut self.files.state);
         let Some(folder) = folder.or_else(|| selection_target_folder(&self.files.state)) else { return false };
-        let items = self.with_menu_context(cx, |ctx, _| new_menu_items(ctx, Some(&folder), outside_tree));
+        let selected = crate::project_view::context_menu::MenuGroupContext::default();
+        let contributed = self.project_view_contributed(&selected, Some(&folder), window, cx);
+        let items = self
+            .with_contributed_menu_context(contributed, cx, |ctx, _| new_menu_items(ctx, Some(&folder), outside_tree));
         let request = NewPopupRequest { at: (0.0, 0.0), items, seq: 0 };
         let actions = self.popup_actions(window, cx);
         let popup = cx.new(|cx| NewPopupView::new(&request, actions, cx));
@@ -1095,11 +1098,6 @@ impl Workbench {
         labels.collect()
     }
 
-    /// Runs `build` with what the Project view's menus know of the window.
-    fn with_menu_context<R>(&self, cx: &App, build: impl FnOnce(&MenuContext<'_>, &App) -> R) -> R {
-        self.with_contributed_menu_context(Contributed::default(), cx, build)
-    }
-
     /// [`Self::with_menu_context`], with the groups other features contribute to the menus.
     fn with_contributed_menu_context<R>(
         &self,
@@ -1145,8 +1143,10 @@ impl Workbench {
         let nodes = selected_nodes(&self.files.state);
         cx.default_global::<Localization>();
         let selected = crate::project_view::context_menu::menu_group_context(&node_refs(&nodes));
-        let project_view = self.plugin_project_view_items(&selected.paths, window, cx);
-        let contributed = Contributed { project_view, ..Contributed::default() };
+        // The New submenu creates in the folder the menu's own rows target.
+        let lead = nodes.first().map(|node| &**node);
+        let new_in = crate::project_view::operations::target_folder(&self.files.state, lead);
+        let contributed = self.project_view_contributed(&selected, new_in.as_deref(), window, cx);
         let items = cx.update_global::<Localization, _>(|localization, cx| {
             self.with_contributed_menu_context(contributed, cx, |ctx, _| {
                 shown_items(&context_menu_items(ctx, &mut localization.0, &node_refs(&nodes)), ctx.actions)
