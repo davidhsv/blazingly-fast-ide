@@ -1,0 +1,56 @@
+- `ipc:fs_entry_kind`: called for a link in run output; no test follows one
+- `ipc:history_content`: called for a Local History side of a diff, which no test opens
+- `ipc:history_list_dir`: called by the Project view's local-history flow, which no test runs
+- `ipc:history_restore`: called by the Project view's local-history flow, which no test runs
+- `ipc:java_resolve_launch`: called while a Java launch is prepared, with a request Stop cancels; needs the language server, no test
+- `ipc:menu_refresh`: the menu module reads the recent projects for Open Recent at start; no test opens a project and reads the list again, and its items have no handler yet (file.openRecentProject)
+- `ipc:run_apply_settings`: called when configurations load; no test changes settings
+- `ipc:run_close_stdin`: the driver calls it for the end-of-input key; no test
+- `ipc:run_gradle_init_script`: called for Gradle launches; no test
+- `ipc:run_gradle_jvm_args_script`: called for Gradle VM options; no test
+- `ipc:run_resize`: the driver calls it; no test
+- `ipc:run_stdin`: the view asks for the line to be sent and the driver sends it; no test reads it back from a process
+- `ipc:run_without_derived`: called when a temporary configuration is kept; the store test proves the model, no test goes through the backend
+- `ipc:set_recent_project_groups`: the view asks for the groups to be stored and the workbench stores them, but no test goes through the workbench to the stored file
+- `ipc:term_kill`: the shell is killed when its view is dropped, but no test asserts it
+- `ipc:vcs_diff_revisions`: Update Project counts the files that came in and Compare Versions opens the files between two commits; no test selects a merge commit, whose changes against a parent also read it
+- `ipc:vcs_log`: the pages in the chosen order with the text, branch and user filters, the @{u}..HEAD range and a commit read by id; no test reads it with a date range or a path filter
+- `module:src/editor/core/copyReference.ts`: in a window the Java and Rust references and the path:line fallback are copied and announced; the other languages' conventions are tested on the model only
+- `module:src/editor/lsp/workspaceEdit.ts`: an edit of two files is previewed with Also changes 1 other file and applied to the open file and to the unopened one; the edit summary used by the rename preview is tested on the model only (editor_lsp::workspace_edit)
+- `module:src/platform/navigationModifier.ts`: the plain hover yields while the modifier is held, and pressing it closes an open hover; the reset on window blur is not tested and there is no Cmd-hover link
+- `module:src/workbench/projectColor.ts`: the model only: no window uses it yet
+- `module:src/workbench/quickSwitch.ts`: the model only: no window uses it yet
+- `module:src/workbench/toolwindows/ToolWindows.tsx`: both stripes, islands on three sides with split areas, a title and a hide button per window, the header's Options menu (Move To with the window's own area greyed out, Maximize, Hide) and the stripe button's menu (Hide takes the button off the stripe, Move To, Show Tool Window Names). Not yet: the header's own actions and title menus, the Options menu anchored below its button, drag and drop on the stripes, resize handles, tool window names on the stripe (the menu row's setting write is untested), the widescreen layout, maximize (the row exists, untested)
+- `module:src/workbench/toolwindows/content.ts`: the model only: no window uses it yet
+- `module:src/workbench/toolwindows/layouts.ts`: the model only: no window uses it yet
+- `point.registerStatusItem:code-insight.servers`: drawn in the bar with its popup, which lists a running server and restarts it; the popup's other commands are not exercised
+- `point.registerTitleItem:vcs.mergeRebase`: Abort, Continue and Skip of a stopped operation; no test clicks Resolve on the widget
+- `unit:src/editor/core/cm/structural.test.ts`: 23 of 27 cases: whether a document has a syntax tree and the cache of structure queries (4 cases) belong to the editor that will call these commands
+- `unit:src/editor/lsp/Popups.test.tsx`: 2 of 13 cases (the row's → menu and its items, the lazily fetched preview); numbered rows, pinning, the selection report, the imports-on-paste dialog (2), the documentation history and tool window (4), the quick definition popup and the reformat dialog are not proven
+- `unit:src/features/agents/AgentReply.test.tsx`: 2 of 4 cases on the conversation view, the others only on the model
+- `unit:src/features/agents/AgentsView.test.tsx`: 9 of 19 cases on the view shown in the Agents window, the others only on the models
+- `unit:src/features/agents/Markdown.test.tsx`: 3 of 18 cases on the view, the others only on the model
+- `unit:src/features/agents/messageEditing.test.tsx`: 7 of 18 cases on the views, the others only on the models
+- `unit:src/features/agents/sessionState.test.tsx`: 13 of 30 cases on the conversation view, the others only on the models
+- `unit:src/features/app/__tests__/lightEditClose.test.ts`: the decision on the model; nothing closes a single-file window on it yet
+- `unit:src/features/app/__tests__/windows.test.ts`: every case on the model; the workbench still opens projects and files with its older, simpler code, which differs (no Attach, no leave guard, one file per empty window)
+- `unit:src/features/database/Grid.test.tsx`: 11 of 12 cases on the views shown in the Database window; "preserves short values and truncates only beyond the preview" only on the model
+- `unit:src/features/database/results-view.test.tsx`: 6 of 14 cases on the views and the store, the other 8 only on the model
+- `unit:src/features/project-tree/fs.test.ts`: the import and its task are checked on the model, not against the backend calls the spec mocks, and a disconnected upload is checked only to finish its task
+- `unit:src/features/project-tree/unityRefresh.test.ts`: the refresh is checked on the model, not through backend events
+- `unit:src/features/run/runConfigTypes.test.tsx`: 11 of 39 cases by name: update policies of Tomcat and Spring, delegated Gradle builds and the rest of the type forms are open
+- `unit:src/features/run/session.test.tsx`: 6 of 17 cases (console input, the Tomcat session cases, Stop in the focused window). Open: the rerun questions and parallel instances at this level, the port from a started line, the configuration numbers of the chooser, tree test runs, plugin test filters, Go settings
+- `unit:src/features/settings/__tests__/behavior.test.ts`: nine of eleven cases here, theme resolution and date formats in their own modules; the settings are the backend's typed ones here, so a value of the wrong type is refused where the spec expects it replaced by a default, and text and numbers are not trimmed or clamped
+- `unit:src/features/settings/__tests__/dialog.test.tsx`: 13 of 41 cases: the others exercise pages that are views of their own (CMake, Gradle, Maven, fonts, proxy, Project Structure) or the native window's root
+- `unit:src/features/settings/__tests__/keymap.test.ts`: fifteen of twenty-one cases here. Of the six left to the platform's own keymap tests, two are there by name (canonical strokes, validated bindings); a user keymap on its parent preset, the VS Code preset covering every IntelliJ action id, and the dispatcher suspended while a shortcut is recorded were not found and are not verified
+- `unit:src/features/settings/__tests__/mouseShortcut.test.tsx`: 2 of 3 cases: page-swipe recording (SwipeLeft/SwipeRight from the focused recorder) has no test
+- `unit:src/features/settings/__tests__/pages.test.ts`: three of five cases: the two about option labels need the option tables of the Behavior and Editor General pages, which are not ported
+- `unit:src/features/vcs/__tests__/branches.test.ts`: 12 of 13 cases whole. Remote web URLs: scp-like, ssh with a port, https with a user, a local path and the Bitbucket commits page are asserted on the model, and View in Browser opens the GitHub commit page of an scp-like origin. Not asserted: stripping a user:password userinfo, and a nested group path
+- `unit:src/features/vcs/__tests__/diffScroll.test.ts`: 11 of 12 cases: the one about keeping the merge view from padding its panes asserts a private method of the web editor
+- `unit:src/features/vcs/__tests__/ignore.test.ts`: all 7 cases, but refreshing the status afterwards is left to the caller and not asserted
+- `unit:src/features/vcs/__tests__/logOptions.test.ts`: 15 of 17 cases: the collapse, long-edge, reachability, reference-label and option cases, the four Git menu dialog cases, and Go to Hash/Branch/Tag selecting the commit of a typed tag and saying when a reference is not found (on a log that has already loaded the commit). Not ported: isMine, and the case that sends the graph options and date range to the backend
+- `unit:src/features/vcs/__tests__/logUiFeatures.test.tsx`: the 2 commit-details cases of 11; the others are column, collapse and speed-search behaviour of the commit list
+- `unit:src/features/vcs/__tests__/worktreesPanel.test.tsx`: all 5 cases are asserted on the form spec that the Worktrees dialog draws. Through the dialog only the current marker of the project's worktree and an enabled Remove for a worktree outside the project are asserted. The repository row grouped once for two opened roots, the disabled Remove with its tooltip for a worktree containing the project, and the protected main worktree have no window test
+- `unit:src/features/viewers/markdown/previewOnly.test.tsx`: 4 of 5 cases on the view; "reports the restored line when shown again after a remount" only on the model
+- `unit:src/ui/Tooltip.test.tsx`: shown after the delay with its shortcut, hidden on pointer leave, press and wheel; hiding on a key press and on window blur is not tested
+- `unit:src/workbench/Workbench.test.tsx`: the 4 status bar cases of 18; the others describe the frame, drag and drop and LightEdit
