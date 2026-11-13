@@ -155,12 +155,22 @@ fn command_base(agent: &AgentProvider) -> String {
 }
 
 /// The page's state: the agents (those with a default executable), which is selected, and why they
-/// could not be read.
-#[derive(Clone, Debug, Default)]
+/// could not be read. Its `Debug` leaves out the agents' environment, which holds their API keys.
+#[derive(Clone, Default)]
 pub struct BuiltinAgents {
     agents: Option<Vec<AgentProvider>>,
     error: Option<String>,
     selected: usize,
+}
+
+impl std::fmt::Debug for BuiltinAgents {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BuiltinAgents")
+            .field("agents", &self.agents.as_deref().map(crate::agents::store::ProvidersDebug))
+            .field("error", &self.error)
+            .field("selected", &self.selected)
+            .finish()
+    }
 }
 
 /// Something the page asks for.

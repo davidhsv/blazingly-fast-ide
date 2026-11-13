@@ -12,6 +12,10 @@ pub enum MarkLayer {
     Find,
     /// The problems the language servers and inspections report for the document.
     Diagnostics,
+    /// The debugger's breakpoints on the document's lines.
+    Breakpoints,
+    /// The line where the debugger is suspended.
+    Execution,
 }
 
 /// What a mark shows, and so how it is drawn.
@@ -31,6 +35,12 @@ pub enum MarkKind {
     WarningProblem,
     /// A weak warning or information: a wavy underline in the muted warning colour.
     WeakProblem,
+    /// A line with an active breakpoint: its row is tinted and a dot is drawn in the gutter.
+    BreakpointLine,
+    /// A line with a disabled or muted breakpoint: only a hollow dot in the gutter.
+    InactiveBreakpoint,
+    /// The line where the debugger is suspended: its row is tinted.
+    ExecutionLine,
 }
 
 impl MarkKind {
@@ -47,6 +57,16 @@ impl MarkKind {
     /// The text inside takes the occurrence's foreground colour.
     pub fn recolors_text(self) -> bool {
         matches!(self, Self::FindOccurrence | Self::CurrentFindOccurrence)
+    }
+
+    /// Tints the whole row of its line instead of the text.
+    pub fn is_line(self) -> bool {
+        matches!(self, Self::BreakpointLine | Self::ExecutionLine)
+    }
+
+    /// Draws a breakpoint dot in the gutter of its line.
+    pub fn is_breakpoint(self) -> bool {
+        matches!(self, Self::BreakpointLine | Self::InactiveBreakpoint)
     }
 }
 

@@ -3,7 +3,7 @@
 //! docked in it, and the effects the feature's models return carried out against `ide_host::ops::agent`,
 //! the dialogs, the timers, the UI storage and the notifications.
 //!
-//! The editor area holds file tabs only, so a conversation always shows docked in the tool window: an
+//! No editor tab kind shows a conversation, so a conversation always shows docked in the tool window: an
 //! "open in the editor" ([`AgentEffect::OpenSession`], [`AgentEffect::OpenHome`]) docks it as well, and
 //! closing an editor tab of the Agents feature ([`AgentEffect::CloseTab`]) only takes that placement away.
 //!
@@ -378,7 +378,8 @@ impl Workbench {
         });
     }
 
-    /// The editor area as the Agents feature sees it: file tabs only.
+    /// The editor area as the Agents feature sees it: none of its tabs is a conversation or the New Task
+    /// page.
     fn agent_editors(&self) -> Editors {
         Editors { active: self.editor().map(|_| AgentTab::Other), open: Vec::new() }
     }
@@ -603,8 +604,8 @@ impl Workbench {
     }
 
     /// Shows the conversation of `task` (the New Task page for `None`) docked in the tool window: the
-    /// store places it there whatever the placement preference says, since the editor area holds files
-    /// only.
+    /// store places it there whatever the placement preference says, since no editor tab shows a
+    /// conversation.
     fn dock_agent_view(&mut self, task: Option<String>, cx: &mut Context<Self>) {
         let Some(store) = self.agents.as_ref().map(|slot| slot.store.clone()) else { return };
         store.update(cx, |store, cx| {

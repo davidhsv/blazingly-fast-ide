@@ -2119,8 +2119,10 @@ impl Focusable for SessionView {
 impl Render for SessionView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.sync_question(cx);
-        let snapshot = self.snapshot(cx);
+        let mut snapshot = self.snapshot(cx);
         self.sync_scroll(snapshot.signature, cx);
+        // The scroll just fed to `Follow` can stop or resume following in this frame.
+        snapshot.jump = self.shows_jump_to_latest(cx);
         self.painted = snapshot.rows.iter().map(|row| row.index).collect();
         let icon = snapshot.task.as_ref().map(|t| provider_icon(&t.provider)).unwrap_or_default();
         let mut rows = Vec::with_capacity(snapshot.rows.len());

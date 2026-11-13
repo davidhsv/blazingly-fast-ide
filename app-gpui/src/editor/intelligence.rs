@@ -306,6 +306,7 @@ impl EditorIntelligence {
                 }
             }
             &EditorEvent::Hovered { offset, modifiers } => self.pointer_rests(offset, modifiers, cx),
+            EditorEvent::GutterPressed { .. } => {}
         }
     }
 

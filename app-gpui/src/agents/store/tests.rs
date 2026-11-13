@@ -765,3 +765,15 @@ fn sends_the_selected_project_with_isolation() {
         assert_eq!(opened(&effects), vec!["new"]);
     }
 }
+
+#[test]
+fn debug_output_names_an_agents_environment_but_never_its_values() {
+    let mut store = AgentsStore::new(Saved::default());
+    let mut provider = fake_provider();
+    provider.env.insert("ANTHROPIC_API_KEY".to_owned(), "sk-ant-secret-value".to_owned());
+    store.providers = vec![provider];
+    let printed = format!("{store:?}");
+    assert!(!printed.contains("sk-ant-secret-value"), "{printed}");
+    assert!(printed.contains("ANTHROPIC_API_KEY"), "{printed}");
+    assert!(printed.contains("\"fake\""), "{printed}");
+}

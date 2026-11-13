@@ -6,6 +6,7 @@
 pub mod builtin_agents;
 pub mod cards;
 pub mod composer;
+pub mod composer_view;
 pub mod config_bar;
 pub mod config_pickers;
 pub mod conversation;
@@ -13,15 +14,18 @@ pub mod follow;
 pub mod login_hint;
 pub mod markdown;
 pub mod markdown_images;
+pub mod markdown_view;
 pub mod message_editor;
 pub mod model;
 pub mod permission;
 pub mod registry;
 pub mod reply_actions;
 pub mod session;
+pub mod session_view;
 pub mod store;
 pub mod task_actions;
 pub mod task_list;
+pub mod task_list_view;
 
 #[cfg(test)]
 pub(crate) mod fixtures;

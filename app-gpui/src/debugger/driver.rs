@@ -25,7 +25,7 @@ use crate::platform::storage::UiStorage;
 use crate::run::driver::{SaveAll, run_settings};
 use crate::run::java_launch::FoundSource;
 use crate::workbench::notifications::NotificationRequest;
-use gpui_kit::{App, BorrowAppContext, Context, Entity, EventEmitter, Task};
+use gpui_kit::{App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, Task};
 use ide_core::event::DebugEvent;
 use ide_core::{DebugSessionId, IdeError, IdeEvent};
 use ide_dap::{BreakpointState, DataBreakpoint, DataBreakpointInfo, FunctionBreakpoint, Scope, Variable};
@@ -742,7 +742,7 @@ impl DebugDriver {
                     move |host, label| async move {
                         debug::debug_breakpoint_states(&host, &label, PathBuf::from(asked))
                     },
-                    Self::on_debugger(move |debugger, result, _| match result {
+                    Self::on_debugger(move |debugger, result: Result<Vec<BreakpointState>, IdeError>, _| match result {
                         Ok(states) => debugger.breakpoints.lines.apply_states(&path, &states),
                         Err(error) => tracing::debug!("breakpoint states of {path}: {}", error.message),
                     }),
@@ -757,10 +757,12 @@ impl DebugDriver {
             BackendCall::DebugExceptionFilters => self.ask(
                 cx,
                 move |host, label| async move { debug::debug_exception_filters(&host, &label) },
-                Self::on_debugger(move |debugger, result, _| match result {
-                    Ok(sessions) => debugger.breakpoints.exceptions.filters_loaded(&sessions),
-                    Err(error) => tracing::debug!("exception filters: {}", error.message),
-                }),
+                Self::on_debugger(
+                    move |debugger, result: Result<Vec<ide_dap::SessionExceptionFilters>, IdeError>, _| match result {
+                        Ok(sessions) => debugger.breakpoints.exceptions.filters_loaded(&sessions),
+                        Err(error) => tracing::debug!("exception filters: {}", error.message),
+                    },
+                ),
             ),
             BackendCall::DebugAttachableProcesses => self.ask(
                 cx,
@@ -837,23 +839,26 @@ impl DebugDriver {
                 cx,
                 move |host, label| async move { sdk::sdk_locate_tools(&host, &label, names, None).await },
                 Self::on_debugger(move |debugger, result, _| {
-                    let found = result.ok().and_then(|located| located.tools.into_iter().find_map(|tool| tool.path));
+                    let found = result
+                        .ok()
+                        .and_then(|located: sdk::LocatedTools| located.tools.into_iter().find_map(|tool| tool.path));
                     debugger.php_located(ticket, found.map(|php| path_text(&php)));
                 }),
             ),
             BackendCall::SdkPhpXdebug { php, cwd } => self.ask(
                 cx,
                 move |host, label| async move {
-                    sdk::sdk_php_xdebug(&host, &label, PathBuf::from(php), cwd.map(PathBuf::from)).await
+                    let probe = sdk::sdk_php_xdebug(&host, &label, PathBuf::from(php), cwd.map(PathBuf::from)).await?;
+                    Ok((path_text(&probe.php), probe.php_version, probe.xdebug.is_some()))
                 },
-                Self::on_debugger(move |debugger, result, host| match result {
-                    Ok(probe) => {
-                        let php = path_text(&probe.php);
-                        let loaded = probe.xdebug.is_some();
-                        debugger.xdebug_probed(ticket, Some((php.as_str(), probe.php_version.as_str(), loaded)), host);
-                    }
-                    Err(_) => debugger.xdebug_probed(ticket, None, host),
-                }),
+                Self::on_debugger(
+                    move |debugger, result: Result<(String, String, bool), IdeError>, host| match result {
+                        Ok((php, version, loaded)) => {
+                            debugger.xdebug_probed(ticket, Some((php.as_str(), version.as_str(), loaded)), host);
+                        }
+                        Err(_) => debugger.xdebug_probed(ticket, None, host),
+                    },
+                ),
             ),
             // The window cannot ask the shell for attention: the next breakpoint hit asks again.
             BackendCall::WindowFlashTaskbar(flash) => {
@@ -947,7 +952,8 @@ impl DebugDriver {
         let wait = Duration::from_secs_f64(((due - now_ms()) / 1000.0).max(0.0));
         cx.spawn(async move |this, cx| {
             cx.background_executor().timer(wait).await;
-            let _ = this.update(cx, |driver, cx| then(driver, cx));
+            // The driver is gone with its window: nothing is due any more.
+            let _ = this.update(cx, then);
         })
     }
 
@@ -969,7 +975,7 @@ mod tests {
     use super::*;
     use crate::backend::AppDirs;
     use crate::run::configs::blank_config;
-    use gpui_kit::{AppContext as _, TestAppContext};
+    use gpui_kit::TestAppContext;
     use ropey::Rope;
     use serde_json::json;
     use std::cell::RefCell;

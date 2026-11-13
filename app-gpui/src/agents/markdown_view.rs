@@ -52,12 +52,9 @@ fn heading_size(level: u8, cx: &App) -> gpui_kit::Pixels {
 fn task_item(item: &[Block]) -> Option<(bool, Vec<Block>)> {
     let Some(Block::Paragraph(content)) = item.first() else { return None };
     let Some(Inline::Text(run)) = content.first() else { return None };
-    let (done, rest) = if let Some(rest) = run.text.strip_prefix("[ ] ") {
-        (false, rest)
-    } else if let Some(rest) = run.text.strip_prefix("[x] ").or_else(|| run.text.strip_prefix("[X] ")) {
-        (true, rest)
-    } else {
-        return None;
+    let (done, rest) = match run.text.strip_prefix("[ ] ") {
+        Some(rest) => (false, rest),
+        None => (true, run.text.strip_prefix("[x] ").or_else(|| run.text.strip_prefix("[X] "))?),
     };
     let mut content = content.clone();
     content[0] = Inline::Text(Run { text: rest.to_owned(), style: run.style.clone() });

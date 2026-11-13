@@ -1,6 +1,7 @@
 //! The window shell. For now: a frame around one editor (LightEdit), which is the part of the
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
+mod agents;
 mod bookmarks_window;
 use bookmarks_window::BOOKMARKS_TOOL_WINDOW;
 mod branches;
@@ -10,9 +11,11 @@ mod code_insight;
 use crate::code_insight::{HIERARCHY_TOOL_WINDOW, PROBLEMS_TOOL_WINDOW, USAGES_TOOL_WINDOW};
 mod commit;
 mod database;
+mod debug;
 use crate::database::tree_view::DATABASE_TOOL_WINDOW;
 mod conflicts;
 use crate::build_window::model::BUILD_TOOL_WINDOW;
+use crate::debugger::effects::DEBUG_TOOL_WINDOW;
 mod diff_window;
 mod editor_find;
 mod editor_intelligence;
@@ -304,6 +307,11 @@ pub struct Workbench {
     database: Option<database::DatabaseSlot>,
     /// Problems, Find / Show Usages, the hierarchies and the language servers of the project.
     code_insight: code_insight::CodeInsight,
+    /// The project's agent tasks: their store, the subscription to their events and the conversation
+    /// docked in the Agents tool window.
+    agents: Option<agents::AgentsSlot>,
+    /// The debugger of the open project: its driver, the Debug tool window and the Breakpoints dialog.
+    debug: Option<debug::DebugSlot>,
     /// The title bar and the status bar, and what the window keeps for them.
     chrome: chrome::Chrome,
 }
@@ -382,7 +390,7 @@ pub const RUN_TOOL_WINDOW: &str = "run";
 pub use crate::services::model::SERVICES_TOOL_WINDOW;
 
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 16] = [
+const TOOL_WINDOWS: [&str; 18] = [
     PROJECT_TOOL_WINDOW,
     COMMIT_TOOL_WINDOW,
     TERMINAL_TOOL_WINDOW,
@@ -398,7 +406,9 @@ const TOOL_WINDOWS: [&str; 16] = [
     PROBLEMS_TOOL_WINDOW,
     USAGES_TOOL_WINDOW,
     HIERARCHY_TOOL_WINDOW,
+    crate::agents::model::TOOL_WINDOW,
     DATABASE_TOOL_WINDOW,
+    DEBUG_TOOL_WINDOW,
 ];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
@@ -449,6 +459,7 @@ pub fn register_actions(cx: &mut App) {
     services_window::register_actions(registry);
     diff_window::register_actions(registry);
     run_configs::register_actions(registry);
+    debug::register_actions(registry);
     branches::register_actions(registry);
     conflicts::register_actions(registry);
     commit::register_actions(registry);
@@ -459,6 +470,7 @@ pub fn register_actions(cx: &mut App) {
     build_window::register_actions(registry);
     database::register_actions(registry);
     code_insight::register_actions(registry);
+    agents::register_actions(registry);
     tab_views::register_actions(registry);
     chrome::register_actions(registry);
     settings_window::register_actions(registry);
@@ -890,6 +902,13 @@ impl Workbench {
             // A balloon does not fade while nobody can see it.
             workbench.balloon_view.window_active = window.is_window_active();
             workbench.sync_notifications(cx);
+            // A conversation on screen counts as read only while the window is active.
+            workbench.agents_window_active(window.is_window_active(), cx);
+            // The debugger asks for attention on a stop only while the window is in the background.
+            if let Some(driver) = workbench.debug_driver().cloned() {
+                let active = window.is_window_active();
+                driver.update(cx, |driver, cx| driver.set_window_focused(active, cx));
+            }
             // Another window may have opened or forgotten a project meanwhile.
             if window.is_window_active() {
                 workbench.sync_welcome(window, cx);
@@ -961,6 +980,8 @@ impl Workbench {
             files: Default::default(),
             database: None,
             code_insight,
+            agents: None,
+            debug: None,
             chrome,
             activations: HashMap::new(),
             active_key: None,
@@ -1104,12 +1125,21 @@ impl Workbench {
                     tracing::debug!("the notification command {} has no handler any more", own.command);
                 }
             }
+            // An agent task's notification: its button opens the task it names.
+            EntryAction::Own(own) if own.command.starts_with("agents.openTask:") => {
+                if let Some((_, task)) = own.command.split_once(':') {
+                    self.open_agent_task(task, cx);
+                }
+            }
             EntryAction::Own(own) if own.command.starts_with("vcs.deleted.") => {
                 if !self.run_vcs_follow_up(&own.command, window, cx) {
                     tracing::debug!("the notification command {} has no handler any more", own.command);
                 }
             }
             EntryAction::Own(own) => {
+                if self.debug_notification_command(&own.command, cx) {
+                    return;
+                }
                 let registered =
                     cx.try_global::<ActionRegistry>().is_some_and(|registry| registry.contains(&own.command));
                 if registered {
@@ -1646,6 +1676,10 @@ impl Workbench {
                 self.vcs_backend_event(&event.event, cx);
                 return;
             }
+            IdeEvent::Debug { .. } => {
+                self.debug_backend_event(&event.event, cx);
+                return;
+            }
             IdeEvent::RunExited { .. } => {
                 if let Some(driver) = self.run_driver().cloned() {
                     driver.update(cx, |driver, cx| driver.backend_event(&event.event, cx));
@@ -1689,6 +1723,11 @@ impl Workbench {
             }
             IdeEvent::DbSourcesChanged => {
                 self.database_sources_changed(cx);
+                return;
+            }
+            // The project's agents are listed again, with or without the agents themselves.
+            IdeEvent::ProjectTrustChanged { trusted, .. } => {
+                self.agents_trust_changed(*trusted, cx);
                 return;
             }
             _ => return,
@@ -1831,7 +1870,9 @@ impl Workbench {
         set_context(window, cx, "projectOpening", matches!(self.content, Content::Opening(_)));
         set_context(window, cx, "popupOpen", self.popup.is_some());
         self.publish_run_context(window, cx);
+        self.publish_debug_context(window, cx);
         self.publish_vcs_context(window, cx);
+        self.publish_agents_context(window, cx);
         self.publish_merge_context(window, cx);
         set_context(window, cx, "findPopupOpen", self.find_popup().is_some());
         let focused_bar = self.focused_find_bar(window, cx);
@@ -2022,7 +2063,15 @@ impl Workbench {
                     Some(panel) => panel,
                     None => continue,
                 },
+                DEBUG_TOOL_WINDOW => match self.mount_debug_window(window, cx) {
+                    Some(panel) => panel,
+                    None => continue,
+                },
                 SERVICES_TOOL_WINDOW => match self.mount_services(window, cx) {
+                    Some(panel) => panel,
+                    None => continue,
+                },
+                crate::agents::model::TOOL_WINDOW => match self.mount_agents_panel(window, cx) {
                     Some(panel) => panel,
                     None => continue,
                 },
@@ -2055,6 +2104,7 @@ impl Workbench {
         self.sync_structure_window(cx);
         self.sync_todo_window(cx);
         self.sync_code_insight(cx);
+        self.sync_agents_window(cx);
     }
 
     /// The view of tool window `id`, once it has been shown.
@@ -2109,6 +2159,7 @@ impl Workbench {
         if let Some(driver) = self.run_driver().cloned() {
             driver.update(cx, |driver, cx| driver.reset(cx));
         }
+        self.reset_debugger(cx);
     }
 
     /// Tells the run driver whether the Run tool window shows, and the Run view what it reads from the
@@ -2644,6 +2695,7 @@ impl Workbench {
         self.drop_commit();
         self.drop_git_log();
         self.reset_code_insight(cx);
+        self.drop_agents(cx);
         // The project's servers and runs stop in the background: this is the UI thread.
         cx.global::<Backend>().host.close_project_detached(&self.label);
         self.content = Content::Empty;
@@ -2757,6 +2809,7 @@ impl Workbench {
         self.drop_commit();
         self.drop_git_log();
         self.reset_code_insight(cx);
+        self.drop_agents(cx);
         self.files = Default::default();
         self.content = Content::Opening(root.clone());
         self.light_find_bar = None;
@@ -2797,6 +2850,7 @@ impl Workbench {
                         layout.load(&scope, stored.as_deref());
                         let run = workbench.new_run_driver(&root.to_string_lossy(), window, cx);
                         let run_events = cx.subscribe_in(&run, window, Self::run_driver_event);
+                        workbench.mount_debugger(&root.to_string_lossy(), window, cx);
                         let tree = cx.new(|cx| ProjectTree::new(&label, root, cx));
                         let opens = cx.subscribe_in(&tree, window, |workbench, _, event: &OpenFile, window, cx| {
                             workbench.open_project_file(event.0.clone(), window, cx);
@@ -2831,6 +2885,7 @@ impl Workbench {
                     Err(message) => Content::Failed(message.into()),
                 };
                 workbench.mount_vcs(window, cx);
+                workbench.mount_agents(window, cx);
                 if workbench.project_root(cx).is_some() {
                     workbench.code_insight_project_opened(cx);
                 }
@@ -3417,6 +3472,9 @@ impl Workbench {
                             workbench.wrap_markdown(&tab_id, &editor, window, cx);
                         }
                         workbench.serve_reveal(cx);
+                        if still_open {
+                            workbench.watch_debug_editor(&editor, window, cx);
+                        }
                     }
                     Err(message) => {
                         tracing::error!("cannot open the file: {message}");
@@ -3677,6 +3735,7 @@ impl Render for Workbench {
             .children(self.merge_window_layer(cx))
             .children(self.diff_window_layer(cx))
             .children(self.edit_configs_layer())
+            .children(self.debug_breakpoints_layer())
             .children(self.customize_toolbar_layer())
             .children(self.vcs_dialog_layer())
             .children(self.file_dialog_layer())
@@ -6914,6 +6973,506 @@ mod tests {
         cx.run_until_parked();
     }
 
+    /// An ACP agent for tests: a Python script speaking newline-delimited JSON-RPC on stdio. A prompt
+    /// is answered with "Hello from the fake agent" in two chunks; one mentioning "tool" reports the
+    /// finished tool call "Run cargo test" and says "The tests pass"; one mentioning "permission" first
+    /// asks to run `cargo test` and then says which option it was given; one mentioning "wait" says
+    /// hello and works until it is cancelled. It ends with its input.
+    const FAKE_AGENT: &str = r#"import json, sys
+
+def send(message):
+    sys.stdout.write(json.dumps(message) + "\n")
+    sys.stdout.flush()
+
+def answer(request, result):
+    send({"jsonrpc": "2.0", "id": request, "result": result})
+
+def say(session, text):
+    update = {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": text}}
+    send({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": session, "update": update}})
+
+asked = {}
+working = None
+next_request = 1000
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    message = json.loads(line)
+    method = message.get("method")
+    params = message.get("params") or {}
+    if method is None:
+        turn = asked.pop(message.get("id"), None)
+        if turn is not None:
+            outcome = (message.get("result") or {}).get("outcome") or {}
+            say(turn[1], "You chose " + outcome.get("optionId", "nothing"))
+            answer(turn[0], {"stopReason": "end_turn"})
+        continue
+    if method == "session/cancel":
+        if working is not None:
+            answer(working, {"stopReason": "cancelled"})
+            working = None
+        continue
+    if "id" not in message:
+        continue
+    request = message["id"]
+    if method == "initialize":
+        answer(request, {"protocolVersion": 1, "agentCapabilities": {"loadSession": False}, "authMethods": []})
+    elif method == "session/new":
+        answer(request, {"sessionId": "fake-session"})
+    elif method == "session/prompt":
+        session = params.get("sessionId", "fake-session")
+        blocks = params.get("prompt") or []
+        text = " ".join(block.get("text", "") for block in blocks if block.get("type") == "text")
+        if "tool" in text:
+            call = {"sessionUpdate": "tool_call", "toolCallId": "tests", "title": "Run cargo test", "kind": "execute",
+                    "status": "completed",
+                    "content": [{"type": "content", "content": {"type": "text", "text": "3 passed"}}]}
+            send({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": session, "update": call}})
+            say(session, "The tests pass")
+            answer(request, {"stopReason": "end_turn"})
+        elif "permission" in text:
+            say(session, "I need to run the tests.")
+            next_request += 1
+            asked[next_request] = (request, session)
+            send({"jsonrpc": "2.0", "id": next_request, "method": "session/request_permission", "params": {
+                "sessionId": session,
+                "toolCall": {"toolCallId": "run-tests", "title": "Run cargo test", "kind": "execute"},
+                "options": [{"optionId": "yes", "name": "Allow", "kind": "allow_once"},
+                            {"optionId": "no", "name": "Reject", "kind": "reject_once"}]}})
+        else:
+            say(session, "Hello ")
+            say(session, "from the fake agent")
+            if "wait" in text:
+                working = request
+            else:
+                answer(request, {"stopReason": "end_turn"})
+    else:
+        send({"jsonrpc": "2.0", "id": request, "error": {"code": -32601, "message": method}})
+"#;
+
+    /// The API key the fake agent starts with: never shown, copied or printed.
+    const FAKE_AGENT_KEY: &str = "sk-fake-agent-secret-0123456789";
+
+    type AgentsFixture<'a> =
+        (tempfile::TempDir, Entity<Workbench>, Entity<crate::agents::store::AgentsStore>, &'a mut VisualTestContext);
+
+    /// Installs the fake agent as the agent `fake` of the configuration under `home`, as a user writes
+    /// `<config>/agents/<id>.toml`, and makes it the New Task page's agent: no test reaches an agent
+    /// installed on the machine.
+    fn install_fake_agent(home: &std::path::Path, cx: &mut TestAppContext) {
+        let script = home.join("fake_agent.py");
+        std::fs::write(&script, FAKE_AGENT).expect("the agent script is written");
+        let agents = AppDirs::under(home).config.join("agents");
+        std::fs::create_dir_all(&agents).expect("the agents folder is made");
+        let file = format!(
+            "name = \"Fake Agent\"\ncommand = \"python3\"\nargs = [{:?}]\n\n[env]\nFAKE_AGENT_API_KEY = {:?}\n",
+            script.to_string_lossy(),
+            FAKE_AGENT_KEY,
+        );
+        std::fs::write(agents.join("fake.toml"), file).expect("the agent file is written");
+        let draft = r#"{"provider":"fake"}"#.to_owned();
+        cx.update(|cx| cx.global_mut::<UiStorage>().set(crate::agents::store::DRAFT_KEY, draft));
+    }
+
+    /// A trusted project in an active window, with the fake agent listed among its agents.
+    fn agents_project<'a>(cx: &'a mut TestAppContext, home: &std::path::Path) -> AgentsFixture<'a> {
+        install_fake_agent(home, cx);
+        let (folder, _root, workbench, cx) = trusted_project(cx, &[("README.md", "A project for agents.\n")]);
+        cx.update(|window, _| window.activate_window());
+        let store = workbench.read_with(cx, |w, _| w.agents_store()).expect("the project has its agents");
+        wait_long(cx, "the agents to be listed", |cx| {
+            store.read_with(cx, |store, _| store.loaded && store.provider("fake").is_some_and(|p| p.installed))
+        });
+        (folder, workbench, store, cx)
+    }
+
+    /// Starts a task with `prompt` from the New Task page of the Agents tool window (New Agent Task
+    /// with the prompt as its argument, then Start) and waits for its conversation to dock there;
+    /// returns the task's id.
+    fn start_agent_task(
+        workbench: &Entity<Workbench>,
+        store: &Entity<crate::agents::store::AgentsStore>,
+        prompt: &str,
+        cx: &mut VisualTestContext,
+    ) -> String {
+        run_action(cx, "agents.newTask", Some(serde_json::json!(prompt)));
+        wait_long(cx, "the New Task page", |cx| workbench.read_with(cx, |w, _| w.agents_home_page().is_some()));
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(crate::agents::model::TOOL_WINDOW)));
+        let page = workbench.read_with(cx, |w, _| w.agents_home_page()).expect("the New Task page shows");
+        assert_eq!(page.read_with(cx, |page, cx| page.field().read(cx).text().to_owned()), prompt);
+        assert!(page.read_with(cx, |page, cx| page.can_start(cx)));
+        // Only the fake agent may ever start.
+        assert_eq!(store.read_with(cx, |store, _| store.draft.provider.clone()), "fake");
+        click_on(cx, "agents-home-start");
+        wait_long(cx, "the task's conversation", |cx| {
+            workbench.read_with(cx, |w, _| w.docked_agent_session().is_some())
+        });
+        assert!(page.read_with(cx, |page, _| page.error().is_none()));
+        let tasks: Vec<String> = store.read_with(cx, |store, _| store.tasks().iter().map(|t| t.id.clone()).collect());
+        assert_eq!(tasks.len(), 1, "{tasks:?}");
+        tasks[0].clone()
+    }
+
+    /// The docked conversation, a line per row (`SessionView::lines`).
+    fn agent_conversation(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
+        let Some((session, _)) = workbench.read_with(cx, |w, _| w.docked_agent_session()) else { return Vec::new() };
+        session.update(cx, |session, cx| session.lines(cx))
+    }
+
+    fn agent_status(
+        store: &Entity<crate::agents::store::AgentsStore>,
+        task: &str,
+        cx: &mut VisualTestContext,
+    ) -> Option<ide_agent::AgentStatus> {
+        store.read_with(cx, |store, _| store.task(task).map(|t| t.status))
+    }
+
+    fn agent_working(
+        store: &Entity<crate::agents::store::AgentsStore>,
+        task: &str,
+        cx: &mut VisualTestContext,
+    ) -> bool {
+        use ide_agent::AgentStatus;
+        matches!(agent_status(store, task, cx), Some(AgentStatus::Running | AgentStatus::Starting))
+    }
+
+    /// A task started from the Agents tool window shows the user's message and the agent's reply while
+    /// the agent still works on the turn, with Stop in its composer; Stop cancels the turn, and the
+    /// task list names the task with its agent.
+    #[gpui_kit::test]
+    async fn a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn(cx: &mut TestAppContext) {
+        let home = start(cx);
+        let (_folder, workbench, store, cx) = agents_project(cx, home.path());
+        let task = start_agent_task(&workbench, &store, "Say hello and wait", cx);
+        wait_long(cx, "the agent's reply", |cx| {
+            agent_conversation(&workbench, cx).iter().any(|line| line.starts_with("agent: Hello from the fake agent"))
+        });
+        let lines = agent_conversation(&workbench, cx);
+        assert!(lines.iter().any(|line| line.starts_with("you: Say hello and wait")), "{lines:?}");
+        assert!(agent_working(&store, &task, cx));
+        let (_, composer) = workbench.read_with(cx, |w, _| w.docked_agent_session()).expect("the conversation docks");
+        assert!(composer.read_with(cx, |composer, cx| composer.buttons(cx)).contains(&"Stop".to_owned()));
+
+        click_on(cx, "composer-stop");
+        wait_long(cx, "the turn to stop", |cx| !agent_working(&store, &task, cx));
+        assert!(!composer.read_with(cx, |composer, cx| composer.buttons(cx)).contains(&"Stop".to_owned()));
+        let list = workbench.read_with(cx, |w, _| w.agents_list()).expect("the tool window has its view");
+        let rows = list.read_with(cx, |list, cx| list.rows(cx));
+        assert!(rows.iter().any(|row| row.contains(" | Say hello and wait | Fake Agent | ")), "{rows:?}");
+        workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+    }
+
+    /// New Agent Task (⌘⇧I) and the debugger's keys need a project: a window without one runs none.
+    #[gpui_kit::test]
+    async fn the_new_agent_task_and_debugger_shortcuts_need_a_project(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        for key in ["cmd-shift-i", "ctrl-d", "cmd-f8", "cmd-shift-f8", "cmd-alt-shift-f8", "cmd-5", "f8", "f9"] {
+            cx.simulate_keystrokes(key);
+            cx.run_until_parked();
+        }
+        assert!(workbench.read_with(cx, |w, _| {
+            w.agents_store().is_none() && w.debug_driver().is_none() && w.tool_windows().is_none()
+        }));
+        for id in ["run.debug", "run.debugConfig"] {
+            let run = cx.update(|window, cx| crate::platform::actions::execute_action_or_throw(id, None, window, cx));
+            assert!(run.is_err(), "{id} runs without a project");
+        }
+        let run = cx
+            .update(|window, cx| crate::platform::actions::execute_action_or_throw("agents.newTask", None, window, cx));
+        assert!(run.is_err(), "agents.newTask runs without a project");
+    }
+
+    /// ⌘⇧I opens the New Task page from a text editor; the agent's API key is never shown, copied or
+    /// printed; ⌘F in a conversation is not the editor's Find; Send to Agent, Quote, Copy, Rename,
+    /// Jump to Latest and every placement action keep the conversation on screen in the tool window.
+    #[gpui_kit::test]
+    async fn the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key(cx: &mut TestAppContext) {
+        use crate::agents::model::TOOL_WINDOW;
+        use crate::agents::store::SessionLocation;
+        use crate::vcs::prompt_dialogs::PromptDialog;
+        let home = start(cx);
+        let (folder, workbench, store, cx) = agents_project(cx, home.path());
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let readme = root.join("README.md");
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(readme.clone(), window, cx));
+        wait_long(cx, "the editor", |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
+        cx.run_until_parked();
+        cx.simulate_keystrokes("cmd-shift-i");
+        wait_long(cx, "the New Task page", |cx| workbench.read_with(cx, |w, _| w.agents_home_page().is_some()));
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(TOOL_WINDOW)));
+
+        let task = start_agent_task(&workbench, &store, "Say hello", cx);
+        wait_long(cx, "the reply", |cx| {
+            !agent_working(&store, &task, cx)
+                && agent_conversation(&workbench, cx).iter().any(|line| line.starts_with("agent: Hello"))
+        });
+        // The agent started with its key, and nothing on screen or in a `Debug` output holds it.
+        let env = store.read_with(cx, |store, _| store.provider("fake").map(|p| p.env.clone()));
+        assert_eq!(env.and_then(|env| env.get("FAKE_AGENT_API_KEY").cloned()).as_deref(), Some(FAKE_AGENT_KEY));
+        let list = workbench.read_with(cx, |w, _| w.agents_list()).expect("the tool window has its view");
+        let (_, composer) = workbench.read_with(cx, |w, _| w.docked_agent_session()).expect("the conversation docks");
+        let mut shown = agent_conversation(&workbench, cx);
+        shown.extend(list.read_with(cx, |list, cx| list.rows(cx)));
+        shown.extend(composer.read_with(cx, |composer, cx| composer.buttons(cx)));
+        shown.extend(composer.read_with(cx, |composer, cx| composer.chips(cx)));
+        shown.push(store.read_with(cx, |store, _| format!("{store:?}")));
+        assert!(shown.iter().all(|text| !text.contains(FAKE_AGENT_KEY)), "{shown:?}");
+
+        // ⌘F with the keyboard in the conversation does not open the editor's Find bar.
+        cx.update(|window, cx| window.focus(&composer.focus_handle(cx), cx));
+        cx.run_until_parked();
+        assert!(context_is_on(cx, "agentSessionFocus"));
+        cx.simulate_keystrokes("cmd-f");
+        assert!(workbench.read_with(cx, |w, _| w.find_bar().is_none()));
+
+        // Copy Reply and Quote Reply.
+        run_action(cx, "agents.copyReplyMarkdown", Some(serde_json::json!({ "text": "Hello from the fake agent" })));
+        let copied = cx.update(|_, cx| cx.read_from_clipboard().and_then(|item| item.text()));
+        assert_eq!(copied.as_deref(), Some("Hello from the fake agent"));
+        run_action(cx, "agents.quoteReply", Some(serde_json::json!({ "task": task, "text": "Hello" })));
+        let draft = store.read_with(cx, |store, _| store.composer(&task));
+        assert!(draft.text.contains("> Hello"), "{draft:?}");
+
+        // Send to Agent: a Project view file, then the editor's selected line.
+        let readme_ipc = ide_core::ipc_path::to_ipc(&readme);
+        run_action(cx, "agents.sendToAgent", Some(serde_json::json!([readme_ipc])));
+        let draft = store.read_with(cx, |store, _| store.composer(&task));
+        assert!(draft.text.contains("@README.md"), "{draft:?}");
+        editor.update(cx, |editor, cx| editor.select(0, 8, cx));
+        run_action(cx, "agents.sendToAgent", None);
+        let draft = store.read_with(cx, |store, _| store.composer(&task));
+        assert!(draft.text.contains("@README.md:1"), "{draft:?}");
+
+        // Rename… asks for the name.
+        run_action(cx, "agents.renameTask", Some(serde_json::json!(task)));
+        let dialog = workbench.read_with(cx, |w, _| w.vcs_dialog_view::<PromptDialog>()).expect("the prompt shows");
+        let field = dialog.read_with(cx, |dialog, _| dialog.field().cloned()).expect("the prompt has a field");
+        assert_eq!(field.read_with(cx, |field, _| field.text().to_owned()), "Say hello");
+        field.update(cx, |field, cx| field.select_all(cx));
+        cx.simulate_input("Greeting");
+        click_on(cx, "prompt-button-ok");
+        wait_long(cx, "the rename", |cx| {
+            store.read_with(cx, |store, _| store.task(&task).is_some_and(|t| t.title == "Greeting"))
+        });
+        run_action(cx, "agents.jumpToLatest", None);
+
+        // Wherever conversations are asked to show, this window docks them in the tool window. Each step
+        // changes the placement (it starts in the editor), or opens the task where it is.
+        assert_eq!(store.read_with(cx, |store, _| store.session_location), SessionLocation::Editor);
+        let id = Some(serde_json::json!(task));
+        for (action, arg) in [
+            ("agents.useToolWindow", None),
+            ("agents.useEditor", None),
+            ("agents.openTask", id.clone()),
+            ("agents.dockTask", id.clone()),
+            ("agents.undockTask", None),
+            ("agents.openTaskInEditor", id.clone()),
+        ] {
+            workbench.update_in(cx, |w, window, cx| w.with_layout(window, cx, |l| l.hide(TOOL_WINDOW)));
+            run_action(cx, action, arg);
+            wait_long(cx, action, |cx| workbench.read_with(cx, |w, _| w.is_tool_window_visible(TOOL_WINDOW)));
+            let docked = workbench.read_with(cx, |w, _| w.docked_agent_session().map(|(s, _)| s));
+            let docked = docked.unwrap_or_else(|| panic!("{action} leaves the conversation docked"));
+            assert_eq!(docked.read_with(cx, |session, _| session.task().to_owned()), task, "{action}");
+        }
+        workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+    }
+
+    /// A reply's tool call is listed in the conversation. A turn that ends while the Agents tool window
+    /// is hidden raises a notification whose Open shows the task; Retract is not offered to an agent that
+    /// cannot roll back; Unarchive brings an
+    /// archived task back; Fork is not offered to an agent that cannot copy a session; the task menu
+    /// opens; the agents go with the project's trust and come back with it; a reopened project has its
+    /// agents again.
+    #[gpui_kit::test]
+    async fn the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::agents::model::TOOL_WINDOW;
+        use crate::agents::store::OPEN_TASK_COMMAND;
+        use crate::agents::task_list_view::TaskListEvent;
+        use crate::vcs::prompt_dialogs::PromptDialog;
+        use ide_agent::AgentStatus;
+        let home = start(cx);
+        let (folder, workbench, store, cx) = agents_project(cx, home.path());
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let task = start_agent_task(&workbench, &store, "Run the tool", cx);
+        wait_long(cx, "the tool call", |cx| {
+            !agent_working(&store, &task, cx)
+                && agent_conversation(&workbench, cx).iter().any(|line| line.contains("The tests pass"))
+        });
+        let lines = agent_conversation(&workbench, cx);
+        assert!(lines.iter().any(|line| line.contains("Run cargo test")), "{lines:?}");
+
+        // A turn that ends unseen notifies; its Open shows the task.
+        workbench.update_in(cx, |workbench, window, cx| workbench.with_layout(window, cx, |l| l.hide(TOOL_WINDOW)));
+        let (_, composer) = workbench.read_with(cx, |w, _| w.docked_agent_session()).expect("the conversation docks");
+        store.update(cx, |store, cx| {
+            store.update_composer(&task, |draft| draft.text = "Say hello".to_owned());
+            cx.notify();
+        });
+        composer.update(cx, |composer, cx| composer.send(false, cx));
+        let open = format!("{OPEN_TASK_COMMAND}:{task}");
+        let notice = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| {
+                w.notifications().items().iter().flat_map(|n| n.actions.iter()).find(|a| a.command == open).cloned()
+            })
+        };
+        wait_long(cx, "the notification", |cx| notice(cx).is_some());
+        let action = EntryAction::Own(notice(cx).expect("the notification has Open"));
+        workbench.update_in(cx, |w, window, cx| w.run_notification_action(action, window, cx));
+        wait_long(cx, "the task to show", |cx| workbench.read_with(cx, |w, _| w.is_tool_window_visible(TOOL_WINDOW)));
+        let docked = workbench.read_with(cx, |w, _| w.docked_agent_session().map(|(s, _)| s)).expect("docked");
+        assert_eq!(docked.read_with(cx, |session, _| session.task().to_owned()), task);
+
+        // Retract needs an agent that can roll its session back; the fake one cannot, so nothing is asked.
+        assert!(!store.read_with(cx, |store, _| store.task(&task).is_some_and(|t| t.capabilities.rollback)));
+        run_action(cx, "agents.retractMessage", Some(serde_json::json!({ "task": task, "turn": 0 })));
+        assert!(workbench.read_with(cx, |w, _| w.vcs_dialog_view::<PromptDialog>()).is_none());
+        let lines = agent_conversation(&workbench, cx);
+        assert!(lines.iter().any(|line| line.starts_with("you: Say hello")), "{lines:?}");
+
+        // Fork needs an agent that can copy its session; the fake one cannot.
+        run_action(cx, "agents.forkTask", Some(serde_json::json!(task)));
+        assert_eq!(store.read_with(cx, |store, _| store.tasks().len()), 1);
+
+        // The task menu opens over the window.
+        let list = workbench.read_with(cx, |w, _| w.agents_list()).expect("the tool window has its view");
+        let items = vec![crate::vcs_ops::menu::MenuItem::item(
+            "Open",
+            crate::agents::task_actions::TaskCommand::Open(task.clone()),
+        )];
+        list.update(cx, |_, cx| cx.emit(TaskListEvent::ShowMenu { items, position: Default::default() }));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.popup.is_some()));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+
+        // Unarchive brings the archived task back.
+        run_action(cx, "agents.archiveTasks", Some(serde_json::json!([task])));
+        wait_long(cx, "the archive", |cx| agent_status(&store, &task, cx) == Some(AgentStatus::Archived));
+        run_action(cx, "agents.unarchiveTasks", Some(serde_json::json!([task])));
+        wait_long(cx, "the unarchive", |cx| {
+            agent_status(&store, &task, cx).is_some_and(|s| s != AgentStatus::Archived)
+        });
+
+        // Untrusted, the project lists no agents; trusted again, it does.
+        let installed = |cx: &mut VisualTestContext| {
+            store.read_with(cx, |store, _| store.provider("fake").is_some_and(|provider| provider.installed))
+        };
+        let trust = |trusted: bool, cx: &mut VisualTestContext| {
+            let root = root.clone();
+            let setting = cx.update(|_, cx| {
+                cx.global::<Backend>().with_host(move |host| async move {
+                    host.set_project_trust(&root, trusted, false).await.map_err(|error| error.message)
+                })
+            });
+            let set = futures::executor::block_on(setting);
+            set.expect("the backend runs").expect("the trust is set");
+        };
+        trust(false, cx);
+        wait_long(cx, "the agents to go", |cx| !installed(cx));
+        trust(true, cx);
+        wait_long(cx, "the agents to come back", |cx| installed(cx));
+
+        // Closed and opened again in the same window, the project has its agents and its task.
+        workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.agents_store().is_none()));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        wait_long(cx, "the project", |cx| workbench.read_with(cx, |w, _| w.agents_store().is_some()));
+        let store = workbench.read_with(cx, |w, _| w.agents_store()).expect("the project has its agents");
+        wait_long(cx, "the task", |cx| store.read_with(cx, |store, _| store.loaded && store.task(&task).is_some()));
+        run_action(cx, "agents.showToolWindow", None);
+        let list = workbench.read_with(cx, |w, _| w.agents_list()).expect("the tool window has its view");
+        let shown = workbench.read_with(cx, |w, _| w.tool_window_view(TOOL_WINDOW)).map(|view| view.entity_id());
+        assert_eq!(shown, Some(list.entity_id()), "the tool window shows the reopened project's list");
+        let rows = list.read_with(cx, |list, cx| list.rows(cx));
+        assert!(rows.iter().any(|row| row.contains("Run the tool")), "{rows:?}");
+        workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+    }
+
+    /// A permission request shows in the conversation with its answers while the task waits for the
+    /// user; the answer clicked reaches the agent, which carries on with it.
+    #[gpui_kit::test]
+    async fn a_permission_request_shows_its_answers_and_the_one_clicked_reaches_the_agent(cx: &mut TestAppContext) {
+        use ide_agent::AgentStatus;
+        let home = start(cx);
+        let (_folder, workbench, store, cx) = agents_project(cx, home.path());
+        let task = start_agent_task(&workbench, &store, "Run the tests, permission please", cx);
+        wait_long(cx, "the permission request", |cx| {
+            agent_conversation(&workbench, cx).iter().any(|line| line.starts_with("permission: "))
+        });
+        let lines = agent_conversation(&workbench, cx);
+        let request = lines.iter().find(|line| line.starts_with("permission: ")).expect("the request is listed");
+        assert!(request.contains("cargo test"), "{lines:?}");
+        wait_long(cx, "the task to wait for the user", |cx| {
+            agent_status(&store, &task, cx) == Some(AgentStatus::NeedsInput)
+        });
+
+        // The backend numbers permission requests from 1; Allow is the request's first answer.
+        click_on(cx, "session-permission-1-0");
+        wait_long(cx, "the agent to carry on", |cx| {
+            agent_conversation(&workbench, cx).iter().any(|line| line.starts_with("agent: You chose yes"))
+        });
+        wait_long(cx, "the turn to end", |cx| !agent_working(&store, &task, cx));
+        assert_ne!(agent_status(&store, &task, cx), Some(AgentStatus::NeedsInput));
+        workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+    }
+
+    /// A reply that arrives while the Agents tool window is hidden leaves its task unread, with the
+    /// unread mark in the list and the tool window's badge; Archive moves the task to the archived
+    /// group, and Delete, once confirmed, removes it and its conversation.
+    #[gpui_kit::test]
+    async fn an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it(cx: &mut TestAppContext) {
+        use crate::agents::model::TOOL_WINDOW;
+        use ide_agent::AgentStatus;
+        let home = start(cx);
+        let (_folder, workbench, store, cx) = agents_project(cx, home.path());
+        let task = start_agent_task(&workbench, &store, "Say hello", cx);
+        wait_long(cx, "the first reply", |cx| {
+            !agent_working(&store, &task, cx)
+                && agent_conversation(&workbench, cx).iter().any(|line| line.starts_with("agent: Hello"))
+        });
+        assert!(!store.read_with(cx, |store, _| store.is_unread(&task)));
+
+        workbench.update_in(cx, |workbench, window, cx| workbench.with_layout(window, cx, |l| l.hide(TOOL_WINDOW)));
+        let (_, composer) = workbench.read_with(cx, |w, _| w.docked_agent_session()).expect("the conversation docks");
+        store.update(cx, |store, cx| {
+            store.update_composer(&task, |draft| draft.text = "Say hello again".to_owned());
+            cx.notify();
+        });
+        composer.update(cx, |composer, cx| composer.send(false, cx));
+        wait_long(cx, "the unseen reply", |cx| {
+            !agent_working(&store, &task, cx) && store.read_with(cx, |store, _| store.is_unread(&task))
+        });
+        let list = workbench.read_with(cx, |w, _| w.agents_list()).expect("the tool window has its view");
+        let rows = list.read_with(cx, |list, cx| list.rows(cx));
+        assert!(
+            rows.iter().any(|row| row.starts_with("Ready | Say hello | Fake Agent | ") && row.ends_with(" | unread")),
+            "{rows:?}"
+        );
+        assert_eq!(store.read_with(cx, |store, _| store.badge()), Some(1));
+
+        run_action(cx, "agents.archiveTasks", Some(serde_json::json!([task])));
+        wait_long(cx, "the task to be archived", |cx| agent_status(&store, &task, cx) == Some(AgentStatus::Archived));
+        assert!(!store.read_with(cx, |store, _| store.is_unread(&task)));
+        let rows = list.read_with(cx, |list, cx| list.rows(cx));
+        assert!(rows.iter().any(|row| row.contains("Archived (1)")), "{rows:?}");
+
+        run_action(cx, "agents.deleteTasks", Some(serde_json::json!([task])));
+        click_on(cx, "prompt-button-ok");
+        wait_long(cx, "the task to be deleted", |cx| store.read_with(cx, |store, _| store.tasks().is_empty()));
+        assert_eq!(list.read_with(cx, |list, cx| list.empty_text(cx)), Some("No agent tasks yet".to_owned()));
+        assert!(workbench.read_with(cx, |w, _| w.docked_agent_session().is_none()));
+        workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+    }
+
     /// The names of the configurations saved in the project's file.
     fn saved_names(root: &std::path::Path) -> Vec<String> {
         let saved = ide_run::load_user_configs(root).expect("the saved configurations are read");
@@ -6953,8 +7512,10 @@ mod tests {
             })
         };
         assert!(selected_kind(cx), "the selection's kind is published");
-        let debug = widget.read_with(cx, |widget, cx| widget.buttons(cx)).iter().any(|b| b.id == "run-widget-debug");
-        assert!(!debug, "without a debugger Debug is not offered");
+        // The debugger is registered: Debug is offered beside Run, for the selection.
+        let debug =
+            widget.read_with(cx, |widget, cx| widget.buttons(cx)).into_iter().find(|b| b.id == "run-widget-debug");
+        assert!(debug.as_ref().is_some_and(|button| button.enabled && button.title == "Debug 'hello'"), "{debug:?}");
 
         // The name opens the chooser to select: choosing a row selects it and runs nothing.
         click_on(cx, "run-widget-chooser");

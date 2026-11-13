@@ -324,7 +324,7 @@ impl MarkdownFeed {
                     cx.notify();
                 });
             }
-            EditorEvent::Hovered { .. } => {}
+            EditorEvent::Hovered { .. } | EditorEvent::GutterPressed { .. } => {}
         }
     }
 

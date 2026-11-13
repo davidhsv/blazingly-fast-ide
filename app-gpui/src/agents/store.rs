@@ -300,8 +300,8 @@ enum Pending {
     Edit(Ticket),
 }
 
-/// The Agents feature's state for one window.
-#[derive(Debug)]
+/// The Agents feature's state for one window. Its `Debug` leaves out the agents' environment, which
+/// holds their API keys.
 pub struct AgentsStore {
     pub loaded: bool,
     /// Why the tasks could not be loaded.
@@ -359,6 +359,41 @@ fn task_id(tab: &AgentTab) -> Option<&str> {
     match tab {
         AgentTab::Session(task) => Some(task),
         _ => None,
+    }
+}
+
+/// The agents of `providers` as `Debug` prints them: id, command and whether it is installed, never the
+/// values of their environment (API keys, tokens).
+pub struct ProvidersDebug<'a>(pub &'a [AgentProvider]);
+
+impl std::fmt::Debug for ProvidersDebug<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut list = f.debug_list();
+        for p in self.0 {
+            let env: Vec<&str> = p.env.keys().map(String::as_str).collect();
+            list.entry(&format_args!(
+                "{{ id: {:?}, command: {:?}, installed: {}, env: {:?} }}",
+                p.id, p.program, p.installed, env
+            ));
+        }
+        list.finish()
+    }
+}
+
+impl std::fmt::Debug for AgentsStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AgentsStore")
+            .field("loaded", &self.loaded)
+            .field("error", &self.error)
+            .field("tasks", &self.tasks)
+            .field("unread", &self.unread)
+            .field("providers", &ProvidersDebug(&self.providers))
+            .field("draft", &self.draft)
+            .field("docked", &self.docked)
+            .field("session_location", &self.session_location)
+            .field("home_open", &self.home_open)
+            .field("generation", &self.generation)
+            .finish_non_exhaustive()
     }
 }
 

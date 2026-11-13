@@ -370,3 +370,14 @@ fn stages_a_browsed_executable() {
     assert!(page.apply());
     assert_eq!(page.backend.saved, [("claude".to_owned(), Some("/chosen/agent".to_owned()))]);
 }
+
+#[test]
+fn debug_output_never_prints_an_agents_environment_values() {
+    let mut agent = claude("claude");
+    agent.env.insert("ANTHROPIC_API_KEY".to_owned(), "sk-ant-secret-value".to_owned());
+    let mut page = BuiltinAgents::default();
+    page.loaded(Ok(vec![agent]));
+    let printed = format!("{page:?}");
+    assert!(!printed.contains("sk-ant-secret-value"), "{printed}");
+    assert!(printed.contains("ANTHROPIC_API_KEY"), "{printed}");
+}

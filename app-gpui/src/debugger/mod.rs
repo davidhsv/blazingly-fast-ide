@@ -8,6 +8,8 @@
 pub mod actions;
 pub mod attach;
 pub mod breakpoints;
+pub mod breakpoints_view;
+pub mod driver;
 pub mod editor;
 pub mod effects;
 pub mod focused_view;

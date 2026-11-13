@@ -191,6 +191,8 @@ pub enum EditorEvent {
     SelectionMoved,
     /// The pointer rests over the text at `offset` with `modifiers` held, or left the text (`None`).
     Hovered { offset: Option<u32>, modifiers: Modifiers },
+    /// The gutter left of the text was pressed on the 0-based `line`, with Shift or Alt held.
+    GutterPressed { line: u32, shift: bool, alt: bool },
 }
 
 impl gpui_kit::EventEmitter<EditorEvent> for Editor {}
@@ -1471,6 +1473,11 @@ impl Editor {
     /// adds a caret where it is pressed (a range, dragging), or removes the caret there.
     fn mouse_down(&mut self, event: &MouseDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         window.focus(&self.focus, cx);
+        if let Some(line) = self.gutter_line_at(event.position) {
+            (self.drag_anchor, self.adding) = (None, None);
+            cx.emit(EditorEvent::GutterPressed { line, shift: event.modifiers.shift, alt: event.modifiers.alt });
+            return;
+        }
         if let Some(handler) = self.pointer.clone()
             && handler(event, self.offset_at(event.position), window, cx)
         {
@@ -1509,6 +1516,18 @@ impl Editor {
             }
         }
         self.drag_anchor = Some(self.anchor());
+    }
+
+    /// The 0-based line whose gutter (left of the text) is under `position`.
+    fn gutter_line_at(&self, position: Point<Pixels>) -> Option<u32> {
+        let layout = self.layout.as_ref()?;
+        let x = position.x - layout.bounds.left();
+        let y = position.y - layout.bounds.top() + self.scroll_top;
+        if x < px(0.0) || x >= layout.text_left || y < px(0.0) {
+            return None;
+        }
+        let line = (y / layout.line_height) as u32;
+        (line < self.line_count()).then_some(line)
     }
 
     fn mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
@@ -1910,6 +1929,9 @@ impl Element for EditorElement {
             MarkKind::ErrorProblem => theme::color(cx, "wave-error"),
             MarkKind::WarningProblem => theme::color(cx, "wave-warning"),
             MarkKind::WeakProblem => theme::color(cx, "fg-weak-warning"),
+            MarkKind::BreakpointLine => theme::color(cx, "bg-breakpoint-line"),
+            MarkKind::InactiveBreakpoint => theme::color(cx, "fg-gutter"),
+            MarkKind::ExecutionLine => theme::color(cx, "bg-debug-line"),
         };
         window.with_content_mask(Some(gpui_kit::ContentMask { bounds }), |window| {
             window.paint_quad(fill(bounds, theme::color(cx, "bg-editor")));
@@ -1940,10 +1962,22 @@ impl Element for EditorElement {
                     );
                     window.paint_quad(fill(row, theme::color(cx, "bg-current-line")));
                 }
+                // The breakpoint row is tinted, and the execution line goes over it.
+                for kind in [MarkKind::BreakpointLine, MarkKind::ExecutionLine] {
+                    if marks.iter().any(|mark| mark.kind == kind && touches(mark.range.start, mark.range.end)) {
+                        let row = Bounds::new(
+                            point(bounds.left() + *gutter, top),
+                            size(bounds.size.width - *gutter, line_height),
+                        );
+                        window.paint_quad(fill(row, mark_color(cx, kind)));
+                    }
+                }
                 let backgrounds = |below: bool| {
                     marks.iter().filter(move |mark| {
                         mark.kind != MarkKind::ExcludedOccurrence
                             && !mark.kind.is_underline()
+                            && !mark.kind.is_line()
+                            && !mark.kind.is_breakpoint()
                             && mark.kind.is_below_selection() == below
                     })
                 };
@@ -1999,6 +2033,23 @@ impl Element for EditorElement {
                     let x = bounds.left() + *gutter - number.width - px(12.0);
                     let _ =
                         number.paint(point(x.max(bounds.left()), top), line_height, TextAlign::Left, None, window, cx);
+                }
+                let breakpoint =
+                    marks.iter().find(|mark| mark.kind.is_breakpoint() && touches(mark.range.start, mark.range.end));
+                if let Some(mark) = breakpoint {
+                    let diameter = px(10.0);
+                    let dot = Bounds::new(
+                        point(bounds.left() + px(4.0), top + (line_height - diameter) / 2.0),
+                        size(diameter, diameter),
+                    );
+                    let solid = gpui_kit::BorderStyle::Solid;
+                    if mark.kind == MarkKind::BreakpointLine {
+                        let danger = theme::color(cx, "danger");
+                        window.paint_quad(quad(dot, diameter / 2.0, danger, px(0.0), danger, solid));
+                    } else {
+                        let ring = mark_color(cx, mark.kind);
+                        window.paint_quad(quad(dot, diameter / 2.0, ring.opacity(0.0), px(1.5), ring, solid));
+                    }
                 }
                 if focused {
                     for &(_, head) in heads.iter().filter(|head| on_line(head)) {
