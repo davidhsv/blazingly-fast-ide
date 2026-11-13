@@ -291,7 +291,17 @@
   {
    "kind": "notebook",
    "restorable": true,
-   "$document": "computed",
+   "document": {
+    "$isDirty": "function",
+    "$flush": "function",
+    "$save": "function",
+    "$prepareClose": "function",
+    "$cancelClose": "function",
+    "$discard": "function",
+    "$close": "function",
+    "$undo": "function",
+    "$redo": "function"
+   },
    "$component": "computed",
    "$title": "function",
    "$icon": "function",
@@ -2288,7 +2298,77 @@
    },
    "debugAdapter": "delve",
    "terminal": false,
-   "$fields": "computed",
+   "fields": [
+    {
+     "key": "goKind",
+     "label": "Go configuration",
+     "control": "select",
+     "options": [
+      {
+       "value": "build",
+       "label": "Go Build"
+      },
+      {
+       "value": "test",
+       "label": "Go Test"
+      }
+     ]
+    },
+    {
+     "key": "scope",
+     "label": "Run kind",
+     "control": "select",
+     "$options": "computed"
+    },
+    {
+     "key": "target",
+     "label": "Target",
+     "mono": true,
+     "required": true,
+     "$validate": "function"
+    },
+    {
+     "key": "outputDir",
+     "label": "Output directory",
+     "mono": true,
+     "browse": "directory",
+     "$visible": "function"
+    },
+    {
+     "key": "runAfterBuild",
+     "label": "Run after build",
+     "control": "checkbox",
+     "$visible": "function"
+    },
+    {
+     "key": "pattern",
+     "label": "Pattern",
+     "mono": true,
+     "$visible": "function"
+    },
+    {
+     "key": "toolArgs",
+     "label": "Go tool arguments",
+     "mono": true
+    },
+    {
+     "key": "useTags",
+     "label": "Use all custom build tags",
+     "control": "checkbox"
+    },
+    {
+     "key": "programArgs",
+     "label": "Program arguments",
+     "mono": true
+    },
+    {
+     "key": "module",
+     "label": "Module",
+     "mono": true,
+     "placeholder": "Project root",
+     "$suggestions": "function"
+    }
+   ],
    "$commandLine": "computed",
    "$paramsFrom": "computed",
    "source": "src/features/run/types.ts:456"
@@ -2306,7 +2386,77 @@
    },
    "debugAdapter": "delve",
    "terminal": false,
-   "$fields": "computed",
+   "fields": [
+    {
+     "key": "goKind",
+     "label": "Go configuration",
+     "control": "select",
+     "options": [
+      {
+       "value": "build",
+       "label": "Go Build"
+      },
+      {
+       "value": "test",
+       "label": "Go Test"
+      }
+     ]
+    },
+    {
+     "key": "scope",
+     "label": "Run kind",
+     "control": "select",
+     "$options": "computed"
+    },
+    {
+     "key": "target",
+     "label": "Target",
+     "mono": true,
+     "required": true,
+     "$validate": "function"
+    },
+    {
+     "key": "outputDir",
+     "label": "Output directory",
+     "mono": true,
+     "browse": "directory",
+     "$visible": "function"
+    },
+    {
+     "key": "runAfterBuild",
+     "label": "Run after build",
+     "control": "checkbox",
+     "$visible": "function"
+    },
+    {
+     "key": "pattern",
+     "label": "Pattern",
+     "mono": true,
+     "$visible": "function"
+    },
+    {
+     "key": "toolArgs",
+     "label": "Go tool arguments",
+     "mono": true
+    },
+    {
+     "key": "useTags",
+     "label": "Use all custom build tags",
+     "control": "checkbox"
+    },
+    {
+     "key": "programArgs",
+     "label": "Program arguments",
+     "mono": true
+    },
+    {
+     "key": "module",
+     "label": "Module",
+     "mono": true,
+     "placeholder": "Project root",
+     "$suggestions": "function"
+    }
+   ],
    "$commandLine": "computed",
    "$paramsFrom": "computed",
    "source": "src/features/run/types.ts:456"

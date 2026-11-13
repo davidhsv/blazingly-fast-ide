@@ -618,6 +618,7 @@
    "title": "Generate…",
    "category": "Code",
    "when": "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)",
+   "keyWhen": "editorLangId == java || editorLangId == kotlin || editorLangId == scala || editorLangId == groovy || editorLangId == rust || editorLangId == go || editorLangId == typescript || editorLangId == typescriptreact || editorLangId == javascript || editorLangId == javascriptreact || editorLangId == c || editorLangId == cpp || editorLangId == objective-c || editorLangId == objective-cpp || editorLangId == csharp || editorLangId == swift || editorLangId == dart || editorLangId == php",
    "source": "src/editor/lsp/actions.ts:318"
   },
   {
@@ -1035,13 +1036,19 @@
   {
    "id": "db.collapseAll",
    "title": "Collapse All",
+   "category": "Database",
    "icon": "collapse-all",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "source": "src/features/database/treeActions.ts:471"
   },
   {
    "id": "db.copyReference",
    "title": "Copy Reference",
+   "category": "Database",
    "icon": "copy",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "qualified name"
    ],
@@ -1050,7 +1057,10 @@
   {
    "id": "db.ddlToClipboard",
    "title": "Generate DDL to Clipboard",
+   "category": "Database",
    "icon": "copy",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "create table",
     "sql script"
@@ -1060,7 +1070,10 @@
   {
    "id": "db.ddlToConsole",
    "title": "Generate DDL to Query Console",
+   "category": "Database",
    "icon": "db-console",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "create table",
     "sql script"
@@ -1070,7 +1083,10 @@
   {
    "id": "db.disconnect",
    "title": "Deactivate",
+   "category": "Database",
    "icon": "db-disconnect",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "disconnect",
     "close connection"
@@ -1080,7 +1096,10 @@
   {
    "id": "db.drop",
    "title": "Drop…",
+   "category": "Database",
    "icon": "trash",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "delete",
     "remove data source"
@@ -1090,7 +1109,10 @@
   {
    "id": "db.duplicateSource",
    "title": "Duplicate",
+   "category": "Database",
    "icon": "copy",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "copy data source"
    ],
@@ -1099,7 +1121,10 @@
   {
    "id": "db.editData",
    "title": "Edit Data",
+   "category": "Database",
    "icon": "db-table",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "open table",
     "table editor"
@@ -1142,7 +1167,10 @@
   {
    "id": "db.goToDdl",
    "title": "Go to DDL",
+   "category": "Database",
    "icon": "file-sql",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "edit source",
     "definition",
@@ -1153,6 +1181,9 @@
   {
    "id": "db.goToReferencedTable",
    "title": "Go to Referenced Table",
+   "category": "Database",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "foreign key"
    ],
@@ -1161,7 +1192,10 @@
   {
    "id": "db.importData",
    "title": "Import Data from File…",
+   "category": "Database",
    "icon": "import",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "csv",
     "tsv",
@@ -1172,13 +1206,19 @@
   {
    "id": "db.jumpToConsole",
    "title": "Jump to Query Console…",
+   "category": "Database",
    "icon": "db-console",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "source": "src/features/database/treeActions.ts:240"
   },
   {
    "id": "db.modifyTable",
    "title": "Modify Table…",
+   "category": "Database",
    "icon": "edit",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "alter table",
     "add column",
@@ -1189,7 +1229,10 @@
   {
    "id": "db.new",
    "title": "New…",
+   "category": "Database",
    "icon": "plus",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "query console",
     "data source"
@@ -1199,7 +1242,10 @@
   {
    "id": "db.newColumn",
    "title": "Column",
+   "category": "Database",
    "icon": "db-column",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "add column"
    ],
@@ -1223,7 +1269,10 @@
   {
    "id": "db.newTable",
    "title": "Table",
+   "category": "Database",
    "icon": "db-table",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "create table",
     "new table"
@@ -1252,7 +1301,10 @@
   {
    "id": "db.properties",
    "title": "Data Source Properties…",
+   "category": "Database",
    "icon": "db-properties",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "data sources",
     "connection settings"
@@ -1275,13 +1327,19 @@
   {
    "id": "db.quickDoc",
    "title": "Quick Documentation",
+   "category": "Database",
    "icon": "info",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "source": "src/features/database/treeActions.ts:277"
   },
   {
    "id": "db.refresh",
    "title": "Refresh",
+   "category": "Database",
    "icon": "refresh",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "synchronize",
     "introspect"
@@ -1291,7 +1349,10 @@
   {
    "id": "db.rename",
    "title": "Rename…",
+   "category": "Database",
    "icon": "edit",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "source": "src/features/database/treeActions.ts:286"
   },
   {
@@ -1309,7 +1370,10 @@
   {
    "id": "db.runSqlScript",
    "title": "Run SQL Script…",
+   "category": "Database",
    "icon": "run",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "execute file",
     "import sql"
@@ -1319,6 +1383,9 @@
   {
    "id": "db.separateProceduresAndFunctions",
    "title": "Separate Procedures and Functions",
+   "category": "Database",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "source": "src/features/database/treeActions.ts:466"
   },
   {
@@ -1337,6 +1404,9 @@
   {
    "id": "db.sqlScript",
    "title": "SQL Script Template",
+   "category": "Database",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "hidden": true,
    "source": "src/features/database/treeActions.ts:437"
   },
@@ -1355,6 +1425,9 @@
   {
    "id": "db.truncate",
    "title": "Truncate…",
+   "category": "Database",
+   "when": "projectOpen",
+   "keyWhen": "databaseViewFocus",
    "keywords": [
     "delete all rows",
     "empty table"
@@ -1677,6 +1750,7 @@
    "category": "Deployment",
    "description": "Show the files of a deployment server in the Remote Host tool window",
    "icon": "web",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -1691,6 +1765,7 @@
    "category": "Deployment",
    "description": "Edit the deployment servers and options",
    "icon": "settings",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -1705,6 +1780,7 @@
    "category": "Deployment",
    "description": "Delete the remote copies of the selected files and folders on the default server",
    "icon": "trash",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -1718,6 +1794,7 @@
    "title": "Download from…",
    "category": "Deployment",
    "description": "Replace the selected files and folders with their copies on a deployment server",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -1731,6 +1808,7 @@
    "title": "Download from Default Server",
    "category": "Deployment",
    "description": "Replace the selected files and folders with their copies on the default deployment server",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -1745,6 +1823,7 @@
    "category": "Deployment",
    "description": "Open the deployed URL of the file on the default server's web server",
    "icon": "web",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "web server",
@@ -1758,6 +1837,7 @@
    "title": "Sync with Deployed to…",
    "category": "Deployment",
    "description": "Compare local files with a deployment server and synchronize them",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -1773,6 +1853,7 @@
    "title": "Sync with Deployed to Default Server",
    "category": "Deployment",
    "description": "Compare local files with the default deployment server and synchronize them",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -1788,6 +1869,7 @@
    "title": "Automatic Upload",
    "category": "Deployment",
    "description": "Upload changed files to the default server automatically",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -1803,6 +1885,7 @@
    "title": "Upload to…",
    "category": "Deployment",
    "description": "Upload the selected files and folders to a deployment server",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -1817,6 +1900,7 @@
    "category": "Deployment",
    "description": "Upload the selected files and folders to the default deployment server",
    "icon": "export",
+   "when": "projectOpen",
    "keywords": [
     "deploy",
     "sftp",
@@ -3107,6 +3191,78 @@
    "source": "src/features/code-insight/index.ts:93"
   },
   {
+   "id": "github.changeRepository",
+   "title": "Change Repository or Account…",
+   "category": "GitHub",
+   "when": "projectOpen",
+   "source": "src/features/github/index.ts:108"
+  },
+  {
+   "id": "github.checkoutPullRequest",
+   "title": "Checkout Pull Request…",
+   "category": "GitHub",
+   "description": "Checks out the selected pull request, a number given as argument, or asks for one.",
+   "icon": "branch",
+   "when": "projectOpen",
+   "keywords": [
+    "github",
+    "pr"
+   ],
+   "source": "src/features/github/index.ts:80"
+  },
+  {
+   "id": "github.createPullRequest",
+   "title": "Create Pull Request…",
+   "category": "GitHub",
+   "icon": "plus",
+   "when": "projectOpen",
+   "keyWhen": "activeToolWindow == 'pullRequests'",
+   "keywords": [
+    "github",
+    "pr",
+    "new pull request",
+    "start pull request",
+    "merge request",
+    "code review"
+   ],
+   "source": "src/features/github/index.ts:70"
+  },
+  {
+   "id": "github.openInBrowser",
+   "title": "Open on GitHub",
+   "category": "GitHub",
+   "icon": "external-link",
+   "when": "projectOpen",
+   "source": "src/features/github/index.ts:89"
+  },
+  {
+   "id": "github.pullRequest.checkoutBranch",
+   "title": "Checkout Branch",
+   "category": "GitHub",
+   "description": "Fetch and checkout the pull request branch",
+   "icon": "branch",
+   "when": "projectOpen && githubConnected",
+   "source": "src/features/github/index.ts:177"
+  },
+  {
+   "id": "github.pullRequest.copyUrl",
+   "title": "Copy Pull Request URL",
+   "category": "GitHub",
+   "icon": "copy",
+   "when": "projectOpen && githubConnected",
+   "source": "src/features/github/index.ts:169"
+  },
+  {
+   "id": "github.pullRequest.deleteMergedBranch",
+   "title": "Delete Branch",
+   "category": "GitHub",
+   "description": "Delete the merged branch on GitHub",
+   "icon": "trash",
+   "when": "projectOpen && githubConnected",
+   "hidden": true,
+   "source": "src/features/github/index.ts:194"
+  },
+  {
    "id": "github.pullRequest.diff.addComment",
    "title": "Add Review Comment",
    "category": "GitHub",
@@ -3149,9 +3305,38 @@
    "source": "src/features/github/diff/index.ts:73"
   },
   {
+   "id": "github.pullRequest.openInBrowser",
+   "title": "View Pull Request in Browser",
+   "category": "GitHub",
+   "icon": "external-link",
+   "when": "projectOpen && githubConnected",
+   "keywords": [
+    "open pull request in github"
+   ],
+   "source": "src/features/github/index.ts:160"
+  },
+  {
+   "id": "github.pullRequest.openInWorktree",
+   "title": "Open in Worktree",
+   "category": "GitHub",
+   "description": "Fetch and open the pull request branch in a Git worktree",
+   "when": "projectOpen && githubConnected",
+   "source": "src/features/github/index.ts:186"
+  },
+  {
+   "id": "github.pullRequest.refresh",
+   "title": "Refresh Pull Request",
+   "category": "GitHub",
+   "icon": "refresh",
+   "when": "projectOpen && githubConnected",
+   "keyWhen": "activeToolWindow == 'pullRequests' && githubPrTab == 'pr'",
+   "source": "src/features/github/index.ts:141"
+  },
+  {
    "id": "github.pullRequest.reviewMode",
    "title": "Review Mode",
    "category": "GitHub",
+   "when": "projectOpen && githubConnected && github.toggleReviewMode",
    "toggle": true,
    "source": "src/features/github/index.ts:240"
   },
@@ -3164,18 +3349,98 @@
    "source": "src/features/github/reviewMode/index.ts:136"
   },
   {
+   "id": "github.pullRequest.show",
+   "title": "View Pull Request",
+   "category": "GitHub",
+   "description": "View pull request information and timeline",
+   "when": "projectOpen && githubConnected",
+   "source": "src/features/github/index.ts:124"
+  },
+  {
    "id": "github.pullRequest.showInToolWindow",
    "title": "Show Pull Request in the Tool Window",
    "category": "GitHub",
    "icon": "toolwindow-pull-requests",
+   "when": "projectOpen && githubConnected && github.showCurrentBranchPullRequest",
    "source": "src/features/github/index.ts:222"
+  },
+  {
+   "id": "github.pullRequest.showTimeline",
+   "title": "View Timeline",
+   "category": "GitHub",
+   "description": "View pull request timeline",
+   "icon": "github-timeline",
+   "when": "projectOpen && githubConnected",
+   "source": "src/features/github/index.ts:132"
+  },
+  {
+   "id": "github.pullRequest.submitReview",
+   "title": "Submit Review…",
+   "category": "GitHub",
+   "when": "projectOpen && githubConnected && (github.submitReview || githubCurrentBranchPullRequest)",
+   "source": "src/features/github/index.ts:205"
+  },
+  {
+   "id": "github.pullRequest.timeline.refresh",
+   "title": "Refresh Timeline",
+   "category": "GitHub",
+   "description": "Check for new timeline events",
+   "icon": "refresh",
+   "when": "projectOpen && githubConnected && githubTimelineActive",
+   "keyWhen": "editorAreaFocus",
+   "source": "src/features/github/index.ts:150"
+  },
+  {
+   "id": "github.pullRequest.toggleViewed",
+   "title": "Toggle viewed/not viewed state",
+   "category": "GitHub",
+   "description": "Toggle viewed/not viewed state for the selection or file",
+   "when": "projectOpen && githubConnected && (github.toggleViewed || githubReviewDiff)",
+   "source": "src/features/github/index.ts:213"
   },
   {
    "id": "github.pullRequest.updateBranch",
    "title": "Update to Enable Review Mode…",
    "category": "GitHub",
    "icon": "github-warning",
+   "when": "projectOpen && githubConnected && github.updateReviewBranch",
    "source": "src/features/github/index.ts:231"
+  },
+  {
+   "id": "github.pullRequests",
+   "title": "View Pull Requests",
+   "category": "GitHub",
+   "icon": "toolwindow-pull-requests",
+   "when": "projectOpen",
+   "keywords": [
+    "github",
+    "pr",
+    "review",
+    "merge request",
+    "code review"
+   ],
+   "source": "src/features/github/index.ts:61"
+  },
+  {
+   "id": "github.refresh",
+   "title": "Refresh Pull Requests List",
+   "category": "GitHub",
+   "icon": "refresh",
+   "when": "projectOpen",
+   "keyWhen": "activeToolWindow == 'pullRequests' && githubPrTab == 'list'",
+   "keywords": [
+    "refresh list",
+    "reload"
+   ],
+   "source": "src/features/github/index.ts:97"
+  },
+  {
+   "id": "github.selectOpenedPullRequest",
+   "title": "Select Opened Pull Request",
+   "category": "GitHub",
+   "icon": "locate",
+   "when": "projectOpen && githubConnected && githubTimelineActive",
+   "source": "src/features/github/index.ts:115"
   },
   {
    "id": "gradle.analyzeDependencies",
