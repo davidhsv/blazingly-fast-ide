@@ -3926,5 +3926,81 @@
   "point.registerOverlay:project.refactoringPreview": {
     "status": "done",
     "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`"
+  },
+  "action:code.completion": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`, `editor::intelligence::tests::an_answer_overtaken_by_a_newer_request_is_dropped`, `editor::intelligence::tests::escape_closes_the_lookup_before_the_find_bar`; the server's items with their extra edits, commit characters, documentation and sorting. Not yet: Tab through a snippet's fields, live templates and contributed rows in the list, word completion without a server"
+  },
+  "action:navigate.declaration": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`, `workbench::tests::go_to_declaration_without_a_server_finds_a_local_through_the_syntax_tree`; one target opens, several are chosen from, none says so; without a server only names local to the file are found"
+  },
+  "action:navigate.implementation": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`; implementations are not streamed while the search runs"
+  },
+  "action:navigate.typeDeclaration": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`"
+  },
+  "action:code.quickDocumentation": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`; shows the documentation at the caret in the hover popup; the Documentation popup with its history and tool window is not used"
+  },
+  "action:code.parameterInfo": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::parameter_info_opens_after_a_parenthesis_and_follows_the_commas`; opens and follows the commas; Tab and Shift+Tab between arguments are not wired"
+  },
+  "action:code.showIntentions": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`; code actions with their preview and apply; the bulb, the IDE's own intentions and the inspection controls are not wired"
+  },
+  "point.registerOverlay:editor-lsp.popups": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`, `editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`, `editor::intelligence::tests::parameter_info_opens_after_a_parenthesis_and_follows_the_commas`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`; the lookup, hover, parameter info, intentions and the target chooser; quick definition, rename, the reformat and imports-on-paste dialogs are not built"
+  },
+  "ipc:lsp_completion": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`"
+  },
+  "ipc:lsp_resolve_completion": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`; asked for documentation and late edits; the fake server answers a fixed item"
+  },
+  "ipc:lsp_goto": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`"
+  },
+  "ipc:lsp_hover": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`"
+  },
+  "ipc:lsp_signature_help": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::parameter_info_opens_after_a_parenthesis_and_follows_the_commas`"
+  },
+  "ipc:lsp_code_actions": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`"
+  },
+  "ipc:lsp_resolve_code_action": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`"
+  },
+  "ipc:lsp_apply_code_action": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`"
+  },
+  "ipc:lsp_resend_diagnostics": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`"
+  },
+  "ipc:lsp_execute_command": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`; called for a completion item's command; no test item has one"
+  },
+  "ipc:syntax_locals": {
+    "status": "done",
+    "proof": "`workbench::tests::go_to_declaration_without_a_server_finds_a_local_through_the_syntax_tree`"
   }
 }
