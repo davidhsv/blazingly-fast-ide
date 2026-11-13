@@ -178,6 +178,18 @@ pub fn title_bar_mode(distraction_free: bool, show_main_toolbar: bool) -> TitleB
     }
 }
 
+/// What the full bar carries besides its title, by what the window shows.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum TitleBarKind {
+    /// A project: the toolbar's entries, the gear and the bar's context menu.
+    #[default]
+    Project,
+    /// A single file (LightEdit): its title and the gear.
+    LightEdit,
+    /// The Welcome screen: its title only.
+    Minimal,
+}
+
 /// The window around the bar.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TitleBarFrame {
@@ -290,6 +302,7 @@ pub struct TitleBar {
     slots: HashMap<String, TitleSlot>,
     saved: Option<MainToolbarSettings>,
     mode: TitleBarMode,
+    kind: TitleBarKind,
     frame: TitleBarFrame,
     /// The window's document title, shown centred in the compact header.
     document_title: Option<String>,
@@ -310,6 +323,7 @@ impl TitleBar {
             slots: HashMap::new(),
             saved: None,
             mode: TitleBarMode::Full,
+            kind: TitleBarKind::Project,
             frame,
             document_title: None,
             title: None,
@@ -362,6 +376,17 @@ impl TitleBar {
         self.mode
     }
 
+    pub fn set_kind(&mut self, kind: TitleBarKind, cx: &mut Context<Self>) {
+        if self.kind != kind {
+            self.kind = kind;
+            cx.notify();
+        }
+    }
+
+    pub fn kind(&self) -> TitleBarKind {
+        self.kind
+    }
+
     pub fn set_frame(&mut self, frame: TitleBarFrame, cx: &mut Context<Self>) {
         if self.frame != frame {
             self.frame = frame;
@@ -408,9 +433,9 @@ impl TitleBar {
         editable_toolbar(self.saved.as_ref(), &self.items)
     }
 
-    /// Whether the bar shows the toolbar entries and the gear.
+    /// Whether the bar shows the toolbar entries: a project's full bar.
     fn shows_toolbar(&self) -> bool {
-        self.mode == TitleBarMode::Full
+        self.mode == TitleBarMode::Full && self.kind == TitleBarKind::Project
     }
 
     /// What entry `id` draws, when it draws something.
@@ -450,14 +475,15 @@ impl TitleBar {
         (keep(left), keep(right))
     }
 
-    /// Whether the gear is drawn.
+    /// Whether the gear is drawn: in the full bar of a project or a LightEdit window.
     pub fn shows_gear(&self) -> bool {
-        self.shows_toolbar() && !self.menu_expanded
+        self.mode == TitleBarMode::Full && self.kind != TitleBarKind::Minimal && !self.menu_expanded
     }
 
-    /// Whether the main menu button is drawn: a frameless window has no menu bar of its own.
+    /// Whether the main menu button is drawn: a frameless window has no menu bar of its own; the
+    /// Welcome screen's bar has none either.
     pub fn shows_main_menu(&self) -> bool {
-        self.frame.frameless
+        self.frame.frameless && !(self.mode == TitleBarMode::Full && self.kind == TitleBarKind::Minimal)
     }
 
     /// The text of the title the bar shows, if any.
@@ -703,20 +729,21 @@ impl Render for TitleBar {
                 let left = entries(left);
                 let right = entries(right);
                 let gear = self.shows_gear().then(|| Self::gear(cx));
-                bar.on_mouse_down(
-                    MouseButton::Right,
+                // Only a project's bar has entries for its context menu to switch.
+                let context_menu = (self.kind == TitleBarKind::Project).then(|| {
                     cx.listener(|_, event: &MouseDownEvent, window, cx| {
                         window.prevent_default();
                         cx.stop_propagation();
                         cx.emit(TitleBarEvent::ContextMenu { position: event.position });
-                    }),
-                )
-                .children(title)
-                .children(left)
-                .child(div().flex_1().min_w(px(24.0)).h_full())
-                .children(right)
-                .children(gear)
-                .into_any_element()
+                    })
+                });
+                bar.when_some(context_menu, |bar, listener| bar.on_mouse_down(MouseButton::Right, listener))
+                    .children(title)
+                    .children(left)
+                    .child(div().flex_1().min_w(px(24.0)).h_full())
+                    .children(right)
+                    .children(gear)
+                    .into_any_element()
             }
         }
     }
@@ -1708,7 +1735,7 @@ mod tests {
             };
             bar.set_saved(Some(saved), cx);
             let merge = item(MERGE_REBASE_ITEM, Side::Left, 11.0);
-            bar.register(merge, TitleSlot::Dynamic(Rc::new(|_: &Window, _: &App| None)), cx);
+            bar.register(merge, TitleSlot::Dynamic(Rc::new(|_: &Window, _: &App| None::<AnyView>)), cx);
         });
         cx.run_until_parked();
         assert_eq!(shown(&bar, cx), (ids(&[PROJECT_WIDGET, VCS_WIDGET]), ids(&[IDE_MODE_ITEM, BUILD_ITEM])));
@@ -1855,6 +1882,36 @@ mod tests {
         cx.run_until_parked();
         let title = cx.debug_bounds("title:window").expect("the title is drawn");
         assert!(title.right() <= cx.debug_bounds("title:project").expect("drawn").left());
+    }
+
+    // src/workbench/Workbench.tsx › LightEditFrame and src/workbench/Welcome.tsx: the LightEdit bar has its
+    // title and the gear, the Welcome bar its title only
+    #[gpui_kit::test]
+    async fn a_light_edit_bar_has_its_title_and_the_gear_and_the_welcome_bar_its_title_only(cx: &mut TestAppContext) {
+        let (bar, events, cx) = open(cx, TitleBarFrame::default());
+        bar.update(cx, |bar, cx| {
+            bar.set_kind(TitleBarKind::LightEdit, cx);
+            bar.set_title(Some("notes.txt".to_owned()), cx);
+        });
+        cx.run_until_parked();
+        assert_eq!(shown(&bar, cx), (Vec::new(), Vec::new()));
+        assert!(cx.debug_bounds("title:window").is_some() && cx.debug_bounds("title:gear").is_some());
+        assert!(cx.debug_bounds("title:project").is_none());
+        // Without entries there is nothing for the context menu to switch.
+        let at = cx.debug_bounds("title-bar").expect("drawn").center();
+        cx.simulate_mouse_down(at, MouseButton::Right, Modifiers::default());
+        cx.simulate_mouse_up(at, MouseButton::Right, Modifiers::default());
+        cx.run_until_parked();
+        assert!(events.borrow().is_empty(), "{:?}", events.borrow());
+        bar.update(cx, |bar, cx| {
+            bar.set_kind(TitleBarKind::Minimal, cx);
+            bar.set_title(Some("Welcome to OpenIDEA".to_owned()), cx);
+        });
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("title:window").is_some());
+        assert!(cx.debug_bounds("title:gear").is_none());
+        let title = bar.read_with(cx, |bar, _| bar.shown_title().map(str::to_owned));
+        assert_eq!(title.as_deref(), Some("Welcome to OpenIDEA"));
     }
 
     type DialogEvents = Rc<RefCell<Vec<CustomizeToolbarEvent>>>;

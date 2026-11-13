@@ -430,6 +430,13 @@ impl StatusBar {
         cx.notify();
     }
 
+    /// Adds an item whose text its window feeds with [`Self::set_text`]; it draws nothing until then.
+    pub fn register_fed(&mut self, spec: StatusItemSpec, cx: &mut Context<Self>) {
+        if self.model.register(spec) {
+            cx.notify();
+        }
+    }
+
     pub fn unregister(&mut self, id: &str, cx: &mut Context<Self>) {
         let removed = self.contents.remove(id).is_some();
         if self.model.unregister(id) || removed {
