@@ -5160,8 +5160,8 @@
     "proof": "`workbench::log_actions::tests::revert_commit_adds_a_commit_that_undoes_it`"
   },
   "action:vcs.log.squashCommits": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::squash_commits_melds_the_selected_commits_with_the_typed_message`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::squash_commits_melds_the_selected_commits_with_the_typed_message`; the log has no multi-selection, so several commits reach the action only as its argument"
   },
   "action:vcs.log.squashInto": {
     "status": "done",
