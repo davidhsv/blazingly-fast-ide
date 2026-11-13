@@ -244,6 +244,10 @@ const code = (s) => `\`${s}\``;
 const sorted = (map) => [...map].sort(([a], [b]) => a.localeCompare(b));
 
 const actionMap = actions();
+// Specs a wrapper completes (`registerActions(specs.map((a) => ({ ...a, run })))`) carry no literal
+// `run`; the generated manifest resolves them, so its ids fill the gaps.
+const generated = JSON.parse(readFileSync(join(root, "app-gpui/assets/gen/actions.json"), "utf8"));
+for (const { id, source } of generated.actions) if (!actionMap.has(id)) actionMap.set(id, source);
 const keymaps = keymapBindings();
 const defaultMap = keymaps["intellij-macos"] ?? {};
 section(

@@ -154,7 +154,7 @@ pub struct DbSsh {
     pub save_secret: bool,
 }
 
-/// `Debug` shows [`DataSource::url`] with its password replaced (see [`redacted_url`]).
+// `Debug` shows [`DataSource::url`] with its password replaced (see [`redacted_url`]).
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct DataSource {

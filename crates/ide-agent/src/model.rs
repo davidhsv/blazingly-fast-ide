@@ -397,7 +397,7 @@ pub enum AgentEntry {
     },
 }
 
-/// `Debug` lists the names of [`AgentProvider::env`], never their values (API keys).
+// `Debug` lists the names of [`AgentProvider::env`], never their values (API keys).
 #[derive(Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentProvider {
