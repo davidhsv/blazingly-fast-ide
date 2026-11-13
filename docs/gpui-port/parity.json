@@ -3401,7 +3401,7 @@
   },
   "unit:src/features/settings/__tests__/dialog.test.tsx": {
     "status": "partial",
-    "proof": "`settings_view::dialog::tests`; 9 of 41 cases by name"
+    "proof": "`settings_view::dialog::tests`, `settings_view::keymap::tests`, `settings_model::builtin_pages::tests`, `workbench::tests::settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes`, `workbench::tests::settings_cancel_after_an_edit_writes_nothing`, `workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`, `workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`; 13 of 41 cases: the others exercise pages that are views of their own (CMake, Gradle, Maven, fonts, proxy, Project Structure) or the native window's root"
   },
   "unit:src/features/debugger/__tests__/toolWindow.test.tsx": {
     "status": "done",
@@ -4002,5 +4002,121 @@
   "ipc:syntax_locals": {
     "status": "done",
     "proof": "`workbench::tests::go_to_declaration_without_a_server_finds_a_local_through_the_syntax_tree`"
+  },
+  "unit:src/features/code-insight/ServerStatus.test.tsx": {
+    "status": "done",
+    "proof": "`code_insight::server_status::tests`"
+  },
+  "unit:src/features/code-insight/hierarchy.test.ts": {
+    "status": "done",
+    "proof": "`code_insight::hierarchy::tests`"
+  },
+  "unit:src/features/code-insight/problemsReport.test.ts": {
+    "status": "done",
+    "proof": "`code_insight::problems_report::tests`"
+  },
+  "unit:src/features/code-insight/problemsStore.test.ts": {
+    "status": "done",
+    "proof": "`code_insight::problems::tests`"
+  },
+  "unit:src/features/code-insight/servers.test.ts": {
+    "status": "done",
+    "proof": "`code_insight::servers::tests`"
+  },
+  "unit:src/features/code-insight/syntaxUsages.test.ts": {
+    "status": "done",
+    "proof": "`code_insight::usage_search::tests`"
+  },
+  "unit:src/features/code-insight/usageAccessFilter.test.tsx": {
+    "status": "done",
+    "proof": "`code_insight::usages::tests`"
+  },
+  "unit:src/features/code-insight/usagePreview.test.tsx": {
+    "status": "partial",
+    "proof": "`code_insight::usages::tests`; 1 of 3 cases: the preview shows plain lines, without syntax colours"
+  },
+  "unit:src/features/code-insight/usageResults.test.ts": {
+    "status": "done",
+    "proof": "`code_insight::usage_search::tests`, `code_insight::usages::tests`"
+  },
+  "unit:src/features/code-insight/usagesPopup.test.tsx": {
+    "status": "done",
+    "proof": "`code_insight::usages_popup::tests`, `code_insight::usages::tests`, `code_insight::usage_search::tests`"
+  },
+  "unit:src/features/code-insight/views.test.ts": {
+    "status": "done",
+    "proof": "`code_insight::usages::tests`, `code_insight::servers::tests`, `code_insight::problems::tests`, `code_insight::hierarchy::tests`"
+  },
+  "unit:src/features/code-insight/workspaceUndo.test.ts": {
+    "status": "done",
+    "proof": "`code_insight::workspace_undo::tests`"
+  },
+  "action:find.usages": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the Find Usages window with exclusion, rerun and tabs; without a language server the backend answers text matches, so the semantic search and the UI's own syntax fallback are not exercised; no preview colours"
+  },
+  "action:find.showUsages": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the popup with the usages and opening one; it opens in the middle of the window, not at the caret"
+  },
+  "action:find.showUsageResults": {
+    "status": "done",
+    "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`"
+  },
+  "action:usages.rerun": {
+    "status": "done",
+    "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`"
+  },
+  "action:navigate.typeHierarchy": {
+    "status": "partial",
+    "proof": "`workbench::tests::type_hierarchy_without_a_server_says_no_language_server_is_available`; without a language server only the \"No language server available\" answer is proven"
+  },
+  "action:navigate.callHierarchy": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; runs without a server and without a fault; no test has a hierarchy to show"
+  },
+  "action:file.settings": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes`, `workbench::tests::settings_cancel_after_an_edit_writes_nothing`, `workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`; search, staging, Apply, OK, Cancel and the Global / project scopes over the pages made of plain options. Pages that are views of their own show \"not available yet\": fonts, colour scheme, code style schemes, file types, languages, inspections, SSH and others"
+  },
+  "action:file.newProjectsSettings": {
+    "status": "done",
+    "proof": "`workbench::tests::settings_for_new_projects_and_plugins_open_on_their_pages`"
+  },
+  "action:settings.keymap": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `settings_view::keymap::tests`; presets, search by name and by shortcut, assigning and removing shortcuts with conflicts; action icons and page-swipe shortcuts are missing"
+  },
+  "action:settings.appearance": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_appearance_applies_the_chosen_theme`; the theme choice over the built-in themes; plugin themes, Sync with OS, accent, zoom and the other controls of the page are slots"
+  },
+  "action:plugins.settings": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_for_new_projects_and_plugins_open_on_their_pages`; opens Settings on Plugins; without a plugin host in the test the page is unavailable, and the page's listing through the host has never run"
+  },
+  "point.registerToolWindow:problems": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_problems_window_lists_published_problems_and_opens_the_chosen_one`, `code_insight::problems_view::tests`; published problems by file with counts, opening one; the stripe badge, file decorations in the Project view and the IDE's own inspections are missing"
+  },
+  "point.registerToolWindow:usages": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `code_insight::usages_view::tests`; see find.usages"
+  },
+  "point.registerToolWindow:hierarchy": {
+    "status": "partial",
+    "proof": "`workbench::tests::type_hierarchy_without_a_server_says_no_language_server_is_available`, `code_insight::hierarchy_view::tests`; see navigate.typeHierarchy"
+  },
+  "point.registerOverlay:code-insight.usagesPopup": {
+    "status": "partial",
+    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `code_insight::usages_popup::tests`; see find.showUsages"
+  },
+  "point.registerOverlay:settings.dialog": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes`, `workbench::tests::settings_cancel_after_an_edit_writes_nothing`, `workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`, `settings_view::dialog::tests`; see file.settings"
+  },
+  "point.registerOverlay:settings.assignShortcut": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `settings_view::keymap::tests`; the record dialog inside the Keymap page; the standalone Assign Shortcut action is not registered"
   }
 }
