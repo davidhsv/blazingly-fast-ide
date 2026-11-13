@@ -17,6 +17,7 @@ pub mod syntax_usages;
 pub mod usage_search;
 pub mod usages;
 pub mod usages_popup;
+pub mod usages_view;
 pub mod workspace_undo;
 
 /// The Problems tool window's id.

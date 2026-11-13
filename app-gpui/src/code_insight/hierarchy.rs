@@ -234,6 +234,10 @@ impl Hierarchy {
         }
     }
 
+    pub fn set_light_mode(&mut self, light_mode: bool) {
+        self.light_mode = light_mode;
+    }
+
     pub fn mode(&self) -> HierarchyMode {
         self.mode
     }

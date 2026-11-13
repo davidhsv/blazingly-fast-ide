@@ -648,6 +648,10 @@ impl UsagesPopupFlow {
         Self { light_mode, ..Self::default() }
     }
 
+    pub fn set_light_mode(&mut self, light_mode: bool) {
+        self.light_mode = light_mode;
+    }
+
     pub fn content(&self) -> &PopupContent {
         &self.content
     }

@@ -12,16 +12,26 @@ const ANTIALIASING: [(&str, &str); 3] =
     [("subpixel", "Subpixel"), ("greyscale", "Greyscale"), ("none", "No antialiasing")];
 
 fn appearance() -> PageSpec {
-    let mut theme = vec!["Sync with OS"];
-    theme.extend(BUILTIN_THEMES.iter().map(|theme| theme.label));
-    theme.push("preferred theme");
+    // The choices are the built-in themes; Sync with OS and the preferred themes are search words.
+    let themes = BUILTIN_THEMES.iter().map(|theme| (theme.id.as_str(), theme.label)).collect();
     PageSpec::new("appearance", "Appearance", 0)
         .group(APPEARANCE_GROUP)
-        .keywords(&["theme", "colour", "color", "dark", "light", "zoom", "font", "compact"])
+        .keywords(&[
+            "theme",
+            "colour",
+            "color",
+            "dark",
+            "light",
+            "zoom",
+            "font",
+            "compact",
+            "Sync with OS",
+            "preferred theme",
+        ])
         .section(
             None,
             vec![
-                custom_owned("Theme", theme),
+                select_owned("appearance.theme", "Theme", themes),
                 custom("Editor color scheme", &["Theme default", "scheme"]),
                 custom("File icon theme", &["icons", "file icons", "icon theme"]),
                 custom("Accent colour", &["accent color", "highlight"]),
