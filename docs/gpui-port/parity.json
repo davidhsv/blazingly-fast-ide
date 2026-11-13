@@ -2677,11 +2677,11 @@
   },
   "unit:src/features/agents/AgentReply.test.tsx": {
     "status": "partial",
-    "proof": "`agents::reply_actions::tests`; the state and logic of 4 of 4 cases, on the model; the view is not built"
+    "proof": "`agents::session_view::tests`, `agents::reply_actions::tests`, `workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; 2 of 4 cases on the conversation view, the others only on the model"
   },
   "unit:src/features/agents/AgentsView.test.tsx": {
     "status": "partial",
-    "proof": "`agents::task_list::tests`, `agents::task_actions::tests`; the state and logic of 19 of 19 cases, on the model; the view is not built"
+    "proof": "`agents::task_list_view::tests`, `agents::task_list::tests`, `agents::task_actions::tests`, `workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`; 9 of 19 cases on the view shown in the Agents window, the others only on the models"
   },
   "unit:src/features/agents/ConfigPickers.test.tsx": {
     "status": "partial",
@@ -2693,7 +2693,7 @@
   },
   "unit:src/features/agents/Markdown.test.tsx": {
     "status": "partial",
-    "proof": "`agents::markdown::tests`; the state and logic of 18 of 18 cases, on the model; the view is not built"
+    "proof": "`agents::markdown_view::tests`, `agents::markdown::tests`; 3 of 18 cases on the view, the others only on the model"
   },
   "unit:src/features/agents/agentRegistry.test.tsx": {
     "status": "partial",
@@ -2725,7 +2725,7 @@
   },
   "unit:src/features/agents/messageEditing.test.tsx": {
     "status": "partial",
-    "proof": "`agents::store::tests`, `agents::reply_actions::tests`, `agents::message_editor::tests`; the state and logic of 18 of 18 cases, on the model; the view is not built"
+    "proof": "`agents::session_view::tests`, `agents::composer_view::tests`, `agents::message_editor::tests`, `agents::store::tests`; 7 of 18 cases on the views, the others only on the models"
   },
   "unit:src/features/agents/permission.test.ts": {
     "status": "done",
@@ -2737,7 +2737,7 @@
   },
   "unit:src/features/agents/sessionState.test.tsx": {
     "status": "partial",
-    "proof": "`agents::session::tests`, `agents::follow::tests`, `agents::cards::tests`, `agents::store::tests`; the state and logic of 30 of 30 cases, on the model; the view is not built"
+    "proof": "`agents::session_view::tests`, `agents::session::tests`, `agents::follow::tests`, `agents::cards::tests`, `workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`; 13 of 30 cases on the conversation view, the others only on the models"
   },
   "unit:src/features/agents/unread.test.tsx": {
     "status": "partial",
@@ -3405,7 +3405,7 @@
   },
   "unit:src/features/debugger/__tests__/toolWindow.test.tsx": {
     "status": "done",
-    "proof": "`debugger::window_view::tests`"
+    "proof": "`debugger::window_view::tests`, `workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`"
   },
   "action:vcs.showDiff": {
     "status": "partial",
@@ -4574,5 +4574,321 @@
   "module:src/platform/inspections.ts": {
     "status": "partial",
     "proof": "`platform_more::inspections::tests`, `settings_model::inspections_model::tests`; profiles, levels, overrides and applying the profile to diagnostics (editor_lsp/diagnostics.rs), wired; no window test shows a diagnostic hidden or restyled by the profile"
+  },
+  "action:debug.toggleBreakpoint": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::toggling_a_breakpoint_at_a_line_marks_it_persists_it_and_lists_it_in_the_breakpoints_dialog`, `workbench::debug::tests::clicking_the_gutter_toggles_the_lines_breakpoint`, `workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`"
+  },
+  "action:debug.viewBreakpoints": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::toggling_a_breakpoint_at_a_line_marks_it_persists_it_and_lists_it_in_the_breakpoints_dialog`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`"
+  },
+  "action:debug.muteBreakpoints": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::toggling_a_breakpoint_at_a_line_marks_it_persists_it_and_lists_it_in_the_breakpoints_dialog`"
+  },
+  "action:debug.resume": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`"
+  },
+  "action:debug.stepOver": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`"
+  },
+  "action:debug.stop": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::stop_ends_a_running_debug_session`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.pause": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.stepInto": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.stepOut": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.forceStepOver": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.runToCursor": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.showExecutionPoint": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.showToolWindow": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.removeAllBreakpoints": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.toggleTemporaryBreakpoint": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`, `workbench::debug::tests::alt_and_shift_in_the_gutter_add_a_temporary_and_a_logging_breakpoint`"
+  },
+  "action:debug.jumpToSource": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.setValue": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`"
+  },
+  "action:debug.rerun": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`"
+  },
+  "action:run.debug": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_run_widgets_debug_button_debugs_the_selection`, `workbench::tests::the_new_agent_task_and_debugger_shortcuts_need_a_project`"
+  },
+  "action:run.debugConfig": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "action:debug.toggleMethodBreakpoint": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; run on the fake language, where it reports that the line has no method; no test sets one"
+  },
+  "action:debug.toggleFieldWatchpoint": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; run on the fake language, where it reports that the line has no field; no test sets one"
+  },
+  "action:debug.hotReload": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps"
+  },
+  "action:debug.hotRestart": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps"
+  },
+  "action:debug.reloadChangedClasses": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps"
+  },
+  "action:debug.cancelHotSwap": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps"
+  },
+  "context:debugFramesFocus": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "context:debugVariablesFocus": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`"
+  },
+  "context:debugSessionPaused": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`; waited on at every stop; no test asserts it off"
+  },
+  "context:debugSessionRunning": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::stop_ends_a_running_debug_session`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; waited on while the program runs; no test asserts it off"
+  },
+  "context:debugSessionActive": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::stop_ends_a_running_debug_session`; asserted off once the session ends; no test asserts it on"
+  },
+  "context:debugCanRerun": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`; asserted on after a session; no test asserts it off"
+  },
+  "ipc:debug_start": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`"
+  },
+  "ipc:debug_set_breakpoints": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::toggling_a_breakpoint_at_a_line_marks_it_persists_it_and_lists_it_in_the_breakpoints_dialog`"
+  },
+  "ipc:debug_stack_trace": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`"
+  },
+  "ipc:debug_scopes": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`"
+  },
+  "ipc:debug_variables": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`"
+  },
+  "ipc:debug_step": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "ipc:debug_resume": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`"
+  },
+  "ipc:debug_stop": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::stop_ends_a_running_debug_session`"
+  },
+  "ipc:debug_pause": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "ipc:debug_run_to": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "ipc:debug_force_step_over": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+  },
+  "ipc:debug_set_variable": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`"
+  },
+  "ipc:debug_evaluate_in": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`"
+  },
+  "point.registerToolWindow:debug": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::stop_ends_a_running_debug_session`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`, `workbench::debug::tests::toggling_a_breakpoint_at_a_line_marks_it_persists_it_and_lists_it_in_the_breakpoints_dialog`; sessions, frames, variables, watches, evaluate, set value, the breakpoints dialog, marks in the editor; the console's links and find, attach, hot swap, smart step into, exception breakpoints and the Services view are not wired"
+  },
+  "feature:debugger": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; see the tool window row; started through a fake adapter declared by a language file"
+  },
+  "action:agents.newTask": {
+    "status": "done",
+    "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`, `workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`, `workbench::tests::the_new_agent_task_and_debugger_shortcuts_need_a_project`"
+  },
+  "action:agents.showToolWindow": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`"
+  },
+  "action:agents.renameTask": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
+  },
+  "action:agents.jumpToLatest": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
+  },
+  "action:agents.sendToAgent": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
+  },
+  "action:agents.copyReplyMarkdown": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
+  },
+  "action:agents.quoteReply": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
+  },
+  "action:agents.archiveTasks": {
+    "status": "done",
+    "proof": "`workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`, `workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`"
+  },
+  "action:agents.deleteTasks": {
+    "status": "done",
+    "proof": "`workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`"
+  },
+  "action:agents.unarchiveTasks": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`"
+  },
+  "action:agents.useToolWindow": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet"
+  },
+  "action:agents.useEditor": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet"
+  },
+  "action:agents.openTask": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet"
+  },
+  "action:agents.dockTask": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet"
+  },
+  "action:agents.undockTask": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet"
+  },
+  "action:agents.openTaskInEditor": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet"
+  },
+  "action:agents.forkTask": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`; only the refusal for an agent that cannot fork or roll back is run; the confirmation and the operation are not"
+  },
+  "action:agents.retractMessage": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`; only the refusal for an agent that cannot fork or roll back is run; the confirmation and the operation are not"
+  },
+  "context:agentSessionFocus": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; asserted on with the conversation focused; no test asserts it off"
+  },
+  "ipc:agent_providers": {
+    "status": "done",
+    "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`"
+  },
+  "ipc:agent_create": {
+    "status": "done",
+    "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`"
+  },
+  "ipc:agent_subscribe": {
+    "status": "done",
+    "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`"
+  },
+  "ipc:agent_entries": {
+    "status": "done",
+    "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`"
+  },
+  "ipc:agent_prompt": {
+    "status": "done",
+    "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`"
+  },
+  "ipc:agent_cancel": {
+    "status": "done",
+    "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`"
+  },
+  "ipc:agent_respond": {
+    "status": "done",
+    "proof": "`workbench::tests::a_permission_request_shows_its_answers_and_the_one_clicked_reaches_the_agent`"
+  },
+  "ipc:agent_rename": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
+  },
+  "ipc:agent_archive": {
+    "status": "done",
+    "proof": "`workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`"
+  },
+  "ipc:agent_delete": {
+    "status": "done",
+    "proof": "`workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`"
+  },
+  "ipc:agent_unarchive": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`"
+  },
+  "point.registerToolWindow:agents": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`, `workbench::tests::a_permission_request_shows_its_answers_and_the_one_clicked_reaches_the_agent`, `workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`, `workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`, `workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`; the task list with unread marks and archive, a docked conversation with streamed replies, tool calls, permission requests, the composer; the New Task page, conversations as editor tabs, Find in Conversation, queued messages, background tasks and the changes pane are not wired"
+  },
+  "feature:agents": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`, `workbench::tests::a_permission_request_shows_its_answers_and_the_one_clicked_reaches_the_agent`, `workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`; see the tool window row; driven by a fake agent declared in the test's config folder"
   }
 }
