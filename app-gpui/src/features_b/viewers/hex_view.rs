@@ -406,7 +406,7 @@ impl HexView {
         }
     }
 
-    fn render_row(&self, row: u64, top: f64, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_row(&self, row: u64, top: f64, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let line = self.row_line(row);
         let mono = Self::mono_font(cx);
         let runs: Vec<TextRun> = line
@@ -448,7 +448,7 @@ impl HexView {
             .child(text)
     }
 
-    fn render_header(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_header(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let digits = offset_digits(self.total);
         let columns: String =
             (0..BYTES_PER_ROW as u8).map(|i| format!("{}{}", hex_byte(i), if i == 7 { "  " } else { " " })).collect();
@@ -513,7 +513,7 @@ impl HexView {
             })
     }
 
-    fn render_scrollbar(&self, cx: &mut Context<Self>) -> Option<impl IntoElement> {
+    fn render_scrollbar(&self, cx: &mut Context<Self>) -> Option<impl IntoElement + use<>> {
         let spacer = self.viewport().spacer;
         let height = self.view_height;
         if spacer <= height || height <= 0.0 {
@@ -588,13 +588,11 @@ impl Render for HexView {
             );
         }
         let viewport = self.viewport();
-        let rows: Vec<_> = self
-            .visible_rows()
-            .map(|row| {
-                let top = (row - viewport.first) as f64 * ROW_H - viewport.shift;
-                self.render_row(row, top, cx)
-            })
-            .collect();
+        let mut rows = Vec::new();
+        for row in self.visible_rows() {
+            let top = (row - viewport.first) as f64 * ROW_H - viewport.shift;
+            rows.push(self.render_row(row, top, cx));
+        }
         let measured = Rc::clone(&self.measured);
         let weak = cx.weak_entity();
         let measure = canvas(

@@ -19,8 +19,7 @@ use crate::backend::Backend;
 use crate::editor::tabs::{EditorInput, OpenTabOptions, Tab, TabsState};
 use crate::editor::view::{Editor, EditorEvent};
 use crate::features_b::viewers::file_kinds::{
-    BINARY_KIND, FileProbes, IMAGE_ACTIONS, IMAGE_KIND, Waiter, binary_input, image_viewer_for, is_markdown_path,
-    wants_hex_view,
+    BINARY_KIND, IMAGE_ACTIONS, IMAGE_KIND, binary_input, image_viewer_for, is_markdown_path, wants_hex_view,
 };
 use crate::features_b::viewers::hex::PAGE_SIZE;
 use crate::features_b::viewers::hex_view::{HexView, HexViewEvent};
@@ -38,7 +37,7 @@ use gpui_kit::{
     prelude::*,
 };
 use ide_core::IdeResult;
-use ide_vfs::FileProbe;
+use ide_host::Host;
 use ide_workspace::DocumentInfo;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -218,16 +217,12 @@ fn pane_of(tabs: &TabsState, tab_id: &str) -> Option<String> {
     tabs.panes.iter().find(|pane| pane.tab(tab_id).is_some()).map(|pane| pane.id.clone())
 }
 
-/// The view tabs of a project window: the views of the tabs shown so far, the Markdown hosts of
-/// text tabs, and the probes deciding between a text editor and the hex view.
+/// The view tabs of a project window: the views of the tabs shown so far, and the Markdown hosts
+/// of text tabs.
 #[derive(Default)]
 pub struct ViewTabs {
     views: HashMap<String, TabView>,
     markdown: HashMap<String, MarkdownTab>,
-    probes: FileProbes,
-    /// The tab each probe waiter opens, and whether it takes the keyboard.
-    waiters: HashMap<Waiter, (String, bool)>,
-    next_waiter: Waiter,
 }
 
 impl ViewTabs {
@@ -369,10 +364,26 @@ impl MarkdownFeed {
     }
 }
 
-/// What a loose file (a window without a project) opens as.
-enum LooseFile {
+/// What a file opens as: its text document, or the input of the viewer its content wants.
+pub(super) enum TabFile {
     Text(DocumentInfo),
     Viewer(EditorInput),
+}
+
+/// Opens `path` as text; with `probe` its content is looked at first, and binary or very large
+/// content wants the hex view instead, without a document. A probe that fails leaves the file
+/// to the text editor, which says what is wrong with it.
+pub(super) async fn open_tab_file(host: &Host, label: &str, path: PathBuf, probe: bool) -> IdeResult<TabFile> {
+    if probe {
+        match ide_host::ops::bytes::fs_probe(host, label, path.clone()).await {
+            Ok(found) if wants_hex_view(&found) => {
+                return Ok(TabFile::Viewer(binary_input(&path.to_string_lossy(), &found)));
+            }
+            Ok(_) => {}
+            Err(error) => tracing::warn!("the file was not probed: {}", error.message),
+        }
+    }
+    ide_host::ops::doc::open(host, label, path).await.map(TabFile::Text)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -586,95 +597,32 @@ impl Workbench {
                 id
             }
         };
-        let loaded = editors.contains_key(&tab_id);
-        if !loaded && probe && fresh {
-            self.probe_file_tab(tab_id.clone(), path.clone(), true, window, cx);
+        // The tab counts as loading before the window looks at it, so it is opened once, probed.
+        if !editors.contains_key(&tab_id) {
+            self.load_tab_probed(tab_id, path, true, probe && fresh, window, cx);
         }
         self.tabs_changed(true, window, cx);
-        // While the probe runs the tab counts as loading, so this waits for its answer.
-        if !loaded {
-            self.load_tab(tab_id, path, true, window, cx);
-        }
     }
 
-    /// Probes the file of the new tab `tab_id`; the tab counts as loading until the answer.
-    /// Probes of one file share the request in flight.
-    fn probe_file_tab(
-        &mut self,
-        tab_id: String,
-        path: PathBuf,
-        focus: bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let Content::Project { loading, view_tabs, .. } = &mut self.content else { return };
-        if !loading.insert(tab_id.clone()) {
-            return;
-        }
-        let key = path.to_string_lossy().into_owned();
-        view_tabs.next_waiter += 1;
-        let waiter = view_tabs.next_waiter;
-        view_tabs.waiters.insert(waiter, (tab_id, focus));
-        if !view_tabs.probes.probe(&key, waiter) {
-            return;
-        }
-        let label = self.label.clone();
-        let probe = cx
-            .global::<Backend>()
-            .with_host(move |host| async move { ide_host::ops::bytes::fs_probe(&host, &label, path).await });
-        cx.spawn_in(window, async move |workbench, cx| {
-            let answer = flatten(probe.await);
-            let _ = workbench.update_in(cx, |workbench, window, cx| workbench.file_probed(&key, answer, window, cx));
-        })
-        .detach();
-    }
-
-    /// The probe of `key` answered: each waiting tab gets its text document, or becomes the hex
-    /// view of the file (the pane's hex tab of it, when it has one already).
-    fn file_probed(
-        &mut self,
-        key: &str,
-        answer: Result<FileProbe, String>,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let Content::Project { tabs, loading, view_tabs, .. } = &mut self.content else { return };
-        let answers = view_tabs.probes.answered(key, answer.as_ref().map_err(String::as_str));
-        let mut text = Vec::new();
-        let mut viewed = None;
-        for (waiter, input) in answers {
-            let Some((tab_id, focus)) = view_tabs.waiters.remove(&waiter) else { continue };
-            loading.remove(&tab_id);
-            let Some(input) = input else {
-                text.push((tab_id, focus));
-                continue;
-            };
-            let Some(pane) = pane_of(tabs, &tab_id) else { continue };
-            let shown = tabs
-                .pane(&pane)
-                .and_then(|open| open.tabs.iter().find(|tab| tab.input.key == input.key))
-                .map(|tab| tab.id.clone());
-            match shown {
-                Some(shown) => {
-                    tabs.close_tab(&pane, &tab_id);
-                    tabs.activate_tab(&pane, &shown);
-                }
-                None => {
-                    if let Some(tab) = tab_mut(tabs, &tab_id) {
-                        tab.input = input;
-                    }
+    /// The probe of the text tab `tab_id` found content for a viewer: the tab becomes that viewer,
+    /// or goes when its pane has a tab of that viewer already, which comes to the front.
+    pub(super) fn tab_shows_viewer(&mut self, tab_id: &str, input: EditorInput) {
+        let Content::Project { tabs, .. } = &mut self.content else { return };
+        let Some(pane) = pane_of(tabs, tab_id) else { return };
+        let shown = tabs
+            .pane(&pane)
+            .and_then(|open| open.tabs.iter().find(|tab| tab.input.key == input.key))
+            .map(|tab| tab.id.clone());
+        match shown {
+            Some(shown) => {
+                tabs.close_tab(&pane, tab_id);
+                tabs.activate_tab(&pane, &shown);
+            }
+            None => {
+                if let Some(tab) = tab_mut(tabs, tab_id) {
+                    tab.input = input;
                 }
             }
-            viewed = Some(viewed.unwrap_or(false) | focus);
-        }
-        for (tab_id, focus) in text {
-            let open = self.tabs().is_some_and(|tabs| pane_of(tabs, &tab_id).is_some());
-            if open {
-                self.load_tab(tab_id, PathBuf::from(key), focus, window, cx);
-            }
-        }
-        if let Some(focus) = viewed {
-            self.tabs_changed(focus, window, cx);
         }
     }
 
@@ -892,17 +840,10 @@ impl Workbench {
                 .await
                 .map_err(|e| ide_core::IdeError::internal(e.to_string()))??;
             let file = path.canonicalize().unwrap_or(path);
-            let key = file.to_string_lossy().into_owned();
-            if !as_text {
-                if let Some(input) = image_viewer_for(&key, |_| false) {
-                    return Ok(LooseFile::Viewer(input));
-                }
-                let probe = ide_host::ops::bytes::fs_probe(&host, &label, file.clone()).await?;
-                if wants_hex_view(&probe) {
-                    return Ok(LooseFile::Viewer(binary_input(&key, &probe)));
-                }
+            if !as_text && let Some(input) = image_viewer_for(&file.to_string_lossy(), |_| false) {
+                return Ok(TabFile::Viewer(input));
             }
-            ide_host::ops::doc::open(&host, &label, file).await.map(LooseFile::Text)
+            open_tab_file(&host, &label, file, !as_text).await
         });
         cx.spawn_in(window, async move |workbench, cx| {
             let result = opened.await;
@@ -912,7 +853,7 @@ impl Workbench {
                 workbench.content = match flatten(result) {
                     // The document's text is read before the view exists, so a failure is a
                     // message in the window instead of an editor without a document.
-                    Ok(LooseFile::Text(info)) => {
+                    Ok(TabFile::Text(info)) => {
                         let text = host.project(&label).map_err(|error| error.message).and_then(|project| {
                             project.documents.rope_snapshot(info.id).map_err(|error| error.message)
                         });
@@ -928,7 +869,7 @@ impl Workbench {
                             Err(message) => Content::Failed(message.into()),
                         }
                     }
-                    Ok(LooseFile::Viewer(input)) => {
+                    Ok(TabFile::Viewer(input)) => {
                         let built = kind(&input.kind).and_then(|viewer| (viewer.build)(&input, window, cx));
                         match built {
                             Some(view) => {
@@ -952,6 +893,7 @@ impl Workbench {
 mod tests {
     use super::*;
     use crate::features_b::viewers::file_kinds::image_input;
+    use ide_vfs::FileProbe;
 
     #[test]
     fn viewer_tabs_are_titled_by_their_file_and_not_restored_with_the_session() {

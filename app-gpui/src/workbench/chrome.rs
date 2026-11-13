@@ -210,7 +210,7 @@ impl Workbench {
     pub(super) fn sync_chrome(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let appearance = settings::global(cx).appearance;
         let texts = self.status_texts(cx);
-        let light_edit = matches!(self.content, Content::Editor(_));
+        let light_edit = matches!(self.content, Content::Editor(_) | Content::Viewer(_));
         let overrides = appearance.status_bar_widgets;
         let servers = AnyView::from(self.server_status_item().clone());
         self.chrome.status_bar.update(cx, |bar, cx| {
@@ -284,6 +284,15 @@ impl Workbench {
                 let name = editor.read(cx).path().file_name().map(|name| name.to_string_lossy().into_owned());
                 let title = name.unwrap_or_else(|| LIGHT_EDIT_TITLE.to_owned());
                 (TitleBarKind::LightEdit, TitleBarMode::Full, Some(title), None)
+            }
+            Content::Viewer(view) => {
+                let title = view.input.path.as_deref().map(|path| path.rsplit('/').next().unwrap_or(path).to_owned());
+                (
+                    TitleBarKind::LightEdit,
+                    TitleBarMode::Full,
+                    Some(title.unwrap_or_else(|| LIGHT_EDIT_TITLE.to_owned())),
+                    None,
+                )
             }
             Content::Opening(_) => (TitleBarKind::Minimal, TitleBarMode::Bare, None, None),
             Content::Empty => (TitleBarKind::Minimal, TitleBarMode::Full, Some(WELCOME_TITLE.to_owned()), None),

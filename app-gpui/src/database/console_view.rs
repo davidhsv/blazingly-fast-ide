@@ -100,7 +100,7 @@ fn row_limit_label(rows: u64) -> String {
     let digits = rows.to_string();
     let mut grouped = String::new();
     for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i) % 3 == 0 {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
             grouped.push(',');
         }
         grouped.push(c);
@@ -601,11 +601,11 @@ mod tests {
         }
     }
 
-    fn open(
-        cx: &mut TestAppContext,
+    fn open<'a>(
+        cx: &'a mut TestAppContext,
         text: &'static str,
         selection: Range<u32>,
-    ) -> (Entity<ConsoleView>, Events, &mut VisualTestContext) {
+    ) -> (Entity<ConsoleView>, Events, &'a mut VisualTestContext) {
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);

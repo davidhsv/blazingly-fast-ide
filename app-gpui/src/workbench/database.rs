@@ -21,13 +21,13 @@ use crate::database::results_view::{ResultsEvent, ResultsView};
 use crate::database::source_dialog::{PasswordField, SourceDialog, SourceDialogEvent, SourceForm};
 use crate::database::store::{
     Answer, BINDINGS_KEY, CONSOLE_SCHEMAS_KEY, Command, DbOp, DbStore, Env, Level, Prompt, PromptAnswer, ResultsUpdate,
-    Ticket, TreeUpdate, console_append,
+    SecretText, Ticket, TreeUpdate, console_append,
 };
 use crate::database::table_editor::SourceCaps;
 use crate::database::table_editor_view::{TableEditorEvent, TableEditorView, TableRef};
 use crate::database::tree_view::{DATABASE_TOOL_WINDOW, DatabaseTree, TreeAction, TreeCommand, TreeEvent};
 use crate::editor::view::Editor;
-use crate::platform::actions::ActionRegistry;
+use crate::platform::actions::{Action, ActionRegistry, manifest};
 use crate::platform::context::set_context;
 use crate::platform::i18n::Localization;
 use crate::platform::local_time::now_ms;
@@ -59,6 +59,9 @@ const EDITOR_WAIT_MS: u64 = 50;
 /// The `when` keys of the table editor's Submit and Revert.
 const TABLE_EDITOR_FOCUS: &str = "dbTableEditorFocus";
 const TABLE_EDITOR_CHANGES: &str = "dbTableEditorChanges";
+/// The `when` key of the tree's actions, and the key that holds while the tree has the keyboard.
+const PROJECT_OPEN: &str = "projectOpen";
+pub(super) const DATABASE_VIEW_FOCUS: &str = "databaseViewFocus";
 /// The language id of SQL editors.
 const SQL_LANGUAGE: &str = "sql";
 
@@ -131,9 +134,11 @@ async fn run_op(host: Arc<Host>, label: String, op: DbOp, request: Option<Reques
         },
         DbOp::SaveSources(sources) => Answer::of(db::save_sources(host, w, sources).await, |()| Answer::Done),
         DbOp::SetPassword { id, password, save } => {
+            let password = password.map(SecretText::into_inner);
             Answer::of(db::set_password(host, w, &id, password, save).await, |()| Answer::Done)
         }
         DbOp::SetSshSecret { id, secret, save } => {
+            let secret = secret.map(SecretText::into_inner);
             Answer::of(db::set_ssh_secret(host, w, &id, secret, save).await, |()| Answer::Done)
         }
         DbOp::TrustSshHost { id } => Answer::of(db::trust_ssh_host(host, w, &id).await, |()| Answer::Done),
@@ -467,6 +472,15 @@ impl FieldsPrompt {
         cx.emit(FieldsPromptEvent::Done { values, checked });
     }
 
+    /// The masked input of the prompt, when it has one.
+    #[cfg(test)]
+    pub(super) fn secret_input(&self) -> Option<Entity<PasswordField>> {
+        self.inputs.iter().find_map(|(_, input)| match input {
+            PromptInput::Secret(entity) => Some(entity.clone()),
+            PromptInput::Text(_) => None,
+        })
+    }
+
     fn toggle(&mut self, cx: &mut Context<Self>) {
         if let Some((_, on)) = &mut self.checkbox {
             *on = !*on;
@@ -670,7 +684,9 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
             workbench.run_tree_action(TreeAction::OpenConsole, key, window, cx);
         })
     });
-    // The tree's actions act on the node the argument names (its key), else on the selection.
+    // The tree's actions act on the node the argument names (its key), else on the selection. They
+    // need a project, and their shortcuts work only while the tree has the keyboard: F4, Delete or
+    // Cmd+D mean something else everywhere else.
     for (id, action) in [
         ("db.properties", TreeAction::Properties),
         ("db.refresh", TreeAction::Refresh),
@@ -683,10 +699,16 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         ("db.copyReference", TreeAction::CopyReference),
         ("db.collapseAll", TreeAction::CollapseAll),
     ] {
-        registry.handle(id, move |call, window, cx| {
+        let meta = manifest()
+            .get(id)
+            .unwrap_or_else(|| panic!("action {id} is not in assets/gen/actions.json"))
+            .clone()
+            .when(PROJECT_OPEN)
+            .key_when(DATABASE_VIEW_FOCUS);
+        registry.register(Action::new(meta, move |call, window, cx| {
             let key = text_arg(call.arg);
             on_workbench(window, cx, move |workbench, window, cx| workbench.run_tree_action(action, key, window, cx))
-        });
+        }));
     }
     registry.handle("db.submitChanges", |_, window, cx| {
         on_workbench(window, cx, |workbench, window, cx| {
@@ -844,6 +866,12 @@ impl Workbench {
     pub(super) fn database_table_editor(&self, cx: &App) -> Option<Entity<TableEditorView>> {
         let slot = self.database.as_ref()?;
         slot.panel.read(cx).active_editor(cx).cloned()
+    }
+
+    /// Puts the store's question `prompt` to the user, as a store command does.
+    #[cfg(test)]
+    pub(super) fn ask_database(&mut self, ticket: Ticket, prompt: Prompt, window: &mut Window, cx: &mut Context<Self>) {
+        self.carry_out_db(vec![Command::Ask { ticket, prompt }], window, cx);
     }
 
     #[cfg(test)]
@@ -1092,7 +1120,7 @@ impl Workbench {
                 });
                 match found {
                     Ok(Some(editor)) => {
-                        let _ = cx.update(|cx| edit(&editor, cx));
+                        cx.update(|cx| edit(&editor, cx));
                         return;
                     }
                     Ok(None) => {}
@@ -1346,6 +1374,8 @@ impl Workbench {
         match event.clone() {
             SourceDialogEvent::Test { source, password, ssh_secret } => self.db_call(
                 move |host, label| async move {
+                    let (password, ssh_secret) =
+                        (password.map(SecretText::into_inner), ssh_secret.map(SecretText::into_inner));
                     ide_host::ops::db::test(&host, &label, *source, password, ssh_secret).await
                 },
                 move |_, result, _, cx| {
@@ -1838,9 +1868,9 @@ impl Workbench {
 }
 
 /// The store's answer to a password or SSH secret question.
-fn secret_answer(values: Vec<String>, save: bool) -> PromptAnswer {
+pub(super) fn secret_answer(values: Vec<String>, save: bool) -> PromptAnswer {
     match values.into_iter().next() {
-        Some(value) => PromptAnswer::Secret { value, save },
+        Some(value) => PromptAnswer::Secret { value: value.into(), save },
         None => PromptAnswer::Cancel,
     }
 }

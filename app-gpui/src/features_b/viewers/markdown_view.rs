@@ -1119,7 +1119,7 @@ mod tests {
 
     const PATH: &str = "/p/README.md";
 
-    fn open(cx: &mut TestAppContext, text: &str) -> (Entity<MarkdownView>, Events, &mut VisualTestContext) {
+    fn open<'a>(cx: &'a mut TestAppContext, text: &str) -> (Entity<MarkdownView>, Events, &'a mut VisualTestContext) {
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);

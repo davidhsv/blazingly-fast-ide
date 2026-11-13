@@ -9,6 +9,8 @@ mod chrome;
 mod code_insight;
 use crate::code_insight::{HIERARCHY_TOOL_WINDOW, PROBLEMS_TOOL_WINDOW, USAGES_TOOL_WINDOW};
 mod commit;
+mod database;
+use crate::database::tree_view::DATABASE_TOOL_WINDOW;
 mod conflicts;
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 mod diff_window;
@@ -29,6 +31,7 @@ mod services_window;
 mod settings_window;
 pub use settings_window::apply_keymap_settings;
 mod structure_window;
+pub mod tab_views;
 use structure_window::STRUCTURE_TOOL_WINDOW;
 mod todo_window;
 use todo_window::TODO_TOOL_WINDOW;
@@ -134,11 +137,16 @@ enum Content {
         editor_focus: HashMap<String, Subscription>,
         /// The Find / Replace bar of each tab that has one open, by tab id.
         find_bars: HashMap<String, TabFindBar>,
+        /// The views of the tabs that are not text editors, the Markdown layouts of text tabs,
+        /// and the probes choosing between a text editor and the hex view, by tab id.
+        view_tabs: tab_views::ViewTabs,
         _opens: Subscription,
         /// What runs the project's run configurations, and what the window listens to it for.
         run: Entity<RunDriver>,
         _run_events: Subscription,
     },
+    /// A loose file shown in a viewer (an image, binary content) instead of a text editor.
+    Viewer(Box<tab_views::TabView>),
     Failed(SharedString),
 }
 
@@ -292,6 +300,8 @@ pub struct Workbench {
     build: Option<build_window::BuildSlot>,
     /// The Project view's file operations.
     files: project_files::ProjectFiles,
+    /// The Database tools of the open project, once shown or used.
+    database: Option<database::DatabaseSlot>,
     /// Problems, Find / Show Usages, the hierarchies and the language servers of the project.
     code_insight: code_insight::CodeInsight,
     /// The title bar and the status bar, and what the window keeps for them.
@@ -372,7 +382,7 @@ pub const RUN_TOOL_WINDOW: &str = "run";
 pub use crate::services::model::SERVICES_TOOL_WINDOW;
 
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 15] = [
+const TOOL_WINDOWS: [&str; 16] = [
     PROJECT_TOOL_WINDOW,
     COMMIT_TOOL_WINDOW,
     TERMINAL_TOOL_WINDOW,
@@ -388,6 +398,7 @@ const TOOL_WINDOWS: [&str; 15] = [
     PROBLEMS_TOOL_WINDOW,
     USAGES_TOOL_WINDOW,
     HIERARCHY_TOOL_WINDOW,
+    DATABASE_TOOL_WINDOW,
 ];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
@@ -446,7 +457,9 @@ pub fn register_actions(cx: &mut App) {
     project_files::register_actions(registry);
     todo_window::register_actions(registry);
     build_window::register_actions(registry);
+    database::register_actions(registry);
     code_insight::register_actions(registry);
+    tab_views::register_actions(registry);
     chrome::register_actions(registry);
     settings_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
@@ -946,6 +959,7 @@ impl Workbench {
             todo: None,
             build: None,
             files: Default::default(),
+            database: None,
             code_insight,
             chrome,
             activations: HashMap::new(),
@@ -1144,8 +1158,13 @@ impl Workbench {
             .iter()
             .map(|tab| {
                 let path = tab.input.path.as_deref().unwrap_or(&tab.input.key);
+                let name = self
+                    .tab_view(&tab.id)
+                    .map(|view| view.title.clone())
+                    .or_else(|| tab_views::title_of(&tab.input))
+                    .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path).to_owned());
                 TabTitle {
-                    name: path.rsplit('/').next().unwrap_or(path).to_owned(),
+                    name,
                     hint: hints.get(path).cloned(),
                     active: pane.active.as_deref() == Some(tab.id.as_str()),
                 }
@@ -1155,25 +1174,52 @@ impl Workbench {
 
     /// One pane of the editor area: its tabs over the editor of the selected one.
     fn pane_element(&self, pane_id: &str, window: &Window, cx: &mut Context<Self>) -> gpui_kit::Div {
-        let (editor, find_bar) = match &self.content {
-            Content::Project { tabs, editors, find_bars, .. } => {
-                let active = tabs.pane(pane_id).and_then(|pane| pane.active.as_ref());
-                (
-                    active.and_then(|id| editors.get(id)).cloned(),
-                    active.and_then(|id| find_bars.get(id)).map(|bar| bar.bar.clone()),
-                )
+        let shown_tab = self.tabs().and_then(|tabs| tabs.pane(pane_id)).and_then(|pane| pane.active.clone());
+        let content = shown_tab.as_deref().and_then(|id| self.tab_content(id));
+        let editor = match content {
+            Some(tab_views::TabContent::Editor(editor)) => Some(editor.clone()),
+            _ => None,
+        };
+        let view = match content {
+            Some(tab_views::TabContent::View(view)) => Some((view.view.clone(), view.focus.clone())),
+            _ => None,
+        };
+        // A Markdown file's editor is drawn inside its layouts; the Find bar and the conflict
+        // banner only go over a text editor.
+        let host = shown_tab.as_deref().and_then(|id| self.markdown_host(id)).filter(|_| editor.is_some());
+        let find_bar = match &self.content {
+            Content::Project { find_bars, .. } if editor.is_some() => {
+                shown_tab.as_deref().and_then(|id| find_bars.get(id)).map(|bar| bar.bar.clone())
             }
-            _ => (None, None),
+            _ => None,
         };
         // The banner of a file with unresolved merge conflicts sits above its editor.
         let banner =
             editor.as_ref().and_then(|editor| self.conflict_banner_for(&editor.read(cx).path().to_string_lossy()));
-        let editor_focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
+        let editor_focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window))
+            || view.as_ref().is_some_and(|(_, focus)| focus.contains_focused(window, cx));
+        let layout_actions = host.as_ref().map(|host| host.update(cx, |host, cx| host.layout_actions(cx)));
+        let body: Option<gpui_kit::AnyElement> = match (view, host, editor) {
+            (Some((view, _)), _, _) => Some(view.into_any_element()),
+            (None, Some(host), _) => Some(host.into_any_element()),
+            (None, None, editor) => editor.map(IntoElement::into_any_element),
+        };
         let titles = self.tab_titles_of(pane_id);
-        let ids: Vec<String> = self
+        let ids: Vec<(String, String)> = self
             .tabs()
             .and_then(|tabs| tabs.pane(pane_id))
-            .map(|pane| pane.tabs.iter().map(|tab| tab.id.clone()).collect())
+            .map(|pane| {
+                pane.tabs
+                    .iter()
+                    .map(|tab| {
+                        let icon = match self.tab_view(&tab.id) {
+                            Some(view) => view.icon.clone(),
+                            None => tab_views::icon_of(&tab.input),
+                        };
+                        (tab.id.clone(), icon)
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
         // The tab strip: the selected tab is a rounded pill; the rest are plain titles.
         let strip =
@@ -1187,7 +1233,7 @@ impl Workbench {
                     .px(gpui_kit::px(4.0))
                     .border_b_1()
                     .border_color(theme::color(cx, "border-editor-tabs"))
-                    .children(titles.into_iter().zip(ids).map(|(TabTitle { name, hint, active }, id)| {
+                    .children(titles.into_iter().zip(ids).map(|(TabTitle { name, hint, active }, (id, icon))| {
                         let (select, close) = (id.clone(), id.clone());
                         let (select_pane, close_pane) = (pane_id.to_owned(), pane_id.to_owned());
                         let (menu_pane, menu_tab) = (pane_id.to_owned(), id.clone());
@@ -1206,12 +1252,7 @@ impl Workbench {
                             .text_color(theme::color(cx, "fg-strong"))
                             .when(active, |el| el.bg(theme::color(cx, selected)))
                             .when(!active, |el| el.hover(|el| el.bg(theme::color(cx, "bg-tab-hover"))))
-                            .child(theme::icon(
-                                cx,
-                                theme::icons::file_icon_name(&name),
-                                16.0,
-                                theme::color(cx, "fg-strong"),
-                            ))
+                            .child(theme::icon(cx, &icon, 16.0, theme::color(cx, "fg-strong")))
                             .child(SharedString::from(name))
                             .children(hint.map(|hint| {
                                 div().text_color(theme::color(cx, "fg-muted")).child(SharedString::from(hint))
@@ -1255,6 +1296,8 @@ impl Workbench {
                                 }),
                             )
                     }))
+                    .child(div().flex_1())
+                    .children(layout_actions)
             });
         div()
             .size_full()
@@ -1265,7 +1308,7 @@ impl Workbench {
             .children(strip)
             .children(banner.map(|banner| div().flex_none().child(banner)))
             .children(find_bar.map(|bar| div().flex_none().child(bar)))
-            .child(div().flex_1().min_h_0().children(editor))
+            .child(div().flex_1().min_h_0().children(body))
     }
 
     /// The editor area: the panes as the splits arrange them, side by side or stacked, sharing
@@ -1363,6 +1406,7 @@ impl Workbench {
             })
             .detach();
         }
+        self.release_closed_views(window, cx);
         self.load_active_tab(focus, window, cx);
         self.note_active_tab(cx);
         self.session_save = Some(cx.spawn(async move |workbench, cx| {
@@ -1370,6 +1414,8 @@ impl Workbench {
             let _ = workbench.update(cx, |workbench, cx| workbench.save_session(cx));
         }));
         let active = self.editor().cloned();
+        // A view tab takes the keyboard itself; a Markdown file in Preview Only gives it to the preview.
+        let target = self.active_focus_target(cx);
         // The editor that was active is saved when another one takes its place.
         let previous = self.previous_editor.take().and_then(|previous| previous.upgrade());
         if let Some(previous) = previous.filter(|previous| active.as_ref() != Some(previous)) {
@@ -1380,7 +1426,7 @@ impl Workbench {
             Some(editor) => {
                 self.observe_editor(&editor, cx);
                 if focus {
-                    let handle = editor.focus_handle(cx);
+                    let handle = target.unwrap_or_else(|| editor.focus_handle(cx));
                     window.focus(&handle, cx);
                 }
             }
@@ -1389,6 +1435,9 @@ impl Workbench {
                 self.sync_structure_window(cx);
                 self.sync_todo_window(cx);
                 self.sync_code_insight(cx);
+                if focus && let Some(handle) = target {
+                    window.focus(&handle, cx);
+                }
             }
         }
         cx.notify();
@@ -1407,15 +1456,20 @@ impl Workbench {
         if let Some(failure) = failure {
             self.report_save_failure(failure, cx);
         }
-        let Content::Project { tabs, editors, find_bars, .. } = &mut self.content else { return };
+        let Content::Project { tabs, editors, find_bars, view_tabs, .. } = &mut self.content else { return };
         let pane = tabs.active_pane.clone();
         let input = EditorInput { kind: "file".to_owned(), key: path.clone(), path: Some(path), data: None };
-        if let Some(id) = tabs.open_tab(&pane, input, OpenTabOptions::default()) {
+        let reopened = tabs.open_tab(&pane, input, OpenTabOptions::default());
+        if let Some(id) = &reopened {
             // A tab for the same file opened meanwhile has its own editor: the unsaved one wins,
-            // since it is the one holding the text that is not on disk. A bar over the editor it
-            // replaces goes with that editor.
-            find_bars.remove(&id);
-            editors.insert(id, editor);
+            // since it is the one holding the text that is not on disk. A bar and layouts around
+            // the editor it replaces go with that editor.
+            find_bars.remove(id);
+            view_tabs.drop_tab(id);
+            editors.insert(id.clone(), editor.clone());
+        }
+        if let Some(id) = reopened {
+            self.wrap_markdown(&id, &editor, window, cx);
         }
         self.tabs_changed(true, window, cx);
     }
@@ -1633,6 +1687,10 @@ impl Workbench {
                 self.language_server_removed(*server, cx);
                 return;
             }
+            IdeEvent::DbSourcesChanged => {
+                self.database_sources_changed(cx);
+                return;
+            }
             _ => return,
         }
         self.schedule_tasks(cx);
@@ -1754,7 +1812,10 @@ impl Workbench {
             Content::Project { name, .. } => Some(name.as_str()),
             _ => None,
         };
-        let file = self.editor().map(|editor| editor.read(cx).path().to_path_buf());
+        let file = self
+            .editor()
+            .map(|editor| editor.read(cx).path().to_path_buf())
+            .or_else(|| self.active_tab_view().and_then(|view| view.input.path.as_deref()).map(PathBuf::from));
         let default = cx
             .try_global::<crate::platform::i18n::Localization>()
             .map_or_else(|| "app.title.default".to_owned(), |l| l.0.t("app.title.default", &[]));
@@ -1778,8 +1839,11 @@ impl Workbench {
         set_context(window, cx, "findBarFocus", focused_bar.is_some());
         set_context(window, cx, "findBarHasResults", focused_bar.is_some_and(|bar| bar.read(cx).has_results()));
         set_context(window, cx, "projectOpen", self.project_tree().is_some());
-        set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor(_)));
+        set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor(_) | Content::Viewer(_)));
         set_context(window, cx, "textEditorActive", editor.is_some());
+        // `imageViewerActive` / `imageViewerFocus` for an image tab; every kind's keys are off on
+        // other tabs.
+        self.publish_view_context(window, cx);
         set_context(window, cx, "editorSplit", self.tabs().is_some_and(|tabs| tabs.panes.len() > 1));
         let tabs_open =
             self.tabs().and_then(|tabs| tabs.pane(&tabs.active_pane)).is_some_and(|pane| !pane.tabs.is_empty());
@@ -1798,6 +1862,9 @@ impl Workbench {
         set_context(window, cx, "projectViewFocus", focused_panel.as_deref() == Some(PROJECT_TOOL_WINDOW));
         set_context(window, cx, "terminalFocus", focused_panel.as_deref() == Some(TERMINAL_TOOL_WINDOW));
         set_context(window, cx, "servicesViewFocus", focused_panel.as_deref() == Some(SERVICES_TOOL_WINDOW));
+        let database_focused =
+            self.database_tree().is_some_and(|tree| tree.focus_handle(cx).contains_focused(window, cx));
+        set_context(window, cx, database::DATABASE_VIEW_FOCUS, database_focused);
         self.publish_diff_context(window, cx);
         if let Content::Project { layout, .. } = &mut self.content {
             // The layout decides by this what `toolwindow.<id>` does: focus, or hide.
@@ -1948,6 +2015,10 @@ impl Workbench {
                 USAGES_TOOL_WINDOW => self.mount_usages(window, cx),
                 HIERARCHY_TOOL_WINDOW => self.mount_hierarchy(window, cx),
                 BUILD_TOOL_WINDOW => match self.mount_build(window, cx) {
+                    Some(panel) => panel,
+                    None => continue,
+                },
+                DATABASE_TOOL_WINDOW => match self.mount_database(window, cx) {
                     Some(panel) => panel,
                     None => continue,
                 },
@@ -2180,7 +2251,7 @@ impl Workbench {
             .tabs()
             .and_then(|tabs| tabs.pane(&tabs.active_pane))
             .and_then(|pane| pane.active_tab())
-            .map(|tab| (tab.input.key.clone(), tab.input.path.clone().filter(|_| tab.input.kind == "file")));
+            .map(|tab| (tab.input.key.clone(), tab.input.path.clone()));
         let key = active.as_ref().map(|(key, _)| key.clone());
         if key == self.active_key {
             return;
@@ -2207,10 +2278,11 @@ impl Workbench {
             .filter(|tab| seen.insert(tab.input.key.as_str()))
             .map(|tab| {
                 let path = tab.input.path.as_deref().unwrap_or(&tab.input.key);
-                let title = path.rsplit('/').next().unwrap_or(path).to_owned();
+                let title = tab_views::title_of(&tab.input)
+                    .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path).to_owned());
                 OpenEditorTab {
                     input: tab.input.clone(),
-                    icon: theme::icons::file_icon_name(&title).to_owned(),
+                    icon: tab_views::icon_of(&tab.input),
                     title,
                     last_active: self.activations.get(&tab.input.key).copied().unwrap_or(0),
                 }
@@ -2567,6 +2639,7 @@ impl Workbench {
         self.leave(cx);
         self.reset_runs(cx);
         self.reset_build(window, cx);
+        self.reset_database(window, cx);
         self.drop_vcs();
         self.drop_commit();
         self.drop_git_log();
@@ -2679,6 +2752,7 @@ impl Workbench {
         self.leave(cx);
         self.reset_runs(cx);
         self.reset_build(window, cx);
+        self.reset_database(window, cx);
         self.drop_vcs();
         self.drop_commit();
         self.drop_git_log();
@@ -2748,6 +2822,7 @@ impl Workbench {
                             reveals: HashMap::new(),
                             editor_focus: HashMap::new(),
                             find_bars: HashMap::new(),
+                            view_tabs: Default::default(),
                             _opens: opens,
                             run,
                             _run_events: run_events,
@@ -2782,31 +2857,6 @@ impl Workbench {
             });
         })
         .detach();
-    }
-
-    /// Opens a file of the project in a tab of the active pane; a file that already has a tab
-    /// there is brought to the front instead.
-    pub fn open_project_file(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
-        let Content::Project { tabs, editors, .. } = &mut self.content else { return };
-        let key = path.to_string_lossy().into_owned();
-        let pane = tabs.active_pane.clone();
-        let existing = tabs.find_tab(&key, Some(&pane)).map(|(_, tab)| tab.id.clone());
-        let tab_id = match existing {
-            Some(id) => {
-                tabs.activate_tab(&pane, &id);
-                id
-            }
-            None => {
-                let input = EditorInput { kind: "file".to_owned(), key: key.clone(), path: Some(key), data: None };
-                let Some(id) = tabs.open_tab(&pane, input, OpenTabOptions::default()) else { return };
-                id
-            }
-        };
-        let loaded = editors.contains_key(&tab_id);
-        self.tabs_changed(true, window, cx);
-        if !loaded {
-            self.load_tab(tab_id, path, true, window, cx);
-        }
     }
 
     /// Opens a file of the project with the caret at the zero-based `line` and UTF-16 column
@@ -3004,9 +3054,12 @@ impl Workbench {
             _ => {}
         }
         let dirty: std::collections::HashSet<String> = match &self.content {
-            Content::Project { editors, .. } => {
-                editors.iter().filter(|(_, editor)| editor.read(cx).is_dirty()).map(|(id, _)| id.clone()).collect()
-            }
+            Content::Project { editors, view_tabs, .. } => editors
+                .iter()
+                .filter(|(_, editor)| editor.read(cx).is_dirty())
+                .map(|(id, _)| id.clone())
+                .chain(view_tabs.dirty_tabs(cx))
+                .collect(),
             _ => Default::default(),
         };
         self.with_tabs(window, cx, |tabs, _| match command {
@@ -3142,6 +3195,7 @@ impl Workbench {
         let path = tabs
             .pane(&reopened.pane_id)
             .and_then(|pane| pane.tab(&reopened.tab_id))
+            .filter(|tab| tab.input.kind == tab_views::FILE_KIND)
             .and_then(|tab| tab.input.path.clone());
         self.tabs_changed(true, window, cx);
         if let Some(path) = path {
@@ -3154,19 +3208,28 @@ impl Workbench {
     fn load_active_tab(&mut self, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
         let Content::Project { tabs, editors, loading, .. } = &self.content else { return };
         // Every pane shows its selected tab; only the active pane's takes the keyboard.
-        let wanted: Vec<(String, PathBuf, bool)> = tabs
-            .panes
-            .iter()
-            .filter_map(|pane| {
-                let tab = pane.active_tab()?;
-                if editors.contains_key(&tab.id) || loading.contains(&tab.id) || tab.input.kind != "file" {
-                    return None;
+        let mut documents: Vec<(String, PathBuf, bool)> = Vec::new();
+        let mut views: Vec<(String, EditorInput)> = Vec::new();
+        for pane in &tabs.panes {
+            let Some(tab) = pane.active_tab() else { continue };
+            let focus = focus && pane.id == tabs.active_pane;
+            if tab.input.kind == tab_views::FILE_KIND {
+                if editors.contains_key(&tab.id) || loading.contains(&tab.id) {
+                    continue;
                 }
-                Some((tab.id.clone(), PathBuf::from(tab.input.path.clone()?), focus && pane.id == tabs.active_pane))
-            })
-            .collect();
-        for (tab, path, focus) in wanted {
+                if let Some(path) = tab.input.path.clone() {
+                    documents.push((tab.id.clone(), PathBuf::from(path), focus));
+                }
+            } else if tab_views::kind(&tab.input.kind).is_some() && self.tab_view(&tab.id).is_none() {
+                views.push((tab.id.clone(), tab.input.clone()));
+            }
+        }
+        for (tab, path, focus) in documents {
             self.load_tab(tab, path, focus, window, cx);
+        }
+        // A view takes the keyboard in `tabs_changed`, which calls this.
+        for (tab, input) in views {
+            self.build_view_tab(tab, input, window, cx);
         }
     }
 
@@ -3258,7 +3321,7 @@ impl Workbench {
                 FileViewState { anchor: editor.anchor(), head: editor.caret(), top_line: Some(editor.top_line(cx)) };
             files.insert(editor.path().to_string_lossy().into_owned(), view);
         }
-        let saved = session::serialize_session(tabs, &files, |_| false);
+        let saved = session::serialize_session(tabs, &files, tab_views::restorable);
         let root = layout.scope().to_owned();
         if cx.has_global::<UiStorage>() {
             session::store_session(cx.global_mut::<UiStorage>(), &root, saved.as_ref());
@@ -3269,6 +3332,21 @@ impl Workbench {
     /// With `focus` the editor takes the keyboard once it is there; a tab restored with the
     /// project loads without taking it from wherever it is.
     fn load_tab(&mut self, tab_id: String, path: PathBuf, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
+        self.load_tab_probed(tab_id, path, focus, false, window, cx);
+    }
+
+    /// [`Workbench::load_tab`]; with `probe` the file's content is looked at first, in the same
+    /// backend call: binary or very large content turns the tab into the hex view, and no
+    /// document is opened for it.
+    fn load_tab_probed(
+        &mut self,
+        tab_id: String,
+        path: PathBuf,
+        focus: bool,
+        probe: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         // One document per tab: a tab that has its editor, or is getting it, is left alone.
         let Content::Project { loading, editors, .. } = &mut self.content else { return };
         if editors.contains_key(&tab_id) || !loading.insert(tab_id.clone()) {
@@ -3277,21 +3355,30 @@ impl Workbench {
         let label = self.label.clone();
         let opened = cx
             .global::<Backend>()
-            .with_host(move |host| async move { ide_host::ops::doc::open(&host, &label, path).await });
+            .with_host(move |host| async move { tab_views::open_tab_file(&host, &label, path, probe).await });
         cx.spawn_in(window, async move |workbench, cx| {
             let result = opened.await;
             let _ = workbench.update_in(cx, |workbench, window, cx| {
                 let host = cx.global::<Backend>().host.clone();
                 let label = workbench.label.clone();
-                let text = result
-                    .map_err(|error| error.to_string())
-                    .and_then(|opened| opened.map_err(|error| error.message))
-                    .and_then(|info| {
-                        let project = host.project(&label).map_err(|error| error.message)?;
-                        let (version, rope) =
-                            project.documents.rope_snapshot(info.id).map_err(|error| error.message)?;
-                        Ok((info, version, rope))
-                    });
+                let opened = result.map_err(|error| error.to_string()).and_then(|opened| opened.map_err(|e| e.message));
+                let info = match opened {
+                    Ok(tab_views::TabFile::Viewer(input)) => {
+                        if let Content::Project { loading, .. } = &mut workbench.content {
+                            loading.remove(&tab_id);
+                        }
+                        workbench.tab_shows_viewer(&tab_id, input);
+                        workbench.tabs_changed(focus, window, cx);
+                        return;
+                    }
+                    Ok(tab_views::TabFile::Text(info)) => Ok(info),
+                    Err(message) => Err(message),
+                };
+                let text = info.and_then(|info| {
+                    let project = host.project(&label).map_err(|error| error.message)?;
+                    let (version, rope) = project.documents.rope_snapshot(info.id).map_err(|error| error.message)?;
+                    Ok((info, version, rope))
+                });
                 let still_open =
                     workbench.tabs().is_some_and(|tabs| tabs.panes.iter().any(|pane| pane.tab(&tab_id).is_some()));
                 if let Content::Project { loading, .. } = &mut workbench.content {
@@ -3323,10 +3410,11 @@ impl Workbench {
                                 cx.on_focus_in(&editor.focus_handle(cx), window, move |workbench, window, cx| {
                                     workbench.editor_took_focus(&focused, window, cx);
                                 });
-                            editors.insert(tab_id.clone(), editor);
+                            editors.insert(tab_id.clone(), editor.clone());
                             if let Content::Project { editor_focus, .. } = &mut workbench.content {
                                 editor_focus.insert(tab_id.clone(), took_focus);
                             }
+                            workbench.wrap_markdown(&tab_id, &editor, window, cx);
                         }
                         workbench.serve_reveal(cx);
                     }
@@ -3354,55 +3442,6 @@ impl Workbench {
             Content::Failed(message) => Some(message),
             _ => None,
         }
-    }
-
-    /// Opens a loose file for editing (LightEdit: no project, no tool windows).
-    pub fn open_file(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
-        self.content = Content::Opening(path.clone());
-        self.light_find_bar = None;
-        self.sync_welcome(window, cx);
-        cx.notify();
-        let label = self.label.clone();
-        let opened = cx.global::<Backend>().with_host(move |host| async move {
-            let (blocking_host, blocking_label, file) = (host.clone(), label.clone(), path.clone());
-            tokio::task::spawn_blocking(move || blocking_host.open_light(&blocking_label, &file).map(|_| ()))
-                .await
-                .map_err(|e| ide_core::IdeError::internal(e.to_string()))??;
-            let file = path.canonicalize().unwrap_or(path);
-            ide_host::ops::doc::open(&host, &label, file).await
-        });
-        cx.spawn_in(window, async move |workbench, cx| {
-            let result = opened.await;
-            let _ = workbench.update_in(cx, |workbench, window, cx| {
-                let host = cx.global::<Backend>().host.clone();
-                let label = workbench.label.clone();
-                // The document's text is read before the view exists, so a failure is a message
-                // in the window instead of an editor without a document.
-                let text = result
-                    .map_err(|error| error.to_string())
-                    .and_then(|opened| opened.map_err(|error| error.message))
-                    .and_then(|info| {
-                        let project = host.project(&label).map_err(|error| error.message)?;
-                        let (version, rope) =
-                            project.documents.rope_snapshot(info.id).map_err(|error| error.message)?;
-                        Ok((info, version, rope))
-                    });
-                workbench.content = match text {
-                    Ok((info, version, rope)) => {
-                        let editor = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
-                        workbench.install_intelligence(&editor, window, cx);
-                        let focus = editor.focus_handle(cx);
-                        window.focus(&focus, cx);
-                        workbench.observe_editor(&editor, cx);
-                        Content::Editor(editor)
-                    }
-                    Err(message) => Content::Failed(message.into()),
-                };
-                workbench.sync_welcome(window, cx);
-                cx.notify();
-            });
-        })
-        .detach();
     }
 }
 
@@ -3435,6 +3474,7 @@ impl Render for Workbench {
             Content::Opening(path) => message(format!("Opening {}…", path.display()).into()).into_any_element(),
             Content::Failed(error) => message(error.clone()).into_any_element(),
             Content::Editor(editor) => self.light_editor_element(editor),
+            Content::Viewer(view) => view.view.clone().into_any_element(),
             Content::Project { layout, panels, .. } => {
                 let area = self.tabs().map(|tabs| self.editor_area(&tabs.layout, window, cx));
                 let gap = theme::length(cx, "island-gap");
@@ -3640,6 +3680,8 @@ impl Render for Workbench {
             .children(self.customize_toolbar_layer())
             .children(self.vcs_dialog_layer())
             .children(self.file_dialog_layer())
+            .children(self.database_dialog_layer())
+            .children(self.database_prompt_layer())
             .children(self.settings_layer(cx))
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
@@ -9536,5 +9578,831 @@ mod tests {
         assert!(workbench.read_with(cx, |w, _| w.settings_plugins_page().is_none()), "no plugin host here");
         let lines = open.read_with(cx, |view, cx| view.control_lines(cx));
         assert_eq!(lines, [crate::settings_view::controls::UNAVAILABLE]);
+    }
+
+    /// A 2×2 red PNG.
+    const PNG_2X2: [u8; 74] = [
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00,
+        0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x08, 0x06, 0x00, 0x00, 0x00, 0x72, 0xB6, 0x0D, 0x24, 0x00, 0x00, 0x00,
+        0x11, 0x49, 0x44, 0x41, 0x54, 0x78, 0xDA, 0x63, 0xF8, 0xCF, 0xC0, 0xF0, 0x1F, 0x84, 0x19, 0x60, 0x0C, 0x00,
+        0x47, 0xCA, 0x07, 0xF9, 0x1A, 0xB6, 0xF1, 0xA9, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42,
+        0x60, 0x82,
+    ];
+
+    fn context_is_on(cx: &mut VisualTestContext, key: &str) -> bool {
+        cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy(key))
+    }
+
+    #[gpui_kit::test]
+    async fn a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::features_b::viewers::image_view::ImageView;
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("logo.png"), PNG_2X2).expect("the image is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let tree = workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree");
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.rows().len() == 2));
+        cx.simulate_keystrokes("down down enter");
+        let image = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| w.active_tab_view().and_then(|view| view.downcast::<ImageView>()))
+        };
+        // Shown once decoded and placed in its canvas.
+        settle(cx, |cx| image(cx).is_some_and(|view| view.read_with(cx, |view, _| view.view().is_some())));
+        workbench.read_with(cx, |w, _| {
+            assert_eq!(w.tab_titles().into_iter().map(|tab| tab.name).collect::<Vec<_>>(), ["logo.png"]);
+            assert!(w.editor().is_none(), "an image tab has no text editor");
+        });
+        cx.run_until_parked();
+        assert!(!context_is_on(cx, "textEditorActive"));
+        assert!(context_is_on(cx, "imageViewerActive"));
+        assert!(context_is_on(cx, "imageViewerFocus"), "the image has the keyboard");
+
+        let label = |cx: &mut VisualTestContext| image(cx).expect("the image tab").read_with(cx, |view, _| view.info());
+        let before = label(cx);
+        assert!(before.starts_with("2×2 · ") && before.ends_with('%'), "{before}");
+        cx.update(|window, cx| execute_action_or_throw("image.zoomIn", None, window, cx)).expect("it runs");
+        cx.run_until_parked();
+        assert_ne!(label(cx), before);
+
+        // An image holds no unsaved changes: closing its tab asks nothing.
+        cx.update(|window, cx| execute_action_or_throw("editor.closeTab", None, window, cx)).expect("it runs");
+        cx.run_until_parked();
+        assert!(cx.pending_prompt().is_none());
+        assert!(workbench.read_with(cx, |w, _| w.tab_titles().is_empty() && w.active_tab_view().is_none()));
+        assert!(!context_is_on(cx, "imageViewerActive"));
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn a_file_with_nul_bytes_opens_in_the_hex_view_and_open_as_text_gives_it_a_text_editor(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::features_b::viewers::hex_view::HexView;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let data = root.join("data.bin");
+        std::fs::write(&data, b"\0\0binary payload").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(data.clone(), window, cx));
+        let hex = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| w.active_tab_view().and_then(|view| view.downcast::<HexView>()))
+        };
+        let first_row = |cx: &mut VisualTestContext| {
+            hex(cx).and_then(|view| view.read_with(cx, |view, _| view.rows().into_iter().next()))
+        };
+        settle(cx, |cx| first_row(cx).is_some_and(|row| !row.contains("··")));
+        assert_eq!(
+            first_row(cx).as_deref(),
+            Some("00000000  00 00 62 69 6E 61 72 79  20 70 61 79 6C 6F 61 64  ..binary payload")
+        );
+        workbench.read_with(cx, |w, _| {
+            assert_eq!(w.tab_titles().into_iter().map(|tab| tab.name).collect::<Vec<_>>(), ["data.bin"]);
+            assert!(w.editor().is_none());
+        });
+        // The probe decided before any document was opened.
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        assert!(host.project("w1").is_ok_and(|project| project.documents.open_documents().is_empty()));
+        cx.run_until_parked();
+        assert!(!context_is_on(cx, "textEditorActive"));
+
+        // Open as Text gives the file a text editor, read-only for binary content.
+        workbench.update_in(cx, |w, window, cx| w.open_project_file_as_text(data.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == data)));
+        cx.run_until_parked();
+        assert!(context_is_on(cx, "textEditorActive") && context_is_on(cx, "editorReadOnly"));
+        assert!(workbench.read_with(cx, |w, _| w.active_tab_view().is_none()));
+        // Opened again, the file goes to its text tab, past the viewers.
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(data.clone(), window, cx));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == data)));
+        host.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::features_b::viewers::preview::{MarkdownMode, TEXT_DELAY_MS};
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let readme = root.join("README.md");
+        std::fs::write(&readme, "# Title\n\n- first item\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(readme.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some() && w.active_markdown_host().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("a text editor");
+        let host = workbench.read_with(cx, |w, _| w.active_markdown_host()).expect("the Markdown layouts");
+        cx.run_until_parked();
+        assert!(context_is_on(cx, "textEditorActive"));
+        let language =
+            cx.update(|window, cx| crate::platform::context::window_context(window, cx).get("editorLangId").cloned());
+        assert_eq!(language, Some(crate::platform::context::ContextValue::from("markdown")));
+        // The layout buttons are in the tab strip, not floating over the editor.
+        assert!(cx.debug_bounds("markdown-layout-split").is_some());
+        assert!(cx.debug_bounds("markdown-layout-actions").is_none());
+
+        let run = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| execute_action_or_throw(id, None, window, cx)).expect("it runs");
+            cx.run_until_parked();
+        };
+        run(cx, "markdown.editorOnly");
+        assert!(host.read_with(cx, |host, _| host.preview().is_none()));
+        run(cx, "markdown.editorAndPreview");
+        let preview = host.read_with(cx, |host, _| host.preview().cloned()).expect("the preview shows");
+        let blocks = |cx: &mut VisualTestContext| -> Vec<(String, String)> {
+            preview.read_with(cx, |preview, _| {
+                preview.blocks().iter().flat_map(|block| &block.nodes).map(|node| (node.tag(), node.text())).collect()
+            })
+        };
+        let shown = |pairs: &[(&str, &str)]| -> Vec<(String, String)> {
+            pairs.iter().map(|(tag, text)| ((*tag).to_owned(), (*text).to_owned())).collect()
+        };
+        assert_eq!(blocks(cx), shown(&[("H1", "Title"), ("UL", "first item")]));
+
+        // What is typed reaches the preview once typing pauses.
+        cx.simulate_keystrokes("right right");
+        cx.simulate_input("My ");
+        assert_eq!(editor.read_with(cx, |e, _| e.text()), "# My Title\n\n- first item\n");
+        assert_eq!(blocks(cx), shown(&[("H1", "Title"), ("UL", "first item")]));
+        cx.executor().advance_clock(Duration::from_millis(TEXT_DELAY_MS));
+        cx.run_until_parked();
+        assert_eq!(blocks(cx), shown(&[("H1", "My Title"), ("UL", "first item")]));
+
+        // Preview Only hides the editor; the tab stays, and stays a text tab.
+        run(cx, "markdown.previewOnly");
+        assert_eq!(host.read_with(cx, |host, _| host.mode()), MarkdownMode::Preview);
+        assert!(cx.debug_bounds("markdown-editor-slot").is_none());
+        assert!(cx.debug_bounds("markdown-preview-slot").is_some());
+        workbench.read_with(cx, |w, _| {
+            assert_eq!(w.tab_titles().into_iter().map(|tab| tab.name).collect::<Vec<_>>(), ["README.md"]);
+            assert!(w.editor().is_some());
+        });
+        let backend = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        backend.close_project("w1");
+    }
+
+    #[gpui_kit::test]
+    async fn reopening_a_project_restores_its_text_and_markdown_tabs_and_not_its_image_tab(cx: &mut TestAppContext) {
+        use crate::features_b::viewers::image_view::ImageView;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("a.txt"), "a\n").expect("the file is written");
+        std::fs::write(root.join("README.md"), "# Title\n").expect("the file is written");
+        std::fs::write(root.join("logo.png"), PNG_2X2).expect("the image is written");
+        let scope = root.to_string_lossy().into_owned();
+        let key = format!("{}{scope}", session::STORAGE_PREFIX);
+        let (first, cx1) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        first.update_in(cx1, |w, window, cx| w.open_project(root.clone(), window, cx));
+        settle(cx1, |cx| first.read_with(cx, |w, _| w.project_tree().is_some()));
+        for name in ["a.txt", "README.md"] {
+            let path = root.join(name);
+            first.update_in(cx1, |w, window, cx| w.open_project_file(path.clone(), window, cx));
+            settle(cx1, |cx| first.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == path)));
+        }
+        first.update_in(cx1, |w, window, cx| w.open_project_file(root.join("logo.png"), window, cx));
+        settle(cx1, |cx| {
+            first.read_with(cx, |w, _| w.active_tab_view().and_then(|view| view.downcast::<ImageView>()).is_some())
+        });
+        first.update(cx1, |w, cx| w.save_session(cx));
+        let stored: serde_json::Value = cx1
+            .update(|_, cx| serde_json::from_str(cx.global::<UiStorage>().get(&key).expect("stored")))
+            .expect("JSON");
+        let tabs = stored["layout"]["tabs"].as_array().expect("one pane of tabs");
+        let saved: Vec<String> = tabs.iter().filter_map(|tab| tab["path"].as_str()).map(str::to_owned).collect();
+        let expected: Vec<String> =
+            ["a.txt", "README.md"].iter().map(|name| root.join(name).to_string_lossy().into_owned()).collect();
+        assert_eq!(saved, expected, "the image tab is not restorable");
+        assert!(tabs.iter().all(|tab| tab.get("input").is_none()));
+        cx1.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+
+        let (second, cx2) = cx.add_window_view(|window, cx| Workbench::new("w2", window, cx));
+        second.update_in(cx2, |w, window, cx| w.open_project(root.clone(), window, cx));
+        settle(cx2, |cx| second.read_with(cx, |w, _| w.editor().is_some()));
+        let names: Vec<String> = second.read_with(cx2, |w, _| w.tab_titles().into_iter().map(|t| t.name).collect());
+        assert_eq!(names, ["a.txt", "README.md"]);
+        // The Markdown tab gets its layouts back once it shows.
+        second.update_in(cx2, |w, window, cx| w.with_tabs(window, cx, |tabs, pane| tabs.cycle_tab(1, Some(pane))));
+        settle(cx2, |cx| second.read_with(cx, |w, _| w.active_markdown_host().is_some()));
+        assert!(second.read_with(cx2, |w, _| w.active_tab_view().is_none() && w.editor().is_some()));
+        cx2.update(|_, cx| cx.global::<Backend>().host.close_project("w2"));
+    }
+
+    /// A view tab and a loose file in a viewer have no text editor: the status bar leaves out the
+    /// editor's items, as `StatusBar.tsx`'s items render nothing without one, and the title names
+    /// the file the viewer shows.
+    #[gpui_kit::test]
+    async fn the_status_and_title_bars_name_the_viewers_file_and_leave_out_the_editors_items(cx: &mut TestAppContext) {
+        use super::title_bar::TitleBarKind;
+        use crate::features_b::viewers::image_view::ImageView;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("logo.png"), PNG_2X2).expect("the image is written");
+        std::fs::write(root.join("notes.txt"), "a\n").expect("the file is written");
+        let editor_items = [
+            status_items::CARET,
+            status_items::LINE_ENDING,
+            status_items::ENCODING,
+            status_items::INDENT,
+            status_items::READ_ONLY,
+        ];
+
+        // A loose image: the single-file window's viewer.
+        let (loose, cx1) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx1.update(|window, _| window.activate_window());
+        loose.update_in(cx1, |w, window, cx| w.open_file(root.join("logo.png"), window, cx));
+        settle(cx1, |cx| loose.read_with(cx, |w, _| w.active_tab_view().is_some() || w.failure().is_some()));
+        assert!(loose.read_with(cx1, |w, _| matches!(w.content, Content::Viewer(_)) && w.editor().is_none()));
+        assert!(loose.read_with(cx1, |w, _| w.active_tab_view().and_then(|v| v.downcast::<ImageView>()).is_some()));
+        cx1.run_until_parked();
+        assert!(context_is_on(cx1, "lightEdit") && context_is_on(cx1, "imageViewerActive"));
+        assert!(context_is_on(cx1, "imageViewerFocus"), "the viewer has the keyboard");
+        let title_bar = loose.read_with(cx1, |w, _| w.title_bar().clone());
+        assert_eq!(title_bar.read_with(cx1, |bar, _| bar.kind()), TitleBarKind::LightEdit);
+        assert!(loose.read_with(cx1, |w, cx| w.title(cx)).ends_with("logo.png"));
+        let bar = loose.read_with(cx1, |w, _| w.status_bar().clone());
+        let (left, right) = cx1.update(|window, cx| bar.read(cx).shown(window, cx));
+        assert!(left.iter().chain(&right).all(|id| !editor_items.contains(&id.as_str())), "{left:?} {right:?}");
+        // Open as Text from the viewer turns the window into a text editor of the file.
+        loose.update_in(cx1, |w, window, cx| w.open_as_text(root.join("logo.png"), window, cx));
+        settle(cx1, |cx| loose.read_with(cx, |w, _| w.editor().is_some() || w.failure().is_some()));
+        assert!(loose.read_with(cx1, |w, _| matches!(w.content, Content::Editor(_))));
+        cx1.run_until_parked();
+        assert!(!context_is_on(cx1, "imageViewerActive"));
+        cx1.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+
+        // An image tab of a project, then a text tab: the editor's items come back with it.
+        let (workbench, cx2) = cx.add_window_view(|window, cx| Workbench::new("w2", window, cx));
+        workbench.update_in(cx2, |w, window, cx| w.open_project(root.clone(), window, cx));
+        settle(cx2, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        workbench.update_in(cx2, |w, window, cx| w.open_project_file(root.join("logo.png"), window, cx));
+        settle(cx2, |cx| workbench.read_with(cx, |w, _| w.active_tab_view().is_some()));
+        cx2.run_until_parked();
+        let title = workbench.read_with(cx2, |w, cx| w.title(cx));
+        assert!(title.ends_with("logo.png"), "{title}");
+        let bar = workbench.read_with(cx2, |w, _| w.status_bar().clone());
+        let shown = |cx: &mut VisualTestContext| -> Vec<String> {
+            let (left, right) = cx.update(|window, cx| bar.read(cx).shown(window, cx));
+            left.into_iter().chain(right).filter(|id| editor_items.contains(&id.as_str())).collect()
+        };
+        assert_eq!(shown(cx2), Vec::<String>::new());
+        workbench.update_in(cx2, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx2, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx2.run_until_parked();
+        assert!(shown(cx2).contains(&status_items::CARET.to_owned()));
+        assert!(workbench.read_with(cx2, |w, cx| w.title(cx)).ends_with("notes.txt"));
+        cx2.update(|_, cx| cx.global::<Backend>().host.close_project("w2"));
+    }
+
+    /// The rest of the view tabs' wiring in one window: every image action, closing and
+    /// reopening a view tab, splitting it, the hex view's Open as Text, a Markdown preview's local
+    /// image and links, and closing a Markdown tab.
+    #[gpui_kit::test]
+    async fn view_tabs_run_their_actions_split_reopen_and_route_their_views_requests(cx: &mut TestAppContext) {
+        use crate::features_b::viewers::file_kinds::IMAGE_ACTIONS;
+        use crate::features_b::viewers::hex_view::{HexView, HexViewEvent};
+        use crate::features_b::viewers::image_view::{ImageView, chessboard};
+        use crate::features_b::viewers::markdown_view::MarkdownViewEvent;
+        use crate::features_b::viewers::preview::ImageView as PreviewImage;
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("logo.png"), PNG_2X2).expect("the image is written");
+        std::fs::write(root.join("data.bin"), b"\0\0binary payload").expect("the file is written");
+        std::fs::write(root.join("other.txt"), "one\ntwo\nthree\n").expect("the file is written");
+        std::fs::write(root.join("README.md"), "# Title\n\n![logo](logo.png)\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |w, window, cx| w.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let run = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| execute_action_or_throw(id, None, window, cx)).expect("it runs");
+            cx.run_until_parked();
+        };
+        let image = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| w.active_tab_view().and_then(|view| view.downcast::<ImageView>()))
+        };
+
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("logo.png"), window, cx));
+        settle(cx, |cx| image(cx).is_some_and(|view| view.read_with(cx, |view, _| view.view().is_some())));
+        let label = |cx: &mut VisualTestContext| image(cx).expect("the image tab").read_with(cx, |view, _| view.info());
+        let board = cx.update(|_, cx| chessboard(cx));
+        for id in IMAGE_ACTIONS {
+            let before = label(cx);
+            run(cx, id);
+            if id == "image.zoomIn" {
+                assert_ne!(label(cx), before, "{id}");
+            }
+        }
+        assert_eq!(cx.update(|_, cx| chessboard(cx)), !board, "the chessboard toggled");
+        run(cx, "image.toggleChessboard");
+        assert_eq!(cx.update(|_, cx| chessboard(cx)), board);
+        // The file size reaches the label once probed.
+        settle(cx, |cx| label(cx).contains("74 B"));
+
+        // Split: the copy in the new pane gets a view of its own.
+        let first = image(cx).expect("the image tab");
+        run(cx, "editor.splitRight");
+        settle(cx, |cx| image(cx).is_some_and(|view| view != first));
+        assert_eq!(workbench.read_with(cx, |w, _| w.tabs().map(|tabs| tabs.panes.len())), Some(2));
+        run(cx, "editor.unsplitAll");
+        assert_eq!(workbench.read_with(cx, |w, _| w.tabs().map(|tabs| tabs.panes.len())), Some(1));
+
+        // Closing and reopening an image tab builds its view again.
+        let names = |cx: &mut VisualTestContext| -> Vec<String> {
+            workbench.read_with(cx, |w, _| w.tab_titles().into_iter().map(|tab| tab.name).collect())
+        };
+        run(cx, "editor.closeTab");
+        assert!(cx.pending_prompt().is_none());
+        workbench.update_in(cx, |w, window, cx| w.reopen_closed_tab(window, cx));
+        settle(cx, |cx| image(cx).is_some());
+        assert!(names(cx).contains(&"logo.png".to_owned()));
+
+        // The hex view's Open as Text opens the file's text tab beside it.
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("data.bin"), window, cx));
+        let hex = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| w.active_tab_view().and_then(|view| view.downcast::<HexView>()))
+        };
+        settle(cx, |cx| hex(cx).is_some());
+        let data = root.join("data.bin").to_string_lossy().into_owned();
+        hex(cx).expect("the hex tab").update(cx, |_, cx| cx.emit(HexViewEvent::OpenAsText(data.clone())));
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == root.join("data.bin")))
+        });
+        assert_eq!(names(cx).iter().filter(|name| *name == "data.bin").count(), 2, "{:?}", names(cx));
+
+        // A Markdown preview reads its local image, and its links open files.
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("README.md"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.active_markdown_host().is_some()));
+        let host = workbench.read_with(cx, |w, _| w.active_markdown_host()).expect("the Markdown layouts");
+        run(cx, "markdown.editorAndPreview");
+        let preview = host.read_with(cx, |host, _| host.preview().cloned()).expect("the preview shows");
+        settle(cx, |cx| {
+            preview.read_with(cx, |preview, cx| matches!(preview.image_view("logo.png", cx), PreviewImage::Shown(_)))
+        });
+        let other = root.join("other.txt");
+        let target = other.to_string_lossy().into_owned();
+        host.update(cx, |_, cx| cx.emit(MarkdownViewEvent::OpenFile { path: target.clone(), line: Some(2) }));
+        settle(cx, |cx| workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == other)));
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).caret_position().0 == 2))
+        });
+
+        // Closing the Markdown tab releases its layouts.
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("README.md"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.active_markdown_host().is_some()));
+        let weak = host.downgrade();
+        drop((host, preview));
+        run(cx, "editor.closeTab");
+        assert!(workbench.read_with(cx, |w, _| w.active_markdown_host().is_none()));
+        assert!(!names(cx).contains(&"README.md".to_owned()));
+        assert!(weak.upgrade().is_none(), "the closed tab's layouts are released");
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// The project's SQLite data source `app` (id `s1`) on `app.db` in the project root, saved
+    /// through the backend, with a `users` table of two rows (`1 ann`, `2 bob`).
+    fn sqlite_source(root: &std::path::Path, cx: &mut VisualTestContext) {
+        std::fs::File::create(root.join("app.db")).expect("the database file is made");
+        let source = ide_db::DataSource {
+            id: "s1".into(),
+            name: "app".into(),
+            driver: ide_db::DbDriver::Sqlite,
+            file: Some(root.join("app.db").into()),
+            ..Default::default()
+        };
+        cx.update(|_, cx| {
+            let backend = cx.global::<Backend>();
+            let host = backend.host.clone();
+            backend.block_on(async move {
+                ide_host::ops::db::save_sources(&host, "w1", vec![source]).await.expect("the source is saved");
+            });
+        });
+        for statement in [
+            "create table users (id integer primary key, name text not null)",
+            "insert into users (name) values ('ann'), ('bob')",
+        ] {
+            db_query(cx, statement).unwrap_or_else(|error| panic!("{statement}: {error}"));
+        }
+    }
+
+    /// Runs `text` on data source `s1` through the backend: the rows of its result, or its error.
+    fn db_query(cx: &mut VisualTestContext, text: &str) -> Result<Vec<Vec<Option<String>>>, String> {
+        let to = u32::try_from(text.encode_utf16().count()).expect("a short statement");
+        let statement = ide_db::split::SqlStatement { from: 0, to, text: text.to_owned() };
+        cx.update(|_, cx| {
+            let backend = cx.global::<Backend>();
+            let host = backend.host.clone();
+            backend.block_on(async move {
+                let request = Backend::next_request_id();
+                let outcomes = ide_host::ops::db::execute(&host, "w1", request, "s1", vec![statement], 0, 1000, None)
+                    .await
+                    .map_err(|error| error.message)?;
+                let outcome = outcomes.into_iter().next().ok_or_else(|| "no outcome".to_owned())?;
+                match (outcome.result, outcome.error) {
+                    (_, Some(error)) => Err(error),
+                    (Some(result), None) => Ok(result.rows),
+                    (None, None) => Ok(Vec::new()),
+                }
+            })
+        })
+    }
+
+    fn db_tree(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> Entity<crate::database::tree_view::DatabaseTree> {
+        workbench.read_with(cx, |w, _| w.database_tree()).expect("the Database tools are built")
+    }
+
+    /// The key of the tree's first row labelled `label`, once it shows.
+    fn db_row_key(
+        tree: &Entity<crate::database::tree_view::DatabaseTree>,
+        label: &str,
+        cx: &mut VisualTestContext,
+    ) -> String {
+        let find = |cx: &mut VisualTestContext| {
+            tree.read_with(cx, |tree, _| {
+                tree.rows().iter().find(|row| row.label == label && !row.loading).map(|row| row.node.key.clone())
+            })
+        };
+        wait_long(cx, label, |cx| find(cx).is_some());
+        find(cx).unwrap_or_else(|| panic!("{label} shows"))
+    }
+
+    /// Expands the tree's row labelled `label`.
+    fn db_expand(tree: &Entity<crate::database::tree_view::DatabaseTree>, label: &str, cx: &mut VisualTestContext) {
+        let key = db_row_key(tree, label, cx);
+        tree.update(cx, |tree, cx| tree.set_expanded(&key, true, cx));
+        cx.run_until_parked();
+    }
+
+    /// The source list as the backend stores it: (name, driver).
+    fn db_saved_sources(cx: &mut VisualTestContext) -> Vec<(String, ide_db::DbDriver)> {
+        let sources = cx.update(|_, cx| ide_host::ops::db::sources(&cx.global::<Backend>().host, "w1"));
+        sources.expect("the sources are read").into_iter().map(|source| (source.name, source.driver)).collect()
+    }
+
+    /// New Data Source opens the dialog. A SQLite file passes Test Connection, OK saves it as a
+    /// data source of the project, and the tree shows it.
+    #[gpui_kit::test]
+    async fn new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree(cx: &mut TestAppContext) {
+        use crate::database::source_dialog::Field;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+        std::fs::File::create(root.join("app.db")).expect("the database file is made");
+
+        run_action(cx, "db.newDataSource", None);
+        let dialog = workbench.read_with(cx, |w, _| w.database_source_dialog()).expect("the dialog is open");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.form().title()), "New Data Source");
+        // The type list is a deferred popup and Browse… a native dialog: both are answered directly.
+        let file = root.join("app.db").to_string_lossy().into_owned();
+        dialog.update_in(cx, |dialog, window, cx| dialog.edit(|form| form.set_type("sqlite"), window, cx));
+        dialog.update_in(cx, |dialog, window, cx| dialog.file_picked(Field::File, &file, window, cx));
+        assert!(dialog.read_with(cx, |dialog, _| dialog.form().valid()));
+
+        dialog.update(cx, |dialog, cx| dialog.press_test(cx));
+        wait_long(cx, "Test Connection", |cx| dialog.read_with(cx, |dialog, _| dialog.form().test.is_some()));
+        let test = dialog.read_with(cx, |dialog, _| dialog.form().test.clone()).expect("an outcome");
+        assert!(test.ok && test.text.starts_with("Succeeded"), "{}", test.text);
+
+        dialog.update(cx, |dialog, cx| dialog.press_ok(cx));
+        wait_long(cx, "the save", |cx| workbench.read_with(cx, |w, _| w.database_source_dialog().is_none()));
+        assert_eq!(db_saved_sources(cx), [("app".to_owned(), ide_db::DbDriver::Sqlite)]);
+        let tree = db_tree(&workbench, cx);
+        wait_long(cx, "the source in the tree", |cx| {
+            tree.read_with(cx, |tree, _| tree.lines().iter().any(|line| line.starts_with("> app")))
+        });
+    }
+
+    /// Database shows the tool window with the project's data sources. Expanding the source lists its
+    /// schema's tables; expanding a table's columns lists them.
+    #[gpui_kit::test]
+    async fn expanding_a_data_source_lists_its_tables_and_a_tables_columns(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+        sqlite_source(&root, cx);
+        run_action(cx, "db.showToolWindow", None);
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(DATABASE_TOOL_WINDOW)));
+        let tree = db_tree(&workbench, cx);
+        for label in ["app", "main", "tables"] {
+            db_expand(&tree, label, cx);
+        }
+        db_row_key(&tree, "users", cx);
+        db_expand(&tree, "users", cx);
+        db_expand(&tree, "columns", cx);
+        // Source 0, schema 1, folder 2, table 3, group 4: a column is at depth 5.
+        let column = |lines: &[String], name: &str| {
+            let indented = format!("{}{name}", "  ".repeat(5));
+            lines.iter().any(|line| line.starts_with(&indented))
+        };
+        wait_long(cx, "the columns", |cx| {
+            let lines = tree.read_with(cx, |tree, _| tree.lines());
+            column(&lines, "id") && column(&lines, "name")
+        });
+        let lines = tree.read_with(cx, |tree, _| tree.lines());
+        assert!(lines.iter().any(|line| line.starts_with("      v users")), "{lines:?}");
+        // The source is connected now.
+        assert!(tree.read_with(cx, |tree, _| tree.data().connected.contains("s1")));
+    }
+
+    /// Edit Data opens the table's rows in the table editor. Submit writes an edited cell to the
+    /// table; Revert discards an edit.
+    #[gpui_kit::test]
+    async fn edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one(cx: &mut TestAppContext) {
+        use crate::database::grid::CellEdit;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+        // Submit and Revert follow the keyboard: focus is reported in an active window only.
+        cx.update(|window, _| window.activate_window());
+        sqlite_source(&root, cx);
+        run_action(cx, "db.showToolWindow", None);
+        let tree = db_tree(&workbench, cx);
+        for label in ["app", "main", "tables"] {
+            db_expand(&tree, label, cx);
+        }
+        let users = db_row_key(&tree, "users", cx);
+        run_action(cx, "db.editData", Some(serde_json::Value::from(users)));
+        let editor = workbench.read_with(cx, |w, cx| w.database_table_editor(cx)).expect("the table editor shows");
+        let rows = |cx: &mut VisualTestContext| {
+            editor.read_with(cx, |editor, _| editor.state().page.as_ref().map(|page| page.result.rows.clone()))
+        };
+        wait_long(cx, "the rows", |cx| rows(cx).is_some());
+        let cell = |text: &str| Some(text.to_owned());
+        assert_eq!(rows(cx), Some(vec![vec![cell("1"), cell("ann")], vec![cell("2"), cell("bob")]]));
+        assert!(editor.read_with(cx, |editor, _| editor.is_editable()));
+        let panel = workbench.read_with(cx, |w, _| w.database_panel()).expect("the panel");
+        let id = editor.read_with(cx, |editor, _| editor.id());
+        assert_eq!(panel.read_with(cx, |panel, _| panel.lower()), super::database::Lower::Table(id));
+
+        editor.update(cx, |editor, cx| editor.edit(&[CellEdit { row: 0, col: 1, value: cell("zed") }], cx));
+        cx.run_until_parked();
+        assert!(editor.read_with(cx, |editor, _| editor.is_dirty()));
+        run_action(cx, "db.submitChanges", None);
+        let written = |cx: &mut VisualTestContext| db_query(cx, "select name from users where id = 1");
+        wait_long(cx, "the write", |cx| written(cx) == Ok(vec![vec![cell("zed")]]));
+        wait_long(cx, "the page read again", |cx| {
+            editor.read_with(cx, |editor, _| !editor.is_loading() && !editor.is_dirty())
+        });
+        assert_eq!(rows(cx).and_then(|rows| rows.first().cloned()), Some(vec![cell("1"), cell("zed")]));
+
+        editor.update(cx, |editor, cx| editor.edit(&[CellEdit { row: 1, col: 1, value: cell("yan") }], cx));
+        cx.run_until_parked();
+        assert_eq!(editor.read_with(cx, |editor, _| editor.state().value(1, 1)), cell("yan"));
+        run_action(cx, "db.revertChanges", None);
+        assert!(!editor.read_with(cx, |editor, _| editor.is_dirty()));
+        assert_eq!(editor.read_with(cx, |editor, _| editor.state().value(1, 1)), cell("bob"));
+        assert_eq!(db_query(cx, "select name from users where id = 2"), Ok(vec![vec![cell("bob")]]));
+    }
+
+    /// Execute SQL Statement in a `.sql` editor runs the statement at the caret on the project's
+    /// only data source. Its rows show in the result grid, and the Output tab logs the statement and
+    /// its summary. A failing statement logs its error.
+    #[gpui_kit::test]
+    async fn execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::database::result_session::OutputLine;
+        let _home = start(cx);
+        let query = "select name from users order by id";
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("query.sql", query)]);
+        sqlite_source(&root, cx);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("query.sql"), window, cx));
+        wait_long(cx, "the editor", |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        let end = u32::try_from(query.encode_utf16().count()).expect("a short query");
+        editor.update(cx, |editor, cx| editor.select(end, end, cx));
+
+        run_action(cx, "db.execute", None);
+        let results = workbench.read_with(cx, |w, _| w.database_results()).expect("the result pane");
+        wait_long(cx, "the result", |cx| results.read_with(cx, |results, _| results.tabs().len() == 1));
+        let rows = results.read_with(cx, |results, _| results.tabs()[0].origin.result.rows.clone());
+        assert_eq!(rows, [[Some("ann".to_owned())], [Some("bob".to_owned())]]);
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(DATABASE_TOOL_WINDOW)));
+        let panel = workbench.read_with(cx, |w, _| w.database_panel()).expect("the panel");
+        assert_eq!(panel.read_with(cx, |panel, _| panel.lower()), super::database::Lower::Results);
+        let output = results.read_with(cx, |results, _| results.output().to_vec());
+        let statement =
+            |line: &OutputLine| matches!(line, OutputLine::Statement(text) if text.starts_with("main> select"));
+        assert!(output.iter().any(statement), "{output:?}");
+        assert!(
+            output.iter().any(|line| matches!(line, OutputLine::Result(text) if text.starts_with("2 rows retrieved"))),
+            "{output:?}"
+        );
+
+        let failing = "select * from missing";
+        editor.update(cx, |editor, cx| {
+            editor.insert(Some(0..end), failing, cx);
+        });
+        run_action(cx, "db.execute", None);
+        wait_long(cx, "the error", |cx| {
+            results.read_with(cx, |results, _| {
+                results.output().iter().any(|line| matches!(line, OutputLine::Error(text) if text.contains("missing")))
+            })
+        });
+        assert_eq!(results.read_with(cx, |results, _| results.tabs().len()), 1, "an error opens no result tab");
+    }
+
+    /// Drop on a data source asks first. Cancel keeps it; Remove deletes it from the project and
+    /// the tree.
+    #[gpui_kit::test]
+    async fn dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree(cx: &mut TestAppContext) {
+        use crate::vcs::prompt_dialogs::PromptDialog;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+        sqlite_source(&root, cx);
+        run_action(cx, "db.showToolWindow", None);
+        let tree = db_tree(&workbench, cx);
+        let source = db_row_key(&tree, "app", cx);
+        let prompt = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.database_prompt::<PromptDialog>());
+
+        run_action(cx, "db.drop", Some(serde_json::Value::from(source.clone())));
+        let dialog = prompt(cx).expect("the question is open");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.title().to_owned()), "Remove Data Source");
+        click_on(cx, "prompt-button-cancel");
+        assert!(prompt(cx).is_none());
+        assert_eq!(db_saved_sources(cx).len(), 1);
+
+        run_action(cx, "db.drop", Some(serde_json::Value::from(source)));
+        assert!(prompt(cx).is_some());
+        click_on(cx, "prompt-button-ok");
+        wait_long(cx, "the removal", |cx| db_saved_sources(cx).is_empty());
+        wait_long(cx, "the tree without it", |cx| tree.read_with(cx, |tree, _| tree.rows().is_empty()));
+        assert_eq!(tree.update(cx, |tree, cx| tree.empty_text(cx)), Some("No data sources".to_owned()));
+    }
+
+    /// The rest of the Database wiring in one window: the tree's shortcuts work only while it has
+    /// the keyboard (F4 opens the table there, and not in an editor), Copy Reference, Rename,
+    /// Duplicate, Refresh, Disconnect, Collapse All, Properties, Go to DDL, the console and
+    /// Explain Plan.
+    #[gpui_kit::test]
+    async fn the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend(cx: &mut TestAppContext) {
+        use crate::vcs::prompt_dialogs::PromptDialog;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("notes.txt", "notes\n")]);
+        cx.update(|window, _| window.activate_window());
+        sqlite_source(&root, cx);
+        run_action(cx, "db.showToolWindow", None);
+        let tree = db_tree(&workbench, cx);
+        for label in ["app", "main", "tables"] {
+            db_expand(&tree, label, cx);
+        }
+        let users = db_row_key(&tree, "users", cx);
+        let source = db_row_key(&tree, "app", cx);
+
+        // F4 in a text editor is not Edit Data.
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        wait_long(cx, "the editor", |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.run_until_parked();
+        assert!(!context_is_on(cx, "databaseViewFocus"));
+        cx.simulate_keystrokes("f4");
+        assert!(workbench.read_with(cx, |w, cx| w.database_table_editor(cx)).is_none());
+        // In the tree, F4 opens the selected table.
+        tree.update_in(cx, |tree, window, cx| {
+            tree.select(&users, cx);
+            window.focus(&tree.focus_handle(cx), cx);
+        });
+        cx.run_until_parked();
+        assert!(context_is_on(cx, "databaseViewFocus"));
+        cx.simulate_keystrokes("f4");
+        let editor = workbench.read_with(cx, |w, cx| w.database_table_editor(cx)).expect("F4 opens the table");
+        wait_long(cx, "the rows", |cx| editor.read_with(cx, |editor, _| editor.state().page.is_some()));
+
+        // Copy Reference of the table and of the source.
+        run_action(cx, "db.copyReference", Some(serde_json::Value::from(users.clone())));
+        let copied = cx.read_from_clipboard().and_then(|item| item.text()).expect("a reference is copied");
+        assert!(copied.contains("users"), "{copied}");
+        run_action(cx, "db.copyReference", Some(serde_json::Value::from(source.clone())));
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("app"));
+
+        // Rename asks for the new name and saves it.
+        run_action(cx, "db.rename", Some(serde_json::Value::from(source.clone())));
+        let prompt = workbench.read_with(cx, |w, _| w.database_prompt::<PromptDialog>()).expect("the question");
+        assert_eq!(prompt.read_with(cx, |dialog, _| dialog.title().to_owned()), "Rename Data Source");
+        let field = prompt.read_with(cx, |dialog, _| dialog.field().cloned()).expect("a name field");
+        cx.update(|window, cx| window.focus(&field.focus_handle(cx), cx));
+        cx.simulate_keystrokes("cmd-a");
+        cx.simulate_input("main db");
+        click_on(cx, "prompt-button-ok");
+        wait_long(cx, "the rename", |cx| db_saved_sources(cx) == [("main db".to_owned(), ide_db::DbDriver::Sqlite)]);
+        // The store has the new name once it has read the sources again: the tree shows it.
+        db_row_key(&tree, "main db", cx);
+
+        // Duplicate adds a second source; Refresh and Disconnect go through.
+        run_action(cx, "db.duplicateSource", Some(serde_json::Value::from(source.clone())));
+        wait_long(cx, "the copy", |cx| db_saved_sources(cx).len() == 2);
+        wait_long(cx, "the copy in the tree", |cx| {
+            tree.read_with(cx, |tree, _| tree.rows().iter().filter(|row| row.depth == 0).count() == 2)
+        });
+        run_action(cx, "db.refresh", Some(serde_json::Value::from(source.clone())));
+        db_row_key(&tree, "users", cx);
+        run_action(cx, "db.disconnect", Some(serde_json::Value::from(source.clone())));
+        wait_long(cx, "the disconnect", |cx| tree.read_with(cx, |tree, _| !tree.data().connected.contains("s1")));
+        run_action(cx, "db.collapseAll", None);
+        assert!(!tree.read_with(cx, |tree, _| tree.is_expanded(&source)));
+
+        // Properties opens the dialog over the source; Cancel closes it.
+        run_action(cx, "db.properties", Some(serde_json::Value::from(source.clone())));
+        let dialog = workbench.read_with(cx, |w, _| w.database_source_dialog()).expect("the dialog is open");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.form().source.name.clone()), "main db");
+        click_on(cx, "source-cancel");
+        assert!(workbench.read_with(cx, |w, _| w.database_source_dialog()).is_none());
+
+        // Go to DDL opens the table's SQL in an editor.
+        for label in ["main db", "main", "tables"] {
+            db_expand(&tree, label, cx);
+        }
+        let users = db_row_key(&tree, "users", cx);
+        run_action(cx, "db.goToDdl", Some(serde_json::Value::from(users)));
+        wait_long(cx, "the DDL", |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().is_some_and(|e| e.read(cx).text().to_lowercase().contains("create table"))
+            })
+        });
+
+        // The console opens; Explain Plan runs its statement.
+        run_action(cx, "db.openConsole", Some(serde_json::Value::from(source)));
+        wait_long(cx, "the console", |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().is_some_and(|e| e.read(cx).path().extension().is_some_and(|x| x == "sql"))
+            })
+        });
+        let console = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("the console");
+        let query = "select name from users";
+        console.update(cx, |editor, cx| {
+            editor.insert(None, query, cx);
+        });
+        cx.run_until_parked();
+        run_action(cx, "db.explainPlan", None);
+        run_action(cx, "db.execute", None);
+        let results = workbench.read_with(cx, |w, _| w.database_results()).expect("the result pane");
+        wait_long(cx, "the console's result", |cx| results.read_with(cx, |results, _| !results.tabs().is_empty()));
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// The password a connection asks for is typed in a masked field: it paints bullets, Copy and
+    /// Cut copy nothing, and Enter hands it to the store as a secret whose `Debug` output hides it.
+    #[gpui_kit::test]
+    async fn the_password_a_connection_asks_for_is_masked_and_answers_the_store(cx: &mut TestAppContext) {
+        use super::database::{FieldsPrompt, FieldsPromptEvent, secret_answer};
+        use crate::database::store::{Prompt, PromptAnswer};
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        const SECRET: &str = "Zq7#hunter";
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+        cx.update(|window, _| window.activate_window());
+        sqlite_source(&root, cx);
+        run_action(cx, "db.showToolWindow", None);
+        let source = ide_db::DataSource { id: "pg".into(), name: "warehouse".into(), ..Default::default() };
+        workbench.update_in(cx, |w, window, cx| {
+            w.ask_database(7, Prompt::Password { source: Box::new(source) }, window, cx);
+        });
+        cx.run_until_parked();
+        let prompt = workbench.read_with(cx, |w, _| w.database_prompt::<FieldsPrompt>()).expect("the question");
+        let answers: Rc<RefCell<Vec<FieldsPromptEvent>>> = Rc::default();
+        let seen = Rc::clone(&answers);
+        cx.update(|_, cx| {
+            cx.subscribe(&prompt, move |_, event: &FieldsPromptEvent, _| seen.borrow_mut().push(event.clone()))
+                .detach();
+        });
+        let field = prompt.read_with(cx, |prompt, _| prompt.secret_input()).expect("a masked field");
+        assert!(cx.update(|window, cx| field.focus_handle(cx).is_focused(window)), "it has the keyboard");
+        cx.simulate_input(SECRET);
+        assert_eq!(field.read_with(cx, |field, cx| field.text(cx).to_owned()), SECRET);
+        let painted = field.read_with(cx, |field, cx| field.painted(cx));
+        assert!(painted.iter().all(|part| part.chars().all(|c| c == '\u{2022}')), "{painted:?}");
+        cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string("before".to_owned()));
+        cx.simulate_keystrokes("cmd-a cmd-c cmd-x");
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("before"));
+
+        cx.simulate_keystrokes("enter");
+        assert!(workbench.read_with(cx, |w, _| w.database_prompt::<FieldsPrompt>()).is_none(), "the question closed");
+        let Some(FieldsPromptEvent::Done { values, checked }) = answers.borrow().last().cloned() else {
+            panic!("the question was answered")
+        };
+        assert_eq!(values, [SECRET]);
+        let answer = secret_answer(values, checked);
+        assert!(matches!(&answer, PromptAnswer::Secret { value, .. } if value.expose() == SECRET));
+        let printed = format!("{answer:?}");
+        assert!(!printed.contains(SECRET), "{printed}");
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
     }
 }

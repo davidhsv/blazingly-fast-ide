@@ -898,7 +898,9 @@ impl Workbench {
             let removed = moves.iter().map(|moved| moved.from.clone()).collect();
             backend.emit(Some(&self.label), IdeEvent::FsChanged { created, modified: Vec::new(), removed });
         }
-        let Content::Project { tabs, editors, editor_focus, find_bars, .. } = &mut self.content else { return };
+        let Content::Project { tabs, editors, editor_focus, find_bars, view_tabs, .. } = &mut self.content else {
+            return;
+        };
         let mut changed = false;
         for pane in &mut tabs.panes {
             for tab in &mut pane.tabs {
@@ -913,6 +915,7 @@ impl Workbench {
                 editors.remove(&tab.id);
                 editor_focus.remove(&tab.id);
                 find_bars.remove(&tab.id);
+                view_tabs.drop_tab(&tab.id);
                 changed = true;
             }
         }

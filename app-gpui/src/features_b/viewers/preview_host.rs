@@ -197,10 +197,14 @@ impl PreviewHost {
     /// Builds, switches or drops the preview for the current layout.
     fn apply_layout(&mut self, cx: &mut Context<Self>) {
         if !self.mode.shows_preview() {
-            if let Some(preview) = self.preview.take() {
+            let preview = self.preview.take();
+            if let Some(preview) = &preview {
                 preview.update(cx, |preview, cx| preview.close(cx));
             }
-            self.preview_subscription = None;
+            // The preview's last `ShownLine` is still queued, and the events of a released entity are
+            // dropped: the preview and its subscription go once that event is delivered.
+            let subscription = self.preview_subscription.take();
+            cx.defer(move |_| drop((preview, subscription)));
             cx.notify();
             return;
         }
@@ -446,7 +450,8 @@ mod tests {
         world.go_to(120);
         assert_eq!(world.shown_events(before), [Some(120)]);
 
-        world.wheel(world.scroll_top() as f32 - world.top_of(60) as f32);
+        let delta = world.scroll_top() as f32 - world.top_of(60) as f32;
+        world.wheel(delta);
         assert_eq!(world.shown(), Some(60));
     }
 

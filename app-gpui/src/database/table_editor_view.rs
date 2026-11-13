@@ -968,7 +968,7 @@ impl TableEditorView {
             .children(popup)
     }
 
-    fn columns_popup(&self, cx: &mut Context<Self>) -> Option<impl IntoElement> {
+    fn columns_popup(&self, cx: &mut Context<Self>) -> Option<impl IntoElement + use<>> {
         let popup = self.columns.as_ref()?;
         let names = self.column_names();
         let shown = self.shown_columns(cx);

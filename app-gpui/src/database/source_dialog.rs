@@ -13,7 +13,7 @@ use super::model::{
     ConnectRemedy, color_token, connect_remedy, effective_ssh, file_source_name, parse_source_url, ssh_config_of,
     ssh_label, ssh_tunnel_ready,
 };
-use super::store::SecretChange;
+use super::store::{SecretChange, SecretText};
 use super::vendors::{VENDORS, driver_id, source_url, vendor_by_id, vendor_of};
 use crate::platform::i18n::Localization;
 use crate::platform::input;
@@ -205,8 +205,9 @@ fn config_label(c: &SshConfiguration) -> String {
     if c.host.is_empty() { String::new() } else { format!("{user}{}{port}", c.host) }
 }
 
-/// The Data Source dialog's state.
-#[derive(Clone, Debug, PartialEq)]
+/// The Data Source dialog's state. Its `Debug` output leaves out the typed password and SSH
+/// secret, and the password of the URL.
+#[derive(Clone, PartialEq)]
 pub struct SourceForm {
     pub source: DataSource,
     /// The name the dialog was opened for (`None`: a new data source).
@@ -230,6 +231,30 @@ pub struct SourceForm {
     pub known_databases: Vec<String>,
     pub known_schemas: Vec<String>,
     pub ssh_configs: Vec<SshConfiguration>,
+}
+
+impl std::fmt::Debug for SourceForm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let secret = |value: &Option<String>| value.as_ref().map(|_| "<redacted>");
+        f.debug_struct("SourceForm")
+            .field("source", &redacted_source(&self.source))
+            .field("editing", &self.editing)
+            .field("password", &secret(&self.password))
+            .field("ssh_secret", &secret(&self.ssh_secret))
+            .field("tab", &self.tab)
+            .field("test", &self.test)
+            .field("busy", &self.busy)
+            .field("url_draft", &self.url_draft.as_deref().map(redacted_url))
+            .field("show_comment", &self.show_comment)
+            .field("keep_alive_draft", &self.keep_alive_draft)
+            .field("auto_disconnect_draft", &self.auto_disconnect_draft)
+            .field("database_pattern", &self.database_pattern)
+            .field("schema_pattern", &self.schema_pattern)
+            .field("known_databases", &self.known_databases)
+            .field("known_schemas", &self.known_schemas)
+            .field("ssh_configs", &self.ssh_configs)
+            .finish()
+    }
 }
 
 impl SourceForm {
@@ -464,6 +489,7 @@ impl SourceForm {
             // The URL shows the fields again.
             self.url_draft = None;
         }
+        let url_only = self.url_only();
         let s = &mut self.source;
         match field {
             Field::Name => s.name = text.to_owned(),
@@ -472,7 +498,7 @@ impl SourceForm {
             Field::Port => s.port = parse_port(text),
             Field::User => s.user = text.to_owned(),
             Field::Database => s.database = text.to_owned(),
-            Field::Url if self.url_only() => s.url = text.to_owned(),
+            Field::Url if url_only => s.url = text.to_owned(),
             Field::Url => self.type_url(text),
             Field::DefaultSchema => s.options.default_schema = text.to_owned(),
             Field::InstantClient => s.options.instant_client = text.to_owned(),
@@ -573,7 +599,7 @@ impl SourceForm {
         let secret = |value: &Option<String>| match value.as_deref() {
             None => SecretChange::Keep,
             Some("") => SecretChange::Forget,
-            Some(v) => SecretChange::Set(v.to_owned()),
+            Some(v) => SecretChange::Set(v.into()),
         };
         let password = if self.sqlite() { SecretChange::Keep } else { secret(&self.password) };
         let ssh = if !self.ssh_on() || self.ssh_used().auth == DbSshAuth::OpenSsh {
@@ -585,9 +611,9 @@ impl SourceForm {
     }
 
     /// What Test Connection connects with: the unsaved settings, the typed password and SSH secret.
-    pub fn test_request(&self) -> (DataSource, Option<String>, Option<String>) {
-        let secret = if self.ssh_on() { self.ssh_secret.clone() } else { None };
-        (self.effective(), self.password.clone(), secret)
+    pub fn test_request(&self) -> (DataSource, Option<SecretText>, Option<SecretText>) {
+        let secret = if self.ssh_on() { self.ssh_secret.as_deref().map(SecretText::from) } else { None };
+        (self.effective(), self.password.as_deref().map(SecretText::from), secret)
     }
 
     /// Test Connection's answer: the server version, or the error (an unknown host key offers
@@ -680,6 +706,15 @@ impl PasswordField {
     /// What the field shows: one bullet per character.
     pub fn display(&self, cx: &App) -> String {
         self.text(cx).chars().map(|_| BULLET).collect()
+    }
+
+    /// The text the field paints: the bullets before, inside and after the selection. Rendering
+    /// draws these and the placeholder only.
+    pub fn painted(&self, cx: &App) -> [SharedString; 3] {
+        let pieces: Vec<char> = self.display(cx).chars().collect();
+        let sel = self.char_selection(cx);
+        let part = |r: Range<usize>| SharedString::from(pieces[r].iter().collect::<String>());
+        [part(0..sel.start), part(sel.clone()), part(sel.end..pieces.len())]
     }
 
     /// The selection, in characters.
@@ -846,14 +881,11 @@ impl EntityInputHandler for PasswordField {
 
 impl Render for PasswordField {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let shown = self.display(cx);
         let focused = self.focus.is_focused(window);
-        let sel = self.char_selection(cx);
-        let pieces: Vec<char> = shown.chars().collect();
-        let part = |r: Range<usize>| SharedString::from(pieces[r].iter().collect::<String>());
+        let [before, selection, after] = self.painted(cx);
         let strong = theme::color(cx, "fg-strong");
         let caret = focused.then(|| div().flex_none().w(px(1.5)).h(px(16.0)).bg(theme::color(cx, "caret")));
-        let content = if pieces.is_empty() {
+        let content = if before.is_empty() && selection.is_empty() && after.is_empty() {
             div()
                 .flex()
                 .items_center()
@@ -865,10 +897,10 @@ impl Render for PasswordField {
                 .flex()
                 .items_center()
                 .text_color(strong)
-                .child(part(0..sel.start))
-                .when(sel.is_empty(), |el| el.children(caret))
-                .when(!sel.is_empty(), |el| el.child(div().bg(selected).child(part(sel.clone()))))
-                .child(part(sel.end..pieces.len()))
+                .child(before)
+                .when(selection.is_empty(), |el| el.children(caret))
+                .when(!selection.is_empty(), |el| el.child(div().bg(selected).child(selection)))
+                .child(after)
         };
         let entity = cx.entity();
         let focus = self.focus.clone();
@@ -899,14 +931,44 @@ impl Render for PasswordField {
 
 // ---- the dialog ------------------------------------------------------------------------------
 
-/// What the Data Source dialog asks of its owner.
-#[derive(Clone, Debug, PartialEq)]
+/// A connection URL as `Debug` output shows it: the password of `user:password@` and of a
+/// `password=` parameter replaced, the rest as typed.
+pub fn redacted_url(url: &str) -> String {
+    const HIDDEN: &str = "<redacted>";
+    let mut out = url.to_owned();
+    if let Some(scheme_end) = out.find("://") {
+        let start = scheme_end + 3;
+        let authority_end = out[start..].find(['/', '?', '#']).map_or(out.len(), |end| start + end);
+        if let Some(at) = out[start..authority_end].rfind('@').map(|at| start + at)
+            && let Some(colon) = out[start..at].find(':').map(|colon| start + colon)
+        {
+            out.replace_range(colon + 1..at, HIDDEN);
+        }
+    }
+    let mut from = 0;
+    while let Some(found) = out[from..].to_ascii_lowercase().find("password=").map(|at| from + at) {
+        let value = found + "password=".len();
+        let end = out[value..].find(['&', ';', '#']).map_or(out.len(), |end| value + end);
+        out.replace_range(value..end, HIDDEN);
+        from = value + HIDDEN.len();
+    }
+    out
+}
+
+/// `source` as `Debug` output shows it: its URL redacted.
+fn redacted_source(source: &DataSource) -> DataSource {
+    DataSource { url: redacted_url(&source.url), ..source.clone() }
+}
+
+/// What the Data Source dialog asks of its owner. Its `Debug` output leaves out the passwords, in
+/// the secrets and in the source's URL.
+#[derive(Clone, PartialEq)]
 pub enum SourceDialogEvent {
     /// Test Connection (`ide_host::ops::db::test`); answer with [`SourceDialog::test_finished`].
     Test {
         source: Box<DataSource>,
-        password: Option<String>,
-        ssh_secret: Option<String>,
+        password: Option<SecretText>,
+        ssh_secret: Option<SecretText>,
     },
     /// Trust the unknown host key, then answer with [`SourceDialog::trust_finished`]: an SSH
     /// configuration records it under its own id (`config`), else the data source does.
@@ -934,6 +996,36 @@ pub enum SourceDialogEvent {
     /// Edit SSH Configurations…: Settings › Tools › SSH Configurations.
     EditSshConfigurations,
     Cancelled,
+}
+
+impl std::fmt::Debug for SourceDialogEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Test { source, password, ssh_secret } => f
+                .debug_struct("Test")
+                .field("source", &redacted_source(source))
+                .field("password", password)
+                .field("ssh_secret", ssh_secret)
+                .finish(),
+            Self::TrustHost { config, source_id } => {
+                f.debug_struct("TrustHost").field("config", config).field("source_id", source_id).finish()
+            }
+            Self::Save { source, password, ssh_secret } => f
+                .debug_struct("Save")
+                .field("source", &redacted_source(source))
+                .field("password", password)
+                .field("ssh_secret", ssh_secret)
+                .finish(),
+            Self::LoadNames { id, databases } => {
+                f.debug_struct("LoadNames").field("id", id).field("databases", databases).finish()
+            }
+            Self::PickFile { field, title } => {
+                f.debug_struct("PickFile").field("field", field).field("title", title).finish()
+            }
+            Self::EditSshConfigurations => f.write_str("EditSshConfigurations"),
+            Self::Cancelled => f.write_str("Cancelled"),
+        }
+    }
 }
 
 pub struct SourceDialog {
@@ -2250,6 +2342,97 @@ mod tests {
         assert_eq!(source.ssh.map(|s| s.save_secret), Some(false));
         assert_eq!(password, SecretChange::Keep);
         assert_eq!(ssh_secret, SecretChange::Set("tunnel".into()));
+    }
+
+    /// A typed password reaches the owner only inside the events: the field paints and hands the
+    /// input method bullets, Copy and Cut put nothing on the clipboard, and no `Debug` output of
+    /// the form or of the events that carry it shows it.
+    #[gpui_kit::test]
+    async fn a_typed_password_is_never_painted_copied_or_printed(cx: &mut TestAppContext) {
+        const SECRET: &str = "Zq7#hunter";
+        let (dialog, events, cx) = open(cx, new_form());
+        focus_password(&dialog, cx);
+        cx.simulate_input(SECRET);
+        let password = dialog.read_with(cx, |d, _| d.password_field().clone());
+        assert_eq!(password.read_with(cx, |p, cx| p.text(cx).to_owned()), SECRET);
+        let only_bullets = |parts: &[SharedString; 3]| parts.iter().all(|part| part.chars().all(|c| c == BULLET));
+        let painted = password.read_with(cx, |p, cx| p.painted(cx));
+        assert!(only_bullets(&painted), "{painted:?}");
+        assert_eq!(painted.iter().map(|part| part.chars().count()).sum::<usize>(), SECRET.chars().count());
+        let handed = cx
+            .update(|window, cx| password.update(cx, |p, cx| p.text_for_range(0..SECRET.len(), &mut None, window, cx)));
+        assert_eq!(handed, Some("\u{2022}".repeat(SECRET.len())), "the input method sees bullets");
+
+        // Selected, it is still bullets; Copy and Cut leave the clipboard and the text alone.
+        cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string("before".to_owned()));
+        cx.simulate_keystrokes("cmd-a");
+        let painted = password.read_with(cx, |p, cx| p.painted(cx));
+        assert!(only_bullets(&painted) && !painted[1].is_empty(), "{painted:?}");
+        cx.simulate_keystrokes("cmd-c");
+        cx.simulate_keystrokes("cmd-x");
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("before"));
+        assert_eq!(password.read_with(cx, |p, cx| p.text(cx).to_owned()), SECRET, "Cut removes nothing");
+
+        // Test Connection and OK carry it; their `Debug` output, and the form's, do not show it.
+        click(cx, "source-test");
+        let form = dialog.read_with(cx, |d, _| format!("{:?}", d.form()));
+        assert!(!form.contains(SECRET) && form.contains("<redacted>"), "{form}");
+        dialog.update(cx, |d, cx| d.test_finished(Ok("Succeeded".to_owned()), cx));
+        click(cx, "source-ok");
+        let (_, saved, _) = saved(&events).expect("OK saves");
+        assert_eq!(saved, SecretChange::Set(SECRET.into()));
+        let tested = events.borrow().iter().find(|e| matches!(e, SourceDialogEvent::Test { .. })).cloned();
+        let Some(SourceDialogEvent::Test { password: Some(sent), .. }) = tested.clone() else {
+            panic!("Test Connection carries the password: {tested:?}")
+        };
+        assert_eq!(sent.expose(), SECRET);
+        for event in events.borrow().iter() {
+            let printed = format!("{event:?}");
+            assert!(!printed.contains(SECRET), "{printed}");
+        }
+    }
+
+    #[test]
+    fn redacts_the_password_of_a_url() {
+        assert_eq!(redacted_url("postgres://ann:pw@db:5432/app"), "postgres://ann:<redacted>@db:5432/app");
+        assert_eq!(redacted_url("jdbc:mysql://ann:p:w@db/app?x=1"), "jdbc:mysql://ann:<redacted>@db/app?x=1");
+        assert_eq!(
+            redacted_url("postgres://db/app?user=ann&Password=pw&ssl=1"),
+            "postgres://db/app?user=ann&Password=<redacted>&ssl=1"
+        );
+        assert_eq!(redacted_url("postgres://ann@db/app"), "postgres://ann@db/app");
+        assert_eq!(redacted_url("sqlite:/tmp/a@b:c.db"), "sqlite:/tmp/a@b:c.db");
+    }
+
+    /// A password typed as part of the URL is not printed either: not by the form, not by the
+    /// Test Connection and OK events, in default mode or URL only.
+    #[gpui_kit::test]
+    async fn a_password_typed_in_the_url_is_never_printed(cx: &mut TestAppContext) {
+        const SECRET: &str = "Zq7-hunter";
+        let (dialog, events, cx) = open(cx, new_form());
+        let url = format!("postgres://ann:{SECRET}@db.example:6543/app");
+        for url_only in [false, true] {
+            dialog.update_in(cx, |d, window, cx| d.edit(|form| form.set_url_only(url_only), window, cx));
+            focus_field(&dialog, Field::Url, cx);
+            cx.simulate_keystrokes("cmd-a backspace");
+            cx.simulate_input(&url);
+            if !url_only {
+                // Default mode takes the password out of the URL into the password field.
+                assert_eq!(dialog.read_with(cx, |d, _| d.form().password.clone()).as_deref(), Some(SECRET));
+            }
+            let form = dialog.read_with(cx, |d, _| format!("{:?}", d.form()));
+            assert!(!form.contains(SECRET), "{form}");
+            click(cx, "source-test");
+            dialog.update(cx, |d, cx| d.test_finished(Ok("Succeeded".to_owned()), cx));
+            click(cx, "source-ok");
+            assert!(saved(&events).is_some(), "OK saves");
+            for event in events.borrow().iter() {
+                let printed = format!("{event:?}");
+                assert!(!printed.contains(SECRET), "{printed}");
+            }
+        }
+        let source = saved(&events).map(|(source, _, _)| source).expect("saved");
+        assert!(source.url_only && source.url.contains(SECRET), "URL only keeps the URL as typed");
     }
 
     #[gpui_kit::test]

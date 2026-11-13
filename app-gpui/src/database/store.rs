@@ -69,7 +69,41 @@ static COUNTABLE: LazyLock<Regex> =
 /// Identifies a request the caller answers.
 pub type Ticket = u64;
 
-/// A backend request; each maps onto `ide_host::ops::db` (see the module report for the table).
+/// A password or SSH secret on its way to the backend. Its `Debug` output never shows it, so the
+/// requests, answers and events that carry one can be printed.
+#[derive(Clone, Default, PartialEq, Eq)]
+pub struct SecretText(String);
+
+impl SecretText {
+    /// The secret itself, for the one call that stores or uses it.
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl From<String> for SecretText {
+    fn from(text: String) -> Self {
+        Self(text)
+    }
+}
+
+impl From<&str> for SecretText {
+    fn from(text: &str) -> Self {
+        Self(text.to_owned())
+    }
+}
+
+impl std::fmt::Debug for SecretText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SecretText(<redacted>)")
+    }
+}
+
+/// A backend request; each maps onto an operation of `ide_host::ops::db`.
 #[derive(Clone, Debug, PartialEq)]
 pub enum DbOp {
     /// `sources` and `connected`, answered together with [`Answer::Sources`].
@@ -77,12 +111,12 @@ pub enum DbOp {
     SaveSources(Vec<DataSource>),
     SetPassword {
         id: String,
-        password: Option<String>,
+        password: Option<SecretText>,
         save: bool,
     },
     SetSshSecret {
         id: String,
-        secret: Option<String>,
+        secret: Option<SecretText>,
         save: bool,
     },
     TrustSshHost {
@@ -277,7 +311,7 @@ pub enum Prompt {
 pub enum PromptAnswer {
     Cancel,
     Secret {
-        value: String,
+        value: SecretText,
         save: bool,
     },
     Confirm,
@@ -473,11 +507,11 @@ pub enum Command {
 pub enum SecretChange {
     Keep,
     Forget,
-    Set(String),
+    Set(SecretText),
 }
 
 impl SecretChange {
-    fn value(&self) -> Option<Option<String>> {
+    fn value(&self) -> Option<Option<SecretText>> {
         match self {
             SecretChange::Keep => None,
             SecretChange::Forget => Some(None),
@@ -1763,10 +1797,12 @@ impl DbStore {
 
     /// Removes data source `id` after asking; connected targets disconnect first.
     pub fn remove_source(&mut self, id: &str) -> Vec<Command> {
-        let Some(src) = self.source_of(id) else { return Vec::new() };
-        let prompt = Prompt::RemoveSource { id: src.id.clone(), name: src.name.clone() };
+        let Some((id, name)) = self.source_of(id).map(|src| (src.id.clone(), src.name.clone())) else {
+            return Vec::new();
+        };
         let ticket = self.ticket();
-        self.parked.insert(ticket, Parked::Remove { id: src.id.clone() });
+        self.parked.insert(ticket, Parked::Remove { id: id.clone() });
+        let prompt = Prompt::RemoveSource { id, name };
         vec![Command::Ask { ticket, prompt }]
     }
 
@@ -3481,6 +3517,38 @@ mod tests {
         let cmds = store.answer(password, Answer::Done, &at(&i18n, 2));
         assert_eq!(backend(&cmds)[0].1, DbOp::LoadSources);
         assert!(cmds.iter().any(|c| matches!(c, Command::SourceSaved { id } if id == "pg")));
+    }
+
+    /// The requests and answers that carry a password or SSH secret print it redacted.
+    #[test]
+    fn requests_and_answers_that_carry_a_secret_never_print_it() {
+        const PASSWORD: &str = "Zq7#hunter";
+        const SSH: &str = "tunnel-Kx9";
+        let i18n = env();
+        let mut store = store_with(Vec::new());
+        let ssh = ide_db::DbSsh { enabled: true, save_secret: true, ..Default::default() };
+        let new = DataSource { ssh: Some(ssh), ..source("pg", DbDriver::Postgres) };
+        let mut printed = Vec::new();
+        let cmds = store.save_source(new, SecretChange::Set(PASSWORD.into()), SecretChange::Set(SSH.into()));
+        printed.push(format!("{cmds:?}"));
+        let cmds = store.answer(backend(&cmds)[0].0, Answer::Done, &at(&i18n, 1));
+        printed.push(format!("{cmds:?}"));
+        let ops: Vec<DbOp> = backend(&cmds).into_iter().map(|(_, op)| op).collect();
+        assert!(
+            ops.iter().any(|op| matches!(op, DbOp::SetPassword { password: Some(p), .. } if p.expose() == PASSWORD))
+        );
+        for (ticket, _) in backend(&cmds) {
+            let cmds = store.answer(ticket, Answer::Done, &at(&i18n, 2));
+            printed.push(format!("{cmds:?}"));
+            let more: Vec<DbOp> = backend(&cmds).into_iter().map(|(_, op)| op).collect();
+            printed.push(format!("{more:?}"));
+        }
+        printed.push(format!("{:?}", PromptAnswer::Secret { value: PASSWORD.into(), save: true }));
+        printed.push(format!("{:?}", SecretChange::Set(SSH.into())));
+        printed.push(format!("{:?}", DbOp::SetSshSecret { id: "pg".into(), secret: Some(SSH.into()), save: false }));
+        let all = printed.join("\n");
+        assert!(all.contains("SetPassword") && all.contains("<redacted>"), "{all}");
+        assert!(!all.contains(PASSWORD) && !all.contains(SSH), "{all}");
     }
 
     #[test]

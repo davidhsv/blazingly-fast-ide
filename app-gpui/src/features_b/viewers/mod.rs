@@ -5,7 +5,11 @@
 pub mod file_kinds;
 pub mod font_zoom;
 pub mod hex;
+pub mod hex_view;
+pub mod image_view;
 pub mod image_zoom;
+pub mod markdown_view;
 pub mod mermaid;
 pub mod preview;
+pub mod preview_host;
 pub mod render;
