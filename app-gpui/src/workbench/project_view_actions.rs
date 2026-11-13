@@ -1,7 +1,7 @@
 //! The Project view's navigation and clipboard actions in a project window: Select In and Select
 //! Opened File, File Path, Expand All and Collapse All, the Copy Path forms, Compare With, Jump to
-//! Source, Open in Terminal, Find in Folder, the view options that change what the tree shows, and
-//! Mark Directory as.
+//! Source, Reveal in the file manager, Open in Terminal, Find in Folder, the view options that
+//! change what the tree shows, Mark Directory as, and Undo of the view's last delete or move.
 //!
 //! They run on the models of [`crate::project_view`] through the Project view's state of
 //! `project_files.rs` (`with_view`, `start_flow`): the state mirrors the tree before every step,
@@ -19,35 +19,65 @@ use crate::platform::settings;
 use crate::platform::storage::UiStorage;
 use crate::project_tree_paths::parent_of;
 use crate::project_view::actions::{
-    SORT_LABELS, SelectIn, copy_path_request, expand_all_from, file_path_target, folder_from, open_in_terminal,
-    option_value, project_actions, select_in, select_in_project_view, select_in_targets, toggle_option,
+    SORT_LABELS, SelectIn, context_target, copy_path_request, expand_all_from, file_path_target, folder_from,
+    open_in_terminal, option_value, project_actions, select_in, select_in_project_view, select_in_targets,
+    toggle_option,
 };
 use crate::project_view::context_menu::{Item, ProjectCommand};
 use crate::project_view::file_path::{FILE_PATH_TITLE, file_path_rows};
 use crate::project_view::mark_directory::mark_directory;
-use crate::project_view::operations::{Effect, copy_paths, immediate, node_refs, open_selection, paths_for};
-use crate::project_view::store::{ExpandAll, ExpandStep, ViewOptions};
+use crate::project_view::operations::{
+    Effect, UndoKind, copy_paths, immediate, node_refs, open_selection, paths_for, undo_delete,
+};
+use crate::project_view::store::{EXPAND_ALL_LIMIT, ExpandAll, ExpandStep, ViewOptions};
 use crate::vcs_diff::compare::compare_files_data;
 use crate::vcs_ops::menu::MenuItem;
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
-use gpui_kit::{App, Context, Focusable, PathPromptOptions, Window, point, px};
+use gpui_kit::{App, Context, Focusable, Global, PathPromptOptions, Window, point, px};
 use ide_core::{IdeError, IdeResult};
 use ide_host::Host;
 use ide_workspace::settings::SettingsScope;
 use ide_workspace::{RootKind, SourceFolder};
 use serde_json::Value;
 use std::future::Future;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::Arc;
-
-/// Expand All opens at most this many folders, as the Project view does.
-const EXPAND_LIMIT: usize = 400;
 
 /// The view options the tree acts on, by the name they are stored under.
 const TREE_TOGGLES: [&str; 4] = ["showHidden", "showExcluded", "compact", "foldersFirst"];
 
 /// The Compare With action that asks for the file to compare with.
 const COMPARE_WITH_FILE: &str = "diff.compareWith";
+
+/// The action that reverts the last move or rename of the Project view.
+const UNDO_MOVE: &str = "project.undoMove";
+
+/// Where the OS file manager is asked to show a path. Without this global the platform's file
+/// manager is; a test puts a recorder in its place, as the test platform has no file manager.
+#[derive(Clone)]
+pub(crate) struct FileManager(pub(crate) Rc<dyn Fn(&Path, &mut App)>);
+
+impl Global for FileManager {}
+
+/// Shows `paths` in the OS file manager (Finder, Explorer, the desktop's file manager).
+pub(super) fn reveal_in_file_manager(paths: Vec<String>, cx: &mut App) {
+    let reveal = cx.try_global::<FileManager>().map(|manager| manager.0.clone());
+    for path in paths {
+        match &reveal {
+            Some(reveal) => reveal(Path::new(&path), cx),
+            None => cx.reveal_path(Path::new(&path)),
+        }
+    }
+}
+
+/// Edit › Undo while the Project view has the keyboard: the view's last delete comes back from
+/// Local History, or its last move or rename is reverted. False when the view has nothing to
+/// revert, so that Undo goes on to what else it undoes.
+pub fn undo_in_project_view(window: &mut Window, cx: &mut App) -> bool {
+    let Some(workbench) = super::for_window(window, cx) else { return false };
+    workbench.update(cx, |workbench, cx| workbench.undo_file_operation(window, cx))
+}
 
 /// The OS the window and the project's files are on.
 fn this_os() -> Os {
@@ -169,14 +199,21 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
             workbench.start_flow(immediate(vec![find]), true, None, window, cx);
         })
     });
-    register_view_options(registry);
+    register_computed(registry);
 }
 
-/// The view options as toggle actions (Find Action, the View menu): the ones the tree acts on, and
-/// the orders within a folder. They are not in the action manifest: their descriptions are built.
-fn register_view_options(registry: &mut ActionRegistry) {
+/// The actions whose descriptions are computed (they are not in the action manifest): Reveal in
+/// the file manager, named after it, and the view options as toggles (Find Action, the View menu):
+/// the ones the tree acts on, and the orders within a folder.
+fn register_computed(registry: &mut ActionRegistry) {
     let metas: Vec<ActionMeta> = project_actions(&mut I18n::default(), this_os());
     let meta_of = |id: &str| metas.iter().find(|meta| meta.id == id).cloned();
+    if let Some(meta) = meta_of("project.revealInFinder") {
+        registry.register(Action::new(meta, |call, window, cx| {
+            let (arg, focus) = (call.arg.cloned(), call.ctx.is_truthy("projectViewFocus"));
+            on_workbench(window, cx, move |workbench, _, cx| workbench.reveal_in_finder(arg.as_ref(), focus, cx))
+        }));
+    }
     for key in TREE_TOGGLES {
         let Some(meta) = meta_of(&format!("project.option.{key}")) else { continue };
         let action = Action::new(meta, move |_, window, cx| {
@@ -270,12 +307,20 @@ impl Workbench {
         self.show_menu(items, position, run, window, cx);
     }
 
+    /// Reveal in the file manager: the paths passed, else the selection while the tree has the
+    /// keyboard, else the edited file.
+    fn reveal_in_finder(&mut self, arg: Option<&Value>, focus: bool, cx: &mut Context<Self>) {
+        let target = context_target(arg, focus, self.active_file_path(cx).as_deref());
+        let paths: Vec<String> = self.nodes_for(target.as_ref(), cx).iter().map(|node| node.path.clone()).collect();
+        reveal_in_file_manager(paths, cx);
+    }
+
     /// Expand All: every folder below the selected one (below the project without one), read as
-    /// it goes, up to [`EXPAND_LIMIT`] folders. Excluded folders and symbolic links stay closed.
+    /// it goes, up to [`EXPAND_ALL_LIMIT`] folders. Excluded folders and symbolic links stay closed.
     fn expand_all(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let started = self.with_view(true, window, cx, |state, _| {
             let from = expand_all_from(state);
-            ExpandAll::start(state, from.as_deref(), EXPAND_LIMIT)
+            ExpandAll::start(state, from.as_deref(), EXPAND_ALL_LIMIT)
         });
         // A filtered pane has every folder already: `start` expanded them.
         let Some(mut expand) = started else { return };
@@ -394,9 +439,12 @@ impl Workbench {
             };
             let Some(right) = right else { return };
             let right = right.to_string_lossy().into_owned();
-            let _ = this.update_in(cx, |workbench, window, cx| {
+            let compared = this.update_in(cx, |workbench, window, cx| {
                 workbench.open_diff(compare_files_data(&left, &right, root.as_deref()), window, cx);
             });
+            if let Err(error) = compared {
+                tracing::info!("compare with: the window closed before {left} was compared: {error:#}");
+            }
         })
         .detach();
     }
@@ -406,6 +454,19 @@ impl Workbench {
         if let Some(tree) = self.project_tree().cloned() {
             tree.update(cx, |tree, cx| tree.set_options(change, cx));
         }
+    }
+
+    /// Undo in the Project view: its latest delete comes back from Local History, else its latest
+    /// move or rename is reverted (`project.undoMove`). False when there is neither.
+    fn undo_file_operation(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let started = self.with_view(true, window, cx, |state, env| match env.log.last() {
+            Some(UndoKind::Delete) => Some(undo_delete(state, env)),
+            Some(UndoKind::Refactoring) => Some(immediate(vec![Effect::RunAction { id: UNDO_MOVE, arg: Value::Null }])),
+            None => None,
+        });
+        let Some(started) = started else { return false };
+        self.start_flow(started, true, None, window, cx);
+        true
     }
 
     /// Mark Directory as: gives the folder `path` the `role` (`None`: unmarks it) in the project's
@@ -425,13 +486,16 @@ impl Workbench {
         });
         cx.spawn_in(window, async move |this, cx| {
             let detected = detected.await;
-            let _ = this.update(cx, |workbench, cx| match detected {
+            let marked = this.update(cx, |workbench, cx| match detected {
                 Ok(detected) => {
                     let detected: Vec<RootFolder> = detected.into_iter().map(root_folder).collect();
                     workbench.write_directory_mark(&root, &path, role, &detected, cx);
                 }
                 Err(error) => workbench.notify(mark_failed_notification(&error.message), cx),
             });
+            if let Err(error) = marked {
+                tracing::info!("mark directory: the window closed before {path} was marked: {error:#}");
+            }
         })
         .detach();
     }
@@ -479,10 +543,8 @@ fn mark_failed_notification(message: &str) -> NotificationRequest {
 
 #[cfg(test)]
 mod tests {
-    use super::super::tests::{
-        notification_titles, project_tree_of, run_action, select_in_tree, settle, start, text_of, tree_labels,
-        trusted_project,
-    };
+    use super::super::plugins_window::test_support::trusted_project;
+    use super::super::tests::{notification_titles, run_action, start, wait_long};
     use super::*;
     use crate::platform::actions::{action_toggled, execute_action_or_throw};
     use crate::platform::context::window_context;
@@ -491,7 +553,47 @@ mod tests {
     use ide_host::ops::search::SearchEvent;
     use ide_search::{SearchContext, SearchQuery, SearchScope};
     use serde_json::json;
+    use std::cell::RefCell;
     use std::sync::Mutex;
+
+    /// The key of the platform's keymap: ⌘ on macOS, Ctrl elsewhere.
+    fn primary(key: &str) -> String {
+        if cfg!(target_os = "macos") { format!("cmd-{key}") } else { format!("ctrl-{key}") }
+    }
+
+    fn text_of(path: &Path) -> String {
+        path.to_string_lossy().into_owned()
+    }
+
+    fn project_tree_of(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Entity<ProjectTree> {
+        workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree")
+    }
+
+    /// The labels of the tree's rows below the project.
+    fn tree_labels(tree: &Entity<ProjectTree>, cx: &mut VisualTestContext) -> Vec<String> {
+        tree.read_with(cx, |tree, _| tree.rows().iter().skip(1).map(|row| row.node.label.clone()).collect())
+    }
+
+    /// Selects `path` in the tree and gives the tree the keyboard.
+    fn select_in_tree(workbench: &Entity<Workbench>, path: &Path, cx: &mut VisualTestContext) {
+        let tree = project_tree_of(workbench, cx);
+        let at = text_of(path);
+        wait_long(cx, "the project to be listed", |cx| tree.read_with(cx, |tree, _| tree.is_loaded(tree.root())));
+        assert!(tree.update(cx, |tree, cx| tree.reveal_path(&at, cx)), "{at} is in the project");
+        wait_long(cx, "the row to be selected", |cx| {
+            tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str()))
+        });
+        cx.update(|window, cx| {
+            let focus = tree.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.run_until_parked();
+    }
+
+    fn close_project(cx: &mut VisualTestContext) {
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.close_project("w1");
+    }
 
     fn context_is_on(cx: &mut VisualTestContext, key: &str) -> bool {
         cx.update(|window, cx| window_context(window, cx).is_truthy(key))
@@ -501,14 +603,37 @@ mod tests {
         cx.read_from_clipboard().and_then(|item| item.text())
     }
 
-    /// Opens `file` in the editor and gives the editor the keyboard, in the active window.
-    fn edit(workbench: &Entity<Workbench>, file: &std::path::Path, cx: &mut VisualTestContext) {
+    /// The actions the keyboard runs while `keys` are pressed.
+    fn actions_run_by(keys: &str, cx: &mut VisualTestContext) -> Vec<String> {
+        let ran: Rc<RefCell<Vec<String>>> = Rc::default();
+        let sink = ran.clone();
+        let listener = cx.update(|_, cx| {
+            cx.global_mut::<ActionRegistry>().on_action_executed(move |id, _, _, _| sink.borrow_mut().push(id.into()))
+        });
+        cx.simulate_keystrokes(keys);
+        cx.run_until_parked();
+        cx.update(|_, cx| cx.global_mut::<ActionRegistry>().remove_listener(listener));
+        ran.take()
+    }
+
+    /// The paths the file manager is asked to show from now on, in order.
+    fn record_reveals(cx: &mut VisualTestContext) -> Rc<RefCell<Vec<String>>> {
+        let revealed: Rc<RefCell<Vec<String>>> = Rc::default();
+        let sink = revealed.clone();
+        let record = move |path: &Path, _: &mut App| sink.borrow_mut().push(text_of(path));
+        cx.update(|_, cx| cx.set_global(FileManager(Rc::new(record))));
+        revealed
+    }
+
+    /// Opens `file` in the editor and gives the editor the keyboard.
+    fn edit(workbench: &Entity<Workbench>, file: &Path, cx: &mut VisualTestContext) {
         let at = file.to_path_buf();
         workbench.update_in(cx, |w, window, cx| w.open_project_file(at, window, cx));
-        settle(cx, |cx| workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == file)));
+        wait_long(cx, "the file to open", |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == file))
+        });
         let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
         cx.update(|window, cx| {
-            window.activate_window();
             let focus = editor.focus_handle(cx);
             window.focus(&focus, cx);
         });
@@ -525,7 +650,7 @@ mod tests {
     }
 
     /// Opens the context menu of `path`'s row with a right click.
-    fn right_click_row(path: &std::path::Path, cx: &mut VisualTestContext) {
+    fn right_click_row(path: &Path, cx: &mut VisualTestContext) {
         let selector: &'static str = Box::leak(format!("project-row:{}", text_of(path)).into_boxed_str());
         let row = cx.debug_bounds(selector).expect("the row is drawn");
         cx.simulate_mouse_down(row.center(), gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
@@ -593,61 +718,88 @@ mod tests {
         cx: &mut TestAppContext,
     ) {
         let _home = start(cx);
-        let (_folder, root, workbench, cx) =
-            trusted_project(cx, &[("src/deep/main.rs", "fn main() {}\n"), ("docs/guide.md", "# Guide\n")]);
+        let files = [("src/deep/main.rs", "fn main() {}\n"), ("docs/guide.md", "# Guide\n")];
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
         let tree = project_tree_of(&workbench, cx);
         let file = root.join("src/deep/main.rs");
         edit(&workbench, &file, cx);
         run_action(cx, "navigate.selectInProjectView", None);
         let at = text_of(&file);
-        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str())));
+        wait_long(cx, "the file to be selected", |cx| {
+            tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str()))
+        });
         assert!(workbench.read_with(cx, |w, _| w.project_view_shown()), "the Project view shows");
         assert!(context_is_on(cx, "projectViewFocus"), "the tree has the keyboard");
 
         edit(&workbench, &file, cx);
         let guide = text_of(&root.join("docs/guide.md"));
         run_action(cx, "project.reveal", Some(json!(guide)));
-        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(guide.as_str())));
+        wait_long(cx, "the guide to be selected", |cx| {
+            tree.read_with(cx, |tree, _| tree.selected_path() == Some(guide.as_str()))
+        });
         assert!(!context_is_on(cx, "projectViewFocus"), "the keyboard stays in the editor");
         assert!(context_is_on(cx, "editorFocus"));
+        close_project(cx);
     }
 
-    /// Select In… lists the places that can show the edited file, the Project view first; choosing
-    /// it selects the file in the tree. A path passed to it is selected at once, without the list.
+    /// Select In… (⌥F1) lists the places that can show the edited file, the Project view first;
+    /// choosing it selects the file in the tree. A path passed to it is selected at once, without
+    /// the list.
     #[gpui_kit::test]
     async fn select_in_lists_the_places_that_show_the_file_and_the_project_view_selects_it(cx: &mut TestAppContext) {
         use crate::project_view::context_menu::reveal_label;
         let _home = start(cx);
-        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/lib.rs", "pub fn a() {}\n"), ("b.txt", "")]);
+        let files = [("src/lib.rs", "pub fn a() {}\n"), ("b.txt", "")];
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
         let tree = project_tree_of(&workbench, cx);
         let file = root.join("src/lib.rs");
         edit(&workbench, &file, cx);
-        run_action(cx, "navigate.selectIn", None);
+        assert_eq!(actions_run_by("alt-f1", cx), ["navigate.selectIn"]);
         let menu = workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).expect("the chooser is open");
         let rows = menu.read_with(cx, |menu, _| menu.lines()).remove(0);
-        assert_eq!(rows[..2], ["Select In", "> Project View"], "{rows:?}");
-        assert!(rows.contains(&reveal_label(this_os()).to_owned()), "{rows:?}");
-        assert!(rows.contains(&"Terminal".to_owned()), "{rows:?}");
+        assert_eq!(rows, ["Select In", "> Project View", reveal_label(this_os()), "Terminal"]);
         cx.simulate_keystrokes("enter");
         cx.run_until_parked();
         let at = text_of(&file);
-        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str())));
+        wait_long(cx, "the file to be selected", |cx| {
+            tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str()))
+        });
         assert!(workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).is_none());
 
         let other = text_of(&root.join("b.txt"));
         run_action(cx, "navigate.selectIn", Some(json!({ "path": other })));
-        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(other.as_str())));
+        wait_long(cx, "b.txt to be selected", |cx| {
+            tree.read_with(cx, |tree, _| tree.selected_path() == Some(other.as_str()))
+        });
         assert!(workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).is_none(), "no chooser");
+        close_project(cx);
     }
 
-    /// File Path lists the edited file, then every folder above it up to the root of the disk.
+    /// Select In… (⌥F1) and File Path (⌥⌘F12) need a project: in a window without one their keys
+    /// run nothing.
+    #[gpui_kit::test]
+    async fn the_navigation_choosers_keys_run_nothing_without_a_project(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        let file_path = if cfg!(target_os = "macos") { "cmd-alt-f12" } else { "ctrl-alt-f12" };
+        for keys in ["alt-f1", file_path] {
+            assert_eq!(actions_run_by(keys, cx), Vec::<String>::new(), "{keys}");
+        }
+        assert!(workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).is_none());
+    }
+
+    /// File Path (⌥⌘F12) lists the edited file, then every folder above it up to the root of the
+    /// disk; choosing a row shows it in the file manager.
     #[gpui_kit::test]
     async fn file_path_lists_the_file_then_every_folder_up_to_the_root(cx: &mut TestAppContext) {
         let _home = start(cx);
-        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/main.rs", "fn main() {}\n")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &[("src/main.rs", "fn main() {}\n")]);
+        let revealed = record_reveals(cx);
         let file = root.join("src/main.rs");
         edit(&workbench, &file, cx);
-        run_action(cx, "navigate.showFilePath", None);
+        let keys = if cfg!(target_os = "macos") { "cmd-alt-f12" } else { "ctrl-alt-f12" };
+        assert_eq!(actions_run_by(keys, cx), ["navigate.showFilePath"]);
         let menu = workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).expect("the File Path popup");
         let rows = menu.read_with(cx, |menu, _| menu.lines()).remove(0);
         let mut expected = vec!["File Path".to_owned(), "> main.rs".to_owned(), "src".to_owned()];
@@ -658,29 +810,62 @@ mod tests {
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();
         assert!(workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).is_none());
+        assert!(revealed.borrow().is_empty(), "Escape shows nothing");
+
+        run_action(cx, "navigate.showFilePath", None);
+        cx.simulate_keystrokes("down enter");
+        cx.run_until_parked();
+        assert_eq!(*revealed.borrow(), [text_of(&root.join("src"))]);
+        close_project(cx);
     }
 
-    /// Expand All opens every folder below the project and Collapse All closes them, the project
-    /// root staying open; their keys act in the tree only: in the editor they leave it as it is.
+    /// Reveal in Finder shows the tree's selection in the file manager, the edited file from the
+    /// editor, and the paths given to it; the context menu's Open In › Finder asks the same.
+    #[gpui_kit::test]
+    async fn reveal_in_finder_shows_the_selection_or_the_edited_file_in_the_file_manager(cx: &mut TestAppContext) {
+        use crate::project_view::context_menu::reveal_label;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &[("a.txt", "a\n"), ("src/b.rs", "")]);
+        let revealed = record_reveals(cx);
+        let (a, b) = (root.join("a.txt"), root.join("src/b.rs"));
+        select_in_tree(&workbench, &a, cx);
+        run_action(cx, "project.revealInFinder", None);
+        edit(&workbench, &b, cx);
+        run_action(cx, "project.revealInFinder", None);
+        run_action(cx, "project.revealInFinder", Some(json!([text_of(&a), text_of(&b)])));
+        assert_eq!(*revealed.borrow(), [text_of(&a), text_of(&b), text_of(&a), text_of(&b)]);
+
+        revealed.borrow_mut().clear();
+        select_in_tree(&workbench, &a, cx);
+        right_click_row(&a, cx);
+        choose_in_menu(&workbench, &["Open In", reveal_label(this_os())], cx);
+        assert_eq!(*revealed.borrow(), [text_of(&a)]);
+        close_project(cx);
+    }
+
+    /// Expand All (⌘=) opens every folder below the project and Collapse All (⌘-) closes them, the
+    /// project root staying open; their keys act in the tree only: in the editor neither runs.
     #[gpui_kit::test]
     async fn expand_all_and_collapse_all_open_and_close_every_folder_and_their_keys_act_in_the_tree_only(
         cx: &mut TestAppContext,
     ) {
         let _home = start(cx);
         let files = [("a/one.txt", "1\n"), ("a/b/two.txt", "2\n"), ("a/b/c/three.txt", "3\n"), ("x/four.txt", "4\n")];
-        let (_folder, root, workbench, cx) = trusted_project(cx, &files);
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
         let tree = project_tree_of(&workbench, cx);
+        let (expand, collapse) = (primary("="), primary("-"));
         select_in_tree(&workbench, &root, cx);
         assert_eq!(open_rows(&tree, cx), 1, "only the project is open");
 
-        cx.simulate_keystrokes("cmd-=");
-        settle(cx, |cx| all_open(&tree, cx) && tree_labels(&tree, cx).contains(&"three.txt".to_owned()));
+        assert_eq!(actions_run_by(&expand, cx), ["project.expandAll"]);
+        wait_long(cx, "every folder to open", |cx| {
+            all_open(&tree, cx) && tree_labels(&tree, cx).contains(&"three.txt".to_owned())
+        });
         assert!(tree_labels(&tree, cx).contains(&"four.txt".to_owned()));
 
-        // In the editor the same key is not the tree's.
+        // In the editor the same keys are not the tree's.
         edit(&workbench, &root.join("x/four.txt"), cx);
-        cx.simulate_keystrokes("cmd--");
-        cx.run_until_parked();
+        assert!(!actions_run_by(&collapse, cx).contains(&"project.collapseAll".to_owned()));
         assert!(all_open(&tree, cx), "the tree is left as it is");
 
         // From Find Action it acts wherever the keyboard is, and gives the tree the keyboard.
@@ -688,50 +873,40 @@ mod tests {
         assert_eq!(open_rows(&tree, cx), 1);
         assert!(context_is_on(cx, "projectViewFocus"));
         edit(&workbench, &root.join("x/four.txt"), cx);
-        cx.simulate_keystrokes("cmd-=");
-        cx.run_until_parked();
+        assert!(!actions_run_by(&expand, cx).contains(&"project.expandAll".to_owned()));
         assert_eq!(open_rows(&tree, cx), 1, "the editor's key leaves the tree closed");
 
         run_action(cx, "project.expandAll", None);
-        settle(cx, |cx| all_open(&tree, cx) && tree_labels(&tree, cx).contains(&"three.txt".to_owned()));
+        wait_long(cx, "every folder to open again", |cx| {
+            all_open(&tree, cx) && tree_labels(&tree, cx).contains(&"three.txt".to_owned())
+        });
         select_in_tree(&workbench, &root, cx);
-        cx.simulate_keystrokes("cmd--");
-        cx.run_until_parked();
+        assert_eq!(actions_run_by(&collapse, cx), ["project.collapseAll"]);
         assert_eq!(open_rows(&tree, cx), 1);
+        close_project(cx);
     }
 
     /// The Copy Path forms put the selection's name, its path from the content root, or the form
-    /// asked for of the paths given on the clipboard. Copy Path From Source Root copies nothing
-    /// until the folder is marked as a sources root from the context menu, then the path below it.
+    /// asked for of the paths given on the clipboard. Copy Path From Source Root copies the path
+    /// below the folder marked as a sources root from the context menu.
     #[gpui_kit::test]
     async fn the_copy_path_forms_copy_the_selection_and_the_source_root_path_follows_mark_directory_as(
         cx: &mut TestAppContext,
     ) {
         let _home = start(cx);
-        let (_folder, root, workbench, cx) =
-            trusted_project(cx, &[("src/app/a.txt", "a\n"), ("src/b.txt", ""), ("gen/c.txt", "")]);
+        let files = [("src/app/a.txt", "a\n"), ("src/b.txt", ""), ("gen/c.txt", "")];
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
         let file = root.join("src/app/a.txt");
         select_in_tree(&workbench, &file, cx);
         run_action(cx, "project.copyFileName", None);
-        settle(cx, |cx| clipboard(cx).as_deref() == Some("a.txt"));
+        wait_long(cx, "the file name", |cx| clipboard(cx).as_deref() == Some("a.txt"));
         run_action(cx, "project.copyRelativePath", None);
-        settle(cx, |cx| clipboard(cx).as_deref() == Some("src/app/a.txt"));
+        wait_long(cx, "the path from the content root", |cx| clipboard(cx).as_deref() == Some("src/app/a.txt"));
         let other = text_of(&root.join("gen/c.txt"));
         run_action(cx, "project.copyPath", Some(json!({ "kind": "relative", "paths": [other] })));
-        settle(cx, |cx| clipboard(cx).as_deref() == Some("gen/c.txt"));
+        wait_long(cx, "the given path's relative form", |cx| clipboard(cx).as_deref() == Some("gen/c.txt"));
         run_action(cx, "project.copyPath", Some(json!({ "paths": [other] })));
-        settle(cx, |cx| clipboard(cx) == Some(other.clone()));
-
-        // No sources root holds the file yet: nothing is copied.
-        cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string("before".to_owned()));
-        select_in_tree(&workbench, &file, cx);
-        run_action(cx, "project.copySourceRootPath", None);
-        // The roots come from the backend: the clipboard is watched while the answer has time to land.
-        for _ in 0..30 {
-            cx.run_until_parked();
-            assert_eq!(clipboard(cx).as_deref(), Some("before"));
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
+        wait_long(cx, "the given path", |cx| clipboard(cx) == Some(other.clone()));
 
         let src = root.join("src");
         select_in_tree(&workbench, &src, cx);
@@ -740,10 +915,11 @@ mod tests {
         let marked = |cx: &mut VisualTestContext| {
             cx.update(|_, cx| settings::effective("w1", cx).project_structure.source_roots)
         };
-        settle(cx, |cx| marked(cx) == ["src"]);
+        wait_long(cx, "src to be a sources root", |cx| marked(cx) == ["src"]);
         select_in_tree(&workbench, &file, cx);
         run_action(cx, "project.copySourceRootPath", None);
-        settle(cx, |cx| clipboard(cx).as_deref() == Some("app/a.txt"));
+        wait_long(cx, "the path from the source root", |cx| clipboard(cx).as_deref() == Some("app/a.txt"));
+        close_project(cx);
     }
 
     /// Mark Directory as › Excluded writes the folder to the project's excluded folders: its row
@@ -751,8 +927,8 @@ mod tests {
     #[gpui_kit::test]
     async fn an_excluded_folder_shows_as_excluded_and_the_search_skips_it(cx: &mut TestAppContext) {
         let _home = start(cx);
-        let (_folder, root, workbench, cx) =
-            trusted_project(cx, &[("src/a.txt", "a needle\n"), ("gen/out.txt", "a needle too\n")]);
+        let files = [("src/a.txt", "a needle\n"), ("gen/out.txt", "a needle too\n")];
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
         let tree = project_tree_of(&workbench, cx);
         assert_eq!(searched("needle", cx), ["gen/out.txt", "src/a.txt"]);
         let generated = root.join("gen");
@@ -761,22 +937,24 @@ mod tests {
         choose_in_menu(&workbench, &["Mark Directory as", "Excluded"], cx);
         let excluded =
             |cx: &mut VisualTestContext| cx.update(|_, cx| settings::effective("w1", cx).project_structure.excluded);
-        settle(cx, |cx| excluded(cx) == ["gen"]);
+        wait_long(cx, "gen to be excluded", |cx| excluded(cx) == ["gen"]);
         let at = text_of(&generated);
-        settle(cx, |cx| {
+        wait_long(cx, "the row to show it", |cx| {
             tree.read_with(cx, |tree, _| tree.rows().iter().any(|row| row.node.path == at && row.node.excluded))
         });
         assert_eq!(searched("needle", cx), ["src/a.txt"]);
         assert!(!notification_titles(&workbench, cx).contains(&"Cannot mark the directory".to_owned()));
+        close_project(cx);
     }
 
-    /// Compare With… on two files shows them side by side in the diff window; with one, it asks
-    /// for the other. It is the tree's: with the editor's keyboard it is not available.
+    /// Compare With… (⌘D in the tree) on two files shows them side by side in the diff window; with
+    /// one, it asks for the other. It is the tree's: with the editor's keyboard neither the action
+    /// nor its key runs.
     #[gpui_kit::test]
     async fn compare_with_shows_two_files_side_by_side_and_asks_for_the_second_of_one(cx: &mut TestAppContext) {
         let _home = start(cx);
-        let (_folder, root, workbench, cx) =
-            trusted_project(cx, &[("a.txt", "one\ntwo\nthree\n"), ("b.txt", "one\nTWO\nthree\n")]);
+        let files = [("a.txt", "one\ntwo\nthree\n"), ("b.txt", "one\nTWO\nthree\n")];
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
         let (a, b) = (root.join("a.txt"), root.join("b.txt"));
         let changed = |lines: Vec<crate::vcs_diff::view::PaneLine>| -> Vec<String> {
             lines.into_iter().filter(|line| line.kind.is_some()).map(|line| line.text).collect()
@@ -792,22 +970,26 @@ mod tests {
 
         select_in_tree(&workbench, &a, cx);
         run_action(cx, "project.compareWith", Some(json!([text_of(&a), text_of(&b)])));
-        settle(cx, |cx| sides(&workbench, cx) == expected);
+        wait_long(cx, "the two files side by side", |cx| sides(&workbench, cx) == expected);
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();
         assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()));
 
         select_in_tree(&workbench, &a, cx);
-        run_action(cx, "project.compareWith", None);
+        assert_eq!(actions_run_by(&primary("d"), cx), ["project.compareWith"]);
+        assert!(cx.did_prompt_for_paths(), "the file to compare with is asked for");
         cx.simulate_path_prompt_response(move |_| Some(vec![b.clone()]));
-        settle(cx, |cx| sides(&workbench, cx) == expected);
+        wait_long(cx, "the chosen file side by side", |cx| sides(&workbench, cx) == expected);
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();
 
         edit(&workbench, &a, cx);
         let refused = cx.update(|window, cx| execute_action_or_throw("project.compareWith", None, window, cx));
         assert!(refused.is_err(), "Compare With is the tree's");
+        assert!(!actions_run_by(&primary("d"), cx).contains(&"project.compareWith".to_owned()));
+        assert!(!cx.did_prompt_for_paths(), "nothing is asked for");
         assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()));
+        close_project(cx);
     }
 
     /// Cut and Paste on another folder moves the file there on disk once the Move dialog is
@@ -818,9 +1000,9 @@ mod tests {
         use crate::project_view::file_dialogs::FileDialog;
         let _home = start(cx);
         let files = [("src/a.txt", "mine\n"), ("src/c.txt", "c\n"), ("lib/a.txt", "theirs\n")];
-        let (_folder, root, workbench, cx) = trusted_project(cx, &files);
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
         let lib = root.join("lib");
-        let read = |path: std::path::PathBuf| std::fs::read_to_string(path).expect("the file is read");
+        let read = |path: PathBuf| std::fs::read_to_string(path).expect("the file is read");
         // Revealing a file of `lib` reads its listing, which the Copy dialog checks names against.
         select_in_tree(&workbench, &lib.join("a.txt"), cx);
         select_in_tree(&workbench, &root.join("src/a.txt"), cx);
@@ -837,10 +1019,12 @@ mod tests {
         assert_eq!(read(lib.join("a.txt")), "theirs\n");
         name.update(cx, |field, cx| field.set_text("mine.txt", cx));
         cx.simulate_keystrokes("enter");
-        settle(cx, |_| lib.join("mine.txt").is_file());
+        wait_long(cx, "the copy", |_| lib.join("mine.txt").is_file());
         assert_eq!(read(lib.join("mine.txt")), "mine\n");
         assert!(root.join("src/a.txt").is_file(), "a copy leaves the original");
-        settle(cx, |cx| workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>().is_none()));
+        wait_long(cx, "the dialog to close", |cx| {
+            workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>().is_none())
+        });
 
         let moved = root.join("src/c.txt");
         select_in_tree(&workbench, &moved, cx);
@@ -849,37 +1033,91 @@ mod tests {
         run_action(cx, "project.paste", None);
         assert!(workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>()).is_some(), "the Move dialog");
         cx.simulate_keystrokes("enter");
-        settle(cx, |_| lib.join("c.txt").is_file() && !moved.exists());
+        wait_long(cx, "the move", |_| lib.join("c.txt").is_file() && !moved.exists());
         assert_eq!(read(lib.join("c.txt")), "c\n");
+        close_project(cx);
     }
 
-    /// Jump to Source (F4 in the tree) opens the selected file in the editor.
+    /// A confirmed Delete… moves the file out of the project (here into the test's own trash
+    /// folder, which takes the place of the system Trash): it leaves the disk and the tree. Edit ›
+    /// Undo while the tree has the keyboard brings it back from Local History and selects it.
+    #[gpui_kit::test]
+    async fn a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back(cx: &mut TestAppContext) {
+        use crate::project_view::file_dialogs::DeleteDialog;
+        let home = start(cx);
+        let files = [("docs/notes.txt", "kept words\n"), ("docs/keep.txt", "")];
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
+        let trash = home.path().join("trash");
+        std::fs::create_dir_all(&trash).expect("the trash folder is made");
+        let into = trash.clone();
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.set_trash(Some(Arc::new(move |path: &Path| {
+            let name = path.file_name().ok_or_else(|| IdeError::invalid("a path without a name"))?;
+            std::fs::rename(path, into.join(name)).map_err(IdeError::from)
+        })));
+        let tree = project_tree_of(&workbench, cx);
+        let file = root.join("docs/notes.txt");
+        let listed = |cx: &mut VisualTestContext| tree_labels(&tree, cx).contains(&"notes.txt".to_owned());
+        select_in_tree(&workbench, &file, cx);
+        run_action(cx, "project.delete", None);
+        let dialog = workbench.read_with(cx, |w, _| w.file_dialog::<DeleteDialog>()).expect("the Delete dialog");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.question().message.clone()), "Delete 'notes.txt'?");
+        cx.simulate_keystrokes("enter");
+        wait_long(cx, "the file to leave the project", |cx| !file.exists() && !listed(cx));
+        let trashed = std::fs::read_to_string(trash.join("notes.txt")).expect("the file is in the trash folder");
+        assert_eq!(trashed, "kept words\n");
+        assert!(root.join("docs/keep.txt").is_file());
+        assert!(!notification_titles(&workbench, cx).contains(&"Some items could not be deleted".to_owned()));
+
+        select_in_tree(&workbench, &root.join("docs"), cx);
+        run_action(cx, "edit.undo", None);
+        wait_long(cx, "the file to come back", |cx| file.is_file() && listed(cx));
+        assert_eq!(std::fs::read_to_string(&file).expect("the file is back"), "kept words\n");
+        let at = text_of(&file);
+        wait_long(cx, "the restored file to be selected", |cx| {
+            tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str()))
+        });
+        assert!(!notification_titles(&workbench, cx).contains(&"Some items could not be restored".to_owned()));
+        close_project(cx);
+    }
+
+    /// Jump to Source (F4 in the tree) opens the selected file in the editor; in the editor F4 is
+    /// not the tree's.
     #[gpui_kit::test]
     async fn jump_to_source_opens_the_selected_file(cx: &mut TestAppContext) {
         let _home = start(cx);
-        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/a.rs", "fn a() {}\n"), ("b.rs", "")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &[("src/a.rs", "fn a() {}\n"), ("b.rs", "")]);
         let file = root.join("src/a.rs");
+        let edited = |workbench: &Entity<Workbench>, cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, cx| w.editor().map(|e| e.read(cx).path().to_path_buf()))
+        };
         select_in_tree(&workbench, &file, cx);
-        cx.simulate_keystrokes("f4");
-        settle(cx, |cx| workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == file)));
+        assert_eq!(actions_run_by("f4", cx), ["project.open"]);
+        wait_long(cx, "a.rs to open", |cx| edited(&workbench, cx).as_deref() == Some(file.as_path()));
         let other = root.join("b.rs");
         select_in_tree(&workbench, &other, cx);
         run_action(cx, "project.open", None);
-        settle(cx, |cx| workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == other)));
+        wait_long(cx, "b.rs to open", |cx| edited(&workbench, cx).as_deref() == Some(other.as_path()));
+
+        select_in_tree(&workbench, &file, cx);
+        edit(&workbench, &other, cx);
+        assert!(!actions_run_by("f4", cx).contains(&"project.open".to_owned()));
+        close_project(cx);
     }
 
     /// Find in Folder… opens Find in Files on the selected folder.
     #[gpui_kit::test]
     async fn find_in_folder_opens_find_in_files_on_the_selected_folder(cx: &mut TestAppContext) {
         let _home = start(cx);
-        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/a.txt", "a\n"), ("b.txt", "")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &[("src/a.txt", "a\n"), ("b.txt", "")]);
         let src = root.join("src");
         select_in_tree(&workbench, &src, cx);
         run_action(cx, "project.findInFolder", None);
-        cx.run_until_parked();
+        wait_long(cx, "Find in Files to open", |cx| workbench.read_with(cx, |w, _| w.find_popup().is_some()));
         let popup = workbench.read_with(cx, |w, _| w.find_popup()).expect("Find in Files is open");
         let directory = popup.read_with(cx, |popup, cx| popup.directory_field().read(cx).text().to_owned());
         assert_eq!(directory, text_of(&src));
+        close_project(cx);
     }
 
     /// Show Hidden Files and Sort by Type change what the tree shows and say they are on; Sort by
@@ -887,7 +1125,8 @@ mod tests {
     #[gpui_kit::test]
     async fn the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on(cx: &mut TestAppContext) {
         let _home = start(cx);
-        let (_folder, _root, workbench, cx) = trusted_project(cx, &[(".env", "A=1\n"), ("a.txt", ""), ("b.rs", "")]);
+        let files = [(".env", "A=1\n"), ("a.txt", ""), ("b.rs", "")];
+        let (_folder, _root, workbench, cx) = trusted_project(cx, "w1", &files);
         let tree = project_tree_of(&workbench, cx);
         let toggled = |id: &str, cx: &mut VisualTestContext| {
             cx.update(|window, cx| {
@@ -895,24 +1134,25 @@ mod tests {
                 action_toggled(&action, window, cx)
             })
         };
-        settle(cx, |cx| tree_labels(&tree, cx) == ["a.txt", "b.rs"]);
+        wait_long(cx, "the project's files", |cx| tree_labels(&tree, cx) == ["a.txt", "b.rs"]);
         assert_eq!(toggled("project.option.showHidden", cx), Some(false));
         run_action(cx, "project.option.showHidden", None);
         assert_eq!(toggled("project.option.showHidden", cx), Some(true));
-        settle(cx, |cx| tree_labels(&tree, cx).contains(&".env".to_owned()));
+        wait_long(cx, "the hidden file", |cx| tree_labels(&tree, cx).contains(&".env".to_owned()));
 
         run_action(cx, "project.option.showHidden", None);
-        settle(cx, |cx| tree_labels(&tree, cx) == ["a.txt", "b.rs"]);
+        wait_long(cx, "the hidden file to go", |cx| tree_labels(&tree, cx) == ["a.txt", "b.rs"]);
         run_action(cx, "project.sortBy.type", None);
         assert_eq!(toggled("project.sortBy.type", cx), Some(true));
         assert_eq!(toggled("project.sortBy.name", cx), Some(false));
-        settle(cx, |cx| tree_labels(&tree, cx) == ["b.rs", "a.txt"]);
+        wait_long(cx, "the files by type", |cx| tree_labels(&tree, cx) == ["b.rs", "a.txt"]);
         run_action(cx, "project.sortBy.name", None);
-        settle(cx, |cx| tree_labels(&tree, cx) == ["a.txt", "b.rs"]);
+        wait_long(cx, "the files by name", |cx| tree_labels(&tree, cx) == ["a.txt", "b.rs"]);
         let registered: Vec<&str> = TREE_TOGGLES
             .into_iter()
             .filter(|key| cx.update(|_, cx| cx.global::<ActionRegistry>().contains(&format!("project.option.{key}"))))
             .collect();
         assert_eq!(registered, TREE_TOGGLES, "every option the tree acts on is an action");
+        close_project(cx);
     }
 }
