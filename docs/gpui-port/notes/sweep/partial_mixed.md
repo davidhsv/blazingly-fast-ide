@@ -1,0 +1,333 @@
+- `action:agents.dockTask`: runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `action:agents.openTask`: runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `action:agents.openTaskInEditor`: runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `action:agents.undockTask`: runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `action:agents.useEditor`: runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `action:agents.useToolWindow`: runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `action:bookmarks.toggleFileBookmark`: bookmarks the given files: chosen from an editor tab's menu it bookmarks that tab's file and the row then offers Remove Bookmark. Missing: no test runs it without an argument (the active editor's file) or from the Project view
+- `action:build.buildArtifacts`: runs the build into the Build window; a caller cannot wait for its end, which the component offers
+- `action:build.buildModule`: runs the build into the Build window; a caller cannot wait for its end, which the component offers
+- `action:build.buildProject`: runs the build into the Build window; a caller cannot wait for its end, which the component offers
+- `action:build.rebuildProject`: runs the build into the Build window; a caller cannot wait for its end, which the component offers
+- `action:code.addCaretNextOccurrence`: the hint shown when there is no further occurrence is only logged
+- `action:code.commentBlock`: a block comment that contains its own closing token is refused, since the editor has no syntax tree to confirm its span
+- `action:code.commentLine`: a block comment that contains its own closing token is refused, since the editor has no syntax tree to confirm its span
+- `action:code.completeStatement`: the text rules only; the structural answers of the backend are not asked
+- `action:code.completion`: the server's items with their extra edits, commit characters, documentation and sorting. Not yet: Tab through a snippet's fields, live templates and contributed rows in the list, word completion without a server
+- `action:code.cyclicExpandWord`: the hint shown when nothing expands is only logged
+- `action:code.cyclicExpandWordBackward`: the hint shown when nothing expands is only logged
+- `action:code.moveElementLeft`: elements are found from brackets and from comment and string spans, not from a syntax tree
+- `action:code.moveElementRight`: elements are found from brackets and from comment and string spans, not from a syntax tree
+- `action:code.moveStatementDown`: moves the line: without a syntax tree of the document it cannot move a whole statement or keep it inside its block
+- `action:code.moveStatementUp`: moves the line: without a syntax tree of the document it cannot move a whole statement or keep it inside its block
+- `action:code.quickDocumentation`: shows the documentation at the caret in the hover popup; the Documentation popup with its history and tool window is not used
+- `action:code.toggleCase`: escapes inside strings are not protected, which needs a syntax tree of the document
+- `action:db.editData`: the table opens with its rows, from the action and from F4 in the tree only; it shows in the lower half of the Database window, not in an editor tab
+- `action:db.execute`: the statement at the caret runs on the only data source, rows and output shown; with two or more sources a plain .sql file only reports that a source must be chosen
+- `action:db.refresh`: runs on a source; the test asserts no visible change
+- `action:edit.copy`: also runs from the editor's menu, putting the selection on the clipboard; acts on code editors only, not yet on text fields and lists
+- `action:edit.cut`: acts on code editors only, not yet on text fields and lists
+- `action:edit.paste`: acts on code editors only, not yet on text fields and lists
+- `action:edit.redo`: acts on code editors only, not yet on text fields and lists
+- `action:edit.selectAll`: acts on code editors only, not yet on text fields and lists
+- `action:edit.undo`: acts on code editors only, not yet on text fields and lists
+- `action:editor.closeTab`: setting is not read (see D23)
+- `action:editor.unsplit`: closes the active pane with its tabs; with autosave off the webview asks about unsaved tabs first, here each closed tab asks on its own
+- `action:editor.unsplitAll`: same as Unsplit for the question about unsaved tabs
+- `action:file.openProject`: asks for a folder and opens it by the same policy; not the webview's own Open dialog with its recent locations
+- `action:file.openRecentProject`: same as Open Project Path, which see
+- `action:find.inPath`: opens the Find in Files popup, which searches as you type with its options, file mask (offering the project's most common file types), scopes and history, and opens the selected match. Not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match
+- `action:find.openInWindow`: the Find window searches the file again through the backend: the bar's In Selection scope, its excluded occurrences and unsaved text are not carried over
+- `action:find.replaceInPath`: the popup in replace mode: Replace and Replace All with the confirmation flow are tested in the view; in a window the matches stay marked while a replacement is typed and nothing is written before Replace All. Not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match
+- `action:find.showUsages`: the popup with the usages and opening one; it opens in the middle of the window, not at the caret
+- `action:merge.autoApply`: stores Automatically Apply Non-Conflicting Changes as on. Missing: turning it off again, its check mark and its effect on the next merge editor are not asserted
+- `action:merge.compareYoursTheirs`: chosen from the Compare menu it opens the diff window over the merge editor, and Escape gives the keyboard back. Missing: which two versions the diff shows is not asserted
+- `action:merge.reload`: the merge editor loads again. Missing: no test changes a version on disk and sees it re-read
+- `action:merge.settings`: opens the settings menu in the popup slot, and Escape closes it with the merge editor keeping the keyboard. Missing: the menu's rows are not asserted
+- `action:navigate.declaration`: one target opens (also from the editor menu's Go To), several are chosen from, none says so; without a server only names local to the file are found
+- `action:navigate.fileStructure`: opens the popup for the active editor and, asked again, toggles the inherited members; see the search.fileStructure overlay for what the popup lacks
+- `action:navigate.findAction`: overlay
+- `action:navigate.gotoFile`: overlay
+- `action:navigate.gotoLine`: opens Go to Line:Column and moves the caret; it is a popup in the popup slot, which a click beside it closes, where the webview has a dialog
+- `action:navigate.gotoSymbol`: overlay
+- `action:navigate.implementation`: implementations are not streamed while the search runs
+- `action:navigate.recentFiles`: opens Recent Files and, asked again, shows only edited files. Not yet: Recent Locations, the files edited in this session (the list is empty, so Show edited only shows nothing), opening to the side, version control colours on names, keeping a row whose tab refused to close
+- `action:navigate.searchEverywhere`: overlay
+- `action:navigate.searchText`: overlay
+- `action:navigate.showBookmarks`: the popup lists the bookmarks by list and file, opens, removes and describes them. Its preview is the file's plain text, not a second editor on the document
+- `action:navigate.switcher`: opens the Switcher on the previous editor with Ctrl held, moves on each press, opens on release. Not yet: Recent Locations, the files edited in this session (the list is empty, so Show edited only shows nothing), opening to the side, version control colours on names, keeping a row whose tab refused to close
+- `action:open-browser`: the toolbar's Open in Browser is enabled while a server with a port runs and disabled after Stop; it is never run, so opening the URL is not shown
+- `action:plugins.installFromDisk`: run through the registry with a plugin folder or its plugin.toml, it shows the install page with the high-risk permission first, installs nothing when cancelled and, accepted, lists the plugin and registers its commands as actions. Missing: without an argument the picker opens with no title and no test drives it, and a package file (unpacked first) is never installed by a test
+- `action:plugins.log.wrap`: soft wrap starts on, where the original starts off
+- `action:project.copy`: inside the tree; files are not put on the system clipboard, so other applications cannot paste them
+- `action:project.cut`: inside the tree; files are not put on the system clipboard, so other applications cannot paste them
+- `action:project.paste`: inside the tree; files are not put on the system clipboard, so other applications cannot paste them
+- `action:run.editConfigs`: add, edit, copy, move, remove and save through the form. Not yet: editing templates, importing configurations, run targets, the environment table, loading choices from the backend, Tomcat settings
+- `action:settings.appearance`: the theme choice over the built-in themes; plugin themes, Sync with OS, accent, zoom and the other controls of the page are slots
+- `action:terminal.closeSession`: closes the active tab at once: the question asked when a command is still running is not there
+- `action:toolwindow.maximize`: the side is maximized in the layout and drawn over the editor and the other sides; the test checks the layout, not what is drawn
+- `action:vcs.branches`: one repository: checkout with its questions, favourites, options, merge and its abort. Not yet: commands across several repositories, Compare and Show Diff with Working Tree, the tag menu
+- `action:vcs.log.changes.compareBeforeWithLocal`: opens the diff window, not an editor tab
+- `action:vcs.log.changes.compareWithLocal`: opens the diff window, not an editor tab
+- `action:vcs.log.goToRef`: selects only a commit already loaded: no paging and no filter reset
+- `action:vcs.log.pushUpToHere`: the Push dialog lists every outgoing commit, not only those up to the chosen one
+- `action:vcs.log.squashCommits`: the log has no multi-selection, so several commits reach the action only as its argument
+- `action:vcs.manageRemotes`: a password inside a remote URL is masked in the list and the edit field; the original shows the URL as stored
+- `action:vcs.newBranch`: one repository; a new branch in several repositories at once is refused
+- `action:vcs.newTag`: the tag message is a one-line field, not a multi-line one
+- `action:vcs.push`: the current branch of one repository to a local remote. Not yet: pushing another branch, update and retry of a rejected push, the changed files of a commit, Cancel on the progress notice
+- `action:vcs.shelf.showDiffNewTab`: opens the diff window, not an editor tab
+- `action:vcs.shelve`: shelf rows show no time
+- `action:vcs.showCommit`: selects only a commit the log has already read
+- `action:vcs.showShelf`: shelf rows show no time
+- `action:view.backgroundTasks`: the tasks status item runs the action and Background Tasks opens with the plugin's task and its working Cancel. Differs: the native action toggles, so running it again closes the popup, where the webview's action only opens it
+- `boundid:navigate.gotoBookmark0`: one routine for the ten digits, tested with 7
+- `boundid:navigate.gotoBookmark1`: one routine for the ten digits, tested with 7
+- `boundid:navigate.gotoBookmark2`: one routine for the ten digits, tested with 7
+- `boundid:navigate.gotoBookmark3`: one routine for the ten digits, tested with 7
+- `boundid:navigate.gotoBookmark4`: one routine for the ten digits, tested with 7
+- `boundid:navigate.gotoBookmark5`: one routine for the ten digits, tested with 7
+- `boundid:navigate.gotoBookmark6`: one routine for the ten digits, tested with 7
+- `boundid:navigate.gotoBookmark8`: one routine for the ten digits, tested with 7
+- `boundid:navigate.gotoBookmark9`: one routine for the ten digits, tested with 7
+- `boundid:navigate.toggleBookmark0`: one routine for the ten digits, tested with 7
+- `boundid:navigate.toggleBookmark1`: one routine for the ten digits, tested with 7
+- `boundid:navigate.toggleBookmark2`: one routine for the ten digits, tested with 7
+- `boundid:navigate.toggleBookmark3`: one routine for the ten digits, tested with 7
+- `boundid:navigate.toggleBookmark4`: one routine for the ten digits, tested with 7
+- `boundid:navigate.toggleBookmark5`: one routine for the ten digits, tested with 7
+- `boundid:navigate.toggleBookmark6`: one routine for the ten digits, tested with 7
+- `boundid:navigate.toggleBookmark8`: one routine for the ten digits, tested with 7
+- `boundid:navigate.toggleBookmark9`: one routine for the ten digits, tested with 7
+- `context:findBarHasResults`: follows the bar that has the keyboard, where the component keeps the value of the last focused bar
+- `context:popupOpen`: set while a popup is open over the window and cleared, with the focus keys, as it closes. Search Everywhere is the only popup so far
+- `event:Task`: listed and shown in the status bar: the popup and its cancel button are proven with a plugin task, not with a backend one; no progress bar
+- `feature:agents`: see the tool window row; driven by a fake agent declared in the test's config folder
+- `feature:build`: see the tool window row
+- `feature:debugger`: see the tool window row; started through a fake adapter declared by a language file
+- `feature:plugins`: the plugin host runs in the app: themes, commands as actions, the Plugins page (list, enable, uninstall, install with consent, secrets), status items, tasks, notifications, questions, context keys, log tabs, Tools, Project view, editor and Find results menus, the editor tab strip's toolbar slot, gutter actions, settings pages, runs and DAP debug requests, and workbench events. Missing: plugin views and tool windows, web views, content tabs, OpenTerminal and terminal sessions, run targets, Run Anything, decorations, the JDWP debug branch, the editor tab and Problems menu entries and the mainToolbar and commit.message slots (built, untested), the marketplace and updates, IntelliJ theme imports
+- `feature:project-tree`: ) that no view is drawn from yet: none of the roughly forty project actions has a handler
+- `feature:run`: the Run tool window, the run widget in the title bar, the configuration chooser and Edit Configurations, on real processes. Not yet: context runs and gutter markers, the test tree, the terminal console, debugging, importing configurations, templates
+- `feature:services`: the Services tool window for run configurations end to end; Docker is read (settings, snapshot) but its operations, streams, dashboards and dialogs are not carried out
+- `feature:terminal`: the Terminal tool window with tabs, each a shell (typing, paste, selection, scrollback, resize, clear, exit), remembered per project. Not yet: splits drawn, rename and tab menus, find, links, mouse reporting, predefined and plugin sessions, command titles (needs shell-integration marks)
+- `feature:todo`: see the tool window row
+- `feature:vcs`: the Git log with its graph, filters, details and commit actions, the branches popup, the Commit window with change lists, before-commit checks and the shelf, push, pull, fetch and update, merge, rebase, cherry-pick and revert with their stopped states, the conflicts dialog and merge editor, stash, rollback, patches, tags, remotes and worktrees. Not yet: Annotate with Git Blame, Show History, Local History, Clone and Compare with Branch (none registered), the Stash tab, the modal Commit dialog, partial commits of a file, the log toolbar
+- `ipc:app_quit`: Quit confirms the exit and asks each window about its unsaved changes, and Cancel keeps the window and its text; quitting itself (every window closed, the app exiting) is not asserted
+- `ipc:db_connected`: read with the sources when the window loads; no asserted state can only come from it
+- `ipc:fs_delete`: called with a file that is already gone: a real delete would go to the system Trash
+- `ipc:fs_rename`: renames go through the refactoring; this plain call is the fallback, not run by a test
+- `ipc:lsp_resolve_completion`: asked for documentation and late edits; the fake server answers a fixed item
+- `ipc:menu_configure`: the menu module's sync builds the bar from the focused window's state in one step; see the menu.rs shell row for what the bar does not hold yet
+- `ipc:menu_model`: the menu module's sync builds the bar from the focused window's state in one step; see the menu.rs shell row for what the bar does not hold yet
+- `ipc:menu_set_disabled`: the menu module's sync builds the bar from the focused window's state in one step; see the menu.rs shell row for what the bar does not hold yet
+- `ipc:plugin_list`: the pages list through wait_initial_load, sync_links, sync_project and list with the window's project root, as the adapter does. Missing: no test lists a plugin of the project itself
+- `ipc:plugin_run_command`: the Tools menu, the Project view menu, a status item, a notification button and a settings page action run the plugin's command through PluginHost::run_command on the blocking pool, with the window, its project and the focused editor. Missing: no test asserts the selected paths a menu passes, a command chain, or the project settings scope
+- `ipc:plugin_status_items`: the window asks PluginHost::status_snapshot for its label on every project change and listing, as the adapter does. Missing: every asserted item arrives by a status event, so no test needs the snapshot (an item set before the window opened)
+- `ipc:plugin_subscribe`: the window hears the host's events through the app's listener, filtered by its label, in place of a channel per window. Missing: no test shows that another window's events stay out
+- `ipc:recent_project_groups`: read when the Welcome screen is built, only with no groups stored
+- `ipc:settings_set`: the write and its announcement, without the MCP server re-apply and the update-check wake of the Tauri adapter (their features are not ported)
+- `ipc:vcs_commits_changes`: called for a selection of several commits; the test selects one
+- `ipc:vcs_config_get`: View in Browser reads remote.<name>.url and the before-commit checks read core.autocrlf; the log's own-commits filter (user.email, user.name) and the commit message template (commit.template) are not read
+- `ipc:vcs_diff_with_worktree`: Compare with Local reads the files that differ from the commit and opens them in the diff window; the webview lists them in the Changes between dialog first
+- `ipc:vcs_line_hunks`: Rollback Lines reads the hunks and restores only the lines under the caret; the editor gutter's change markers do not read it
+- `ipc:vcs_log_users`: the User filter lists the authors read from the repository; it reads the selected repository only, where the webview reads every repository root
+- `ipc:vcs_restore_head`: the Undo of a history rewrite's notification puts the old subject back; the undo of a merge or rebase run in several repositories (resetBack in branchOps.ts) does not call it
+- `ipc:window_open_project`: see the file.openProjectPath action
+- `module:src/editor/core/clipboardHistory.ts`: copies and cuts in an editor are recorded newest first without repeats, at most thirty, and the latest line copy pastes above the caret's line; Paste from History has no handler in the app and copies outside editors are not recorded
+- `module:src/editor/core/cm`: caret movement, selection, multiple carets, column selection, undo, clipboard, find and highlighting: no folding, gutters, bracket or indentation rules
+- `module:src/editor/core/sync`:
+- `module:src/editor/refactor/safeDelete.ts`: the Project view's file flow: Find Usages on a file lists its symbols' usages from other files, and a safe delete of a used file asks Usages Detected (View Usages, Delete Anyway); the editor's Safe Delete of a symbol has no handler
+- `module:src/platform/actions.ts`: handlers exist for no feature action yet
+- `module:src/platform/candidateFonts.ts`: nothing measures fonts for it yet
+- `module:src/platform/colorScheme.ts`: the editor does not read scheme overrides yet
+- `module:src/platform/cssColor.ts`: parsing is the token engine's, which is stricter about separators and clamps channels
+- `module:src/platform/dateFormat.ts`: en-US only when the system format is used
+- `module:src/platform/errorLog.ts`: nothing reports to it yet
+- `module:src/platform/filePresentation.ts`: the batching model is not driven by a view, and file icon themes are not consulted
+- `module:src/platform/fonts.ts`: not connected to GPUI's text system
+- `module:src/platform/icls.ts`: no import or export command uses it yet
+- `module:src/platform/inspections.ts`: profiles, levels, overrides and applying the profile to diagnostics (editor_lsp/diagnostics.rs), wired; no window test shows a diagnostic hidden or restyled by the profile
+- `module:src/platform/keymap.ts`: numeric-keypad operator bindings cannot fire (GPUI reports no physical key, see D16)
+- `module:src/platform/platformInfo.ts`: not filled from the running app
+- `module:src/platform/projectPresentation.ts`: the build model is not loaded from the backend yet
+- `module:src/platform/search.ts`: the pure parts only: no storage, no scope store
+- `module:src/platform/systemFonts.ts`: not fed from the backend's font list
+- `module:src/platform/themes.ts`: not applied to the running window yet, and plugin theme previews have no counterpart
+- `module:src/platform/windowGroups.ts`: window groups themselves do not exist yet
+- `module:src/ui/Feedback.tsx`: balloons with level icon, title, body, links and close, at most three stacked at the bottom right, fading by the model's clocks and pausing under the pointer or while the window is inactive. Not yet: the slide-in animation, the chime, bodies that are components (the update progress), and the links whose commands carry arguments of their own
+- `module:src/ui/Menu.tsx`: ), menus anchored to a button
+- `module:src/ui/consoleFind.ts`: regex mode needs a matcher from the caller, and no console uses it yet
+- `module:src/ui/icons.tsx`: no folder-kind icons, file icon providers or icon themes yet
+- `module:src/ui/match.ts`: case folding is per character, which differs from JavaScript's whole-string lowercasing for a few letters (İ, final Σ)
+- `module:src/ui/patternIndex.ts`: patterns are matched by a caller-supplied predicate: no regex engine is wired to it yet
+- `module:src/ui/treeDirectoryContext.ts`: the focused Project view publishes its selected directory; other trees do not, and the clearing on blur is not read by a test
+- `module:src/workbench/ContributedToolbar.tsx`: a small icon button per slot entry whose when holds, running its action. Missing: a button whose action has no icon falls back to the generic plugin icon rather than the plugin's own icon, the icon drawn is not asserted, and the mainToolbar and commit.message slots have no test
+- `module:src/workbench/StatusBar.tsx`: three editor items only
+- `module:src/workbench/TitleBar.tsx`: the title only: no project, branch or run widgets, no main menu
+- `module:src/workbench/Workbench.tsx`: the frame with tool windows, status bar, popups and the Welcome view; the title bar has the title only (see its row)
+- `module:src/workbench/notificationStore.ts`: fed from backend notify events, nothing drawn
+- `module:src/workbench/projectWindow.ts`: the Open project in policy with its question; no Attach, no remembered answer from the question, no remote projects
+- `module:src/workbench/tasks.ts`: tasks fed from backend and plugin events, shown in the status bar and in Background Tasks with their Cancel. Missing: a backend task's Cancel through cancel_task is proven on the model only
+- `module:src/workbench/theme.ts`: choosing and resolving a theme as a model: the window still starts in the default theme and does not follow the OS
+- `module:src/workbench/toolwindows/store.ts`: drives both stripes and the left, right and bottom sides with their split areas. Not yet: resizing, maximizing, moving windows between sides
+- `point.registerEditorContribution:viewers.markdownLive`: the preview follows the text, the editor's scrolling side by side and the hidden editor's caret in Preview Only; the editor's font zoom is not published to the preview
+- `point.registerEditorKind:binary`: the read-only hex view and Open as Text; the tab keeps its old path after a rename
+- `point.registerEditorKind:image`: the image tab with zoom, chessboard and its label; the tab keeps its old path after a rename
+- `point.registerEditorKind:pluginLog`: a log tab opened by plugin code shows its program's output, its toggles restart the program, Clear and Soft-wrap work. Missing: Find in Logs, and no test checks the tab stays mounted across tab switches
+- `point.registerKeyClaim:(at) src/features/search/everywhere/SearchEverywhere.tsx:82`: Enter, Tab, the arrows and Page Up/Down are the popup's in every modifier combination while its query has the keyboard. ⌥↵, ⌘↵ and ⌥↑/⌥↓ are claimed but do nothing yet
+- `point.registerMenuGroup:agents.send`: the editor's menu shows Send to Agent after Go To, in the group's order. Missing: no test chooses the row from a menu, the Project view's row (the selected paths as argument) has no test, and the row for a virtual document is left out only as data
+- `point.registerMenuGroup:plugins`: the Project view's menu offers the plugin's entry after Delete… once its when holds and runs it; the editor's menu shows the plugin's entries after Send to Agent, two entries naming one submenu under it with the one whose command cannot run greyed out, and runs the chosen one; the Find results' menu shows its entry only while its when holds and runs it with the match's path, line and column. Missing: the editor tab and Problems menus build the group but no test opens them, and Open With › for the plugins' custom editors is not built
+- `point.registerMenuGroup:search.bookmarks`: a right click in the gutter opens its menu with Add Bookmark first, choosing it bookmarks the clicked line, and the menu then offers Remove Bookmark. Missing: the row is the navigate.toggleBookmark action row, so it is greyed out while projectOpen fails where the webview's own row always runs; no test opens the gutter menu without a project
+- `point.registerMenuGroup:search.bookmarks.files`: the editor tab's menu offers Add Bookmark, choosing it bookmarks the file of the tab the menu was opened on (not the active one), and the menu then offers Remove Bookmark. Missing: the Project view's row (several paths, folders) has no test, and the action row greys out while projectOpen fails where the webview's own row always runs
+- `point.registerMenuSlotItem:(at) src/features/plugins/uiPoints.tsx:182`: a plugin's editor.title entry is a button of the tab strip that runs its command, and an entry whose when fails has no button until a MODULE.bazel file makes it hold. Missing: the mainToolbar and commit.message slots are built but no test draws them, and a button without an action icon falls back to the plugin icon instead of the plugin's own
+- `point.registerOverlay:code-insight.usagesPopup`: see find.showUsages
+- `point.registerOverlay:editor.gotoLine`: see the navigate.gotoLine action
+- `point.registerOverlay:plugins.consent`: the install page over the window, capabilities from the highest risk down, Cancel and OK answered. Missing: the dialog a running plugin's permission request opens, and the grant of a listed plugin, have no test
+- `point.registerOverlay:run.editConfigs`: see the action run.editConfigs for what the dialog lacks
+- `point.registerOverlay:search.bookmarks`: the Bookmarks popup and the mnemonic chooser. Not yet: the Bookmarks tool window, bookmark marks in the editor gutter, new and renamed lists
+- `point.registerOverlay:search.everywhere`: scope commands, Show more, row, group and page navigation, a click opening a row and a click beside the popup closing it, the keyboard going back to what had it, a chosen action running in that context, a toggle leaving the popup open. Not yet: the preview pane, the funnel filters and the file-set scope, include non-project items and the retry everywhere, the search history (⌥↑/⌥↓ and its menu), several rows selected at once, Open to the Side (⇧↵), ⌘↵ to Find in Files, the ⌥↵ menu (copy path, Find in Directory, assign shortcut), language server symbols, endpoints and settings as sources, recent actions, shortcuts shown beside actions, highlighted match characters, the empty-result text
+- `point.registerOverlay:search.fileStructure`: the popup with the outline as a tree, the symbol at the caret selected, folding, speed search that narrows or highlights, sort and visibility options stored as the webview stores them, inherited members, Enter and double click going to the symbol. Not yet: the last outline shown at once on reopening, reloading while open, tooltips, the query in the monospace font, going to a member that lives in a library class (a virtual document)
+- `point.registerOverlay:search.findInFiles`: the popup's commands run as actions and its masks list offers the project's most common file types; not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match
+- `point.registerOverlay:search.recent`: Recent Files with its speed search, tool window column, several files selected and opened, Delete closing a tab, and the Switcher with its stepping and Ctrl release. Not yet: Recent Locations, edited files, opening to the side, version control colours
+- `point.registerOverlay:settings.dialog`: see file.settings
+- `point.registerOverlay:vcs.branches`: see the action
+- `point.registerOverlay:vcs.dialogs`: the window opens and answers these dialogs: prompts, confirmations, Push, Conflicts, Pull, Update Project, Merge, Rebase, Reset, New Tag, Stash, Unstash, Rollback, Remotes and Edit Remote, Worktrees and New Worktree, Shelve, Unshelve, New and Edit Changelist, the target change list chooser, Create Patch, Apply Patch, Interactive Rebase and Edit Commit Message. Not yet: Clone, the modal Commit dialog, Compare with Branch, Changes Between, Directory Compare, the revision and commit choosers, and the Select Users, Date Range and Folders dialogs of the log filters
+- `point.registerServiceView:dbResults`: results show in the lower half of the Database window, not as a Services view
+- `point.registerTitleItem:build.project`: registered in the bar; it shows only for a CMake target, because nothing publishes the Maven and Gradle keys
+- `point.registerTitleItem:run.widget`: Debug is not offered
+- `point.registerTitleItem:vcs.branch`: no tooltip on the widget
+- `point.registerToolWindow:bookmarks`: the tree, rename, delete, lists and menus; a file removed on disk keeps its bookmark until the next change
+- `point.registerToolWindow:build`: the tree of files and messages, the output, Rerun and Stop, on real builds. Not yet: the hammer of the title bar, the Project view's Build Module item, the error badge
+- `point.registerToolWindow:commit`: the changes grouped by change list with their check boxes, the message with its history, Commit, Amend, Commit and Push, the options, the before-commit checks with Commit Anyway, and the Shelf tab. Not yet: the Stash tab, the Reformat code, Optimize imports and Cleanup checks (shown disabled with a reason), partial commits of a file, the staging area, the modal Commit dialog
+- `point.registerToolWindow:find`: one search with its results by file. Not yet: result tabs, grouping options, replace, preview, the header menu
+- `point.registerToolWindow:git`: the commit list with its graph, the text, branch and user filters, the branches pane and its actions, commit details and changed files with their actions and diff, and the commit context menu with cherry-pick, revert and the history-rewriting actions. Not yet: the Select dialogs of the user, date and path filters, the log toolbar, selecting several commits, the Console and Worktrees tabs
+- `point.registerToolWindow:hierarchy`: see navigate.typeHierarchy
+- `point.registerToolWindow:notifications`: the history newest first with times, the entries' links, close and Clear All, everything marked read while it shows. Not yet: the unread badge on its stripe button, Clear All in the tool window's header (it is a row of the view), tooltips, selectable text
+- `point.registerToolWindow:services`: the tree with run configurations and Docker nodes, toolbar, menus, selection and the detail pane of a run. Not yet: Docker operations, dashboards and dialogs, the picker of Add Service, dragging rows, a resizable split, debug sessions
+- `point.registerToolWindow:terminal`: tabs in the window's body rather than its header, no splits drawn
+- `point.registerToolWindow:todo`: project, current file and scope tabs with a read-only preview. Not yet: the Changes tab (change lists are not fed), stored settings, rescans on save, the badge, previous and next occurrence
+- `point.registerToolWindow:usages`: see find.usages
+- `settings:(at) src/features/plugins/settings.tsx:327`: file.settings opens the plugin's page, a ticked setting saved with OK is in the global settings and the plugin hears settings-changed with its key. Missing: the This project scope of the page has no test, and multi-line strings are edited on one line
+- `settings:plugins`: the Plugins page lists, enables, disables, uninstalls and stores secrets on the host, proven on the Welcome screen's instance of the same page. Missing: no test opens Settings › Plugins with a plugin host, and the catalog, marketplace, grant, roll back and IntelliJ imports have no test
+- `shell:menu.rs`: the macOS menu bar from the Tauri app's own table (menu_spec.rs, compared byte for byte by menuspec.mjs --check): labels in the language, each action's first shortcut, check marks, greyed-out items, the window's tool windows and the recent projects, replaced only when it changes. Not yet: the in-window menu of Windows and Linux, the saved layouts, status bar widgets and plugin entries in their slots, the Enter / Exit Distraction Free label, Check for Updates, and most of the bar's actions have no handler yet
+- `shell:windows.rs`: labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state
+- `unit:src/editor/core/clipboardHistory.test.ts`: 7 of 8 cases: copies made in text fields are not recorded
+- `unit:src/editor/core/cm/caretCommands.test.ts`: 5 of 6 cases: the base keymap case needs the commands bound in the editor
+- `unit:src/editor/core/cm/clipboard.test.ts`: 18 of 25 cases: pasting file paths and images as Markdown, the fallback while a native paste is pending and the read-only editor (7 cases) need the editor wiring
+- `unit:src/editor/core/cm/cmake.test.ts`: 1 of 7 cases; argument keywords, numbers, predefined variables, whole variable expansions, generator expressions, function definitions and .cmake.in detection are not painted or recognised as the webview does
+- `unit:src/editor/core/cm/docCommentTags.test.ts`: 9 of 13 cases: redrawing on a highlighter change, on a language switch, nesting inside comment marks and the style class (4 cases) need the editor to draw the tags
+- `unit:src/editor/core/cm/editing.test.ts`: 42 of 43 cases: highlighting of Batch files is not built
+- `unit:src/editor/core/cm/interpolation.test.ts`: 2 of 8 cases (the C# ones); Kotlin, Scala and Dart template code is not coloured as code, Groovy has no grammar, and the mode lookup by name and alias has no counterpart
+- `unit:src/editor/core/controller.test.ts`: 6 of 13 cases by name
+- `unit:src/editor/core/copyPathPopup.test.tsx`: 5 of 10 cases by name
+- `unit:src/editor/core/diskSync.test.ts`: 6 of 7 cases by name
+- `unit:src/editor/core/file-open-order.test.ts`: 13 of 14 cases by name
+- `unit:src/editor/core/model/attachment.test.ts`: 1 of 6 cases by name
+- `unit:src/editor/core/model/document.test.ts`: 6 of 19 cases by name
+- `unit:src/editor/core/model/model.test.ts`: the camel-humps case is not ported
+- `unit:src/editor/core/sync/DocSync.test.ts`: the edit pipeline is synchronous in process, so the queueing cases have no counterpart yet
+- `unit:src/editor/core/view/keptTabs.test.tsx`: which tabs stay mounted, not the rendering
+- `unit:src/editor/core/view/pinnedTabsRow.test.tsx`: the pinned row's contents, not its placement or the middle-click close
+- `unit:src/editor/core/virtual.test.ts`: 3 of 5 cases by name
+- `unit:src/features/agents/ConfigPickers.test.tsx`: the state and logic of 13 of 13 cases, on the model; the view is not built
+- `unit:src/features/agents/HomeEditor.test.tsx`: the state and logic of 4 of 4 cases, on the model; the view is not built
+- `unit:src/features/agents/agentRegistry.test.tsx`: the state and logic of 25 of 26 cases, on the model; the view is not built
+- `unit:src/features/agents/composerCommands.test.tsx`: the state and logic of 2 of 12 cases, on the model; the view is not built
+- `unit:src/features/agents/unread.test.tsx`: the state and logic of 18 of 18 cases, on the model; the view is not built
+- `unit:src/features/app/__tests__/WorkspaceDialog.test.tsx`: the state and logic of 9 of 9 cases, on the model; the view is not built
+- `unit:src/features/app/__tests__/closeGuard.test.ts`: every case on the model, and the order of the questions through the window: exit confirmation, running processes, unsaved changes; a live debug session is neither named nor stopped, and there is no Terminating panel with Kill
+- `unit:src/features/app/__tests__/consoleCopy.test.ts`: the key decisions; copying from the build output, database results and terminal (4 cases) needs those views
+- `unit:src/features/app/__tests__/editCommand.test.ts`: 1 of 2 cases: undo through the focused editor's own history needs a workbench test
+- `unit:src/features/app/__tests__/ideMode.test.tsx`: the state and logic of 1 of 3 cases, on the model; the view is not built
+- `unit:src/features/app/__tests__/invalidateCaches.test.tsx`: the state and logic of 2 of 2 cases, on the model; the view is not built
+- `unit:src/features/app/__tests__/menuBridge.test.ts`: shortcuts a menu can and cannot show, labels, tool windows by title, the registered actions that cannot run, check marks of the toggles that are on, a chosen item running its action with its argument. Not yet: saved layouts, status bar widgets, the distraction-free label, the debounce under a changing context
+- `unit:src/features/app/__tests__/shell.test.tsx`: the state and logic of 3 of 9 cases, on the model; the view is not built
+- `unit:src/features/build/build.test.tsx`: 12 of 13 cases by name
+- `unit:src/features/code-insight/usagePreview.test.tsx`: 1 of 3 cases: the preview shows plain lines, without syntax colours
+- `unit:src/features/database/ExportDialog.test.tsx`: the state and logic of 1 of 1 cases, on the model; the view is not built
+- `unit:src/features/database/SqlFilterInput.test.tsx`: the state and logic of 3 of 3 cases, on the model; the view is not built
+- `unit:src/features/debugger/__tests__/editor.test.ts`: the breakpoint click area in other gutters and the execution line surviving an inline rendering error are properties of the web editor's DOM and are not ported; a cached editor state refreshed on remounting was not found by name
+- `unit:src/features/debugger/__tests__/executionState.test.ts`: nine of ten cases found by name; the one about locals named like Object.prototype properties was not found and is not verified
+- `unit:src/features/debugger/__tests__/javaSeparator.test.ts`: logic and was not found by name there
+- `unit:src/features/debugger/__tests__/quickEvaluate.test.ts`: keymap priority of a custom mouse action, a removed binding and the multi-caret cases are not ported
+- `unit:src/features/debugger/__tests__/remote.test.ts`: the PHP Remote Debug form case and the assertions that need the run feature's validation are not ported
+- `unit:src/features/deployment/SyncPreview.test.tsx`: the state and logic of 3 of 3 cases, on the model; the view is not built
+- `unit:src/features/deployment/actions.test.tsx`: the state and logic of 11 of 11 cases, on the model; the view is not built
+- `unit:src/features/github/clone/GitHubCloneSource.test.tsx`: the state and logic of 3 of 3 cases, on the model; the view is not built
+- `unit:src/features/github/create/RemoteBranchDialog.test.tsx`: the state and logic of 1 of 1 cases, on the model; the view is not built
+- `unit:src/features/github/details/details.test.tsx`: the state and logic of 5 of 5 cases, on the model; the view is not built
+- `unit:src/features/github/diff/reviewDiff.test.tsx`: the state and logic of 11 of 11 cases, on the model; the view is not built
+- `unit:src/features/github/list/list.test.tsx`: the state and logic of 15 of 15 cases, on the model; the view is not built
+- `unit:src/features/github/reviewMode/reviewMode.test.tsx`: the state and logic of 20 of 20 cases, on the model; the view is not built
+- `unit:src/features/github/settingsPages.test.tsx`: the state and logic of 2 of 3 cases, on the model; the view is not built
+- `unit:src/features/github/toolwindow/toolwindow.test.tsx`: the state and logic of 7 of 8 cases, on the model; the view is not built
+- `unit:src/features/github/ui/ui.test.tsx`: the state and logic of 10 of 10 cases, on the model; the view is not built
+- `unit:src/features/notebook/OutputView.test.tsx`: 2 of 9 cases by name
+- `unit:src/features/plugins/__tests__/logEditor.test.tsx`: 2 of 8 cases: output snapshots without a process, and a code-opened tab started by its key with the toggles that are on. Missing: malformed requests, output bounds (on the function only), Find in the partial-output case, the kill of the program at every lifecycle boundary (the view's Stop only), a spawn that resolves after the tab closed, and the transient tab kind
+- `unit:src/features/plugins/__tests__/pluginIcon.test.tsx`: the state and logic of 7 of 7 cases, on the model; the view is not built
+- `unit:src/features/plugins/__tests__/plugins.test.tsx`: 13 of 61 cases through a view or the application: command projection, action-performed reports, the Appearance-selected plugin theme, consent before install, status items and tasks, the window status override, notification buttons, plugin context keys, the four prompt cases and uninstall. Missing: the other 48, among them install from a package file, the marketplace, updates, the catalog, roll back, What's New, homepages, host command requests, menu arguments and the icon themes (the latter on the model only)
+- `unit:src/features/plugins/__tests__/settings.test.tsx`: 5 of 12 cases: list entries, the legacy page, saved values with dotted ids, malformed tables, and pending values applied before the command with its error inline. Missing: removal of the child pages on unload and the enum keywords (on the page list only), changes kept between pages, a failed apply, Reset ownership, the oversized edit on the llm page (templates only) and the project scope of the command
+- `unit:src/features/plugins/__tests__/views.test.tsx`: the state and logic of 4 of 26 cases, on the model; the view is not built
+- `unit:src/features/plugins/__tests__/webViews.test.tsx`: the state and logic of 3 of 18 cases, on the model; the view is not built
+- `unit:src/features/plugins/languageVisuals.test.ts`: 2 of 3 cases: highlighting an embedded slice with its own grammar needs the editor
+- `unit:src/features/project-tree/fileRefactor.test.tsx`: 5 of 6 cases by name
+- `unit:src/features/remote-dev/ports.test.tsx`: the state and logic of 8 of 8 cases, on the model; the view is not built
+- `unit:src/features/run/chooserPinned.test.tsx`: 2 of 5 cases by name
+- `unit:src/features/run/removal.test.tsx`: 7 of 11 cases by name
+- `unit:src/features/search/__tests__/codePreview.test.tsx`: 1 of 8 cases in part: the preview marks every match of the file and follows the selected line, but which mark is current is not shown; the preview is a read-only line list, so the editable preview, its shared undo and save with a tab, the read-only kinds and the key cases are not built
+- `unit:src/features/search/__tests__/fileStructure.test.tsx`: 2 of 4 cases by name
+- `unit:src/features/search/__tests__/findPopup.test.tsx`: the view has its own twenty-three tests of the same behaviours (typing, options, mask, scopes, navigation, replace, history), written from the component and not from this spec: its twenty-five cases were not matched one by one
+- `unit:src/features/services/ServicesTree.debug.test.tsx`: 5 of 10 cases on the model; the debugger is not drawn, so the cases about the debug toolbar and console of the detail pane are open
+- `unit:src/features/services/ServicesTree.reorder.test.tsx`: 3 of 5 cases: rows move with Move Up and Move Down; dragging a row is not built, and keeping local and remote projects apart is not tested
+- `unit:src/features/settings/__tests__/agents.test.ts`: the settings are the backend's typed ones here, so a value of the wrong type is refused where the spec expects it replaced by a default, and text and numbers are not trimmed or clamped
+- `unit:src/features/settings/__tests__/cmake.test.ts`: the settings are the backend's typed ones here, so a value of the wrong type is refused where the spec expects it replaced by a default, and text and numbers are not trimmed or clamped
+- `unit:src/features/settings/__tests__/goBuildTags.test.ts`: the settings are the backend's typed ones here, so a value of the wrong type is refused where the spec expects it replaced by a default, and text and numbers are not trimmed or clamped
+- `unit:src/features/settings/__tests__/languages.test.ts`: sixteen of seventeen cases here; the folder roles case is left to the project roots tests and was not found there by name, and malformed values are refused by the typed settings instead of normalised
+- `unit:src/features/templates/__tests__/emmet.test.ts`: four of seven cases: the three expansions need the Emmet engine's tables, which are behind a trait with no implementation yet
+- `unit:src/features/terminal/drop.test.ts`: 4 of 5 cases: hit-testing detached and hidden hosts is the view's, and no view takes drops yet
+- `unit:src/features/terminal/embedded.test.ts`: 3 of 4 cases: IME delivery through DOM events has no counterpart
+- `unit:src/features/terminal/paste.test.ts`: 20 of 25 cases: the five about a target disposed or replaced while a paste is read are the view's, which pastes text only
+- `unit:src/features/todo/PreviewEditor.test.tsx`: the state and logic of 4 of 7 cases, on the model; the view is not built
+- `unit:src/features/todo/todo.test.ts`: 10 of 13 cases by name
+- `unit:src/features/vcs/__tests__/chunkOptimizer.test.ts`: 2 of 4 cases: the others need the diff and three-way merge that are not ported
+- `unit:src/features/vcs/__tests__/deleteBranches.test.ts`: all 12 cases, but the three about where the focus goes assert only the plan the model returns: no view carries it out yet
+- `unit:src/features/vcs/__tests__/deleteFiles.test.ts`: all 3 cases, but the deletion itself is asserted as the plan returned, not carried out
+- `unit:src/features/vcs/__tests__/diffDialog.test.tsx`: 3 of 8 cases by name
+- `unit:src/features/vcs/__tests__/diffToolbar.test.tsx`: 14 of 25 cases by name
+- `unit:src/features/vcs/__tests__/logGraphCorrectness.test.tsx`: 7 of 10 cases: the graph cell's drawing and keyboard navigation are not ported
+- `unit:src/features/vcs/__tests__/movedCode.test.tsx`: 3 of 15 cases by name
+- `unit:src/features/vcs/__tests__/shelf.test.tsx`: through the app and the Shelf view: the saved base and version of a file with no chain, Compare with Local against the working file with the shelf's files as the chain, selection, toolbar Unshelve and Enter to Show Diff on a file target, Show Diff with shelfFocus. Only on the model: rejecting stale targets, keeping binary files out, mapping to the owning repository (4 of the 5 variants, the project below the repository is missing), legacy shelves on the primary repository, the file menu's rows with Rename disabled. Not asserted: skipping a missing or binary local file in Compare with Local, the Unshelve changelist path mapping across roots, that Copy as Patch copies only the selected file of a shelf with several, the Ctrl+D/Meta+D binding and its refusal in an editor, choosing Copy as Patch from the file's context menu
+- `unit:src/features/vim/__tests__/vim.test.ts`: 15 of 17 cases by name
+- `unit:src/platform/actions.test.ts`: has no window test yet
+- `unit:src/platform/boot.test.ts`: script and image load failures and the early failure before the document body exists test the browser; the React-specific failures are one test here. The app has no failure screen yet: this is its model
+- `unit:src/platform/classFiles.test.ts`: the debugger's can-place-breakpoint assertions belong to a feature that is not ported
+- `unit:src/platform/colorScheme.test.ts`: 11 of 14 cases: font-weight settings and the scheme observer belong to modules that are not ported
+- `unit:src/platform/cssColor.test.ts`: the computed-style probe of the second case needs a DOM and has no counterpart
+- `unit:src/platform/dateFormat.test.ts`: with a plain space; what WebKit prints was not measured)
+- `unit:src/platform/dotnet.test.ts`: the two cases about the test runner's arguments belong to the run feature's .NET types and test parsers, which are not ported
+- `unit:src/platform/fonts.test.ts`: font loading and canvas probing are returned as requests, not carried out
+- `unit:src/platform/icls.test.ts`: all 22 cases, but XML is read by a hand-written parser that accepts some input DOMParser rejects, and the settings round trip is by JSON only
+- `unit:src/platform/jdk.test.ts`: running the Download JDK action is not ported
+- `unit:src/platform/keymap.test.ts`: numeric-keypad operator bindings cannot fire (GPUI reports no physical key, see D16)
+- `unit:src/platform/keymaps/eclipse.test.ts`: 6 of 8 cases; the two keypad cases pass in the dispatcher on keypad key names that GPUI never reports, so keypad bindings cannot fire in the app (D16)
+- `unit:src/platform/keymaps/ideaParity.test.ts`: the order in which actions sharing a key are declared. The table of seventy bindings checked against IDEA's own is not repeated: the presets are the webview's files, evaluated, not a copy
+- `unit:src/platform/keymaps/newElement.test.ts`: of the action, checked where it is registered, which it is not yet
+- `unit:src/platform/keymaps/windows.test.ts`: 4 of 6 cases; the two host-modifier cases miss their hasPrimaryModifier asserts
+- `unit:src/platform/pageSwipe.test.ts`: the four keymap cases (presets mapping the swipes, rebinding, context and suspension, menu labels) are left to the keymap and dispatcher tests and were not all found there by name
+- `unit:src/platform/project.test.ts`: logic whose tests cover only the URI branch
+- `unit:src/platform/proxySettings.test.ts`: ), whose message and whitespace rules differ slightly from the webview's
+- `unit:src/platform/search.test.ts`: history shared through storage and per-project scope reloads are not ported
+- `unit:src/platform/themes.test.ts`: override does not give its window its own theme (the theme is per process, D25)
+- `unit:src/ui/consoleFind.test.ts`: the regex cases run against a test double, not a regex engine
+- `unit:src/ui/icons.test.tsx`: folder kinds, symbol icons in lists and icon themes are not covered
+- `unit:src/workbench/TitleBar.test.tsx`: 5 of 8 cases in full: the gear has no Theme and Keymap submenus, and there is no main menu merged into the title bar
+- `unit:src/workbench/projectWindow.test.ts`: a window without a project takes it, the stored policy is followed, the question's answers are carried out; the remote cases and Attach are not ported
+- `unit:src/workbench/quickSwitch.test.tsx`: menu rendering, pointer events and applying the previewed theme are not ported
+- `unit:src/workbench/tasks.test.tsx`: 3 of 9 cases through the popup and the application: Cancelling… until the task ends then removed, the popup's cancel buttons, and progress in the popup the action opens. Missing: the queue cases, the replacement task, indexing and backend tasks' cancel_task, proven on the model only
+- `unit:src/workbench/toolwindows/layouts.test.ts`: action is not ported
+- `unit:src/workbench/toolwindows/store.test.ts`: exists for the Project view and the Terminal only
+- `wit:wit/events.wit#events`: subscribe and subscribe-paths with file-saved, action-performed, settings-changed, editor-focused and vcs-changed delivered by the window. Missing: file-opened, file-closed, files-changed and scheduled are asserted by no test, and input-mode-changed is produced by the test itself (nothing in the app reports an input mode)
+- `wit:wit/events.wit#tasks`: begin shows the plugin's cancellable task in the status bar and Background Tasks, and Cancel makes is-cancelled stop it. Missing: report (progress and message) is asserted by no test
+- `wit:wit/exports.wit#lifecycle`: activate runs when the window fires the language and file activation events, the plugin going from Inactive to Active. Missing: no test observes deactivate, and on-view activation has no native caller
+- `wit:wit/views.wit#settings`: get returns the global value the window applied (the saved profile the command reads). Missing: the project-over-global layering has no test
+- `wit:wit/workspace.wit#invocation`: a command run from the window gets its project and focused editor (the word count of notes.txt). Missing: no test asserts the selected paths a menu passes
