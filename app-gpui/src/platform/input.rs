@@ -206,6 +206,30 @@ fn dispatch(window: &mut Window, cx: &mut App, decide: impl FnOnce(&mut WindowIn
     outcome
 }
 
+/// Answers `decide` with the window's dispatcher and its keymap, actions and context keys; nothing
+/// runs. A view that handles a gesture itself asks this what the keymap binds to it.
+pub fn with_dispatcher<T>(
+    window: &mut Window,
+    cx: &mut App,
+    decide: impl FnOnce(&Dispatcher, &dyn DispatchEnv) -> T,
+) -> T {
+    let id = window.window_handle().window_id();
+    let ctx = window_context(window, cx);
+    cx.default_global::<Keymap>();
+    cx.default_global::<ActionRegistry>();
+    let state = cx
+        .default_global::<Input>()
+        .windows
+        .remove(&id)
+        .unwrap_or_else(|| WindowInput { dispatcher: Dispatcher::new(is_mac_host()), modifiers: Mods::NONE });
+    let answer = {
+        let env = Env { keymap: &cx.global::<Keymap>().0, registry: cx.global::<ActionRegistry>(), ctx: &ctx };
+        decide(&state.dispatcher, &env)
+    };
+    cx.global_mut::<Input>().windows.insert(id, state);
+    answer
+}
+
 fn keystroke(event: &KeystrokeEvent, window: &mut Window, cx: &mut App) -> Outcome {
     let Keystroke { key, modifiers, key_char } = &event.keystroke;
     if is_modifier_key(key) {

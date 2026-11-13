@@ -61,4 +61,5 @@ pub fn register(cx: &mut App) {
         Ok(())
     });
     super::command_actions::register(cx);
+    super::intelligence::register(cx);
 }

@@ -9,6 +9,7 @@ mod commit;
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 mod diff_window;
 mod editor_find;
+mod editor_intelligence;
 mod log_window;
 pub mod main_toolbar;
 pub mod menu;
@@ -3226,6 +3227,9 @@ impl Workbench {
                 match text {
                     Ok((info, version, rope)) => {
                         let editor = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
+                        if still_open {
+                            workbench.install_intelligence(&editor, window, cx);
+                        }
                         // A tab closed while its file was opening has no use for the editor;
                         // dropping it releases the document.
                         if let (true, Content::Project { editors, restored_views, .. }) =
@@ -3313,6 +3317,7 @@ impl Workbench {
                 workbench.content = match text {
                     Ok((info, version, rope)) => {
                         let editor = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
+                        workbench.install_intelligence(&editor, window, cx);
                         let focus = editor.focus_handle(cx);
                         window.focus(&focus, cx);
                         workbench.observe_editor(&editor, cx);
@@ -5487,6 +5492,28 @@ mod tests {
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         (folder, root, workbench, cx)
+    }
+
+    /// Go to Declaration without a language server (the default Light mode starts none): the
+    /// backend's syntax tree resolves a local name to its definition in the same file, and the caret
+    /// goes there.
+    #[gpui_kit::test]
+    async fn go_to_declaration_without_a_server_finds_a_local_through_the_syntax_tree(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let text = "function f() {\n  let count = 1;\n  return count;\n}\n";
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/a.js", text)]);
+        let file = root.join("src/a.js");
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file, window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        let usage = text.rfind("count").expect("the usage") as u32 + 2;
+        editor.update(cx, |editor, cx| editor.select(usage, usage, cx));
+        run_action(cx, "navigate.declaration", None);
+        settle(cx, |cx| editor.read_with(cx, |editor, _| editor.caret_position()) == (1, 6));
+        let intelligence = cx.update(|_, cx| crate::editor::intelligence::EditorIntelligence::of(&editor, cx));
+        assert!(
+            intelligence.is_some_and(|intelligence| intelligence.read_with(cx, |this, _| this.chooser().is_none()))
+        );
     }
 
     /// A project without a build system cannot be built: Build Project, Build Module, Rebuild Project

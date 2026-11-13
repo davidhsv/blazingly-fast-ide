@@ -10,6 +10,8 @@ use std::ops::Range;
 pub enum MarkLayer {
     /// The Find / Replace bar of the editor's tab.
     Find,
+    /// The problems the language servers and inspections report for the document.
+    Diagnostics,
 }
 
 /// What a mark shows, and so how it is drawn.
@@ -23,12 +25,23 @@ pub enum MarkKind {
     FindScope,
     /// An occurrence the search skips: struck through.
     ExcludedOccurrence,
+    /// An error: a wavy underline in the error colour.
+    ErrorProblem,
+    /// A warning: a wavy underline in the warning colour.
+    WarningProblem,
+    /// A weak warning or information: a wavy underline in the muted warning colour.
+    WeakProblem,
 }
 
 impl MarkKind {
     /// Drawn below the selection (the search scope), not above it.
     pub fn is_below_selection(self) -> bool {
         self == Self::FindScope
+    }
+
+    /// Drawn as a wavy line under the text instead of behind it.
+    pub fn is_underline(self) -> bool {
+        matches!(self, Self::ErrorProblem | Self::WarningProblem | Self::WeakProblem)
     }
 
     /// The text inside takes the occurrence's foreground colour.
