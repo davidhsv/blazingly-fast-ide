@@ -433,11 +433,11 @@
   },
   "unit:src/workbench/tasks.test.tsx": {
     "status": "partial",
-    "proof": "`workbench::tasks::tests`; the popup, its buttons and the Background Tasks dialog are not rendered"
+    "proof": "`workbench::background_tasks_view::tests::the_popups_cancel_buttons_working_cancelling_and_disabled_with_the_reason`, `workbench::background_tasks_view::tests::shows_progress_and_uncancellable_tasks`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; 3 of 9 cases through the popup and the application: Cancelling… until the task ends then removed, the popup's cancel buttons, and progress in the popup the action opens. Missing: the queue cases, the replacement task, indexing and backend tasks' cancel_task, proven on the model only"
   },
   "module:src/workbench/tasks.ts": {
     "status": "partial",
-    "proof": "`workbench::tasks::tests`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`; fed from backend events and shown as status text only"
+    "proof": "`workbench::tasks::tests`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; tasks fed from backend and plugin events, shown in the status bar and in Background Tasks with their Cancel. Missing: a backend task's Cancel through cancel_task is proven on the model only"
   },
   "unit:src/workbench/projectNotifications.test.ts": {
     "status": "done",
@@ -449,7 +449,7 @@
   },
   "event:Task": {
     "status": "partial",
-    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; listed and shown in the status bar: no popup, progress bar or cancel button"
+    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; listed and shown in the status bar: the popup and its cancel button are proven with a plugin task, not with a backend one; no progress bar"
   },
   "event:IndexState": {
     "status": "partial",
@@ -460,8 +460,8 @@
     "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::tests::smoke_backend_events::a_file_changed_on_disk_under_unsaved_edits_is_reported_in_a_balloon`; a file changed on disk under unsaved edits is reported in a balloon and in the window's notifications, and the edits stay"
   },
   "point.registerStatusItem:workbench.tasks": {
-    "status": "partial",
-    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::status_items::tests`; the current task with its progress and count; the Background Tasks popup is not built"
+    "status": "done",
+    "proof": "`workbench::status_items::tests`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; the current task with its progress and count, and a click opens Background Tasks with every running task"
   },
   "unit:src/platform/virtualDocs.test.ts": {
     "status": "done",
@@ -653,7 +653,7 @@
   },
   "feature:plugins": {
     "status": "partial",
-    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`, `tests::web_view::a_web_view_lives_in_a_gpui_window_and_talks_both_ways`; the plugin host runs in the app, plugin themes are offered and applied, and plugin commands are actions that run the plugin's Wasm. Not yet: every other extension point (menus, settings, views, web views, status items, decorations…), window requests from plugins, the Plugins settings page, the consent dialog, marketplace, project plugins"
+    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`; the plugin host runs in the app: themes, commands as actions, the Plugins page (list, enable, uninstall, install with consent, secrets), status items, tasks, notifications, questions, context keys, log tabs, Tools and Project view menus, gutter actions, settings pages, runs and DAP debug requests, and workbench events. Missing: plugin views and tool windows, web views, content tabs, OpenTerminal and terminal sessions, run targets, Run Anything, decorations, the JDWP debug branch, editor, tab and toolbar menu slots, the marketplace and updates, IntelliJ theme imports"
   },
   "feature:terminal": {
     "status": "partial",
@@ -721,7 +721,7 @@
   },
   "ipc:plugin_list": {
     "status": "partial",
-    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`; listed per process: a window's project plugins are not included"
+    "proof": "`workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed`, `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`; the pages list through wait_initial_load, sync_links, sync_project and list with the window's project root, as the adapter does. Missing: no test lists a plugin of the project itself"
   },
   "ipc:plugin_set_theme": {
     "status": "done",
@@ -729,7 +729,7 @@
   },
   "ipc:plugin_run_command": {
     "status": "partial",
-    "proof": "`plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`; with the window's project and editor; selected paths, settings scope and command chains are not passed by any caller yet, and the failure notification is untested"
+    "proof": "`workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`; the Tools menu, the Project view menu, a status item, a notification button and a settings page action run the plugin's command through PluginHost::run_command on the blocking pool, with the window, its project and the focused editor. Missing: no test asserts the selected paths a menu passes, a command chain, or the project settings scope"
   },
   "ipc:vcs_log": {
     "status": "partial",
@@ -2148,8 +2148,8 @@
     "proof": "`workbench::welcome_model::tests`"
   },
   "unit:src/features/welcome/welcome.test.tsx": {
-    "status": "partial",
-    "proof": "`workbench::welcome::tests`, `workbench::welcome_model::tests`; 6 of 9 cases: the Customize page (2 cases) and the Plugins page (1) are not built"
+    "status": "done",
+    "proof": "`workbench::welcome::tests`, `workbench::welcome_model::tests`, `workbench::welcome_pages::tests::lists_plugins_only_when_the_plugins_settings_page_is_contributed_and_embeds_it`, `workbench::welcome_pages::tests::customize_writes_the_global_settings_keys`, `workbench::welcome_pages::tests::derives_the_customize_view_from_partial_settings`, `workbench::plugins_window::tests::the_welcome_screen_lists_projects_and_customize_and_plugins_only_with_a_plugin_host`, `workbench::plugins_window::tests::customize_changes_the_theme_and_the_font_size_through_the_global_settings`; 9 of 9 cases: the five Projects cases, Plugins listed only with a page and embedded, Customize writing the global keys; the two helper cases (list keys, the Customize view) test pure functions in the spec as well and are proven on the same functions"
   },
   "action:welcome.recentProjects": {
     "status": "partial",
@@ -2177,7 +2177,7 @@
   },
   "feature:welcome": {
     "status": "partial",
-    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::welcome::tests`; the Welcome screen with search, groups, row menus, remove and reopen. Not yet: the Customize and Plugins pages, the Recent Projects popup, the project popup of the title bar, reopening the last project at start (its logic is in the model, nothing calls it)"
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::welcome::tests`, `workbench::plugins_window::tests::the_welcome_screen_lists_projects_and_customize_and_plugins_only_with_a_plugin_host`, `workbench::plugins_window::tests::customize_changes_the_theme_and_the_font_size_through_the_global_settings`, `workbench::plugins_window::tests::all_settings_on_customize_opens_the_settings_dialog`; the Welcome screen with search, groups, row menus, remove and reopen, the Customize page (theme, accent, font, keymap, All settings…) and the Plugins page with a plugin host. Missing: the Recent Projects popup, the project popup of the title bar, reopening the last project at start, and the IntelliJ theme imports of the Plugins page"
   },
   "unit:src/features/run/RunView.test.tsx": {
     "status": "done",
@@ -2817,7 +2817,7 @@
   },
   "unit:src/features/plugins/__tests__/plugins.test.tsx": {
     "status": "partial",
-    "proof": "`plugin_models::store::tests`, `plugin_models::runtime_ui::tests`, `plugin_models::icon_themes::tests`, `plugin_models::icon_theme_resolver::tests`; the state and logic of 23 of 61 cases, on the model; the view is not built"
+    "proof": "`workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::closes_a_question_the_plugin_gave_up_on_without_answering`, `plugin_views::prompt_dialog::tests::shows_a_plugins_question_and_reports_the_answer_or_the_dismissal`, `plugin_views::prompt_dialog::tests::asks_multi_line_text_and_confirms_on_ctrl_enter`, `plugin_views::prompt_dialog::tests::returns_the_typed_text_untrimmed`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`, `plugins::tests::a_linked_plugins_theme_is_offered_and_applied`; 13 of 61 cases through a view or the application: command projection, action-performed reports, the Appearance-selected plugin theme, consent before install, status items and tasks, the window status override, notification buttons, plugin context keys, the four prompt cases and uninstall. Missing: the other 48, among them install from a package file, the marketplace, updates, the catalog, roll back, What's New, homepages, host command requests, menu arguments and the icon themes (the latter on the model only)"
   },
   "unit:src/features/plugins/__tests__/ptyBackend.test.ts": {
     "status": "done",
@@ -4093,7 +4093,7 @@
   },
   "action:plugins.settings": {
     "status": "partial",
-    "proof": "`workbench::tests::settings_for_new_projects_and_plugins_open_on_their_pages`; opens Settings on Plugins; without a plugin host in the test the page is unavailable, and the page's listing through the host has never run"
+    "proof": "`workbench::tests::settings_for_new_projects_and_plugins_open_on_their_pages`; opens Settings on Plugins; in that test there is no plugin host and the page is unavailable; the listing through the host is proven on the Welcome page and the Plugins window, not inside Settings"
   },
   "point.registerToolWindow:problems": {
     "status": "partial",
@@ -5754,5 +5754,205 @@
   "ipc:app_quit": {
     "status": "partial",
     "proof": "`workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`; Quit confirms the exit and asks each window about its unsaved changes, and Cancel keeps the window and its text; quitting itself (every window closed, the app exiting) is not asserted"
+  },
+  "action:plugins.installFromDisk": {
+    "status": "partial",
+    "proof": "`workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`; run through the registry with a plugin folder or its plugin.toml, it shows the install page with the high-risk permission first, installs nothing when cancelled and, accepted, lists the plugin and registers its commands as actions. Missing: without an argument the picker opens with no title and no test drives it, and a package file (unpacked first) is never installed by a test"
+  },
+  "action:plugins.reloadAll": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed`; run through the registry, every listed plugin is reloaded on the window's host and the page lists the plugin whose manifest broke as Failed with its reason, a state only a reload produces (sync_links skips a folder already loaded); the Could not reload notification has no test"
+  },
+  "action:plugins.log.toggleArgument": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`; run through the registry with { id, checked }, the active log tab's Verbose switch turns on and the program restarts with its argument, whose output then shows in the tab"
+  },
+  "action:(dynamic) src/features/plugins/views/logActions.ts:35": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `plugin_views::log_tab::tests::renders_partial_output_read_only_handles_early_exit_clears_and_wraps`; plugins.log.clear empties the active log tab and plugins.log.wrap turns its soft wrap off, run through the registry. Missing: plugins.log.find is not registered (no Find in Logs), and soft wrap always starts on instead of following editor.softWrap"
+  },
+  "action:view.backgroundTasks": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; the tasks status item runs the action and Background Tasks opens with the plugin's task and its working Cancel. Differs: the native action toggles, so running it again closes the popup, where the webview's action only opens it"
+  },
+  "action:debug.pluginStart": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`, `workbench::plugin_contributions::tests::debug_plugin_configuration_runs_only_while_a_project_is_open`; a plugin's debug request runs its configuration under the debug adapter in the Debug tool window, not in Run, and the plugin hears the session's exit code; the registry refuses the action without a project and runs it with one. Missing: the JDWP branch of a plugin detector (java-debug with debugArgs, debug.attach) is not reached, and a waiting request is answered when the session ends rather than when it starts"
+  },
+  "ipc:plugin_preview_install": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`; the install page lists the capabilities the preview reports, the high-risk process:checkstyle first; the native path calls PluginHost::preview_install with the folder, as the adapter does"
+  },
+  "ipc:plugin_install_dir": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`; accepted on the install page, the folder is installed through PluginHost::install_from_dir with the consent given, as the adapter does, and the host then lists the plugin; declined, nothing is installed"
+  },
+  "ipc:plugin_reload": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed`; PluginHost::reload of each listed plugin, as the adapter calls it per id, turns the plugin whose manifest broke into a Failed entry with its reason"
+  },
+  "ipc:plugin_set_enabled": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::the_rows_checkbox_disables_and_enables_the_plugin`; the row's checkbox calls PluginHost::set_enabled with the plugin's id, as the adapter does, and the host lists it disabled, then enabled again"
+  },
+  "ipc:plugin_uninstall": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`; confirmed, PluginHost::uninstall removes the plugin from the host and from the page; nothing is removed before the answer"
+  },
+  "ipc:plugin_secrets": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::a_secret_typed_into_the_page_is_stored_through_the_host_and_never_shown_emitted_or_logged`; the Secrets section lists api-key as not set from PluginHost::secrets, and after storing reads it again and shows it set"
+  },
+  "ipc:plugin_set_secret": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::a_secret_typed_into_the_page_is_stored_through_the_host_and_never_shown_emitted_or_logged`; Enter in the secret field calls PluginHost::set_secret with the plugin, the name and the typed value, which reaches the secret store; the value is in no event, log line or listing. Removing a secret from the page has no test"
+  },
+  "ipc:plugin_status_items": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`; the window asks PluginHost::status_snapshot for its label on every project change and listing, as the adapter does. Missing: every asserted item arrives by a status event, so no test needs the snapshot (an item set before the window opened)"
+  },
+  "ipc:plugin_context_keys": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`; the plugin sets plugin.jobs.notification-action and the window, told the keys changed, reads them from PluginHost::context_keys for its label and holds the value in its context"
+  },
+  "ipc:plugin_cancel_task": {
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; Cancel calls PluginHost::cancel_task with the task's id: the row shows Cancelling…, the program the plugin waits on stops and the task leaves the list"
+  },
+  "ipc:plugin_answer_prompt": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::a_plugins_text_question_is_answered_and_the_command_gets_the_text`, `workbench::plugin_runtime::tests::closes_a_question_the_plugin_gave_up_on_without_answering`; the typed text reaches the waiting command untrimmed, Escape answers none, and a question whose plugin was turned off closes unanswered"
+  },
+  "ipc:plugin_post_events": {
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugin_runtime::tests::a_changed_plugin_setting_reaches_the_plugin_as_settings_changed`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; the window posts file-saved, action-performed, settings-changed and vcs-changed through PluginHost::post_window_events with its label and the focused editor, and the plugins record or show them"
+  },
+  "ipc:plugin_event_kinds": {
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::an_input_mode_change_reaches_the_plugin_that_wants_it`, `workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`; the window asks PluginHost::event_kinds after the initial load, as the adapter does, and posts only kinds some plugin wants; the events reach the plugins once the kinds are known"
+  },
+  "ipc:plugin_set_active_file": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; focusing a.txt calls PluginHost::set_active_file for the window, which activates git-toolbox on editor-focused and its item shows the branch"
+  },
+  "ipc:plugin_finish_operation": {
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`; when the plugin's run or debug session ends the window calls PluginHost::finish_operation with its label, the operation and the exit code (3, then 0), not stopped, and the plugin records that status"
+  },
+  "ipc:plugin_log_tab_spawn": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`; the log tab starts its program through spawn_log_tab_pty with the plugin, the key, the window and the toggles that are on, and the program's lines, then its verbose lines after the toggle, show in the tab"
+  },
+  "ipc:plugin_activation_event": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::focusing_an_editor_fires_the_language_and_file_activation_events`; focusing a plain text file fires the language activation and a file under notes/ the file activation through PluginHost::activation_event with the project root; each plugin goes from Inactive to Active only then. Missing: the view activation kind has no native caller, since plugin views are not hosted"
+  },
+  "ipc:plugin_prepare_debug_run": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`; the debugger asks PluginHost::prepare_debug_run with the window's label and the configuration before starting the session. Missing: nothing asserted depends on what the preparation changed, and it runs in an async backend task rather than on the blocking pool"
+  },
+  "ipc:plugin_language_visuals": {
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::renders_owned_gutter_commands_and_drops_answers_to_superseded_buffers`, `workbench::plugin_contributions::tests::puts_the_actions_of_one_line_behind_one_icon_whose_click_opens_a_menu`; the gutter shows the plugin's action on its line from ide_host::ops::lsp::plugin_language_visuals for the editor's document, the adapter's call, and drops an answer for text that has changed since"
+  },
+  "ipc:plugin_subscribe": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; the window hears the host's events through the app's listener, filtered by its label, in place of a channel per window. Missing: no test shows that another window's events stay out"
+  },
+  "point.registerMenuSlotItem:(at) src/features/plugins/uiPoints.tsx:177": {
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`; Tools lists the plugin's entries in order, greyed out while their command's when fails and enabled once it holds, and the chosen entry runs the command in the editor"
+  },
+  "point.registerMenuGroup:plugins": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`; the Project view's menu offers the plugin's entry after Delete… once its when holds and runs it. Missing: the editor's plugin group is only built, never opened in a menu, and the editor tab, Problems and Search Results menus have no plugin group"
+  },
+  "point.registerStatusItem:(at) src/features/plugins/runtimeUi.tsx:159": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; declared items show before the code runs, named after the plugin in the bar's menu, a click runs the item's command, and items the code sets, overrides for this window and removes show as set"
+  },
+  "point.registerOverlay:workbench.backgroundTasks": {
+    "status": "done",
+    "proof": "`workbench::background_tasks_view::tests::the_popups_cancel_buttons_working_cancelling_and_disabled_with_the_reason`, `workbench::background_tasks_view::tests::shows_progress_and_uncancellable_tasks`, `workbench::background_tasks_view::tests::escape_does_nothing_while_the_popup_has_no_keyboard`, `workbench::background_tasks_view::tests::an_empty_list_says_there_are_no_background_tasks`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; the popup lists the tasks with progress, a working, Cancelling… or disabled-with-reason Cancel, says when there are none, and Escape closes it only while it has the keyboard"
+  },
+  "point.registerOverlay:plugins.consent": {
+    "status": "partial",
+    "proof": "`workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`; the install page over the window, capabilities from the highest risk down, Cancel and OK answered. Missing: the dialog a running plugin's permission request opens, and the grant of a listed plugin, have no test"
+  },
+  "point.registerEditorKind:pluginLog": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `plugin_views::log_tab::tests`; a log tab opened by plugin code shows its program's output, its toggles restart the program, Clear and Soft-wrap work. Missing: Find in Logs, and no test checks the tab stays mounted across tab switches"
+  },
+  "settings:(at) src/features/plugins/settings.tsx:327": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `plugin_views::settings_page::tests::preserves_the_legacy_single_schema_page`; file.settings opens the plugin's page, a ticked setting saved with OK is in the global settings and the plugin hears settings-changed with its key. Missing: the This project scope of the page has no test, and multi-line strings are edited on one line"
+  },
+  "settings:(at) src/features/plugins/settings.tsx:337": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `plugin_views::settings_page::tests::stages_table_edits_and_discards_them_on_cancel`, `plugin_views::settings_page::tests::adds_edits_reorders_and_removes_list_entries`; the plugin's page links its child pages, a child page's table rows are added and staged, and its action applies them before the command reads them, with the error shown under the button. Missing: Reset per page, the project scope, and an apply that fails before the command"
+  },
+  "settings:plugins": {
+    "status": "partial",
+    "proof": "`workbench::plugins_window::tests::the_rows_checkbox_disables_and_enables_the_plugin`, `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`, `workbench::plugins_window::tests::a_secret_typed_into_the_page_is_stored_through_the_host_and_never_shown_emitted_or_logged`, `workbench::plugins_window::tests::the_welcome_screen_lists_projects_and_customize_and_plugins_only_with_a_plugin_host`; the Plugins page lists, enables, disables, uninstalls and stores secrets on the host, proven on the Welcome screen's instance of the same page. Missing: no test opens Settings › Plugins with a plugin host, and the catalog, marketplace, grant, roll back and IntelliJ imports have no test"
+  },
+  "module:src/editor/lsp/pluginVisuals.ts": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::renders_owned_gutter_commands_and_drops_answers_to_superseded_buffers`; one versioned request per document text, an answer for older text dropped, for the gutter actions. Missing: plugin highlighting and color previews do not share it"
+  },
+  "unit:src/features/plugins/__tests__/settings.test.tsx": {
+    "status": "partial",
+    "proof": "`plugin_views::settings_page::tests::adds_edits_reorders_and_removes_list_entries`, `plugin_views::settings_page::tests::preserves_the_legacy_single_schema_page`, `plugin_views::settings_page::tests::loads_saved_plugin_settings_into_the_dialog_including_dotted_plugin_ids_and_keys`, `plugin_views::settings_page::tests::falls_back_from_malformed_stored_tables`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`; 5 of 12 cases: list entries, the legacy page, saved values with dotted ids, malformed tables, and pending values applied before the command with its error inline. Missing: removal of the child pages on unload and the enum keywords (on the page list only), changes kept between pages, a failed apply, Reset ownership, the oversized edit on the llm page (templates only) and the project scope of the command"
+  },
+  "unit:src/features/plugins/__tests__/logEditor.test.tsx": {
+    "status": "partial",
+    "proof": "`plugin_views::log_tab::tests::shows_output_channel_snapshots_in_the_read_only_log_editor_without_starting_a_process`, `workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`; 2 of 8 cases: output snapshots without a process, and a code-opened tab started by its key with the toggles that are on. Missing: malformed requests, output bounds (on the function only), Find in the partial-output case, the kill of the program at every lifecycle boundary (the view's Stop only), a spawn that resolves after the tab closed, and the transient tab kind"
+  },
+  "wit:wit/host.wit#ui": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_runtime::tests::a_plugin_opens_a_file_at_a_position_copies_text_and_opens_a_url`, `workbench::plugin_runtime::tests::a_plugins_text_question_is_answered_and_the_command_gets_the_text`, `workbench::plugin_runtime::tests::closes_a_question_the_plugin_gave_up_on_without_answering`; fixture plugins use notify, notify with actions, set-status-item, set and remove-window-status-item, set-context, copy-to-clipboard, open-url, input, pick and pick-many, and the window shows or answers each. Missing: pick-directory, confirm, input-multiline, remove-status-item, remove-context and locale are used by no app-level test"
+  },
+  "wit:wit/events.wit#events": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugin_runtime::tests::a_changed_plugin_setting_reaches_the_plugin_as_settings_changed`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`, `workbench::plugin_contributions::tests::an_input_mode_change_reaches_the_plugin_that_wants_it`; subscribe and subscribe-paths with file-saved, action-performed, settings-changed, editor-focused and vcs-changed delivered by the window. Missing: file-opened, file-closed, files-changed and scheduled are asserted by no test, and input-mode-changed is produced by the test itself (nothing in the app reports an input mode)"
+  },
+  "wit:wit/events.wit#tasks": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; begin shows the plugin's cancellable task in the status bar and Background Tasks, and Cancel makes is-cancelled stop it. Missing: report (progress and message) is asserted by no test"
+  },
+  "wit:wit/exports.wit#commands": {
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`; the window runs a plugin's exported run for its commands, from the Tools menu, a status item and the registry, and the command's effects show in the editor or a notification"
+  },
+  "wit:wit/exports.wit#event-handler": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; handle receives the batches the window posts and the plugins record or show them. Missing: the same kinds as the events row (file-opened, file-closed, files-changed, scheduled)"
+  },
+  "wit:wit/exports.wit#lifecycle": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::focusing_an_editor_fires_the_language_and_file_activation_events`; activate runs when the window fires the language and file activation events, the plugin going from Inactive to Active. Missing: no test observes deactivate, and on-view activation has no native caller"
+  },
+  "wit:wit/views.wit#views": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `workbench::plugin_runtime::tests::a_plugin_opens_a_file_at_a_position_copies_text_and_opens_a_url`; open-log-tab opens a native log tab and open-location opens the file with the caret at the line and column. Missing: open-terminal only logs a warning, open-terminal-session, open-content-tab and reply-content-tab are refused, refresh, reveal and post-message reach no native view"
+  },
+  "wit:wit/views.wit#settings": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`; get returns the global value the window applied (the saved profile the command reads). Missing: the project-over-global layering has no test"
+  },
+  "wit:wit/run.wit#run": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`; start runs the plugin's configuration in the Run tool window, or under the debug adapter when asked to debug, and the plugin hears the exit. Missing: the JDWP debug of a plugin detector"
+  },
+  "wit:wit/run.wit#run-configurations": {
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_run_detectors_are_listed_in_the_configuration_chooser`; the plugin's detected and dynamic configurations are listed with the project's and in the configuration chooser"
+  },
+  "wit:wit/workspace.wit#invocation": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`; a command run from the window gets its project and focused editor (the word count of notes.txt). Missing: no test asserts the selected paths a menu passes"
+  },
+  "wit:wit/language-features.wit#language-features": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::renders_owned_gutter_commands_and_drops_answers_to_superseded_buffers`, `workbench::plugin_contributions::tests::puts_the_actions_of_one_line_behind_one_icon_whose_click_opens_a_menu`, `workbench::plugin_contributions::tests::a_gutter_icon_click_neither_moves_the_caret_nor_toggles_a_breakpoint`; gutter-actions show as icons whose click runs the action without moving the caret or toggling a breakpoint, two plugins' actions of a line behind one menu. Missing: every other function of the interface (format, signature help, highlights, links, lenses, folding, colors, symbols…) has no app-level test"
   }
 }
