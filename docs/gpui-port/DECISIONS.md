@@ -661,7 +661,7 @@ Every slice since the Run tool window was proven in the test harness only. On 20
 - The intermittent branch test was a wait on the wrong thing: an operation refreshes, then notifies, and the backend's own file event can update the widget before the operation's read returns, so a test that waited for the widget and then asserted the notice could run early. The tests wait for the notice now; assertions are unchanged. The same class was found in three other tests and fixed the same way.
 - Not wired: the in-editor accept / next conflict actions on marker blocks, blame in the merge panes, the indent menu, the read-only toggle, the Background Tasks popup, the gear's Theme and Keymap submenus, and the status items that have no data yet (memory, Vim, breadcrumbs, agents, remote, language level, plugin items).
 
-## D80 — Editor tabs that hold a viewer; the Database tool window; a shortcut gap in the action manifest
+## D80. Editor tabs that hold a viewer; the Database tool window; a shortcut gap in the action manifest
 
 - An editor tab can hold a view other than a text editor: a second field beside the editors, keyed by tab, with the kinds `image` and `binary`. Neither is restored with the session, as in the webview. A Markdown file stays a text tab and gets its Editor / Split / Preview buttons and a live preview. Open as Text adds a read-only text tab beside the hex tab (`controller.ts` admits a new input and closes nothing).
 - Which viewer a file gets is decided by the same backend call that opens its document. A separate probe before the open was drafted and made two completion tests intermittent (the language server attached while the test typed); one call removed the race. A failed probe falls back to the text editor, as `resolveFileEditor` does.
