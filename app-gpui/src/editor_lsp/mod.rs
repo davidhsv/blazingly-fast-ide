@@ -11,6 +11,7 @@ pub mod completion;
 pub mod completion_items;
 pub mod completion_view;
 pub mod configuration_navigation;
+pub mod definition_view;
 pub mod diagnostics;
 pub mod file_references;
 pub mod files;

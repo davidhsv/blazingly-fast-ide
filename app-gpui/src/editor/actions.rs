@@ -22,11 +22,18 @@ pub(super) fn on_editor(
 pub fn register(cx: &mut App) {
     let registry = cx.default_global::<ActionRegistry>();
     registry.handle("edit.undo", |_, window, cx| {
+        // With nothing of its own left to undo, the editor undoes the refactoring of its file.
+        if workbench::undo_refactoring(window, cx) {
+            return Ok(());
+        }
         on_editor(window, cx, |editor, cx| {
             editor.undo(cx);
         })
     });
     registry.handle("edit.redo", |_, window, cx| {
+        if workbench::redo_refactoring(window, cx) {
+            return Ok(());
+        }
         on_editor(window, cx, |editor, cx| {
             editor.redo(cx);
         })
@@ -61,5 +68,6 @@ pub fn register(cx: &mut App) {
         Ok(())
     });
     super::command_actions::register(cx);
+    super::core_actions::register(cx);
     super::intelligence::register(cx);
 }

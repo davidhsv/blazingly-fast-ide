@@ -20,8 +20,10 @@ pub mod context_menus;
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 use crate::debugger::effects::DEBUG_TOOL_WINDOW;
 mod diff_window;
+mod editor_core;
 mod editor_find;
 mod editor_intelligence;
+mod editor_language;
 mod log_actions;
 mod log_window;
 pub mod main_toolbar;
@@ -290,6 +292,8 @@ pub struct Workbench {
     welcome: Option<(Entity<Welcome>, Subscription)>,
     /// The Find / Replace bar of a single-file window's editor.
     light_find_bar: Option<TabFindBar>,
+    /// Where the caret has been in the window's editors: Back / Forward and the edit locations.
+    editor_core: editor_core::EditorCore,
     /// The Services tool window of the open project, once it was shown or used.
     services: Option<services_window::ServicesWindow>,
     /// The diff shown in front of the window.
@@ -311,6 +315,9 @@ pub struct Workbench {
     git_log: Option<log_window::LogSlot>,
     /// The dialog a Git operation waits on.
     vcs_dialog: Option<branches::VcsDialog>,
+    /// The editor language actions: the refactorings undoable as one step, the highlighted usages,
+    /// the rename waiting for its edit.
+    language: editor_language::EditorLanguage,
     /// Resolving the project's merge conflicts: the merge editor, the conflict banners and what the
     /// Conflicts dialog remembers.
     conflicts: conflicts::ConflictsSlot,
@@ -500,10 +507,12 @@ pub fn register_actions(cx: &mut App) {
     log_actions::register_actions(registry);
     bookmarks_window::register_actions(registry);
     project_files::register_actions(registry);
+    editor_core::register_actions(registry);
     todo_window::register_actions(registry);
     build_window::register_actions(registry);
     database::register_actions(registry);
     code_insight::register_actions(registry);
+    editor_language::register_actions(registry);
     agents::register_actions(registry);
     tab_views::register_actions(registry);
     plugin_runtime::register_actions(registry);
@@ -928,6 +937,8 @@ pub fn active_editor(window: &Window, cx: &App) -> Option<Entity<Editor>> {
     for_window(window, cx)?.read(cx).editor().cloned()
 }
 
+pub(crate) use editor_language::{redo_refactoring, undo_refactoring};
+
 impl Workbench {
     /// The workbench of `window`, known to the backend as `label`.
     pub fn new(label: &str, window: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -1015,6 +1026,7 @@ impl Workbench {
             session_save: None,
             popup: None,
             light_find_bar: None,
+            editor_core: Default::default(),
             services: None,
             diff_window: None,
             run_widget: None,
@@ -1025,6 +1037,7 @@ impl Workbench {
             commit: None,
             git_log: None,
             vcs_dialog: None,
+            language: Default::default(),
             conflicts: Default::default(),
             vcs_operations: Default::default(),
             shelf: Default::default(),
@@ -1200,6 +1213,9 @@ impl Workbench {
                 if let Some((_, task)) = own.command.split_once(':') {
                     self.open_agent_task(task, cx);
                 }
+            }
+            EntryAction::Own(own) if own.command == editor_language::WORKSPACE_UNDO_COMMAND => {
+                self.run_language_notification(&own.command, cx);
             }
             EntryAction::Own(own) if own.command.starts_with("vcs.deleted.") => {
                 if !self.run_vcs_follow_up(&own.command, window, cx) {
@@ -1937,6 +1953,7 @@ impl Workbench {
         set_context(window, cx, "findBarOpen", !self.shown_find_bars().is_empty());
         set_context(window, cx, "findBarFocus", focused_bar.is_some());
         set_context(window, cx, "findBarHasResults", focused_bar.is_some_and(|bar| bar.read(cx).has_results()));
+        set_context(window, cx, "pasteHistoryOpen", self.paste_history_dialog().is_some());
         set_context(window, cx, "projectOpen", self.project_tree().is_some());
         set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor(_) | Content::Viewer(_)));
         set_context(window, cx, "textEditorActive", editor.is_some());

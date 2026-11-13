@@ -33,6 +33,9 @@ pub struct AppDirs {
     pub data: PathBuf,
     /// Machine-local tools and rebuildable caches.
     pub local_data: PathBuf,
+    /// Under a home of its own (tests, [`HOME_ENV`]): saved passwords stay in files there, never
+    /// in the user's keychain.
+    pub isolated: bool,
 }
 
 impl AppDirs {
@@ -48,12 +51,18 @@ impl AppDirs {
             config: dir(dirs::config_dir(), "configuration")?,
             data: dir(dirs::data_dir(), "data")?,
             local_data: dir(dirs::data_local_dir(), "local data")?,
+            isolated: false,
         })
     }
 
     /// `config`, `data` and `local-data` inside `home`.
     pub fn under(home: &Path) -> Self {
-        Self { config: home.join("config"), data: home.join("data"), local_data: home.join("local-data") }
+        Self {
+            config: home.join("config"),
+            data: home.join("data"),
+            local_data: home.join("local-data"),
+            isolated: true,
+        }
     }
 }
 
@@ -109,6 +118,10 @@ impl Backend {
             tracing::warn!(local_data_dir = ?dirs.local_data, %error, "cannot create local data directory");
         }
         tracing::info!(data_dir = ?dirs.data, local_data_dir = ?dirs.local_data, "application data directories");
+        // Before the first saved-password store exists (git credentials here, then the host's).
+        if dirs.isolated {
+            ide_ssh::secrets::keep_secrets_in_files();
+        }
         // Saved git HTTPS credentials (askpass answers them silently).
         ide_ssh::git_creds::init(dirs.data.join("git-credentials.json"));
         // File › Invalidate Caches… requested at the last run.
@@ -255,6 +268,56 @@ mod tests {
         let dirs = AppDirs::under(Path::new("/tmp/x"));
         assert_eq!(dirs.config, Path::new("/tmp/x/config"));
         assert_eq!(dirs.local_data, Path::new("/tmp/x/local-data"));
+        assert!(dirs.isolated, "a home of its own keeps its saved passwords out of the keychain");
+    }
+
+    /// The SSH password the Settings dialog applies and the database password a data source saves
+    /// go through the same backend calls as the UI's, and land in owner-only files under the
+    /// temporary home; the OS credential store is never set up in this process.
+    #[gpui_kit::test]
+    async fn saved_passwords_stay_in_files_under_a_temporary_home(cx: &mut TestAppContext) {
+        const SSH_SECRET: &str = "not-a-real-ssh-password";
+        const DB_SECRET: &str = "not-a-real-database-password";
+        cx.executor().allow_parking();
+        let home = tempfile::tempdir().expect("a temporary home");
+        let project = tempfile::tempdir().expect("a temporary project");
+        std::fs::write(project.path().join("README.md"), "# p\n").expect("a project file");
+        let root = project.path().canonicalize().expect("the project root");
+        cx.update(|cx| Backend::init(AppDirs::under(home.path()), cx)).expect("the backend starts");
+        assert!(ide_ssh::secrets::secrets_in_files(), "the isolated home keeps saved passwords in files");
+
+        let saved = cx.update(|cx| {
+            let root = root.clone();
+            cx.global::<Backend>().with_host(move |host| async move {
+                ide_host::ops::project::open(&host, "w1", &root).await?;
+                host.ssh.set_secret("s1", Some(SSH_SECRET.to_owned()), true);
+                ide_host::ops::db::set_password(&host, "w1", "pg", Some(DB_SECRET.to_owned()), true).await
+            })
+        });
+        saved.await.expect("the task completes").expect("the passwords are saved");
+
+        let data = home.path().join("data");
+        let config =
+            ide_core::remote_settings::SshConfiguration { id: "s1".into(), save_secret: true, ..Default::default() };
+        let ssh = ide_ssh::SshManager::new(data.join("ssh-passwords.json"));
+        assert_eq!(ssh.secret(&config).as_deref(), Some(SSH_SECRET), "read back from the file");
+        let db = ide_db::secrets::SecretStore::new(data.join("db-passwords.json"), &root);
+        assert_eq!(db.get("pg").as_deref(), Some(DB_SECRET), "read back from the file");
+        for (file, secret) in [("ssh-passwords.json", SSH_SECRET), ("db-passwords.json", DB_SECRET)] {
+            let vault = data.join(format!("{file}.vault"));
+            let text = std::fs::read_to_string(&vault).expect("the vault file");
+            assert!(text.contains(secret), "{file}.vault holds the secret");
+            assert!(!std::fs::read_to_string(data.join(file)).expect("the index").contains(secret));
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mode = std::fs::metadata(&vault).expect("the vault file").permissions().mode();
+                assert_eq!(mode & 0o777, 0o600, "{file}.vault is owner-only");
+            }
+        }
+
+        assert!(!ide_ssh::secrets::default_store_installed(), "the OS credential store was set up");
+        cx.update(|cx| cx.global::<Backend>().host.close_project("w1"));
     }
 
     /// The real backend opens a fixture project and lists it through `ide_host::ops`, and its

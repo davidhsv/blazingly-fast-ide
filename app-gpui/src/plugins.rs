@@ -104,7 +104,7 @@ pub struct Plugins {
 impl Global for Plugins {}
 
 /// Plugin secrets in the login keychain, one service per plugin under this app's identifier. Test
-/// builds never use it: their hosts keep the default file store under the temporary home.
+/// builds and homes of their own never use it: their hosts keep the default file store there.
 #[cfg(all(target_os = "macos", not(test)))]
 struct KeychainSecrets;
 
@@ -170,10 +170,12 @@ impl Plugins {
         if !cfg!(debug_assertions) {
             host.set_default_market_url(Some(ide_host::plugins::OFFICIAL_MARKET_INDEX.into()));
         }
-        // Without the keychain (other systems, test builds) the host keeps them in files under its
-        // data directory.
+        // Without the keychain (other systems, test builds, a home of its own) the host keeps them
+        // in files under its data directory.
         #[cfg(all(target_os = "macos", not(test)))]
-        host.set_secret_store(Arc::new(KeychainSecrets));
+        if !cx.global::<Backend>().dirs.isolated {
+            host.set_secret_store(Arc::new(KeychainSecrets));
+        }
         ide_host::plugins::set_editor_providers(Some(&host));
         let trust = Arc::downgrade(&projects);
         host.set_project_policy(Arc::new(move |root| {

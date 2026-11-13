@@ -136,8 +136,13 @@ struct Layout {
     /// Left edge of the text, right of the gutter.
     text_left: Pixels,
     line_height: Pixels,
+    /// The first painted row (a row is a line no fold hides).
     first_line: u32,
     lines: Vec<(String, ShapedLine)>,
+    /// The document line of each painted row.
+    line_of: Vec<u32>,
+    /// Where the last frame drew the line tints, breakpoint dots and problem underlines.
+    painted_marks: Vec<(super::marks::MarkKind, Bounds<Pixels>)>,
 }
 
 /// The editors that show each document. The backend reports the edits it makes itself, not the
@@ -261,6 +266,8 @@ pub struct Editor {
     /// Counts edits, so that a highlight request an edit has overtaken is dropped.
     generation: u64,
     created: std::time::Instant,
+    /// Folding, Extend / Shrink Selection and the font zoom ([`super::core_actions`]).
+    pub(super) core: super::core_actions::CoreState,
 }
 
 impl Editor {
@@ -353,6 +360,7 @@ impl Editor {
             dirty: info.dirty,
             generation: 0,
             created: std::time::Instant::now(),
+            core: Default::default(),
         };
         editor.refresh_highlights(cx);
         editor
@@ -436,13 +444,13 @@ impl Editor {
 
     /// The first line the view shows, as scrolled.
     pub fn top_line(&self, cx: &App) -> u32 {
-        (self.scroll_top / Self::metrics(cx).1).floor() as u32
+        self.core.folds.line_of_row((self.scroll_top / self.metrics(cx).1).floor() as u32)
     }
 
     /// Scrolls so that `line` is the first one shown (the last line, if the document is shorter).
     pub fn scroll_to_line(&mut self, line: u32, cx: &mut Context<Self>) {
         let line = line.min(self.line_count().saturating_sub(1));
-        self.scroll_top = Self::metrics(cx).1 * line as f32;
+        self.scroll_top = self.metrics(cx).1 * self.core.folds.row_of_line(line) as f32;
         cx.notify();
     }
 
@@ -485,9 +493,27 @@ impl Editor {
         self.scroll_top
     }
 
-    /// The lines the last frame shaped: the first one's index and how many.
+    /// The document lines the last frame painted, from the first to the last (the lines a fold
+    /// hides between them included).
     pub fn painted_lines(&self) -> Option<Range<u32>> {
-        self.layout.as_ref().map(|l| l.first_line..l.first_line + l.lines.len() as u32)
+        let layout = self.layout.as_ref()?;
+        Some(layout.line_of.first().copied().unwrap_or(0)..layout.line_of.last().map_or(0, |last| last + 1))
+    }
+
+    /// How many rows the last frame painted.
+    pub fn painted_rows(&self) -> u32 {
+        self.layout.as_ref().map_or(0, |layout| layout.lines.len() as u32)
+    }
+
+    /// Where the last frame painted the editor, gutter included.
+    pub fn painted_bounds(&self) -> Option<Bounds<Pixels>> {
+        self.layout.as_ref().map(|layout| layout.bounds)
+    }
+
+    /// Where the last frame drew marks of `kind`: a tinted row, a breakpoint dot, a problem's underline.
+    pub fn painted_marks(&self, kind: super::marks::MarkKind) -> Vec<Bounds<Pixels>> {
+        let painted = self.layout.as_ref().map(|layout| layout.painted_marks.as_slice()).unwrap_or_default();
+        painted.iter().filter(|(painted, _)| *painted == kind).map(|(_, bounds)| *bounds).collect()
     }
 
     /// The marks `layer` set, in document order.
@@ -536,7 +562,7 @@ impl Editor {
 
     /// The height of a line of text.
     pub fn line_height(&self, cx: &App) -> Pixels {
-        Self::metrics(cx).1
+        self.metrics(cx).1
     }
 
     /// Whether the editor accepts edits.
@@ -554,8 +580,36 @@ impl Editor {
         &self.rope
     }
 
-    fn metrics(cx: &App) -> (Pixels, Pixels, Pixels) {
-        (theme::length(cx, "fs-code"), theme::length(cx, "lh-code"), theme::length(cx, "w-gutter"))
+    /// The font size, line height and gutter width the editor paints with: the theme's, the font
+    /// and the line height scaled by the editor's font zoom.
+    fn metrics(&self, cx: &App) -> (Pixels, Pixels, Pixels) {
+        let (size, line) = (theme::length(cx, "fs-code"), theme::length(cx, "lh-code"));
+        let zoomed = (size + px(self.core.font_zoom as f32)).max(px(1.0));
+        (zoomed, line * (zoomed / size), theme::length(cx, "w-gutter"))
+    }
+
+    /// The font size the editor paints with.
+    pub fn font_size(&self, cx: &App) -> Pixels {
+        self.metrics(cx).0
+    }
+
+    /// Makes the editor accept edits or refuse them, as its file now is.
+    pub fn set_read_only(&mut self, read_only: bool, cx: &mut Context<Self>) {
+        if self.read_only != read_only {
+            self.read_only = read_only;
+            cx.notify();
+        }
+    }
+
+    /// Scroll to Center: the main caret's row goes to the middle of the view.
+    pub fn scroll_caret_to_center(&mut self, cx: &mut Context<Self>) {
+        let line_height = self.metrics(cx).1;
+        let viewport = self.layout.as_ref().map_or(px(0.0), |layout| layout.bounds.size.height);
+        let row = self.core.folds.row_of_line(self.caret_position().0);
+        let content = line_height * self.core.folds.row_count(self.line_count()) as f32;
+        let top = line_height * row as f32 + line_height / 2.0 - viewport / 2.0;
+        self.scroll_top = top.clamp(px(0.0), (content - viewport).max(px(0.0)));
+        cx.notify();
     }
 
     /// The first font of the theme's `--font-mono` list that is installed.
@@ -635,6 +689,10 @@ impl Editor {
     pub fn set_selections(&mut self, ranges: Vec<(u32, u32)>, main: usize, cx: &mut Context<Self>) {
         let before = (self.selections.clone(), self.main);
         self.put_selections(ranges, main);
+        // A caret inside a fold opens it: no caret is hidden.
+        let heads: Vec<u32> = self.selections.iter().map(|range| range.head()).collect();
+        let state = self.edit_state();
+        self.core.folds.reveal(&state, &heads);
         self.history.seal();
         self.reveal_caret(cx);
         if before != (self.selections.clone(), self.main) {
@@ -665,8 +723,8 @@ impl Editor {
     /// Scrolls so that the main caret's line is inside the viewport.
     fn reveal_caret(&mut self, cx: &App) {
         let Some(layout) = &self.layout else { return };
-        let (_, line_height, _) = Self::metrics(cx);
-        let line_top = line_height * self.caret_position().0 as f32;
+        let (_, line_height, _) = self.metrics(cx);
+        let line_top = line_height * self.core.folds.row_of_line(self.caret_position().0) as f32;
         let height = layout.bounds.size.height;
         if line_top < self.scroll_top {
             self.scroll_top = line_top;
@@ -677,9 +735,9 @@ impl Editor {
 
     /// Scrolls by `delta` pixels (positive moves the text up), clamped to the document.
     pub fn scroll_by(&mut self, delta: Pixels, cx: &mut Context<Self>) {
-        let (_, line_height, _) = Self::metrics(cx);
+        let (_, line_height, _) = self.metrics(cx);
         let viewport = self.layout.as_ref().map_or(px(0.0), |l| l.bounds.size.height);
-        let content = line_height * self.line_count() as f32;
+        let content = line_height * self.core.folds.row_count(self.line_count()) as f32;
         let max = (content - viewport).max(px(0.0));
         let next = (self.scroll_top + delta).clamp(px(0.0), max);
         if next != self.scroll_top {
@@ -728,6 +786,10 @@ impl Editor {
             (mapped.collect(), self.main)
         });
         self.put_selections(ranges, main);
+        let after = self.edit_state();
+        self.core.folds.map(&after, &changes);
+        let heads: Vec<u32> = self.selections.iter().map(|range| range.head()).collect();
+        self.core.folds.reveal(&after, &heads);
         self.marked = None;
         for marks in self.marks.values_mut() {
             *marks = map_marks(marks, &changes);
@@ -1263,6 +1325,7 @@ impl Editor {
             self.highlights.clear();
             return;
         }
+        super::core_actions::refresh_folds(self, cx);
         let (host, window, doc) = (self.host.clone(), self.window_label.clone(), self.doc);
         let generation = self.generation;
         cx.spawn(async move |editor, cx| {
@@ -1300,9 +1363,15 @@ impl Editor {
     pub fn position_of(&self, offset: u32) -> Option<Point<Pixels>> {
         let layout = self.layout.as_ref()?;
         let (line, col) = buffer::line_col(&self.rope, offset);
-        let (text, shaped) = layout.lines.get(line.checked_sub(layout.first_line)? as usize)?;
+        let row = self.core.folds.row_of_line(line);
+        let index = row.checked_sub(layout.first_line)? as usize;
+        // A hidden line is not painted.
+        if layout.line_of.get(index) != Some(&line) {
+            return None;
+        }
+        let (text, shaped) = layout.lines.get(index)?;
         let x = shaped.x_for_index(buffer::byte_of_col(text, col));
-        let y = layout.line_height * line as f32 - self.scroll_top;
+        let y = layout.line_height * row as f32 - self.scroll_top;
         Some(point(layout.bounds.left() + layout.text_left + x, layout.bounds.top() + y))
     }
 
@@ -1310,9 +1379,11 @@ impl Editor {
     pub fn offset_at(&self, position: Point<Pixels>) -> Option<u32> {
         let layout = self.layout.as_ref()?;
         let y = (position.y - layout.bounds.top() + self.scroll_top).max(px(0.0));
-        let line = ((y / layout.line_height) as u32).min(self.line_count().saturating_sub(1));
+        let rows = self.core.folds.row_count(self.line_count());
+        let row = ((y / layout.line_height) as u32).min(rows.saturating_sub(1));
+        let line = self.core.folds.line_of_row(row);
         let x = position.x - layout.bounds.left() - layout.text_left;
-        let col = match layout.lines.get(line.checked_sub(layout.first_line)? as usize) {
+        let col = match layout.lines.get(row.checked_sub(layout.first_line)? as usize) {
             Some((text, shaped)) => buffer::col_of_byte(text, shaped.closest_index_for_x(x)),
             None => 0,
         };
@@ -1337,6 +1408,16 @@ impl Editor {
             state = commands::apply(&state, &motion.edit);
             goals = motion.goals;
             moved = true;
+            // A line inside a fold is not on screen: the caret goes on to the next line shown.
+            while self.core.folds.is_hidden(state.line_at(state.main().head()).number) {
+                let before = state.main().head();
+                let Some(motion) = step(&state, &goals) else { break };
+                state = commands::apply(&state, &motion.edit);
+                goals = motion.goals;
+                if state.main().head() == before {
+                    break;
+                }
+            }
         }
         if moved {
             self.set_selections(state.selections, state.main, cx);
@@ -1434,10 +1515,18 @@ impl Editor {
         }
         match keystroke.key.as_str() {
             "left" => self.move_carets(extend, cx, |editor, range| {
-                if !extend && !range.is_caret() { range.start() } else { editor.previous_offset(range.head()) }
+                if !extend && !range.is_caret() {
+                    range.start()
+                } else {
+                    editor.core.folds.step(range.head(), editor.previous_offset(range.head()))
+                }
             }),
             "right" => self.move_carets(extend, cx, |editor, range| {
-                if !extend && !range.is_caret() { range.end() } else { editor.next_offset(range.head()) }
+                if !extend && !range.is_caret() {
+                    range.end()
+                } else {
+                    editor.core.folds.step(range.head(), editor.next_offset(range.head()))
+                }
             }),
             "up" => self.vertical(-1, extend, cx),
             "down" => self.vertical(1, extend, cx),
@@ -1471,7 +1560,7 @@ impl Editor {
     /// Lines a Page Up / Page Down moves by: one viewport less a line of context.
     fn page_lines(&self, cx: &App) -> i64 {
         let viewport = self.layout.as_ref().map_or(px(0.0), |l| l.bounds.size.height);
-        (((viewport / Self::metrics(cx).1).floor() as i64) - 1).max(1)
+        (((viewport / self.metrics(cx).1).floor() as i64) - 1).max(1)
     }
 
     /// The press is the keymap's mouse shortcut for adding or removing a caret.
@@ -1530,12 +1619,10 @@ impl Editor {
             _ => {
                 let (line, _) = buffer::line_col(&self.rope, offset);
                 let range = buffer::line_range(&self.rope, line);
-                // The whole line with its break, so that typing replaces the line.
-                let end = if line + 1 < self.line_count() {
-                    buffer::line_range(&self.rope, line + 1).start
-                } else {
-                    range.end
-                };
+                // The whole line with its break, so that typing replaces the line; the lines a fold
+                // hides go with their header.
+                let next = self.core.folds.line_of_row(self.core.folds.row_of_line(line) + 1);
+                let end = if next < self.line_count() { buffer::line_range(&self.rope, next).start } else { range.end };
                 self.select(range.start, end, cx);
             }
         }
@@ -1550,7 +1637,7 @@ impl Editor {
         if x < px(0.0) || x >= layout.text_left || y < px(0.0) {
             return None;
         }
-        let line = (y / layout.line_height) as u32;
+        let line = self.core.folds.line_of_row((y / layout.line_height) as u32);
         (line < self.line_count()).then_some(line)
     }
 
@@ -1572,7 +1659,9 @@ impl Editor {
         }
         if let Some(start) = self.column_drag {
             let Some(head) = self.block_point_at(event.position) else { return };
-            let ranges = commands::column_mode::rectangle_ranges(&self.edit_state(), start, head);
+            let mut ranges = commands::column_mode::rectangle_ranges(&self.edit_state(), start, head);
+            // The block covers the rows on screen: a range on a line a fold hides would open the fold.
+            ranges.retain(|range| !self.core.folds.is_hidden(buffer::line_col(&self.rope, range.head()).0));
             if !ranges.is_empty() && ranges != self.selections {
                 let main = ranges.len() - 1;
                 self.set_selections(ranges, main, cx);
@@ -1598,7 +1687,7 @@ impl Editor {
             let columns = commands::visible_column::visible_width(text, tab_size);
             (columns > 0).then(|| shaped.width / columns as f32)
         });
-        let painted = line.checked_sub(layout.first_line).and_then(|index| layout.lines.get(index as usize));
+        let painted = layout.line_of.iter().position(|shown| *shown == line).and_then(|index| layout.lines.get(index));
         if let (Some(width), Some((_, shaped))) = (column_width, painted)
             && col as usize == text.encode_utf16().count()
         {
@@ -1620,8 +1709,10 @@ impl Editor {
         if y < px(0.0) {
             return None;
         }
-        let line = (y / layout.line_height) as u32;
-        let (text, shaped) = layout.lines.get(line.checked_sub(layout.first_line)? as usize)?;
+        let row = (y / layout.line_height) as u32;
+        let index = row.checked_sub(layout.first_line)? as usize;
+        let (text, shaped) = layout.lines.get(index)?;
+        let line = *layout.line_of.get(index)?;
         let x = position.x - layout.bounds.left() - layout.text_left;
         if x < px(0.0) || x >= shaped.width {
             return None;
@@ -1813,6 +1904,10 @@ struct Prepared {
     gutter: Pixels,
     /// The marks that touch the painted lines.
     marks: Vec<Mark>,
+    /// Per painted row: the placeholder of the fold its line starts, and the text after the fold.
+    placeholders: Vec<Option<(ShapedLine, ShapedLine)>>,
+    /// Per painted row: the chevron of a folded line in the gutter.
+    markers: Vec<Option<ShapedLine>>,
 }
 
 /// `runs` (covering a line's bytes in order) with the bytes `from..to` in `color`.
@@ -1870,16 +1965,28 @@ impl Element for EditorElement {
         window: &mut Window,
         cx: &mut App,
     ) -> Prepared {
-        let (font_size, line_height, gutter) = Editor::metrics(cx);
+        let editor = self.editor.read(cx);
+        let (font_size, line_height, gutter) = editor.metrics(cx);
         let code_font = Editor::code_font(cx);
         let plain = theme::color(cx, "fg-editor");
         let number_color = theme::color(cx, "fg-gutter");
         let match_color = theme::color(cx, "fg-search-match");
-        let editor = self.editor.read(cx);
+        let placeholder_color = theme::color(cx, "fg-fold-placeholder");
+        let marker_color = theme::color(cx, "fg-fold-marker");
         let total = editor.line_count();
-        let first_line = ((editor.scroll_top / line_height).floor() as u32).min(total.saturating_sub(1));
+        // The frame paints the rows in view; a row is a line no fold hides.
+        let folds = &editor.core.folds;
+        let rows = folds.row_count(total);
+        let first_row = ((editor.scroll_top / line_height).floor() as u32).min(rows.saturating_sub(1));
         let visible = (bounds.size.height / line_height).ceil() as u32 + 1;
-        let last_line = (first_line + visible).min(total);
+        let last_row = (first_row + visible).min(rows);
+        let painted: Vec<u32> =
+            (first_row..last_row).map(|row| folds.line_of_row(row)).filter(|line| *line < total).collect();
+        let first_line = painted.first().copied().unwrap_or(0);
+        let last_line = painted.last().map_or(0, |line| line + 1);
+        // A folded header's placeholder reads the text and its comments; with nothing folded
+        // neither is needed.
+        let state = (!folds.folded().is_empty()).then(|| editor.edit_state());
         let run = |len: usize, color: Hsla| TextRun {
             len,
             font: code_font.clone(),
@@ -1889,7 +1996,7 @@ impl Element for EditorElement {
             strikethrough: None,
         };
 
-        // Spans are sorted: skip to the first one that can touch the first visible line.
+        // The marks that can touch the painted lines.
         let first_offset = buffer::line_range(&editor.rope, first_line).start;
         let last_offset = buffer::line_range(&editor.rope, last_line.saturating_sub(1)).end;
         let marks: Vec<Mark> = editor
@@ -1899,14 +2006,18 @@ impl Element for EditorElement {
             .filter(|mark| mark.range.end >= first_offset && mark.range.start <= last_offset)
             .cloned()
             .collect();
-        let mut span = editor.highlights.partition_point(|s| s.to <= first_offset);
-        let mut lines = Vec::with_capacity((last_line - first_line) as usize);
-        let mut numbers = Vec::with_capacity(lines.capacity());
-        for line in first_line..last_line {
+        let mut lines = Vec::with_capacity(painted.len());
+        let mut numbers = Vec::with_capacity(painted.len());
+        let mut placeholders = Vec::with_capacity(painted.len());
+        let mut markers = Vec::with_capacity(painted.len());
+        for &line in &painted {
             let range = buffer::line_range(&editor.rope, line);
             let text = buffer::slice(&editor.rope, range.start, range.end);
             let mut runs = Vec::new();
             let mut at = 0usize;
+            // Spans are sorted; the lines between two rows can be hidden, so each row looks its
+            // first span up.
+            let mut span = editor.highlights.partition_point(|s| s.to <= range.start);
             while let Some(s) = editor.highlights.get(span).filter(|s| s.from < range.end) {
                 let from = buffer::byte_of_col(&text, s.from.saturating_sub(range.start)).max(at);
                 let to = buffer::byte_of_col(&text, s.to.min(range.end) - range.start);
@@ -1941,12 +2052,41 @@ impl Element for EditorElement {
                 &[run(label.len(), number_color)],
                 None,
             ));
+            // A folded header shows a placeholder (a custom region's name), then what of the fold's
+            // last line comes after it; its gutter shows the closed fold's chevron.
+            let folded = state.as_ref().and_then(|state| folds.folded_on(state, line).map(|region| (state, region)));
+            placeholders.push(folded.map(|(state, (from, to))| {
+                let comments = |pos: u32| editor.facts().comments_at(pos);
+                let name = crate::editor_commands::regions::region_name_at(state, &comments, from)
+                    .unwrap_or_else(|| super::folds::PLACEHOLDER.to_owned());
+                let tail_end = buffer::line_range(&editor.rope, buffer::line_col(&editor.rope, to).0).end;
+                let tail = buffer::slice(&editor.rope, to, tail_end);
+                let shape = |text: String, color: Hsla| {
+                    let len = text.len();
+                    window.text_system().shape_line(text.into(), font_size, &[run(len, color)], None)
+                };
+                (shape(name, placeholder_color), shape(tail, plain))
+            }));
+            markers.push(folded.map(|_| {
+                let chevron = "›";
+                window.text_system().shape_line(chevron.into(), font_size, &[run(chevron.len(), marker_color)], None)
+            }));
         }
         Prepared {
-            layout: Layout { bounds, text_left: gutter, line_height, first_line, lines },
+            layout: Layout {
+                bounds,
+                text_left: gutter,
+                line_height,
+                first_line: first_row,
+                lines,
+                line_of: painted,
+                painted_marks: Vec::new(),
+            },
             numbers,
             gutter,
             marks,
+            placeholders,
+            markers,
         }
     }
 
@@ -1969,14 +2109,14 @@ impl Element for EditorElement {
         let editor = self.editor.clone();
         window.on_mouse_event(move |event: &ScrollEvent, phase, window, cx| {
             if phase == DispatchPhase::Bubble && bounds.contains(&event.position) {
-                let line_height = Editor::metrics(cx).1;
+                let line_height = editor.read(cx).metrics(cx).1;
                 let delta = event.delta.pixel_delta(line_height).y;
                 editor.update(cx, |editor, cx| editor.scroll_by(-delta, cx));
                 window.refresh();
             }
         });
 
-        let Prepared { layout, numbers, gutter, marks } = prepared;
+        let Prepared { layout, numbers, gutter, marks, placeholders, markers } = prepared;
         let line_height = layout.line_height;
         let focused = focus.is_focused(window);
         let mark_color = |cx: &App, kind: MarkKind| match kind {
@@ -1991,14 +2131,16 @@ impl Element for EditorElement {
             MarkKind::InactiveBreakpoint => theme::color(cx, "fg-gutter"),
             MarkKind::ExecutionLine => theme::color(cx, "bg-debug-line"),
         };
+        let mut painted_marks = Vec::new();
         window.with_content_mask(Some(gpui_kit::ContentMask { bounds }), |window| {
             window.paint_quad(fill(bounds, theme::color(cx, "bg-editor")));
             let rope = self.editor.read(cx).rope.clone();
             let heads: Vec<(u32, u32)> =
                 selections.iter().map(|range| (buffer::line_col(&rope, range.head()).0, range.head())).collect();
             for (index, (text, shaped)) in layout.lines.iter().enumerate() {
-                let line = layout.first_line + index as u32;
-                let top = bounds.top() + line_height * line as f32 - scroll_top;
+                let line = layout.line_of[index];
+                let row = layout.first_line + index as u32;
+                let top = bounds.top() + line_height * row as f32 - scroll_top;
                 let range = buffer::line_range(&rope, line);
                 let text_origin = point(bounds.left() + *gutter, top);
                 let x_of = |offset: u32| {
@@ -2028,6 +2170,7 @@ impl Element for EditorElement {
                             size(bounds.size.width - *gutter, line_height),
                         );
                         window.paint_quad(fill(row, mark_color(cx, kind)));
+                        painted_marks.push((kind, row));
                     }
                 }
                 let backgrounds = |below: bool| {
@@ -2068,6 +2211,21 @@ impl Element for EditorElement {
                     window.paint_quad(fill(underline, theme::color(cx, "fg-editor")));
                 }
                 let _ = shaped.paint(text_origin, line_height, TextAlign::Left, None, window, cx);
+                if let Some((placeholder, tail)) = placeholders.get(index).and_then(Option::as_ref) {
+                    let origin = point(text_origin.x + shaped.width + px(4.0), top);
+                    let chip = Bounds::new(origin, size(placeholder.width + px(8.0), line_height));
+                    let background = theme::color(cx, "bg-fold-placeholder");
+                    let solid = gpui_kit::BorderStyle::Solid;
+                    window.paint_quad(quad(chip, px(3.0), background, px(0.0), background, solid));
+                    let at = point(origin.x + px(4.0), top);
+                    let _ = placeholder.paint(at, line_height, TextAlign::Left, None, window, cx);
+                    let after = point(origin.x + chip.size.width + px(2.0), top);
+                    let _ = tail.paint(after, line_height, TextAlign::Left, None, window, cx);
+                }
+                if let Some(marker) = markers.get(index).and_then(Option::as_ref) {
+                    let x = bounds.left() + *gutter - px(10.0);
+                    let _ = marker.paint(point(x, top), line_height, TextAlign::Left, None, window, cx);
+                }
                 for mark in marks.iter().filter(|mark| mark.kind.is_underline()) {
                     if touches(mark.range.start, mark.range.end) {
                         let under = area(mark.range.start, mark.range.end.min(range.end), line_height);
@@ -2077,7 +2235,9 @@ impl Element for EditorElement {
                             wavy: true,
                         };
                         let origin = point(under.origin.x, top + line_height - px(3.0));
-                        window.paint_underline(origin, under.size.width.max(px(4.0)), &style);
+                        let width = under.size.width.max(px(4.0));
+                        window.paint_underline(origin, width, &style);
+                        painted_marks.push((mark.kind, Bounds::new(origin, size(width, px(1.0)))));
                     }
                 }
                 for mark in marks.iter().filter(|mark| mark.kind == MarkKind::ExcludedOccurrence) {
@@ -2101,6 +2261,7 @@ impl Element for EditorElement {
                         size(diameter, diameter),
                     );
                     let solid = gpui_kit::BorderStyle::Solid;
+                    painted_marks.push((mark.kind, dot));
                     if mark.kind == MarkKind::BreakpointLine {
                         let danger = theme::color(cx, "danger");
                         window.paint_quad(quad(dot, diameter / 2.0, danger, px(0.0), danger, solid));
@@ -2118,9 +2279,18 @@ impl Element for EditorElement {
                 }
             }
         });
+        layout.painted_marks = painted_marks;
         let layout = std::mem::replace(
             layout,
-            Layout { bounds, text_left: *gutter, line_height, first_line: 0, lines: Vec::new() },
+            Layout {
+                bounds,
+                text_left: *gutter,
+                line_height,
+                first_line: 0,
+                lines: Vec::new(),
+                line_of: Vec::new(),
+                painted_marks: Vec::new(),
+            },
         );
         self.editor.update(cx, |editor, _| editor.layout = Some(layout));
     }
@@ -2302,7 +2472,7 @@ mod tests {
         let (f, cx) = open(cx, &[("long.txt", &text)]).await;
         let (painted, viewport_lines) = f.editor.read_with(cx, |e, cx| {
             let layout = e.layout.as_ref().expect("a frame was painted");
-            (e.painted_lines().expect("painted"), (layout.bounds.size.height / Editor::metrics(cx).1).ceil() as u32)
+            (e.painted_lines().expect("painted"), (layout.bounds.size.height / e.line_height(cx)).ceil() as u32)
         });
         assert_eq!(painted.start, 0);
         assert!(painted.len() as u32 <= viewport_lines + 1, "{painted:?} for a viewport of {viewport_lines} lines");

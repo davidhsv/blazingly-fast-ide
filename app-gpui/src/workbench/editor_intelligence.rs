@@ -20,6 +20,8 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let intelligence = EditorIntelligence::install(editor, cx);
+        self.install_editor_core(editor, window, cx);
+        self.watch_workspace_edits(cx);
         let blurred = intelligence.downgrade();
         cx.on_blur(&editor.focus_handle(cx), window, move |_, _, cx| {
             let _ = blurred.update(cx, |intelligence, cx| intelligence.editor_blurred(cx));

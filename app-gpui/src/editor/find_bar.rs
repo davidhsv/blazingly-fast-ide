@@ -308,10 +308,12 @@ fn select_in(editor: &mut Editor, selection: &Range<u32>, center: Option<u32>, c
     if editor.selection() != *selection {
         editor.select(selection.start, selection.end, cx);
     }
-    let Some((line, painted)) = center.zip(editor.painted_lines()) else { return };
-    let visible = painted.end.saturating_sub(painted.start);
-    let last_top = editor.line_count().saturating_sub(visible.saturating_sub(1).max(1));
-    editor.scroll_to_line(line.saturating_sub(visible / 2).min(last_top), cx);
+    let Some((line, _)) = center.zip(editor.painted_lines()) else { return };
+    // In rows: the lines a fold hides take none.
+    let visible = editor.painted_rows();
+    let last_top = editor.row_count().saturating_sub(visible.saturating_sub(1).max(1));
+    let top = editor.row_of_line(line).saturating_sub(visible / 2).min(last_top);
+    editor.scroll_to_line(editor.line_of_row(top), cx);
 }
 
 /// Find Next / Previous Occurrence where no bar is open: goes to the next or previous occurrence of the

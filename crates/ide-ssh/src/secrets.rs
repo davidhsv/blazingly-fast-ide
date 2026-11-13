@@ -8,19 +8,46 @@
 //! host) such a file is still read and forgetting a secret rewrites it without
 //! that one, but no new secret is written to disk: saving fails and callers keep
 //! the secret for the session only.
+//!
+//! A process whose data lives in a home of its own (tests, measurements) calls
+//! [`keep_secrets_in_files`]: from then on secrets go to an owner-only file beside
+//! their index and the OS store is never opened.
 
 use ide_core::{IdeError, IdeResult};
 pub use keyring_core::{Error as StoreError, Result as StoreResult};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 const SERVICE: &str = "ai.l0ng.openidea";
 
 /// Serialises read-modify-write of the index files (several stores may share one).
 static LOCK: Mutex<()> = Mutex::new(());
+
+/// Set by [`keep_secrets_in_files`].
+static IN_FILES: AtomicBool = AtomicBool::new(false);
+
+/// From now on every [`SecretFile`] keeps its secrets in an owner-only file beside its index
+/// (`<index>.vault`) instead of the OS credential store, and the OS store refuses to work, so
+/// a store made earlier loses saving rather than reaching the user's keychain. For processes
+/// whose data lives in a temporary or overridden home. There is no way back.
+pub fn keep_secrets_in_files() {
+    IN_FILES.store(true, Ordering::SeqCst);
+}
+
+/// Whether [`keep_secrets_in_files`] was called in this process.
+pub fn secrets_in_files() -> bool {
+    IN_FILES.load(Ordering::SeqCst)
+}
+
+/// Whether this process has set up a default credential store (the OS one, on its first use).
+/// A check for tests that never opens the keychain.
+pub fn default_store_installed() -> bool {
+    keyring_core::get_default_store().is_some()
+}
 
 /// Reads the secrets of an older version's file, by key (`None`: not that format).
 pub type Legacy = fn(serde_json::Value) -> Option<BTreeMap<String, String>>;
@@ -33,8 +60,13 @@ pub trait Vault: Send + Sync {
     fn delete(&self, service: &str, key: &str) -> StoreResult<()>;
 }
 
-/// `keyring_core`'s default store: the OS's, unless a test installed another one.
-struct DefaultStore;
+/// `keyring_core`'s default store: the OS's, unless a test installed another one. It refuses to
+/// work while `in_files` is set.
+struct DefaultStore {
+    in_files: &'static AtomicBool,
+}
+
+const DEFAULT_STORE: DefaultStore = DefaultStore { in_files: &IN_FILES };
 
 impl DefaultStore {
     fn entry(&self, service: &str, key: &str) -> StoreResult<keyring_core::Entry> {
@@ -47,6 +79,9 @@ impl DefaultStore {
 
 impl Vault for DefaultStore {
     fn available(&self) -> bool {
+        if self.in_files.load(Ordering::SeqCst) {
+            return false;
+        }
         if keyring_core::get_default_store().is_some() {
             return true;
         }
@@ -70,6 +105,59 @@ impl Vault for DefaultStore {
 
     fn delete(&self, service: &str, key: &str) -> StoreResult<()> {
         self.entry(service, key)?.delete_credential()
+    }
+}
+
+/// Secrets in an owner-only JSON file (service → key → secret). Only [`SecretFile`] calls it,
+/// always while holding [`LOCK`].
+struct FileVault(PathBuf);
+
+type Vaulted = BTreeMap<String, BTreeMap<String, String>>;
+
+impl FileVault {
+    fn beside(index: &Path) -> Self {
+        let mut path = index.as_os_str().to_owned();
+        path.push(".vault");
+        Self(PathBuf::from(path))
+    }
+
+    fn read(&self) -> StoreResult<Vaulted> {
+        match std::fs::read(&self.0) {
+            Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| StoreError::BadDataFormat(bytes, Box::new(e))),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vaulted::new()),
+            Err(e) => Err(StoreError::PlatformFailure(Box::new(e))),
+        }
+    }
+
+    fn write(&self, all: &Vaulted) -> StoreResult<()> {
+        let bytes = serde_json::to_vec_pretty(all).map_err(|e| StoreError::PlatformFailure(Box::new(e)))?;
+        write_private(&self.0, &bytes).map_err(|e| StoreError::PlatformFailure(Box::new(e)))
+    }
+}
+
+impl Vault for FileVault {
+    fn available(&self) -> bool {
+        true
+    }
+
+    fn get(&self, service: &str, key: &str) -> StoreResult<String> {
+        self.read()?.get(service).and_then(|keys| keys.get(key)).cloned().ok_or(StoreError::NoEntry)
+    }
+
+    fn set(&self, service: &str, key: &str, secret: &str) -> StoreResult<()> {
+        let mut all = self.read()?;
+        all.entry(service.to_owned()).or_default().insert(key.to_owned(), secret.to_owned());
+        self.write(&all)
+    }
+
+    fn delete(&self, service: &str, key: &str) -> StoreResult<()> {
+        let mut all = self.read()?;
+        let keys = all.get_mut(service).ok_or(StoreError::NoEntry)?;
+        keys.remove(key).ok_or(StoreError::NoEntry)?;
+        if keys.is_empty() {
+            all.remove(service);
+        }
+        self.write(&all)
     }
 }
 
@@ -107,7 +195,9 @@ impl SecretFile {
     }
 
     pub fn with_legacy(path: PathBuf, legacy: Legacy) -> Self {
-        Self::with_vault(path, legacy, Arc::new(DefaultStore))
+        let vault: Arc<dyn Vault> =
+            if secrets_in_files() { Arc::new(FileVault::beside(&path)) } else { Arc::new(DEFAULT_STORE) };
+        Self::with_vault(path, legacy, vault)
     }
 
     pub fn with_vault(path: PathBuf, legacy: Legacy, vault: Arc<dyn Vault>) -> Self {
@@ -285,18 +375,25 @@ impl SecretFile {
 
     fn write(&self, contents: &impl Serialize) -> IdeResult<()> {
         let err = |e: std::io::Error| IdeError::unavailable(format!("saved passwords: {}: {e}", self.path.display()));
-        if let Some(dir) = self.path.parent() {
-            std::fs::create_dir_all(dir).map_err(err)?;
-        }
-        let tmp = self.path.with_extension("json.tmp");
-        let mut options = std::fs::OpenOptions::new();
-        options.write(true).create(true).truncate(true);
-        #[cfg(unix)]
-        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
         let bytes = serde_json::to_vec_pretty(contents).map_err(|e| IdeError::internal(e.to_string()))?;
-        std::io::Write::write_all(&mut options.open(&tmp).map_err(err)?, &bytes).map_err(err)?;
-        std::fs::rename(&tmp, &self.path).map_err(err)
+        write_private(&self.path, &bytes).map_err(err)
     }
+}
+
+/// Replaces `path` with `bytes` through a sibling `<path>.tmp`, owner-only on Unix.
+fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = PathBuf::from(tmp);
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    std::io::Write::write_all(&mut options.open(&tmp)?, bytes)?;
+    std::fs::rename(&tmp, path)
 }
 
 fn unavailable(why: &str) -> IdeError {
@@ -540,6 +637,81 @@ mod tests {
         std::fs::write(&path, "{ not json either").unwrap();
         assert_eq!(file.keys(), Vec::<String>::new());
         assert_eq!(files_containing(tmp.path(), "{ not json").len(), 2, "both kept, neither overwritten");
+    }
+
+    fn with_file_vault(path: &Path) -> SecretFile {
+        SecretFile::with_vault(
+            path.to_path_buf(),
+            |v| serde_json::from_value(v).ok(),
+            Arc::new(FileVault::beside(path)),
+        )
+    }
+
+    #[cfg(unix)]
+    fn mode(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
+    #[test]
+    fn a_file_vault_keeps_secrets_beside_the_index_owner_only_and_reads_them_back() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("ssh-passwords.json");
+        with_file_vault(&path).set("a", "hunter2-file").unwrap();
+        let vault = tmp.path().join("ssh-passwords.json.vault");
+        assert_eq!(files_containing(tmp.path(), "hunter2-file"), [vault.clone()], "only the vault holds it");
+        #[cfg(unix)]
+        {
+            assert_eq!(mode(&vault), 0o600);
+            assert_eq!(mode(&path), 0o600);
+        }
+        let reopened = with_file_vault(&path);
+        assert_eq!(reopened.get("a").as_deref(), Some("hunter2-file"));
+        assert_eq!(reopened.keys(), ["a"]);
+    }
+
+    #[test]
+    fn a_file_vault_forgets_a_deleted_secret_and_keeps_the_others() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("db-passwords.json");
+        let file = with_file_vault(&path);
+        file.set("a", "first-secret").unwrap();
+        file.set("b", "second-secret").unwrap();
+        file.delete("a");
+        assert_eq!(file.get("a"), None);
+        assert_eq!(file.keys(), ["b"]);
+        assert_eq!(files_containing(tmp.path(), "first-secret"), Vec::<PathBuf>::new());
+        assert_eq!(with_file_vault(&path).get("b").as_deref(), Some("second-secret"));
+    }
+
+    #[test]
+    fn a_corrupt_file_vault_fails_the_save_instead_of_overwriting_it() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("ssh-passwords.json");
+        let vault = tmp.path().join("ssh-passwords.json.vault");
+        std::fs::write(&vault, "{ not json").unwrap();
+        assert!(with_file_vault(&path).set("a", "pw").is_err());
+        assert_eq!(std::fs::read_to_string(&vault).unwrap(), "{ not json");
+        assert_eq!(with_file_vault(&path).keys(), Vec::<String>::new(), "the index does not list it");
+    }
+
+    #[test]
+    fn the_os_store_refuses_to_work_once_secrets_are_kept_in_files() {
+        static ON: AtomicBool = AtomicBool::new(true);
+        let store = DefaultStore { in_files: &ON };
+        assert!(!store.available());
+        assert!(matches!(store.get("s", "k"), Err(StoreError::NoDefaultStore)));
+        assert!(matches!(store.set("s", "k", "pw"), Err(StoreError::NoDefaultStore)));
+        assert!(matches!(store.delete("s", "k"), Err(StoreError::NoDefaultStore)));
+
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("ssh-passwords.json");
+        let file = SecretFile::with_vault(path.clone(), |v| serde_json::from_value(v).ok(), Arc::new(store));
+        assert!(file.set("a", "pw").unwrap_err().message.contains("saved passwords"));
+        assert_eq!(file.keys(), Vec::<String>::new());
+        std::fs::write(&path, r#"{"a": "old-pw"}"#).unwrap();
+        assert_eq!(file.get("a").as_deref(), Some("old-pw"), "an older file is read without the store");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), r#"{"a": "old-pw"}"#, "and not moved anywhere");
     }
 
     #[test]

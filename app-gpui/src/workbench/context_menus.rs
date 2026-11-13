@@ -1124,23 +1124,27 @@ mod tests {
     const HELLO: &str = "hello";
 
     /// The root of the editor's menu in a project, without a selection, with the actions this window
-    /// registers: Folding, Rename…, Refactor, Generate…, Open In, Local History and the Compare rows
-    /// have none of their actions registered yet, so they are not offered.
-    const ROOT: [&str; 7] = [
+    /// registers: Refactor, Open In, Local History and the Compare rows have none of their actions
+    /// registered, so they are not offered.
+    const ROOT: [&str; 10] = [
         "Show Context Actions",
         "Paste",
         "Copy / Paste Special",
         "Column Selection Mode",
         "Go To",
+        "Folding",
+        "Rename…",
+        "Generate…",
         "Send to Agent",
         "Git",
     ];
 
-    /// Go To › without Super Method and Test, whose actions this window does not register yet.
-    const GO_TO: [&str; 7] = [
+    /// Go To › without Super Method, whose action this window does not register.
+    const GO_TO: [&str; 8] = [
         "Declaration or Usages",
         "Implementation(s)",
         "Type Declaration",
+        "Test",
         "-",
         "Find Usages",
         "Call Hierarchy",
@@ -1519,7 +1523,10 @@ mod tests {
         assert_eq!(root_rows(&menu, cx), ROOT);
         assert!(!disabled(&menu, "Paste", cx));
         choose(&menu, &["Copy / Paste Special"], cx);
-        assert_eq!(shown(&menu, cx)[1], ["Copy Path/Reference…", "Copy Reference", "Paste as Plain Text"]);
+        assert_eq!(
+            shown(&menu, cx)[1],
+            ["Copy Path/Reference…", "Copy Reference", "Paste as Plain Text", "Paste from History…"]
+        );
         choose(&menu, &["Go To"], cx);
         assert_eq!(shown(&menu, cx)[1], GO_TO);
         choose(&menu, &["Git"], cx);
@@ -1723,6 +1730,9 @@ mod tests {
                 "Copy / Paste Special",
                 "Column Selection Mode",
                 "Go To",
+                "Folding",
+                "Rename…",
+                "Generate…",
                 "Send to Agent",
                 "Hello: Word Count of Active File",
                 "Hello",

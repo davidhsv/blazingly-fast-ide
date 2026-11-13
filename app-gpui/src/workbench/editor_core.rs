@@ -22,7 +22,7 @@ use crate::project_view::copy_path_popup::{PATH_WITH_LINE, copied_hint};
 use crate::vcs::prompt_dialogs::PromptDialog;
 use crate::vcs_ops::dialogs::ConfirmRequest;
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
-use gpui_kit::{App, ClipboardItem, Context, Entity, Focusable, Window};
+use gpui_kit::{App, AppContext as _, ClipboardItem, Context, Entity, Focusable, Window};
 use serde_json::Value;
 use std::path::PathBuf;
 
@@ -548,7 +548,8 @@ mod tests {
         caret_to(&b, 0, 0, cx);
         cx.simulate_input("y");
         caret_to(&b, 2, 4, cx);
-        run(cx, "navigate.lastEditLocation", None);
+        // ⇧⌘⌫ in the editor.
+        cx.simulate_keystrokes("cmd-shift-backspace");
         settle(cx, |cx| at(&workbench, cx) == Some(("b.rs".to_owned(), 0, 1)));
         run(cx, "navigate.lastEditLocation", None);
         settle(cx, |cx| at(&workbench, cx) == Some(("a.rs".to_owned(), 3, 1)));
@@ -599,6 +600,9 @@ mod tests {
         settle(cx, |cx| editor.read_with(cx, |editor, _| editor.text()) == "three\n");
         cx.simulate_input("x");
         std::fs::write(&file, "four\n").expect("the file is written");
+        // ⌥⌘Y in the editor.
+        cx.simulate_keystrokes("cmd-alt-y");
+        assert!(titles(&workbench, cx).contains(&"notes.txt has unsaved changes".to_owned()));
         run(cx, "file.reloadFromDisk", Some(Value::from(file.to_string_lossy().into_owned())));
         assert!(titles(&workbench, cx).contains(&"notes.txt has unsaved changes".to_owned()));
         let kept = editor.read_with(cx, |editor, _| editor.text());
@@ -744,8 +748,17 @@ mod tests {
             let focus = editor.focus_handle(cx);
             window.focus(&focus, cx);
         });
-        cx.simulate_keystrokes("alt-shift-. alt-shift-.");
+        cx.simulate_keystrokes("alt-shift-. alt-shift-. alt-shift-,");
         assert_eq!(editor.read_with(cx, |e, _| e.font_zoom()), 0);
+        // An edit, then the caret at the end: Last Edit Location (⇧⌘⌫) leaves it there, and Reload
+        // from Disk (⌥⌘Y) neither reloads nor warns about the unsaved change.
+        cx.simulate_input("z");
+        cx.simulate_keystrokes("cmd-down");
+        let end = editor.read_with(cx, |e, _| e.caret());
+        cx.simulate_keystrokes("cmd-shift-backspace cmd-alt-y");
+        assert_eq!(editor.read_with(cx, |e, _| e.caret()), end);
+        assert!(editor.read_with(cx, |e, _| e.text().starts_with('z')));
+        assert!(titles(&light, cx).iter().all(|title| !title.contains("unsaved changes")), "{:?}", titles(&light, cx));
         let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
         host.close_project("w2");
     }
@@ -773,20 +786,37 @@ mod tests {
         }
         cx.simulate_keystrokes("cmd--");
         assert_eq!(editor.read_with(cx, |e, _| e.shown_lines()), [0, 1, 2, 3, 4, 5]);
-        // The other editor keys of the module leave the editor as it is: Extend Selection, Fold
-        // Selection, Collapse Recursively, Auto-Indent Lines, Scroll to Center, Paste from History.
-        let before = editor.read_with(cx, |e, _| (e.text(), e.selections().to_vec(), e.scroll_top()));
-        cx.simulate_keystrokes("alt-up cmd-. cmd-alt-- ctrl-alt-i ctrl-l cmd-shift-v");
-        assert_eq!(editor.read_with(cx, |e, _| (e.text(), e.selections().to_vec(), e.scroll_top())), before);
-        assert_eq!(editor.read_with(cx, |e, _| e.shown_lines()), [0, 1, 2, 3, 4, 5]);
+        // The other editor keys of the module leave the editor as it is: Extend / Shrink Selection,
+        // Fold Selection, Fold Code Block, Collapse All, Collapse Recursively, Auto-Indent Lines,
+        // Scroll to Center, Paste from History.
+        let state = |cx: &mut VisualTestContext| {
+            editor.read_with(cx, |e, _| (e.text(), e.selections().to_vec(), e.scroll_top(), e.shown_lines()))
+        };
+        let before = state(cx);
+        cx.simulate_keystrokes("alt-up alt-down cmd-. cmd-shift-. cmd-shift-- cmd-alt-- ctrl-alt-i ctrl-l cmd-shift-v");
+        assert_eq!(state(cx), before);
         assert!(workbench.read_with(cx, |w, _| w.paste_history_dialog().is_none()));
+        let focus_editor = |cx: &mut VisualTestContext| {
+            cx.update(|window, cx| {
+                let focus = editor.focus_handle(cx);
+                window.focus(&focus, cx);
+            });
+            cx.run_until_parked();
+        };
+        focus_editor(cx);
+        cx.simulate_keystrokes("cmd--");
+        assert_eq!(editor.read_with(cx, |e, _| e.shown_lines()), [0, 1, 4, 5]);
+        // Folded, with the Project view focused again: the expanding keys open nothing.
         cx.update(|window, cx| {
-            let focus = editor.focus_handle(cx);
+            let focus = tree.focus_handle(cx);
             window.focus(&focus, cx);
         });
         cx.run_until_parked();
-        cx.simulate_keystrokes("cmd--");
+        cx.simulate_keystrokes("cmd-= cmd-shift-= cmd-alt-=");
         assert_eq!(editor.read_with(cx, |e, _| e.shown_lines()), [0, 1, 4, 5]);
+        focus_editor(cx);
+        cx.simulate_keystrokes("cmd-=");
+        assert_eq!(editor.read_with(cx, |e, _| e.shown_lines()), [0, 1, 2, 3, 4, 5]);
         close(cx);
     }
 }

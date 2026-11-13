@@ -16,6 +16,8 @@ pub enum MarkLayer {
     Breakpoints,
     /// The line where the debugger is suspended.
     Execution,
+    /// The usages Highlight Usages in File marks, until Escape.
+    Usages,
 }
 
 /// What a mark shows, and so how it is drawn.

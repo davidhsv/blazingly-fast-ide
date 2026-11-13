@@ -687,6 +687,21 @@ impl EditorIntelligence {
         self.hint_timer(timer, cx);
     }
 
+    /// Shows `text` (English source text) at `pos`, the caret when `None`, with `tone`, for
+    /// `timeout_ms` (the hint's usual time when `None`).
+    pub fn show_hint_at(
+        &mut self,
+        text: &str,
+        pos: Option<u32>,
+        tone: Tone,
+        timeout_ms: Option<u64>,
+        cx: &mut Context<Self>,
+    ) {
+        let caret = self.editor.upgrade().map_or(0, |editor| editor.read(cx).caret());
+        let timer = self.hints.show(text, pos.unwrap_or(caret), tone, timeout_ms);
+        self.hint_timer(timer, cx);
+    }
+
     // -----------------------------------------------------------------------------------------
     // Navigation
 
@@ -1547,6 +1562,7 @@ while True:
             'implementationProvider': True,
             'typeDefinitionProvider': True,
             'codeActionProvider': {'resolveProvider': True},
+            **script().get('capabilities', {}),
         }}
     elif method in ('textDocument/didOpen', 'textDocument/didChange'):
         publish(params['textDocument']['uri'])
@@ -1608,7 +1624,7 @@ while True:
         /// Makes the server answer `answers`: method → result, or `{"by_call": [result, …]}` (one per
         /// call, the last repeating), or `{"by_column": {column: result}, "delay": {column: seconds}}`
         /// (by the request's position); `delays`: method → seconds per call; `diagnostics`: published
-        /// on every change.
+        /// on every change; `capabilities`: added to the server's own when it starts.
         pub(crate) fn answer(&self, answers: serde_json::Value) {
             std::fs::write(&self.answers, answers.to_string()).expect("the answers are written");
         }

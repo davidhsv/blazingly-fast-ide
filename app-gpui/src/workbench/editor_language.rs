@@ -1976,7 +1976,10 @@ mod tests {
     /// are none.
     #[gpui_kit::test]
     async fn next_error_moves_the_caret_to_the_next_problem_and_shows_its_message(cx: &mut TestAppContext) {
-        let problem = |line: u32, from: u32, to: u32, severity: u32, message: &str| json!({ "range": range(line, from, to), "message": message, "severity": severity, "source": "mock" });
+        let problem = |line: u32, from: u32, to: u32, severity: u32, message: &str| {
+            let range = range(line, from, to);
+            json!({ "range": range, "message": message, "severity": severity, "source": "mock" })
+        };
         let diagnostics = json!([
             problem(0, 4, 7, 1, "unknown foo"),
             problem(1, 0, 3, 2, "unused bar"),
@@ -2131,7 +2134,10 @@ mod tests {
     async fn generate_lists_the_generate_actions_and_applies_the_chosen_one(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("a.mock", "class A {\n}\n")], "a.mock", Some(json!({})), &[]);
         let a = f.root.join("a.mock");
-        let action = |title: &str, kind: &str, text: &str| json!({ "title": title, "kind": kind, "edit": edit(&a, vec![text_edit(range(1, 0, 0), text)]) });
+        let action = |title: &str, kind: &str, text: &str| {
+            let edit = edit(&a, vec![text_edit(range(1, 0, 0), text)]);
+            json!({ "title": title, "kind": kind, "edit": edit })
+        };
         f.answer(json!({ "textDocument/codeAction": [
             action("Generate constructor", "source.generate.constructor", "  A() {}\n"),
             action("Generate toString()", "source.generate.toString", "  toString() {}\n"),
@@ -2227,8 +2233,9 @@ mod tests {
     }
 
     /// The language actions' keys need the editor (`textEditorActive && (editorFocus || popupOpen ||
-    /// !toolWindowFocus)`): with the Project view focused F2, ⌘F1, ⌘⇧F7, ⌃⇧↓, ⌃⌥↓, ⌃⌥O, ⌥⇧↵ and ⌥⌘L
-    /// do nothing to the editor; back in the editor F2 says the file has no problems.
+    /// !toolWindowFocus)`): with the Project view focused F2, ⇧F2, ⌘F1, ⌘⇧F7, ⌃⇧↓, ⌃⇧↑, ⌃⌥↓, ⌃⌥↑,
+    /// ⌃⌥O, ⌥⇧↵, ⌥⌘L, ⌃I, ⌃O, ⌥Space, ⌘Y, ⇧⌘T, ⇧F6 and ⌘N do nothing to the editor; back in the
+    /// editor F2 says the file has no problems.
     #[gpui_kit::test]
     async fn the_language_keys_do_nothing_while_a_tool_window_has_the_keyboard(cx: &mut TestAppContext) {
         let text = "let  x=1\n";
@@ -2242,12 +2249,26 @@ mod tests {
         });
         cx.run_until_parked();
         cx.simulate_keystrokes("f2 cmd-f1 cmd-shift-f7 ctrl-shift-down ctrl-alt-down ctrl-alt-o");
-        cx.simulate_keystrokes("alt-shift-enter cmd-alt-l");
+        cx.simulate_keystrokes("alt-shift-enter cmd-alt-l shift-f2 ctrl-shift-up ctrl-alt-up");
+        cx.simulate_keystrokes("ctrl-i ctrl-o alt-space cmd-y cmd-shift-t");
         cx.run_until_parked();
-        assert!(f.editor(cx).is_some_and(|active| active == editor), "the same editor is active");
-        assert_eq!(f.hint(cx), None);
-        assert_eq!(editor.read_with(cx, |e, _| (e.text(), e.caret())), (text.to_owned(), 4));
-        assert!(editor.read_with(cx, |e, _| e.marks(MarkLayer::Usages).is_empty()));
+        let unchanged = |cx: &mut VisualTestContext| {
+            assert!(f.editor(cx).is_some_and(|active| active == editor), "the same editor is active");
+            assert_eq!(f.hint(cx), None);
+            assert_eq!(editor.read_with(cx, |e, _| (e.text(), e.caret())), (text.to_owned(), 4));
+            assert!(editor.read_with(cx, |e, _| e.marks(MarkLayer::Usages).is_empty()));
+            assert!(f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_none()));
+        };
+        unchanged(cx);
+        // Rename (⇧F6) and Generate (⌘N) last: the Project view may answer them with its own dialog.
+        cx.simulate_keystrokes("shift-f6");
+        cx.run_until_parked();
+        unchanged(cx);
+        cx.simulate_keystrokes("escape cmd-n");
+        cx.run_until_parked();
+        unchanged(cx);
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
         cx.update(|window, cx| {
             let focus = editor.focus_handle(cx);
             window.focus(&focus, cx);

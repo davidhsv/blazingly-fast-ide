@@ -609,11 +609,11 @@ impl Workbench {
             let Some(painted) = editor.painted_lines() else { return Vec::new() };
             let line_height = editor.line_height(cx);
             let first = painted.start;
-            // The editor's top: where its first painted line would start unscrolled.
+            // The editor's top: where its first painted row would start unscrolled.
             let top = editor
                 .position_of(editor.offset_of(first, 0))
-                .map(|at| at.y - line_height * first as f32 + editor.scroll_top());
-            let bottom = top.map(|top| top + line_height * (painted.end - painted.start).saturating_sub(1) as f32);
+                .map(|at| at.y - line_height * editor.row_of_line(first) as f32 + editor.scroll_top());
+            let bottom = top.map(|top| top + line_height * editor.painted_rows().saturating_sub(1) as f32);
             let places: Vec<(usize, Point<Pixels>)> = markers
                 .iter()
                 .enumerate()
@@ -1221,6 +1221,150 @@ mod tests {
 
     // ---------------------------------------------------------------------------------------------
     // Gutter
+
+    /// With a region folded above them, the lines below are painted, hit and moved through by their
+    /// row: a click lands on the line it is on; ↓ ↑ and Page Down / Up skip the folded lines; the
+    /// breakpoint, execution line, problem underline and a plugin's gutter icons are drawn on their
+    /// lines' rows; typing in the line above the fold keeps it; scrolling to the end shows the last line.
+    #[gpui_kit::test]
+    async fn a_fold_above_moves_every_line_below_it_to_its_row(cx: &mut TestAppContext) {
+        use crate::editor::marks::MarkKind;
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "test-runner", str::to_owned);
+        link(cx, &folder, &[], "test");
+        let mut text = String::from("intro\nsetup\n  one\n  two\n  three\ntest adds\ntest subtracts\n");
+        text.extend((7..150).map(|n| format!("line {n}\n")));
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("example.tests", text.as_str())]);
+        let editor = open_file(&workbench, root.join("example.tests"), cx);
+        cx.update(|window, cx| {
+            window.activate_window();
+            window.focus(&editor.focus_handle(cx), cx);
+        });
+        wait_long(cx, "the gutter icons are drawn", |cx| {
+            cx.debug_bounds("plugin-gutter:5").is_some() && cx.debug_bounds("plugin-gutter:6").is_some()
+        });
+
+        // Page Down without a fold, to compare with the folded one below.
+        let caret_line = |cx: &mut VisualTestContext| editor.read_with(cx, |e, _| e.caret_position().0);
+        editor.update(cx, |e, cx| e.select(0, 0, cx));
+        cx.simulate_keystrokes("pagedown");
+        let unfolded_page = caret_line(cx);
+        cx.simulate_keystrokes("pageup");
+        assert_eq!(caret_line(cx), 0);
+
+        // Fold Selection from the end of `setup` to the end of `  three`: lines 2 to 4 are hidden.
+        let (from, to) = editor.read_with(cx, |e, _| (e.offset_of(1, 5), e.offset_of(5, 0) - 1));
+        editor.update(cx, |e, cx| e.select(from, to, cx));
+        run_action(cx, "code.foldSelection", None);
+        let shown = |cx: &mut VisualTestContext| editor.read_with(cx, |e, _| e.shown_lines());
+        let mut expected: Vec<u32> = vec![0, 1];
+        expected.extend(5..=150);
+        assert_eq!(shown(cx), expected);
+        cx.run_until_parked();
+
+        // Each line below the fold is on the row three lines up.
+        let line_height = editor.read_with(cx, |e, cx| e.line_height(cx));
+        let place =
+            |cx: &mut VisualTestContext, line: u32| editor.read_with(cx, |e, _| e.position_of(e.offset_of(line, 0)));
+        let top = place(cx, 0).expect("the first line is painted").y;
+        let row_top = |line: u32| top + line_height * (line - 3) as f32;
+        for line in 5..12 {
+            assert_eq!(place(cx, line).map(|at| at.y), Some(row_top(line)), "line {line}");
+        }
+        assert_eq!(place(cx, 3), None, "a folded line is not painted");
+
+        // A click on `test subtracts` puts the caret on that line.
+        let at = place(cx, 6).expect("painted");
+        cx.simulate_click(gpui_kit::point(at.x + gpui_kit::px(3.0), at.y + line_height / 2.0), Modifiers::default());
+        assert_eq!(caret_line(cx), 6);
+        assert_eq!(shown(cx), expected, "the click opened no fold");
+
+        // ↓ from the header goes to the first line after the fold, ↑ comes back.
+        let header = editor.read_with(cx, |e, _| e.offset_of(1, 0));
+        editor.update(cx, |e, cx| e.select(header, header, cx));
+        cx.simulate_keystrokes("down");
+        assert_eq!(caret_line(cx), 5);
+        cx.simulate_keystrokes("up");
+        assert_eq!(caret_line(cx), 1);
+        // Page Down moves by rows: the three folded lines count for none.
+        editor.update(cx, |e, cx| e.select(0, 0, cx));
+        cx.simulate_keystrokes("pagedown");
+        assert!(unfolded_page > 5, "a page is {unfolded_page} lines");
+        assert_eq!(caret_line(cx), unfolded_page + 3);
+        cx.simulate_keystrokes("pageup");
+        assert_eq!(caret_line(cx), 0);
+        assert_eq!(shown(cx), expected, "moving opened no fold");
+
+        // The marks below the fold are drawn on their lines' rows.
+        let line_range = |cx: &mut VisualTestContext, line: u32| {
+            editor.read_with(cx, |e, _| e.offset_of(line, 0)..e.offset_of(line, 4))
+        };
+        let (breakpoint, execution, problem) = (line_range(cx, 7), line_range(cx, 8), line_range(cx, 9));
+        editor.update(cx, |e, cx| {
+            e.set_marks(MarkLayer::Breakpoints, vec![Mark { range: breakpoint, kind: MarkKind::BreakpointLine }], cx);
+            e.set_marks(MarkLayer::Execution, vec![Mark { range: execution, kind: MarkKind::ExecutionLine }], cx);
+            e.set_marks(MarkLayer::Diagnostics, vec![Mark { range: problem, kind: MarkKind::ErrorProblem }], cx);
+        });
+        cx.run_until_parked();
+        let painted = |cx: &mut VisualTestContext, kind: MarkKind| editor.read_with(cx, |e, _| e.painted_marks(kind));
+        let within = |bounds: &gpui_kit::Bounds<gpui_kit::Pixels>, line: u32| {
+            bounds.top() >= row_top(line) && bounds.bottom() <= row_top(line) + line_height
+        };
+        let breakpoints = painted(cx, MarkKind::BreakpointLine);
+        assert!(!breakpoints.is_empty() && breakpoints.iter().all(|b| within(b, 7)), "{breakpoints:?}");
+        let executions = painted(cx, MarkKind::ExecutionLine);
+        assert!(executions.len() == 1 && within(&executions[0], 8), "{executions:?}");
+        let problems = painted(cx, MarkKind::ErrorProblem);
+        assert!(problems.len() == 1 && within(&problems[0], 9), "{problems:?}");
+        for line in [5, 6] {
+            let selector: &'static str = if line == 5 { "plugin-gutter:5" } else { "plugin-gutter:6" };
+            let icon = cx.debug_bounds(selector).expect("the icon");
+            assert!(within(&icon, line), "the icon of line {line} at {icon:?}");
+        }
+
+        // Typing at the end of the line above the fold keeps the fold.
+        let end_of_intro = editor.read_with(cx, |e, _| e.offset_of(0, 5));
+        editor.update(cx, |e, cx| e.select(end_of_intro, end_of_intro, cx));
+        cx.simulate_input("!");
+        assert!(editor.read_with(cx, |e, _| e.text().starts_with("intro!\nsetup")));
+        assert_eq!(shown(cx), expected, "the fold stays");
+
+        // Scrolling to the end shows the last line: the content is as tall as its rows.
+        cx.simulate_event(gpui_kit::ScrollEvent {
+            position: gpui_kit::point(at.x + gpui_kit::px(3.0), at.y + line_height / 2.0),
+            delta: gpui_kit::ScrollDelta::Pixels(gpui_kit::point(gpui_kit::px(0.0), gpui_kit::px(-100_000.0))),
+            ..Default::default()
+        });
+        cx.run_until_parked();
+        let (painted_lines, last) =
+            editor.read_with(cx, |e, _| (e.painted_lines().expect("painted"), e.line_count() - 1));
+        assert_eq!(painted_lines.end, last + 1, "the last line is painted");
+        // The content is as tall as its rows: the last line ends at the bottom of the view.
+        let bottom = editor.read_with(cx, |e, _| e.painted_bounds().expect("painted").bottom());
+        let last_top = place(cx, last).expect("the last line is painted").y;
+        assert!(
+            (last_top + line_height - bottom).abs() < gpui_kit::px(1.0),
+            "{last_top:?} + {line_height:?} vs {bottom:?}"
+        );
+        assert_eq!(shown(cx), expected, "the fold stays");
+
+        // ⌘↓ from the top moves the caret to the end of the text and scrolls it into view.
+        cx.simulate_event(gpui_kit::ScrollEvent {
+            position: gpui_kit::point(at.x + gpui_kit::px(3.0), at.y + line_height / 2.0),
+            delta: gpui_kit::ScrollDelta::Pixels(gpui_kit::point(gpui_kit::px(0.0), gpui_kit::px(100_000.0))),
+            ..Default::default()
+        });
+        editor.update(cx, |e, cx| e.select(0, 0, cx));
+        cx.run_until_parked();
+        assert_eq!(place(cx, last), None, "scrolled back to the top");
+        cx.simulate_keystrokes("cmd-down");
+        cx.run_until_parked();
+        assert_eq!(caret_line(cx), last);
+        let caret_top = place(cx, last).expect("the caret's line is painted").y;
+        let view = editor.read_with(cx, |e, _| e.painted_bounds().expect("painted"));
+        assert!(caret_top >= view.top() && caret_top + line_height <= view.bottom() + gpui_kit::px(1.0));
+        assert_eq!(shown(cx), expected, "the fold stays");
+    }
 
     // src/features/plugins/languageVisuals.test.ts
     /// A plugin's gutter action shows on its line as its icon; an edit takes it away until the
