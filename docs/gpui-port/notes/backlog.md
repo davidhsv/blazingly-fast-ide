@@ -135,3 +135,7 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - RUNNING (no cargo): parity mapper for the Git slice → $S/parity_vcs.json (ipc/unit/point/module/feature rows; validate keys + test names by script before merging).
 - Open from the Git integrator: core.excludesFile global override breaks 4 tests (reader unknown); index write-back not serialised for run_op operations; FormRow/FormSpec/FormInput derive Debug (may carry a typed URL) → redact in a later slice; vcs/log_reset_dialog.rs + log_tag_dialog.rs still on disk undeclared (delete).
 - CARGO QUEUE: [running] proofs → plugins (window + runtime + contributions) → context_menus → editor_core → editor_language → app_actions → project/services/terminal → GitHub.
+- RUNNING (no cargo): plugins reconciler → $S/drafts/plugins_all_integration.md (three stages; re-check its mod.rs anchors after the proofs integrator lands). After it: same reconciliation for context_menus, then editor_core + editor_language.
+- NEXT INTEGRATOR Part 0: hand-written Debug for FormRow/FormSpec/FormInput (vcs/git_forms.rs) with a test; reword the four comments in workbench/mod.rs naming the webview; delete vcs/log_reset_dialog.rs + log_tag_dialog.rs.
+- BETWEEN INTEGRATORS (cargo slot free): whole-workspace Tauri suite from the repo root (src/, src-tauri/, e2e/, package.json are identical to a950eeca: frontend checks not needed).
+- No new feature drafts while the cargo queue is this deep (advisor): use no-cargo capacity to reconcile queued notes against HEAD.
