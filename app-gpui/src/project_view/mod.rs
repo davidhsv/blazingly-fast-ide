@@ -5,11 +5,15 @@
 pub mod actions;
 pub mod clipboard;
 pub mod context_menu;
+pub mod copy_path_popup;
+pub mod file_dialogs;
 pub mod file_path;
+pub mod file_refactor;
 pub mod fs;
 pub mod index;
 pub mod mark_directory;
 pub mod module_groups;
+pub mod new_popup;
 pub mod new_popup_model;
 pub mod operations;
 pub mod store;

@@ -12,14 +12,16 @@ use crate::project_tree_model::{
     key_like, merge_listing, node_key_for, path_of_key, plan_refresh, visible_entries, visible_info,
 };
 use crate::project_tree_paths::ancestors_within;
+use crate::project_view::store::ProjectViewState;
 use crate::theme;
 use gpui_kit::{
-    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, Render, ScrollStrategy,
-    SharedString, Task, UniformListScrollHandle, Window, div, prelude::*, px, uniform_list,
+    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, MouseButton,
+    MouseDownEvent, Pixels, Point, Render, ScrollStrategy, SharedString, Task, UniformListScrollHandle, Window, div,
+    prelude::*, px, uniform_list,
 };
-use ide_core::IdeEvent;
 use ide_core::error::ErrorKind;
 use ide_core::ignored::IgnoredNames;
+use ide_core::{IdeError, IdeEvent};
 use ide_vfs::FileEntry;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -153,6 +155,12 @@ pub fn rows(model: &TreeModel, expanded: &BTreeSet<String>) -> Vec<Row> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpenFile(pub PathBuf);
 
+/// The user asked for the context menu of the selection, at `position` in the window.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ContextMenuRequested {
+    pub position: Point<Pixels>,
+}
+
 /// The file tree of the project open in a window.
 pub struct ProjectTree {
     focus: FocusHandle,
@@ -177,6 +185,7 @@ pub struct ProjectTree {
 }
 
 impl EventEmitter<OpenFile> for ProjectTree {}
+impl EventEmitter<ContextMenuRequested> for ProjectTree {}
 
 impl ProjectTree {
     pub fn new(window_label: &str, root: PathBuf, cx: &mut Context<Self>) -> Self {
@@ -245,6 +254,45 @@ impl ProjectTree {
         self.listings.contains_key(dir)
     }
 
+    /// Copies what the tree shows into `state`, the model the file operations work on: the project,
+    /// the options, what is loaded and expanded, and the selection.
+    pub fn mirror_into(&self, state: &mut ProjectViewState) {
+        state.root = Some(self.root.clone());
+        state.name.clone_from(&self.name);
+        state.options = self.options.clone();
+        state.ignored = self.ignored.clone();
+        state.listings.clone_from(&self.listings);
+        state.expanded.clone_from(&self.expanded);
+        let selected = self.selected.clone();
+        state.set_selection(selected.clone(), selected);
+    }
+
+    /// Takes over what an operation changed in `state`: the expansion, and the row it asked to
+    /// reveal. Returns whether the tree is to get the keyboard focus for that row.
+    pub fn follow_state(&mut self, state: &mut ProjectViewState, cx: &mut Context<Self>) -> Option<bool> {
+        if state.expanded != self.expanded {
+            self.expanded.clone_from(&state.expanded);
+            self.expansion_changed(cx);
+        }
+        let request = state.reveal_request.take()?;
+        self.reveal_path(&request.path, cx);
+        Some(request.focus)
+    }
+
+    /// A read of the folder `path`, made elsewhere, as if the tree had read it itself.
+    pub fn put_read(&mut self, path: &str, read: Result<Vec<FileEntry>, IdeError>, cx: &mut Context<Self>) {
+        match read {
+            Ok(entries) => self.listed(path, entries, cx),
+            Err(error) if matches!(error.kind, ErrorKind::NotFound | ErrorKind::InvalidInput) => {
+                self.folder_gone(path, cx);
+            }
+            Err(error) => {
+                tracing::warn!("project view: cannot read {path}: {}", error.message);
+                self.listed_unreadable(path, cx);
+            }
+        }
+    }
+
     /// The visible lines, top to bottom.
     pub fn rows(&self) -> Vec<Row> {
         rows(&self.model, &self.expanded)
@@ -274,7 +322,7 @@ impl ProjectTree {
     }
 
     /// Reads one folder, or re-reads it with `force`. A folder being read is not asked for twice.
-    fn load_dir(&mut self, path: &str, force: bool, cx: &mut Context<Self>) {
+    pub fn load_dir(&mut self, path: &str, force: bool, cx: &mut Context<Self>) {
         if (!force && self.listings.contains_key(path)) || !cx.has_global::<Backend>() {
             return;
         }
@@ -289,20 +337,8 @@ impl ProjectTree {
             let listing = listing.await;
             let _ = tree.update(cx, |tree: &mut ProjectTree, cx| {
                 tree.inflight.remove(&path);
-                match listing {
-                    Ok(Ok(entries)) => tree.listed(&path, entries, cx),
-                    Ok(Err(error)) if matches!(error.kind, ErrorKind::NotFound | ErrorKind::InvalidInput) => {
-                        tree.folder_gone(&path, cx);
-                    }
-                    Ok(Err(error)) => {
-                        tracing::warn!("project view: cannot read {path}: {}", error.message);
-                        tree.listed_unreadable(&path, cx);
-                    }
-                    Err(error) => {
-                        tracing::warn!("project view: cannot read {path}: {error:#}");
-                        tree.listed_unreadable(&path, cx);
-                    }
-                }
+                let read = listing.unwrap_or_else(|error| Err(IdeError::internal(format!("{error:#}"))));
+                tree.put_read(&path, read, cx);
             });
         })
         .detach();
@@ -596,8 +632,13 @@ impl Render for ProjectTree {
                             None => theme::icons::file_icon_name(&node.label),
                         };
                         let clicked = node.key.clone();
+                        let menu_key = node.key.clone();
                         div()
                             .id(SharedString::from(format!("row:{}", node.key)))
+                            .debug_selector({
+                                let key = node.key.clone();
+                                move || format!("project-row:{key}")
+                            })
                             .h(row_height)
                             .w_full()
                             .flex()
@@ -620,6 +661,18 @@ impl Render for ProjectTree {
                                     tree.activate(&clicked, cx);
                                 }
                             }))
+                            .on_mouse_down(
+                                MouseButton::Right,
+                                cx.listener(move |tree, event: &MouseDownEvent, window, cx| {
+                                    // Handled here: the tree's own focus tracking must not take the
+                                    // press, and the menu that opens takes the keyboard.
+                                    window.prevent_default();
+                                    cx.stop_propagation();
+                                    window.focus(&tree.focus, cx);
+                                    tree.select(&menu_key, cx);
+                                    cx.emit(ContextMenuRequested { position: event.position });
+                                }),
+                            )
                     })
                     .collect::<Vec<_>>()
             }),

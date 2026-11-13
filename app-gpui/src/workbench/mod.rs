@@ -15,6 +15,7 @@ pub mod notification_balloons;
 pub mod notifications;
 pub mod notifications_view;
 pub mod project_color;
+mod project_files;
 pub mod quick_switch;
 mod run_configs;
 mod services_window;
@@ -267,6 +268,8 @@ pub struct Workbench {
     todo: Option<todo_window::TodoFeed>,
     /// The project's build.
     build: Option<build_window::BuildSlot>,
+    /// The Project view's file operations.
+    files: project_files::ProjectFiles,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -408,6 +411,7 @@ pub fn register_actions(cx: &mut App) {
     run_configs::register_actions(registry);
     branches::register_actions(registry);
     bookmarks_window::register_actions(registry);
+    project_files::register_actions(registry);
     todo_window::register_actions(registry);
     build_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
@@ -900,6 +904,7 @@ impl Workbench {
             structure: None,
             todo: None,
             build: None,
+            files: Default::default(),
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
@@ -1718,6 +1723,7 @@ impl Workbench {
             _ => None,
         };
         set_context(window, cx, "toolWindowFocus", focused_panel.is_some());
+        set_context(window, cx, "projectViewFocus", focused_panel.as_deref() == Some(PROJECT_TOOL_WINDOW));
         set_context(window, cx, "terminalFocus", focused_panel.as_deref() == Some(TERMINAL_TOOL_WINDOW));
         set_context(window, cx, "servicesViewFocus", focused_panel.as_deref() == Some(SERVICES_TOOL_WINDOW));
         self.publish_diff_context(window, cx);
@@ -2596,6 +2602,7 @@ impl Workbench {
         self.reset_runs(cx);
         self.reset_build(window, cx);
         self.drop_vcs();
+        self.files = Default::default();
         self.content = Content::Opening(root.clone());
         self.light_find_bar = None;
         self.sync_welcome(window, cx);
@@ -2639,7 +2646,8 @@ impl Workbench {
                         let opens = cx.subscribe_in(&tree, window, |workbench, _, event: &OpenFile, window, cx| {
                             workbench.open_project_file(event.0.clone(), window, cx);
                         });
-                        let project_panel = Panel::new(tree.clone(), None);
+                        let menus = cx.subscribe_in(&tree, window, Self::tree_context_menu);
+                        let project_panel = Panel::new(tree.clone(), Some(menus));
                         // The tabs, splits and carets the project was left with.
                         let saved = cx.try_global::<UiStorage>().and_then(|s| session::load_session(s, &scope));
                         let (tabs, restored_views) = match saved {
@@ -2758,6 +2766,7 @@ impl Workbench {
         self.run_popup_closed(&popup.view, cx);
         self.vcs_popup_closed(&popup.view, cx);
         self.structure_popup_closed(&popup.view, cx);
+        self.files_popup_closed(&popup.view);
         if let Some(target) = popup.restore.or_else(|| self.editor().map(|editor| editor.focus_handle(cx))) {
             window.focus(&target, cx);
         }
@@ -3573,6 +3582,7 @@ impl Render for Workbench {
             .children(self.diff_window_layer(cx))
             .children(self.edit_configs_layer())
             .children(self.vcs_dialog_layer())
+            .children(self.file_dialog_layer())
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
                 gpui_kit::deferred(
@@ -5855,6 +5865,9 @@ mod tests {
                 "Split and Move Down",
                 "Split Right",
                 "Split Down",
+                // The rows of the file actions that are registered: Copy Absolute Path, Rename File…
+                "Copy Path/Reference…",
+                "Rename File…",
             ]
         );
         assert_eq!(
@@ -7466,5 +7479,389 @@ mod tests {
         assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "Escape closes the question");
         assert_eq!(git_head(&root), "main");
         assert_eq!(std::fs::read_to_string(root.join("a.txt")).expect("the file is read"), "local\n");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // The Project view's file operations
+
+    fn project_tree_of(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Entity<ProjectTree> {
+        workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree")
+    }
+
+    fn text_of(path: &std::path::Path) -> String {
+        path.to_string_lossy().into_owned()
+    }
+
+    /// Selects `path` in the tree and gives the tree the keyboard, in the active window.
+    fn select_in_tree(workbench: &Entity<Workbench>, path: &std::path::Path, cx: &mut VisualTestContext) {
+        let tree = project_tree_of(workbench, cx);
+        let at = text_of(path);
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.is_loaded(tree.root())));
+        assert!(tree.update(cx, |tree, cx| tree.reveal_path(&at, cx)), "{at} is in the project");
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str())));
+        cx.update(|window, cx| {
+            window.activate_window();
+            let focus = tree.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.run_until_parked();
+    }
+
+    fn tree_labels(tree: &Entity<ProjectTree>, cx: &mut VisualTestContext) -> Vec<String> {
+        tree.read_with(cx, |tree, _| tree.rows().iter().skip(1).map(|row| row.node.label.clone()).collect())
+    }
+
+    #[track_caller]
+    fn new_popup_of(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> Entity<crate::project_view::new_popup::NewPopupView> {
+        workbench.read_with(cx, |w, _| w.new_popup()).expect("the New popup is open")
+    }
+
+    /// Types `name` into the New popup's name field, replacing what is there, and presses Enter.
+    fn enter_new_name(
+        popup: &Entity<crate::project_view::new_popup::NewPopupView>,
+        name: &str,
+        cx: &mut VisualTestContext,
+    ) {
+        let field = popup.read_with(cx, |popup, _| popup.name_field().clone());
+        field.update(cx, |field, cx| field.set_text("", cx));
+        cx.simulate_input(name);
+        cx.simulate_keystrokes("enter");
+        cx.run_until_parked();
+    }
+
+    fn close_backend_project(cx: &mut VisualTestContext) {
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.close_project("w1");
+    }
+
+    /// New File in the Project view: the New popup for the selected folder, File, a name: the file
+    /// is on disk, shown and selected in the tree and open in the editor. A name that is taken or
+    /// invalid shows the model's problem and creates nothing.
+    #[gpui_kit::test]
+    async fn new_file_in_the_project_view_creates_selects_and_opens_the_file(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/main.rs", "fn main() {}\n")]);
+        let tree = project_tree_of(&workbench, cx);
+        select_in_tree(&workbench, &root.join("src"), cx);
+        run_action(cx, "project.newFile", None);
+        let popup = new_popup_of(&workbench, cx);
+        assert_eq!(popup.read_with(cx, |popup, _| popup.rows())[..2], ["File", "Directory"]);
+        cx.simulate_keystrokes("enter");
+        assert_eq!(popup.read_with(cx, |popup, _| popup.naming().map(str::to_owned)), Some("File".to_owned()));
+
+        // Taken, then invalid: the problem shows and nothing is created.
+        enter_new_name(&popup, "main.rs", cx);
+        settle(cx, |cx| popup.update(cx, |popup, cx| popup.name_error(cx)).is_some());
+        assert_eq!(popup.update(cx, |popup, cx| popup.name_error(cx)), Some("'main.rs' already exists".to_owned()));
+        enter_new_name(&popup, "a\0b", cx);
+        assert!(popup.update(cx, |popup, cx| popup.name_error(cx)).is_some());
+        assert!(workbench.read_with(cx, |w, _| w.new_popup()).is_some(), "the popup stays open");
+        let listed = |root: &std::path::Path| std::fs::read_dir(root.join("src")).map(|dir| dir.count()).unwrap_or(0);
+        assert_eq!(listed(&root), 1);
+
+        enter_new_name(&popup, "notes.txt", cx);
+        let notes = root.join("src/notes.txt");
+        let at = text_of(&notes);
+        settle(cx, |cx| {
+            notes.is_file()
+                && tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str()))
+                && workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == notes.as_path()))
+        });
+        assert!(workbench.read_with(cx, |w, _| w.new_popup()).is_none(), "the popup closed");
+        assert_eq!(tree_labels(&tree, cx), ["src", "main.rs", "notes.txt"]);
+        close_backend_project(cx);
+    }
+
+    /// New Directory asks for the folder's name at once and creates it; File › New does the same
+    /// for a file, and a nested name creates the folders on the way.
+    #[gpui_kit::test]
+    async fn new_directory_and_a_nested_new_file_create_their_folders(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/main.rs", "fn main() {}\n")]);
+        let tree = project_tree_of(&workbench, cx);
+        select_in_tree(&workbench, &root.join("src/main.rs"), cx);
+        run_action(cx, "project.newFolder", None);
+        let popup = new_popup_of(&workbench, cx);
+        assert_eq!(popup.read_with(cx, |popup, _| popup.naming().map(str::to_owned)), Some("Directory".to_owned()));
+        enter_new_name(&popup, "util", cx);
+        settle(cx, |_| root.join("src/util").is_dir());
+        let util = text_of(&root.join("src/util"));
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(util.as_str())));
+
+        run_action(cx, "file.new", Some(serde_json::json!(text_of(&root))));
+        let popup = new_popup_of(&workbench, cx);
+        assert_eq!(popup.read_with(cx, |popup, _| popup.naming().map(str::to_owned)), Some("File".to_owned()));
+        enter_new_name(&popup, "a/b/c.txt", cx);
+        let nested = root.join("a/b/c.txt");
+        settle(cx, |cx| {
+            nested.is_file()
+                && workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == nested.as_path()))
+        });
+        let at = text_of(&nested);
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str())));
+        close_backend_project(cx);
+    }
+
+    /// Rename… on a file: the Rename dialog, a new name, the preview of the text reference another
+    /// file has to it, confirmed: the file is renamed on disk and in the tree, the reference is
+    /// updated, the open editor follows (its tab is the new name, saving writes the new path).
+    /// Undo Move / Rename brings everything back.
+    #[gpui_kit::test]
+    async fn rename_renames_the_file_its_reference_and_its_open_editor(cx: &mut TestAppContext) {
+        use crate::project_view::file_dialogs::{FileDialog, RefactoringPreview};
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) =
+            trusted_project(cx, &[("docs/old.txt", "first\n"), ("README.md", "See old.txt for details.\n")]);
+        let tree = project_tree_of(&workbench, cx);
+        let old = root.join("docs/old.txt");
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(old.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        select_in_tree(&workbench, &old, cx);
+        run_action(cx, "project.rename", None);
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>().is_some()));
+        let dialog = workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>()).expect("the Rename dialog");
+        let field = dialog.read_with(cx, |dialog, _| dialog.name_field().cloned()).expect("a name field");
+        assert_eq!(field.read_with(cx, |field, _| field.text().to_owned()), "old.txt");
+        field.update(cx, |field, cx| field.set_text("new.txt", cx));
+        cx.simulate_keystrokes("enter");
+        // README.md mentions the file: the refactoring shows what it changes there first.
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.file_dialog::<RefactoringPreview>().is_some()));
+        let preview = workbench.read_with(cx, |w, _| w.file_dialog::<RefactoringPreview>()).expect("a preview");
+        assert_eq!(preview.read_with(cx, |preview, _| preview.file_paths()), [text_of(&root.join("README.md"))]);
+        cx.simulate_keystrokes("enter");
+        let new = root.join("docs/new.txt");
+        settle(cx, |_| new.is_file() && !old.exists());
+        assert_eq!(std::fs::read_to_string(root.join("README.md")).expect("read"), "See new.txt for details.\n");
+        let at = text_of(&new);
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str())));
+        assert!(tree_labels(&tree, cx).contains(&"new.txt".to_owned()));
+        assert!(!tree_labels(&tree, cx).contains(&"old.txt".to_owned()));
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == new.as_path()))
+        });
+        assert_eq!(workbench.read_with(cx, |w, _| w.tab_titles()[0].name.clone()), "new.txt");
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        cx.update(|window, cx| {
+            let focus = editor.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.simulate_input("x");
+        cx.simulate_keystrokes("cmd-s");
+        settle(cx, |_| std::fs::read_to_string(&new).is_ok_and(|text| text == "xfirst\n"));
+        assert!(!old.exists(), "saving writes the new path only");
+        assert!(notification_titles(&workbench, cx).contains(&"Rename 'old.txt' to 'new.txt'".to_owned()));
+
+        // The backend moves the file back, then reverts the reference.
+        run_action(cx, "project.undoMove", None);
+        let readme = root.join("README.md");
+        settle(cx, |_| {
+            old.is_file()
+                && !new.exists()
+                && std::fs::read_to_string(&readme).is_ok_and(|text| text == "See old.txt for details.\n")
+        });
+        settle(cx, |cx| tree_labels(&tree, cx).contains(&"old.txt".to_owned()));
+        close_backend_project(cx);
+    }
+
+    /// Move… puts the file into the folder typed in the Move dialog; Copy… copies it under the name
+    /// the Copy dialog is given.
+    #[gpui_kit::test]
+    async fn move_and_copy_go_through_their_dialogs(cx: &mut TestAppContext) {
+        use crate::project_view::file_dialogs::FileDialog;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/data.json", "{}\n"), ("lib/keep.txt", "")]);
+        let tree = project_tree_of(&workbench, cx);
+        let data = root.join("src/data.json");
+        select_in_tree(&workbench, &data, cx);
+        run_action(cx, "project.move", None);
+        let dialog = workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>()).expect("the Move dialog");
+        let target = dialog.read_with(cx, |dialog, _| dialog.target_field().cloned()).expect("a target field");
+        assert_eq!(target.read_with(cx, |field, _| field.text().to_owned()), text_of(&root.join("src")));
+        target.update(cx, |field, cx| field.set_text(&text_of(&root.join("lib")), cx));
+        cx.simulate_keystrokes("enter");
+        let moved = root.join("lib/data.json");
+        settle(cx, |_| moved.is_file() && !data.exists());
+        let at = text_of(&moved);
+        settle(cx, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str())));
+        assert!(workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>()).is_none());
+
+        cx.update(|window, cx| {
+            let focus = tree.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.run_until_parked();
+        run_action(cx, "project.copyElement", None);
+        let dialog = workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>()).expect("the Copy dialog");
+        let name = dialog.read_with(cx, |dialog, _| dialog.name_field().cloned()).expect("a name field");
+        name.update(cx, |field, cx| field.set_text("copy.json", cx));
+        cx.simulate_keystrokes("enter");
+        let copy = root.join("lib/copy.json");
+        settle(cx, |_| copy.is_file());
+        assert_eq!(std::fs::read_to_string(&copy).expect("read"), "{}\n");
+        assert!(moved.is_file(), "the original stays");
+        settle(cx, |cx| tree_labels(&tree, cx).contains(&"copy.json".to_owned()));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>().is_none()));
+        close_backend_project(cx);
+    }
+
+    /// Delete… asks first; cancelling keeps the file, its row and its editor tab.
+    #[gpui_kit::test]
+    async fn delete_asks_and_cancelling_keeps_everything(cx: &mut TestAppContext) {
+        use crate::project_view::file_dialogs::DeleteDialog;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/gone.rs", "fn a() {}\n")]);
+        let tree = project_tree_of(&workbench, cx);
+        let file = root.join("src/gone.rs");
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(file.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        select_in_tree(&workbench, &file, cx);
+        run_action(cx, "project.delete", None);
+        let dialog = workbench.read_with(cx, |w, _| w.file_dialog::<DeleteDialog>()).expect("the Delete dialog");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.question().message.clone()), "Delete 'gone.rs'?");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.checked()), Some(true), "safe delete starts as stored");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.file_dialog::<DeleteDialog>()).is_none());
+        assert!(file.is_file());
+        assert!(tree_labels(&tree, cx).contains(&"gone.rs".to_owned()));
+        assert_eq!(workbench.read_with(cx, |w, _| w.tab_titles().len()), 1);
+        assert!(cx.update(|window, cx| tree.focus_handle(cx).is_focused(window)), "the tree has the keyboard back");
+        close_backend_project(cx);
+    }
+
+    /// Delete… confirmed runs the safe delete's usage search, then the delete, and stores the choice. The
+    /// file is removed before the answer, so the backend refuses it before it reaches the Trash, and the
+    /// failure is reported.
+    #[gpui_kit::test]
+    async fn a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted(cx: &mut TestAppContext) {
+        use crate::project_view::file_dialogs::DeleteDialog;
+        use crate::project_view::operations::SAFE_DELETE_KEY;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("docs/notes.txt", "a\n"), ("docs/keep.txt", "")]);
+        let file = root.join("docs/notes.txt");
+        select_in_tree(&workbench, &file, cx);
+        run_action(cx, "project.delete", None);
+        assert!(workbench.read_with(cx, |w, _| w.file_dialog::<DeleteDialog>()).is_some());
+        std::fs::remove_file(&file).expect("the file is removed");
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| notification_titles(&workbench, cx).contains(&"Some items could not be deleted".to_owned()));
+        let stored = cx.update(|_, cx| cx.global::<UiStorage>().get(SAFE_DELETE_KEY).map(str::to_owned));
+        assert_eq!(stored.as_deref(), Some("true"));
+        assert!(root.join("docs/keep.txt").is_file());
+        close_backend_project(cx);
+    }
+
+    /// Copy in the tree, then Paste on another folder: the Copy dialog for the copied file, whose
+    /// copy lands there. Cut and Paste goes through the Move dialog.
+    #[gpui_kit::test]
+    async fn copy_and_paste_in_the_tree_go_through_the_copy_and_move_dialogs(cx: &mut TestAppContext) {
+        use crate::project_view::file_dialogs::FileDialog;
+        use crate::project_view::operations::FileRefactorRequest;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/a.txt", "a\n"), ("lib/keep.txt", "")]);
+        let file = root.join("src/a.txt");
+        select_in_tree(&workbench, &file, cx);
+        run_action(cx, "project.copy", None);
+        select_in_tree(&workbench, &root.join("lib"), cx);
+        run_action(cx, "project.paste", None);
+        let dialog = workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>()).expect("the Copy dialog");
+        let lib = text_of(&root.join("lib"));
+        let request = dialog.read_with(cx, |dialog, _| dialog.request().clone());
+        assert!(matches!(&request, FileRefactorRequest::Copy { target, .. } if *target == lib), "{request:?}");
+        cx.simulate_keystrokes("enter");
+        settle(cx, |_| root.join("lib/a.txt").is_file());
+        assert!(file.is_file());
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>().is_none()));
+
+        select_in_tree(&workbench, &file, cx);
+        run_action(cx, "project.cut", None);
+        select_in_tree(&workbench, &root.join("lib"), cx);
+        run_action(cx, "project.paste", None);
+        let dialog = workbench.read_with(cx, |w, _| w.file_dialog::<FileDialog>()).expect("the Move dialog");
+        let request = dialog.read_with(cx, |dialog, _| dialog.request().clone());
+        assert!(matches!(request, FileRefactorRequest::Move { .. }), "{request:?}");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(file.is_file(), "a cancelled move keeps the file");
+        close_backend_project(cx);
+    }
+
+    /// Copy Path/Reference… lists the path forms of the edited file with the caret's line; Enter
+    /// copies the one chosen. Copy Absolute Path in the tree copies the selection's path.
+    #[gpui_kit::test]
+    async fn copy_path_reference_lists_the_forms_of_the_edited_file_and_copies_one(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/notes.txt", "one\ntwo\n")]);
+        let file = root.join("src/notes.txt");
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(file.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.update(|window, _| window.activate_window());
+        run_action(cx, "editor.copyPathReference", None);
+        let popup = workbench.read_with(cx, |w, _| w.copy_path_popup()).expect("the Copy Path popup");
+        let lines = popup.read_with(cx, |popup, _| popup.lines());
+        let path = text_of(&file);
+        let labels: Vec<&str> = lines.iter().map(|line| line.split(" | ").next().unwrap_or_default()).collect();
+        assert_eq!(
+            labels,
+            ["Absolute Path", "File Name", "Path From Content Root", "Path with line number", "Reference"]
+        );
+        assert!(lines[0].starts_with(&format!("Absolute Path | {path} |")), "{lines:?}");
+        assert!(lines[3].starts_with("Path with line number | src/notes.txt:1 |"), "{lines:?}");
+        cx.simulate_keystrokes("down down enter");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.copy_path_popup()).is_none());
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()), Some("src/notes.txt".to_owned()));
+        assert!(notification_titles(&workbench, cx).contains(&"Copied src/notes.txt".to_owned()));
+
+        select_in_tree(&workbench, &file, cx);
+        run_action(cx, "project.copyAbsolutePath", None);
+        assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()), Some(path));
+        close_backend_project(cx);
+    }
+
+    /// A right click on a file shows the rows the model gives the selection; New › File from it
+    /// creates in the file's folder. New in This Directory opens the New popup for the edited file.
+    #[gpui_kit::test]
+    async fn the_tree_context_menu_offers_the_model_rows_and_creates_from_new(cx: &mut TestAppContext) {
+        use crate::project_view::context_menu::ProjectCommand;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/lib.rs", "pub fn a() {}\n")]);
+        let file = root.join("src/lib.rs");
+        select_in_tree(&workbench, &file, cx);
+        let selector: &'static str = Box::leak(format!("project-row:{}", text_of(&file)).into_boxed_str());
+        let row = cx.debug_bounds(selector).expect("the row is drawn");
+        cx.simulate_mouse_down(row.center(), gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+        cx.simulate_mouse_up(row.center(), gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+        cx.run_until_parked();
+        let menu = workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).expect("the context menu is open");
+        let lines = menu.read_with(cx, |menu, _| menu.lines());
+        for label in ["New", "Cut", "Copy", "Copy Path/Reference…", "Paste", "Jump to Source", "Refactor", "Delete…"]
+        {
+            assert!(lines[0].iter().any(|line| line.trim_start_matches("> ") == label), "{label} in {lines:?}");
+        }
+        // New is selected first: Right opens its submenu, Enter chooses File.
+        assert_eq!(lines[0][0], "> New");
+        cx.simulate_keystrokes("right enter");
+        cx.run_until_parked();
+        let popup = new_popup_of(&workbench, cx);
+        assert_eq!(popup.read_with(cx, |popup, _| popup.naming().map(str::to_owned)), Some("File".to_owned()));
+        enter_new_name(&popup, "extra.rs", cx);
+        let extra = root.join("src/extra.rs");
+        settle(cx, |cx| {
+            extra.is_file()
+                && workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == extra.as_path()))
+        });
+
+        // In the editor, New in This Directory is for the edited file's folder.
+        cx.run_until_parked();
+        run_action(cx, "project.newInThisDirectory", None);
+        let popup = new_popup_of(&workbench, cx);
+        cx.simulate_keystrokes("enter");
+        enter_new_name(&popup, "more.rs", cx);
+        settle(cx, |_| root.join("src/more.rs").is_file());
+        close_backend_project(cx);
     }
 }

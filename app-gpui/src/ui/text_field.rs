@@ -37,6 +37,8 @@ pub struct TextField {
     marked: Option<Range<usize>>,
     /// Where the text was last painted, for the input method's candidate window and for clicks.
     painted: Option<(Bounds<Pixels>, ShapedLine)>,
+    /// Typing, pasting and deleting change nothing; the text can still be selected and copied.
+    read_only: bool,
 }
 
 impl EventEmitter<TextFieldEvent> for TextField {}
@@ -67,6 +69,7 @@ impl TextField {
             placeholder: SharedString::default(),
             marked: None,
             painted: None,
+            read_only: false,
         }
     }
 
@@ -93,6 +96,28 @@ impl TextField {
         cx.notify();
     }
 
+    /// Selects the bytes `range` of the text, clamped to it and widened to character boundaries;
+    /// the caret goes to its end.
+    pub fn select_range(&mut self, range: Range<usize>, cx: &mut Context<Self>) {
+        let floor = |at: usize| {
+            let mut at = at.min(self.text.len());
+            while !self.text.is_char_boundary(at) {
+                at -= 1;
+            }
+            at
+        };
+        let ceil = |at: usize| {
+            let mut at = at.min(self.text.len());
+            while !self.text.is_char_boundary(at) {
+                at += 1;
+            }
+            at
+        };
+        let start = floor(range.start);
+        (self.anchor, self.head) = (start, ceil(range.end).max(start));
+        cx.notify();
+    }
+
     /// The selected bytes, in order.
     pub fn selection(&self) -> Range<usize> {
         self.anchor.min(self.head)..self.anchor.max(self.head)
@@ -102,8 +127,21 @@ impl TextField {
         &self.text[self.selection()]
     }
 
+    /// Whether the user can change the text; the owner still can, with [`Self::set_text`].
+    pub fn set_read_only(&mut self, read_only: bool, cx: &mut Context<Self>) {
+        self.read_only = read_only;
+        cx.notify();
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        self.read_only
+    }
+
     /// Replaces `range` (the selection when none is given) with `new_text`.
     fn replace(&mut self, range: Option<Range<usize>>, new_text: &str, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let range = range.unwrap_or_else(|| self.selection());
         // One line: what is pasted or composed with line breaks is joined by spaces.
         let single: String = new_text.split(['\r', '\n']).filter(|part| !part.is_empty()).collect::<Vec<_>>().join(" ");
@@ -464,6 +502,35 @@ mod tests {
 
     fn text(field: &Entity<TextField>, cx: &mut VisualTestContext) -> String {
         field.read_with(cx, |field, _| field.text().to_owned())
+    }
+
+    // Not from a spec: a range is clamped to the text and kept on character boundaries; typing replaces it.
+    #[gpui_kit::test]
+    async fn selects_a_range_on_character_boundaries(cx: &mut TestAppContext) {
+        let (field, _, cx) = field(cx);
+        field.update(cx, |field, cx| field.set_text("née.txt", cx));
+        field.update(cx, |field, cx| field.select_range(0..2, cx));
+        assert_eq!(field.read_with(cx, |field, _| field.selected_text().to_owned()), "né");
+        field.update(cx, |field, cx| field.select_range(4..99, cx));
+        assert_eq!(field.read_with(cx, |field, _| field.selected_text().to_owned()), ".txt");
+        field.update(cx, |field, cx| field.select_range(0..4, cx));
+        cx.simulate_input("old");
+        assert_eq!(text(&field, cx), "old.txt");
+    }
+
+    // Not from a spec: a read-only field ignores typing and deleting until it is writable again.
+    #[gpui_kit::test]
+    async fn a_read_only_field_keeps_its_text(cx: &mut TestAppContext) {
+        let (field, events, cx) = field(cx);
+        field.update(cx, |field, cx| field.set_text("name", cx));
+        field.update(cx, |field, cx| field.set_read_only(true, cx));
+        cx.simulate_input("x");
+        cx.simulate_keystrokes("backspace");
+        assert_eq!(text(&field, cx), "name");
+        assert!(!events.borrow().contains(&TextFieldEvent::Changed));
+        field.update(cx, |field, cx| field.set_read_only(false, cx));
+        cx.simulate_input("s");
+        assert_eq!(text(&field, cx), "names");
     }
 
     #[gpui_kit::test]

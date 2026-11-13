@@ -938,22 +938,40 @@ pub fn check_editing_name(state: &ProjectViewState, host_os: Os, name: &str) -> 
         Editing::Rename { path, .. } => parent_of(path),
     };
     let siblings = siblings_of(state, folder);
+    match editing {
+        Editing::New { pkg, .. } => check_new_entry_name(name, *pkg, &siblings, host_os),
+        Editing::Rename { path, .. } => {
+            let siblings: Vec<&str> = siblings.iter().map(String::as_str).collect();
+            let options = ValidateOptions {
+                siblings: &siblings,
+                current: Some(name_of(path)),
+                case_insensitive: case_insensitive_os(host_os),
+                windows: host_os == Os::Windows,
+                ..ValidateOptions::default()
+            };
+            validate_name(name, &options)
+        }
+    }
+}
+
+/// Validates the name of a new file or folder among `siblings`, the names in the folder it goes
+/// into: a nested `a/b/c` is allowed, a package name (`pkg`) is split at its dots first. `host_os`
+/// is the OS the files are on.
+pub fn check_new_entry_name(name: &str, pkg: Option<PackageKind>, siblings: &[String], host_os: Os) -> NameCheck {
     let siblings: Vec<&str> = siblings.iter().map(String::as_str).collect();
     let options = ValidateOptions {
         siblings: &siblings,
+        allow_nested: true,
         case_insensitive: case_insensitive_os(host_os),
         windows: host_os == Os::Windows,
         ..ValidateOptions::default()
     };
-    match editing {
-        Editing::New { pkg: Some(kind), .. } => match package_segments(name, *kind) {
-            Ok(segments) => validate_name(&segments.join("/"), &ValidateOptions { allow_nested: true, ..options }),
+    match pkg {
+        Some(kind) => match package_segments(name, kind) {
+            Ok(segments) => validate_name(&segments.join("/"), &options),
             Err(error) => NameCheck { error: Some(error), warning: None },
         },
-        Editing::New { pkg: None, .. } => validate_name(name, &ValidateOptions { allow_nested: true, ..options }),
-        Editing::Rename { path, .. } => {
-            validate_name(name, &ValidateOptions { current: Some(name_of(path)), ..options })
-        }
+        None => validate_name(name, &options),
     }
 }
 
