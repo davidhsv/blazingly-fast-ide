@@ -48,7 +48,6 @@ use crate::platform::i18n::{Localization, Param};
 use crate::platform::input::{self, Keymap};
 use crate::platform::project_roots::{FolderRole, RootFolder};
 use crate::platform::virtual_docs::basename;
-use crate::platform_more::inspection_controls::ControlItem;
 use crate::theme::icons::file_icon_name;
 use crate::vcs::prompt_dialogs::{CANCEL, DialogAnswer, FieldRule, PromptDialog};
 use crate::vcs_ops::dialogs::{ConfirmRequest, PromptRequest};
@@ -1360,15 +1359,6 @@ impl Workbench {
         }
     }
 
-    /// A control of a quick fix's → menu in the intentions list was chosen: what it does to the
-    /// inspection is carried out.
-    pub(super) fn run_intention_control(&mut self, control: &ControlItem, window: &mut Window, cx: &mut Context<Self>) {
-        match control.run.clone() {
-            Some(command) => self.apply_inspection(command, window, cx),
-            None => tracing::debug!("the intention control {} does nothing by itself", control.id),
-        }
-    }
-
     // ---------------------------------------------------------------------------------------------
     // Reformat failures
 
@@ -1577,17 +1567,6 @@ mod tests {
         _folders: (tempfile::TempDir, tempfile::TempDir),
     }
 
-    fn install_with_capabilities(config: &Path, scratch: &Path) -> FakeServer {
-        let server = FakeServer::install(config, scratch);
-        let script = scratch.join("server.py");
-        let text = std::fs::read_to_string(&script).expect("the server script is written");
-        let anchor = "'codeActionProvider': {'resolveProvider': True},";
-        assert!(text.contains(anchor), "the fake server's capabilities are where this fixture extends them");
-        let extended = text.replace(anchor, &format!("{anchor} **script().get('capabilities', {{}}),"));
-        std::fs::write(&script, extended).expect("the server script is extended");
-        server
-    }
-
     fn open<'a>(
         cx: &'a mut TestAppContext,
         files: &[(&str, &str)],
@@ -1599,7 +1578,7 @@ mod tests {
         let (home, folder) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a folder"));
         let dirs = AppDirs::under(home.path());
         let server = answers.as_ref().map(|answers| {
-            let server = install_with_capabilities(&dirs.config, home.path());
+            let server = FakeServer::install(&dirs.config, home.path());
             server.answer(answers.clone());
             server
         });
@@ -2062,40 +2041,6 @@ mod tests {
         f.close(cx);
     }
 
-    /// Choosing Disable inspection in a quick fix's → menu turns the inspection off and leaves the
-    /// fix unapplied.
-    #[gpui_kit::test]
-    async fn opens_a_rows_menu_with_the_right_arrow_and_runs_its_items(cx: &mut TestAppContext) {
-        let text = "let foo = 1\n";
-        let problem = json!({
-            "range": range(0, 4, 7), "message": "unused name", "severity": 2, "source": "mock", "code": "MOCK001",
-        });
-        let (f, cx) = open(cx, &[("a.mock", text)], "a.mock", Some(json!({ "diagnostics": [problem.clone()] })), &[]);
-        let a = f.root.join("a.mock");
-        let fix = json!({
-            "title": "Remove foo",
-            "kind": "quickfix",
-            "diagnostics": [problem.clone()],
-            "edit": edit(&a, vec![text_edit(range(0, 0, 11), "")]),
-        });
-        f.answer(json!({ "diagnostics": [problem], "textDocument/codeAction": [fix] }));
-        let editor = f.active(cx);
-        settle(cx, |cx| cx.update(|_, cx| !problems(&editor, cx).is_empty()));
-        let inspections =
-            |cx: &mut VisualTestContext| cx.update(|_, cx| crate::platform::settings::effective("w1", cx).inspections);
-        let before = inspections(cx);
-        f.put_caret(cx, 5);
-        f.run(cx, "code.showIntentions");
-        let intelligence = cx.update(|_, cx| EditorIntelligence::of(&editor, cx)).expect("the intelligence");
-        settle(cx, |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
-        cx.simulate_keystrokes("right down enter");
-        settle(cx, |cx| intelligence.read_with(cx, |this, _| this.intentions().is_none()));
-        settle(cx, |cx| inspections(cx) != before);
-        assert!(format!("{:?}", inspections(cx)).contains("MOCK001"), "the inspection of MOCK001 is turned off");
-        assert_eq!(f.text(cx), text, "the fix itself is not applied");
-        f.close(cx);
-    }
-
     /// Highlight Usages in File marks the occurrences the server reports and says how many there
     /// are; Next / Previous Highlighted Usage move the caret through them at the same place in the
     /// name, wrapping; the action again on a usage removes them, and so does Escape; with no usages
@@ -2278,6 +2223,38 @@ mod tests {
         settle(cx, |cx| f.caret(cx) == 17);
         f.run(cx, "navigate.previousMethod");
         settle(cx, |cx| f.caret(cx) == 3);
+        f.close(cx);
+    }
+
+    /// The language actions' keys need the editor (`textEditorActive && (editorFocus || popupOpen ||
+    /// !toolWindowFocus)`): with the Project view focused F2, ⌘F1, ⌘⇧F7, ⌃⇧↓, ⌃⌥↓, ⌃⌥O, ⌥⇧↵ and ⌥⌘L
+    /// do nothing to the editor; back in the editor F2 says the file has no problems.
+    #[gpui_kit::test]
+    async fn the_language_keys_do_nothing_while_a_tool_window_has_the_keyboard(cx: &mut TestAppContext) {
+        let text = "let  x=1\n";
+        let (f, cx) = open(cx, &[("a.py", text)], "a.py", None, &[]);
+        let editor = f.active(cx);
+        f.put_caret(cx, 4);
+        let tree = f.workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a project tree");
+        cx.update(|window, cx| {
+            let focus = tree.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.run_until_parked();
+        cx.simulate_keystrokes("f2 cmd-f1 cmd-shift-f7 ctrl-shift-down ctrl-alt-down ctrl-alt-o");
+        cx.simulate_keystrokes("alt-shift-enter cmd-alt-l");
+        cx.run_until_parked();
+        assert!(f.editor(cx).is_some_and(|active| active == editor), "the same editor is active");
+        assert_eq!(f.hint(cx), None);
+        assert_eq!(editor.read_with(cx, |e, _| (e.text(), e.caret())), (text.to_owned(), 4));
+        assert!(editor.read_with(cx, |e, _| e.marks(MarkLayer::Usages).is_empty()));
+        cx.update(|window, cx| {
+            let focus = editor.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.run_until_parked();
+        cx.simulate_keystrokes("f2");
+        f.wait_hint(cx, NO_PROBLEMS_IN_FILE);
         f.close(cx);
     }
 }

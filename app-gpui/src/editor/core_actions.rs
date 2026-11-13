@@ -19,7 +19,7 @@ use crate::editor_commands::folding::{self, FoldEdit};
 use crate::editor_commands::{Edit, EditState, IndentContext, SelectionExt, change, leading_space, map_after};
 use crate::features_b::viewers::font_zoom::{MAX_EDITOR_ZOOM, MIN_EDITOR_ZOOM};
 use crate::platform::actions::ActionRegistry;
-use gpui_kit::{App, Context};
+use gpui_kit::{App, Context, px};
 
 /// What the commands of this module keep on an editor.
 #[derive(Debug, Default)]
@@ -89,6 +89,21 @@ impl Editor {
     /// The folded regions, in document order (UTF-16 offsets).
     pub fn folded_regions(&self) -> &[(u32, u32)] {
         self.core.folds.folded()
+    }
+
+    /// The row line `line` is painted on: lines a fold hides are on its header's row.
+    pub fn row_of_line(&self, line: u32) -> u32 {
+        self.core.folds.row_of_line(line)
+    }
+
+    /// The line painted on row `row`.
+    pub fn line_of_row(&self, row: u32) -> u32 {
+        self.core.folds.line_of_row(row)
+    }
+
+    /// How many rows the document takes on screen.
+    pub fn row_count(&self) -> u32 {
+        self.core.folds.row_count(self.line_count())
     }
 
     /// Whether the backend's fold ranges are those of the current text.
@@ -179,6 +194,8 @@ fn run_fold(editor: &mut Editor, command: FoldCommand, cx: &mut Context<Editor>)
         editor.set_selections(ranges, main, cx);
     }
     if changed {
+        // Fewer rows can leave the view scrolled past the end: it is brought back.
+        editor.scroll_by(px(0.0), cx);
         cx.notify();
     }
 }
@@ -658,7 +675,7 @@ mod tests {
         let mut run: BTreeSet<&str> = FOLD_CASES.iter().flat_map(|case| case.0.iter().copied()).collect();
         run.extend(["code.extendSelection", "code.shrinkSelection", "code.autoIndentLines", "editor.scrollToCenter"]);
         // Increase / Decrease Font Size need a project (`when: projectOpen`): the workbench's
-        // `reset_font_size_resets_every_editor` runs them.
+        // `the_font_size_steps_in_the_active_editor_and_resets_in_every_editor` runs them.
         run.extend(["editor.increaseFontSize", "editor.decreaseFontSize"]);
         let registered: BTreeSet<&str> =
             FOLD_COMMANDS.iter().map(|(id, _)| *id).chain(COMMANDS.iter().map(|(id, _)| *id)).collect();

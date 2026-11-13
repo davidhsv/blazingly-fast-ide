@@ -1,7 +1,6 @@
 //! What the editor's actions ask of the window: Back / Forward and the edit locations across the
-//! files of the window, Copy Path / Copy Path with Line Number / Copy Reference, the editor hint,
-//! Reload from Disk, the read-only attribute, Reset Font Size in every editor, Paste from History and
-//! Close All Tabs.
+//! files of the window, Copy Path / Copy Path with Line Number, the editor hint, Reload from Disk,
+//! the read-only attribute, Reset Font Size in every editor and Paste from History.
 //!
 //! The window records where the caret has been: every caret move of its active editor updates the
 //! current place of [`NavigationHistory`], an editor taking the keyboard is a navigation (a file
@@ -10,25 +9,20 @@
 use super::services_window::on_workbench;
 use super::{Content, Workbench, Workbenches};
 use crate::backend::Backend;
-use crate::editor::buffer;
 use crate::editor::nav_history::{EditHistory, NavigationHistory, Place};
 use crate::editor::paste_history_view::{PasteHistoryDialog, PasteHistoryEvent};
 use crate::editor::view::{EditOrigin, Editor, EditorClipboard, EditorEvent};
-use crate::editor_commands::copy_reference::{
-    ReferenceInput, declared_name, qualified_reference, reference_offset, relative_path,
-};
+use crate::editor_commands::copy_reference::relative_path;
 use crate::editor_commands::extras::{paste_chosen, paste_from_history_hint};
-use crate::editor_commands::outline::declaration_chain;
 use crate::editor_model::file_attributes::{ToggleTarget, confirmed, toggle_failure_title, toggle_read_only};
 use crate::platform::actions::{ActionRegistry, execute_action};
 use crate::platform::i18n::Localization;
 use crate::platform::local_time::now_ms;
-use crate::project_view::copy_path_popup::{PATH_WITH_LINE, REFERENCE, copied_hint};
+use crate::project_view::copy_path_popup::{PATH_WITH_LINE, copied_hint};
 use crate::vcs::prompt_dialogs::PromptDialog;
 use crate::vcs_ops::dialogs::ConfirmRequest;
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use gpui_kit::{App, ClipboardItem, Context, Entity, Focusable, Window};
-use ide_core::{Pos, SymbolKind};
 use serde_json::Value;
 use std::path::PathBuf;
 
@@ -68,13 +62,6 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
             if let Some(text) = given.or_else(|| workbench.path_with_line(cx)) {
                 workbench.copy_text(PATH_WITH_LINE, text, cx);
             }
-        })
-    });
-    registry.handle(REFERENCE, |call, window, cx| {
-        let given = call.arg.and_then(Value::as_str).map(str::to_owned);
-        on_workbench(window, cx, move |workbench, window, cx| match given {
-            Some(text) => workbench.copy_text(REFERENCE, text, cx),
-            None => workbench.copy_reference(window, cx),
         })
     });
     registry.handle("file.reloadFromDisk", |call, window, cx| {
@@ -128,7 +115,6 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
             }
         })
     });
-    registry.handle("editor.closeAllTabs", |_, window, cx| on_workbench(window, cx, Workbench::close_all_tabs));
 }
 
 /// Reset Font Size in All Editors: every editor of every window back to the configured size.
@@ -273,71 +259,12 @@ impl Workbench {
         self.show_hint(hint, cx);
     }
 
-    /// The project's root, when the window has a project.
-    fn project_root(&self, cx: &App) -> Option<String> {
-        self.project_tree().map(|tree| tree.read(cx).root().to_owned())
-    }
-
     /// The edited file's path from the project's root with the caret's 1-based line: `src/a.rs:12`.
     fn path_with_line(&self, cx: &App) -> Option<String> {
         let editor = self.editor()?.read(cx);
         let path = editor.path().to_string_lossy().into_owned();
-        let root = self.project_root(cx);
+        let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned());
         Some(format!("{}:{}", relative_path(&path, root.as_deref()), editor.caret_position().0 + 1))
-    }
-
-    /// Copy Reference (⌥⇧⌘C): on a declaration's name its qualified name, from the file's outline;
-    /// elsewhere the file and line.
-    fn copy_reference(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(editor) = self.editor().cloned() else { return };
-        let (path, text, language, doc, selection, caret_line) = {
-            let editor = editor.read(cx);
-            let selection = editor.selection();
-            (
-                editor.path().to_string_lossy().into_owned(),
-                editor.text(),
-                editor.language().to_string(),
-                editor.doc(),
-                selection.clone(),
-                buffer::line_col(editor.rope(), selection.start).0,
-            )
-        };
-        let root = self.project_root(cx);
-        // Off every name the reference is the place itself.
-        let at = reference_offset(&text, selection.start, selection.end)
-            .map(|offset| buffer::line_col(editor.read(cx).rope(), offset));
-        let label = self.label.clone();
-        let outline = cx
-            .global::<Backend>()
-            .with_host(move |host| async move { ide_host::ops::doc::doc_outline(&host, &label, doc).await });
-        cx.spawn(async move |workbench, cx| {
-            let (chain, line) = match (at, outline.await) {
-                (Some((line, col)), Ok(Ok(items))) => {
-                    let chain: Vec<String> = declaration_chain(&items, Pos { line, col })
-                        .into_iter()
-                        .filter(|item| item.kind != SymbolKind::Package)
-                        .map(|item| declared_name(&item.name, item.kind).to_owned())
-                        .collect();
-                    (chain, line)
-                }
-                (_, Ok(Err(error))) => {
-                    tracing::debug!("copy reference: no outline of {path}: {}", error.message);
-                    (Vec::new(), caret_line)
-                }
-                (_, Err(error)) => {
-                    tracing::debug!("copy reference: no outline of {path}: {error:#}");
-                    (Vec::new(), caret_line)
-                }
-                (None, Ok(Ok(_))) => (Vec::new(), caret_line),
-            };
-            let line = if chain.is_empty() { caret_line } else { line };
-            let text = if chain.is_empty() { "" } else { text.as_str() };
-            let input =
-                ReferenceInput { language: &language, path: &path, root: root.as_deref(), text, chain: &chain, line };
-            let reference = qualified_reference(&input);
-            let _ = workbench.update(cx, |workbench, cx| workbench.copy_text(REFERENCE, reference, cx));
-        })
-        .detach();
     }
 
     /// Reload from Disk: the open documents of `paths` read their files again. A document with unsaved
@@ -455,21 +382,6 @@ impl Workbench {
         });
         let focus = dialog.focus_handle(cx);
         self.open_vcs_dialog(dialog.into(), focus, events, window, cx);
-    }
-
-    /// Window › Close All Tabs: every pane's tabs close, pinned ones too, and Reopen Closed Tab has
-    /// nothing to bring back.
-    pub fn close_all_tabs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.with_tabs(window, cx, |tabs, _| {
-            let panes: Vec<String> = tabs.pane_ids().into_iter().map(str::to_owned).collect();
-            let mut changed = false;
-            for pane in &panes {
-                changed |= tabs.close_all(pane, false);
-            }
-            changed |= !tabs.closed.is_empty();
-            tabs.closed.clear();
-            changed
-        });
     }
 }
 
@@ -645,15 +557,15 @@ mod tests {
         close(cx);
     }
 
-    /// Copy Path copies the absolute path, Copy Path with Line Number the path from the project root
-    /// with the caret's line, Copy Reference the qualified name of the declaration at the caret; each
-    /// says so in the hint and goes into the clipboard history.
+    /// Copy Path copies the absolute path and Copy Path with Line Number the path from the project
+    /// root with the caret's line (or the text it is given); each says so in the hint and goes into
+    /// the clipboard history.
     #[gpui_kit::test]
     async fn the_copy_path_actions_copy_the_forms_of_the_edited_file(cx: &mut TestAppContext) {
         let _home = start(cx);
         let (_folder, root, workbench, cx) = project(cx, FILES);
         let a = open(&workbench, &root.join("src/a.rs"), cx);
-        caret_to(&a, 0, 8, cx);
+        caret_to(&a, 2, 3, cx);
         let absolute = root.join("src/a.rs").to_string_lossy().into_owned();
         run(cx, "editor.showHint", Some(serde_json::json!({ "text": "A hint" })));
         assert!(titles(&workbench, cx).contains(&"A hint".to_owned()));
@@ -661,20 +573,13 @@ mod tests {
         assert_eq!(clipboard(cx).as_deref(), Some(absolute.as_str()));
         assert!(titles(&workbench, cx).contains(&format!("Copied {absolute}")), "{:?}", titles(&workbench, cx));
         run(cx, "editor.copyPathWithLineNumber", None);
-        assert_eq!(clipboard(cx).as_deref(), Some("src/a.rs:1"));
+        assert_eq!(clipboard(cx).as_deref(), Some("src/a.rs:3"));
         run(cx, "editor.copyPathWithLineNumber", Some(Value::from("given:9")));
         assert_eq!(clipboard(cx).as_deref(), Some("given:9"));
-        run(cx, "editor.copyReference", None);
-        settle(cx, |cx| clipboard(cx).as_deref() == Some("crate::a::place"));
-        assert!(titles(&workbench, cx).contains(&"Copied reference: crate::a::place".to_owned()));
-        // Off a name the reference is the file and line.
-        caret_to(&a, 1, 0, cx);
-        run(cx, "editor.copyReference", None);
-        settle(cx, |cx| clipboard(cx).as_deref() == Some("src/a.rs:2"));
         let history: Vec<String> = cx.update(|_, cx| {
             cx.default_global::<EditorClipboard>().0.entries().iter().map(|entry| entry.text.clone()).collect()
         });
-        assert_eq!(history[..2], ["src/a.rs:2".to_owned(), "crate::a::place".to_owned()]);
+        assert_eq!(history[..3], ["given:9".to_owned(), "src/a.rs:3".to_owned(), absolute]);
         close(cx);
     }
 
@@ -736,7 +641,8 @@ mod tests {
         let a = open(&workbench, &root.join("src/a.rs"), cx);
         let base = a.read_with(cx, |e, cx| e.font_size(cx));
         run(cx, "editor.increaseFontSize", None);
-        run(cx, "editor.increaseFontSize", None);
+        // ⌥⇧. is Increase Font Size in a project window.
+        cx.simulate_keystrokes("alt-shift-.");
         assert_eq!(a.read_with(cx, |e, cx| e.font_size(cx)), base + gpui_kit::px(2.0));
         run(cx, "editor.decreaseFontSize", None);
         assert_eq!(a.read_with(cx, |e, cx| e.font_size(cx)), base + gpui_kit::px(1.0));
@@ -794,25 +700,6 @@ mod tests {
         close(cx);
     }
 
-    /// Close All Tabs empties every pane of a split editor and leaves nothing to reopen.
-    #[gpui_kit::test]
-    async fn close_all_tabs_closes_the_tabs_of_every_pane(cx: &mut TestAppContext) {
-        let _home = start(cx);
-        let (_folder, root, workbench, cx) = project(cx, FILES);
-        open(&workbench, &root.join("src/a.rs"), cx);
-        run(cx, "editor.splitRight", None);
-        open(&workbench, &root.join("src/b.rs"), cx);
-        run(cx, "editor.closeAllTabs", None);
-        assert!(workbench.read_with(cx, |w, _| w.tab_titles().is_empty() && w.editor().is_none()));
-        let left: usize =
-            workbench.read_with(cx, |w, _| w.tabs().map_or(0, |tabs| tabs.panes.iter().map(|p| p.tabs.len()).sum()));
-        assert_eq!(left, 0);
-        assert!(cx.update(|window, cx| execute_action_or_throw("editor.reopenClosedTab", None, window, cx)).is_ok());
-        cx.run_until_parked();
-        assert!(workbench.read_with(cx, |w, _| w.editor().is_none()));
-        close(cx);
-    }
-
     /// Without a project the actions that need one do not run; without an editor tab the editor's
     /// actions do not run; without the dialog its actions do not run.
     #[gpui_kit::test]
@@ -826,18 +713,9 @@ mod tests {
             }
         };
         // `textEditorActive`, `editorTabsOpen` and the editor's focus: no tab is open.
-        unavailable(
-            cx,
-            &[
-                "file.toggleReadOnly",
-                "editor.copyPath",
-                "editor.closeAllTabs",
-                "editor.copyReference",
-                "code.foldAll",
-                "code.autoIndentLines",
-                "editor.scrollToCenter",
-            ],
-        );
+        let editor_actions =
+            ["file.toggleReadOnly", "editor.copyPath", "code.foldAll", "code.autoIndentLines", "editor.scrollToCenter"];
+        unavailable(cx, &editor_actions);
         open(&workbench, &root.join("src/a.rs"), cx);
         // `pasteHistoryOpen`: the dialog is not open.
         unavailable(cx, &["editor.pasteHistory.paste", "editor.pasteHistory.remove"]);
@@ -859,6 +737,15 @@ mod tests {
                 "editor.resetFontSize",
             ],
         );
+        // Their keys do nothing there either.
+        let editor = light.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        cx.update(|window, cx| {
+            window.activate_window();
+            let focus = editor.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.simulate_keystrokes("alt-shift-. alt-shift-.");
+        assert_eq!(editor.read_with(cx, |e, _| e.font_zoom()), 0);
         let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
         host.close_project("w2");
     }
@@ -886,6 +773,13 @@ mod tests {
         }
         cx.simulate_keystrokes("cmd--");
         assert_eq!(editor.read_with(cx, |e, _| e.shown_lines()), [0, 1, 2, 3, 4, 5]);
+        // The other editor keys of the module leave the editor as it is: Extend Selection, Fold
+        // Selection, Collapse Recursively, Auto-Indent Lines, Scroll to Center, Paste from History.
+        let before = editor.read_with(cx, |e, _| (e.text(), e.selections().to_vec(), e.scroll_top()));
+        cx.simulate_keystrokes("alt-up cmd-. cmd-alt-- ctrl-alt-i ctrl-l cmd-shift-v");
+        assert_eq!(editor.read_with(cx, |e, _| (e.text(), e.selections().to_vec(), e.scroll_top())), before);
+        assert_eq!(editor.read_with(cx, |e, _| e.shown_lines()), [0, 1, 2, 3, 4, 5]);
+        assert!(workbench.read_with(cx, |w, _| w.paste_history_dialog().is_none()));
         cx.update(|window, cx| {
             let focus = editor.focus_handle(cx);
             window.focus(&focus, cx);
