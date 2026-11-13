@@ -5511,10 +5511,6 @@
     "status": "done",
     "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Stop All, run through run.services.stopAll on the Program group, ends both sessions and both rows say Stopped"
   },
-  "action:(dynamic) src/features/run/services.tsx:620": {
-    "status": "partial",
-    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; run.services.runAll, run.services.restartAll and run.services.stopAll run through the registry on a type group; run.services.openBrowser is not run"
-  },
   "action:open-browser": {
     "status": "partial",
     "proof": "`workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Open in Browser is enabled while a server with a port runs and disabled after Stop; it is never run, so opening the URL is not shown"
@@ -5767,10 +5763,6 @@
     "status": "done",
     "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`; run through the registry with { id, checked }, the active log tab's Verbose switch turns on and the program restarts with its argument, whose output then shows in the tab"
   },
-  "action:(dynamic) src/features/plugins/views/logActions.ts:35": {
-    "status": "partial",
-    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `plugin_views::log_tab::tests::renders_partial_output_read_only_handles_early_exit_clears_and_wraps`; plugins.log.clear empties the active log tab and plugins.log.wrap turns its soft wrap off, run through the registry. Missing: plugins.log.find is not registered (no Find in Logs), and soft wrap always starts on instead of following editor.softWrap"
-  },
   "action:view.backgroundTasks": {
     "status": "partial",
     "proof": "`workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; the tasks status item runs the action and Background Tasks opens with the plugin's task and its working Cancel. Differs: the native action toggles, so running it again closes the popup, where the webview's action only opens it"
@@ -5954,5 +5946,25 @@
   "wit:wit/language-features.wit#language-features": {
     "status": "partial",
     "proof": "`workbench::plugin_contributions::tests::renders_owned_gutter_commands_and_drops_answers_to_superseded_buffers`, `workbench::plugin_contributions::tests::puts_the_actions_of_one_line_behind_one_icon_whose_click_opens_a_menu`, `workbench::plugin_contributions::tests::a_gutter_icon_click_neither_moves_the_caret_nor_toggles_a_breakpoint`; gutter-actions show as icons whose click runs the action without moving the caret or toggling a breakpoint, two plugins' actions of a line behind one menu. Missing: every other function of the interface (format, signature help, highlights, links, lenses, folding, colors, symbols…) has no app-level test"
+  },
+  "action:run.services.runAll": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`"
+  },
+  "action:run.services.restartAll": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`"
+  },
+  "action:run.services.stopAll": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`"
+  },
+  "action:plugins.log.clear": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`"
+  },
+  "action:plugins.log.wrap": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`; soft wrap starts on, where the original starts off"
   }
 }

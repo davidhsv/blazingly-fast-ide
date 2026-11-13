@@ -248,6 +248,12 @@ const actionMap = actions();
 // `run`; the generated manifest resolves them, so its ids fill the gaps.
 const generated = JSON.parse(readFileSync(join(root, "app-gpui/assets/gen/actions.json"), "utf8"));
 for (const { id, source } of generated.actions) if (!actionMap.has(id)) actionMap.set(id, source);
+// A row for "an id built at run time" at a place the manifest now lists by id would count those
+// actions twice.
+const resolvedSources = new Set(generated.actions.map((action) => action.source));
+for (const [id, source] of [...actionMap]) {
+  if (id.startsWith("(dynamic) ") && resolvedSources.has(source)) actionMap.delete(id);
+}
 const keymaps = keymapBindings();
 const defaultMap = keymaps["intellij-macos"] ?? {};
 section(
