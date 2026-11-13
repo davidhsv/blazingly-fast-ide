@@ -17,6 +17,7 @@ pub mod marker_store;
 pub mod navigation;
 pub mod plugin_icon;
 pub mod plugin_text;
+pub mod plugins_page;
 pub mod pty_bridge;
 pub mod run_targets;
 pub mod runtime_ui;

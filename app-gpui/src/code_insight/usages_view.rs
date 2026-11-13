@@ -1229,7 +1229,7 @@ mod tests {
     use super::*;
     use crate::code_insight::usage_search::{FetchRequest, TabsEffect, UsageCaret};
     use crate::code_insight::usages::{ACCESS_KEY, FileLines, UsageAccess};
-    use gpui_kit::{Entity, Modifiers, TestAppContext, VisualTestContext};
+    use gpui_kit::{Entity, Modifiers, MouseUpEvent, TestAppContext, VisualTestContext};
     use ide_core::{DocId, IpcPath, Location, Pos, Range, RequestId};
     use ide_lsp::types::References;
     use std::cell::RefCell;
@@ -1436,8 +1436,9 @@ mod tests {
         cx.simulate_keystrokes("down f4");
         assert_eq!(events.borrow().last(), Some(&opened(A, 5, true)));
         let bounds = cx.debug_bounds("usages-row-5").expect("the last usage is drawn");
-        cx.simulate_click(bounds.center(), Modifiers::default());
-        cx.simulate_click(bounds.center(), Modifiers::default());
+        let (position, modifiers, button) = (bounds.center(), Modifiers::default(), MouseButton::Left);
+        cx.simulate_event(MouseDownEvent { position, modifiers, button, click_count: 2, first_mouse: false });
+        cx.simulate_event(MouseUpEvent { position, modifiers, button, click_count: 2 });
         cx.run_until_parked();
         assert!(events.borrow().contains(&opened(B, 1, true)));
         cx.simulate_keystrokes("left");

@@ -1,7 +1,7 @@
 //! Version Control and its pages: Commit, Confirmation, Directory Mappings, Git, Shelf and Issue
 //! Navigation.
 
-use super::{custom, select_owned, toggle};
+use super::{custom, hint, select_owned, toggle};
 use crate::platform::misc::file_manager::show_in_file_manager_label;
 use crate::platform::misc::platform_info::Os;
 use crate::settings_model::page_spec::PageSpec;
@@ -34,6 +34,10 @@ fn commit() -> PageSpec {
                 &["Check TODO", "Reformat code", "Optimize imports", "Cleanup", "before commit"],
             )],
         )
+        .detail(
+            "vcs.commit.nonModal",
+            hint("When off, Local Changes and Stash are tabs of the Git tool window and Commit opens a dialog."),
+        )
 }
 
 fn confirmation() -> PageSpec {
@@ -63,6 +67,7 @@ fn confirmation() -> PageSpec {
                 custom("Limit history to", &["rows", "file history"]),
             ],
         )
+        .detail("vcs.confirmation.confirmDropCommits", hint("Applicable to Git"))
 }
 
 fn directory_mappings() -> PageSpec {
@@ -115,6 +120,10 @@ fn git() -> PageSpec {
         )
         .section(Some("Passwords"), vec![custom("Passwords", &["credentials", "remember", "forget", "https"])])
         .section(Some("Stash"), vec![toggle("vcs.git.combineStashAndShelf", "Combine stashes and shelves in one tab")])
+        .detail(
+            "vcs.git.signOff",
+            hint("Adds a Signed-off-by trailer by default; it can still be switched per commit in Commit Options."),
+        )
 }
 
 fn shelf() -> PageSpec {

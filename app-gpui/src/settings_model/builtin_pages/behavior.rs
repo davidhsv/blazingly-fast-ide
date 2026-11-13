@@ -1,9 +1,9 @@
 //! Appearance & Behavior: Appearance, System Settings with its sub-pages (Language and Region, Date
 //! Formats, HTTP Proxy, IDE Mode, Updates) and Notifications.
 
-use super::{APPEARANCE_GROUP, custom, custom_owned, number, select, select_owned, toggle};
+use super::{APPEARANCE_GROUP, custom, custom_owned, hint, number, select, select_owned, toggle};
 use crate::platform::i18n::LOCALES;
-use crate::settings_model::page_spec::PageSpec;
+use crate::settings_model::page_spec::{OptionDetail, PageSpec};
 use crate::theme::themes::BUILTIN_THEMES;
 use crate::workbench::notifications::NOTIFICATION_GROUPS;
 
@@ -80,6 +80,7 @@ fn appearance() -> PageSpec {
                 &["Show tool window names", "Widescreen tool window layout", "stripes"],
             )],
         )
+        .detail("appearance.redGreenVision", hint("For protanopia and deuteranopia."))
 }
 
 fn system_settings() -> PageSpec {
@@ -110,6 +111,11 @@ fn system_settings() -> PageSpec {
             ],
         )
         .section(Some("Exit"), vec![toggle("general.confirmExit", "Confirm before exiting the IDE")])
+        .detail(
+            "files.localHistoryDays",
+            hint("Days on which files changed; older revisions are removed when a project opens."),
+        )
+        .detail("files.localHistoryMaxMb", OptionDetail { step: Some(64.0), ..OptionDetail::default() })
 }
 
 fn ide_mode() -> PageSpec {
@@ -118,6 +124,14 @@ fn ide_mode() -> PageSpec {
         .project_scope()
         .keywords(&["Blaze mode", "Deep mode", "language server", "lsp", "memory", "performance"])
         .section(None, vec![select("ide.mode", "IDE mode", &[("light", "Blaze mode"), ("full", "Deep mode")])])
+        .detail(
+            "ide.mode",
+            hint(
+                "Light: the editor, git, search and the syntax index only; no language server runs, and Find Usages \
+                 and Call Hierarchy use text matches. Full: language servers and the background tooling they need \
+                 start when files open.",
+            ),
+        )
 }
 
 fn language_and_region() -> PageSpec {
@@ -127,6 +141,7 @@ fn language_and_region() -> PageSpec {
     PageSpec::new("general.language", "Language and Region", 0)
         .keywords(&keywords)
         .section(None, vec![select_owned("appearance.locale", "Language", locales)])
+        .detail("appearance.locale", hint("Language of menus and dialogs; untranslated text stays in English."))
 }
 
 fn date_formats() -> PageSpec {
@@ -192,6 +207,14 @@ pub(super) fn updates() -> PageSpec {
                     &[("auto", "Automatic"), ("github", "GitHub"), ("cnb", "CNB (China mirror)")],
                 ),
             ],
+        )
+        .detail(
+            "general.autoCheckUpdates",
+            hint("At startup and every 4 hours while OpenIDEA runs. Each new version is announced once per session."),
+        )
+        .detail(
+            "general.updateSource",
+            hint("Where updates are downloaded from. If it can't be reached, the other source is tried."),
         )
 }
 

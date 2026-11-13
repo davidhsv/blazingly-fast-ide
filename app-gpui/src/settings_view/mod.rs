@@ -4,3 +4,4 @@
 
 pub mod controls;
 pub mod dialog;
+pub mod keymap;

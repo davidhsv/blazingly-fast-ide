@@ -12,7 +12,8 @@ use gpui_kit::{
     AnyElement, App, ClickEvent, Context, Div, EventEmitter, FontWeight, IntoElement, MouseButton, Render,
     SharedString, Stateful, Window, deferred, div, prelude::*, px,
 };
-use ide_core::{ServerId, ServerStatus};
+use ide_core::ServerId;
+use ide_core::event::ServerStatus;
 
 /// What the status item asks of its window.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -322,8 +323,7 @@ impl Render for ServerStatusItem {
                     .gap(px(8.0))
                     .px(px(10.0))
                     .py(px(6.0))
-                    .child(div().text_color(muted).child(SharedString::from(blaze)))
-                    .child(div().flex_1())
+                    .child(div().flex_1().min_w_0().text_color(muted).child(SharedString::from(blaze)))
                     .child(text_button(cx, "server-deep-mode".to_owned(), deep).on_click(
                         cx.listener(|item, _: &ClickEvent, _, cx| item.run(ServerStatusEvent::SwitchToDeepMode, cx)),
                     ))
@@ -386,12 +386,12 @@ mod tests {
 
     type Events = Rc<RefCell<Vec<ServerStatusEvent>>>;
 
-    fn open(
-        cx: &mut TestAppContext,
+    fn open<'a>(
+        cx: &'a mut TestAppContext,
         status: ServerStatus,
         message: Option<&str>,
         light_mode: bool,
-    ) -> (Entity<ServerStatusItem>, Events, &mut VisualTestContext) {
+    ) -> (Entity<ServerStatusItem>, Events, &'a mut VisualTestContext) {
         cx.update(|cx| cx.set_global(theme::ActiveTheme::default()));
         let mut servers = Servers::default();
         servers.server_event(ServerId(1), "jdtls", status, message.map(str::to_owned), true);

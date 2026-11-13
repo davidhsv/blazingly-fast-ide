@@ -1641,9 +1641,13 @@ mod tests {
 
         view.update(cx, |view, cx| view.select("tools.mcpServer", cx));
         cx.run_until_parked();
-        assert_eq!(lines(&view, cx), ["[ ] Enable MCP server".to_owned(), format!("Endpoint: {UNAVAILABLE}")]);
+        // The checkbox's hint is a line of its own under it.
+        let hint = "    Agents can read, edit, and run projects open in OpenIDEA through its built-in tools. Run tools \
+                    ask for confirmation. The server listens on 127.0.0.1 only and requires a token.";
+        let shown = lines(&view, cx);
+        assert_eq!(shown, ["[ ] Enable MCP server".to_owned(), hint.to_owned(), format!("Endpoint: {UNAVAILABLE}")]);
         let endpoint = cx.update(|_, cx| AnyView::from(cx.new(|_| Probe)));
         view.update(cx, |view, cx| view.set_custom_control("tools.mcpServer", "Endpoint", endpoint, cx));
-        assert_eq!(lines(&view, cx), ["[ ] Enable MCP server", "Endpoint: <custom>"]);
+        assert_eq!(lines(&view, cx), ["[ ] Enable MCP server", hint, "Endpoint: <custom>"]);
     }
 }

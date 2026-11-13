@@ -2009,10 +2009,8 @@ mod tests {
         let choices = view.read_with(cx, |view, cx| view.keymap_choices(cx));
         let vscode = choices.iter().position(|(id, _)| id == "vscode-macos").expect("the VS Code keymap is offered");
         assert_eq!(menu(&view, cx)[vscode], "VS Code (macOS)");
-        cx.update(|window, cx| {
-            view.update(cx, |view, cx| view.run(KeymapCommand::SelectKeymap("vscode-macos".to_owned()), window, cx))
-        });
-        cx.run_until_parked();
+        keys(cx, &format!("{}enter", "down ".repeat(vscode)));
+        assert!(menu(&view, cx).is_empty(), "choosing a keymap closes its menu");
         assert_eq!(staged(&view, KEYMAP_KEY, cx), Some(json!("vscode-macos")));
         assert_eq!(staged(&view, KEYMAP_OVERRIDES_KEY, cx), Some(json!({ "file.save": [] })));
         click(cx, "keymap-gear");

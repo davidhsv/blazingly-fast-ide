@@ -4,6 +4,7 @@ pub mod agents;
 pub mod app_models;
 pub mod backend;
 pub mod build_window;
+pub mod code_insight;
 pub mod database;
 pub mod debugger;
 pub mod editor;
@@ -55,6 +56,7 @@ pub fn init(cx: &mut App) -> anyhow::Result<()> {
     backend::Backend::init(dirs.clone(), cx)?;
     cx.set_global(platform::storage::UiStorage::load(&dirs.config));
     theme::appearance::init(cx);
+    workbench::apply_keymap_settings(cx);
     plugins::Plugins::init(cx)?;
     workbench::register_actions(cx);
     workbench::menu::init(cx);

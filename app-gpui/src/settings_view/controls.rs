@@ -9,7 +9,7 @@
 
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::input;
-use crate::settings_model::page_spec::{OptionSpec, PageSpec};
+use crate::settings_model::page_spec::{OptionDetail, OptionSpec, PageSpec};
 use crate::settings_model::pages::{highlight_indices, label_matches};
 use crate::settings_model::schema::{default_settings, get_at};
 use crate::settings_model::staging::{Scope, SettingsDialog};
@@ -30,6 +30,8 @@ const TEXT_FIELD_WIDTH: f32 = 280.0;
 const NUMBER_FIELD_WIDTH: f32 = 80.0;
 /// How far Up and Down move a number.
 const NUMBER_STEP: f64 = 1.0;
+/// How far an option that depends on a checkbox is indented below it.
+const DEPENDENT_INDENT: f32 = 20.0;
 
 /// The view the controls draw in: it holds the dialog's model and the page's field state, and
 /// says what Enter and Escape in a field do.
@@ -47,13 +49,15 @@ pub trait ControlHost: Sized + 'static {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FieldKind {
     Text,
-    Number { min: f64, max: f64, integer: bool },
+    Number { min: f64, max: f64, integer: bool, step: f64 },
 }
 
 /// A text field bound to a setting.
 struct BoundField {
     key: &'static str,
     kind: FieldKind,
+    /// The checkbox setting that has to be on for the field to be editable.
+    enabled_by: Option<&'static str>,
     field: Entity<TextField>,
     /// The text is not a number the setting takes: it is flagged and not staged.
     invalid: bool,
@@ -90,24 +94,33 @@ impl PageControls {
         scope: Scope,
         cx: &mut Context<V>,
     ) -> Self {
-        let wanted: Vec<(&'static str, FieldKind, String)> = {
+        type Wanted = (&'static str, FieldKind, String, OptionDetail);
+        let wanted: Vec<Wanted> = {
             let dialog = model.read(cx);
             spec.map(|spec| {
+                let detail = |key: &str| spec.detail_of(key).cloned().unwrap_or_default();
                 options(spec)
                     .filter_map(|option| match option {
                         OptionSpec::Number { key, min, max, integer, .. } => {
-                            let kind = FieldKind::Number { min: *min, max: *max, integer: *integer };
-                            Some((*key, kind, number_text(number_value(dialog, scope, key, *min))))
+                            let detail = detail(key);
+                            let step = detail.step.unwrap_or(NUMBER_STEP);
+                            let kind = FieldKind::Number { min: *min, max: *max, integer: *integer, step };
+                            Some((*key, kind, number_text(number_value(dialog, scope, key, *min)), detail))
                         }
-                        OptionSpec::Text { key, .. } => Some((*key, FieldKind::Text, text_value(dialog, scope, key))),
+                        OptionSpec::Text { key, .. } => {
+                            Some((*key, FieldKind::Text, text_value(dialog, scope, key), detail(key)))
+                        }
                         _ => None,
                     })
                     .collect()
             })
             .unwrap_or_default()
         };
-        let fields = wanted.into_iter().map(|(key, kind, text)| bind_field(key, kind, &text, cx)).collect();
-        Self { page: page.to_owned(), scope, fields, open_select: None }
+        let fields: Vec<BoundField> =
+            wanted.into_iter().map(|(key, kind, text, detail)| bind_field(key, kind, &text, &detail, cx)).collect();
+        let controls = Self { page: page.to_owned(), scope, fields, open_select: None };
+        controls.sync_read_only(model, cx);
+        controls
     }
 
     pub fn page(&self) -> &str {
@@ -136,6 +149,20 @@ impl PageControls {
     /// Closes the open choice list; whether one was open.
     pub fn close_select(&mut self) -> bool {
         self.open_select.take().is_some()
+    }
+
+    /// Makes a field read-only while the checkbox it depends on is off.
+    fn sync_read_only(&self, model: &Entity<SettingsDialog>, cx: &mut App) {
+        let wanted: Vec<(Entity<TextField>, bool)> = {
+            let dialog = model.read(cx);
+            let fields = self.fields.iter().filter_map(|bound| Some((bound, bound.enabled_by?)));
+            fields.map(|(bound, parent)| (bound.field.clone(), !bool_value(dialog, self.scope, parent))).collect()
+        };
+        for (field, read_only) in wanted {
+            if field.read(cx).is_read_only() != read_only {
+                field.update(cx, |field, cx| field.set_read_only(read_only, cx));
+            }
+        }
     }
 
     fn bound(&self, key: &str) -> Option<&BoundField> {
@@ -168,7 +195,7 @@ impl PageControls {
                 let shown = bound.field.read(cx).text();
                 let wanted = match bound.kind {
                     FieldKind::Text => text_value(dialog, scope, bound.key),
-                    FieldKind::Number { min, max, integer } => {
+                    FieldKind::Number { min, max, integer, .. } => {
                         let value = number_value(dialog, scope, bound.key, min);
                         if !bound.invalid && parse_number_input(shown, min, max, integer) == Some(value) {
                             continue;
@@ -186,6 +213,7 @@ impl PageControls {
             bound.invalid = false;
             bound.field.update(cx, |field, cx| field.set_text(&wanted, cx));
         }
+        self.sync_read_only(model, cx);
     }
 
     /// Gives up the keys the fields claimed. Called before the controls are dropped.
@@ -197,9 +225,19 @@ impl PageControls {
 }
 
 /// A text field for `key`, showing `text`, that stages what is typed into it.
-fn bind_field<V: ControlHost>(key: &'static str, kind: FieldKind, text: &str, cx: &mut Context<V>) -> BoundField {
+fn bind_field<V: ControlHost>(
+    key: &'static str,
+    kind: FieldKind,
+    text: &str,
+    detail: &OptionDetail,
+    cx: &mut Context<V>,
+) -> BoundField {
+    let placeholder = detail.placeholder.map(|placeholder| tx(cx, placeholder));
     let field = cx.new(|cx| {
         let mut field = TextField::new(cx);
+        if let Some(placeholder) = placeholder {
+            field = field.with_placeholder(placeholder);
+        }
         field.set_text(text, cx);
         field
     });
@@ -217,7 +255,7 @@ fn bind_field<V: ControlHost>(key: &'static str, kind: FieldKind, text: &str, cx
         move |keystroke, _, cx| host.update(cx, |host, cx| field_key(host, key, keystroke, cx)).unwrap_or(false),
         cx,
     );
-    BoundField { key, kind, field, invalid: false, claim, _events: events }
+    BoundField { key, kind, enabled_by: detail.enabled_by, field, invalid: false, claim, _events: events }
 }
 
 /// The text of `key`'s field changed: a text is staged as it is, a number once it is one the
@@ -226,7 +264,7 @@ fn field_edited<V: ControlHost>(host: &mut V, key: &'static str, text: &str, cx:
     let Some(kind) = host.controls().bound(key).map(|bound| bound.kind) else { return };
     let value = match kind {
         FieldKind::Text => Some(Value::String(text.to_owned())),
-        FieldKind::Number { min, max, integer } => parse_number_input(text, min, max, integer).map(number_json),
+        FieldKind::Number { min, max, integer, .. } => parse_number_input(text, min, max, integer).map(number_json),
     };
     host.controls_mut().set_invalid(key, value.is_none());
     if let Some(value) = value {
@@ -261,12 +299,15 @@ fn field_key<V: ControlHost>(host: &mut V, key: &'static str, keystroke: &Keystr
 
 /// Up / Down in a number field: the value one step up or down, within the setting's range.
 fn step_number<V: ControlHost>(host: &mut V, key: &'static str, up: bool, cx: &mut Context<V>) -> bool {
-    let Some(FieldKind::Number { min, max, .. }) = host.controls().bound(key).map(|bound| bound.kind) else {
+    let Some(bound) = host.controls().bound(key) else { return false };
+    let FieldKind::Number { min, max, step, .. } = bound.kind else { return false };
+    // A field whose checkbox is off does not change.
+    if bound.field.read(cx).is_read_only() {
         return false;
-    };
+    }
     let scope = host.controls().scope;
     let value = number_value(host.model().read(cx), scope, key, min);
-    let next = (value + if up { NUMBER_STEP } else { -NUMBER_STEP }).clamp(min, max);
+    let next = (value + if up { step } else { -step }).clamp(min, max);
     host.controls_mut().set_invalid(key, false);
     stage(host, key, number_json((next * 10_000.0).round() / 10_000.0), cx);
     true
@@ -444,6 +485,22 @@ pub fn check_box(cx: &App, on: bool) -> Div {
         .children(mark)
 }
 
+/// A radio button, filled when `on`.
+pub fn radio_dot(cx: &App, on: bool) -> Div {
+    let dot = on.then(|| div().size(px(6.0)).rounded_full().bg(theme::color(cx, "fg-button-primary")));
+    div()
+        .flex_none()
+        .size(px(16.0))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded_full()
+        .border_1()
+        .border_color(theme::color(cx, if on { "bg-button-primary" } else { "border-checkbox" }))
+        .bg(theme::color(cx, if on { "bg-button-primary" } else { "bg-checkbox" }))
+        .children(dot)
+}
+
 /// A button with a text label: the primary one is filled, one that cannot be used is faint.
 pub fn button(cx: &App, label: &str, primary: bool, enabled: bool) -> Div {
     let (bg, fg, border) = if primary && enabled {
@@ -524,7 +581,7 @@ fn select_box(cx: &App, label: &str) -> Div {
 enum Shown {
     Toggle { key: &'static str, checked: bool },
     Number { key: &'static str, field: Option<Entity<TextField>>, invalid: bool, unit: Option<&'static str> },
-    Select { key: &'static str, current: String, open: bool, choices: Vec<(&'static str, String)> },
+    Select { key: &'static str, current: String, open: bool, choices: Vec<(&'static str, String)>, radio: bool },
     Text { key: &'static str, field: Option<Entity<TextField>> },
     Custom { view: Option<AnyView> },
 }
@@ -532,6 +589,12 @@ enum Shown {
 struct ShownOption {
     label: String,
     matched: bool,
+    /// The help line under the control, translated.
+    hint: Option<String>,
+    /// The option depends on a checkbox: it is indented below it.
+    dependent: bool,
+    /// That checkbox is off: the option is dimmed and does not react.
+    disabled: bool,
     shown: Shown,
 }
 
@@ -558,8 +621,12 @@ fn shown_sections<V: ControlHost>(
     };
     let shown_option = |option: &OptionSpec| {
         let label = option.label();
+        let detail = option.key().and_then(|key| spec.detail_of(key)).cloned().unwrap_or_default();
+        let disabled = detail.enabled_by.is_some_and(|parent| !bool_value(model, scope, parent));
         let shown = match option {
-            OptionSpec::Toggle { key, .. } => Shown::Toggle { key, checked: bool_value(model, scope, key) },
+            OptionSpec::Toggle { key, .. } => {
+                Shown::Toggle { key, checked: bool_value(model, scope, key) != detail.invert }
+            }
             OptionSpec::Number { key, unit, .. } => Shown::Number {
                 key,
                 field: controls.field(key).cloned(),
@@ -574,12 +641,20 @@ fn shown_sections<V: ControlHost>(
                     current: current.unwrap_or_default(),
                     open: controls.open_select == Some(*key),
                     choices,
+                    radio: detail.radio,
                 }
             }
             OptionSpec::Text { key, .. } => Shown::Text { key, field: controls.field(key).cloned() },
             OptionSpec::Custom { .. } => Shown::Custom { view: custom(label) },
         };
-        ShownOption { label: i18n.tx(label), matched: label_matches(label, query, i18n), shown }
+        ShownOption {
+            label: i18n.tx(label),
+            matched: label_matches(label, query, i18n),
+            hint: detail.hint.map(|hint| i18n.tx(hint)),
+            dependent: detail.enabled_by.is_some(),
+            disabled,
+            shown,
+        }
     };
     spec.sections
         .iter()
@@ -604,7 +679,7 @@ pub fn page_lines<V: ControlHost>(
     let mut lines = Vec::new();
     for section in shown_sections(host, spec, custom, cx) {
         lines.extend(section.title.map(|title| format!("— {title} —")));
-        for ShownOption { label, shown, .. } in section.options {
+        for ShownOption { label, shown, hint, .. } in section.options {
             let field_text = |field: Option<Entity<TextField>>| field.map(|field| field.read(cx).text().to_owned());
             lines.push(match shown {
                 Shown::Toggle { checked, .. } => format!("[{}] {label}", if checked { "x" } else { " " }),
@@ -619,6 +694,7 @@ pub fn page_lines<V: ControlHost>(
                     format!("{label}: {}", if view.is_some() { "<custom>" } else { UNAVAILABLE })
                 }
             });
+            lines.extend(hint.map(|hint| format!("    {hint}")));
         }
     }
     lines
@@ -652,19 +728,21 @@ pub fn page_body<V: ControlHost>(
 }
 
 fn draw_option<V: ControlHost>(option: ShownOption, query: &str, unavailable: &str, cx: &mut Context<V>) -> AnyElement {
-    let ShownOption { label, matched, shown } = option;
-    match shown {
+    let ShownOption { label, matched, hint, dependent, disabled, shown } = option;
+    let control = match shown {
         Shown::Toggle { key, checked } => row(cx, matched)
             .id(SharedString::from(format!("settings-toggle-{key}")))
             .debug_selector(move || format!("settings-toggle-{key}"))
             .gap(px(8.0))
             .child(check_box(cx, checked))
             .child(search_label(cx, &label, query))
-            .on_click(cx.listener(move |host: &mut V, _: &ClickEvent, _, cx| {
-                let scope = host.controls().scope;
-                let now = bool_value(host.model().read(cx), scope, key);
-                stage(host, key, Value::Bool(!now), cx);
-            }))
+            .when(!disabled, |el| {
+                el.on_click(cx.listener(move |host: &mut V, _: &ClickEvent, _, cx| {
+                    let scope = host.controls().scope;
+                    let now = bool_value(host.model().read(cx), scope, key);
+                    stage(host, key, Value::Bool(!now), cx);
+                }))
+            })
             .into_any_element(),
         Shown::Number { key, field, invalid, unit } => {
             let frame = field_frame(cx, NUMBER_FIELD_WIDTH, invalid)
@@ -681,17 +759,50 @@ fn draw_option<V: ControlHost>(option: ShownOption, query: &str, unavailable: &s
                 .children(field);
             row(cx, matched).child(row_label(cx, &label, query)).child(frame).into_any_element()
         }
-        Shown::Select { key, current, open, choices } => {
+        Shown::Select { key, current, choices, radio: true, .. } => {
+            let rows: Vec<AnyElement> = choices
+                .into_iter()
+                .map(|(value, text)| {
+                    let chosen = text == current;
+                    div()
+                        .id(SharedString::from(format!("settings-radio-{key}-{value}")))
+                        .debug_selector(move || format!("settings-radio-{key}-{value}"))
+                        .h(theme::length(cx, "h-row"))
+                        .flex()
+                        .items_center()
+                        .gap(px(6.0))
+                        .child(radio_dot(cx, chosen))
+                        .child(search_label(cx, &text, query))
+                        .when(!disabled, |el| {
+                            el.on_click(cx.listener(move |host: &mut V, _: &ClickEvent, _, cx| {
+                                stage(host, key, Value::String(value.to_owned()), cx);
+                                cx.notify();
+                            }))
+                        })
+                        .into_any_element()
+                })
+                .collect();
+            let title = (!label.trim().is_empty()).then(|| row(cx, matched).child(search_label(cx, &label, query)));
+            div()
+                .flex()
+                .flex_col()
+                .children(title)
+                .child(div().flex().flex_col().pl(px(4.0)).children(rows))
+                .into_any_element()
+        }
+        Shown::Select { key, current, open, choices, radio: false } => {
             let boxed = select_box(cx, &current)
                 .id(SharedString::from(format!("settings-select-{key}")))
                 .debug_selector(move || format!("settings-select-{key}"))
                 // The dialog closes an open list on a press anywhere else.
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                .on_click(cx.listener(move |host: &mut V, _: &ClickEvent, _, cx| {
-                    let controls = host.controls_mut();
-                    controls.open_select = if controls.open_select == Some(key) { None } else { Some(key) };
-                    cx.notify();
-                }));
+                .when(!disabled, |el| {
+                    el.on_click(cx.listener(move |host: &mut V, _: &ClickEvent, _, cx| {
+                        let controls = host.controls_mut();
+                        controls.open_select = if controls.open_select == Some(key) { None } else { Some(key) };
+                        cx.notify();
+                    }))
+                });
             let list = open.then(|| {
                 let rows: Vec<AnyElement> = choices
                     .into_iter()
@@ -749,7 +860,23 @@ fn draw_option<V: ControlHost>(option: ShownOption, query: &str, unavailable: &s
                 )
                 .into_any_element(),
         },
-    }
+    };
+    let hint = hint.map(|hint| {
+        div()
+            .pl(px(28.0))
+            .pb(px(4.0))
+            .text_size(theme::length(cx, "fs-small"))
+            .text_color(theme::color(cx, "fg-subtle"))
+            .child(SharedString::from(hint))
+    });
+    div()
+        .flex()
+        .flex_col()
+        .when(dependent, |el| el.pl(px(DEPENDENT_INDENT)))
+        .when(disabled, |el| el.opacity(0.5))
+        .child(control)
+        .children(hint)
+        .into_any_element()
 }
 
 #[cfg(test)]
@@ -805,6 +932,10 @@ mod tests {
 
     impl Host {
         fn new(settings: Value, cx: &mut Context<Self>) -> Self {
+            Self::with_spec(settings, spec(), cx)
+        }
+
+        fn with_spec(settings: Value, spec: PageSpec, cx: &mut Context<Self>) -> Self {
             let model = cx.new(|_| {
                 let mut dialog = SettingsDialog::default();
                 dialog.open(Some(PAGE), false, settings);
@@ -814,7 +945,6 @@ mod tests {
                 host.controls.sync(&model, false, cx);
                 cx.notify();
             });
-            let spec = spec();
             let controls = PageControls::build(&model, Some(&spec), PAGE, Scope::Global, cx);
             Self { model, controls, spec, submitted: 0, cancelled: 0, _observe: observe }
         }
@@ -859,6 +989,13 @@ mod tests {
     fn open(cx: &mut TestAppContext, settings: Value) -> (Entity<Host>, &mut VisualTestContext) {
         init(cx);
         let (host, cx) = cx.add_window_view(move |_, cx| Host::new(settings, cx));
+        cx.run_until_parked();
+        (host, cx)
+    }
+
+    fn open_spec(cx: &mut TestAppContext, settings: Value, spec: PageSpec) -> (Entity<Host>, &mut VisualTestContext) {
+        init(cx);
+        let (host, cx) = cx.add_window_view(move |_, cx| Host::with_spec(settings, spec, cx));
         cx.run_until_parked();
         (host, cx)
     }
@@ -1002,5 +1139,94 @@ mod tests {
         host.update(cx, |host, cx| host.model.update(cx, |dialog, _| dialog.query = "soft wrap".to_owned()));
         let matched = host.update(cx, |host, cx| matched_labels(host, &host.spec, cx));
         assert_eq!(matched, ["Soft-wrap files"]);
+    }
+
+    // Not from a spec: an option that depends on a checkbox is not editable while it is off; a
+    // radio choice stages the value clicked; an inverted checkbox shows the opposite of its setting;
+    // a hint is a line under its control; a number steps by its own step.
+    #[gpui_kit::test]
+    async fn draws_the_details_of_the_controls(cx: &mut TestAppContext) {
+        let spec = PageSpec::new(PAGE, "General", 20)
+            .section(
+                None,
+                vec![
+                    OptionSpec::Toggle { key: "editor.softWrap", label: "Soft-wrap files" },
+                    OptionSpec::Text { key: "editor.general.softWrapFiles", label: "File patterns" },
+                    OptionSpec::Toggle { key: "editor.insertSpaces", label: "Use tab character" },
+                    OptionSpec::Select {
+                        key: "editor.general.caretScroll",
+                        label: "When caret is moved",
+                        options: vec![("center", "Centered"), ("minimize", "Minimal")],
+                    },
+                    OptionSpec::Number {
+                        key: "files.localHistoryMaxMb",
+                        label: "Maximum",
+                        min: 16.0,
+                        max: 16384.0,
+                        integer: true,
+                        unit: None,
+                    },
+                ],
+            )
+            .detail(
+                "editor.general.softWrapFiles",
+                OptionDetail {
+                    enabled_by: Some("editor.softWrap"),
+                    hint: Some("Use ; to separate patterns."),
+                    ..Default::default()
+                },
+            )
+            .detail("editor.insertSpaces", OptionDetail { invert: true, ..Default::default() })
+            .detail("editor.general.caretScroll", OptionDetail { radio: true, ..Default::default() })
+            .detail("files.localHistoryMaxMb", OptionDetail { step: Some(64.0), ..Default::default() });
+        let (host, cx) = open_spec(cx, set_at(&default_settings(), "editor.softWrap", json!(false)), spec);
+        let read_only = |host: &Entity<Host>, cx: &mut VisualTestContext| {
+            let field = host.read_with(cx, |host, _| host.controls.field("editor.general.softWrapFiles").cloned());
+            field.expect("the field is drawn").read_with(cx, |field, _| field.is_read_only())
+        };
+        assert!(read_only(&host, cx), "soft wrap is off");
+        assert!(lines(&host, cx).contains(&"    Use ; to separate patterns.".to_owned()));
+        assert!(lines(&host, cx).contains(&"[ ] Use tab character".to_owned()), "spaces are the default");
+        click(cx, "settings-toggle-editor.softWrap");
+        assert!(!read_only(&host, cx));
+        click(cx, "settings-radio-editor.general.caretScroll-minimize");
+        let staged_value = |host: &Entity<Host>, key: &str, cx: &mut VisualTestContext| {
+            host.read_with(cx, |host, cx| host.model.read(cx).staged_value(Scope::Global, key))
+        };
+        assert_eq!(staged_value(&host, "editor.general.caretScroll", cx), Some(json!("minimize")));
+        click(cx, "settings-toggle-editor.insertSpaces");
+        assert_eq!(staged_value(&host, "editor.insertSpaces", cx), Some(json!(false)));
+        assert!(lines(&host, cx).contains(&"[x] Use tab character".to_owned()));
+
+        focus_field(&host, "files.localHistoryMaxMb", cx);
+        cx.simulate_input("16");
+        cx.simulate_keystrokes("up");
+        assert_eq!(staged_value(&host, "files.localHistoryMaxMb", cx), Some(json!(80)));
+    }
+
+    // Not from a spec: Up and Down leave a number alone while the checkbox it depends on is off.
+    #[gpui_kit::test]
+    async fn a_dependent_number_does_not_step_while_its_checkbox_is_off(cx: &mut TestAppContext) {
+        let spec = PageSpec::new(PAGE, "General", 20)
+            .section(
+                None,
+                vec![
+                    OptionSpec::Toggle { key: "editor.softWrap", label: "Soft-wrap files" },
+                    OptionSpec::Number {
+                        key: "editor.tabSize",
+                        label: "Tab size",
+                        min: 1.0,
+                        max: 16.0,
+                        integer: true,
+                        unit: None,
+                    },
+                ],
+            )
+            .detail("editor.tabSize", OptionDetail { enabled_by: Some("editor.softWrap"), ..Default::default() });
+        let (host, cx) = open_spec(cx, set_at(&default_settings(), "editor.softWrap", json!(false)), spec);
+        focus_field(&host, "editor.tabSize", cx);
+        cx.simulate_keystrokes("up");
+        assert!(staged(&host, cx).is_empty());
+        assert!(lines(&host, cx).contains(&"Tab size: 4".to_owned()));
     }
 }

@@ -6,7 +6,8 @@
 //! undoes a newer status nor brings a removed server back.
 
 use crate::platform::collate;
-use ide_core::{ServerId, ServerStatus};
+use ide_core::ServerId;
+use ide_core::event::ServerStatus;
 use ide_lsp::types::ServerInfo;
 use std::collections::{HashMap, HashSet};
 

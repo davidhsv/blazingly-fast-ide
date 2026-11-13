@@ -215,7 +215,7 @@ impl HierarchyView {
             ("left", Some(row)) if open(row) => self.toggle(row.id(), cx),
             ("left", Some(row)) => {
                 let index = current.unwrap_or(0);
-                if let Some(parent) = rows[..index].iter().rev().find(|candidate| depth(*candidate) < depth(row)) {
+                if let Some(parent) = rows[..index].iter().rev().find(|candidate| depth(candidate) < depth(row)) {
                     self.select(parent.id(), cx);
                 }
             }
@@ -520,7 +520,10 @@ mod tests {
         hierarchy
     }
 
-    fn open(cx: &mut TestAppContext, tree: &Hierarchy) -> (Entity<HierarchyView>, Events, &mut VisualTestContext) {
+    fn open<'a>(
+        cx: &'a mut TestAppContext,
+        tree: &Hierarchy,
+    ) -> (Entity<HierarchyView>, Events, &'a mut VisualTestContext) {
         cx.update(|cx| cx.set_global(theme::ActiveTheme::default()));
         let shown = tree.clone();
         let (view, cx) = cx.add_window_view(move |_, cx| {

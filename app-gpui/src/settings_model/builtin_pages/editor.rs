@@ -5,8 +5,8 @@
 //! checkbox's label ("Show the documentation popup in [500] ms") is an option of its own with an
 //! empty label, so the search indexes only the checkbox's words; a radio group is a choice.
 
-use super::{EDITOR_GROUP, custom, custom_owned, number, select, text, toggle};
-use crate::settings_model::page_spec::{OptionSpec, PageSpec};
+use super::{EDITOR_GROUP, custom, custom_owned, enabled_by, hint, number, radio, select, text, toggle};
+use crate::settings_model::page_spec::{OptionDetail, OptionSpec, PageSpec};
 use crate::settings_model::pages::SettingsPage;
 use crate::theme::color_scheme::attributes;
 use crate::theme::themes::BUILTIN_THEMES;
@@ -146,6 +146,28 @@ fn general() -> PageSpec {
                 toggle("editor.formatOnSave", "Reformat code on save"),
             ],
         )
+        .detail("editor.general.markdownImageFolder", hint("Relative to the Markdown file."))
+        .detail(
+            "editor.general.markdownImageNamePattern",
+            hint("For clipboard images: {timestamp} becomes YYYYMMDD-HHmmss. Source file names are preserved."),
+        )
+        .detail("editor.general.caretScroll", radio())
+        .detail(
+            "editor.general.softWrapFiles",
+            OptionDetail {
+                placeholder: Some("*.md; *.txt"),
+                hint: Some("Use ; to separate patterns. * matches every file."),
+                enabled_by: Some("editor.softWrap"),
+                ..OptionDetail::default()
+            },
+        )
+        .detail("editor.general.softWrapIndent", enabled_by("editor.softWrap"))
+        .detail("editor.general.stripTrailingScope", enabled_by("files.trimTrailingWhitespace"))
+        .detail("editor.general.keepTrailingOnCaretLine", enabled_by("files.trimTrailingWhitespace"))
+        .detail(
+            "editor.formatOnSave",
+            hint("Runs the language server's formatter before an explicit save (Actions on Save)."),
+        )
 }
 
 fn auto_import() -> PageSpec {
@@ -162,6 +184,16 @@ fn auto_import() -> PageSpec {
                 toggle("editor.autoImport.addUnambiguous", "Add unambiguous imports on the fly"),
                 toggle("editor.autoImport.optimizeOnTheFly", "Optimize imports on the fly"),
             ],
+        )
+        .detail(
+            "editor.autoImport.addUnambiguous",
+            hint(
+                "Applies the import quick fix of an unresolved reference when the language server offers exactly one.",
+            ),
+        )
+        .detail(
+            "editor.autoImport.optimizeOnTheFly",
+            hint("Runs Optimize Imports when the file has no errors, unless it would change the caret line."),
         )
 }
 
@@ -198,17 +230,26 @@ fn appearance() -> PageSpec {
                 ),
             ],
         )
+        .detail("editor.appearance.whitespaceLeading", enabled_by("editor.showWhitespace"))
+        .detail("editor.appearance.whitespaceInner", enabled_by("editor.showWhitespace"))
+        .detail("editor.appearance.whitespaceTrailing", enabled_by("editor.showWhitespace"))
 }
 
 fn breadcrumbs() -> PageSpec {
-    editor_page("editor.general.breadcrumbs", "Breadcrumbs", 2.0).section(
-        None,
-        vec![
-            toggle("editor.breadcrumbs.show", "Show breadcrumbs:"),
-            select("editor.breadcrumbs.placement", "", &TOP_BOTTOM),
-            custom("Show breadcrumbs for:", &["languages"]),
-        ],
-    )
+    editor_page("editor.general.breadcrumbs", "Breadcrumbs", 2.0)
+        .section(
+            None,
+            vec![
+                toggle("editor.breadcrumbs.show", "Show breadcrumbs:"),
+                select("editor.breadcrumbs.placement", "", &TOP_BOTTOM),
+                custom("Show breadcrumbs for:", &["languages"]),
+            ],
+        )
+        .detail("editor.breadcrumbs.show", hint("The project path is always shown in the status bar navigation bar."))
+        .detail(
+            "editor.breadcrumbs.placement",
+            OptionDetail { radio: true, enabled_by: Some("editor.breadcrumbs.show"), ..OptionDetail::default() },
+        )
 }
 
 fn code_completion() -> PageSpec {
@@ -242,6 +283,13 @@ fn code_completion() -> PageSpec {
                 number("editor.completion.parameterInfoDelay", "", 0.0, 5000.0, Some("ms")),
             ],
         )
+        .detail("editor.completion.autoInsertSingle", hint("When Basic Completion (⌃Space) finds only one suggestion."))
+        .detail("editor.completion.sortAlphabetically", hint("Also toggled by Sort by name in the completion popup."))
+        .detail(
+            "editor.completion.insertParentheses",
+            hint("Function and method suggestions get (); the caret goes inside unless there are no parameters."),
+        )
+        .detail("editor.completion.insertOnSpecialKeys", enabled_by("editor.completion.autoPopup"))
 }
 
 fn code_folding() -> PageSpec {
@@ -307,6 +355,8 @@ fn editor_tabs() -> PageSpec {
                 ),
             ],
         )
+        .detail("editor.tabs.closingPolicy", radio())
+        .detail("editor.tabs.activateOnClose", radio())
 }
 
 fn gutter_icons() -> PageSpec {
@@ -335,11 +385,16 @@ fn inline_completion() -> PageSpec {
             ],
         )
         .section(Some("Languages"), vec![custom("Show inline completion for:", &[])])
+        .detail("editor.inlineCompletion.onlyOnPause", enabled_by("editor.inlineCompletion.enabled"))
 }
 
 fn rich_text_copy() -> PageSpec {
     editor_page("editor.general.richTextCopy", "Rich-Text Copy", 8.0)
         .section(None, vec![toggle("editor.general.richTextCopy", "Copy as rich text by default")])
+        .detail(
+            "editor.general.richTextCopy",
+            hint("Copied code keeps the editor's syntax colors and font when pasted into documents and mail."),
+        )
 }
 
 fn smart_keys() -> PageSpec {
@@ -381,16 +436,20 @@ fn smart_keys() -> PageSpec {
                 ],
             )],
         )
+        .detail("editor.smartKeys.camelHumps", hint("⌥← / ⌥→ and ⌥⌫ stop at humps of camelCase names."))
 }
 
 fn sticky_lines() -> PageSpec {
-    editor_page("editor.general.stickyLines", "Sticky Lines", 10.0).keywords(&["sticky scroll"]).section(
-        None,
-        vec![
-            toggle("editor.stickyScroll", "Show sticky lines while scrolling"),
-            number("editor.codeEditing.stickyLinesMax", "Maximum number of lines", 1.0, 20.0, None),
-        ],
-    )
+    editor_page("editor.general.stickyLines", "Sticky Lines", 10.0)
+        .keywords(&["sticky scroll"])
+        .section(
+            None,
+            vec![
+                toggle("editor.stickyScroll", "Show sticky lines while scrolling"),
+                number("editor.codeEditing.stickyLinesMax", "Maximum number of lines", 1.0, 20.0, None),
+            ],
+        )
+        .detail("editor.codeEditing.stickyLinesMax", enabled_by("editor.stickyScroll"))
 }
 
 fn code_editing() -> PageSpec {
@@ -418,6 +477,7 @@ fn code_editing() -> PageSpec {
                 "Next error action goes to high priority problems only",
             )],
         )
+        .detail("editor.codeEditing.quickDocDelay", enabled_by("editor.codeEditing.quickDocOnHover"))
 }
 
 fn inlay_hints() -> PageSpec {
@@ -440,6 +500,9 @@ fn inlay_hints() -> PageSpec {
             ],
         )
         .section(Some("Languages"), vec![custom("Show inlay hints for:", &[])])
+        .detail("editor.inlay.types", enabled_by("editor.inlayHints"))
+        .detail("editor.inlay.parameters", enabled_by("editor.inlayHints"))
+        .detail("editor.inlay.other", enabled_by("editor.inlayHints"))
 }
 
 fn font() -> PageSpec {
@@ -491,6 +554,14 @@ fn color_scheme_pages() -> Vec<PageSpec> {
                 toggle("editor.semanticHighlighting", "Semantic highlighting"),
                 toggle("editor.rainbowBrackets", "Rainbow brackets"),
             ],
+        )
+        .detail(
+            "editor.semanticHighlighting",
+            hint("Local variables and parameters get a colour derived from their name (needs a language server)."),
+        )
+        .detail(
+            "editor.rainbowBrackets",
+            hint("Color (), [] and {} by nesting depth; unmatched brackets use the error color."),
         );
     let debugger = editor_page("editor.colorScheme.debugger", "Debugger", 3.0)
         .keywords(&["breakpoint", "inline values"])
@@ -547,6 +618,19 @@ fn code_style() -> PageSpec {
                 text("editor.codeStyle.formatterOnTag", "On"),
                 toggle("editor.codeStyle.formatterTagsRegexp", "Enable regular expressions in formatter markers"),
             ],
+        )
+        .detail("editor.codeStyle.lineSeparator", hint("Used for new files."))
+        .detail(
+            "editor.codeStyle.editorconfig",
+            hint(".editorconfig files override indentation, line separators, encodings and save options."),
+        )
+        .detail(
+            "editor.codeStyle.formatterOffTag",
+            OptionDetail { placeholder: Some("@formatter:off"), ..OptionDetail::default() },
+        )
+        .detail(
+            "editor.codeStyle.formatterOnTag",
+            OptionDetail { placeholder: Some("@formatter:on"), ..OptionDetail::default() },
         );
     scheme_page(page)
 }
@@ -557,8 +641,12 @@ fn other_file_types() -> PageSpec {
         .section(None, vec![custom("Scheme", &[])])
         .section(
             Some("Tabs and Indents"),
-            vec![custom("Use tab character", &[]), number("editor.tabSize", "Tab size", 1.0, 16.0, None)],
-        );
+            vec![
+                toggle("editor.insertSpaces", "Use tab character"),
+                number("editor.tabSize", "Tab size", 1.0, 16.0, None),
+            ],
+        )
+        .detail("editor.insertSpaces", OptionDetail { invert: true, ..OptionDetail::default() });
     scheme_page(page)
 }
 
@@ -591,6 +679,11 @@ fn file_encodings() -> PageSpec {
                     ("windows", "with BOM under Windows, with no BOM otherwise"),
                 ],
             )],
+        )
+        .detail("editor.encodings.global", hint("Decodes files outside the project that are not valid UTF-8."))
+        .detail(
+            "editor.encodings.project",
+            hint("Encoding of new files; decodes project files that are not valid UTF-8 and have no BOM."),
         )
 }
 

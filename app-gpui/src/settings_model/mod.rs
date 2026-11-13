@@ -5,6 +5,7 @@
 
 pub mod appearance_runtime;
 pub mod assign_shortcut;
+pub mod builtin_pages;
 pub mod code_style_scheme;
 pub mod contrast;
 pub mod deployment_model;

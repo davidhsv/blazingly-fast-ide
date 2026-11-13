@@ -1381,7 +1381,8 @@ mod tests {
 
         let (request, _) = popup.show();
         popup.libraries(request);
-        let [PopupEffect::StartTimer { ticket, .. }] = popup.partial(request, &[1]).as_slice() else {
+        let effects = popup.partial(request, &[1]);
+        let [PopupEffect::StartTimer { ticket, .. }] = effects.as_slice() else {
             panic!("a timer starts");
         };
         let ticket = *ticket;

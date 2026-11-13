@@ -17,7 +17,7 @@ pub use editor::{CODE_STYLE_SCOPE, COLOR_SCHEME_LANGUAGES, COLOR_SCHEME_SCOPES, 
 use super::inspections_model::{inspections_page, natural_languages_page, spelling_page};
 use super::language_pages::language_pages;
 use super::mcp_server::mcp_server_page;
-use super::page_spec::{OptionSpec, PageSpec};
+use super::page_spec::{OptionDetail, OptionSpec, PageSpec};
 use super::pages::{SettingsPage, build_page_tree, flatten};
 use super::run_targets::run_targets_page;
 use std::collections::HashMap;
@@ -56,6 +56,21 @@ fn custom(label: &'static str, keywords: &[&'static str]) -> OptionSpec {
 
 fn custom_owned(label: &'static str, keywords: Vec<&'static str>) -> OptionSpec {
     OptionSpec::Custom { label, keywords }
+}
+
+/// A help line under a control.
+fn hint(text: &'static str) -> OptionDetail {
+    OptionDetail { hint: Some(text), ..OptionDetail::default() }
+}
+
+/// An option that depends on the checkbox of setting `parent`.
+fn enabled_by(parent: &'static str) -> OptionDetail {
+    OptionDetail { enabled_by: Some(parent), ..OptionDetail::default() }
+}
+
+/// A choice drawn as radio buttons.
+fn radio() -> OptionDetail {
+    OptionDetail { radio: true, ..OptionDetail::default() }
 }
 
 /// `specs` sorted as the Settings tree lists them, depth-first.
@@ -404,5 +419,26 @@ mod tests {
         };
         assert!(has_profile("editor.codeStyle.java"));
         assert!(!has_profile("editor.codeStyle.rust"));
+    }
+
+    // Not from a spec: every detail names a setting of its own page, and the checkbox an option
+    // depends on is a checkbox of the same page.
+    #[test]
+    fn details_name_settings_of_their_page() {
+        for spec in settings_registry(true) {
+            let keys: Vec<&str> = options(&spec).filter_map(OptionSpec::key).collect();
+            let toggles: Vec<&str> = options(&spec)
+                .filter_map(|option| match option {
+                    OptionSpec::Toggle { key, .. } => Some(*key),
+                    _ => None,
+                })
+                .collect();
+            for (key, detail) in &spec.details {
+                assert!(keys.contains(key), "{}: detail for {key}, which it does not show", spec.id);
+                if let Some(parent) = detail.enabled_by {
+                    assert!(toggles.contains(&parent), "{}: {key} depends on {parent}", spec.id);
+                }
+            }
+        }
     }
 }

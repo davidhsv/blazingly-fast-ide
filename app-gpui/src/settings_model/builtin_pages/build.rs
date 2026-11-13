@@ -1,8 +1,8 @@
 //! Build, Execution, Deployment: CMake, Gradle, Maven, Console, Debugger (with Data Views and
 //! Stepping), Python Debugger, Run/Debug, and Deployment with its Options.
 
-use super::{custom, number, select, select_owned, toggle};
-use crate::settings_model::page_spec::PageSpec;
+use super::{custom, hint, number, select, select_owned, toggle};
+use crate::settings_model::page_spec::{OptionDetail, PageSpec};
 use crate::settings_model::run_targets::BUILD_GROUP;
 
 /// The encodings of process output.
@@ -44,6 +44,7 @@ fn console() -> PageSpec {
             ],
         )
         .section(None, vec![custom("Fold console lines that contain", &[])])
+        .detail("console.encoding", hint("Encoding of the output of processes started from Run configurations."))
 }
 
 fn debugger() -> PageSpec {
@@ -66,6 +67,10 @@ fn debugger() -> PageSpec {
                 toggle("debugger.runToCursorInlay", "Show inlay Run to Cursor popup"),
             ],
         )
+        .detail(
+            "debugger.breakpointsAnyFile",
+            hint("Otherwise line breakpoints can only be set in files of languages that have a debugger."),
+        )
 }
 
 fn data_views() -> PageSpec {
@@ -82,6 +87,14 @@ fn data_views() -> PageSpec {
                 custom("Value tooltip delay (ms)", &[]),
             ],
         )
+        .detail(
+            "debugger.inlineValues",
+            hint("Values of local variables are shown after the lines that use them while suspended."),
+        )
+        .detail(
+            "debugger.valueTooltip",
+            hint("Hovering a variable while suspended evaluates it in the selected frame."),
+        )
 }
 
 fn stepping() -> PageSpec {
@@ -89,6 +102,10 @@ fn stepping() -> PageSpec {
         .project_scope()
         .keywords(&["step into", "library", "just my code"])
         .section(None, vec![toggle("debugger.skipLibraryCode", "Do not step into library scripts")])
+        .detail(
+            "debugger.skipLibraryCode",
+            hint("Python: only your code (justMyCode). JavaScript: skips node_modules and Node.js internals."),
+        )
 }
 
 fn python_debugger() -> PageSpec {
@@ -103,6 +120,7 @@ fn python_debugger() -> PageSpec {
                 toggle("debugger.python.gevent", "Gevent compatible"),
             ],
         )
+        .detail("debugger.python.gevent", hint("Enable when debugging code that uses gevent monkey-patching."))
 }
 
 fn run_debug() -> PageSpec {
@@ -124,6 +142,17 @@ fn run_debug() -> PageSpec {
                     Some("ms"),
                 ),
             ],
+        )
+        .detail(
+            "run.terminationTimeoutMs",
+            OptionDetail {
+                step: Some(500.0),
+                hint: Some(
+                    "After a configuration's stop command, the process gets this long to exit before it is \
+                     interrupted. Press Stop again to kill a process that doesn't exit.",
+                ),
+                ..OptionDetail::default()
+            },
         )
 }
 

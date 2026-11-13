@@ -756,7 +756,7 @@ impl ProblemsView {
 mod tests {
     use super::*;
     use crate::code_insight::problems::{OPTIONS_KEY, ProblemsStore};
-    use gpui_kit::{Entity, Modifiers, TestAppContext, VisualTestContext};
+    use gpui_kit::{Entity, Modifiers, MouseUpEvent, TestAppContext, VisualTestContext};
     use ide_core::{Pos, Range};
     use std::cell::RefCell;
 
@@ -787,11 +787,11 @@ mod tests {
         store
     }
 
-    fn open(
-        cx: &mut TestAppContext,
+    fn open<'a>(
+        cx: &'a mut TestAppContext,
         options: ProblemsOptions,
         current: Option<&str>,
-    ) -> (Entity<ProblemsView>, Events, &mut VisualTestContext) {
+    ) -> (Entity<ProblemsView>, Events, &'a mut VisualTestContext) {
         cx.update(|cx| cx.set_global(theme::ActiveTheme::default()));
         let current = current.map(str::to_owned);
         let (view, cx) = cx.add_window_view(move |_, cx| {
@@ -898,8 +898,9 @@ mod tests {
         let (view, events, cx) = open(cx, ProblemsOptions::default(), Some("/p/src/a.rs"));
         cx.run_until_parked();
         let bounds = cx.debug_bounds("problems-row-1").expect("the first problem is drawn");
-        cx.simulate_click(bounds.center(), Modifiers::default());
-        cx.simulate_click(bounds.center(), Modifiers::default());
+        let (position, modifiers, button) = (bounds.center(), Modifiers::default(), MouseButton::Left);
+        cx.simulate_event(MouseDownEvent { position, modifiers, button, click_count: 2, first_mouse: false });
+        cx.simulate_event(MouseUpEvent { position, modifiers, button, click_count: 2 });
         cx.run_until_parked();
         assert!(events.borrow().contains(&opened(1, true)));
         cx.simulate_mouse_down(bounds.center(), MouseButton::Right, Modifiers::default());

@@ -102,7 +102,7 @@ enum Pending {
 #[derive(Debug, Clone)]
 pub enum HierarchyRow {
     Root { expanded: bool },
-    Node { node: HierarchyNode, depth: usize, expanded: bool, expandable: bool },
+    Node { node: Box<HierarchyNode>, depth: usize, expanded: bool, expandable: bool },
 }
 
 impl HierarchyRow {
@@ -307,7 +307,7 @@ impl Hierarchy {
         for node in self.children.get(parent).into_iter().flatten() {
             let expandable = self.is_expandable(&node.id);
             let open = expandable && expanded.contains(&node.id);
-            rows.push(HierarchyRow::Node { node: node.clone(), depth, expanded: open, expandable });
+            rows.push(HierarchyRow::Node { node: Box::new(node.clone()), depth, expanded: open, expandable });
             if open {
                 self.push_rows(&node.id, depth + 1, expanded, rows);
             }

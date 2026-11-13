@@ -1,6 +1,6 @@
 //! Settings › Tools › MCP Server: the page and the client configurations it copies.
 
-use super::page_spec::{OptionSpec, PageSpec};
+use super::page_spec::{OptionDetail, OptionSpec, PageSpec};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -58,6 +58,16 @@ pub fn mcp_server_page() -> PageSpec {
                     keywords: vec!["Copy HTTP Config", "Copy Stdio Config", "Client configuration", "Status"],
                 },
             ],
+        )
+        .detail(
+            "mcpServer.enabled",
+            OptionDetail {
+                hint: Some(
+                    "Agents can read, edit, and run projects open in OpenIDEA through its built-in tools. Run tools \
+                     ask for confirmation. The server listens on 127.0.0.1 only and requires a token.",
+                ),
+                ..OptionDetail::default()
+            },
         )
 }
 

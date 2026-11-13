@@ -46,6 +46,26 @@ pub struct SectionSpec {
     pub options: Vec<OptionSpec>,
 }
 
+/// What the control of a setting shows besides its label and value. A page names only the
+/// details it needs, by the setting's key ([`PageSpec::detail`]).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct OptionDetail {
+    /// A line of help drawn under the control.
+    pub hint: Option<&'static str>,
+    /// The grey text an empty text field shows.
+    pub placeholder: Option<&'static str>,
+    /// How much Up and Down change a number field; 1 when not given.
+    pub step: Option<f64>,
+    /// The checkbox setting this option depends on: it is indented below it, and dimmed and not
+    /// editable while that checkbox is off.
+    pub enabled_by: Option<&'static str>,
+    /// A choice drawn as one radio button per row instead of a drop-down list.
+    pub radio: bool,
+    /// A checkbox that is ticked while its boolean setting is false ("Use tab character" writes
+    /// `editor.insertSpaces`).
+    pub invert: bool,
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct PageSpec {
     /// The dotted path defines nesting, e.g. `languages.servers`.
@@ -67,6 +87,8 @@ pub struct PageSpec {
     /// The page picks its scope itself (Code Style's Scheme): no Global / This project switch.
     pub own_scope_switch: bool,
     pub sections: Vec<SectionSpec>,
+    /// The details of the controls, by setting key.
+    pub details: Vec<(&'static str, OptionDetail)>,
 }
 
 impl PageSpec {
@@ -103,6 +125,17 @@ impl PageSpec {
     pub fn section(mut self, title: Option<&'static str>, options: Vec<OptionSpec>) -> Self {
         self.sections.push(SectionSpec { title, options });
         self
+    }
+
+    /// Gives the control of setting `key` `detail`.
+    pub fn detail(mut self, key: &'static str, detail: OptionDetail) -> Self {
+        self.details.push((key, detail));
+        self
+    }
+
+    /// The details of the control of setting `key`; none when the page names none.
+    pub fn detail_of(&self, key: &str) -> Option<&OptionDetail> {
+        self.details.iter().find(|(own, _)| *own == key).map(|(_, detail)| detail)
     }
 }
 
@@ -153,5 +186,17 @@ mod tests {
         let keys: Vec<Option<&str>> = spec.sections[0].options.iter().map(OptionSpec::key).collect();
         assert_eq!(keys, [Some("a.b"), Some("a.c"), None, Some("a.d")]);
         assert_eq!((spec.order, spec.project_scope, spec.default_scope), (5.0, false, None));
+    }
+
+    // Not from a spec: a control's details are found by its setting's key; a key without any has
+    // none.
+    #[test]
+    fn finds_the_details_of_a_control_by_its_key() {
+        let hint = OptionDetail { hint: Some("Help"), step: Some(64.0), ..OptionDetail::default() };
+        let spec = PageSpec::new("demo", "Demo", 5)
+            .section(None, vec![OptionSpec::Toggle { key: "a.b", label: "Toggle" }])
+            .detail("a.b", hint.clone());
+        assert_eq!(spec.detail_of("a.b"), Some(&hint));
+        assert_eq!(spec.detail_of("a.c"), None);
     }
 }

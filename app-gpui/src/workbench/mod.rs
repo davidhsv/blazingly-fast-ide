@@ -5,6 +5,8 @@ mod bookmarks_window;
 use bookmarks_window::BOOKMARKS_TOOL_WINDOW;
 mod branches;
 mod build_window;
+mod code_insight;
+use crate::code_insight::{HIERARCHY_TOOL_WINDOW, PROBLEMS_TOOL_WINDOW, USAGES_TOOL_WINDOW};
 mod commit;
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 mod diff_window;
@@ -22,6 +24,8 @@ mod project_files;
 pub mod quick_switch;
 mod run_configs;
 mod services_window;
+mod settings_window;
+pub use settings_window::apply_keymap_settings;
 mod structure_window;
 use structure_window::STRUCTURE_TOOL_WINDOW;
 mod todo_window;
@@ -261,6 +265,8 @@ pub struct Workbench {
     run_widget: Option<run_configs::RunWidgetSlot>,
     /// Edit Configurations, while it is open.
     edit_configs: Option<run_configs::EditConfigsWindow>,
+    /// The Settings dialog, while it is open.
+    settings: Option<settings_window::SettingsWindow>,
     /// The Git state of the project, with the branch widget of the title bar.
     vcs: Option<branches::VcsSlot>,
     /// The commit draft of the project and the Commit tool window's message box.
@@ -277,6 +283,8 @@ pub struct Workbench {
     build: Option<build_window::BuildSlot>,
     /// The Project view's file operations.
     files: project_files::ProjectFiles,
+    /// Problems, Find / Show Usages, the hierarchies and the language servers of the project.
+    code_insight: code_insight::CodeInsight,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -353,7 +361,7 @@ pub const RUN_TOOL_WINDOW: &str = "run";
 pub use crate::services::model::SERVICES_TOOL_WINDOW;
 
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 12] = [
+const TOOL_WINDOWS: [&str; 15] = [
     PROJECT_TOOL_WINDOW,
     COMMIT_TOOL_WINDOW,
     TERMINAL_TOOL_WINDOW,
@@ -366,6 +374,9 @@ const TOOL_WINDOWS: [&str; 12] = [
     STRUCTURE_TOOL_WINDOW,
     TODO_TOOL_WINDOW,
     BUILD_TOOL_WINDOW,
+    PROBLEMS_TOOL_WINDOW,
+    USAGES_TOOL_WINDOW,
+    HIERARCHY_TOOL_WINDOW,
 ];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
@@ -423,6 +434,8 @@ pub fn register_actions(cx: &mut App) {
     project_files::register_actions(registry);
     todo_window::register_actions(registry);
     build_window::register_actions(registry);
+    code_insight::register_actions(registry);
+    settings_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
     let flags: [(&str, &str, Flag); 4] = [
@@ -890,6 +903,7 @@ impl Workbench {
             }
             workbench.sync_notifications(cx);
         });
+        let code_insight = code_insight::CodeInsight::new(label, window, cx);
         let mut workbench = Self {
             label: label.to_owned(),
             content: Content::Empty,
@@ -908,6 +922,7 @@ impl Workbench {
             diff_window: None,
             run_widget: None,
             edit_configs: None,
+            settings: None,
             vcs: None,
             commit: None,
             git_log: None,
@@ -916,6 +931,7 @@ impl Workbench {
             todo: None,
             build: None,
             files: Default::default(),
+            code_insight,
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
@@ -927,6 +943,7 @@ impl Workbench {
             welcome: None,
         };
         workbench.sync_welcome(window, cx);
+        workbench.start_code_insight(cx);
         workbench
     }
 
@@ -1344,6 +1361,7 @@ impl Workbench {
                 self.editor_observer = None;
                 self.sync_structure_window(cx);
                 self.sync_todo_window(cx);
+                self.sync_code_insight(cx);
             }
         }
         cx.notify();
@@ -1553,12 +1571,15 @@ impl Workbench {
                 }
                 return;
             }
-            // Settings › Console reaches the consoles and the Run tool window.
-            IdeEvent::SettingsChanged { .. } => {
+            // The keymap and the open Settings dialog follow; Settings › Console reaches the
+            // consoles and the Run tool window.
+            IdeEvent::SettingsChanged { key } => {
+                self.settings_changed(key, cx);
                 if let Some(driver) = self.run_driver().cloned() {
                     driver.update(cx, |driver, cx| driver.apply_console_settings(cx));
                     self.sync_run_window(cx);
                 }
+                self.code_insight_settings_changed(cx);
                 return;
             }
             IdeEvent::Notify { level, title, body } => {
@@ -1572,6 +1593,18 @@ impl Workbench {
                 let settings = self.notification_settings(cx);
                 let _ = self.notifications.notify(request, settings.as_ref(), now);
                 self.sync_notifications(cx);
+            }
+            IdeEvent::Diagnostics { path, source, items } => {
+                self.diagnostics_published(path, source, items, cx);
+                return;
+            }
+            IdeEvent::LanguageServer { server, name, status, message } => {
+                self.language_server_event(*server, name, *status, message.clone(), cx);
+                return;
+            }
+            IdeEvent::LanguageServerRemoved { server } => {
+                self.language_server_removed(*server, cx);
+                return;
             }
             _ => return,
         }
@@ -1772,6 +1805,7 @@ impl Workbench {
         self.editor_observer = Some(cx.observe(editor, |_, _, cx| cx.notify()));
         self.sync_structure_window(cx);
         self.sync_todo_window(cx);
+        self.sync_code_insight(cx);
     }
 
     /// The tool window layout, when a project is open.
@@ -1882,6 +1916,9 @@ impl Workbench {
                 BOOKMARKS_TOOL_WINDOW => self.mount_bookmarks(window, cx),
                 STRUCTURE_TOOL_WINDOW => self.mount_structure(window, cx),
                 TODO_TOOL_WINDOW => self.mount_todo(window, cx),
+                PROBLEMS_TOOL_WINDOW => self.mount_problems(window, cx),
+                USAGES_TOOL_WINDOW => self.mount_usages(window, cx),
+                HIERARCHY_TOOL_WINDOW => self.mount_hierarchy(window, cx),
                 BUILD_TOOL_WINDOW => match self.mount_build(window, cx) {
                     Some(panel) => panel,
                     None => continue,
@@ -1918,6 +1955,7 @@ impl Workbench {
         self.sync_services_window(cx);
         self.sync_structure_window(cx);
         self.sync_todo_window(cx);
+        self.sync_code_insight(cx);
     }
 
     /// The view of tool window `id`, once it has been shown.
@@ -2490,6 +2528,7 @@ impl Workbench {
         self.autosave(None, cx);
         self.save_session(cx);
         self.popup = None;
+        self.drop_settings();
     }
 
     /// Closes the window's project; the window stays, showing the Welcome screen.
@@ -2503,6 +2542,7 @@ impl Workbench {
         self.drop_vcs();
         self.drop_commit();
         self.drop_git_log();
+        self.reset_code_insight(cx);
         // The project's servers and runs stop in the background: this is the UI thread.
         cx.global::<Backend>().host.close_project_detached(&self.label);
         self.content = Content::Empty;
@@ -2614,6 +2654,7 @@ impl Workbench {
         self.drop_vcs();
         self.drop_commit();
         self.drop_git_log();
+        self.reset_code_insight(cx);
         self.files = Default::default();
         self.content = Content::Opening(root.clone());
         self.light_find_bar = None;
@@ -2687,6 +2728,9 @@ impl Workbench {
                     Err(message) => Content::Failed(message.into()),
                 };
                 workbench.mount_vcs(window, cx);
+                if workbench.project_root(cx).is_some() {
+                    workbench.code_insight_project_opened(cx);
+                }
                 workbench.sync_welcome(window, cx);
                 // Registering a window reconciles the stored layout with what exists; a project
                 // opens with the focus in its Project view when that is showing.
@@ -2779,6 +2823,7 @@ impl Workbench {
         self.vcs_popup_closed(&popup.view, cx);
         self.structure_popup_closed(&popup.view, cx);
         self.files_popup_closed(&popup.view);
+        self.usages_popup_closed(&popup.view, cx);
         if let Some(target) = popup.restore.or_else(|| self.editor().map(|editor| editor.focus_handle(cx))) {
             window.focus(&target, cx);
         }
@@ -3599,6 +3644,7 @@ impl Render for Workbench {
             .children(self.edit_configs_layer())
             .children(self.vcs_dialog_layer())
             .children(self.file_dialog_layer())
+            .children(self.settings_layer(cx))
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
                 gpui_kit::deferred(
@@ -5906,6 +5952,8 @@ mod tests {
                 // The rows of the file actions that are registered: Copy Absolute Path, Rename File…
                 "Copy Path/Reference…",
                 "Rename File…",
+                // File › Settings… on the Editor Tabs page.
+                "Configure Editor Tabs…",
             ]
         );
         assert_eq!(
@@ -8231,5 +8279,522 @@ mod tests {
             notification_titles(&workbench, cx).contains(&"1 file committed: Refused".to_owned())
         });
         assert_eq!(git_in(&root, &["log", "-1", "--format=%s"]), "Refused");
+    }
+
+    /// A diagnostic as a producer publishes it.
+    fn published(line: u32, col: u32, severity: ide_core::Severity, message: &str) -> ide_core::Diagnostic {
+        ide_core::Diagnostic {
+            range: ide_core::Range::new(ide_core::Pos::new(line, col), ide_core::Pos::new(line, col + 3)),
+            severity,
+            message: message.to_owned(),
+            source: Some("checker".to_owned()),
+            code: None,
+            unnecessary: false,
+            deprecated: false,
+            server: None,
+        }
+    }
+
+    /// Hands the window the diagnostics of `path` the way the backend sends them.
+    fn publish(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+        path: &std::path::Path,
+        items: Vec<ide_core::Diagnostic>,
+    ) {
+        let event = BackendEvent {
+            window: Some("w1".to_owned()),
+            event: IdeEvent::Diagnostics {
+                path: ide_core::IpcPath::from(path.to_path_buf()),
+                source: "checker".to_owned(),
+                items,
+            },
+        };
+        workbench.update(cx, |workbench, cx| workbench.backend_event(&event, cx));
+        cx.run_until_parked();
+    }
+
+    /// The Problems tool window lists the problems the backend publishes by file, with the counts
+    /// of its tabs; Enter on a problem opens its file at the problem, and a file whose diagnostics
+    /// are cleared leaves the list.
+    #[gpui_kit::test]
+    async fn the_problems_window_lists_published_problems_and_opens_the_chosen_one(cx: &mut TestAppContext) {
+        use crate::code_insight::problems::ProblemsTab;
+        use crate::platform::i18n::Localization;
+        use ide_core::Severity;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) =
+            trusted_project(cx, &[("src/a.txt", "one\ntwo\nthree\n"), ("src/b.txt", "alpha\nbeta\n")]);
+        cx.update(|window, _| window.activate_window());
+        let (a, b) = (root.join("src/a.txt"), root.join("src/b.txt"));
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(a.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+
+        run_action(cx, "toolwindow.problems", None);
+        let view = workbench.read_with(cx, |w, _| w.problems_view()).expect("the Problems window is shown");
+        publish(
+            &workbench,
+            cx,
+            &a,
+            vec![published(2, 0, Severity::Error, "second error"), published(0, 1, Severity::Error, "first error")],
+        );
+        publish(&workbench, cx, &b, vec![published(1, 2, Severity::Error, "beta error")]);
+        view.update(cx, |view, cx| view.select_tab(ProblemsTab::Project, cx));
+        assert_eq!(
+            view.read_with(cx, |view, _| view.lines()),
+            ["a.txt", "  first error :1", "  second error :3", "b.txt", "  beta error :2"]
+        );
+        // The File tab counts the editor's file, Project Errors the whole project.
+        let counts = view
+            .update(cx, |view, cx| view.tab_labels(&cx.default_global::<Localization>().0).map(|(_, _, count)| count));
+        assert_eq!(counts, [Some(2), Some(3)]);
+        assert_eq!(workbench.read_with(cx, |w, _| w.problems_badge()), Some(3));
+
+        // Enter on the last problem opens its file with the caret on it.
+        cx.update(|window, cx| {
+            let handle = view.focus_handle(cx);
+            window.focus(&handle, cx);
+        });
+        cx.simulate_keystrokes("down down down down down enter");
+        let at = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().map(|e| (e.read(cx).path().to_path_buf(), e.read(cx).caret_position()))
+            })
+        };
+        settle(cx, |cx| at(cx) == Some((b.clone(), (1, 2))));
+
+        // A file whose diagnostics are cleared leaves the list.
+        publish(&workbench, cx, &b, Vec::new());
+        assert_eq!(view.read_with(cx, |view, _| view.lines()), ["a.txt", "  first error :1", "  second error :3"]);
+        assert_eq!(workbench.read_with(cx, |w, _| w.problems_badge()), Some(2));
+    }
+
+    /// Without a language server Find Usages lists the text matches of the name at the caret by
+    /// file and says they are text matches; Backspace excludes a usage and Enter opens one. Show
+    /// Usages lists the same usages in its popup and opens the one Enter is pressed on.
+    #[gpui_kit::test]
+    async fn find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::code_insight::usages::usage_key;
+        use crate::code_insight::usages_view::RowKey;
+        use crate::platform::i18n::Localization;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) =
+            trusted_project(cx, &[("notes/a.txt", "shared value\n"), ("notes/b.txt", "use shared\nshared again\n")]);
+        cx.update(|window, _| window.activate_window());
+        let (a, b) = (root.join("notes/a.txt"), root.join("notes/b.txt"));
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(a.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+
+        run_action(cx, "find.usages", None);
+        let view = workbench.read_with(cx, |w, _| w.usages_view()).expect("the Find Usages window is shown");
+        settle(cx, |cx| view.read_with(cx, |view, _| view.search().is_some_and(|search| !search.loading)));
+        let rows = |cx: &mut VisualTestContext| {
+            view.update(cx, |view, cx| {
+                let rows = view.rows(&cx.default_global::<Localization>().0);
+                rows.into_iter().map(|row| row.text).collect::<Vec<_>>()
+            })
+        };
+        let light_mode = workbench.read_with(cx, |w, cx| !w.ide_mode(cx).is_full());
+        let note = cx.update(|_, cx| {
+            crate::editor_lsp::lsp::approximate_note(&cx.default_global::<Localization>().0, light_mode)
+        });
+        assert_eq!(
+            rows(cx),
+            [
+                format!("Found usages 3 results {note}"),
+                "a.txt  notes  1 usage".to_owned(),
+                "1 shared value".to_owned(),
+                "b.txt  notes  2 usages".to_owned(),
+                "1 use shared".to_owned(),
+                "2 shared again".to_owned(),
+            ]
+        );
+
+        // Backspace excludes the selected usage.
+        let usages: Vec<crate::code_insight::usages::Usage> = view.read_with(cx, |view, _| {
+            let groups = view.search().map(|search| search.groups.as_slice()).unwrap_or_default();
+            groups.iter().flat_map(|group| group.usages.clone()).collect()
+        });
+        let key = |at: usize| RowKey::Usage(usage_key(&usages[at]));
+        view.update(cx, |view, cx| view.select_row(key(2), cx));
+        cx.update(|window, cx| {
+            let handle = view.focus_handle(cx);
+            window.focus(&handle, cx);
+        });
+        cx.simulate_keystrokes("backspace");
+        assert!(view.read_with(cx, |view, _| view.is_excluded(&key(2))));
+        assert!(!view.read_with(cx, |view, _| view.is_excluded(&key(1))));
+
+        // Enter opens the selected usage with the caret on it.
+        view.update(cx, |view, cx| view.select_row(key(1), cx));
+        cx.simulate_keystrokes("enter");
+        let at = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().map(|e| (e.read(cx).path().to_path_buf(), e.read(cx).caret_position()))
+            })
+        };
+        settle(cx, |cx| at(cx) == Some((b.clone(), (0, 4))));
+        // Show Usages' `when` wants the keyboard in the editor, not in the tool window.
+        settle(cx, |cx| {
+            cx.update(|window, cx| {
+                workbench.read(cx).editor().is_some_and(|editor| editor.focus_handle(cx).is_focused(window))
+            })
+        });
+
+        // Show Usages on the same name lists the same usages; Enter opens the chosen one.
+        run_action(cx, "find.showUsages", None);
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.usages_popup().is_some_and(|popup| {
+                    let popup = popup.read(cx);
+                    popup.rows().len() == 3 && !popup.is_searching()
+                })
+            })
+        });
+        let popup = workbench.read_with(cx, |w, _| w.usages_popup()).expect("the popup is open");
+        let listed = popup.read_with(cx, |popup, _| {
+            popup.rows().iter().map(|usage| (usage.path.clone(), usage.line, usage.col)).collect::<Vec<_>>()
+        });
+        let path = |file: &std::path::Path| crate::platform::paths::ipc_path(&file.to_string_lossy());
+        assert_eq!(listed, [(path(&a), 0, 0), (path(&b), 0, 4), (path(&b), 1, 0)]);
+        cx.simulate_keystrokes("down down enter");
+        settle(cx, |cx| at(cx) == Some((b.clone(), (1, 0))));
+        assert!(workbench.read_with(cx, |w, _| w.usages_popup().is_none()));
+    }
+
+    /// Without a language server Type Hierarchy shows the Hierarchy tool window for the name at the
+    /// caret and says that no language server is available.
+    #[gpui_kit::test]
+    async fn type_hierarchy_without_a_server_says_no_language_server_is_available(cx: &mut TestAppContext) {
+        use crate::code_insight::hierarchy::ROOT_ID;
+        use crate::editor_lsp::hint::Tone;
+        use crate::platform::i18n::Localization;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("notes/a.txt", "shared value\n")]);
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes/a.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+
+        run_action(cx, "navigate.typeHierarchy", None);
+        let view = workbench.read_with(cx, |w, _| w.hierarchy_view()).expect("the Hierarchy window is shown");
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.code_insight_hint().is_some()));
+        let hint = workbench.read_with(cx, |w, _| w.code_insight_hint().cloned()).expect("a hint");
+        assert_eq!((hint.text.as_str(), hint.tone), (crate::editor_lsp::lsp::NO_SERVER, Tone::Info));
+        workbench.read_with(cx, |w, _| {
+            assert_eq!(w.hierarchy().root().map(|root| root.name.as_str()), Some("shared"));
+            assert!(w.hierarchy().failed(ROOT_ID));
+            assert!(!w.hierarchy().loading());
+        });
+        let title = view.update(cx, |view, cx| view.title(&mut cx.default_global::<Localization>().0));
+        assert_eq!(title.as_deref(), Some("Subtypes of shared"));
+    }
+
+    /// The setting `key` of `settings`, as the settings file writes it.
+    fn setting_of(settings: &ide_core::settings::Settings, key: &str) -> Option<serde_json::Value> {
+        use crate::settings_model::schema::{get_at, settings_value};
+        get_at(&settings_value(settings), key).cloned()
+    }
+
+    /// The window's Settings dialog, while it is open.
+    fn settings_dialog_of(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> Option<Entity<crate::settings_view::dialog::SettingsDialogView>> {
+        workbench.read_with(cx, |w, _| w.settings_dialog().cloned())
+    }
+
+    /// The text of the global settings file under `home`; empty while there is none.
+    fn global_settings_file(home: &tempfile::TempDir) -> String {
+        std::fs::read_to_string(home.path().join("config/settings.toml")).unwrap_or_default()
+    }
+
+    /// File › Settings… opens on the first page with the keyboard in the search. A search narrows
+    /// the tree to the pages that have its words, lands on the first of them and marks the option
+    /// that has them. A checkbox ticked there enables Apply. Apply writes the setting to the global
+    /// settings file and keeps the dialog open, with nothing left to apply. OK then closes it.
+    #[gpui_kit::test]
+    async fn settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes(cx: &mut TestAppContext) {
+        const KEY: &str = "editor.general.scrollPastEnd";
+        let home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        run_action(cx, "file.settings", None);
+        let open = settings_dialog_of(&workbench, cx).expect("Settings opens");
+        assert_eq!(open.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("appearance"));
+        assert!(!open.read_with(cx, |view, cx| view.can_apply(cx)));
+        let in_search = cx.update(|window, cx| open.read(cx).search_field().focus_handle(cx).is_focused(window));
+        assert!(in_search, "the keyboard is in the search");
+
+        cx.simulate_input("virtual space");
+        cx.run_until_parked();
+        assert_eq!(open.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("editor.general"));
+        let pages = open.read_with(cx, |view, cx| view.pages(cx));
+        assert!(pages.contains(&"  General".to_owned()), "{pages:?}");
+        assert!(!pages.iter().any(|page| page.trim() == "Keymap"), "{pages:?}");
+        let marked = open.read_with(cx, |view, cx| view.highlighted(cx));
+        assert!(marked.contains(&"Show virtual space at file bottom".to_owned()), "{marked:?}");
+
+        click_on(cx, "settings-toggle-editor.general.scrollPastEnd");
+        assert!(open.read_with(cx, |view, cx| view.can_apply(cx)), "an edit enables Apply");
+        click_on(cx, "settings-apply");
+        let effective = cx.update(|_, cx| setting_of(&crate::platform::settings::effective("w1", cx), KEY));
+        assert_eq!(effective, Some(serde_json::json!(true)));
+        let stored = global_settings_file(&home);
+        assert!(stored.contains("scrollPastEnd = true"), "{stored}");
+        assert!(settings_dialog_of(&workbench, cx).is_some(), "Apply keeps the dialog open");
+        assert!(!open.read_with(cx, |view, cx| view.can_apply(cx)), "nothing is left to apply");
+
+        click_on(cx, "settings-ok");
+        assert!(settings_dialog_of(&workbench, cx).is_none(), "OK closes the dialog");
+    }
+
+    /// Cancel after ticking a checkbox closes the dialog and writes nothing: the setting keeps its
+    /// value and the settings file does not name it. Opened again, the dialog has nothing to apply,
+    /// and Escape in its empty search closes it.
+    #[gpui_kit::test]
+    async fn settings_cancel_after_an_edit_writes_nothing(cx: &mut TestAppContext) {
+        const KEY: &str = "editor.general.wheelZoom";
+        let home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        run_action(cx, "file.settings", Some(serde_json::Value::from("editor.general")));
+        let open = settings_dialog_of(&workbench, cx).expect("Settings opens");
+        assert_eq!(open.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("editor.general"));
+        click_on(cx, "settings-toggle-editor.general.wheelZoom");
+        assert!(open.read_with(cx, |view, cx| view.can_apply(cx)));
+        click_on(cx, "settings-cancel");
+        assert!(settings_dialog_of(&workbench, cx).is_none(), "Cancel closes the dialog");
+        let effective = cx.update(|_, cx| setting_of(&crate::platform::settings::effective("w1", cx), KEY));
+        assert_eq!(effective, Some(serde_json::json!(false)));
+        let stored = global_settings_file(&home);
+        assert!(!stored.contains("wheelZoom"), "{stored}");
+
+        run_action(cx, "file.settings", Some(serde_json::Value::from("editor.general")));
+        let open = settings_dialog_of(&workbench, cx).expect("Settings opens again");
+        assert!(!open.read_with(cx, |view, cx| view.can_apply(cx)), "the edit was discarded");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(settings_dialog_of(&workbench, cx).is_none(), "Escape in the empty search closes it");
+    }
+
+    /// With a project open, General (a page a project can override) writes to the project's settings
+    /// file under This project and leaves the global layer alone. Under Global it shows and writes
+    /// the global layer.
+    #[gpui_kit::test]
+    async fn settings_write_the_project_layer_under_this_project_and_the_global_one_under_global(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::settings_model::staging::Scope;
+        const KEY: &str = "editor.general.wheelZoom";
+        let home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("a.txt", "a\n")]);
+        cx.update(|window, _| window.activate_window());
+        run_action(cx, "file.settings", Some(serde_json::Value::from("editor.general")));
+        let open = settings_dialog_of(&workbench, cx).expect("Settings opens");
+        assert!(open.read_with(cx, |view, cx| view.has_scope_switch(cx)), "General offers This project");
+        assert_eq!(open.read_with(cx, |view, cx| view.scope(cx)), Scope::Global);
+
+        click_on(cx, "settings-scope-project");
+        assert_eq!(open.read_with(cx, |view, cx| view.scope(cx)), Scope::Project);
+        click_on(cx, "settings-toggle-editor.general.wheelZoom");
+        click_on(cx, "settings-apply");
+        let project_file = std::fs::read_to_string(root.join(".openidea/settings.toml")).unwrap_or_default();
+        assert!(project_file.contains("wheelZoom = true"), "{project_file}");
+        let effective = cx.update(|_, cx| setting_of(&crate::platform::settings::effective("w1", cx), KEY));
+        assert_eq!(effective, Some(serde_json::json!(true)));
+        let global = cx.update(|_, cx| setting_of(&crate::platform::settings::global(cx), KEY));
+        assert_eq!(global, Some(serde_json::json!(false)), "the global layer is left alone");
+        assert!(!global_settings_file(&home).contains("wheelZoom"));
+
+        click_on(cx, "settings-scope-global");
+        let lines = open.read_with(cx, |view, cx| view.control_lines(cx));
+        assert!(lines.contains(&"[ ] Change font size with Command+Mouse Wheel".to_owned()), "{lines:?}");
+        click_on(cx, "settings-toggle-editor.general.wheelZoom");
+        click_on(cx, "settings-apply");
+        let global = cx.update(|_, cx| setting_of(&crate::platform::settings::global(cx), KEY));
+        assert_eq!(global, Some(serde_json::json!(true)));
+        let stored = global_settings_file(&home);
+        assert!(stored.contains("wheelZoom = true"), "{stored}");
+        click_on(cx, "settings-ok");
+        assert!(settings_dialog_of(&workbench, cx).is_none());
+    }
+
+    /// Keymap… opens Settings on the Keymap page. A shortcut recorded for an action in its Keyboard
+    /// Shortcut dialog and applied is stored in `keymapOverrides`, and the keymap resolves it to the
+    /// action from then on.
+    #[gpui_kit::test]
+    async fn settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves(cx: &mut TestAppContext) {
+        const ACTION: &str = "navigate.gotoLine";
+        let home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        run_action(cx, "settings.keymap", None);
+        let open = settings_dialog_of(&workbench, cx).expect("Settings opens");
+        assert_eq!(open.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("keymap"));
+        let keymap = workbench.read_with(cx, |w, _| w.settings_keymap().cloned()).expect("Keymap has its view");
+
+        keymap.update_in(cx, |view, window, cx| view.start_recording(ACTION, false, window, cx));
+        cx.run_until_parked();
+        let recording = keymap.read_with(cx, |view, _| view.recording().map(|(id, mouse)| (id.to_owned(), mouse)));
+        assert_eq!(recording, Some((ACTION.to_owned(), false)), "the Keyboard Shortcut dialog is open");
+        cx.simulate_keystrokes("alt-shift-f11");
+        let binding = keymap.read_with(cx, |view, _| view.recorded_binding()).expect("the stroke is recorded");
+        keymap.update_in(cx, |view, window, cx| view.confirm_recording(window, cx));
+        if keymap.read_with(cx, |view, _| view.asks_to_remove_conflicts()) {
+            // Leave: the other assignments keep the stroke; this one wins as the later binding.
+            keymap.update_in(cx, |view, window, cx| view.submit_recording(false, window, cx));
+        }
+        cx.run_until_parked();
+        assert!(keymap.read_with(cx, |view, _| view.recording().is_none()), "the dialog closed");
+        assert!(open.read_with(cx, |view, cx| view.can_apply(cx)), "the shortcut is staged");
+
+        click_on(cx, "settings-apply");
+        let stored = cx.update(|_, cx| crate::platform::settings::global(cx).keymap_overrides.get(ACTION).cloned());
+        assert!(stored.is_some_and(|keys| keys.contains(&binding)), "keymapOverrides holds the shortcut");
+        let file = global_settings_file(&home);
+        assert!(file.contains("keymapOverrides") && file.contains(ACTION), "{file}");
+        settle(cx, |cx| cx.update(|_, cx| cx.global::<input::Keymap>().0.bindings_for(ACTION).contains(&binding)));
+        let resolved = cx.update(|_, cx| {
+            let effective = cx.global::<input::Keymap>().0.effective_bindings();
+            effective.iter().rev().find(|(key, _)| *key == binding).map(|(_, id)| id.clone())
+        });
+        assert_eq!(resolved.as_deref(), Some(ACTION), "the shortcut runs the action");
+    }
+
+    /// Appearance… opens Settings on Appearance. The theme chosen there and applied is the one the
+    /// settings name and the one the windows are drawn with.
+    #[gpui_kit::test]
+    async fn settings_appearance_applies_the_chosen_theme(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        cx.update(crate::theme::appearance::init);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        run_action(cx, "settings.appearance", None);
+        let open = settings_dialog_of(&workbench, cx).expect("Settings opens");
+        assert_eq!(open.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("appearance"));
+        assert!(!cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+
+        click_on(cx, "settings-select-appearance.theme");
+        click_on(cx, "settings-choice-appearance.theme-dark");
+        let lines = open.read_with(cx, |view, cx| view.control_lines(cx));
+        assert!(lines.contains(&"Theme: Islands Dark ▾".to_owned()), "{lines:?}");
+        click_on(cx, "settings-apply");
+        assert_eq!(cx.update(|_, cx| crate::platform::settings::global(cx).appearance.theme), "dark");
+        settle(cx, |cx| cx.update(|_, cx| cx.global::<theme::ActiveTheme>().is_dark()));
+    }
+
+    /// Every code insight action runs in a window with a project: Call Hierarchy, Find Usages and
+    /// its Rerun, a list of usages handed to Show Usage Results, and Show Usages closed with Escape.
+    /// Language server reports, a settings change and closing the project with the three tool
+    /// windows shown are taken without fault.
+    #[gpui_kit::test]
+    async fn the_code_insight_actions_and_events_run_in_a_window_with_a_project(cx: &mut TestAppContext) {
+        use crate::platform::i18n::Localization;
+        use ide_core::event::ServerStatus;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) =
+            trusted_project(cx, &[("notes/a.txt", "shared value\n"), ("notes/b.txt", "use shared\n")]);
+        cx.update(|window, _| window.activate_window());
+        let a = root.join("notes/a.txt");
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(a.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+
+        run_action(cx, "navigate.callHierarchy", None);
+        settle(cx, |cx| workbench.read_with(cx, |w, _| !w.hierarchy().loading()));
+        assert!(workbench.read_with(cx, |w, _| w.hierarchy_view()).is_some(), "the Hierarchy window is shown");
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
+        cx.run_until_parked();
+
+        run_action(cx, "find.usages", None);
+        let view = workbench.read_with(cx, |w, _| w.usages_view()).expect("the Find Usages window is shown");
+        let done = |cx: &mut VisualTestContext| {
+            view.read_with(cx, |view, _| view.search().is_some_and(|search| !search.loading))
+        };
+        settle(cx, done);
+        let rows = |cx: &mut VisualTestContext| {
+            view.update(cx, |view, cx| {
+                view.rows(&cx.default_global::<Localization>().0).into_iter().map(|row| row.text).collect::<Vec<_>>()
+            })
+        };
+        let found = rows(cx);
+        assert!(found.len() > 1, "{found:?}");
+        // Rerun is an action of the Find Usages window: it wants the keyboard there.
+        cx.update(|window, cx| window.focus(&view.focus_handle(cx), cx));
+        cx.run_until_parked();
+        run_action(cx, "usages.rerun", None);
+        settle(cx, done);
+        assert_eq!(rows(cx), found, "Rerun finds the same usages");
+
+        let location = ide_core::Location {
+            path: crate::platform::paths::ipc_path(&root.join("notes/b.txt").to_string_lossy()).into(),
+            range: ide_core::Range::new(ide_core::Pos::new(0, 4), ide_core::Pos::new(0, 10)),
+            uri: None,
+        };
+        let arg = serde_json::json!({ "symbol": "shared", "locations": [location] });
+        run_action(cx, "find.showUsageResults", Some(arg));
+        // The usage's line is read from its file before the list is drawn.
+        settle(cx, |cx| rows(cx).iter().any(|row| row.contains("b.txt")));
+
+        cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
+        cx.run_until_parked();
+        run_action(cx, "find.showUsages", None);
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.usages_popup().is_some()));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.usages_popup().is_none()), "Escape closes Show Usages");
+
+        // The item lists a server as soon as its event arrives. The snapshot that event asks for
+        // comes from the backend, which runs no server here, so the list is read before it lands.
+        let send = |event: IdeEvent, cx: &mut VisualTestContext| {
+            let event = BackendEvent { window: Some("w1".to_owned()), event };
+            workbench.update(cx, |workbench, cx| workbench.backend_event(&event, cx));
+        };
+        let server = ide_core::ServerId(7);
+        let name = "checker".to_owned();
+        send(IdeEvent::LanguageServer { server, name, status: ServerStatus::Ready, message: None }, cx);
+        let listed = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, cx| w.server_status_item().read(cx).servers().len())
+        };
+        assert_eq!(listed(cx), 1);
+        send(IdeEvent::LanguageServerRemoved { server }, cx);
+        assert_eq!(listed(cx), 0);
+        cx.run_until_parked();
+        assert_eq!(listed(cx), 0, "a removed server stays removed");
+        send(IdeEvent::SettingsChanged { key: "ide.mode".to_owned() }, cx);
+        cx.run_until_parked();
+
+        run_action(cx, "toolwindow.problems", None);
+        assert!(workbench.read_with(cx, |w, _| w.problems_view()).is_some());
+        workbench.update_in(cx, |w, window, cx| w.close_project(window, cx));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.usages_view().is_none() && w.problems_view().is_none()));
+    }
+
+    /// Settings for New Projects opens on the Java page and offers no This project scope, even with a
+    /// project open; Plugins… opens Settings on the Plugins page, which says it is not available in a
+    /// window without a plugin host.
+    #[gpui_kit::test]
+    async fn settings_for_new_projects_and_plugins_open_on_their_pages(cx: &mut TestAppContext) {
+        use crate::settings_model::staging::Scope;
+        let _home = start(cx);
+        let (_folder, _root, workbench, cx) = trusted_project(cx, &[("a.txt", "a\n")]);
+        cx.update(|window, _| window.activate_window());
+        run_action(cx, "file.newProjectsSettings", None);
+        let open = settings_dialog_of(&workbench, cx).expect("Settings for New Projects opens");
+        assert_eq!(open.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("languages.java"));
+        assert!(!open.read_with(cx, |view, cx| view.has_scope_switch(cx)), "new projects edit the global layer");
+        assert_eq!(open.read_with(cx, |view, cx| view.scope(cx)), Scope::Global);
+        click_on(cx, "settings-cancel");
+        assert!(settings_dialog_of(&workbench, cx).is_none());
+
+        run_action(cx, "plugins.settings", None);
+        let open = settings_dialog_of(&workbench, cx).expect("Settings opens");
+        assert_eq!(open.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("plugins"));
+        assert!(workbench.read_with(cx, |w, _| w.settings_plugins_page().is_none()), "no plugin host here");
+        let lines = open.read_with(cx, |view, cx| view.control_lines(cx));
+        assert_eq!(lines, [crate::settings_view::controls::UNAVAILABLE]);
     }
 }

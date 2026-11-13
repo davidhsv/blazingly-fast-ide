@@ -668,9 +668,9 @@ mod tests {
     #[test]
     fn turns_the_other_button_on_when_the_last_visible_access_is_turned_off() {
         let mut options = UsageAccessOptions::default();
-        options.toggle(AccessButton::Write);
+        let _ = options.toggle(AccessButton::Write);
         assert_eq!(options, UsageAccessOptions { read: true, write: false });
-        options.toggle(AccessButton::Read);
+        let _ = options.toggle(AccessButton::Read);
         assert_eq!(options, UsageAccessOptions { read: false, write: true });
         let stored = options.toggle(AccessButton::Write);
         assert_eq!(options, UsageAccessOptions { read: true, write: false });

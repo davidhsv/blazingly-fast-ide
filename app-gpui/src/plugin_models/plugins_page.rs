@@ -525,6 +525,8 @@ pub struct PluginsPage {
     icon_theme: Option<String>,
     /// The declared secrets' state per plugin, as last read.
     secrets: HashMap<String, Vec<(String, bool)>>,
+    /// The plugins whose secrets were asked for, so that each is asked once.
+    secrets_requested: HashSet<String>,
     secret_fields: HashMap<(String, String, bool), Entity<TextField>>,
     secret_busy: HashSet<SecretKey>,
     secret_errors: HashMap<SecretKey, String>,
@@ -592,6 +594,7 @@ impl PluginsPage {
             theme_choice: None,
             icon_theme: None,
             secrets: HashMap::new(),
+            secrets_requested: HashSet::new(),
             secret_fields: HashMap::new(),
             secret_busy: HashSet::new(),
             secret_errors: HashMap::new(),
@@ -1162,8 +1165,7 @@ impl PluginsPage {
         let Some(plugin) = self.selected_plugin() else { return };
         let id = plugin.id.clone();
         let declares = self.contributions.iter().any(|c| c.plugin_id == id && c.point == "secrets");
-        if declares && !self.secrets.contains_key(&id) {
-            self.secrets.insert(id.clone(), Vec::new());
+        if declares && !self.secrets.contains_key(&id) && self.secrets_requested.insert(id.clone()) {
             cx.emit(PluginsPageEvent::LoadSecrets(id));
         }
     }
@@ -1803,9 +1805,12 @@ impl PluginsPage {
                 Section { title, rows, ..Section::default() }
             }
             "secrets" => {
+                // A secret's row, with the field its value is typed in, shows only once its state has
+                // been read: until then the page cannot say whether a value is stored.
                 let state = self.secrets.get(&plugin.id);
                 let secrets = items
                     .iter()
+                    .filter(|_| state.is_some())
                     .filter_map(|item| {
                         let name = item.text("name")?.to_owned();
                         let key = (plugin.id.clone(), name.clone());
@@ -3791,6 +3796,28 @@ mod tests {
         let (plugin_id, name) = ("ai".to_owned(), "api-key".to_owned());
         let remove = PluginsPageEvent::SetSecret { plugin_id, name, value: None };
         assert_eq!(taken(&events), [remove]);
+    }
+
+    // Not from a spec: while the state of a plugin's secrets has not been read, its Secrets section
+    // lists no secret and draws no field a value could be typed in.
+    #[gpui_kit::test]
+    async fn shows_no_secret_field_while_the_secrets_are_not_read(cx: &mut TestAppContext) {
+        let (page, events, cx) = open(cx);
+        let ai = plugin("ai", json!({ "contributions": [{ "point": "secrets", "label": "API key" }] }));
+        let ui = vec![Contribution::new("ai", "secrets", "api-key", json!({ "name": "api-key", "label": "API key" }))];
+        list(&page, cx, vec![ai], ui);
+        assert_eq!(taken(&events), [PluginsPageEvent::LoadSecrets("ai".to_owned())]);
+        cx.run_until_parked();
+        assert!(section(&details(&page, cx), "Secrets").secrets.is_empty());
+        assert!(cx.debug_bounds("plugins-secret-field-api-key").is_none(), "no secret field is drawn");
+        assert!(page.read_with(cx, |page, _| page.secret_fields.is_empty()));
+        // Selecting the plugin again does not ask a second time.
+        page.update(cx, |page, cx| page.select(ItemKind::Installed, "ai", cx));
+        assert!(taken(&events).is_empty());
+        // Once the state is read, the row and its field are drawn.
+        page.update(cx, |page, cx| page.set_secrets("ai", vec![("api-key".to_owned(), false)], cx));
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("plugins-secret-field-api-key").is_some());
     }
 
     fn market_page(

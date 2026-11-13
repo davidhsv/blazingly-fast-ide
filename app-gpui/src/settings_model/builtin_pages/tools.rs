@@ -1,8 +1,8 @@
 //! Tools: Terminal, Actions on Save, Agents › Chat, External Tools and SSH Configurations. The
 //! MCP Server page comes from its own module.
 
-use super::{TOOLS_GROUP, custom, text, toggle};
-use crate::settings_model::page_spec::PageSpec;
+use super::{TOOLS_GROUP, custom, hint, text, toggle};
+use crate::settings_model::page_spec::{OptionDetail, PageSpec};
 
 fn terminal() -> PageSpec {
     PageSpec::new("tools.terminal", "Terminal", 600)
@@ -43,6 +43,7 @@ fn terminal() -> PageSpec {
                 &["Font", "Show only monospaced fonts", "Size", "Line height", "Fallback font", "Column width"],
             )],
         )
+        .detail("terminal.tabName", OptionDetail { placeholder: Some("Local"), ..OptionDetail::default() })
 }
 
 fn actions_on_save() -> PageSpec {
@@ -67,6 +68,16 @@ fn agent_chat() -> PageSpec {
                 toggle("agents.showUsageLimits", "Usage limits"),
                 toggle("agents.showCost", "Session cost"),
             ],
+        )
+        .detail(
+            "agents.showUsageLimits",
+            hint("The account's 5-hour and weekly limits, when the agent reports them (Claude Code)"),
+        )
+        .detail(
+            "agents.showCost",
+            hint(
+                "What the session has cost so far, as the agent reports it (API pricing, also shown on subscriptions)",
+            ),
         )
 }
 
