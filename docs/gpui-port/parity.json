@@ -172,20 +172,20 @@
     "proof": "`workbench::tests::titles_name_the_project_then_the_file`; the title only: no project, branch or run widgets, no main menu"
   },
   "context:projectOpen": {
-    "status": "done",
-    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+    "status": "partial",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; asserted on with a file open in a project; no test asserts it off"
   },
   "context:textEditorActive": {
     "status": "done",
     "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
   },
   "context:editorFocus": {
-    "status": "done",
-    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+    "status": "partial",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; asserted on with a file open in a project; no test asserts it off"
   },
   "context:editorTextFocus": {
-    "status": "done",
-    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
+    "status": "partial",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; asserted on with a file open in a project; no test asserts it off"
   },
   "context:editorHasSelection": {
     "status": "done",
@@ -412,16 +412,16 @@
     "proof": "`workbench::main_toolbar::tests`"
   },
   "module:src/workbench/mainToolbar.ts": {
-    "status": "partial",
-    "proof": "`workbench::main_toolbar::tests`; the model only: no window uses it yet"
+    "status": "done",
+    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::main_toolbar::tests`; the default layout per side, removing a widget into the hidden list, saving the layout and restoring the default (stored as none) are shown in the window's title bar"
   },
   "unit:src/workbench/statusBarWidgets.test.tsx": {
     "status": "done",
     "proof": "`workbench::status_bar::tests`, `workbench::status_bar_widgets::tests`"
   },
   "module:src/workbench/statusBarWidgets.ts": {
-    "status": "partial",
-    "proof": "`workbench::status_bar_widgets::tests`; the model only: no window uses it yet"
+    "status": "done",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::status_bar_widgets::tests`; the window's status bar shows the visible items, its context menu lists the titled items, hiding one from it stores the override and removes the item, and View › Appearance › Status Bar Widgets toggles it back"
   },
   "unit:src/workbench/quickSwitch.test.tsx": {
     "status": "partial",
@@ -960,8 +960,8 @@
     "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; closes the active tab at once: the question asked when a command is still running is not there"
   },
   "context:terminalFocus": {
-    "status": "done",
-    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`"
+    "status": "partial",
+    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; the terminal takes the keyboard in that test, but no test reads the key"
   },
   "unit:src/features/search/__tests__/controller.test.ts": {
     "status": "done",
@@ -1244,8 +1244,8 @@
     "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`"
   },
   "action:view.toggleToolbar": {
-    "status": "partial",
-    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; flips the setting and shows as on or off, but the title bar has no toolbar items to hide yet"
+    "status": "done",
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`, `workbench::tests::shows_the_window_title_and_follows_it_without_toolbar_widgets`; flips and stores appearance.showMainToolbar, and the title bar then drops its gear, project, IDE mode and run widgets for the compact title that follows the window's title, and brings them back"
   },
   "action:toolwindow.maximize": {
     "status": "partial",
@@ -3416,8 +3416,8 @@
     "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
   },
   "action:diff.prevDifference": {
-    "status": "partial",
-    "proof": "`vcs_diff::view::tests`; registered on the viewer's Previous Difference, which the view tests cover; no test runs the action"
+    "status": "done",
+    "proof": "`workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`, `vcs_diff::view::tests`; the action run through the registry moves the merge editor's caret back to the previous change, and the view tests cover the diff viewer's Previous Difference the same handler falls back to"
   },
   "action:diff.nextFile": {
     "status": "done",
@@ -3436,12 +3436,12 @@
     "proof": "`vcs_diff::toolbar_view::tests`; opens the settings menu of the viewer; no test runs the action"
   },
   "context:diffEditorFocus": {
-    "status": "done",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+    "status": "partial",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; the diff window sets the key, but no test reads it"
   },
   "context:vcsAvailable": {
-    "status": "done",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+    "status": "partial",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; the diff window sets the key, but no test reads it"
   },
   "unit:src/features/run/RunWidget.test.tsx": {
     "status": "partial",
@@ -3840,8 +3840,8 @@
     "proof": "`workbench::tests::the_structure_window_follows_the_editor_and_goes_to_the_chosen_symbol`"
   },
   "ipc:vcs_rebase": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`; Rebase onto and Checkout and Rebase call it; no test runs them"
+    "status": "done",
+    "proof": "`workbench::tests::a_rebase_whose_last_conflict_is_resolved_from_the_dialog_continues_by_itself`; Rebase 'feature' onto 'main' from the branch menu runs ops::vcs::vcs_rebase, and the test asserts the replayed history (feature side over main side); Checkout and Rebase calls the same function"
   },
   "ipc:vcs_merge_base": {
     "status": "partial",
@@ -4124,8 +4124,8 @@
     "proof": "`workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`, `workbench::tests::merge_opens_the_three_way_editor_and_apply_writes_and_stages_the_resolved_file`, `workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`, `workbench::tests::a_file_with_crlf_line_breaks_is_resolved_with_crlf`, `workbench::tests::the_merge_conflicts_notification_appears_with_the_conflict_and_expires_once_it_is_resolved`; the Conflicts dialog and the three-way merge editor, with accept, apply, the non-conflicting commands and the notifications. The editor is a front window, not a tab; no blame and no syntax colours in its panes"
   },
   "context:mergeEditorFocus": {
-    "status": "done",
-    "proof": "`workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`"
+    "status": "partial",
+    "proof": "`workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`; asserted on in the merge editor; no test asserts it off"
   },
   "action:toolbar.customize": {
     "status": "done",
@@ -4204,8 +4204,8 @@
     "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`"
   },
   "context:imageViewerFocus": {
-    "status": "done",
-    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`"
+    "status": "partial",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`; asserted on with the image focused; no test asserts it off"
   },
   "point.registerEditorKind:image": {
     "status": "partial",
@@ -4308,8 +4308,8 @@
     "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
   },
   "ipc:db_connected": {
-    "status": "done",
-    "proof": "`workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`"
+    "status": "partial",
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`; read with the sources when the window loads; no asserted state can only come from it"
   },
   "ipc:db_test": {
     "status": "done",
@@ -4318,10 +4318,6 @@
   "ipc:db_save_sources": {
     "status": "done",
     "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
-  },
-  "ipc:db_connect": {
-    "status": "done",
-    "proof": "`workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`"
   },
   "ipc:db_tables": {
     "status": "done",
@@ -4354,5 +4350,229 @@
   "ipc:db_console_path": {
     "status": "done",
     "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "action:run": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; the Run button of a selected configuration row in Services starts it and its output shows in the detail pane; started from the row's button, the action itself is not run through the registry by a test"
+  },
+  "action:stop": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; the Stop button of a running configuration row in Services ends the session, and the row then reads Stopped; started from the row's button, the action itself is not run through the registry by a test"
+  },
+  "ipc:replace_in_files": {
+    "status": "done",
+    "proof": "`find::popup_view::tests::replace_all_asks_first_when_several_files_change`, `find::popup_view::tests::replace_all_in_one_file_does_not_ask`, `find::popup_view::tests::replace_replaces_the_selected_row_and_moves_on`; the Find in Files popup (the view find.replaceInPath opens) replaces through the same search::replace_in_files op as the adapter, and the files on disk change"
+  },
+  "ipc:replace_preview": {
+    "status": "done",
+    "proof": "`find::popup_view::tests::the_replace_preview_shows_the_change`; the popup's Preview diff lines, which follow the replacement and Preserve Case, come from search::replace_preview (the adapter's op) and leave the file unchanged"
+  },
+  "context:editorReadOnly": {
+    "status": "done",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`, `workbench::tests::a_file_with_nul_bytes_opens_in_the_hex_view_and_open_as_text_gives_it_a_text_editor`; off for an editable file, on for binary content opened as text"
+  },
+  "point.registerEditorBanner:vcs.conflict": {
+    "status": "done",
+    "proof": "`workbench::tests::the_merge_conflicts_notification_appears_with_the_conflict_and_expires_once_it_is_resolved`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`, `vcs::conflict_banner::tests::warns_above_a_file_git_records_as_conflicted_and_offers_to_resolve_it`; a conflicted file gets the banner, its Resolve link over the editor opens the merge editor, and it goes once resolved"
+  },
+  "point.registerTextEditorWrapper:viewers.markdown": {
+    "status": "done",
+    "proof": "`workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`, `workbench::tests::reopening_a_project_restores_its_text_and_markdown_tabs_and_not_its_image_tab`; a .md file stays a text tab wrapped in the preview host, with the three layouts in the tab strip, and a restored tab gets them back"
+  },
+  "point.registerFileEditorProvider:viewers.image": {
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `features_b::viewers::file_kinds::tests::routes_by_extension`, `features_b::viewers::file_kinds::tests::lets_a_text_editor_wrapper_take_precedence_over_the_image_viewer`; opening a png from the project view gives an image tab, not a text editor"
+  },
+  "point.registerFileEditorProvider:viewers.hex": {
+    "status": "done",
+    "proof": "`workbench::tests::a_file_with_nul_bytes_opens_in_the_hex_view_and_open_as_text_gives_it_a_text_editor`, `features_b::viewers::file_kinds::tests::uses_the_hex_view_for_binary_or_huge_files`; binary content opens in the hex view before any document is opened"
+  },
+  "module:src/editor/lsp/positions.ts": {
+    "status": "done",
+    "proof": "`editor_lsp::positions::tests`; every export of the module (pos/offset conversion both ways, range normalisation, containment, text edits to sorted changes) is ported to editor_lsp::positions, which the editor's LSP features call, and these five tests cover each"
+  },
+  "module:src/editor/core/wordCompletion.ts": {
+    "status": "done",
+    "proof": "`editor_commands::word_completion::tests`, `editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; the three exports (prefix start, candidate order nearest-first then other editors, cyclic expand) are ported, and the registry test runs code.cyclicExpandWord forward, twice (back to the prefix) and backward in a workbench window's editor"
+  },
+  "ipc:db_schemas": {
+    "status": "done",
+    "proof": "`workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`; expanding the SQLite source in the Database tree issues the Schemas load (tree_view load_for, workbench database DbOp::Schemas calling the same ops db schemas fn as the adapter) and the test waits for the schema row main that only that answer creates, then expands it"
+  },
+  "action:run.services.addType": {
+    "status": "done",
+    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; run through the registry with \"program\", it adds the Program type row and its configurations to the Services tree"
+  },
+  "point.registerServiceProvider:runConfigurations": {
+    "status": "done",
+    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; the run configurations provider fills the Services tree with type and configuration rows that run and stop"
+  },
+  "point.registerServiceView:services": {
+    "status": "done",
+    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; the Services tree view shows in the Services tool window with its rows, selection and toolbar"
+  },
+  "point.registerRunConfigType:program": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`, `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; a Program configuration is added through Add New Configuration and its form, saved, and Program configurations run into the Run tool window"
+  },
+  "module:src/platform/keymaps/intellij-macos.ts": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:intellij-macos row"
+  },
+  "module:src/platform/keymaps/intellij-windows.ts": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:intellij-windows row"
+  },
+  "module:src/platform/keymaps/vscode-macos.ts": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:vscode-macos row"
+  },
+  "module:src/platform/keymaps/vscode-windows.ts": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:vscode-windows row"
+  },
+  "module:src/platform/keymaps/eclipse-macos.ts": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:eclipse-macos row"
+  },
+  "module:src/platform/keymaps/eclipse-windows.ts": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:eclipse-windows row"
+  },
+  "module:src/platform/inspectionControls.ts": {
+    "status": "done",
+    "proof": "`platform_more::inspection_controls::tests`; the intention and problem rows, Disable, severity changes and Edit Settings on the inspection, used by the editor's intentions and the window's code insight (workbench/code_insight.rs apply_inspection)"
+  },
+  "ipc:vcs_conflict_versions": {
+    "status": "done",
+    "proof": "`workbench::tests::merge_opens_the_three_way_editor_and_apply_writes_and_stages_the_resolved_file`, `workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`; the merge editor shows the base, ours and theirs of the conflicted file and Accept Yours writes our side, both read through the same ops::vcs::vcs_conflict_versions the adapter calls"
+  },
+  "ipc:vcs_stage": {
+    "status": "done",
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`, `workbench::tests::merge_opens_the_three_way_editor_and_apply_writes_and_stages_the_resolved_file`; after Accept Yours and after Apply the test reads git ls-files -u as empty, which only staging through ops::vcs::vcs_stage achieves"
+  },
+  "context:merge.": {
+    "status": "done",
+    "proof": "`workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`; the focused merge editor publishes merge.<command> keys: merge.applyAll is asserted on, then off once nothing non-conflicting is left (merge.annotate off)"
+  },
+  "unit:src/features/vcs/comparison/__tests__/idea.test.ts": {
+    "status": "done",
+    "proof": "`vcs_diff::comparison::tests::intellij_comparison_tests_lines`, `vcs_diff::comparison::tests::intellij_comparison_tests_lines_inner`, `vcs_diff::comparison::tests::intellij_comparison_tests_words`, `vcs_diff::comparison::tests::intellij_comparison_tests_splitter`; the Rust tests load the same ideaCases.json and run every case of its four kinds under each policy, as the spec's single generated case does"
+  },
+  "boundid:toolwindow.terminal": {
+    "status": "done",
+    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; the action shows the Terminal window with a running shell, hides it and shows the same session again"
+  },
+  "boundid:toolwindow.git": {
+    "status": "done",
+    "proof": "`workbench::tests::the_git_tool_window_shows_the_projects_log`; the action shows the Git window at the bottom with the log, focused"
+  },
+  "boundid:toolwindow.commit": {
+    "status": "done",
+    "proof": "`workbench::tests::the_git_tool_window_shows_the_projects_log`, `workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; the action shows the Commit window in the Project view's place with the changes"
+  },
+  "boundid:toolwindow.find": {
+    "status": "done",
+    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`; the action shows the Find window with its query focused"
+  },
+  "boundid:toolwindow.structure": {
+    "status": "done",
+    "proof": "`workbench::tests::the_structure_window_follows_the_editor_and_goes_to_the_chosen_symbol`; the action shows the Structure window with the editor's outline"
+  },
+  "boundid:toolwindow.bookmarks": {
+    "status": "done",
+    "proof": "`workbench::tests::the_bookmarks_window_lists_opens_renames_and_deletes_what_the_project_stores`; the action shows the Bookmarks window, which then lists the toggled bookmarks"
+  },
+  "boundid:toolwindow.problems": {
+    "status": "done",
+    "proof": "`workbench::tests::the_problems_window_lists_published_problems_and_opens_the_chosen_one`, `workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the action shows the Problems window"
+  },
+  "boundid:toolwindow.project": {
+    "status": "done",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; Cmd-1 through the keymap hides and shows the focused Project view, and the action gives it the keyboard"
+  },
+  "context:lightEdit": {
+    "status": "done",
+    "proof": "`workbench::tests::the_status_and_title_bars_name_the_viewers_file_and_leave_out_the_editors_items`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; on in a single-file window, off in a project window"
+  },
+  "event:Diagnostics": {
+    "status": "done",
+    "proof": "`workbench::tests::the_problems_window_lists_published_problems_and_opens_the_chosen_one`; the Problems window lists exactly the problems the Diagnostics events handed to the window, and drops a file whose list is cleared"
+  },
+  "event:LanguageServer": {
+    "status": "done",
+    "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the Language Services item lists a server once its LanguageServer event reaches the window"
+  },
+  "event:LanguageServerRemoved": {
+    "status": "done",
+    "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the Language Services item drops the server on LanguageServerRemoved and keeps it dropped"
+  },
+  "event:FsChanged": {
+    "status": "done",
+    "proof": "`project_tree::tests::follows_changes_on_disk`; the window's Project view lists a created file on the FsChanged event for its window and ignores another window's"
+  },
+  "event:VcsChanged": {
+    "status": "done",
+    "proof": "`vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`, `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`; after an outside commit the Commit window's list empties and the Git log lists the new commit on VcsChanged"
+  },
+  "event:TerminalExited": {
+    "status": "done",
+    "proof": "`terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; the terminal reports the exit code only TerminalExited carries, and the tab closes with the shell"
+  },
+  "event:RunExited": {
+    "status": "done",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; the session finishes with exit code 0, which only RunExited sets (run/driver.rs backend_event)"
+  },
+  "action:(dynamic) src/features/plugins/points.tsx:199": {
+    "status": "done",
+    "proof": "`plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`; a linked, consented plugin's command becomes a registered action (title, category), is unavailable without an editor, and run through the registry in a workbench window it rewrites the editor's selection and activates the plugin"
+  },
+  "action:(dynamic) src/features/search/index.ts:476": {
+    "status": "done",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; the per-digit ids come from one loop (workbench/mod.rs:652), and the test runs navigate.toggleBookmark7 through the registry and asserts the bookmark gets mnemonic 7"
+  },
+  "action:(dynamic) src/features/search/index.ts:486": {
+    "status": "done",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; the per-digit ids come from one loop (workbench/mod.rs:662), and the test runs navigate.gotoBookmark7 through the registry and asserts the caret lands on that bookmark in the other file"
+  },
+  "action:(dynamic) src/workbench/toolwindows/actions.ts:160": {
+    "status": "done",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; the per-window ids come from one loop over the declared tool windows (workbench/mod.rs:519); the tests run them by keystroke (Cmd-1) and through the registry and assert the window shown, hidden and focused"
+  },
+  "ipc:fs_create_dir": {
+    "status": "done",
+    "proof": "`workbench::tests::new_directory_and_a_nested_new_file_create_their_folders`; New Directory from the project view goes through BackendCall::FsCreateDir to ide_vfs::create_dir, the same function the fs_create_dir adapter calls, and the test asserts the folder exists on disk and is selected in the tree"
+  },
+  "ipc:light_edit_open": {
+    "status": "done",
+    "proof": "`workbench::tests::opens_a_loose_file_in_an_editor_and_types_into_it`; opening a loose file calls the host's open_light (the function the adapter reaches through AppState) and the test asserts the file's text in an editor that takes typing"
+  },
+  "module:src/workbench/documentTitle.ts": {
+    "status": "done",
+    "proof": "`workbench::tests::shows_the_window_title_and_follows_it_without_toolbar_widgets`; the compact header shows the window's title and follows it when a file opens"
+  },
+  "settings:appearance": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_appearance_applies_the_chosen_theme`; Appearance… opens the page and the theme chosen there is applied and read back from the global settings; its 9 controls of their own (plugin themes, Sync with OS, accent, zoom…) draw \"This page is not available yet\""
+  },
+  "settings:keymap": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `settings_view::keymap::tests`; Keymap… opens the page, a recorded shortcut is applied to keymapOverrides and resolved by the keymap; action icons and page-swipe recording are missing (as on action:settings.keymap)"
+  },
+  "feature:settings": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes`, `workbench::tests::settings_cancel_after_an_edit_writes_nothing`, `workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`, `workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `workbench::tests::settings_appearance_applies_the_chosen_theme`, `workbench::tests::settings_for_new_projects_and_plugins_open_on_their_pages`; the dialog with search, page tree, Global/This project scope, Apply/Cancel/OK, the Keymap and Plugins pages and every option-table page; about 40 of the 68 pages (all language, build-tool and feature pages) and every control of its own draw \"This page is not available yet\""
+  },
+  "ipc:settings_get_global": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`; under Global the dialog shows the global layer (read from the same store the adapter reads) while the project layer differs; the proxy password the adapter merges in is not, since the HTTP Proxy page is not built"
+  },
+  "unit:src/features/settings/__tests__/mouseShortcut.test.tsx": {
+    "status": "partial",
+    "proof": "`settings_view::keymap::tests::records_and_submits_option_command_left_click`, `settings_view::keymap::tests::records_a_side_button_click_with_modifiers_and_submits_it`; 2 of 3 cases: page-swipe recording (SwipeLeft/SwipeRight from the focused recorder) has no test"
+  },
+  "module:src/platform/inspections.ts": {
+    "status": "partial",
+    "proof": "`platform_more::inspections::tests`, `settings_model::inspections_model::tests`; profiles, levels, overrides and applying the profile to diagnostics (editor_lsp/diagnostics.rs), wired; no window test shows a diagnostic hidden or restyled by the profile"
   }
 }

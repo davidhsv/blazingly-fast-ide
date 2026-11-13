@@ -1,0 +1,1209 @@
+# List C: model only, wiring missing
+
+**Changed during the sweep (measured at 05:41):** workbench/mod.rs now declares `mod debug;` (line 13) and calls `debug::register_actions` (line 462), and debugger/mod.rs declares `driver` and `breakpoints_view`. The 82 rows of "Shard debug" below and about 20 run/workbenchA/editorA rows that say "only in undeclared workbench/debug.rs / debugger/driver.rs / breakpoints_view.rs" are therefore no longer list C: they are list B (four debug tests exist in workbench/debug.rs but are not in rust_tests.txt yet). The other undeclared files (shelf, log_actions, vcs_operations, plugins_window, welcome_pages, github, app_shell in workbench/; the vcs/_dialog_ and shelf_view files; ui/secret_field.rs) were still undeclared at 05:41. Re-run this list after the other agent lands its work.
+
+Stale `[m]` rows (already `done`; render `[x]` on the next regeneration with no parity.json change, by a replica of inventory.mjs reachability on the 05:41 source): unit:src/features/agents/{agents,conversation,draft,markdownImages,permission,replyActions}.test.ts, unit:src/features/debugger/**tests**/{actions,hotswap,valueChanges,valueText}.test.ts, unit:src/features/debugger/**tests**/toolWindow.test.tsx.
+
+Code under app-gpui/src/workbench/{shelf,log_actions,vcs_operations,plugins_window,welcome_pages,github,debug,app_shell}.rs, app-gpui/src/vcs/{change_dialogs,git_form_dialog,git_forms,interactive_rebase_dialog,log_message_dialog,log_reset_dialog,log_tag_dialog,patch_dialogs,shelf_view}.rs, app-gpui/src/debugger/{breakpoints_view,driver}.rs and app-gpui/src/ui/secret_field.rs is on disk but no `mod` line declares it, so it is not compiled: rows marked "only in undeclared <file>" become reachable (and testable) by declaring that module.
+
+## Shard debug
+
+Common cause: the debugger's window glue (Debug tool window, debug console, Breakpoints dialog, `debug.*` / `run.debug` / `run.debugConfig` registration, `DebugDriver`) lives in app-gpui/src/workbench/debug.rs, which no `mod` line declares (verified: workbench/mod.rs lines 1-47 declare no `debug`). The only compiled path into `debugger::` from outside it is the type import of `debugger::state::{ServiceSession, SessionStatus}` in app-gpui/src/run_testing/services.rs:13 and service_sessions.rs:7. Note: app-gpui/src/debugger/mod.rs was modified at 05:21 today (declares `driver` and `breakpoints_view`), so another agent is wiring this right now.
+
+- action:debug — Services toolbar button exists (app-gpui/src/run_testing/services.rs:763, handled at app-gpui/src/workbench/services_window.rs:695) but forwards to `run.debugConfig`, registered only in undeclared app-gpui/src/workbench/debug.rs
+- action:debug.attach — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.attachToProcess — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.browseConsoleHistory — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.cancelHotSwap — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.evaluate — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.forceRunToCursor — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.forceStepInto — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.forceStepOver — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.hotReload — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.hotRestart — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.jumpToSource — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.muteBreakpoints — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.pause — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.pluginStart — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.quickEvaluate — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.reloadChangedClasses — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.removeAllBreakpoints — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.rerun — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.resetFrame — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.resume — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.runToCursor — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.setValue — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.showExecutionPoint — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.showToolWindow — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.smartStepInto — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.startConfig — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.stepInto — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.stepOut — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.stepOver — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.stop — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.toggleBreakpoint — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.toggleFieldWatchpoint — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.toggleMethodBreakpoint — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.toggleTemporaryBreakpoint — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- action:debug.viewBreakpoints — dispatched by app-gpui/src/debugger/actions.rs (unit unreached); registered only in undeclared app-gpui/src/workbench/debug.rs — declare `mod debug;` in workbench/mod.rs and call its register_actions
+- context:debugCanHotSwap — computed in app-gpui/src/debugger/state.rs; published to the window only in undeclared app-gpui/src/workbench/debug.rs
+- context:debugCanRerun — computed in app-gpui/src/debugger/state.rs; published to the window only in undeclared app-gpui/src/workbench/debug.rs
+- context:debugFramesFocus — computed in app-gpui/src/debugger/focused_view.rs; published to the window only in undeclared app-gpui/src/workbench/debug.rs
+- context:debugHotSwapBuilding — computed in app-gpui/src/debugger/hotswap.rs; published to the window only in undeclared app-gpui/src/workbench/debug.rs
+- context:debugSessionActive — computed in app-gpui/src/debugger/state.rs; published to the window only in undeclared app-gpui/src/workbench/debug.rs
+- context:debugSessionDart — computed in app-gpui/src/debugger/state.rs; published to the window only in undeclared app-gpui/src/workbench/debug.rs
+- context:debugSessionPaused — computed in app-gpui/src/debugger/state.rs; published to the window only in undeclared app-gpui/src/workbench/debug.rs
+- context:debugSessionRunning — computed in app-gpui/src/debugger/state.rs; published to the window only in undeclared app-gpui/src/workbench/debug.rs
+- context:debugVariablesFocus — computed in app-gpui/src/debugger/focused_view.rs; published to the window only in undeclared app-gpui/src/workbench/debug.rs
+- feature:debugger — models in app-gpui/src/debugger/ (state, breakpoints, actions, driver, views); window glue only in undeclared app-gpui/src/workbench/debug.rs
+- ipc:debug_attachable_processes — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_breakpoint_states — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_capabilities — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_data_breakpoint_info — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_evaluate_in — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_exception_filters — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_force_step_over — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_hot_reload — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_hot_restart — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_listen_for_jvm — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_pause — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_redefine_classes — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_restart_frame — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_resume — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_run_to — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_scopes — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_send_input — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_set_breakpoints — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_set_data_breakpoints — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_set_exception_breakpoints — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_set_function_breakpoints — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_set_variable — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_stack_trace — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_start — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_step — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_step_in_target — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_step_in_targets — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_stop — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_threads — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- ipc:debug_variables — called by app-gpui/src/debugger/driver.rs (unit unreached; reached only from undeclared workbench/debug.rs)
+- unit:src/features/debugger/**tests**/actions.test.ts — current proof's tests are in unreached units (`debugger::actions::tests`); reachable once workbench/debug.rs is declared
+- unit:src/features/debugger/**tests**/hotswap.test.ts — current proof's tests are in unreached units (`debugger::hotswap::tests`); reachable once workbench/debug.rs is declared
+- unit:src/features/debugger/**tests**/toolWindow.test.tsx — current proof's tests are in unreached units (`debugger::window_view::tests`); reachable once workbench/debug.rs is declared
+- unit:src/features/debugger/**tests**/valueChanges.test.ts — current proof's tests are in unreached units (`debugger::value_changes::tests`); reachable once workbench/debug.rs is declared
+- unit:src/features/debugger/**tests**/valueText.test.ts — current proof's tests are in unreached units (`debugger::value_text::tests`); reachable once workbench/debug.rs is declared
+
+## Shard editorA
+
+- `action:code.applyPastedImports` — editor_lsp::imports_on_paste (unreached) — register the action and call the model on paste
+- `action:code.applyQuickFix` — editor_lsp::hover_view shows its shortcut, editor/intelligence.rs applies code actions — register to apply the first quick fix
+- `action:code.autoIndentLines` — editor_commands::smart_keys (auto-indent) — add to COMMANDS
+- `action:code.collapseBlock` — editor_commands::collapse_block (unreached) — register in editor/command_actions.rs COMMANDS
+- `action:code.collapseRecursively` — editor_commands::folding (unreached) — editor has no folding; register over the folding model and draw folds
+- `action:code.expandRecursively` — editor_commands::folding (unreached) — editor has no folding; register over the folding model and draw folds
+- `action:code.expressionTypeInfo` — editor_lsp::type_info (unreached)
+- `action:code.extendSelection` — editor_commands::extend_selection (unreached) — add to editor/command_actions.rs COMMANDS
+- `action:code.fold` — editor_commands::folding (unreached) — editor has no folding; register over the folding model and draw folds
+- `action:code.foldAll` — editor_commands::folding (unreached) — editor has no folding; register over the folding model and draw folds
+- `action:code.foldSelection` — editor_commands::folding (unreached) — editor has no folding; register over the folding model and draw folds
+- `action:code.foldToggle` — editor_commands::folding (unreached) — editor has no folding; register over the folding model and draw folds
+- `action:code.generate` — editor_lsp::generate (unreached)
+- `action:code.implementMethods` — editor_lsp::generate (unreached)
+- `action:code.insertLiveTemplate` — templates::live_model, templates::live_surrounders, templates::editor
+- `action:code.optimizeImports` — editor_lsp::intentions (organize-imports code action) — register as a source.organizeImports code action
+- `action:code.optimizeImportsFile` — editor_lsp::intentions (organize-imports code action) — register as a source.organizeImports code action
+- `action:code.overrideMethods` — editor_lsp::generate (unreached)
+- `action:code.pasteFromHistory` — editor_commands::extras (paste history) — register; no dialog view
+- `action:code.reformat` — editor_lsp::format, editor_lsp::format_guard (unreached)
+- `action:code.reformatDialog` — editor_lsp::format, editor_lsp::format_guard (unreached)
+- `action:code.reformatFile` — editor_lsp::format, editor_lsp::format_guard (unreached)
+- `action:code.reformatWithOxfmt` — editor_lsp::format, editor_lsp::format_guard (unreached)
+- `action:code.reformatWithPrettier` — editor_lsp::format, editor_lsp::format_guard (unreached)
+- `action:code.reformatWithRuff` — editor_lsp::format, editor_lsp::format_guard (unreached)
+- `action:code.showErrorDescription` — editor_lsp::diagnostics (error description text); hover_view shows diagnostics — register to open the hover at the caret
+- `action:code.shrinkSelection` — editor_commands::extend_selection (unreached) — add to editor/command_actions.rs COMMANDS
+- `action:code.surroundWith` — templates::live_model, templates::live_surrounders, templates::editor
+- `action:code.surroundWithLiveTemplate` — templates::live_model, templates::live_surrounders, templates::editor
+- `action:code.unfold` — editor_commands::folding (unreached) — editor has no folding; register over the folding model and draw folds
+- `action:code.unfoldAll` — editor_commands::folding (unreached) — editor has no folding; register over the folding model and draw folds
+- `action:code.unwrap` — editor_commands::unwrap (unreached) — add to COMMANDS
+- `action:editor.copyPath` — project_view::copy_path_popup rows + editor_commands::copy_reference — register as direct copy actions (today only rows of the editor.copyPathReference popup)
+- `action:editor.copyPathWithLineNumber` — project_view::copy_path_popup rows + editor_commands::copy_reference — register as direct copy actions (today only rows of the editor.copyPathReference popup)
+- `action:editor.copyReference` — project_view::copy_path_popup rows + editor_commands::copy_reference — register as direct copy actions (today only rows of the editor.copyPathReference popup)
+- `action:editor.decreaseFontSize` — features_b::viewers::font_zoom (constants and model, no handler) — register in the workbench
+- `action:editor.increaseFontSize` — features_b::viewers::font_zoom (constants and model, no handler) — register in the workbench
+- `action:editor.inlineCompletion.accept` — editor_lsp::inline_completion (unreached)
+- `action:editor.inlineCompletion.acceptWord` — editor_lsp::inline_completion (unreached)
+- `action:editor.inlineCompletion.dismiss` — editor_lsp::inline_completion (unreached)
+- `action:editor.inlineCompletion.next` — editor_lsp::inline_completion (unreached)
+- `action:editor.inlineCompletion.previous` — editor_lsp::inline_completion (unreached)
+- `action:editor.inlineCompletion.trigger` — editor_lsp::inline_completion (unreached)
+- `action:editor.pasteHistory.paste` — editor_commands::extras (paste history) — register; no dialog view
+- `action:editor.pasteHistory.remove` — editor_commands::extras (paste history) — register; no dialog view
+- `action:editor.resetFontSize` — features_b::viewers::font_zoom (constants and model, no handler) — register in the workbench
+- `action:editor.toggleRainbowBrackets` — editor_model::semantic_tokens / settings rainbow option (unreached)
+- `action:editor.toggleSemanticHighlighting` — editor_lsp::semantic (unreached)
+- `action:editor.toggleSoftWrap` — editor_model::editor_prefs soft-wrap patterns (unreached); the editor view does not wrap
+- `action:editor.toggleZen` — platform_more::distraction_free (model); title_bar.rs:116 and quick_switch.rs:252 offer the id but nothing handles it — register a handler that applies its effects
+- `action:emmet.updateTag` — templates::emmet_model (unreached)
+- `action:find.replaceStructural` — features_b::analysis::structural (unreached)
+- `action:find.rerun` — code_insight::usages_view Rerun button (usages_view.rs:287) — register the action to emit the same Rerun
+- `action:find.structural` — features_b::analysis::structural (unreached)
+- `action:macro.edit` — features_b::macros (unreached)
+- `action:macro.playBack` — features_b::macros (unreached)
+- `action:macro.playSaved` — features_b::macros (unreached)
+- `action:macro.startRecording` — features_b::macros (unreached)
+- `action:macro.stopRecording` — features_b::macros (unreached)
+- `action:moveDown` — services::view row menu (services/model.rs:565) — not an action in the registry
+- `action:moveUp` — services::view row menu (services/model.rs:563) — not an action in the registry
+- `action:navigate.back` — editor::nav_history (unreached)
+- `action:navigate.customRegion` — editor_commands::regions (unreached)
+- `action:navigate.forward` — editor::nav_history (unreached)
+- `action:navigate.gotoTest` — editor_refactor::goto_test (unreached)
+- `action:navigate.navigationBar` — editor_model::nav_bar (unreached); project_view/actions.rs:207 offers the id
+- `action:navigate.nextMethod` — editor_refactor::structure_nav (unreached)
+- `action:navigate.nextOccurrence` — code_insight/usages_view.rs:754 and features_a/todo_view.rs:603 emit RunAction for it; register it to call the focused tool window navigator
+- `action:navigate.prevOccurrence` — code_insight/usages_view.rs:753 and features_a/todo_view.rs:602 emit RunAction for it; register it
+- `action:navigate.previousMethod` — editor_refactor::structure_nav (unreached)
+- `action:navigate.selectIn` — project_view::actions select_in_targets (reached, tested as model) — register
+- `action:navigate.selectInProjectView` — project_view::actions select_in_project_view (tested as model); workbench/mod.rs:2442 and bookmarks_window.rs:67 already run the id — register it
+- `action:refactor.changeSignature` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.extractConstant` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.extractField` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.extractMethod` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.extractParameter` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.extractVariable` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.inline` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.move` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.pullMembersUp` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.pushMembersDown` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.rename` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.safeDelete` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:refactor.thisMenu` — editor_refactor::catalog (maps ids to server refactorings) + editor_refactor::refactor_this / editor_lsp::rename (unreached) — register over the catalog
+- `action:search.editScopes` — find::scopes_dialog (unreached); platform/search.rs:151 names the id
+- `action:templates.newFromTemplate` — templates::files_create (unreached)
+- `action:vim.reloadRc` — features_a::vim (status item menu at workbench/status_items.rs:228-234 offers the ids; nothing handles them)
+- `action:vim.settings` — features_a::vim (status item menu at workbench/status_items.rs:228-234 offers the ids; nothing handles them)
+- `action:vim.toggle` — features_a::vim (status item menu at workbench/status_items.rs:228-234 offers the ids; nothing handles them)
+- `context:macroLastAvailable` — features_b::macros (unreached) publishes it (macros.rs:156)
+- `context:macroRecording` — features_b::macros (unreached); status_bar.rs reads it but only a test sets it
+- `context:macrosSaved` — features_b::macros (unreached)
+- `context:vim.mode` — features_a::vim::mode emits VimEffect::SetContext (mode.rs:176); nothing applies the effect — apply it in the workbench
+- `context:vimMode` — features_a::vim::mode emits VimEffect::SetContext (mode.rs:118); nothing applies the effect
+- `ipc:doc_folding` — editor_commands::folding (unreached)
+- `ipc:doc_save_all` — native Save All saves each editor (workbench/mod.rs:1554) instead of ops::doc::save_all — switch to the op to share it
+- `ipc:doc_selection_ranges` — editor_commands::extend_selection (unreached)
+- `ipc:doc_sync_from_disk` — editor_model::disk_sync (unreached)
+- `ipc:inspect_code` — features_b::analysis::inspect (unreached)
+- `ipc:lsp_code_action_query` — editor_refactor::refactor_this (unreached)
+- `ipc:lsp_code_lens` — editor_lsp::code_lens (unreached)
+- `ipc:lsp_document_links` — editor_lsp::links (unreached)
+- `ipc:lsp_execute_code_action` — editor_refactor::refactor_this (unreached); intentions use lsp_apply_code_action instead
+- `ipc:lsp_format` — editor_lsp::format (unreached)
+- `ipc:lsp_goto_implementation` — native goes to implementations through ops::lsp::lsp_goto(GotoKind::Implementation) (editor/intelligence.rs:703), not the streaming op — switch to it to stream
+- `ipc:lsp_hierarchy_members` — editor_refactor::catalog pull/push members (no handler)
+- `ipc:lsp_hierarchy_refactor` — editor_refactor::catalog pull/push members (no handler)
+- `ipc:lsp_implementations` — editor_refactor::navigation_providers / goto implementations batch (unreached)
+- `ipc:lsp_inlay_hints` — editor_lsp::inlay (unreached)
+- `ipc:lsp_inline_completion` — editor_lsp::inline_completion (unreached)
+- `ipc:lsp_prepare_rename` — editor_lsp::rename, editor_lsp::inplace_rename (unreached)
+- `ipc:lsp_rename` — editor_lsp::rename, editor_lsp::inplace_rename (unreached)
+- `ipc:lsp_semantic_tokens` — editor_lsp::semantic (unreached)
+- `ipc:lsp_virtual_document` — platform::virtual_docs (model); structure view opens virtual docs through doc_open_virtual instead
+- `ipc:lsp_workspace_symbols` — everywhere::controller workspace_symbols flag (controller.rs:31); the Symbols tab does not ask the server
+- `ipc:redo_workspace_edit` — code_insight::workspace_undo (unreached)
+- `ipc:spell_check` — editor_lsp::spelling (unreached)
+- `ipc:spell_suggest` — editor_lsp::spelling (unreached)
+- `ipc:structural_languages` — features_b::analysis::structural (unreached)
+- `ipc:structural_search` — features_b::analysis::structural (unreached)
+- `ipc:structural_validate` — features_b::analysis::structural (unreached)
+- `ipc:syntax_errors` — editor_lsp::syntax_errors (unreached)
+- `ipc:syntax_structural_ranges` — editor_commands::structural (unreached)
+- `ipc:undo_workspace_edit` — code_insight::workspace_undo (unreached)
+- `point.registerDocumentIndexSync:(at) src/features/plugins/navigation.ts:154` — plugin_models::indexed_markers (unreached)
+- `point.registerEditorBanner:editor.document` — editor_model::file_attributes Banner enum (unreached); no banner drawn
+- `point.registerEditorBanner:lsp.outsideProject` — editor_lsp::outside_project (reason text); no banner drawn
+- `point.registerEditorContribution:build-tools.pomNavigation` — editor_refactor::project_level (unreached)
+- `point.registerEditorContribution:colorPreview.gutter` — features_b::color_preview (unreached)
+- `point.registerEditorContribution:coverage.gutter` — features_b::coverage (unreached)
+- `point.registerEditorContribution:database.console` — database::console_view (unreached)
+- `point.registerEditorContribution:debugger` — debugger::editor (quick evaluate, smart step); gutter breakpoints only in undeclared app-gpui/src/workbench/debug.rs and app-gpui/src/debugger/breakpoints_view.rs
+- `point.registerEditorContribution:dependency-versions` — features_b::dependencies (unreached)
+- `point.registerEditorContribution:github.reviewMode` — github::review_mode (unreached); only in undeclared app-gpui/src/workbench/github.rs
+- `point.registerEditorContribution:graphql.toolbar` — features_a::graphql (unreached)
+- `point.registerEditorContribution:http.endpoints` — features_a::http_client (unreached)
+- `point.registerEditorContribution:http.requests` — features_a::http_client (unreached)
+- `point.registerEditorContribution:http.spring` — features_a::http_client (unreached)
+- `point.registerEditorContribution:lsp.lineMarkers` — plugin_models::line_markers, plugin_models::marker_icons (unreached)
+- `point.registerEditorContribution:macros.recorder` — features_b::macros (unreached)
+- `point.registerEditorContribution:merge-conflict-markers` — vcs_diff::conflict_markers (unreached)
+- `point.registerEditorContribution:plugins.decorations` — plugin_models::decorations (unreached)
+- `point.registerEditorContribution:plugins.indexedMarkers` — plugin_models::indexed_markers (unreached)
+- `point.registerEditorContribution:plugins.languageFeatures` — plugin_models::language_visuals (unreached)
+- `point.registerEditorContribution:plugins.lineMarkers` — plugin_models::line_markers (unreached)
+- `point.registerEditorContribution:plugins.navigation` — plugin_models::navigation (unreached)
+- `point.registerEditorContribution:run.npmScripts` — run_producers::npm_gutter (unreached)
+- `point.registerEditorContribution:run.targets` — run::targets, run_producers::producers; the editor gutter (editor/view.rs) draws line numbers only
+- `point.registerEditorContribution:search.bookmarks` — bookmarks are kept by the workbench (mod.rs:611-640); the editor gutter does not draw them
+- `point.registerEditorContribution:search.tracking` — everywhere::recent_view / recent_model; caret and edit locations are not fed (Recent Locations and edited files are empty)
+- `point.registerEditorContribution:templates` — templates::live_model, templates::editor (live template expansion not wired into the editor)
+- `point.registerEditorContribution:todo.highlight` — features_a::todo_view patterns; the editor does not highlight TODOs
+- `point.registerEditorContribution:vcs.changeMarkers` — vcs_diff::gutter, vcs_diff::hunks (unreached)
+- `point.registerEditorContribution:vim` — features_a::vim (engine, rc, mode); not wired into editor key handling
+- `point.registerEditorKind:agent-home` — agents::model HOME_KIND; agents open in the tool window, no tab kind
+- `point.registerEditorKind:agent-session` — agents::model SESSION_KIND; no tab kind
+- `point.registerEditorKind:db-table` — database::table_editor_view, shown inside the Database tool window (workbench/database.rs:866), not as an editor tab kind
+- `point.registerEditorKind:diff` — vcs_diff::diff_input DIFF_KIND; diffs open in workbench/diff_window.rs, not as a tab kind
+- `point.registerEditorKind:git-merge-diff` — vcs_more::log_changes MERGE_DIFF_KIND; no tab kind
+- `point.registerEditorKind:github.timeline` — github::toolwindow TIMELINE_KIND (unreached)
+- `point.registerEditorKind:maven.dependencyAnalyzer` — features_b::dependencies (unreached)
+- `point.registerEditorKind:merge` — vcs::merge_view, opened by workbench/conflicts.rs outside the tab kinds (TAB_KINDS has image and binary only)
+- `point.registerEditorKind:notebook` — features_a::notebook (unreached)
+- `point.registerEditorKind:pluginContent` — plugin_models::runtime_ui (unreached)
+- `point.registerEditorKind:pluginEditor` — plugin_models::runtime_ui (unreached)
+- `point.registerEditorKind:pluginLog` — plugin_models::runtime_ui (unreached)
+- `point.registerFileEditorProvider:(at) src/features/plugins/uiPoints.tsx:477` — plugin_models::runtime_ui (unreached)
+- `point.registerFileEditorProvider:notebook` — features_a::notebook (unreached)
+- `point.registerKeyClaim:(at) src/features/plugins/views/contentEditor.tsx:518` — plugin_models::runtime_ui (unreached)
+- `point.registerKeyClaim:(at) src/features/plugins/views/logEditor.tsx:241` — plugin_models::runtime_ui (unreached)
+- `point.registerKeyClaim:(at) src/features/vim/index.ts:79` — features_a::vim (not wired into the editor)
+- `point.registerLanguageMode:(at) src/features/http-client/index.ts:122` — features_a::http_client (unreached)
+- `point.registerNavigationProvider:(at) src/features/plugins/navigation.ts:172` — plugin_models::navigation, editor_refactor::navigation_providers (unreached)
+- `point.registerOccurrenceNavigator:(at) src/workbench/contributions.ts:1362` — usages_view / todo_view emit navigate.next/prevOccurrence; register the two actions to route to the focused tool window
+- `point.registerSaveParticipant:(at) src/editor/lsp/actions.ts:152` — editor_lsp::format_guard (unreached)
+- `point.registerSaveParticipant:lsp.formatOnSave` — editor_lsp::format, editor_lsp::format_guard (unreached)
+- `point.registerSoftWrapSurface:(at) src/features/vcs/DiffEditor.tsx:384` — vcs_diff::diff_options soft_wrap; needs editor.toggleSoftWrap registered to route to the focused diff
+- `point.registerTextEditorWrapper:(at) src/features/plugins/uiPoints.tsx:471` — plugin_models::runtime_ui (unreached)
+- `point.registerUndoHandler:(at) src/features/project-tree/index.ts:209` — project.undoMove exists (workbench/project_files.rs:268); route edit.undo to it while the Project view has focus
+
+## Shard editorB
+
+### unit (58)
+
+- `unit:src/editor/core/cm/codeLens.test.ts` — editor_lsp::code_lens (lens placement) — draw lens rows in editor::view
+- `unit:src/editor/core/cm/collapseBlock.test.ts` — editor_commands::collapse_block — register `code.collapseBlock` in editor::command_actions (only listed in menu_spec today)
+- `unit:src/editor/core/cm/folding.test.ts` — editor_commands::folding — fold ranges in editor::view plus handlers for code.fold/code.unfold/code.foldAll/code.unfoldAll/code.foldToggle
+- `unit:src/editor/core/cm/indentGuides.test.ts` — editor_commands::indent_guides — paint the guides in editor::view's line painter
+- `unit:src/editor/core/cm/regions.test.ts` — editor_commands::regions — feed custom folding regions to the editor's fold ranges (needs folding wired first)
+- `unit:src/editor/core/cm/selectionMarks.test.ts` — editor_commands::selection_marks — paint occurrence marks of the selection in editor::view
+- `unit:src/editor/core/cm/unwrap.test.ts` — editor_commands::unwrap — register `code.unwrap` in editor::command_actions
+- `unit:src/editor/core/customDocuments.test.ts` — editor_model::removal — call it from the workbench when a file under an open tab is deleted
+- `unit:src/editor/core/detachTab.test.ts` — editor_model::detach — handler for `window.detachTab` in the workbench
+- `unit:src/editor/core/extendSelection.test.ts` — editor_commands::extend_selection — register `code.extendSelection`/`code.shrinkSelection` in editor::command_actions
+- `unit:src/editor/core/extras.test.ts` — editor_commands::extras — handler for `code.pasteFromHistory` (the clipboard history it reads is already recorded by editor::view)
+- `unit:src/editor/core/fileAttributes.test.ts` — editor_model::file_attributes — apply on document open in editor::view/workbench
+- `unit:src/editor/core/inputClose.test.ts` — editor_model::documents — use from the workbench's tab close path
+- `unit:src/editor/core/model/editHistory.test.ts` — editor::nav_history — handlers for `navigate.back`/`navigate.forward` that record and walk it (only in menu_spec today)
+- `unit:src/editor/core/model/workspaceHistory.test.ts` — editor_model::workspace_history — record from the workbench's editor switches (backs navigate.recentLocations)
+- `unit:src/editor/core/view/banner.test.tsx` — editor_lsp::outside_project (the document notice) — a banner slot above editor::view showing outside_project_banner, with contributed banners after it
+- `unit:src/editor/core/view/navBar.test.ts` — editor_model::nav_bar — render it as the `editor.breadcrumbs` status item / `navigate.navigationBar` popup
+- `unit:src/editor/core/view/navChildren.test.tsx` — editor_model::nav_bar — the navigation bar's child list popup
+- `unit:src/editor/lsp/authorLens.test.ts` — editor_lsp::code_lens — draw lens rows in editor::view
+- `unit:src/editor/lsp/codeLens.test.ts` — editor_lsp::code_lens — draw lens rows in editor::view
+- `unit:src/editor/lsp/format.test.ts` — editor_lsp::format, editor_lsp::format_guard — handler for `code.reformat`/`code.reformatFile`
+- `unit:src/editor/lsp/formatErrors.test.tsx` — editor_lsp::format — failures of code.reformat as notifications (needs format wired)
+- `unit:src/editor/lsp/generate.test.ts` — editor_lsp::generate — handler for `code.generate`
+- `unit:src/editor/lsp/inlay.test.ts` — editor_lsp::inlay — request and paint inlay hints in editor::view
+- `unit:src/editor/lsp/inlineCompletion.test.ts` — editor_lsp::inline_completion — handlers for the six `editor.inlineCompletion.*` actions plus ghost-text painting
+- `unit:src/editor/lsp/inplaceRename.test.ts` — editor_lsp::inplace_rename — handler for `refactor.rename` in the editor
+- `unit:src/editor/lsp/links.test.ts` — editor_lsp::links — Cmd-hover underline in editor::view
+- `unit:src/editor/lsp/semantic/go/index.test.ts` — editor_model::semantic_tokens — request semantic tokens from editor::view and merge them into its highlights
+- `unit:src/editor/lsp/semantic/index.test.ts` — editor_lsp::semantic — merge semantic marks into editor::view highlights
+- `unit:src/editor/lsp/semantic/kotlin/index.test.ts` — editor_model::semantic_tokens — same wiring as go
+- `unit:src/editor/lsp/semantic/php/constructs.test.ts` — editor_model::semantic_php — same wiring as semantic_tokens
+- `unit:src/editor/lsp/semantic/python/highlight.test.ts` — editor_lsp::semantic / editor_model::python_members — same wiring
+- `unit:src/editor/lsp/semantic/python/members.test.ts` — editor_model::python_members — same wiring as semantic_tokens
+- `unit:src/editor/lsp/semantic/typing.test.ts` — editor_lsp::semantic — same wiring
+- `unit:src/editor/lsp/serverCodeLens.test.ts` — editor_lsp::code_lens — request server lenses from editor::intelligence and draw them
+- `unit:src/editor/lsp/spelling.test.ts` — editor_lsp::spelling — underline misspellings in editor::view
+- `unit:src/editor/lsp/syntaxErrors.test.ts` — editor_lsp::syntax_errors — underline backend syntax errors in editor::view
+- `unit:src/editor/lsp/typeInfo.test.ts` — editor_lsp::type_info (+ generate) — handler for `code.expressionTypeInfo`
+- `unit:src/editor/navigation/gotoTest.test.ts` — editor_refactor::goto_test — handler for `navigate.gotoTest`
+- `unit:src/editor/navigation/lineMarkers.test.ts` — plugin_models::line_markers (unreached; check it ports implementation markers) — gutter markers in editor::view
+- `unit:src/editor/navigation/structureNav.test.ts` — editor_refactor::structure_nav — handlers for `navigate.nextMethod`/`navigate.previousMethod`
+- `unit:src/editor/navigation/testNaming.test.ts` — editor_refactor::test_naming — reached once goto_test is wired
+- `unit:src/editor/navigationProviders.test.ts` — editor_refactor::navigation_providers — consult from editor::intelligence's go-to step
+- `unit:src/editor/refactor/introduce.test.ts` — editor_refactor::server_introduce — Introduce Variable handler
+- `unit:src/editor/refactor/occurrences.test.ts` — editor_refactor::occurrences — the occurrence chooser of Introduce refactorings (needs server_introduce wired)
+- `unit:src/editor/refactor/refactor.test.ts` — editor_refactor::{names,templates,project_level,occurrences} — handlers for the refactor.* actions
+- `unit:src/editor/refactor/runKind.test.ts` — editor_refactor::run_kind — call from the refactoring runner
+- `unit:src/editor/refactor/serverIntroduce.test.ts` — editor_refactor::server_introduce — handlers for the Introduce Variable/Constant/Field/Parameter actions
+- `unit:src/editor/structure/structure.test.ts` — editor_refactor::structure_fallback — use in the File Structure popup when no server answers
+- `unit:src/features/code-insight/workspaceUndo.test.ts` — code_insight::workspace_undo — `mod` line only; call it from the multi-file edit apply path (workspace_edit) and edit.undo
+- `unit:src/features/color-preview/colors.test.ts` — features_b::color_preview::colors — gutter colour swatches in editor::view
+- `unit:src/features/color-preview/pluginColors.test.ts` — features_b::color_preview::plugin_colors — same as colors
+- `unit:src/features/macros/model.test.ts` — features_b::macros — handlers for macro.startRecording/stopRecording/playBack/playSaved/edit (the status item only shows recording)
+- `unit:src/features/search/__tests__/editorResults.test.tsx` — find::find_tool_window (unreached) — open the Find tool window from the find bar's results
+- `unit:src/features/search/__tests__/searchKeys.test.ts` — find::search_keys — `mod` line only in find/mod.rs; route Search Everywhere's key handling through it
+- `unit:src/features/templates/__tests__/files.test.ts` — templates::{files_model,files_builtins,files_create} — handler for `templates.newFromTemplate` / project view New › file template
+- `unit:src/features/templates/__tests__/pluginFiles.test.tsx` — templates::files_create — plugin file templates once New from Template is wired
+- `unit:src/features/templates/__tests__/pluginPackages.test.ts` — templates::files_create — same as files
+
+### module (35)
+
+- `module:src/editor/core/controller.ts` — editor_model::controller — the workbench's tab/document flow would have to go through it
+- `module:src/editor/core/diskSync.ts` — editor_model::disk_sync — call from the workbench's file-change handling
+- `module:src/editor/core/extras.ts` — editor_commands::extras — code.pasteFromHistory handler
+- `module:src/editor/core/fileAttributes.ts` — editor_model::file_attributes — apply on open
+- `module:src/editor/lsp/authorLens.ts` — editor_lsp::code_lens — lens rows in editor::view
+- `module:src/editor/lsp/codeLens.ts` — editor_lsp::code_lens — lens rows in editor::view
+- `module:src/editor/lsp/format.ts` — editor_lsp::format — code.reformat handler
+- `module:src/editor/lsp/generate.ts` — editor_lsp::generate — code.generate handler
+- `module:src/editor/lsp/importsOnPaste.ts` — editor_lsp::imports_on_paste — call from editor_commands::paste
+- `module:src/editor/lsp/inlay.ts` — editor_lsp::inlay — paint inlay hints
+- `module:src/editor/lsp/inlineCompletion.ts` — editor_lsp::inline_completion — editor.inlineCompletion.* handlers
+- `module:src/editor/lsp/inplaceRename.ts` — editor_lsp::inplace_rename — refactor.rename handler
+- `module:src/editor/lsp/links.ts` — editor_lsp::links — Cmd-hover links
+- `module:src/editor/lsp/outsideProject.ts` — editor_lsp::outside_project — outside_project_banner has no caller outside its own file; draw the banner above the editor when diagnostics say the file is outside the server's projects
+- `module:src/editor/lsp/pluginVisuals.ts` — plugin_models::language_visuals — request plugin visuals from editor::view
+- `module:src/editor/lsp/rename.ts` — editor_lsp::rename — refactor.rename handler (dialog fallback)
+- `module:src/editor/lsp/semantic` — editor_lsp::semantic, editor_model::semantic_tokens — semantic highlighting in editor::view
+- `module:src/editor/lsp/serverCodeLens.ts` — editor_lsp::code_lens — server lenses
+- `module:src/editor/lsp/spelling.ts` — editor_lsp::spelling — underline in editor::view
+- `module:src/editor/lsp/syntaxErrors.ts` — editor_lsp::syntax_errors — underline in editor::view
+- `module:src/editor/lsp/typeInfo.ts` — editor_lsp::type_info — code.expressionTypeInfo handler
+- `module:src/editor/navigation/gotoTest.ts` — editor_refactor::goto_test — navigate.gotoTest handler
+- `module:src/editor/navigation/lineMarkers.ts` — plugin_models::line_markers — gutter markers
+- `module:src/editor/navigation/structureNav.ts` — editor_refactor::structure_nav — navigate.nextMethod/previousMethod handlers
+- `module:src/editor/navigation/testNaming.ts` — editor_refactor::test_naming — via goto_test
+- `module:src/editor/navigationProviders.ts` — editor_refactor::navigation_providers — consult in editor::intelligence
+- `module:src/editor/refactor/introduce.ts` — editor_refactor::server_introduce — Introduce handlers
+- `module:src/editor/refactor/names.ts` — editor_refactor::names — refactor.* handlers
+- `module:src/editor/refactor/occurrences.ts` — editor_refactor::occurrences — Introduce chooser
+- `module:src/editor/refactor/projectLevel.ts` — editor_refactor::project_level — refactor.* handlers
+- `module:src/editor/refactor/query.ts` — editor_refactor::refactor_this — queryRefactorActions is its server query; wired with Refactor This
+- `module:src/editor/refactor/refactorThis.ts` — editor_refactor::refactor_this — handler for the Refactor This popup action
+- `module:src/editor/refactor/serverIntroduce.ts` — editor_refactor::server_introduce — Introduce handlers
+- `module:src/editor/refactor/templates.ts` — editor_refactor::templates — refactor.* handlers
+- `module:src/editor/structure/index.ts` — editor_refactor::structure_fallback — File Structure fallback
+
+### feature (2)
+
+- `feature:color-preview` — features_b::color_preview — gutter swatches in editor::view
+- `feature:macros` — features_b::macros — macro.* handlers in the workbench
+
+## Shard features
+
+- action:graphql.addConfiguration — features_a::graphql (unreached); no handler
+- action:graphql.editConfiguration — features_a::graphql (unreached); no handler
+- action:graphql.introspect — features_a::graphql (unreached); no handler
+- action:graphql.restartDiscovery — features_a::graphql (unreached); no handler
+- action:graphql.runQuery — features_a::graphql (unreached); no handler
+- action:graphql.showToolWindow — features_a::graphql (unreached); no handler
+- action:http.generateSpringControllerRequests — features_a::http_client (unreached); no handler
+- action:http.generateSpringRequest — features_a::http_client (unreached); no handler
+- action:http.newRequest — features_a::http_client (unreached); menu_spec lists it, no handler
+- action:http.openEndpoint — features_a::http_client (unreached); no handler
+- action:http.runAll — features_a::http_client (unreached); no handler
+- action:http.runRequest — features_a::http_client (unreached); no handler
+- action:http.showToolWindow — features_a::http_client (unreached); menu_spec lists it, no handler
+- action:plugins.importInstalledIntellijTheme — same as importIntellijTheme
+- action:plugins.importIntellijTheme — plugin_models::plugins_page (offers the IntelliJ imports, tested) + theme::icls (unreached); register the action to run the page import step
+- action:plugins.installFromDisk — only in undeclared app-gpui/src/workbench/plugins_window.rs (registered at :158)
+- action:plugins.reloadAll — only in undeclared app-gpui/src/workbench/plugins_window.rs (:171)
+- action:plugins.updateAll — only in undeclared app-gpui/src/workbench/plugins_window.rs (:165)
+- action:terminal.find — terminal::find_bar (unreached); terminal::keys lets the shortcut through, no handler registered
+- action:workspace.create — app_models::workspace_dialog (unreached); menu_spec lists it, no handler: register it to open the dialog
+- action:workspace.manage — app_models::windows / workspace_dialog (unreached); menu_spec lists it, no handler
+- action:workspace.open — app_models::windows (unreached); menu_spec lists it, no handler
+- action:workspace.removeProject — app_models::windows (unreached); the Project view menu offers it, no handler
+- feature:graphql — features_a::graphql (unreached)
+- feature:http-client — features_a::http_client (unreached)
+- feature:mcp — features_b::mcp (unreached)
+- feature:notebook — features_a::notebook (unreached)
+- ipc:agent_registry_install — agents::registry (unreached); no native call of the op
+- ipc:agent_registry_list — agents::registry (unreached); no native call of the op
+- ipc:agent_registry_remove — agents::registry (unreached); no native call of the op
+- ipc:agent_set_command — agents::builtin_agents (unreached)
+- ipc:db_export_file — database::export / table_editor_view export step (no native caller of the op); carry out the export step in workbench/database.rs
+- ipc:db_statements — database::console_view (unreached) calls it
+- ipc:http_environments — features_a::http_client (unreached); no native call of the op
+- ipc:http_execute — features_a::http_client (unreached); no native call of the op
+- ipc:http_history — features_a::http_client (unreached); no native call of the op
+- ipc:http_history_clear — features_a::http_client (unreached); no native call of the op
+- ipc:http_history_get — features_a::http_client (unreached); no native call of the op
+- ipc:http_requests — features_a::http_client (unreached); no native call of the op
+- ipc:mcp_report_problems — features_b::mcp (unreached); no native call of the op
+- ipc:mcp_respond — features_b::mcp (unreached); no native call of the op
+- ipc:mcp_server_status — features_b::mcp (unreached); no native call of the op
+- ipc:mcp_set_focused_editor — features_b::mcp (unreached); no native call of the op
+- ipc:mcp_set_open_editors — features_b::mcp (unreached); no native call of the op
+- ipc:mcp_ui_ready — features_b::mcp (unreached); no native call of the op
+- ipc:notebook_close — features_a::notebook (unreached)
+- ipc:notebook_edit — features_a::notebook (unreached)
+- ipc:notebook_execute — features_a::notebook (unreached)
+- ipc:notebook_get — features_a::notebook (unreached)
+- ipc:notebook_interrupt — features_a::notebook (unreached)
+- ipc:notebook_open — features_a::notebook (unreached)
+- ipc:notebook_redo — features_a::notebook (unreached)
+- ipc:notebook_reload — features_a::notebook (unreached)
+- ipc:notebook_restart — features_a::notebook (unreached)
+- ipc:notebook_save — features_a::notebook (unreached)
+- ipc:notebook_undo — features_a::notebook (unreached)
+- ipc:plugin_answer_run_target — plugin_models::run_targets (unreached)
+- ipc:plugin_context_keys — plugin_models::runtime_ui / workspace_contains (unreached)
+- ipc:plugin_decoration_sets — plugin_models::decorations (unreached)
+- ipc:plugin_endpoints — platform_more::endpoint_providers (unreached)
+- ipc:plugin_grant — plugin_models::plugins_page emits Grant; settings_window.rs refuses it
+- ipc:plugin_install_dir — plugin_models::plugins_page install steps; settings_window.rs refuses them
+- ipc:plugin_installed_intellij_themes — plugin_models::plugins_page IntelliJ import offer + theme::icls (unreached)
+- ipc:plugin_language_visuals — plugin_models::language_visuals (unreached)
+- ipc:plugin_line_markers — plugin_models::line_markers / marker_store (unreached)
+- ipc:plugin_market_download — plugin_models::plugins_page DownloadMarket; settings_window.rs refuses it
+- ipc:plugin_market_url — plugin_models::plugins_page repository edit (tested); settings_window.rs reads host.market_url() only for the listing
+- ipc:plugin_navigation_files — plugin_models::navigation (unreached)
+- ipc:plugin_navigation_goto — plugin_models::navigation (unreached)
+- ipc:plugin_navigation_index — plugin_models::indexed_markers / navigation (unreached)
+- ipc:plugin_navigation_invalidate — plugin_models::navigation (unreached)
+- ipc:plugin_navigation_markers — plugin_models::indexed_markers (unreached)
+- ipc:plugin_parse_test_results — run_testing::plugin (unreached)
+- ipc:plugin_preview_install — plugin_models::plugins_page install steps; settings_window.rs refuses them
+- ipc:plugin_read_intellij_theme — theme::icls (unreached)
+- ipc:plugin_roll_back — plugin_models::plugins_page RollBack; settings_window.rs refuses it
+- ipc:plugin_run_targets — plugin_models::run_targets (unreached)
+- ipc:plugin_secrets — plugin_models::plugins_page secrets (tested); settings_window.rs does not read them
+- ipc:plugin_select_tests — run_testing::plugin (unreached)
+- ipc:plugin_set_active_file — plugin_models::active_file (unreached)
+- ipc:plugin_set_capability — plugin_models::plugins_page emits SetCapability; settings_window.rs refuses it
+- ipc:plugin_set_market_url — plugin_models::plugins_page repository edit; not carried out
+- ipc:plugin_set_secret — plugin_models::plugins_page secrets; settings_window.rs does not carry it out
+- ipc:plugin_set_theme_frame — plugin_models::web_frames / startup_theme (unreached)
+- ipc:plugin_stage_package — plugin_models::plugins_page install steps; settings_window.rs refuses them
+- ipc:plugin_status_items — plugin_models::runtime_ui (unreached)
+- ipc:plugin_terminal_session_close — plugin_models::pty_bridge (unreached)
+- ipc:plugin_terminal_session_spawn — plugin_models::pty_bridge (unreached)
+- ipc:plugin_uninstall — plugin_models::plugins_page emits Uninstall; settings_window.rs:441 refuses it (plugins_window.rs, undeclared, carries it out)
+- ipc:plugin_unpack_package — plugin_models::plugins_page install steps; settings_window.rs refuses them
+- ipc:plugin_view_event — plugin_models::view_helpers (unreached)
+- ipc:plugin_view_render — plugin_models::view_helpers (unreached)
+- ipc:plugin_web_page — plugin_models::web_frames (unreached)
+- ipc:plugin_web_pty_spawn — plugin_models::pty_bridge (unreached)
+- ipc:plugin_web_read_file — plugin_models::web_frames (unreached)
+- ipc:plugin_web_save_file — plugin_models::web_frames (unreached)
+- ipc:workspace_attach — only in undeclared app-gpui/src/workbench/app_shell.rs (:788)
+- ipc:workspace_create — app_models::workspace_dialog (unreached)
+- ipc:workspace_discover_projects — app_models::workspace_dialog (unreached)
+- ipc:workspace_update — app_models::workspace_dialog / app_models::windows (unreached)
+- unit:src/features/agents/loginHint.test.ts — agents::login_hint (unreached); show the login hint in the agents composer/session view
+- unit:src/features/graphql/graphql.test.ts — features_a::graphql (unreached)
+- unit:src/features/graphql/store.test.ts — features_a::graphql (unreached)
+- unit:src/features/http-client/endpoints.test.ts — features_a::http_client (unreached)
+- unit:src/features/http-client/httpClient.test.ts — features_a::http_client (unreached)
+- unit:src/features/http-client/spring/generate.test.ts — features_a::http_client (unreached)
+- unit:src/features/http-client/spring/routeIndex.test.ts — features_a::http_client (unreached)
+- unit:src/features/http-client/spring/spring.test.ts — features_a::http_client (unreached)
+- unit:src/features/mcp/reporters.test.ts — features_b::mcp (unreached)
+- unit:src/features/notebook/outputs.test.ts — features_a::notebook (unreached)
+- unit:src/features/notebook/session.test.ts — features_a::notebook (unreached)
+- unit:src/features/plugins/**tests**/ptyBackend.test.ts — plugin_models::pty_bridge (unreached)
+- unit:src/features/plugins/**tests**/ptyBridge.test.ts — plugin_models::pty_bridge (unreached)
+- unit:src/features/plugins/**tests**/startupTheme.test.ts — plugin_models::startup_theme (unreached)
+- unit:src/features/plugins/activeFile.test.ts — plugin_models::active_file (unreached)
+- unit:src/features/plugins/indexedMarkers.test.ts — plugin_models::indexed_markers (unreached)
+- unit:src/features/plugins/lineMarkerGutter.test.ts — plugin_models::line_markers (unreached)
+- unit:src/features/plugins/markerIcons.test.ts — plugin_models::marker_icons (unreached)
+- unit:src/features/plugins/markerStore.test.ts — plugin_models::marker_store (unreached)
+- unit:src/features/plugins/navigation.test.ts — plugin_models::navigation (unreached)
+- unit:src/features/plugins/pluginText.test.ts — plugin_models::plugin_text (unreached)
+- unit:src/features/terminal/embeddedFit.test.ts — terminal::embedded / terminal::fit (unreached)
+- unit:src/features/terminal/imeCommit.test.ts — terminal::ime_commit (unreached)
+- unit:src/features/terminal/session.test.ts — features_b::terminal / terminal::windows_pty (unreached)
+- unit:src/features/terminal/windowsPty.test.ts — terminal::windows_pty (unreached)
+- unit:src/features/plugins/**tests**/intellijImport.test.tsx — theme::icls (unreached) and the import offer in plugin_models::plugins_page (reached, tested by `lists_one_row_per_theme_plugin_the_one_in_use_first_and_imports_the_chosen_plugin`); carry out the page's import step in settings_window.rs
+
+### Not a C row but worth knowing: rendered `[m]` only because INVENTORY.md is stale
+
+These six rows are `done` in parity.json and their cited tests (agents::composer, agents::model, agents::markdown, agents::conversation, agents::store, agents::markdown_images, agents::permission, agents::reply_actions) are in units the application now reaches through the declared app-gpui/src/workbench/agents.rs (replica of the generator's reachability rule). Regenerating the inventory turns them `[x]` with no parity.json change; they need no entry in proven.json.
+
+- unit:src/features/agents/agents.test.ts
+- unit:src/features/agents/conversation.test.ts
+- unit:src/features/agents/draft.test.ts
+- unit:src/features/agents/markdownImages.test.ts
+- unit:src/features/agents/permission.test.ts
+- unit:src/features/agents/replyActions.test.ts
+
+## Shard run
+
+### action (72)
+
+- `action:analyze.inspectCode` — features_b/analysis/inspect.rs (unreached)
+- `action:analyze.inspectFile` — features_b/analysis/inspect.rs (unreached)
+- `action:analyze.locateDuplicates` — features_b/analysis/duplicates.rs (unreached)
+- `action:analyze.stackTrace` — run_producers/stack_trace.rs (unreached)
+- `action:coverage.hide` — features_b/coverage.rs (unreached; holds visible/suites and their context keys) — needs a coverage store in the workbench and the actions registered
+- `action:coverage.importReport` — features_b/coverage.rs (unreached; holds visible/suites and their context keys) — needs a coverage store in the workbench and the actions registered
+- `action:coverage.manageReports` — features_b/coverage.rs (unreached; holds visible/suites and their context keys) — needs a coverage store in the workbench and the actions registered
+- `action:coverage.show` — features_b/coverage.rs (unreached; holds visible/suites and their context keys) — needs a coverage store in the workbench and the actions registered
+- `action:deployment.browseRemoteHost` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.configure` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.deleteFromServer` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.downloadFrom` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.downloadFromDefault` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.openInBrowser` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.syncWith` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.syncWithDefault` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.toggleAutoUpload` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.uploadTo` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:deployment.uploadToDefault` — features_b/deployment (unreached; actions.rs/model.rs/store.rs) — needs a workbench register_actions over its store that carries out the ops::deploy calls
+- `action:docker.execShell` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.inspect` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.openLogInEditor` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.prune` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.pullImage` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.remove` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.restart` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.showDashboard` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.showLayers` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.showLog` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.showProcesses` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.start` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:docker.stop` — services/docker.rs DockerCommand (reached, tested) — register the id onto NodeCommand::Docker in workbench/services_window.rs register_actions and carry out its DockerRequest (ContainerOp/Remove/Stream/Inspect/…) in carry_out_docker, which drops them today
+- `action:dotnet.cancel` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:dotnet.discover` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:dotnet.installTrx` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:dotnet.packageChange` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:dotnet.packages` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:dotnet.reload` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:dotnet.search` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:dotnet.select` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:dotnet.show` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:dotnet.test` — features_b/dotnet.rs DotnetStore (unreached, tested) — needs a .NET tool window in the workbench that registers the actions and carries out DotnetRequest
+- `action:gradle.reload` — editor_lsp/outside_project.rs banner offers the id but nothing registers it; no build-tools model behind it
+- `action:java.downloadJdk` — platform/misc.rs jdk (DOWNLOAD_JDK_ACTION, tested) — register the id and call ops::tools jdk_download
+- `action:maven.reload` — editor_lsp/outside_project.rs banner offers the id but nothing registers it; no build-tools model behind it
+- `action:perf.clearCaches` — features_b/perf.rs PerfStore + ACTION_IDS (reached through status_items) — small: register the four ids in a workbench register_actions over PerfStore
+- `action:perf.showMemory` — features_b/perf.rs PerfStore + ACTION_IDS (reached through status_items) — small: register the four ids in a workbench register_actions over PerfStore
+- `action:perf.toggleMemoryIndicator` — features_b/perf.rs PerfStore + ACTION_IDS (reached through status_items) — small: register the four ids in a workbench register_actions over PerfStore
+- `action:perf.toggleOverlay` — features_b/perf.rs PerfStore + ACTION_IDS (reached through status_items) — small: register the four ids in a workbench register_actions over PerfStore
+- `action:remote.connect` — features_b/remote_dev (unreached) — needs the remote-dev store held by the workbench and these ids registered
+- `action:remote.disconnect` — features_b/remote_dev (unreached) — needs the remote-dev store held by the workbench and these ids registered
+- `action:remote.reloadEnvironment` — features_b/remote_dev (unreached) — needs the remote-dev store held by the workbench and these ids registered
+- `action:remote.reopenInContainer` — features_b/remote_dev (unreached) — needs the remote-dev store held by the workbench and these ids registered
+- `action:restart` — services/docker.rs DockerCommand::Restart (reached) — same wiring as start: carry out DockerRequest::ContainerOp in carry_out_docker
+- `action:run.chooseDebugConfig` — run/config_chooser.rs (reached) has a Debug chooser mode; only the menu table names the id — register beside run.chooseConfig in workbench/run_configs.rs once debugging is wired
+- `action:run.coverage` — run/executors.rs coverage executor (unreached) — register the executor action over run::executors
+- `action:run.coverageContext` — run/executors.rs + run_producers/context_run.rs (unreached)
+- `action:run.debug` — debugger/actions.rs (unreached); the run widget and workbench/run_configs.rs execute "run.debug" but nothing registers it
+- `action:run.debugConfig` — debugger/actions.rs (unreached); window wiring only in undeclared workbench/debug.rs
+- `action:run.debugContext` — run_producers/context_run.rs (unreached) — register the id in workbench/run_configs.rs over run_producers::context_run
+- `action:run.modifyContext` — run_producers/context_run.rs (unreached) — register the id in workbench/run_configs.rs over run_producers::context_run
+- `action:run.profile` — run/executors.rs profiler executor (unreached) + features_b/profiler.rs
+- `action:run.profileContext` — run/executors.rs + run_producers/context_run.rs (unreached)
+- `action:run.rerunFailed` — run_testing/rerun.rs (unreached) — register over run_testing::rerun
+- `action:run.runContext` — run_producers/context_run.rs (unreached) — register the id in workbench/run_configs.rs over run_producers::context_run
+- `action:run.updateApplication` — run/application_update.rs (reached, tested) — register the id (services_window.rs logs "Update Application is not available in this window")
+- `action:run.withExecutor` — run_producers/context_run.rs (unreached) — register the id in workbench/run_configs.rs over run_producers::context_run
+- `action:runAnything.show` — features_b/run_anything.rs (unreached) — the gear menu lists the id but nothing registers it
+- `action:ssh.configurations` — features_b/ssh.rs (unreached)
+- `action:ssh.startSession` — features_b/ssh.rs (unreached)
+- `action:start` — services/docker.rs DockerCommand::Start (reached) — the container Start item exists but carry_out_docker (workbench/services_window.rs) drops DockerRequest::ContainerOp
+- `action:tools.install` — executed by workbench/code_insight.rs and debugger/state.rs but nothing registers it; ops::tools is not called natively
+
+### context (2)
+
+- `context:coverageSuites` — features_b/coverage.rs publishes both keys (unreached) — needs the coverage store in the workbench
+- `context:coverageVisible` — features_b/coverage.rs publishes both keys (unreached) — needs the coverage store in the workbench
+
+### feature (12)
+
+- `feature:analysis` — features_b/analysis (unreached, tested model) — not reachable from the workbench
+- `feature:coverage` — features_b/coverage.rs (unreached, tested model) — not reachable from the workbench
+- `feature:dependencies` — features_b/dependencies.rs (unreached, tested model) — not reachable from the workbench
+- `feature:deployment` — features_b/deployment (unreached, tested model) — not reachable from the workbench
+- `feature:dotnet` — features_b/dotnet.rs + platform_more/dotnet.rs (unreached, tested model) — not reachable from the workbench
+- `feature:libraries` — features_b/libraries.rs (unreached, tested model) — not reachable from the workbench
+- `feature:logcat` — features_a/logcat.rs (unreached, tested model) — not reachable from the workbench
+- `feature:perf` — features_b/perf.rs (reached by the memory status item) — its four actions, popup and overlay are not registered or drawn
+- `feature:profiler` — features_b/profiler.rs (unreached, tested model) — not reachable from the workbench
+- `feature:remote-dev` — features_b/remote_dev (unreached, tested model) — not reachable from the workbench
+- `feature:run-anything` — features_b/run_anything.rs (unreached, tested model) — not reachable from the workbench
+- `feature:ssh` — features_b/ssh.rs (unreached, tested model) — not reachable from the workbench
+
+### ipc (65)
+
+- `ipc:analysis_locate_duplicates` — features_b/analysis/duplicates.rs (unreached)
+- `ipc:android_devices` — features_a/logcat.rs (unreached)
+- `ipc:android_logcat` — features_a/logcat.rs (unreached)
+- `ipc:cancel_task` — workbench/tasks.rs Tasks::cancel_task returns CancelEffect::Backend (reached, tested) — small: carry it out with ide_core::task::cancel from the Background Tasks cancel button
+- `ipc:coverage_collect` — features_b/coverage.rs (unreached)
+- `ipc:coverage_import` — features_b/coverage.rs (unreached)
+- `ipc:coverage_prepare` — features_b/coverage.rs (unreached)
+- `ipc:dependency_versions` — features_b/dependencies.rs (unreached)
+- `ipc:deploy_compare` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:deploy_coverage` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:deploy_delete_remote` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:deploy_download` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:deploy_info` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:deploy_server_root` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:deploy_sync` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:deploy_test_connection` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:deploy_upload` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:docker_compose_op` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_container_op` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_container_stats` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_container_top` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_events` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_image_history` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_inspect` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_logs` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_prune` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_pull` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_registry_login` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_remove` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:docker_run_env` — services/run_types.rs (unreached)
+- `ipc:docker_set_registry_password` — services/docker.rs DockerRequest (reached) — carry it out in workbench/services_window.rs carry_out_docker (it falls to "not carried out" today)
+- `ipc:env_reload` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:java_build_workspace` — only in undeclared app-gpui/src/debugger/driver.rs
+- `ipc:java_debug_server` — only in undeclared app-gpui/src/debugger/driver.rs
+- `ipc:jdk_download` — platform/misc.rs jdk model (reached) — ops::tools::jdk_download is not called natively
+- `ipc:profiler_collect` — features_b/profiler.rs (unreached)
+- `ipc:profiler_prepare` — features_b/profiler.rs (unreached)
+- `ipc:remote_bootstrap_list` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:remote_connect` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:remote_current` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:remote_delete` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:remote_disconnect` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:remote_forward_port` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:remote_forwarded_ports` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:remote_import_local` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:remote_invoke` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:remote_list` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:remote_mkdir` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:remote_of` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:remote_open` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:remote_rename` — features_b/deployment (unreached; store/remote_host model the calls) — no native call of the ops::deploy fn
+- `ipc:remote_stop_forwarding` — features_b/remote_dev (unreached; model/ports/environment/connect_dialog)
+- `ipc:run_dotnet_resolve` — only in undeclared app-gpui/src/debugger/driver.rs
+- `ipc:sdk_locate_tools` — only in undeclared app-gpui/src/debugger/driver.rs
+- `ipc:sdk_php_effective` — only in undeclared app-gpui/src/debugger/driver.rs
+- `ipc:sdk_php_xdebug` — only in undeclared app-gpui/src/debugger/driver.rs
+- `ipc:sdk_project_libraries` — features_b/libraries.rs (unreached)
+- `ipc:ssh_askpass_answer` — features_b/ssh.rs (unreached)
+- `ipc:ssh_connected` — features_b/ssh.rs (unreached)
+- `ipc:ssh_disconnect` — features_b/ssh.rs (unreached)
+- `ipc:ssh_needs_secret` — features_b/ssh.rs (unreached)
+- `ipc:ssh_set_secret` — features_b/ssh.rs (unreached)
+- `ipc:ssh_terminal_command` — features_b/ssh.rs (unreached)
+- `ipc:ssh_test` — features_b/ssh.rs (unreached)
+- `ipc:ssh_trust_host` — features_b/ssh.rs (unreached)
+
+### point.registerEndpointProvider (2)
+
+- `point.registerEndpointProvider:(at) src/features/plugins/points.tsx:161` — platform_more/endpoint_providers.rs (unreached); plugin endpoints not wired
+- `point.registerEndpointProvider:http.spring` — platform_more/endpoint_providers.rs (unreached); ops spring_route_sources is not called
+
+### point.registerRunAnythingProvider (2)
+
+- `point.registerRunAnythingProvider:build-tools` — features_b/run_anything.rs (unreached)
+- `point.registerRunAnythingProvider:run.configs` — features_b/run_anything.rs (unreached)
+
+### point.registerRunConfigType (9)
+
+- `point.registerRunConfigType:docker-compose` — services/run_types.rs (unreached) — register its types in RunDriver::new (run/driver.rs:169) with the Docker connections
+- `point.registerRunConfigType:docker-dockerfile` — services/run_types.rs (unreached) — register its types in RunDriver::new (run/driver.rs:169) with the Docker connections
+- `point.registerRunConfigType:docker-image` — services/run_types.rs (unreached) — register its types in RunDriver::new (run/driver.rs:169) with the Docker connections
+- `point.registerRunConfigType:go-remote` — debugger/remote.rs (unreached, debugger::remote::tests) — small: register these types in RunDriver::new next to register_builtin_types (run/driver.rs:169)
+- `point.registerRunConfigType:godot-attach` — debugger/remote.rs (unreached, debugger::remote::tests) — small: register these types in RunDriver::new next to register_builtin_types (run/driver.rs:169)
+- `point.registerRunConfigType:node-remote` — debugger/remote.rs (unreached, debugger::remote::tests) — small: register these types in RunDriver::new next to register_builtin_types (run/driver.rs:169)
+- `point.registerRunConfigType:php-remote` — debugger/remote.rs (unreached, debugger::remote::tests) — small: register these types in RunDriver::new next to register_builtin_types (run/driver.rs:169)
+- `point.registerRunConfigType:python-remote` — debugger/remote.rs (unreached, debugger::remote::tests) — small: register these types in RunDriver::new next to register_builtin_types (run/driver.rs:169)
+- `point.registerRunConfigType:remote-jvm` — debugger/remote.rs (unreached, debugger::remote::tests) — small: register these types in RunDriver::new next to register_builtin_types (run/driver.rs:169)
+
+### point.registerRunExecutor (2)
+
+- `point.registerRunExecutor:coverage` — run/executors.rs (unreached, run::executors::tests)
+- `point.registerRunExecutor:profiler` — run/executors.rs (unreached, run::executors::tests)
+
+### point.registerRunningProcessesProvider (1)
+
+- `point.registerRunningProcessesProvider:run` — platform_more/running_processes.rs + app_models/close_guard.rs (unreached)
+
+### point.registerServiceView (1)
+
+- `point.registerServiceView:httpClient` — features_a/http_client (unreached)
+
+### unit (51)
+
+- `unit:src/features/analysis/analysis.test.ts` — features_b::analysis::inspect::tests, features_b::analysis::tree::tests, features_b::analysis::structural::tests, features_b::analysis::scope::tests, features_b::analysis::duplicates::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/analysis/inspect.test.ts` — features_b::analysis::inspect::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/analysis/replacePreview.test.tsx` — features_b/analysis/structural.rs (unreached)
+- `unit:src/features/coverage/coverage.test.ts` — features_b::coverage::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/dependencies/dependencies.test.ts` — features_b::dependencies::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/deployment/Dialogs.test.tsx` — features_b::deployment::sync_view::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/deployment/comparison.test.ts` — features_b::deployment::comparison::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/deployment/model.test.ts` — features_b::deployment::model::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/deployment/remoteHost.test.ts` — features_b::deployment::remote_host::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/deployment/window.test.ts` — features_b::deployment::window::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/dotnet/store.test.ts` — features_b::dotnet::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/libraries/libraries.test.ts` — features_b::libraries::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/logcat/history.test.ts` — features_a::logcat::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/logcat/model.test.ts` — features_a::logcat::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/perf/__tests__/views.test.tsx` — features_b/perf.rs (reached model) — actions and overlay not registered or drawn
+- `unit:src/features/profiler/profiler.test.ts` — features_b::profiler::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/remote-dev/ConnectDialog.test.tsx` — features_b::remote_dev::connect_dialog::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/remote-dev/container.test.ts` — features_b::remote_dev::container::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/remote-dev/environment.test.ts` — features_b::remote_dev::environment::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/remote-dev/remoteDev.test.ts` — features_b::remote_dev::model::tests, features_b::remote_dev::recents::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run-anything/model.test.ts` — features_b::run_anything::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/containerDebug.test.ts` — run::container_debug::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/contextRun.test.ts` — run_producers::context_run::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/executors.test.ts` — run::executors::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/goActions.test.ts` — run::go_actions::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/inheritedMain.test.ts` — run::inherited_main::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/npmGutter.test.ts` — run_producers::npm_gutter::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/producers.ruby.test.ts` — run_producers::producers::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/producers.test.ts` — run_producers::producers::tests, run_producers::languages::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/remote.test.tsx` — debugger/remote.rs (unreached, debugger::remote::tests) — register the remote types in RunDriver
+- `unit:src/features/run/resolveCancellation.test.ts` — run_producers::store_cases (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/rubyTargets.test.ts` — run_producers::target_cases (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/rubyTests.test.ts` — run_producers::ruby_tests::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/runtimes.test.ts` — run_producers::runtimes::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/serviceOrder.test.ts` — run_producers::service_order::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/stackTrace.test.ts` — run_producers::stack_trace::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/stopStatus.test.ts` — run_producers::store_cases (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/targets.test.ts` — run_producers::target_cases (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/temporarySettings.test.ts` — run_producers::store_cases (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/terminal.test.tsx` — features_b/terminal.rs (unreached) for running in a terminal; run::terminal_output (reached) covers only the IDE-message styling case
+- `unit:src/features/run/testing/comparison.test.ts` — run_testing::comparison::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/testing/dotnet.test.ts` — run_testing::dotnet::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/testing/plugin.test.ts` — run_testing::plugin::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/testing/rerun.test.ts` — run_testing::rerun::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/run/testing/states.test.ts` — run_testing::states::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/features/ssh/ssh.test.ts` — features_b::ssh::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/platform/deploymentSettings.test.ts` — platform_more::remote_settings::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/platform/dotnetProcess.test.ts` — platform_more::dotnet_process::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/workbench/buildToolRecovery.test.ts` — platform_more/build_tool_recovery.rs (unreached, tested)
+- `unit:src/workbench/runningProcesses.test.ts` — platform_more::running_processes::tests (unreached model, tested) — the model is not reached from the workbench
+- `unit:src/workbench/stopBackground.test.ts` — workbench/tasks.rs Tasks::cancel_task (reached) — needs the cancel effect carried out (see ipc:cancel_task)
+
+## Shard settings
+
+- `settings:general.dateFormats` — settings_model/builtin_pages/behavior.rs page has only a control of its own; platform::date_format (reached) formats dates — wiring: a custom control via SettingsDialogView::set_custom_control in Workbench::open_settings (workbench/settings_window.rs:241)
+- `settings:general.httpProxy` — platform_more::proxy_settings (unreached, tested) — wiring: a proxy control for the page in open_settings and proxy_check_connection through the backend
+- `settings:build.deployment` — settings_model::deployment_model (unreached, tested) — wiring: a page view for the deployment servers list in open_settings
+- `settings:tools.sshConfigurations` — settings_model::ssh_connection (unreached) and the SSH secret staging of settings_model::staging (reached, applied by apply_settings) — wiring: a page view listing the configurations with Test Connection
+- `settings:editor.files` — settings_model::file_types (unreached, tested) — wiring: a custom control for File Types in open_settings
+- `settings:editor.liveTemplates` — templates::live_model / live_store (reached, tested) — wiring: a page view for Live Templates in open_settings
+- `settings:editor.general.postfixCompletion` — templates::postfix_model / postfix_store — wiring: a page view in open_settings
+- `settings:editor.fileTemplates` — templates::files_model (unreached, tested) — wiring: a page view in open_settings
+- `settings:editor.vim` — features_a::vim (reached) — wiring: a page view for the Vim page (handlers, .ideavimrc) in open_settings
+- `settings:editor.todo` — features_a::todo (todo patterns) — wiring: a page view for the TODO patterns in open_settings
+- `action:app.checkForUpdates` — app_models::updates (unreached, tested); workbench/menu.rs:369 drops the item from the bar — wiring: register the action to start the update check of app_models::updates
+- `action:app.restart` — app_models::updates RESTART_COMMAND / app_models::invalidate_caches (unreached) — wiring: register the action (cx.restart())
+- `action:app.installCli` — app_models::cli_command (unreached, tested) — wiring: register the action calling it
+- `action:app.uninstallCli` — app_models::cli_command (unreached, tested) — wiring: register the action calling it
+- `action:settings.assignShortcut` — settings_model::assign_shortcut (reached via settings_view::keymap, tested) — wiring: registry.handle("settings.assignShortcut") opening the Keyboard Shortcut dialog for the argument action (as Search Everywhere ⌥↵ does)
+- `ipc:app_check_update` — app_models::updates (unreached, tested) — wiring: the updater driven from the app (check, install, announcement), not small
+- `ipc:app_install_update` — app_models::updates (unreached, tested) — wiring: the updater driven from the app (check, install, announcement), not small
+- `ipc:app_update_announcement` — app_models::updates (unreached, tested) — wiring: the updater driven from the app (check, install, announcement), not small
+- `ipc:app_update_status` — app_models::updates (unreached, tested) — wiring: the updater driven from the app (check, install, announcement), not small
+- `ipc:app_update_window_ready` — app_models::updates (unreached, tested) — wiring: the updater driven from the app (check, install, announcement), not small
+- `ipc:app_cli_install` — app_models::cli_command (unreached) — wiring: the app.installCli action
+- `ipc:app_cli_uninstall` — app_models::cli_command (unreached) — wiring: the app.uninstallCli action
+- `ipc:app_restart` — app_models::invalidate_caches / updates (unreached) — wiring: app.restart action
+- `ipc:caches_schedule_invalidation` — app_models::invalidate_caches (unreached, tested) — wiring: an Invalidate Caches dialog (app.invalidateCaches)
+- `ipc:proxy_check_connection` — platform_more::proxy_settings (unreached) — wiring: the HTTP Proxy page Check Connection
+- `ipc:settings_read_jetbrains` — app_models::jetbrains_settings (unreached, tested) — wiring: an Import IntelliJ settings entry (welcome or File menu)
+- `feature:app` — app_models::* (cli_command, close_guard, console_copy, edit_command, invalidate_caches, jetbrains_settings, project_actions, shell, updates, windows, workspace_dialog: all unreached) — not small
+- `feature:project-trust` — app_models::windows OpenFlow::ConfirmTrust (unreached); backend trust exists (host.trust) — wiring: the trust dialog on opening an untrusted folder
+- `unit:src/features/project-trust/trust.test.tsx` — app_models::windows ConfirmTrust flow (unreached); no trust dialog view
+- `unit:src/features/settings/__tests__/javaFormatter.test.tsx` — settings_model::builtin_pages::tests covers 1 of 2 cases on the spec; languages.java page draws "not available" — wiring: the Java page view
+- `unit:src/features/settings/__tests__/ssh.test.tsx` — settings_model::staging::tests (7 SSH secret staging cases, reached) and settings_model::ssh_connection::tests (3, unreached); the SSH page is not drawn — wiring: its page view
+- `unit:src/features/settings/__tests__/colorScheme.test.tsx` — settings_model::code_style_scheme / theme::icls (unreached) — wiring: scheme import/export/delete actions on editor.colorScheme
+- `unit:src/features/app/__tests__/cliCommand.test.ts` — app_models::cli_command — register app.installCli/app.uninstallCli
+- `unit:src/features/app/__tests__/jetbrainsSettings.test.ts` — app_models::jetbrains_settings — an Import Settings entry
+- `unit:src/features/app/__tests__/newProject.test.ts` — app_models::project_actions — the New Project dialog (app.newProject), not small
+- `unit:src/features/app/__tests__/projectName.test.ts` — app_models::project_actions — the New Project dialog, not small
+- `unit:src/features/settings/__tests__/contrast.test.ts` — settings_model::contrast — apply appearance contrast in the theme on settings_changed
+- `unit:src/features/settings/__tests__/fileTypes.test.ts` — settings_model::file_types — File Types control on editor.files
+- `unit:src/features/settings/__tests__/fontSync.test.ts` — settings_model::runtime — call it from Workbench::settings_changed for the font keys
+- `unit:src/features/settings/__tests__/settingsWindowOpen.test.ts` — settings_model::settings_window — a separate Settings window; the app uses an in-window dialog instead
+- `unit:src/features/settings/__tests__/sshConnection.test.ts` — settings_model::ssh_connection — SSH page Test Connection
+- `unit:src/features/settings/__tests__/window.test.ts` — settings_model::window_bridge, settings_model::settings_window — a separate Settings window
+- `unit:src/features/settings/pages/deploymentModel.test.ts` — settings_model::deployment_model — the Deployment page view
+- `unit:src/platform/filePresentation.test.ts` — platform::file_presentation — the project view and tabs asking it for icons/names
+- `unit:src/platform/projectPresentation.test.ts` — platform::project_presentation — the title bar / welcome naming projects through it
+- `unit:src/platform/windowGroups.test.ts` — platform::window_groups — window groups are not built, not small
+- `module:src/platform/buildToolRecovery.ts` — platform_more::build_tool_recovery (tested; only its SETTINGS_ACTION constant is used) — wiring: the Gradle/Maven import failure notification linking to it
+- `module:src/platform/clientSettings.ts` — platform_more::client_settings (tested) used only by platform_more::remote, which only unreached remote-dev code uses
+- `module:src/platform/remote.ts` — platform_more::remote (tested) used only by unreached app_models::windows and features_b::remote_dev
+- `module:src/platform/fileTypes.ts` — settings_model::file_types (unreached)
+- `module:src/platform/formatGuard.ts` — editor_lsp::format_guard (unreached)
+- `module:src/platform/pageSwipe.ts` — platform_more::page_swipe (unreached)
+- `module:src/platform/project.ts` — platform_more::project (unreached)
+- `module:src/platform/proxySettings.ts` — platform_more::proxy_settings (unreached)
+- `module:src/platform/remoteSettings.ts` — platform_more::remote_settings (unreached)
+- `module:src/platform/workflowSettings.ts` — platform_more::workflow_settings (unreached)
+- `module:src/platform/dotnet.ts` — platform_more::dotnet (unreached)
+- `module:src/platform/libraries.ts` — features_b::libraries (unreached)
+- `module:src/platform/pluginRunTargets.ts` — plugin_models::run_targets (unreached)
+
+## Shard vcs
+
+- `action:diff.applyLeftSide` — model vcs_diff/compare.rs (reached) — register the id in workbench/diff_window.rs register_actions to apply the side in the shown diff
+- `action:diff.applyRightSide` — model vcs_diff/compare.rs (reached) — register the id in workbench/diff_window.rs
+- `action:diff.compareDirectories` — flow in vcs_diff/compare.rs (reached; project view menu offers it) — register in workbench/diff_window.rs; the directory diff view itself is not built
+- `action:diff.compareFiles` — flow in vcs_diff/compare.rs (reached; project view menu offers it) — register in workbench/diff_window.rs and open the diff window on the two files
+- `action:diff.compareTexts` — flow in vcs_diff/compare.rs (reached) — register in workbench/diff_window.rs
+- `action:diff.compareWith` — flow in vcs_diff/compare.rs (reached; project view menu offers it) — register in workbench/diff_window.rs
+- `action:diff.compareWithClipboard` — flow in vcs_diff/compare.rs (reached) — register in workbench/diff_window.rs
+- `action:github.pullRequest.diff.addComment` — model github/review_diff.rs + github/review_editor.rs (unreached); Pull Requests window only in undeclared workbench/github.rs
+- `action:github.pullRequest.diff.addMultilineComment` — model github/review_editor.rs:388 (unreached); window only in undeclared workbench/github.rs
+- `action:github.pullRequest.diff.nextComment` — model github/review_editor.rs (unreached, tested by next_comment_moves_the_caret_to_the_next_visible_thread); window only in undeclared workbench/github.rs
+- `action:github.pullRequest.diff.previousComment` — model github/review_editor.rs (unreached); window only in undeclared workbench/github.rs
+- `action:github.pullRequest.diff.refreshReview` — model github/review_diff.rs (unreached); window only in undeclared workbench/github.rs
+- `action:github.pullRequest.reviewMode` — model github/review_mode.rs (unreached); window only in undeclared workbench/github.rs
+- `action:github.pullRequest.reviewMode.showDiff` — model github/review_mode.rs (unreached); window only in undeclared workbench/github.rs
+- `action:github.pullRequest.showInToolWindow` — model github/review_mode.rs (unreached); window only in undeclared workbench/github.rs
+- `action:github.pullRequest.updateBranch` — model github/review_mode.rs (unreached); window only in undeclared workbench/github.rs
+- `action:localHistory.recentChanges` — model vcs_more/recent_changes.rs (unreached) — a popup over host history entries
+- `action:pull` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/ops.rs
+- `action:vcs.acceptBoth` — model vcs_diff/conflict_markers.rs (unreached) — register the caret-conflict resolution on the editor
+- `action:vcs.acceptTheirs` — model vcs_diff/conflict_markers.rs (unreached) — register the caret-conflict resolution on the editor
+- `action:vcs.acceptYours` — model vcs_diff/conflict_markers.rs (unreached) — register the caret-conflict resolution on the editor
+- `action:vcs.addToVcs` — only in undeclared workbench/shelf.rs, workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs,project_view/context_menu.rs
+- `action:vcs.annotate` — model vcs_more/diff_blame.rs (unreached); handler only in undeclared workbench/vcs_operations.rs and shelf.rs
+- `action:vcs.applyPatch` — only in undeclared workbench/shelf.rs
+- `action:vcs.applyPatchFromClipboard` — only in undeclared workbench/shelf.rs
+- `action:vcs.changelist.commit` — only in undeclared workbench/shelf.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs
+- `action:vcs.changelist.delete` — only in undeclared workbench/shelf.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs
+- `action:vcs.changelist.edit` — only in undeclared workbench/shelf.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs
+- `action:vcs.changelist.move` — only in undeclared workbench/shelf.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs
+- `action:vcs.changelist.new` — only in undeclared workbench/shelf.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs
+- `action:vcs.changelist.setActive` — only in undeclared workbench/shelf.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs
+- `action:vcs.cherryPick.abort` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/branch_widget.rs
+- `action:vcs.cherryPick.continue` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/branch_widget.rs
+- `action:vcs.clone` — model vcs_ops/clone.rs (unreached); welcome/title bar only hide the button while unregistered — needs a clone dialog
+- `action:vcs.compareWithBranch` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/actions.rs,project_view/context_menu.rs
+- `action:vcs.createPatch` — only in undeclared workbench/shelf.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs
+- `action:vcs.ignoreLocal` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: project_view/context_menu.rs
+- `action:vcs.ignoreShared` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs,project_view/context_menu.rs
+- `action:vcs.localHistory` — only in undeclared workbench/shelf.rs, workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs,project_view/context_menu.rs
+- `action:vcs.log.branches.delete` — Branches pane toolbar emits it (vcs/log_branches.rs:401) with no registered handler; register in workbench/log_window.rs (only in undeclared workbench/log_actions.rs)
+- `action:vcs.log.branches.navigate` — Branches pane toolbar emits it (vcs/log_branches.rs:402) with no registered handler; register in workbench/log_window.rs (only in undeclared workbench/log_actions.rs)
+- `action:vcs.log.branches.new` — the Branches pane toolbar emits it (vcs/log_branches.rs:399 → workbench/log_window.rs:269 run_action_later) but no handler is registered; register in workbench/log_window.rs mapping to run_branch_command (handler only in undeclared workbench/log_actions.rs)
+- `action:vcs.log.branches.toggleFavorite` — Branches pane toolbar emits it (vcs/log_branches.rs:406) with no registered handler; register in workbench/log_window.rs (only in undeclared workbench/log_actions.rs)
+- `action:vcs.log.branches.update` — Branches pane toolbar emits it (vcs/log_branches.rs:400) with no registered handler; register in workbench/log_window.rs (only in undeclared workbench/log_actions.rs)
+- `action:vcs.log.changes.compareBeforeWithLocal` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.changes.compareWithLocal` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.changes.diffPreview` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.changes.getFromRevision` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.changes.groupByDirectory` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.changes.jumpToSource` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.changes.revert` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.changes.showDiff` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.checkoutRevision` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.cherryPick` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.collapseLinear` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.compareVersions` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.compareWithLocal` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.copyRevision` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.createPatch` — commit menu model vcs_ops/git_log.rs (unreached); no handler in compiled code
+- `action:vcs.log.dropCommit` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.editMessage` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.expandLinear` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.fixup` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.goToChild` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.goToParent` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.goToRef` — the log filter bar already emits it (workbench/log_window.rs:258) but no handler is registered; handler only in undeclared workbench/log_actions.rs
+- `action:vcs.log.interactiveRebase` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.newBranch` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.newTag` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.openInBrowser` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.pushUpToHere` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.rebaseOntoCommit` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.resetToHere` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.revealBookmark` — only in undeclared workbench/log_actions.rs
+- `action:vcs.log.revert` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.squashCommits` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.squashInto` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.log.undoCommit` — only in undeclared workbench/log_actions.rs; reached model/menu code mentions it: vcs_ops/git_log.rs
+- `action:vcs.manageRemotes` — menu item built by vcs/log_branches.rs:669 (reached) but unregistered; handler only in undeclared workbench/vcs_operations.rs
+- `action:vcs.merge` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: project_view/context_menu.rs
+- `action:vcs.merge.abort` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/branch_widget.rs
+- `action:vcs.newTag` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: project_view/context_menu.rs
+- `action:vcs.newWorktree` — only in undeclared workbench/vcs_operations.rs
+- `action:vcs.nextChange` — model vcs_diff/hunks.rs + vcs_diff/gutter.rs (unreached) — needs the change gutter in the editor first
+- `action:vcs.nextConflict` — model vcs_diff/conflict_markers.rs (unreached) — register next-marker navigation on the editor
+- `action:vcs.openDiff` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_diff/compare.rs
+- `action:vcs.operations` — only in undeclared workbench/vcs_operations.rs
+- `action:vcs.prevChange` — model vcs_diff/hunks.rs + vcs_diff/gutter.rs (unreached) — needs the change gutter in the editor first
+- `action:vcs.prevConflict` — model vcs_diff/conflict_markers.rs (unreached) — register previous-marker navigation on the editor
+- `action:vcs.pull` — only in undeclared workbench/vcs_operations.rs
+- `action:vcs.rebase` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: project_view/context_menu.rs
+- `action:vcs.rebase.abort` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/branch_ops.rs,vcs_ops/branch_widget.rs
+- `action:vcs.rebase.continue` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/branch_widget.rs
+- `action:vcs.rebase.skip` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/branch_widget.rs
+- `action:vcs.refresh` — only in undeclared workbench/vcs_operations.rs
+- `action:vcs.resetHead` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: project_view/context_menu.rs
+- `action:vcs.revert.abort` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/branch_widget.rs
+- `action:vcs.revert.continue` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/branch_widget.rs
+- `action:vcs.rollback` — only in undeclared workbench/vcs_operations.rs, workbench/shelf.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs,project_view/context_menu.rs
+- `action:vcs.shelf.compareLocal` — only in undeclared workbench/shelf.rs
+- `action:vcs.shelf.copyPatch` — only in undeclared workbench/shelf.rs
+- `action:vcs.shelf.createPatch` — only in undeclared workbench/shelf.rs
+- `action:vcs.shelf.delete` — only in undeclared workbench/shelf.rs, workbench/shelf_view.rs
+- `action:vcs.shelf.importPatches` — only in undeclared workbench/shelf.rs
+- `action:vcs.shelf.refresh` — only in undeclared workbench/shelf.rs, workbench/shelf_view.rs
+- `action:vcs.shelf.rename` — only in undeclared workbench/shelf.rs
+- `action:vcs.shelf.showDiff` — only in undeclared workbench/shelf.rs, workbench/shelf_view.rs
+- `action:vcs.shelf.showDiffNewTab` — only in undeclared workbench/shelf.rs
+- `action:vcs.shelve` — only in undeclared workbench/shelf.rs, workbench/shelf_view.rs; reached model/menu code mentions it: vcs_ops/commit_view.rs
+- `action:vcs.showCommit` — model vcs_diff/inline_blame.rs (unreached); handler only in undeclared workbench/vcs_operations.rs
+- `action:vcs.showHistory` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: project_view/context_menu.rs
+- `action:vcs.showLog` — only in undeclared workbench/vcs_operations.rs, workbench/shelf.rs; reached model/menu code mentions it: vcs_ops/branch_menu.rs,vcs/branches_popup.rs
+- `action:vcs.showShelf` — only in undeclared workbench/shelf.rs
+- `action:vcs.stash` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: project_view/context_menu.rs
+- `action:vcs.toggleAmend` — only in undeclared workbench/vcs_operations.rs
+- `action:vcs.unshelve` — only in undeclared workbench/shelf.rs, workbench/shelf_view.rs
+- `action:vcs.unstash` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: project_view/context_menu.rs
+- `action:vcs.update` — only in undeclared workbench/vcs_operations.rs; reached model/menu code mentions it: vcs_ops/branch_menu.rs,vcs/branches.rs,vcs/branches_popup.rs,project_view/context_menu.rs
+- `action:vcs.worktrees` — only in undeclared workbench/vcs_operations.rs
+- `context:githubConnected` — only in undeclared workbench/github.rs:649
+- `context:githubPrTab` — only in undeclared workbench/github.rs:650
+- `context:githubTimelineActive` — read in a when clause of undeclared workbench/github.rs:523; timeline model github/timeline.rs (unreached) never sets it
+- `context:shelfFocus` — only in undeclared workbench/shelf.rs:987
+- `point.registerCloneSource:github` — model github/clone.rs (unreached, `github::clone::tests`) — needs a Get from VCS dialog with sources
+- `point.registerGitLogChecks:(at) src/features/github/index.ts:269` — CI checks in github/data_model.rs (unreached) — needs a checks column in vcs/log_view.rs
+- `feature:github` — models github/* (all unreached) and the Pull Requests window only in undeclared workbench/github.rs — declaring that module is the wiring
+- `ipc:gh_api` — only in undeclared workbench/github.rs
+- `ipc:gh_availability` — only in undeclared workbench/github.rs
+- `ipc:gh_pr_checkout` — only in undeclared workbench/github.rs
+- `ipc:gh_pr_list` — called by github/window_view.rs (unreached) and undeclared workbench/github.rs
+- `ipc:gh_pr_prepare_diff` — only in undeclared workbench/github.rs
+- `ipc:vcs_add_to_ignore` — only in undeclared workbench/vcs_operations.rs
+- `ipc:vcs_add_worktree` — only in undeclared workbench/vcs_operations.rs
+- `ipc:vcs_apply_patch` — only in undeclared workbench/log_actions, workbench/shelf.rs
+- `ipc:vcs_changelists_load` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_changelists_save` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_config_get` — only in undeclared workbench/log_actions, workbench/shelf.rs
+- `ipc:vcs_create_patch` — only in undeclared workbench/log_actions, workbench/shelf.rs
+- `ipc:vcs_create_tag` — only in undeclared workbench/log_actions, workbench/vcs_operations.rs
+- `ipc:vcs_diff_with_worktree` — only in undeclared workbench/log_actions.rs
+- `ipc:vcs_discard` — only in undeclared workbench/vcs_operations.rs
+- `ipc:vcs_edit_remote` — only in undeclared workbench/vcs_operations.rs
+- `ipc:vcs_merge_with` — only in undeclared workbench/vcs_operations.rs
+- `ipc:vcs_patch_preview` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_rebase_with` — only in undeclared workbench/vcs_operations.rs
+- `ipc:vcs_restore_head` — only in undeclared workbench/log_actions.rs
+- `ipc:vcs_reword` — only in undeclared workbench/log_actions.rs
+- `ipc:vcs_shelf_delete` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_shelf_diff` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_shelf_import` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_shelf_patch` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_shelf_rename` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_shelve` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_shelves` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_stash_apply` — only in undeclared workbench/vcs_operations.rs
+- `ipc:vcs_stash_push` — only in undeclared workbench/vcs_operations.rs
+- `ipc:vcs_stashes` — only in undeclared workbench/vcs_operations.rs
+- `ipc:vcs_undo_commit` — only in undeclared workbench/log_actions.rs
+- `ipc:vcs_unshelve` — only in undeclared workbench/shelf.rs
+- `ipc:vcs_unstage` — only in undeclared workbench/shelf, workbench/vcs_operations.rs
+- `ipc:vcs_write_patch` — only in undeclared workbench/shelf.rs
+- `unit:src/features/github/api/api.test.ts` — model tests github::api::tests — unit unreached; the GitHub views live only in undeclared workbench/github.rs
+- `unit:src/features/github/create/create.test.ts` — model tests github::create::tests — unit unreached; the GitHub views live only in undeclared workbench/github.rs
+- `unit:src/features/github/data/data.test.ts` — model tests github::data_model::tests, github::search_history::tests, github::repository::tests, github::batches::tests — unit unreached; the GitHub views live only in undeclared workbench/github.rs
+- `unit:src/features/github/data/repository.test.ts` — model tests github::repository::tests — unit unreached; the GitHub views live only in undeclared workbench/github.rs
+- `unit:src/features/github/details/model.test.ts` — model tests github::details::tests — unit unreached; the GitHub views live only in undeclared workbench/github.rs
+- `unit:src/features/github/diff/model.test.ts` — model tests github::diff::tests — unit unreached; the GitHub views live only in undeclared workbench/github.rs
+- `unit:src/features/github/timeline/model.test.ts` — model tests github::timeline::tests — unit unreached; the GitHub views live only in undeclared workbench/github.rs
+- `unit:src/features/vcs/__tests__/changelistMenu.test.ts` — model tests vcs_ops::changelists_ui::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/changesCopy.test.tsx` — Copy File Name / Copy Path menu model in vcs_ops/commit_view.rs:195 is not used by the Commit panel (vcs/commit_view.rs), which has no context menu or copy keys
+- `unit:src/features/vcs/__tests__/conflictMarkerEdits.test.ts` — model tests vcs_diff::conflict_markers::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/conflictMarkers.test.ts` — model tests vcs_diff::conflict_markers::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/hunks.test.ts` — model tests vcs_diff::hunks::tests, vcs_diff::gutter::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/inlineBlame.test.ts` — model tests vcs_diff::inline_blame::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/logBranchMemory.test.ts` — model tests vcs_more::log_branch_memory::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/logFilters.test.ts` — model tests vcs_more::log_filters::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/logLoading.test.ts` — model tests vcs_more::log_loading::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/logSearch.test.ts` — model tests vcs_more::log_search::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/multiRepoRollback.test.ts` — model tests vcs_more::multi_repo::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/multiRootStashes.test.tsx` — only in undeclared workbench/vcs_operations.rs (stash list and apply)
+- `unit:src/features/vcs/__tests__/multiRootTags.test.ts` — model tests vcs_more::new_tag::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/patchFileManager.test.ts` — model tests vcs_more::patch_file_manager::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/projectSwitch.test.ts` — model tests vcs_more::project_switch::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/recentChanges.test.ts` — model tests vcs_more::recent_changes::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/repositoryPaths.test.ts` — model tests vcs_more::repository_paths::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/rollback.test.ts` — model tests vcs_more::rollback::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/shelf.test.tsx` — only in undeclared workbench/shelf.rs and vcs/shelf_view.rs
+- `unit:src/features/vcs/__tests__/viewerCaret.test.ts` — model tests vcs_more::viewer_look::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/viewerFont.test.ts` — model tests vcs_more::viewer_look::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/workflow.test.ts` — model tests vcs_more::workflow::tests, vcs_more::issue_links::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/__tests__/worktreesPanel.test.tsx` — model vcs_more/worktrees.rs (unreached, `vcs_more::worktrees::tests`); the panel only in undeclared workbench/vcs_operations.rs
+- `unit:src/features/vcs/diffBlame.test.ts` — model tests vcs_more::diff_blame::tests — unit unreached; nothing in workbench/ calls the module yet
+- `unit:src/features/vcs/worktrees.test.ts` — model tests vcs_more::worktrees::tests — unit unreached; nothing in workbench/ calls the module yet
+
+## Shard workbenchA
+
+- `boundid:code.expandAllToLevel1` — editor_commands::folding::expand_to_level (tests in editor_commands::folding, unreached) — register code.expand(All)ToLevel1..5 in a loop like navigate.gotoBookmark<digit> (workbench/mod.rs:648) calling it on the active editor
+- `boundid:code.expandAllToLevel2` — same as code.expandAllToLevel1 (editor_commands::folding::expand_to_level, unreached)
+- `boundid:code.expandAllToLevel3` — same as code.expandAllToLevel1 (editor_commands::folding::expand_to_level, unreached)
+- `boundid:code.expandAllToLevel4` — same as code.expandAllToLevel1 (editor_commands::folding::expand_to_level, unreached)
+- `boundid:code.expandAllToLevel5` — same as code.expandAllToLevel1 (editor_commands::folding::expand_to_level, unreached)
+- `boundid:code.expandToLevel1` — same as code.expandAllToLevel1 (editor_commands::folding::expand_to_level, unreached)
+- `boundid:code.expandToLevel2` — same as code.expandAllToLevel1 (editor_commands::folding::expand_to_level, unreached)
+- `boundid:code.expandToLevel3` — same as code.expandAllToLevel1 (editor_commands::folding::expand_to_level, unreached)
+- `boundid:code.expandToLevel4` — same as code.expandAllToLevel1 (editor_commands::folding::expand_to_level, unreached)
+- `boundid:code.expandToLevel5` — same as code.expandAllToLevel1 (editor_commands::folding::expand_to_level, unreached)
+- `boundid:github.createPullRequest` — github::window_view (unreached)
+- `boundid:github.pullRequest.refresh` — github::details_panel (unreached)
+- `boundid:github.pullRequest.toggleViewed` — github::details_panel (unreached)
+- `boundid:github.refresh` — github::list (unreached)
+- `context:focusedDirectory` — read by find::store (find::store::tests::the_find_argument_falls_back_to_the_focused_directory); nothing publishes it — set it from the Project view selection in publish_context
+- `context:projectAttached` — app_models::windows (unreached; project.detach when clause)
+- `context:toolWindowLayoutsSaved` — workbench::tool_windows (saved layouts tested in workbench::tool_windows::tests::replaces_a_layout_of_the_same_name_renames_and_deletes) — publish the key in Workbench::publish_context (workbench/mod.rs:1847)
+- `event:Askpass` — features_b::ssh (unreached)
+- `event:Debug` — only in undeclared debugger/driver.rs and workbench/debug.rs
+- `event:DocLanguage` — editor_lsp::configuration_navigation cache ide_event — nothing calls it
+- `event:LspRefresh` — editor_lsp::configuration_navigation cache ide_event — nothing calls it
+- `event:WorkspaceEditApplied` — editor_lsp::configuration_navigation cache ide_event (tested) — nothing calls its ide_event
+- `point.registerExtensionBindings:(at) src/features/plugins/uiPoints.tsx:439` — platform::keymap register_extension_bindings (tested in platform::keymap::tests::extension_bindings_yield_to_the_preset_and_the_user) — call it from plugins.rs project_commands for the plugins' "keymaps" contributions
+- `point.registerFileDropHandler:(at) src/features/terminal/drop.ts:22` — terminal::drop (unreached) and platform_more::file_drop (unreached)
+- `point.registerMenuGroup:http.new` — same Contributed.new slot (new_popup_model tests expect http.newRequest), filled with Contributed::default() at workbench/project_files.rs:1113
+- `point.registerMenuGroup:run.context` — Contributed.project_view slot ("Run / Debug '…'") + run_producers::context_run (unreached); Contributed::default() at workbench/project_files.rs:1113
+- `point.registerMenuGroup:scratch.new` — same Contributed.new slot, filled with Contributed::default() at workbench/project_files.rs:1113
+- `point.registerMenuGroup:search.structure.selectIn` — Contributed.select_in slot, filled with Contributed::default() at workbench/project_files.rs:1113
+- `point.registerMenuGroup:templates.new` — project_view::context_menu::Contributed.new + project_view::new_popup_model (tested) — workbench/project_files.rs:1113 passes Contributed::default(); fill it
+- `point.registerMenuGroup:templates.newFromTemplate` — same Contributed.new slot, filled with Contributed::default() at workbench/project_files.rs:1113
+- `point.registerMenuGroup:web.openIn` — Contributed.open_in slot, filled with Contributed::default() at workbench/project_files.rs:1113
+- `point.registerOverlay:analysis.dialogs` — features_b::analysis (unreached)
+- `point.registerOverlay:app.invalidateCaches` — app_models::invalidate_caches (unreached)
+- `point.registerOverlay:app.keymapReference` — app_models::shell (unreached)
+- `point.registerOverlay:app.newProject` — app_models::project_actions (unreached)
+- `point.registerOverlay:app.termination` — app_models::close_guard (unreached)
+- `point.registerOverlay:app.workspace` — app_models::workspace_dialog (unreached)
+- `point.registerOverlay:coverage.manageReports` — features_b::coverage (unreached)
+- `point.registerOverlay:debugger` — debugger::overlays model; shown only from undeclared workbench/debug.rs
+- `point.registerOverlay:deployment.dialogs` — features_b::deployment (unreached)
+- `point.registerOverlay:editor.navigationBar` — editor_model::nav_bar (unreached)
+- `point.registerOverlay:editor.pasteHistory` — editor_commands::extras (unreached; its test opens the chooser and pastes the result)
+- `point.registerOverlay:github.dialogs` — github::create, github::clone (unreached)
+- `point.registerOverlay:graphql.environment` — features_a::graphql (unreached)
+- `point.registerOverlay:macros.dialogs` — features_b::macros (unreached)
+- `point.registerOverlay:mcp.confirm` — features_b::mcp (unreached)
+- `point.registerOverlay:perf.overlay` — features_b::perf latency samples/percentiles (model, reached through status_items) — no overlay view
+- `point.registerOverlay:plugins.consent` — plugin_models::consent (reached); workbench/settings_window.rs:447 answers AskConsent with consented(None) instead of showing a dialog
+- `point.registerOverlay:plugins.intellijThemes` — theme::icls (unreached)
+- `point.registerOverlay:project.trustDialog` — platform_more::project (unreached)
+- `point.registerOverlay:remote.connect` — features_b::remote_dev (unreached)
+- `point.registerOverlay:run.stackTraceDialog` — run_producers::stack_trace (unreached)
+- `point.registerOverlay:runAnything.popup` — features_b::run_anything (unreached)
+- `point.registerOverlay:search.scopes` — find::scopes_dialog (unreached)
+- `point.registerOverlay:settings.projectStructure` — settings_model project structure page data (settings_model::builtin_pages "projectStructure") — no dialog
+- `point.registerOverlay:ssh.askpass` — features_b::ssh (unreached)
+- `point.registerOverlay:templates.chooser` — templates::editor surround_with / chooser items (tested in templates::editor::tests) — no view shows its chooser
+- `point.registerOverlay:templates.emmetUpdateTag` — templates::emmet_model (unreached)
+- `point.registerOverlay:templates.newFile` — templates::files_create (unreached)
+- `point.registerProjectViewRoot:(at) src/features/project-tree/index.ts:131` — project_view::index::content_root_contributions + project_tree_model::with_extra_roots (tested) — nothing in the workbench calls them; pass the roots when the tree is built
+- `point.registerProjectViewRoot:(at) src/features/project-tree/index.ts:141` — project_view::module_groups (unreached) + project_view::index::content_root_contributions
+- `point.registerProjectViewRoot:externalLibraries` — features_b::libraries (unreached) + project_tree_model::with_extra_roots
+- `point.registerProjectViewRoot:scratches` — project_tree_model::ExtraRoot (scratches flag) — never fed by the workbench
+- `point.registerStatusItem:(at) src/features/perf/index.ts:12` — workbench::status_items::memory_item + features_b::perf (memory indicator) — same: feed perf.memory in workbench/chrome.rs status_texts
+- `point.registerStatusItem:(at) src/features/plugins/runtimeUi.tsx:159` — plugin_models::runtime_ui::RuntimeUi::status_items (unreached) — give the status bar one item per plugin status item
+- `point.registerStatusItem:app.lightEdit` — workbench::status_items::light_edit_item — same: feed it in workbench/chrome.rs status_texts for Content::Editor
+- `point.registerStatusItem:editor.breadcrumbs` — editor_model::nav_bar (unreached); the slot is registered in workbench/status_items.rs but nothing builds its text
+- `point.registerStatusItem:macros.recording` — workbench::status_items::macro_item — same: feed it in workbench/chrome.rs status_texts from the macro recorder state
+- `point.registerStatusItem:remote.location` — features_b::remote_dev (unreached); slot registered, no text built
+- `point.registerStatusItem:vim.mode` — workbench::status_items::vim_item (tested in workbench::status_items::tests) — the slot is registered but Workbench::status_texts (workbench/chrome.rs:262) feeds only the task and editor items; add (VIM, vim_item(..)) there
+- `point.registerStatusItem:workbench.info` — workbench::status_items::info_item — same: feed it in workbench/chrome.rs status_texts from the status message
+- `point.registerToolWindow:coverage` — features_b::coverage (unreached)
+- `point.registerToolWindow:debug` — debugger::window_view (unreached); workbench wiring only in undeclared workbench/debug.rs
+- `point.registerToolWindow:dotnet` — features_b::dotnet (unreached)
+- `point.registerToolWindow:duplicates` — features_b::analysis::duplicates (unreached)
+- `point.registerToolWindow:graphql` — features_a::graphql (unreached)
+- `point.registerToolWindow:inspection` — features_b::analysis::inspect (unreached)
+- `point.registerToolWindow:logcat` — features_a::logcat (unreached)
+- `point.registerToolWindow:profiler` — features_b::profiler (unreached)
+- `point.registerToolWindow:pullRequests` — github::window_view / github::toolwindow (unreached); the workbench slot is only in undeclared workbench/github.rs
+- `point.registerToolWindow:remote.ports` — features_b::remote_dev (unreached)
+- `point.registerToolWindow:remoteHost` — features_b::deployment (unreached)
+- `point.registerWorkbenchBanner:project.restrictedMode` — platform_more::project / app_models::windows (unreached) trust model
+- `shell:cli.rs` — app_models::cli_command (unreached)
+- `shell:page_swipe.rs` — platform_more::page_swipe (unreached)
+- `shell:plugin_web.rs` — plugin_models::web_frames (unreached)
+- `shell:remote_container.rs` — features_b::remote_dev (unreached)
+- `shell:remote_dev.rs` — features_b::remote_dev (unreached)
+- `shell:remote_wsl.rs` — features_b::remote_dev (unreached)
+- `shell:updates.rs` — app_models::updates (unreached)
+- `shell:window_groups.rs` — platform::window_groups (unreached)
+
+## Shard workbenchB
+
+- `action:(dynamic) src/features/macros/index.ts:101` — features_b/macros.rs play_action_id (features_b::macros unreached) — register one play action per stored macro
+- `action:(dynamic) src/features/project-tree/actions.ts:167` — project_view/actions.rs:83 project_actions() builds project.option.* metas, never registered — register them with handlers over toggle_option
+- `action:(dynamic) src/features/project-tree/actions.ts:177` — project_view/actions.rs:97 project.viewMode.* metas, never registered — register with view_mode_of
+- `action:(dynamic) src/features/project-tree/actions.ts:189` — project_view/actions.rs:104 project.sortBy.* metas, never registered
+- `action:(dynamic) src/features/run/externalTools.ts:164` — run_producers::external_tools (unreached)
+- `action:(dynamic) src/features/run/goActions.ts:86` — run/go_generate.rs:70 GENERATE_FILE/PACKAGE_ACTION are menu entries only, no registry handler
+- `action:(dynamic) src/features/settings/pages/editor/colorScheme.tsx:1217` — settings_model/builtin_pages/editor.rs:20 has the per-language colour scheme pages; register editor.colorScheme.<lang> actions opening them
+- `action:(dynamic) src/features/templates/index.ts:79` — project_view/new_popup_model.rs:168 metas templates.new.*, not registered (the context menu at context_menu.rs:249 checks for templates.new.file)
+- `action:view.zoomIn` — settings_model/appearance_runtime.rs:82 ZoomAction (unreached) — register next to the appearance toggles at workbench/mod.rs:474
+- `action:view.zoomOut` — settings_model/appearance_runtime.rs:82 ZoomAction (unreached) — same wiring
+- `action:view.resetZoom` — settings_model/appearance_runtime.rs:82 ZoomAction (unreached) — same wiring
+- `action:project.revealInFinder` — project_view/actions.rs:109 meta (project_actions() unused) and ProjectCommand::Reveal in the tree menu — register the id
+- `action:project.open` — tree menu row Jump to Source (project_view/context_menu.rs:407, ProjectCommand::OpenFiles) runs without the id; register project.open in workbench/project_files.rs register_actions
+- `action:project.findUsages` — tree menu row (context_menu.rs:410, ProjectCommand::FindUsages) — register the id
+- `action:project.reformatCode` — tree menu row (context_menu.rs:447) — register the id
+- `action:project.optimizeImports` — tree menu row (context_menu.rs:451) — register the id
+- `action:project.compareWith` — project_view/actions.rs:312 compare_with effects, shortcut lookup only (context_menu.rs:502) — register the id
+- `action:project.reloadFromDisk` — tree menu row ProjectCommand::Reload ends in Effect::RunAction file.reloadFromDisk (project_view/operations.rs:725), which nothing handles — register file.reloadFromDisk and project.reloadFromDisk
+- `action:file.reloadFromDisk` — requested by project_view/operations.rs:725 as Effect::RunAction but not registered — register a handler re-reading the files
+- `action:project.copyFileName` — copy-path popup flavour (project_view/copy_path_popup.rs:61), chosen in the popup without the id — register like project.copyAbsolutePath at workbench/project_files.rs:241
+- `action:project.copyRelativePath` — copy-path popup flavour (copy_path_popup.rs:62) — same wiring
+- `action:project.copySourceRootPath` — copy-path popup flavour (copy_path_popup.rs:63) — same wiring
+- `action:project.copyPath` — the popup opener's shortcut key only (workbench/project_files.rs:697) — register project.copyPath opening the copy-path popup
+- `action:project.collapseAll` — project tree collapse model in project_view (no registry handler)
+- `action:project.expandAll` — project_view/actions.rs:322 expand_all_from (no registry handler)
+- `action:project.openInTerminal` — project_view/actions.rs:242 open_in_terminal (no registry handler)
+- `action:lightEdit.openProject` — app_models/windows.rs:971 (unreached); the status item at workbench/status_items.rs:248 clicks it but nothing handles it
+- `action:file.openPaths` — app_models/windows.rs:970 (unreached)
+- `action:project.attach` — app_models/windows.rs:964 (unreached)
+- `action:project.detach` — app_models/windows.rs:966 (unreached); tree menu row context_menu.rs:383
+- `action:file.invalidateCaches` — app_models/invalidate_caches.rs (unreached)
+- `action:libraries.reload` — features_b/libraries.rs (unreached)
+- `action:view.quickSwitchScheme` — workbench/quick_switch.rs model (nothing outside the file uses it) — register the action opening its menu
+- `action:layout.save` — workbench/tool_windows.rs Tool Window Layouts model (reached, model only) — register the layout.* actions
+- `action:layout.restore` — workbench/tool_windows.rs layouts model — register
+- `action:layout.rename` — workbench/tool_windows.rs layouts model — register
+- `action:layout.delete` — workbench/tool_windows.rs layouts model — register
+- `action:layout.restoreDefault` — workbench/tool_windows.rs layouts model — register
+- `action:toolwindow.closeContent` — workbench/tool_windows.rs:1135 ContentTabs (no handler) — register closing the selected content tab
+- `action:window.nextTab` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `action:window.previousTab` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `action:window.reorderTabs` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `action:window.selectTab` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `action:window.closeTab` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `action:window.closeOtherTabs` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `action:window.closeTabsToLeft` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `action:window.closeTabsToRight` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `action:window.detachTab` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `action:window.mergeAllWindows` — platform/window_groups.rs (unreached: reordered_tabs, cycled_tab) — native window tab groups not built
+- `ipc:window_group_cancel_close` — platform/window_groups.rs (unreached)
+- `ipc:window_group_close` — platform/window_groups.rs (unreached)
+- `ipc:window_group_close_tabs` — platform/window_groups.rs (unreached)
+- `ipc:window_group_current` — platform/window_groups.rs (unreached)
+- `ipc:window_group_detach` — platform/window_groups.rs (unreached)
+- `ipc:window_group_merge` — platform/window_groups.rs (unreached)
+- `ipc:window_group_reorder` — platform/window_groups.rs (unreached)
+- `ipc:window_group_restore` — platform/window_groups.rs (unreached)
+- `ipc:window_group_select` — platform/window_groups.rs (unreached)
+- `module:src/workbench/confirmTerminate.ts` — app_models/close_guard.rs (unreached)
+- `module:src/workbench/contributions.ts` — platform_more/registry.rs (unreached)
+- `module:src/workbench/fileDrop.ts` — platform_more/file_drop.rs (unreached)
+- `module:src/workbench/focus.ts` — platform_more/focus.rs (unreached)
+- `module:src/workbench/providerAcquisition.ts` — platform_more/provider_acquisition.rs (unreached)
+- `module:src/workbench/WindowGroupTabs.tsx` — platform/window_groups.rs (unreached)
+- `module:src/workbench/distractionFree.ts` — platform_more/distraction_free.rs + ToolWindowLayout::enter_distraction_free; editor.toggleZen is offered in menus (title_bar.rs:116) but not registered
+- `module:src/ui/pointerDrag.ts` — platform_more/pointer_drag.rs (unreached)
+- `module:src/ui/selectableText.ts` — platform_more/selectable_text.rs (unreached)
+- `module:src/ui/menuAim.ts` — ui/menu_aim.rs (unreached) — use it in ui::popup_menu's submenu hover
+- `unit:src/features/project-tree/filePath.test.ts` — project_view/file_path.rs (unreached)
+- `unit:src/features/project-tree/moduleGroups.test.ts` — project_view/module_groups.rs (unreached)
+- `unit:src/ui/menuAim.test.ts` — ui/menu_aim.rs (unreached) — use it in ui::popup_menu
+- `unit:src/ui/pointerDrag.test.ts` — platform_more/pointer_drag.rs (unreached)
+- `unit:src/workbench/endpointProviders.test.ts` — platform_more/endpoint_providers.rs (unreached)
+- `unit:src/workbench/fileDrop.test.ts` — platform_more/file_drop.rs (unreached)
+- `unit:src/workbench/fileEditors.test.ts` — platform_more/file_editors.rs (unreached)
+- `unit:src/workbench/providerAcquisition.test.ts` — platform_more/provider_acquisition.rs (unreached)
+- `unit:src/workbench/decorations.test.ts` — plugin_models/decorations.rs (unreached)
+- `unit:src/workbench/WindowGroupTabs.test.tsx` — platform/window_groups.rs (unreached)

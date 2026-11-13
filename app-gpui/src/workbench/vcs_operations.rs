@@ -13,8 +13,8 @@
 //! Worktree) and open again, read afresh, once it is answered.
 
 use super::branches::{
-    This, ask, call, confirm, control_operation, finished, i18n, notify, refresh, run_action_later, run_git_operation,
-    run_op, run_remote, save_all, vcs_state,
+    GitRun, This, ask, call, confirm, control_operation, finished, i18n, notify, refresh, run_action_later,
+    run_git_operation, run_op, run_remote, save_all, vcs_state,
 };
 use super::services_window::on_workbench;
 use super::{COMMIT_TOOL_WINDOW, GIT_TOOL_WINDOW, Workbench, for_window};
@@ -208,7 +208,7 @@ fn close_form(this: &This, cx: &mut AsyncWindowContext, dialog: &Entity<GitFormD
 }
 
 /// Shows `form` and waits for its answer, which closes it; `None` when it was cancelled.
-async fn ask_form(
+pub(super) async fn ask_form(
     this: &This,
     cx: &mut AsyncWindowContext,
     form: Box<dyn GitForm>,
@@ -409,7 +409,9 @@ async fn reset_head(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<(
         let values = [Param::from(head.as_str()), Param::from(commit.as_str()), Param::from(reset_mode_name(mode))];
         (i18n.tx_built(&["Reset ", " to ", " (", ")"], &values), i18n.tx("Reset failed"))
     })?;
-    run_git_operation(&this, cx, GitOperation::Reset { commit, mode }, "Resetting", &success, failure).await?;
+    let op = GitOperation::Reset { commit, mode };
+    let run = GitRun { op, progress: "Resetting", success, stopped: None, failure, conflicts_instead: false };
+    run_git_operation(&this, cx, run).await?;
     Ok(())
 }
 
@@ -433,8 +435,21 @@ async fn new_tag(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> 
     let work = move |host: Arc<Host>, label: String| async move {
         git::vcs_create_tag(&host, &label, path, name, commit, message, force).await
     };
-    run_op(&this, cx, &title, Some(success), false, work).await?;
+    // Tags are not among the refs whose moves make the log read again.
+    if run_op(&this, cx, &title, Some(success), false, work).await?.is_some() {
+        reload_log(&this, cx)?;
+    }
     Ok(())
+}
+
+/// The Git log reads what it shows again, when it has read something: a new tag is not among the
+/// refs whose moves make it read again.
+pub(super) fn reload_log(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
+    this.update(cx, |workbench, cx| {
+        if let Some(log) = workbench.git_log_view().filter(|log| !log.read(cx).commits().is_empty()) {
+            log.update(cx, |log, cx| log.reload(cx));
+        }
+    })
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -914,7 +929,7 @@ impl Workbench {
     }
 
     /// The log of the Git tool window, once the window was shown.
-    fn git_log_view(&self) -> Option<Entity<GitLog>> {
+    pub(super) fn git_log_view(&self) -> Option<Entity<GitLog>> {
         self.tool_window_view(GIT_TOOL_WINDOW).and_then(|view| view.downcast::<GitLog>().ok())
     }
 

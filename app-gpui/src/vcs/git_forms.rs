@@ -16,6 +16,7 @@ use crate::vcs::changes::{ChangeKind, FileStatus, base_name, dir_name, rel_to, s
 use crate::vcs_more::worktrees::{RepoWorktrees, is_current_worktree, worktree_contains_project};
 use crate::vcs_ops::branch_ops::{local_names, validate_branch_name};
 use crate::vcs_ops::change_ops::UnstashOptions;
+use crate::vcs_ops::dialogs::PromptRequest;
 use crate::vcs_ops::operations::validate_tag_name;
 use ide_vcs::{Branch, BranchInfo, MergeOptions, RebaseOptions, Remote, RemoteEdit, ResetMode, Stash, Worktree};
 use std::collections::BTreeSet;
@@ -816,15 +817,25 @@ const RESET_MODES: [(ResetMode, &str, &str); 4] = [
     ),
 ];
 
-/// Git › Reset HEAD…: the commit to reset the current branch to and the mode.
+/// Git Reset: the commit to reset the current branch to and the mode. Git › Reset HEAD… types the
+/// commit; Reset Current Branch to Here… of the Git log names its commit instead of a field.
 pub struct ResetForm {
     target: String,
     mode: ResetMode,
+    /// The log's commit as its short hash and subject, shown in place of the field.
+    commit_line: Option<String>,
 }
 
 impl Default for ResetForm {
     fn default() -> Self {
-        Self { target: "HEAD".to_owned(), mode: ResetMode::Mixed }
+        Self { target: "HEAD".to_owned(), mode: ResetMode::Mixed, commit_line: None }
+    }
+}
+
+impl ResetForm {
+    /// Reset Current Branch to Here…: resets to the commit `id`, shown as `short_id` and `summary`.
+    pub fn on_commit(id: &str, short_id: &str, summary: &str) -> Self {
+        Self { target: id.to_owned(), mode: ResetMode::Mixed, commit_line: Some(format!("{short_id} {summary}")) }
     }
 }
 
@@ -834,11 +845,20 @@ impl GitForm for ResetForm {
             .iter()
             .map(|(mode, label, hint)| Choice::new(reset_mode_name(*mode), &i18n.tx(label), Some(i18n.tx(hint))))
             .collect();
-        let rows = vec![
-            FormRow::Label(i18n.tx("To commit:")),
-            text_row("target", self.target.clone(), String::new(), true),
-            FormRow::Radio { id: "mode", value: reset_mode_name(self.mode).to_owned(), options },
-        ];
+        let mut rows = match &self.commit_line {
+            Some(line) => {
+                let explanation = i18n.tx(concat!(
+                    "This will reset the current branch head to the selected commit, and update the working tree ",
+                    "and the index according to the selected mode:"
+                ));
+                vec![FormRow::Hint(format!("{explanation}\n{line}"))]
+            }
+            None => vec![
+                FormRow::Label(i18n.tx("To commit:")),
+                text_row("target", self.target.clone(), String::new(), true),
+            ],
+        };
+        rows.push(FormRow::Radio { id: "mode", value: reset_mode_name(self.mode).to_owned(), options });
         let ready = !self.target.trim().is_empty();
         FormSpec {
             title: i18n.tx("Git Reset"),
@@ -869,19 +889,35 @@ impl GitForm for ResetForm {
 // ---------------------------------------------------------------------------------------------
 // Tag
 
-/// Git › New Tag…: the name (checked against the repository's tags unless forced), the commit and
-/// an optional message, which makes the tag annotated.
+/// New Tag…: the name (checked against the repository's tags unless forced), the commit and an
+/// optional message, which makes the tag annotated. New Tag… of the Git log asks for the name alone,
+/// of a lightweight tag on its commit.
 pub struct TagForm {
     existing: Vec<String>,
     name: String,
     commit: String,
     message: String,
     force: bool,
+    /// The log's question for the name (title, label, button); the commit is fixed.
+    prompt: Option<PromptRequest>,
 }
 
 impl TagForm {
+    /// Git › New Tag…: a tag on the commit typed, `HEAD` at first.
     pub fn new(existing: Vec<String>) -> Self {
-        Self { existing, name: String::new(), commit: "HEAD".to_owned(), message: String::new(), force: false }
+        Self {
+            existing,
+            name: String::new(),
+            commit: "HEAD".to_owned(),
+            message: String::new(),
+            force: false,
+            prompt: None,
+        }
+    }
+
+    /// New Tag… of the Git log: the name of a lightweight tag on `commit`, asked as `prompt` says.
+    pub fn on_commit(prompt: PromptRequest, commit: &str, existing: Vec<String>) -> Self {
+        Self { commit: commit.to_owned(), prompt: Some(prompt), ..Self::new(existing) }
     }
 
     /// Why the name cannot be the tag's.
@@ -894,6 +930,24 @@ impl GitForm for TagForm {
     fn spec(&self, i18n: &mut I18n) -> FormSpec {
         let problem = self.problem();
         let shown = problem.clone().filter(|_| !self.name.is_empty());
+        if let Some(prompt) = &self.prompt {
+            let mut rows: Vec<FormRow> = prompt.label.iter().map(|label| FormRow::Label(i18n.tx(label))).collect();
+            rows.push(FormRow::Text {
+                id: "name",
+                value: self.name.clone(),
+                placeholder: String::new(),
+                mono: prompt.mono,
+                invalid: shown.is_some(),
+            });
+            rows.extend(shown.map(|problem| FormRow::Error(i18n.tx(&problem))));
+            let ok = if prompt.ok_label.is_empty() { "OK" } else { prompt.ok_label.as_str() };
+            return FormSpec {
+                title: prompt.title.clone(),
+                width: 420.0,
+                rows,
+                buttons: vec![FormButton::footer(OK, i18n.tx(ok), true, problem.is_none()), FormButton::cancel(i18n)],
+            };
+        }
         let mut rows = vec![
             FormRow::Label(i18n.tx("Tag name:")),
             FormRow::Text {
@@ -1947,5 +2001,65 @@ mod tests {
         let Some(FormAnswer::Unstash(options)) = form.press(OK, &mut I18n::default()) else { panic!("it answers") };
         assert_eq!((options.index, options.branch.as_deref()), (1, Some("from-stash")));
         assert!(UnstashForm::new(Vec::new(), 0).press(OK, &mut I18n::default()).is_none(), "no stashes");
+    }
+
+    // Not from a spec: Git Reset of a log commit names the commit instead of asking for it, starts on
+    // Mixed and answers the commit's full hash with the chosen mode; Reset HEAD… asks for the commit.
+    #[test]
+    fn git_reset_names_the_log_commit_or_asks_for_one() {
+        let mut i18n = I18n::default();
+        let mut form = ResetForm::on_commit(&"a".repeat(40), "aaaaaaaa", "Fix the parser");
+        let spec = form.spec(&mut i18n);
+        assert_eq!(spec.title, "Git Reset");
+        assert!(!spec.rows.iter().any(|row| matches!(row, FormRow::Text { .. })), "no field for the commit");
+        let hint = spec.rows.iter().find_map(|row| match row {
+            FormRow::Hint(text) => Some(text.clone()),
+            _ => None,
+        });
+        assert!(hint.is_some_and(|hint| hint.ends_with("\naaaaaaaa Fix the parser")));
+        assert!(spec.rows.iter().any(|row| matches!(row, FormRow::Radio { value, .. } if value == "mixed")));
+        form.edit("mode", FormInput::Choose("hard".to_owned()));
+        let Some(FormAnswer::Reset { commit, mode }) = form.press(OK, &mut i18n) else { panic!("Reset answers") };
+        assert_eq!((commit, mode), ("a".repeat(40), ResetMode::Hard));
+
+        let mut form = ResetForm::default();
+        assert!(form.spec(&mut i18n).rows.iter().any(|row| matches!(row, FormRow::Text { id: "target", .. })));
+        form.edit("target", FormInput::Text("  ".to_owned()));
+        assert!(!can_press(&form.spec(&mut i18n), OK), "a blank commit cannot be reset to");
+    }
+
+    // Not from a spec: New Tag… of a log commit asks for the name only, refuses a tag in use and
+    // answers a lightweight tag on the commit.
+    #[test]
+    fn new_tag_of_a_log_commit_asks_for_the_name_only() {
+        let mut i18n = I18n::default();
+        let prompt = PromptRequest {
+            title: "Create New Tag On 1234abcd".to_owned(),
+            label: Some("Enter the name of new tag:".to_owned()),
+            ok_label: "Create".to_owned(),
+            mono: true,
+            ..PromptRequest::default()
+        };
+        let mut form = TagForm::on_commit(prompt, "1234abcd5678", vec!["v1".to_owned()]);
+        let spec = form.spec(&mut i18n);
+        assert_eq!(spec.title, "Create New Tag On 1234abcd");
+        assert_eq!(spec.button(OK).map(|button| button.label.as_str()), Some("Create"));
+        let ids: Vec<&str> = spec
+            .rows
+            .iter()
+            .filter_map(|row| match row {
+                FormRow::Text { id, .. } | FormRow::Check { id, .. } => Some(*id),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ids, ["name"], "neither Force, Commit nor Message");
+        form.edit("name", FormInput::Text("v1".to_owned()));
+        assert!(form.spec(&mut i18n).rows.contains(&FormRow::Error("Tag 'v1' already exists".to_owned())));
+        assert!(form.press(OK, &mut i18n).is_none(), "a tag in use is refused");
+        form.edit("name", FormInput::Text("v2".to_owned()));
+        let Some(FormAnswer::Tag { name, commit, message, force }) = form.press(OK, &mut i18n) else {
+            panic!("Create answers")
+        };
+        assert_eq!((name.as_str(), commit.as_str(), message, force), ("v2", "1234abcd5678", None, false));
     }
 }

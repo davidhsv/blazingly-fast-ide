@@ -74,3 +74,17 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - RUNNING (cargo): Agents + Debug. Then: app shell + Plugins/Welcome, GitHub, vcs_operations, shelf, log_actions.
 - Manifest gap: actions.json lacks when/keyWhen set through helpers → every slice must confine its shortcuts (D80).
 - Audit of action conditions (reports/audit_action_conditions.md): dangerous set 0. Latent when ported with registry.handle: db.new, db.jumpToConsole, db.quickDoc, db.modifyTable, db.ddlToClipboard, db.ddlToConsole (need projectOpen/databaseViewFocus), code.generate (keyWhen 21 languages), 9 more db tree actions and 11 deployment actions lose `when`; GitHub actions absent from the manifest (run added in .map). Generator: docs/gpui-port/gen-data.mjs (+ tsmodel.mjs); proposed fix in the report (helper-spread walk after gen-data.mjs:247, throw on "computed", shorthand lookup at :124). APPLY AT A CARGO GAP (regenerates assets the build embeds).
+
+## Advisor, 3rd review (2026-11-13): do at the NEXT CARGO GAP, before the next integrator
+
+1. Tauri side: from the repo root run the tests of crates/ide-language and crates/ide-workspace (and ide-db after the fix) + `cargo check -p <src-tauri package>`; record commands + result in DECISIONS and OWED.md. (Heavy root build: one at a time.)
+2. Plugin host: run the ignored plugin test with OPENIDEA_GPUI_TEST_PLUGIN set (see reports/plugin_host_assessment.md for what to point it at).
+3. ide-db: redact URL userinfo in DataSource's Debug (I own crates/); test.
+4. Apply $S/gen/gen.patch (generator), regenerate, --check, suite.
+5. D80 says the probe change "removed the race" but 1 failure in 30 was seen after: run `cargo test --lib -- editor::intelligence` (the module with typing_completes_from_the_server… / an_answer_overtaken…) ~30 times; if it fails, list as known flake and reword D80.
+6. Regenerate $S/listed/lib.txt and the inventory BEFORE launching the next integrator (--listed reads the working tree's mod lines).
+   Queue order now: app shell → VCS (reconciled notes drafts/vcs_all_integration.md, 3 stages) → Plugins (+ plugin host slice per assessment) → GitHub last.
+   Sweep output: $S/sweep/proven.json (merge after spot-checking 10 entries), needs_test.md (hand to integrators as smoke work).
+
+- Plugin host assessment DONE (reports/plugin_host_assessment.md). Slices: 0 link+grant (drafted plugins_window.rs + a link-folder action), 1 runtime bridge (status item, background task, notification buttons, file opens, workspaceContains keys, window events to plugins), 2 prompts + log tab, 3 run requests + gutter + menus, 4 the plugin's settings page, 5 views/web views (Bazel does not need). Prebuilt fixture plugins are checked in (jobs, api14, files-events, path-events, execution, language-features, settings-pages, plugins/official/string-tools). Writer for slices 1-2 launched (workbench/plugin_runtime.rs, drafts/plugin_runtime_integration.md); 3-4 after it.
+- Generator patch READY: $S/gen/gen.patch (also docs/gpui-port/notes/generator/). Baseline byte-identical. Changes: actions.json 39 changed + 18 added (GitHub), contributions.json 3. Native impact: only the ten db tree actions (hand guard becomes redundant; category "Database"). After applying: run `cargo test --lib -- platform::actions` (every manifest condition compiles), suite. ALSO: inventory.mjs:246 uses tsmodel.mjs actions() which requires `run` → the inventory omits 18 GitHub actions; fix so the inventory lists them (total rows will grow).

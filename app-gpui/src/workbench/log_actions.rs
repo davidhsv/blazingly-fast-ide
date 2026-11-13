@@ -15,27 +15,27 @@
 //! the rewrite left it.
 
 use super::branches::{
-    Success, This, call, checkout, finished, notify, refresh, run_action_later, run_op, save_all, vcs_state,
+    GitRun, OPERATION_KEY, Success, This, call, checkout, finished, notify, refresh, run_action_later,
+    run_git_operation, run_op, save_all, vcs_state,
 };
 use super::conflicts::{RESOLVE_CONFLICTS, save_exact};
 use super::services_window::on_workbench;
+use super::shelf::PatchMade;
+use super::vcs_operations::{ask_form, reload_log};
 use super::{GIT_TOOL_WINDOW, Workbench};
 use crate::agents::conversation::decode_uri_component;
-use crate::backend::Backend;
 use crate::platform::actions::ActionRegistry;
 use crate::platform::i18n::{I18n, Localization, Param};
-use crate::platform::local_time::now_ms;
 use crate::platform::settings;
 use crate::platform::storage::UiStorage;
 use crate::vcs::branches_popup::{BranchesCommand, RepoTarget};
 use crate::vcs::changes::base_name;
+use crate::vcs::git_forms::{FormAnswer, ResetForm, TagForm, reset_mode_name};
 use crate::vcs::interactive_rebase_dialog::{InteractiveRebaseDialog, InteractiveRebaseEvent};
 use crate::vcs::log_details::{ChangesCommand, filter_patch};
 use crate::vcs::log_message_dialog::{MessageDialog, MessageDialogEvent};
 use crate::vcs::log_options::{LogOptions, STORAGE_KEY, parse_log_options};
-use crate::vcs::log_reset_dialog::{ResetDialog, ResetDialogEvent, mode_name};
-use crate::vcs::log_tag_dialog::{TagDialog, TagDialogEvent};
-use crate::vcs::log_view::GitLog;
+use crate::vcs::patch_dialogs::CreatePatchSource;
 use crate::vcs::prompt_dialogs::{FieldRule, OK, PromptDialog};
 use crate::vcs_diff::diff_input::{DiffData, DiffSide, repository_path, with_chain};
 use crate::vcs_diff::model::commit_web_url;
@@ -51,13 +51,14 @@ use crate::vcs_ops::log_pane_actions::{
 use crate::vcs_ops::log_store::{GitLog as LogModel, RepoCommit};
 use crate::vcs_ops::menu::MenuItem;
 use crate::vcs_ops::operations::{InProgress, in_progress};
-use crate::vcs_ops::ops::{ConsoleKind, describe_operation, vcs_notice};
+use crate::vcs_ops::ops::vcs_notice;
+use crate::vcs_ops::patches::{PatchOrigin, suggested_patch_name};
 use crate::vcs_ops::rebase_plan::{
     RebaseRange, head_pushed, initial_rows, rebase_range, single_commit_plan, squash_plan, to_entries,
     undo_commit_problem,
 };
 use crate::vcs_ops::remote_ui::is_protected_branch;
-use crate::workbench::notifications::{NotificationAction, NotificationLevel, NotificationRequest};
+use crate::workbench::notifications::{NotificationAction, NotificationLevel};
 use futures::channel::oneshot;
 use gpui_kit::{
     App, AppContext, AsyncWindowContext, ClipboardItem, Context, Entity, EventEmitter, Focusable, Pixels, Point,
@@ -65,18 +66,14 @@ use gpui_kit::{
 };
 use ide_core::IdeError;
 use ide_host::Host;
-use ide_host::ops::Channel;
 use ide_host::ops::vcs::{self as git, GitOperation, PatchSource};
-use ide_vcs::{ChangeKind, ChangedFile, Commit, LogQuery, RebaseAction, RebaseEntry, ResetMode};
+use ide_vcs::{ChangeKind, ChangedFile, Commit, LogQuery, RebaseAction, RebaseEntry};
 use ide_workspace::settings::SettingsScope;
 use serde_json::{Value, json};
 use std::collections::{BTreeSet, HashSet};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
-
-/// Key of the notification of a Git operation started here: its progress, then what came of it.
-const OPERATION_KEY: &str = "vcs.operation";
 
 /// Commands of the Undo buttons of history rewrites: `vcs.log.undo:<notification key>`.
 pub(super) const UNDO_PREFIX: &str = "vcs.log.undo:";
@@ -104,6 +101,7 @@ struct UndoHead {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CommitAction {
     CopyRevision,
+    CreatePatch,
     CherryPick,
     CheckoutRevision,
     CompareWithLocal,
@@ -132,6 +130,7 @@ impl CommitAction {
         matches!(
             self,
             Self::CopyRevision
+                | Self::CreatePatch
                 | Self::CherryPick
                 | Self::CompareVersions
                 | Self::Revert
@@ -141,8 +140,9 @@ impl CommitAction {
     }
 }
 
-const COMMIT_ACTIONS: [(&str, CommitAction); 21] = [
+const COMMIT_ACTIONS: [(&str, CommitAction); 22] = [
     ("vcs.log.copyRevision", CommitAction::CopyRevision),
+    ("vcs.log.createPatch", CommitAction::CreatePatch),
     ("vcs.log.cherryPick", CommitAction::CherryPick),
     ("vcs.log.checkoutRevision", CommitAction::CheckoutRevision),
     ("vcs.log.compareWithLocal", CommitAction::CompareWithLocal),
@@ -285,15 +285,6 @@ fn texts<R>(this: &This, cx: &mut AsyncWindowContext, f: impl FnOnce(&mut I18n) 
     this.update(cx, |_, cx| f(&mut cx.default_global::<Localization>().0))
 }
 
-/// The log reads what it shows again: a rewritten history, a new tag.
-fn reload_log(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
-    this.update(cx, |workbench, cx| {
-        if let Some(log) = workbench.git_log_view() {
-            log.update(cx, |log, cx| log.reload(cx));
-        }
-    })
-}
-
 /// What a message names the commits by: one by its short hash and subject, several by their number.
 fn commits_label(commits: &[Commit], i18n: &mut I18n) -> String {
     match commits {
@@ -387,20 +378,6 @@ async fn message_dialog(
 // -------------------------------------------------------------------------------------------------
 // Running Git operations
 
-/// A Git operation of the log that may take a while.
-struct LogOperation {
-    op: GitOperation,
-    progress: &'static str,
-    success: String,
-    /// What a rebase that stops for editing reports instead of `success`.
-    stopped: Option<&'static str>,
-    failure: String,
-    /// A stop on conflicts opens them for resolving instead of failing.
-    conflicts_instead: bool,
-    /// The success offers Undo: what the notification says once undone, and its key.
-    undo: Option<(String, String)>,
-}
-
 /// The commit HEAD of `repo` is on.
 async fn head_commit(this: &This, cx: &mut AsyncWindowContext, repo: Option<String>) -> anyhow::Result<Option<String>> {
     let path = repo_path(repo.as_deref());
@@ -409,104 +386,8 @@ async fn head_commit(this: &This, cx: &mut AsyncWindowContext, repo: Option<Stri
     Ok(info.ok().and_then(|info| info.head_commit).filter(|id| !id.is_empty()))
 }
 
-/// Runs `operation` in the selected repository: its progress shows until it ends, then what it
-/// did or why it failed. Only one runs at a time. Whether it succeeded.
-async fn run_log_operation(this: &This, cx: &mut AsyncWindowContext, operation: LogOperation) -> anyhow::Result<bool> {
-    let LogOperation { op, progress, success, stopped, failure, conflicts_instead, undo } = operation;
-    let started = this.update(cx, |workbench, cx| {
-        let slot = workbench.vcs.as_ref()?;
-        if slot.state.remote_busy.is_some() {
-            workbench.notify(vcs_notice(NotificationLevel::Warning, "Another Git operation is in progress"), cx);
-            return None;
-        }
-        Some((slot.state.repo.clone(), slot.state.branch.as_ref().and_then(|branch| branch.operation.clone())))
-    })?;
-    let Some((repo, before_op)) = started else { return Ok(false) };
-    save_all(this, cx).await?;
-    let before = if undo.is_some() { head_commit(this, cx, repo.clone()).await? } else { None };
-    this.update(cx, |workbench, cx| {
-        let Some(slot) = workbench.vcs.as_mut() else { return };
-        let progress = cx.default_global::<Localization>().0.tx(progress);
-        slot.state.remote_busy = Some(progress.clone());
-        let line = format!("git {}", describe_operation(&op, before_op.as_deref()));
-        slot.console.log(ConsoleKind::Cmd, &line, now_ms());
-        let mut notice = vcs_notice(NotificationLevel::Info, format!("{progress}…"));
-        notice.key = Some(OPERATION_KEY.to_owned());
-        notice.sticky = Some(true);
-        workbench.notify(notice, cx);
-    })?;
-    let lines: Arc<Mutex<Vec<String>>> = Arc::default();
-    let sink = Arc::clone(&lines);
-    let path = repo_path(repo.as_deref());
-    let ran = call(this, cx, move |host, label| async move {
-        let channel = Channel::new(move |line: String| match sink.lock() {
-            Ok(mut lines) => lines.push(line),
-            Err(poisoned) => poisoned.into_inner().push(line),
-        });
-        git::vcs_operation(&host, &label, path, Backend::next_request_id(), op, channel).await
-    })
-    .await?;
-    refresh(this, cx).await?;
-    let output = match lines.lock() {
-        Ok(lines) => lines.clone(),
-        Err(poisoned) => poisoned.into_inner().clone(),
-    };
-    let rebasing = vcs_state(this, cx, |state| {
-        in_progress(state.branch.as_ref().and_then(|branch| branch.operation.as_deref())) == Some(InProgress::Rebase)
-    })?;
-    let mut actions = Vec::new();
-    if ran.is_ok()
-        && !rebasing
-        && let Some((undone, key)) = undo
-        && let (Some(before), Some(after)) = (before, head_commit(this, cx, repo.clone()).await?)
-    {
-        let head = UndoHead { repo: repo.clone(), before, after, undone, key };
-        actions = this.update(cx, |workbench, _| workbench.undo_link(head))?;
-    }
-    let ok = ran.is_ok();
-    this.update_in(cx, |workbench, window, cx| {
-        let resolver = cx.try_global::<ActionRegistry>().is_some_and(|registry| registry.contains(RESOLVE_CONFLICTS));
-        let Some(slot) = workbench.vcs.as_mut() else { return };
-        slot.state.remote_busy = None;
-        for line in &output {
-            slot.console.log(ConsoleKind::Out, line, now_ms());
-        }
-        let notice = match &ran {
-            Ok(()) => {
-                let text = match stopped {
-                    Some(stopped) if rebasing => stopped.to_owned(),
-                    _ => success,
-                };
-                slot.console.log(ConsoleKind::Info, &text, now_ms());
-                let mut notice = vcs_notice(NotificationLevel::Info, text);
-                notice.actions = actions;
-                Some(notice)
-            }
-            Err(message) => {
-                slot.console.log(ConsoleKind::Err, message, now_ms());
-                // An operation stopped on conflicts is not an error: they open for resolving.
-                if conflicts_instead && resolver && !slot.state.conflicted_files().is_empty() {
-                    run_action_later(RESOLVE_CONFLICTS.to_owned(), None, window, cx);
-                    None
-                } else {
-                    let mut notice = vcs_notice(NotificationLevel::Error, failure);
-                    notice.body = Some(message.clone());
-                    Some(notice)
-                }
-            }
-        };
-        match notice {
-            Some(notice) => workbench.notify(NotificationRequest { key: Some(OPERATION_KEY.to_owned()), ..notice }, cx),
-            None => workbench.notifications.expire_notification(OPERATION_KEY),
-        }
-        workbench.vcs_state_changed(cx);
-    })?;
-    reload_log(this, cx)?;
-    Ok(ok)
-}
-
 /// Rewrites the branch from `base` with `entries`; a finished rewrite can be undone from its
-/// notification.
+/// notification, which then says `undone`.
 async fn run_rebase(
     this: &This,
     cx: &mut AsyncWindowContext,
@@ -515,18 +396,44 @@ async fn run_rebase(
     done: String,
     undone: &str,
 ) -> anyhow::Result<()> {
-    let (failure, undone) = texts(this, cx, |i18n| (i18n.tx("Rebase failed"), i18n.tx(undone)))?;
-    let operation = LogOperation {
+    let (failure, stopped, undone) = texts(this, cx, |i18n| {
+        (
+            i18n.tx("Rebase failed"),
+            i18n.tx("Rebase stopped for editing; continue the rebase when done"),
+            i18n.tx(undone),
+        )
+    })?;
+    let repo = vcs_state(this, cx, |state| state.repo.clone())?;
+    let before = head_commit(this, cx, repo.clone()).await?;
+    let run = GitRun {
         op: GitOperation::InteractiveRebase { base, entries },
         progress: "Rebasing",
-        success: done,
-        stopped: Some("Rebase stopped for editing; continue the rebase when done"),
+        success: done.clone(),
+        stopped: Some(stopped),
         failure,
         conflicts_instead: true,
-        undo: Some((undone, OPERATION_KEY.to_owned())),
     };
-    run_log_operation(this, cx, operation).await?;
-    Ok(())
+    let ok = run_git_operation(this, cx, run).await?;
+    let rebasing = vcs_state(this, cx, |state| {
+        in_progress(state.branch.as_ref().and_then(|branch| branch.operation.as_deref())) == Some(InProgress::Rebase)
+    })?;
+    if ok
+        && !rebasing
+        && let (Some(before), Some(after)) = (before, head_commit(this, cx, repo.clone()).await?)
+    {
+        let head = UndoHead { repo, before, after, undone, key: OPERATION_KEY.to_owned() };
+        this.update(cx, |workbench, cx| {
+            let actions = workbench.undo_link(head);
+            // The success notice is told again, now with its Undo button.
+            if !actions.is_empty() {
+                let mut notice = vcs_notice(NotificationLevel::Info, done);
+                notice.key = Some(OPERATION_KEY.to_owned());
+                notice.actions = actions;
+                workbench.notify(notice, cx);
+            }
+        })?;
+    }
+    reload_log(this, cx)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -572,17 +479,16 @@ async fn cherry_pick(this: This, cx: &mut AsyncWindowContext, commits: Vec<Commi
         let label = commits_label(&ordered, i18n);
         (i18n.tx_built(&["Cherry-picked ", ""], &[Param::from(label.as_str())]), i18n.tx("Cherry-pick failed"))
     })?;
-    let operation = LogOperation {
+    let run = GitRun {
         op: GitOperation::CherryPick { commits: ids, record_origin },
         progress: "Cherry-picking",
         success,
         stopped: None,
         failure,
         conflicts_instead: true,
-        undo: None,
     };
-    run_log_operation(&this, cx, operation).await?;
-    Ok(())
+    run_git_operation(&this, cx, run).await?;
+    reload_log(&this, cx)
 }
 
 async fn revert(this: This, cx: &mut AsyncWindowContext, commits: Vec<Commit>) -> anyhow::Result<()> {
@@ -590,7 +496,7 @@ async fn revert(this: This, cx: &mut AsyncWindowContext, commits: Vec<Commit>) -
         let label = commits_label(&commits, i18n);
         (i18n.tx_built(&["Reverted ", ""], &[Param::from(label.as_str())]), i18n.tx("Revert failed"))
     })?;
-    let operation = LogOperation {
+    let run = GitRun {
         // Newest first.
         op: GitOperation::Revert { commits: commits.iter().map(|commit| commit.id.clone()).collect() },
         progress: "Reverting",
@@ -598,45 +504,35 @@ async fn revert(this: This, cx: &mut AsyncWindowContext, commits: Vec<Commit>) -
         stopped: None,
         failure,
         conflicts_instead: true,
-        undo: None,
     };
-    run_log_operation(&this, cx, operation).await?;
-    Ok(())
+    run_git_operation(&this, cx, run).await?;
+    reload_log(&this, cx)
 }
 
-/// Reset Current Branch to Here…: the Git Reset dialog, then `git reset` in the chosen mode.
+/// Reset Current Branch to Here…: the Git Reset dialog on the commit, then `git reset` in the chosen
+/// mode.
 async fn reset_to(this: This, cx: &mut AsyncWindowContext, commit: Commit) -> anyhow::Result<()> {
     let id = short(&commit.id);
-    let answer = this.update_in(cx, |workbench, window, cx| {
-        let dialog = cx.new(|cx| ResetDialog::new(&id, &commit.summary, cx));
-        workbench.open_answer_dialog(
-            dialog,
-            |event: &ResetDialogEvent| {
-                let ResetDialogEvent::Closed(mode) = event;
-                *mode
-            },
-            window,
-            cx,
-        )
-    })?;
-    let Some(mode): Option<ResetMode> = answer.await.ok().flatten() else { return Ok(()) };
+    let form = ResetForm::on_commit(&commit.id, &id, &commit.summary);
+    let Some(FormAnswer::Reset { commit: target, mode }) = ask_form(&this, cx, Box::new(form)).await? else {
+        return Ok(());
+    };
     let head = vcs_state(&this, cx, |state| state.branch.as_ref().and_then(|branch| branch.head.clone()))?;
     let (success, failure) = texts(&this, cx, |i18n| {
-        let values =
-            [Param::from(head.as_deref().unwrap_or("HEAD")), Param::from(id.as_str()), Param::from(mode_name(mode))];
+        let head = head.as_deref().filter(|head| !head.is_empty()).unwrap_or("HEAD");
+        let values = [Param::from(head), Param::from(id.as_str()), Param::from(reset_mode_name(mode))];
         (i18n.tx_built(&["Reset ", " to ", " (", ")"], &values), i18n.tx("Reset failed"))
     })?;
-    let operation = LogOperation {
-        op: GitOperation::Reset { commit: commit.id.clone(), mode },
+    let run = GitRun {
+        op: GitOperation::Reset { commit: target, mode },
         progress: "Resetting",
         success,
         stopped: None,
         failure,
         conflicts_instead: false,
-        undo: None,
     };
-    run_log_operation(&this, cx, operation).await?;
-    Ok(())
+    run_git_operation(&this, cx, run).await?;
+    reload_log(&this, cx)
 }
 
 /// The diff window on the first of `files`, with the others to move along; `left` and `right` make
@@ -835,7 +731,6 @@ async fn edit_message(this: This, cx: &mut AsyncWindowContext, commit: Commit) -
         git::vcs_reword(&host, &label, path, target, message).await
     };
     let Some(change) = run_op(&this, cx, &op_title, None, false, work).await? else { return Ok(()) };
-    refresh(&this, cx).await?;
     reload_log(&this, cx)?;
     let key = format!("vcs.reword:{}", change.after);
     let head = UndoHead { repo, before: change.before, after: change.after, undone, key: key.clone() };
@@ -981,27 +876,17 @@ pub(super) async fn rebase_after_fixup(this: This, cx: &mut AsyncWindowContext, 
     run_rebase(&this, cx, range.base, plan, done, "Rebase undone").await
 }
 
-/// New Tag…: a lightweight tag on `commit`, named in a prompt that refuses a name in use.
+/// New Tag…: a lightweight tag on `commit`, named in a form that refuses a name in use.
 async fn new_tag(this: This, cx: &mut AsyncWindowContext, commit: Commit) -> anyhow::Result<()> {
     let current = vcs_state(&this, cx, |state| state.repo.clone())?;
+    let commit_id = commit.id.clone();
     let on = NewTagOn::new(&RepoCommit::from(commit), current.as_deref());
     let path = repo_path(on.repo());
     let tags = call(&this, cx, move |host, label| async move { git::vcs_tags(&host, &label, path).await }).await?;
     let existing = tags.unwrap_or_default();
     let request = texts(&this, cx, |i18n| on.prompt(i18n))?;
-    let answer = this.update_in(cx, move |workbench, window, cx| {
-        let dialog = cx.new(|cx| TagDialog::new(request, existing, cx));
-        workbench.open_answer_dialog(
-            dialog,
-            |event: &TagDialogEvent| {
-                let TagDialogEvent::Closed(name) = event;
-                name.clone()
-            },
-            window,
-            cx,
-        )
-    })?;
-    let Some(name) = answer.await.ok().flatten() else { return Ok(()) };
+    let form = TagForm::on_commit(request, &commit_id, existing);
+    let Some(FormAnswer::Tag { name, .. }) = ask_form(&this, cx, Box::new(form)).await? else { return Ok(()) };
     let create = texts(&this, cx, |i18n| on.create(&name, i18n))?;
     let (path, tag, target) = (repo_path(create.repo.as_deref()), create.name.clone(), create.commit.clone());
     let (message, force) = (create.message.clone(), create.force);
@@ -1214,15 +1099,40 @@ async fn revert_changes(
     notify(&this, cx, vcs_notice(NotificationLevel::Info, title))
 }
 
+/// The commits of `repo`'s current branch that are not on its upstream (`@{u}..HEAD`); `None` when
+/// the branch tracks no upstream or the range cannot be read, so that no commit counts as pushed.
+async fn outgoing_commits(
+    this: &This,
+    cx: &mut AsyncWindowContext,
+    repo: Option<String>,
+) -> anyhow::Result<Option<HashSet<String>>> {
+    let path = repo_path(repo.as_deref());
+    let read = call(this, cx, move |host, label| async move {
+        let info = git::vcs_branch_info(&host, &label, path.clone()).await?;
+        if info.upstream.as_deref().is_none_or(str::is_empty) {
+            return Ok(None);
+        }
+        let query = LogQuery {
+            branch: Some("HEAD".to_owned()),
+            range: Some("@{u}..HEAD".to_owned()),
+            limit: 0,
+            ..LogQuery::default()
+        };
+        let commits = git::vcs_log(&host, &label, path, query).await?;
+        Ok(Some(commits.into_iter().map(|commit| commit.id).collect::<HashSet<String>>()))
+    })
+    .await?;
+    // A missing upstream does not keep the menu from showing.
+    Ok(read.unwrap_or_else(|error| {
+        tracing::debug!("the outgoing commits cannot be read: {error}");
+        None
+    }))
+}
+
 // -------------------------------------------------------------------------------------------------
 // The workbench
 
 impl Workbench {
-    /// The log of the Git tool window, once the window was shown.
-    fn git_log_view(&self) -> Option<Entity<GitLog>> {
-        self.tool_window_view(GIT_TOOL_WINDOW).and_then(|view| view.downcast::<GitLog>().ok())
-    }
-
     /// The commits a commit action acts on: those `arg` names (a key or a list of keys), else the
     /// log's selection; newest first as the log lists them.
     fn log_commits(&self, arg: Option<&Value>, cx: &App) -> Vec<Commit> {
@@ -1287,6 +1197,7 @@ impl Workbench {
                 let ids: Vec<&str> = commits.iter().map(|commit| commit.id.as_str()).collect();
                 cx.write_to_clipboard(ClipboardItem::new_string(ids.join(" ")));
             }
+            CommitAction::CreatePatch => self.open_create_patch_for_commits(commits, window, cx),
             CommitAction::CherryPick => {
                 cx.spawn_in(window, async move |this, cx| finished(cherry_pick(this, cx, commits).await)).detach()
             }
@@ -1360,10 +1271,29 @@ impl Workbench {
         }
     }
 
-    /// The commit context menu of the log's selected commit, at `position`: IDEA's rows, each an
-    /// action on the commit or a row of a branch's menu. The log reads no outgoing commits here, so no
-    /// commit counts as pushed and the history rewriting rows are enabled.
+    /// The commit context menu of the log's selected commit, at `position`, once the commits not yet
+    /// on the current branch's upstream are read: IDEA's rows, each an action on the commit or a row of
+    /// a branch's menu. A commit that is on the upstream has its history rewriting rows disabled.
     pub(super) fn show_commit_menu(&mut self, position: Point<Pixels>, window: &mut Window, cx: &mut Context<Self>) {
+        let repo = self.vcs_state().and_then(|state| state.repo.clone());
+        cx.spawn_in(window, async move |this, cx| {
+            let shown = async {
+                let outgoing = outgoing_commits(&this, cx, repo).await?;
+                this.update_in(cx, |workbench, window, cx| workbench.open_commit_menu(position, outgoing, window, cx))
+            };
+            finished(shown.await);
+        })
+        .detach();
+    }
+
+    /// [`Workbench::show_commit_menu`] with the outgoing commits read: `None` without an upstream.
+    fn open_commit_menu(
+        &mut self,
+        position: Point<Pixels>,
+        outgoing: Option<HashSet<String>>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(log) = self.git_log_view() else { return };
         let Some(commit) = log.read(cx).selected().cloned() else { return };
         let Some(vcs) = self.vcs_state().cloned() else { return };
@@ -1371,7 +1301,8 @@ impl Workbench {
         // The branches whose tip is the commit bring their own submenus.
         let ref_branches = vcs.branches.iter().filter(|branch| branch.commit == commit.id).cloned().collect();
         let selected = RepoCommit { ref_branches, ..RepoCommit::from(commit) };
-        let model = LogModel::default();
+        let mut model = LogModel::default();
+        model.outgoing = outgoing;
         let context = CommitMenuContext { log: &model, vcs: &vcs, bookmarked: false, favorites: favorites.as_deref() };
         let i18n = &mut cx.default_global::<Localization>().0;
         let items = commit_menu(&selected, std::slice::from_ref(&selected), context, i18n);
@@ -1394,6 +1325,26 @@ impl Workbench {
             window,
             cx,
         );
+    }
+
+    /// Create Patch… of commits: the Create Patch dialog on the changes `commits` (newest first)
+    /// made, suggesting a file in the project's root named after them.
+    fn open_create_patch_for_commits(&mut self, commits: Vec<Commit>, window: &mut Window, cx: &mut Context<Self>) {
+        let vcs = self.vcs_state().cloned().unwrap_or_default();
+        let root = vcs.root.clone().unwrap_or_default();
+        let file = format!("{root}/{}", suggested_patch_name(PatchOrigin::Commits(&commits), ""));
+        let described = match commits.as_slice() {
+            [one] => format!("{} {}", one.short_id, one.summary),
+            many => format!("{} commits", many.len()),
+        };
+        // The patch applies the commits oldest first.
+        let mut ordered = commits;
+        ordered.sort_by(|a, b| a.time_ms.total_cmp(&b.time_ms));
+        let from = PatchMade::Repo {
+            repo: vcs.current_repo_root().map(str::to_owned),
+            commits: ordered.into_iter().map(|commit| commit.id).collect(),
+        };
+        self.open_create_patch(CreatePatchSource::Described(described), &file, true, from, window, cx);
     }
 
     /// Fixup… / Squash Into…: a `fixup!` / `squash!` message of the local changes for `target` in the
@@ -1644,80 +1595,20 @@ impl Workbench {
 #[cfg(test)]
 mod tests {
     use super::super::COMMIT_TOOL_WINDOW;
+    use super::super::tests::{
+        branch_label, git_in, git_project, init_repo, notice_titled, notification_titles, retype, run_action,
+        wait_for_notice, wait_for_prompt, wait_long,
+    };
     use super::*;
-    use crate::backend::AppDirs;
-    use crate::platform::actions::{action_toggled, execute_action_or_throw};
+    use crate::platform::actions::action_toggled;
+    use crate::vcs::git_form_dialog::GitFormDialog;
+    use crate::vcs::log_view::GitLog;
+    use crate::vcs::patch_dialogs::CreatePatchDialog;
     use crate::vcs_more::log_presentation::{LogFragments, present_log_graph};
     use crate::workbench::notification_balloons::EntryAction;
     use gpui_kit::{TestAppContext, VisualTestContext};
+    use ide_vcs::ResetMode;
     use std::path::Path;
-
-    fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
-        cx.executor().allow_parking();
-        let home = tempfile::tempdir().expect("a temporary home");
-        cx.update(|cx| {
-            cx.set_global(crate::theme::ActiveTheme::default());
-            crate::platform::input::init(cx);
-            crate::editor::actions::register(cx);
-            super::super::register_actions(cx);
-            cx.set_global(UiStorage::default());
-            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
-            super::super::menu::init(cx);
-            crate::terminal::test_support::isolate_shells(home.path(), cx);
-        });
-        home
-    }
-
-    /// Waits for `done` while processes run and their timers fire.
-    fn wait_long(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..3000 {
-            cx.executor().advance_clock(Duration::from_millis(20));
-            cx.run_until_parked();
-            if done(cx) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        panic!("{what} did not happen within thirty seconds");
-    }
-
-    fn run_action(cx: &mut VisualTestContext, id: &str, arg: Option<Value>) {
-        cx.update(|window, cx| execute_action_or_throw(id, arg.as_ref(), window, cx))
-            .unwrap_or_else(|error| panic!("{id} runs: {error}"));
-        cx.run_until_parked();
-    }
-
-    /// Runs git in `dir` without the machine's own configuration; its output, trimmed.
-    fn git_in(dir: &Path, args: &[&str]) -> String {
-        let run = || {
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(dir)
-                .env("GIT_CONFIG_GLOBAL", "/dev/null")
-                .env("GIT_CONFIG_SYSTEM", "/dev/null")
-                .output()
-                .expect("git runs")
-        };
-        let mut output = run();
-        // The open window reads the repository too, which holds its index for a moment.
-        for _ in 0..100 {
-            if output.status.success() || !String::from_utf8_lossy(&output.stderr).contains("index.lock") {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(20));
-            output = run();
-        }
-        assert!(output.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&output.stderr));
-        String::from_utf8_lossy(&output.stdout).trim().to_owned()
-    }
-
-    /// A repository on `main` with an identity of its own and a first commit of `a.txt`.
-    fn init_repo(root: &Path) {
-        git_in(root, &["init", "-q", "-b", "main"]);
-        git_in(root, &["config", "user.name", "Ada"]);
-        git_in(root, &["config", "user.email", "ada@example.test"]);
-        commit_file(root, "a.txt", "one\n", "first");
-    }
 
     fn commit_file(root: &Path, file: &str, text: &str, message: &str) {
         if let Some(dir) = root.join(file).parent() {
@@ -1740,30 +1631,6 @@ mod tests {
         std::fs::read_to_string(root.join(file)).expect("the file is read")
     }
 
-    fn branch_label(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> String {
-        let Some(widget) = workbench.read_with(cx, |w, _| w.branch_widget().cloned()) else { return String::new() };
-        widget.update(cx, |widget, cx| widget.label(&mut cx.default_global::<Localization>().0))
-    }
-
-    /// A trusted project on a repository `prepare` makes, open in a window whose branch widget has
-    /// read it.
-    fn git_project(
-        cx: &mut TestAppContext,
-        prepare: impl FnOnce(&Path),
-    ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf) {
-        let home = start(cx);
-        let folder = tempfile::tempdir().expect("a temporary folder");
-        let root = folder.path().canonicalize().expect("the folder exists");
-        prepare(&root);
-        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
-        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
-        cx.update(|window, _| window.activate_window());
-        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-        wait_long(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
-        wait_long(cx, "the repository is read", |cx| !branch_label(&workbench, cx).is_empty());
-        (workbench, cx, [home, folder], root)
-    }
-
     /// Shows the Git tool window and waits until its log lists at least `count` commits.
     fn show_log(workbench: &Entity<Workbench>, count: usize, cx: &mut VisualTestContext) -> Entity<GitLog> {
         run_action(cx, "toolwindow.git", None);
@@ -1782,43 +1649,9 @@ mod tests {
         log.read_with(cx, |log, _| log.selected().map(|commit| commit.id.clone()))
     }
 
-    fn notification_titles(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
-        workbench.read_with(cx, |w, _| w.notifications().items().iter().map(|n| n.title.clone()).collect())
-    }
-
-    fn wait_for_notice(workbench: &Entity<Workbench>, title: &str, cx: &mut VisualTestContext) {
-        wait_long(cx, &format!("the notice {title}"), |cx| {
-            notification_titles(workbench, cx).iter().any(|n| n == title)
-        });
-    }
-
-    fn notice_titled(
-        workbench: &Entity<Workbench>,
-        title: &str,
-        cx: &mut VisualTestContext,
-    ) -> Option<super::super::notifications::IdeNotification> {
-        workbench.read_with(cx, |w, _| w.notifications().items().iter().find(|n| n.title == title).cloned())
-    }
-
-    fn wait_for_prompt(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Entity<PromptDialog> {
-        wait_long(cx, "the dialog", |cx| workbench.read_with(cx, |w, _| w.vcs_prompt().is_some()));
-        workbench.read_with(cx, |w, _| w.vcs_prompt()).expect("the dialog is open")
-    }
-
     fn wait_for_dialog<V: 'static>(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Entity<V> {
         wait_long(cx, "the dialog", |cx| workbench.read_with(cx, |w, _| w.vcs_dialog_view::<V>().is_some()));
         workbench.read_with(cx, |w, _| w.vcs_dialog_view::<V>()).expect("the dialog is open")
-    }
-
-    /// Replaces the text of the prompt's field by typing.
-    fn retype(dialog: &Entity<PromptDialog>, text: &str, cx: &mut VisualTestContext) {
-        let field = dialog.read_with(cx, |dialog, _| dialog.field().cloned()).expect("the dialog has a field");
-        let typed = field.read_with(cx, |field, _| field.text().chars().count());
-        for _ in 0..typed {
-            cx.simulate_keystrokes("backspace");
-        }
-        cx.simulate_input(text);
-        cx.run_until_parked();
     }
 
     /// Answers the commit message dialog with `message`.
@@ -1899,13 +1732,18 @@ mod tests {
         let (notes, two, three) = (rev(&root, "HEAD~2"), rev(&root, "HEAD~1"), rev(&root, "HEAD"));
         let reset = |commit: &str, mode: ResetMode, cx: &mut VisualTestContext| {
             run_action(cx, "vcs.log.resetToHere", Some(json!(commit)));
-            let dialog = wait_for_dialog::<ResetDialog>(&workbench, cx);
-            assert_eq!(dialog.read_with(cx, |dialog, _| dialog.mode()), ResetMode::Mixed, "Mixed is chosen first");
-            dialog.update(cx, |dialog, cx| {
-                dialog.set_mode(mode, cx);
-                dialog.press(crate::vcs::log_reset_dialog::RESET, cx);
+            let dialog = wait_for_dialog::<GitFormDialog>(&workbench, cx);
+            let rows = dialog.update(cx, |dialog, cx| dialog.spec(cx).rows);
+            let chosen = rows.iter().find_map(|row| match row {
+                crate::vcs::git_forms::FormRow::Radio { id: "mode", value, .. } => Some(value.clone()),
+                _ => None,
             });
-            wait_for_notice(&workbench, &format!("Reset main to {} ({})", short(commit), mode_name(mode)), cx);
+            assert_eq!(chosen.as_deref(), Some("mixed"), "Mixed is chosen first");
+            dialog.update(cx, |dialog, cx| {
+                dialog.choose("mode", reset_mode_name(mode), cx);
+                dialog.press(crate::vcs::git_forms::OK, cx);
+            });
+            wait_for_notice(&workbench, &format!("Reset main to {} ({})", short(commit), reset_mode_name(mode)), cx);
         };
 
         reset(&two, ResetMode::Soft, cx);
@@ -2101,6 +1939,10 @@ mod tests {
         assert_eq!(subjects_in(&root), ["five", "two reworded", "first"]);
         assert!(!root.join("c.txt").exists(), "the dropped commit's file is gone");
         assert!(["b.txt", "d.txt", "e.txt"].iter().all(|file| root.join(file).exists()));
+        // The notice is told again with Undo once HEAD after the rebase is read.
+        wait_long(cx, "the Undo button", |cx| {
+            notice_titled(&workbench, "Rebase finished", cx).is_some_and(|notice| !notice.actions.is_empty())
+        });
         let notice = notice_titled(&workbench, "Rebase finished", cx).expect("the rebase is told");
         assert_eq!(notice.actions.iter().map(|action| action.label.as_str()).collect::<Vec<_>>(), ["Undo"]);
     }
@@ -2127,14 +1969,15 @@ mod tests {
         assert_eq!(rev(&root, "from-two"), two);
 
         run_action(cx, "vcs.log.newTag", Some(json!(first)));
-        let dialog = wait_for_dialog::<TagDialog>(&workbench, cx);
-        let title = dialog.read_with(cx, |dialog, _| dialog.title().to_owned());
+        let dialog = wait_for_dialog::<GitFormDialog>(&workbench, cx);
+        let title = dialog.update(cx, |dialog, cx| dialog.title(cx));
         assert_eq!(title, format!("Create New Tag On {}", short(&first)));
         cx.simulate_input("v1");
         cx.run_until_parked();
-        assert_eq!(dialog.update(cx, |dialog, cx| dialog.errors(cx)), ["Tag 'v1' already exists"]);
+        let rows = dialog.update(cx, |dialog, cx| dialog.spec(cx).rows);
+        assert!(rows.contains(&crate::vcs::git_forms::FormRow::Error("Tag 'v1' already exists".to_owned())));
         cx.simulate_keystrokes("enter");
-        assert!(workbench.read_with(cx, |w, _| w.vcs_dialog_view::<TagDialog>().is_some()), "a tag in use is refused");
+        assert!(workbench.read_with(cx, |w, _| w.git_form_dialog().is_some()), "a tag in use is refused");
         cx.simulate_keystrokes("backspace backspace");
         cx.simulate_input("v0");
         cx.simulate_keystrokes("enter");
@@ -2478,9 +2321,7 @@ mod tests {
         let log = show_log(&workbench, 2, cx);
         log.update(cx, |log, cx| log.select(0, cx));
         let choose = |row: &str, cx: &mut VisualTestContext| {
-            let position = gpui_kit::point(px(40.0), px(40.0));
-            workbench.update_in(cx, |w, window, cx| w.show_commit_menu(position, window, cx));
-            let menu = workbench.read_with(cx, |w, _| w.open_menu::<LogCommand>()).expect("the menu is open");
+            let menu = commit_menu_of(&workbench, cx);
             let lines = |cx: &mut VisualTestContext| menu.read_with(cx, |menu, _| menu.lines().remove(0));
             assert!(lines(cx).iter().any(|line| line == row), "{row} is in {:?}", lines(cx));
             for _ in 0..lines(cx).len() {
@@ -2494,9 +2335,7 @@ mod tests {
         };
         let rows = ["Copy Revision Number", "Cherry-Pick", "Reset Current Branch to Here…", "Undo Commit…"];
         for row in rows {
-            let position = gpui_kit::point(px(40.0), px(40.0));
-            workbench.update_in(cx, |w, window, cx| w.show_commit_menu(position, window, cx));
-            let menu = workbench.read_with(cx, |w, _| w.open_menu::<LogCommand>()).expect("the menu is open");
+            let menu = commit_menu_of(&workbench, cx);
             let lines = menu.read_with(cx, |menu, _| menu.lines().remove(0));
             assert!(lines.iter().any(|line| line == row), "{row} is in {lines:?}");
             cx.simulate_keystrokes("escape");
@@ -2508,5 +2347,125 @@ mod tests {
         assert!(copied.starts_with("Second"), "{copied:?}");
         choose("Copy Revision Number", cx);
         assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()), Some(rev(&root, "HEAD")));
+    }
+
+    /// The commit context menu of the log's selected commit, once it shows.
+    fn commit_menu_of(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> Entity<crate::ui::popup_menu::PopupMenu<LogCommand>> {
+        let position = gpui_kit::point(px(40.0), px(40.0));
+        workbench.update_in(cx, |w, window, cx| w.show_commit_menu(position, window, cx));
+        wait_long(cx, "the commit menu", |cx| workbench.read_with(cx, |w, _| w.open_menu::<LogCommand>().is_some()));
+        workbench.read_with(cx, |w, _| w.open_menu::<LogCommand>()).expect("the menu is open")
+    }
+
+    /// Whether the commit menu's row `label` is disabled.
+    fn row_disabled(
+        menu: &Entity<crate::ui::popup_menu::PopupMenu<LogCommand>>,
+        label: &str,
+        cx: &mut VisualTestContext,
+    ) -> bool {
+        let disabled =
+            menu.read_with(cx, |menu, _| menu.rows().iter().find(|row| row.label == label).map(|row| row.disabled));
+        disabled.unwrap_or_else(|| panic!("{label} is a row of the menu"))
+    }
+
+    /// A commit already on the branch's upstream (a local bare repository) has the history rewriting
+    /// rows of its menu disabled, and Push All up to Here… too; a commit made since keeps them.
+    #[gpui_kit::test]
+    async fn the_commit_menu_disables_history_rewriting_for_a_pushed_commit(cx: &mut TestAppContext) {
+        let remote = tempfile::tempdir().expect("a temporary folder");
+        let parent = remote.path().canonicalize().expect("the folder exists");
+        let bare = parent.join("origin.git");
+        let bare_path = bare.to_string_lossy().into_owned();
+        git_in(&parent, &["init", "-q", "--bare", "-b", "main", &bare_path]);
+        let (workbench, cx, _folders, _root) = git_project(cx, |root| {
+            init_repo(root);
+            commit_file(root, "b.txt", "b\n", "pushed");
+            git_in(root, &["remote", "add", "origin", &bare_path]);
+            git_in(root, &["push", "-q", "-u", "origin", "main"]);
+            commit_file(root, "c.txt", "c\n", "local");
+        });
+        let log = show_log(&workbench, 3, cx);
+        let rewriting =
+            ["Edit Commit Message…", "Fixup…", "Squash Into…", "Drop Commit", "Interactively Rebase from Here…"];
+
+        // The newest commit is not on the upstream yet.
+        log.update(cx, |log, cx| log.select(0, cx));
+        let menu = commit_menu_of(&workbench, cx);
+        for row in rewriting {
+            assert!(!row_disabled(&menu, row, cx), "{row} is enabled for a local commit");
+        }
+        assert!(!row_disabled(&menu, "Push All up to Here…", cx));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+
+        // The one below it was pushed.
+        log.update(cx, |log, cx| log.select(1, cx));
+        let menu = commit_menu_of(&workbench, cx);
+        for row in rewriting {
+            assert!(row_disabled(&menu, row, cx), "{row} is disabled for a pushed commit");
+        }
+        assert!(row_disabled(&menu, "Push All up to Here…", cx), "it is on the upstream already");
+        assert!(!row_disabled(&menu, "Reset Current Branch to Here…", cx), "a reset does not rewrite the upstream");
+        cx.simulate_keystrokes("escape");
+    }
+
+    /// Create Patch… of two commits suggests a file in the project's root named after them, writes
+    /// their changes oldest first, and the patch takes them back off in a clean clone (`--reverse`).
+    #[gpui_kit::test]
+    async fn create_patch_of_commits_writes_their_changes_oldest_first(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            // Author dates a day apart: the patch orders the commits by them.
+            for (file, text, message, date) in [
+                ("a.txt", "two\n", "second", "2026-01-01T10:00:00"),
+                ("b.txt", "bee\n", "third", "2026-01-02T10:00:00"),
+            ] {
+                std::fs::write(root.join(file), text).expect("the file is written");
+                git_in(root, &["add", "."]);
+                git_in(root, &["commit", "-q", "--date", date, "-m", message]);
+            }
+        });
+        let log = show_log(&workbench, 3, cx);
+        let (second, third) = (rev(&root, "HEAD~1"), rev(&root, "HEAD"));
+        run_action(cx, "vcs.log.createPatch", Some(json!([third, second])));
+        let create = wait_for_dialog::<CreatePatchDialog>(&workbench, cx);
+        let source = create.read_with(cx, |d, _| d.source().clone());
+        assert_eq!(source, CreatePatchSource::Described("2 commits".to_owned()));
+        assert_eq!(create.read_with(cx, |d, cx| d.file(cx)), format!("{}/2_commits.patch", root.to_string_lossy()));
+        assert_eq!(create.read_with(cx, |d, _| d.reverse()), Some(false), "a commits' patch can be reversed");
+        let out = tempfile::tempdir().expect("a temporary folder");
+        let file = out.path().join("commits.patch");
+        create.update(cx, |d, cx| {
+            d.set_file(&file.to_string_lossy(), cx);
+            d.press(crate::vcs::prompt_dialogs::OK, cx);
+        });
+        wait_for_notice(&workbench, "Patch saved to commits.patch", cx);
+        // Settings › Version Control › Confirmation asks whether to show the file: no.
+        wait_for_prompt(&workbench, cx);
+        cx.simulate_keystrokes("escape");
+        let patch = std::fs::read_to_string(&file).expect("the patch is written");
+        let (a, b) = (patch.find("a/a.txt").expect("a.txt is in it"), patch.find("a/b.txt").expect("b.txt too"));
+        assert!(a < b, "the older commit's change comes first: {patch}");
+        let clones = tempfile::tempdir().expect("a temporary folder");
+        let clone = clones.path().join("clone");
+        git_in(clones.path(), &["clone", "-q", &root.to_string_lossy(), &clone.to_string_lossy()]);
+        git_in(&clone, &["apply", "--check", "--reverse", &file.to_string_lossy()]);
+
+        // One commit is described by its hash and subject, and named after its subject.
+        run_action(cx, "vcs.log.createPatch", Some(json!(second)));
+        let create = wait_for_dialog::<CreatePatchDialog>(&workbench, cx);
+        let short_id = log.read_with(cx, |log, _| {
+            log.commits().iter().find(|commit| commit.id == second).map(|commit| commit.short_id.clone())
+        });
+        let line = create.read_with(cx, |d, _| d.source().clone());
+        let expected = format!("{} second", short_id.expect("the commit is listed"));
+        assert_eq!(line, CreatePatchSource::Described(expected));
+        assert_eq!(create.read_with(cx, |d, cx| d.file(cx)), format!("{}/second.patch", root.to_string_lossy()));
+        create.update(cx, |d, cx| d.press(crate::vcs::prompt_dialogs::CANCEL, cx));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.vcs_dialog_view::<CreatePatchDialog>().is_none()));
     }
 }

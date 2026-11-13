@@ -1,0 +1,280 @@
+--- a/docs/gpui-port/gen-data.mjs
++++ b/docs/gpui-port/gen-data.mjs
+@@ -7,9 +7,10 @@
+ //   icons.json          icon name → SVG path under `src/ui/` (the `ICONS` table)
+ //
+ // The TypeScript sources stay the source of truth while both apps exist. Run from the
+-// repository root: `node docs/gpui-port/gen-data.mjs` (`--check` fails when a file is stale).
++// repository root: `node docs/gpui-port/gen-data.mjs` (`--check` fails when a file is stale;
++// `--out <dir>` writes, or checks, another directory).
+ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+-import { join } from "node:path";
++import { join, resolve } from "node:path";
+ import vm from "node:vm";
+ import ts from "typescript";
+ import {
+@@ -25,9 +26,13 @@
+   isAction,
+   callsOf,
+   pointName,
++  returnedExpressions,
+ } from "./tsmodel.mjs";
+ 
+-const outDir = join(root, "app-gpui/assets/gen");
++// `--out <dir>` writes (or, with `--check`, compares) somewhere other than `app-gpui/assets/gen/`.
++const outFlag = process.argv.indexOf("--out");
++if (outFlag !== -1 && !process.argv[outFlag + 1]) throw new Error("--out needs a directory");
++const outDir = outFlag === -1 ? join(root, "app-gpui/assets/gen") : resolve(process.argv[outFlag + 1]);
+ const check = process.argv.includes("--check");
+ const stale = [];
+ function emit(name, value) {
+@@ -39,7 +44,7 @@
+   }
+   mkdirSync(outDir, { recursive: true });
+   writeFileSync(file, text);
+-  console.log(`wrote app-gpui/assets/gen/${name}`);
++  console.log(`wrote ${file}`);
+ }
+ 
+ // ---------------------------------------------------------------------------------------------
+@@ -87,9 +92,54 @@
+ 
+ const NONE = Symbol("not static");
+ 
++/** An `env` binding to a value already computed (a mapped element, a record spread by a wrapper). */
++class Bound {
++  constructor(value) {
++    this.value = value;
++  }
++}
++
++/** The function an identifier callee names, when it has a single body (no overloads). */
++function functionOf(callee) {
++  if (!ts.isIdentifier(callee)) return null;
++  const declarations = declarationsOf(callee);
++  if (declarations.length !== 1) return null;
++  const d = declarations[0];
++  if (ts.isFunctionDeclaration(d)) return d.body ? d : null;
++  const init = ts.isVariableDeclaration(d) && d.parent.flags & ts.NodeFlags.Const && d.initializer && unwrap(d.initializer);
++  return init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) ? init : null;
++}
++
++/** What `fn` always returns: its expression body, or the one `return` directly in its block. */
++function returnOf(fn) {
++  if (!fn?.body) return null;
++  if (!ts.isBlock(fn.body)) return fn.body;
++  const returns = returnedExpressions(fn);
++  return returns.length === 1 && fn.body.statements.some((s) => ts.isReturnStatement(s) && s.expression === returns[0])
++    ? returns[0]
++    : null;
++}
++
++/** `fn`'s parameters bound to `args` (nodes, or `Bound` values), evaluated in `outer`. */
++function bind(fn, args, outer) {
++  const env = new Map();
++  env.outer = outer;
++  fn.parameters.forEach((parameter, i) => {
++    const symbol = checker.getSymbolAtLocation(parameter.name);
++    if (symbol) env.set(symbol, args[i] ?? parameter.initializer ?? null);
++  });
++  return env;
++}
++
++/** The value of `fn(...args)` when `fn` returns a single expression of its parameters. */
++function staticCall(fn, args, env, depth) {
++  const body = returnOf(fn);
++  return body ? staticValue(body, bind(fn, args, env), depth + 1) : NONE;
++}
++
+ function staticValue(node, env, depth = 0) {
+   node = unwrap(node);
+-  if (!node || depth > 8) return NONE;
++  if (!node || depth > 16) return NONE;
+   if (ts.isStringLiteralLike(node)) return node.text;
+   if (ts.isNumericLiteral(node)) return Number(node.text);
+   if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
+@@ -115,13 +165,60 @@
+     return out;
+   }
+   if (ts.isObjectLiteralExpression(node)) return staticObject(node, env, depth + 1);
++  // `${a} && ${b}` and `a + b` over static strings and numbers.
++  if (ts.isTemplateExpression(node)) {
++    let out = node.head.text;
++    for (const span of node.templateSpans) {
++      const v = staticValue(span.expression, env, depth + 1);
++      if (!["string", "number", "boolean"].includes(typeof v)) return NONE;
++      out += String(v) + span.literal.text;
++    }
++    return out;
++  }
++  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
++    const l = staticValue(node.left, env, depth + 1);
++    const r = staticValue(node.right, env, depth + 1);
++    const ok = (v) => typeof v === "string" || typeof v === "number";
++    return ok(l) && ok(r) && (typeof l === "string" || typeof r === "string") ? l + r : NONE;
++  }
++  if (ts.isCallExpression(node)) {
++    const callee = unwrap(node.expression);
++    // `LIST.map((x) => …)` and `LIST.join(" || ")` over a static array.
++    if (ts.isPropertyAccessExpression(callee) && ["map", "join"].includes(callee.name.text)) {
++      const list = staticValue(callee.expression, env, depth + 1);
++      if (!Array.isArray(list) || node.arguments.length > 1) return NONE;
++      if (callee.name.text === "join") {
++        const separator = node.arguments[0] ? staticValue(node.arguments[0], env, depth + 1) : ",";
++        const joinable = list.every((v) => typeof v === "string" || typeof v === "number");
++        return typeof separator === "string" && joinable ? list.join(separator) : NONE;
++      }
++      const fn = node.arguments[0] && unwrap(node.arguments[0]);
++      if (!fn || !(ts.isArrowFunction(fn) || ts.isFunctionExpression(fn))) return NONE;
++      // Strings only: the shape conditions are built with (`LANGUAGES.map((id) => `x == ${id}`)`).
++      const out = list.map((v, i) => staticCall(fn, [new Bound(v), new Bound(i)], env, depth));
++      return out.every((v) => typeof v === "string") ? out : NONE;
++    }
++    // A call of a local function that builds a string from its parameters (`contextKey("x")`).
++    const fn = functionOf(callee);
++    if (fn) {
++      const v = staticCall(fn, node.arguments, env, depth);
++      if (typeof v === "string") return v;
++    }
++  }
+   if (ts.isIdentifier(node)) {
+     if (node.text === "undefined") return NONE;
+-    const symbol = ts.isShorthandPropertyAssignment(node.parent)
+-      ? checker.getShorthandAssignmentValueSymbol(node.parent)
+-      : checker.getSymbolAtLocation(node);
+-    if (symbol && env?.has(symbol)) return env.get(symbol) ? staticValue(env.get(symbol), env.outer, depth + 1) : NONE;
+-    for (const d of declarationsOf(node)) {
++    // For a shorthand `{ when }` the location's symbol is the property; the value is the variable.
++    let symbol =
++      ts.isShorthandPropertyAssignment(node.parent) && node.parent.name === node
++        ? checker.getShorthandAssignmentValueSymbol(node.parent)
++        : checker.getSymbolAtLocation(node);
++    if (symbol && env?.has(symbol)) {
++      const bound = env.get(symbol);
++      if (bound instanceof Bound) return bound.value;
++      return bound ? staticValue(bound, env.outer, depth + 1) : NONE;
++    }
++    if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
++    for (const d of symbol?.declarations ?? []) {
+       if (ts.isVariableDeclaration(d) && d.initializer && d.parent.flags & ts.NodeFlags.Const) {
+         const v = staticValue(d.initializer, undefined, depth + 1);
+         if (v !== NONE) return v;
+@@ -221,7 +318,79 @@
+ }
+ 
+ // ---------------------------------------------------------------------------------------------
++
++/** `node` and its parent, past parentheses and type assertions. */
++function outerOf(node) {
++  while (node.parent && unwrap(node.parent) !== node.parent && node.parent.expression === node) node = node.parent;
++  return [node, node.parent];
++}
++
++/** The object literal `fn` returns when it spreads its parameter `index` (`(a) => ({ …defaults, ...a })`). */
++function spreadingReturn(fn, index) {
++  const object = fn && unwrap(returnOf(fn));
++  const parameter = fn?.parameters[index] && checker.getSymbolAtLocation(fn.parameters[index].name);
++  if (!object || !parameter || !ts.isObjectLiteralExpression(object)) return null;
++  const spreads = object.properties.some(
++    (p) =>
++      ts.isSpreadAssignment(p) &&
++      ts.isIdentifier(unwrap(p.expression)) &&
++      checker.getSymbolAtLocation(unwrap(p.expression)) === parameter,
++  );
++  return spreads ? object : null;
++}
++
++/**
++ * The wrapper an action literal (or factory call) flows into before it is registered: an argument
++ * of a helper that spreads it over defaults (`tree({ id, … })`), or an element of an array, returned
++ * as is or by a function, that `.map((a) => ({ ...a, run }))` completes. `null` when there is none.
++ */
++function wrapperOf(node) {
++  const [n, parent] = outerOf(node);
++  if (ts.isCallExpression(parent) && parent.arguments.includes(n)) {
++    const fn = functionOf(unwrap(parent.expression));
++    const index = parent.arguments.indexOf(n);
++    const object = spreadingReturn(fn, index);
++    return object && { object, fn, index, args: parent.arguments, next: parent };
++  }
++  if (!ts.isArrayLiteralExpression(parent)) return null;
++  const [array, holder] = outerOf(parent);
++  const fn = ts.isReturnStatement(holder) ? holder.parent?.parent : holder;
++  const lists = fn && ts.isFunctionLike(fn) && returnOf(fn) && unwrap(returnOf(fn)) === parent ? callsOf(fn) : [array];
++  for (const list of lists) {
++    const [receiver, access] = outerOf(list);
++    if (!ts.isPropertyAccessExpression(access) || access.expression !== receiver || access.name.text !== "map") continue;
++    const call = access.parent;
++    const mapper = ts.isCallExpression(call) && call.expression === access && call.arguments[0] && unwrap(call.arguments[0]);
++    if (!mapper || !(ts.isArrowFunction(mapper) || ts.isFunctionExpression(mapper))) continue;
++    const object = spreadingReturn(mapper, 0);
++    if (object) return { object, fn: mapper, index: 0, args: [], next: call };
++  }
++  return null;
++}
+ 
++/** `record` (the static record of `site`) after the wrappers it flows through. */
++function wrapped(record, site) {
++  for (let depth = 0; depth < 4; depth++) {
++    const wrapper = wrapperOf(site);
++    if (!wrapper) break;
++    const args = wrapper.fn.parameters.map((_, i) => (i === wrapper.index ? new Bound(record) : wrapper.args[i]));
++    record = staticObject(wrapper.object, bind(wrapper.fn, args));
++    site = wrapper.next;
++  }
++  return record;
++}
++
++/**
++ * Actions whose condition cannot be resolved statically, by id (by file for an id built at run
++ * time), each with the reason the native app does not need it. Any other unresolved `when` /
++ * `keyWhen` fails the generator.
++ */
++const UNRESOLVED_CONDITIONS = {
++  "src/features/vcs/mergeActions.ts":
++    "`merge.<command>` (dynamic id): enabled through the per-command context key the merge editor publishes",
++  "src/features/plugins/points.tsx": "a plugin command (dynamic id): its `when` is the plugin's manifest, at run time",
++};
++
+ const ACTION_FIELDS = [
+   "id",
+   "title",
+@@ -238,13 +407,25 @@
+ function actionManifest() {
+   const byId = new Map();
+   const dynamic = [];
++  const unresolved = [];
+   for (const source of appSources) {
+     const visit = (node) => {
+       if (ts.isObjectLiteralExpression(node)) {
+         const type = checker.getContextualType(node) ?? checker.getTypeAtLocation(node);
+         const names = new Set(node.properties.map((p) => p.name?.getText().replace(/["']/g, "")));
+-        if (names.has("id") && names.has("run") && isAction(type)) {
+-          for (const { record, site } of instances(node)) {
++        if (names.has("id") && isAction(type)) {
++          for (const instance of instances(node)) {
++            const { site } = instance;
++            const record = wrapped(instance.record, site);
++            // A spec without `run` is an action only once a wrapper gives it one.
++            if (!("run" in record || "$run" in record)) continue;
++            for (const field of ["when", "keyWhen"])
++              if (`$${field}` in record) {
++                const dynamicId = typeof record.id !== "string";
++                const key = dynamicId ? rel(node.getSourceFile().fileName) : record.id;
++                if (!(key in UNRESOLVED_CONDITIONS))
++                  unresolved.push(`${dynamicId ? "(dynamic id)" : key} at ${at(site)}: ${field} is not static`);
++              }
+             const entry = {};
+             for (const field of ACTION_FIELDS) {
+               if (field in record) entry[field] = record[field];
+@@ -263,6 +444,10 @@
+     };
+     visit(source);
+   }
++  if (unresolved.length)
++    throw new Error(
++      `action conditions the manifest cannot resolve (make them static, or add them to UNRESOLVED_CONDITIONS with a reason):\n  ${unresolved.join("\n  ")}`,
++    );
+   return {
+     actions: [...byId.values()].sort((a, b) => a.id.localeCompare(b.id)),
+     // Actions whose id is built at run time (one per plugin command, tool window, bookmark digit…).

@@ -21,6 +21,7 @@
 //! Backend work runs off the window's thread; the dialogs are the window's dialog layer.
 
 use super::branches::{This, call, finished, notify, run_action_later, run_op, save_all, vcs_state};
+use super::conflicts::RESOLVE_CONFLICTS;
 use super::services_window::on_workbench;
 use super::{COMMIT_TOOL_WINDOW, Workbench};
 use crate::backend::Backend;
@@ -86,8 +87,6 @@ use std::time::Duration;
 
 /// Show Shelf: the action the "Shelved N files" notice offers.
 const SHOW_SHELF: &str = "vcs.showShelf";
-/// The conflicts dialog's action, which an apply that left conflicts opens.
-const RESOLVE_CONFLICTS: &str = "vcs.resolveConflicts";
 /// How long the change lists rest after a change before they are written.
 const SAVE_DELAY: Duration = Duration::from_millis(250);
 /// How long Analyze code waits for the language servers of files it opened.
@@ -1163,11 +1162,12 @@ impl Workbench {
         let list = active_list(&self.shelf.lists).map_or_else(String::new, |list| list.name.clone());
         let file = format!("{root}/{}", suggested_patch_name(PatchOrigin::Changes, &list));
         let checklist = files.iter().map(|file| ChecklistFile::of(file, &root)).collect();
-        let from = PatchMade::Changes { repo: vcs.current_repo_root().map(str::to_owned) };
+        let from = PatchMade::Repo { repo: vcs.current_repo_root().map(str::to_owned), commits: Vec::new() };
         self.open_create_patch(CreatePatchSource::Changes(checklist), &file, true, from, window, cx);
     }
 
-    fn open_create_patch(
+    /// The Create Patch dialog on `source`, suggesting `file`; what it creates is made of `from`.
+    pub(super) fn open_create_patch(
         &mut self,
         source: CreatePatchSource,
         file: &str,
@@ -1280,9 +1280,10 @@ impl Workbench {
 
 /// What a created patch is made of.
 #[derive(Clone, Debug)]
-enum PatchMade {
-    /// Local changes of the repository `repo` (`None`: the primary one).
-    Changes { repo: Option<String> },
+pub(super) enum PatchMade {
+    /// In the repository `repo` (`None`: the primary one), the changes `commits` made (oldest first),
+    /// or without commits the local changes checked in the dialog.
+    Repo { repo: Option<String>, commits: Vec<String> },
     /// A shelf, or one of its files.
     Shelf { id: String, path: Option<String> },
 }
@@ -1611,9 +1612,14 @@ async fn create_patch(
     let work = move |host: Arc<Host>, label: String| async move {
         let patch = match from {
             PatchMade::Shelf { id, path } => git::vcs_shelf_patch(&host, &label, id, path)?,
-            PatchMade::Changes { repo } => {
-                let paths = answer.paths.into_iter().map(|path| ide_core::IpcPath::from(PathBuf::from(path))).collect();
-                let source = PatchSource::Changes { paths, reverse: answer.reverse };
+            PatchMade::Repo { repo, commits } => {
+                let source = if commits.is_empty() {
+                    let paths =
+                        answer.paths.into_iter().map(|path| ide_core::IpcPath::from(PathBuf::from(path))).collect();
+                    PatchSource::Changes { paths, reverse: answer.reverse }
+                } else {
+                    PatchSource::Commits { commits, reverse: answer.reverse }
+                };
                 git::vcs_create_patch(&host, &label, repo.map(PathBuf::from), source).await?
             }
         };
@@ -1856,9 +1862,10 @@ async fn read_for_checks(
         let autocrlf = autocrlf.map(|value| value.to_lowercase());
         if !matches!(autocrlf.as_deref(), Some("true" | "input")) {
             for path in &existing {
-                // The file as stored: the project's text of it has its line breaks normalised.
-                let text = ide_vfs::load_text(Path::new(path));
-                if text.is_ok_and(|loaded| loaded.text.contains("\r\n")) {
+                // The project's text of the file, as every other check reads it; an unreadable file is
+                // skipped.
+                let text = ide_host::ops::fs::read_text(&host, &label, PathBuf::from(path)).await;
+                if text.is_ok_and(|text| text.contains("\r\n")) {
                     reads.crlf.push(path.clone());
                 }
             }
@@ -2915,14 +2922,17 @@ mod tests {
         assert_eq!(git_in(&root, &["rev-list", "--count", "HEAD"]), "1");
     }
 
-    /// CRLF line separators without core.autocrlf and a commit in a detached HEAD are told before the
-    /// commit; Reformat code, Optimize imports and Cleanup are disabled with the reason.
+    /// A commit in a detached HEAD is told before the commit; a file with CRLF line separators is not,
+    /// even without core.autocrlf, because the project's text of a file has its line breaks
+    /// normalised. Reformat code, Optimize imports and Cleanup are disabled with the reason.
     #[gpui_kit::test]
-    async fn line_separators_and_a_detached_head_are_told_and_the_language_server_checks_are_disabled(
+    async fn a_detached_head_is_told_crlf_in_project_text_is_not_and_the_language_server_checks_are_disabled(
         cx: &mut TestAppContext,
     ) {
         let (workbench, cx, _folders, root) = git_project(cx, |root| {
             init_repo(root);
+            // The repository's own setting, whatever the machine's git configuration says.
+            git_in(root, &["config", "core.autocrlf", "false"]);
             git_in(root, &["checkout", "-q", "--detach"]);
             std::fs::write(root.join("a.txt"), "one\r\ntwo\r\n").expect("the file is written");
         });
@@ -2932,14 +2942,12 @@ mod tests {
         assert_eq!(reason, unavailable_commit_checks().first().map(|(_, reason)| reason.clone()));
         assert!(commit_box.read_with(cx, |b, _| b.unavailable_check(CommitCheck::CheckTodo).is_none()));
         click_on(cx, "commit-commit");
-        wait_long(cx, "the checks fail", |cx| commit_problems(&commit_box, cx).len() == 2);
+        wait_long(cx, "the checks fail", |cx| !commit_problems(&commit_box, cx).is_empty());
         let problems = commit_problems(&commit_box, cx);
+        assert_eq!(problems.len(), 1, "{problems:?}");
         assert!(problems[0].starts_with("Commit in detached HEAD: HEAD is detached"), "{problems:?}");
-        assert!(
-            problems[1].starts_with("Line separators: 1 file (a.txt) contain CRLF line separators"),
-            "{problems:?}"
-        );
-        assert!(problems[1].ends_with("or set git config core.autocrlf input."), "{problems:?}");
+        assert!(!problems.iter().any(|problem| problem.starts_with("Line separators")), "{problems:?}");
+        assert_eq!(git_in(&root, &["rev-list", "--count", "HEAD"]), "1", "nothing is committed");
         assert!(!notification_titles(&workbench, cx).iter().any(|title| title.contains("committed")));
     }
 }
