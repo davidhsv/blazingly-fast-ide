@@ -24,15 +24,15 @@ use crate::code_insight::problems::{ProblemCommand, ProblemTarget};
 use crate::editor::buffer;
 use crate::editor::view::Editor;
 use crate::everywhere::bookmarks_store::{has_bookmark, path_bookmark_at};
-use crate::platform::actions::{ActionRegistry, ActionSource, execute_action_from, is_action_enabled};
+use crate::platform::actions::{ActionSource, execute_action_from};
 use crate::platform::context::{evaluate_when, window_context};
 use crate::platform::input::Keymap;
-use crate::platform::keymap::{format_binding, host_binding, is_mac_host};
+use crate::platform::keymap::is_mac_host;
 use crate::platform::misc::file_manager::file_manager_name;
 use crate::platform::misc::platform_info::Os;
 use crate::platform::virtual_docs::is_virtual_uri;
 use crate::project_view::context_menu::{Contributed, Item as ProjectItem, MenuGroupContext as ProjectSelection};
-use crate::run_producers::context_run::{ContextMenu, MenuGroup, MenuGroupContext, MenuGroups};
+use crate::run_producers::context_run::{ContextMenu, GroupItems, MenuGroup, MenuGroupContext, MenuGroups};
 use crate::theme;
 use crate::ui::popup_menu::PopupMenu;
 use crate::ui::tooltip::WithTooltip as _;
@@ -193,12 +193,8 @@ pub fn native_groups(facts: &Rc<GroupFacts>) -> MenuGroups<GroupRow> {
     for decl in &MENU_GROUPS {
         let Some(rows) = decl.rows else { continue };
         let facts = Rc::clone(facts);
-        groups.register(MenuGroup {
-            id: decl.id.to_owned(),
-            menus: decl.menus.to_vec(),
-            order: decl.order,
-            items: Box::new(move |menu: ContextMenu, ctx: &MenuGroupContext<'_>| Ok(rows(menu, ctx, &facts))),
-        });
+        let items: GroupItems<GroupRow> = Box::new(move |menu, ctx: &MenuGroupContext| Ok(rows(menu, ctx, &facts)));
+        groups.register(MenuGroup { id: decl.id.to_owned(), menus: decl.menus.to_vec(), order: decl.order, items });
     }
     groups
 }
@@ -362,13 +358,8 @@ pub enum EditorMenuCommand {
     CopyReference(String),
 }
 
-/// The shortcuts shown beside Cut, Copy and Paste.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ClipboardShortcuts {
-    pub cut: Option<String>,
-    pub copy: Option<String>,
-    pub paste: Option<String>,
-}
+/// The hints shown beside Cut, Copy and Paste: the IDE shows these keys on every system.
+pub const CLIPBOARD_HINTS: [&str; 3] = ["⌘X", "⌘C", "⌘V"];
 
 /// What the editor's menu is for.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -381,26 +372,11 @@ pub struct EditorMenuInput {
     pub virtual_doc: bool,
     /// The name of the OS file manager (Open In › Finder).
     pub file_manager: String,
-    pub shortcuts: ClipboardShortcuts,
 }
 
 /// The shortcut the active keymap shows for action `id`.
 fn keymap_shortcut(id: &str, cx: &App) -> Option<String> {
     cx.try_global::<Keymap>().and_then(|keymap| keymap.0.shortcut_label(id, is_mac_host()))
-}
-
-/// The clipboard rows' shortcuts: the keymap's for the editing actions, else the keys the OS gives
-/// them (the keymaps leave Copy and Paste to the OS).
-pub fn clipboard_shortcuts(cx: &App) -> ClipboardShortcuts {
-    let mac = is_mac_host();
-    let shortcut = |action: &str, os: &str| {
-        keymap_shortcut(action, cx).or_else(|| Some(format_binding(&host_binding(os, mac), mac)))
-    };
-    ClipboardShortcuts {
-        cut: shortcut("edit.cut", "Meta+X"),
-        copy: shortcut("edit.copy", "Meta+C"),
-        paste: shortcut("edit.paste", "Meta+V"),
-    }
 }
 
 fn action<C>(id: &'static str, label: &str) -> MenuItem<C> {
@@ -464,13 +440,9 @@ fn clipboard_row(
     label: &str,
     icon: &'static str,
     command: EditorMenuCommand,
-    shortcut: Option<&str>,
+    hint: &str,
 ) -> MenuItem<EditorMenuCommand> {
-    let row = MenuItem::item(label, command).icon(icon);
-    match shortcut {
-        Some(shortcut) => row.shortcut(shortcut),
-        None => row,
-    }
+    MenuItem::item(label, command).icon(icon).shortcut(hint)
 }
 
 /// The editor's context menu: `groups` are the `editor` groups' rows, `open_in` the `openIn` ones.
@@ -481,14 +453,12 @@ pub fn editor_menu(
 ) -> Vec<MenuItem<EditorMenuCommand>> {
     let mut items = vec![action("code.showIntentions", "Show Context Actions"), MenuItem::Separator];
     // Cut and Copy only with a selection.
-    let shortcuts = &input.shortcuts;
+    let [cut, copy, paste] = CLIPBOARD_HINTS;
     if input.has_selection {
-        let cut = clipboard_row("Cut", "cut", EditorMenuCommand::Cut, shortcuts.cut.as_deref());
-        items.push(cut.disabled(input.read_only));
-        items.push(clipboard_row("Copy", "copy", EditorMenuCommand::Copy, shortcuts.copy.as_deref()));
+        items.push(clipboard_row("Cut", "cut", EditorMenuCommand::Cut, cut).disabled(input.read_only));
+        items.push(clipboard_row("Copy", "copy", EditorMenuCommand::Copy, copy));
     }
-    let paste = clipboard_row("Paste", "paste", EditorMenuCommand::Paste, shortcuts.paste.as_deref());
-    items.push(paste.disabled(input.read_only));
+    items.push(clipboard_row("Paste", "paste", EditorMenuCommand::Paste, paste).disabled(input.read_only));
     items.extend([
         MenuItem::Separator,
         MenuItem::submenu(
@@ -577,6 +547,8 @@ pub fn editor_menu(
 pub enum GutterCommand {
     /// Sets the global editor setting `key` to the opposite of `on`.
     Toggle { key: &'static str, on: bool },
+    /// Opens Settings on the page `page`.
+    Settings(&'static str),
 }
 
 /// The gutter's Appearance › switches: label and global setting.
@@ -612,11 +584,12 @@ pub fn gutter_menu(groups: Vec<GroupRow>, settings: &Value) -> Vec<MenuItem<Gutt
             check_row(label, GutterCommand::Toggle { key, on }, on)
         })
         .collect();
+    // Rows of the menu's own: no shortcut beside them, as Settings… has one.
     items.extend([
-        action_with("file.settings", json!("editor.general"), "Configure Soft Wraps…"),
+        MenuItem::item("Configure Soft Wraps…", GutterCommand::Settings("editor.general")),
         MenuItem::Separator,
         MenuItem::submenu("Appearance", appearance),
-        action_with("file.settings", json!("editor.general.gutterIcons"), "Configure Gutter Icons…"),
+        MenuItem::item("Configure Gutter Icons…", GutterCommand::Settings("editor.general.gutterIcons")),
     ]);
     items
 }
@@ -849,7 +822,6 @@ impl Workbench {
             read_only: shown.is_read_only(),
             virtual_doc: is_virtual_uri(&path),
             file_manager: file_manager_name(Os::from_platform(std::env::consts::OS)).to_owned(),
-            shortcuts: clipboard_shortcuts(cx),
             path,
         };
         let paths = [input.path.clone()];
@@ -888,9 +860,8 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let (path, text) =
-            editor.read_with(cx, |editor, _| (editor.path().to_string_lossy().into_owned(), editor.text()));
-        let paths = [path];
+        let shown = editor.read(cx);
+        let (paths, text) = ([shown.path().to_string_lossy().into_owned()], shown.text());
         let ctx = MenuGroupContext { paths: &paths, dirs: &[], text: Some(&text), line: Some(line) };
         let groups = self.group_rows(ContextMenu::EditorGutter, &ctx, None, window, cx);
         let settings = serde_json::to_value(crate::platform::settings::effective(&self.label, cx)).unwrap_or_default();
@@ -898,15 +869,22 @@ impl Workbench {
         self.show_menu_later(
             items,
             position,
-            |workbench, command, _, cx| workbench.run_gutter_command(command, cx),
+            |workbench, command, window, cx| workbench.run_gutter_command(command, window, cx),
             window,
             cx,
         );
     }
 
-    fn run_gutter_command(&mut self, command: GutterCommand, cx: &mut Context<Self>) {
-        let GutterCommand::Toggle { key, on } = command;
-        self.write_global_setting(key, !on, cx);
+    fn run_gutter_command(&mut self, command: GutterCommand, window: &mut Window, cx: &mut Context<Self>) {
+        match command {
+            GutterCommand::Toggle { key, on } => self.write_global_setting(key, !on, cx),
+            // Once this update is over: Settings reaches for the workbench.
+            GutterCommand::Settings(page) => window.defer(cx, move |window, cx| {
+                if !execute_action_from(ActionSource::ContextMenu, "file.settings", Some(&json!(page)), window, cx) {
+                    tracing::warn!("the gutter menu could not open Settings on {page}");
+                }
+            }),
+        }
     }
 
     /// Writes a global switch; a failure is told.
@@ -1076,7 +1054,7 @@ impl Workbench {
             ToolWindowCommand::ToggleMaximize => layout.toggle_maximize(id),
             ToolWindowCommand::Hide => layout.hide(id),
             ToolWindowCommand::RemoveFromStripe => layout.remove_from_stripe(id),
-            ToolWindowCommand::ToggleNames(_) => Effects::NONE,
+            ToolWindowCommand::ToggleNames(_) => Effects::default(),
         });
     }
 }
@@ -1085,40 +1063,37 @@ impl Workbench {
 // Toolbar slots
 
 /// The buttons plugins put in toolbar slot `slot` (`editor.title`, `mainToolbar`, `commit.message`)
-/// whose `when` holds: each runs its action, greyed out while the action cannot run; an entry
-/// whose action is not registered has no button.
+/// whose `when` holds: a small icon button each, its action's icon (else the plugin's), that runs
+/// the action. The button stays clickable whatever the action's own `when` says, as the IDE's slot
+/// buttons do; the action then decides whether it runs.
 pub fn slot_buttons(slot: &str, window: &Window, cx: &App) -> Vec<AnyElement> {
-    let Some(registry) = cx.try_global::<ActionRegistry>() else { return Vec::new() };
     let keys = window_context(window, cx);
-    let (fg, faint, hover) = (theme::color(cx, "fg-muted"), theme::color(cx, "fg-faint"), theme::color(cx, "bg-hover"));
+    let (fg, hover) = (theme::color(cx, "fg-muted"), theme::color(cx, "bg-hover"));
     plugin_slot_items(slot, cx)
         .into_iter()
         .filter(|item| evaluate_when(item.when.as_deref(), &keys).unwrap_or(false))
-        .filter_map(|item| {
-            let action = registry.get(&item.action)?;
-            let enabled = is_action_enabled(&action.meta, &keys);
+        .map(|item| {
             let icon = item.icon.clone().unwrap_or_else(|| "plugin".to_owned());
             let selector = format!("slot:{slot}:{}", item.action);
             let id = item.action.clone();
-            Some(
-                div()
-                    .id(SharedString::from(selector.clone()))
-                    .debug_selector(move || selector)
-                    .size(px(22.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded(px(4.0))
-                    .child(theme::icon(cx, &icon, 16.0, if enabled { fg } else { faint }))
-                    .with_tooltip_shortcut(item.label.clone(), item.action.clone())
-                    .when(enabled, |el| {
-                        el.hover(move |el| el.bg(hover)).on_click(move |_, window, cx| {
-                            execute_action_from(ActionSource::Toolbar, &id, None, window, cx);
-                        })
-                    })
-                    .into_any_element(),
-            )
+            div()
+                .id(SharedString::from(selector.clone()))
+                .debug_selector(move || selector)
+                .size(px(22.0))
+                .flex_none()
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(px(4.0))
+                .hover(move |el| el.bg(hover))
+                .child(theme::icon(cx, &icon, 14.0, fg))
+                .with_tooltip_shortcut(item.label.clone(), item.action.clone())
+                .on_click(move |_, window, cx| {
+                    if !execute_action_from(ActionSource::Toolbar, &id, None, window, cx) {
+                        tracing::debug!("the toolbar button's {id} did not run");
+                    }
+                })
+                .into_any_element()
         })
         .collect()
 }
@@ -1128,18 +1103,50 @@ pub type EditorMenu = Entity<PopupMenu<EditorMenuCommand>>;
 
 #[cfg(test)]
 mod tests {
+    use super::super::plugins_window::test_support::{link, plugin_copy, start_with_plugins};
+    use super::super::tests::{init_repo, start, wait_long};
     use super::*;
     use crate::backend::{AppDirs, Backend};
     use crate::editor::intelligence::fake_server::FakeServer;
+    use crate::editor::marks::MarkLayer;
+    use crate::platform::actions::ActionRegistry;
     use crate::platform::storage::UiStorage;
-    use crate::plugins::Plugins;
+    use crate::plugins::plugin_action_id;
     use gpui_kit::{Modifiers, MouseButton, TestAppContext, VisualTestContext, point};
-    use ide_host::plugins::{Consent, FileSecretStore};
-    use std::path::{Path, PathBuf};
-    use std::sync::Arc;
-    use std::time::Duration;
+    use std::collections::HashSet;
+    use std::path::PathBuf;
 
     const LABEL: &str = "w1";
+    /// The id of the Hello fixture plugin.
+    const HELLO: &str = "hello";
+
+    /// The root of the editor's menu in a project, without a selection, with the actions this window
+    /// registers: Folding, Rename…, Refactor, Generate…, Open In, Local History and the Compare rows
+    /// have none of their actions registered yet, so they are not offered.
+    const ROOT: [&str; 7] = [
+        "Show Context Actions",
+        "Paste",
+        "Copy / Paste Special",
+        "Column Selection Mode",
+        "Go To",
+        "Send to Agent",
+        "Git",
+    ];
+
+    /// Go To › without Super Method and Test, whose actions this window does not register yet.
+    const GO_TO: [&str; 7] = [
+        "Declaration or Usages",
+        "Implementation(s)",
+        "Type Declaration",
+        "-",
+        "Find Usages",
+        "Call Hierarchy",
+        "Type Hierarchy",
+    ];
+
+    /// Git › for one file, with the rows whose actions this window registers.
+    const GIT: [&str; 11] =
+        ["Commit File…", "Add", "-", "Show Diff", "Rollback…", "-", "Push…", "Pull…", "Fetch", "-", "Branches…"];
 
     // ---------------------------------------------------------------------------------------------
     // The rows as data
@@ -1151,9 +1158,6 @@ mod tests {
             read_only: false,
             virtual_doc: false,
             file_manager: "Finder".to_owned(),
-            shortcuts: ClipboardShortcuts {
-                cut: Some("⌘X".into()), copy: Some("⌘C".into()), paste: Some("⌘V".into())
-            },
         }
     }
 
@@ -1210,8 +1214,15 @@ mod tests {
         );
         let selected = editor_menu(&input(true), groups, Vec::new());
         assert_eq!(labels(&selected)[2..5], ["Cut", "Copy", "Paste"]);
-        let MenuItem::Item(copy) = &selected[3] else { panic!("Copy is a row of the menu's own") };
-        assert_eq!((copy.shortcut.as_deref(), copy.run.clone()), (Some("⌘C"), Some(EditorMenuCommand::Copy)));
+        let hints: Vec<Option<&str>> = selected[2..5]
+            .iter()
+            .map(|item| match item {
+                MenuItem::Item(entry) => entry.shortcut.as_deref(),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(hints, [Some("⌘X"), Some("⌘C"), Some("⌘V")]);
+        assert_eq!(selected[3].command(), Some(&EditorMenuCommand::Copy));
     }
 
     /// A read-only document greys out Cut and Paste; a virtual document offers Copy Reference
@@ -1229,6 +1240,21 @@ mod tests {
         let last = items.last().expect("rows");
         assert_eq!(last.command(), Some(&EditorMenuCommand::CopyReference("jdt://contents/A.class".to_owned())));
         assert!(!labels(&items).contains(&"Open In".to_owned()));
+    }
+
+    /// The gutter's Configure rows are rows of its own that open Settings on their pages; the
+    /// Appearance switches show a check mark while on.
+    #[test]
+    fn the_gutter_menu_opens_settings_pages_and_shows_its_switches() {
+        let settings = json!({ "editor": { "appearance": { "lineNumbers": true } } });
+        let items = gutter_menu(Vec::new(), &settings);
+        assert_eq!(labels(&items), ["Configure Soft Wraps…", "-", "Appearance", "Configure Gutter Icons…"]);
+        assert_eq!(items[0].command(), Some(&GutterCommand::Settings("editor.general")));
+        assert_eq!(items[3].command(), Some(&GutterCommand::Settings("editor.general.gutterIcons")));
+        let MenuItem::Item(appearance) = &items[2] else { panic!("Appearance is a submenu") };
+        let numbers = &appearance.submenu[0];
+        assert_eq!(numbers.command(), Some(&GutterCommand::Toggle { key: "editor.appearance.lineNumbers", on: true }));
+        assert!(matches!(numbers, MenuItem::Item(entry) if entry.icon == Some("check")));
     }
 
     /// The groups come in their order, then by id; a group with no rows adds nothing, the others a
@@ -1290,49 +1316,14 @@ mod tests {
     // ---------------------------------------------------------------------------------------------
     // End to end
 
-    fn settle(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..1500 {
-            cx.executor().advance_clock(Duration::from_millis(20));
-            cx.run_until_parked();
-            if done(cx) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        panic!("{what}: not within fifteen seconds");
-    }
-
-    fn settle_app(cx: &mut TestAppContext, what: &str, done: impl Fn(&mut App) -> bool) {
-        for _ in 0..1000 {
-            cx.run_until_parked();
-            if cx.update(|cx| done(cx)) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        panic!("{what}: not within ten seconds");
-    }
-
-    /// Runs git in `dir` without the machine's own configuration.
-    fn git_in(dir: &Path, args: &[&str]) {
-        let output = std::process::Command::new("git")
-            .args(args)
-            .current_dir(dir)
-            .env("GIT_CONFIG_GLOBAL", "/dev/null")
-            .env("GIT_CONFIG_SYSTEM", "/dev/null")
-            .output()
-            .expect("git runs");
-        assert!(output.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&output.stderr));
-    }
-
     /// What a test window starts with.
     #[derive(Default)]
     struct Setup {
         /// The project is a Git repository with its files committed.
         git: bool,
-        /// The fake language server answers this for `*.mock` files.
+        /// The fake language server answers this for `*.mock` files, in Full mode.
         server: Option<Value>,
-        /// The plugin host runs, with the Hello fixture linked.
+        /// The app's plugin host runs, with a copy of the Hello fixture linked.
         plugin: bool,
     }
 
@@ -1344,51 +1335,43 @@ mod tests {
     }
 
     /// The Hello fixture's manifest with entries in the editor's menu (a submenu of two) and the
-    /// editor's tab strip; its Sync command only runs in Bazel workspaces.
+    /// editor's tab strip; its Sync command, and Sync's button, only where the workspace has a
+    /// `MODULE.bazel` file.
     fn hello_menus(text: &str) -> String {
         format!(
             "{text}\n\
-             [[contributes.commands]]\nid = \"sync\"\ntitle = \"Hello: Sync\"\nwhen = \"workspaceContains:MODULE.bazel\"\n\n\
-             [[contributes.menus]]\nmenu = \"editor.context\"\ncommand = \"insert-date\"\nsubmenu = \"Hello\"\n\n\
+             [[contributes.commands]]\nid = \"sync\"\ntitle = \"Hello: Sync\"\n\
+             when = \"workspaceContains:MODULE.bazel\"\n\n\
+             [[contributes.menus]]\nmenu = \"editor.context\"\ncommand = \"insert-date\"\n\
+             submenu = \"Hello\"\n\n\
              [[contributes.menus]]\nmenu = \"editor.context\"\ncommand = \"sync\"\nsubmenu = \"Hello\"\n\n\
-             [[contributes.menus]]\nmenu = \"editor.title\"\ncommand = \"insert-date\"\n"
+             [[contributes.menus]]\nmenu = \"editor.title\"\ncommand = \"insert-date\"\n\n\
+             [[contributes.menus]]\nmenu = \"editor.title\"\ncommand = \"sync\"\n\
+             when = \"workspaceContains:MODULE.bazel\"\n"
         )
     }
 
-    fn copy_dir(from: &Path, to: &Path) {
-        std::fs::create_dir_all(to).expect("the folder is made");
-        for entry in std::fs::read_dir(from).expect("the fixture is readable").flatten() {
-            let (source, target) = (entry.path(), to.join(entry.file_name()));
-            if entry.file_name() == "target" {
-                continue;
-            }
-            if source.is_dir() {
-                copy_dir(&source, &target);
-            } else {
-                std::fs::copy(&source, &target).expect("the file is copied");
-            }
-        }
-    }
-
-    /// Links a copy of the Hello fixture plugin (in the temporary home) with its manifest given
-    /// [`hello_menus`], and waits until its commands are actions.
-    fn link_hello(cx: &mut TestAppContext, home: &Path) {
-        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../crates/ide-plugin/tests/fixtures/hello");
-        let folder = home.join("fixtures").join("hello");
-        copy_dir(&source, &folder);
-        let manifest = folder.join("plugin.toml");
-        let text = std::fs::read_to_string(&manifest).expect("the manifest is readable");
-        std::fs::write(&manifest, hello_menus(&text)).expect("the manifest is written");
-        let id = cx.update(|cx| {
-            let host = cx.global::<Plugins>().host.clone();
-            let info = host.link(&folder).expect("the plugin links");
-            let consent = Consent { optional: Vec::new(), signer_change: false };
-            let info = host.grant(&info.id, &consent).expect("consent is recorded");
-            assert_eq!(info.error, None, "the plugin loads");
-            info.id
+    /// The workbench tests' start, in Full mode, with the fake language server installed for
+    /// `*.mock` files before the backend starts, answering `answers`.
+    fn start_with_server(cx: &mut TestAppContext, answers: &Value) -> (tempfile::TempDir, FakeServer) {
+        cx.executor().allow_parking();
+        let home = tempfile::tempdir().expect("a temporary home");
+        let dirs = AppDirs::under(home.path());
+        let server = FakeServer::install(&dirs.config, home.path());
+        server.answer(answers.clone());
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            crate::platform::input::init(cx);
+            crate::editor::actions::register(cx);
+            crate::workbench::register_actions(cx);
+            cx.set_global(UiStorage::default());
+            Backend::init(dirs, cx).expect("the backend starts");
+            crate::workbench::menu::init(cx);
+            crate::terminal::test_support::isolate_shells(home.path(), cx);
+            let host = cx.global::<Backend>().host.clone();
+            host.global_settings.set(SettingsScope::Global, "ide.mode", json!("full")).expect("Full mode is set");
         });
-        let action = crate::plugins::plugin_action_id(&id, "insert-date");
-        settle_app(cx, "the plugin's commands are actions", |cx| cx.global::<ActionRegistry>().contains(&action));
+        (home, server)
     }
 
     /// A trusted project of `files` open in an active window, as `setup` says.
@@ -1397,57 +1380,34 @@ mod tests {
         files: &[(&str, &str)],
         setup: Setup,
     ) -> (Fixture, &'a mut VisualTestContext) {
-        cx.executor().allow_parking();
-        let (home, folder) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a folder"));
-        let dirs = AppDirs::under(home.path());
-        let server = setup.server.as_ref().map(|answers| {
-            let server = FakeServer::install(&dirs.config, home.path());
-            server.answer(answers.clone());
-            server
-        });
+        let (home, server) = match &setup.server {
+            Some(answers) => {
+                let (home, server) = start_with_server(cx, answers);
+                (home, Some(server))
+            }
+            None if setup.plugin => (start_with_plugins(cx), None),
+            None => (start(cx), None),
+        };
+        if setup.plugin {
+            let hello = plugin_copy(home.path(), "hello", hello_menus);
+            link(cx, &hello, &[], "insert-date");
+        }
+        let folder = tempfile::tempdir().expect("a folder");
         let root = folder.path().canonicalize().expect("the folder exists");
         for (path, text) in files {
             std::fs::write(root.join(path), text).expect("the file is written");
         }
         if setup.git {
-            git_in(&root, &["init", "-q", "-b", "main"]);
-            git_in(&root, &["config", "user.name", "Ada"]);
-            git_in(&root, &["config", "user.email", "ada@example.test"]);
-            git_in(&root, &["add", "."]);
-            git_in(&root, &["commit", "-q", "-m", "first"]);
+            // A repository of its own (no machine configuration, no hooks) with the files committed.
+            init_repo(&root);
         }
-        let full_mode = setup.server.is_some();
-        cx.update(|cx| {
-            cx.set_global(theme::ActiveTheme::default());
-            cx.set_global(UiStorage::default());
-            crate::platform::input::init(cx);
-            crate::editor::actions::register(cx);
-            crate::workbench::register_actions(cx);
-            Backend::init(dirs, cx).expect("the backend starts");
-            crate::workbench::menu::init(cx);
-            crate::terminal::test_support::isolate_shells(home.path(), cx);
-            let host = cx.global::<Backend>().host.clone();
-            if full_mode {
-                host.global_settings.set(SettingsScope::Global, "ide.mode", json!("full")).expect("Full mode is set");
-            }
-            host.trust.decide(&root, true, false).expect("the project is trusted");
-        });
-        if setup.plugin {
-            cx.update(|cx| {
-                theme::appearance::init(cx);
-                Plugins::init(cx).expect("the plugin host starts");
-                let host = cx.global::<Plugins>().host.clone();
-                host.set_secret_store(Arc::new(FileSecretStore { dir: home.path().join("secrets") }));
-            });
-            settle_app(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());
-            link_hello(cx, home.path());
-        }
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new(LABEL, window, cx));
         cx.update(|window, _| window.activate_window());
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-        settle(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        wait_long(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         if setup.git {
-            settle(cx, "the repository is read", |cx| {
+            wait_long(cx, "the repository is read", |cx| {
                 workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|vcs| vcs.available))
             });
         }
@@ -1459,7 +1419,7 @@ mod tests {
         fn open_file(&self, name: &str, cx: &mut VisualTestContext) -> Entity<Editor> {
             let path = self.root.join(name);
             self.workbench.update_in(cx, |w, window, cx| w.open_project_file(path.clone(), window, cx));
-            settle(cx, "the file opens", |cx| {
+            wait_long(cx, "the file opens", |cx| {
                 let editor = self.workbench.read_with(cx, |w, cx| {
                     w.editor().filter(|editor| editor.read(cx).path() == path.as_path()).cloned()
                 });
@@ -1523,47 +1483,20 @@ mod tests {
             .unwrap_or_else(|| panic!("{label} is a row"))
     }
 
-    /// The registered actions and their titles.
-    fn registered(cx: &mut VisualTestContext) -> std::collections::HashMap<String, String> {
-        cx.update(|_, cx| {
-            cx.global::<ActionRegistry>()
-                .all()
-                .map(|action| (action.meta.id.clone(), action.meta.title.clone()))
-                .collect()
-        })
+    /// The ids of the registered actions.
+    fn registered(cx: &mut VisualTestContext) -> HashSet<String> {
+        cx.update(|_, cx| cx.global::<ActionRegistry>().ids().map(str::to_owned).collect())
     }
 
-    /// The labels the editor's menu shows at its root for what `editor_menu_items` builds, given
-    /// which actions the window registers: an action row needs its action, a submenu one of its rows.
-    fn expected_root(fixture: &Fixture, cx: &mut VisualTestContext) -> Vec<String> {
-        let editor = fixture.editor(cx);
-        let items = cx.update(|window, cx| fixture.workbench.read(cx).editor_menu_items(&editor, window, cx));
-        let titles = registered(cx);
-        fn shows(item: &MenuItem<EditorMenuCommand>, titles: &std::collections::HashMap<String, String>) -> bool {
-            match item {
-                MenuItem::Separator => false,
-                MenuItem::Action(row) => titles.contains_key(row.action),
-                MenuItem::Item(entry) => entry.submenu.is_empty() || entry.submenu.iter().any(|row| shows(row, titles)),
-            }
-        }
-        items
-            .iter()
-            .filter(|item| shows(item, &titles))
-            .map(|item| match item {
-                MenuItem::Action(row) => row.label.clone().unwrap_or_else(|| titles[row.action].clone()),
-                other => other.label().unwrap_or_default().to_owned(),
-            })
-            .collect()
-    }
-
-    fn root_rows(menu: &EditorMenu, cx: &mut VisualTestContext) -> Vec<String> {
+    /// The rows of the root of `menu`, without its separators.
+    fn root_rows<C: Clone + 'static>(menu: &Entity<PopupMenu<C>>, cx: &mut VisualTestContext) -> Vec<String> {
         shown(menu, cx)[0].iter().filter(|line| *line != "-").cloned().collect()
     }
 
     /// A right click in a plain file's text puts the caret there and opens the editor's menu at the
     /// pointer: without a selection there is no Cut or Copy, Paste is offered, and the rows are the
-    /// menu's own in order. Git's rows are greyed out outside a repository. Escape closes the menu
-    /// and the editor has the keyboard again.
+    /// menu's own in order, those of unregistered actions left out. Git's rows are greyed out
+    /// outside a repository. Escape closes the menu and the editor has the keyboard again.
     #[gpui_kit::test]
     async fn right_click_in_a_plain_file_opens_the_editor_menu_and_moves_the_caret(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("a.txt", "hello world\nsecond line\n")], Setup::default());
@@ -1572,17 +1505,14 @@ mod tests {
         right_click(cx, at);
         let menu = f.editor_menu(cx).expect("the editor's menu is open");
         assert_eq!(editor.read_with(cx, |editor, _| editor.selection()), 8..8, "the caret moved to the press");
-        let rows = root_rows(&menu, cx);
-        assert_eq!(rows, expected_root(&f, cx));
-        assert!(!rows.contains(&"Cut".to_owned()) && !rows.contains(&"Copy".to_owned()), "{rows:?}");
-        let paste = rows.iter().position(|row| row == "Paste").expect("Paste is offered");
-        let go_to = rows.iter().position(|row| row == "Go To").expect("Go To is offered");
-        assert!(paste < go_to, "{rows:?}");
+        assert_eq!(root_rows(&menu, cx), ROOT);
         assert!(!disabled(&menu, "Paste", cx));
-        if rows.contains(&"Git".to_owned()) {
-            choose(&menu, &["Git"], cx);
-            assert!(disabled(&menu, "Commit File…", cx), "no repository: Git's rows cannot run");
-        }
+        choose(&menu, &["Copy / Paste Special"], cx);
+        assert_eq!(shown(&menu, cx)[1], ["Copy Path/Reference…", "Copy Reference", "Paste as Plain Text"]);
+        choose(&menu, &["Go To"], cx);
+        assert_eq!(shown(&menu, cx)[1], GO_TO);
+        choose(&menu, &["Git"], cx);
+        assert!(disabled(&menu, "Commit File…", cx), "no repository: Git's rows cannot run");
 
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();
@@ -1590,8 +1520,8 @@ mod tests {
         assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)), "the editor has the keyboard");
     }
 
-    /// A right click inside the selection keeps it: Cut and Copy are offered with the OS's keys,
-    /// and Copy puts the selected text on the clipboard.
+    /// A right click inside the selection keeps it: Cut and Copy are offered with their hints, and
+    /// Copy puts the selected text on the clipboard.
     #[gpui_kit::test]
     async fn right_click_in_the_selection_keeps_it_and_copy_puts_it_on_the_clipboard(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("a.txt", "hello world\n")], Setup::default());
@@ -1602,16 +1532,14 @@ mod tests {
         let menu = f.editor_menu(cx).expect("the editor's menu is open");
         assert_eq!(editor.read_with(cx, |editor, _| editor.selection()), 0..5, "the selection stays");
         let rows = root_rows(&menu, cx);
-        let cut = rows.iter().position(|row| row == "Cut").expect("Cut is offered");
-        assert_eq!(rows[cut..cut + 3], ["Cut", "Copy", "Paste"], "{rows:?}");
-        let expected_copy = cx.update(|_, cx| clipboard_shortcuts(cx).copy);
+        assert_eq!(rows[1..4], ["Cut", "Copy", "Paste"], "{rows:?}");
         let copy = menu.read_with(cx, |menu, _| {
-            menu.rows().iter().find(|row| row.label == "Copy").map(|row| row.shortcut.clone())
+            menu.rows().iter().find(|row| row.label == "Copy").and_then(|row| row.shortcut.clone())
         });
-        assert_eq!(copy, Some(expected_copy));
+        assert_eq!(copy.as_deref(), Some("⌘C"));
 
         choose(&menu, &["Copy"], cx);
-        settle(cx, "the text is copied", |cx| {
+        wait_long(cx, "the text is copied", |cx| {
             cx.update(|_, cx| cx.read_from_clipboard().and_then(|item| item.text())).as_deref() == Some("hello")
         });
         assert!(f.editor_menu(cx).is_none());
@@ -1626,9 +1554,13 @@ mod tests {
         let at = at_offset(&editor, 1, cx);
         right_click(cx, at);
         let menu = f.editor_menu(cx).expect("the editor's menu is open");
-        assert_eq!(root_rows(&menu, cx), expected_root(&f, cx));
+        assert_eq!(root_rows(&menu, cx), ROOT);
         choose(&menu, &["Git"], cx);
+        assert_eq!(shown(&menu, cx)[1], GIT);
         assert!(!disabled(&menu, "Commit File…", cx), "vcsAvailable holds");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(f.editor_menu(cx).is_none());
     }
 
     /// Go To › Declaration or Usages, chosen from the menu opened on a name, asks the language
@@ -1649,14 +1581,15 @@ mod tests {
         assert_eq!(editor.read_with(cx, |editor, _| editor.caret()), 7);
         let menu = f.editor_menu(cx).expect("the editor's menu is open");
         choose(&menu, &["Go To", "Declaration or Usages"], cx);
-        settle(cx, "the declaration opens", |cx| {
+        wait_long(cx, "the declaration opens", |cx| {
             let editor = f.editor(cx);
             editor.read_with(cx, |editor, _| editor.path() == b.as_path() && editor.caret_position() == (2, 2))
         });
     }
 
-    /// A right click left of the text opens the gutter's menu for that line: Add Bookmark there adds
-    /// a bookmark on that line, and the menu then offers to remove it.
+    /// A right click left of the text opens the gutter's menu for that line, leaving the caret where
+    /// it was and setting no breakpoint: Add Bookmark there adds a bookmark on that line, and the
+    /// menu then offers to remove it.
     #[gpui_kit::test]
     async fn the_gutters_menu_adds_a_bookmark_on_the_clicked_line(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("a.txt", "one\ntwo\nthree\n")], Setup::default());
@@ -1666,6 +1599,8 @@ mod tests {
         let gutter = point(text_at.x - px(12.0), text_at.y);
         right_click(cx, gutter);
         let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<GutterCommand>()).expect("the gutter's menu is open");
+        assert_eq!(editor.read_with(cx, |editor, _| editor.selection()), 0..0, "the caret stays");
+        assert!(editor.read_with(cx, |editor, _| editor.marks(MarkLayer::Breakpoints).is_empty()));
         // The bookmark group (no Annotate outside a repository), then the gutter's own rows.
         assert_eq!(
             shown(&menu, cx)[0],
@@ -1675,16 +1610,18 @@ mod tests {
         assert_eq!(shown(&menu, cx)[1].len(), GUTTER_APPEARANCE.len());
         choose(&menu, &["Add Bookmark"], cx);
         let path = f.root.join("a.txt").to_string_lossy().into_owned();
-        settle(cx, "the bookmark is added", |cx| {
+        wait_long(cx, "the bookmark is added", |cx| {
             f.workbench.read_with(cx, |w, _| has_bookmark(&w.bookmarks().data().items, &path, 1))
         });
         right_click(cx, gutter);
         let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<GutterCommand>()).expect("the gutter's menu is open");
-        assert!(shown(&menu, cx)[0].contains(&"Remove Bookmark".to_owned()));
+        assert_eq!(shown(&menu, cx)[0][0], "Remove Bookmark");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
     }
 
-    /// A tab's menu acts on the tab it was opened on, not on the active one, and lists the file's
-    /// Open In and Local History rows.
+    /// A tab's menu acts on the tab it was opened on, not on the active one; its file rows are the
+    /// bookmark group and Git, then Copy Path/Reference… and Rename File….
     #[gpui_kit::test]
     async fn the_tab_menu_acts_on_the_tab_it_was_opened_on(cx: &mut TestAppContext) {
         use crate::workbench::TabCommand;
@@ -1702,11 +1639,27 @@ mod tests {
         let bounds = cx.debug_bounds(Box::leak(format!("tab:{first}").into_boxed_str())).expect("the tab is drawn");
         right_click(cx, bounds.center());
         let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<TabCommand>()).expect("the tab's menu is open");
-        let rows = shown(&menu, cx)[0].clone();
-        let titles = registered(cx);
-        if titles.contains_key("vcs.localHistory") || titles.contains_key("localHistory.putLabel") {
-            assert!(rows.contains(&"Local History".to_owned()), "{rows:?}");
-        }
+        assert_eq!(
+            root_rows(&menu, cx),
+            [
+                "Close",
+                "Close Other Tabs",
+                "Close Tabs to the Left",
+                "Close Tabs to the Right",
+                "Close All Tabs",
+                "Close Unmodified Tabs",
+                "Pin Tab",
+                "Split and Move Right",
+                "Split and Move Down",
+                "Split Right",
+                "Split Down",
+                "Add Bookmark",
+                "Git",
+                "Copy Path/Reference…",
+                "Rename File…",
+                "Configure Editor Tabs…",
+            ]
+        );
         choose(&menu, &["Close"], cx);
         assert_eq!(tab_ids(cx).len(), 2);
         assert!(!tab_ids(cx).contains(&first), "the clicked tab closed");
@@ -1715,34 +1668,69 @@ mod tests {
     }
 
     /// A plugin's two editor menu entries naming one submenu appear under it while their `when`
-    /// holds; the entry whose command cannot run is greyed out, and choosing the other runs it. Its
-    /// `editor.title` entry is a button of the tab strip.
+    /// holds, after the menu's own rows and its other groups; the entry whose command cannot run is
+    /// greyed out, and choosing the other runs it. Its `editor.title` entry is a button of the tab
+    /// strip.
     #[gpui_kit::test]
     async fn a_plugins_editor_menu_entries_appear_under_their_submenu_and_run(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("notes.txt", "one two\n")], Setup { plugin: true, ..Setup::default() });
         let editor = f.open_file("notes.txt", cx);
-        settle(cx, "the key is answered", |cx| {
+        wait_long(cx, "the key is answered", |cx| {
             cx.update(|window, cx| window_context(window, cx).get("workspaceContains:MODULE.bazel").is_some())
         });
         let at = at_offset(&editor, 1, cx);
         right_click(cx, at);
         let menu = f.editor_menu(cx).expect("the editor's menu is open");
-        let rows = root_rows(&menu, cx);
-        let hello = rows.iter().position(|row| row == "Hello").expect("the plugin's submenu");
-        let paste = rows.iter().position(|row| row == "Paste").expect("Paste");
-        assert!(paste < hello, "the groups come after the menu's own rows: {rows:?}");
+        // The plugins' group (order 90) comes after Send to Agent (80): the fixture's own entry,
+        // then the submenu the test's manifest adds.
+        assert_eq!(
+            root_rows(&menu, cx),
+            [
+                "Show Context Actions",
+                "Paste",
+                "Copy / Paste Special",
+                "Column Selection Mode",
+                "Go To",
+                "Send to Agent",
+                "Hello: Word Count of Active File",
+                "Hello",
+                "Git",
+            ]
+        );
         choose(&menu, &["Hello"], cx);
-        assert!(disabled(&menu, "Hello: Sync", cx), "Sync needs a Bazel workspace");
+        assert!(disabled(&menu, "Hello: Sync", cx), "Sync needs a MODULE.bazel file");
         assert!(!disabled(&menu, "Hello: Insert Date", cx));
         choose(&menu, &["Hello", "Hello: Insert Date"], cx);
-        settle(cx, "the plugin inserts the date", |cx| {
+        wait_long(cx, "the plugin inserts the date", |cx| {
             editor.read_with(cx, |editor, _| editor.text().chars().filter(char::is_ascii_digit).count() >= 8)
         });
-        let id = cx.update(|_, cx| {
-            cx.global::<ActionRegistry>().ids().find(|id| id.ends_with(".insert-date")).map(str::to_owned)
-        });
-        let id = id.expect("the plugin's command is an action");
+        let id = plugin_action_id(HELLO, "insert-date");
         assert!(cx.debug_bounds(Box::leak(format!("slot:editor.title:{id}").into_boxed_str())).is_some());
+    }
+
+    // src/workbench/ContributedToolbar.test.tsx: a slot's button runs its command; an entry whose
+    // `when` fails has no button until it holds.
+    #[gpui_kit::test]
+    async fn renders_toolbar_slots_with_command_icons_and_honors_when_clauses(cx: &mut TestAppContext) {
+        use crate::platform::context::ContextValue;
+        let (f, cx) = open(cx, &[("notes.txt", "one two\n")], Setup { plugin: true, ..Setup::default() });
+        let editor = f.open_file("notes.txt", cx);
+        let (insert, sync) = (plugin_action_id(HELLO, "insert-date"), plugin_action_id(HELLO, "sync"));
+        assert!(registered(cx).contains(&sync), "Sync is an action");
+        let sync_button: &'static str = Box::leak(format!("slot:editor.title:{sync}").into_boxed_str());
+        let key_is = |on: bool, cx: &mut VisualTestContext| {
+            cx.update(|window, cx| {
+                window_context(window, cx).get("workspaceContains:MODULE.bazel") == Some(&ContextValue::Bool(on))
+            })
+        };
+        wait_long(cx, "the key is answered", |cx| key_is(false, cx));
+        assert!(cx.debug_bounds(sync_button).is_none(), "Sync's entry needs a MODULE.bazel file");
+        click(cx, format!("slot:editor.title:{insert}"));
+        wait_long(cx, "the plugin inserts the date", |cx| {
+            editor.read_with(cx, |editor, _| editor.text().chars().filter(char::is_ascii_digit).count() >= 8)
+        });
+        std::fs::write(f.root.join("MODULE.bazel"), "module(name = \"x\")\n").expect("the file is written");
+        wait_long(cx, "Sync's button shows", |cx| key_is(true, cx) && cx.debug_bounds(sync_button).is_some());
     }
 
     /// Move To › Right Top in a tool window's Options menu docks it on the right.
@@ -1752,6 +1740,8 @@ mod tests {
         click(cx, "more:project".to_owned());
         let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<ToolWindowCommand>()).expect("the options are open");
         assert_eq!(shown(&menu, cx)[0], ["Move To", "Maximize", "-", "Hide"]);
+        choose(&menu, &["Move To"], cx);
+        assert!(disabled(&menu, "Left Top", cx), "the window's own area cannot be chosen");
         choose(&menu, &["Move To", "Right Top"], cx);
         let slot = f.workbench.read_with(cx, |w, _| w.tool_windows().and_then(|layout| layout.slot_of("project")));
         assert_eq!(slot, Some(Slot::Right));
@@ -1775,8 +1765,8 @@ mod tests {
         }
         let mut all = Vec::new();
         ids(&items, &mut all);
-        let titles = registered(cx);
-        let missing: Vec<&str> = all.iter().copied().filter(|id| !titles.contains_key(*id)).collect();
+        let known = registered(cx);
+        let missing: Vec<&str> = all.iter().copied().filter(|id| !known.contains(*id)).collect();
         eprintln!("editor menu actions not registered: {missing:?}");
         let at = at_offset(&editor, 0, cx);
         right_click(cx, at);
@@ -1785,5 +1775,7 @@ mod tests {
         for id in missing {
             assert!(!keys.iter().any(|key| key == id || key.starts_with(&format!("{id}|"))), "{id} is shown");
         }
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
     }
 }
