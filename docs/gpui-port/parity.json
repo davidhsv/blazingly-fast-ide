@@ -4958,5 +4958,369 @@
   "point.registerOverlay:app.termination": {
     "status": "partial",
     "proof": "`workbench::tests::closing_with_a_running_process_asks_to_terminate_it_before_the_unsaved_question`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`; the exit, running-process and unsaved-changes questions; no Terminating panel with Kill"
+  },
+  "action:vcs.addToVcs": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`"
+  },
+  "action:vcs.applyPatch": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::a_patch_that_does_not_apply_shows_the_error`, `workbench::shelf::tests::apply_patch_from_a_file_and_from_the_clipboard_changes_the_working_tree`"
+  },
+  "action:vcs.applyPatchFromClipboard": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::a_patch_that_does_not_apply_shows_the_error`, `workbench::shelf::tests::apply_patch_from_a_file_and_from_the_clipboard_changes_the_working_tree`"
+  },
+  "action:vcs.changelist.commit": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::commit_changelist_commits_only_its_files`"
+  },
+  "action:vcs.changelist.delete": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::moving_changes_between_changelists_and_deleting_one_moves_its_changes_to_the_active_list`"
+  },
+  "action:vcs.changelist.edit": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::new_changelists_set_active_receive_new_changes_and_edit_renames_them`"
+  },
+  "action:vcs.changelist.move": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::moving_changes_between_changelists_and_deleting_one_moves_its_changes_to_the_active_list`"
+  },
+  "action:vcs.changelist.new": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::new_changelists_set_active_receive_new_changes_and_edit_renames_them`"
+  },
+  "action:vcs.changelist.setActive": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::new_changelists_set_active_receive_new_changes_and_edit_renames_them`"
+  },
+  "action:vcs.cherryPick.abort": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::a_stopped_cherry_pick_and_revert_are_aborted_and_continued`"
+  },
+  "action:vcs.cherryPick.continue": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::a_stopped_cherry_pick_and_revert_are_aborted_and_continued`"
+  },
+  "action:vcs.createPatch": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::create_patch_from_selected_changes_writes_a_file_that_applies_in_a_clean_clone`"
+  },
+  "action:vcs.ignoreLocal": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`"
+  },
+  "action:vcs.ignoreShared": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`"
+  },
+  "action:vcs.log.branches.delete": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`"
+  },
+  "action:vcs.log.branches.navigate": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`"
+  },
+  "action:vcs.log.branches.new": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`"
+  },
+  "action:vcs.log.branches.toggleFavorite": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`"
+  },
+  "action:vcs.log.branches.update": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`"
+  },
+  "action:vcs.log.changes.compareBeforeWithLocal": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; opens the diff window, not an editor tab"
+  },
+  "action:vcs.log.changes.compareWithLocal": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; opens the diff window, not an editor tab"
+  },
+  "action:vcs.log.changes.diffPreview": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
+  },
+  "action:vcs.log.changes.getFromRevision": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
+  },
+  "action:vcs.log.changes.groupByDirectory": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
+  },
+  "action:vcs.log.changes.jumpToSource": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
+  },
+  "action:vcs.log.changes.revert": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
+  },
+  "action:vcs.log.changes.showDiff": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
+  },
+  "action:vcs.log.checkoutRevision": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::new_branch_new_tag_rebase_onto_and_checkout_at_a_commit`"
+  },
+  "action:vcs.log.cherryPick": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::a_commit_action_reads_a_commit_the_log_has_not_read`, `workbench::log_actions::tests::cherry_pick_applies_a_commit_of_another_branch_and_a_conflicting_one_opens_the_conflicts`"
+  },
+  "action:vcs.log.collapseLinear": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::collapse_and_expand_linear_branches_set_the_option_the_log_presents_its_graph_with`; the option is stored and the model collapses; the collapsed graph is not drawn"
+  },
+  "action:vcs.log.compareVersions": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::compare_with_local_and_compare_versions_open_the_diff_window`; opens the diff window on the first file instead of the \"Changes between\" list"
+  },
+  "action:vcs.log.compareWithLocal": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::compare_with_local_and_compare_versions_open_the_diff_window`; opens the diff window on the first file instead of the \"Changes between\" list"
+  },
+  "action:vcs.log.copyRevision": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::a_commit_action_reads_a_commit_the_log_has_not_read`, `workbench::log_actions::tests::copy_revision_and_the_navigation_actions_move_the_selection`"
+  },
+  "action:vcs.log.createPatch": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::create_patch_of_commits_writes_their_changes_oldest_first`"
+  },
+  "action:vcs.log.dropCommit": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::drop_commit_removes_it_after_the_confirmation`"
+  },
+  "action:vcs.log.editMessage": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::edit_commit_message_rewords_the_head_and_an_older_commit_and_undo_restores_it`"
+  },
+  "action:vcs.log.expandLinear": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::collapse_and_expand_linear_branches_set_the_option_the_log_presents_its_graph_with`; the option is stored and the model expands; the collapsed graph is not drawn"
+  },
+  "action:vcs.log.fixup": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::commit_and_rebase_after_fixup_melds_the_change_into_the_older_commit`, `workbench::log_actions::tests::fixup_and_squash_into_prepare_the_commit_message`"
+  },
+  "action:vcs.log.goToChild": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::copy_revision_and_the_navigation_actions_move_the_selection`"
+  },
+  "action:vcs.log.goToParent": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::copy_revision_and_the_navigation_actions_move_the_selection`"
+  },
+  "action:vcs.log.goToRef": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::copy_revision_and_the_navigation_actions_move_the_selection`; selects only a commit already loaded: no paging and no filter reset"
+  },
+  "action:vcs.log.interactiveRebase": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::interactive_rebase_lists_the_commits_oldest_first_and_applies_the_plan`"
+  },
+  "action:vcs.log.newBranch": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::new_branch_new_tag_rebase_onto_and_checkout_at_a_commit`"
+  },
+  "action:vcs.log.newTag": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::new_branch_new_tag_rebase_onto_and_checkout_at_a_commit`"
+  },
+  "action:vcs.log.openInBrowser": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::view_in_browser_opens_the_commit_page_of_the_remote`"
+  },
+  "action:vcs.log.pushUpToHere": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::push_all_up_to_here_pushes_the_branch_to_the_bare_remote`; the Push dialog lists every outgoing commit, not only those up to the chosen one"
+  },
+  "action:vcs.log.rebaseOntoCommit": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::new_branch_new_tag_rebase_onto_and_checkout_at_a_commit`"
+  },
+  "action:vcs.log.resetToHere": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::reset_current_branch_to_here_moves_the_branch_in_each_mode`"
+  },
+  "action:vcs.log.revealBookmark": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::copy_revision_and_the_navigation_actions_move_the_selection`"
+  },
+  "action:vcs.log.revert": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::revert_commit_adds_a_commit_that_undoes_it`"
+  },
+  "action:vcs.log.squashCommits": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::squash_commits_melds_the_selected_commits_with_the_typed_message`"
+  },
+  "action:vcs.log.squashInto": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::fixup_and_squash_into_prepare_the_commit_message`"
+  },
+  "action:vcs.log.undoCommit": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::undo_commit_brings_the_changes_back_and_offers_the_message`"
+  },
+  "action:vcs.manageRemotes": {
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::the_remotes_dialog_adds_edits_and_removes_a_remote`; a password inside a remote URL is masked in the list and the edit field; the original shows the URL as stored"
+  },
+  "action:vcs.merge": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`"
+  },
+  "action:vcs.merge.abort": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`"
+  },
+  "action:vcs.newTag": {
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::new_tag_creates_a_tag_and_refuses_an_invalid_or_duplicate_name`; the tag message is a one-line field, not a multi-line one"
+  },
+  "action:vcs.newWorktree": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`"
+  },
+  "action:vcs.openDiff": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::open_diff_shows_the_diff_of_its_argument`"
+  },
+  "action:vcs.operations": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::the_operations_popup_lists_the_operations_in_order_and_runs_the_chosen_one`"
+  },
+  "action:vcs.pull": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::pull_brings_in_a_commit_from_the_remote`"
+  },
+  "action:vcs.rebase": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`, `workbench::vcs_operations::tests::rebase_onto_a_branch_and_continue_a_rebase_that_stopped`"
+  },
+  "action:vcs.rebase.abort": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::a_stopped_rebase_is_aborted_and_skipped`"
+  },
+  "action:vcs.rebase.continue": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::rebase_onto_a_branch_and_continue_a_rebase_that_stopped`"
+  },
+  "action:vcs.rebase.skip": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::a_stopped_rebase_is_aborted_and_skipped`"
+  },
+  "action:vcs.refresh": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::a_stopped_cherry_pick_and_revert_are_aborted_and_continued`"
+  },
+  "action:vcs.resetHead": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::reset_head_moves_the_branch_in_each_mode`"
+  },
+  "action:vcs.revert.abort": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::a_stopped_cherry_pick_and_revert_are_aborted_and_continued`"
+  },
+  "action:vcs.revert.continue": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::a_stopped_cherry_pick_and_revert_are_aborted_and_continued`"
+  },
+  "action:vcs.rollback": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`"
+  },
+  "action:vcs.shelf.compareLocal": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`"
+  },
+  "action:vcs.shelf.copyPatch": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::copy_patch_puts_the_shelved_patch_on_the_clipboard`"
+  },
+  "action:vcs.shelf.createPatch": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::create_patch_from_the_shelf_writes_a_file_that_applies_in_a_clean_clone`"
+  },
+  "action:vcs.shelf.delete": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::rename_and_delete_change_the_shelf`"
+  },
+  "action:vcs.shelf.importPatches": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::import_patches_adds_a_shelf_entry_from_a_patch_file`"
+  },
+  "action:vcs.shelf.refresh": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`"
+  },
+  "action:vcs.shelf.rename": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::rename_and_delete_change_the_shelf`"
+  },
+  "action:vcs.shelf.showDiff": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`"
+  },
+  "action:vcs.shelf.showDiffNewTab": {
+    "status": "partial",
+    "proof": "`workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`; opens the diff window, not an editor tab"
+  },
+  "action:vcs.shelve": {
+    "status": "partial",
+    "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`; shelf rows show no time"
+  },
+  "action:vcs.showCommit": {
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::show_log_shows_the_git_window_and_show_commit_selects_the_commit`; selects only a commit the log has already read"
+  },
+  "action:vcs.showLog": {
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::show_log_shows_the_git_window_and_show_commit_selects_the_commit`; a branch or path argument opens the main log instead of a filtered one"
+  },
+  "action:vcs.showShelf": {
+    "status": "partial",
+    "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`; shelf rows show no time"
+  },
+  "action:vcs.stash": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`"
+  },
+  "action:vcs.toggleAmend": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::amend_commit_toggles_amend_with_the_last_commits_message`"
+  },
+  "action:vcs.unshelve": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`"
+  },
+  "action:vcs.unstash": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`"
+  },
+  "action:vcs.update": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`, `workbench::vcs_operations::tests::update_project_pulls_with_the_method_chosen_and_resets_to_the_remote_branch`"
+  },
+  "action:vcs.worktrees": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`"
+  },
+  "context:vcsLogFocus": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::the_logs_keys_work_while_the_log_has_the_keyboard` reads it on with the keyboard in the log and off in an editor"
+  },
+  "context:shelfFocus": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file` reads it on in the Shelf tab and off outside it"
   }
 }
