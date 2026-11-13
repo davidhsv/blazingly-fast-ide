@@ -629,7 +629,7 @@
   },
   "unit:src/features/vcs/__tests__/branches.test.ts": {
     "status": "partial",
-    "proof": "`vcs::branches::tests`; 12 of 13 cases: remote web URLs are not ported"
+    "proof": "`vcs::branches::tests`, `vcs_diff::model::tests::reads_progress_and_remote_urls`, `workbench::log_actions::tests::view_in_browser_opens_the_commit_page_of_the_remote`; 12 of 13 cases whole. Remote web URLs: scp-like, ssh with a port, https with a user, a local path and the Bitbucket commits page are asserted on the model, and View in Browser opens the GitHub commit page of an scp-like origin. Not asserted: stripping a user:password userinfo, and a nested group path"
   },
   "unit:src/features/vcs/__tests__/repoBranches.test.ts": {
     "status": "done",
@@ -645,7 +645,7 @@
   },
   "feature:vcs": {
     "status": "partial",
-    "proof": "`vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`, `vcs_ops::branch_ops::tests`, `vcs::graph::tests`; the Git log with its graph and the Commit window's list of changes are shown, and the models of branch, history, commit and change-list operations are ported. Not yet: committing, staging, diffs, branches popup and tree, log filters and details, merge and rebase, shelf and stash, blame, GitHub"
+    "proof": "`vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`, `workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`, `workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`, `workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`, `workbench::tests::merge_opens_the_three_way_editor_and_apply_writes_and_stages_the_resolved_file`, `workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`, `workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `workbench::vcs_operations::tests::update_project_pulls_with_the_method_chosen_and_resets_to_the_remote_branch`, `workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`, `workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`, `workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`, `workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::create_patch_from_selected_changes_writes_a_file_that_applies_in_a_clean_clone`, `workbench::shelf::tests::reported_errors_stop_the_commit_and_review_shows_the_problems`, `workbench::log_actions::tests::interactive_rebase_lists_the_commits_oldest_first_and_applies_the_plan`, `workbench::log_actions::tests::cherry_pick_applies_a_commit_of_another_branch_and_a_conflicting_one_opens_the_conflicts`; the Git log with its graph, filters, details and commit actions, the branches popup, the Commit window with change lists, before-commit checks and the shelf, push, pull, fetch and update, merge, rebase, cherry-pick and revert with their stopped states, the conflicts dialog and merge editor, stash, rollback, patches, tags, remotes and worktrees. Not yet: Annotate with Git Blame, Show History, Local History, Clone and Compare with Branch (none registered), the Stash tab, the modal Commit dialog, partial commits of a file, the log toolbar"
   },
   "action:view.toggleTheme": {
     "status": "done",
@@ -733,15 +733,15 @@
   },
   "ipc:vcs_log": {
     "status": "partial",
-    "proof": "`vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`; the first pages in the chosen order, without branch, user, date, path or text filters"
+    "proof": "`vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`, `workbench::tests::proofs_vcs::the_log_user_filter_lists_the_authors_and_keeps_the_chosen_ones_commits`, `workbench::log_actions::tests::the_commit_menu_disables_history_rewriting_for_a_pushed_commit`, `workbench::log_actions::tests::a_commit_action_reads_a_commit_the_log_has_not_read`; the pages in the chosen order with the text, branch and user filters, the @{u}..HEAD range and a commit read by id; no test reads it with a date range or a path filter"
   },
   "point.registerToolWindow:git": {
     "status": "partial",
-    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`, `workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`, `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`; the commit list with graph, the text filter and branch filter, the branches pane, commit details and changed files with their diff. Not yet: the user, date and path choosers, Go to Hash, the pane's toolbar actions, revert and cherry-pick from the list, the Console and other tabs"
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`, `workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`, `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `workbench::tests::proofs_vcs::the_log_user_filter_lists_the_authors_and_keeps_the_chosen_ones_commits`, `workbench::log_actions::tests::the_commit_context_menu_offers_the_commit_actions_and_runs_the_chosen_one`, `workbench::log_actions::tests::cherry_pick_applies_a_commit_of_another_branch_and_a_conflicting_one_opens_the_conflicts`, `workbench::log_actions::tests::revert_commit_adds_a_commit_that_undoes_it`, `workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`, `workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`, `workbench::vcs_operations::tests::show_log_shows_the_git_window_and_show_commit_selects_the_commit`; the commit list with its graph, the text, branch and user filters, the branches pane and its actions, commit details and changed files with their actions and diff, and the commit context menu with cherry-pick, revert and the history-rewriting actions. Not yet: the Select dialogs of the user, date and path filters, the log toolbar, selecting several commits, the Console and Worktrees tabs"
   },
   "unit:src/features/vcs/__tests__/logOptions.test.ts": {
     "status": "partial",
-    "proof": "`vcs::log_options::tests`, `vcs::graph::tests`; the reference-label and option-parsing cases and the graph cases; the log store cases (isMine, goToRef, reloadLog, dialogs) are not ported"
+    "proof": "`vcs::log_options::tests`, `vcs::graph::tests`, `vcs::git_forms::tests::clashing_merge_flags_cannot_be_checked_together`, `vcs::git_forms::tests::pull_defaults_to_the_upstream_and_says_what_it_pulls`, `vcs::git_forms::tests::remote_names_are_checked_and_origin_is_suggested`, `vcs::git_forms::tests::a_new_worktree_goes_next_to_the_repository`, `workbench::log_actions::tests::copy_revision_and_the_navigation_actions_move_the_selection`; 15 of 17 cases: the collapse, long-edge, reachability, reference-label and option cases, the four Git menu dialog cases, and Go to Hash/Branch/Tag selecting the commit of a typed tag and saying when a reference is not found (on a log that has already loaded the commit). Not ported: isMine, and the case that sends the graph options and date range to the backend"
   },
   "ipc:open_project": {
     "status": "done",
@@ -937,7 +937,7 @@
   },
   "point.registerToolWindow:commit": {
     "status": "partial",
-    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`, `workbench::tests::amend_loads_the_last_message_and_amends_the_commit`, `workbench::tests::a_refused_commit_keeps_its_message_and_the_options_reach_the_commit`, `vcs::commit_view::tests::the_checkboxes_include_and_leave_out_changes`; the changes with their check boxes, the message with its history, Commit, Amend, Commit and Push, the options. Not yet: the before-commit checks (never run), partial commits of a file, change lists, staging, shelf and stash, the modal Commit dialog"
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`, `workbench::tests::amend_loads_the_last_message_and_amends_the_commit`, `workbench::tests::a_refused_commit_keeps_its_message_and_the_options_reach_the_commit`, `vcs::commit_view::tests::the_checkboxes_include_and_leave_out_changes`, `workbench::shelf::tests::new_changelists_set_active_receive_new_changes_and_edit_renames_them`, `workbench::shelf::tests::moving_changes_between_changelists_and_deleting_one_moves_its_changes_to_the_active_list`, `workbench::shelf::tests::a_change_dragged_onto_another_list_moves_there`, `workbench::shelf::tests::commit_changelist_commits_only_its_files`, `workbench::shelf::tests::a_todo_in_the_changed_lines_stops_the_commit_until_commit_anyway`, `workbench::shelf::tests::reported_errors_stop_the_commit_and_review_shows_the_problems`, `workbench::shelf::tests::a_detached_head_is_told_crlf_in_project_text_is_not_and_the_language_server_checks_are_disabled`, `workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`; the changes grouped by change list with their check boxes, the message with its history, Commit, Amend, Commit and Push, the options, the before-commit checks with Commit Anyway, and the Shelf tab. Not yet: the Stash tab, the Reformat code, Optimize imports and Cleanup checks (shown disabled with a reason), partial commits of a file, the staging area, the modal Commit dialog"
   },
   "ipc:vcs_status": {
     "status": "done",
@@ -3541,7 +3541,7 @@
   },
   "point.registerOverlay:vcs.dialogs": {
     "status": "partial",
-    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`, `workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`; prompts, confirmations, Push and Conflicts; Update Project and the others are not built"
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`, `workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`, `workbench::vcs_operations::tests::pull_brings_in_a_commit_from_the_remote`, `workbench::vcs_operations::tests::update_project_pulls_with_the_method_chosen_and_resets_to_the_remote_branch`, `workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`, `workbench::vcs_operations::tests::rebase_onto_a_branch_and_continue_a_rebase_that_stopped`, `workbench::vcs_operations::tests::reset_head_moves_the_branch_in_each_mode`, `workbench::vcs_operations::tests::new_tag_creates_a_tag_and_refuses_an_invalid_or_duplicate_name`, `workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`, `workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`, `workbench::vcs_operations::tests::the_remotes_dialog_adds_edits_and_removes_a_remote`, `workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`, `workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`, `workbench::shelf::tests::new_changelists_set_active_receive_new_changes_and_edit_renames_them`, `workbench::shelf::tests::moving_changes_between_changelists_and_deleting_one_moves_its_changes_to_the_active_list`, `workbench::shelf::tests::create_patch_from_selected_changes_writes_a_file_that_applies_in_a_clean_clone`, `workbench::shelf::tests::apply_patch_from_a_file_and_from_the_clipboard_changes_the_working_tree`, `workbench::log_actions::tests::interactive_rebase_lists_the_commits_oldest_first_and_applies_the_plan`, `workbench::log_actions::tests::edit_commit_message_rewords_the_head_and_an_older_commit_and_undo_restores_it`, `workbench::log_actions::tests::undo_commit_brings_the_changes_back_and_offers_the_message`; the window opens and answers these dialogs: prompts, confirmations, Push, Conflicts, Pull, Update Project, Merge, Rebase, Reset, New Tag, Stash, Unstash, Rollback, Remotes and Edit Remote, Worktrees and New Worktree, Shelve, Unshelve, New and Edit Changelist, the target change list chooser, Create Patch, Apply Patch, Interactive Rebase and Edit Commit Message. Not yet: Clone, the modal Commit dialog, Compare with Branch, Changes Between, Directory Compare, the revision and commit choosers, and the Select Users, Date Range and Folders dialogs of the log filters"
   },
   "unit:src/features/build/build.test.tsx": {
     "status": "partial",
@@ -3844,16 +3844,16 @@
     "proof": "`workbench::tests::a_rebase_whose_last_conflict_is_resolved_from_the_dialog_continues_by_itself`; Rebase 'feature' onto 'main' from the branch menu runs ops::vcs::vcs_rebase, and the test asserts the replayed history (feature side over main side); Checkout and Rebase calls the same function"
   },
   "ipc:vcs_merge_base": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`; asked for the diverged-branch question of a checkout; no test reaches that question"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`; Update Project counts what came in from the merge base of HEAD and the tracked branch: 1 file in 1 commit, not the local commit's file"
   },
   "ipc:vcs_remove_worktree": {
-    "status": "partial",
-    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`; called when a deleted branch has a worktree; no test has one"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`, `workbench::tests::proofs_vcs::deleting_a_branch_checked_out_in_a_worktree_removes_the_worktree_once_confirmed`; the Worktrees dialog's Remove and the deletion of a branch checked out in a worktree both leave git worktree list without it and delete its folder"
   },
   "ipc:vcs_diff_revisions": {
     "status": "partial",
-    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`; called for merge commits and Pull into; the tests use plain commits"
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`, `workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`, `workbench::log_actions::tests::compare_with_local_and_compare_versions_open_the_diff_window`; Update Project counts the files that came in and Compare Versions opens the files between two commits; no test selects a merge commit, whose changes against a parent also read it"
   },
   "ipc:fs_delete": {
     "status": "partial",
@@ -3880,8 +3880,8 @@
     "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; called for a Local History side of a diff, which no test opens"
   },
   "ipc:vcs_diff_numstat": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`; asked for the selected commit; the test does not assert the line counts"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_vcs::the_commit_details_show_the_added_and_removed_lines_of_a_file`; with line counts on, the changed file of the selected commit shows +3 −1"
   },
   "ipc:vcs_commits_changes": {
     "status": "partial",
@@ -3889,7 +3889,7 @@
   },
   "ipc:vcs_log_users": {
     "status": "partial",
-    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`; called when the user filter opens; no test opens it"
+    "proof": "`workbench::tests::proofs_vcs::the_log_user_filter_lists_the_authors_and_keeps_the_chosen_ones_commits`; the User filter lists the authors read from the repository; it reads the selected repository only, where the webview reads every repository root"
   },
   "ipc:fs_entry_kind": {
     "status": "partial",
@@ -3905,7 +3905,7 @@
   },
   "point.registerTitleItem:vcs.mergeRebase": {
     "status": "partial",
-    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`; Abort, Continue and Skip of a stopped operation; Resolve Conflicts has no dialog to open yet"
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`; Abort, Continue and Skip of a stopped operation; no test clicks Resolve on the widget"
   },
   "point.registerOverlay:run.chooser": {
     "status": "done",
@@ -5322,5 +5322,137 @@
   "context:shelfFocus": {
     "status": "done",
     "proof": "`workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file` reads it on in the Shelf tab and off outside it"
+  },
+  "ipc:vcs_merge_with": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`; Merge… calls ops::vcs::vcs_merge_with with the chosen branch and the checked flags, and the test reads a two-parent merge commit (--no-ff) and the merged file in the repository"
+  },
+  "ipc:vcs_rebase_with": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::rebase_onto_a_branch_and_continue_a_rebase_that_stopped`; Rebase… calls ops::vcs::vcs_rebase_with with the upstream and the onto, rebase-merges and keep-empty options, and the test reads the replayed history"
+  },
+  "ipc:vcs_create_tag": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::new_tag_creates_a_tag_and_refuses_an_invalid_or_duplicate_name`, `workbench::log_actions::tests::new_branch_new_tag_rebase_onto_and_checkout_at_a_commit`; the tag is read with git tag -l, and a message makes it annotated (git cat-file -t)"
+  },
+  "ipc:vcs_stash_push": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`; the change leaves the working tree and git stash list shows the typed message"
+  },
+  "ipc:vcs_stash_apply": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`; Pop Stash calls ops::vcs::vcs_stash_apply with the index, pop, reinstate-index and branch answers, and the test reads the change back and an empty git stash list"
+  },
+  "ipc:vcs_stashes": {
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`; the Unstash dialog lists the repository's stash; the Commit window's stash list of every root is not built"
+  },
+  "ipc:vcs_unstage": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`; rolling back an added file leaves it untracked (git status --porcelain shows ?? new.txt)"
+  },
+  "ipc:vcs_discard": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`; a rolled back file has its committed content again and an added one is deleted only when asked"
+  },
+  "ipc:vcs_edit_remote": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::the_remotes_dialog_adds_edits_and_removes_a_remote`; add, edit and remove are read back with git remote and git remote get-url"
+  },
+  "ipc:vcs_add_worktree": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`; the new worktree's folder has the chosen branch checked out"
+  },
+  "ipc:vcs_add_to_ignore": {
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`; the rule is read in .gitignore or in .git/info/exclude, and git status no longer lists the excluded file"
+  },
+  "ipc:vcs_line_hunks": {
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`; Rollback Lines reads the hunks and restores only the lines under the caret; the editor gutter's change markers do not read it"
+  },
+  "ipc:vcs_shelve": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`; the shelved files are clean in git status and the Shelf tab lists the shelf with its files"
+  },
+  "ipc:vcs_shelves": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`; the Shelf tab lists the stored shelf, and after its folder is removed on disk Refresh Shelf lists none"
+  },
+  "ipc:vcs_unshelve": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`; one file and then the rest of a shelf are restored in the working tree, and the remove choice takes the applied file off the shelf"
+  },
+  "ipc:vcs_shelf_rename": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::rename_and_delete_change_the_shelf`; the shelf is listed under the typed name"
+  },
+  "ipc:vcs_shelf_delete": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::rename_and_delete_change_the_shelf`; the shelf's folder under .openidea/shelf is gone after Delete"
+  },
+  "ipc:vcs_shelf_diff": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`; the diff window shows the shelved base and version texts"
+  },
+  "ipc:vcs_shelf_patch": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::copy_patch_puts_the_shelved_patch_on_the_clipboard`, `workbench::shelf::tests::create_patch_from_the_shelf_writes_a_file_that_applies_in_a_clean_clone`; the clipboard holds the shelf's diff, and the written patch passes git apply --check in a clean clone"
+  },
+  "ipc:vcs_shelf_import": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::import_patches_adds_a_shelf_entry_from_a_patch_file`; the shelf lists an entry named after the patch file with its file, and the working tree is unchanged"
+  },
+  "ipc:vcs_write_patch": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::create_patch_from_selected_changes_writes_a_file_that_applies_in_a_clean_clone`, `workbench::shelf::tests::create_patch_from_the_shelf_writes_a_file_that_applies_in_a_clean_clone`; the chosen file holds the patch, which applies in a clean clone"
+  },
+  "ipc:vcs_create_patch": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::create_patch_from_selected_changes_writes_a_file_that_applies_in_a_clean_clone`, `workbench::log_actions::tests::create_patch_of_commits_writes_their_changes_oldest_first`, `workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; patches of the selected changes and of commits (reversed for Revert Selected Changes) are read from the written file and the working tree"
+  },
+  "ipc:vcs_patch_preview": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::apply_patch_from_a_file_and_from_the_clipboard_changes_the_working_tree`, `workbench::shelf::tests::a_patch_that_does_not_apply_shows_the_error`; the Apply Patch dialog lists the patch's files with their line counts, marks a missing file, and shows the error of a patch with no changes"
+  },
+  "ipc:vcs_apply_patch": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::apply_patch_from_a_file_and_from_the_clipboard_changes_the_working_tree`, `workbench::shelf::tests::a_patch_that_does_not_apply_shows_the_error`, `workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; the patched file has its new content, and a patch that does not apply creates nothing"
+  },
+  "ipc:vcs_changelists_load": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::changelists_survive_a_reload_of_the_projects_vcs_state`; after the version control state is mounted again the lists, the comment and the file assignments come back from .openidea/changelists.json"
+  },
+  "ipc:vcs_changelists_save": {
+    "status": "done",
+    "proof": "`workbench::shelf::tests::changelists_survive_a_reload_of_the_projects_vcs_state`; .openidea/changelists.json is written with the new list"
+  },
+  "ipc:vcs_config_get": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::view_in_browser_opens_the_commit_page_of_the_remote`; View in Browser reads remote.<name>.url and the before-commit checks read core.autocrlf; the log's own-commits filter (user.email, user.name) and the commit message template (commit.template) are not read"
+  },
+  "ipc:vcs_undo_commit": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::undo_commit_brings_the_changes_back_and_offers_the_message`; HEAD moves to the parent and the commit's file is staged again"
+  },
+  "ipc:vcs_reword": {
+    "status": "done",
+    "proof": "`workbench::log_actions::tests::edit_commit_message_rewords_the_head_and_an_older_commit_and_undo_restores_it`; git log shows the new subjects of the head and of an older commit, the file unchanged"
+  },
+  "ipc:vcs_restore_head": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::edit_commit_message_rewords_the_head_and_an_older_commit_and_undo_restores_it`; the Undo of a history rewrite's notification puts the old subject back; the undo of a merge or rebase run in several repositories (resetBack in branchOps.ts) does not call it"
+  },
+  "ipc:vcs_diff_with_worktree": {
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::compare_with_local_and_compare_versions_open_the_diff_window`; Compare with Local reads the files that differ from the commit and opens them in the diff window; the webview lists them in the Changes between dialog first"
+  },
+  "unit:src/features/vcs/__tests__/worktreesPanel.test.tsx": {
+    "status": "partial",
+    "proof": "`vcs::git_forms::tests::marks_the_linked_project_root_current_when_its_main_worktree_is_also_listed`, `vcs::git_forms::tests::marks_both_opened_roots_current_while_grouping_their_repository_once`, `vcs::git_forms::tests::disables_removal_of_the_worktree_containing_project`, `vcs::git_forms::tests::allows_removal_when_project_is_outside_the_worktree`, `vcs::git_forms::tests::keeps_the_main_worktree_protected`, `workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`; all 5 cases are asserted on the form spec that the Worktrees dialog draws. Through the dialog only the current marker of the project's worktree and an enabled Remove for a worktree outside the project are asserted. The repository row grouped once for two opened roots, the disabled Remove with its tooltip for a worktree containing the project, and the protected main worktree have no window test"
+  },
+  "unit:src/features/vcs/__tests__/shelf.test.tsx": {
+    "status": "partial",
+    "proof": "`vcs::shelf_view::tests::preserves_file_targets_through_selection_menus_toolbar_and_activation`, `vcs::shelf_view::tests::keeps_file_scope_from_selection_and_explicit_targets_rejects_stale_files`, `workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`, `workbench::shelf::tests::copy_patch_puts_the_shelved_patch_on_the_clipboard`, `workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`, `workbench::shelf::model_tests::compares_saved_sides_keeps_binary_files_out_of_text_diffs_and_scopes_chains`, `workbench::shelf::model_tests::maps_saved_and_local_diffs_to_the_owning_repo`, `workbench::shelf::model_tests::keeps_legacy_shelves_on_the_primary_repo_after_selecting_another_repo`, `workbench::shelf::model_tests::the_shelf_menu_disables_rename_for_a_file`; through the app and the Shelf view: the saved base and version of a file with no chain, Compare with Local against the working file with the shelf's files as the chain, selection, toolbar Unshelve and Enter to Show Diff on a file target, Show Diff with shelfFocus. Only on the model: rejecting stale targets, keeping binary files out, mapping to the owning repository (4 of the 5 variants, the project below the repository is missing), legacy shelves on the primary repository, the file menu's rows with Rename disabled. Not asserted: skipping a missing or binary local file in Compare with Local, the Unshelve changelist path mapping across roots, that Copy as Patch copies only the selected file of a shelf with several, the Ctrl+D/Meta+D binding and its refusal in an editor, choosing Copy as Patch from the file's context menu"
   }
 }
