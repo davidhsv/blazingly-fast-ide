@@ -64,6 +64,8 @@ type Claim = Rc<dyn Fn(&Keystroke, &mut Window, &mut App) -> bool>;
 pub struct KeyClaims {
     next: u64,
     claims: Vec<(u64, FocusHandle, Claim)>,
+    /// Focuses that keep the keymap out: a key pressed in them goes to the focused view alone.
+    shields: Vec<(u64, FocusHandle)>,
 }
 
 impl Global for KeyClaims {}
@@ -82,9 +84,21 @@ pub fn claim_keys(
     id
 }
 
+/// Keeps the keymap out while `focus` is focused: every key goes to the focused view and no IDE
+/// shortcut runs, as in a find field that owns its keys. Returns the id for [`release_keys`].
+pub fn keep_keymap_out(focus: FocusHandle, cx: &mut App) -> u64 {
+    let claims = cx.default_global::<KeyClaims>();
+    claims.next += 1;
+    let id = claims.next;
+    claims.shields.push((id, focus));
+    id
+}
+
 pub fn release_keys(id: u64, cx: &mut App) {
     if cx.has_global::<KeyClaims>() {
-        cx.global_mut::<KeyClaims>().claims.retain(|(claim, _, _)| *claim != id);
+        let claims = cx.global_mut::<KeyClaims>();
+        claims.claims.retain(|(claim, _, _)| *claim != id);
+        claims.shields.retain(|(shield, _)| *shield != id);
     }
 }
 
@@ -102,7 +116,10 @@ pub fn init(cx: &mut App) {
             .filter(|(_, focus, _)| focus.is_focused(window))
             .map(|(_, _, claim)| claim.clone())
             .collect();
-        if claims.iter().any(|claim| claim(&event.keystroke, window, cx)) || keystroke(event, window, cx).consumed() {
+        let shielded = cx.global::<KeyClaims>().shields.iter().any(|(_, focus)| focus.is_focused(window));
+        if claims.iter().any(|claim| claim(&event.keystroke, window, cx))
+            || (!shielded && keystroke(event, window, cx).consumed())
+        {
             cx.stop_propagation();
         } else {
             // Until this key has been dispatched: what it reaches next knows the keymap declined it.

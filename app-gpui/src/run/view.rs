@@ -223,6 +223,8 @@ impl RunView {
         );
         let bar = cx.weak_entity();
         let field_focus = field.read(cx).focus_handle(cx);
+        // The find bar owns every key while it has the keyboard: the IDE keymap stays out.
+        let field_shield = input::keep_keymap_out(field_focus.clone(), cx);
         let field_claim = input::claim_keys(
             field_focus,
             move |keystroke, window, cx| {
@@ -257,7 +259,7 @@ impl RunView {
             debug_available: false,
             edit_available: false,
             chooser_shortcut: None,
-            key_claims: vec![console_claim, field_claim],
+            key_claims: vec![console_claim, field_claim, field_shield],
             _subscriptions: subscriptions,
         };
         view.refresh(cx);

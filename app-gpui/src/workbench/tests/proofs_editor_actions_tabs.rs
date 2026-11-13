@@ -87,10 +87,11 @@ async fn closing_a_tab_releases_its_document_once_no_other_tab_shows_it(cx: &mut
     open_and_wait(&workbench, &root.join("notes.txt"), cx);
     settle(cx, |cx| open_documents(cx) == ["alpha.rs", "notes.txt"]);
 
-    // Two panes show notes.txt: one document for both.
-    let first = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+    // Two panes show notes.txt: one document for both. Only the editor's id is kept, so that the
+    // test itself holds no editor alive.
+    let first = workbench.read_with(cx, |w, _| w.editor().map(Entity::entity_id)).expect("an editor");
     run_action(cx, "editor.splitRight", None);
-    settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some_and(|editor| *editor != first)));
+    settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some_and(|editor| editor.entity_id() != first)));
     assert_eq!(panes(&workbench, cx).len(), 2);
     assert_eq!(open_documents(cx), ["alpha.rs", "notes.txt"]);
 

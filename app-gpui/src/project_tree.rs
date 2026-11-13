@@ -309,6 +309,18 @@ impl ProjectTree {
         (!node.group && node.member.is_none() && node.placeholder.is_none()).then_some(node.path.as_str())
     }
 
+    /// The folder the selection stands for: a selected folder itself, the folder of a selected file.
+    pub fn selected_directory(&self) -> Option<String> {
+        let node = self.model.by_key.get(self.selected.as_deref()?)?;
+        if node.group || node.placeholder.is_some() {
+            return None;
+        }
+        if node.dir {
+            return Some(node.path.clone());
+        }
+        std::path::Path::new(&node.path).parent().map(|parent| parent.to_string_lossy().into_owned())
+    }
+
     /// Rebuilds the rows from what is loaded, asks for the folders that are open but not read,
     /// and serves a pending reveal.
     fn rebuild(&mut self, cx: &mut Context<Self>) {

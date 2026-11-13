@@ -94,6 +94,7 @@ mod tests {
     use crate::run::ansi::AnsiColor;
     use crate::run::console::{ChunkKind, ConsoleModel};
     use crate::run::links::find_output_links;
+    mod proofs_marks;
 
     #[test]
     fn splits_styled_spans_at_link_boundaries() {

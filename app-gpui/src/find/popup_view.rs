@@ -2828,6 +2828,8 @@ mod tests {
     use gpui_kit::{Modifiers, MouseDownEvent, MouseUpEvent, TestAppContext, VisualTestContext};
     use std::cell::RefCell;
 
+    mod proofs_editor_project_masks;
+
     type Events = Rc<RefCell<Vec<FindPopupEvent>>>;
 
     fn init(cx: &mut TestAppContext) {

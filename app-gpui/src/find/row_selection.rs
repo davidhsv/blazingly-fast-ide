@@ -98,6 +98,7 @@ pub fn is_row_selected(selection: &RowSelection, key: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod proofs_sections;
 
     struct Row(&'static str);
 

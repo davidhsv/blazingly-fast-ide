@@ -400,6 +400,7 @@ pub fn execute_action_from(
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod proofs_titles;
 
     #[test]
     fn manifest_describes_the_webview_actions() {

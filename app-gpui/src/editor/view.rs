@@ -254,6 +254,8 @@ pub struct Editor {
     drag_anchor: Option<u32>,
     /// A caret-adding press, while the mouse button is down.
     adding: Option<AddingCaret>,
+    /// Where a ⌥-drag column selection began, while the mouse button is down.
+    column_drag: Option<commands::column_mode::BlockPoint>,
     /// The document has changes that are not on disk.
     dirty: bool,
     /// Counts edits, so that a highlight request an edit has overtaken is dropped.
@@ -347,6 +349,7 @@ impl Editor {
             history: History::default(),
             drag_anchor: None,
             adding: None,
+            column_drag: None,
             dirty: info.dirty,
             generation: 0,
             created: std::time::Instant::now(),
@@ -730,6 +733,18 @@ impl Editor {
             *marks = map_marks(marks, &changes);
         }
         self.marks.retain(|_, marks| !marks.is_empty());
+        // The colours move with the text until the new highlights arrive; a range whose text is gone goes.
+        if !changes.is_empty() {
+            self.highlights = self
+                .highlights
+                .iter()
+                .filter_map(|span| {
+                    let from = buffer::map_offset(span.from, &changes, Assoc::After);
+                    let to = buffer::map_offset(span.to, &changes, Assoc::Before);
+                    (to > from).then_some(HighlightSpan { from, to, kind: span.kind })
+                })
+                .collect();
+        }
         let followed = Edit { changes: changes.clone(), selections: self.selections.clone(), main: self.main };
         let typed = record == Some(EditKind::Insert);
         self.pair_scopes = smart_keys::track_pair_scopes(&self.pair_scopes, &before_state, &followed, typed);
@@ -1494,6 +1509,15 @@ impl Editor {
             return;
         }
         self.adding = None;
+        self.column_drag = None;
+        // ⌥-drag selects a block of columns (the add-caret gesture, checked above, comes first).
+        let modifiers = &event.modifiers;
+        if event.click_count <= 1 && modifiers.alt && !modifiers.shift && !modifiers.platform && !modifiers.control {
+            self.select(offset, offset, cx);
+            self.column_drag = self.block_point_at(event.position);
+            self.drag_anchor = None;
+            return;
+        }
         match event.click_count {
             0 | 1 => {
                 let anchor = if event.modifiers.shift { self.anchor() } else { offset };
@@ -1532,7 +1556,7 @@ impl Editor {
 
     fn mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
         if event.pressed_button != Some(MouseButton::Left) {
-            (self.drag_anchor, self.adding) = (None, None);
+            (self.drag_anchor, self.adding, self.column_drag) = (None, None, None);
             if event.pressed_button.is_none() {
                 self.hover(self.text_offset_at(event.position), event.modifiers, cx);
             }
@@ -1546,10 +1570,44 @@ impl Editor {
             }
             return;
         }
+        if let Some(start) = self.column_drag {
+            let Some(head) = self.block_point_at(event.position) else { return };
+            let ranges = commands::column_mode::rectangle_ranges(&self.edit_state(), start, head);
+            if !ranges.is_empty() && ranges != self.selections {
+                let main = ranges.len() - 1;
+                self.set_selections(ranges, main, cx);
+            }
+            return;
+        }
         let Some(anchor) = self.drag_anchor else { return };
         if offset != self.caret() {
             self.select(anchor, offset, cx);
         }
+    }
+
+    /// The line and visible column under a point, for a block selection: right of a line's end the
+    /// column goes on growing by the width of a column of the painted text.
+    fn block_point_at(&self, position: Point<Pixels>) -> Option<commands::column_mode::BlockPoint> {
+        let offset = self.offset_at(position)?;
+        let (line, col) = buffer::line_col(&self.rope, offset);
+        let tab_size = self.facts.tab_size;
+        let text = self.edit_state().line(line).text;
+        let mut column = commands::visible_column::visible_column(&text, col, tab_size);
+        let layout = self.layout.as_ref()?;
+        let column_width = layout.lines.iter().find_map(|(text, shaped)| {
+            let columns = commands::visible_column::visible_width(text, tab_size);
+            (columns > 0).then(|| shaped.width / columns as f32)
+        });
+        let painted = line.checked_sub(layout.first_line).and_then(|index| layout.lines.get(index as usize));
+        if let (Some(width), Some((_, shaped))) = (column_width, painted)
+            && col as usize == text.encode_utf16().count()
+        {
+            let beyond = position.x - layout.bounds.left() - layout.text_left - shaped.width;
+            if beyond > px(0.0) {
+                column += (beyond / width).round() as u32;
+            }
+        }
+        Some(commands::column_mode::BlockPoint { line, col: column })
     }
 }
 
@@ -2076,6 +2134,11 @@ mod tests {
     use ide_core::{Pos, TextEdit};
     use std::time::Duration;
 
+    mod proofs_editor_highlight_backend;
+    mod proofs_editor_highlight_cmake;
+    mod proofs_editor_highlight_interpolation;
+    mod proofs_editor_highlight_support;
+
     /// A project in a temporary folder with `files`, and an editor on the first of them.
     struct Fixture {
         editor: Entity<Editor>,
@@ -2350,6 +2413,9 @@ mod editing_tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use ide_core::{Pos, TextEdit};
     use std::time::Duration;
+
+    mod proofs_editor_clipboard_history;
+    mod proofs_editor_multi_caret;
 
     struct Opened {
         editor: Entity<Editor>,

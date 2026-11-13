@@ -389,6 +389,7 @@ impl Dispatcher {
 mod tests {
     use super::*;
     use std::collections::HashSet;
+    mod proofs_keypad;
 
     /// A keymap of overrides and the set of actions a shortcut may not run.
     #[derive(Default)]

@@ -1027,6 +1027,26 @@ impl EditorIntelligence {
         cx.notify();
     }
 
+    /// The window's modifier keys changed with the pointer still: holding the navigation modifier
+    /// closes the documentation the pointer is not in, as moving with it held does.
+    pub fn modifiers_changed(&mut self, modifiers: gpui_kit::Modifiers, cx: &mut Context<Self>) {
+        let held = hover::Modifiers {
+            meta: modifiers.platform,
+            ctrl: modifiers.control,
+            alt: modifiers.alt,
+            shift: modifiers.shift,
+        };
+        let changed = self.navigation_modifier.key(held);
+        if changed.is_some_and(|held| self.navigation_modifier.closes_hover(held, self.hover_range.is_some())) {
+            self.close_hover(cx);
+        }
+    }
+
+    /// The window lost the keyboard: the modifier's release will not be seen, so it counts as up.
+    pub fn window_deactivated(&mut self) {
+        self.navigation_modifier.blur();
+    }
+
     fn close_hover(&mut self, cx: &mut Context<Self>) {
         if let Some(id) = self.hover_request.take() {
             cx.global::<Backend>().host.cancel_request(id);
@@ -1615,6 +1635,9 @@ mod tests {
     use gpui_kit::{Modifiers, TestAppContext, VisualTestContext, px};
     use serde_json::{Value, json};
     use std::path::PathBuf;
+
+    mod proofs_editor_lsp;
+    mod proofs_editor_navigation_modifier;
 
     /// A trusted project of `files` in a window, in Full mode with the fake server for `*.mock`
     /// files answering `answers`, and `open` open in the editor with the keyboard.

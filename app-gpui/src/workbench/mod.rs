@@ -55,6 +55,7 @@ pub mod windows;
 use crate::backend::{Backend, BackendEvent};
 use crate::editor::find_bar::{FindBar, scroll_to_results, toggle_scroll_to_results};
 use crate::editor::goto_line::{GotoLine, GotoLineEvent};
+use crate::editor::intelligence::EditorIntelligence;
 use crate::editor::session::{self, FileViewState};
 use crate::editor::tabs::{
     EditorInput, LayoutNode, OpenTabOptions, SplitDir, SplitEdge, TabsState, disambiguate_titles,
@@ -825,8 +826,18 @@ pub fn register_actions(cx: &mut App) {
     registry.handle("editor.closeOtherTabs", |_, window, cx| {
         on_tabs(window, cx, |tabs, pane| active(tabs, pane).is_some_and(|tab| tabs.close_others(pane, &tab)))
     });
-    registry
-        .handle("editor.closeAllTabs", |_, window, cx| on_tabs(window, cx, |tabs, pane| tabs.close_all(pane, false)));
+    registry.handle("editor.closeAllTabs", |_, window, cx| {
+        on_tabs(window, cx, |tabs, _| {
+            let panes: Vec<String> = tabs.pane_ids().into_iter().map(str::to_owned).collect();
+            let mut changed = false;
+            for pane in &panes {
+                changed |= tabs.close_all(pane, false);
+            }
+            // Closing everything is not undone tab by tab: Reopen Closed Tab has nothing after it.
+            tabs.closed.clear();
+            changed
+        })
+    });
     registry.handle("editor.pinTab", |_, window, cx| {
         on_tabs(window, cx, |tabs, pane| active(tabs, pane).is_some_and(|tab| tabs.toggle_pin(pane, &tab)))
     });
@@ -914,6 +925,7 @@ impl Workbench {
             if !window.is_window_active() {
                 workbench.autosave(None, cx);
                 workbench.save_session(cx);
+                workbench.for_each_intelligence(cx, |intelligence, _| intelligence.window_deactivated());
             }
             // A balloon does not fade while nobody can see it.
             workbench.balloon_view.window_active = window.is_window_active();
@@ -1177,6 +1189,24 @@ impl Workbench {
                     // no runner yet.
                     tracing::debug!("the notification command {} has no handler", own.command);
                 }
+            }
+        }
+    }
+
+    /// Runs `update` on the code intelligence of every editor of the window.
+    fn for_each_intelligence(
+        &self,
+        cx: &mut App,
+        mut update: impl FnMut(&mut EditorIntelligence, &mut Context<EditorIntelligence>),
+    ) {
+        let editors: Vec<Entity<Editor>> = match &self.content {
+            Content::Editor(editor) => vec![editor.clone()],
+            Content::Project { editors, .. } => editors.values().cloned().collect(),
+            _ => Vec::new(),
+        };
+        for editor in editors {
+            if let Some(intelligence) = EditorIntelligence::of(&editor, cx) {
+                intelligence.update(cx, &mut update);
             }
         }
     }
@@ -1879,6 +1909,14 @@ impl Workbench {
         };
         set_context(window, cx, "toolWindowFocus", focused_panel.is_some());
         set_context(window, cx, "projectViewFocus", focused_panel.as_deref() == Some(PROJECT_TOOL_WINDOW));
+        // Only the focused Project view lends its selected folder to the path actions (Find in Path…).
+        let focused_directory = (focused_panel.as_deref() == Some(PROJECT_TOOL_WINDOW))
+            .then(|| self.project_tree().and_then(|tree| tree.read(cx).selected_directory()))
+            .flatten();
+        match focused_directory {
+            Some(directory) => set_context(window, cx, "focusedDirectory", directory),
+            None => crate::platform::context::clear_context(window, cx, "focusedDirectory"),
+        }
         set_context(window, cx, "terminalFocus", focused_panel.as_deref() == Some(TERMINAL_TOOL_WINDOW));
         set_context(window, cx, "servicesViewFocus", focused_panel.as_deref() == Some(SERVICES_TOOL_WINDOW));
         let database_focused =
@@ -3701,8 +3739,10 @@ impl Render for Workbench {
             .text_color(theme::color(cx, "fg"))
             .text_size(theme::length(cx, "fs-ui"))
             // Modifier taps and mouse buttons have no application-level hook: forward them.
-            .on_modifiers_changed(cx.listener(|_, event: &ModifiersChangedEvent, window, cx| {
+            .on_modifiers_changed(cx.listener(|workbench, event: &ModifiersChangedEvent, window, cx| {
                 input::modifiers_changed(&event.modifiers, window, cx);
+                let modifiers = event.modifiers;
+                workbench.for_each_intelligence(cx, |intelligence, cx| intelligence.modifiers_changed(modifiers, cx));
             }))
             .capture_any_mouse_down(cx.listener(|_, event: &MouseDownEvent, window, cx| {
                 if input::mouse_down(event.button, &event.modifiers, false, window, cx).consumed() {
@@ -3765,7 +3805,24 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::time::Duration;
 
+    mod proofs_agents;
+    mod proofs_database;
+    mod proofs_editor_actions_find;
+    mod proofs_editor_actions_markdown;
+    mod proofs_editor_actions_navigate;
+    mod proofs_editor_actions_run_console;
+    mod proofs_editor_actions_tabs;
+    mod proofs_editor_copy_reference;
+    mod proofs_editor_search_everywhere;
+    mod proofs_editor_search_find;
+    mod proofs_editor_search_recent;
+    mod proofs_editor_search_safe_delete;
+    mod proofs_services;
+    mod proofs_tool_windows;
     mod proofs_vcs;
+    mod smoke_backend_events;
+    mod smoke_services;
+    mod smoke_settings_pages;
 
     pub(super) fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
         cx.executor().allow_parking();

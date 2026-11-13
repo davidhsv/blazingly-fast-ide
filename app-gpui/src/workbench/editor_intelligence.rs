@@ -104,7 +104,15 @@ impl Workbench {
             match event {
                 // The intelligence runs the chosen row once the popup is gone.
                 ListPopupEvent::Activated(_) => workbench.close_popup(window, cx),
-                ListPopupEvent::Dismissed | ListPopupEvent::Pin | ListPopupEvent::Control { .. } => {
+                // A row's → menu item runs its inspection command instead of the row's fix.
+                ListPopupEvent::Control { control, .. } => {
+                    workbench.close_popup(window, cx);
+                    let _ = intelligence.update(cx, |intelligence, _| intelligence.intentions_closed());
+                    if let Some(command) = control.run.clone() {
+                        workbench.apply_inspection(command, window, cx);
+                    }
+                }
+                ListPopupEvent::Dismissed | ListPopupEvent::Pin => {
                     workbench.close_popup(window, cx);
                     let _ = intelligence.update(cx, |intelligence, _| intelligence.intentions_closed());
                 }

@@ -14,28 +14,6 @@ pub(super) async fn highlighted<'a>(
     (f, cx)
 }
 
-/// Opens a project with `files` (name, text), an editor on each, and waits for every editor's first
-/// highlights; the editors come in the order of `files`.
-pub(super) async fn highlighted_files<'a>(
-    cx: &'a mut TestAppContext,
-    files: &[(String, String)],
-) -> (Fixture, Vec<Entity<Editor>>, &'a mut VisualTestContext) {
-    let named: Vec<(&str, &str)> = files.iter().map(|(name, text)| (name.as_str(), text.as_str())).collect();
-    let (f, cx) = open(cx, &named).await;
-    let mut editors = vec![f.editor.clone()];
-    for (name, _) in &files[1..] {
-        let (host, path) = (f.host.clone(), f.path.with_file_name(name));
-        let opened = cx.update(|_, cx| {
-            cx.global::<Backend>()
-                .with_host(move |host| async move { ide_host::ops::doc::open(&host, "w1", path).await })
-        });
-        let info = opened.await.expect("the task completes").expect("the document opens");
-        editors.push(cx.new(|cx| Editor::new(host, "w1", &info, cx).expect("the editor opens")));
-    }
-    settle(cx, |cx| editors.iter().all(|editor| editor.read_with(cx, |e, _| !e.highlights().is_empty())));
-    (f, editors, cx)
-}
-
 /// The colour token painted at the UTF-16 `offset`; `None` for plain text.
 pub(super) fn token_at(editor: &Editor, offset: u32) -> Option<&'static str> {
     editor.highlights().iter().find(|s| s.from <= offset && offset < s.to).map(|s| syntax_token(s.kind))
@@ -127,6 +105,7 @@ impl Expect {
     /// Panics with every expectation that failed and what the editor paints.
     #[track_caller]
     pub(super) fn check(self, editor: &Editor) {
-        assert!(self.0.is_empty(), "{:#?}\npainted: {:?}", self.0, runs(editor));
+        let failures = self.failures("expected", editor);
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 }

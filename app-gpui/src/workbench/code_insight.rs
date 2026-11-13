@@ -593,7 +593,7 @@ impl Workbench {
     }
 
     /// Writes an inspection change of the Problems context menu to the profile in effect.
-    fn apply_inspection(&mut self, command: InspectionCommand, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn apply_inspection(&mut self, command: InspectionCommand, window: &mut Window, cx: &mut Context<Self>) {
         let (id, change) = match command {
             InspectionCommand::EditSettings(id) => {
                 run_later(SETTINGS_ACTION, Some(Value::String(inspection_settings_page(&id))), window, cx);

@@ -13,7 +13,7 @@
 use super::services_window::on_workbench;
 use super::{Content, PROJECT_TOOL_WINDOW, Workbench};
 use crate::backend::Backend;
-use crate::editor::view::Editor;
+use crate::editor::view::{Editor, EditorClipboard};
 use crate::editor_commands::copy_reference::{ReferenceInput, declared_name, qualified_reference, reference_offset};
 use crate::editor_commands::outline::declaration_chain;
 use crate::editor_refactor::safe_delete::{FileUsagesAction, FileUsagesFlow};
@@ -33,7 +33,7 @@ use crate::project_view::actions::{folder_from, nodes_from};
 use crate::project_view::context_menu::{
     Contributed, MenuContext, NewKind, ProjectCommand, context_menu_items, new_menu_items, run_command, shown_items,
 };
-use crate::project_view::copy_path_popup::{CopyPathEvent, CopyPathPopup, copied_hint, copy_path_items};
+use crate::project_view::copy_path_popup::{CopyPathEvent, CopyPathPopup, REFERENCE, copied_hint, copy_path_items};
 use crate::project_view::file_dialogs::{
     COPY_OPEN_KEY, DeleteDialog, DeleteDialogEvent, FileDialog, FileDialogEvent, FileDialogInput, PreviewInput,
     RefactorOptions, RefactoringPreview, RefactoringPreviewEvent, delete_reply, load_refactor_options, progress_reply,
@@ -270,6 +270,10 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
     });
     registry.handle("editor.copyPathReference", |_, window, cx| {
         on_workbench(window, cx, |workbench, window, cx| workbench.show_copy_path_popup(window, cx))
+    });
+    registry.handle("editor.copyReference", |call, window, cx| {
+        let given = call.arg.and_then(Value::as_str).map(str::to_owned);
+        on_workbench(window, cx, |workbench, window, cx| workbench.copy_reference(given, window, cx))
     });
 }
 
@@ -641,7 +645,7 @@ impl Workbench {
                 }
             }
             Effect::ViewUsages { name, usages } => {
-                let arg = serde_json::json!({ "name": name, "usages": usages });
+                let arg = serde_json::json!({ "symbol": name, "locations": usages });
                 self.run_flow_action("find.showUsageResults", arg, window, cx);
             }
             Effect::HandOff { clipboard, write } => {
@@ -1365,12 +1369,9 @@ impl Workbench {
     /// once it is resolved.
     fn show_copy_path_popup(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(editor) = self.editor().cloned() else { return };
-        let (path, (line, col), doc, language, text, on_name) = {
+        let (path, line) = {
             let editor = editor.read(cx);
-            let path = editor.path().to_string_lossy().into_owned();
-            let text = editor.text();
-            let on_name = reference_offset(&text, editor.caret(), editor.caret()).is_some();
-            (path, editor.caret_position(), editor.doc(), editor.language().to_string(), text, on_name)
+            (editor.path().to_string_lossy().into_owned(), editor.caret_position().0)
         };
         let root = self.project_tree().map(|tree| tree.read(cx).root().to_owned());
         let name = self.files.state.name.clone();
@@ -1386,12 +1387,53 @@ impl Workbench {
             }
         });
         self.open_popup(&popup, events, window, cx);
-        // The reference names the symbols around the caret; a stale answer finds the popup gone.
+        // A stale answer finds the popup gone.
+        let reference = self.caret_reference(&editor, cx);
+        let weak = popup.downgrade();
+        cx.spawn(async move |_, cx| {
+            let reference = reference.await;
+            let _ = weak.update(cx, |popup, cx| popup.set_reference(Some(reference), cx));
+        })
+        .detach();
+    }
+
+    /// Edit › Copy Reference: puts the qualified name of what the caret is on (or `given`, when the
+    /// action is run with a text) on the clipboard and in the editors' clipboard history, and says so.
+    fn copy_reference(&mut self, given: Option<String>, window: &mut Window, cx: &mut Context<Self>) {
+        let reference = match given {
+            Some(text) => Task::ready(text),
+            None => {
+                let Some(editor) = self.editor().cloned() else { return };
+                self.caret_reference(&editor, cx)
+            }
+        };
+        cx.spawn_in(window, async move |workbench, cx| {
+            let text = reference.await;
+            let _ = workbench.update_in(cx, |workbench, window, cx| {
+                cx.write_to_clipboard(ClipboardItem::new_string(text.clone()));
+                cx.default_global::<EditorClipboard>().0.record(&text, false);
+                let hint = copied_hint(&mut cx.default_global::<Localization>().0, REFERENCE, &text);
+                workbench.run_flow_action("editor.showHint", serde_json::json!({ "text": hint }), window, cx);
+            });
+        })
+        .detach();
+    }
+
+    /// The reference of the caret's place in `editor`: the chain of declarations around an
+    /// identifier under the caret, read from the document's outline, else the file and line.
+    fn caret_reference(&self, editor: &Entity<Editor>, cx: &mut Context<Self>) -> Task<String> {
+        let (path, (line, col), doc, language, text, on_name) = {
+            let editor = editor.read(cx);
+            let path = editor.path().to_string_lossy().into_owned();
+            let text = editor.text();
+            let on_name = reference_offset(&text, editor.caret(), editor.caret()).is_some();
+            (path, editor.caret_position(), editor.doc(), editor.language().to_string(), text, on_name)
+        };
+        let root = self.project_tree().map(|tree| tree.read(cx).root().to_owned());
         let outline = host_call(self.label.clone(), cx, move |host, label| async move {
             ide_host::ops::doc::doc_outline(&host, &label, doc).await
         });
-        let weak = popup.downgrade();
-        cx.spawn(async move |_, cx| {
+        cx.spawn(async move |_, _| {
             // Off an identifier the reference is the caret's place.
             let chain = match outline.await {
                 Ok(_) if !on_name => Vec::new(),
@@ -1409,10 +1451,8 @@ impl Workbench {
                 chain: &chain,
                 line,
             };
-            let reference = qualified_reference(&input);
-            let _ = weak.update(cx, |popup, cx| popup.set_reference(Some(reference), cx));
+            qualified_reference(&input)
         })
-        .detach();
     }
 
     /// The Copy Path popup that is open.

@@ -1024,6 +1024,7 @@ mod tests {
     use crate::run::configs::blank_config;
     use gpui_kit::{Modifiers, MouseButton, MouseDownEvent, TestAppContext, VisualTestContext, point};
     use std::time::Duration;
+    mod proofs_debug;
 
     /// A debug adapter speaking DAP over stdio. It runs the launched `program` file line by line: it
     /// stops at a line with a breakpoint, steps one line on `next`, `stepIn` and `stepOut`, runs to
