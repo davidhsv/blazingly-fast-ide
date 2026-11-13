@@ -737,7 +737,7 @@
   },
   "point.registerToolWindow:git": {
     "status": "partial",
-    "proof": "`workbench::tests::the_git_tool_window_shows_the_projects_log`, `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`; the commit list with graph, references, author and date. Not yet: the branches tree, filters, commit details and changed files, context menus, the Console and other tabs"
+    "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`, `workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`, `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`; the commit list with graph, the text filter and branch filter, the branches pane, commit details and changed files with their diff. Not yet: the user, date and path choosers, Go to Hash, the pane's toolbar actions, revert and cherry-pick from the list, the Console and other tabs"
   },
   "unit:src/features/vcs/__tests__/logOptions.test.ts": {
     "status": "partial",
@@ -937,7 +937,7 @@
   },
   "point.registerToolWindow:commit": {
     "status": "partial",
-    "proof": "`vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`, `workbench::tests::the_git_tool_window_shows_the_projects_log`; the changes by group and directory, in their status colours, opening a file. Not yet: check boxes, the commit message and Commit, change lists, staging, diffs, shelf and stash, context menus"
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`, `workbench::tests::amend_loads_the_last_message_and_amends_the_commit`, `workbench::tests::a_refused_commit_keeps_its_message_and_the_options_reach_the_commit`, `vcs::commit_view::tests::the_checkboxes_include_and_leave_out_changes`; the changes with their check boxes, the message with its history, Commit, Amend, Commit and Push, the options. Not yet: the before-commit checks (never run), partial commits of a file, change lists, staging, shelf and stash, the modal Commit dialog"
   },
   "ipc:vcs_status": {
     "status": "done",
@@ -3513,7 +3513,7 @@
   },
   "action:vcs.commit": {
     "status": "done",
-    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`"
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`, `workbench::tests::amend_loads_the_last_message_and_amends_the_commit`"
   },
   "action:vcs.newBranch": {
     "status": "partial",
@@ -3682,5 +3682,37 @@
   "action:project.paste": {
     "status": "partial",
     "proof": "`workbench::tests::copy_and_paste_in_the_tree_go_through_the_copy_and_move_dialogs`; inside the tree; files are not put on the system clipboard, so other applications cannot paste them"
+  },
+  "unit:src/features/vcs/__tests__/logBranches.test.tsx": {
+    "status": "done",
+    "proof": "`vcs::log_branches::tests`"
+  },
+  "unit:src/features/vcs/__tests__/branchFilterPopup.test.tsx": {
+    "status": "done",
+    "proof": "`vcs::log_filters::tests`"
+  },
+  "unit:src/features/vcs/__tests__/logPanes.test.tsx": {
+    "status": "partial",
+    "proof": "`vcs::log_details::tests`, `vcs::log_branches::tests`, `vcs::commit_box::tests`; 11 of 13 cases by name: the Graph Options and Settings cases belong to views that are not built"
+  },
+  "unit:src/features/vcs/__tests__/logUiFeatures.test.tsx": {
+    "status": "partial",
+    "proof": "`vcs::log_details::tests`; the 2 commit-details cases of 11; the others are column, collapse and speed-search behaviour of the commit list"
+  },
+  "unit:src/ui/Tooltip.test.tsx": {
+    "status": "partial",
+    "proof": "`ui::tooltip::tests`; shown after the delay with its shortcut, hidden on pointer leave, press and wheel; hiding on a key press and on window blur is not tested"
+  },
+  "action:vcs.commitAndPush": {
+    "status": "done",
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`"
+  },
+  "action:vcs.showMessageHistory": {
+    "status": "done",
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`"
+  },
+  "action:vcs.log.showBranches": {
+    "status": "done",
+    "proof": "`workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`"
   }
 }

@@ -601,3 +601,16 @@ Creating, renaming, moving, copying and deleting files, cut/copy/paste, Copy Pat
 - No test deletes a file for real. The backend's delete sends the file to the system Trash and has no hook to redirect it, so a test would leave files in the owner's Trash. The question, the safe-delete usage search, the stored choice and the failure report are tested with a file that is already gone; the successful half (Trash, Local History, tree reload, closing the tab) is written and has never run.
 - Not done: the tree's inline rename and New menu (no inline editor), putting files on the system clipboard, Mark Directory As (a warning says so), the project's source roots (so no "Path From Source Root" and no package rows).
 - A hint at the caret does not exist yet; "Copied …" shows as a notification.
+
+## D74. Committing, and the rest of the Git Log
+
+A commit can be made from the native app: the changes tree has check boxes, the Commit window has the message area with its history, Commit, Amend, Commit and Push and the options; the Git window has the filter bar, the branches pane, the details of the selected commit and its changed files with their diff. Views by subagents without a compiler (59 tests, 8 compile fixes), wiring by another with five end-to-end tests on real repositories. The same slice compiled the two shared pieces many views wait for: a multi-line text area and tooltips.
+
+- The message stays in the field after a commit unless `vcs.commit.clearInitialMessage` is on, as the component does; the test asserts both.
+- Before-commit checks never run: there is no runner. Analyze Code and Check TODO are on by default and are shown ticked, but a commit goes through whatever they are set to, with a line in the log saying which checks were skipped and no claim that any passed. This is the largest functional gap of the slice.
+- A file is committed whole: the diff has no per-block check boxes here.
+- A refused commit (a failing hook) keeps the message and raises "Commit failed" with the backend's text; the box has no inline place for a backend failure.
+- Commit and Rebase after Fixup is not carried out (nothing sets a fixup target).
+- The log's filters reload the existing list through the model's query. "me" as an author is not resolved; the choose-many, date and folder choosers and the graph and view menus are not built.
+- The branches pane's toolbar actions and Go to Hash/Branch/Tag are drawn and not registered: no test runs them.
+- Tests wait for the commit's notification before asking `git status`: read earlier, the index lags HEAD for a moment.
