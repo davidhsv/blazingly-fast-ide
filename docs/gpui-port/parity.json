@@ -172,20 +172,20 @@
     "proof": "`workbench::tests::titles_name_the_project_then_the_file`; the title only: no project, branch or run widgets, no main menu"
   },
   "context:projectOpen": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; asserted on with a file open in a project; no test asserts it off"
+    "status": "done",
+    "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
   },
   "context:textEditorActive": {
     "status": "done",
     "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
   },
   "context:editorFocus": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; asserted on with a file open in a project; no test asserts it off"
+    "status": "done",
+    "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
   },
   "context:editorTextFocus": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; asserted on with a file open in a project; no test asserts it off"
+    "status": "done",
+    "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
   },
   "context:editorHasSelection": {
     "status": "done",
@@ -960,8 +960,8 @@
     "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; closes the active tab at once: the question asked when a command is still running is not there"
   },
   "context:terminalFocus": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; the terminal takes the keyboard in that test, but no test reads the key"
+    "status": "done",
+    "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
   },
   "unit:src/features/search/__tests__/controller.test.ts": {
     "status": "done",
@@ -1097,7 +1097,7 @@
   },
   "action:app.quit": {
     "status": "partial",
-    "proof": "`workbench::menu::tests`; on the bar with its own ⌘Q, asks every window to close and quits when none has unsaved changes; no test runs it, and with unsaved changes it leaves the app open after the question instead of quitting once it is answered"
+    "proof": "`workbench::menu::tests`, `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`; the exit is confirmed once and each window decides its close in turn, a window that stays calls the quit off; live debug sessions are not asked about; the macOS menu key path has no test"
   },
   "action:window.new": {
     "status": "done",
@@ -1113,7 +1113,7 @@
   },
   "action:file.openProjectPath": {
     "status": "partial",
-    "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; opens here, in a new window or in the window that has the project, asking This Window / New Window; no Attach to the open projects, no \"Don't ask again\" in the question, no workspace member revealed, no WSL folder"
+    "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`, `workbench::tests::opening_another_project_here_asks_about_the_unsaved_changes_of_this_one`; this window, a new window or the window that has the project, asked with \"Don't ask again\", after the leave question; Attach and remote projects are not built"
   },
   "action:file.openRecentProject": {
     "status": "partial",
@@ -1124,8 +1124,8 @@
     "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; asks for a folder and opens it by the same policy; not the webview's own Open dialog with its recent locations"
   },
   "action:file.closeProject": {
-    "status": "partial",
-    "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; saves, remembers the tabs, closes the backend project and leaves the window empty; the Welcome screen that then shows is not ported, and with autosave off nothing asks about unsaved changes"
+    "status": "done",
+    "proof": "`workbench::tests::opening_another_project_here_asks_about_the_unsaved_changes_of_this_one`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`"
   },
   "action:file.openInNewWindow": {
     "status": "partial",
@@ -2753,7 +2753,7 @@
   },
   "unit:src/features/app/__tests__/closeGuard.test.ts": {
     "status": "partial",
-    "proof": "`app_models::close_guard::tests`; every case on the model; closing a window still asks only about unsaved changes"
+    "proof": "`app_models::close_guard::tests`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`, `workbench::tests::closing_with_a_running_process_asks_to_terminate_it_before_the_unsaved_question`, `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`; every case on the model, and the order of the questions through the window: exit confirmation, running processes, unsaved changes; a live debug session is neither named nor stopped, and there is no Terminating panel with Kill"
   },
   "unit:src/features/app/__tests__/consoleCopy.test.ts": {
     "status": "partial",
@@ -3436,12 +3436,12 @@
     "proof": "`vcs_diff::toolbar_view::tests`; opens the settings menu of the viewer; no test runs the action"
   },
   "context:diffEditorFocus": {
-    "status": "partial",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; the diff window sets the key, but no test reads it"
+    "status": "done",
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
   },
   "context:vcsAvailable": {
-    "status": "partial",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; the diff window sets the key, but no test reads it"
+    "status": "done",
+    "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
   },
   "unit:src/features/run/RunWidget.test.tsx": {
     "status": "partial",
@@ -4124,8 +4124,8 @@
     "proof": "`workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`, `workbench::tests::merge_opens_the_three_way_editor_and_apply_writes_and_stages_the_resolved_file`, `workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`, `workbench::tests::a_file_with_crlf_line_breaks_is_resolved_with_crlf`, `workbench::tests::the_merge_conflicts_notification_appears_with_the_conflict_and_expires_once_it_is_resolved`; the Conflicts dialog and the three-way merge editor, with accept, apply, the non-conflicting commands and the notifications. The editor is a front window, not a tab; no blame and no syntax colours in its panes"
   },
   "context:mergeEditorFocus": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`; asserted on in the merge editor; no test asserts it off"
+    "status": "done",
+    "proof": "`workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`"
   },
   "action:toolbar.customize": {
     "status": "done",
@@ -4204,8 +4204,8 @@
     "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`"
   },
   "context:imageViewerFocus": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`; asserted on with the image focused; no test asserts it off"
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`"
   },
   "point.registerEditorKind:image": {
     "status": "partial",
@@ -4836,8 +4836,8 @@
     "proof": "`workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`; only the refusal for an agent that cannot fork or roll back is run; the confirmation and the operation are not"
   },
   "context:agentSessionFocus": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; asserted on with the conversation focused; no test asserts it off"
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
   },
   "ipc:agent_providers": {
     "status": "done",
@@ -4890,5 +4890,73 @@
   "feature:agents": {
     "status": "partial",
     "proof": "`workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`, `workbench::tests::a_permission_request_shows_its_answers_and_the_one_clicked_reaches_the_agent`, `workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`; see the tool window row; driven by a fake agent declared in the test's config folder"
+  },
+  "context:projectOpening": {
+    "status": "done",
+    "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
+  },
+  "context:editorAreaFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
+  },
+  "context:editorPath": {
+    "status": "done",
+    "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
+  },
+  "context:activeToolWindow": {
+    "status": "done",
+    "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
+  },
+  "context:dbTableEditorFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+  },
+  "context:dbTableEditorChanges": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+  },
+  "point.registerRunConfigType:shell": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerRunConfigType:npm": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerRunConfigType:godot": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerRunConfigType:pytest": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerRunConfigType:django-test": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerRunConfigType:go": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerRunConfigType:go-test": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerRunConfigType:application": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerRunConfigType:spring-boot": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerRunConfigType:compound": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+  },
+  "point.registerOverlay:app.termination": {
+    "status": "partial",
+    "proof": "`workbench::tests::closing_with_a_running_process_asks_to_terminate_it_before_the_unsaved_question`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`; the exit, running-process and unsaved-changes questions; no Terminating panel with Kill"
   }
 }
