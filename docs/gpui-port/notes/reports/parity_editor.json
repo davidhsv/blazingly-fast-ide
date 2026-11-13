@@ -1,0 +1,446 @@
+{
+  "rows": {
+    "action:code.fold": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `editor::core_actions::tests::the_caret_skips_the_lines_a_fold_hides`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; run through the registry on the backend's fold ranges, Collapse folds the region at the caret and the caret steps to the fold's header and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    },
+    "action:code.unfold": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; run through the registry on the backend's fold ranges, Expand opens the fold at the caret, keeping an inner fold folded and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    },
+    "action:code.foldToggle": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry on the backend's fold ranges, Toggle Fold folds the region at the caret and opens it on a second run and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    },
+    "action:code.foldAll": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; run through the registry on the backend's fold ranges, Collapse All leaves only the outer lines shown and Expand All shows them all again; it does not run without an editor tab. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    },
+    "action:code.unfoldAll": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry on the backend's fold ranges, Expand All opens every fold and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    },
+    "action:code.collapseRecursively": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry on the backend's fold ranges, Collapse Recursively folds the region at the caret with the regions inside it and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    },
+    "action:code.expandRecursively": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry on the backend's fold ranges, Expand Recursively opens the region at the caret with the folds inside it and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    },
+    "action:code.foldSelection": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::plugin_contributions::tests::a_fold_above_moves_every_line_below_it_to_its_row`; run through the registry, Fold Selection folds the selected lines and every line below is painted on its row. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    },
+    "action:code.collapseBlock": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry, Fold Code Block folds the block around the caret, found from the text's brackets, and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    },
+    "action:code.extendSelection": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::extend_and_shrink_selection_walk_the_syntax_ranges_around_the_caret`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; run through the registry four times, the selection grows from the caret to the word and then strictly further each time, and the key does nothing with the Project view focused. Missing: no step is checked against a range only the backend's syntax tree gives (the arguments, the call, the statement), so the steps proven can come from the text's own candidates"
+    },
+    "action:code.shrinkSelection": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::extend_and_shrink_selection_walk_the_syntax_ranges_around_the_caret`; Shrink Selection walks back through every extended step to the caret. Missing: as for Extend Selection, the steps are not checked against the backend's syntax ranges"
+    },
+    "action:code.autoIndentLines": {
+      "status": "done",
+      "proof": "`editor::core_actions::tests::auto_indent_lines_reindents_the_selected_lines`, `editor::core_actions::tests::auto_indent_answers_its_changes_in_the_original_text`; run through the registry, the selected lines get the language's indentation as one undo step"
+    },
+    "action:editor.scrollToCenter": {
+      "status": "done",
+      "proof": "`editor::core_actions::tests::scroll_to_center_puts_the_caret_line_in_the_middle_of_the_view`; run through the registry, the caret's line is painted in the middle of the view"
+    },
+    "action:editor.increaseFontSize": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::the_font_size_steps_in_the_active_editor_and_resets_in_every_editor`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; by the registry and by ⌥⇧. the active editor's font grows by one px; it does not run in a window without a project. Missing: it always acts on text editors; the webview first steps (or resets) the focused font zoom surface, such as a log or plugin content view"
+    },
+    "action:editor.decreaseFontSize": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::the_font_size_steps_in_the_active_editor_and_resets_in_every_editor`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; the active editor's font shrinks by one px down to the lower limit; it does not run in a window without a project. Missing: it always acts on text editors; the webview first steps (or resets) the focused font zoom surface, such as a log or plugin content view"
+    },
+    "action:editor.resetFontSize": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::the_font_size_steps_in_the_active_editor_and_resets_in_every_editor`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; every editor of the window goes back to the configured size. Missing: it always acts on text editors; the webview first steps (or resets) the focused font zoom surface, such as a log or plugin content view"
+    },
+    "action:navigate.back": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::back_and_forward_move_between_the_places_of_two_files`; run through the registry, Back returns to the other file at the caret it had. Missing: only a file switch records a place; a jump inside one file (go to declaration, a far caret move) is not recorded as a navigation, as the webview records it"
+    },
+    "action:navigate.forward": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::back_and_forward_move_between_the_places_of_two_files`; Forward goes to where Back came from and stops at the newest place. Missing: as for Back, places inside one file are not recorded"
+    },
+    "action:navigate.lastEditLocation": {
+      "status": "done",
+      "proof": "`workbench::editor_core::tests::last_and_next_edit_location_walk_through_the_edits`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; ⇧⌘⌫ in the editor and the registry go to the newest edit and then to the older one in the other file; it does not run (and the key does nothing) in a window without a project"
+    },
+    "action:navigate.nextEditLocation": {
+      "status": "done",
+      "proof": "`workbench::editor_core::tests::last_and_next_edit_location_walk_through_the_edits`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; run through the registry, it goes back towards the newest edit; it does not run in a window without a project"
+    },
+    "action:editor.showHint": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`; run with { text } it shows the text, and the next hint replaces it. Missing: the hint is a notification, not the transient hint at the caret of the active editor, and the tone argument is ignored"
+    },
+    "action:editor.copyPath": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; the absolute path goes on the clipboard and into the clipboard history and Copied <path> is said; it does not run without an editor tab. Missing: Copied <path> shows as a notification, not as the hint at the caret"
+    },
+    "action:editor.copyPathWithLineNumber": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; the path from the project root with the caret's 1-based line (src/a.rs:3), or the text given, goes on the clipboard and into the clipboard history; it does not run with the Project view focused. Missing: the copied hint shows as a notification, not at the caret"
+    },
+    "action:file.reloadFromDisk": {
+      "status": "done",
+      "proof": "`workbench::editor_core::tests::reload_from_disk_reads_the_file_again_unless_it_has_unsaved_changes`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; by the registry, with a path and by ⌥⌘Y the editor reads the file's new text, and with unsaved changes it keeps its text and warns notes.txt has unsaved changes; it does not run in a window without a project"
+    },
+    "action:file.reloadAllFromDisk": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::reload_from_disk_reads_the_file_again_unless_it_has_unsaved_changes`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; every open document without unsaved changes reads its file again; it does not run in a window without a project. Missing: project.refresh is not registered in the app, so the Project view is not read again as the webview's Reload All does; vcs.refresh runs but no test asserts it"
+    },
+    "action:file.toggleReadOnly": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; run through the registry it asks Make File Read-only, and confirmed the file is read-only on disk and the editor refuses typing; run again both are writable; it does not run without an editor tab. Missing: the native target is always built as a file on disk without a banner, so nothing shows that a virtual document is refused as the webview refuses it"
+    },
+    "action:code.pasteFromHistory": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; with an empty history it only says so; otherwise the dialog lists the copies newest first and the chosen one is pasted at the caret, put on the clipboard and on top of the history; ⇧⌘V does nothing with the Project view focused. Missing: the empty-history message is a notification, not the hint at the caret, and the dialog lacks parts of the webview's (see the editor.pasteHistory overlay)"
+    },
+    "action:editor.pasteHistory.paste": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; run through the registry in the open dialog it pastes the selected entry and closes the dialog; without the dialog it does not run. Missing: its keymap bindings cannot fire, since their keyWhen pasteHistoryListFocus is never set in the app; the dialog's own Enter and Delete keys stand in"
+    },
+    "action:editor.pasteHistory.remove": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `editor::paste_history_view::tests::deletes_selected_entries_selects_a_neighbour_and_handles_removing_the_last_entry`; run through the registry in the open dialog it removes the selected entry from the clipboard history; without the dialog it does not run. Missing: its keymap bindings cannot fire, since their keyWhen pasteHistoryListFocus is never set in the app; the dialog's own Enter and Delete keys stand in"
+    },
+    "action:refactor.rename": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`, `workbench::editor_language::tests::the_language_keys_do_nothing_while_a_tool_window_has_the_keyboard`; run through the registry it asks the server what is renamed, asks the new name in a dialog titled Rename 'foo', previews an edit of two files before applying it to both, applies a one-file edit at once, and says This element can't be renamed; one Undo takes the whole rename back. Missing: the webview renames in place by default (the file's occurrences follow as you type, ⇧F6 again opens the dialog), falls back to a syntax-tree rename when the server cannot, and asks at the caret, not in a dialog"
+    },
+    "action:code.reformat": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::reformat_code_applies_the_servers_edits_and_reports_the_formatted_lines`; run through the registry it applies the server's formatting edits as one undo step and says Formatted 1 line, or that nothing changed. Missing: a formatter a plugin contributes for the language is never used, where the webview prefers it"
+    },
+    "action:code.reformatFile": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::reformat_code_applies_the_servers_edits_and_reports_the_formatted_lines`; with { path } of a file that is not open it opens the file and formats it. Missing: as for Reformat Code, a plugin-contributed formatter is not used"
+    },
+    "action:code.reformatWithPrettier": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::reformat_with_a_named_formatter_runs_that_formatter`; run through the registry it runs the Prettier program the settings name, whatever formatter the settings select, and the editor takes the text it prints"
+    },
+    "action:code.reformatWithOxfmt": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::reformat_with_a_named_formatter_runs_that_formatter`; run through the registry it runs the oxfmt program the settings name, whatever formatter the settings select, and the editor takes the text it prints"
+    },
+    "action:code.reformatWithRuff": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::reformat_with_a_named_formatter_runs_that_formatter`; run through the registry it runs the Ruff program the settings name, whatever formatter the settings select, and the editor takes the text it prints"
+    },
+    "action:code.optimizeImports": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::optimize_imports_and_code_cleanup_apply_the_servers_source_actions`; run through the registry it asks the server for source.organizeImports over the whole file and applies it, or says Optimize imports is not available"
+    },
+    "action:code.optimizeImportsFile": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::optimize_imports_and_code_cleanup_apply_the_servers_source_actions`; with { path } of a file that is not open it opens the file and sorts its imports"
+    },
+    "action:code.cleanupFile": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::optimize_imports_and_code_cleanup_apply_the_servers_source_actions`; with { path } it opens the file, applies the server's fix-all and organize-imports actions and reformats it. Missing: its reformat step never uses a plugin-contributed formatter, and no test turns a step off through the argument"
+    },
+    "action:code.generate": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::cmd_n_in_a_markdown_file_opens_the_new_popup`; run through the registry it lists only the server's generate actions at the caret and applies the chosen one; ⌘N in a Markdown file opens the New popup instead. Missing: the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does"
+    },
+    "action:code.implementMethods": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`; run through the registry it applies the only implement action at once. Missing: the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does, and no test chooses between several"
+    },
+    "action:code.overrideMethods": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`; with no override action it says Nothing to override. Missing: no test applies an override action, and the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does"
+    },
+    "action:code.applyQuickFix": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::apply_quick_fix_applies_the_fix_of_the_problem_at_the_caret`; run through the registry it asks for quick fixes only and applies the preferred fix of the problem at the caret, or says No quick fixes available. Missing: the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does"
+    },
+    "action:navigate.nextError": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::next_error_moves_the_caret_to_the_next_problem_and_shows_its_message`, `workbench::editor_language::tests::the_language_keys_do_nothing_while_a_tool_window_has_the_keyboard`; F2 and the registry move the caret to the next error, skipping the warning and wrapping, with its message shown at the caret; with no problems it says so"
+    },
+    "action:navigate.prevError": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::next_error_moves_the_caret_to_the_next_problem_and_shows_its_message`; run through the registry it moves the caret back to the previous error, wrapping"
+    },
+    "action:code.showErrorDescription": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::next_error_moves_the_caret_to_the_next_problem_and_shows_its_message`; run through the registry it shows the message of the problem at the caret, or that there is none there"
+    },
+    "action:find.highlightUsages": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`; run through the registry it marks the occurrences the server reports, keeps the status text 3 usages of 'foo' found (…), removes the marks when run again on a usage or on Escape, and says No usages found in file. Missing: the status text is kept but the status bar does not draw it, and without a language server the webview's fallback to the local's same-scope occurrences from the syntax tree is not built"
+    },
+    "action:navigate.nextHighlightedUsage": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`; run through the registry the caret goes to the next highlighted usage at the same place in the name, wrapping. Missing: without highlighted usages it falls back to navigate.nextOccurrence, which the app does not register, so it does nothing there"
+    },
+    "action:navigate.prevHighlightedUsage": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`; run through the registry the caret goes to the previous highlighted usage at the same place in the name, wrapping. Missing: without highlighted usages it falls back to navigate.prevOccurrence, which the app does not register, so it does nothing there"
+    },
+    "action:code.quickDefinition": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `editor_lsp::definition_view::tests`; run through the registry it shows the definition's file, line and lines in a popup with the keyboard, ← / → switch between several, and F4 opens it with the caret on it. Missing: the popup shows a window of lines around the name instead of the declaration's whole span from the syntax tree, without syntax highlighting"
+    },
+    "action:code.quickTypeDefinition": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`; run through the registry it asks the server for the type definition and says No type definition found. Missing: no test shows a found type definition, and the popup shows a window of lines around the name instead of the declaration's whole span from the syntax tree, without syntax highlighting"
+    },
+    "action:navigate.gotoTest": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`; run through the registry from src/calc.py it opens tests/test_calc.py, and from the test it opens the subject again. Missing: Create New Test… runs templates.newFromTemplate, which the app does not register, and no test runs the chooser of several tests or the Rust test module insertion"
+    },
+    "action:navigate.nextMethod": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::moves_by_line`; run through the registry the caret goes to the next method of the server's outline"
+    },
+    "action:navigate.previousMethod": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::moves_by_line`; run through the registry the caret goes back to the previous method of the outline"
+    },
+    "ipc:doc_folding": {
+      "status": "done",
+      "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; Collapse, Expand, Toggle Fold, Collapse All and the recursive commands act only on the foldable lines the backend's fold ranges give (the test waits for them, and nothing else fills them); the editor calls ide_host::ops::doc::doc_folding with the window and the document, as the adapter does"
+    },
+    "ipc:doc_selection_ranges": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests::extend_and_shrink_selection_walk_the_syntax_ranges_around_the_caret`; Extend Selection calls ide_host::ops::doc::doc_selection_ranges with the document and the caret's offset, as the adapter does. Missing: no asserted step needs the backend's ranges; the text's own candidates could give each of them"
+    },
+    "ipc:fs_set_writable": {
+      "status": "done",
+      "proof": "`workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`; the file is read-only on disk after the toggle and writable after the second; the window calls ide_host::ops::fs::set_writable with the path and the writable bit, as the adapter does"
+    },
+    "ipc:lsp_prepare_rename": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; the server receives prepareRename at the caret's position and the dialog's title and text come from the range it answers; a null answer says This element can't be renamed; the window calls ide_host::ops::lsp::lsp_prepare_rename as the adapter does"
+    },
+    "ipc:lsp_rename": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; the server receives rename with the typed name and its edit of two files is what changes them; the window calls ide_host::ops::lsp::lsp_rename with a request id, the document, the position and the name, as the adapter does"
+    },
+    "ipc:apply_workspace_edit": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; the rename's edit changes the open file and the unopened b.mock, which only the backend's apply reaches; the window calls ide_host::ops::lsp::apply_workspace_edit with the edit, as the adapter does"
+    },
+    "ipc:undo_workspace_edit": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; one Edit › Undo in the editor restores both files, b.mock included, and the notice says Refactoring undone; the window calls ide_host::ops::lsp::undo_workspace_edit with the applied edit's id, as the adapter does"
+    },
+    "ipc:redo_workspace_edit": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; the refactoring notice's Redo command renames both files again; the window calls ide_host::ops::lsp::redo_workspace_edit with the edit's id, as the adapter does"
+    },
+    "ipc:lsp_format": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::reformat_code_applies_the_servers_edits_and_reports_the_formatted_lines`, `workbench::editor_language::tests::reformat_with_a_named_formatter_runs_that_formatter`; the server receives one formatting request with the editor's tab size and its edits are what change the text; a named formatter's output reaches the editor through the same call with the tool set; the window calls ide_host::ops::lsp::lsp_format with the document, the selection's range and the options, as the adapter does"
+    },
+    "ipc:lsp_document_highlights": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`; the marks are exactly the three ranges the server's documentHighlight answer gives; the window calls ide_host::ops::lsp::lsp_document_highlights with the document and the caret's position, as the adapter does"
+    },
+    "ipc:project_roots": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`; Go to Test reads the project's roots through ide_host::ops::project::roots, as the adapter does. Missing: the asserted result does not depend on the roots (the test file is found by name either way)"
+    },
+    "context:pasteHistoryOpen": {
+      "status": "done",
+      "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; read on: editor.pasteHistory.paste and remove (when pasteHistoryOpen) run while the dialog is open; read off: before it opens they do not run"
+    },
+    "point.registerOverlay:editor.pasteHistory": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `editor::paste_history_view::tests`; ⇧⌘V's dialog lists the copies newest first with a preview, filters as you type, extends the selection with ⇧↑ / ⇧↓, deletes entries, pastes with Enter and closes on Escape. Missing: the preview is plain text without the target's grammar and editor font, the mouse does nothing (⌘-click, ⇧-click, double-click), and no test asserts the keyboard going back to the editor or the reset when it is opened again"
+    },
+    "unit:src/editor/core/view/PasteHistoryDialog.test.tsx": {
+      "status": "partial",
+      "proof": "`editor::paste_history_view::tests::filters_full_contents_as_you_type_and_resets_selection_including_empty_results`, `editor::paste_history_view::tests::extends_and_shrinks_selection_with_shift_arrow_from_the_search_field`, `editor::paste_history_view::tests::deletes_selected_entries_selects_a_neighbour_and_handles_removing_the_last_entry`, `editor::paste_history_view::tests::deletes_only_matching_selections_while_allowing_backspace_to_edit_the_filter`; 4 of 12 cases. Missing: the preview's grammar and editor font, ⌘-click pasting with focus restored, ⇧-click, double-click, Escape restoring focus with IME commit keys ignored, the actions scoped by pasteHistoryOpen and pasteHistoryListFocus, the reset on reopening and the two read-only or closed editor cases"
+    },
+    "unit:src/editor/lsp/Popups.test.tsx": {
+      "status": "partial",
+      "proof": "`editor::intelligence::tests::proofs_editor_lsp::a_quick_fixs_arrow_menu_opens_with_the_right_arrow_and_runs_its_controls`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor_lsp::definition_view::tests::switches_between_several_definitions_with_left_right_and_edits_the_source_with_f4`; 3 of 13 cases (the row's → menu and its items, the lazily fetched preview, several definitions switched with ← / → and edited with F4); numbered rows, pinning, the selection report, the imports-on-paste dialog (2), the documentation history and tool window (4) and the reformat dialog are not proven"
+    },
+    "unit:src/editor/core/copyPathPopup.test.tsx": {
+      "status": "partial",
+      "proof": "`project_view::copy_path_popup::tests`, `workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`; 6 of 10 cases: the five by name and the Absolute Path action copying the path with Copied <path> (shown as a notification). Missing: path:line off a symbol, the chooser in Copy / Paste Special, routing the two presets' shortcuts by focus, clipboard failures"
+    },
+    "module:src/editor/core/actions.ts": {
+      "status": "partial",
+      "proof": "`editor::core_actions::tests`, `workbench::editor_core::tests`, `editor::command_actions::tests`; folding, Extend / Shrink Selection, Auto-Indent Lines, Scroll to Center, font size, Back / Forward, edit locations, Copy Path, Reload from Disk, the read-only toggle and Paste from History run through the registry besides the line and caret commands. Missing: Soft-Wrap, Unwrap/Remove…, Context Info, Custom Folding…, Expand to Level, the fold gutter and fold-by-default, places inside one file for Back, and the hint at the caret"
+    },
+    "module:src/editor/core/fileAttributes.ts": {
+      "status": "partial",
+      "proof": "`workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`, `editor_model::file_attributes::tests`; the question, the writable bit on disk through the backend and the editor's read-only state. Missing: the Cannot make … notification on failure has no test in a window"
+    },
+    "module:src/editor/lsp/rename.ts": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; startRename's server path: prepare, the name asked, the edit applied or previewed. Missing: in-place rename, the syntax-tree rename and its commit, renaming part of a name (renameNamePart), linkedSpans"
+    },
+    "module:src/editor/lsp/format.ts": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::reformat_code_applies_the_servers_edits_and_reports_the_formatted_lines`, `workbench::editor_language::tests::reformat_with_a_named_formatter_runs_that_formatter`, `editor_lsp::format::tests`; formatDocument through the server and the named formatters, with the formatted-lines hint. Missing: plugin-contributed formatters, the Reformat File… dialog, formatLines of generated code"
+    },
+    "module:src/editor/navigation/gotoTest.ts": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`, `editor_refactor::goto_test::tests`; from a subject to its only test and back. Missing: no test runs the chooser or Create New Test… in a window"
+    },
+    "module:src/editor/navigation/structureNav.ts": {
+      "status": "partial",
+      "proof": "`workbench::editor_language::tests::moves_by_line`, `editor_refactor::structure_nav::tests`; methodStop drives Next / Previous Method. Missing: Go to Super Method (memberAt, superMethods) is not registered"
+    },
+    "event:WorkspaceEditApplied": {
+      "status": "done",
+      "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; the rename's applied edit raises Refactoring applied with Undo, and after the undo Refactoring undone with Redo, notices raised only by the window's listener of this event, which also remembers the edit so that Edit › Undo takes it back"
+    }
+  },
+  "skipped": [
+    {
+      "key": "action:code.cleanup",
+      "why": "the Code Cleanup dialog action (src/features/analysis) is not registered natively; only code.cleanupFile is"
+    },
+    {
+      "key": "action:code.reformatDialog",
+      "why": "Reformat File… dialog is not built"
+    },
+    {
+      "key": "action:refactor.thisMenu",
+      "why": "Refactor This… is not built"
+    },
+    {
+      "key": "action:code.unwrap",
+      "why": "Unwrap/Remove… is not built"
+    },
+    {
+      "key": "action:editor.toggleSoftWrap",
+      "why": "soft wrap is not built"
+    },
+    {
+      "key": "context:pasteHistoryListFocus",
+      "why": "the native workbench never sets this key; the dialog's keys are its own key handling"
+    },
+    {
+      "key": "point.registerStatusItem:editor-lsp.usagesStatus",
+      "why": "the item id is declared in status_items.rs but nothing draws Workbench::usages_status in the status bar (grep finds no reader outside editor_language.rs)"
+    },
+    {
+      "key": "ipc:ssh_set_secret",
+      "why": "backend::tests::saved_passwords_stay_in_files_under_a_temporary_home calls host.ssh.set_secret directly, not through the UI that uses the command"
+    },
+    {
+      "key": "ipc:db_set_password",
+      "why": "the same backend test calls ide_host::ops::db::set_password directly, not through a UI flow"
+    },
+    {
+      "key": "ipc:doc_set_encoding",
+      "why": "already done; Reload from Disk reaches it through documents.set_encoding like Reload with Encoding"
+    },
+    {
+      "key": "module:src/editor/lsp/actions.ts",
+      "why": "a broad module (completion, documentation, refactorings, extract…) whose share proven here is hard to state without a full audit"
+    },
+    {
+      "key": "module:src/editor/navigation/index.ts",
+      "why": "also registers Super Method, Related Symbol and the implementation gutter, none built; left to a module audit"
+    },
+    {
+      "key": "module:src/editor/core/extras.ts",
+      "why": "pasteFromHistory is proven but unwrapAtCaret is not built and pasteText's read-only refusal is not tested; left to a module audit"
+    },
+    {
+      "key": "unit:src/editor/lsp/formatErrors.test.tsx",
+      "why": "no test of the slice makes formatting fail"
+    },
+    {
+      "key": "unit:src/editor/core/model/editHistory.test.ts",
+      "why": "already done (model only); the edit-location actions now reach editor::nav_history, which the inventory derives itself"
+    },
+    {
+      "key": "unit:src/editor/core/cm/folding.test.ts",
+      "why": "already done (model only); core_actions now calls editor_commands::folding, which the inventory derives itself"
+    },
+    {
+      "key": "boundid:code.expandToLevel1",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    },
+    {
+      "key": "boundid:code.expandAllToLevel1",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    },
+    {
+      "key": "boundid:code.expandToLevel2",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    },
+    {
+      "key": "boundid:code.expandAllToLevel2",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    },
+    {
+      "key": "boundid:code.expandToLevel3",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    },
+    {
+      "key": "boundid:code.expandAllToLevel3",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    },
+    {
+      "key": "boundid:code.expandToLevel4",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    },
+    {
+      "key": "boundid:code.expandAllToLevel4",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    },
+    {
+      "key": "boundid:code.expandToLevel5",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    },
+    {
+      "key": "boundid:code.expandAllToLevel5",
+      "why": "Expand to Level / Expand All to Level have no native handler"
+    }
+  ],
+  "wrong_existing": [
+    {
+      "key": "point.registerStatusItem:editor.readOnly",
+      "status": "partial",
+      "why": "file.toggleReadOnly is now registered, so the lock's click is no longer taken off the item",
+      "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::status_items::tests::the_lock_flips_the_writable_bit_of_files_on_disk_only`; shows the lock, and its click runs file.toggleReadOnly, which asks and flips the file's writable bit (`workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`). Missing: no test clicks the item in a window"
+    },
+    {
+      "key": "module:src/editor/core/clipboardHistory.ts",
+      "status": "partial",
+      "why": "Paste from History now has a handler and a dialog",
+      "proof": "`editor::view::editing_tests::proofs_editor_clipboard_history::copies_and_cuts_are_recorded_newest_first_and_the_latest_line_copy_pastes_above`, `editor::view::editing_tests::proofs_editor_clipboard_history::the_clipboard_history_keeps_the_latest_thirty_copies`, `workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`; copies and cuts in an editor are recorded newest first without repeats, at most thirty, the latest line copy pastes above the caret's line, and Paste from History pastes the chosen entry, puts it on top and removes entries; copies outside editors are not recorded"
+    },
+    {
+      "key": "module:src/editor/core/cm",
+      "status": "partial",
+      "why": "folding is now built",
+      "proof": "`editor::view::editing_tests`, `editor::view::tests`, `editor::buffer::tests`, `editor::core_actions::tests`, `workbench::plugin_contributions::tests::a_fold_above_moves_every_line_below_it_to_its_row`; caret movement, selection, multiple carets, column selection, undo, clipboard, find, highlighting and folding on the backend's fold ranges, every line painted on its row below a fold; no fold chevrons on open regions or clicks on them, no fold-by-default on open, no bracket or indentation rules"
+    },
+    {
+      "key": "point.registerOverlay:editor-lsp.popups",
+      "status": "partial",
+      "why": "the quick definition popup is now built",
+      "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`, `editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`, `editor::intelligence::tests::parameter_info_opens_after_a_parenthesis_and_follows_the_commas`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`, `workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `editor_lsp::definition_view::tests`; the lookup, hover, parameter info, intentions, the target chooser and the quick definition popup; rename asks in a dialog instead of the popup at the caret, and the reformat and imports-on-paste dialogs are not built"
+    },
+    {
+      "key": "point.registerMenuGroup:agents.send",
+      "status": "partial",
+      "why": "the editor menu's root now has Folding, Rename… and Generate… between Go To and Send to Agent",
+      "proof": "`workbench::context_menus::tests::right_click_in_a_plain_file_opens_the_editor_menu_and_moves_the_caret`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`; the editor's menu shows Send to Agent after Generate…, in the group's order. Missing: no test chooses the row from a menu, the Project view's row (the selected paths as argument) has no test, and the row for a virtual document is left out only as data"
+    }
+  ]
+}
