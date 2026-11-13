@@ -8621,6 +8621,7 @@ dependencies = [
  "ide-dap",
  "ide-db",
  "ide-docker",
+ "ide-extension",
  "ide-github",
  "ide-host",
  "ide-index",

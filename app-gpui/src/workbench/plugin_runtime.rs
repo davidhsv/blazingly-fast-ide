@@ -34,7 +34,7 @@ use crate::platform::keymap::is_mac_host;
 use crate::platform::local_time::now_ms;
 use crate::plugin_models::active_file::ActiveFile;
 use crate::plugin_models::contribution::Contribution;
-use crate::plugin_models::runtime_ui::{NOTIFICATION_COMMAND_PREFIX, PluginCommandCall, RuntimeEffect, RuntimeUi};
+use crate::plugin_models::runtime_ui::{PluginCommandCall, RuntimeEffect, RuntimeUi};
 use crate::plugin_models::store::{command_failure, command_title};
 use crate::plugin_models::workspace_contains::{ContainsRequest, WorkspaceContains};
 use crate::plugin_views::log_tab::{
@@ -150,7 +150,7 @@ pub(super) struct PluginRuntime {
 }
 
 /// The app's plugin host, once it runs.
-fn plugin_host(cx: &App) -> Option<Arc<PluginHost>> {
+pub(super) fn plugin_host(cx: &App) -> Option<Arc<PluginHost>> {
     cx.try_global::<Plugins>().map(|plugins| plugins.host.clone())
 }
 
@@ -371,7 +371,7 @@ impl Workbench {
 
     /// Whether the desktop command `command` may run for this window now (the project open and
     /// trusted, where the command needs it); the reason when it may not.
-    fn plugin_call_allowed(&self, command: &str, cx: &App) -> Result<(), String> {
+    pub(super) fn plugin_call_allowed(&self, command: &str, cx: &App) -> Result<(), String> {
         let backend = cx.try_global::<Backend>().ok_or_else(|| "the backend is not running".to_owned())?;
         backend.host.authorize_command(&self.label, command).map_err(|error| error.message)
     }
@@ -505,6 +505,11 @@ impl Workbench {
                     cx.default_global::<Localization>().0.tx_built(&["Output: ", ""], &[Param::Text(channel.clone())]);
                 self.open_view_tab(output_input(plugin_id, channel, &title), window, cx);
             }
+            PluginEvent::WindowRequest {
+                request_id, request: WindowRequest::Run { operation, config, debug }, ..
+            } => {
+                self.plugin_run_request(request_id, operation, config, *debug, window, cx);
+            }
             PluginEvent::WindowRequest { request_id, request, .. } => {
                 self.refuse_window_request(request_id, request, cx);
             }
@@ -521,7 +526,8 @@ impl Workbench {
             PluginEvent::OpenTerminal { plugin_id, title, .. } => {
                 tracing::warn!("plugin {plugin_id} asked for the terminal {title:?}, which this window cannot run");
             }
-            other => tracing::debug!("plugin event not shown in this window: {other:?}"),
+            // Only the kind is logged: such events carry what plugin views and pages exchange.
+            other => tracing::debug!("plugin event not shown in this window: {}", plugin_event_kind(other)),
         }
     }
 
@@ -827,7 +833,7 @@ impl Workbench {
             global_settings: false,
         };
         let (plugin, command) = (plugin_id.to_owned(), command.to_owned());
-        cx.background_executor().spawn(async move {
+        crate::plugins::host_blocking(cx, move || {
             allowed?;
             let host = host.ok_or_else(|| ide_core::IdeError::internal("the plugin host is not running"))?;
             host.run_command(&plugin, &command, arg.as_deref(), invocation)
@@ -1099,6 +1105,15 @@ impl Workbench {
             });
         })
         .detach();
+    }
+
+    /// Whether the window told the plugin host the settings since it knew a plugin wants them: the
+    /// host keeps what it was told as each plugin's baseline, and a later change goes out as the keys
+    /// that differ from it.
+    #[cfg(test)]
+    pub(super) fn plugin_settings_told(&self) -> bool {
+        let runtime = &self.plugin_runtime;
+        runtime.wanted.contains(&EventKind::SettingsChanged) && runtime.queue.is_empty()
     }
 
     /// The question on screen, the newest when several wait.
@@ -1376,6 +1391,8 @@ impl Workbench {
                     self.plugin_project_changed(false, window, cx);
                 }
             }
+            // The backend clears a document's dirty flag only when it saved it.
+            IdeEvent::DocDirty { doc, dirty: false } => self.plugin_document_saved(*doc, cx),
             IdeEvent::TerminalExited { terminal, code } => self.plugin_terminal_exited(*terminal, *code, cx),
             _ => {}
         }
@@ -1407,7 +1424,7 @@ impl Workbench {
 
     /// Queues `event` for the plugins that want its kind; the queue goes out every
     /// [`POST_INTERVAL`], with the focused editor.
-    fn post_plugin_event(&mut self, event: WorkbenchEvent, cx: &mut Context<Self>) {
+    pub(super) fn post_plugin_event(&mut self, event: WorkbenchEvent, cx: &mut Context<Self>) {
         if !self.plugin_runtime.wanted.contains(&event.kind()) {
             return;
         }
@@ -1483,6 +1500,8 @@ impl Workbench {
         if let Some(report) = self.plugin_runtime.active_file.focused(active.as_deref()) {
             self.report_active_file(report, cx);
         }
+        self.plugin_activation_events(cx);
+        self.plugin_gutter_shown(cx);
     }
 
     /// The user ran action `id`: plugins that want `action-performed` hear of it.
@@ -1501,7 +1520,7 @@ impl Workbench {
 }
 
 /// Answers the host's request `request_id` of window `label`.
-fn answer_plugin_command(label: &str, request_id: &str, answer: CommandAnswer, cx: &App) {
+pub(super) fn answer_plugin_command(label: &str, request_id: &str, answer: CommandAnswer, cx: &App) {
     let allowed = cx
         .try_global::<Backend>()
         .is_some_and(|backend| backend.host.authorize_command(label, "plugin_answer_command").is_ok());
@@ -1524,6 +1543,12 @@ fn kill_terminal(id: TerminalId, executor: &gpui_kit::BackgroundExecutor, host: 
             }
         })
         .detach();
+}
+
+/// The wire name of a plugin event's kind (`viewMessage`, `decorationsChanged`…), without its fields.
+fn plugin_event_kind(event: &PluginEvent) -> String {
+    let wire = serde_json::to_value(event).ok();
+    wire.as_ref().and_then(|wire| wire.get("type")).and_then(Value::as_str).unwrap_or("unknown").to_owned()
 }
 
 #[cfg(test)]
@@ -1672,13 +1697,16 @@ mod tests {
     async fn a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it(cx: &mut TestAppContext) {
         let home = start(cx);
         let bin = home.path().join("bin");
-        program(&bin, "checkstyle", "#!/bin/sh\nexec /bin/sleep 30\n");
+        program(&bin, "checkstyle", "#!/bin/sh\nexec /bin/sleep 600\n");
         programs_in(&bin, cx);
         let folder = plugin_copy(home.path(), "checkstyle", str::to_owned);
         let id = link(cx, &folder, &[], "check");
         let (_folder, root, workbench, cx) = project(cx, &[("src/Main.java", "class Main {}\n")]);
         workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("src/Main.java"), window, cx));
         wait(cx, "the file opens", |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        // The project's own work (indexing) is over first, so the plugin's task is the one the
+        // status bar names.
+        wait(cx, "the project's tasks end", |cx| workbench.read_with(cx, |w, _| w.tasks().tasks().is_empty()));
         run_action(cx, &plugin_action_id(&id, "check"), None);
         let listed = |cx: &mut VisualTestContext| {
             workbench.read_with(cx, |w, _| {
@@ -1854,9 +1882,12 @@ mod tests {
         let home = start(cx);
         let folder = plugin_copy(home.path(), "api14", str::to_owned);
         let id = link(cx, &folder, &["events"], "events");
-        let (_folder, root, _workbench, cx) = project(cx, &[("a.txt", "a\n")]);
+        let (_folder, root, workbench, cx) = project(cx, &[("a.txt", "a\n")]);
         // The plugin runs once, so it is live when the event comes.
         run_in_window(cx, &root, &id, "events", None).join().expect("the command ran").expect("it answers");
+        // The host keeps the settings the window told it as the plugin's baseline; a change made
+        // before that would be the baseline itself.
+        wait(cx, "the settings went out once", |cx| workbench.read_with(cx, |w, _| w.plugin_settings_told()));
         cx.update(|_, cx| {
             crate::platform::settings::set(
                 LABEL,

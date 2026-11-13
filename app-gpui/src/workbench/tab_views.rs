@@ -165,6 +165,15 @@ pub const TAB_KINDS: &[TabKind] = &[
         icon: base_icon,
         build: build_hex,
     },
+    TabKind {
+        id: crate::plugin_views::log_tab::PLUGIN_LOG_KIND,
+        restorable: false,
+        active_key: None,
+        focus_key: None,
+        title: crate::plugin_views::log_tab::log_tab_title,
+        icon: super::plugin_runtime::log_tab_icon,
+        build: super::plugin_runtime::build_plugin_log_tab,
+    },
 ];
 
 pub fn kind(id: &str) -> Option<&'static TabKind> {

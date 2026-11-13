@@ -121,7 +121,7 @@ fn static_action_id(id: &str) -> &'static str {
     static IDS: LazyLock<Mutex<BTreeSet<&'static str>>> = LazyLock::new(|| Mutex::new(BTreeSet::new()));
     let mut ids = IDS.lock().unwrap_or_else(PoisonError::into_inner);
     if let Some(known) = ids.get(id) {
-        return *known;
+        return known;
     }
     let kept: &'static str = Box::leak(id.to_owned().into_boxed_str());
     ids.insert(kept);
@@ -177,6 +177,7 @@ pub fn plugin_slot_items(slot: &str, cx: &App) -> Vec<SlotItem> {
             let action = plugin_action_id(&c.plugin_id, command);
             let registered = registry.and_then(|registry| registry.get(&action));
             let label = registered
+                .as_ref()
                 .map_or_else(|| format!("{}: {command}", listed_name(&c.plugin_id, cx)), |a| a.meta.title.clone());
             let icon = registered.and_then(|a| a.meta.icon.clone());
             Some(SlotItem { action, label, icon, when: c.when().map(str::to_owned) })
@@ -874,7 +875,7 @@ impl Workbench {
             global_settings: scope == Scope::Global,
         };
         let (plugin, command) = (plugin.to_owned(), command.to_owned());
-        cx.background_executor().spawn(async move {
+        crate::plugins::host_blocking(cx, move || {
             allowed?;
             let host = host.ok_or_else(|| ide_core::IdeError::internal("the plugin host is not running"))?;
             host.run_command(&plugin, &command, None, invocation)
@@ -984,13 +985,14 @@ struct SettingsActionRun {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    use super::super::plugins_window::test_support::{PluginHome, program, programs_in, settle_app};
     use super::super::plugins_window::test_support::{
         copy_dir, link, plugin_copy, start_with_plugins, trusted_project,
     };
-    #[cfg(unix)]
-    use super::super::plugins_window::test_support::{program, programs_in, settle_app};
     use super::super::tests::{click_on, notice_titled, run_action, wait_long};
     use super::*;
+    use crate::editor::marks::{Mark, MarkLayer};
     use crate::platform::actions::{ActionSource, execute_action_from};
     use crate::platform::context::ContextValue;
     use crate::run::view::RunView;
@@ -1065,6 +1067,13 @@ mod tests {
         click_on(cx, Box::leak(selector.to_owned().into_boxed_str()));
     }
 
+    /// What a click in the gutter could change: the selections, the main one, the breakpoints.
+    fn editor_state(editor: &Entity<Editor>, cx: &mut VisualTestContext) -> (Vec<(u32, u32)>, usize, Vec<Mark>) {
+        editor.read_with(cx, |editor, _| {
+            (editor.selections().to_vec(), editor.main_index(), editor.marks(MarkLayer::Breakpoints).to_vec())
+        })
+    }
+
     fn open_file(workbench: &Entity<Workbench>, path: PathBuf, cx: &mut VisualTestContext) -> Entity<Editor> {
         workbench.update_in(cx, |w, window, cx| w.open_project_file(path.clone(), window, cx));
         wait_long(cx, "the file opens", |cx| {
@@ -1097,7 +1106,8 @@ mod tests {
     /// adapter of the debugger's tests, with the backend and the plugin host running in it. The
     /// backend reads the languages when it starts, so they are written first.
     #[cfg(unix)]
-    fn start_with_fake_debugger(cx: &mut TestAppContext) -> tempfile::TempDir {
+    fn start_with_fake_debugger(cx: &mut TestAppContext) -> PluginHome {
+        let hosts = crate::plugins::lock_test_hosts();
         cx.executor().allow_parking();
         let home = tempfile::tempdir().expect("a temporary home");
         let dirs = crate::backend::AppDirs::under(home.path());
@@ -1124,7 +1134,7 @@ mod tests {
             Plugins::init(cx).expect("the plugin host starts");
         });
         settle_app(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());
-        home
+        PluginHome::new(home, hosts)
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1180,6 +1190,24 @@ mod tests {
         assert!(driver.read_with(cx, |driver, cx| driver.store().read(cx).sessions.is_empty()), "nothing ran in Run");
     }
 
+    /// Debug Plugin Configuration runs only while a project is open, as its condition says: without
+    /// one the registry refuses it, with one it runs (and, given no configuration, the plugin's
+    /// start fails as the debugger reports it).
+    #[gpui_kit::test]
+    async fn debug_plugin_configuration_runs_only_while_a_project_is_open(cx: &mut TestAppContext) {
+        use crate::platform::actions::{ActionError, execute_action_or_throw};
+        let _home = start_with_plugins(cx);
+        let arg = json!({ "operation": "op-1" });
+        {
+            let (_empty, cx) = cx.add_window_view(|window, cx| Workbench::new("w0", window, cx));
+            let refused = cx.update(|window, cx| execute_action_or_throw(DEBUG_PLUGIN_START, Some(&arg), window, cx));
+            assert!(matches!(refused, Err(ActionError::Unavailable(_))), "no project: refused");
+        }
+        let (_folder, _root, _workbench, cx) = trusted_project(cx, LABEL, &[("a.txt", "a\n")]);
+        let ran = cx.update(|window, cx| execute_action_or_throw(DEBUG_PLUGIN_START, Some(&arg), window, cx));
+        assert!(ran.is_ok(), "a project is open: it runs");
+    }
+
     /// A plugin's run detector and its dynamic configurations are listed with the project's run
     /// configurations, in the configuration chooser.
     #[cfg(unix)]
@@ -1225,10 +1253,44 @@ mod tests {
         assert!(markers(cx).is_empty(), "the answer was for the old text");
         wait_long(cx, "the action shows again", |cx| !markers(cx).is_empty());
         wait_long(cx, "the icon is drawn", |cx| cx.debug_bounds("plugin-gutter:0").is_some());
+        // A selection on another line, to see that the click leaves it alone.
+        editor.update(cx, |editor, cx| editor.set_selections(vec![(6, 8)], 0, cx));
+        let before = editor_state(&editor, cx);
         click(cx, "plugin-gutter:0");
         wait_long(cx, "the command ran", |cx| {
             run_in_window(cx, &root, &id, "state", None).ok().flatten().as_deref() == Some("gutter")
         });
+        assert_eq!(editor_state(&editor, cx), before, "the click moved no caret or selection and set no breakpoint");
+        assert!(before.2.is_empty(), "no breakpoint before the click");
+    }
+
+    /// A click on a gutter icon is the icon's: in a file whose gutter takes breakpoints (a press
+    /// beside another line sets one there), the icon's line gets none, and the caret and the
+    /// selection stay where they were.
+    #[cfg(unix)]
+    #[gpui_kit::test]
+    async fn a_gutter_icon_click_neither_moves_the_caret_nor_toggles_a_breakpoint(cx: &mut TestAppContext) {
+        let home = start_with_fake_debugger(cx);
+        let folder = plugin_copy(home.path(), "language-features", |text| {
+            text.replacen("languages = [\"plaintext\", \"text\", \"sql\"]", "languages = [\"fakedap\"]", 1)
+        });
+        let id = link(cx, &folder, &[], "run");
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("main.fake", "start\nmiddle\nend\n")]);
+        let editor = open_file(&workbench, root.join("main.fake"), cx);
+        wait_long(cx, "the icon is drawn", |cx| cx.debug_bounds("plugin-gutter:0").is_some());
+        let icon = cx.debug_bounds("plugin-gutter:0").expect("the icon");
+        let line_height = editor.read_with(cx, |editor, cx| editor.line_height(cx));
+        let breakpoints = |cx: &mut VisualTestContext| editor_state(&editor, cx).2;
+        // The same place one line down is the editor's gutter: a press there sets a breakpoint.
+        cx.simulate_click(point(icon.center().x, icon.center().y + line_height), gpui_kit::Modifiers::default());
+        wait_long(cx, "the breakpoint beside the second line", |cx| breakpoints(cx).len() == 1);
+        editor.update(cx, |editor, cx| editor.set_selections(vec![(8, 11)], 0, cx));
+        let before = editor_state(&editor, cx);
+        click(cx, "plugin-gutter:0");
+        wait_long(cx, "the command ran", |cx| {
+            run_in_window(cx, &root, &id, "state", None).ok().flatten().as_deref() == Some("gutter")
+        });
+        assert_eq!(editor_state(&editor, cx), before, "the caret, the selection and the breakpoints are as they were");
     }
 
     // src/features/plugins/languageVisuals.test.ts
@@ -1250,8 +1312,12 @@ mod tests {
                 .read_with(cx, |w, _| w.plugin_gutter_markers(&editor).first().is_some_and(|m| m.actions.len() == 2))
         });
         wait_long(cx, "the icon is drawn", |cx| cx.debug_bounds("plugin-gutter:0").is_some());
+        // A selection away from the icon's line start, to see that the click leaves it alone.
+        editor.update(cx, |editor, cx| editor.set_selections(vec![(1, 3)], 0, cx));
+        let before = editor_state(&editor, cx);
         click(cx, "plugin-gutter:0");
         let menu = workbench.read_with(cx, |w, _| w.open_menu::<LineAction>()).expect("the menu is open");
+        assert_eq!(editor_state(&editor, cx), before, "the click moved no caret or selection");
         let rows: Vec<(String, Option<String>)> = menu.read_with(cx, |menu: &PopupMenu<LineAction>, _| {
             menu.rows().iter().map(|r| (r.label.clone(), r.icon.clone())).collect()
         });
@@ -1269,14 +1335,18 @@ mod tests {
             run_in_window(cx, &root, &chosen, "state", None).ok().flatten().as_deref() == Some("gutter")
         });
         assert_eq!(run_in_window(cx, &root, &other, "state", None).expect("it answers"), None);
+        let after = editor_state(&editor, cx);
+        assert!(after.2.is_empty(), "no breakpoint was toggled on the icon's line: {:?}", after.2);
     }
 
     // ---------------------------------------------------------------------------------------------
     // Menus
 
-    /// The Hello fixture with entries in the Tools menu, the editor's menu (a submenu) and the
-    /// Project view's menu; one command only for workspaces with a `MODULE.bazel` file.
+    /// The Hello fixture with entries in the Tools menu, the editor's menu (a submenu, which needs
+    /// plugin API 1.3) and the Project view's menu; one command only for workspaces with a
+    /// `MODULE.bazel` file.
     fn hello_menus(text: &str) -> String {
+        let text = text.replace("engines.openidea = \"^1.0\"", "engines.openidea = \"^1.3\"");
         format!(
             "{text}\n\
              [[contributes.commands]]\nid = \"sync\"\ntitle = \"Hello: Sync\"\n\
@@ -1404,6 +1474,9 @@ mod tests {
         let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("a.txt", "a\n")]);
         // The plugin runs once, so it is live when the event comes.
         run_in_window(cx, &root, "api14", "events", None).expect("it answers");
+        // The host keeps the settings the window told it as the plugin's baseline; a change made
+        // before that would be the baseline itself.
+        wait_long(cx, "the settings went out once", |cx| workbench.read_with(cx, |w, _| w.plugin_settings_told()));
         run_action(cx, "file.settings", Some(Value::from("plugins.api14")));
         wait_long(cx, "the page shows", |cx| cx.debug_bounds("plugin-setting:enabled").is_some());
         let dialog = workbench.read_with(cx, |w, _| w.settings_dialog().cloned()).expect("Settings is open");
@@ -1568,6 +1641,7 @@ mod tests {
     async fn cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it(cx: &mut TestAppContext) {
         use super::super::background_tasks_view::CancelButton;
         use super::super::status_bar::TASKS_ITEM;
+        use std::{cell::RefCell, rc::Rc};
         let home = start_with_plugins(cx);
         let bin = home.path().join("bin");
         // Far longer than any wait: the task can only leave the list by being cancelled.
@@ -1589,12 +1663,24 @@ mod tests {
         let rows = popup.read_with(cx, |popup, _| popup.rows());
         let index = rows.iter().position(|row| row.title == title).expect("the plugin's task is listed");
         assert_eq!(rows[index].cancel, CancelButton::Working);
+        // The program dies within milliseconds of Cancel, so the popup's states are recorded as the
+        // window changes rather than looked at after the click.
+        let seen: Rc<RefCell<Vec<Option<CancelButton>>>> = Rc::default();
+        let _watch = cx.update(|_, cx| {
+            let (popup, seen) = (popup.clone(), seen.clone());
+            cx.observe(&workbench, move |_, cx| {
+                let row = popup.read(cx).rows().into_iter().find(|row| row.title == title);
+                seen.borrow_mut().push(row.map(|row| row.cancel));
+            })
+        });
         click(cx, &format!("task-cancel:{index}"));
         let row = |cx: &mut VisualTestContext| {
             popup.read_with(cx, |popup, _| popup.rows().into_iter().find(|row| row.title == title))
         };
-        assert_eq!(row(cx).map(|row| row.cancel), Some(CancelButton::Disabled("Cancelling…".to_owned())));
         wait_long(cx, "the task ends", |cx| row(cx).is_none());
+        let seen = seen.borrow().clone();
+        let cancelling = Some(CancelButton::Disabled("Cancelling…".to_owned()));
+        assert!(seen.contains(&cancelling), "Cancel showed Cancelling… while the task ended: {seen:?}");
         run_action(cx, BACKGROUND_TASKS, None);
         assert!(workbench.read_with(cx, |w, _| w.background_tasks_popup().is_none()));
     }

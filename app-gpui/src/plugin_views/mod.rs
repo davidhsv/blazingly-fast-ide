@@ -1,5 +1,6 @@
-//! Views of what running plugin code shows: the questions a waiting command asks, and the log tabs
-//! plugin code opens.
+//! Views of what plugins show: the questions a waiting command asks, the log tabs plugin code opens
+//! and their pages in Settings.
 
 pub mod log_tab;
 pub mod prompt_dialog;
+pub mod settings_page;

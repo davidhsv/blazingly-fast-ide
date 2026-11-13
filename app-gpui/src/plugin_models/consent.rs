@@ -1,5 +1,5 @@
 //! What the consent dialog shows of a plugin's capabilities: each with its risk and a description
-//! whose parameter (a host, a socket) stays out of the translated text, ordered from the lowest risk,
+//! whose parameter (a host, a socket) stays out of the translated text, ordered from the highest risk,
 //! and which optional ones start accepted.
 
 use crate::platform::collate;
@@ -34,10 +34,10 @@ pub fn capabilities_of(plugin: &PluginInfo) -> Vec<Capability> {
     serde_json::to_value(&plugin.capabilities).ok().and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default()
 }
 
-/// The capabilities from the lowest risk to the highest, by id within a risk.
+/// The capabilities from the highest risk to the lowest, by id within a risk.
 pub fn sort_by_risk(capabilities: &[Capability]) -> Vec<Capability> {
     let mut sorted = capabilities.to_vec();
-    sorted.sort_by(|a, b| match a.risk.cmp(&b.risk) {
+    sorted.sort_by(|a, b| match b.risk.cmp(&a.risk) {
         Ordering::Equal => collate::compare(&a.id, &b.id),
         other => other,
     });
@@ -110,12 +110,26 @@ mod tests {
             capability("auth:github", Risk::Medium, true, true),
         ];
         let ids: Vec<String> = sort_by_risk(&all).into_iter().map(|c| c.id).collect();
-        assert_eq!(ids, ["project.read", "auth:github", "net.http:example.com", "process:bash"]);
+        assert_eq!(ids, ["process:bash", "auth:github", "net.http:example.com", "project.read"]);
         let accepted = initially_accepted(&all);
         assert_eq!(accepted, ["project.read", "auth:github"]);
         assert!(is_high_risk(&all, &accepted));
         use crate::plugin_models::test_support::{capability as listed_capability, plugin};
         let listed = plugin("p", serde_json::json!({ "capabilities": [listed_capability("process:bash", true)] }));
         assert_eq!(capabilities_of(&listed), vec![capability("process:bash", Risk::High, false, true)]);
+    }
+
+    // src/features/plugins/consent.tsx › sortByRisk: high risk first, then by id within a risk.
+    #[test]
+    fn lists_high_risk_capabilities_first_and_by_id_within_a_risk() {
+        let all = [
+            capability("storage", Risk::Low, false, false),
+            capability("process:zsh", Risk::High, false, false),
+            capability("clipboard", Risk::Medium, true, false),
+            capability("ide.commands", Risk::High, false, false),
+            capability("events", Risk::Low, false, false),
+        ];
+        let ids: Vec<String> = sort_by_risk(&all).into_iter().map(|c| c.id).collect();
+        assert_eq!(ids, ["ide.commands", "process:zsh", "clipboard", "events", "storage"]);
     }
 }

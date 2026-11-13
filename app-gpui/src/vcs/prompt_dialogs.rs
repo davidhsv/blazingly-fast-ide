@@ -47,6 +47,8 @@ pub enum FieldRule {
     /// A branch name: cleaned up as it is typed and checked by its prompt, which may offer to
     /// overwrite an existing branch.
     Branch(Box<BranchPrompt>),
+    /// Anything, the empty text included.
+    Any,
 }
 
 /// A button of a dialog.
@@ -432,6 +434,7 @@ impl PromptDialog {
         match &field.rule {
             FieldRule::NonEmpty(message) => field.value.trim().is_empty().then(|| message.clone()),
             FieldRule::Branch(prompt) => prompt.validate(&field.value, self.offers_overwrite() && self.overwrite, i18n),
+            FieldRule::Any => None,
         }
     }
 

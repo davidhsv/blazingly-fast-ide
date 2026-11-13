@@ -291,6 +291,7 @@ impl Workbench {
                 request.key = Some("debug.status".to_owned());
                 self.notify(request, cx);
             }
+            DebugDriverEvent::PluginSessions(events) => self.plugin_debug_sessions(events, cx),
             DebugDriverEvent::FocusAppWindow => window.activate_window(),
             DebugDriverEvent::ValueSet { request, result } => {
                 if let Some(variables) = self.debug_variables_view() {
@@ -1010,7 +1011,7 @@ impl Render for DebugConsolePane {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use crate::backend::{AppDirs, Backend};
     use crate::debugger::breakpoints::store::storage_key;
@@ -1036,7 +1037,7 @@ mod tests {
     /// A stop is reported 0.2 s after the request that led to it, as a program takes time to run:
     /// the backend reports a step or a resume as continued once its answer is in, and a stop
     /// reported before that would be overwritten.
-    const FAKE_ADAPTER: &str = r#"import json, os, sys, time
+    pub(in crate::workbench) const FAKE_ADAPTER: &str = r#"import json, os, sys, time
 out = sys.stdout.buffer
 seq = 0
 def send(message):

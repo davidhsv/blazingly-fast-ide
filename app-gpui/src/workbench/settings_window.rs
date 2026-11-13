@@ -17,10 +17,8 @@ use crate::platform::actions::ActionRegistry;
 use crate::platform::input;
 use crate::platform::keymap::Keymap as Bindings;
 use crate::platform::settings::{effective, global, set};
-use crate::plugin_models::contribution::Contribution;
-use crate::plugin_models::plugins_page::{PluginsPage, PluginsPageEvent};
-use crate::plugin_models::store::{InstallStep, SETTINGS_PAGE_ID};
-use crate::plugins::Plugins;
+use crate::plugin_models::plugins_page::PluginsPage;
+use crate::plugin_models::store::SETTINGS_PAGE_ID;
 use crate::settings_model::builtin_pages::{code_style_language_pages, settings_registry};
 use crate::settings_model::schema::settings_value;
 use crate::settings_model::staging::{SecretWrite, SettingsDialog, StagedChange};
@@ -30,12 +28,7 @@ use gpui_kit::{
     AnyElement, App, Context, Entity, FocusHandle, Focusable, IntoElement, KeyDownEvent, Subscription, Window, div,
     prelude::*,
 };
-use ide_core::IdeResult;
-use ide_host::plugins::PluginHost;
 use serde_json::Value;
-use std::future::Future;
-use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 /// The page Settings for New Projects opens on: the JDK, Maven and the language server are what
 /// new projects most often need.
@@ -46,9 +39,7 @@ const APPEARANCE_PAGE: &str = "appearance";
 const UPDATES_ACTION: &str = "app.checkForUpdates";
 /// The settings the keymap is made of.
 const KEYMAP_KEYS: [&str; 3] = ["keymap", "keymapOverrides", "customKeymaps"];
-/// How long a listing of the plugins waits for the installed ones to have loaded.
-const INITIAL_LOAD_WAIT: Duration = Duration::from_secs(5);
-/// Why an operation of the Plugins page that this window does not carry out failed.
+/// Why a value kept outside the settings was not saved.
 const NOT_CARRIED_OUT: &str = "This window cannot do this";
 
 /// The Settings dialog, while it is open.
@@ -120,63 +111,11 @@ fn code_style_languages(cx: &App) -> Vec<(String, String)> {
     backend.host.languages.all().into_iter().map(|language| (language.id.0, language.name)).collect()
 }
 
-/// Where the local catalog of plugins is read from: the repository's official plugins in debug
-/// builds; a released build has none next to it.
-fn catalog_dirs() -> Vec<PathBuf> {
-    if cfg!(debug_assertions) {
-        vec![Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/official")]
-    } else {
-        Vec::new()
-    }
-}
-
-/// Runs `work` on the plugin host off the main thread; the failure is its message.
-fn plugin_work<T, W>(cx: &App, work: W) -> impl Future<Output = Result<T, String>> + 'static + use<T, W>
-where
-    T: Send + 'static,
-    W: FnOnce(&PluginHost) -> IdeResult<T> + Send + 'static,
-{
-    let host = cx.try_global::<Plugins>().map(|plugins| plugins.host.clone());
-    let task = host.map(|host| cx.background_executor().spawn(async move { work(&host) }));
-    async move {
-        match task {
-            None => Err("The plugin host is not running".to_owned()),
-            Some(task) => task.await.map_err(|error| error.message),
-        }
-    }
-}
-
 /// Stores the credential of an SSH configuration, in the keychain when `write.save`.
 fn store_ssh_secret(write: &SecretWrite, cx: &App) -> Result<(), String> {
     let Some(backend) = cx.try_global::<Backend>() else { return Err("The backend is not running".to_owned()) };
     backend.host.ssh.set_secret(&write.id, Some(write.secret.expose().to_owned()), write.save);
     Ok(())
-}
-
-/// The name of a Plugins page event, for the log: never its fields, which may hold a secret.
-fn event_name(event: &PluginsPageEvent) -> &'static str {
-    match event {
-        PluginsPageEvent::Refresh { .. } => "Refresh",
-        PluginsPageEvent::SetEnabled { .. } => "SetEnabled",
-        PluginsPageEvent::Reload(_) => "Reload",
-        PluginsPageEvent::Uninstall(_) => "Uninstall",
-        PluginsPageEvent::Grant { .. } => "Grant",
-        PluginsPageEvent::SetCapability { .. } => "SetCapability",
-        PluginsPageEvent::RollBack(_) => "RollBack",
-        PluginsPageEvent::AskConsent(_) => "AskConsent",
-        PluginsPageEvent::Install(_) => "Install",
-        PluginsPageEvent::DownloadMarket(_) => "DownloadMarket",
-        PluginsPageEvent::EditRepository { .. } => "EditRepository",
-        PluginsPageEvent::ImportInstalledIntellij => "ImportInstalledIntellij",
-        PluginsPageEvent::ImportIntellijFile => "ImportIntellijFile",
-        PluginsPageEvent::OpenUrl(_) => "OpenUrl",
-        PluginsPageEvent::SetTheme(_) => "SetTheme",
-        PluginsPageEvent::SelectIconTheme(_) => "SelectIconTheme",
-        PluginsPageEvent::RunCommand { .. } => "RunCommand",
-        PluginsPageEvent::LoadSecrets(_) => "LoadSecrets",
-        PluginsPageEvent::SetSecret { .. } => "SetSecret",
-        PluginsPageEvent::Notify(_) => "Notify",
-    }
 }
 
 impl Workbench {
@@ -235,7 +174,9 @@ impl Workbench {
         let updates = cx.try_global::<ActionRegistry>().is_some_and(|registry| registry.contains(UPDATES_ACTION));
         let languages = code_style_languages(cx);
         let languages: Vec<(&str, &str)> = languages.iter().map(|(id, name)| (id.as_str(), name.as_str())).collect();
-        let set = SettingsPageSet { specs: settings_registry(updates), pages: code_style_language_pages(&languages) };
+        let mut pages = code_style_language_pages(&languages);
+        pages.extend(super::plugin_contributions::plugin_settings_pages(cx));
+        let set = SettingsPageSet { specs: settings_registry(updates), pages };
         let dialog = cx.new(|cx| SettingsDialogView::new(model.clone(), set, has_project, cx));
         // No plugin registers default shortcuts with the keymap: there are none to list.
         let keymap = cx.new(|cx| KeymapView::new(model.clone(), registered_actions(cx), Bindings::new(), window, cx));
@@ -245,14 +186,15 @@ impl Workbench {
             dialog.set_page_labels(KEYMAP_PAGE, labels, cx);
         });
         let mut subscriptions = vec![cx.subscribe_in(&dialog, window, Self::settings_dialog_event)];
-        let plugins = if cx.has_global::<Plugins>() {
-            let page = cx.new(|cx| PluginsPage::new(window, cx));
-            subscriptions.push(cx.subscribe_in(&page, window, Self::plugins_page_event));
-            self.follow_plugins_settings(&page, cx);
-            dialog.update(cx, |dialog, cx| dialog.set_page_view(SETTINGS_PAGE_ID, page.clone().into(), cx));
-            Some(page)
-        } else {
-            None
+        subscriptions.extend(self.mount_plugin_settings_pages(&dialog, has_project, window, cx));
+        let plugins = match self.plugin_host(cx) {
+            Some(host) => {
+                let (page, events) = self.new_plugins_page(host, window, cx);
+                subscriptions.push(events);
+                dialog.update(cx, |dialog, cx| dialog.set_page_view(SETTINGS_PAGE_ID, page.clone().into(), cx));
+                Some(page)
+            }
+            None => None,
         };
         let restore = window.focused(cx);
         window.focus(&dialog.focus_handle(cx), cx);
@@ -343,17 +285,16 @@ impl Workbench {
         });
     }
 
-    /// A setting changed, in this window or another: the keymap follows the keymap settings, and the
-    /// Plugins page the theme and the file icon theme.
+    /// A setting changed, in this window or another: the keymap follows the keymap settings, the Plugins
+    /// pages the theme and the file icon theme, and the Welcome screen's Customize page every setting.
     pub(super) fn settings_changed(&mut self, key: &str, cx: &mut Context<Self>) {
         if key.is_empty() || KEYMAP_KEYS.iter().any(|root| is_under(key, root)) {
             apply_keymap_settings(cx);
         }
-        if (key.is_empty() || is_under(key, "appearance"))
-            && let Some(page) = self.settings_plugins_page().cloned()
-        {
-            self.follow_plugins_settings(&page, cx);
+        if key.is_empty() || is_under(key, "appearance") {
+            self.follow_settings_on_plugin_pages(cx);
         }
+        self.sync_customize(cx);
     }
 
     /// Settings over the window, while it is open: below the popup slot, so that a menu opened from
@@ -380,151 +321,6 @@ impl Workbench {
             }))
             .child(dialog);
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // The Plugins page
-
-    /// Tells the Plugins page whether the window's project is trusted, and the theme and the file
-    /// icon theme the settings name.
-    fn follow_plugins_settings(&self, page: &Entity<PluginsPage>, cx: &mut Context<Self>) {
-        let root = self.project_root(cx);
-        let trusted = cx
-            .try_global::<Backend>()
-            .zip(root)
-            .is_some_and(|(backend, root)| backend.host.trust.trusted(&root).unwrap_or(false));
-        let appearance = global(cx).appearance;
-        let icon_theme = Some(appearance.file_icon_theme).filter(|key| !key.is_empty());
-        page.update(cx, |page, cx| {
-            page.set_trusted_project(trusted, cx);
-            page.set_appearance(Some(appearance.theme), icon_theme, cx);
-        });
-    }
-
-    /// What the Plugins page asks: its listing and enabling, disabling and reloading a plugin are
-    /// carried out on the plugin host, and its notifications are raised. Every other operation is
-    /// logged and answered as failed, so that nothing on the page stays busy waiting for it.
-    fn plugins_page_event(
-        &mut self,
-        page: &Entity<PluginsPage>,
-        event: &PluginsPageEvent,
-        _: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        fn refused<T>() -> Result<T, String> {
-            Err(NOT_CARRIED_OUT.to_owned())
-        }
-        match event.clone() {
-            PluginsPageEvent::Refresh { plugins, catalog, market } => {
-                if plugins {
-                    self.list_plugins(page, cx);
-                }
-                if catalog {
-                    Self::read_plugin_catalog(page, cx);
-                }
-                if let Some(refresh) = market {
-                    Self::read_plugin_market(page, refresh, cx);
-                }
-            }
-            PluginsPageEvent::SetEnabled { id, enabled } => {
-                let target = id.clone();
-                let work = plugin_work(cx, move |host| host.set_enabled(&target, enabled));
-                Self::answer_plugins_page(page, work, move |page, result, cx| page.finished(&id, result, cx), cx);
-            }
-            PluginsPageEvent::Reload(id) => {
-                let target = id.clone();
-                let work = plugin_work(cx, move |host| host.reload(&target).map(|_| ()));
-                Self::answer_plugins_page(page, work, move |page, result, cx| page.finished(&id, result, cx), cx);
-            }
-            PluginsPageEvent::Notify(request) => self.notify(request, cx),
-            other => {
-                tracing::info!("Settings › Plugins: {} is not carried out in this window", event_name(&other));
-                page.update(cx, |page, cx| match other {
-                    PluginsPageEvent::Uninstall(id)
-                    | PluginsPageEvent::Grant { id, .. }
-                    | PluginsPageEvent::SetCapability { id, .. } => page.finished(&id, refused(), cx),
-                    PluginsPageEvent::RollBack(id) => page.rolled_back(&id, refused(), cx),
-                    PluginsPageEvent::AskConsent(_) => page.consented(None, cx),
-                    PluginsPageEvent::Install(InstallStep::Pick { .. }) => page.picked(refused(), cx),
-                    PluginsPageEvent::Install(InstallStep::Unpack(_)) => page.unpacked(refused(), cx),
-                    PluginsPageEvent::Install(InstallStep::Preview(_)) => page.previewed(refused(), cx),
-                    PluginsPageEvent::Install(InstallStep::Install { .. }) => page.installed(refused(), cx),
-                    PluginsPageEvent::DownloadMarket(id) => page.downloaded(&id, refused(), cx),
-                    // Nothing on the page waits for these. The secrets are not read, so that no
-                    // secret field is shown before it can mask what is typed.
-                    _ => {}
-                });
-            }
-        }
-    }
-
-    /// Lists the plugins as the window sees them: the installed and linked ones and the plugins of
-    /// its project (loaded first when the project is trusted).
-    fn list_plugins(&self, page: &Entity<PluginsPage>, cx: &mut Context<Self>) {
-        let root = self.project_root(cx);
-        let work = plugin_work(cx, move |host| {
-            host.wait_initial_load(INITIAL_LOAD_WAIT);
-            host.sync_links();
-            if let Some(root) = &root {
-                host.sync_project(root);
-            }
-            Ok(host.list(root.as_deref()))
-        });
-        Self::answer_plugins_page(
-            page,
-            work,
-            |page, listed, cx| match listed {
-                Ok(snapshot) => {
-                    let contributions = Contribution::from_snapshot(&snapshot);
-                    page.set_listing(snapshot.plugins, contributions, cx);
-                }
-                Err(error) => page.listing_failed(error, cx),
-            },
-            cx,
-        );
-    }
-
-    fn read_plugin_catalog(page: &Entity<PluginsPage>, cx: &mut Context<Self>) {
-        let dirs = catalog_dirs();
-        let work = plugin_work(cx, move |host| Ok(host.catalog(&dirs)));
-        Self::answer_plugins_page(page, work, |page, catalog, cx| page.set_catalog(catalog, cx), cx);
-    }
-
-    /// The marketplace's plugins, its index read again with `refresh`; none without an index.
-    fn read_plugin_market(page: &Entity<PluginsPage>, refresh: bool, cx: &mut Context<Self>) {
-        let work = plugin_work(cx, move |host| {
-            let url = host.market_url();
-            let listing = match url {
-                Some(_) => host.market_listing(refresh).map_err(|error| error.message),
-                None => Ok(Vec::new()),
-            };
-            Ok((url, listing))
-        });
-        Self::answer_plugins_page(
-            page,
-            work,
-            |page, market, cx| match market {
-                Ok((url, listing)) => page.set_market(url, listing, cx),
-                Err(error) => page.set_market(None, Err(error), cx),
-            },
-            cx,
-        );
-    }
-
-    /// Hands the outcome of `work` to the page with `answer`, unless the page is gone by then.
-    fn answer_plugins_page<T: 'static>(
-        page: &Entity<PluginsPage>,
-        work: impl Future<Output = Result<T, String>> + 'static,
-        answer: impl FnOnce(&mut PluginsPage, Result<T, String>, &mut Context<PluginsPage>) + 'static,
-        cx: &mut Context<Self>,
-    ) {
-        let page = page.downgrade();
-        cx.spawn(async move |_, cx| {
-            let outcome = work.await;
-            // The dialog was closed meanwhile: nobody waits for the answer.
-            let _ = page.update(cx, |page, cx| answer(page, outcome, cx));
-        })
-        .detach();
     }
 }
 

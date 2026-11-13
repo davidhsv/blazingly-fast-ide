@@ -54,8 +54,9 @@ pub struct ListRow {
     pub checked: Option<bool>,
 }
 
-/// A row of a form, top to bottom.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A row of a form, top to bottom. Its `Debug` output names the row's kind and control, never a
+/// text: a field may hold a remote URL with its credentials as it is typed.
+#[derive(Clone, PartialEq, Eq)]
 pub enum FormRow {
     /// Muted text; a line break starts a new line.
     Hint(String),
@@ -96,6 +97,47 @@ pub enum FormRow {
     Error(String),
 }
 
+/// What `Debug` writes in place of a text a form may hold.
+const REDACTED: &str = "<redacted>";
+
+impl std::fmt::Debug for FormRow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Hint(_) => f.debug_tuple("Hint").field(&REDACTED).finish(),
+            Self::Label(_) => f.debug_tuple("Label").field(&REDACTED).finish(),
+            Self::Text { id, mono, invalid, .. } => f
+                .debug_struct("Text")
+                .field("id", id)
+                .field("value", &REDACTED)
+                .field("mono", mono)
+                .field("invalid", invalid)
+                .finish_non_exhaustive(),
+            Self::Select { id, value, options, .. } => f
+                .debug_struct("Select")
+                .field("id", id)
+                .field("value", &value.as_ref().map(|_| REDACTED))
+                .field("options", &options.len())
+                .finish_non_exhaustive(),
+            Self::Check { id, on, enabled, .. } => f
+                .debug_struct("Check")
+                .field("id", id)
+                .field("on", on)
+                .field("enabled", enabled)
+                .finish_non_exhaustive(),
+            Self::Radio { id, options, .. } => {
+                f.debug_struct("Radio").field("id", id).field("options", &options.len()).finish_non_exhaustive()
+            }
+            Self::List { id, rows, selected, .. } => f
+                .debug_struct("List")
+                .field("id", id)
+                .field("rows", &rows.len())
+                .field("selected", &selected.as_ref().map(|_| REDACTED))
+                .finish_non_exhaustive(),
+            Self::Error(_) => f.debug_tuple("Error").field(&REDACTED).finish(),
+        }
+    }
+}
+
 /// Where a button is drawn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ButtonPlace {
@@ -132,13 +174,26 @@ impl FormButton {
     }
 }
 
-/// What a form shows.
-#[derive(Clone, Debug, PartialEq)]
+/// What a form shows. Its `Debug` output holds the title, the rows' kinds and controls and the
+/// buttons' ids, never a text of a row.
+#[derive(Clone, PartialEq)]
 pub struct FormSpec {
     pub title: String,
     pub width: f32,
     pub rows: Vec<FormRow>,
     pub buttons: Vec<FormButton>,
+}
+
+impl std::fmt::Debug for FormSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let buttons: Vec<_> = self.buttons.iter().map(|button| (button.id, button.enabled)).collect();
+        f.debug_struct("FormSpec")
+            .field("title", &self.title)
+            .field("width", &self.width)
+            .field("rows", &self.rows)
+            .field("buttons", &buttons)
+            .finish()
+    }
 }
 
 impl FormSpec {
@@ -148,8 +203,8 @@ impl FormSpec {
     }
 }
 
-/// An edit of a form's control `id`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// An edit of a form's control `id`. Its `Debug` output names the kind of edit, never the text.
+#[derive(Clone, PartialEq, Eq)]
 pub enum FormInput {
     /// A text field's text.
     Text(String),
@@ -159,6 +214,17 @@ pub enum FormInput {
     Toggle,
     /// The checkbox of a list's row.
     ToggleRow(String),
+}
+
+impl std::fmt::Debug for FormInput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Text(_) => f.debug_tuple("Text").field(&REDACTED).finish(),
+            Self::Choose(_) => f.debug_tuple("Choose").field(&REDACTED).finish(),
+            Self::Toggle => f.write_str("Toggle"),
+            Self::ToggleRow(_) => f.debug_tuple("ToggleRow").field(&REDACTED).finish(),
+        }
+    }
 }
 
 /// What the Git Remotes dialog asks for.
@@ -1827,6 +1893,59 @@ pub fn can_press(spec: &FormSpec, button: &str) -> bool {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // Not from a spec: a form's debug output never holds a remote URL being typed, nor its credentials.
+    #[test]
+    fn the_debug_output_of_a_form_never_holds_a_typed_url_or_its_credentials() {
+        let url = "https://user:secret@host/x.git";
+        let spec = FormSpec {
+            title: "Define Remote".to_owned(),
+            width: 420.0,
+            rows: vec![
+                FormRow::Hint(url.to_owned()),
+                FormRow::Label(url.to_owned()),
+                FormRow::Text {
+                    id: "url",
+                    value: url.to_owned(),
+                    placeholder: url.to_owned(),
+                    mono: true,
+                    invalid: true,
+                },
+                FormRow::Select {
+                    id: "remote",
+                    value: Some(url.to_owned()),
+                    placeholder: String::new(),
+                    options: vec![Choice::new(url, url, Some(url.to_owned()))],
+                },
+                FormRow::Check { id: "fetch", label: url.to_owned(), on: true, enabled: true },
+                FormRow::Radio { id: "mode", value: url.to_owned(), options: vec![Choice::new(url, url, None)] },
+                FormRow::List {
+                    id: "remotes",
+                    rows: vec![ListRow {
+                        key: url.to_owned(),
+                        label: url.to_owned(),
+                        detail: url.to_owned(),
+                        depth: 0,
+                        checked: None,
+                    }],
+                    selected: Some(url.to_owned()),
+                    empty: url.to_owned(),
+                },
+                FormRow::Error(url.to_owned()),
+            ],
+            buttons: vec![FormButton::footer(OK, "OK".to_owned(), true, true)],
+        };
+        let inputs = [
+            FormInput::Text(url.to_owned()),
+            FormInput::Choose(url.to_owned()),
+            FormInput::ToggleRow(url.to_owned()),
+            FormInput::Toggle,
+        ];
+        let debug = format!("{spec:?} {inputs:?} {:?}", spec.rows[2]);
+        assert!(!debug.contains("secret"), "{debug}");
+        assert!(!debug.contains(url) && !debug.contains("host/x.git"), "{debug}");
+        assert!(debug.contains("\"url\"") && debug.contains("Text") && debug.contains(REDACTED), "{debug}");
+    }
 
     fn branch(name: &str, remote: bool, current: bool) -> Branch {
         let wire = json!({

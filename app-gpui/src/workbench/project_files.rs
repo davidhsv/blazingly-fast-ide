@@ -1097,6 +1097,16 @@ impl Workbench {
 
     /// Runs `build` with what the Project view's menus know of the window.
     fn with_menu_context<R>(&self, cx: &App, build: impl FnOnce(&MenuContext<'_>, &App) -> R) -> R {
+        self.with_contributed_menu_context(Contributed::default(), cx, build)
+    }
+
+    /// [`Self::with_menu_context`], with the groups other features contribute to the menus.
+    fn with_contributed_menu_context<R>(
+        &self,
+        contributed: Contributed,
+        cx: &App,
+        build: impl FnOnce(&MenuContext<'_>, &App) -> R,
+    ) -> R {
         let root = self.files.state.root.clone().unwrap_or_default();
         let name = self.files.state.name.clone();
         let actions: BTreeSet<String> = cx
@@ -1104,7 +1114,6 @@ impl Workbench {
             .map(|registry| registry.ids().map(str::to_owned).collect())
             .unwrap_or_default();
         let shortcuts = self.shortcuts(cx);
-        let contributed = Contributed::default();
         let ctx = MenuContext {
             state: &self.files.state,
             project: (!root.is_empty()).then_some(OpenProject { root: &root, name: &name, workspace: None }),
@@ -1135,8 +1144,11 @@ impl Workbench {
         tree.read(cx).mirror_into(&mut self.files.state);
         let nodes = selected_nodes(&self.files.state);
         cx.default_global::<Localization>();
+        let selected = crate::project_view::context_menu::menu_group_context(&node_refs(&nodes));
+        let project_view = self.plugin_project_view_items(&selected.paths, window, cx);
+        let contributed = Contributed { project_view, ..Contributed::default() };
         let items = cx.update_global::<Localization, _>(|localization, cx| {
-            self.with_menu_context(cx, |ctx, _| {
+            self.with_contributed_menu_context(contributed, cx, |ctx, _| {
                 shown_items(&context_menu_items(ctx, &mut localization.0, &node_refs(&nodes)), ctx.actions)
             })
         });

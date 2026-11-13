@@ -20,6 +20,7 @@ pub mod github;
 pub mod platform;
 pub mod platform_more;
 pub mod plugin_models;
+pub mod plugin_views;
 pub mod plugins;
 pub mod project_tree;
 pub mod project_tree_model;

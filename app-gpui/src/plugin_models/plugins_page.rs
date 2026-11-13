@@ -29,6 +29,7 @@ use crate::platform::input;
 use crate::plugins::plugin_action_id;
 use crate::theme;
 use crate::theme::themes::plugin_theme_ref;
+use crate::ui::secret_field::{SecretField, SecretFieldEvent};
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use crate::ui::tooltip::WithTooltip;
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
@@ -392,8 +393,8 @@ pub struct GearItem {
     pub enabled: bool,
 }
 
-/// What the page asks of the workbench.
-#[derive(Clone, Debug, PartialEq)]
+/// What the page asks of the workbench. Its `Debug` output never holds a secret's value.
+#[derive(Clone, PartialEq)]
 pub enum PluginsPageEvent {
     /// List again: the plugins (`Plugins::refresh`, answered with [`PluginsPage::set_listing`]), the local
     /// catalog ([`PluginsPage::set_catalog`]) and the marketplace, its index read again with `Some(true)`
@@ -464,6 +465,57 @@ pub enum PluginsPageEvent {
     },
     Notify(NotificationRequest),
 }
+/// As a derived `Debug` would write it, except that a secret's value shows as `…`.
+impl std::fmt::Debug for PluginsPageEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Refresh { plugins, catalog, market } => f
+                .debug_struct("Refresh")
+                .field("plugins", plugins)
+                .field("catalog", catalog)
+                .field("market", market)
+                .finish(),
+            Self::SetEnabled { id, enabled } => {
+                f.debug_struct("SetEnabled").field("id", id).field("enabled", enabled).finish()
+            }
+            Self::Reload(id) => f.debug_tuple("Reload").field(id).finish(),
+            Self::Uninstall(id) => f.debug_tuple("Uninstall").field(id).finish(),
+            Self::Grant { id, optional, signer_change } => f
+                .debug_struct("Grant")
+                .field("id", id)
+                .field("optional", optional)
+                .field("signer_change", signer_change)
+                .finish(),
+            Self::SetCapability { id, capability, granted } => f
+                .debug_struct("SetCapability")
+                .field("id", id)
+                .field("capability", capability)
+                .field("granted", granted)
+                .finish(),
+            Self::RollBack(id) => f.debug_tuple("RollBack").field(id).finish(),
+            Self::AskConsent(request) => f.debug_tuple("AskConsent").field(request).finish(),
+            Self::Install(step) => f.debug_tuple("Install").field(step).finish(),
+            Self::DownloadMarket(id) => f.debug_tuple("DownloadMarket").field(id).finish(),
+            Self::EditRepository { current } => f.debug_struct("EditRepository").field("current", current).finish(),
+            Self::ImportInstalledIntellij => f.write_str("ImportInstalledIntellij"),
+            Self::ImportIntellijFile => f.write_str("ImportIntellijFile"),
+            Self::OpenUrl(url) => f.debug_tuple("OpenUrl").field(url).finish(),
+            Self::SetTheme(theme) => f.debug_tuple("SetTheme").field(theme).finish(),
+            Self::SelectIconTheme(key) => f.debug_tuple("SelectIconTheme").field(key).finish(),
+            Self::RunCommand { plugin_id, command_id } => {
+                f.debug_struct("RunCommand").field("plugin_id", plugin_id).field("command_id", command_id).finish()
+            }
+            Self::LoadSecrets(id) => f.debug_tuple("LoadSecrets").field(id).finish(),
+            Self::SetSecret { plugin_id, name, value } => f
+                .debug_struct("SetSecret")
+                .field("plugin_id", plugin_id)
+                .field("name", name)
+                .field("value", &value.as_ref().map(|_| "…"))
+                .finish(),
+            Self::Notify(request) => f.debug_tuple("Notify").field(request).finish(),
+        }
+    }
+}
 
 /// An operation in flight for a plugin.
 #[derive(Clone, Debug)]
@@ -527,7 +579,7 @@ pub struct PluginsPage {
     secrets: HashMap<String, Vec<(String, bool)>>,
     /// The plugins whose secrets were asked for, so that each is asked once.
     secrets_requested: HashSet<String>,
-    secret_fields: HashMap<(String, String, bool), Entity<TextField>>,
+    secret_fields: HashMap<(String, String, bool), Entity<SecretField>>,
     secret_busy: HashSet<SecretKey>,
     secret_errors: HashMap<SecretKey, String>,
     tab: PluginsTab,
@@ -1209,6 +1261,11 @@ impl PluginsPage {
         &self.search[self.search_index()]
     }
 
+    /// The masked field of secret `name` of `plugin_id`, while it is drawn for the state `set`.
+    pub fn secret_input(&self, plugin_id: &str, name: &str, set: bool) -> Option<&Entity<SecretField>> {
+        self.secret_fields.get(&(plugin_id.to_owned(), name.to_owned(), set))
+    }
+
     pub fn error(&self) -> Option<&str> {
         self.error.as_deref()
     }
@@ -1805,12 +1862,11 @@ impl PluginsPage {
                 Section { title, rows, ..Section::default() }
             }
             "secrets" => {
-                // A secret's row, with the field its value is typed in, shows only once its state has
-                // been read: until then the page cannot say whether a value is stored.
+                // Every declared secret has its row and its masked field at once; it says "Not set"
+                // until its state has been read.
                 let state = self.secrets.get(&plugin.id);
                 let secrets = items
                     .iter()
-                    .filter(|_| state.is_some())
                     .filter_map(|item| {
                         let name = item.text("name")?.to_owned();
                         let key = (plugin.id.clone(), name.clone());
@@ -2526,24 +2582,24 @@ impl PluginsPage {
             .children(section.notes.iter().map(|note| div().text_color(muted).child(SharedString::from(note.clone()))))
     }
 
-    /// The field a secret's value is typed in; a new one when the secret's state changes, with its
-    /// placeholder for that state.
-    fn secret_field(&mut self, plugin_id: &str, secret: &SecretRow, cx: &mut Context<Self>) -> Entity<TextField> {
+    /// The masked field a secret's value is typed in; a new one when the secret's state changes,
+    /// with its placeholder for that state.
+    fn secret_field(&mut self, plugin_id: &str, secret: &SecretRow, cx: &mut Context<Self>) -> Entity<SecretField> {
         let key = (plugin_id.to_owned(), secret.name.clone(), secret.set);
         if let Some(field) = self.secret_fields.get(&key) {
             return field.clone();
         }
         let placeholder = tx(cx, if secret.set { "Replace…" } else { "Value" });
-        let field = cx.new(|cx| TextField::new(cx).with_placeholder(placeholder));
+        let field = cx.new(|cx| SecretField::new(cx).with_placeholder(placeholder));
         let (plugin, name) = (plugin_id.to_owned(), secret.name.clone());
         let subscription =
-            cx.subscribe(&field, move |page: &mut Self, field, event: &TextFieldEvent, cx| match event {
-                TextFieldEvent::Submitted => {
-                    let value = field.read(cx).text().to_owned();
+            cx.subscribe(&field, move |page: &mut Self, field, event: &SecretFieldEvent, cx| match event {
+                SecretFieldEvent::Submitted => {
+                    let value = field.read(cx).text(cx).to_owned();
                     page.save_secret(&plugin, &name, Some(value), cx);
                 }
-                TextFieldEvent::Changed => cx.notify(),
-                TextFieldEvent::Cancelled => {}
+                SecretFieldEvent::Changed => cx.notify(),
+                SecretFieldEvent::Cancelled => {}
             });
         self._subscriptions.push(subscription);
         self.secret_fields.insert(key, field.clone());
@@ -2552,7 +2608,7 @@ impl PluginsPage {
 
     fn render_secret(&mut self, plugin_id: &str, secret: &SecretRow, cx: &mut Context<Self>) -> Div {
         let field = self.secret_field(plugin_id, secret, cx);
-        let typed = field.read(cx).text().to_owned();
+        let typed = field.read(cx).text(cx).to_owned();
         let state = if secret.set {
             Badge { label: tx(cx, "Stored"), tone: Tone::Success }
         } else {
@@ -2568,7 +2624,7 @@ impl PluginsPage {
             .when(can_save, |el| {
                 let field = field.clone();
                 el.on_click(cx.listener(move |page, _: &ClickEvent, _, cx| {
-                    let value = field.read(cx).text().to_owned();
+                    let value = field.read(cx).text(cx).to_owned();
                     page.save_secret(&plugin, &name, Some(value), cx);
                 }))
             });
@@ -3789,7 +3845,7 @@ mod tests {
         assert_eq!(taken(&events), [save]);
         page.update(cx, |page, cx| page.secret_saved("ai", "api-key", Ok(()), cx));
         assert_eq!(taken(&events), [PluginsPageEvent::LoadSecrets("ai".to_owned())]);
-        assert_eq!(field.read_with(cx, |field, _| field.text().to_owned()), "", "the value is not kept");
+        assert_eq!(field.read_with(cx, |field, cx| field.text(cx).to_owned()), "", "the value is not kept");
         page.update(cx, |page, cx| page.set_secrets("ai", vec![("api-key".to_owned(), true)], cx));
         assert!(secret(&page, cx).set);
         click(cx, "plugins-secret-remove-api-key");
@@ -3798,26 +3854,40 @@ mod tests {
         assert_eq!(taken(&events), [remove]);
     }
 
-    // Not from a spec: while the state of a plugin's secrets has not been read, its Secrets section
-    // lists no secret and draws no field a value could be typed in.
+    // src/features/plugins/secrets.tsx › SecretsDetails: a password field per declared secret, "Not set"
+    // until the state is read; the state is asked for once per plugin.
     #[gpui_kit::test]
-    async fn shows_no_secret_field_while_the_secrets_are_not_read(cx: &mut TestAppContext) {
+    async fn draws_a_masked_field_for_each_declared_secret_before_its_state_is_read(cx: &mut TestAppContext) {
         let (page, events, cx) = open(cx);
         let ai = plugin("ai", json!({ "contributions": [{ "point": "secrets", "label": "API key" }] }));
         let ui = vec![Contribution::new("ai", "secrets", "api-key", json!({ "name": "api-key", "label": "API key" }))];
         list(&page, cx, vec![ai], ui);
         assert_eq!(taken(&events), [PluginsPageEvent::LoadSecrets("ai".to_owned())]);
         cx.run_until_parked();
-        assert!(section(&details(&page, cx), "Secrets").secrets.is_empty());
-        assert!(cx.debug_bounds("plugins-secret-field-api-key").is_none(), "no secret field is drawn");
-        assert!(page.read_with(cx, |page, _| page.secret_fields.is_empty()));
-        // Selecting the plugin again does not ask a second time.
+        let rows = section(&details(&page, cx), "Secrets").secrets.clone();
+        assert_eq!(rows.iter().map(|row| (row.name.as_str(), row.set)).collect::<Vec<_>>(), [("api-key", false)]);
+        assert!(cx.debug_bounds("plugins-secret-field-api-key").is_some(), "the masked field is drawn");
         page.update(cx, |page, cx| page.select(ItemKind::Installed, "ai", cx));
-        assert!(taken(&events).is_empty());
-        // Once the state is read, the row and its field are drawn.
-        page.update(cx, |page, cx| page.set_secrets("ai", vec![("api-key".to_owned(), false)], cx));
-        cx.run_until_parked();
-        assert!(cx.debug_bounds("plugins-secret-field-api-key").is_some());
+        assert!(taken(&events).is_empty(), "the state is asked for once");
+        page.update(cx, |page, cx| page.set_secrets("ai", vec![("api-key".to_owned(), true)], cx));
+        assert!(section(&details(&page, cx), "Secrets").secrets[0].set);
+    }
+
+    // Not from a spec: the debug output of the event that stores a secret names the plugin and the
+    // secret, never its value.
+    #[test]
+    fn the_event_that_stores_a_secret_does_not_write_its_value_in_debug_output() {
+        let event = PluginsPageEvent::SetSecret {
+            plugin_id: "ai".to_owned(),
+            name: "api-key".to_owned(),
+            value: Some("sk1secret".to_owned()),
+        };
+        let debug = format!("{event:?}");
+        assert!(debug.contains("SetSecret") && debug.contains("api-key"), "{debug}");
+        assert!(!debug.contains("sk1secret"), "{debug}");
+        let removed =
+            PluginsPageEvent::SetSecret { plugin_id: "ai".to_owned(), name: "api-key".to_owned(), value: None };
+        assert!(format!("{removed:?}").contains("None"));
     }
 
     fn market_page(

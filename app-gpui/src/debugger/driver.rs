@@ -8,7 +8,7 @@
 //! [`DebugDriverEvent`]s.
 
 use crate::backend::Backend;
-use crate::debugger::actions::{ActiveEditor, Debugger, Dispatch, Host};
+use crate::debugger::actions::{ActiveEditor, Debugger, Dispatch, Host, PluginEvent};
 use crate::debugger::breakpoints::exceptions::{self, ExceptionBreakpoints, KNOWN_KEY};
 use crate::debugger::breakpoints::{special, store};
 use crate::debugger::editor::breakpoint_gutter::{
@@ -64,6 +64,8 @@ pub enum DebugDriverEvent {
     StatusInfo(String),
     /// Bring the application window to the front.
     FocusAppWindow,
+    /// What plugins that started debug sessions are told, in order.
+    PluginSessions(Vec<PluginEvent>),
     /// The Set Value the Variables view asked for under `request` was answered.
     ValueSet {
         request: u64,
@@ -447,10 +449,10 @@ impl DebugDriver {
             }
             self.carry_out(effects, cx);
         }
-        // Only plugins hear these; no plugin starts sessions in this window.
-        let dropped = self.debugger.update(cx, |debugger, _| debugger.take_plugin_events());
-        if !dropped.is_empty() {
-            tracing::debug!("debug session events for plugins: {dropped:?}");
+        // The plugins that started sessions hear how each went, through the window.
+        let plugin_events = self.debugger.update(cx, |debugger, _| debugger.take_plugin_events());
+        if !plugin_events.is_empty() {
+            cx.emit(DebugDriverEvent::PluginSessions(plugin_events));
         }
         self.schedule(cx);
         cx.notify();
@@ -817,11 +819,19 @@ impl DebugDriver {
                 Self::on_debugger(move |debugger, result, host| debugger.dir_read(ticket, result, host)),
             ),
             call @ BackendCall::FindFiles { .. } => self.ask_all(ticket, vec![call], cx),
-            // A plugin's backend is not reachable from this window: the start says so.
-            BackendCall::PluginPrepareDebugRun(_) => self.with_host(cx, |debugger, host| {
-                let error = IdeError::unavailable("Plugin run configurations cannot be debugged in this window");
-                debugger.config_prepared(ticket, Err(error), host);
-            }),
+            // The plugin checks its configuration's program again before it is debugged.
+            BackendCall::PluginPrepareDebugRun(config) => {
+                let plugins = cx.try_global::<crate::plugins::Plugins>().map(|plugins| plugins.host.clone());
+                self.ask(
+                    cx,
+                    move |host, label| async move {
+                        host.authorize_command(&label, "plugin_prepare_debug_run")?;
+                        let plugins = plugins.ok_or_else(|| IdeError::unavailable("Debugger unavailable"))?;
+                        plugins.prepare_debug_run(&label, *config)
+                    },
+                    Self::on_debugger(move |debugger, result, host| debugger.config_prepared(ticket, result, host)),
+                )
+            }
             BackendCall::RunDotnetResolve(config) => self.ask(
                 cx,
                 move |host, label| async move { run::run_dotnet_resolve(&host, &label, *config, true).await },

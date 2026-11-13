@@ -399,6 +399,10 @@ impl Workbench {
             // Go to Line:Column opens for the shown editor wherever the keyboard is: a click on the
             // bar does not move it, and the action's `when` clause asks for the editor's focus.
             StatusBarEvent::RunAction { item, .. } if item == status_items::CARET => self.show_goto_line(window, cx),
+            // A plugin's item runs its plugin's command, declared or not, as the plugin set it.
+            StatusBarEvent::RunAction { item, .. } if item.starts_with(super::plugin_runtime::PLUGIN_STATUS_PREFIX) => {
+                self.plugin_status_item_clicked(&item, cx)
+            }
             StatusBarEvent::RunAction { id, arg, .. } => run_later(id, arg, window, cx),
             StatusBarEvent::OpenItem { item, position } => {
                 let items = match item.as_str() {

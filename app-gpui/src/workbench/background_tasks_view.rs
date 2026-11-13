@@ -366,6 +366,21 @@ mod tests {
         assert_eq!(*events.borrow(), [BackgroundTasksEvent::Dismissed]);
     }
 
+    /// Escape closes the popup only while it has the keyboard.
+    #[gpui_kit::test]
+    async fn escape_does_nothing_while_the_popup_has_no_keyboard(cx: &mut TestAppContext) {
+        let (popup, events, cx) = open(cx, &tasks());
+        cx.update(|window, cx| {
+            let elsewhere = cx.focus_handle();
+            window.focus(&elsewhere, cx);
+        });
+        cx.simulate_keystrokes("escape");
+        assert!(events.borrow().is_empty(), "no dismissal without the keyboard");
+        cx.update(|window, cx| window.focus(&popup.focus_handle(cx), cx));
+        cx.simulate_keystrokes("escape");
+        assert_eq!(*events.borrow(), [BackgroundTasksEvent::Dismissed]);
+    }
+
     /// Without tasks the popup says so.
     #[gpui_kit::test]
     async fn an_empty_list_says_there_are_no_background_tasks(cx: &mut TestAppContext) {

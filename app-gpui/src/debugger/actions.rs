@@ -132,13 +132,13 @@ pub enum Dispatch {
     QuickEvaluate(QuickEvaluation),
 }
 
-/// What a plugin that started a debug session is told.
+/// What a plugin that started a debug session is told, under the operation it started it for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PluginEvent {
     /// The session could not start.
-    Failed { message: String },
+    Failed { operation: String, message: String },
     /// The session ended; `stopped`: because the user stopped it.
-    Exited { session: DebugSessionId, code: Option<i32>, stopped: bool },
+    Exited { operation: String, session: DebugSessionId, code: Option<i32>, stopped: bool },
 }
 
 /// How far the start of a configuration has come.
@@ -214,9 +214,12 @@ enum Waiting {
     },
     Xdebug,
     HotSwap,
-    /// A plugin's configuration is prepared, then saved before its session starts.
-    PluginPrepare,
+    /// A plugin's configuration for its operation is prepared, then saved before its session starts.
+    PluginPrepare {
+        operation: String,
+    },
     PluginSave {
+        operation: String,
         config: Box<RunConfig>,
         launch: Box<LaunchConfig>,
     },
@@ -229,8 +232,8 @@ enum AfterStart {
     RunPluginTarget(Box<RunConfig>),
     /// A container waiting for the debugger: it stops when the attach fails.
     StopProcessOnFailure(RunId),
-    /// A plugin started the session and is told how it went.
-    Plugin,
+    /// A plugin started the session for this operation and is told how it went.
+    Plugin(String),
 }
 
 /// The debugger: its sessions, breakpoints, overlays, and what its actions do.
@@ -248,8 +251,8 @@ pub struct Debugger {
     /// The failure titles of the resuming commands under way, by the sessions' tickets.
     resume_titles: HashMap<u64, String>,
     starts: HashMap<u64, AfterStart>,
-    /// Sessions plugins started, with whether a stop of each was seen.
-    plugin_sessions: HashMap<DebugSessionId, bool>,
+    /// Sessions plugins started, with the operation each is for and whether a stop of it was seen.
+    plugin_sessions: HashMap<DebugSessionId, (String, bool)>,
     plugin_events: Vec<PluginEvent>,
     effects: Vec<Effect>,
 }
@@ -877,7 +880,7 @@ impl Debugger {
                     _ => self.resolve_dotnet(*flow, prepared, host),
                 }
             }
-            Some(Waiting::PluginPrepare) => self.plugin_prepared(result, host),
+            Some(Waiting::PluginPrepare { operation }) => self.plugin_prepared(operation, result, host),
             _ => {}
         }
     }
@@ -1007,16 +1010,16 @@ impl Debugger {
                 let step = self.hot_swap.saved(&self.state, host.env.now_ms);
                 self.hot_swap_step(step);
             }
-            Some(Waiting::PluginSave { config, launch }) => match result {
-                Err(message) => self.plugin_events.push(PluginEvent::Failed { message }),
+            Some(Waiting::PluginSave { operation, config, launch }) => match result {
+                Err(message) => self.plugin_events.push(PluginEvent::Failed { operation, message }),
                 Ok(()) => {
                     let options = StartOptions { run_config: Some(*config), ..Default::default() };
                     let mut ctx = ctx!(self, host);
                     match self.state.start_session(*launch, options, &mut ctx) {
                         Some(start) => {
-                            self.starts.insert(start, AfterStart::Plugin);
+                            self.starts.insert(start, AfterStart::Plugin(operation));
                         }
-                        None => self.plugin_failed("Debug session did not start"),
+                        None => self.plugin_failed(operation, "Debug session did not start"),
                     }
                 }
             },
@@ -1312,43 +1315,47 @@ impl Debugger {
             (Some(AfterStart::StopProcessOnFailure(process)), None) => {
                 self.state.stop_associated_process(process, &host.env);
             }
-            (Some(AfterStart::Plugin), Some(session)) => {
-                self.plugin_sessions.insert(session, false);
+            (Some(AfterStart::Plugin(operation)), Some(session)) => {
+                self.plugin_sessions.insert(session, (operation, false));
                 self.observe_plugin_sessions();
             }
-            (Some(AfterStart::Plugin), None) => self.plugin_failed("Debug session did not start"),
+            (Some(AfterStart::Plugin(operation)), None) => self.plugin_failed(operation, "Debug session did not start"),
             _ => {}
         }
     }
 
     // --- plugins ------------------------------------------------------------------------
 
-    fn plugin_failed(&mut self, message: &str) {
-        self.plugin_events.push(PluginEvent::Failed { message: message.to_owned() });
+    fn plugin_failed(&mut self, operation: String, message: &str) {
+        self.plugin_events.push(PluginEvent::Failed { operation, message: message.to_owned() });
     }
 
-    /// Debug Plugin Configuration (arg: `{ config }`): the plugin's backend prepares the
-    /// configuration, then it is debugged; the plugin hears how it went through
+    /// Debug Plugin Configuration (arg: `{ config, operation }`): the plugin's backend prepares the
+    /// configuration, then it is debugged; the plugin of `operation` hears how it went through
     /// [`Debugger::take_plugin_events`].
     fn plugin_start(&mut self, arg: Option<&Value>, host: &mut Host) {
-        let config = arg.and_then(|arg| arg.get("config")).and_then(run_config);
-        match config {
-            Some(config) => self.ask(BackendCall::PluginPrepareDebugRun(Box::new(config)), Waiting::PluginPrepare),
-            None => self.plugin_failed(&host.i18n.tx("This configuration has no debugger")),
+        let operation = arg.and_then(|arg| arg.get("operation")).and_then(Value::as_str).unwrap_or_default();
+        let operation = operation.to_owned();
+        match arg.and_then(|arg| arg.get("config")).and_then(run_config) {
+            Some(config) => {
+                self.ask(BackendCall::PluginPrepareDebugRun(Box::new(config)), Waiting::PluginPrepare { operation });
+            }
+            None => self.plugin_failed(operation, &host.i18n.tx("This configuration has no debugger")),
         }
     }
 
-    fn plugin_prepared(&mut self, result: Result<RunConfig, IdeError>, host: &mut Host) {
+    fn plugin_prepared(&mut self, operation: String, result: Result<RunConfig, IdeError>, host: &mut Host) {
         let config = match result {
             Ok(config) => config,
-            Err(error) => return self.plugin_failed(error_text(&error)),
+            Err(error) => return self.plugin_failed(operation, error_text(&error)),
         };
-        let Some(root) = host.root else { return self.plugin_failed("No project") };
+        let Some(root) = host.root else { return self.plugin_failed(operation, "No project") };
         let env = LaunchEnv { debugger: host.env.debugger, windows: host.windows };
         let Some(launch) = launch_config_for(&config, root, None, &env) else {
-            return self.plugin_failed("This configuration has no debugger");
+            return self.plugin_failed(operation, "This configuration has no debugger");
         };
-        let ticket = self.wait(Waiting::PluginSave { config: Box::new(config), launch: Box::new(launch) });
+        let waiting = Waiting::PluginSave { operation, config: Box::new(config), launch: Box::new(launch) };
+        let ticket = self.wait(waiting);
         self.effects.push(Effect::SaveAllThen { ticket });
     }
 
@@ -1356,12 +1363,12 @@ impl Debugger {
     /// gone or has ended is reported with its exit code and whether a stop of it was seen.
     pub fn observe_plugin_sessions(&mut self) {
         let mut ended = Vec::new();
-        for (id, stopped) in &mut self.plugin_sessions {
+        for (id, (operation, stopped)) in &mut self.plugin_sessions {
             let session = self.state.session(*id);
             *stopped |= session.is_some_and(|s| s.status == SessionStatus::Stopping);
             if session.is_none_or(|s| s.status == SessionStatus::Terminated) {
                 let code = session.and_then(|s| s.exit_code);
-                ended.push(PluginEvent::Exited { session: *id, code, stopped: *stopped });
+                ended.push(PluginEvent::Exited { operation: operation.clone(), session: *id, code, stopped: *stopped });
             }
         }
         for event in &ended {
@@ -2512,7 +2519,7 @@ mod tests {
     #[test]
     fn tells_a_plugin_how_its_debug_session_ended() {
         let mut bench = Bench::default();
-        bench.run("debug.pluginStart", Some(json!({ "config": as_arg(&server()) })), None);
+        bench.run("debug.pluginStart", Some(json!({ "config": as_arg(&server()), "operation": "op-1" })), None);
         bench.settle();
         assert_eq!(bench.count(|call| matches!(call, BackendCall::PluginPrepareDebugRun(_))), 1);
         assert_eq!(bench.session(42).status, SessionStatus::Running);
@@ -2526,7 +2533,12 @@ mod tests {
             debugger.state.handle_debug_event(DebugSessionId(42), DebugEvent::Terminated, &mut ctx);
         }
         bench.debugger.observe_plugin_sessions();
-        let exited = PluginEvent::Exited { session: DebugSessionId(42), code: Some(3), stopped: true };
+        let exited = PluginEvent::Exited {
+            operation: "op-1".to_owned(),
+            session: DebugSessionId(42),
+            code: Some(3),
+            stopped: true,
+        };
         assert_eq!(bench.debugger.take_plugin_events(), [exited]);
         bench.run("debug.pluginStart", None, None);
         assert!(matches!(bench.debugger.take_plugin_events().as_slice(), [PluginEvent::Failed { .. }]));

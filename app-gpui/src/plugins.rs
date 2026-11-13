@@ -4,7 +4,7 @@
 //! Plugins are loaded from `<data>/plugins` (installed ones, and folders linked for
 //! development). Loading instantiates no Wasm: a plugin's code runs on its activation events.
 
-use crate::backend::{APP_IDENTIFIER, Backend};
+use crate::backend::Backend;
 use crate::platform::actions::{Action, ActionMeta, ActionRegistry};
 use crate::theme::appearance::{self, PluginTheme};
 use crate::theme::themes::{ThemeChoice, ThemeChoiceId, ThemeKind, parse_plugin_theme_ref, plugin_theme_ref};
@@ -103,18 +103,19 @@ pub struct Plugins {
 
 impl Global for Plugins {}
 
-/// Plugin secrets in the login keychain, one service per plugin under this app's identifier.
-#[cfg(target_os = "macos")]
+/// Plugin secrets in the login keychain, one service per plugin under this app's identifier. Test
+/// builds never use it: their hosts keep the default file store under the temporary home.
+#[cfg(all(target_os = "macos", not(test)))]
 struct KeychainSecrets;
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 impl KeychainSecrets {
     fn service(plugin: &str) -> String {
-        format!("{APP_IDENTIFIER}.plugin.{plugin}")
+        format!("{}.plugin.{plugin}", crate::backend::APP_IDENTIFIER)
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 impl ide_host::plugins::SecretStore for KeychainSecrets {
     fn get(&self, plugin: &str, name: &str) -> Option<String> {
         let bytes = security_framework::passwords::get_generic_password(&Self::service(plugin), name).ok()?;
@@ -169,7 +170,9 @@ impl Plugins {
         if !cfg!(debug_assertions) {
             host.set_default_market_url(Some(ide_host::plugins::OFFICIAL_MARKET_INDEX.into()));
         }
-        #[cfg(target_os = "macos")]
+        // Without the keychain (other systems, test builds) the host keeps them in files under its
+        // data directory.
+        #[cfg(all(target_os = "macos", not(test)))]
         host.set_secret_store(Arc::new(KeychainSecrets));
         ide_host::plugins::set_editor_providers(Some(&host));
         let trust = Arc::downgrade(&projects);
@@ -361,6 +364,25 @@ fn editor_context(workbench: &Entity<Workbench>, cx: &App) -> Option<PluginEdito
     })
 }
 
+/// Runs blocking plugin host `work` on the backend's blocking threads, as the command adapters do,
+/// never on the UI's own: a command may wait on a program for minutes, and the window keeps hearing
+/// what the plugin reports meanwhile. The task fails when the backend is not running.
+pub(crate) fn host_blocking<T: Send + 'static>(
+    cx: &App,
+    work: impl FnOnce() -> ide_core::IdeResult<T> + Send + 'static,
+) -> Task<ide_core::IdeResult<T>> {
+    let call =
+        cx.try_global::<Backend>().map(|backend| backend.call(async move { tokio::task::spawn_blocking(work).await }));
+    cx.background_executor().spawn(async move {
+        let Some(call) = call else { return Err(ide_core::IdeError::internal("the backend is not running")) };
+        match call.await {
+            Ok(Ok(result)) => result,
+            Ok(Err(stopped)) => Err(ide_core::IdeError::internal(stopped.to_string())),
+            Err(error) => Err(ide_core::IdeError::internal(error.to_string())),
+        }
+    })
+}
+
 /// Runs command `command_id` of plugin `plugin_id` for `window`: its project, its focused
 /// editor and the given selection of paths. A failure is shown in the window, unless the
 /// plugin was stopped (the host says why) or lacks a permission (it asks for it).
@@ -384,10 +406,10 @@ fn run_command(
     };
     let host = cx.global::<Plugins>().host.clone();
     let (plugin, command, title) = (plugin_id.to_owned(), command_id.to_owned(), title.to_owned());
-    // A command may run for as long as the host's time limit allows: never on the main thread.
-    let ran = cx.background_executor().spawn({
+    // A command may run for as long as the host's time limit allows.
+    let ran = host_blocking(cx, {
         let (host, plugin) = (host.clone(), plugin.clone());
-        async move { host.run_command(&plugin, &command, arg.as_deref(), invocation) }
+        move || host.run_command(&plugin, &command, arg.as_deref(), invocation)
     });
     cx.spawn(async move |cx: &mut AsyncApp| {
         let Err(error) = ran.await else { return };
@@ -448,6 +470,15 @@ fn follow_theme_setting(cx: &mut App) {
     }
 }
 
+/// Waits until no other test runs an app plugin host, and keeps the others waiting while the guard
+/// lives: a host registers process-wide providers (editor providers, run detection, syntax), so two
+/// at once would answer each other's windows.
+#[cfg(test)]
+pub(crate) fn lock_test_hosts() -> parking_lot::MutexGuard<'static, ()> {
+    static HOSTS: parking_lot::Mutex<()> = parking_lot::const_mutex(());
+    HOSTS.lock()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -482,9 +513,11 @@ mod tests {
     /// the windows draw with its tokens; a built-in theme takes them away again.
     #[gpui_kit::test]
     async fn a_linked_plugins_theme_is_offered_and_applied(cx: &mut TestAppContext) {
+        let _hosts = lock_test_hosts();
         cx.executor().allow_parking();
         let home = tempfile::tempdir().expect("a home");
-        let plugin = Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/official/harbor-night");
+        let plugin = home.path().join("fixtures/harbor-night");
+        copy_folder(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/official/harbor-night"), &plugin);
         cx.update(|cx| {
             cx.set_global(ActiveTheme::default());
             cx.set_global(UiStorage::default());
@@ -571,12 +604,14 @@ mod tests {
             is_action_enabled(&action.meta, &window_context(window, cx))
         }
         use ide_host::plugins::Consent;
+        let _hosts = lock_test_hosts();
         cx.executor().allow_parking();
         let home = tempfile::tempdir().expect("a home");
         let folder = tempfile::tempdir().expect("a folder");
         let file = folder.path().canonicalize().expect("the folder exists").join("names.txt");
         std::fs::write(&file, "hello big world\n").expect("the file is written");
-        let plugin = Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/official/string-tools");
+        let plugin = home.path().join("fixtures/string-tools");
+        copy_folder(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/official/string-tools"), &plugin);
         cx.update(|cx| {
             cx.set_global(ActiveTheme::default());
             cx.set_global(UiStorage::default());
@@ -668,6 +703,7 @@ mod tests {
             Some(command) => Some(command.to_string_lossy().into_owned()),
             None => named.is_none().then(|| "word-count".to_owned()),
         };
+        let _hosts = lock_test_hosts();
         let copies = tempfile::tempdir().expect("a folder for the copy");
         let folder = copies.path().join("plugin");
         copy_folder(&source, &folder);

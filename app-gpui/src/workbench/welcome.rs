@@ -13,6 +13,7 @@ use super::welcome_model::{
     manage_menu, move_to_group, project_menu, recent_rows, remove_group, remove_recent, rename_group,
     set_group_expanded, welcome_actions,
 };
+use super::welcome_pages::{CustomizeEvent, CustomizePage, WelcomeNav, WelcomePage, nav_rows};
 use crate::platform::actions::ActionRegistry;
 use crate::platform::i18n::Localization;
 use crate::platform::input::{self, Keymap};
@@ -24,10 +25,10 @@ use crate::ui::matching::index_runs;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
-    App, ClickEvent, ClipboardItem, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, FontWeight, Hsla,
-    IntoElement, Keystroke, MouseButton, MouseDownEvent, Pixels, Point, PromptLevel, Render, Rgba, ScrollStrategy,
-    SharedString, Stateful, Subscription, UniformList, UniformListScrollHandle, Window, div, linear_color_stop,
-    linear_gradient, point, prelude::*, px, uniform_list,
+    AnyView, App, ClickEvent, ClipboardItem, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, FontWeight,
+    Hsla, IntoElement, Keystroke, MouseButton, MouseDownEvent, Pixels, Point, PromptLevel, Render, Rgba,
+    ScrollStrategy, SharedString, Stateful, Subscription, UniformList, UniformListScrollHandle, Window, div,
+    linear_color_stop, linear_gradient, point, prelude::*, px, uniform_list,
 };
 use ide_workspace::{RecentProject, RecentProjectGroup};
 use std::path::{Path, PathBuf};
@@ -61,6 +62,8 @@ pub enum WelcomeEvent {
     Reveal(PathBuf),
     /// Show the menu of `target` (see [`Welcome::menu`]) with its corner at `position`.
     ShowMenu { target: MenuTarget, position: Point<Pixels> },
+    /// What the Customize page asks: write settings, keep the reopen preference, run an action.
+    Customize(CustomizeEvent),
 }
 
 /// A project row as it is drawn.
@@ -109,6 +112,10 @@ pub struct Welcome {
     /// The claim on the keys of the list, ahead of the keymap.
     key_claim: u64,
     _field_events: Subscription,
+    /// The pages beside Projects, and the one shown.
+    nav: WelcomeNav,
+    customize: Entity<CustomizePage>,
+    _customize_events: Subscription,
 }
 
 impl EventEmitter<WelcomeEvent> for Welcome {}
@@ -151,6 +158,11 @@ impl Welcome {
             cx,
         );
         cx.on_release(|view, cx| input::release_keys(view.key_claim, cx)).detach();
+        // Customize shows the defaults until the window gives it the settings in effect.
+        let customize = cx.new(|cx| CustomizePage::new(serde_json::Value::Null, true, cx));
+        let customize_events = cx.subscribe(&customize, |_, _, event: &CustomizeEvent, cx| {
+            cx.emit(WelcomeEvent::Customize(event.clone()));
+        });
         let mut view = Self {
             focus: cx.focus_handle(),
             field,
@@ -165,6 +177,9 @@ impl Welcome {
             scroll: UniformListScrollHandle::new(),
             key_claim,
             _field_events: events,
+            nav: WelcomeNav::default(),
+            customize,
+            _customize_events: customize_events,
         };
         view.rebuild(cx);
         view
@@ -174,6 +189,38 @@ impl Welcome {
     pub fn with_version(mut self, version: impl Into<String>) -> Self {
         self.version = Some(version.into());
         self
+    }
+
+    /// The pages listed and the one shown.
+    pub fn nav(&self) -> &WelcomeNav {
+        &self.nav
+    }
+
+    /// The Customize page.
+    pub fn customize(&self) -> &Entity<CustomizePage> {
+        &self.customize
+    }
+
+    /// The Plugins page to list and show (`None`: Plugins is not listed, and Projects shows in its
+    /// place).
+    pub fn set_plugins_page(&mut self, page: Option<AnyView>, cx: &mut Context<Self>) {
+        self.nav.set_plugins_page(page);
+        cx.notify();
+    }
+
+    /// Shows `page`; false when it is not listed. Projects takes the keyboard back to its search,
+    /// Customize takes it, Plugins leaves it to a click.
+    pub fn select_page(&mut self, page: WelcomePage, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if !self.nav.select(page) {
+            return false;
+        }
+        match self.nav.shown() {
+            WelcomePage::Projects => self.focus_search(window, cx),
+            WelcomePage::Customize => window.focus(&self.customize.focus_handle(cx), cx),
+            WelcomePage::Plugins => window.focus(&self.focus, cx),
+        }
+        cx.notify();
+        true
     }
 
     /// The recent projects and their groups are these now. The search text stays, and the
@@ -515,6 +562,9 @@ impl Welcome {
     /// The keyboard follows what is shown: it is in the search field while there is a list, and
     /// on the page itself while there is none.
     fn keep_keyboard(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.nav.shown() != WelcomePage::Projects {
+            return;
+        }
         let field = self.field.focus_handle(cx);
         if self.projects.is_empty() {
             if field.is_focused(window) {
@@ -528,7 +578,7 @@ impl Welcome {
     /// The app's name, its version and what it is, over the pages and the Manage button.
     fn sidebar(&self, cx: &mut Context<Self>) -> Div {
         let tagline = SharedString::from(cx.default_global::<Localization>().0.t("app.about.tagline", &[]));
-        let (name, projects) = (tx(cx, "OpenIDEA"), tx(cx, "Projects"));
+        let name = tx(cx, "OpenIDEA");
         let (strong, muted) = (theme::color(cx, "fg-strong"), theme::color(cx, "fg-muted"));
         let hover = theme::color(cx, "bg-hover");
         let manage = div()
@@ -571,17 +621,13 @@ impl Welcome {
             .child(
                 div().px(px(6.0)).pb(px(20.0)).text_size(theme::length(cx, "fs-tiny")).text_color(muted).child(tagline),
             )
-            .child(
-                div()
-                    .h(px(34.0))
-                    .px(px(24.0))
-                    .flex()
-                    .items_center()
-                    .rounded(theme::length(cx, "radius-selection"))
-                    .bg(theme::color(cx, "bg-tree-selected"))
-                    .text_color(strong)
-                    .child(projects),
-            )
+            .child(nav_rows(
+                &self.nav,
+                |view: &mut Welcome, page, window, cx| {
+                    view.select_page(page, window, cx);
+                },
+                cx,
+            ))
             .child(div().flex_1())
             .child(div().flex().px(px(4.0)).child(manage))
     }
@@ -993,12 +1039,22 @@ impl Render for Welcome {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.keep_keyboard(window, cx);
         let landing = self.projects.is_empty();
+        let shown = self.nav.shown();
         let sidebar = self.sidebar(cx);
-        let page = if landing { self.landing(cx) } else { self.projects_page(cx) };
+        let page = match shown {
+            WelcomePage::Projects if landing => self.landing(cx).into_any_element(),
+            WelcomePage::Projects => self.projects_page(cx).into_any_element(),
+            WelcomePage::Customize => self.customize.clone().into_any_element(),
+            WelcomePage::Plugins => match self.nav.plugins_page().cloned() {
+                Some(plugins) => plugins.into_any_element(),
+                None => self.projects_page(cx).into_any_element(),
+            },
+        };
         div()
             .size_full()
             .flex()
-            .when(landing, |el| el.track_focus(&self.focus))
+            // Without a list to search, and on the other pages, the keys come to the screen itself.
+            .when(landing || shown != WelcomePage::Projects, |el| el.track_focus(&self.focus))
             .text_size(theme::length(cx, "fs-ui"))
             .text_color(theme::color(cx, "fg"))
             .child(sidebar)

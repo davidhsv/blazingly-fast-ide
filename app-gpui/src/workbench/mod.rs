@@ -3,6 +3,7 @@
 
 mod agents;
 mod app_shell;
+pub mod background_tasks_view;
 mod bookmarks_window;
 use bookmarks_window::BOOKMARKS_TOOL_WINDOW;
 mod branches;
@@ -28,6 +29,9 @@ pub mod menu_spec;
 pub mod notification_balloons;
 pub mod notifications;
 pub mod notifications_view;
+pub mod plugin_contributions;
+mod plugin_runtime;
+mod plugins_window;
 pub mod project_color;
 mod project_files;
 pub mod quick_switch;
@@ -50,6 +54,7 @@ pub mod title_bar;
 pub mod tool_windows;
 pub mod welcome;
 pub mod welcome_model;
+pub mod welcome_pages;
 pub mod windows;
 
 use crate::backend::{Backend, BackendEvent};
@@ -293,6 +298,9 @@ pub struct Workbench {
     edit_configs: Option<run_configs::EditConfigsWindow>,
     /// The Settings dialog, while it is open.
     settings: Option<settings_window::SettingsWindow>,
+    /// The window's plugin host, the Welcome screen's Plugins page, the page of the Plugins actions
+    /// and the dialog they show.
+    plugin_ui: plugins_window::PluginsSlot,
     /// The Git state of the project, with the branch widget of the title bar.
     vcs: Option<branches::VcsSlot>,
     /// The commit draft of the project and the Commit tool window's message box.
@@ -329,6 +337,10 @@ pub struct Workbench {
     debug: Option<debug::DebugSlot>,
     /// The title bar and the status bar, and what the window keeps for them.
     chrome: chrome::Chrome,
+    /// What running plugin code shows in the window, and what the window tells the plugins.
+    plugin_runtime: plugin_runtime::PluginRuntime,
+    /// Plugins' gutter actions, activation events and what else they contribute to the window.
+    plugin_contributions: plugin_contributions::PluginContributions,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -366,7 +378,7 @@ pub struct TabTitle {
 }
 
 /// How a workbench window is created: the title bar is the app's own, drawn under the native
-/// window buttons (the webview's "Overlay" title bar).
+/// window buttons (an overlay title bar).
 pub fn window_options() -> gpui_kit::WindowOptions {
     gpui_kit::WindowOptions {
         titlebar: Some(gpui_kit::TitlebarOptions {
@@ -380,6 +392,9 @@ pub fn window_options() -> gpui_kit::WindowOptions {
 
 /// Room the title bar leaves for the native macOS window buttons.
 const WINDOW_BUTTONS_WIDTH: f32 = 82.0;
+
+/// Where the reopen-last-project preference of this machine is kept (`"false"`: off).
+const REOPEN_PREFERENCE: &str = "openidea.welcome.reopenLastProject";
 
 /// The Project view's tool window id.
 pub const PROJECT_TOOL_WINDOW: &str = "project";
@@ -426,8 +441,7 @@ const TOOL_WINDOWS: [&str; 18] = [
     DEBUG_TOOL_WINDOW,
 ];
 
-/// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
-/// contributions manifest.
+/// What the contributions manifest declares for tool window `id` (title, icon, side, order…).
 pub fn tool_window_declaration(id: &str) -> Option<ToolWindow> {
     static DECLARED: std::sync::OnceLock<serde_json::Value> = std::sync::OnceLock::new();
     let manifest = DECLARED.get_or_init(|| {
@@ -490,8 +504,11 @@ pub fn register_actions(cx: &mut App) {
     code_insight::register_actions(registry);
     agents::register_actions(registry);
     tab_views::register_actions(registry);
+    plugin_runtime::register_actions(registry);
+    plugin_contributions::register_actions(registry);
     chrome::register_actions(registry);
     settings_window::register_actions(registry);
+    plugins_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
     let flags: [(&str, &str, Flag); 4] = [
@@ -959,7 +976,9 @@ impl Workbench {
             if cx.has_global::<Backend>() {
                 cx.global_mut::<Backend>().unlisten(workbench.listener);
             }
+            workbench.stop_listening_to_plugins(cx);
             cx.default_global::<Workbenches>().0.remove(&id);
+            workbench.stop_plugin_runtime(cx);
             input::window_blurred(id, cx);
             crate::platform::context::drop_window_context(id, cx);
         })
@@ -999,6 +1018,7 @@ impl Workbench {
             run_widget: None,
             edit_configs: None,
             settings: None,
+            plugin_ui: Default::default(),
             vcs: None,
             commit: None,
             git_log: None,
@@ -1025,7 +1045,11 @@ impl Workbench {
             balloon_timer: None,
             _balloon_events: balloon_events,
             welcome: None,
+            plugin_runtime: Default::default(),
+            plugin_contributions: Default::default(),
         };
+        workbench.start_plugin_runtime(window, cx);
+        workbench.listen_to_plugins(window, cx);
         workbench.sync_welcome(window, cx);
         workbench.start_code_insight(cx);
         workbench
@@ -1164,6 +1188,12 @@ impl Workbench {
                 }
             }
             // An agent task's notification: its button opens the task it names.
+            // A plugin's notification: its button runs the publishing plugin's command.
+            EntryAction::Own(own)
+                if own.command.starts_with(crate::plugin_models::runtime_ui::NOTIFICATION_COMMAND_PREFIX) =>
+            {
+                self.run_plugin_notification_button(&own.command, cx);
+            }
             EntryAction::Own(own) if own.command.starts_with("agents.openTask:") => {
                 if let Some((_, task)) = own.command.split_once(':') {
                     self.open_agent_task(task, cx);
@@ -1495,6 +1525,7 @@ impl Workbench {
         self.release_closed_views(window, cx);
         self.load_active_tab(focus, window, cx);
         self.note_active_tab(cx);
+        self.plugin_tabs_changed(cx);
         self.session_save = Some(cx.spawn(async move |workbench, cx| {
             cx.background_executor().timer(SESSION_SAVE_DELAY).await;
             let _ = workbench.update(cx, |workbench, cx| workbench.save_session(cx));
@@ -2738,6 +2769,7 @@ impl Workbench {
     fn sync_welcome(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.is_empty() {
             self.welcome = None;
+            self.drop_welcome_plugins();
             return;
         }
         let Some(backend) = cx.try_global::<Backend>() else { return };
@@ -2745,6 +2777,11 @@ impl Workbench {
         let (list, groups) = (recent.list(), recent.groups());
         if let Some((welcome, _)) = &self.welcome {
             welcome.update(cx, |view, cx| view.set_recent(&list, &groups, cx));
+            // A plugin host that started after the window, or a Welcome screen first made behind a
+            // failed open and shown now, gets its listener, its Plugins page and its settings here.
+            self.listen_to_plugins(window, cx);
+            self.sync_customize(cx);
+            self.sync_welcome_plugins(window, cx);
             return;
         }
         let home = std::env::var_os("HOME").map(PathBuf::from);
@@ -2757,6 +2794,8 @@ impl Workbench {
             welcome.update(cx, |view, cx| view.focus_search(window, cx));
         }
         self.welcome = Some((welcome, events));
+        self.sync_customize(cx);
+        self.sync_welcome_plugins(window, cx);
     }
 
     /// Carries out what the Welcome screen asks for.
@@ -2808,6 +2847,7 @@ impl Workbench {
                 }
             }
             WelcomeEvent::Reveal(path) => cx.reveal_path(&path),
+            WelcomeEvent::Customize(event) => self.customize_event(event, window, cx),
             WelcomeEvent::ShowMenu { target, position } => {
                 let items = welcome.update(cx, |view, cx| view.menu(&target, cx));
                 let welcome = welcome.downgrade();
@@ -2818,6 +2858,45 @@ impl Workbench {
                 self.show_menu(&items, position, run, window, cx);
             }
         }
+    }
+
+    /// Carries out what the Welcome screen's Customize page asks: the global settings writes (a
+    /// failure is reported; either way the page then shows the settings in effect), the reopen
+    /// preference kept on this machine, and its links' actions.
+    fn customize_event(&mut self, event: welcome_pages::CustomizeEvent, window: &mut Window, cx: &mut Context<Self>) {
+        use welcome_pages::CustomizeEvent;
+        match event {
+            CustomizeEvent::Write(writes) => {
+                if let Err(error) = crate::platform::settings::set_global(&self.label, &writes, cx) {
+                    let key = writes.first().map_or("", |write| write.key);
+                    let request = NotificationRequest {
+                        body: Some(error.message),
+                        key: Some(format!("welcome.setting:{key}")),
+                        ..NotificationRequest::new(NotificationLevel::Error, "Cannot save setting")
+                    };
+                    self.notify(request, cx);
+                }
+                self.sync_customize(cx);
+            }
+            CustomizeEvent::ReopenPreference(on) => {
+                cx.default_global::<UiStorage>().set(REOPEN_PREFERENCE, on.to_string());
+            }
+            CustomizeEvent::RunAction(id) => window.defer(cx, move |window, cx| {
+                execute_action_from(ActionSource::Other, id, None, window, cx);
+            }),
+        }
+    }
+
+    /// Gives the Welcome screen's Customize page the settings in effect for the window and the
+    /// reopen preference of this machine (on unless it was turned off).
+    pub(super) fn sync_customize(&self, cx: &mut Context<Self>) {
+        use crate::settings_model::schema::settings_value;
+        let Some(welcome) = self.welcome().cloned() else { return };
+        let settings = settings_value(&crate::platform::settings::effective(&self.label, cx));
+        let preference =
+            cx.try_global::<UiStorage>().and_then(|storage| storage.get(REOPEN_PREFERENCE)) != Some("false");
+        let customize = welcome.read(cx).customize().clone();
+        customize.update(cx, |page, cx| page.set_settings(settings, preference, cx));
     }
 
     pub fn open_project(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
@@ -2862,7 +2941,7 @@ impl Workbench {
                         menu::refresh_recent(cx);
                         workbench.load_bookmarks(&root.to_string_lossy(), cx);
                         let label = workbench.label.clone();
-                        // The layout is stored per project folder, as the webview keys it.
+                        // The layout is stored under the project folder's path as its key.
                         let scope = root.to_string_lossy().into_owned();
                         let stored =
                             cx.try_global::<UiStorage>().and_then(|s| s.get(&storage_key(&scope)).map(str::to_owned));
@@ -3494,6 +3573,7 @@ impl Workbench {
                         workbench.serve_reveal(cx);
                         if still_open {
                             workbench.watch_debug_editor(&editor, window, cx);
+                            workbench.watch_plugin_gutter(&editor, window, cx);
                         }
                     }
                     Err(message) => {
@@ -3753,6 +3833,7 @@ impl Render for Workbench {
             .flex_col()
             .child(self.title_bar().clone())
             .child(div().flex_1().min_h_0().w_full().child(body))
+            .children(self.plugin_gutter_layer(cx))
             .child(notification_balloons::layer(&self.balloons, cx))
             .children(self.merge_window_layer(cx))
             .children(self.diff_window_layer(cx))
@@ -3765,6 +3846,8 @@ impl Render for Workbench {
             .children(self.database_dialog_layer())
             .children(self.database_prompt_layer())
             .children(self.settings_layer(cx))
+            .children(self.plugins_dialog_layer())
+            .children(self.plugin_prompt_layer())
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
                 gpui_kit::deferred(
@@ -4041,7 +4124,7 @@ mod tests {
         cx.run_until_parked();
         assert!(shown(cx) && tree_focused(cx));
 
-        // The layout is stored under the webview's key for the project folder, in its JSON shape.
+        // The layout is stored under the project folder's path as its key, in its JSON shape.
         let scope = folder.path().canonicalize().expect("the folder exists").to_string_lossy().into_owned();
         let stored =
             cx.update(|_, cx| cx.global::<UiStorage>().get(&storage_key(&scope)).map(str::to_owned)).expect("stored");

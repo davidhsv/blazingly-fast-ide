@@ -338,7 +338,7 @@ impl PluginSettingsPage {
     /// The text fields the page needs for the values shown: made when missing, given the shown text
     /// when it differs, dropped when their row went.
     fn sync_fields(&mut self, cx: &mut Context<Self>) {
-        let mut wanted: BTreeMap<FieldKey, String> = BTreeMap::new();
+        let mut wanted: BTreeMap<FieldKey, (String, SettingSchema)> = BTreeMap::new();
         for setting in self.properties() {
             if setting.kind == "array" {
                 let Some(item) = &setting.items else { continue };
@@ -347,20 +347,26 @@ impl PluginSettingsPage {
                     if item.kind == "object" {
                         for column in item.properties.iter().filter(|column| is_text(column)) {
                             let cell = value.get(&column.key).unwrap_or(&Value::Null);
-                            wanted.insert(FieldKey::cell(&setting.key, row, Some(&column.key)), field_text(cell));
+                            let key = FieldKey::cell(&setting.key, row, Some(&column.key));
+                            wanted.insert(key, (field_text(cell), column.clone()));
                         }
                     } else if is_text(item) {
-                        wanted.insert(FieldKey::cell(&setting.key, row, None), field_text(value));
+                        wanted.insert(FieldKey::cell(&setting.key, row, None), (field_text(value), (**item).clone()));
                     }
                 }
             } else if is_text(setting) {
-                wanted.insert(FieldKey::setting(&setting.key), field_text(&self.value(setting, cx)));
+                wanted.insert(FieldKey::setting(&setting.key), (field_text(&self.value(setting, cx)), setting.clone()));
             }
         }
         self.fields.retain(|key, _| wanted.contains_key(key));
-        for (key, text) in wanted {
+        for (key, (text, schema)) in wanted {
             if let Some((field, _)) = self.fields.get(&key) {
-                if field.read(cx).text() != text {
+                // A text that stands for the value shown stays as typed (`7.` or `7.9` of an integer
+                // setting showing 7), so a number can be typed one character at a time.
+                let shown = field.read(cx).text();
+                let stands_for_it =
+                    typed_value(&schema, shown).is_some_and(|typed| Some(typed) == typed_value(&schema, &text));
+                if shown != text && !stands_for_it {
                     field.update(cx, |field, cx| field.set_text(&text, cx));
                 }
                 continue;
@@ -982,6 +988,18 @@ mod tests {
         cx.run_until_parked();
     }
 
+    /// Replaces the text of field `key` with `text` in one edit, as a paste does.
+    fn paste_into(view: &Entity<PluginSettingsPage>, key: FieldKey, text: &str, cx: &mut VisualTestContext) {
+        let field = view.read_with(cx, |view, _| view.field(&key).cloned()).expect("a text field");
+        cx.update(|window, cx| {
+            field.update(cx, |field, cx| field.select_all(cx));
+            window.focus(&field.focus_handle(cx), cx);
+        });
+        cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string(text.to_owned()));
+        cx.simulate_keystrokes("cmd-v");
+        cx.run_until_parked();
+    }
+
     fn staged(model: &Entity<SettingsDialog>, cx: &mut VisualTestContext) -> Value {
         model.read_with(cx, |model, _| model.staged_value(Scope::Global, PLUGINS_KEY)).unwrap_or(Value::Null)
     }
@@ -1120,7 +1138,7 @@ mod tests {
     #[gpui_kit::test]
     async fn rejects_oversized_edits_without_discarding_other_rows(cx: &mut TestAppContext) {
         let (view, model, cx) = open(cx, crate::settings_model::schema::default_settings(), "templates");
-        type_into(&view, FieldKey::cell("types", 0, None), &"é".repeat(32769), cx);
+        paste_into(&view, FieldKey::cell("types", 0, None), &"é".repeat(32769), cx);
         assert!(view.read_with(cx, |view, _| view.is_invalid("types")));
         let first =
             view.read_with(cx, |view, _| view.field(&FieldKey::cell("types", 0, None)).cloned()).expect("a field");

@@ -930,16 +930,39 @@ pub(crate) mod test_support {
         target
     }
 
+    /// A test's temporary home whose app plugin host is the only one in the test binary while the
+    /// home is kept (see [`crate::plugins::lock_test_hosts`]).
+    pub struct PluginHome {
+        home: tempfile::TempDir,
+        _hosts: parking_lot::MutexGuard<'static, ()>,
+    }
+
+    impl PluginHome {
+        /// `home`, for a test that holds `hosts` from before its plugin host starts.
+        pub fn new(home: tempfile::TempDir, hosts: parking_lot::MutexGuard<'static, ()>) -> Self {
+            Self { home, _hosts: hosts }
+        }
+    }
+
+    impl std::ops::Deref for PluginHome {
+        type Target = tempfile::TempDir;
+
+        fn deref(&self) -> &tempfile::TempDir {
+            &self.home
+        }
+    }
+
     /// The workbench tests' temporary home with the app's plugin host started in it, once its first
     /// listing is in. The host keeps plugin secrets in files under the home.
-    pub fn start_with_plugins(cx: &mut TestAppContext) -> tempfile::TempDir {
+    pub fn start_with_plugins(cx: &mut TestAppContext) -> PluginHome {
+        let hosts = crate::plugins::lock_test_hosts();
         let home = crate::workbench::tests::start(cx);
         cx.update(|cx| {
             crate::theme::appearance::init(cx);
             Plugins::init(cx).expect("the plugin host starts");
         });
         settle_app(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());
-        home
+        PluginHome::new(home, hosts)
     }
 
     /// Waits up to ten seconds for `done`, letting the app's tasks run.
@@ -971,6 +994,23 @@ pub(crate) mod test_support {
         id
     }
 
+    /// An executable `name` in `bin` running `script`.
+    #[cfg(unix)]
+    pub fn program(bin: &Path, name: &str, script: &str) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::create_dir_all(bin).expect("the folder is made");
+        let path = bin.join(name);
+        std::fs::write(&path, script).expect("the script is written");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("the script runs");
+    }
+
+    /// Programs a plugin may be granted are looked up in `bin` only.
+    pub fn programs_in(bin: &Path, cx: &mut TestAppContext) {
+        let bin = bin.to_path_buf();
+        let path = move || Some(bin.clone().into_os_string());
+        cx.update(|cx| cx.global::<Plugins>().host.set_program_path(std::sync::Arc::new(path)));
+    }
+
     /// A trusted project of `files` (path, text), open in an active window known as `label`.
     pub fn trusted_project<'a>(
         cx: &'a mut TestAppContext,
@@ -1000,8 +1040,8 @@ mod tests {
     use super::test_support::{CapturedLog, link, plugin_copy, start_with_plugins, trusted_project};
     use super::*;
     use crate::plugin_models::consent::Risk;
-    use crate::plugin_models::plugins_page::Section;
-    use crate::workbench::tests::{click_on, run_action, start, wait_for_notice, wait_long};
+    use crate::plugin_models::plugins_page::{ListRow, Section};
+    use crate::workbench::tests::{click_on, notification_titles, run_action, start, wait_long};
     use crate::workbench::welcome_pages::{CustomizeSelect, WelcomePage};
     use gpui_kit::{ClipboardItem, TestAppContext, VisualTestContext};
     use ide_host::plugins::PluginStatus;
@@ -1174,10 +1214,11 @@ mod tests {
         });
     }
 
-    /// Reload Plugins reloads every listed plugin on the window's host; one whose folder no longer
-    /// loads is reported as "Could not reload <name>".
+    /// Reload Plugins reloads every listed plugin on the window's host. A plugin whose manifest no
+    /// longer parses still reloads: the host lists it as failed, with the reason, and the page shows
+    /// it so; nothing is reported as a reload failure.
     #[gpui_kit::test]
-    async fn reload_plugins_reports_a_plugin_that_no_longer_loads(cx: &mut TestAppContext) {
+    async fn reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed(cx: &mut TestAppContext) {
         let home = start(cx);
         let dir = tempfile::tempdir().expect("a folder for the plugins");
         let (host, _) = test_plugin_host(dir.path());
@@ -1187,7 +1228,19 @@ mod tests {
         wait_long(cx, "the plugin is listed", |cx| listed(&page, "hello", cx));
         std::fs::write(folder.join("plugin.toml"), "id = \n").expect("the manifest is broken");
         run_action(cx, "plugins.reloadAll", None);
-        wait_for_notice(&workbench, "Could not reload Hello", cx);
+        let failed_row = |cx: &mut VisualTestContext| {
+            page.update(cx, |page, cx| page.rows(cx)).into_iter().any(|row| match row {
+                ListRow::Item(item) => item.tags.iter().any(|tag| tag.label == "Failed"),
+                _ => false,
+            })
+        };
+        wait_long(cx, "the page lists the plugin as failed", failed_row);
+        let reloaded = host.list(None).plugins;
+        assert!(installed(&host, "hello").is_none(), "the old manifest's plugin is gone: {reloaded:?}");
+        let broken = reloaded.iter().find(|p| p.status == PluginStatus::Failed).expect("the broken plugin is listed");
+        assert!(broken.error.is_some(), "the reason is kept: {broken:?}");
+        let titles = notification_titles(&workbench, cx);
+        assert!(!titles.iter().any(|title| title.starts_with("Could not reload")), "{titles:?}");
     }
 
     /// Install Plugin from Disk… shows the install page with the high-risk permission first.
@@ -1305,7 +1358,7 @@ mod tests {
         let option: &'static str = Box::leak(format!("customize-option-{index}").into_boxed_str());
         click_on(cx, option);
         assert_eq!(cx.update(|_, cx| crate::platform::settings::global(cx).appearance.theme), "dark");
-        wait_long(cx, "the windows are drawn dark", &dark);
+        wait_long(cx, "the windows are drawn dark", dark);
 
         click_on(cx, "customize-font-size");
         // The sizes start at 10: the sixth is 15.
@@ -1328,7 +1381,7 @@ mod tests {
         let open = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.settings_dialog().is_some());
         assert!(!open(cx));
         click_on(cx, "customize-all-settings");
-        wait_long(cx, "All settings… opens Settings", &open);
+        wait_long(cx, "All settings… opens Settings", open);
         assert!(workbench.read_with(cx, |w, _| w.welcome().is_some()), "over the Welcome screen");
     }
 }
