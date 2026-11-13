@@ -33,7 +33,9 @@ use crate::vcs::merge_view::{MergeVersions, MergeView, MergeViewEvent};
 use crate::vcs::prompt_dialogs::PromptDialog;
 use crate::vcs_diff::diff_input::{DiffData, DiffSide};
 use crate::vcs_diff::doc::Direction;
+use crate::vcs_diff::merge_gutters::MergeSide;
 use crate::vcs_more::merge_actions::{FocusedMergeEditor, MERGE_EDITOR_FOCUS, MergeCommand, merge_actions};
+use crate::vcs_more::merge_model::{AutoSide, MergeAction};
 use crate::vcs_ops::operations::{Control, InProgress, control_label, in_progress};
 use crate::vcs_ops::ops::vcs_notice;
 use crate::vcs_ops::store::{ConflictChange, conflicted_files};
@@ -111,7 +113,7 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         let toggle = meta.toggle;
         let id = meta.id.clone();
         let action = Action::new(meta, move |call, window, cx| {
-            on_workbench(window, cx, |workbench, _, cx| workbench.run_merge_action(&id, call.ctx, cx))
+            on_workbench(window, cx, |workbench, _, cx| workbench.run_merge_action(&id, call.ctx, call.arg, cx))
         });
         let action = if toggle {
             // Checked while the focused merge editor applies them; the editor stores what it applies.
@@ -219,6 +221,34 @@ async fn resolve_merge(
 }
 
 /// The versions the backend read, as the merge editor takes them.
+/// The argument of Resolve Merge Change: `{ "indexes": [n…], "action": { "type": "accept" | "ignore" |
+/// "auto", "side": "left" | "right" | null (ignore) | "base" (auto), "resolve": bool } }`; `None` for any
+/// other shape.
+fn merge_change(arg: &serde_json::Value) -> Option<(Vec<usize>, MergeAction)> {
+    let indexes = arg.get("indexes")?.as_array()?;
+    let indexes =
+        indexes.iter().map(|i| i.as_u64().and_then(|i| usize::try_from(i).ok())).collect::<Option<Vec<_>>>()?;
+    let action = arg.get("action")?;
+    let side = action.get("side").filter(|side| !side.is_null()).map(serde_json::Value::as_str);
+    let side = match side {
+        None => None,
+        Some(Some("left")) => Some(MergeSide::Left),
+        Some(Some("right")) => Some(MergeSide::Right),
+        Some(Some("base")) if action.get("type")?.as_str()? == "auto" => None,
+        Some(_) => return None,
+    };
+    let action = match action.get("type")?.as_str()? {
+        "accept" => MergeAction::Accept {
+            side: side?,
+            resolve: action.get("resolve").and_then(serde_json::Value::as_bool).unwrap_or(false),
+        },
+        "ignore" => MergeAction::Ignore { side },
+        "auto" => MergeAction::Auto { side: side.map_or(AutoSide::Base, AutoSide::Side) },
+        _ => return None,
+    };
+    Some((indexes, action))
+}
+
 fn merge_versions(versions: ide_vcs::MergeVersions) -> MergeVersions {
     let sides = versions.sides;
     MergeVersions {
@@ -556,12 +586,48 @@ impl Workbench {
     }
 
     /// A `merge.*` action: run in the merge editor that has the keyboard, when it is enabled there.
-    fn run_merge_action(&mut self, id: &str, keys: &ContextKeys, cx: &mut Context<Self>) {
+    fn run_merge_action(
+        &mut self,
+        id: &str,
+        keys: &ContextKeys,
+        arg: Option<&serde_json::Value>,
+        cx: &mut Context<Self>,
+    ) {
         let Some(view) = self.merge_view() else { return };
         let Some((&target, command)) = self.conflicts.focused.target(id, keys) else { return };
-        if target == view.entity_id() {
-            view.update(cx, |view, cx| view.run(command, cx));
+        if target != view.entity_id() {
+            return;
         }
+        if command == MergeCommand::Change {
+            // Resolving one change takes the changes and what to do with them.
+            if let Some((indexes, action)) = arg.and_then(merge_change) {
+                view.update(cx, |view, cx| view.apply_change(&indexes, action, cx));
+            }
+            return;
+        }
+        view.update(cx, |view, cx| view.run(command, cx));
+    }
+
+    /// Jump to Source while the merge editor has the keyboard: its file opens in its editor, after the
+    /// merge editor asked as Cancel does when the result was changed. Whether it was the merge editor's.
+    pub(super) fn merge_jump_to_source(&mut self, window: &Window, cx: &mut Context<Self>) -> bool {
+        if !self.merge_editor_focused(window, cx) {
+            return false;
+        }
+        if let Some(view) = self.merge_view() {
+            view.update(cx, |view, cx| view.jump_to_source(cx));
+        }
+        true
+    }
+
+    /// Diff Settings while the merge editor has the keyboard: the merge editor's settings menu. Whether
+    /// it was the merge editor's.
+    pub(super) fn merge_show_settings(&mut self, window: &Window, cx: &mut Context<Self>) -> bool {
+        if !self.merge_editor_focused(window, cx) {
+            return false;
+        }
+        self.run_merge_command(MergeCommand::Settings, cx);
+        true
     }
 
     /// Next / Previous Difference while the merge editor has the keyboard: whether it moved there.
@@ -682,5 +748,43 @@ impl Workbench {
             .child(view);
         let layer = div().id("merge-window").absolute().inset_0().occlude().child(frame);
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// Resolve Merge Change's argument reads as the merge model's actions; any other shape is none.
+    #[test]
+    fn the_resolve_merge_change_argument_reads_as_an_action_on_the_changes_and_other_shapes_as_none() {
+        let read = |arg: serde_json::Value| merge_change(&arg);
+        let accept = json!({"indexes": [0, 2], "action": {"type": "accept", "side": "left", "resolve": true}});
+        assert_eq!(read(accept), Some((vec![0, 2], MergeAction::Accept { side: MergeSide::Left, resolve: true })));
+        let take = json!({"indexes": [1], "action": {"type": "accept", "side": "right"}});
+        assert_eq!(read(take), Some((vec![1], MergeAction::Accept { side: MergeSide::Right, resolve: false })));
+        let both = json!({"indexes": [1], "action": {"type": "ignore", "side": null}});
+        assert_eq!(read(both), Some((vec![1], MergeAction::Ignore { side: None })));
+        let one = json!({"indexes": [1], "action": {"type": "ignore", "side": "right"}});
+        assert_eq!(read(one), Some((vec![1], MergeAction::Ignore { side: Some(MergeSide::Right) })));
+        let auto = json!({"indexes": [3], "action": {"type": "auto", "side": "base"}});
+        assert_eq!(read(auto), Some((vec![3], MergeAction::Auto { side: AutoSide::Base })));
+        let auto_left = json!({"indexes": [3], "action": {"type": "auto", "side": "left"}});
+        assert_eq!(read(auto_left), Some((vec![3], MergeAction::Auto { side: AutoSide::Side(MergeSide::Left) })));
+
+        for bad in [
+            json!(null),
+            json!({"indexes": [0]}),
+            json!({"action": {"type": "auto", "side": "base"}}),
+            json!({"indexes": [-1], "action": {"type": "auto", "side": "base"}}),
+            json!({"indexes": ["0"], "action": {"type": "auto", "side": "base"}}),
+            json!({"indexes": [0], "action": {"type": "accept", "side": null}}),
+            json!({"indexes": [0], "action": {"type": "accept", "side": "base"}}),
+            json!({"indexes": [0], "action": {"type": "ignore", "side": "middle"}}),
+            json!({"indexes": [0], "action": {"type": "merge", "side": "left"}}),
+        ] {
+            assert_eq!(read(bad.clone()), None, "{bad}");
+        }
     }
 }

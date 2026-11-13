@@ -1080,14 +1080,28 @@ mod tests {
     /// Runs git in `dir` without the machine's configuration; whether it succeeded. For commands
     /// that stop on a conflict, which [`git_in`] would take for a failure.
     fn git_may_fail(dir: &Path, args: &[&str]) -> bool {
-        let output = std::process::Command::new("git")
-            .args(args)
-            .current_dir(dir)
-            .env("GIT_CONFIG_GLOBAL", "/dev/null")
-            .env("GIT_CONFIG_SYSTEM", "/dev/null")
-            .env("GIT_EDITOR", "true")
-            .output()
-            .expect("git runs");
+        let run = || {
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(dir)
+                .env("GIT_CONFIG_GLOBAL", "/dev/null")
+                .env("GIT_CONFIG_SYSTEM", "/dev/null")
+                .env("GIT_EDITOR", "true")
+                .output()
+                .expect("git runs")
+        };
+        // The open window reads the repository too, which holds its index for a moment: a command
+        // refused for the lock did not run at all, unlike one that stopped on a conflict.
+        let locked = |output: &std::process::Output| String::from_utf8_lossy(&output.stderr).contains("index.lock");
+        let mut output = run();
+        for _ in 0..100 {
+            if !locked(&output) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            output = run();
+        }
+        assert!(!locked(&output), "git {args:?}: {}", String::from_utf8_lossy(&output.stderr));
         output.status.success()
     }
 

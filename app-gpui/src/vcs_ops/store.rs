@@ -322,6 +322,11 @@ pub struct RefreshQueue {
 }
 
 impl RefreshQueue {
+    /// A run is in flight, or asked for and about to start.
+    pub fn in_flight(&self) -> bool {
+        self.inflight
+    }
+
     pub fn request(&mut self, available: bool) -> RefreshRequest {
         if !available {
             return RefreshRequest::Settled;

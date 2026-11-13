@@ -4013,10 +4013,17 @@ mod tests {
     mod proofs_editor_search_find;
     mod proofs_editor_search_recent;
     mod proofs_editor_search_safe_delete;
+    mod proofs_merge_apply;
+    mod proofs_merge_change;
+    mod proofs_merge_compare;
+    mod proofs_merge_edit;
+    mod proofs_merge_fixtures;
+    mod proofs_merge_focus;
     mod proofs_services;
     mod proofs_tool_windows;
     mod proofs_vcs;
     mod smoke_backend_events;
+    mod smoke_registered_actions;
     mod smoke_services;
     mod smoke_settings_pages;
 
@@ -7417,15 +7424,52 @@ mod tests {
     /// Waits for `done` while processes run and their timers fire: real time passes, and so does the
     /// executor's clock.
     pub(super) fn wait_long(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..3000 {
+        let started = std::time::Instant::now();
+        let poll = |cx: &mut VisualTestContext| {
             cx.executor().advance_clock(Duration::from_millis(20));
             cx.run_until_parked();
-            if done(cx) {
+            let reached = done(cx);
+            if !reached {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            reached
+        };
+        for _ in 0..3000 {
+            if poll(cx) {
                 return;
             }
-            std::thread::sleep(Duration::from_millis(10));
         }
-        panic!("{what} did not happen within thirty seconds");
+        // The state when the wait runs out, and whether more time would have been enough.
+        let report = window_vcs_report(cx);
+        let ran_out = started.elapsed();
+        let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
+        panic!(
+            "{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})\n\
+             state when it ran out: {report}\nstate now: {}",
+            window_vcs_report(cx)
+        );
+    }
+
+    /// The repository state of the window's workbench, when its root is one.
+    fn window_vcs_report(cx: &mut VisualTestContext) -> String {
+        let root = cx.update(|window, _| window.root::<Workbench>().flatten());
+        root.map_or_else(
+            || "the window shows no workbench".to_owned(),
+            |w| {
+                w.read_with(cx, |w, cx| {
+                    let merge = w.merge_view().map(|view| {
+                        let view = view.read(cx);
+                        format!("loaded={} modified={}", view.text().is_some(), view.is_modified())
+                    });
+                    let notices: Vec<&str> = w.notifications().items().iter().map(|n| n.title.as_str()).collect();
+                    format!(
+                        "merge editor={merge:?} question={} notices={notices:?} {}",
+                        w.vcs_prompt().is_some(),
+                        w.vcs_report()
+                    )
+                })
+            },
+        )
     }
 
     pub(super) fn click_on(cx: &mut VisualTestContext, selector: &'static str) {
@@ -7603,6 +7647,43 @@ for line in sys.stdin:
     ) -> bool {
         use ide_agent::AgentStatus;
         matches!(agent_status(store, task, cx), Some(AgentStatus::Running | AgentStatus::Starting))
+    }
+
+    /// A test build refuses to start an agent its own config folder does not declare: a task with the
+    /// default agent of a new task fails with the refusal on the New Task page and reaches neither the
+    /// backend nor the seam standing in for it; the fake agent of the test's home passes the same guard
+    /// and reaches the seam.
+    #[gpui_kit::test]
+    async fn a_task_with_the_default_agent_is_refused_in_a_test_build_and_starts_no_process(cx: &mut TestAppContext) {
+        use super::agents::NewTaskEvent;
+        use super::agents::spawn_guard::{AgentSpawnSeam, REFUSED};
+        let home = start(cx);
+        let (_folder, workbench, store, cx) = agents_project(cx, home.path());
+        let seam = AgentSpawnSeam::default();
+        cx.update(|_, cx| cx.set_global(seam.clone()));
+        let started = |seam: &AgentSpawnSeam| seam.started.lock().map(|started| started.clone()).unwrap_or_default();
+
+        run_action(cx, "agents.newTask", Some(serde_json::json!("Say hello")));
+        wait_long(cx, "the New Task page", |cx| workbench.read_with(cx, |w, _| w.agents_home_page().is_some()));
+        let page = workbench.read_with(cx, |w, _| w.agents_home_page()).expect("the New Task page shows");
+        let default = crate::agents::store::Draft::default().provider;
+        assert_eq!(default, "claude");
+        store.update(cx, |store, _| store.draft.provider.clone_from(&default));
+        page.update(cx, |_, cx| cx.emit(NewTaskEvent::Start));
+        wait_long(cx, "the refusal", |cx| page.read_with(cx, |page, _| page.error().is_some()));
+        let error = page.read_with(cx, |page, _| page.error().map(str::to_owned)).unwrap_or_default();
+        assert!(error.starts_with(&format!("{REFUSED} `claude`")), "{error}");
+        assert_eq!(started(&seam), Vec::<String>::new(), "nothing reached the seam");
+        assert!(store.read_with(cx, |store, _| store.tasks().is_empty()), "no task exists");
+        let backend = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        let tasks = ide_host::ops::agent::subscribe(&backend, "w1", std::sync::Arc::new(|_| {}));
+        assert_eq!(tasks.map(|tasks| tasks.len()).ok(), Some(0), "the backend started no task");
+
+        store.update(cx, |store, _| store.draft.provider = "fake".to_owned());
+        page.update(cx, |_, cx| cx.emit(NewTaskEvent::Start));
+        wait_long(cx, "the fake agent reaches the seam", |_| !started(&seam).is_empty());
+        assert_eq!(started(&seam), ["fake"]);
+        assert!(store.read_with(cx, |store, _| store.tasks().is_empty()), "the seam started nothing");
     }
 
     /// A task started from the Agents tool window shows the user's message and the agent's reply while
@@ -9088,8 +9169,11 @@ for line in sys.stdin:
             cx.update(|_, cx| cx.global::<UiStorage>().get(super::conflicts::AUTO_APPLY_KEY).map(str::to_owned));
         assert_eq!(stored.as_deref(), Some("true"));
         run_action(cx, "merge.autoApply", None);
+        // Reload replaces what is shown once the versions are read again; a decision made before then
+        // would be dropped with the old versions.
+        let loads = view.read_with(cx, |view, _| view.loads());
         run_action(cx, "merge.reload", None);
-        let view = merge_view_loaded(&workbench, cx);
+        wait_long(cx, "the versions are read again", |cx| view.read_with(cx, |view, _| view.loads() > loads));
 
         // Cancel after a change asks; No keeps the editor, OK closes it.
         let accept = MergeControl::Accept { index: 0, side: MergeSide::Left, resolve: false };

@@ -83,6 +83,13 @@ pub(super) struct VcsSlot {
     /// Who waits for which refresh run.
     waiters: Vec<(u64, oneshot::Sender<()>)>,
     refreshing: Option<Task<()>>,
+    /// A Git command of the window runs: no read starts meanwhile, as a read writes the refreshed
+    /// index back and would take the index lock the command needs.
+    git_running: bool,
+    /// A read asked for while a command ran: it starts once the command ends.
+    read_deferred: bool,
+    /// Who waits for the running command or read to end before running a command of its own.
+    gate_waiters: Vec<oneshot::Sender<()>>,
     /// The read a burst of backend events asks for, once they stop.
     debounce: Option<Task<()>>,
     /// Tags of the selected repository.
@@ -104,6 +111,9 @@ pub(super) struct VcsSlot {
     /// Resolve, Continue and Abort while an operation is stopped.
     merge_widget: Entity<MergeRebaseWidget>,
     _widget_events: [Subscription; 2],
+    /// What reached the repository's reading, for a test that times out to print.
+    #[cfg(test)]
+    trace: Vec<String>,
 }
 
 /// The dialog an operation waits on.
@@ -406,6 +416,32 @@ pub(super) async fn refresh(this: &This, cx: &mut AsyncWindowContext) -> anyhow:
     Ok(())
 }
 
+/// Waits until neither a read of the repository nor another Git command of the window runs, then
+/// holds reads off until [`git_command_ended`]. Every command of the window's operations runs between
+/// the two.
+pub(super) async fn git_command_starts(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
+    loop {
+        let wait = this.update(cx, |workbench, _| {
+            let slot = workbench.vcs.as_mut()?;
+            if !slot.git_running && !slot.queue.in_flight() {
+                slot.git_running = true;
+                return None;
+            }
+            let (sender, receiver) = oneshot::channel();
+            slot.gate_waiters.push(sender);
+            Some(receiver)
+        })?;
+        let Some(wait) = wait else { return Ok(()) };
+        // A waiter dropped with its window finds no slot on the next turn.
+        let _ = wait.await;
+    }
+}
+
+/// The command started by [`git_command_starts`] ended: a read asked for meanwhile starts now.
+pub(super) fn git_command_ended(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
+    this.update(cx, |workbench, cx| workbench.end_git_command(cx))
+}
+
 /// Saves the open documents so git sees what the editors hold; a failure leaves git with what is on
 /// disk, as saving is best effort here.
 pub(super) async fn save_all(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
@@ -458,8 +494,15 @@ where
         if let Some(slot) = workbench.vcs.as_mut() {
             op_started(&mut slot.console, title, now_ms());
         }
+        #[cfg(test)]
+        workbench.vcs_trace(format!("operation {title} starts"));
     })?;
-    let result = call(this, cx, work).await?;
+    git_command_starts(this, cx).await?;
+    let result = call(this, cx, work).await;
+    git_command_ended(this, cx)?;
+    let result = result?;
+    #[cfg(test)]
+    this.update(cx, |workbench, _| workbench.vcs_trace(format!("operation {title} ended: ok={}", result.is_ok())))?;
     refresh(this, cx).await?;
     let title = title.to_owned();
     this.update_in(cx, |workbench, window, cx| {
@@ -529,12 +572,13 @@ pub(super) async fn run_remote(
             })
             .collect()
     })?;
-    // A read of the repository still running would hold the index lock a pull or reset takes.
-    refresh(this, cx).await?;
+    git_command_starts(this, cx).await?;
     let ran = {
         let op = op.clone();
-        call(this, cx, move |host, label| remote_in_repos(host, label, op, named)).await?
+        call(this, cx, move |host, label| remote_in_repos(host, label, op, named)).await
     };
+    git_command_ended(this, cx)?;
+    let ran = ran?;
     let run = ran.unwrap_or_else(|error| RemoteRun { error: Some(error), ..RemoteRun::default() });
     refresh(this, cx).await?;
     let ok = run.error.is_none();
@@ -984,8 +1028,7 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
         notice.sticky = Some(true);
         workbench.notify(notice, cx);
     })?;
-    // A read of the repository still running would hold the index lock the operation takes.
-    refresh(this, cx).await?;
+    git_command_starts(this, cx).await?;
     let lines: Arc<Mutex<Vec<String>>> = Arc::default();
     let sink = Arc::clone(&lines);
     let path = repo_path(repo.as_deref());
@@ -996,7 +1039,9 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
         });
         git::vcs_operation(&host, &label, path, Backend::next_request_id(), op, channel).await
     })
-    .await?;
+    .await;
+    git_command_ended(this, cx)?;
+    let ran = ran?;
     refresh(this, cx).await?;
     let output = match lines.lock() {
         Ok(lines) => lines.clone(),
@@ -1117,6 +1162,40 @@ impl Workbench {
         self.vcs.as_ref().map(|slot| &slot.state)
     }
 
+    /// The Git console, the operation in progress, the pending reads and what reached them, for a
+    /// test whose wait runs out.
+    #[cfg(test)]
+    pub(super) fn vcs_report(&self) -> String {
+        let Some(slot) = self.vcs.as_ref() else { return "no repository slot".to_owned() };
+        let state = &slot.state;
+        let console: Vec<String> =
+            slot.console.lines().iter().map(|line| format!("  {:?} {}", line.kind, line.text)).collect();
+        let trace: Vec<String> = slot.trace.iter().rev().take(40).rev().map(|line| format!("  {line}")).collect();
+        format!(
+            "busy={:?} operation={:?} available={} loading={} error={:?} status={} version={} queue={:?} \
+             reading={} debounce={}\nconsole:\n{}\ntrace:\n{}",
+            state.remote_busy,
+            state.branch.as_ref().and_then(|branch| branch.operation.as_deref()),
+            state.available,
+            state.loading,
+            state.error,
+            state.status.len(),
+            state.version,
+            slot.queue,
+            slot.refreshing.is_some(),
+            slot.debounce.is_some(),
+            console.join("\n"),
+            trace.join("\n"),
+        )
+    }
+
+    #[cfg(test)]
+    fn vcs_trace(&mut self, line: String) {
+        if let Some(slot) = self.vcs.as_mut() {
+            slot.trace.push(format!("{:.0} {line}", now_ms()));
+        }
+    }
+
     /// The tags of the selected repository and the favourite branches as stored (`None`: the
     /// defaults).
     pub(super) fn vcs_tags_and_favorites(&self) -> (Vec<String>, Option<Vec<String>>) {
@@ -1184,6 +1263,9 @@ impl Workbench {
             queue: RefreshQueue::default(),
             waiters: Vec::new(),
             refreshing: None,
+            git_running: false,
+            read_deferred: false,
+            gate_waiters: Vec::new(),
             debounce: None,
             tags: Vec::new(),
             repo_branches: HashMap::new(),
@@ -1194,6 +1276,8 @@ impl Workbench {
             widget,
             merge_widget,
             _widget_events: [events, controls],
+            #[cfg(test)]
+            trace: Vec::new(),
         });
         self.mount_conflicts(window);
         self.mount_shelf(window, cx);
@@ -1232,6 +1316,20 @@ impl Workbench {
             }
             _ => None,
         };
+        #[cfg(test)]
+        {
+            let what = match event {
+                IdeEvent::FsChanged { created, modified, removed } => {
+                    Some(format!("fs created={created:?} modified={modified:?} removed={removed:?}"))
+                }
+                IdeEvent::VcsChanged { .. } => Some("vcs changed".to_owned()),
+                _ => None,
+            };
+            if let Some(what) = what {
+                self.vcs_trace(format!("event {what} delay={delay:?}"));
+            }
+        }
+        let Some(slot) = self.vcs.as_mut() else { return };
         let Some(delay) = delay else { return };
         if !slot.state.available {
             // A repository found below a project that was not one.
@@ -1248,12 +1346,10 @@ impl Workbench {
         slot.debounce = Some(cx.spawn(async move |workbench, cx| {
             cx.background_executor().timer(delay).await;
             // The window is gone: there is nothing to read for.
+            // A read asked for while a Git command runs starts once the command ends.
             let _ = workbench.update(cx, |workbench, cx| {
-                // A running Git operation reads the repository once it ends. A read meanwhile would
-                // write the refreshed index back and hold the index lock the operation needs.
-                if workbench.vcs.as_ref().is_some_and(|slot| slot.state.remote_busy.is_some()) {
-                    return;
-                }
+                #[cfg(test)]
+                workbench.vcs_trace("debounce fired".to_owned());
                 workbench.refresh_vcs(cx);
             });
         }));
@@ -1285,6 +1381,14 @@ impl Workbench {
     }
 
     fn start_vcs_refresh(&mut self, cx: &mut Context<Self>) {
+        if let Some(slot) = self.vcs.as_mut().filter(|slot| slot.git_running) {
+            slot.read_deferred = true;
+            #[cfg(test)]
+            self.vcs_trace("read deferred: a Git command runs".to_owned());
+            return;
+        }
+        #[cfg(test)]
+        self.vcs_trace("read starts".to_owned());
         let label = self.label.clone();
         let Some(slot) = self.vcs.as_mut() else { return };
         let started = slot.state.begin_refresh();
@@ -1298,6 +1402,11 @@ impl Workbench {
     }
 
     fn vcs_refreshed(&mut self, started: RefreshStart, read: Result<Snapshot, String>, cx: &mut Context<Self>) {
+        #[cfg(test)]
+        self.vcs_trace(match &read {
+            Ok(snapshot) => format!("read done: {} files", snapshot.status.len()),
+            Err(error) => format!("read failed: {error}"),
+        });
         let Some(slot) = self.vcs.as_mut() else { return };
         let mut extras = None;
         let data = read.map(|snapshot| {
@@ -1334,6 +1443,26 @@ impl Workbench {
         }
         if again {
             self.start_vcs_refresh(cx);
+        }
+        self.wake_git_gate();
+    }
+
+    /// The command started by [`git_command_starts`] ended: the read it held off starts, and who
+    /// waits to run a command looks again.
+    fn end_git_command(&mut self, cx: &mut Context<Self>) {
+        let Some(slot) = self.vcs.as_mut() else { return };
+        slot.git_running = false;
+        if std::mem::take(&mut slot.read_deferred) {
+            self.start_vcs_refresh(cx);
+        }
+        self.wake_git_gate();
+    }
+
+    fn wake_git_gate(&mut self) {
+        let Some(slot) = self.vcs.as_mut() else { return };
+        for waiter in slot.gate_waiters.drain(..) {
+            // The waiter may be gone.
+            let _ = waiter.send(());
         }
     }
 

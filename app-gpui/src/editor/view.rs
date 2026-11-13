@@ -141,7 +141,9 @@ struct Layout {
     lines: Vec<(String, ShapedLine)>,
     /// The document line of each painted row.
     line_of: Vec<u32>,
-    /// Where the last frame drew the line tints, breakpoint dots and problem underlines.
+    /// Where the last frame drew the line tints, breakpoint dots and problem underlines; recorded for
+    /// tests only, so a frame allocates nothing for it.
+    #[cfg(test)]
     painted_marks: Vec<(super::marks::MarkKind, Bounds<Pixels>)>,
 }
 
@@ -511,6 +513,7 @@ impl Editor {
     }
 
     /// Where the last frame drew marks of `kind`: a tinted row, a breakpoint dot, a problem's underline.
+    #[cfg(test)]
     pub fn painted_marks(&self, kind: super::marks::MarkKind) -> Vec<Bounds<Pixels>> {
         let painted = self.layout.as_ref().map(|layout| layout.painted_marks.as_slice()).unwrap_or_default();
         painted.iter().filter(|(painted, _)| *painted == kind).map(|(_, bounds)| *bounds).collect()
@@ -2080,6 +2083,7 @@ impl Element for EditorElement {
                 first_line: first_row,
                 lines,
                 line_of: painted,
+                #[cfg(test)]
                 painted_marks: Vec::new(),
             },
             numbers,
@@ -2131,6 +2135,7 @@ impl Element for EditorElement {
             MarkKind::InactiveBreakpoint => theme::color(cx, "fg-gutter"),
             MarkKind::ExecutionLine => theme::color(cx, "bg-debug-line"),
         };
+        #[cfg(test)]
         let mut painted_marks = Vec::new();
         window.with_content_mask(Some(gpui_kit::ContentMask { bounds }), |window| {
             window.paint_quad(fill(bounds, theme::color(cx, "bg-editor")));
@@ -2170,6 +2175,7 @@ impl Element for EditorElement {
                             size(bounds.size.width - *gutter, line_height),
                         );
                         window.paint_quad(fill(row, mark_color(cx, kind)));
+                        #[cfg(test)]
                         painted_marks.push((kind, row));
                     }
                 }
@@ -2237,6 +2243,7 @@ impl Element for EditorElement {
                         let origin = point(under.origin.x, top + line_height - px(3.0));
                         let width = under.size.width.max(px(4.0));
                         window.paint_underline(origin, width, &style);
+                        #[cfg(test)]
                         painted_marks.push((mark.kind, Bounds::new(origin, size(width, px(1.0)))));
                     }
                 }
@@ -2261,6 +2268,7 @@ impl Element for EditorElement {
                         size(diameter, diameter),
                     );
                     let solid = gpui_kit::BorderStyle::Solid;
+                    #[cfg(test)]
                     painted_marks.push((mark.kind, dot));
                     if mark.kind == MarkKind::BreakpointLine {
                         let danger = theme::color(cx, "danger");
@@ -2279,7 +2287,10 @@ impl Element for EditorElement {
                 }
             }
         });
-        layout.painted_marks = painted_marks;
+        #[cfg(test)]
+        {
+            layout.painted_marks = painted_marks;
+        }
         let layout = std::mem::replace(
             layout,
             Layout {
@@ -2289,6 +2300,7 @@ impl Element for EditorElement {
                 first_line: 0,
                 lines: Vec::new(),
                 line_of: Vec::new(),
+                #[cfg(test)]
                 painted_marks: Vec::new(),
             },
         );

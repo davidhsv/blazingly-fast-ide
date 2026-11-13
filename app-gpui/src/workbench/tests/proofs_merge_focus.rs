@@ -99,3 +99,36 @@ async fn diff_settings_and_jump_to_source_act_on_the_merge_editor_that_has_the_k
     });
     assert!(focused, "the file's editor has the keyboard");
 }
+
+/// Jump to Source after the result was changed asks as Cancel does, so merge work is never dropped
+/// silently: No keeps the merge editor with its work and the keyboard; Exit closes it, leaves the file
+/// unmerged and opens it in its editor.
+#[gpui_kit::test]
+async fn jump_to_source_from_a_changed_merge_asks_first_and_no_keeps_the_work(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, root) = git_project(cx, letters);
+    let view = open_merge(&workbench, cx);
+    run_action(cx, "merge.applyAll", None);
+    let applied = result(&view, cx);
+    assert_eq!(applied, "a\nb\nc\nD\ne\nf\nG\n");
+    assert!(view.read_with(cx, |view, _| view.is_modified()));
+    let file_open = |cx: &mut VisualTestContext| {
+        workbench.read_with(cx, |w, cx| w.editor().is_some_and(|editor| editor.read(cx).path() == root.join("a.txt")))
+    };
+
+    run_action(cx, "diff.jumpToSource", None);
+    let question = wait_for_prompt(&workbench, cx);
+    assert_eq!(question.read_with(cx, |dialog, _| dialog.title().to_owned()), "Cancel Merge");
+    cx.simulate_keystrokes("escape");
+    cx.run_until_parked();
+    assert!(workbench.read_with(cx, |w, _| w.merge_view().is_some()), "No keeps the merge editor");
+    assert_eq!(result(&view, cx), applied, "and its work");
+    assert!(!file_open(cx), "nothing is opened");
+    assert!(cx.update(|window, cx| workbench.read(cx).merge_editor_focused(window, cx)));
+
+    run_action(cx, "diff.jumpToSource", None);
+    wait_for_prompt(&workbench, cx);
+    cx.simulate_keystrokes("enter");
+    wait_long(cx, "the file's editor", file_open);
+    assert!(workbench.read_with(cx, |w, _| w.merge_view().is_none()), "Exit closes the merge editor");
+    assert_eq!(git_in(&root, &["ls-files", "-u"]).lines().count(), 3, "the file is still unmerged");
+}

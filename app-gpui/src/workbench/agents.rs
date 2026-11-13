@@ -148,6 +148,77 @@ fn failure_title(call: &AgentCall) -> Option<&'static str> {
     }
 }
 
+/// The calls that can start the task's agent program (a task whose agent is not running starts it).
+#[cfg(test)]
+fn starts_agent(call: &AgentCall) -> Option<&str> {
+    match call {
+        AgentCall::Prompt { task, .. }
+        | AgentCall::Rollback { task, .. }
+        | AgentCall::Fork { task, .. }
+        | AgentCall::SendQueuedNow { task, .. }
+        | AgentCall::SetConfig { task, .. } => Some(task),
+        _ => None,
+    }
+}
+
+/// Test builds start no agent program but the ones a test declares in its own config folder: a
+/// built-in agent such as `claude`, or one installed from the registry, would run a real agent CLI of
+/// the machine. Every request that can start an agent passes [`spawn_guard::check`] first.
+#[cfg(test)]
+pub(super) mod spawn_guard {
+    use std::sync::{Arc, Mutex};
+
+    /// Set by a test, it stands in for the backend: a request that passes the guard is recorded (by its
+    /// agent's id) and answered with an error instead of starting anything.
+    #[derive(Clone, Default)]
+    pub(in crate::workbench) struct AgentSpawnSeam {
+        pub(in crate::workbench) started: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl gpui_kit::Global for AgentSpawnSeam {}
+
+    pub(in crate::workbench) const REFUSED: &str = "refused to start agent";
+
+    /// Fails unless agent `provider` is defined by an agent file of the test's own config folder, a
+    /// temporary folder.
+    pub(super) fn check(host: &ide_host::Host, label: &str, provider: &str) -> Result<(), String> {
+        let providers = ide_host::ops::agent::providers(host, label).map_err(|error| error.message)?;
+        let custom = providers
+            .iter()
+            .any(|found| found.id == provider && matches!(found.source, ide_agent::AgentSource::Custom));
+        let file = host.config_dir.join("agents").join(format!("{provider}.toml"));
+        let temp = std::env::temp_dir().canonicalize().unwrap_or_else(|_| std::env::temp_dir());
+        let in_temp = host.config_dir.canonicalize().is_ok_and(|config| config.starts_with(&temp));
+        if custom && in_temp && file.is_file() {
+            return Ok(());
+        }
+        let message = format!(
+            "{REFUSED} `{provider}`: a test starts only agents declared in its own config folder ({})",
+            host.config_dir.display()
+        );
+        tracing::error!("{message}");
+        Err(message)
+    }
+
+    /// The guard, then the seam when a test set one: `Some` answers the request without the backend.
+    pub(super) fn gate(
+        host: &ide_host::Host,
+        label: &str,
+        provider: &str,
+        seam: Option<&AgentSpawnSeam>,
+    ) -> Option<String> {
+        if let Err(refused) = check(host, label, provider) {
+            return Some(refused);
+        }
+        let seam = seam?;
+        match seam.started.lock() {
+            Ok(mut started) => started.push(provider.to_owned()),
+            Err(poisoned) => poisoned.into_inner().push(provider.to_owned()),
+        }
+        Some(format!("`{provider}` was not started: the test's seam answers instead"))
+    }
+}
+
 /// Runs `call` against the project of window `label`.
 async fn run_call(host: &ide_host::Host, label: &str, call: AgentCall) -> Result<CallAnswer, String> {
     use ide_host::ops::agent;
@@ -677,9 +748,15 @@ impl Workbench {
         if let Some(slot) = self.agents.as_mut() {
             slot.purposes.insert(ticket, Purpose::Create);
         }
+        #[cfg(test)]
+        let seam = cx.try_global::<spawn_guard::AgentSpawnSeam>().cloned();
         self.agents_backend(
             cx,
             move |host, label| async move {
+                #[cfg(test)]
+                if let Some(refused) = spawn_guard::gate(&host, &label, &request.provider, seam.as_ref()) {
+                    return Err(refused);
+                }
                 ide_host::ops::agent::create(&host, &label, request).await.map_err(|error| error.message)
             },
             move |workbench, answer: Result<AgentTask, String>, cx| {
@@ -697,9 +774,26 @@ impl Workbench {
     /// tickets; a failed one without is reported (or logged, when nothing is to be said).
     fn run_agent_call(&mut self, ticket: Option<Ticket>, call: AgentCall, cx: &mut Context<Self>) {
         let failure = failure_title(&call);
+        #[cfg(test)]
+        let guarded = {
+            let store = self.agents.as_ref().map(|slot| slot.store.read(cx));
+            let provider = starts_agent(&call)
+                .map(|task| store.and_then(|store| store.task(task)).map(|task| task.provider.clone()));
+            (provider, cx.try_global::<spawn_guard::AgentSpawnSeam>().cloned())
+        };
         self.agents_backend(
             cx,
-            move |host, label| async move { run_call(&host, &label, call).await },
+            move |host, label| async move {
+                #[cfg(test)]
+                if let (Some(provider), seam) = guarded {
+                    // A task the window does not know has no agent the guard can vouch for.
+                    let provider = provider.unwrap_or_default();
+                    if let Some(refused) = spawn_guard::gate(&host, &label, &provider, seam.as_ref()) {
+                        return Err(refused);
+                    }
+                }
+                run_call(&host, &label, call).await
+            },
             move |workbench, answer, cx| match (ticket, answer) {
                 (Some(ticket), answer) => workbench.agent_call_answered(ticket, answer, cx),
                 (None, Ok(_)) => {}

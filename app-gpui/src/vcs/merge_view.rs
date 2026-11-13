@@ -93,6 +93,8 @@ pub enum MergeQuestion {
     Discard(MergeSide),
     /// Cancel after the result was changed: exit anyway?
     Cancel,
+    /// Jump to Source after the result was changed: exit to the file's editor anyway?
+    JumpToSource,
 }
 
 impl MergeQuestion {
@@ -117,7 +119,7 @@ impl MergeQuestion {
                 i18n.tx("The result was changed. Discard the changes and take this version as it is?"),
                 "Discard Changes",
             ),
-            Self::Cancel => ConfirmRequest::danger(
+            Self::Cancel | Self::JumpToSource => ConfirmRequest::danger(
                 "Cancel Merge",
                 i18n.tx("Exit without applying the changes made in the result?"),
                 "Exit",
@@ -528,6 +530,9 @@ pub struct MergeView {
     /// The text being composed by an input method in the result.
     marked: Option<Range<usize>>,
     key_claim: u64,
+    /// How many times the versions (or a failure to read them) arrived, for a test that reloads them.
+    #[cfg(test)]
+    loads: u64,
 }
 
 impl EventEmitter<MergeViewEvent> for MergeView {}
@@ -560,7 +565,15 @@ impl MergeView {
             dragging: None,
             marked: None,
             key_claim,
+            #[cfg(test)]
+            loads: 0,
         }
+    }
+
+    /// How many times the versions (or a failure to read them) arrived.
+    #[cfg(test)]
+    pub fn loads(&self) -> u64 {
+        self.loads
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -570,6 +583,10 @@ impl MergeView {
     /// with Automatically Apply Non-Conflicting Changes on). A version holding binary data cannot be
     /// merged.
     pub fn set_versions(&mut self, versions: MergeVersions, cx: &mut Context<Self>) {
+        #[cfg(test)]
+        {
+            self.loads += 1;
+        }
         let all = [&versions.base, &versions.ours, &versions.theirs];
         if all.iter().any(|text| text.as_ref().is_some_and(|text| text.contains('\0'))) {
             self.set_error(BINARY_TEXT, cx);
@@ -609,6 +626,10 @@ impl MergeView {
 
     /// The versions could not be read: the message shows with Retry.
     pub fn set_error(&mut self, message: &str, cx: &mut Context<Self>) {
+        #[cfg(test)]
+        {
+            self.loads += 1;
+        }
         self.error = Some(message.to_owned());
         self.loaded = None;
         self.changed(cx);
@@ -629,7 +650,19 @@ impl MergeView {
             MergeQuestion::Unresolved(_) => self.resolve_with_result(cx),
             MergeQuestion::Discard(side) => self.resolve_with_side(side, cx),
             MergeQuestion::Cancel => cx.emit(MergeViewEvent::Close),
+            MergeQuestion::JumpToSource => cx.emit(MergeViewEvent::OpenFile { path: self.path.clone() }),
         }
+    }
+
+    /// Jump to Source: the file opens in its editor in this editor's place, after the same question as
+    /// Cancel when the result was changed, so merge work is never dropped silently.
+    pub fn jump_to_source(&mut self, cx: &mut Context<Self>) {
+        let event = if self.is_modified() {
+            MergeViewEvent::Confirm(MergeQuestion::JumpToSource)
+        } else {
+            MergeViewEvent::OpenFile { path: self.path.clone() }
+        };
+        cx.emit(event);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -869,6 +902,13 @@ impl MergeView {
             return;
         }
         self.transact(|s| s.apply_to(&[index], action), false, cx);
+    }
+
+    /// Resolve Merge Change: `action` on the changes at `indexes`, as one step.
+    pub fn apply_change(&mut self, indexes: &[usize], action: MergeAction, cx: &mut Context<Self>) {
+        if !self.resolved {
+            self.transact(|s| s.apply_to(indexes, action), false, cx);
+        }
     }
 
     /// Carries out the step `make` returns as one undo step; `reveal` then moves the caret to the

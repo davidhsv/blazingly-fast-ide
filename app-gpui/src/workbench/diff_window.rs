@@ -161,8 +161,12 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
     for (id, command, merge) in commands {
         registry.handle(id, move |_, window, cx| {
             on_workbench(window, cx, |workbench, window, cx| {
-                // The merge editor that has the keyboard moves between its own changes.
-                let moved = merge.is_some_and(|direction| workbench.merge_go_to_change(direction, window, cx));
+                // The merge editor that has the keyboard moves between its own changes and jumps to its
+                // own file.
+                let moved = match merge {
+                    Some(direction) => workbench.merge_go_to_change(direction, window, cx),
+                    None => command == DiffCommand::JumpToSource && workbench.merge_jump_to_source(window, cx),
+                };
                 if !moved {
                     workbench.run_diff_command(command, cx);
                 }
@@ -175,7 +179,12 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         });
     }
     registry.handle(action::SHOW_SETTINGS, |_, window, cx| {
-        on_workbench(window, cx, |workbench, window, cx| workbench.show_diff_settings(window, cx))
+        on_workbench(window, cx, |workbench, window, cx| {
+            // The merge editor that has the keyboard shows its own settings.
+            if !workbench.merge_show_settings(window, cx) {
+                workbench.show_diff_settings(window, cx);
+            }
+        })
     });
 }
 
