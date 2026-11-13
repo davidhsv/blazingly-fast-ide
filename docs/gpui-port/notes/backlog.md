@@ -139,3 +139,14 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - NEXT INTEGRATOR Part 0: hand-written Debug for FormRow/FormSpec/FormInput (vcs/git_forms.rs) with a test; reword the four comments in workbench/mod.rs naming the webview; delete vcs/log_reset_dialog.rs + log_tag_dialog.rs.
 - BETWEEN INTEGRATORS (cargo slot free): whole-workspace Tauri suite from the repo root (src/, src-tauri/, e2e/, package.json are identical to a950eeca: frontend checks not needed).
 - No new feature drafts while the cargo queue is this deep (advisor): use no-cargo capacity to reconcile queued notes against HEAD.
+
+## State after the proofs slice (2026-11-13, e22ffae7)
+
+- Suite 6,311, 0 ignored, clippy clean (×3 by me). D84 written. Inventory before the proofs rows: 736/3077.
+- RUNNING (cargo, background): whole Tauri workspace suite `cargo test --workspace --no-fail-fast` → $S/tauri_suite.log (last line EXIT n).
+- RUNNING (no cargo): parity mapper for the proofs slice → $S/parity_proofs.json; context_menus reconciler → $S/drafts/context_menus_reconciled.md (+ $S/ctx/context_menus.rs).
+- Plugin drafts reconciled and committed (f8469266): docs/gpui-port/notes/integration/plugins_all_integration.md (3 stages). NEXT INTEGRATOR = plugins, with Part 0: Debug for FormRow/FormSpec/FormInput, four webview comments in workbench/mod.rs, delete vcs/log_reset_dialog.rs + log_tag_dialog.rs.
+- INTEGRATOR RULE added: never `cargo fmt` over the crate; `rustfmt --edition 2024 <files you edited>` only; never restore a file from git.
+- Left undeclared on purpose: workbench/tests/proofs_quit.rs, editor/view/tests/proofs_editor_highlight_{shell,cmake_queries,interpolation_templates}.rs (need crates/ide-language query fixes + languages/cmake.toml `.cmake.in`) → a "highlight queries" task for later (crates are mine to change; the Tauri side shares them, so the webview's colours must not change: check with its own spec).
+- Generator bug: factory-made actions get the wrong primary title (find.popup.nextResult = "Recent Searches") → fix in gen-data.mjs.
+- After plugins: context_menus (reconciled) → reconcile editor_core + editor_language (editor/view.rs changed in the proofs slice: highlights follow edits, alt-drag) → app_actions → project/services/terminal → GitHub.
