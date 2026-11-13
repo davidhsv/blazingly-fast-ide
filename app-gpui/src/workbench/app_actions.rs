@@ -12,11 +12,13 @@
 use super::app_shell;
 use super::branches::call;
 use super::menu_spec::DynamicItem;
+use super::plugin_runtime::plugin_host;
 use super::services_window::on_workbench;
 use super::tool_windows::{NAMED_LAYOUTS_STORAGE_KEY, NamedLayouts, ToolWindowLayout};
 use super::{Workbench, for_window, windows};
 use crate::app_models::invalidate_caches::{CachesEffect, schedule_failed};
 use crate::app_models::project_actions::{CreateProject, CreateStep, exported_storage, initial_location, is_exported};
+use crate::app_models::windows::open_failed_notice;
 use crate::app_views::about_dialog::{AboutDialog, AboutEvent, KEYMAP_REFERENCE, SHOW_LOG, this_build};
 use crate::app_views::invalidate_caches_dialog::{InvalidateCachesDialog, InvalidateCachesEvent};
 use crate::app_views::new_project_dialog::{NewProjectDialog, NewProjectEvent};
@@ -45,11 +47,14 @@ use gpui_kit::{
     AnyElement, App, AsyncWindowContext, ClickEvent, Context, Entity, Focusable, Global, IntoElement,
     PathPromptOptions, SharedString, WeakEntity, Window, WindowId, div, prelude::*, px,
 };
+use ide_core::IdeError;
+use ide_host::plugins::PluginHost;
 use ide_workspace::settings::SettingsScope;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::Arc;
 
 type This = WeakEntity<Workbench>;
 
@@ -73,13 +78,33 @@ impl Global for Relaunch {}
 fn relaunch(cx: &mut App) {
     match cx.try_global::<Relaunch>().map(|relaunch| Rc::clone(&relaunch.0)) {
         Some(relaunch) => relaunch(cx),
-        None => cx.restart(),
+        None => restart_app(cx),
     }
+}
+
+#[cfg(not(test))]
+fn restart_app(cx: &mut App) {
+    cx.restart();
+}
+
+/// A test build never restarts or quits the process: a test that reaches here without a
+/// [`Relaunch`] recorder fails instead.
+#[cfg(test)]
+fn restart_app(_: &mut App) {
+    panic!("a test asked for a restart without installing a Relaunch recorder");
+}
+
+/// What answering a trust question does.
+enum TrustAnswer {
+    /// Tells an open flow whether the project opens.
+    Flow(oneshot::Sender<bool>),
+    /// Opens this project in the asking window on Trust Project or Preview in Restricted Mode.
+    Open(PathBuf),
 }
 
 /// The trust questions waiting for an answer, by the window that asks.
 #[derive(Default)]
-struct TrustPrompts(HashMap<WindowId, oneshot::Sender<bool>>);
+struct TrustPrompts(HashMap<WindowId, TrustAnswer>);
 
 impl Global for TrustPrompts {}
 
@@ -331,17 +356,11 @@ impl Workbench {
         Some(banner.into_any_element())
     }
 
-    /// Asks "Trust and Open Project?" for the folder `path`; the receiver gets whether it opens.
-    /// A question already waiting in this window is answered Don't Open.
-    fn show_trust_prompt(
-        &mut self,
-        path: String,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> oneshot::Receiver<bool> {
-        let (sender, receiver) = oneshot::channel();
+    /// Asks "Trust and Open Project?" for the folder `path`; `answer` says what an answer does. A
+    /// question already waiting in this window is answered Don't Open.
+    fn show_trust_prompt(&mut self, path: String, answer: TrustAnswer, window: &mut Window, cx: &mut Context<Self>) {
         let asking = window.window_handle().window_id();
-        if let Some(previous) = cx.default_global::<TrustPrompts>().0.insert(asking, sender) {
+        if let Some(TrustAnswer::Flow(previous)) = cx.default_global::<TrustPrompts>().0.insert(asking, answer) {
             // That question is gone: nothing opens for it.
             let _ = previous.send(false);
         }
@@ -355,18 +374,23 @@ impl Workbench {
         });
         let focus = dialog.focus_handle(cx);
         self.open_vcs_dialog(dialog.into(), focus, events, window, cx);
-        receiver
     }
 
-    /// Answers the trust question of this window, if one waits: `open` or not.
+    /// Answers the trust question of this window, if one waits: `open` or not. A project this
+    /// window waits to open opens in this same update, so that whoever waits for the opening never
+    /// sees the window without a question and without an opening.
     fn finish_trust_prompt(&mut self, open: bool, window: &mut Window, cx: &mut Context<Self>) {
         if self.trust_dialog().is_some() {
             self.close_vcs_dialog(window, cx);
         }
         let asking = window.window_handle().window_id();
-        if let Some(sender) = cx.default_global::<TrustPrompts>().0.remove(&asking) {
+        match cx.default_global::<TrustPrompts>().0.remove(&asking) {
             // The opening may have ended meanwhile.
-            let _ = sender.send(open);
+            Some(TrustAnswer::Flow(sender)) => {
+                let _ = sender.send(open);
+            }
+            Some(TrustAnswer::Open(root)) if open => self.open_project(root, window, cx),
+            Some(TrustAnswer::Open(_)) | None => {}
         }
     }
 
@@ -395,18 +419,27 @@ impl Workbench {
         };
         let trusted = trusted == Some(true);
         let prompted = prompt.is_some();
+        let plugins = plugin_host(cx);
         cx.spawn_in(window, async move |this, cx| {
-            finished(set_trust(&this, cx, target, trusted, folder, prompted).await);
+            finished(set_trust(&this, cx, target, trusted, folder, prompted, plugins).await);
         })
         .detach();
     }
 
-    /// Project Trust › Remove: projects inside `location` are no longer trusted for being there.
+    /// Project Trust › Remove: projects inside `location` are no longer trusted for being there,
+    /// and the project plugins of every project that lost its trust are unloaded.
     fn remove_trusted_location(&mut self, location: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        let plugins = plugin_host(cx);
         cx.spawn_in(window, async move |this, cx| {
             let removed = call(&this, cx, move |host, _| async move {
                 host.trust.remove_location(&location)?;
-                host.refresh_project_trust().await
+                host.refresh_project_trust().await?;
+                if let Some(plugins) = plugins {
+                    for project in host.projects().into_iter().filter(|project| !project.is_trusted()) {
+                        plugins.restrict_project(&project.root);
+                    }
+                }
+                ide_core::IdeResult::Ok(())
             })
             .await;
             match removed {
@@ -968,26 +1001,63 @@ impl Workbench {
     }
 }
 
-/// Asks "Trust and Open Project?" before the folder `path` opens, unless its trust was decided
-/// already (trusted, or previewed in Restricted Mode before). Whether it opens.
+/// Asks "Trust and Open Project?" in this window before the folder `path` opens, unless its trust
+/// was decided already (trusted, or previewed in Restricted Mode before): whether it opens, or why
+/// its trust could not be read. `Err` only when the window went away.
 pub(super) async fn confirm_project_trust(
     this: &This,
     cx: &mut AsyncWindowContext,
     path: &Path,
-) -> anyhow::Result<bool> {
+) -> anyhow::Result<Result<bool, IdeError>> {
     let asked = path.to_path_buf();
-    let status = call(this, cx, move |host, _| async move { host.trust.status(&asked) }).await?;
-    let status = status.map_err(|error| anyhow::anyhow!("cannot read the trust of {}: {error}", path.display()))?;
+    let status = match call(this, cx, move |host, _| async move { host.trust.status(&asked) }).await? {
+        Ok(status) => status,
+        Err(error) => return Ok(Err(IdeError::internal(error))),
+    };
     if status.decided {
-        return Ok(true);
+        return Ok(Ok(true));
     }
     let root = status.root.into_path_buf().to_string_lossy().into_owned();
-    let answer = this.update_in(cx, |workbench, window, cx| workbench.show_trust_prompt(root, window, cx))?;
+    let (sender, answer) = oneshot::channel();
+    let answered = TrustAnswer::Flow(sender);
+    this.update_in(cx, |workbench, window, cx| workbench.show_trust_prompt(root, answered, window, cx))?;
     // A question dropped without an answer opens nothing.
-    Ok(answer.await.unwrap_or(false))
+    Ok(Ok(answer.await.unwrap_or(false)))
 }
 
-/// Stores a trust decision, then answers the question that asked for it.
+impl Workbench {
+    /// Opens the project at `root` in this window once its trust is decided: a decided folder
+    /// opens at once; otherwise "Trust and Open Project?" is shown at once and the project opens on
+    /// Trust Project or Preview in Restricted Mode, while Don't Open leaves the window as it is. A
+    /// window opened for a project (a new window chosen for it, File › Open in New Window, the
+    /// folder given on the command line) asks here, in the window the project opens in. The trust
+    /// is read here, on the main thread, as the open flow reads it before attaching: the store is
+    /// in memory and the read resolves the folder's links only. Deciding synchronously keeps a
+    /// caller that waits for the opening (files to open once it is done) waiting for the answer.
+    pub(super) fn open_project_asking(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        let status = match cx.try_global::<Backend>() {
+            Some(backend) => backend.host.trust.status(&root),
+            None => Err(IdeError::internal("The backend is not running")),
+        };
+        let status = match status {
+            Ok(status) if status.decided => return self.open_project(root, window, cx),
+            Ok(status) => status,
+            Err(error) => {
+                let shown = root.to_string_lossy();
+                let notice = open_failed_notice(&shown, &error, &cx.default_global::<Localization>().0);
+                if let Some(notice) = notice {
+                    self.notify(notice, cx);
+                }
+                return;
+            }
+        };
+        let asked = status.root.into_path_buf().to_string_lossy().into_owned();
+        self.show_trust_prompt(asked, TrustAnswer::Open(root), window, cx);
+    }
+}
+
+/// Stores a trust decision, then answers the question that asked for it. A project that is not
+/// trusted any more has its project plugins unloaded.
 async fn set_trust(
     this: &This,
     cx: &mut AsyncWindowContext,
@@ -995,10 +1065,19 @@ async fn set_trust(
     trusted: bool,
     folder: bool,
     prompted: bool,
+    plugins: Option<Arc<PluginHost>>,
 ) -> anyhow::Result<()> {
     let shown = path.display().to_string();
-    let decided =
-        call(this, cx, move |host, _| async move { host.set_project_trust(&path, trusted, folder).await }).await?;
+    let decided = call(this, cx, move |host, _| async move {
+        host.set_project_trust(&path, trusted, folder).await?;
+        if !trusted && let Some(plugins) = plugins {
+            // The folder as the trust store names it, links resolved.
+            let root = host.trust.status(&path).map(|status| status.root.into_path_buf()).unwrap_or(path);
+            plugins.restrict_project(&root);
+        }
+        ide_core::IdeResult::Ok(())
+    })
+    .await?;
     match decided {
         // The project's windows hear of it as `ProjectTrustChanged`, and redraw.
         Ok(()) if prompted => {
@@ -1073,27 +1152,12 @@ fn open_created(path: &str, new_window: bool, window: &mut Window, cx: &mut App)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::AppDirs;
-    use crate::workbench::tests::{click_on, notification_titles, run_action, wait_long};
-    use crate::workbench::{RUN_TOOL_WINDOW, register_actions as register_workbench_actions};
-    use gpui_kit::{TestAppContext, VisualTestContext};
+    use crate::platform::actions::execute_action_or_throw;
+    use crate::workbench::tests::{click_on, notification_titles, run_action, start, wait_long};
+    use crate::workbench::windows::Target;
+    use crate::workbench::{RUN_TOOL_WINDOW, Workbenches};
+    use gpui_kit::{AnyWindowHandle, TestAppContext, VisualTestContext};
     use std::cell::Cell;
-
-    fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
-        cx.executor().allow_parking();
-        let home = tempfile::tempdir().expect("a temporary home");
-        cx.update(|cx| {
-            cx.set_global(theme::ActiveTheme::default());
-            input::init(cx);
-            crate::editor::actions::register(cx);
-            register_workbench_actions(cx);
-            cx.set_global(UiStorage::default());
-            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
-            super::super::menu::init(cx);
-            crate::terminal::test_support::isolate_shells(home.path(), cx);
-        });
-        home
-    }
 
     /// A project of `files` (path, text) in an active window, trusted when `trusted` says so.
     fn project<'a>(
@@ -1136,21 +1200,6 @@ mod tests {
         (status.decided, status.trusted)
     }
 
-    /// Asks the trust question for `path` in the window; the cell gets the answer.
-    fn ask_trust(workbench: &Entity<Workbench>, path: &Path, cx: &mut VisualTestContext) -> Rc<Cell<Option<bool>>> {
-        let answer: Rc<Cell<Option<bool>>> = Rc::default();
-        let (shown, path) = (Rc::clone(&answer), path.to_path_buf());
-        workbench.update_in(cx, |_, window, cx| {
-            cx.spawn_in(window, async move |this, cx| {
-                let open = confirm_project_trust(&this, cx, &path).await.unwrap_or(false);
-                shown.set(Some(open));
-            })
-            .detach();
-        });
-        cx.run_until_parked();
-        answer
-    }
-
     /// The text field of the window's prompt dialog gets `text` in place of what it holds.
     fn type_in_prompt(workbench: &Entity<Workbench>, text: &str, cx: &mut VisualTestContext) {
         let prompt = workbench.read_with(cx, |w, _| w.vcs_dialog_view::<PromptDialog>()).expect("a prompt is open");
@@ -1184,6 +1233,37 @@ mod tests {
         close(cx);
     }
 
+    /// An empty, active window: what a user sees before opening a project.
+    fn empty_window(cx: &mut TestAppContext) -> (Entity<Workbench>, &mut VisualTestContext) {
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        (workbench, cx)
+    }
+
+    /// A new folder nobody decided about, with a file in it.
+    fn undecided_folder() -> (tempfile::TempDir, PathBuf) {
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("main.rs"), "fn main() {}\n").expect("the file is written");
+        (folder, root)
+    }
+
+    /// Opens `path` the way the user does (Open, Open Recent, the Welcome screen), through the
+    /// window's open flow.
+    fn open_through_the_flow(path: &Path, cx: &mut VisualTestContext) {
+        run_action(cx, "file.openProjectPath", Some(Value::from(path.to_string_lossy().into_owned())));
+    }
+
+    /// The folder the window's trust question asks about, while one is shown.
+    fn asked_about(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<String> {
+        let dialog = workbench.read_with(cx, |w, _| w.trust_dialog())?;
+        Some(dialog.read_with(cx, |dialog, _| dialog.path().to_owned()))
+    }
+
+    fn shown_root(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<PathBuf> {
+        workbench.read_with(cx, |w, cx| w.project_root(cx))
+    }
+
     // src/features/project-trust/trust.test.tsx › offers three choices, cancels without a trust decision, and
     // supports restricted preview
     #[gpui_kit::test]
@@ -1191,25 +1271,45 @@ mod tests {
         cx: &mut TestAppContext,
     ) {
         let _home = start(cx);
-        let (_folder, _root, workbench, cx) = project(cx, true, &[("main.rs", "fn main() {}\n")]);
-        let other = tempfile::tempdir().expect("a temporary folder");
-        let new = other.path().canonicalize().expect("the folder exists");
-        let answer = ask_trust(&workbench, &new, cx);
-        let dialog = workbench.read_with(cx, |w, _| w.trust_dialog()).expect("the question is shown");
-        assert_eq!(dialog.read_with(cx, |d, _| d.path().to_owned()), new.to_string_lossy());
-        run_action(cx, "project.dontOpen", None);
-        assert_eq!(answer.get(), Some(false));
-        assert!(workbench.read_with(cx, |w, _| w.trust_dialog()).is_none(), "the question is closed");
-        assert_eq!(trust_of(&new, cx), (false, false), "Don't Open decides nothing");
-        let answer = ask_trust(&workbench, &new, cx);
+        let (_folder, root) = undecided_folder();
+        let (workbench, cx) = empty_window(cx);
+        let wanted = root.to_string_lossy().into_owned();
+
+        // Don't Open: nothing opens and nothing is decided.
+        open_through_the_flow(&root, cx);
+        wait_long(cx, "the question is shown", |cx| asked_about(&workbench, cx).is_some());
+        assert_eq!(asked_about(&workbench, cx).as_deref(), Some(wanted.as_str()));
+        for selector in ["trust-button-project.previewRestricted", "trust-button-project.dontOpen"] {
+            assert!(cx.debug_bounds(selector).is_some(), "{selector} is drawn");
+        }
+        assert!(cx.debug_bounds("trust-button-project.trust").is_some());
+        assert!(shown_root(&workbench, cx).is_none(), "the project waits for the answer");
+        click_on(cx, "trust-button-project.dontOpen");
+        assert!(asked_about(&workbench, cx).is_none(), "the question is closed");
+        assert!(shown_root(&workbench, cx).is_none() && workbench.read_with(cx, |w, _| w.welcome().is_some()));
+        assert_eq!(trust_of(&root, cx), (false, false), "Don't Open decides nothing");
+        let name = root.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+        let reported = notification_titles(&workbench, cx).into_iter().any(|title| title.contains(&name));
+        assert!(!reported, "a cancelled opening reports nothing");
+
+        // Preview in Restricted Mode: the project opens with its commands and tools off.
+        open_through_the_flow(&root, cx);
+        wait_long(cx, "the question is shown again", |cx| asked_about(&workbench, cx).is_some());
         click_on(cx, "trust-button-project.previewRestricted");
-        wait_long(cx, "the preview is decided", |_| answer.get().is_some());
-        assert_eq!(answer.get(), Some(true), "it opens in Restricted Mode");
-        assert_eq!(trust_of(&new, cx), (true, false));
+        wait_long(cx, "the project opens", |cx| shown_root(&workbench, cx).as_deref() == Some(&*root));
+        assert!(restricted(&workbench, cx), "it opens in Restricted Mode");
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("restricted-banner").is_some(), "the banner is drawn");
+        assert_eq!(trust_of(&root, cx), (true, false));
+
         // Decided: the next opening asks nothing.
-        let again = ask_trust(&workbench, &new, cx);
-        wait_long(cx, "the decision is read", |_| again.get().is_some());
-        assert!(workbench.read_with(cx, |w, _| w.trust_dialog()).is_none());
+        run_action(cx, "file.closeProject", None);
+        assert!(shown_root(&workbench, cx).is_none());
+        open_through_the_flow(&root, cx);
+        wait_long(cx, "the project opens without a question", |cx| {
+            shown_root(&workbench, cx).as_deref() == Some(&*root)
+        });
+        assert!(asked_about(&workbench, cx).is_none() && restricted(&workbench, cx));
         close(cx);
     }
 
@@ -1217,24 +1317,74 @@ mod tests {
     #[gpui_kit::test]
     async fn saves_the_parent_folder_choice_and_reuses_a_persisted_decision(cx: &mut TestAppContext) {
         let _home = start(cx);
-        let (_folder, _root, workbench, cx) = project(cx, true, &[("main.rs", "fn main() {}\n")]);
         let projects = tempfile::tempdir().expect("a temporary folder");
         let parent = projects.path().canonicalize().expect("the folder exists");
         for name in ["new", "other"] {
             std::fs::create_dir(parent.join(name)).expect("the folder is made");
         }
-        let answer = ask_trust(&workbench, &parent.join("new"), cx);
+        let (workbench, cx) = empty_window(cx);
+        open_through_the_flow(&parent.join("new"), cx);
+        wait_long(cx, "the question is shown", |cx| asked_about(&workbench, cx).is_some());
+        let named = workbench.read_with(cx, |w, cx| w.trust_dialog().map(|d| d.read(cx).parent().to_owned()));
+        assert_eq!(named.as_deref(), Some(&*parent.to_string_lossy()), "the checkbox names the parent folder");
         click_on(cx, "trust-folder");
-        run_action(cx, "project.trust", None);
-        wait_long(cx, "the project is trusted", |_| answer.get().is_some());
-        assert_eq!(answer.get(), Some(true));
+        click_on(cx, "trust-button-project.trust");
+        wait_long(cx, "the project opens", |cx| shown_root(&workbench, cx).as_deref() == Some(&*parent.join("new")));
+        assert!(!restricted(&workbench, cx), "a trusted project runs its tools");
         let decisions = cx.update(|_, cx| cx.global::<Backend>().host.trust.decisions()).expect("the decisions read");
         assert!(decisions.locations.contains(&parent), "{:?}", decisions.locations);
-        let other = ask_trust(&workbench, &parent.join("other"), cx);
-        wait_long(cx, "the decision is read", |_| other.get().is_some());
-        assert_eq!(other.get(), Some(true));
-        assert!(workbench.read_with(cx, |w, _| w.trust_dialog()).is_none(), "nothing is asked");
+        assert!(decisions.projects.contains(&parent.join("new")), "{:?}", decisions.projects);
+
+        // A sibling is trusted for being in that folder: nothing is asked.
+        run_action(cx, "file.closeProject", None);
+        open_through_the_flow(&parent.join("other"), cx);
+        wait_long(cx, "the sibling opens", |cx| shown_root(&workbench, cx).as_deref() == Some(&*parent.join("other")));
+        assert!(asked_about(&workbench, cx).is_none(), "nothing is asked");
+        assert!(!restricted(&workbench, cx));
         close(cx);
+    }
+
+    /// A project that opens in a window of its own (New Window, Open in New Window) is asked about
+    /// in that window; the window it was asked from shows nothing new.
+    #[gpui_kit::test]
+    async fn a_project_opening_in_a_new_window_is_asked_about_in_that_window(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        // Windows opened through `windows::open_window`, as the app does.
+        cx.update(gpui_kit::init);
+        let (_folder, root) = undecided_folder();
+        let workbench_of = |handle: AnyWindowHandle, cx: &App| -> Option<Entity<Workbench>> {
+            cx.global::<Workbenches>().0.get(&handle.window_id())?.upgrade()
+        };
+        let main = cx.update(|cx| windows::open_window(Target::Empty, cx)).expect("a window opens");
+        let request = serde_json::json!({ "path": root.to_string_lossy(), "newWindow": true });
+        main.update(cx, |_, window, cx| execute_action_or_throw("file.openProjectPath", Some(&request), window, cx))
+            .expect("the window is open")
+            .expect("the action runs");
+        let mut visual = VisualTestContext::from_window(main, cx);
+        wait_long(&mut visual, "the second window asks", |cx| {
+            cx.update(|_, cx| {
+                windows::windows(cx)
+                    .into_iter()
+                    .any(|(_, handle)| workbench_of(handle, cx).is_some_and(|w| w.read(cx).trust_dialog().is_some()))
+            })
+        });
+        let (label, second) = cx
+            .update(|cx| windows::windows(cx).into_iter().find(|(_, handle)| handle.window_id() != main.window_id()))
+            .expect("a second window opened");
+        assert_eq!(label, "project-1");
+        let first = cx.update(|cx| workbench_of(main, cx)).expect("the first window's workbench");
+        assert!(cx.update(|cx| first.read(cx).trust_dialog().is_none()), "the first window asks nothing");
+
+        let mut there = VisualTestContext::from_window(second, cx);
+        click_on(&mut there, "trust-button-project.trust");
+        let opened = cx.update(|cx| workbench_of(second, cx)).expect("the second window's workbench");
+        wait_long(&mut there, "the project opens there", |cx| {
+            opened.read_with(cx, |w, cx| w.project_root(cx)).as_deref() == Some(&*root)
+        });
+        assert!(!opened.read_with(&mut there, |w, cx| w.project_restricted(cx)));
+        assert_eq!(trust_of(&root, &mut there), (true, true));
+        assert!(cx.update(|cx| first.read(cx).project_root(cx).is_none()));
+        cx.update(|cx| cx.global::<Backend>().host.close_project(&label));
     }
 
     /// Revoke Trust puts the window's project back in Restricted Mode, and removing the trusted
@@ -1384,8 +1534,10 @@ mod tests {
         assert!(workbench.read_with(cx, |w, _| w.about_dialog()).is_none());
     }
 
-    /// File › New Project… creates the folder in the chosen location and opens it here, the window
-    /// having no project; a folder that is not empty stays an error in the dialog.
+    /// File › New Project… proposes Settings › Default Project Directory, refuses a folder that
+    /// exists and is not empty (the error stays in the dialog, the folder is untouched), creates an
+    /// empty one and opens it here, the window having no project: the new folder is undecided, so
+    /// its opening asks "Trust and Open Project?" first.
     #[gpui_kit::test]
     async fn new_project_creates_the_folder_and_opens_it(cx: &mut TestAppContext) {
         let _home = start(cx);
@@ -1393,36 +1545,43 @@ mod tests {
         let parent = location.path().canonicalize().expect("the folder exists");
         std::fs::create_dir(parent.join("taken")).expect("the folder is made");
         std::fs::write(parent.join("taken/a.txt"), "a\n").expect("the file is written");
-        // Projects made here are trusted: the opening asks nothing.
-        cx.update(|cx| cx.global::<Backend>().host.trust.add_location(&parent)).expect("the location is added");
+        let preset = Value::from(parent.to_string_lossy().into_owned());
+        cx.update(|cx| settings::set("w1", SettingsScope::Global, "general.defaultProjectDirectory", &preset, cx))
+            .expect("the setting is written");
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         cx.update(|window, _| window.activate_window());
         run_action(cx, "file.newProject", None);
         let dialog = workbench.read_with(cx, |w, _| w.new_project_dialog()).expect("New Project is open");
-        let set = |cx: &mut VisualTestContext, name: &str| {
-            let (name_field, location_field) =
-                dialog.read_with(cx, |d, _| (d.name_field().clone(), d.location_field().clone()));
-            name_field.update(cx, |f, cx| f.set_text(name, cx));
-            location_field.update(cx, |f, cx| f.set_text(&parent.to_string_lossy(), cx));
+        let (name_field, location_field) =
+            dialog.read_with(cx, |d, _| (d.name_field().clone(), d.location_field().clone()));
+        let proposed = location_field.read_with(cx, |field, _| field.text().to_owned());
+        assert_eq!(proposed, parent.to_string_lossy(), "the dialog proposes the default project directory");
+        let name = |cx: &mut VisualTestContext, name: &str| {
+            name_field.update(cx, |field, cx| field.set_text(name, cx));
             cx.run_until_parked();
         };
         // Git is left out: the backend's git would read this machine's configuration.
         click_on(cx, "new-project-git");
-        set(cx, "taken");
+        name(cx, "taken");
         click_on(cx, "new-project-create");
         wait_long(cx, "the error shows", |cx| dialog.read_with(cx, |d, _| d.error().is_some()));
         let error = dialog.read_with(cx, |d, _| d.error().map(str::to_owned)).unwrap_or_default();
-        assert!(error.ends_with("already exists and is not empty"), "{error}");
+        assert_eq!(error, format!("{} already exists and is not empty", parent.join("taken").display()));
+        let left: Vec<_> = std::fs::read_dir(parent.join("taken")).expect("readable").flatten().collect();
+        assert_eq!(left.len(), 1, "the folder that exists is left as it is");
 
-        set(cx, "demo");
+        name(cx, "demo");
         click_on(cx, "new-project-create");
         let created = parent.join("demo");
+        wait_long(cx, "the new folder is asked about", |cx| workbench.read_with(cx, |w, _| w.trust_dialog().is_some()));
+        assert!(created.is_dir() && workbench.read_with(cx, |w, _| w.new_project_dialog()).is_none());
+        click_on(cx, "trust-button-project.trust");
         wait_long(cx, "the project opens", |cx| {
             workbench.read_with(cx, |w, cx| w.project_root(cx)).is_some_and(|root| root == created)
         });
-        assert!(created.is_dir());
         assert!(!created.join(".git").exists(), "no repository was asked for");
-        assert!(workbench.read_with(cx, |w, _| w.new_project_dialog()).is_none(), "the dialog is closed");
+        let entries = std::fs::read_dir(&parent).expect("readable").flatten().count();
+        assert_eq!(entries, 2, "only the new folder was made in the location");
         close(cx);
     }
 
@@ -1480,8 +1639,140 @@ mod tests {
         close(cx);
     }
 
-    // src/features/app/__tests__/newProject.test.ts › Manage IDE Settings › Export Settings… › exports templates,
-    // macros, layouts and view options, not per-project state
+    /// Invalidate Caches deletes, at the next start, only the cache folders under the app's own
+    /// directories: everything else in them, and anything outside them, stays.
+    #[gpui_kit::test]
+    async fn invalidating_every_cache_removes_only_the_apps_cache_folders(cx: &mut TestAppContext) {
+        use ide_workspace::caches::apply_pending;
+        let home = start(cx);
+        let outside = tempfile::tempdir().expect("a temporary folder");
+        // No project is open: nothing writes to the caches while they are planted and removed.
+        let (workbench, cx) = empty_window(cx);
+        let relaunched = record_relaunches(cx);
+        let dirs = cx.update(|_, cx| cx.global::<Backend>().dirs.clone());
+        let caches = [
+            dirs.local_data.join("index"),
+            dirs.data.join("history"),
+            dirs.local_data.join("lsp"),
+            dirs.local_data.join("cache"),
+            dirs.data.join("index"),
+            dirs.data.join("lsp"),
+            dirs.data.join("cache"),
+        ];
+        for cache in &caches {
+            std::fs::create_dir_all(cache).expect("the cache folder is made");
+            std::fs::write(cache.join("entry"), "cached\n").expect("the cache entry is written");
+        }
+        let kept = [
+            outside.path().join("index/sentinel"),
+            outside.path().join("sentinel"),
+            home.path().join("sentinel"),
+            dirs.config.join("sentinel"),
+            dirs.data.join("sentinel"),
+            dirs.local_data.join("tools/sentinel"),
+        ];
+        for sentinel in &kept {
+            std::fs::create_dir_all(sentinel.parent().expect("a folder")).expect("the folder is made");
+            std::fs::write(sentinel, "keep\n").expect("the sentinel is written");
+        }
+        run_action(cx, "file.invalidateCaches", None);
+        for option in ["invalidate-local-history", "invalidate-language-servers", "invalidate-build-caches"] {
+            click_on(cx, option);
+        }
+        click_on(cx, "invalidate-and-restart");
+        wait_long(cx, "the app restarts", |_| relaunched.get() == 1);
+        assert!(workbench.read_with(cx, |w, _| w.invalidate_caches_dialog()).is_none());
+        // What the next start does before any project opens.
+        let removed = apply_pending(&dirs.data, &dirs.local_data);
+        assert_eq!(removed, caches, "exactly the cache folders are removed");
+        assert!(caches.iter().all(|cache| !cache.exists()));
+        for sentinel in &kept {
+            assert_eq!(std::fs::read_to_string(sentinel).ok().as_deref(), Some("keep\n"), "{}", sentinel.display());
+        }
+        assert!(apply_pending(&dirs.data, &dirs.local_data).is_empty(), "the invalidation runs once");
+    }
+
+    /// Import Settings… refuses a file that is not a settings bundle with the backend's reason, and
+    /// leaves the global settings and the UI state as they were.
+    #[gpui_kit::test]
+    async fn importing_a_file_that_is_not_a_settings_bundle_changes_nothing(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, _root, workbench, cx) = project(cx, true, &[("main.rs", "fn main() {}\n")]);
+        let out = tempfile::tempdir().expect("a temporary folder");
+        cx.update(|_, cx| {
+            cx.global_mut::<UiStorage>().set("openidea.macros.v1", "{\"last\":[]}".to_owned());
+            settings::set("w1", SettingsScope::Global, "general.powerSaveMode", &Value::Bool(true), cx)
+                .expect("the setting is written");
+        });
+        let global_file = cx.update(|_, cx| cx.global::<Backend>().dirs.config.join("settings.toml"));
+        let before = std::fs::read(&global_file).expect("the global settings are on disk");
+        let newer = serde_json::json!({ "format": "openidea-settings", "version": 99, "settings": "" });
+        // The file, and the start of the reason the refusal gives (the backend's own text).
+        let cases = [
+            ("broken.json", "{ not json".to_owned(), "not an OpenIDEA settings file: "),
+            ("newer.json", newer.to_string(), "not an OpenIDEA settings file, or one from a newer version"),
+        ];
+        for (name, text, reason) in cases {
+            let file = out.path().join(name);
+            std::fs::write(&file, text).expect("the file is written");
+            run_action(cx, "file.importSettings", None);
+            cx.simulate_path_prompt_response(move |_| Some(vec![file]));
+            let refused = |cx: &mut VisualTestContext| {
+                workbench.read_with(cx, |w, _| {
+                    w.notifications().items().iter().any(|n| {
+                        n.title == "Cannot import settings" && n.body.as_deref().is_some_and(|b| b.starts_with(reason))
+                    })
+                })
+            };
+            wait_long(cx, name, refused);
+        }
+        assert_eq!(std::fs::read(&global_file).expect("readable"), before, "the global settings are untouched");
+        assert!(cx.update(|_, cx| settings::global(cx).general.power_save_mode));
+        let macros = cx.update(|_, cx| cx.global::<UiStorage>().get("openidea.macros.v1").map(str::to_owned));
+        assert_eq!(macros.as_deref(), Some("{\"last\":[]}"));
+        assert!(!notification_titles(&workbench, cx).contains(&"Settings imported".to_owned()));
+        close(cx);
+    }
+
+    /// Restore Default Layout's key (⇧F12) needs an open project: it does nothing in a window
+    /// without one, and restores the default layout in a project.
+    #[gpui_kit::test]
+    async fn the_restore_default_layout_key_works_only_with_a_project(cx: &mut TestAppContext) {
+        use super::super::tool_windows::LayoutSnapshot;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("trusted");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        cx.update(|_, cx| {
+            let mut layouts = NamedLayouts::default();
+            assert!(layouts.save("Coding", LayoutSnapshot::default()));
+            store_named_layouts(&layouts, cx);
+        });
+        let active = |cx: &mut VisualTestContext| cx.update(|_, cx| named_layouts(cx).active().map(str::to_owned));
+        cx.simulate_keystrokes("shift-f12");
+        cx.run_until_parked();
+        assert_eq!(active(cx).as_deref(), Some("Coding"), "without a project the key does nothing");
+        let refused = cx.update(|window, cx| execute_action_or_throw("layout.restoreDefault", None, window, cx));
+        assert!(refused.is_err(), "the action is unavailable without a project");
+
+        workbench.update_in(cx, |w, window, cx| w.open_project(root.clone(), window, cx));
+        wait_long(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        let visible =
+            |cx: &mut VisualTestContext, id: &str| workbench.read_with(cx, |w, _| w.is_tool_window_visible(id));
+        run_action(cx, "toolwindow.run", None);
+        workbench.update_in(cx, |w, window, cx| w.with_layout(window, cx, |layout| layout.hide("project")));
+        assert!(!visible(cx, "project") && visible(cx, RUN_TOOL_WINDOW));
+        cx.simulate_keystrokes("shift-f12");
+        cx.run_until_parked();
+        assert!(visible(cx, "project") && !visible(cx, RUN_TOOL_WINDOW), "the default layout is back");
+        assert_eq!(active(cx), None);
+        close(cx);
+    }
+
+    // src/features/app/__tests__/newProject.test.ts › Manage IDE Settings › Export Settings… › exports
+    // templates, macros, layouts and view options, not per-project state
     #[gpui_kit::test]
     async fn exports_templates_macros_layouts_and_view_options_not_per_project_state(cx: &mut TestAppContext) {
         let _home = start(cx);
