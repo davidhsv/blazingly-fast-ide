@@ -94,6 +94,15 @@ impl SecretField {
         self.text(cx).chars().map(|_| BULLET).collect()
     }
 
+    /// The text the field paints: the bullets before, inside and after the selection. Rendering
+    /// draws these and the placeholder only.
+    pub fn painted(&self, cx: &App) -> [SharedString; 3] {
+        let bullets: Vec<char> = self.shown(cx).chars().collect();
+        let selection = self.char_selection(cx);
+        let part = |range: Range<usize>| SharedString::from(bullets[range].iter().collect::<String>());
+        [part(0..selection.start), part(selection.clone()), part(selection.end..bullets.len())]
+    }
+
     /// The selection, in characters.
     fn char_selection(&self, cx: &App) -> Range<usize> {
         let state = self.state.read(cx);
@@ -261,12 +270,10 @@ impl EntityInputHandler for SecretField {
 
 impl Render for SecretField {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let bullets: Vec<char> = self.shown(cx).chars().collect();
         let focused = self.focus.is_focused(window);
-        let selection = self.char_selection(cx);
-        let part = |range: Range<usize>| SharedString::from(bullets[range].iter().collect::<String>());
+        let [before, selection, after] = self.painted(cx);
         let caret = focused.then(|| div().flex_none().w(px(1.5)).h(px(16.0)).bg(theme::color(cx, "caret")));
-        let content = if bullets.is_empty() {
+        let content = if before.is_empty() && selection.is_empty() && after.is_empty() {
             div()
                 .flex()
                 .items_center()
@@ -278,10 +285,10 @@ impl Render for SecretField {
                 .flex()
                 .items_center()
                 .text_color(theme::color(cx, "fg-strong"))
-                .child(part(0..selection.start))
+                .child(before)
                 .when(selection.is_empty(), |el| el.children(caret))
-                .when(!selection.is_empty(), |el| el.child(div().bg(selected).child(part(selection.clone()))))
-                .child(part(selection.end..bullets.len()))
+                .when(!selection.is_empty(), |el| el.child(div().bg(selected).child(selection)))
+                .child(after)
         };
         let entity = cx.entity();
         let focus = self.focus.clone();
@@ -368,18 +375,35 @@ mod tests {
         assert_eq!(text(&field, cx), "");
     }
 
-    // Not from a spec: copy and cut leave the clipboard as it was and the text in place; paste inserts the
+    fn painted(field: &Entity<SecretField>, cx: &mut VisualTestContext) -> [SharedString; 3] {
+        field.read_with(cx, |field, cx| field.painted(cx))
+    }
+
+    fn only_bullets(parts: &[SharedString; 3]) -> bool {
+        parts.iter().all(|part| part.chars().all(|c| c == BULLET))
+    }
+
+    // src/features/plugins/secrets.tsx (`type="password"`): the value is masked as typed and while
+    // selected, copy and cut leave the clipboard as it was and the text in place; paste inserts the
     // clipboard's text.
     #[gpui_kit::test]
     async fn copy_and_cut_put_nothing_on_the_clipboard_and_paste_inserts(cx: &mut TestAppContext) {
         let (field, _, cx) = field(cx);
         cx.simulate_input("hunter2");
+        let typed = painted(&field, cx);
+        assert!(only_bullets(&typed), "{typed:?}");
+        assert_eq!(typed.iter().map(|part| part.chars().count()).sum::<usize>(), "hunter2".len());
         cx.write_to_clipboard(ClipboardItem::new_string("before".to_owned()));
-        cx.simulate_keystrokes("cmd-a cmd-c");
+        cx.simulate_keystrokes("cmd-a");
+        let selected = painted(&field, cx);
+        assert!(only_bullets(&selected) && selected[1].chars().count() == "hunter2".len(), "{selected:?}");
+        cx.simulate_keystrokes("cmd-c");
         assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("before"));
         cx.simulate_keystrokes("cmd-a cmd-x");
         assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("before"));
         assert_eq!(text(&field, cx), "hunter2", "cut removes nothing");
+        let debug = field.read_with(cx, |field, _| format!("{field:?}"));
+        assert!(!debug.contains("hunter2"), "{debug}");
         cx.write_to_clipboard(ClipboardItem::new_string("pasted".to_owned()));
         cx.simulate_keystrokes("cmd-a cmd-v");
         assert_eq!(text(&field, cx), "pasted");

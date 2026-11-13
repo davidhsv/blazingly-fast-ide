@@ -152,20 +152,14 @@ fn capabilities_from<T: serde::Serialize>(capabilities: &T) -> Vec<Capability> {
 }
 
 /// Registers the Plugins actions that drive a page outside the open dialogs: Install Plugin from
-/// Disk… (the argument is a folder, its `plugin.toml` or a package file; none: a picker), Update
-/// All Plugins and Reload Plugins. None has a condition.
+/// Disk… (the argument is a folder, its `plugin.toml` or a package file; none: a picker) and Reload
+/// Plugins. Neither has a condition.
 pub(super) fn register_actions(registry: &mut ActionRegistry) {
     registry.handle("plugins.installFromDisk", |call, window, cx| {
         let path = call.arg.and_then(Value::as_str).map(str::to_owned);
         on_workbench(window, cx, move |workbench, window, cx| match workbench.action_plugins_page(window, cx) {
             Some(page) => page.update(cx, |page, cx| page.install_from_disk(path.as_deref(), false, true, cx)),
             None => tracing::info!("Plugins: this window has no plugin host to install with"),
-        })
-    });
-    registry.handle("plugins.updateAll", |_, window, cx| {
-        on_workbench(window, cx, |workbench, window, cx| match workbench.action_plugins_page(window, cx) {
-            Some(page) => page.update(cx, |page, cx| page.update_all(cx)),
-            None => tracing::info!("Plugins: this window has no plugin host to update with"),
         })
     });
     registry.handle("plugins.reloadAll", |_, window, cx| {
@@ -833,11 +827,20 @@ pub(crate) fn test_plugin_host(dir: &Path) -> (Arc<PluginHost>, Arc<test_support
     (Arc::new(host), secrets)
 }
 
+/// What the tests of plugin features share: copies of the fixture plugins in a temporary home, the
+/// app's plugin host started there, linking a copy, and a trusted project in an active window.
 #[cfg(test)]
 pub(crate) mod test_support {
-    use ide_host::plugins::SecretStore;
+    use super::super::Workbench;
+    use crate::backend::Backend;
+    use crate::platform::actions::ActionRegistry;
+    use crate::plugins::{Plugins, plugin_action_id};
+    use gpui_kit::{App, Entity, TestAppContext, VisualTestContext};
+    use ide_host::plugins::{Consent, SecretStore};
     use parking_lot::Mutex;
     use std::collections::HashMap;
+    use std::path::{Path, PathBuf};
+    use std::time::Duration;
 
     /// Secrets kept in memory, by (plugin, name).
     #[derive(Default)]
@@ -892,19 +895,115 @@ pub(crate) mod test_support {
             self.clone()
         }
     }
+
+    /// The repository, for the fixture plugins checked into it (only ever read).
+    pub fn repo() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("..")
+    }
+
+    /// Copies the folder `from` into `to`, recursively, without build output (`target`) or `.git`.
+    pub fn copy_dir(from: &Path, to: &Path) {
+        std::fs::create_dir_all(to).expect("the folder is made");
+        for entry in std::fs::read_dir(from).expect("the fixture is readable").flatten() {
+            let (source, target) = (entry.path(), to.join(entry.file_name()));
+            if source.is_dir() {
+                if entry.file_name() == "target" || entry.file_name() == ".git" {
+                    continue;
+                }
+                copy_dir(&source, &target);
+            } else {
+                std::fs::copy(&source, &target).expect("the file is copied");
+            }
+        }
+    }
+
+    /// A copy of the fixture plugin `name` (under `crates/ide-plugin/tests/fixtures`, else
+    /// `plugins/official`) at `<home>/fixtures/<name>`, its manifest rewritten by `edit`.
+    pub fn plugin_copy(home: &Path, name: &str, edit: impl Fn(&str) -> String) -> PathBuf {
+        let fixture = repo().join("crates/ide-plugin/tests/fixtures").join(name);
+        let source = if fixture.is_dir() { fixture } else { repo().join("plugins/official").join(name) };
+        let target = home.join("fixtures").join(name);
+        copy_dir(&source, &target);
+        let manifest = target.join("plugin.toml");
+        let text = std::fs::read_to_string(&manifest).expect("the manifest is readable");
+        std::fs::write(&manifest, edit(&text)).expect("the manifest is written");
+        target
+    }
+
+    /// The workbench tests' temporary home with the app's plugin host started in it, once its first
+    /// listing is in. The host keeps plugin secrets in files under the home.
+    pub fn start_with_plugins(cx: &mut TestAppContext) -> tempfile::TempDir {
+        let home = crate::workbench::tests::start(cx);
+        cx.update(|cx| {
+            crate::theme::appearance::init(cx);
+            Plugins::init(cx).expect("the plugin host starts");
+        });
+        settle_app(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());
+        home
+    }
+
+    /// Waits up to ten seconds for `done`, letting the app's tasks run.
+    pub fn settle_app(cx: &mut TestAppContext, what: &str, done: impl Fn(&mut App) -> bool) {
+        for _ in 0..1000 {
+            cx.run_until_parked();
+            if cx.update(|cx| done(cx)) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("{what}: not within ten seconds");
+    }
+
+    /// Links `folder` on the app's plugin host and agrees to it with its required capabilities and
+    /// `optional`; waits until its command `command` is an action. Returns the plugin's id.
+    pub fn link(cx: &mut TestAppContext, folder: &Path, optional: &[&str], command: &str) -> String {
+        let id = cx.update(|cx| {
+            let host = cx.global::<Plugins>().host.clone();
+            let info = host.link(folder).expect("the plugin links");
+            let consent =
+                Consent { optional: optional.iter().map(|c| (*c).to_owned()).collect(), signer_change: false };
+            let info = host.grant(&info.id, &consent).expect("consent is recorded");
+            assert_eq!(info.error, None, "the plugin loads");
+            info.id
+        });
+        let action = plugin_action_id(&id, command);
+        settle_app(cx, "the plugin's commands are actions", |cx| cx.global::<ActionRegistry>().contains(&action));
+        id
+    }
+
+    /// A trusted project of `files` (path, text), open in an active window known as `label`.
+    pub fn trusted_project<'a>(
+        cx: &'a mut TestAppContext,
+        label: &str,
+        files: &[(&str, &str)],
+    ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &'a mut VisualTestContext) {
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        for (path, text) in files {
+            let path = root.join(path);
+            std::fs::create_dir_all(path.parent().expect("a folder")).expect("the folder is made");
+            std::fs::write(path, text).expect("the file is written");
+        }
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new(label, window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        crate::workbench::tests::wait_long(cx, "the project opens", |cx| {
+            workbench.read_with(cx, |w, _| w.project_tree().is_some())
+        });
+        (folder, root, workbench, cx)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::test_support::CapturedLog;
+    use super::test_support::{CapturedLog, link, plugin_copy, start_with_plugins, trusted_project};
     use super::*;
-    use crate::backend::AppDirs;
-    use crate::platform::input;
-    use crate::platform::storage::UiStorage;
     use crate::plugin_models::consent::Risk;
     use crate::plugin_models::plugins_page::Section;
-    use crate::theme;
-    use gpui_kit::{Modifiers, TestAppContext, VisualTestContext};
+    use crate::workbench::tests::{click_on, run_action, start, wait_for_notice, wait_long};
+    use crate::workbench::welcome_pages::{CustomizeSelect, WelcomePage};
+    use gpui_kit::{ClipboardItem, TestAppContext, VisualTestContext};
     use ide_host::plugins::PluginStatus;
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -915,24 +1014,9 @@ mod tests {
     /// Typed as keystrokes: letters and digits only (a `-` would read as a modifier separator).
     const SECRET: &str = "sk5f3a9ctest";
 
-    fn official(name: &str) -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/official").join(name)
-    }
-
-    fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
-        cx.executor().allow_parking();
-        let home = tempfile::tempdir().expect("a temporary home");
-        cx.update(|cx| {
-            cx.set_global(theme::ActiveTheme::default());
-            input::init(cx);
-            crate::editor::actions::register(cx);
-            crate::workbench::register_actions(cx);
-            cx.set_global(UiStorage::default());
-            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
-            crate::workbench::menu::init(cx);
-            crate::terminal::test_support::isolate_shells(home.path(), cx);
-        });
-        home
+    /// A copy of fixture plugin `name` in the temporary home `home`.
+    fn fixture(home: &tempfile::TempDir, name: &str) -> PathBuf {
+        plugin_copy(home.path(), name, str::to_owned)
     }
 
     /// A window showing the Welcome screen whose Plugins page works on `host`, shown.
@@ -945,26 +1029,8 @@ mod tests {
         let host = Arc::clone(host);
         workbench.update_in(cx, |workbench, window, cx| workbench.use_plugin_host(host, window, cx));
         let page = workbench.read_with(cx, |w, _| w.welcome_plugins_page().cloned()).expect("the Plugins page");
-        click(cx, "welcome-nav-plugins");
+        click_on(cx, "welcome-nav-plugins");
         (workbench, page, cx)
-    }
-
-    fn settle(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..1000 {
-            cx.run_until_parked();
-            if done(cx) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        panic!("{what}: not within ten seconds");
-    }
-
-    fn click(cx: &mut VisualTestContext, selector: &'static str) {
-        cx.run_until_parked();
-        let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
-        cx.simulate_click(bounds.center(), Modifiers::default());
-        cx.run_until_parked();
     }
 
     fn listed(page: &Entity<PluginsPage>, id: &str, cx: &mut VisualTestContext) -> bool {
@@ -980,6 +1046,10 @@ mod tests {
         host.list(None).plugins.into_iter().find(|plugin| plugin.id == id)
     }
 
+    fn clipboard_text(cx: &mut VisualTestContext) -> Option<String> {
+        cx.read_from_clipboard().and_then(|item| item.text())
+    }
+
     /// The Debug output of every event the page emits from now on.
     fn record_events(page: &Entity<PluginsPage>, cx: &mut VisualTestContext) -> Rc<RefCell<Vec<String>>> {
         let seen: Rc<RefCell<Vec<String>>> = Rc::default();
@@ -992,8 +1062,9 @@ mod tests {
     }
 
     /// A secret typed into the Secrets section of a plugin is stored through the plugin host, and
-    /// the page then says it is stored. What the field paints is bullets; the value is in no
-    /// event's debug output, in no log line and in nothing the page lists.
+    /// the page then says it is stored. What the field paints is bullets, Copy and Cut leave the
+    /// clipboard alone, and the value is in no event's debug output, in no log line and in nothing
+    /// the page lists.
     #[gpui_kit::test]
     async fn a_secret_typed_into_the_page_is_stored_through_the_host_and_never_shown_emitted_or_logged(
         cx: &mut TestAppContext,
@@ -1005,26 +1076,34 @@ mod tests {
             .with_ansi(false)
             .finish();
         let _logging = tracing::subscriber::set_default(subscriber);
-        let _home = start(cx);
+        let home = start(cx);
         let dir = tempfile::tempdir().expect("a folder for the plugins");
         let (host, secrets) = test_plugin_host(dir.path());
-        host.install_from_dir(&official("ai-completion"), &Consent::all()).expect("the plugin installs");
+        host.install_from_dir(&fixture(&home, "ai-completion"), &Consent::all()).expect("the plugin installs");
         let (_workbench, page, cx) = plugins_window(cx, &host);
         let events = record_events(&page, cx);
-        settle(cx, "the plugin and its secret are listed", |cx| {
+        wait_long(cx, "the plugin and its secret are listed", |cx| {
             listed(&page, AI, cx) && secrets_section(&page, cx).is_some_and(|section| !section.secrets.is_empty())
         });
         let row = secrets_section(&page, cx).expect("the Secrets section").secrets[0].clone();
         assert_eq!((row.name.as_str(), row.set), ("api-key", false));
 
-        click(cx, "plugins-secret-field-api-key");
+        click_on(cx, "plugins-secret-field-api-key");
         cx.simulate_input(SECRET);
         let field = page.read_with(cx, |page, _| page.secret_input(AI, "api-key", false).cloned()).expect("the field");
         assert_eq!(field.read_with(cx, |field, cx| field.text(cx).to_owned()), SECRET);
         assert_eq!(field.read_with(cx, |field, cx| field.shown(cx)), "\u{2022}".repeat(SECRET.len()));
+        cx.write_to_clipboard(ClipboardItem::new_string("before".to_owned()));
+        cx.simulate_keystrokes("cmd-a");
+        let painted = field.read_with(cx, |field, cx| field.painted(cx));
+        assert!(painted.iter().all(|part| part.chars().all(|c| c == '\u{2022}')), "{painted:?}");
+        cx.simulate_keystrokes("cmd-c");
+        cx.simulate_keystrokes("cmd-x");
+        assert_eq!(clipboard_text(cx).as_deref(), Some("before"), "Copy and Cut leave the clipboard alone");
+        assert_eq!(field.read_with(cx, |field, cx| field.text(cx).to_owned()), SECRET, "Cut removes nothing");
         cx.simulate_keystrokes("enter");
-        settle(cx, "the secret is stored", |_| secrets.value(AI, "api-key").as_deref() == Some(SECRET));
-        settle(cx, "the page says it is stored", |cx| {
+        wait_long(cx, "the secret is stored", |_| secrets.value(AI, "api-key").as_deref() == Some(SECRET));
+        wait_long(cx, "the page says it is stored", |cx| {
             secrets_section(&page, cx).is_some_and(|section| section.secrets.first().is_some_and(|row| row.set))
         });
         assert_eq!(host.secrets(AI).expect("the secrets' state"), [("api-key".to_owned(), true)]);
@@ -1039,20 +1118,38 @@ mod tests {
         assert!(!logged.contains(SECRET), "the log names the secret: {logged}");
     }
 
+    /// The app's plugin host keeps a plugin's secrets in a file under the temporary home (never in
+    /// the login keychain): stored through the host, the secret is in that file and the host says
+    /// it is set.
+    #[gpui_kit::test]
+    async fn the_app_plugin_host_keeps_secrets_in_a_file_under_the_temporary_home(cx: &mut TestAppContext) {
+        let home = start_with_plugins(cx);
+        let folder = fixture(&home, "ai-completion");
+        let id = link(cx, &folder, &[], "toggle");
+        let host = cx.update(|cx| cx.global::<Plugins>().host.clone());
+        host.set_secret(&id, "api-key", Some(SECRET)).expect("the secret is stored");
+        assert_eq!(host.secrets(&id).expect("the secrets' state"), [("api-key".to_owned(), true)]);
+        let file = home.path().join("data/plugins/.data").join(&id).join("secrets.json");
+        let stored = std::fs::read_to_string(&file).unwrap_or_else(|error| panic!("{}: {error}", file.display()));
+        assert!(stored.contains("api-key"), "{stored}");
+        host.set_secret(&id, "api-key", None).expect("the secret is removed");
+        assert_eq!(host.secrets(&id).expect("the secrets' state"), [("api-key".to_owned(), false)]);
+    }
+
     /// Uninstall asks first; confirmed, the plugin is removed from the host and from the list.
     #[gpui_kit::test]
     async fn uninstall_asks_and_removes_the_plugin(cx: &mut TestAppContext) {
-        let _home = start(cx);
+        let home = start(cx);
         let dir = tempfile::tempdir().expect("a folder for the plugins");
         let (host, _) = test_plugin_host(dir.path());
-        host.install_from_dir(&official("string-tools"), &Consent::all()).expect("the plugin installs");
+        host.install_from_dir(&fixture(&home, "string-tools"), &Consent::all()).expect("the plugin installs");
         let (_workbench, page, cx) = plugins_window(cx, &host);
-        settle(cx, "the plugin is listed", |cx| listed(&page, STRING_TOOLS, cx));
-        click(cx, "plugins-details-uninstall");
+        wait_long(cx, "the plugin is listed", |cx| listed(&page, STRING_TOOLS, cx));
+        click_on(cx, "plugins-details-uninstall");
         assert!(cx.debug_bounds("plugins-details-confirm-uninstall").is_some(), "it asks first");
         assert!(installed(&host, STRING_TOOLS).is_some(), "nothing is removed before the answer");
-        click(cx, "plugins-details-confirm-uninstall");
-        settle(cx, "the plugin is gone", |cx| {
+        click_on(cx, "plugins-details-confirm-uninstall");
+        wait_long(cx, "the plugin is gone", |cx| {
             installed(&host, STRING_TOOLS).is_none() && !listed(&page, STRING_TOOLS, cx)
         });
     }
@@ -1060,21 +1157,37 @@ mod tests {
     /// The checkbox of a plugin's row disables it on the host, and enables it again.
     #[gpui_kit::test]
     async fn the_rows_checkbox_disables_and_enables_the_plugin(cx: &mut TestAppContext) {
-        let _home = start(cx);
+        let home = start(cx);
         let dir = tempfile::tempdir().expect("a folder for the plugins");
         let (host, _) = test_plugin_host(dir.path());
-        host.install_from_dir(&official("string-tools"), &Consent::all()).expect("the plugin installs");
+        host.install_from_dir(&fixture(&home, "string-tools"), &Consent::all()).expect("the plugin installs");
         let (_workbench, page, cx) = plugins_window(cx, &host);
-        settle(cx, "the plugin is listed", |cx| listed(&page, STRING_TOOLS, cx));
-        click(cx, "plugins-check-openidea.string-tools");
-        settle(cx, "the plugin is disabled", |_| installed(&host, STRING_TOOLS).is_some_and(|p| !p.enabled));
-        settle(cx, "the page is done with it", |cx| {
+        wait_long(cx, "the plugin is listed", |cx| listed(&page, STRING_TOOLS, cx));
+        click_on(cx, "plugins-check-openidea.string-tools");
+        wait_long(cx, "the plugin is disabled", |_| installed(&host, STRING_TOOLS).is_some_and(|p| !p.enabled));
+        wait_long(cx, "the page is done with it", |cx| {
             page.update(cx, |page, cx| page.details(cx)).is_some_and(|details| !details.busy)
         });
-        click(cx, "plugins-check-openidea.string-tools");
-        settle(cx, "the plugin is enabled", |_| {
+        click_on(cx, "plugins-check-openidea.string-tools");
+        wait_long(cx, "the plugin is enabled", |_| {
             installed(&host, STRING_TOOLS).is_some_and(|p| p.enabled && p.status != PluginStatus::Disabled)
         });
+    }
+
+    /// Reload Plugins reloads every listed plugin on the window's host; one whose folder no longer
+    /// loads is reported as "Could not reload <name>".
+    #[gpui_kit::test]
+    async fn reload_plugins_reports_a_plugin_that_no_longer_loads(cx: &mut TestAppContext) {
+        let home = start(cx);
+        let dir = tempfile::tempdir().expect("a folder for the plugins");
+        let (host, _) = test_plugin_host(dir.path());
+        let folder = fixture(&home, "hello");
+        host.link(&folder).expect("the plugin links");
+        let (workbench, page, cx) = plugins_window(cx, &host);
+        wait_long(cx, "the plugin is listed", |cx| listed(&page, "hello", cx));
+        std::fs::write(folder.join("plugin.toml"), "id = \n").expect("the manifest is broken");
+        run_action(cx, "plugins.reloadAll", None);
+        wait_for_notice(&workbench, "Could not reload Hello", cx);
     }
 
     /// Install Plugin from Disk… shows the install page with the high-risk permission first.
@@ -1083,36 +1196,139 @@ mod tests {
     async fn installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted(
         cx: &mut TestAppContext,
     ) {
-        let _home = start(cx);
+        let home = start(cx);
         let dir = tempfile::tempdir().expect("a folder for the plugins");
         let (host, _) = test_plugin_host(dir.path());
+        // `process:checkstyle` is resolved in an empty folder only, never on the user's PATH.
+        let bin = home.path().join("bin");
+        std::fs::create_dir_all(&bin).expect("the folder is made");
+        host.set_program_path(Arc::new(move || Some(bin.clone().into_os_string())));
+        let package = path_text(&fixture(&home, "checkstyle"));
         let (workbench, page, cx) = plugins_window(cx, &host);
         let consent = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.plugins_consent_dialog().cloned());
-        let package = path_text(&official("checkstyle"));
-        let install = |cx: &mut VisualTestContext| {
-            let arg = json!(package);
-            cx.update(|window, cx| {
-                crate::platform::actions::execute_action_or_throw("plugins.installFromDisk", Some(&arg), window, cx)
-            })
-            .expect("Install Plugin from Disk… runs");
-        };
 
-        install(cx);
-        settle(cx, "the install page shows", |cx| consent(cx).is_some());
+        run_action(cx, "plugins.installFromDisk", Some(json!(package)));
+        wait_long(cx, "the install page shows", |cx| consent(cx).is_some());
         let dialog = consent(cx).expect("the install page");
         let shown: Vec<(String, Risk)> =
             dialog.read_with(cx, |d, _| d.capabilities().iter().map(|c| (c.id.clone(), c.risk)).collect());
         assert_eq!(shown.first().map(|(id, risk)| (id.as_str(), *risk)), Some(("process:checkstyle", Risk::High)));
         assert!(shown.windows(2).all(|pair| pair[0].1 >= pair[1].1), "from the highest risk down: {shown:?}");
-        click(cx, "consent-button-cancel");
+        click_on(cx, "consent-button-cancel");
         assert!(consent(cx).is_none(), "Cancel closes the install page");
-        settle(cx, "the install is over", |cx| page.read_with(cx, |page, _| !page.installing()));
+        wait_long(cx, "the install is over", |cx| page.read_with(cx, |page, _| !page.installing()));
         assert!(installed(&host, CHECKSTYLE).is_none(), "declined, nothing is installed");
 
-        install(cx);
-        settle(cx, "the install page shows again", |cx| consent(cx).is_some());
-        click(cx, "consent-button-ok");
-        settle(cx, "the plugin is installed", |_| installed(&host, CHECKSTYLE).is_some());
-        settle(cx, "and listed", |cx| listed(&page, CHECKSTYLE, cx));
+        run_action(cx, "plugins.installFromDisk", Some(json!(package)));
+        wait_long(cx, "the install page shows again", |cx| consent(cx).is_some());
+        click_on(cx, "consent-button-ok");
+        wait_long(cx, "the plugin is installed", |_| installed(&host, CHECKSTYLE).is_some());
+        wait_long(cx, "and listed", |cx| listed(&page, CHECKSTYLE, cx));
+    }
+
+    /// Install Plugin from Disk… given a plugin folder's `plugin.toml` (src/features/plugins/store.ts,
+    /// `installFromDisk` and `packageFolder`) installs that folder on the app's plugin host from a
+    /// project window: the install page asks, and once accepted the plugin is listed on the page the
+    /// action drives and its commands are actions.
+    #[gpui_kit::test]
+    async fn install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions(
+        cx: &mut TestAppContext,
+    ) {
+        let home = start_with_plugins(cx);
+        let manifest = path_text(&fixture(&home, "hello").join("plugin.toml"));
+        let (_folder, _root, workbench, cx) = trusted_project(cx, "w1", &[("a.txt", "a\n")]);
+        let consent = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.plugins_consent_dialog().cloned());
+        let host = cx.update(|_, cx| cx.global::<Plugins>().host.clone());
+        run_action(cx, "plugins.installFromDisk", Some(json!(manifest)));
+        wait_long(cx, "the install page shows", |cx| consent(cx).is_some());
+        click_on(cx, "consent-button-ok");
+        wait_long(cx, "the plugin is installed", |_| installed(&host, "hello").is_some());
+        let page = workbench
+            .read_with(cx, |w, _| w.plugin_ui.background.as_ref().map(|hosted| hosted.page.clone()))
+            .expect("the page the action drives");
+        wait_long(cx, "the plugin is listed", |cx| listed(&page, "hello", cx));
+        let action = plugin_action_id("hello", "insert-date");
+        wait_long(cx, "its commands are actions", |cx| {
+            cx.update(|_, cx| cx.global::<ActionRegistry>().contains(&action))
+        });
+    }
+
+    /// The Welcome screen lists Projects and Customize, and Plugins only once the window has a plugin
+    /// host; Plugins then shows the Plugins page in place of the projects, and Projects brings them back.
+    #[gpui_kit::test]
+    async fn the_welcome_screen_lists_projects_and_customize_and_plugins_only_with_a_plugin_host(
+        cx: &mut TestAppContext,
+    ) {
+        let _home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+        let welcome = workbench.read_with(cx, |w, _| w.welcome().cloned()).expect("the Welcome screen shows");
+        let pages = |cx: &mut VisualTestContext| welcome.read_with(cx, |view, _| view.nav().pages());
+        assert_eq!(pages(cx), [WelcomePage::Projects, WelcomePage::Customize]);
+        assert!(cx.debug_bounds("welcome-nav-projects").is_some());
+        assert!(cx.debug_bounds("welcome-nav-customize").is_some());
+        assert!(cx.debug_bounds("welcome-nav-plugins").is_none(), "no plugin host, no Plugins");
+
+        let plugins = tempfile::tempdir().expect("a folder for the plugins");
+        let (host, _) = test_plugin_host(plugins.path());
+        workbench.update_in(cx, |w, window, cx| w.use_plugin_host(host, window, cx));
+        assert_eq!(pages(cx), [WelcomePage::Projects, WelcomePage::Customize, WelcomePage::Plugins]);
+        click_on(cx, "welcome-nav-plugins");
+        assert_eq!(welcome.read_with(cx, |view, _| view.nav().shown()), WelcomePage::Plugins);
+        assert!(cx.debug_bounds("plugins-tab-installed").is_some(), "the Plugins page is embedded");
+        assert!(cx.debug_bounds("welcome-brand").is_some(), "beside the sidebar");
+        click_on(cx, "welcome-nav-projects");
+        assert_eq!(welcome.read_with(cx, |view, _| view.nav().shown()), WelcomePage::Projects);
+        assert!(cx.debug_bounds("plugins-tab-installed").is_none());
+    }
+
+    /// Customize › Theme and IDE font write the global settings: the theme chosen is the one the
+    /// settings name and the windows are drawn with, and the font size is stored with "Use custom
+    /// font" on. The page then shows what is stored.
+    #[gpui_kit::test]
+    async fn customize_changes_the_theme_and_the_font_size_through_the_global_settings(cx: &mut TestAppContext) {
+        let home = start(cx);
+        cx.update(crate::theme::appearance::init);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        click_on(cx, "welcome-nav-customize");
+        let welcome = workbench.read_with(cx, |w, _| w.welcome().cloned()).expect("the Welcome screen shows");
+        let customize = welcome.read_with(cx, |view, _| view.customize().clone());
+        let dark = |cx: &mut VisualTestContext| cx.update(|_, cx| cx.global::<crate::theme::ActiveTheme>().is_dark());
+        assert!(!dark(cx));
+
+        click_on(cx, "customize-theme");
+        let choices = customize.update(cx, |page, cx| page.choices(CustomizeSelect::Theme, cx));
+        let index =
+            choices.iter().position(|choice| !choice.heading && choice.value == "dark").expect("Dark is offered");
+        let option: &'static str = Box::leak(format!("customize-option-{index}").into_boxed_str());
+        click_on(cx, option);
+        assert_eq!(cx.update(|_, cx| crate::platform::settings::global(cx).appearance.theme), "dark");
+        wait_long(cx, "the windows are drawn dark", &dark);
+
+        click_on(cx, "customize-font-size");
+        // The sizes start at 10: the sixth is 15.
+        click_on(cx, "customize-option-5");
+        let appearance = cx.update(|_, cx| crate::platform::settings::global(cx).appearance);
+        assert_eq!((appearance.ui_font_size, appearance.use_custom_font), (15.0, true));
+        let stored = std::fs::read_to_string(home.path().join("config/settings.toml")).unwrap_or_default();
+        assert!(stored.contains("uiFontSize") && stored.contains("useCustomFont = true"), "{stored}");
+        let shown = customize.read_with(cx, |page, _| page.view());
+        assert_eq!((shown.theme.as_str(), shown.font_size), ("dark", 15.0), "the page shows what is stored");
+    }
+
+    /// Customize › All settings… opens the Settings dialog over the Welcome screen.
+    #[gpui_kit::test]
+    async fn all_settings_on_customize_opens_the_settings_dialog(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        click_on(cx, "welcome-nav-customize");
+        let open = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.settings_dialog().is_some());
+        assert!(!open(cx));
+        click_on(cx, "customize-all-settings");
+        wait_long(cx, "All settings… opens Settings", &open);
+        assert!(workbench.read_with(cx, |w, _| w.welcome().is_some()), "over the Welcome screen");
     }
 }

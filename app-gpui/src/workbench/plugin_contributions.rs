@@ -6,8 +6,8 @@
 //! - **Runs.** A plugin's `run.start` reaches the window as a run request: its configuration starts
 //!   in the Run tool window. The backend tells the plugin when the process exits (the request's
 //!   operation travels in the configuration); a run that never started is reported here as ended
-//!   without a status. A debug request fails, visibly, while this window has no debugger a plugin's
-//!   session can be followed in.
+//!   without a status. A debug request runs `debug.pluginStart`: the plugin's backend prepares the
+//!   configuration, the session shows in the Debug tool window, and the plugin hears how it ended.
 //! - **Gutter.** After each edit (debounced) the focused editor's plugin visuals are asked for; a
 //!   line's actions share one icon left of the text. A click runs a single action and opens a menu
 //!   of several; an answer for an older document is dropped.
@@ -26,14 +26,13 @@
 use super::Workbench;
 use super::background_tasks_view::{BackgroundTasksEvent, BackgroundTasksPopup};
 use super::menu_spec::DynamicItem;
-use super::notifications::{NotificationLevel, NotificationRequest};
 use super::plugin_runtime::{answer_plugin_command, plugin_host};
 use super::services_window::on_workbench;
 use crate::backend::Backend;
+use crate::debugger::actions::PluginEvent as DebugPluginEvent;
 use crate::editor::view::{Editor, EditorEvent};
-use crate::platform::actions::ActionRegistry;
+use crate::platform::actions::{ActionError, ActionRegistry, execute_action_or_throw};
 use crate::platform::context::{ContextKeys, evaluate_when, window_context};
-use crate::platform::i18n::{Localization, Param};
 use crate::plugin_models::contribution::Contribution;
 use crate::plugin_models::language_visuals::{
     ActionClick, ActionMarker, LanguageVisuals, LineAction, VisualsEffect, VisualsTicket,
@@ -71,13 +70,15 @@ const PROVIDERS_POINT: &str = "providers";
 const TOOLS_MENU: &str = "tools";
 /// The Background Tasks popup's action, the tasks status item's click.
 const BACKGROUND_TASKS: &str = "view.backgroundTasks";
+/// Debug Plugin Configuration: a plugin's debug request, under the debugger of the window.
+const DEBUG_PLUGIN_START: &str = "debug.pluginStart";
 /// The size of a gutter action's icon, and its distance from the text.
 const GUTTER_ICON: f32 = 12.0;
 const GUTTER_INSET: f32 = 13.0;
 /// The popup's corner keeps this far from the window's bottom right (above the status bar).
 const TASKS_POPUP_INSET: (f32, f32) = (16.0, 32.0);
-/// Why a run request is refused while the window has no project, and while debugging a plugin's
-/// session is not followed here.
+/// Why a run request is refused: the window has no project to run (or debug) it in, or it did not
+/// start.
 const RUN_UNAVAILABLE: &str = "Run service unavailable";
 const DEBUGGER_UNAVAILABLE: &str = "Debugger unavailable";
 const RUN_NOT_STARTED: &str = "Run did not start";
@@ -296,12 +297,21 @@ pub(super) struct PluginContributions {
     /// Languages whose activation event was fired, and the file last reported.
     activated_languages: BTreeSet<String>,
     activated_path: Option<String>,
+    /// The request ids of the plugin debug runs under way that a plugin waits on, by operation.
+    debug_requests: HashMap<String, String>,
 }
 
-/// Registers the Background Tasks popup's action.
+/// Registers the Background Tasks popup's action and Debug Plugin Configuration.
 pub(super) fn register_actions(registry: &mut ActionRegistry) {
     registry.handle(BACKGROUND_TASKS, |_, window, cx| {
         on_workbench(window, cx, |workbench, window, cx| workbench.toggle_background_tasks(window, cx))
+    });
+    // Arg: `{ config, operation }`; the plugin of `operation` hears how the session went.
+    registry.handle(DEBUG_PLUGIN_START, |call, window, cx| {
+        let arg = call.arg.cloned();
+        on_workbench(window, cx, move |workbench, window, cx| {
+            workbench.run_debug_action(DEBUG_PLUGIN_START, arg.as_ref(), window, cx);
+        })
     });
 }
 
@@ -317,21 +327,11 @@ impl Workbench {
         operation: &str,
         config: &ide_run::RunConfig,
         debug: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if debug {
-            // A plugin hears when its session ends; this window's debugger does not tell it yet.
-            let title = cx
-                .default_global::<Localization>()
-                .0
-                .tx_built(&["“", "” can't be debugged"], &[Param::Text(config.name.clone())]);
-            let request = NotificationRequest {
-                body: Some(DEBUGGER_UNAVAILABLE.to_owned()),
-                group: Some("run".to_owned()),
-                ..NotificationRequest::new(NotificationLevel::Warning, title)
-            };
-            self.notify(request, cx);
-            return self.refuse_plugin_run(request_id, operation, DEBUGGER_UNAVAILABLE, cx);
+            return self.plugin_debug_request(request_id, operation, config, window, cx);
         }
         let Some(driver) = self.run_driver().cloned() else {
             return self.refuse_plugin_run(request_id, operation, RUN_UNAVAILABLE, cx);
@@ -379,6 +379,60 @@ impl Workbench {
             && !host.finish_operation(&self.label, operation, status, stopped)
         {
             tracing::debug!("the plugin's run {operation} was reported already");
+        }
+    }
+
+    /// A plugin asks to debug `config` for its operation `operation`: Debug Plugin Configuration
+    /// runs once this update is over. A start that cannot run ends the plugin's run without a
+    /// status; how the session went reaches the plugin through [`Self::plugin_debug_sessions`].
+    fn plugin_debug_request(
+        &mut self,
+        request_id: &str,
+        operation: &str,
+        config: &ide_run::RunConfig,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let config = match serde_json::to_value(config) {
+            Ok(config) => config,
+            Err(error) => return self.refuse_plugin_run(request_id, operation, &error.to_string(), cx),
+        };
+        if !request_id.is_empty() {
+            self.plugin_contributions.debug_requests.insert(operation.to_owned(), request_id.to_owned());
+        }
+        let arg = json!({ "config": config, "operation": operation });
+        let (request, operation) = (request_id.to_owned(), operation.to_owned());
+        let workbench = cx.weak_entity();
+        window.defer(cx, move |window, cx| {
+            let Err(error) = execute_action_or_throw(DEBUG_PLUGIN_START, Some(&arg), window, cx) else { return };
+            let reason = match error {
+                ActionError::Unavailable(_) => DEBUGGER_UNAVAILABLE.to_owned(),
+                failed => failed.to_string(),
+            };
+            let _ = workbench.update(cx, |workbench, cx| {
+                workbench.plugin_contributions.debug_requests.remove(&operation);
+                workbench.refuse_plugin_run(&request, &operation, &reason, cx);
+            });
+        });
+    }
+
+    /// What the debugger tells the plugins about the sessions they started: a start that failed
+    /// ends the plugin's run without a status; an ended session ends it with the session's exit
+    /// code and whether the user stopped it.
+    pub(super) fn plugin_debug_sessions(&mut self, events: Vec<DebugPluginEvent>, cx: &mut Context<Self>) {
+        for event in events {
+            match event {
+                DebugPluginEvent::Failed { operation, message } => {
+                    let request = self.plugin_contributions.debug_requests.remove(&operation).unwrap_or_default();
+                    self.refuse_plugin_run(&request, &operation, &message, cx);
+                }
+                DebugPluginEvent::Exited { operation, code, stopped, .. } => {
+                    if let Some(request) = self.plugin_contributions.debug_requests.remove(&operation) {
+                        answer_plugin_command(&self.label, &request, CommandAnswer::Value(None), cx);
+                    }
+                    self.finish_plugin_operation(&operation, code, stopped, cx);
+                }
+            }
         }
     }
 
@@ -930,156 +984,32 @@ struct SettingsActionRun {
 
 #[cfg(test)]
 mod tests {
+    use super::super::plugins_window::test_support::{
+        copy_dir, link, plugin_copy, start_with_plugins, trusted_project,
+    };
+    #[cfg(unix)]
+    use super::super::plugins_window::test_support::{program, programs_in, settle_app};
+    use super::super::tests::{click_on, notice_titled, run_action, wait_long};
     use super::*;
-    use crate::backend::AppDirs;
-    use crate::platform::actions::{ActionSource, execute_action_from, execute_action_or_throw};
+    use crate::platform::actions::{ActionSource, execute_action_from};
     use crate::platform::context::ContextValue;
-    use crate::platform::storage::UiStorage;
     use crate::run::view::RunView;
     use crate::ui::popup_menu::PopupMenu;
     use gpui_kit::{Focusable as _, Modifiers, TestAppContext, VisualTestContext};
-    use ide_host::plugins::{Consent, FileSecretStore, PluginStatus};
+    use ide_host::plugins::PluginStatus;
     use std::path::{Path, PathBuf};
-    use std::sync::Arc;
 
     const LABEL: &str = "w1";
 
-    fn repo() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("..")
-    }
-
-    fn copy_dir(from: &Path, to: &Path) {
-        std::fs::create_dir_all(to).expect("the folder is made");
-        for entry in std::fs::read_dir(from).expect("the fixture is readable").flatten() {
-            let (source, target) = (entry.path(), to.join(entry.file_name()));
-            if entry.file_name() == "target" {
-                continue;
-            }
-            if source.is_dir() {
-                copy_dir(&source, &target);
-            } else {
-                std::fs::copy(&source, &target).expect("the file is copied");
-            }
-        }
-    }
-
-    /// A copy named `copy` of the fixture plugin `name` (under `crates/ide-plugin/tests/fixtures`,
-    /// or `plugins/official`) in the temporary home, its manifest rewritten by `edit`: the
-    /// repository's own folders are only read.
-    fn plugin_copy(home: &Path, name: &str, copy: &str, edit: impl Fn(&str) -> String) -> PathBuf {
-        let fixture = repo().join("crates/ide-plugin/tests/fixtures").join(name);
-        let source = if fixture.is_dir() { fixture } else { repo().join("plugins/official").join(name) };
+    /// A second copy of the plugin folder `first`, at `<home>/fixtures/<copy>`, its manifest rewritten
+    /// by `edit`: two plugins from one fixture.
+    fn second_copy(home: &Path, first: &Path, copy: &str, edit: impl Fn(&str) -> String) -> PathBuf {
         let target = home.join("fixtures").join(copy);
-        copy_dir(&source, &target);
+        copy_dir(first, &target);
         let manifest = target.join("plugin.toml");
         let text = std::fs::read_to_string(&manifest).expect("the manifest is readable");
         std::fs::write(&manifest, edit(&text)).expect("the manifest is written");
         target
-    }
-
-    #[cfg(unix)]
-    fn program(bin: &Path, name: &str, script: &str) {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::create_dir_all(bin).expect("the folder is made");
-        let path = bin.join(name);
-        std::fs::write(&path, script).expect("the script is written");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("the script runs");
-    }
-
-    fn settle_app(cx: &mut TestAppContext, what: &str, done: impl Fn(&mut App) -> bool) {
-        for _ in 0..1000 {
-            cx.run_until_parked();
-            if cx.update(|cx| done(cx)) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        panic!("{what}: not within ten seconds");
-    }
-
-    /// Waits for `done`, moving the clock the window's timers run on.
-    fn wait(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..3000 {
-            cx.executor().advance_clock(Duration::from_millis(20));
-            cx.run_until_parked();
-            if done(cx) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        panic!("{what}: not within thirty seconds");
-    }
-
-    /// A temporary home with the backend and the plugin host running in it. Plugin secrets are kept
-    /// in a file under the home, never in the login keychain.
-    fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
-        cx.executor().allow_parking();
-        let home = tempfile::tempdir().expect("a temporary home");
-        cx.update(|cx| {
-            cx.set_global(theme::ActiveTheme::default());
-            cx.set_global(UiStorage::default());
-            crate::platform::input::init(cx);
-            crate::editor::actions::register(cx);
-            crate::workbench::register_actions(cx);
-            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
-            crate::workbench::menu::init(cx);
-            crate::terminal::test_support::isolate_shells(home.path(), cx);
-            theme::appearance::init(cx);
-            Plugins::init(cx).expect("the plugin host starts");
-            let host = cx.global::<Plugins>().host.clone();
-            host.set_secret_store(Arc::new(FileSecretStore { dir: home.path().join("secrets") }));
-        });
-        settle_app(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());
-        home
-    }
-
-    /// Programs a plugin may be granted are looked up in `bin` only.
-    fn programs_in(bin: &Path, cx: &mut TestAppContext) {
-        let bin = bin.to_path_buf();
-        cx.update(|cx| {
-            cx.global::<Plugins>().host.set_program_path(Arc::new(move || Some(bin.clone().into_os_string())))
-        });
-    }
-
-    /// Links `folder` and agrees to it with its required capabilities and `optional`; waits until
-    /// command `command` is an action.
-    fn link(cx: &mut TestAppContext, folder: &Path, optional: &[&str], command: &str) -> String {
-        let id = cx.update(|cx| {
-            let host = cx.global::<Plugins>().host.clone();
-            let info = host.link(folder).expect("the plugin links");
-            let consent =
-                Consent { optional: optional.iter().map(|c| (*c).to_owned()).collect(), signer_change: false };
-            let info = host.grant(&info.id, &consent).expect("consent is recorded");
-            assert_eq!(info.error, None, "the plugin loads");
-            info.id
-        });
-        let action = plugin_action_id(&id, command);
-        settle_app(cx, "the plugin's commands are actions", |cx| cx.global::<ActionRegistry>().contains(&action));
-        id
-    }
-
-    /// A trusted project of `files` (path, text), open in an active window.
-    fn project<'a>(
-        cx: &'a mut TestAppContext,
-        files: &[(&str, &str)],
-    ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &'a mut VisualTestContext) {
-        let folder = tempfile::tempdir().expect("a temporary folder");
-        let root = folder.path().canonicalize().expect("the folder exists");
-        for (path, text) in files {
-            let path = root.join(path);
-            std::fs::create_dir_all(path.parent().expect("a folder")).expect("the folder is made");
-            std::fs::write(path, text).expect("the file is written");
-        }
-        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
-        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new(LABEL, window, cx));
-        cx.update(|window, _| window.activate_window());
-        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-        wait(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
-        (folder, root, workbench, cx)
-    }
-
-    fn run_action(cx: &mut VisualTestContext, id: &str, arg: Option<Value>) {
-        cx.update(|window, cx| execute_action_or_throw(id, arg.as_ref(), window, cx)).expect("the action runs");
     }
 
     /// Runs `command` of `plugin` for the window, off the main thread, and waits for its answer.
@@ -1101,7 +1031,7 @@ mod tests {
         };
         let (plugin, command, arg) = (plugin.to_owned(), command.to_owned(), arg.map(str::to_owned));
         let running = std::thread::spawn(move || host.run_command(&plugin, &command, arg.as_deref(), invocation));
-        wait(cx, "the command answers", |_| running.is_finished());
+        wait_long(cx, "the command answers", |_| running.is_finished());
         running.join().expect("the command ran")
     }
 
@@ -1111,9 +1041,14 @@ mod tests {
         listed.and_then(|text| serde_json::from_str::<Vec<Value>>(&text).ok()).unwrap_or_default()
     }
 
-    fn notifications(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<(String, Option<String>)> {
-        workbench
-            .read_with(cx, |w, _| w.notifications().items().iter().map(|n| (n.title.clone(), n.body.clone())).collect())
+    /// Whether the `execution` fixture heard its run exit with `status`, not killed.
+    #[cfg(unix)]
+    fn heard_exit(cx: &mut VisualTestContext, root: &Path, status: Value) -> bool {
+        stored_events(cx, root, "execution").iter().any(|event| {
+            event["kind"] == "run-exited"
+                && serde_json::from_str::<Value>(event["data"].as_str().unwrap_or("{}"))
+                    .is_ok_and(|data| data["status"] == status && data["killed"] == false)
+        })
     }
 
     fn context(key: &str, cx: &mut VisualTestContext) -> Option<ContextValue> {
@@ -1125,41 +1060,71 @@ mod tests {
         host.list(None).plugins.into_iter().find(|p| p.id == plugin).map(|p| p.status)
     }
 
+    /// A click on the element drawn with `selector`, named at run time.
     fn click(cx: &mut VisualTestContext, selector: &str) {
-        let selector: &'static str = Box::leak(selector.to_owned().into_boxed_str());
-        let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
-        cx.simulate_click(bounds.center(), Modifiers::none());
-        cx.run_until_parked();
+        click_on(cx, Box::leak(selector.to_owned().into_boxed_str()));
     }
 
     fn open_file(workbench: &Entity<Workbench>, path: PathBuf, cx: &mut VisualTestContext) -> Entity<Editor> {
         workbench.update_in(cx, |w, window, cx| w.open_project_file(path.clone(), window, cx));
-        wait(cx, "the file opens", |cx| {
+        wait_long(cx, "the file opens", |cx| {
             workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == path.as_path()))
         });
         workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor")
     }
 
-    /// The `execution` fixture with its test detector given a debugger, so the host passes a debug
-    /// request on to the window.
-    #[cfg(unix)]
-    fn with_debugger(text: &str) -> String {
-        text.replace("framework = \"plugin\"\n", "framework = \"plugin\"\ndebugger = \"java-debug\"\n")
-    }
-
+    /// A linked copy of the `execution` fixture (its manifest rewritten by `edit`) granted its
+    /// `execution-tool`, a script in the home's `bin` that prints its arguments and exits with 3, and
+    /// a trusted project of `files` with the detector's marker.
     #[cfg(unix)]
     fn execution_project<'a>(
         cx: &'a mut TestAppContext,
+        home: &Path,
         edit: impl Fn(&str) -> String,
-    ) -> (tempfile::TempDir, tempfile::TempDir, PathBuf, Entity<Workbench>, &'a mut VisualTestContext) {
-        let home = start(cx);
-        let bin = home.path().join("bin");
+        files: &[(&str, &str)],
+    ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &'a mut VisualTestContext) {
+        let bin = home.join("bin");
         program(&bin, "execution-tool", "#!/bin/sh\necho \"execution-tool $*\"\nexit 3\n");
         programs_in(&bin, cx);
-        let folder = plugin_copy(home.path(), "execution", "execution", edit);
+        let folder = plugin_copy(home, "execution", edit);
         link(cx, &folder, &["process:execution-tool"], "run");
-        let (folder, root, workbench, cx) = project(cx, &[("execution.marker", "")]);
-        (home, folder, root, workbench, cx)
+        let mut files = files.to_vec();
+        files.push(("execution.marker", ""));
+        trusted_project(cx, LABEL, &files)
+    }
+
+    /// A temporary home whose languages include `fakedap` (`*.fake` files), debugged by the fake
+    /// adapter of the debugger's tests, with the backend and the plugin host running in it. The
+    /// backend reads the languages when it starts, so they are written first.
+    #[cfg(unix)]
+    fn start_with_fake_debugger(cx: &mut TestAppContext) -> tempfile::TempDir {
+        cx.executor().allow_parking();
+        let home = tempfile::tempdir().expect("a temporary home");
+        let dirs = crate::backend::AppDirs::under(home.path());
+        let script = home.path().join("fake_dap.py");
+        std::fs::write(&script, super::super::debug::tests::FAKE_ADAPTER).expect("the adapter script is written");
+        let languages = dirs.config.join("languages");
+        std::fs::create_dir_all(&languages).expect("the languages folder is made");
+        let toml = format!(
+            "id = \"fakedap\"\nname = \"Fake\"\nextensions = [\"fake\"]\nline-comment = \"#\"\n\n\
+             [debugger]\nadapter = \"fake-dap\"\ncommand = \"python3\"\nargs = [{:?}]\n",
+            script.to_string_lossy(),
+        );
+        std::fs::write(languages.join("fakedap.toml"), toml).expect("the language is written");
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            cx.set_global(crate::platform::storage::UiStorage::default());
+            crate::platform::input::init(cx);
+            crate::editor::actions::register(cx);
+            crate::workbench::register_actions(cx);
+            Backend::init(dirs, cx).expect("the backend starts");
+            crate::workbench::menu::init(cx);
+            crate::terminal::test_support::isolate_shells(home.path(), cx);
+            theme::appearance::init(cx);
+            Plugins::init(cx).expect("the plugin host starts");
+        });
+        settle_app(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());
+        home
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1172,14 +1137,15 @@ mod tests {
     async fn a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit(
         cx: &mut TestAppContext,
     ) {
-        let (_home, _folder, root, workbench, cx) = execution_project(cx, str::to_owned);
+        let home = start_with_plugins(cx);
+        let (_folder, root, workbench, cx) = execution_project(cx, home.path(), str::to_owned, &[]);
         run_action(cx, &plugin_action_id("execution", "run"), Some(Value::from("detected")));
         let driver = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
         let store = driver.read_with(cx, |driver, _| driver.store().clone());
         let session = |cx: &mut VisualTestContext| {
             store.read_with(cx, |store, _| store.sessions.iter().find(|s| s.config.name == "Detected test").cloned())
         };
-        wait(cx, "the run ends", |cx| session(cx).is_some_and(|s| !s.is_live()));
+        wait_long(cx, "the run ends", |cx| session(cx).is_some_and(|s| !s.is_live()));
         let ended = session(cx).expect("a tab");
         assert_eq!((ended.status, ended.exit_code, ended.stopped), (SessionStatus::Finished, Some(3), false));
         assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(super::super::RUN_TOOL_WINDOW)));
@@ -1190,36 +1156,28 @@ mod tests {
         assert_eq!(view.read_with(cx, |view, cx| view.tab_titles(cx)), ["Detected test"]);
         let lines = view.read_with(cx, |view, cx| view.lines(cx));
         assert!(lines.iter().any(|line| line.contains("execution-tool test appended")), "{lines:?}");
-        wait(cx, "the plugin hears the exit", |cx| {
-            stored_events(cx, &root, "execution").iter().any(|event| {
-                event["kind"] == "run-exited"
-                    && serde_json::from_str::<Value>(event["data"].as_str().unwrap_or("{}"))
-                        .is_ok_and(|data| data["status"] == 3 && data["killed"] == false)
-            })
-        });
+        wait_long(cx, "the plugin hears the exit", |cx| heard_exit(cx, &root, Value::from(3)));
     }
 
-    /// A plugin asks to debug its configuration: without a debugger for plugin sessions the window
-    /// says it cannot, starts nothing, and the plugin hears its run ended without a status.
+    /// A plugin asks to debug its configuration, whose program the project's `main.fake` names:
+    /// Debug Plugin Configuration has the plugin prepare it, the session runs under the fake
+    /// adapter in the Debug tool window (not in Run), and when it ends the plugin hears its run
+    /// exited with the session's exit code.
     #[cfg(unix)]
     #[gpui_kit::test]
-    async fn a_plugins_debug_request_fails_visibly_and_the_plugin_hears_it_ended(cx: &mut TestAppContext) {
-        let (_home, _folder, root, workbench, cx) = execution_project(cx, with_debugger);
+    async fn a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end(cx: &mut TestAppContext) {
+        let home = start_with_fake_debugger(cx);
+        let runs_main_fake = |text: &str| text.replace("args = [\"test\"]", "args = [\"main.fake\"]");
+        let program = [("main.fake", "start\nend\n")];
+        let (_folder, root, workbench, cx) = execution_project(cx, home.path(), runs_main_fake, &program);
         run_action(cx, &plugin_action_id("execution", "debug"), Some(Value::from("detected")));
-        wait(cx, "the window says why", |cx| {
-            notifications(&workbench, cx).iter().any(|(title, body)| {
-                title == "“Detected test” can't be debugged" && body.as_deref() == Some("Debugger unavailable")
-            })
+        wait_long(cx, "the session shows in the Debug tool window", |cx| {
+            let view = workbench.read_with(cx, |w, _| w.debug_window_view().cloned());
+            view.is_some_and(|view| view.update(cx, |view, cx| view.tab_titles(cx)) == ["Detected test"])
         });
+        wait_long(cx, "the plugin hears the end", |cx| heard_exit(cx, &root, Value::from(0)));
         let driver = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
-        assert!(driver.read_with(cx, |driver, cx| driver.store().read(cx).sessions.is_empty()), "nothing started");
-        wait(cx, "the plugin hears the end", |cx| {
-            stored_events(cx, &root, "execution").iter().any(|event| {
-                event["kind"] == "run-exited"
-                    && serde_json::from_str::<Value>(event["data"].as_str().unwrap_or("{}"))
-                        .is_ok_and(|data| data["status"].is_null())
-            })
-        });
+        assert!(driver.read_with(cx, |driver, cx| driver.store().read(cx).sessions.is_empty()), "nothing ran in Run");
     }
 
     /// A plugin's run detector and its dynamic configurations are listed with the project's run
@@ -1227,17 +1185,18 @@ mod tests {
     #[cfg(unix)]
     #[gpui_kit::test]
     async fn a_plugins_run_detectors_are_listed_in_the_configuration_chooser(cx: &mut TestAppContext) {
-        let (_home, _folder, _root, workbench, cx) = execution_project(cx, str::to_owned);
+        let home = start_with_plugins(cx);
+        let (_folder, _root, workbench, cx) = execution_project(cx, home.path(), str::to_owned, &[]);
         let driver = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
         let store = driver.read_with(cx, |driver, _| driver.store().clone());
-        wait(cx, "the configurations are listed", |cx| store.read_with(cx, |store, _| store.loaded));
+        wait_long(cx, "the configurations are listed", |cx| store.read_with(cx, |store, _| store.loaded));
         let names: Vec<String> =
             store.read_with(cx, |store, _| store.configs().iter().map(|c| c.name.clone()).collect());
         for name in ["Detected test", "Dynamic tests"] {
             assert!(names.iter().any(|listed| listed == name), "{name} in {names:?}");
         }
         run_action(cx, "run.chooseConfig", None);
-        wait(cx, "the chooser opens", |cx| workbench.read_with(cx, |w, _| w.config_chooser().is_some()));
+        wait_long(cx, "the chooser opens", |cx| workbench.read_with(cx, |w, _| w.config_chooser().is_some()));
         let chooser = workbench.read_with(cx, |w, _| w.config_chooser()).expect("the chooser");
         let lines = chooser.read_with(cx, |chooser, _| chooser.lines());
         for name in ["Detected test", "Dynamic tests"] {
@@ -1253,21 +1212,21 @@ mod tests {
     /// plugin answered for the new text; a click runs its command with its argument.
     #[gpui_kit::test]
     async fn renders_owned_gutter_commands_and_drops_answers_to_superseded_buffers(cx: &mut TestAppContext) {
-        let home = start(cx);
-        let folder = plugin_copy(home.path(), "language-features", "language-features", str::to_owned);
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "language-features", str::to_owned);
         let id = link(cx, &folder, &[], "run");
-        let (_folder, root, workbench, cx) = project(cx, &[("notes.txt", "one\ntwo\n")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("notes.txt", "one\ntwo\n")]);
         let editor = open_file(&workbench, root.join("notes.txt"), cx);
         let markers = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.plugin_gutter_markers(&editor));
-        wait(cx, "the gutter action shows", |cx| !markers(cx).is_empty());
+        wait_long(cx, "the gutter action shows", |cx| !markers(cx).is_empty());
         let [marker] = markers(cx).try_into().expect("one marker");
         assert_eq!((marker.line, marker.icon.as_str(), marker.title.as_str()), (0, "gutter-run", "Run fixture"));
         editor.update(cx, |editor, cx| editor.insert(Some(0..0), "zero\n", cx));
         assert!(markers(cx).is_empty(), "the answer was for the old text");
-        wait(cx, "the action shows again", |cx| !markers(cx).is_empty());
-        wait(cx, "the icon is drawn", |cx| cx.debug_bounds("plugin-gutter:0").is_some());
+        wait_long(cx, "the action shows again", |cx| !markers(cx).is_empty());
+        wait_long(cx, "the icon is drawn", |cx| cx.debug_bounds("plugin-gutter:0").is_some());
         click(cx, "plugin-gutter:0");
-        wait(cx, "the command ran", |cx| {
+        wait_long(cx, "the command ran", |cx| {
             run_in_window(cx, &root, &id, "state", None).ok().flatten().as_deref() == Some("gutter")
         });
     }
@@ -1277,20 +1236,20 @@ mod tests {
     /// chosen entry runs in its own plugin only.
     #[gpui_kit::test]
     async fn puts_the_actions_of_one_line_behind_one_icon_whose_click_opens_a_menu(cx: &mut TestAppContext) {
-        let home = start(cx);
-        let first = plugin_copy(home.path(), "language-features", "language-features", str::to_owned);
-        let second = plugin_copy(home.path(), "language-features", "language-features-two", |text| {
+        let home = start_with_plugins(cx);
+        let first = plugin_copy(home.path(), "language-features", str::to_owned);
+        let second = second_copy(home.path(), &first, "language-features-two", |text| {
             text.replace("id = \"test.language-features\"", "id = \"test.language-features-two\"")
         });
         let one = link(cx, &first, &[], "run");
         let two = link(cx, &second, &[], "run");
-        let (_folder, root, workbench, cx) = project(cx, &[("notes.txt", "one\n")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("notes.txt", "one\n")]);
         let editor = open_file(&workbench, root.join("notes.txt"), cx);
-        wait(cx, "both actions show", |cx| {
+        wait_long(cx, "both actions show", |cx| {
             workbench
                 .read_with(cx, |w, _| w.plugin_gutter_markers(&editor).first().is_some_and(|m| m.actions.len() == 2))
         });
-        wait(cx, "the icon is drawn", |cx| cx.debug_bounds("plugin-gutter:0").is_some());
+        wait_long(cx, "the icon is drawn", |cx| cx.debug_bounds("plugin-gutter:0").is_some());
         click(cx, "plugin-gutter:0");
         let menu = workbench.read_with(cx, |w, _| w.open_menu::<LineAction>()).expect("the menu is open");
         let rows: Vec<(String, Option<String>)> = menu.read_with(cx, |menu: &PopupMenu<LineAction>, _| {
@@ -1306,7 +1265,7 @@ mod tests {
         cx.simulate_keystrokes("down enter");
         let chosen = plugins[1].clone();
         let other = if chosen == one { two.clone() } else { one.clone() };
-        wait(cx, "the chosen plugin ran", |cx| {
+        wait_long(cx, "the chosen plugin ran", |cx| {
             run_in_window(cx, &root, &chosen, "state", None).ok().flatten().as_deref() == Some("gutter")
         });
         assert_eq!(run_in_window(cx, &root, &other, "state", None).expect("it answers"), None);
@@ -1316,12 +1275,12 @@ mod tests {
     // Menus
 
     /// The Hello fixture with entries in the Tools menu, the editor's menu (a submenu) and the
-    /// Project view's menu, as the Bazel plugin declares them; one command only for Bazel
-    /// workspaces.
+    /// Project view's menu; one command only for workspaces with a `MODULE.bazel` file.
     fn hello_menus(text: &str) -> String {
         format!(
             "{text}\n\
-             [[contributes.commands]]\nid = \"sync\"\ntitle = \"Hello: Sync\"\nwhen = \"workspaceContains:MODULE.bazel\"\n\n\
+             [[contributes.commands]]\nid = \"sync\"\ntitle = \"Hello: Sync\"\n\
+             when = \"workspaceContains:MODULE.bazel\"\n\n\
              [[contributes.menus]]\nmenu = \"tools\"\ncommand = \"sync\"\n\n\
              [[contributes.menus]]\nmenu = \"tools\"\ncommand = \"insert-date\"\n\n\
              [[contributes.menus]]\nmenu = \"editor.context\"\ncommand = \"insert-date\"\nsubmenu = \"Hello\"\n\n\
@@ -1337,12 +1296,12 @@ mod tests {
     async fn the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one(cx: &mut TestAppContext) {
         use super::super::menu::{self, MenuCommand};
         use super::super::menu_spec::DYNAMIC_PLUGIN_TOOLS;
-        let home = start(cx);
-        let folder = plugin_copy(home.path(), "hello", "hello", hello_menus);
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "hello", hello_menus);
         link(cx, &folder, &[], "sync");
-        let (_folder, root, workbench, cx) = project(cx, &[("notes.txt", "one two\n")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("notes.txt", "one two\n")]);
         let state = |cx: &mut VisualTestContext| cx.update(|window, cx| menu::state(window, cx));
-        wait(cx, "the key is answered", |cx| {
+        wait_long(cx, "the key is answered", |cx| {
             context("workspaceContains:MODULE.bazel", cx) == Some(ContextValue::Bool(false))
         });
         let shown = state(cx);
@@ -1352,13 +1311,13 @@ mod tests {
         assert!(shown.disabled.contains("plugin.hello.sync"), "greyed out without MODULE.bazel");
         assert!(!shown.disabled.contains("plugin.hello.insert-date"));
         std::fs::write(root.join("MODULE.bazel"), "module(name = \"x\")\n").expect("the file is written");
-        wait(cx, "the entry comes on", |cx| !state(cx).disabled.contains("plugin.hello.sync"));
+        wait_long(cx, "the entry comes on", |cx| !state(cx).disabled.contains("plugin.hello.sync"));
 
         let editor = open_file(&workbench, root.join("notes.txt"), cx);
         cx.dispatch_action(MenuCommand { action: "plugin.hello.insert-date".to_owned(), arg: None });
         static DATE: LazyLock<regex::Regex> =
             LazyLock::new(|| regex::Regex::new(r"\d{4}-\d{2}-\d{2}").expect("the date pattern is valid"));
-        wait(cx, "the plugin inserts the date", |cx| editor.read_with(cx, |e, _| DATE.is_match(&e.text())));
+        wait_long(cx, "the plugin inserts the date", |cx| editor.read_with(cx, |e, _| DATE.is_match(&e.text())));
     }
 
     /// The Project view's menu has the plugin's entry once its `when` holds; choosing it runs the
@@ -1367,10 +1326,10 @@ mod tests {
     #[gpui_kit::test]
     async fn the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them(cx: &mut TestAppContext) {
         use crate::project_view::context_menu::ProjectCommand;
-        let home = start(cx);
-        let folder = plugin_copy(home.path(), "hello", "hello", hello_menus);
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "hello", hello_menus);
         link(cx, &folder, &[], "word-count");
-        let (_folder, root, workbench, cx) = project(cx, &[("notes.txt", "one two three\n")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("notes.txt", "one two three\n")]);
         let file = root.join("notes.txt");
         open_file(&workbench, file.clone(), cx);
         let editor_items: Vec<MenuItem<()>> = cx.update(|window, cx| {
@@ -1397,7 +1356,7 @@ mod tests {
         let open_tree_menu = |cx: &mut VisualTestContext| {
             let tree = workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("the tree");
             let at = file.to_string_lossy().into_owned();
-            wait(cx, "the tree lists the file", |cx| tree.update(cx, |tree, cx| tree.reveal_path(&at, cx)));
+            wait_long(cx, "the tree lists the file", |cx| tree.update(cx, |tree, cx| tree.reveal_path(&at, cx)));
             cx.update(|window, cx| window.focus(&tree.focus_handle(cx), cx));
             cx.run_until_parked();
             let selector: &'static str = Box::leak(format!("project-row:{at}").into_boxed_str());
@@ -1410,22 +1369,24 @@ mod tests {
             menu.read_with(cx, |menu, _| menu.lines()[0].clone())
         };
         let entry = "Hello: Word Count of Active File";
-        wait(cx, "the key is answered", |cx| {
+        wait_long(cx, "the key is answered", |cx| {
             context("workspaceContains:MODULE.bazel", cx) == Some(ContextValue::Bool(false))
         });
         let lines = open_tree_menu(cx);
         assert!(!lines.iter().any(|line| line.trim_start_matches("> ") == entry), "{lines:?}");
         cx.simulate_keystrokes("escape");
         std::fs::write(root.join("MODULE.bazel"), "module(name = \"x\")\n").expect("the file is written");
-        wait(cx, "the key holds", |cx| context("workspaceContains:MODULE.bazel", cx) == Some(ContextValue::Bool(true)));
+        wait_long(cx, "the key holds", |cx| {
+            context("workspaceContains:MODULE.bazel", cx) == Some(ContextValue::Bool(true))
+        });
         let lines = open_tree_menu(cx);
         let at = lines.iter().position(|line| line.trim_start_matches("> ") == entry).expect("the plugin's entry");
         // The entry follows Delete…, as the menu's plugin group does.
         let delete = lines.iter().position(|line| line.trim_start_matches("> ") == "Delete…").expect("Delete…");
         assert!(at > delete, "{lines:?}");
         click(cx, &format!("menu-row-0-{at}"));
-        wait(cx, "the plugin's notification", |cx| {
-            notifications(&workbench, cx).iter().any(|(title, _)| title == "Word count: notes.txt")
+        wait_long(cx, "the plugin's notification", |cx| {
+            notice_titled(&workbench, "Word count: notes.txt", cx).is_some()
         });
     }
 
@@ -1437,22 +1398,22 @@ mod tests {
     #[gpui_kit::test]
     async fn a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change(cx: &mut TestAppContext) {
         use crate::settings_model::schema::settings_value;
-        let home = start(cx);
-        let folder = plugin_copy(home.path(), "api14", "api14", str::to_owned);
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "api14", str::to_owned);
         link(cx, &folder, &["events"], "events");
-        let (_folder, root, workbench, cx) = project(cx, &[("a.txt", "a\n")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("a.txt", "a\n")]);
         // The plugin runs once, so it is live when the event comes.
         run_in_window(cx, &root, "api14", "events", None).expect("it answers");
         run_action(cx, "file.settings", Some(Value::from("plugins.api14")));
-        wait(cx, "the page shows", |cx| cx.debug_bounds("plugin-setting:enabled").is_some());
+        wait_long(cx, "the page shows", |cx| cx.debug_bounds("plugin-setting:enabled").is_some());
         let dialog = workbench.read_with(cx, |w, _| w.settings_dialog().cloned()).expect("Settings is open");
         assert_eq!(dialog.read_with(cx, |d, cx| d.selected_page(cx)).as_deref(), Some("plugins.api14"));
         click(cx, "plugin-setting:enabled");
         click(cx, "settings-ok");
-        wait(cx, "Settings closes", |cx| workbench.read_with(cx, |w, _| w.settings_dialog().is_none()));
+        wait_long(cx, "Settings closes", |cx| workbench.read_with(cx, |w, _| w.settings_dialog().is_none()));
         let stored = cx.update(|_, cx| settings_value(&crate::platform::settings::global(cx)));
         assert_eq!(stored.pointer("/plugins/api14/enabled"), Some(&Value::Bool(true)));
-        wait(cx, "the plugin heard the change", |cx| {
+        wait_long(cx, "the plugin heard the change", |cx| {
             stored_events(cx, &root, "api14")
                 .iter()
                 .any(|e| e["kind"] == "settings-changed" && e["data"] == "[\"enabled\"]")
@@ -1467,24 +1428,25 @@ mod tests {
         cx: &mut TestAppContext,
     ) {
         use crate::settings_model::schema::settings_value;
-        let home = start(cx);
-        let folder = plugin_copy(home.path(), "settings-pages", "settings-pages", str::to_owned);
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "settings-pages", str::to_owned);
         link(cx, &folder, &[], "test");
-        let (_folder, _root, workbench, cx) = project(cx, &[("a.txt", "a\n")]);
+        let (_folder, _root, workbench, cx) = trusted_project(cx, LABEL, &[("a.txt", "a\n")]);
         run_action(cx, "file.settings", Some(Value::from("plugins.settings-pages")));
-        wait(cx, "the plugin's page lists its pages", |cx| {
+        wait_long(cx, "the plugin's page lists its pages", |cx| {
             cx.debug_bounds("plugin-settings-link:plugins.settings-pages.settings:llm").is_some()
         });
         click(cx, "plugin-settings-link:plugins.settings-pages.settings:llm");
-        wait(cx, "the LLM page shows", |cx| cx.debug_bounds("plugin-setting-add:profiles").is_some());
+        wait_long(cx, "the LLM page shows", |cx| cx.debug_bounds("plugin-setting-add:profiles").is_some());
         click(cx, "plugin-settings-action:0");
-        wait(cx, "the error shows under the button", |cx| cx.debug_bounds("plugin-settings-action-error:0").is_some());
+        wait_long(cx, "the error shows under the button", |cx| {
+            cx.debug_bounds("plugin-settings-action-error:0").is_some()
+        });
         click(cx, "plugin-setting-add:profiles");
         click(cx, "plugin-settings-action:0");
-        wait(cx, "the plugin read the row", |cx| {
-            notifications(&workbench, cx)
-                .iter()
-                .any(|(title, body)| title == "Model Profiles" && body.as_deref() == Some("Read 1 saved profile(s)"))
+        wait_long(cx, "the plugin read the row", |cx| {
+            notice_titled(&workbench, "Model Profiles", cx)
+                .is_some_and(|notice| notice.body.as_deref() == Some("Read 1 saved profile(s)"))
         });
         let stored = cx.update(|_, cx| settings_value(&crate::platform::settings::global(cx)));
         let profiles = stored.pointer("/plugins/settings-pages/profiles").and_then(Value::as_array).cloned();
@@ -1499,10 +1461,10 @@ mod tests {
     /// does not, since that plugin watches openings of other files.
     #[gpui_kit::test]
     async fn a_saved_file_reaches_the_plugin_that_watches_its_saves(cx: &mut TestAppContext) {
-        let home = start(cx);
-        let folder = plugin_copy(home.path(), "path-events", "path-events", str::to_owned);
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "path-events", str::to_owned);
         link(cx, &folder, &["events", "project.read"], "count");
-        let (_folder, root, workbench, cx) = project(cx, &[("config/app.yaml", "a: 1\n")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("config/app.yaml", "a: 1\n")]);
         let count =
             |cx: &mut VisualTestContext| run_in_window(cx, &root, "test.path-events", "count", None).ok().flatten();
         assert_eq!(count(cx), None, "nothing heard yet");
@@ -1511,21 +1473,21 @@ mod tests {
         editor.update(cx, |editor, cx| editor.insert(Some(0..0), "b: 2\n", cx));
         let saving = editor.read_with(cx, |editor, cx| editor.save(cx));
         cx.executor().spawn(saving).detach();
-        wait(cx, "the file is saved", |cx| !editor.read_with(cx, |editor, _| editor.is_dirty()));
-        wait(cx, "the plugin heard the save", |cx| count(cx).as_deref() == Some("1"));
+        wait_long(cx, "the file is saved", |cx| !editor.read_with(cx, |editor, _| editor.is_dirty()));
+        wait_long(cx, "the plugin heard the save", |cx| count(cx).as_deref() == Some("1"));
     }
 
     /// The editor's input mode reaches the plugin that wants `input-mode-changed`.
     #[gpui_kit::test]
     async fn an_input_mode_change_reaches_the_plugin_that_wants_it(cx: &mut TestAppContext) {
-        let home = start(cx);
-        let folder = plugin_copy(home.path(), "api14", "api14", str::to_owned);
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "api14", str::to_owned);
         link(cx, &folder, &["events.input"], "events");
-        let (_folder, root, workbench, cx) = project(cx, &[("a.txt", "a\n")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("a.txt", "a\n")]);
         run_in_window(cx, &root, "api14", "events", None).expect("it answers");
         let path = root.join("a.txt").to_string_lossy().into_owned();
         // The window learns which events plugins want before it reports one.
-        wait(cx, "the event kinds are known", |cx| {
+        wait_long(cx, "the event kinds are known", |cx| {
             workbench.update(cx, |w, cx| w.plugin_input_mode_changed(&path, "INSERT", None, cx));
             stored_events(cx, &root, "api14").iter().any(|e| e["kind"] == "input-mode-changed")
         });
@@ -1539,7 +1501,7 @@ mod tests {
     /// under `notes/` the one activated by that path; neither runs before.
     #[gpui_kit::test]
     async fn focusing_an_editor_fires_the_language_and_file_activation_events(cx: &mut TestAppContext) {
-        let home = start(cx);
+        let home = start_with_plugins(cx);
         let activated = |id: &'static str, activation: &'static str| {
             move |text: &str| {
                 text.replace("id = \"hello\"", &format!("id = \"{id}\"")).replace(
@@ -1548,19 +1510,23 @@ mod tests {
                 )
             }
         };
+        let hello = plugin_copy(home.path(), "hello", str::to_owned);
         let by_language =
-            plugin_copy(home.path(), "hello", "hello-language", activated("hello-language", "on-language:plaintext"));
-        let by_file = plugin_copy(home.path(), "hello", "hello-file", activated("hello-file", "on-file:notes/*.md"));
+            second_copy(home.path(), &hello, "hello-language", activated("hello-language", "on-language:plaintext"));
+        let by_file = second_copy(home.path(), &hello, "hello-file", activated("hello-file", "on-file:notes/*.md"));
         link(cx, &by_language, &[], "word-count");
         link(cx, &by_file, &[], "word-count");
-        let (_folder, root, workbench, cx) = project(cx, &[("a.txt", "a\n"), ("notes/today.md", "# Today\n")]);
+        let files = [("a.txt", "a\n"), ("notes/today.md", "# Today\n")];
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &files);
         assert_eq!(status_of("hello-language", cx), Some(PluginStatus::Inactive));
         assert_eq!(status_of("hello-file", cx), Some(PluginStatus::Inactive));
         open_file(&workbench, root.join("a.txt"), cx);
-        wait(cx, "the language's plugin loads", |cx| status_of("hello-language", cx) == Some(PluginStatus::Active));
+        wait_long(cx, "the language's plugin loads", |cx| {
+            status_of("hello-language", cx) == Some(PluginStatus::Active)
+        });
         assert_eq!(status_of("hello-file", cx), Some(PluginStatus::Inactive));
         open_file(&workbench, root.join("notes/today.md"), cx);
-        wait(cx, "the file's plugin loads", |cx| status_of("hello-file", cx) == Some(PluginStatus::Active));
+        wait_long(cx, "the file's plugin loads", |cx| status_of("hello-file", cx) == Some(PluginStatus::Active));
     }
 
     // src/features/plugins/__tests__/plugins.test.tsx
@@ -1570,10 +1536,10 @@ mod tests {
     async fn reports_actions_to_action_performed_plugins(cx: &mut TestAppContext) {
         use crate::platform::input::Keymap;
         use crate::platform::keymap::is_mac_host;
-        let home = start(cx);
-        let folder = plugin_copy(home.path(), "key-promoter", "key-promoter", str::to_owned);
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "key-promoter", str::to_owned);
         link(cx, &folder, &[], "statistics");
-        let (_folder, _root, workbench, cx) = project(cx, &[("a.txt", "a\n")]);
+        let (_folder, _root, workbench, cx) = trusted_project(cx, LABEL, &[("a.txt", "a\n")]);
         const ACTION: &str = "navigate.gotoFile";
         let (title, shortcut) = cx.update(|_, cx| {
             let title = cx.global::<ActionRegistry>().get(ACTION).expect("registered").meta.title.clone();
@@ -1581,13 +1547,13 @@ mod tests {
             (title, shortcut)
         });
         let expected = format!("{title}: {shortcut}");
-        wait(cx, "the plugin hears the action", |cx| {
+        wait_long(cx, "the plugin hears the action", |cx| {
             cx.update(|window, cx| {
                 execute_action_from(ActionSource::Menu, ACTION, None, window, cx);
             });
             cx.run_until_parked();
             workbench.update_in(cx, |w, window, cx| w.close_popup(window, cx));
-            notifications(&workbench, cx).iter().any(|(t, _)| *t == expected)
+            notice_titled(&workbench, &expected, cx).is_some()
         });
     }
 
@@ -1602,22 +1568,22 @@ mod tests {
     async fn cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it(cx: &mut TestAppContext) {
         use super::super::background_tasks_view::CancelButton;
         use super::super::status_bar::TASKS_ITEM;
-        let home = start(cx);
+        let home = start_with_plugins(cx);
         let bin = home.path().join("bin");
         // Far longer than any wait: the task can only leave the list by being cancelled.
         program(&bin, "checkstyle", "#!/bin/sh\nexec /bin/sleep 600\n");
         programs_in(&bin, cx);
-        let folder = plugin_copy(home.path(), "checkstyle", "checkstyle", str::to_owned);
+        let folder = plugin_copy(home.path(), "checkstyle", str::to_owned);
         let id = link(cx, &folder, &[], "check");
-        let (_folder, root, workbench, cx) = project(cx, &[("src/Main.java", "class Main {}\n")]);
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("src/Main.java", "class Main {}\n")]);
         open_file(&workbench, root.join("src/Main.java"), cx);
         run_action(cx, &plugin_action_id(&id, "check"), None);
         let title = "Checkstyle: Main.java";
-        wait(cx, "the task is listed", |cx| {
+        wait_long(cx, "the task is listed", |cx| {
             workbench.read_with(cx, |w, _| w.tasks().tasks().iter().any(|task| task.title == title))
         });
         let item: &'static str = Box::leak(format!("status:{TASKS_ITEM}").into_boxed_str());
-        wait(cx, "the tasks item is drawn", |cx| cx.debug_bounds(item).is_some());
+        wait_long(cx, "the tasks item is drawn", |cx| cx.debug_bounds(item).is_some());
         click(cx, item);
         let popup = workbench.read_with(cx, |w, _| w.background_tasks_popup()).expect("Background Tasks is open");
         let rows = popup.read_with(cx, |popup, _| popup.rows());
@@ -1628,7 +1594,7 @@ mod tests {
             popup.read_with(cx, |popup, _| popup.rows().into_iter().find(|row| row.title == title))
         };
         assert_eq!(row(cx).map(|row| row.cancel), Some(CancelButton::Disabled("Cancelling…".to_owned())));
-        wait(cx, "the task ends", |cx| row(cx).is_none());
+        wait_long(cx, "the task ends", |cx| row(cx).is_none());
         run_action(cx, BACKGROUND_TASKS, None);
         assert!(workbench.read_with(cx, |w, _| w.background_tasks_popup().is_none()));
     }

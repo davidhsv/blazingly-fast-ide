@@ -326,7 +326,7 @@ impl CustomizePage {
             CustomizeSelect::Theme => {
                 let contributed = cx.try_global::<ThemeState>().map(|state| state.contributed.themes().to_vec());
                 let choices = theme_choices(&contributed.unwrap_or_default());
-                theme_select_options(&choices, Some(&view.theme))
+                theme_select_options(&choices, Some(view.theme.as_str()))
                     .into_iter()
                     .map(|SelectOption { value, label, detail, section }| Choice {
                         value,
@@ -755,8 +755,8 @@ mod tests {
         }
     }
 
-    // src/features/welcome/welcome.test.tsx › Welcome › navigation › lists Plugins only when the plugins settings page
-    // is contributed, and embeds it
+    // src/features/welcome/welcome.test.tsx › Welcome › navigation › lists Plugins only when the plugins
+    // settings page is contributed, and embeds it
     #[gpui_kit::test]
     async fn lists_plugins_only_when_the_plugins_settings_page_is_contributed_and_embeds_it(cx: &mut TestAppContext) {
         init(cx);

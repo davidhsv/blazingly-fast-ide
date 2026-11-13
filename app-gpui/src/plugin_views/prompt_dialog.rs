@@ -747,4 +747,22 @@ mod tests {
         cx.simulate_keystrokes("enter");
         assert_eq!(answers.borrow().as_slice(), [Some(Vec::new())]);
     }
+
+    /// The prompt's keys are its own only while it has the keyboard: with the focus elsewhere in the
+    /// window, Enter, Escape and the arrows change nothing; given the keyboard back, Enter answers.
+    #[gpui_kit::test]
+    async fn the_prompt_keys_do_nothing_while_the_prompt_has_no_keyboard(cx: &mut TestAppContext) {
+        init(cx);
+        let (view, answers, cx) = open(cx, |_, cx| PluginPrompt::pick("Pick", targets(), false, cx));
+        cx.update(|window, cx| {
+            let elsewhere = cx.focus_handle();
+            window.focus(&elsewhere, cx);
+        });
+        cx.simulate_keystrokes("down enter escape");
+        assert!(answers.borrow().is_empty(), "no answer without the keyboard");
+        assert_eq!(view.read_with(cx, |view, _| view.active().map(str::to_owned)).as_deref(), Some("a"));
+        cx.update(|window, cx| window.focus(&view.focus_handle(cx), cx));
+        cx.simulate_keystrokes("enter");
+        assert_eq!(answers.borrow().as_slice(), [Some(vec!["a".to_owned()])]);
+    }
 }

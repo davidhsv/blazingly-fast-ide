@@ -1450,6 +1450,10 @@ impl Workbench {
     /// The tabs changed: files that opened or closed are reported, and the focused file when it is
     /// another one.
     pub(super) fn plugin_tabs_changed(&mut self, cx: &mut Context<Self>) {
+        // A window that follows no plugin host has nobody to tell.
+        if self.plugin_runtime.listeners.is_none() {
+            return;
+        }
         let open: BTreeSet<String> = self
             .tabs()
             .map(|tabs| {
@@ -1525,156 +1529,24 @@ fn kill_terminal(id: TerminalId, executor: &gpui_kit::BackgroundExecutor, host: 
 #[cfg(test)]
 mod tests {
     use super::super::notification_balloons::EntryAction;
+    use super::super::plugins_window::test_support::{link, plugin_copy, start_with_plugins as start, trusted_project};
+    #[cfg(unix)]
+    use super::super::plugins_window::test_support::{program, programs_in};
+    use super::super::tests::{git_in, init_repo, notification_titles, run_action, wait_long as wait};
     use super::*;
-    use crate::backend::AppDirs;
     use crate::platform::actions::is_action_enabled;
     use crate::platform::context::{ContextValue, window_context};
-    use crate::platform::storage::UiStorage;
-    use crate::theme;
     use gpui_kit::{Modifiers, TestAppContext, VisualTestContext};
-    use ide_host::plugins::{Consent, FileSecretStore};
     use std::path::Path;
 
     const LABEL: &str = "w1";
-
-    /// The repository, for the fixture plugins checked into it.
-    fn repo() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("..")
-    }
-
-    fn copy_dir(from: &Path, to: &Path) {
-        std::fs::create_dir_all(to).expect("the folder is made");
-        for entry in std::fs::read_dir(from).expect("the fixture is readable").flatten() {
-            let (source, target) = (entry.path(), to.join(entry.file_name()));
-            if entry.file_name() == "target" {
-                continue;
-            }
-            if source.is_dir() {
-                copy_dir(&source, &target);
-            } else {
-                std::fs::copy(&source, &target).expect("the file is copied");
-            }
-        }
-    }
-
-    /// A copy of the fixture plugin `name` (under `crates/ide-plugin/tests/fixtures`, or
-    /// `plugins/official`) in the temporary home, its manifest rewritten by `edit`: the repository's
-    /// own folders are only read.
-    fn plugin_copy(home: &Path, name: &str, edit: impl Fn(&str) -> String) -> PathBuf {
-        let fixture = repo().join("crates/ide-plugin/tests/fixtures").join(name);
-        let source = if fixture.is_dir() { fixture } else { repo().join("plugins/official").join(name) };
-        let target = home.join("fixtures").join(name);
-        copy_dir(&source, &target);
-        let manifest = target.join("plugin.toml");
-        let text = std::fs::read_to_string(&manifest).expect("the manifest is readable");
-        std::fs::write(&manifest, edit(&text)).expect("the manifest is written");
-        target
-    }
-
-    /// An executable `name` running `script` in `bin`.
-    #[cfg(unix)]
-    fn program(bin: &Path, name: &str, script: &str) {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::create_dir_all(bin).expect("the folder is made");
-        let path = bin.join(name);
-        std::fs::write(&path, script).expect("the script is written");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("the script runs");
-    }
-
-    fn settle_app(cx: &mut TestAppContext, what: &str, done: impl Fn(&mut App) -> bool) {
-        for _ in 0..1000 {
-            cx.run_until_parked();
-            if cx.update(|cx| done(cx)) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        panic!("{what}: not within ten seconds");
-    }
-
-    /// Waits for `done`, moving the clock the window's timers run on.
-    fn wait(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..3000 {
-            cx.executor().advance_clock(Duration::from_millis(20));
-            cx.run_until_parked();
-            if done(cx) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        panic!("{what}: not within thirty seconds");
-    }
-
-    /// A temporary home with the backend and the plugin host running in it. Plugin secrets are kept
-    /// in a file under the home, never in the login keychain.
-    fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
-        cx.executor().allow_parking();
-        let home = tempfile::tempdir().expect("a temporary home");
-        cx.update(|cx| {
-            cx.set_global(theme::ActiveTheme::default());
-            cx.set_global(UiStorage::default());
-            crate::platform::input::init(cx);
-            crate::editor::actions::register(cx);
-            crate::workbench::register_actions(cx);
-            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
-            crate::workbench::menu::init(cx);
-            crate::terminal::test_support::isolate_shells(home.path(), cx);
-            theme::appearance::init(cx);
-            Plugins::init(cx).expect("the plugin host starts");
-            let host = cx.global::<Plugins>().host.clone();
-            host.set_secret_store(Arc::new(FileSecretStore { dir: home.path().join("secrets") }));
-        });
-        settle_app(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());
-        home
-    }
-
-    /// Programs a plugin may be granted are looked up in `bin` only.
-    fn programs_in(bin: &Path, cx: &mut TestAppContext) {
-        let bin = bin.to_path_buf();
-        cx.update(|cx| {
-            cx.global::<Plugins>().host.set_program_path(Arc::new(move || Some(bin.clone().into_os_string())))
-        });
-    }
-
-    /// Links `folder` and agrees to it with its required capabilities and `optional`; waits until
-    /// its commands are actions.
-    fn link(cx: &mut TestAppContext, folder: &Path, optional: &[&str], command: &str) -> String {
-        let id = cx.update(|cx| {
-            let host = cx.global::<Plugins>().host.clone();
-            let info = host.link(folder).expect("the plugin links");
-            let consent =
-                Consent { optional: optional.iter().map(|c| (*c).to_owned()).collect(), signer_change: false };
-            let info = host.grant(&info.id, &consent).expect("consent is recorded");
-            assert_eq!(info.error, None, "the plugin loads");
-            info.id
-        });
-        let action = plugin_action_id(&id, command);
-        settle_app(cx, "the plugin's commands are actions", |cx| cx.global::<ActionRegistry>().contains(&action));
-        id
-    }
 
     /// A trusted project of `files` (path, text), open in an active window.
     fn project<'a>(
         cx: &'a mut TestAppContext,
         files: &[(&str, &str)],
     ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &'a mut VisualTestContext) {
-        let folder = tempfile::tempdir().expect("a temporary folder");
-        let root = folder.path().canonicalize().expect("the folder exists");
-        for (path, text) in files {
-            let path = root.join(path);
-            std::fs::create_dir_all(path.parent().expect("a folder")).expect("the folder is made");
-            std::fs::write(path, text).expect("the file is written");
-        }
-        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
-        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new(LABEL, window, cx));
-        cx.update(|window, _| window.activate_window());
-        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-        wait(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
-        (folder, root, workbench, cx)
-    }
-
-    fn run_action(cx: &mut VisualTestContext, id: &str, arg: Option<Value>) {
-        cx.update(|window, cx| execute_action_or_throw(id, arg.as_ref(), window, cx)).expect("the action runs");
+        trusted_project(cx, LABEL, files)
     }
 
     /// Runs `command` of `plugin` for the window off the main thread, as a command the user ran
@@ -1704,10 +1576,6 @@ mod tests {
         cx.update(|window, cx| bar.read(cx).texts(window, cx))
     }
 
-    fn notification_titles(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Vec<String> {
-        workbench.read_with(cx, |w, _| w.notifications().items().iter().map(|n| n.title.clone()).collect())
-    }
-
     fn enabled(id: &str, cx: &mut VisualTestContext) -> bool {
         cx.update(|window, cx| {
             let action = cx.global::<ActionRegistry>().get(id).expect("registered");
@@ -1719,19 +1587,9 @@ mod tests {
         cx.update(|window, cx| window_context(window, cx).get(key).cloned())
     }
 
-    fn git(dir: &Path, args: &[&str]) {
-        let output = std::process::Command::new("git")
-            .args(args)
-            .current_dir(dir)
-            .env("GIT_CONFIG_GLOBAL", "/dev/null")
-            .env("GIT_CONFIG_SYSTEM", "/dev/null")
-            .output()
-            .expect("git runs");
-        assert!(output.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    /// The Hello fixture with its Word Count command available only in a Bazel workspace.
-    fn bazel_hello(text: &str) -> String {
+    /// The Hello fixture's manifest with its Word Count command on only in a project holding a
+    /// `MODULE.bazel` file.
+    fn word_count_needs_module_file(text: &str) -> String {
         text.replace(
             "title = \"Hello: Word Count of Active File\"",
             "title = \"Hello: Word Count of Active File\"\nwhen = \"workspaceContains:MODULE.bazel\"",
@@ -1744,7 +1602,7 @@ mod tests {
     #[gpui_kit::test]
     async fn re_evaluates_when_the_file_is_created_and_deleted(cx: &mut TestAppContext) {
         let home = start(cx);
-        let folder = plugin_copy(home.path(), "hello", bazel_hello);
+        let folder = plugin_copy(home.path(), "hello", word_count_needs_module_file);
         let id = link(cx, &folder, &[], "word-count");
         let (_folder, root, _workbench, cx) = project(cx, &[("src/notes.txt", "one two\n")]);
         const KEY: &str = "workspaceContains:MODULE.bazel";
@@ -1976,10 +1834,7 @@ mod tests {
         link(cx, &folder, &[], "refresh");
         let repo = tempfile::tempdir().expect("a temporary folder");
         let root = repo.path().canonicalize().expect("the folder exists");
-        std::fs::write(root.join("a.txt"), "one\n").expect("the file is written");
-        git(&root, &["init", "-q", "-b", "main"]);
-        git(&root, &["add", "."]);
-        git(&root, &["-c", "user.name=Ada", "-c", "user.email=ada@example.test", "commit", "-q", "-m", "first"]);
+        init_repo(&root);
         cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new(LABEL, window, cx));
         cx.update(|window, _| window.activate_window());
@@ -1987,7 +1842,7 @@ mod tests {
         wait(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("a.txt"), window, cx));
         wait(cx, "the plugin shows the branch", |cx| status_texts(&workbench, cx).iter().any(|t| t == "main"));
-        git(&root, &["checkout", "-q", "-b", "topic"]);
+        git_in(&root, &["checkout", "-q", "-b", "topic"]);
         wait(cx, "the plugin shows the new branch", |cx| status_texts(&workbench, cx).iter().any(|t| t == "topic"));
     }
 

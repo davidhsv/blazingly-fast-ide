@@ -1088,10 +1088,11 @@ mod tests {
     // src/features/plugins/__tests__/settings.test.tsx
     #[gpui_kit::test]
     async fn loads_saved_plugin_settings_into_the_dialog_including_dotted_plugin_ids_and_keys(cx: &mut TestAppContext) {
+        let profile = json!({ "name": "Saved", "enabled": true, "limit": 3 });
         let saved = crate::settings_model::schema::set_at(
             &crate::settings_model::schema::default_settings(),
             PLUGINS_KEY,
-            json!({ "example.helper": { "profiles": [{ "name": "Saved", "enabled": true, "limit": 3 }], "custom.key": ["x"] } }),
+            json!({ "example.helper": { "profiles": [profile], "custom.key": ["x"] } }),
         );
         let (view, _, cx) = open(cx, saved, "llm");
         let name = view.read_with(cx, |view, _| view.field(&FieldKey::cell("profiles", 0, Some("name"))).cloned());
