@@ -267,8 +267,9 @@ fn update_builtin(custom_dir: &Path, id: &str, change: impl FnOnce(&mut CustomAg
     Ok(())
 }
 
-/// An agent file, `<config>/agents/<id>.toml`.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+/// An agent file, `<config>/agents/<id>.toml`. `Debug` names its environment variables without
+/// their values.
+#[derive(PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CustomAgent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -283,6 +284,19 @@ pub(crate) struct CustomAgent {
     /// Set when the agent was installed from the ACP Registry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registry: Option<RegistryRef>,
+}
+
+impl std::fmt::Debug for CustomAgent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CustomAgent")
+            .field("name", &self.name)
+            .field("driver", &self.driver)
+            .field("command", &self.command)
+            .field("args", &self.args)
+            .field("env", &crate::model::EnvNames(&self.env))
+            .field("registry", &self.registry)
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -399,6 +413,22 @@ fn is_executable(p: &Path) -> bool {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn an_agent_file_debugs_its_environment_by_name_only() {
+        let agent = CustomAgent {
+            name: Some("Mine".into()),
+            driver: Driver::Acp,
+            command: "mine-acp".into(),
+            args: vec!["--stdio".into()],
+            env: BTreeMap::from([("OPENAI_API_KEY".into(), "sk-live-123".into())]),
+            registry: None,
+        };
+        let shown = format!("{agent:?}");
+        assert!(shown.contains(r#"env: ["OPENAI_API_KEY"]"#), "{shown}");
+        assert!(!shown.contains("sk-live-123"), "{shown}");
+        assert!(shown.contains(r#"args: ["--stdio"]"#), "{shown}");
+    }
 
     #[test]
     fn login_hints_cover_all_builtin_commands_and_preserve_separate_login_tools() {

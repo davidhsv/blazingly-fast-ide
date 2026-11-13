@@ -397,7 +397,8 @@ pub enum AgentEntry {
     },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Type)]
+/// `Debug` lists the names of [`AgentProvider::env`], never their values (API keys).
+#[derive(Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentProvider {
     pub id: String,
@@ -425,6 +426,39 @@ pub struct AgentProvider {
     /// Slash commands it offered last time.
     pub commands: Vec<AgentCommand>,
     pub source: AgentSource,
+}
+
+impl std::fmt::Debug for AgentProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AgentProvider")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("command", &self.command)
+            .field("program", &self.program)
+            .field("args", &self.args)
+            .field("default_program", &self.default_program)
+            .field("default_args", &self.default_args)
+            .field("login_hint", &self.login_hint)
+            .field("command_overridden", &self.command_overridden)
+            .field("command_editable", &self.command_editable)
+            .field("command_read_only_reason", &self.command_read_only_reason)
+            .field("installed", &self.installed)
+            .field("env", &EnvNames(&self.env))
+            .field("config", &self.config)
+            .field("thought_levels", &self.thought_levels)
+            .field("commands", &self.commands)
+            .field("source", &self.source)
+            .finish()
+    }
+}
+
+/// Shows an environment by the names of its variables only: their values hold API keys.
+pub(crate) struct EnvNames<'a>(pub &'a BTreeMap<String, String>);
+
+impl std::fmt::Debug for EnvNames<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.0.keys()).finish()
+    }
 }
 
 /// Why the executable cannot be changed in built-in agent settings.
@@ -525,4 +559,38 @@ pub enum AgentEvent {
     },
     /// The installed or configured agent providers changed.
     Providers,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn debug_names_the_environment_without_its_values() {
+        let provider = AgentProvider {
+            id: "a".into(),
+            name: "A".into(),
+            command: "a-acp".into(),
+            program: "a-acp".into(),
+            args: Vec::new(),
+            default_program: None,
+            default_args: Vec::new(),
+            login_hint: None,
+            command_overridden: false,
+            command_editable: true,
+            command_read_only_reason: None,
+            installed: true,
+            env: BTreeMap::from([("API_KEY".into(), "sk-secret".into()), ("MODE".into(), "fast".into())]),
+            config: Vec::new(),
+            thought_levels: BTreeMap::new(),
+            commands: Vec::new(),
+            source: AgentSource::Builtin,
+        };
+        let shown = format!("{provider:?}");
+        assert!(shown.contains(r#"env: ["API_KEY", "MODE"]"#), "{shown}");
+        assert!(!shown.contains("sk-secret") && !shown.contains("fast"), "{shown}");
+        assert!(shown.contains(r#"command: "a-acp""#) && shown.contains("installed: true"), "{shown}");
+        let json = serde_json::to_value(&provider).expect("it serializes");
+        assert_eq!(json["env"]["API_KEY"], "sk-secret");
+    }
 }

@@ -154,7 +154,8 @@ pub struct DbSsh {
     pub save_secret: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+/// `Debug` shows [`DataSource::url`] with its password replaced (see [`redacted_url`]).
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct DataSource {
     pub id: String,
@@ -350,6 +351,72 @@ pub fn parse_url(raw: &str) -> IdeResult<ParsedUrl> {
     Ok(parsed)
 }
 
+const REDACTED: &str = "<redacted>";
+
+/// `url` with the password of its userinfo (`user:password@host`) and the value of a
+/// `password` query parameter replaced by `<redacted>`; everything else as written.
+fn redacted_url(url: &str) -> String {
+    let (main, query) = match url.split_once('?') {
+        Some((main, query)) => (main, Some(query)),
+        None => (url, None),
+    };
+    let mut out = match main.split_once("//") {
+        Some((scheme, rest)) => match rest.rsplit_once('@') {
+            Some((userinfo, host)) => match userinfo.split_once(':') {
+                Some((user, _)) => format!("{scheme}//{user}:{REDACTED}@{host}"),
+                None => main.to_owned(),
+            },
+            None => main.to_owned(),
+        },
+        None => main.to_owned(),
+    };
+    if let Some(query) = query {
+        let pairs: Vec<String> = query
+            .split('&')
+            .map(|pair| match pair.split_once('=') {
+                Some((key, _)) if percent_decode(key).eq_ignore_ascii_case("password") => format!("{key}={REDACTED}"),
+                _ => pair.to_owned(),
+            })
+            .collect();
+        out.push('?');
+        out.push_str(&pairs.join("&"));
+    }
+    out
+}
+
+impl std::fmt::Debug for DataSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DataSource")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("driver", &self.driver)
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("database", &self.database)
+            .field("user", &self.user)
+            .field("file", &self.file)
+            .field("ssl", &self.ssl)
+            .field("save_password", &self.save_password)
+            .field("read_only", &self.read_only)
+            .field("ssh", &self.ssh)
+            .field("vendor", &self.vendor)
+            .field("color", &self.color)
+            .field("comment", &self.comment)
+            .field("url_only", &self.url_only)
+            .field("url", &redacted_url(&self.url))
+            .field("ssl_ca_file", &self.ssl_ca_file)
+            .field("ssl_cert_file", &self.ssl_cert_file)
+            .field("ssl_key_file", &self.ssl_key_file)
+            .field("options", &self.options)
+            .field("introspection", &self.introspection)
+            .field("properties", &self.properties)
+            .field("global", &self.global)
+            .field("plugin_owner", &self.plugin_owner)
+            .field("plugin_source_id", &self.plugin_source_id)
+            .finish()
+    }
+}
+
 impl DataSource {
     /// The settings to connect with: with [`DataSource::url_only`], host, port,
     /// database, user, SSL and driver properties come from the URL (properties
@@ -481,6 +548,28 @@ fn write(path: &Path, sources: &[DataSource]) -> IdeResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn debug_hides_the_password_of_the_url() {
+        let s = DataSource {
+            url_only: true,
+            url: "jdbc:postgresql://ann:s%40cr:et@db.local:5433/shop?sslmode=require&password=two&x=1".into(),
+            user: "ann".into(),
+            ..Default::default()
+        };
+        let shown = format!("{s:?}");
+        assert!(!shown.contains("s%40cr") && !shown.contains("et@") && !shown.contains("two"), "{shown}");
+        assert!(
+            shown.contains(
+                r#"url: "jdbc:postgresql://ann:<redacted>@db.local:5433/shop?sslmode=require&password=<redacted>&x=1""#
+            ),
+            "{shown}"
+        );
+        assert!(shown.contains(r#"user: "ann""#) && shown.contains("url_only: true"), "{shown}");
+        assert_eq!(redacted_url("mysql://root@h:3306/app"), "mysql://root@h:3306/app");
+        assert_eq!(redacted_url("sqlite:/tmp/a.db"), "sqlite:/tmp/a.db");
+        assert_eq!(redacted_url(""), "");
+    }
 
     #[test]
     fn round_trips_without_passwords() {
