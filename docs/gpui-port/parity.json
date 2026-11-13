@@ -161,7 +161,7 @@
   },
   "module:src/editor/core/cm": {
     "status": "partial",
-    "proof": "`editor::view::editing_tests`, `editor::view::tests`, `editor::buffer::tests`; caret movement, selection, undo, clipboard and highlighting only: no multiple carets, folding, find, completion, gutters, brackets or indentation rules"
+    "proof": "`editor::view::editing_tests`, `editor::view::tests`, `editor::buffer::tests`; caret movement, selection, multiple carets, column selection, undo, clipboard, find and highlighting: no folding, gutters, bracket or indentation rules"
   },
   "module:src/workbench/StatusBar.tsx": {
     "status": "partial",
@@ -304,8 +304,8 @@
     "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`"
   },
   "action:toolwindow.hideActive": {
-    "status": "partial",
-    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`; registered, but the test does not exercise it"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_tool_windows::hide_active_tool_window_hides_the_focused_project_view`; the focused Project view is hidden and toolWindowFocus is off"
   },
   "action:toolwindow.focusEditor": {
     "status": "done",
@@ -384,12 +384,12 @@
     "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`"
   },
   "action:editor.closeAllTabs": {
-    "status": "partial",
-    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; registered on the tab model, but no window test exercises it and pinned tabs are not drawn differently"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_tabs::close_all_tabs_closes_the_pinned_tab_with_the_others`, `workbench::tests::proofs_editor_actions_tabs::close_all_tabs_closes_every_pane_and_leaves_nothing_to_reopen`; a pinned tab closes with the others, every pane of a split is emptied and Reopen Closed Tab brings nothing back"
   },
   "action:editor.pinTab": {
     "status": "partial",
-    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; registered on the tab model, but no window test exercises it and pinned tabs are not drawn differently"
+    "proof": "`workbench::tests::proofs_editor_actions_tabs::close_all_tabs_closes_the_pinned_tab_with_the_others`; run in a window it pins the active tab in the tab model; pinned tabs are not drawn differently"
   },
   "context:editorTabsOpen": {
     "status": "done",
@@ -456,8 +456,8 @@
     "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; shown as the Indexing task: dumb mode is not applied to other features"
   },
   "event:Notify": {
-    "status": "partial",
-    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; kept in the window's list: no balloon or Notifications tool window is drawn"
+    "status": "done",
+    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::tests::smoke_backend_events::a_file_changed_on_disk_under_unsaved_edits_is_reported_in_a_balloon`; a file changed on disk under unsaved edits is reported in a balloon and in the window's notifications, and the edits stay"
   },
   "point.registerStatusItem:workbench.tasks": {
     "status": "partial",
@@ -688,8 +688,8 @@
     "proof": "`editor::view::tests::highlights_come_from_the_backends_grammar`"
   },
   "ipc:doc_close": {
-    "status": "partial",
-    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; the document is closed when its editor is dropped, but no test asserts the backend released it"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_tabs::closing_a_tab_releases_its_document_once_no_other_tab_shows_it`; the backend releases a document when the last tab showing it closes, not while another pane shows it; the editor calls documents.close, which ide_host::ops::doc::close only forwards to"
   },
   "ipc:fs_read_dir": {
     "status": "done",
@@ -821,7 +821,7 @@
   },
   "action:find.inPath": {
     "status": "partial",
-    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `find::popup_view::tests`; opens the Find in Files popup, which searches as you type with its options, file mask, scopes and history, and opens the selected match. Not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match, masks from the project's file types"
+    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `find::popup_view::tests`, `find::popup_view::tests::proofs_editor_project_masks::the_masks_list_offers_the_projects_most_common_language_file_types_after_the_recent_ones`; opens the Find in Files popup, which searches as you type with its options, file mask (offering the project's most common file types), scopes and history, and opens the selected match. Not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match"
   },
   "point.registerToolWindow:find": {
     "status": "partial",
@@ -1044,8 +1044,8 @@
     "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`, `workbench::tests::search_everywhere_starts_with_the_editor_selection`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay"
   },
   "action:navigate.gotoClass": {
-    "status": "partial",
-    "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`; registered with the other five and reached there by Shift+Tab, but the action itself is not run by a test; it opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_navigate::go_to_class_finds_a_type_by_name_and_opens_it`; opens Search Everywhere on Classes with the keyboard in the query; a typed name lists the type and not the function containing it, and Enter opens the type's file on its name"
   },
   "point.registerOverlay:search.everywhere": {
     "status": "partial",
@@ -1260,12 +1260,12 @@
     "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`"
   },
   "boundid:toolwindow.resizeUp": {
-    "status": "partial",
-    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; registered with the other two on the same layout step; the test resizes a left window only"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_tool_windows::resize_up_and_down_move_a_bottom_tool_windows_edge`; with the Run tool window focused its height grows by a step"
   },
   "boundid:toolwindow.resizeDown": {
-    "status": "partial",
-    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; registered with the other two on the same layout step; the test resizes a left window only"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_tool_windows::resize_up_and_down_move_a_bottom_tool_windows_edge`; with the Run tool window focused it brings the height back"
   },
   "action:navigate.fileStructure": {
     "status": "partial",
@@ -1284,8 +1284,8 @@
     "proof": "`workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `everywhere::recent_view::tests`; opens the Switcher on the previous editor with Ctrl held, moves on each press, opens on release. Not yet: Recent Locations, the files edited in this session (the list is empty, so Show edited only shows nothing), opening to the side, version control colours on names, keeping a row whose tab refused to close"
   },
   "action:navigate.switcherBack": {
-    "status": "partial",
-    "proof": "`workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `everywhere::recent_view::tests`; moves the open Switcher back; opening it backward is tested in the view only"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_navigate::the_switcher_opened_backward_starts_on_the_oldest_editor_and_opens_it_when_ctrl_is_released`; with Ctrl held it opens the Switcher on the editor used longest ago, which opens when Ctrl is released"
   },
   "ipc:mark_recent": {
     "status": "done",
@@ -1768,8 +1768,8 @@
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_popup::tests`"
   },
   "action:navigate.prevBookmark": {
-    "status": "partial",
-    "proof": "`everywhere::bookmarks_popup::tests`; registered on the same routine as Next Bookmark, whose order is tested in the view; no workbench test runs it"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_navigate::previous_bookmark_goes_back_through_the_bookmarks_and_round_to_the_last`; goes back through three bookmarks of two files in file and line order, at column 0, and round from the first to the last"
   },
   "action:navigate.showBookmarks": {
     "status": "partial",
@@ -1873,23 +1873,23 @@
   },
   "action:find.replaceInPath": {
     "status": "partial",
-    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `find::popup_view::tests`; the popup in replace mode: Replace and Replace All with the confirmation flow are tested in the view, the workbench test checks the mode only. Not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match, masks from the project's file types"
+    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `find::popup_view::tests`, `find::popup_view::tests::proofs_editor_project_masks::the_masks_list_offers_the_projects_most_common_language_file_types_after_the_recent_ones`, `workbench::tests::proofs_editor_search_find::streams_results_and_highlights_the_matches_while_replacing`; the popup in replace mode: Replace and Replace All with the confirmation flow are tested in the view; in a window the matches stay marked while a replacement is typed and nothing is written before Replace All. Not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match"
   },
   "action:find.popup.nextResult": {
-    "status": "partial",
-    "proof": "`find::popup_view::tests`; registered to drive the open popup; the commands are tested in the view, no test runs them as actions"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_find::the_find_in_files_popups_commands_move_the_selection_list_recent_searches_and_open_the_match`; run with Find in Files open it moves the selected row down and round from the last to the first"
   },
   "action:find.popup.previousResult": {
-    "status": "partial",
-    "proof": "`find::popup_view::tests`; registered to drive the open popup; the commands are tested in the view, no test runs them as actions"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_find::the_find_in_files_popups_commands_move_the_selection_list_recent_searches_and_open_the_match`; run with Find in Files open it moves the selected row up and round from the first to the last"
   },
   "action:find.popup.openResult": {
-    "status": "partial",
-    "proof": "`find::popup_view::tests`; registered to drive the open popup; the commands are tested in the view, no test runs them as actions"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_find::the_find_in_files_popups_commands_move_the_selection_list_recent_searches_and_open_the_match`; opens the selected match's file with the caret on it and closes the popup"
   },
   "action:find.popup.recentSearches": {
-    "status": "partial",
-    "proof": "`find::popup_view::tests`; registered to drive the open popup; the commands are tested in the view, no test runs them as actions"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_find::the_find_in_files_popups_commands_move_the_selection_list_recent_searches_and_open_the_match`; lists the strings searched before (Recent Searches, old query), which Escape closes leaving the popup"
   },
   "context:findPopupOpen": {
     "status": "done",
@@ -1897,7 +1897,7 @@
   },
   "point.registerOverlay:search.findInFiles": {
     "status": "partial",
-    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `find::popup_view::tests`, `find::session::tests`, `find::store::tests`, `find::replace_flow::tests`; not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match, masks from the project's file types"
+    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `find::popup_view::tests`, `find::session::tests`, `find::store::tests`, `find::replace_flow::tests`, `find::popup_view::tests::proofs_editor_project_masks::the_masks_list_offers_the_projects_most_common_language_file_types_after_the_recent_ones`, `workbench::tests::proofs_editor_actions_find::the_find_in_files_popups_commands_move_the_selection_list_recent_searches_and_open_the_match`; the popup's commands run as actions and its masks list offers the project's most common file types; not yet: queries of several lines, the preview as an editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match"
   },
   "unit:src/features/search/__tests__/findPopup.test.tsx": {
     "status": "partial",
@@ -1908,8 +1908,8 @@
     "proof": "`workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`"
   },
   "ipc:doc_set_encoding": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; converting is tested, reloading only as the refusal with unsaved changes"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_tabs::reload_with_encoding_reads_the_file_again_in_the_chosen_encoding`; Reload with Encoding from the encoding item reads the UTF-8 file again as windows-1252 (cafÃ©), the item names it and nothing is unsaved; the editor calls documents.set_encoding, which ide_host::ops::doc::doc_set_encoding only forwards to on a blocking thread"
   },
   "unit:src/features/run/producers.test.ts": {
     "status": "done",
@@ -2524,8 +2524,8 @@
     "proof": "`workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the Find window searches the file again through the backend: the bar's In Selection scope, its excluded occurrences and unsaved text are not carried over"
   },
   "action:find.scrollToResults": {
-    "status": "partial",
-    "proof": "`editor::find_bar::tests`; registered as a toggle on the bar's preference; no test runs the action"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_find::scroll_to_results_during_typing_turns_the_selection_while_typing_off_and_on`; a toggle of the open find bar: off, typing counts the matches but leaves the selection and Find Next still moves; on again, typing selects the nearest match"
   },
   "context:findBarOpen": {
     "status": "done",
@@ -3428,12 +3428,12 @@
     "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
   },
   "action:diff.prevFile": {
-    "status": "partial",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; the same search as Next File in the other direction; no test runs it"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_vcs::compare_previous_file_walks_back_and_the_diff_settings_menu_opens`; after Next File reaches b.txt, Compare Previous File shows a.txt again with two / TWO"
   },
   "action:diff.showSettings": {
-    "status": "partial",
-    "proof": "`vcs_diff::toolbar_view::tests`; opens the settings menu of the viewer; no test runs the action"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_vcs::compare_previous_file_walks_back_and_the_diff_settings_menu_opens`, `vcs_diff::toolbar_view::tests`; run in the diff window it opens the viewer's settings menu over the window, which Escape closes leaving the diff; the menu's entries are checked in the toolbar view"
   },
   "context:diffEditorFocus": {
     "status": "done",
@@ -3864,8 +3864,8 @@
     "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; renames go through the refactoring; this plain call is the fallback, not run by a test"
   },
   "ipc:lsp_references": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted`; asked by the safe-delete search; no language server answers in tests"
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::find_usages_lists_the_references_the_server_reports`; Find Usages lists exactly the server's two locations, not the name's other text matches, asked at the caret through ide_host::ops::lsp::lsp_references as the adapter"
   },
   "ipc:history_list_dir": {
     "status": "partial",
@@ -3953,7 +3953,7 @@
   },
   "action:code.showIntentions": {
     "status": "partial",
-    "proof": "`editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`; code actions with their preview and apply; the bulb, the IDE's own intentions and the inspection controls are not wired"
+    "proof": "`editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor::intelligence::tests::proofs_editor_lsp::a_quick_fixs_arrow_menu_opens_with_the_right_arrow_and_runs_its_controls`, `editor::intelligence::tests::proofs_editor_lsp::a_context_action_that_edits_two_files_changes_both`; code actions with their preview and apply, edits of several files, and a quick fix's → menu whose Disable inspection turns the inspection off in the stored profile; the bulb and the IDE's own intentions are not wired, and the editor's underline is not shown to follow a disabled inspection"
   },
   "point.registerOverlay:editor-lsp.popups": {
     "status": "partial",
@@ -3996,8 +3996,8 @@
     "proof": "`editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`"
   },
   "ipc:lsp_execute_command": {
-    "status": "partial",
-    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`; called for a completion item's command; no test item has one"
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::an_accepted_completion_items_command_runs_on_the_server`; accepting a completion item that carries a command inserts it and the server receives one workspace/executeCommand with that command and its arguments, through ide_host::ops::lsp::lsp_execute_command as the adapter"
   },
   "ipc:syntax_locals": {
     "status": "done",
@@ -4053,7 +4053,7 @@
   },
   "action:find.usages": {
     "status": "partial",
-    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the Find Usages window with exclusion, rerun and tabs; without a language server the backend answers text matches, so the semantic search and the UI's own syntax fallback are not exercised; no preview colours"
+    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`, `editor::intelligence::tests::proofs_editor_lsp::find_usages_lists_the_references_the_server_reports`; the Find Usages window with exclusion, rerun and tabs, from a language server's references and from text matches without one; the UI's own syntax fallback is not exercised; no preview colours"
   },
   "action:find.showUsages": {
     "status": "partial",
@@ -4068,12 +4068,12 @@
     "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`"
   },
   "action:navigate.typeHierarchy": {
-    "status": "partial",
-    "proof": "`workbench::tests::type_hierarchy_without_a_server_says_no_language_server_is_available`; without a language server only the \"No language server available\" answer is proven"
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`; the Hierarchy window titled Subtypes of Base lists Derived, the subtype the server reports"
   },
   "action:navigate.callHierarchy": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; runs without a server and without a fault; no test has a hierarchy to show"
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::call_hierarchy_lists_the_callers_the_server_reports`; the Hierarchy window titled Callers of target lists the caller the server reports, with its file"
   },
   "action:file.settings": {
     "status": "partial",
@@ -4149,7 +4149,7 @@
   },
   "point.registerStatusItem:code-insight.servers": {
     "status": "partial",
-    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `code_insight::server_status::tests`; drawn in the bar with its popup; no language server runs in a workbench test"
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `code_insight::server_status::tests`, `editor::intelligence::tests::proofs_editor_lsp::the_server_status_item_lists_the_projects_server_and_restart_starts_it_again`; drawn in the bar with its popup, which lists a running server and restarts it; the popup's other commands are not exercised"
   },
   "point.registerTitleItem:build.project": {
     "status": "partial",
@@ -4688,20 +4688,20 @@
     "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`"
   },
   "context:debugSessionPaused": {
-    "status": "partial",
-    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`; waited on at every stop; no test asserts it off"
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs_debug::the_session_keys_follow_a_session_from_paused_to_running_to_ended`; off before any session, on at the breakpoint, off once resumed into the loop and after Stop"
   },
   "context:debugSessionRunning": {
-    "status": "partial",
-    "proof": "`workbench::debug::tests::stop_ends_a_running_debug_session`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; waited on while the program runs; no test asserts it off"
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs_debug::the_session_keys_follow_a_session_from_paused_to_running_to_ended`; off before any session and at the breakpoint, on while the program runs its loop, off after Stop"
   },
   "context:debugSessionActive": {
-    "status": "partial",
-    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::stop_ends_a_running_debug_session`; asserted off once the session ends; no test asserts it on"
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs_debug::the_session_keys_follow_a_session_from_paused_to_running_to_ended`; off before any session, on while paused and while running, off after Stop"
   },
   "context:debugCanRerun": {
-    "status": "partial",
-    "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`; asserted on after a session; no test asserts it off"
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs_debug::the_session_keys_follow_a_session_from_paused_to_running_to_ended`; off before the first session, on once a session is paused at its breakpoint"
   },
   "ipc:debug_start": {
     "status": "done",
@@ -4828,16 +4828,16 @@
     "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet"
   },
   "action:agents.forkTask": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`; only the refusal for an agent that cannot fork or roll back is run; the confirmation and the operation are not"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; with an agent that can fork, Fork adds a third task copied from the first"
   },
   "action:agents.retractMessage": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`; only the refusal for an agent that cannot fork or roll back is run; the confirmation and the operation are not"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; the last message and its reply leave the conversation and the message is back in the composer"
   },
   "context:agentSessionFocus": {
     "status": "done",
-    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
+    "proof": "`workbench::tests::proofs_agents::agent_session_focus_is_on_only_while_a_conversation_has_the_keyboard` reads it off in the editor, on in the composer and off again"
   },
   "ipc:agent_providers": {
     "status": "done",
@@ -5454,5 +5454,305 @@
   "unit:src/features/vcs/__tests__/shelf.test.tsx": {
     "status": "partial",
     "proof": "`vcs::shelf_view::tests::preserves_file_targets_through_selection_menus_toolbar_and_activation`, `vcs::shelf_view::tests::keeps_file_scope_from_selection_and_explicit_targets_rejects_stale_files`, `workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`, `workbench::shelf::tests::copy_patch_puts_the_shelved_patch_on_the_clipboard`, `workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`, `workbench::shelf::model_tests::compares_saved_sides_keeps_binary_files_out_of_text_diffs_and_scopes_chains`, `workbench::shelf::model_tests::maps_saved_and_local_diffs_to_the_owning_repo`, `workbench::shelf::model_tests::keeps_legacy_shelves_on_the_primary_repo_after_selecting_another_repo`, `workbench::shelf::model_tests::the_shelf_menu_disables_rename_for_a_file`; through the app and the Shelf view: the saved base and version of a file with no chain, Compare with Local against the working file with the shelf's files as the chain, selection, toolbar Unshelve and Enter to Show Diff on a file target, Show Diff with shelfFocus. Only on the model: rejecting stale targets, keeping binary files out, mapping to the owning repository (4 of the 5 variants, the project below the repository is missing), legacy shelves on the primary repository, the file menu's rows with Rename disabled. Not asserted: skipping a missing or binary local file in Compare with Local, the Unshelve changelist path mapping across roots, that Copy as Patch copies only the selected file of a shelf with several, the Ctrl+D/Meta+D binding and its refusal in an editor, choosing Copy as Patch from the file's context menu"
+  },
+  "action:debug.startConfig": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs_debug::debug_without_a_configuration_starts_the_only_debuggable_one`; run without a configuration, it starts the project's only configuration with a debug adapter, which stops at the breakpoint with the frame main, main.fake:2 in the Debug window's main tab"
+  },
+  "action:debug.forceRunToCursor": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs_debug::force_run_to_cursor_skips_breakpoints_force_step_into_steps_and_reset_frame_restarts`; the program stops at the caret's line past an enabled breakpoint on the way, which stays marked"
+  },
+  "action:debug.forceStepInto": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs_debug::force_run_to_cursor_skips_breakpoints_force_step_into_steps_and_reset_frame_restarts`; the execution line moves one line on"
+  },
+  "action:debug.resetFrame": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs_debug::force_run_to_cursor_skips_breakpoints_force_step_into_steps_and_reset_frame_restarts`, `workbench::debug::tests::proofs_debug::reset_frame_tells_that_an_adapter_cannot_restart_frames`; with an adapter that restarts frames the execution line goes back to the frame's first line (main.fake:1); with one that cannot, the notice Reset Frame is not supported by fake-dap shows and the program stays paused where it was"
+  },
+  "action:agents.regenerateReply": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; the last reply is replaced by a new one (Answer 2 by Answer 3) and the message it answers is listed once"
+  },
+  "action:agents.forkReply": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; Branch Conversation from Here opens a new task, docked, holding the first turn only"
+  },
+  "ipc:agent_fork": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; the branch and the fork are tasks only the agent's session/fork answer makes; the native path calls ide_host::ops::agent::fork, as src-tauri/src/commands/agent.rs does"
+  },
+  "ipc:agent_rollback": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; the regenerated reply and the retraction drop turns through ide_host::ops::agent::rollback, the function src-tauri/src/commands/agent.rs calls"
+  },
+  "action:agents.addAgent": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_agents::more_agents_opens_settings_on_the_agents_page`; More Agents… opens Settings on the tools.agents page"
+  },
+  "ipc:db_object_ddl": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_database::go_to_ddl_on_a_trigger_opens_its_definition`; Go to DDL on a SQLite trigger opens an editor holding create trigger users_audit, read through ide_host::ops::db::object_ddl, the function the adapter calls"
+  },
+  "ipc:db_explain": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_database::explain_plan_logs_the_explained_statement_and_its_plan_nodes`; Explain Plan asks ide_host::ops::db::explain and the Output tab logs the explained statement and its plan node count with no rows retrieved; the Query Plan tab is not drawn"
+  },
+  "action:run-all": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Run All, run through run.services.runAll on the Program group, starts both configurations and both rows say Running"
+  },
+  "action:restart-all": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`; the toolbar's Restart All, run through run.services.restartAll on the Program group, starts each configuration again in its own session, started later, and both rows still say Running"
+  },
+  "action:stop-all": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Stop All, run through run.services.stopAll on the Program group, ends both sessions and both rows say Stopped"
+  },
+  "action:(dynamic) src/features/run/services.tsx:620": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; run.services.runAll, run.services.restartAll and run.services.stopAll run through the registry on a type group; run.services.openBrowser is not run"
+  },
+  "action:open-browser": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Open in Browser is enabled while a server with a port runs and disabled after Stop; it is never run, so opening the URL is not shown"
+  },
+  "module:src/platform/serverPort.ts": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`, `run::store::tests::reads_the_http_port_of_a_started_server`, `run_testing::services::tests::reads_the_port_from_the_started_line`; the startup lines of Tomcat, Netty, Undertow and Jetty give the port and other lines none; a real process printing Tomcat started on port 8123 shows :8123 on its Services row"
+  },
+  "action:(dynamic) src/workbench/toolwindows/actions.ts:247": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_tool_windows::resize_up_and_down_move_a_bottom_tool_windows_edge`, `workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; Stretch to Left and Right resize a side tool window, Stretch to Top and Bottom move the focused Run window's edge and back"
+  },
+  "unit:src/features/run/segments.test.ts": {
+    "status": "done",
+    "proof": "`run::segments::tests::proofs_marks`; the spec's three cases, one test each"
+  },
+  "unit:src/ui/rowSelection.test.ts": {
+    "status": "done",
+    "proof": "`find::row_selection::tests::proofs_sections::selects_only_options_across_headers_in_either_direction`; the spec's one case with its six rows"
+  },
+  "module:src/ui/rowSelection.ts": {
+    "status": "done",
+    "proof": "`find::row_selection::tests`; single, range and toggle selection, section rows never selected, the selected rows in list order"
+  },
+  "unit:src/platform/locales/actionTitles.test.ts": {
+    "status": "done",
+    "proof": "`platform::actions::tests::proofs_titles::has_a_chinese_entry_for_every_literal_action_title`; every literal title of the action manifest, factory variants included, has a Chinese entry other than the English text"
+  },
+  "unit:src/platform/keymaps/navExtras.test.ts": {
+    "status": "done",
+    "proof": "`platform::keymap::tests::proofs_presets::shift_cmd_t_is_go_to_test_only_and_reopen_closed_tab_has_no_idea_default`, `platform::keymap::tests::proofs_presets::the_idea_macos_preset_binds_the_navigation_and_editor_extras`; both cases"
+  },
+  "unit:src/platform/keymaps/eclipse.test.ts": {
+    "status": "partial",
+    "proof": "`platform::keymap::tests::proofs_presets::the_eclipse_presets_load_switch_without_stale_overrides_and_parent_a_custom_keymap`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_have_valid_bindings_no_duplicates_and_no_unreviewed_new_conflicts`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_bind_eclipses_own_keys`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_preserve_official_removals_and_platform_specific_bindings`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_leave_undo_and_redo_to_the_focused_component`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_use_the_bundled_run_and_debug_choices`, `platform::dispatcher::tests::proofs_keypad::the_eclipse_presets_tell_keypad_folding_from_font_size_and_block_comments`, `platform::dispatcher::tests::proofs_keypad::keypad_aliases_keep_working_for_existing_presets`; 6 of 8 cases; the two keypad cases pass in the dispatcher on keypad key names that GPUI never reports, so keypad bindings cannot fire in the app (D16)"
+  },
+  "unit:src/platform/keymaps/windows.test.ts": {
+    "status": "partial",
+    "proof": "`platform::keymap::tests::proofs_presets::the_windows_keymaps_cover_the_same_actions_as_their_macos_presets`, `platform::keymap::tests::proofs_presets::the_windows_keymaps_never_bind_the_windows_key`, `platform::keymap::tests::proofs_presets::the_idea_windows_preset_binds_ideas_windows_keys`, `platform::keymap::tests::proofs_presets::the_vscode_windows_preset_reads_cmd_as_ctrl`, `platform::keymap::tests::proofs_presets::macos_keeps_cmd`, `platform::keymap::tests::proofs_presets::windows_uses_ctrl_and_spells_shortcuts_out`; 4 of 6 cases; the two host-modifier cases miss their hasPrimaryModifier asserts"
+  },
+  "ipc:lsp_call_hierarchy": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::call_hierarchy_lists_the_callers_the_server_reports`; the caller row comes from the server's prepareCallHierarchy and incomingCalls answers, asked through ide_host::ops::lsp::lsp_call_hierarchy as the adapter"
+  },
+  "ipc:lsp_type_hierarchy": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`; the subtype row comes from prepareTypeHierarchy and typeHierarchy/subtypes (no supertypes asked), through ide_host::ops::lsp::lsp_type_hierarchy as the adapter"
+  },
+  "ipc:lsp_servers": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::the_server_status_item_lists_the_projects_server_and_restart_starts_it_again`; the status item lists mock-ls with its languages and the project root, which only the backend's server list gives, through ide_host::ops::lsp::lsp_servers"
+  },
+  "ipc:lsp_restart": {
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::the_server_status_item_lists_the_projects_server_and_restart_starts_it_again`; the item's restart starts the server again (a second initialize) and it comes back ready, through ide_host::ops::lsp::lsp_restart"
+  },
+  "module:src/editor/lsp/workspaceEdit.ts": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::a_context_action_that_edits_two_files_changes_both`; an edit of two files is previewed with Also changes 1 other file and applied to the open file and to the unopened one; the edit summary used by the rename preview is tested on the model only (editor_lsp::workspace_edit)"
+  },
+  "unit:src/editor/lsp/Popups.test.tsx": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::a_quick_fixs_arrow_menu_opens_with_the_right_arrow_and_runs_its_controls`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`; 2 of 13 cases (the row's → menu and its items, the lazily fetched preview); numbered rows, pinning, the selection report, the imports-on-paste dialog (2), the documentation history and tool window (4), the quick definition popup and the reformat dialog are not proven"
+  },
+  "ipc:index_file_extensions": {
+    "status": "done",
+    "proof": "`find::popup_view::tests::proofs_editor_project_masks::the_masks_list_offers_the_projects_most_common_language_file_types_after_the_recent_ones`; the masks list orders the project's file types by file count, which only the index's counts give, through ide_host::ops::nav::index_file_extensions as the adapter"
+  },
+  "ipc:languages": {
+    "status": "done",
+    "proof": "`find::popup_view::tests::proofs_editor_project_masks::the_masks_list_offers_the_projects_most_common_language_file_types_after_the_recent_ones`; the masks list leaves out the project's most numerous extension because no language claims it; the native path reads host.languages.all(), the same LanguageRegistry the adapter's state.languages.all() reads (the adapter is not an ide_host::ops function)"
+  },
+  "point.registerKeyClaim:(at) src/features/run/ConsoleView.tsx:346": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_actions_run_console::the_run_consoles_find_bar_keeps_its_keys_from_the_ide_keymap`; while the console's find field has the keyboard F3 and Cmd+G go to the next match without toggling a bookmark, Cmd+E opens no Recent Files, and Escape closes the bar with the keyboard back in the console"
+  },
+  "point.registerEditorContribution:viewers.markdownLive": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_editor_actions_markdown::a_markdown_preview_follows_the_editors_scrolling_and_the_hidden_editors_caret`, `workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`; the preview follows the text, the editor's scrolling side by side and the hidden editor's caret in Preview Only; the editor's font zoom is not published to the preview"
+  },
+  "action:editor.copyReference": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_copy_reference::the_copy_reference_action_copies_the_qualified_name_without_a_popup`; run with the caret on a Java method's name it puts com.acme.Orders#place on the clipboard without a popup"
+  },
+  "module:src/editor/core/copyReference.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_editor_copy_reference::copy_reference_copies_the_qualified_name_of_the_declaration_at_the_caret`, `workbench::tests::proofs_editor_copy_reference::the_copy_reference_action_copies_the_qualified_name_without_a_popup`, `editor_commands::copy_reference::tests`; in a window the Java and Rust references and the path:line fallback are copied and announced; the other languages' conventions are tested on the model only"
+  },
+  "unit:src/features/search/__tests__/dialogs.test.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_editor_search_everywhere::shows_recent_files_for_an_empty_query_then_flat_results`, `workbench::tests::proofs_editor_search_everywhere::tab_cycles_scopes_and_repeating_the_scope_action_moves_to_all_keeping_the_query`, `workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`, `workbench::tests::search_everywhere_gives_the_keyboard_back_and_runs_actions_where_it_was_opened`, `workbench::tests::proofs_editor_search_recent::extends_and_shrinks_a_keyboard_range_then_opens_its_files_in_order`, `workbench::tests::proofs_editor_search_recent::starts_a_range_at_the_initially_selected_previous_file`, `workbench::tests::proofs_editor_search_recent::handles_modifier_clicks_and_resets_on_filter_text_changes`, `workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `workbench::tests::proofs_editor_search_find::streams_results_and_highlights_the_matches_while_replacing`; 5 of 22 cases in full (empty query then flat results, / scope commands, the three Recent Files cases) and 3 in part (Tab cycling without the non-project toggle, the Switcher without its focus order, Find in Files without Replace All's enabled state); the preview toggle, ⌥↑/⌥↓ history, the Actions checkbox and ⌥↵, the file-type funnel, searching everywhere when nothing is found and Search Everywhere's multi-selection are not built"
+  },
+  "unit:src/features/search/__tests__/codePreview.test.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_editor_search_find::marks_the_matches_of_the_previewed_file_and_its_current_line`; 1 of 8 cases in part: the preview marks every match of the file and follows the selected line, but which mark is current is not shown; the preview is a read-only line list, so the editable preview, its shared undo and save with a tab, the read-only kinds and the key cases are not built"
+  },
+  "unit:src/features/search/__tests__/pathScopeActions.test.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_editor_search_find::keeps_the_previous_scope_when_no_path_tree_owns_focus`, `workbench::tests::proofs_editor_search_find::keeps_explicit_directory_path_precedence_and_a_query_only_argument`, `workbench::tests::proofs_editor_search_find::takes_the_focused_directory_of_the_project_view`; 1 of 4 cases in full (the previous scope) and 2 in part: the focused directory is taken through the registry, not the presets' shortcuts, and the query-only argument is not shown to fall back to the focused directory; the Bookmarks tree case is missing"
+  },
+  "unit:src/features/search/__tests__/toggleActions.test.ts": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_editor_search_everywhere::reports_state_only_for_actions_with_toggled`; a toggle action reports off then on and a plain one no state, run from Find Action"
+  },
+  "context:focusedDirectory": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_editor_search_find::takes_the_focused_directory_of_the_project_view`; read set: a folder selected in the focused Project view becomes Find and Replace in Files' directory; no test reads it cleared after the tree loses the keyboard, and the other trees the webview publishes it from (Bookmarks) do not set it"
+  },
+  "module:src/ui/treeDirectoryContext.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_editor_search_find::takes_the_focused_directory_of_the_project_view`; the focused Project view publishes its selected directory; other trees do not, and the clearing on blur is not read by a test"
+  },
+  "module:src/editor/refactor/safeDelete.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_editor_search_safe_delete::find_usages_on_a_file_lists_the_usages_of_its_symbols_from_other_files`, `workbench::tests::proofs_editor_search_safe_delete::a_safe_delete_of_a_used_file_asks_with_the_usages_detected_question`; the Project view's file flow: Find Usages on a file lists its symbols' usages from other files, and a safe delete of a used file asks Usages Detected (View Usages, Delete Anyway); the editor's Safe Delete of a symbol has no handler"
+  },
+  "unit:src/editor/core/cm/multiCaret.test.ts": {
+    "status": "partial",
+    "proof": "`editor::view::editing_tests::proofs_editor_multi_caret::each_preset_keeps_the_default_gesture`, `editor::view::editing_tests::proofs_editor_multi_caret::matches_the_complete_stroke_and_only_the_left_button`, `editor::view::editing_tests::proofs_editor_multi_caret::uses_rebinding_immediately_and_yields_column_selection_to_the_caret_gesture`, `editor::view::editing_tests::proofs_editor_multi_caret::honours_removal_of_the_caret_gesture_and_restores_it`, `editor::view::editing_tests::proofs_editor_multi_caret::restores_alt_drag_column_selection_once_the_caret_gesture_is_removed`, `editor::view::editing_tests::proofs_editor_multi_caret::matches_normalized_ctrl_alt_strokes_as_reported_for_right_alt_on_windows`; 5 of 6 cases; middle-button column selection is not built"
+  },
+  "module:src/editor/core/clipboardHistory.ts": {
+    "status": "partial",
+    "proof": "`editor::view::editing_tests::proofs_editor_clipboard_history::copies_and_cuts_are_recorded_newest_first_and_the_latest_line_copy_pastes_above`, `editor::view::editing_tests::proofs_editor_clipboard_history::the_clipboard_history_keeps_the_latest_thirty_copies`; copies and cuts in an editor are recorded newest first without repeats, at most thirty, and the latest line copy pastes above the caret's line; Paste from History has no handler in the app and copies outside editors are not recorded"
+  },
+  "unit:src/editor/core/cm/syntaxHighlight.test.ts": {
+    "status": "done",
+    "proof": "`editor::view::tests::proofs_editor_highlight_backend::styles_backend_ranges_with_the_active_highlight_style_and_maps_them_through_edits`, `editor::view::tests::proofs_editor_highlight_backend::lets_kotlin_declaration_roles_override_the_stream_lexers_generic_definition_style`; both cases"
+  },
+  "unit:src/editor/core/cm/cmake.test.ts": {
+    "status": "partial",
+    "proof": "`editor::view::tests::proofs_editor_highlight_cmake::keeps_multiline_bracket_comments_and_literal_bracket_strings_opaque`; 1 of 7 cases; argument keywords, numbers, predefined variables, whole variable expansions, generator expressions, function definitions and .cmake.in detection are not painted or recognised as the webview does"
+  },
+  "unit:src/editor/core/cm/interpolation.test.ts": {
+    "status": "partial",
+    "proof": "`editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_verbatim_interpolation_and_doubled_quotes`, `editor::view::tests::proofs_editor_highlight_interpolation::handles_csharp_raw_interpolation_with_multiple_dollar_delimiters`; 2 of 8 cases (the C# ones); Kotlin, Scala and Dart template code is not coloured as code, Groovy has no grammar, and the mode lookup by name and alias has no counterpart"
+  },
+  "module:src/platform/navigationModifier.ts": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::proofs_editor_navigation_modifier::the_plain_hover_yields_while_the_navigation_modifier_is_held`, `editor::intelligence::tests::proofs_editor_navigation_modifier::pressing_the_navigation_modifier_closes_an_open_hover`; the plain hover yields while the modifier is held, and pressing it closes an open hover; the reset on window blur is not tested and there is no Cmd-hover link"
+  },
+  "event:DocPatched": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_backend_events::an_edit_and_a_save_made_by_the_backend_show_in_the_open_editor`; an edit the backend applies to an open document shows in its editor"
+  },
+  "event:DocDirty": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_backend_events::an_edit_and_a_save_made_by_the_backend_show_in_the_open_editor`; the editor is marked modified after the backend's edit and clean again once the backend saves the document"
+  },
+  "event:SettingsChanged": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_backend_events::ignored_names_written_to_the_projects_settings_file_hide_their_entries`; ignored names written to the project's settings file on disk hide their entries in the Project view"
+  },
+  "event:ExcludedDirsChanged": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_backend_events::a_file_created_in_an_expanded_ignored_folder_shows_in_the_project_view`; a file created in an expanded Git-ignored folder shows in the Project view"
+  },
+  "event:DbSourcesChanged": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_backend_events::data_sources_saved_by_the_backend_show_in_the_open_database_tool_window`; data sources saved by the backend show in the open Database tool window"
+  },
+  "settings:build.debugger": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the five checkboxes of the webview's page: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+  },
+  "settings:build.debugger.stepping": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's one checkbox: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+  },
+  "settings:build.pythonDebugger": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's two checkboxes: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+  },
+  "settings:build.run": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's three checkboxes and the termination time limit: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+  },
+  "settings:general.language": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's Language choice: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+  },
+  "settings:general.mode": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's IDE mode choice: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+  },
+  "settings:tools.agents.chat": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's four checkboxes: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+  },
+  "settings:vcs.shelf": {
+    "status": "done",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's one checkbox: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+  },
+  "settings:general": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Open project in, Default directory and Save files if the IDE is idle say This page is not available yet"
+  },
+  "settings:notifications": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; the per-group Popup type table say This page is not available yet"
+  },
+  "settings:build.console": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Override console cycle buffer size and Fold console lines that contain say This page is not available yet"
+  },
+  "settings:build.debugger.dataViews": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Value tooltip delay say This page is not available yet"
+  },
+  "settings:tools.terminal": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Start directory, Environment variables, Shell path, Audible bell, Cursor shape and Use editor font say This page is not available yet"
+  },
+  "settings:tools.mcpServer": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Endpoint say This page is not available yet"
+  },
+  "settings:vcs.commit": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; its two controls of their own say This page is not available yet"
+  },
+  "settings:vcs.confirmation": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; When files are created, When files are deleted and Limit history to say This page is not available yet"
+  },
+  "settings:vcs.git": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Path to Git executable, the large-file limit, Protected branches, the update method, incoming-commit checks and Passwords say This page is not available yet"
+  },
+  "settings:build.deployment.options": {
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Exclude items by name says This page is not available yet; controls not compared one by one"
+  },
+  "event:ProjectTrustChanged": {
+    "status": "done",
+    "proof": "`workbench::tests::the_agents_follow_notifications_trust_and_task_commands_and_come_back_with_the_project`; set_project_trust on the backend makes the window drop the project's agents when it is untrusted and list them again when trusted; the webview's other listeners (the project's trusted flag, the composer install recheck) have no native counterpart shown"
+  },
+  "ipc:app_quit": {
+    "status": "partial",
+    "proof": "`workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`; Quit confirms the exit and asks each window about its unsaved changes, and Cancel keeps the window and its text; quitting itself (every window closed, the app exiting) is not asserted"
   }
 }
