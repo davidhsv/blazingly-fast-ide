@@ -1,0 +1,1118 @@
+//! The plugin pages of a window carried out on the plugin host: Settings › Plugins, the Welcome
+//! screen's Plugins page, and the page the Plugins actions drive while neither is open. Every
+//! operation a page asks for runs on the host off the main thread and is answered to the page
+//! that asked; the dialogs they need (the install and permission page, the repository prompt)
+//! show in a layer of their own over everything else, Settings included.
+//!
+//! The window's plugin host is the app's ([`Plugins`]) unless one is handed to it
+//! ([`Workbench::use_plugin_host`]); the pages follow the host's announcements (the plugins
+//! changed, a plugin asks for permission) through the app's listener.
+//!
+//! Secrets typed into a page reach the host's secret store and nothing else: no log line names a
+//! value or an event's fields, only the event's kind.
+
+use super::Workbench;
+use super::notifications::{NotificationLevel, NotificationRequest};
+use super::services_window::on_workbench;
+use crate::backend::Backend;
+use crate::platform::actions::{ActionRegistry, ActionSource, execute_action_from};
+use crate::platform::i18n::{Localization, Param};
+use crate::platform::settings::{SettingsWrite, global, set_global};
+use crate::plugin_models::consent::Capability;
+use crate::plugin_models::contribution::Contribution;
+use crate::plugin_models::plugins_page::{
+    ConsentDialog, ConsentDialogEvent, PluginsPage, PluginsPageEvent, repository_url,
+};
+use crate::plugin_models::store::{ConsentRequest, InstallStep, grant_request};
+use crate::plugins::{Plugins, plugin_action_id};
+use crate::vcs::prompt_dialogs::{FieldRule, PromptDialog, PromptDialogEvent};
+use crate::vcs_ops::dialogs::PromptRequest;
+use gpui_kit::{
+    AnyElement, AnyView, App, Context, Entity, FocusHandle, Focusable, IntoElement, PathPromptOptions, Subscription,
+    Task, WeakEntity, Window, div, prelude::*,
+};
+use ide_core::IdeResult;
+use ide_host::plugins::{Consent, PluginEvent, PluginHost};
+use serde_json::{Value, json};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::Duration;
+
+/// How long a listing of the plugins waits for the installed ones to have loaded.
+const INITIAL_LOAD_WAIT: Duration = Duration::from_secs(5);
+
+/// The page a window's plugin pages and the Plugins actions work on, with the host it answers to.
+struct HostedPage {
+    page: Entity<PluginsPage>,
+    _events: Subscription,
+}
+
+/// A dialog of the plugin pages, over everything else in the window.
+enum DialogView {
+    Consent(Entity<ConsentDialog>),
+    Repository(Entity<PromptDialog>),
+}
+
+impl DialogView {
+    fn view(&self) -> AnyView {
+        match self {
+            DialogView::Consent(dialog) => dialog.clone().into(),
+            DialogView::Repository(dialog) => dialog.clone().into(),
+        }
+    }
+}
+
+struct PluginsDialog {
+    view: DialogView,
+    /// What had the keyboard before the dialog opened.
+    restore: Option<FocusHandle>,
+    _events: Subscription,
+}
+
+/// Who a consent dialog answers: the page whose grant or install asked, or the host, for a plugin
+/// that asked for permission while it ran.
+enum ConsentFor {
+    Page(WeakEntity<PluginsPage>),
+    Host { host: Arc<PluginHost>, plugin_id: String, name: String },
+}
+
+/// What a window keeps for its plugin pages.
+#[derive(Default)]
+pub(super) struct PluginsSlot {
+    /// The window's plugin host; none: the app's, if it has one.
+    host: Option<Arc<PluginHost>>,
+    /// The Welcome screen's Plugins page, while the Welcome screen shows.
+    welcome: Option<HostedPage>,
+    /// The page the Plugins actions drive while no other page is open; it is never drawn.
+    background: Option<HostedPage>,
+    dialog: Option<PluginsDialog>,
+    /// The window's listener on the app's plugin host.
+    listener: Option<u64>,
+}
+
+/// The app's plugin host, when it runs one.
+fn app_plugin_host(cx: &App) -> Option<Arc<PluginHost>> {
+    cx.try_global::<Plugins>().map(|plugins| Arc::clone(&plugins.host))
+}
+
+/// Where the local catalog of plugins is read from: the repository's official plugins in debug
+/// builds; a released build has none next to it.
+fn catalog_dirs() -> Vec<PathBuf> {
+    if cfg!(debug_assertions) {
+        vec![Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/official")]
+    } else {
+        Vec::new()
+    }
+}
+
+/// Runs `work` on `host` off the main thread; the failure is its message.
+fn host_work<T, W>(host: &Arc<PluginHost>, cx: &App, work: W) -> Task<Result<T, String>>
+where
+    T: Send + 'static,
+    W: FnOnce(&PluginHost) -> IdeResult<T> + Send + 'static,
+{
+    let host = Arc::clone(host);
+    cx.background_executor().spawn(async move { work(&host).map_err(|error| error.message) })
+}
+
+/// The name of a Plugins page event, for the log: never its fields, which may hold a secret.
+fn event_name(event: &PluginsPageEvent) -> &'static str {
+    match event {
+        PluginsPageEvent::Refresh { .. } => "Refresh",
+        PluginsPageEvent::SetEnabled { .. } => "SetEnabled",
+        PluginsPageEvent::Reload(_) => "Reload",
+        PluginsPageEvent::Uninstall(_) => "Uninstall",
+        PluginsPageEvent::Grant { .. } => "Grant",
+        PluginsPageEvent::SetCapability { .. } => "SetCapability",
+        PluginsPageEvent::RollBack(_) => "RollBack",
+        PluginsPageEvent::AskConsent(_) => "AskConsent",
+        PluginsPageEvent::Install(_) => "Install",
+        PluginsPageEvent::DownloadMarket(_) => "DownloadMarket",
+        PluginsPageEvent::EditRepository { .. } => "EditRepository",
+        PluginsPageEvent::ImportInstalledIntellij => "ImportInstalledIntellij",
+        PluginsPageEvent::ImportIntellijFile => "ImportIntellijFile",
+        PluginsPageEvent::OpenUrl(_) => "OpenUrl",
+        PluginsPageEvent::SetTheme(_) => "SetTheme",
+        PluginsPageEvent::SelectIconTheme(_) => "SelectIconTheme",
+        PluginsPageEvent::RunCommand { .. } => "RunCommand",
+        PluginsPageEvent::LoadSecrets(_) => "LoadSecrets",
+        PluginsPageEvent::SetSecret { .. } => "SetSecret",
+        PluginsPageEvent::Notify(_) => "Notify",
+    }
+}
+
+/// A path as the page carries it.
+fn path_text(path: &Path) -> String {
+    path.to_string_lossy().into_owned()
+}
+
+/// The capabilities a plugin asked for, as the consent dialog reads them.
+fn capabilities_from<T: serde::Serialize>(capabilities: &T) -> Vec<Capability> {
+    serde_json::to_value(capabilities).ok().and_then(|value| serde_json::from_value(value).ok()).unwrap_or_default()
+}
+
+/// Registers the Plugins actions that drive a page outside the open dialogs: Install Plugin from
+/// Disk… (the argument is a folder, its `plugin.toml` or a package file; none: a picker), Update
+/// All Plugins and Reload Plugins. None has a condition.
+pub(super) fn register_actions(registry: &mut ActionRegistry) {
+    registry.handle("plugins.installFromDisk", |call, window, cx| {
+        let path = call.arg.and_then(Value::as_str).map(str::to_owned);
+        on_workbench(window, cx, move |workbench, window, cx| match workbench.action_plugins_page(window, cx) {
+            Some(page) => page.update(cx, |page, cx| page.install_from_disk(path.as_deref(), false, true, cx)),
+            None => tracing::info!("Plugins: this window has no plugin host to install with"),
+        })
+    });
+    registry.handle("plugins.updateAll", |_, window, cx| {
+        on_workbench(window, cx, |workbench, window, cx| match workbench.action_plugins_page(window, cx) {
+            Some(page) => page.update(cx, |page, cx| page.update_all(cx)),
+            None => tracing::info!("Plugins: this window has no plugin host to update with"),
+        })
+    });
+    registry.handle("plugins.reloadAll", |_, window, cx| {
+        on_workbench(window, cx, |workbench, _, cx| workbench.reload_all_plugins(cx))
+    });
+}
+
+impl Workbench {
+    /// The plugin host this window works with: the one handed to it, else the app's.
+    pub fn plugin_host(&self, cx: &App) -> Option<Arc<PluginHost>> {
+        self.plugin_ui.host.clone().or_else(|| app_plugin_host(cx))
+    }
+
+    /// Makes `host` the window's plugin host in place of the app's, and gives the Welcome screen
+    /// its Plugins page over it. Windows of an app without a plugin host of its own (tests, a
+    /// remote host's window) are handed one this way.
+    pub fn use_plugin_host(&mut self, host: Arc<PluginHost>, window: &mut Window, cx: &mut Context<Self>) {
+        self.plugin_ui.host = Some(host);
+        self.plugin_ui.welcome = None;
+        self.plugin_ui.background = None;
+        self.sync_welcome_plugins(window, cx);
+    }
+
+    /// The Welcome screen's Plugins page, while the Welcome screen shows one.
+    pub fn welcome_plugins_page(&self) -> Option<&Entity<PluginsPage>> {
+        self.plugin_ui.welcome.as_ref().map(|hosted| &hosted.page)
+    }
+
+    /// The consent dialog of the plugin pages, while it is open.
+    pub fn plugins_consent_dialog(&self) -> Option<&Entity<ConsentDialog>> {
+        match &self.plugin_ui.dialog.as_ref()?.view {
+            DialogView::Consent(dialog) => Some(dialog),
+            DialogView::Repository(_) => None,
+        }
+    }
+
+    /// The Plugin Repository prompt, while it is open.
+    pub fn plugins_repository_prompt(&self) -> Option<&Entity<PromptDialog>> {
+        match &self.plugin_ui.dialog.as_ref()?.view {
+            DialogView::Repository(dialog) => Some(dialog),
+            DialogView::Consent(_) => None,
+        }
+    }
+
+    /// Listens to the app's plugin host for this window: the pages are listed again when the
+    /// plugins change, and a plugin that asks for permission while it runs gets its consent dialog.
+    /// Call once, when the window is made.
+    pub(super) fn listen_to_plugins(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.plugin_ui.listener.is_some() || !cx.has_global::<Plugins>() {
+            return;
+        }
+        let (weak, handle) = (cx.weak_entity(), window.window_handle());
+        let listener = cx.global_mut::<Plugins>().listen(move |client, event, cx| {
+            let _ = handle.update(cx, |_, window, cx| {
+                weak.update(cx, |workbench, cx| workbench.plugin_host_event(client, event, window, cx))
+            });
+        });
+        self.plugin_ui.listener = Some(listener);
+    }
+
+    /// The window goes: its listener on the plugin host goes with it.
+    pub(super) fn stop_listening_to_plugins(&mut self, cx: &mut App) {
+        if let Some(listener) = self.plugin_ui.listener.take()
+            && cx.has_global::<Plugins>()
+        {
+            cx.global_mut::<Plugins>().unlisten(listener);
+        }
+    }
+
+    /// Gives the Welcome screen its Plugins page while it shows and the window has a plugin host,
+    /// and takes it away otherwise. The page is the same kind of view as Settings › Plugins, with
+    /// its own listing.
+    pub(super) fn sync_welcome_plugins(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(welcome) = self.welcome().cloned() else {
+            self.plugin_ui.welcome = None;
+            return;
+        };
+        if self.plugin_ui.welcome.is_some() {
+            return;
+        }
+        let Some(host) = self.plugin_host(cx) else {
+            welcome.update(cx, |view, cx| view.set_plugins_page(None, cx));
+            return;
+        };
+        let (page, events) = self.new_plugins_page(host, window, cx);
+        welcome.update(cx, |view, cx| view.set_plugins_page(Some(page.clone().into()), cx));
+        self.plugin_ui.welcome = Some(HostedPage { page: page.clone(), _events: events });
+        page.update(cx, |page, cx| page.opened(cx));
+    }
+
+    /// The Welcome screen went: its Plugins page goes with it.
+    pub(super) fn drop_welcome_plugins(&mut self) {
+        self.plugin_ui.welcome = None;
+    }
+
+    /// A Plugins page over `host` that this window carries out, following the window's project
+    /// trust and the appearance settings. The caller shows it, then calls [`PluginsPage::opened`].
+    pub(super) fn new_plugins_page(
+        &mut self,
+        host: Arc<PluginHost>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> (Entity<PluginsPage>, Subscription) {
+        let page = cx.new(|cx| PluginsPage::new(window, cx));
+        let events = cx.subscribe_in(&page, window, move |workbench, page, event: &PluginsPageEvent, window, cx| {
+            workbench.carry_out_plugins_event(&host, page, event, window, cx);
+        });
+        self.follow_plugins_settings(&page, cx);
+        (page, events)
+    }
+
+    /// Every Plugins page of the window: Settings', the Welcome screen's and the actions' one.
+    fn plugin_pages(&self) -> Vec<Entity<PluginsPage>> {
+        let hosted = [&self.plugin_ui.welcome, &self.plugin_ui.background];
+        self.settings_plugins_page()
+            .cloned()
+            .into_iter()
+            .chain(hosted.into_iter().flatten().map(|hosted| hosted.page.clone()))
+            .collect()
+    }
+
+    /// Tells the Plugins pages of the window the settings they follow (after a change of
+    /// `appearance`, or of the project's trust).
+    pub(super) fn follow_settings_on_plugin_pages(&self, cx: &mut Context<Self>) {
+        for page in self.plugin_pages() {
+            self.follow_plugins_settings(&page, cx);
+        }
+    }
+
+    /// Tells a Plugins page whether the window's project is trusted, and the theme and the file
+    /// icon theme the settings name.
+    pub(super) fn follow_plugins_settings(&self, page: &Entity<PluginsPage>, cx: &mut Context<Self>) {
+        let root = self.project_root(cx);
+        let trusted = cx
+            .try_global::<Backend>()
+            .zip(root)
+            .is_some_and(|(backend, root)| backend.host.trust.trusted(&root).unwrap_or(false));
+        let appearance = global(cx).appearance;
+        let icon_theme = Some(appearance.file_icon_theme).filter(|key| !key.is_empty());
+        page.update(cx, |page, cx| {
+            page.set_trusted_project(trusted, cx);
+            page.set_appearance(Some(appearance.theme), icon_theme, cx);
+        });
+    }
+
+    /// The page the Plugins actions drive: Settings' while it is open, else the Welcome screen's,
+    /// else one made for them, listed once and kept (it is never drawn); none without a plugin host.
+    fn action_plugins_page(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<Entity<PluginsPage>> {
+        if let Some(page) = self.settings_plugins_page().or(self.welcome_plugins_page()) {
+            return Some(page.clone());
+        }
+        if let Some(hosted) = &self.plugin_ui.background {
+            return Some(hosted.page.clone());
+        }
+        let host = self.plugin_host(cx)?;
+        let (page, events) = self.new_plugins_page(host, window, cx);
+        self.plugin_ui.background = Some(HostedPage { page: page.clone(), _events: events });
+        page.update(cx, |page, cx| page.opened(cx));
+        Some(page)
+    }
+
+    /// Reload Plugins: every listed plugin is reloaded in turn; each failure is reported, and the
+    /// pages list the plugins again.
+    fn reload_all_plugins(&mut self, cx: &mut Context<Self>) {
+        let Some(host) = self.plugin_host(cx) else {
+            tracing::info!("Plugins: this window has no plugin host to reload");
+            return;
+        };
+        let root = self.project_root(cx);
+        let work = host_work(&host, cx, move |host| {
+            let listed = host.list(root.as_deref());
+            let failed = listed
+                .plugins
+                .into_iter()
+                .filter_map(|plugin| host.reload(&plugin.id).err().map(|error| (plugin.name, error.message)))
+                .collect::<Vec<_>>();
+            Ok(failed)
+        });
+        cx.spawn(async move |workbench, cx| {
+            let failed = work.await.unwrap_or_default();
+            let _ = workbench.update(cx, |workbench, cx| {
+                for (name, error) in failed {
+                    let i18n = &mut cx.default_global::<Localization>().0;
+                    let title = i18n.tx_built(&["Could not reload ", ""], &[Param::Text(name)]);
+                    let request = NotificationRequest {
+                        group: Some("plugins".to_owned()),
+                        body: Some(error),
+                        ..NotificationRequest::new(NotificationLevel::Error, title)
+                    };
+                    workbench.notify(request, cx);
+                }
+                workbench.list_plugins_on_pages(cx);
+            });
+        })
+        .detach();
+    }
+
+    /// Lists the plugins again on every page of the window.
+    fn list_plugins_on_pages(&mut self, cx: &mut Context<Self>) {
+        let Some(host) = self.plugin_host(cx) else { return };
+        for page in self.plugin_pages() {
+            self.list_plugins(&host, &page, cx);
+        }
+    }
+
+    /// What the plugin host announces for this window (`client`; none: every window).
+    fn plugin_host_event(
+        &mut self,
+        client: Option<&str>,
+        event: &PluginEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if client.is_some_and(|client| client != self.label) {
+            return;
+        }
+        match event {
+            PluginEvent::CommandsChanged => self.list_plugins_on_pages(cx),
+            PluginEvent::ConsentRequested { plugin_id, capabilities } => {
+                let Some(host) = self.plugin_host(cx) else { return };
+                let listed = cx.try_global::<Plugins>().and_then(|plugins| plugins.snapshot());
+                let plugin = listed.and_then(|listed| listed.plugins.iter().find(|plugin| &plugin.id == plugin_id));
+                let mut request = match plugin {
+                    Some(plugin) => grant_request(plugin),
+                    None => ConsentRequest {
+                        plugin_id: plugin_id.clone(),
+                        name: plugin_id.clone(),
+                        version: String::new(),
+                        install: false,
+                        capabilities: Vec::new(),
+                        unsigned: false,
+                        signer_changed: false,
+                        warnings: Vec::new(),
+                    },
+                };
+                request.capabilities = capabilities_from(capabilities);
+                let answer = ConsentFor::Host { host, plugin_id: plugin_id.clone(), name: request.name.clone() };
+                self.show_consent(request, answer, window, cx);
+            }
+            _ => {}
+        }
+    }
+
+    /// Carries out what a Plugins page asks, on `host`, and answers the page.
+    fn carry_out_plugins_event(
+        &mut self,
+        host: &Arc<PluginHost>,
+        page: &Entity<PluginsPage>,
+        event: &PluginsPageEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        tracing::debug!("Plugins: {}", event_name(event));
+        match event {
+            PluginsPageEvent::Refresh { plugins, catalog, market } => {
+                if *plugins {
+                    self.list_plugins(host, page, cx);
+                }
+                if *catalog {
+                    Self::read_plugin_catalog(host, page, cx);
+                }
+                if let Some(refresh) = *market {
+                    Self::read_plugin_market(host, page, refresh, cx);
+                }
+            }
+            PluginsPageEvent::SetEnabled { id, enabled } => {
+                let (target, enabled) = (id.clone(), *enabled);
+                let work = host_work(host, cx, move |host| host.set_enabled(&target, enabled));
+                Self::answer_finished(page, id, work, cx);
+            }
+            PluginsPageEvent::Reload(id) => {
+                let target = id.clone();
+                let work = host_work(host, cx, move |host| host.reload(&target).map(|_| ()));
+                Self::answer_finished(page, id, work, cx);
+            }
+            PluginsPageEvent::Uninstall(id) => {
+                let target = id.clone();
+                let work = host_work(host, cx, move |host| host.uninstall(&target));
+                Self::answer_finished(page, id, work, cx);
+            }
+            PluginsPageEvent::Grant { id, optional, signer_change } => {
+                let target = id.clone();
+                let consent = Consent { optional: optional.clone(), signer_change: *signer_change };
+                let work = host_work(host, cx, move |host| host.grant(&target, &consent).map(|_| ()));
+                Self::answer_finished(page, id, work, cx);
+            }
+            PluginsPageEvent::SetCapability { id, capability, granted } => {
+                let (target, capability, granted) = (id.clone(), capability.clone(), *granted);
+                let work =
+                    host_work(host, cx, move |host| host.set_capability(&target, &capability, granted).map(|_| ()));
+                Self::answer_finished(page, id, work, cx);
+            }
+            PluginsPageEvent::RollBack(id) => {
+                let (target, id) = (id.clone(), id.clone());
+                let work = host_work(host, cx, move |host| host.roll_back_update(&target));
+                Self::answer_page(page, work, move |page, result, cx| page.rolled_back(&id, result, cx), cx);
+            }
+            PluginsPageEvent::AskConsent(request) => {
+                self.show_consent(request.clone(), ConsentFor::Page(page.downgrade()), window, cx);
+            }
+            PluginsPageEvent::Install(step) => self.install_step(host, page, step, window, cx),
+            PluginsPageEvent::DownloadMarket(id) => {
+                let (target, id) = (id.clone(), id.clone());
+                let work =
+                    host_work(host, cx, move |host| host.download_market_plugin(&target).map(|dir| path_text(&dir)));
+                Self::answer_page(page, work, move |page, dir, cx| page.downloaded(&id, dir, cx), cx);
+            }
+            PluginsPageEvent::EditRepository { current } => {
+                self.edit_plugin_repository(host, page, current.clone(), window, cx);
+            }
+            // Both imports convert a JetBrains theme into a plugin, which this app cannot do yet.
+            PluginsPageEvent::ImportInstalledIntellij | PluginsPageEvent::ImportIntellijFile => {
+                tracing::info!("Plugins: {} is not available in this window", event_name(event));
+            }
+            PluginsPageEvent::OpenUrl(url) => cx.open_url(url),
+            // `plugins.rs` follows the theme setting into the host: only the setting is written.
+            PluginsPageEvent::SetTheme(theme) => self.write_plugin_setting("appearance.theme", json!(theme), cx),
+            PluginsPageEvent::SelectIconTheme(key) => {
+                self.write_plugin_setting("appearance.fileIconTheme", json!(key.clone().unwrap_or_default()), cx);
+            }
+            PluginsPageEvent::RunCommand { plugin_id, command_id } => {
+                let id = plugin_action_id(plugin_id, command_id);
+                window.defer(cx, move |window, cx| {
+                    execute_action_from(ActionSource::Other, &id, None, window, cx);
+                });
+            }
+            PluginsPageEvent::LoadSecrets(id) => {
+                let (target, id) = (id.clone(), id.clone());
+                let work = host_work(host, cx, move |host| host.secrets(&target));
+                Self::answer_page(
+                    page,
+                    work,
+                    move |page, secrets, cx| match secrets {
+                        Ok(secrets) => page.set_secrets(&id, secrets, cx),
+                        // The state stays unknown: the page offers no stored value to remove.
+                        Err(error) => tracing::warn!("Plugins: cannot read which secrets {id} has stored: {error}"),
+                    },
+                    cx,
+                );
+            }
+            PluginsPageEvent::SetSecret { plugin_id, name, value } => {
+                let (plugin, key, value) = (plugin_id.clone(), name.clone(), value.clone());
+                let work = host_work(host, cx, move |host| host.set_secret(&plugin, &key, value.as_deref()));
+                let (plugin_id, name) = (plugin_id.clone(), name.clone());
+                let answer = move |page: &mut PluginsPage, saved: Result<(), String>, cx: &mut Context<PluginsPage>| {
+                    page.secret_saved(&plugin_id, &name, saved, cx);
+                };
+                Self::answer_page(page, work, answer, cx);
+            }
+            PluginsPageEvent::Notify(request) => self.notify(request.clone(), cx),
+        }
+    }
+
+    /// An install step: the picker, or unpacking, previewing and installing on the host.
+    fn install_step(
+        &mut self,
+        host: &Arc<PluginHost>,
+        page: &Entity<PluginsPage>,
+        step: &InstallStep,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match step {
+            InstallStep::Pick { package_file } => {
+                let picked = cx.prompt_for_paths(PathPromptOptions {
+                    files: *package_file,
+                    directories: !*package_file,
+                    multiple: false,
+                    prompt: None,
+                });
+                let page = page.downgrade();
+                cx.spawn_in(window, async move |_, cx| {
+                    let picked = match picked.await {
+                        Ok(Ok(paths)) => {
+                            Ok(paths.and_then(|paths| paths.into_iter().next()).map(|path| path_text(&path)))
+                        }
+                        Ok(Err(error)) => Err(format!("{error:#}")),
+                        // The picker went without answering: as cancelled.
+                        Err(_) => Ok(None),
+                    };
+                    let _ = page.update(cx, |page, cx| page.picked(picked, cx));
+                })
+                .detach();
+            }
+            InstallStep::Unpack(file) => {
+                let file = PathBuf::from(file);
+                let work = host_work(host, cx, move |host| host.unpack_package(&file).map(|dir| path_text(&dir)));
+                Self::answer_page(page, work, |page, dir, cx| page.unpacked(dir, cx), cx);
+            }
+            InstallStep::Preview(dir) => {
+                let dir = PathBuf::from(dir);
+                let work = host_work(host, cx, move |host| host.preview_install(&dir));
+                Self::answer_page(page, work, |page, preview, cx| page.previewed(preview, cx), cx);
+            }
+            InstallStep::Install { dir, optional, signer_change } => {
+                let dir = PathBuf::from(dir);
+                let consent = Consent { optional: optional.clone(), signer_change: *signer_change };
+                let work = host_work(host, cx, move |host| host.install_from_dir(&dir, &consent));
+                Self::answer_page(page, work, |page, info, cx| page.installed(info, cx), cx);
+            }
+            // The page shows these itself.
+            InstallStep::AskConsent(_) | InstallStep::Done { .. } => {}
+        }
+    }
+
+    /// Writes a global setting the page chose; a failure is reported.
+    fn write_plugin_setting(&mut self, key: &'static str, value: Value, cx: &mut Context<Self>) {
+        let label = self.label.clone();
+        if let Err(error) = set_global(&label, &[SettingsWrite { key, value }], cx) {
+            let request = NotificationRequest {
+                body: Some(error.message),
+                key: Some(format!("plugins.setting:{key}")),
+                ..NotificationRequest::new(NotificationLevel::Error, "Cannot save setting")
+            };
+            self.notify(request, cx);
+        }
+    }
+
+    /// Lists the plugins as the window sees them: the installed and linked ones and the plugins of
+    /// its project (loaded first when the project is trusted).
+    fn list_plugins(&self, host: &Arc<PluginHost>, page: &Entity<PluginsPage>, cx: &mut Context<Self>) {
+        let root = self.project_root(cx);
+        let work = host_work(host, cx, move |host| {
+            host.wait_initial_load(INITIAL_LOAD_WAIT);
+            host.sync_links();
+            if let Some(root) = &root {
+                host.sync_project(root);
+            }
+            Ok(host.list(root.as_deref()))
+        });
+        Self::answer_page(
+            page,
+            work,
+            |page, listed, cx| match listed {
+                Ok(snapshot) => {
+                    let contributions = Contribution::from_snapshot(&snapshot);
+                    page.set_listing(snapshot.plugins, contributions, cx);
+                }
+                Err(error) => page.listing_failed(error, cx),
+            },
+            cx,
+        );
+    }
+
+    fn read_plugin_catalog(host: &Arc<PluginHost>, page: &Entity<PluginsPage>, cx: &mut Context<Self>) {
+        let dirs = catalog_dirs();
+        let work = host_work(host, cx, move |host| Ok(host.catalog(&dirs)));
+        Self::answer_page(page, work, |page, catalog, cx| page.set_catalog(catalog, cx), cx);
+    }
+
+    /// The marketplace's plugins, its index read again with `refresh`; none without an index.
+    fn read_plugin_market(host: &Arc<PluginHost>, page: &Entity<PluginsPage>, refresh: bool, cx: &mut Context<Self>) {
+        let work = host_work(host, cx, move |host| {
+            let url = host.market_url();
+            let listing = match url {
+                Some(_) => host.market_listing(refresh).map_err(|error| error.message),
+                None => Ok(Vec::new()),
+            };
+            Ok((url, listing))
+        });
+        Self::answer_page(
+            page,
+            work,
+            |page, market, cx| match market {
+                Ok((url, listing)) => page.set_market(url, listing, cx),
+                Err(error) => page.set_market(None, Err(error), cx),
+            },
+            cx,
+        );
+    }
+
+    /// Plugin Repository…: asks for the marketplace index URL, prefilled with `current`; an empty
+    /// one restores the default. The marketplace is then read again from the new index.
+    fn edit_plugin_repository(
+        &mut self,
+        host: &Arc<PluginHost>,
+        page: &Entity<PluginsPage>,
+        current: Option<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.plugin_ui.dialog.is_some() {
+            return;
+        }
+        let request = PromptRequest {
+            title: "Plugin Repository".to_owned(),
+            label: Some("Marketplace index URL:".to_owned()),
+            initial: current.unwrap_or_default(),
+            ok_label: "Save".to_owned(),
+            mono: true,
+            ..PromptRequest::default()
+        };
+        let dialog = cx.new(|cx| PromptDialog::prompt(request, FieldRule::Any, window, cx));
+        let (host, page) = (Arc::clone(host), page.downgrade());
+        let events = cx.subscribe_in(&dialog, window, move |workbench, _, event: &PromptDialogEvent, window, cx| {
+            let PromptDialogEvent::Closed(answer) = event;
+            workbench.close_plugins_dialog(window, cx);
+            let (Some(result), Some(page)) = (answer.prompt_result(), page.upgrade()) else { return };
+            let url = repository_url(&result.value);
+            // Setting the URL cannot fail; the index it names is read again (and may fail) next.
+            let work = host_work(&host, cx, move |host| {
+                host.set_market_url(url);
+                let url = host.market_url();
+                let listing = match url {
+                    Some(_) => host.market_listing(true).map_err(|error| error.message),
+                    None => Ok(Vec::new()),
+                };
+                Ok((url, listing))
+            });
+            Self::answer_page(
+                &page,
+                work,
+                |page, market, cx| match market {
+                    Ok((url, listing)) => page.set_market(url, listing, cx),
+                    Err(error) => page.set_market(None, Err(error), cx),
+                },
+                cx,
+            );
+        });
+        let focus = dialog.focus_handle(cx);
+        self.open_plugins_dialog(DialogView::Repository(dialog), focus, events, window, cx);
+    }
+
+    /// Shows the consent dialog for `request`; its answer goes to `answer`. While another dialog of
+    /// the plugin pages is open, a page's request is answered as cancelled and the host's is left
+    /// for the plugin to ask again.
+    fn show_consent(
+        &mut self,
+        request: ConsentRequest,
+        answer: ConsentFor,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.plugin_ui.dialog.is_some() {
+            if let ConsentFor::Page(page) = answer {
+                let _ = page.update(cx, |page, cx| page.consented(None, cx));
+            }
+            return;
+        }
+        let dialog = cx.new(|cx| ConsentDialog::new(request, cx));
+        let mut answer = Some(answer);
+        let events = cx.subscribe_in(&dialog, window, move |workbench, _, event: &ConsentDialogEvent, window, cx| {
+            workbench.close_plugins_dialog(window, cx);
+            let consent = event.consent();
+            match answer.take() {
+                Some(ConsentFor::Page(page)) => {
+                    // The page is gone when its dialog closed meanwhile.
+                    let _ = page.update(cx, |page, cx| page.consented(consent, cx));
+                }
+                Some(ConsentFor::Host { host, plugin_id, name }) => {
+                    if let Some(consent) = consent {
+                        workbench.grant_asked(&host, plugin_id, name, consent, cx);
+                    }
+                }
+                None => {}
+            }
+        });
+        let focus = dialog.focus_handle(cx);
+        self.open_plugins_dialog(DialogView::Consent(dialog), focus, events, window, cx);
+    }
+
+    /// The permission a running plugin asked for is granted as accepted; the pages list it again.
+    fn grant_asked(
+        &mut self,
+        host: &Arc<PluginHost>,
+        plugin_id: String,
+        name: String,
+        consent: Consent,
+        cx: &mut Context<Self>,
+    ) {
+        let work = host_work(host, cx, move |host| host.grant(&plugin_id, &consent).map(|_| ()));
+        cx.spawn(async move |workbench, cx| {
+            let granted = work.await;
+            let _ = workbench.update(cx, |workbench, cx| {
+                if let Err(error) = granted {
+                    let title = cx
+                        .default_global::<Localization>()
+                        .0
+                        .tx_built(&["Could not enable ", ""], &[Param::Text(name)]);
+                    let request = NotificationRequest {
+                        group: Some("plugins".to_owned()),
+                        body: Some(error),
+                        ..NotificationRequest::new(NotificationLevel::Error, title)
+                    };
+                    workbench.notify(request, cx);
+                }
+                workbench.list_plugins_on_pages(cx);
+            });
+        })
+        .detach();
+    }
+
+    fn open_plugins_dialog(
+        &mut self,
+        view: DialogView,
+        focus: FocusHandle,
+        events: Subscription,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let restore = window.focused(cx);
+        window.focus(&focus, cx);
+        self.plugin_ui.dialog = Some(PluginsDialog { view, restore, _events: events });
+        cx.notify();
+    }
+
+    /// Closes the dialog; the keyboard goes back to what had it (the page, mostly).
+    fn close_plugins_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(dialog) = self.plugin_ui.dialog.take() else { return };
+        if let Some(target) = dialog.restore {
+            window.focus(&target, cx);
+        }
+        cx.notify();
+    }
+
+    /// The dialog of the plugin pages over the window, Settings included, while one is open.
+    pub(super) fn plugins_dialog_layer(&self) -> Option<AnyElement> {
+        let view = self.plugin_ui.dialog.as_ref()?.view.view();
+        let layer = div()
+            .id("plugins-dialog-layer")
+            .absolute()
+            .inset_0()
+            .occlude()
+            .flex()
+            .items_center()
+            .justify_center()
+            .child(view);
+        Some(gpui_kit::deferred(layer).with_priority(2).into_any_element())
+    }
+
+    /// Hands the answer to a page's `finished`, unless the page is gone by then.
+    fn answer_finished(page: &Entity<PluginsPage>, id: &str, work: Task<Result<(), String>>, cx: &mut Context<Self>) {
+        let id = id.to_owned();
+        Self::answer_page(page, work, move |page, result, cx| page.finished(&id, result, cx), cx);
+    }
+
+    /// Hands the outcome of `work` to the page with `answer`, unless the page is gone by then.
+    fn answer_page<T: 'static>(
+        page: &Entity<PluginsPage>,
+        work: Task<Result<T, String>>,
+        answer: impl FnOnce(&mut PluginsPage, Result<T, String>, &mut Context<PluginsPage>) + 'static,
+        cx: &mut Context<Self>,
+    ) {
+        let page = page.downgrade();
+        cx.spawn(async move |_, cx| {
+            let outcome = work.await;
+            // The page was closed meanwhile: nobody waits for the answer.
+            let _ = page.update(cx, |page, cx| answer(page, outcome, cx));
+        })
+        .detach();
+    }
+}
+
+/// A plugin host under `dir` with the installed plugins loaded and secrets kept in memory, as
+/// the app's own would be without its process-wide wiring: for tests of the plugin pages.
+#[cfg(test)]
+pub(crate) fn test_plugin_host(dir: &Path) -> (Arc<PluginHost>, Arc<test_support::MemorySecrets>) {
+    let sink = |_: Option<&str>, _: PluginEvent| {};
+    let host = PluginHost::new(dir.join("plugins"), Arc::new(sink), ide_plugin::Limits::default())
+        .expect("the plugin host starts");
+    let secrets = Arc::new(test_support::MemorySecrets::default());
+    host.set_secret_store(secrets.clone());
+    host.load_all();
+    host.startup_finished();
+    (Arc::new(host), secrets)
+}
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use ide_host::plugins::SecretStore;
+    use parking_lot::Mutex;
+    use std::collections::HashMap;
+
+    /// Secrets kept in memory, by (plugin, name).
+    #[derive(Default)]
+    pub struct MemorySecrets(Mutex<HashMap<(String, String), String>>);
+
+    impl MemorySecrets {
+        pub fn value(&self, plugin: &str, name: &str) -> Option<String> {
+            self.0.lock().get(&(plugin.to_owned(), name.to_owned())).cloned()
+        }
+    }
+
+    impl SecretStore for MemorySecrets {
+        fn get(&self, plugin: &str, name: &str) -> Option<String> {
+            self.value(plugin, name)
+        }
+
+        fn set(&self, plugin: &str, name: &str, value: Option<&str>) -> Result<(), String> {
+            let key = (plugin.to_owned(), name.to_owned());
+            match value {
+                Some(value) => self.0.lock().insert(key, value.to_owned()),
+                None => self.0.lock().remove(&key),
+            };
+            Ok(())
+        }
+    }
+
+    /// What a tracing subscriber writes, kept to be read back.
+    #[derive(Clone, Default)]
+    pub struct CapturedLog(std::sync::Arc<Mutex<Vec<u8>>>);
+
+    impl CapturedLog {
+        pub fn text(&self) -> String {
+            String::from_utf8_lossy(&self.0.lock()).into_owned()
+        }
+    }
+
+    impl std::io::Write for CapturedLog {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for CapturedLog {
+        type Writer = CapturedLog;
+
+        fn make_writer(&'a self) -> Self::Writer {
+            self.clone()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_support::CapturedLog;
+    use super::*;
+    use crate::backend::AppDirs;
+    use crate::platform::input;
+    use crate::platform::storage::UiStorage;
+    use crate::plugin_models::consent::Risk;
+    use crate::plugin_models::plugins_page::Section;
+    use crate::theme;
+    use gpui_kit::{Modifiers, TestAppContext, VisualTestContext};
+    use ide_host::plugins::PluginStatus;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    const AI: &str = "openidea.ai-completion";
+    const STRING_TOOLS: &str = "openidea.string-tools";
+    const CHECKSTYLE: &str = "openidea.checkstyle";
+    /// Typed as keystrokes: letters and digits only (a `-` would read as a modifier separator).
+    const SECRET: &str = "sk5f3a9ctest";
+
+    fn official(name: &str) -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/official").join(name)
+    }
+
+    fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
+        cx.executor().allow_parking();
+        let home = tempfile::tempdir().expect("a temporary home");
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            input::init(cx);
+            crate::editor::actions::register(cx);
+            crate::workbench::register_actions(cx);
+            cx.set_global(UiStorage::default());
+            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            crate::workbench::menu::init(cx);
+            crate::terminal::test_support::isolate_shells(home.path(), cx);
+        });
+        home
+    }
+
+    /// A window showing the Welcome screen whose Plugins page works on `host`, shown.
+    fn plugins_window<'a>(
+        cx: &'a mut TestAppContext,
+        host: &Arc<PluginHost>,
+    ) -> (Entity<Workbench>, Entity<PluginsPage>, &'a mut VisualTestContext) {
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        let host = Arc::clone(host);
+        workbench.update_in(cx, |workbench, window, cx| workbench.use_plugin_host(host, window, cx));
+        let page = workbench.read_with(cx, |w, _| w.welcome_plugins_page().cloned()).expect("the Plugins page");
+        click(cx, "welcome-nav-plugins");
+        (workbench, page, cx)
+    }
+
+    fn settle(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
+        for _ in 0..1000 {
+            cx.run_until_parked();
+            if done(cx) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("{what}: not within ten seconds");
+    }
+
+    fn click(cx: &mut VisualTestContext, selector: &'static str) {
+        cx.run_until_parked();
+        let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
+        cx.simulate_click(bounds.center(), Modifiers::default());
+        cx.run_until_parked();
+    }
+
+    fn listed(page: &Entity<PluginsPage>, id: &str, cx: &mut VisualTestContext) -> bool {
+        page.update(cx, |page, cx| page.details(cx)).is_some_and(|details| details.id == id)
+    }
+
+    fn secrets_section(page: &Entity<PluginsPage>, cx: &mut VisualTestContext) -> Option<Section> {
+        let details = page.update(cx, |page, cx| page.details(cx))?;
+        details.sections.into_iter().find(|section| section.title == "Secrets")
+    }
+
+    fn installed(host: &PluginHost, id: &str) -> Option<ide_host::plugins::PluginInfo> {
+        host.list(None).plugins.into_iter().find(|plugin| plugin.id == id)
+    }
+
+    /// The Debug output of every event the page emits from now on.
+    fn record_events(page: &Entity<PluginsPage>, cx: &mut VisualTestContext) -> Rc<RefCell<Vec<String>>> {
+        let seen: Rc<RefCell<Vec<String>>> = Rc::default();
+        let log = Rc::clone(&seen);
+        cx.update(|_, cx| {
+            cx.subscribe(page, move |_, event: &PluginsPageEvent, _| log.borrow_mut().push(format!("{event:?}")))
+                .detach();
+        });
+        seen
+    }
+
+    /// A secret typed into the Secrets section of a plugin is stored through the plugin host, and
+    /// the page then says it is stored. What the field paints is bullets; the value is in no
+    /// event's debug output, in no log line and in nothing the page lists.
+    #[gpui_kit::test]
+    async fn a_secret_typed_into_the_page_is_stored_through_the_host_and_never_shown_emitted_or_logged(
+        cx: &mut TestAppContext,
+    ) {
+        let log = CapturedLog::default();
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(log.clone())
+            .with_max_level(tracing::Level::TRACE)
+            .with_ansi(false)
+            .finish();
+        let _logging = tracing::subscriber::set_default(subscriber);
+        let _home = start(cx);
+        let dir = tempfile::tempdir().expect("a folder for the plugins");
+        let (host, secrets) = test_plugin_host(dir.path());
+        host.install_from_dir(&official("ai-completion"), &Consent::all()).expect("the plugin installs");
+        let (_workbench, page, cx) = plugins_window(cx, &host);
+        let events = record_events(&page, cx);
+        settle(cx, "the plugin and its secret are listed", |cx| {
+            listed(&page, AI, cx) && secrets_section(&page, cx).is_some_and(|section| !section.secrets.is_empty())
+        });
+        let row = secrets_section(&page, cx).expect("the Secrets section").secrets[0].clone();
+        assert_eq!((row.name.as_str(), row.set), ("api-key", false));
+
+        click(cx, "plugins-secret-field-api-key");
+        cx.simulate_input(SECRET);
+        let field = page.read_with(cx, |page, _| page.secret_input(AI, "api-key", false).cloned()).expect("the field");
+        assert_eq!(field.read_with(cx, |field, cx| field.text(cx).to_owned()), SECRET);
+        assert_eq!(field.read_with(cx, |field, cx| field.shown(cx)), "\u{2022}".repeat(SECRET.len()));
+        cx.simulate_keystrokes("enter");
+        settle(cx, "the secret is stored", |_| secrets.value(AI, "api-key").as_deref() == Some(SECRET));
+        settle(cx, "the page says it is stored", |cx| {
+            secrets_section(&page, cx).is_some_and(|section| section.secrets.first().is_some_and(|row| row.set))
+        });
+        assert_eq!(host.secrets(AI).expect("the secrets' state"), [("api-key".to_owned(), true)]);
+        assert_eq!(field.read_with(cx, |field, cx| field.text(cx).to_owned()), "", "the field is emptied");
+
+        let emitted = events.borrow().join("\n");
+        assert!(emitted.contains("SetSecret"), "{emitted}");
+        assert!(!emitted.contains(SECRET), "an event's debug output names the secret: {emitted}");
+        let details = page.update(cx, |page, cx| format!("{:?}", page.details(cx)));
+        assert!(!details.contains(SECRET));
+        let logged = log.text();
+        assert!(!logged.contains(SECRET), "the log names the secret: {logged}");
+    }
+
+    /// Uninstall asks first; confirmed, the plugin is removed from the host and from the list.
+    #[gpui_kit::test]
+    async fn uninstall_asks_and_removes_the_plugin(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let dir = tempfile::tempdir().expect("a folder for the plugins");
+        let (host, _) = test_plugin_host(dir.path());
+        host.install_from_dir(&official("string-tools"), &Consent::all()).expect("the plugin installs");
+        let (_workbench, page, cx) = plugins_window(cx, &host);
+        settle(cx, "the plugin is listed", |cx| listed(&page, STRING_TOOLS, cx));
+        click(cx, "plugins-details-uninstall");
+        assert!(cx.debug_bounds("plugins-details-confirm-uninstall").is_some(), "it asks first");
+        assert!(installed(&host, STRING_TOOLS).is_some(), "nothing is removed before the answer");
+        click(cx, "plugins-details-confirm-uninstall");
+        settle(cx, "the plugin is gone", |cx| {
+            installed(&host, STRING_TOOLS).is_none() && !listed(&page, STRING_TOOLS, cx)
+        });
+    }
+
+    /// The checkbox of a plugin's row disables it on the host, and enables it again.
+    #[gpui_kit::test]
+    async fn the_rows_checkbox_disables_and_enables_the_plugin(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let dir = tempfile::tempdir().expect("a folder for the plugins");
+        let (host, _) = test_plugin_host(dir.path());
+        host.install_from_dir(&official("string-tools"), &Consent::all()).expect("the plugin installs");
+        let (_workbench, page, cx) = plugins_window(cx, &host);
+        settle(cx, "the plugin is listed", |cx| listed(&page, STRING_TOOLS, cx));
+        click(cx, "plugins-check-openidea.string-tools");
+        settle(cx, "the plugin is disabled", |_| installed(&host, STRING_TOOLS).is_some_and(|p| !p.enabled));
+        settle(cx, "the page is done with it", |cx| {
+            page.update(cx, |page, cx| page.details(cx)).is_some_and(|details| !details.busy)
+        });
+        click(cx, "plugins-check-openidea.string-tools");
+        settle(cx, "the plugin is enabled", |_| {
+            installed(&host, STRING_TOOLS).is_some_and(|p| p.enabled && p.status != PluginStatus::Disabled)
+        });
+    }
+
+    /// Install Plugin from Disk… shows the install page with the high-risk permission first.
+    /// Cancelled, nothing is installed; accepted, the plugin is installed and listed.
+    #[gpui_kit::test]
+    async fn installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted(
+        cx: &mut TestAppContext,
+    ) {
+        let _home = start(cx);
+        let dir = tempfile::tempdir().expect("a folder for the plugins");
+        let (host, _) = test_plugin_host(dir.path());
+        let (workbench, page, cx) = plugins_window(cx, &host);
+        let consent = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.plugins_consent_dialog().cloned());
+        let package = path_text(&official("checkstyle"));
+        let install = |cx: &mut VisualTestContext| {
+            let arg = json!(package);
+            cx.update(|window, cx| {
+                crate::platform::actions::execute_action_or_throw("plugins.installFromDisk", Some(&arg), window, cx)
+            })
+            .expect("Install Plugin from Disk… runs");
+        };
+
+        install(cx);
+        settle(cx, "the install page shows", |cx| consent(cx).is_some());
+        let dialog = consent(cx).expect("the install page");
+        let shown: Vec<(String, Risk)> =
+            dialog.read_with(cx, |d, _| d.capabilities().iter().map(|c| (c.id.clone(), c.risk)).collect());
+        assert_eq!(shown.first().map(|(id, risk)| (id.as_str(), *risk)), Some(("process:checkstyle", Risk::High)));
+        assert!(shown.windows(2).all(|pair| pair[0].1 >= pair[1].1), "from the highest risk down: {shown:?}");
+        click(cx, "consent-button-cancel");
+        assert!(consent(cx).is_none(), "Cancel closes the install page");
+        settle(cx, "the install is over", |cx| page.read_with(cx, |page, _| !page.installing()));
+        assert!(installed(&host, CHECKSTYLE).is_none(), "declined, nothing is installed");
+
+        install(cx);
+        settle(cx, "the install page shows again", |cx| consent(cx).is_some());
+        click(cx, "consent-button-ok");
+        settle(cx, "the plugin is installed", |_| installed(&host, CHECKSTYLE).is_some());
+        settle(cx, "and listed", |cx| listed(&page, CHECKSTYLE, cx));
+    }
+}
