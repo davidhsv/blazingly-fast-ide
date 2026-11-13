@@ -12,8 +12,8 @@
 //! lost to a stray click. An operation waits for its dialog's answer; a dialog dropped without one
 //! answers Cancel.
 
+use super::Workbench;
 use super::services_window::on_workbench;
-use super::{COMMIT_TOOL_WINDOW, Workbench};
 use crate::backend::Backend;
 use crate::platform::actions::{ActionRegistry, ActionSource, execute_action_from};
 use crate::platform::context::set_context;
@@ -352,15 +352,10 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         let branch = call.arg.and_then(|arg| arg.get("branch")).and_then(Value::as_str).map(str::to_owned);
         on_workbench(window, cx, |workbench, window, cx| workbench.start_push(branch, window, cx))
     });
-    registry.handle("vcs.commit", |_, window, cx| {
-        on_workbench(window, cx, |workbench, window, cx| {
-            workbench.with_layout(window, cx, |layout| layout.show(COMMIT_TOOL_WINDOW, true));
-        })
-    });
 }
 
 /// Runs action `id` once this update is over: it may reach for the workbench.
-fn run_action_later(id: String, arg: Option<Value>, window: &mut Window, cx: &mut App) {
+pub(super) fn run_action_later(id: String, arg: Option<Value>, window: &mut Window, cx: &mut App) {
     window.defer(cx, move |window, cx| {
         if !execute_action_from(ActionSource::Other, &id, arg.as_ref(), window, cx) {
             tracing::info!("{id} is not available in this window");
@@ -369,16 +364,16 @@ fn run_action_later(id: String, arg: Option<Value>, window: &mut Window, cx: &mu
 }
 
 /// The end of an operation started from the window: it only fails when the window went away.
-fn finished(result: anyhow::Result<()>) {
+pub(super) fn finished(result: anyhow::Result<()>) {
     if let Err(error) = result {
         tracing::debug!("a Git operation ended with its window: {error:#}");
     }
 }
 
-type This = WeakEntity<Workbench>;
+pub(super) type This = WeakEntity<Workbench>;
 
 /// Runs `work` on the backend for the window's project.
-async fn call<T, F>(
+pub(super) async fn call<T, F>(
     this: &This,
     cx: &mut AsyncWindowContext,
     work: impl FnOnce(Arc<Host>, String) -> F + Send + 'static,
@@ -396,12 +391,12 @@ fn i18n<R>(this: &This, cx: &mut AsyncWindowContext, f: impl FnOnce(&mut I18n) -
     this.update(cx, |_, cx| f(&mut cx.default_global::<Localization>().0))
 }
 
-fn notify(this: &This, cx: &mut AsyncWindowContext, request: NotificationRequest) -> anyhow::Result<()> {
+pub(super) fn notify(this: &This, cx: &mut AsyncWindowContext, request: NotificationRequest) -> anyhow::Result<()> {
     this.update(cx, |workbench, cx| workbench.notify(request, cx))
 }
 
 /// Reads the repository again and waits until what it read is shown.
-async fn refresh(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
+pub(super) async fn refresh(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
     let refreshed = this.update(cx, |workbench, cx| workbench.request_vcs_refresh(cx))?;
     // A refresh dropped with its window settles nothing more.
     let _ = refreshed.await;
@@ -410,7 +405,7 @@ async fn refresh(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()>
 
 /// Saves the open documents so git sees what the editors hold; a failure leaves git with what is on
 /// disk, as saving is best effort here.
-async fn save_all(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
+pub(super) async fn save_all(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
     let saving = this.update(cx, |workbench, cx| workbench.save_all(cx))?;
     if let Err(error) = saving.await {
         tracing::warn!("cannot save the documents before a Git operation: {error}");
@@ -429,7 +424,11 @@ async fn ask_dialog(
 }
 
 /// The state of the window's repository, as it is now.
-fn vcs_state<R>(this: &This, cx: &mut AsyncWindowContext, f: impl FnOnce(&VcsState) -> R) -> anyhow::Result<R> {
+pub(super) fn vcs_state<R>(
+    this: &This,
+    cx: &mut AsyncWindowContext,
+    f: impl FnOnce(&VcsState) -> R,
+) -> anyhow::Result<R> {
     this.update(cx, |workbench, _| match workbench.vcs.as_ref() {
         Some(slot) => f(&slot.state),
         None => f(&VcsState::default()),
@@ -440,7 +439,7 @@ fn vcs_state<R>(this: &This, cx: &mut AsyncWindowContext, f: impl FnOnce(&VcsSta
 /// "`title` failed" (with Resolve Conflicts or Abort when `conflicts` matter to it), then the
 /// repository read again. A stop on conflicts opens them for resolving instead, when the conflicts
 /// dialog is there. `None` when it failed.
-async fn run_op<T, F>(
+pub(super) async fn run_op<T, F>(
     this: &This,
     cx: &mut AsyncWindowContext,
     title: &str,
@@ -896,7 +895,7 @@ async fn fetch(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
 
 /// Push: the dialog lists each repository with something to push and its outgoing commits; each
 /// checked one is pushed, even when another fails, and the failures are summed up.
-async fn push(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
+pub(super) async fn push(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
     refresh(&this, cx).await?;
     let (roots, selected) = vcs_state(&this, cx, |state| {
         let roots: Vec<(String, String)> =
@@ -1083,6 +1082,12 @@ impl Workbench {
         self.vcs.as_ref().map(|slot| &slot.state)
     }
 
+    /// The tags of the selected repository and the favourite branches as stored (`None`: the
+    /// defaults).
+    pub(super) fn vcs_tags_and_favorites(&self) -> (Vec<String>, Option<Vec<String>>) {
+        self.vcs.as_ref().map_or((Vec::new(), None), |slot| (slot.tags.clone(), slot.favorites.clone()))
+    }
+
     /// The Git console of the window's operations.
     pub fn vcs_console(&self) -> Option<&VcsConsole> {
         self.vcs.as_ref().map(|slot| &slot.console)
@@ -1196,7 +1201,7 @@ impl Workbench {
     }
 
     /// Asks for the repository to be read again, without waiting for it.
-    fn refresh_vcs(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn refresh_vcs(&mut self, cx: &mut Context<Self>) {
         drop(self.request_vcs_refresh(cx));
     }
 
@@ -1288,6 +1293,8 @@ impl Workbench {
             let input = self.branches_input(cx);
             popup.update(cx, |popup, cx| popup.set_input(input, cx));
         }
+        self.sync_commit_box(cx);
+        self.sync_log_panes(cx);
         cx.notify();
     }
 
@@ -1442,7 +1449,7 @@ impl Workbench {
     }
 
     /// Carries out a row of a branch's submenu.
-    fn run_branch_command(&mut self, command: BranchesCommand, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn run_branch_command(&mut self, command: BranchesCommand, window: &mut Window, cx: &mut Context<Self>) {
         let BranchesCommand { target, command } = command;
         let repo = match target {
             RepoTarget::Selected => self.vcs_state().and_then(|state| state.repo.clone()),
@@ -1499,8 +1506,26 @@ impl Workbench {
             BranchCommand::Compare(name) | BranchCommand::ShowDiffWithWorkingTree(name) => {
                 tracing::info!("comparing {name} has no window to show it in");
             }
-            // The Branches popup offers no multi-selection.
-            BranchCommand::DeleteSelection(_) => {}
+            // The Git log's Branches pane deletes its selection one branch after another; a tag
+            // has no Delete here.
+            BranchCommand::DeleteSelection(targets) => cx
+                .spawn_in(window, async move |this, cx| {
+                    for target in targets {
+                        let repo = target.repo.clone().or_else(|| repo.clone());
+                        let deleted = match target.branch {
+                            Some(branch) if branch.remote => delete_remote(this.clone(), cx, branch.name, repo).await,
+                            Some(branch) => delete(this.clone(), cx, branch.name, repo).await,
+                            None => {
+                                tracing::info!("{} is not a branch: it is not deleted", target.ref_name);
+                                Ok(())
+                            }
+                        };
+                        if deleted.is_err() {
+                            return finished(deleted);
+                        }
+                    }
+                })
+                .detach(),
         }
     }
 

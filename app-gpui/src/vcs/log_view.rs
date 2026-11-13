@@ -3,8 +3,16 @@
 //!
 //! Commits are read a page at a time as the list is scrolled towards its end, and read again
 //! when the repository changes.
+//!
+//! While the log's options ask for it, the details of the selected commit (its changed files and
+//! message) show to the right of the list, in a pane the window feeds. The filter bar above the
+//! list and the Branches pane to its left (while the options show it) set the log's filters: text,
+//! branches, users, dates and paths, which the log is read again with.
 
 use super::graph::{GraphCommit, GraphRow, GraphState, compute_graph, lane_color};
+use super::log_branches::LogBranchesPane;
+use super::log_details::LogDetailsPane;
+use super::log_filters::LogFilterBar;
 use super::log_options::{LogOptions, LogSort, RefKind, STORAGE_KEY, parse_log_options, ref_labels};
 use crate::backend::{Backend, BackendEvent};
 use crate::platform::date_format::{date_format_options, format_timestamp};
@@ -13,12 +21,15 @@ use crate::platform::local_time::{now_ms, utc_offset_minutes};
 use crate::platform::settings;
 use crate::platform::storage::UiStorage;
 use crate::theme;
+use crate::vcs_ops::log_store::{LogFilters, LogFiltersPatch, resolve_authors};
 use gpui_kit::{
-    App, Bounds, Context, Element, ElementId, FocusHandle, Focusable, GlobalElementId, Hsla, InspectorElementId,
-    IntoElement, KeyDownEvent, LayoutId, PathBuilder, Pixels, Render, ScrollStrategy, SharedString, Style, Task,
-    UniformListScrollHandle, Window, div, fill, point, prelude::*, px, size, uniform_list,
+    AnyElement, App, Bounds, Context, Element, ElementId, Entity, EventEmitter, FocusHandle, Focusable,
+    GlobalElementId, Hsla, InspectorElementId, IntoElement, KeyDownEvent, LayoutId, PathBuilder, Pixels, Render,
+    ScrollStrategy, SharedString, Style, Task, UniformListScrollHandle, Window, div, fill, point, prelude::*, px,
+    relative, size, uniform_list,
 };
 use ide_core::IdeEvent;
+use ide_core::IpcPath;
 use ide_vcs::{Commit, LogOrder, LogQuery};
 use std::collections::BTreeSet;
 use std::rc::Rc;
@@ -29,6 +40,13 @@ pub const PAGE: u32 = 300;
 /// Height of a commit row, and width of a graph lane.
 const ROW: f32 = 26.0;
 const LANE: f32 = 14.0;
+
+/// What the log tells its window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GitLogEvent {
+    /// Another commit is selected, or none.
+    SelectionChanged,
+}
 
 /// The commit log of the project open in a window.
 pub struct GitLog {
@@ -52,7 +70,17 @@ pub struct GitLog {
     listener: Option<u64>,
     /// The read in flight; a newer one replaces it.
     reading: Option<Task<()>>,
+    /// The details of the selection, drawn beside the list while the options show them.
+    details: Option<Entity<LogDetailsPane>>,
+    /// A read let go of the selected commit.
+    selection_changed: bool,
+    filters: LogFilters,
+    /// The filter bar above the list and the Branches pane left of it.
+    filter_bar: Option<Entity<LogFilterBar>>,
+    branches: Option<Entity<LogBranchesPane>>,
 }
+
+impl EventEmitter<GitLogEvent> for GitLog {}
 
 fn graph_commit(commit: &Commit) -> GraphCommit {
     GraphCommit {
@@ -94,6 +122,11 @@ impl GitLog {
             scroll: UniformListScrollHandle::new(),
             listener,
             reading: None,
+            details: None,
+            selection_changed: false,
+            filters: LogFilters::default(),
+            filter_bar: None,
+            branches: None,
         };
         log.read(false, cx);
         log
@@ -129,6 +162,73 @@ impl GitLog {
         &self.options
     }
 
+    /// Draws `pane` beside the list while the options show the details.
+    pub fn set_details(&mut self, pane: Entity<LogDetailsPane>, cx: &mut Context<Self>) {
+        self.details = Some(pane);
+        cx.notify();
+    }
+
+    /// The pane of the selection's details.
+    pub fn details(&self) -> Option<&Entity<LogDetailsPane>> {
+        self.details.as_ref()
+    }
+
+    /// Draws the filter bar above the list and the Branches pane left of it.
+    pub fn set_filter_panes(
+        &mut self,
+        filter_bar: Entity<LogFilterBar>,
+        branches: Entity<LogBranchesPane>,
+        cx: &mut Context<Self>,
+    ) {
+        self.filter_bar = Some(filter_bar);
+        self.branches = Some(branches);
+        cx.notify();
+    }
+
+    pub fn filter_bar(&self) -> Option<&Entity<LogFilterBar>> {
+        self.filter_bar.as_ref()
+    }
+
+    pub fn branches_pane(&self) -> Option<&Entity<LogBranchesPane>> {
+        self.branches.as_ref()
+    }
+
+    pub fn filters(&self) -> &LogFilters {
+        &self.filters
+    }
+
+    /// Changes the filters and reads the log again with them.
+    pub fn set_filters(&mut self, patch: LogFiltersPatch, cx: &mut Context<Self>) {
+        let before = self.filters.clone();
+        self.filters.apply(patch);
+        if self.filters != before {
+            self.finished = false;
+            self.read(true, cx);
+        }
+    }
+
+    pub fn set_options(&mut self, options: LogOptions, cx: &mut Context<Self>) {
+        self.options = options;
+        cx.notify();
+    }
+
+    /// Selects the loaded commit `rev` names: a hash or its start, or a reference on it. Whether
+    /// one was found.
+    pub fn select_rev(&mut self, rev: &str, cx: &mut Context<Self>) -> bool {
+        let rev = rev.trim();
+        let found = self.commits.iter().position(|commit| {
+            (rev.len() >= 4 && commit.id.starts_with(rev)) || commit.refs.iter().any(|name| name == rev)
+        });
+        let Some(index) = found else { return false };
+        self.select(index, cx);
+        true
+    }
+
+    /// Reads everything shown so far again, keeping the selected commit selected.
+    pub fn reload(&mut self, cx: &mut Context<Self>) {
+        self.read(true, cx);
+    }
+
     fn backend_event(&mut self, event: &BackendEvent, cx: &mut Context<Self>) {
         if event.window.as_deref().is_some_and(|window| window != self.window_label) {
             return;
@@ -148,9 +248,35 @@ impl GitLog {
         let Some(backend) = cx.try_global::<Backend>() else { return };
         let (skip, limit) =
             if again { (0, PAGE.max(self.commits.len() as u32)) } else { (self.commits.len() as u32, PAGE) };
+        // The current user ("me") is not known to the log: a user filter of only that matches no one.
+        let authors = resolve_authors(&self.filters.authors, None);
+        if !self.filters.authors.is_empty() && authors.is_empty() {
+            self.reading = None;
+            (self.loading, self.finished, self.error) = (false, true, None);
+            self.loaded(Vec::new(), true, 1);
+            if std::mem::take(&mut self.selection_changed) {
+                cx.emit(GitLogEvent::SelectionChanged);
+            }
+            cx.notify();
+            return;
+        }
+        let filters = &self.filters;
+        let text = filters.text.trim();
+        let path = filters.path.as_deref().filter(|path| !path.is_empty());
         let query = LogQuery {
             skip,
             limit,
+            branches: filters.branches.clone(),
+            authors,
+            authors_exact: true,
+            text: (!text.is_empty()).then(|| text.to_owned()),
+            text_regex: filters.regex,
+            text_match_case: filters.match_case,
+            path: path.map(|path| IpcPath(path.into())),
+            paths: filters.paths.iter().flatten().map(|path| IpcPath(path.into())).collect(),
+            ranges: filters.range.iter().flat_map(|range| range.split_whitespace()).map(str::to_owned).collect(),
+            since_ms: filters.date.as_ref().and_then(|date| date.after),
+            until_ms: filters.date.as_ref().and_then(|date| date.before),
             order: match self.options.sort {
                 LogSort::Date => LogOrder::Date,
                 LogSort::Topo => LogOrder::Topo,
@@ -169,7 +295,12 @@ impl GitLog {
             let _ = log.update(cx, |log: &mut GitLog, cx| {
                 log.loading = false;
                 match page {
-                    Ok(Ok(page)) => log.loaded(page, again, limit),
+                    Ok(Ok(page)) => {
+                        log.loaded(page, again, limit);
+                        if std::mem::take(&mut log.selection_changed) {
+                            cx.emit(GitLogEvent::SelectionChanged);
+                        }
+                    }
                     Ok(Err(error)) => log.error = Some(error.message),
                     Err(error) => log.error = Some(error.to_string()),
                 }
@@ -183,6 +314,7 @@ impl GitLog {
         self.error = None;
         self.finished = (page.len() as u32) < asked;
         let selected = self.selected().map(|commit| commit.id.clone());
+        let before = selected.clone();
         // A page continues the graph where the last one stopped: what is already drawn is not
         // computed again, however far the log has been scrolled.
         if again {
@@ -194,6 +326,7 @@ impl GitLog {
         Rc::make_mut(&mut self.graph).extend(computed.rows);
         Rc::make_mut(&mut self.commits).extend(page);
         self.selected = selected.and_then(|id| self.commits.iter().position(|commit| commit.id == id));
+        self.selection_changed = self.selected().map(|commit| &commit.id) != before.as_ref();
     }
 
     /// Selects the commit at `index` and brings it into view.
@@ -201,7 +334,10 @@ impl GitLog {
         if index >= self.commits.len() {
             return;
         }
-        self.selected = Some(index);
+        if self.selected != Some(index) {
+            self.selected = Some(index);
+            cx.emit(GitLogEvent::SelectionChanged);
+        }
         self.scroll.scroll_to_item(index, ScrollStrategy::Top);
         // Nearing the end of what is read: the next page is fetched ahead of the scroll.
         if index + PAGE as usize / 2 >= self.commits.len() {
@@ -351,9 +487,9 @@ impl Element for GraphCell {
     }
 }
 
-impl Render for GitLog {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let focused = self.focus.is_focused(window);
+impl GitLog {
+    /// The commit rows.
+    fn commit_list(&mut self, focused: bool, cx: &mut Context<Self>) -> AnyElement {
         let colors: Vec<Hsla> = (0..8u32)
             .map(|index| theme::color(cx, lane_color(index).trim_start_matches("var(--").trim_end_matches(')')))
             .collect();
@@ -368,17 +504,6 @@ impl Render for GitLog {
             RefKind::Remote => ref_colors[2],
             RefKind::Tag => ref_colors[3],
         };
-        let message = |text: String| {
-            div().size_full().flex().items_center().justify_center().text_color(muted).child(SharedString::from(text))
-        };
-        if let Some(error) = &self.error {
-            return div().size_full().track_focus(&self.focus).child(message(error.clone()));
-        }
-        if self.commits.is_empty() {
-            let i18n = &cx.default_global::<Localization>().0;
-            let text = if self.loading { i18n.tx("Loading…") } else { i18n.tx("No commits") };
-            return div().size_full().track_focus(&self.focus).child(message(text));
-        }
         let now = now_ms();
         let date_options =
             date_format_options(serde_json::to_value(&settings::global(cx).general.date_format).ok().as_ref());
@@ -486,12 +611,74 @@ impl Render for GitLog {
         )
         .track_scroll(&self.scroll)
         .size_full();
+        list.into_any_element()
+    }
+}
+
+impl Render for GitLog {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let focused = self.focus.is_focused(window);
+        let muted = theme::color(cx, "fg-muted");
+        let message = |text: String| {
+            div().size_full().flex().items_center().justify_center().text_color(muted).child(SharedString::from(text))
+        };
+        // Nothing to list leaves the filters and panes in place around the reason.
+        let empty = if let Some(error) = &self.error {
+            Some(error.clone())
+        } else if self.commits.is_empty() {
+            let i18n = &cx.default_global::<Localization>().0;
+            Some(if self.loading { i18n.tx("Loading…") } else { i18n.tx("No commits") })
+        } else {
+            None
+        };
+        let list = match empty {
+            Some(text) => message(text).into_any_element(),
+            None => self.commit_list(focused, cx),
+        };
+        let details = self.details.clone().filter(|_| self.options.show_details);
+        let branches = self.branches.clone().filter(|_| self.options.show_branches);
+        // Only the list takes the keys of the list: the panes have their own.
+        let body = div()
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .flex()
+            .children(branches.map(|pane| {
+                div()
+                    .flex_none()
+                    .w(relative(0.18))
+                    .min_w(px(120.0))
+                    .h_full()
+                    .border_r_1()
+                    .border_color(theme::color(cx, "border"))
+                    .child(pane)
+            }))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .track_focus(&self.focus)
+                    .on_key_down(cx.listener(Self::key_down))
+                    .child(list),
+            )
+            .children(details.map(|pane| {
+                div()
+                    .flex_none()
+                    .w(relative(0.4))
+                    .min_w(px(220.0))
+                    .h_full()
+                    .border_l_1()
+                    .border_color(theme::color(cx, "border"))
+                    .child(pane)
+            }));
         div()
             .size_full()
-            .track_focus(&self.focus)
-            .on_key_down(cx.listener(Self::key_down))
+            .flex()
+            .flex_col()
             .text_size(theme::length(cx, "fs-ui"))
-            .child(list)
+            .children(self.filter_bar.clone().map(|bar| div().flex_none().w_full().child(bar)))
+            .child(body)
     }
 }
 

@@ -89,7 +89,9 @@ pub struct LogFiltersPatch {
 }
 
 impl LogFilters {
-    fn apply(&mut self, patch: LogFiltersPatch) {
+    /// Changes the filters `patch` sets; a new branch choice drops the commit range picked for the
+    /// former branches.
+    pub fn apply(&mut self, patch: LogFiltersPatch) {
         fn set<T>(field: &mut T, value: Option<T>) {
             if let Some(value) = value {
                 *field = value;

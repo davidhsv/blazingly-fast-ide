@@ -1,0 +1,360 @@
+//! Tooltips: the bubble GPUI shows when the pointer rests on an element, with the element's
+//! text, the shortcut of its action dimmed after it, and an optional line of detail below.
+//!
+//! GPUI shows a stateful element's tooltip after the pointer rests on it and hides it when the
+//! pointer leaves, a button is pressed, the wheel turns or a key is typed. A view adds one in a
+//! line: `.with_tooltip("Close Tab")` on an element with an id, or `.tooltip(tooltip("…"))` with
+//! GPUI's own method.
+
+use crate::platform::i18n::Localization;
+use crate::platform::input::Keymap;
+use crate::platform::keymap::is_mac_host;
+use crate::theme;
+use gpui_kit::{
+    AnyView, App, BoxShadow, Context, IntoElement, Render, Rgba, SharedString, StatefulInteractiveElement, Window, div,
+    prelude::*, px,
+};
+use std::time::Duration;
+
+/// How long the pointer rests on an element before its tooltip shows (GPUI's own default is
+/// 500ms; [`WithTooltip`] uses this one).
+pub const TOOLTIP_DELAY: Duration = Duration::from_millis(600);
+
+/// The widest a tooltip grows before its text wraps.
+const MAX_WIDTH: f32 = 720.0;
+
+/// The bubble: a title, the shortcut that runs the same action, a line of detail.
+pub struct Tooltip {
+    title: SharedString,
+    shortcut: Option<SharedString>,
+    detail: Option<SharedString>,
+}
+
+impl Tooltip {
+    /// A tooltip showing `title` as written.
+    pub fn new(title: impl Into<SharedString>) -> Self {
+        Self { title: title.into(), shortcut: None, detail: None }
+    }
+
+    /// The shortcut label shown dimmed after the title.
+    pub fn with_shortcut(mut self, shortcut: impl Into<SharedString>) -> Self {
+        self.shortcut = Some(shortcut.into()).filter(|shortcut: &SharedString| !shortcut.is_empty());
+        self
+    }
+
+    /// The shortcut the keymap binds to `action_id`, if it binds one.
+    pub fn with_action_shortcut(mut self, action_id: &str, cx: &App) -> Self {
+        self.shortcut = shortcut_label(action_id, cx).map(SharedString::from);
+        self
+    }
+
+    /// A second line under the title, dimmed.
+    pub fn with_detail(mut self, detail: impl Into<SharedString>) -> Self {
+        self.detail = Some(detail.into()).filter(|detail: &SharedString| !detail.is_empty());
+        self
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn shortcut(&self) -> Option<&str> {
+        self.shortcut.as_deref()
+    }
+
+    pub fn detail(&self) -> Option<&str> {
+        self.detail.as_deref()
+    }
+
+    /// The text as it reads, one entry per line: the title with the shortcut after it (two
+    /// spaces apart), then the detail.
+    pub fn lines(&self) -> Vec<String> {
+        let first = match &self.shortcut {
+            Some(shortcut) => format!("{}  {shortcut}", self.title),
+            None => self.title.to_string(),
+        };
+        std::iter::once(first).chain(self.detail.as_ref().map(ToString::to_string)).collect()
+    }
+}
+
+/// The keymap's label for the shortcut of `action_id` (`⌘S`, `Ctrl+S`).
+fn shortcut_label(action_id: &str, cx: &App) -> Option<String> {
+    cx.try_global::<Keymap>().and_then(|keymap| keymap.0.shortcut_label(action_id, is_mac_host()))
+}
+
+/// `text` in the active language; text the catalog does not know (a path, a name) as it is.
+fn translate(text: &str, cx: &App) -> SharedString {
+    match cx.try_global::<Localization>() {
+        Some(localization) => localization.0.tx(text).into(),
+        None => SharedString::from(text.to_owned()),
+    }
+}
+
+/// The first family of font token `name` that GPUI can name; the system font for the CSS
+/// aliases of it.
+fn font_family(name: &str, cx: &App) -> SharedString {
+    let first = cx
+        .try_global::<theme::ActiveTheme>()
+        .and_then(|active| active.theme.font_families(name).into_iter().next())
+        .filter(|family| !matches!(family.as_str(), "-apple-system" | "BlinkMacSystemFont" | "system-ui"));
+    SharedString::from(first.unwrap_or_else(|| ".SystemUIFont".to_owned()))
+}
+
+/// The tooltip's drop shadow from `--shadow-tooltip` (`<x> <y> <blur> <colour>`); none when the
+/// theme does not define one.
+fn shadow(cx: &App) -> Vec<BoxShadow> {
+    let value = cx.try_global::<theme::ActiveTheme>().and_then(|active| active.theme.resolved("shadow-tooltip"));
+    let Some(value) = value else { return Vec::new() };
+    let mut parts = value.split_whitespace();
+    let mut lengths = [0.0_f32; 3];
+    for length in &mut lengths {
+        match parts.next().and_then(|part| part.trim_end_matches("px").parse().ok()) {
+            Some(parsed) => *length = parsed,
+            None => return Vec::new(),
+        }
+    }
+    let Some(color) = theme::tokens::parse_color(&parts.collect::<Vec<_>>().join(" ")) else { return Vec::new() };
+    let color = Rgba { r: color.r, g: color.g, b: color.b, a: color.a };
+    vec![BoxShadow::new(px(lengths[0]), px(lengths[1]), color.into()).blur_radius(px(lengths[2]))]
+}
+
+impl Render for Tooltip {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let fg = theme::color(cx, "fg-tooltip");
+        let dimmed = fg.opacity(0.62);
+        let max_width = (window.viewport_size().width - px(32.0)).clamp(px(0.0), px(MAX_WIDTH));
+        let title = div().min_w_0().child(self.title.clone());
+        let keys_font = font_family("font-keys", cx);
+        let shortcut = self.shortcut.clone().map(|shortcut| {
+            div().flex_none().whitespace_nowrap().font_family(keys_font).text_color(dimmed).child(shortcut)
+        });
+        let detail = self.detail.clone().map(|detail| div().text_color(dimmed).child(detail));
+        // GPUI places the tooltip at the pointer: the margin keeps the bubble clear of it.
+        div().pl(px(8.0)).pt(px(10.0)).child(
+            div()
+                .debug_selector(|| "tooltip".to_owned())
+                .flex()
+                .flex_col()
+                .gap(px(2.0))
+                .max_w(max_width)
+                .px(px(10.0))
+                .py(px(6.0))
+                .rounded(theme::length(cx, "radius-tooltip"))
+                .border_1()
+                .border_color(theme::color(cx, "border-tooltip"))
+                .bg(theme::color(cx, "bg-tooltip"))
+                .shadow(shadow(cx))
+                .font_family(font_family("font-ui", cx))
+                .text_size(theme::length(cx, "fs-ui"))
+                .line_height(px(16.0))
+                .text_color(fg)
+                .child(div().flex().items_center().gap(px(8.0)).child(title).children(shortcut))
+                .children(detail),
+        )
+    }
+}
+
+/// What `.tooltip(…)` takes: a tooltip showing `text`, translated.
+pub fn tooltip(text: impl Into<SharedString>) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
+    let text = text.into();
+    move |_: &mut Window, cx: &mut App| {
+        let title = translate(&text, cx);
+        cx.new(|_| Tooltip::new(title)).into()
+    }
+}
+
+/// What `.tooltip(…)` takes: a tooltip showing `text`, translated, with the shortcut the keymap
+/// binds to `action_id` at the time it shows.
+pub fn tooltip_with_shortcut(
+    text: impl Into<SharedString>,
+    action_id: impl Into<SharedString>,
+) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
+    let (text, action_id) = (text.into(), action_id.into());
+    move |_: &mut Window, cx: &mut App| {
+        let tooltip = Tooltip::new(translate(&text, cx)).with_action_shortcut(&action_id, cx);
+        cx.new(|_| tooltip).into()
+    }
+}
+
+/// What `.tooltip(…)` takes: a tooltip of two lines, `title` and a dimmed `detail`, translated.
+pub fn tooltip_lines(
+    title: impl Into<SharedString>,
+    detail: impl Into<SharedString>,
+) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
+    let (title, detail) = (title.into(), detail.into());
+    move |_: &mut Window, cx: &mut App| {
+        let tooltip = Tooltip::new(translate(&title, cx)).with_detail(translate(&detail, cx));
+        cx.new(|_| tooltip).into()
+    }
+}
+
+/// Tooltips on any element with an id, shown after [`TOOLTIP_DELAY`]. Empty text adds none.
+pub trait WithTooltip: StatefulInteractiveElement + Sized {
+    fn with_tooltip(self, text: impl Into<SharedString>) -> Self {
+        let text = text.into();
+        if text.is_empty() {
+            return self;
+        }
+        self.tooltip(tooltip(text)).tooltip_show_delay(TOOLTIP_DELAY)
+    }
+
+    fn with_tooltip_shortcut(self, text: impl Into<SharedString>, action_id: impl Into<SharedString>) -> Self {
+        let text = text.into();
+        if text.is_empty() {
+            return self;
+        }
+        self.tooltip(tooltip_with_shortcut(text, action_id)).tooltip_show_delay(TOOLTIP_DELAY)
+    }
+
+    fn with_tooltip_lines(self, title: impl Into<SharedString>, detail: impl Into<SharedString>) -> Self {
+        let title = title.into();
+        if title.is_empty() {
+            return self;
+        }
+        self.tooltip(tooltip_lines(title, detail)).tooltip_show_delay(TOOLTIP_DELAY)
+    }
+}
+
+impl<E: StatefulInteractiveElement> WithTooltip for E {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::platform::input;
+    use crate::platform::keymap::{self, KeymapState};
+    use gpui_kit::{
+        Modifiers, MouseButton, Pixels, Point, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext, point,
+    };
+
+    const ACTION: &str = "navigate.searchEverywhere";
+
+    /// A button with a tooltip, in a window with room around it.
+    struct Host {
+        text: &'static str,
+        shortcut: bool,
+    }
+
+    impl Render for Host {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            let button = div().id("button").debug_selector(|| "button".to_owned()).w(px(80.0)).h(px(24.0));
+            let button = if self.shortcut {
+                button.with_tooltip_shortcut(self.text, ACTION)
+            } else {
+                button.with_tooltip(self.text)
+            };
+            div().size_full().p(px(40.0)).child(button)
+        }
+    }
+
+    fn setup(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            input::init(cx);
+            let mut state = KeymapState::new("intellij-macos");
+            state.set_overrides(keymap::Keymap::from([(ACTION.to_owned(), vec!["Meta+P".to_owned()])]));
+            cx.set_global(Keymap(state));
+        });
+    }
+
+    fn host<'a>(cx: &'a mut TestAppContext, text: &'static str, shortcut: bool) -> &'a mut VisualTestContext {
+        setup(cx);
+        let (_, cx) = cx.add_window_view(|_, _| Host { text, shortcut });
+        cx
+    }
+
+    fn button(cx: &mut VisualTestContext) -> Point<Pixels> {
+        cx.debug_bounds("button").expect("the button is drawn").center()
+    }
+
+    fn shown(cx: &mut VisualTestContext) -> bool {
+        cx.debug_bounds("tooltip").is_some()
+    }
+
+    /// Rests the pointer on the button until its tooltip is due.
+    fn hover(cx: &mut VisualTestContext) {
+        let over = button(cx);
+        cx.simulate_mouse_move(over, None, Modifiers::default());
+        cx.executor().advance_clock(TOOLTIP_DELAY + Duration::from_millis(10));
+        cx.run_until_parked();
+    }
+
+    fn expected_shortcut(cx: &mut VisualTestContext) -> Option<String> {
+        cx.update(|_, cx| shortcut_label(ACTION, cx))
+    }
+
+    #[gpui_kit::test]
+    async fn the_view_shows_its_text_shortcut_and_detail_lines(cx: &mut TestAppContext) {
+        setup(cx);
+        let plain = Tooltip::new("Close Tab");
+        assert_eq!((plain.title(), plain.shortcut(), plain.detail()), ("Close Tab", None, None));
+        assert_eq!(plain.lines(), ["Close Tab"]);
+        let both = Tooltip::new("Save All").with_shortcut("Ctrl+S").with_detail("3 files");
+        assert_eq!(both.lines(), ["Save All  Ctrl+S", "3 files"]);
+        assert_eq!(Tooltip::new("Save All").with_shortcut("").shortcut(), None);
+
+        let (_, cx) = cx.add_window_view(|_, _| Host { text: "Search", shortcut: false });
+        let label = expected_shortcut(cx);
+        assert!(label.is_some());
+        let (with_shortcut, with_detail) = cx.update(|window, cx| {
+            let lines = |view: AnyView, cx: &mut App| {
+                view.downcast::<Tooltip>().map(|tooltip| tooltip.read(cx).lines()).unwrap_or_default()
+            };
+            let with_shortcut = tooltip_with_shortcut("Search Everywhere", ACTION)(window, cx);
+            let with_detail = tooltip_lines("main.rs", "src/main.rs")(window, cx);
+            (lines(with_shortcut, cx), lines(with_detail, cx))
+        });
+        assert_eq!(with_shortcut, [format!("Search Everywhere  {}", label.unwrap_or_default())]);
+        assert_eq!(with_detail, ["main.rs", "src/main.rs"]);
+        // An action without a binding shows no shortcut.
+        let unbound = cx.update(|_, cx| Tooltip::new("Nothing").with_action_shortcut("t.unbound", cx).lines());
+        assert_eq!(unbound, ["Nothing"]);
+    }
+
+    #[gpui_kit::test]
+    async fn shows_tooltip_text_and_shortcut_after_delay(cx: &mut TestAppContext) {
+        let cx = host(cx, "d:/project/src/main.rs", true);
+        let over = button(cx);
+        cx.simulate_mouse_move(over, None, Modifiers::default());
+        assert!(!shown(cx));
+        cx.executor().advance_clock(TOOLTIP_DELAY - Duration::from_millis(50));
+        cx.run_until_parked();
+        assert!(!shown(cx), "the tooltip waits for the pointer to rest");
+        cx.executor().advance_clock(Duration::from_millis(60));
+        cx.run_until_parked();
+        assert!(shown(cx));
+        // The bubble opens below and right of the pointer.
+        let bubble = cx.debug_bounds("tooltip").expect("the tooltip is drawn");
+        assert!(bubble.top() > over.y && bubble.left() > over.x);
+        // Pointer out hides the tooltip.
+        cx.simulate_mouse_move(point(px(400.0), px(400.0)), None, Modifiers::default());
+        assert!(!shown(cx));
+    }
+
+    #[gpui_kit::test]
+    async fn keeps_dismissal_behavior_for_pointer_down_and_wheel(cx: &mut TestAppContext) {
+        let cx = host(cx, "Project", true);
+        hover(cx);
+        assert!(shown(cx));
+        let over = button(cx);
+        cx.simulate_mouse_down(over, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(over, MouseButton::Left, Modifiers::default());
+        assert!(!shown(cx), "pointer down hides the tooltip");
+
+        cx.simulate_mouse_move(point(px(400.0), px(400.0)), None, Modifiers::default());
+        hover(cx);
+        assert!(shown(cx));
+        cx.simulate_event(ScrollEvent {
+            position: over,
+            delta: ScrollDelta::Pixels(point(px(0.0), px(-20.0))),
+            ..Default::default()
+        });
+        assert!(!shown(cx), "the wheel hides the tooltip");
+    }
+
+    #[gpui_kit::test]
+    async fn returns_no_tooltip_when_text_is_missing(cx: &mut TestAppContext) {
+        let cx = host(cx, "", false);
+        hover(cx);
+        assert!(!shown(cx));
+    }
+}

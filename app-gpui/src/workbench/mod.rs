@@ -5,9 +5,11 @@ mod bookmarks_window;
 use bookmarks_window::BOOKMARKS_TOOL_WINDOW;
 mod branches;
 mod build_window;
+mod commit;
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 mod diff_window;
 mod editor_find;
+mod log_window;
 pub mod main_toolbar;
 pub mod menu;
 pub mod menu_spec;
@@ -260,6 +262,10 @@ pub struct Workbench {
     edit_configs: Option<run_configs::EditConfigsWindow>,
     /// The Git state of the project, with the branch widget of the title bar.
     vcs: Option<branches::VcsSlot>,
+    /// The commit draft of the project and the Commit tool window's message box.
+    commit: Option<commit::CommitSlot>,
+    /// The Git tool window's log and the details pane beside it.
+    git_log: Option<log_window::LogSlot>,
     /// The dialog a Git operation waits on.
     vcs_dialog: Option<branches::VcsDialog>,
     /// The editor the Structure tool window follows.
@@ -410,6 +416,8 @@ pub fn register_actions(cx: &mut App) {
     diff_window::register_actions(registry);
     run_configs::register_actions(registry);
     branches::register_actions(registry);
+    commit::register_actions(registry);
+    log_window::register_actions(registry);
     bookmarks_window::register_actions(registry);
     project_files::register_actions(registry);
     todo_window::register_actions(registry);
@@ -900,6 +908,8 @@ impl Workbench {
             run_widget: None,
             edit_configs: None,
             vcs: None,
+            commit: None,
+            git_log: None,
             vcs_dialog: None,
             structure: None,
             todo: None,
@@ -1833,11 +1843,7 @@ impl Workbench {
                         });
                     Panel::new(terminals, Some(closes))
                 }
-                GIT_TOOL_WINDOW => {
-                    let label = self.label.clone();
-                    let log = cx.new(|cx| crate::vcs::log_view::GitLog::new(&label, cx));
-                    Panel::new(log, None)
-                }
+                GIT_TOOL_WINDOW => self.mount_git_log(window, cx),
                 NOTIFICATIONS_TOOL_WINDOW => {
                     let list = cx.new(NotificationsView::new);
                     let events =
@@ -1862,6 +1868,7 @@ impl Workbench {
                         cx.subscribe_in(&changes, window, |workbench, _, event: &CommitPanelEvent, window, cx| {
                             workbench.commit_panel_event(event, window, cx);
                         });
+                    self.attach_commit_box(&changes, window, cx);
                     Panel::new(changes, Some(opens))
                 }
                 RUN_TOOL_WINDOW => {
@@ -2493,6 +2500,8 @@ impl Workbench {
         self.reset_runs(cx);
         self.reset_build(window, cx);
         self.drop_vcs();
+        self.drop_commit();
+        self.drop_git_log();
         // The project's servers and runs stop in the background: this is the UI thread.
         cx.global::<Backend>().host.close_project_detached(&self.label);
         self.content = Content::Empty;
@@ -2602,6 +2611,8 @@ impl Workbench {
         self.reset_runs(cx);
         self.reset_build(window, cx);
         self.drop_vcs();
+        self.drop_commit();
+        self.drop_git_log();
         self.files = Default::default();
         self.content = Content::Opening(root.clone());
         self.light_find_bar = None;
@@ -7863,5 +7874,335 @@ mod tests {
         enter_new_name(&popup, "more.rs", cx);
         settle(cx, |_| root.join("src/more.rs").is_file());
         close_backend_project(cx);
+    }
+
+    /// The changes tree and the message box of the Commit tool window.
+    fn commit_parts(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> (Entity<crate::vcs::commit_view::CommitPanel>, Entity<crate::vcs::commit_box::CommitBox>) {
+        let panel = workbench
+            .read_with(cx, |w, _| w.tool_window_view(COMMIT_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<crate::vcs::commit_view::CommitPanel>().ok())
+            .expect("the Commit window holds the changes");
+        let commit_box = workbench.read_with(cx, |w, _| w.commit_box().cloned()).expect("the window has the box");
+        (panel, commit_box)
+    }
+
+    fn commit_message(commit_box: &Entity<crate::vcs::commit_box::CommitBox>, cx: &mut VisualTestContext) -> String {
+        commit_box.read_with(cx, |commit_box, cx| commit_box.message_area().read(cx).text().to_owned())
+    }
+
+    fn message_focused(commit_box: &Entity<crate::vcs::commit_box::CommitBox>, cx: &mut VisualTestContext) -> bool {
+        cx.update(|window, cx| commit_box.read(cx).message_area().focus_handle(cx).is_focused(window))
+    }
+
+    fn set_clear_initial_message(on: bool, cx: &mut VisualTestContext) {
+        let write = crate::platform::settings::SettingsWrite {
+            key: "vcs.commit.clearInitialMessage",
+            value: serde_json::Value::Bool(on),
+        };
+        cx.update(|_, cx| crate::platform::settings::set_global("w1", &[write], cx)).expect("the setting is stored");
+    }
+
+    /// ⌘↩ on macOS, Ctrl+Enter elsewhere.
+    const COMMIT_KEYS: &str = if cfg!(target_os = "macos") { "cmd-enter" } else { "ctrl-enter" };
+
+    /// With two changed files and one left out with its checkbox, Commit without a message commits
+    /// nothing and says so at the field; with a typed message Commit commits exactly the included
+    /// file with that message (`git log` and `git status` agree), the field clears (Clear initial
+    /// commit message on), the tree shows only the file left out, the commit is reported and the
+    /// message is in the history. A second commit from the keyboard keeps its message in the field,
+    /// as the setting is off by default.
+    #[gpui_kit::test]
+    async fn commit_takes_exactly_the_included_files_with_the_typed_message(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            std::fs::write(root.join("b.txt"), "bee\n").expect("the file is written");
+            git_in(root, &["add", "."]);
+            git_in(root, &["commit", "-q", "-m", "second"]);
+            std::fs::write(root.join("a.txt"), "one changed\n").expect("the file is written");
+            std::fs::write(root.join("b.txt"), "bee changed\n").expect("the file is written");
+        });
+        set_clear_initial_message(true, cx);
+        run_action(cx, "vcs.commit", None);
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(COMMIT_TOOL_WINDOW)));
+        let (panel, commit_box) = commit_parts(&workbench, cx);
+        wait_long(cx, "the changes are listed", |cx| {
+            panel.read_with(cx, |panel, _| panel.lines()) == ["Changes (2)", "  a.txt", "  b.txt"]
+        });
+        assert!(message_focused(&commit_box, cx), "Commit… puts the keyboard in the message");
+        assert_eq!(panel.read_with(cx, |panel, cx| panel.included_files(cx)), ["a.txt", "b.txt"]);
+
+        // b.txt is left out with its checkbox.
+        click_on(cx, "commit-include-b.txt");
+        assert_eq!(panel.read_with(cx, |panel, cx| panel.included_files(cx)), ["a.txt"]);
+        wait_long(cx, "the box counts one file", |cx| commit_box.read_with(cx, |b, _| b.input().included == 1));
+
+        // Without a message nothing is committed.
+        click_on(cx, "commit-commit");
+        assert!(commit_box.read_with(cx, |commit_box, _| commit_box.empty_error()));
+        assert!(message_focused(&commit_box, cx), "the field takes the keyboard");
+        assert_eq!(git_in(&root, &["rev-list", "--count", "HEAD"]), "2");
+
+        cx.simulate_input("Change a");
+        click_on(cx, "commit-commit");
+        wait_long(cx, "the commit is reported", |cx| {
+            notification_titles(&workbench, cx).contains(&"1 file committed: Change a".to_owned())
+        });
+        assert_eq!(git_in(&root, &["log", "-1", "--format=%s"]), "Change a");
+        assert_eq!(git_in(&root, &["show", "--name-only", "--format=", "HEAD"]), "a.txt");
+        assert_eq!(git_in(&root, &["status", "--porcelain"]), "M b.txt");
+        wait_long(cx, "the tree follows", |cx| {
+            panel.read_with(cx, |panel, _| panel.lines()) == ["Changes (1)", "  b.txt"]
+        });
+        assert_eq!(commit_message(&commit_box, cx), "", "the field clears");
+        assert!(commit_box.read_with(cx, |commit_box, _| !commit_box.input().busy));
+        run_action(cx, "vcs.showMessageHistory", None);
+        let history = commit_box.read_with(cx, |commit_box, _| commit_box.history_lines());
+        assert_eq!(history, Some(vec!["Change a".to_owned()]));
+        // Escape in the message field closes the history.
+        run_action(cx, "vcs.commit", None);
+        cx.simulate_keystrokes("escape");
+        assert_eq!(commit_box.read_with(cx, |commit_box, _| commit_box.history_lines()), None);
+
+        // The file left out stays left out until it is included again, then ⌘↩ commits it.
+        assert!(panel.read_with(cx, |panel, cx| panel.included_files(cx)).is_empty());
+        set_clear_initial_message(false, cx);
+        click_on(cx, "commit-include-b.txt");
+        run_action(cx, "vcs.commit", None);
+        assert!(message_focused(&commit_box, cx));
+        cx.simulate_input("Change b");
+        cx.simulate_keystrokes(COMMIT_KEYS);
+        wait_long(cx, "the commit from the keyboard is reported", |cx| {
+            notification_titles(&workbench, cx).contains(&"1 file committed: Change b".to_owned())
+        });
+        assert_eq!(git_in(&root, &["log", "-1", "--format=%s"]), "Change b");
+        assert_eq!(git_in(&root, &["show", "--name-only", "--format=", "HEAD"]), "b.txt");
+        assert_eq!(git_in(&root, &["status", "--porcelain"]), "");
+        wait_long(cx, "the tree is empty", |cx| panel.read_with(cx, |panel, _| panel.lines()).is_empty());
+        assert_eq!(commit_message(&commit_box, cx), "Change b", "the message stays for the next commit");
+        let history = cx.update(|_, cx| {
+            let key = crate::vcs_ops::commit_store::history_key(Some(&root.to_string_lossy()));
+            cx.global::<UiStorage>().get(&key).map(str::to_owned)
+        });
+        assert_eq!(history.as_deref(), Some(r#"["Change b","Change a"]"#));
+
+        // Commit and Push… commits with the message in the field, then shows the Push dialog.
+        std::fs::write(root.join("a.txt"), "one changed again\n").expect("the file is written");
+        wait_long(cx, "the new change", |cx| commit_box.read_with(cx, |b, _| b.input().included == 1));
+        run_action(cx, "vcs.commitAndPush", None);
+        wait_long(cx, "the Push dialog", |cx| workbench.read_with(cx, |w, _| w.push_dialog().is_some()));
+        assert_eq!(git_in(&root, &["rev-list", "--count", "HEAD"]), "5");
+        assert_eq!(git_in(&root, &["status", "--porcelain"]), "");
+        cx.simulate_keystrokes("escape");
+        assert!(workbench.read_with(cx, |w, _| w.push_dialog().is_none()), "Escape pushes nothing");
+    }
+
+    /// Amend puts the last commit's message in the field; edited and committed, it replaces the last
+    /// commit with one holding the new change and the new message.
+    #[gpui_kit::test]
+    async fn amend_loads_the_last_message_and_amends_the_commit(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            std::fs::write(root.join("a.txt"), "one amended\n").expect("the file is written");
+        });
+        run_action(cx, "vcs.commit", None);
+        let (panel, commit_box) = commit_parts(&workbench, cx);
+        wait_long(cx, "the change is listed", |cx| panel.read_with(cx, |panel, _| panel.lines().len()) == 2);
+        cx.simulate_input("draft");
+        click_on(cx, "commit-amend");
+        wait_long(cx, "the last message", |cx| commit_message(&commit_box, cx) == "first");
+        assert_eq!(commit_box.update(cx, |commit_box, cx| commit_box.buttons(cx))[0].label, "Amend Commit");
+        run_action(cx, "vcs.commit", None);
+        cx.simulate_keystrokes(if cfg!(target_os = "macos") { "cmd-a" } else { "ctrl-a" });
+        cx.simulate_input("first, amended");
+        click_on(cx, "commit-commit");
+        wait_long(cx, "the amend is reported", |cx| {
+            notification_titles(&workbench, cx).contains(&"1 file amended: first, amended".to_owned())
+        });
+        assert_eq!(git_in(&root, &["log", "-1", "--format=%s"]), "first, amended");
+        assert_eq!(git_in(&root, &["rev-list", "--count", "HEAD"]), "1", "the commit was replaced");
+        assert_eq!(git_in(&root, &["show", "HEAD:a.txt"]), "one amended");
+        assert_eq!(git_in(&root, &["status", "--porcelain"]), "");
+        assert!(commit_box.read_with(cx, |commit_box, cx| !commit_box.message_area().read(cx).is_disabled()));
+        let amend = workbench.update(cx, |w, cx| w.commit_state(cx).read(cx).amend);
+        assert!(!amend, "Amend is off after the commit");
+    }
+
+    /// Selecting a commit in the Git tool window shows its message, author and changed files beside
+    /// the log; Enter on a changed file shows the diff of the commit's change to it, and the menu's
+    /// Show Diff does too.
+    #[gpui_kit::test]
+    async fn a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file(cx: &mut TestAppContext) {
+        use crate::vcs::log_view::GitLog;
+        let (workbench, cx, _folders, _root) = git_project(cx, |root| {
+            init_repo(root);
+            std::fs::write(root.join("a.txt"), "two\n").expect("the file is written");
+            std::fs::write(root.join("c.txt"), "new\n").expect("the file is written");
+            git_in(root, &["add", "."]);
+            git_in(root, &["commit", "-q", "-m", "Second change\n\nWith a body"]);
+        });
+        run_action(cx, "toolwindow.git", None);
+        let log = workbench
+            .read_with(cx, |w, _| w.tool_window_view(GIT_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<GitLog>().ok())
+            .expect("the Git window holds the log");
+        wait_long(cx, "the log is read", |cx| log.read_with(cx, |log, _| log.commits().len()) == 2);
+        let pane = workbench.read_with(cx, |w, _| w.log_details().cloned()).expect("the window has the details");
+        assert!(cx.debug_bounds("log-details-view-options").is_none(), "nothing is selected yet");
+        cx.update(|window, cx| {
+            let focus = log.read(cx).focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.simulate_keystrokes("down");
+        wait_long(cx, "the changed files", |cx| {
+            pane.read_with(cx, |pane, _| !pane.is_loading() && pane.lines().len() == 2)
+        });
+        assert_eq!(pane.read_with(cx, |pane, _| pane.lines()), ["a.txt", "c.txt"]);
+        let message = pane.update(cx, |pane, cx| pane.message_lines(cx));
+        assert_eq!(message.first().map(String::as_str), Some("Second change"), "{message:?}");
+        assert!(message.iter().any(|line| line == "With a body"), "{message:?}");
+        assert!(message.iter().any(|line| line.contains("Ada <ada@example.test>")), "{message:?}");
+        assert!(cx.debug_bounds("log-details-view-options").is_some(), "the details are drawn beside the log");
+
+        // Enter on a.txt shows the commit's change to it.
+        cx.update(|window, cx| {
+            let focus = pane.read(cx).focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.simulate_keystrokes("down enter");
+        let dialog = workbench.read_with(cx, |w, _| w.diff_dialog().cloned()).expect("the diff is shown");
+        let viewer = dialog.read_with(cx, |dialog, _| dialog.viewer().clone());
+        wait_long(cx, "the diff's texts", |cx| viewer.read_with(cx, |viewer, _| viewer.difference_count() == 1));
+        let changed = |lines: Vec<crate::vcs_diff::view::PaneLine>| -> Vec<String> {
+            lines.into_iter().filter(|line| line.kind.is_some()).map(|line| line.text).collect()
+        };
+        assert_eq!(changed(viewer.read_with(cx, |viewer, _| viewer.left_lines())), ["one"]);
+        assert_eq!(changed(viewer.read_with(cx, |viewer, _| viewer.right_lines())), ["two"]);
+        assert!(dialog.read_with(cx, |dialog, _| dialog.data().path.ends_with("a.txt")));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()));
+
+        // The context menu's Show Diff on c.txt, an added file.
+        let changes = pane.read_with(cx, |pane, _| pane.all_changes().to_vec());
+        workbench.update_in(cx, |w, window, cx| {
+            let added = changes.iter().filter(|change| change.path == "c.txt").cloned().collect();
+            w.run_log_changes_command(crate::vcs::log_details::ChangesCommand::ShowDiff, added, window, cx);
+        });
+        let dialog = workbench.read_with(cx, |w, _| w.diff_dialog().cloned()).expect("the diff is shown");
+        assert!(dialog.read_with(cx, |dialog, _| dialog.data().path.ends_with("c.txt")));
+    }
+
+    /// Typing in the Git log's text filter reduces the list to the matching commits, and a double
+    /// click on a branch in the Branches pane shows that branch's log.
+    #[gpui_kit::test]
+    async fn the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane(cx: &mut TestAppContext) {
+        use crate::vcs::log_view::GitLog;
+        let (workbench, cx, _folders, _root) = git_project(cx, |root| {
+            init_repo(root);
+            let commit = |file: &str, message: &str| {
+                std::fs::write(root.join(file), message).expect("the file is written");
+                git_in(root, &["add", "."]);
+                git_in(root, &["commit", "-q", "-m", message]);
+            };
+            commit("b.txt", "alpha fix");
+            git_in(root, &["checkout", "-q", "-b", "feature"]);
+            commit("f.txt", "on feature");
+            git_in(root, &["checkout", "-q", "main"]);
+            commit("c.txt", "beta change");
+        });
+        run_action(cx, "toolwindow.git", None);
+        let log = workbench
+            .read_with(cx, |w, _| w.tool_window_view(GIT_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<GitLog>().ok())
+            .expect("the Git window holds the log");
+        let subjects = |cx: &mut VisualTestContext| -> Vec<String> {
+            log.read_with(cx, |log, _| log.commits().iter().map(|commit| commit.summary.clone()).collect())
+        };
+        wait_long(cx, "the log is read", |cx| subjects(cx).contains(&"beta change".to_owned()));
+        // Without a branch filter the log shows every branch.
+        assert_eq!(subjects(cx), ["beta change", "on feature", "alpha fix", "first"]);
+
+        // The text filter applies once the typing rests.
+        let bar = log.read_with(cx, |log, _| log.filter_bar().cloned()).expect("the log has the filter bar");
+        cx.update(|window, cx| {
+            let focus = bar.read(cx).text_field().focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.simulate_input("alpha");
+        wait_long(cx, "the text filter", |cx| subjects(cx) == ["alpha fix"]);
+        assert_eq!(log.read_with(cx, |log, _| log.filters().text.clone()), "alpha");
+        for _ in 0.."alpha".len() {
+            cx.simulate_keystrokes("backspace");
+        }
+        wait_long(cx, "the filter cleared", |cx| subjects(cx).len() == 4);
+
+        // A double click on feature in the Branches pane shows feature's log.
+        let pane = log.read_with(cx, |log, _| log.branches_pane().cloned()).expect("the log has the Branches pane");
+        wait_long(cx, "the branches are listed", |cx| {
+            pane.read_with(cx, |pane, _| pane.rows().iter().any(|row| row.label == "feature"))
+        });
+        let index = pane.read_with(cx, |pane, _| pane.rows().iter().position(|row| row.label == "feature"));
+        let selector: &'static str =
+            Box::leak(format!("branches-row-{}", index.expect("feature is listed")).into_boxed_str());
+        cx.run_until_parked();
+        let position = cx.debug_bounds(selector).expect("the row is drawn").center();
+        let (button, modifiers) = (gpui_kit::MouseButton::Left, gpui_kit::Modifiers::default());
+        cx.simulate_event(gpui_kit::MouseDownEvent { position, modifiers, button, click_count: 2, first_mouse: false });
+        cx.simulate_event(gpui_kit::MouseUpEvent { position, modifiers, button, click_count: 2 });
+        wait_long(cx, "the branch's log", |cx| subjects(cx) == ["on feature", "alpha fix", "first"]);
+        assert_eq!(log.read_with(cx, |log, _| log.filters().branches.clone()), ["feature"]);
+
+        // Show Branches hides the pane and shows it again, and the choice is stored.
+        run_action(cx, "vcs.log.showBranches", None);
+        assert!(cx.debug_bounds(selector).is_none(), "the pane is hidden");
+        let stored =
+            cx.update(|_, cx| cx.global::<UiStorage>().get(crate::vcs::log_options::STORAGE_KEY).map(str::to_owned));
+        assert!(stored.is_some_and(|json| json.contains("\"showBranches\":false")));
+        run_action(cx, "vcs.log.showBranches", None);
+        assert!(cx.debug_bounds(selector).is_some(), "the pane shows again");
+    }
+
+    /// A commit the pre-commit hook refuses is reported as failed and keeps its message; with Run
+    /// Git hooks turned off in the options it goes through. A before-commit check ticked in the
+    /// options is written to the settings.
+    #[gpui_kit::test]
+    async fn a_refused_commit_keeps_its_message_and_the_options_reach_the_commit(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            let hook = root.join(".git/hooks/pre-commit");
+            std::fs::write(&hook, "#!/bin/sh\nexit 1\n").expect("the hook is written");
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).expect("the hook runs");
+            std::fs::write(root.join("a.txt"), "one changed\n").expect("the file is written");
+        });
+        run_action(cx, "vcs.commit", None);
+        let (panel, commit_box) = commit_parts(&workbench, cx);
+        wait_long(cx, "the change is listed", |cx| panel.read_with(cx, |panel, _| panel.lines().len()) == 2);
+        wait_long(cx, "the box counts it", |cx| commit_box.read_with(cx, |b, _| b.input().included == 1));
+        cx.simulate_input("Refused");
+        click_on(cx, "commit-commit");
+        wait_long(cx, "the failure is reported", |cx| {
+            notification_titles(&workbench, cx).contains(&"Commit failed".to_owned())
+        });
+        assert_eq!(git_in(&root, &["rev-list", "--count", "HEAD"]), "1", "nothing was committed");
+        assert_eq!(commit_message(&commit_box, cx), "Refused", "the message stays");
+        assert!(commit_box.read_with(cx, |commit_box, _| !commit_box.input().busy));
+
+        click_on(cx, "commit-options");
+        assert!(commit_box.read_with(cx, |commit_box, _| commit_box.options_open()), "the options open");
+        click_on(cx, "commit-check-reformat");
+        let reformat = cx.update(|_, cx| crate::platform::settings::effective("w1", cx).vcs.commit.reformat);
+        assert!(reformat, "the check is written to the settings");
+        click_on(cx, "commit-run-hooks");
+        cx.simulate_keystrokes("escape");
+        run_action(cx, "vcs.commit", None);
+        cx.simulate_keystrokes(COMMIT_KEYS);
+        wait_long(cx, "the commit without hooks", |cx| {
+            notification_titles(&workbench, cx).contains(&"1 file committed: Refused".to_owned())
+        });
+        assert_eq!(git_in(&root, &["log", "-1", "--format=%s"]), "Refused");
     }
 }

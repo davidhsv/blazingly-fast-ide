@@ -3,18 +3,27 @@
 //! happened to it. Read from the backend when shown and again when the repository changes.
 //! Enter or a double click shows a changed file's diff, F4 opens the file, and the context menu
 //! offers both.
+//!
+//! In the Commit tool window each row has an inclusion checkbox, kept in the commit state the
+//! window shares with the commit message box below the tree: a click on it or Space on the
+//! selected row includes or leaves out the row's files. The box is drawn below the tree.
 
-use super::changes::{ChangeKind, ChangeNode, EffectiveKind, FileStatus, NodeType, build_change_tree, strip_slash};
+use super::changes::{
+    ChangeKind, ChangeNode, CheckState, EffectiveKind, FileStatus, NodeType, aggregate_check, build_change_tree,
+    check_of, strip_slash, toggled_check,
+};
+use super::commit_box::CommitBox;
 use crate::backend::{Backend, BackendEvent};
 use crate::platform::i18n::Localization;
 use crate::theme;
+use crate::vcs_ops::commit_store::CommitState;
 use gpui_kit::{
-    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, MouseButton,
-    MouseDownEvent, Render, ScrollStrategy, SharedString, Task, UniformListScrollHandle, Window, div, prelude::*, px,
-    uniform_list,
+    AnyElement, App, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent,
+    MouseButton, MouseDownEvent, Render, ScrollStrategy, SharedString, Subscription, Task, UniformListScrollHandle,
+    Window, div, prelude::*, px, uniform_list,
 };
 use ide_core::IdeEvent;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -39,9 +48,17 @@ struct Row {
     detail: Option<String>,
     kind: Option<EffectiveKind>,
     path: Option<String>,
-    /// How many files are below a group or directory.
-    files: usize,
+    /// The files below a group or directory, or the file itself.
+    files: Vec<FileStatus>,
     expanded: bool,
+}
+
+/// What the Commit tool window adds to the tree: the shared commit state, whose inclusion the
+/// checkboxes show and change, and the message box drawn below.
+struct CommitParts {
+    state: Entity<CommitState>,
+    commit_box: Entity<CommitBox>,
+    _redraw: Subscription,
 }
 
 pub struct CommitPanel {
@@ -60,6 +77,7 @@ pub struct CommitPanel {
     scroll: UniformListScrollHandle,
     listener: Option<u64>,
     reading: Option<Task<()>>,
+    commit: Option<CommitParts>,
 }
 
 impl EventEmitter<CommitPanelEvent> for CommitPanel {}
@@ -111,7 +129,7 @@ fn flatten(nodes: &[ChangeNode], depth: usize, collapsed: &BTreeSet<String>, row
             detail: node.detail.clone(),
             kind: node.kind,
             path: node.path.clone(),
-            files: node.files.len(),
+            files: node.files.clone(),
             expanded,
         });
         if expanded {
@@ -148,6 +166,7 @@ impl CommitPanel {
             scroll: UniformListScrollHandle::new(),
             listener,
             reading: None,
+            commit: None,
         };
         panel.read(cx);
         panel
@@ -171,10 +190,76 @@ impl CommitPanel {
         self.rows
             .iter()
             .map(|row| {
-                let count = if row.node_type == NodeType::File { String::new() } else { format!(" ({})", row.files) };
+                let count =
+                    if row.node_type == NodeType::File { String::new() } else { format!(" ({})", row.files.len()) };
                 format!("{}{}{count}", "  ".repeat(row.depth), row.label)
             })
             .collect()
+    }
+
+    /// Shows inclusion checkboxes kept in `state`, and `commit_box` below the tree.
+    pub fn set_commit(&mut self, state: Entity<CommitState>, commit_box: Entity<CommitBox>, cx: &mut Context<Self>) {
+        let redraw = cx.observe(&state, |_, _, cx| cx.notify());
+        self.commit = Some(CommitParts { state, commit_box, _redraw: redraw });
+        self.forget_gone_checks(cx);
+        cx.notify();
+    }
+
+    /// The message box below the tree, in the Commit tool window.
+    pub fn commit_box(&self) -> Option<&Entity<CommitBox>> {
+        self.commit.as_ref().map(|parts| &parts.commit_box)
+    }
+
+    /// The labels of the changed files the next commit includes, fully or in part, in tree order.
+    pub fn included_files(&self, cx: &App) -> Vec<String> {
+        let Some(parts) = &self.commit else { return Vec::new() };
+        let checks = &parts.state.read(cx).checks;
+        self.rows
+            .iter()
+            .filter(|row| row.node_type == NodeType::File)
+            .filter(|row| row.files.iter().any(|file| check_of(file, checks) != CheckState::None))
+            .map(|row| row.label.clone())
+            .collect()
+    }
+
+    /// Includes the files of rows `keys` in the next commit, or leaves them out: one file flips its
+    /// inclusion; several are all left out when all are fully included, else all included.
+    pub fn toggle_included(&mut self, keys: &[&str], cx: &mut Context<Self>) {
+        let Some(parts) = &self.commit else { return };
+        let mut files: Vec<FileStatus> = Vec::new();
+        for row in self.rows.iter().filter(|row| keys.contains(&row.key.as_str())) {
+            for file in &row.files {
+                if !files.iter().any(|known| known.path == file.path) {
+                    files.push(file.clone());
+                }
+            }
+        }
+        if files.is_empty() {
+            return;
+        }
+        parts.state.update(cx, |state, cx| {
+            let total = aggregate_check(&files, &state.checks);
+            let target =
+                if total.on == files.len() && !total.indeterminate { CheckState::None } else { CheckState::All };
+            for file in &files {
+                let next = if files.len() == 1 { toggled_check(check_of(file, &state.checks)) } else { target };
+                state.checks.insert(file.path.clone(), next);
+            }
+            cx.notify();
+        });
+    }
+
+    /// Inclusion choices of files that are no longer changed are forgotten.
+    fn forget_gone_checks(&mut self, cx: &mut Context<Self>) {
+        let Some(parts) = &self.commit else { return };
+        let live: HashSet<&str> = self.status.iter().map(|file| file.path.as_str()).collect();
+        if parts.state.read(cx).checks.keys().all(|path| live.contains(path.as_str())) {
+            return;
+        }
+        parts.state.update(cx, |state, cx| {
+            state.checks.retain(|path, _| live.contains(path.as_str()));
+            cx.notify();
+        });
     }
 
     fn backend_event(&mut self, event: &BackendEvent, cx: &mut Context<Self>) {
@@ -226,6 +311,7 @@ impl CommitPanel {
                         panel.error = None;
                         panel.status = status.into_iter().map(file_status).collect();
                         panel.rebuild(cx);
+                        panel.forget_gone_checks(cx);
                     }
                     Ok(Err(error)) => panel.error = Some(error.message),
                     Err(error) => panel.error = Some(error.to_string()),
@@ -298,6 +384,7 @@ impl CommitPanel {
             }
             ("left", Some(row)) if row.node_type != NodeType::File && row.expanded => self.toggle(&row.key.clone(), cx),
             ("enter", Some(row)) => self.activate(&row.key.clone(), cx),
+            ("space", Some(row)) if self.commit.is_some() => self.toggle_included(&[row.key.as_str()], cx),
             ("f4", Some(row)) => self.open(&row.key.clone(), cx),
             _ => return,
         }
@@ -315,26 +402,53 @@ impl Focusable for CommitPanel {
     }
 }
 
-impl Render for CommitPanel {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+/// The inclusion checkbox of a row: ticked, mixed (some files or only some of their changes) or
+/// empty.
+fn include_mark(cx: &App, checked: bool, mixed: bool) -> Div {
+    let on = checked || mixed;
+    let mark = if mixed { Some("minus") } else { checked.then_some("check") };
+    div()
+        .flex_none()
+        .size(px(14.0))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded(px(3.0))
+        .border_1()
+        .border_color(theme::color(cx, if on { "bg-button-primary" } else { "border-checkbox" }))
+        .bg(theme::color(cx, if on { "bg-button-primary" } else { "bg-checkbox" }))
+        .children(mark.map(|icon| theme::icon(cx, icon, 10.0, theme::color(cx, "fg-button-primary"))))
+}
+
+impl CommitPanel {
+    /// The tree, or what stands in its place while there is nothing to list.
+    fn render_tree(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let focused = self.focus.is_focused(window);
         let (fg, muted) = (theme::color(cx, "fg-strong"), theme::color(cx, "fg-muted"));
         let message = |text: String| {
-            div().size_full().flex().items_center().justify_center().text_color(muted).child(SharedString::from(text))
+            div()
+                .size_full()
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(muted)
+                .child(SharedString::from(text))
+                .into_any_element()
         };
         if let Some(error) = &self.error {
-            return div().size_full().track_focus(&self.focus).child(message(error.clone()));
+            return message(error.clone());
         }
         if self.rows.is_empty() {
             let i18n = &cx.default_global::<Localization>().0;
             let text = if self.loading { i18n.tx("Loading…") } else { i18n.tx("No changes") };
-            return div().size_full().track_focus(&self.focus).child(message(text));
+            return message(text);
         }
         let selected_bg = theme::color(cx, if focused { "bg-tree-selected" } else { "bg-tree-selected-inactive" });
         let chevron_color = theme::color(cx, "fg-icon");
         let rows = Rc::clone(&self.rows);
         let selected = self.selected.clone();
-        let list = uniform_list(
+        let checks = self.commit.as_ref().map(|parts| parts.state.read(cx).checks.clone());
+        uniform_list(
             "changes",
             rows.len(),
             cx.processor(move |_, range: std::ops::Range<usize>, _, cx| {
@@ -360,6 +474,24 @@ impl Render for CommitPanel {
                             NodeType::Dir => Some(theme::icon(cx, "folder", 16.0, fg)),
                             NodeType::Group => None,
                         };
+                        let include = checks.as_ref().map(|checks| {
+                            let total = aggregate_check(&row.files, checks);
+                            let (key, label) = (row.key.clone(), row.label.clone());
+                            include_mark(cx, total.checked, total.indeterminate)
+                                .id(SharedString::from(format!("include:{}", row.key)))
+                                .debug_selector(move || format!("commit-include-{label}"))
+                                .on_mouse_down(
+                                    MouseButton::Left,
+                                    cx.listener(move |panel, _: &MouseDownEvent, window, cx| {
+                                        // The press is the checkbox's: the row is neither selected
+                                        // nor activated, and the tree keeps the keyboard.
+                                        window.prevent_default();
+                                        cx.stop_propagation();
+                                        window.focus(&panel.focus, cx);
+                                        panel.toggle_included(&[key.as_str()], cx);
+                                    }),
+                                )
+                        });
                         let (clicked, toggled, pressed) = (row.key.clone(), row.key.clone(), row.key.clone());
                         div()
                             .id(SharedString::from(format!("change:{}", row.key)))
@@ -386,6 +518,7 @@ impl Render for CommitPanel {
                                         }))
                                     }),
                             )
+                            .children(include)
                             .children(icon)
                             .child(SharedString::from(row.label.clone()))
                             .children(
@@ -395,7 +528,7 @@ impl Render for CommitPanel {
                             )
                             .when(folder, |el| {
                                 let i18n = &mut cx.default_global::<Localization>().0;
-                                let count = crate::vcs_diff::model::file_count(row.files, i18n);
+                                let count = crate::vcs_diff::model::file_count(row.files.len(), i18n);
                                 el.child(div().text_color(muted).child(SharedString::from(count)))
                             })
                             .on_mouse_down(
@@ -423,13 +556,37 @@ impl Render for CommitPanel {
             }),
         )
         .track_scroll(&self.scroll)
-        .size_full();
+        .size_full()
+        .into_any_element()
+    }
+}
+
+impl Render for CommitPanel {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let tree = self.render_tree(window, cx);
+        // Only the tree takes the keyboard's keys: what is typed in the message box stays there.
         div()
             .size_full()
-            .track_focus(&self.focus)
-            .on_key_down(cx.listener(Self::key_down))
+            .flex()
+            .flex_col()
             .text_size(theme::length(cx, "fs-ui"))
-            .child(list)
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .w_full()
+                    .track_focus(&self.focus)
+                    .on_key_down(cx.listener(Self::key_down))
+                    .child(tree),
+            )
+            .children(self.commit.as_ref().map(|parts| {
+                div()
+                    .flex_none()
+                    .w_full()
+                    .border_t_1()
+                    .border_color(theme::color(cx, "border"))
+                    .child(parts.commit_box.clone())
+            }))
     }
 }
 
@@ -563,6 +720,84 @@ mod tests {
         settle(cx, "the list is empty", |cx| {
             lines(&panel, cx).is_empty() && panel.read_with(cx, |p, _| !p.is_loading())
         });
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        host.close_project("w1");
+    }
+
+    /// In the Commit tool window the checkboxes decide what the next commit includes: changed files
+    /// start included and unversioned ones left out; Space on a folder leaves out all its files when
+    /// all are in, and takes them all in again; a click on a file's checkbox flips only that file
+    /// and neither selects the row nor opens its diff.
+    #[gpui_kit::test]
+    async fn the_checkboxes_include_and_leave_out_changes(cx: &mut TestAppContext) {
+        cx.executor().allow_parking();
+        let (home, project) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a project"));
+        let root = project.path().canonicalize().expect("the project folder exists");
+        std::fs::create_dir(root.join("src")).expect("a folder");
+        std::fs::write(root.join("src/a.rs"), "a\n").expect("the file is written");
+        std::fs::write(root.join("src/b.rs"), "b\n").expect("the file is written");
+        git(&root, &["init", "-q", "-b", "main"]);
+        git(&root, &["add", "."]);
+        git(&root, &["commit", "-q", "-m", "first"]);
+        std::fs::write(root.join("src/a.rs"), "a2\n").expect("the file is written");
+        std::fs::write(root.join("src/b.rs"), "b2\n").expect("the file is written");
+        std::fs::write(root.join("notes.txt"), "new\n").expect("the file is written");
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            crate::platform::input::init(cx);
+            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+        });
+        let open_root = root.clone();
+        let opened = cx.update(|cx| {
+            cx.global::<Backend>().with_host(move |host| async move {
+                ide_host::ops::project::open(&host, "w1", &open_root).await.map(|_| ())
+            })
+        });
+        opened.await.expect("the task completes").expect("the project opens");
+        let panel_root = root.clone();
+        let (panel, cx) = cx.add_window_view(|_, cx| CommitPanel::new("w1", panel_root, cx));
+        let state = cx.update(|_, cx| cx.new(|_| CommitState::default()));
+        panel.update_in(cx, |panel, window, cx| {
+            let commit_box = cx.new(|cx| CommitBox::new(state.clone(), Default::default(), window, cx));
+            panel.set_commit(state.clone(), commit_box, cx);
+        });
+        settle(cx, "the changes are read", |cx| lines(&panel, cx).len() == 6);
+        let included = |cx: &mut VisualTestContext| panel.read_with(cx, |panel, cx| panel.included_files(cx));
+        assert_eq!(included(cx), ["a.rs", "b.rs"]);
+        let shown: Rc<std::cell::RefCell<Vec<CommitPanelEvent>>> = Rc::default();
+        let log = shown.clone();
+        let _subscription = cx.update(|_, cx| {
+            cx.subscribe(&panel, move |_, event: &CommitPanelEvent, _| log.borrow_mut().push(event.clone()))
+        });
+        cx.update(|window, cx| {
+            window.activate_window();
+            let focus = panel.read(cx).focus.clone();
+            window.focus(&focus, cx);
+        });
+        // Down to Changes, then src: Space leaves out both files, and takes them in again.
+        cx.simulate_keystrokes("down down space");
+        assert!(included(cx).is_empty());
+        cx.simulate_keystrokes("space");
+        assert_eq!(included(cx), ["a.rs", "b.rs"]);
+        // A click on b.rs's checkbox leaves out that file only; the selection stays on src.
+        for _ in 0..2 {
+            cx.run_until_parked();
+            let bounds = cx.debug_bounds("commit-include-b.rs").expect("the checkbox is drawn");
+            cx.simulate_click(bounds.center(), gpui_kit::Modifiers::default());
+        }
+        cx.run_until_parked();
+        assert_eq!(included(cx), ["a.rs", "b.rs"], "two clicks flip it twice");
+        let bounds = cx.debug_bounds("commit-include-b.rs").expect("the checkbox is drawn");
+        cx.simulate_click(bounds.center(), gpui_kit::Modifiers::default());
+        cx.run_until_parked();
+        assert_eq!(included(cx), ["a.rs"]);
+        assert!(shown.borrow().is_empty(), "the checkbox opens no diff");
+        assert!(panel.read_with(cx, |panel, _| panel.selected_key().is_some_and(|key| key.ends_with(":dir:src"))));
+        // Space on the Unversioned Files group takes in the new file; the checks live in the shared state.
+        cx.simulate_keystrokes("down down down space");
+        assert_eq!(included(cx), ["a.rs", "notes.txt"]);
+        let notes = root.join("notes.txt").to_string_lossy().into_owned();
+        assert_eq!(state.read_with(cx, |state, _| state.checks.get(&notes).copied()), Some(CheckState::All));
         let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
         host.close_project("w1");
     }
