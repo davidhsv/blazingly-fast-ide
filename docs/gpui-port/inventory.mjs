@@ -476,20 +476,22 @@ for (const [key, p] of Object.entries(parity))
 
 // A proof names Rust tests (`module::tests` or `module::tests::case`, in backticks): each must
 // exist in the GPUI app's test binary, so a renamed or deleted test cannot keep a row checked.
+// `--dry` checks nothing against the tests. `--listed <dir>` reads saved `cargo test -- --list`
+// outputs (`lib.txt`, `<integration test>.txt`) instead of running cargo, for when the build is busy.
 const dry = process.argv.includes("--dry");
-const listed = dry
-  ? { status: 0, stdout: "" }
-  : spawnSync("cargo", ["test", "--lib", "--", "--list"], { cwd: join(root, "app-gpui"), encoding: "utf8" });
+const listedDir = process.argv.includes("--listed") ? process.argv[process.argv.indexOf("--listed") + 1] : null;
+const list = (file, args) =>
+  listedDir
+    ? { status: 0, stdout: readFileSync(join(listedDir, file), "utf8") }
+    : spawnSync("cargo", args, { cwd: join(root, "app-gpui"), encoding: "utf8" });
+const listed = dry ? { status: 0, stdout: "" } : list("lib.txt", ["test", "--lib", "--", "--list"]);
 if (listed.status !== 0)
   problems.push(`cargo test --list failed in app-gpui:\n${(listed.stderr ?? "").split("\n").slice(-8).join("\n")}`);
 const rustTests = [...(listed.stdout ?? "").matchAll(/^([\w:]+): test$/gm)].map((m) => m[1]);
 // Integration tests (they run the application itself) are cited as `tests::<file>::<case>`.
 for (const file of dry ? [] : readdirSync(join(root, "app-gpui/tests")).filter((f) => f.endsWith(".rs"))) {
   const name = file.slice(0, -3);
-  const cases = spawnSync("cargo", ["test", "--test", name, "--", "--list"], {
-    cwd: join(root, "app-gpui"),
-    encoding: "utf8",
-  });
+  const cases = list(`${name}.txt`, ["test", "--test", name, "--", "--list"]);
   if (cases.status !== 0)
     problems.push(`cargo test --test ${name} --list failed:\n${(cases.stderr ?? "").split("\n").slice(-8).join("\n")}`);
   for (const m of (cases.stdout ?? "").matchAll(/^([\w:]+): test$/gm)) rustTests.push(`tests::${name}::${m[1]}`);

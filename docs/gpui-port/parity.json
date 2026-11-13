@@ -2548,8 +2548,8 @@
     "proof": "`database::nodes::tests`"
   },
   "unit:src/features/database/DatabaseView.test.tsx": {
-    "status": "partial",
-    "proof": "`database::tree::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`database::tree_view::tests`, `workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`"
   },
   "unit:src/features/database/ExportDialog.test.tsx": {
     "status": "partial",
@@ -2557,11 +2557,11 @@
   },
   "unit:src/features/database/Grid.test.tsx": {
     "status": "partial",
-    "proof": "`database::grid::tests`, `database::result_view::tests`; the state and logic of 12 of 12 cases, on the model; the view is not built"
+    "proof": "`database::grid_view::tests`, `database::results_view::tests`, `database::grid::tests`; 11 of 12 cases on the views shown in the Database window; \"preserves short values and truncates only beyond the preview\" only on the model"
   },
   "unit:src/features/database/SourceDialog.test.tsx": {
-    "status": "partial",
-    "proof": "`database::dialogs::tests`; the state and logic of 2 of 2 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`database::source_dialog::tests`, `workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
   },
   "unit:src/features/database/SqlFilterInput.test.tsx": {
     "status": "partial",
@@ -2589,7 +2589,7 @@
   },
   "unit:src/features/database/results-view.test.tsx": {
     "status": "partial",
-    "proof": "`database::result_session::tests`; the state and logic of 14 of 14 cases, on the model; the view is not built"
+    "proof": "`database::results_view::tests`, `database::store::tests`, `database::result_session::tests`; 6 of 14 cases on the views and the store, the other 8 only on the model"
   },
   "unit:src/features/database/sql/format.test.ts": {
     "status": "done",
@@ -2609,7 +2609,7 @@
   },
   "unit:src/features/database/table-editor.test.tsx": {
     "status": "partial",
-    "proof": "`database::table_editor::tests`; the state and logic of 4 of 4 cases, on the model; the view is not built"
+    "proof": "`database::table_editor_view::tests`, `workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; 3 of 4 cases on the view; the editor is not an editor tab, so \"counts the editor-area host focusing the tab\" has no counterpart"
   },
   "unit:src/features/github/api/api.test.ts": {
     "status": "done",
@@ -3364,16 +3364,16 @@
     "proof": "`features_b::viewers::mermaid::tests`"
   },
   "unit:src/features/viewers/markdown/previewDetails.test.tsx": {
-    "status": "partial",
-    "proof": "`features_b::viewers::preview::tests`; the state and logic of 1 of 1 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`features_b::viewers::markdown_view::tests`, `workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`"
   },
   "unit:src/features/viewers/markdown/previewOnly.test.tsx": {
     "status": "partial",
-    "proof": "`features_b::viewers::preview::tests`; the state and logic of 5 of 5 cases, on the model; the view is not built"
+    "proof": "`features_b::viewers::preview_host::tests`, `features_b::viewers::preview::tests`; 4 of 5 cases on the view; \"reports the restored line when shown again after a remount\" only on the model"
   },
   "unit:src/features/viewers/markdown/previewScroll.test.tsx": {
-    "status": "partial",
-    "proof": "`features_b::viewers::preview::tests`; the state and logic of 1 of 1 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`features_b::viewers::preview_host::tests`, `workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`"
   },
   "unit:src/features/viewers/markdown/render.test.ts": {
     "status": "done",
@@ -3381,7 +3381,7 @@
   },
   "unit:src/features/viewers/markdown/zoom.test.tsx": {
     "status": "partial",
-    "proof": "`features_b::viewers::font_zoom::tests`, `features_b::viewers::preview::tests`; the state and logic of 6 of 7 cases, on the model; the view is not built"
+    "proof": "`features_b::viewers::preview_host::tests`, `features_b::viewers::font_zoom::tests`; 1 of 7 cases on the view; the preview's font zoom is not wired"
   },
   "unit:src/features/viewers/viewers.test.ts": {
     "status": "done",
@@ -4166,5 +4166,193 @@
   "unit:src/workbench/Workbench.test.tsx": {
     "status": "partial",
     "proof": "`workbench::status_bar::tests`, `workbench::status_items::tests`; the 4 status bar cases of 18; the others describe the frame, drag and drop and LightEdit"
+  },
+  "action:image.zoomIn": {
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests`"
+  },
+  "action:image.zoomOut": {
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests`"
+  },
+  "action:image.actualSize": {
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests`"
+  },
+  "action:image.fitToWindow": {
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests`"
+  },
+  "action:image.toggleChessboard": {
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests`"
+  },
+  "action:markdown.editorOnly": {
+    "status": "done",
+    "proof": "`workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests`"
+  },
+  "action:markdown.editorAndPreview": {
+    "status": "done",
+    "proof": "`workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests`"
+  },
+  "action:markdown.previewOnly": {
+    "status": "done",
+    "proof": "`workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests`"
+  },
+  "context:imageViewerActive": {
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`"
+  },
+  "context:imageViewerFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`"
+  },
+  "point.registerEditorKind:image": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `workbench::tests::the_status_and_title_bars_name_the_viewers_file_and_leave_out_the_editors_items`; the image tab with zoom, chessboard and its label; the tab keeps its old path after a rename"
+  },
+  "point.registerEditorKind:binary": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_file_with_nul_bytes_opens_in_the_hex_view_and_open_as_text_gives_it_a_text_editor`; the read-only hex view and Open as Text; the tab keeps its old path after a rename"
+  },
+  "ipc:fs_read_image": {
+    "status": "done",
+    "proof": "`workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`"
+  },
+  "ipc:fs_read_range": {
+    "status": "done",
+    "proof": "`workbench::tests::a_file_with_nul_bytes_opens_in_the_hex_view_and_open_as_text_gives_it_a_text_editor`"
+  },
+  "action:db.showToolWindow": {
+    "status": "done",
+    "proof": "`workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "action:db.newDataSource": {
+    "status": "done",
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
+  },
+  "action:db.properties": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "action:db.disconnect": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "action:db.goToDdl": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "action:db.duplicateSource": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "action:db.rename": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "action:db.copyReference": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "action:db.collapseAll": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "action:db.drop": {
+    "status": "done",
+    "proof": "`workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`"
+  },
+  "action:db.submitChanges": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+  },
+  "action:db.revertChanges": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+  },
+  "action:db.editData": {
+    "status": "partial",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the table opens with its rows, from the action and from F4 in the tree only; it shows in the lower half of the Database window, not in an editor tab"
+  },
+  "action:db.execute": {
+    "status": "partial",
+    "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`; the statement at the caret runs on the only data source, rows and output shown; with two or more sources a plain .sql file only reports that a source must be chosen"
+  },
+  "action:db.explainPlan": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the statement is explained by the backend; the Query Plan tab is not built"
+  },
+  "action:db.openConsole": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the source's console file opens in an editor; the console's own toolbar is not shown"
+  },
+  "action:db.refresh": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; runs on a source; the test asserts no visible change"
+  },
+  "point.registerToolWindow:database": {
+    "status": "partial",
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`, `workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`, `workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`, `workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the tree with sources, schemas, tables and columns, the Data Source dialog, results, the table editor; schema-object dialogs, Query History, SSH configurations, import and export are missing"
+  },
+  "point.registerOverlay:database.dialogs": {
+    "status": "partial",
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`, `workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`, `workbench::tests::the_password_a_connection_asks_for_is_masked_and_answers_the_store`; the Data Source dialog, the rename and drop questions and the masked password question; the schema-object, export and import dialogs are not built"
+  },
+  "point.registerServiceView:dbResults": {
+    "status": "partial",
+    "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`; results show in the lower half of the Database window, not as a Services view"
+  },
+  "ipc:db_sources": {
+    "status": "done",
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
+  },
+  "ipc:db_connected": {
+    "status": "done",
+    "proof": "`workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`"
+  },
+  "ipc:db_test": {
+    "status": "done",
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
+  },
+  "ipc:db_save_sources": {
+    "status": "done",
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
+  },
+  "ipc:db_connect": {
+    "status": "done",
+    "proof": "`workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`"
+  },
+  "ipc:db_tables": {
+    "status": "done",
+    "proof": "`workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`"
+  },
+  "ipc:db_table_details": {
+    "status": "done",
+    "proof": "`workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`"
+  },
+  "ipc:db_table_page": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+  },
+  "ipc:db_apply_edits": {
+    "status": "done",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+  },
+  "ipc:db_execute": {
+    "status": "done",
+    "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`"
+  },
+  "ipc:db_disconnect": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "ipc:db_ddl": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+  },
+  "ipc:db_console_path": {
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
   }
 }
