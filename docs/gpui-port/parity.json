@@ -3614,5 +3614,73 @@
   "feature:todo": {
     "status": "partial",
     "proof": "`workbench::tests::the_todo_window_lists_the_projects_todo_comments_and_follows_what_is_typed`; see the tool window row"
+  },
+  "unit:src/features/project-tree/NewPopup.test.tsx": {
+    "status": "done",
+    "proof": "`project_view::new_popup::tests`"
+  },
+  "unit:src/features/project-tree/fileRefactor.test.tsx": {
+    "status": "partial",
+    "proof": "`project_view::file_refactor::tests`, `project_view::file_dialogs::tests`; 5 of 6 cases by name"
+  },
+  "unit:src/editor/core/copyPathPopup.test.tsx": {
+    "status": "partial",
+    "proof": "`project_view::copy_path_popup::tests`; 5 of 10 cases by name"
+  },
+  "action:project.newFile": {
+    "status": "done",
+    "proof": "`workbench::tests::new_file_in_the_project_view_creates_selects_and_opens_the_file`"
+  },
+  "action:project.newFolder": {
+    "status": "done",
+    "proof": "`workbench::tests::new_directory_and_a_nested_new_file_create_their_folders`"
+  },
+  "action:file.new": {
+    "status": "done",
+    "proof": "`workbench::tests::new_directory_and_a_nested_new_file_create_their_folders`"
+  },
+  "action:project.newInThisDirectory": {
+    "status": "done",
+    "proof": "`workbench::tests::the_tree_context_menu_offers_the_model_rows_and_creates_from_new`"
+  },
+  "action:project.rename": {
+    "status": "partial",
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; references are updated by the text search; no language server runs in the test, so the semantic update is not exercised"
+  },
+  "action:project.undoMove": {
+    "status": "done",
+    "proof": "`workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`"
+  },
+  "action:project.move": {
+    "status": "done",
+    "proof": "`workbench::tests::move_and_copy_go_through_their_dialogs`"
+  },
+  "action:project.copyElement": {
+    "status": "done",
+    "proof": "`workbench::tests::move_and_copy_go_through_their_dialogs`"
+  },
+  "action:project.delete": {
+    "status": "partial",
+    "proof": "`workbench::tests::delete_asks_and_cancelling_keeps_everything`, `workbench::tests::a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted`; the question, the safe-delete search and the failure report are tested. No test deletes a file for real: the backend sends it to the system Trash and has no test hook"
+  },
+  "action:editor.copyPathReference": {
+    "status": "partial",
+    "proof": "`workbench::tests::copy_path_reference_lists_the_forms_of_the_edited_file_and_copies_one`; the path forms of the file; Path From Source Root is missing because nothing computes the project's roots yet"
+  },
+  "action:project.copyAbsolutePath": {
+    "status": "done",
+    "proof": "`workbench::tests::copy_path_reference_lists_the_forms_of_the_edited_file_and_copies_one`"
+  },
+  "action:project.copy": {
+    "status": "partial",
+    "proof": "`workbench::tests::copy_and_paste_in_the_tree_go_through_the_copy_and_move_dialogs`; inside the tree; files are not put on the system clipboard, so other applications cannot paste them"
+  },
+  "action:project.cut": {
+    "status": "partial",
+    "proof": "`workbench::tests::copy_and_paste_in_the_tree_go_through_the_copy_and_move_dialogs`; inside the tree; files are not put on the system clipboard, so other applications cannot paste them"
+  },
+  "action:project.paste": {
+    "status": "partial",
+    "proof": "`workbench::tests::copy_and_paste_in_the_tree_go_through_the_copy_and_move_dialogs`; inside the tree; files are not put on the system clipboard, so other applications cannot paste them"
   }
 }

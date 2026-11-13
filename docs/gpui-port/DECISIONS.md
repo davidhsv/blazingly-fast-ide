@@ -591,3 +591,13 @@ Four tool windows written by one subagent without a compiler (40 tests, no compi
 - Build: a real driver over the backend's build. One test builds a plain project (the backend refuses it with its own message) and another runs real `cargo` builds of a tiny crate without dependencies: a type error listed with its location, a fixed build succeeding, a build stopped by the action ending cancelled. That test needs `cargo` on the PATH and up to a minute of real time; it passed ten runs in a row.
 - An older test of Search Everywhere searched for "item" and counted rows; registering the two TODO actions, whose titles contain "Items", added rows, as it would in the webview. Its fixture word changed; its assertions did not.
 - The workbench has no badge on a tool window's stripe button yet, so the TODO count and the Build error count are computed and tested but not shown.
+
+## D73. File operations in the Project tool window
+
+Creating, renaming, moving, copying and deleting files, cut/copy/paste, Copy Path and the tree's context menu are live (views by one subagent, driver by another, nine end-to-end tests on real temporary projects).
+
+- The tree keeps its own rows and selection; the workbench owns the operations' state and copies the tree into it before every step and back after it. Rebasing the tree on the operations' state would have shown a placeholder row while a name is typed; the New popup has a name field instead, since the tree has no inline editor.
+- Rename and Move run the backend's refactoring: references and text occurrences are searched (cancellable), a preview shows when other files change, the move is undoable, and open editors follow the file to its new path.
+- No test deletes a file for real. The backend's delete sends the file to the system Trash and has no hook to redirect it, so a test would leave files in the owner's Trash. The question, the safe-delete usage search, the stored choice and the failure report are tested with a file that is already gone; the successful half (Trash, Local History, tree reload, closing the tab) is written and has never run.
+- Not done: the tree's inline rename and New menu (no inline editor), putting files on the system clipboard, Mark Directory As (a warning says so), the project's source roots (so no "Path From Source Root" and no package rows).
+- A hint at the caret does not exist yet; "Copied …" shows as a notification.
