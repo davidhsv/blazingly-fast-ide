@@ -186,3 +186,11 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - CARGO QUEUE: [running] secrets seam + editor ×2 → app_actions → project/services/terminal → GitHub → plugin views → settings controls.
 - Context menu rows merged. 23 merge.* actions are registered (workbench/conflicts.rs) but no test runs them through the registry → a proofs task (merge editor actions); project.option/sortBy/viewMode land with project_view_actions; go.generate.* only menu data. Integrator's report was wrong on: :vcs.gutter (Annotate never shows), Project view group rows (a plugin_contributions test opens that menu).
 - Draft proofs_merge DONE: workbench/tests/proofs_merge_{fixtures,apply,change,edit,compare,focus}.rs (18 tests, 24 merge.* rows), notes integration/proofs_merge.md. DECIDED: Jump to Source from the merge editor ASKS first, as Cancel does (never drop undecided merge work silently). Fix 1 (merge.change applies its argument) and fix 2 (Diff Settings / Jump to Source in the merge editor) are product hunks in the notes. Hand to whichever integrator has room (small).
+
+## State after the editor slice (2026-11-13, 4b2a67e6)
+
+- Suite 6,456, 0 ignored, clippy clean (×5 by me). D87 written. Secrets file store in (crates/ide-ssh). Tauri suite re-run in progress → $S/tauri_suite2.log (EXIT + git status of src/ at the end).
+- OPEN: merge-editor test flake (1/13; hypothesis: index.lock race on run_op paths, D83) → give the next integrator a stress run (10 parallel processes × many runs of that test, as the Git integrator did) and the fix (serialise run_op with repository reads). Agent-task guard: Draft::default() = "claude" → refuse to start a non-fake agent in test builds.
+- Nine language shortcuts lack a positive key press in the editor (⌃I, ⌃O, ⌥Space, ⌘Y, ⇧⌘T, ⇧F6, ⇧F2, ⌃⇧↑, ⌃⌥↑) → small proofs task.
+- RUNNING (no cargo): editor parity mapper → $S/parity_editor.json.
+- CARGO QUEUE: app_actions (+ Part 0: merge flake, agent guard, proofs_merge tests + fixes) → project/services/terminal → GitHub → plugin views → settings controls.
