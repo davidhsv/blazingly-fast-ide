@@ -130,6 +130,14 @@ impl HexView {
     /// The view of a tab's `binary` input ([`super::file_kinds::binary_input`]); `None` for
     /// another kind of tab.
     pub fn from_input(input: &EditorInput, cx: &mut Context<Self>) -> Option<Self> {
+        let (path, size, binary) = Self::parts_of(input)?;
+        Some(Self::new(path, size, binary, cx))
+    }
+
+    /// The path, probed size and binary flag a `binary` input carries, as [`HexView::new`] takes
+    /// them; `None` for another kind of tab. An owner that builds the view inside `cx.new` reads
+    /// them first.
+    pub fn parts_of(input: &EditorInput) -> Option<(String, u64, bool)> {
         if input.kind != BINARY_KIND {
             return None;
         }
@@ -137,7 +145,7 @@ impl HexView {
         let data = input.data.as_ref();
         let size = data.and_then(|data| data.get("size")).and_then(serde_json::Value::as_u64).unwrap_or(0);
         let binary = data.and_then(|data| data.get("binary")).and_then(serde_json::Value::as_bool).unwrap_or(true);
-        Some(Self::new(path, size, binary, cx))
+        Some((path, size, binary))
     }
 
     /// Starts reading: the first page always (the size known when the tab opened may be stale, and
