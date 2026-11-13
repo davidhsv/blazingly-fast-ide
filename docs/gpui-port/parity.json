@@ -140,16 +140,16 @@
     "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; a tool window with a stripe button and title: no header actions or menus"
   },
   "point.registerStatusItem:editor.caret": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; the position with the selection's size, and a click opens Go to Line. No count of carets (the editor has one) and no tooltip"
+    "status": "done",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`"
   },
   "point.registerStatusItem:editor.lineEnding": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; the separator, and its menu changes it; no tooltip, and a second pane showing the file keeps the old label until it is reopened"
+    "status": "done",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`"
   },
   "point.registerStatusItem:editor.encoding": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; the encoding, and its menu reloads the file in another or converts it; reloading is tested only as refused with unsaved changes; no tooltip, and File Encodings Settings is missing with the Settings dialog"
+    "status": "done",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`"
   },
   "unit:src/ui/icons.test.tsx": {
     "status": "partial",
@@ -416,8 +416,8 @@
     "proof": "`workbench::main_toolbar::tests`; the model only: no window uses it yet"
   },
   "unit:src/workbench/statusBarWidgets.test.tsx": {
-    "status": "partial",
-    "proof": "`workbench::status_bar_widgets::tests`; the context menu and the toggle action are not rendered or registered"
+    "status": "done",
+    "proof": "`workbench::status_bar::tests`, `workbench::status_bar_widgets::tests`"
   },
   "module:src/workbench/statusBarWidgets.ts": {
     "status": "partial",
@@ -461,7 +461,7 @@
   },
   "point.registerStatusItem:workbench.tasks": {
     "status": "partial",
-    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; the current task's text only"
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::status_items::tests`; the current task with its progress and count; the Background Tasks popup is not built"
   },
   "unit:src/platform/virtualDocs.test.ts": {
     "status": "done",
@@ -668,8 +668,8 @@
     "proof": "`workbench::tests::the_ide_mode_toggle_switches_between_blaze_and_deep`"
   },
   "point.registerTitleItem:app.ideMode": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_ide_mode_toggle_switches_between_blaze_and_deep`; the title bar button shows the mode and runs the tested action, but no test clicks it, and it has no tooltip or shortcut hint yet"
+    "status": "done",
+    "proof": "`workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::the_ide_mode_toggle_switches_between_blaze_and_deep`"
   },
   "ipc:doc_open": {
     "status": "done",
@@ -3541,7 +3541,7 @@
   },
   "point.registerOverlay:vcs.dialogs": {
     "status": "partial",
-    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`, `vcs::prompt_dialogs::tests`; the prompt, confirmation and Push dialogs; Update Project, the conflicts dialog and the others are not built"
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`, `workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`; prompts, confirmations, Push and Conflicts; Update Project and the others are not built"
   },
   "unit:src/features/build/build.test.tsx": {
     "status": "partial",
@@ -3897,11 +3897,11 @@
   },
   "point.registerTitleItem:run.widget": {
     "status": "partial",
-    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`; the selection, Run, Stop and the chooser; Debug is not offered, and the item ignores the main-toolbar setting"
+    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`; Debug is not offered"
   },
   "point.registerTitleItem:vcs.branch": {
     "status": "partial",
-    "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`; the branch, its state and counts, opening the popup; no tooltip, and the item ignores the main-toolbar setting"
+    "proof": "`workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`; no tooltip on the widget"
   },
   "point.registerTitleItem:vcs.mergeRebase": {
     "status": "partial",
@@ -4118,5 +4118,53 @@
   "point.registerOverlay:settings.assignShortcut": {
     "status": "partial",
     "proof": "`workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `settings_view::keymap::tests`; the record dialog inside the Keymap page; the standalone Assign Shortcut action is not registered"
+  },
+  "action:vcs.resolveConflicts": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`, `workbench::tests::merge_opens_the_three_way_editor_and_apply_writes_and_stages_the_resolved_file`, `workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`, `workbench::tests::a_file_with_crlf_line_breaks_is_resolved_with_crlf`, `workbench::tests::the_merge_conflicts_notification_appears_with_the_conflict_and_expires_once_it_is_resolved`; the Conflicts dialog and the three-way merge editor, with accept, apply, the non-conflicting commands and the notifications. The editor is a front window, not a tab; no blame and no syntax colours in its panes"
+  },
+  "context:mergeEditorFocus": {
+    "status": "done",
+    "proof": "`workbench::tests::the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones`"
+  },
+  "action:toolbar.customize": {
+    "status": "done",
+    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`"
+  },
+  "action:view.toggleStatusBarWidget": {
+    "status": "done",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`"
+  },
+  "point.registerOverlay:workbench.customizeToolbar": {
+    "status": "done",
+    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`"
+  },
+  "point.registerStatusItem:editor.indent": {
+    "status": "partial",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`; shows the indentation; its menu is missing because the editor cannot change its indentation yet"
+  },
+  "point.registerStatusItem:editor.readOnly": {
+    "status": "partial",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`; shows the lock; a click does nothing because the read-only toggle is not registered"
+  },
+  "point.registerStatusItem:code-insight.servers": {
+    "status": "partial",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `code_insight::server_status::tests`; drawn in the bar with its popup; no language server runs in a workbench test"
+  },
+  "point.registerTitleItem:build.project": {
+    "status": "partial",
+    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`; registered in the bar; it shows only for a CMake target, because nothing publishes the Maven and Gradle keys"
+  },
+  "unit:src/features/vcs/__tests__/conflictBanner.test.tsx": {
+    "status": "done",
+    "proof": "`vcs::conflict_banner::tests`"
+  },
+  "unit:src/workbench/TitleBar.test.tsx": {
+    "status": "partial",
+    "proof": "`workbench::title_bar::tests`; 5 of 8 cases in full: the gear has no Theme and Keymap submenus, and there is no main menu merged into the title bar"
+  },
+  "unit:src/workbench/Workbench.test.tsx": {
+    "status": "partial",
+    "proof": "`workbench::status_bar::tests`, `workbench::status_items::tests`; the 4 status bar cases of 18; the others describe the frame, drag and drop and LightEdit"
   }
 }
