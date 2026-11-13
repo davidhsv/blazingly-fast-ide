@@ -580,3 +580,14 @@ The branch widget and the merge/rebase widget sit on the left of the title bar; 
 - Not carried out: anything across several repositories at once, Compare and Show Diff with Working Tree (the diff window takes a change, not two revisions), update and retry of a rejected push, View Commits on the deleted-branch notice.
 - Not registered because nothing tests or completes them yet: `vcs.update` (needs the Update Project dialog), `vcs.showLog`, `vcs.resolveConflicts` (needs the conflicts dialog; a merge that stops on conflicts raises a notice instead), and the continue/abort actions of rebase, cherry-pick and revert, which the title-bar controls already carry out.
 - Tests that run `git` beside the window retry when the repository's index is locked by the window's own read.
+
+## D72. Bookmarks, Structure, TODO and Build tool windows
+
+Four tool windows written by one subagent without a compiler (40 tests, no compile error) and wired by another, each in its own child module of the workbench with an end-to-end test.
+
+- Bookmarks: the window works on a copy of the workbench's store and the two are copied into each other after every change on either side.
+- Structure: follows the active editor only while the window is visible, reloads the outline half a second after edits settle, and follows the caret only with Autoscroll from Source on, which is off by default as in the component.
+- TODO: the project scan is the Find window's search; open editors are scanned 400 ms after an edit. The preview is a read-only editor on the file. Not done: the Changes tab is empty (change lists are not fed), settings are not stored (the model has no stored form), nothing rescans on save.
+- Build: a real driver over the backend's build. One test builds a plain project (the backend refuses it with its own message) and another runs real `cargo` builds of a tiny crate without dependencies: a type error listed with its location, a fixed build succeeding, a build stopped by the action ending cancelled. That test needs `cargo` on the PATH and up to a minute of real time; it passed ten runs in a row.
+- An older test of Search Everywhere searched for "item" and counted rows; registering the two TODO actions, whose titles contain "Items", added rows, as it would in the webview. Its fixture word changed; its assertions did not.
+- The workbench has no badge on a tool window's stripe button yet, so the TODO count and the Build error count are computed and tested but not shown.

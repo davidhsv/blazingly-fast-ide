@@ -3228,8 +3228,8 @@
     "proof": "`features_a::todo::tests`; the state and logic of 4 of 7 cases, on the model; the view is not built"
   },
   "unit:src/features/todo/TodoView.test.tsx": {
-    "status": "partial",
-    "proof": "`features_a::todo::tests`; the state and logic of 3 of 4 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`features_a::todo::tests`, `features_a::todo_view::tests`"
   },
   "unit:src/features/todo/todo.test.ts": {
     "status": "partial",
@@ -3542,5 +3542,77 @@
   "point.registerOverlay:vcs.dialogs": {
     "status": "partial",
     "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`, `vcs::prompt_dialogs::tests`; the prompt, confirmation and Push dialogs; Update Project, the conflicts dialog and the others are not built"
+  },
+  "unit:src/features/build/build.test.tsx": {
+    "status": "partial",
+    "proof": "`build_window::model::tests`, `build_window::view::tests`; 12 of 13 cases by name"
+  },
+  "unit:src/features/search/__tests__/fileStructure.test.tsx": {
+    "status": "partial",
+    "proof": "`everywhere::structure_window::tests`; 2 of 4 cases by name"
+  },
+  "unit:src/features/search/__tests__/structureAutoscroll.test.tsx": {
+    "status": "done",
+    "proof": "`everywhere::structure_window::tests`"
+  },
+  "action:bookmarks.newList": {
+    "status": "done",
+    "proof": "`workbench::tests::the_bookmarks_window_lists_opens_renames_and_deletes_what_the_project_stores`"
+  },
+  "point.registerToolWindow:bookmarks": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_bookmarks_window_lists_opens_renames_and_deletes_what_the_project_stores`, `everywhere::bookmarks_window::tests`; the tree, rename, delete, lists and menus; a file removed on disk keeps its bookmark until the next change"
+  },
+  "point.registerToolWindow:structure": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_structure_window_follows_the_editor_and_goes_to_the_chosen_symbol`, `everywhere::structure_window::tests`; the outline of the active editor with its options; the line a preview shows is not followed, and Select In › Structure does not exist"
+  },
+  "point.registerToolWindow:todo": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_todo_window_lists_the_projects_todo_comments_and_follows_what_is_typed`, `features_a::todo_view::tests`; project, current file and scope tabs with a read-only preview. Not yet: the Changes tab (change lists are not fed), stored settings, rescans on save, the badge, previous and next occurrence"
+  },
+  "action:todo.refresh": {
+    "status": "done",
+    "proof": "`workbench::tests::the_todo_window_lists_the_projects_todo_comments_and_follows_what_is_typed`"
+  },
+  "action:todo.showCurrentFile": {
+    "status": "done",
+    "proof": "`workbench::tests::the_todo_window_lists_the_projects_todo_comments_and_follows_what_is_typed`"
+  },
+  "action:build.buildProject": {
+    "status": "partial",
+    "proof": "`workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; runs the build into the Build window; a caller cannot wait for its end, which the component offers"
+  },
+  "action:build.buildModule": {
+    "status": "partial",
+    "proof": "`workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; runs the build into the Build window; a caller cannot wait for its end, which the component offers"
+  },
+  "action:build.rebuildProject": {
+    "status": "partial",
+    "proof": "`workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; runs the build into the Build window; a caller cannot wait for its end, which the component offers"
+  },
+  "action:build.buildArtifacts": {
+    "status": "partial",
+    "proof": "`workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; runs the build into the Build window; a caller cannot wait for its end, which the component offers"
+  },
+  "action:build.stop": {
+    "status": "done",
+    "proof": "`workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`"
+  },
+  "context:build.lastStatus": {
+    "status": "done",
+    "proof": "`workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`"
+  },
+  "point.registerToolWindow:build": {
+    "status": "partial",
+    "proof": "`workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`, `build_window::view::tests`; the tree of files and messages, the output, Rerun and Stop, on real builds. Not yet: the hammer of the title bar, the Project view's Build Module item, the error badge"
+  },
+  "feature:build": {
+    "status": "partial",
+    "proof": "`workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; see the tool window row"
+  },
+  "feature:todo": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_todo_window_lists_the_projects_todo_comments_and_follows_what_is_typed`; see the tool window row"
   }
 }
