@@ -13,10 +13,11 @@ use super::diff_options::{
 use super::view::DiffView;
 use crate::platform::i18n::Localization;
 use crate::theme;
+use crate::ui::tooltip::WithTooltip;
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
     App, Context, Div, Entity, EventEmitter, IntoElement, MouseButton, MouseDownEvent, Pixels, Point, Render,
-    SharedString, Subscription, Window, div, prelude::*, px,
+    SharedString, Stateful, Subscription, Window, div, prelude::*, px,
 };
 
 /// What the toolbar and its menus ask of the viewer.
@@ -232,6 +233,17 @@ pub fn toolbar_items(state: &ToolbarState) -> Vec<ToolbarItem> {
     items
 }
 
+/// The action whose shortcut a button's tooltip shows: the one the keymap binds to what it does.
+fn shortcut_action(action: ToolbarAction) -> Option<&'static str> {
+    match action {
+        ToolbarAction::Run(DiffCommand::PreviousDifference) => Some("diff.prevDifference"),
+        ToolbarAction::Run(DiffCommand::NextDifference) => Some("diff.nextDifference"),
+        ToolbarAction::Run(DiffCommand::JumpToSource) => Some("diff.jumpToSource"),
+        ToolbarAction::Open(DiffMenu::Settings) => Some("diff.showSettings"),
+        _ => None,
+    }
+}
+
 /// A row that shows a check while `on`.
 fn checked(item: MenuItem<DiffCommand>, on: bool) -> MenuItem<DiffCommand> {
     if on { item.icon("check") } else { item }
@@ -320,7 +332,7 @@ impl DiffToolbar {
         }
     }
 
-    fn render_button(&self, button: &ToolbarButton, cx: &mut Context<Self>) -> Div {
+    fn render_button(&self, button: &ToolbarButton, cx: &mut Context<Self>) -> Stateful<Div> {
         let color = theme::color(
             cx,
             if !button.enabled {
@@ -332,8 +344,14 @@ impl DiffToolbar {
             },
         );
         let (id, action, enabled) = (button.id, button.action, button.enabled);
+        let label = button.label;
         div()
+            .id(id)
             .debug_selector(move || id.to_owned())
+            .map(|el| match shortcut_action(action) {
+                Some(shortcut) => el.with_tooltip_shortcut(label, shortcut),
+                None => el.with_tooltip(label),
+            })
             .size(px(24.0))
             .flex_none()
             .flex()
@@ -489,6 +507,22 @@ mod tests {
                 other => other.label().unwrap_or_default().to_owned(),
             })
             .collect()
+    }
+
+    // Not from a spec: each button says what it does when the pointer rests on it, the navigation and
+    // Settings with the shortcuts of their actions (DiffEditor.tsx's IconButton titles).
+    #[gpui_kit::test]
+    async fn the_buttons_show_their_labels_and_shortcuts_as_tooltips(cx: &mut TestAppContext) {
+        use crate::ui::tooltip::hovered_tooltip;
+        let f = open(cx, "a\n", "b\n", DiffViewOptions::default());
+        f.viewer.update(f.cx, |viewer, cx| viewer.set_has_source(true, cx));
+        f.cx.run_until_parked();
+        assert!(hovered_tooltip(f.cx, "diff-previous", "Previous Difference", Some("diff.prevDifference")));
+        assert!(hovered_tooltip(f.cx, "diff-next", "Next Difference", Some("diff.nextDifference")));
+        assert!(hovered_tooltip(f.cx, "diff-jump-to-source", "Jump to Source", Some("diff.jumpToSource")));
+        assert!(hovered_tooltip(f.cx, "diff-split", "Side-by-side Viewer", None));
+        assert!(hovered_tooltip(f.cx, "diff-refresh", "Refresh", None));
+        assert!(hovered_tooltip(f.cx, "diff-settings", "Settings", Some("diff.showSettings")));
     }
 
     // src/features/vcs/__tests__/diffToolbar.test.tsx › Diff toolbar › puts Jump to Source right after Next

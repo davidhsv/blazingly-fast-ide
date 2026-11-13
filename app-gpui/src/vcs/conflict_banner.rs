@@ -178,8 +178,8 @@ mod tests {
         assert_eq!(banner, Some(expected));
     }
 
-    // src/features/vcs/__tests__/conflictBanner.test.tsx › the conflict banner › shows nothing above other files, and
-    // goes away when the conflict is resolved
+    // src/features/vcs/__tests__/conflictBanner.test.tsx › the conflict banner › shows nothing above other files,
+    // and goes away when the conflict is resolved
     #[test]
     fn shows_nothing_above_other_files_and_goes_away_when_the_conflict_is_resolved() {
         let conflicted = status("/p/settings.gradle", ChangeKind::Conflicted);

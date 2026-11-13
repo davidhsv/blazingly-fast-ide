@@ -2292,14 +2292,17 @@ mod tests {
         }
     }
 
-    fn open<'a>(
-        cx: &'a mut TestAppContext,
+    fn open(
+        cx: &mut TestAppContext,
         auto_apply: bool,
         start: MergeVersions,
-    ) -> (Entity<MergeView>, Events, &'a mut VisualTestContext) {
+    ) -> (Entity<MergeView>, Events, &mut VisualTestContext) {
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
-            input::init(cx);
+            // A second keymap would deliver every key twice to the second window.
+            if !cx.has_global::<input::Keymap>() {
+                input::init(cx);
+            }
         });
         let (view, cx) = cx.add_window_view(move |_, cx| MergeView::new("/p/src/a.txt", auto_apply, cx));
         let events: Events = Rc::default();

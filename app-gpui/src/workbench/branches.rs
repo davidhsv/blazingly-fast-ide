@@ -71,8 +71,7 @@ use std::time::Duration;
 const VCS_EVENT_DELAY: Duration = Duration::from_millis(200);
 const FS_EVENT_DELAY: Duration = Duration::from_millis(250);
 
-/// The conflicts dialog's action.
-const RESOLVE_CONFLICTS: &str = "vcs.resolveConflicts";
+use super::conflicts::RESOLVE_CONFLICTS;
 
 /// UI storage key of the Branches popup's gear options.
 pub(crate) const OPTIONS_KEY: &str = "openidea.vcs.branchesPopup.options";
@@ -1012,7 +1011,7 @@ async fn run_git_operation(
 }
 
 /// Continue, Skip or Abort of the operation `expected` stopped in the selected repository.
-async fn control_operation(
+pub(super) async fn control_operation(
     this: This,
     cx: &mut AsyncWindowContext,
     expected: InProgress,
@@ -1108,6 +1107,11 @@ impl Workbench {
         self.vcs_dialog.as_ref().and_then(|dialog| dialog.view.clone().downcast().ok())
     }
 
+    /// The dialog of the dialog layer, when it is a `V`.
+    pub(super) fn vcs_dialog_view<V: 'static>(&self) -> Option<Entity<V>> {
+        self.vcs_dialog.as_ref().and_then(|dialog| dialog.view.clone().downcast().ok())
+    }
+
     /// Follows the project just opened: the widget goes in the title bar and the repository is read.
     pub(super) fn mount_vcs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.drop_vcs();
@@ -1148,6 +1152,7 @@ impl Workbench {
             merge_widget,
             _widget_events: [events, controls],
         });
+        self.mount_conflicts(window);
         self.refresh_vcs(cx);
     }
 
@@ -1155,6 +1160,7 @@ impl Workbench {
     pub(super) fn drop_vcs(&mut self) {
         self.vcs = None;
         self.vcs_dialog = None;
+        self.drop_conflicts();
     }
 
     /// Whether the window's project holds a Git repository.
@@ -1248,6 +1254,7 @@ impl Workbench {
         });
         let listed = data.as_ref().is_ok_and(|data| data.selected.is_ok());
         let outcome = slot.state.finish_refresh(&started, data);
+        let conflicts = outcome.conflicts.clone();
         if listed && !outcome.again {
             slot.state.branches_loaded = true;
         }
@@ -1266,6 +1273,7 @@ impl Workbench {
             || (outcome.again
                 && matches!(slot.queue.request(slot.state.available), RefreshRequest::Run { start: true, .. }));
         self.vcs_state_changed(cx);
+        self.conflicts_changed(conflicts, cx);
         for (_, sender) in settled {
             // The waiter may be gone.
             let _ = sender.send(());
@@ -1628,7 +1636,7 @@ impl Workbench {
         answer
     }
 
-    fn open_vcs_dialog(
+    pub(super) fn open_vcs_dialog(
         &mut self,
         view: AnyView,
         focus: FocusHandle,
@@ -1646,7 +1654,7 @@ impl Workbench {
         cx.notify();
     }
 
-    fn close_vcs_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn close_vcs_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(dialog) = self.vcs_dialog.take() else { return };
         if let Some(target) = dialog.restore.or_else(|| self.editor().map(|editor| editor.focus_handle(cx))) {
             window.focus(&target, cx);

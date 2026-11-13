@@ -155,13 +155,19 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         on_workbench(window, cx, |workbench, window, cx| workbench.show_diff(call.arg, window, cx))
     });
     let commands = [
-        (action::NEXT_DIFFERENCE, DiffCommand::NextDifference),
-        (action::PREV_DIFFERENCE, DiffCommand::PreviousDifference),
-        (action::JUMP_TO_SOURCE, DiffCommand::JumpToSource),
+        (action::NEXT_DIFFERENCE, DiffCommand::NextDifference, Some(Direction::Next)),
+        (action::PREV_DIFFERENCE, DiffCommand::PreviousDifference, Some(Direction::Previous)),
+        (action::JUMP_TO_SOURCE, DiffCommand::JumpToSource, None),
     ];
-    for (id, command) in commands {
+    for (id, command, merge) in commands {
         registry.handle(id, move |_, window, cx| {
-            on_workbench(window, cx, |workbench, _, cx| workbench.run_diff_command(command, cx))
+            on_workbench(window, cx, |workbench, window, cx| {
+                // The merge editor that has the keyboard moves between its own changes.
+                let moved = merge.is_some_and(|direction| workbench.merge_go_to_change(direction, window, cx));
+                if !moved {
+                    workbench.run_diff_command(command, cx);
+                }
+            })
         });
     }
     for (id, direction) in [(action::NEXT_FILE, Direction::Next), (action::PREV_FILE, Direction::Previous)] {
@@ -489,7 +495,8 @@ impl Workbench {
     /// keyboard.
     pub(super) fn publish_diff_context(&self, window: &mut Window, cx: &mut App) {
         let focused =
-            self.diff_dialog().is_some_and(|dialog| dialog.read(cx).focus_handle(cx).contains_focused(window, cx));
+            self.diff_dialog().is_some_and(|dialog| dialog.read(cx).focus_handle(cx).contains_focused(window, cx))
+                || self.merge_editor_focused(window, cx);
         set_context(window, cx, "diffEditorFocus", focused);
         let versioned = self.project_tree().is_some()
             && cx

@@ -527,13 +527,16 @@ mod tests {
         ConflictsInput { files: status, root: "/p".to_owned(), operation, head: Some("main".to_owned()) }
     }
 
-    fn open<'a>(
-        cx: &'a mut TestAppContext,
+    fn open(
+        cx: &mut TestAppContext,
         start: ConflictsInput,
-    ) -> (Entity<ConflictsDialog>, Events, &'a mut VisualTestContext) {
+    ) -> (Entity<ConflictsDialog>, Events, &mut VisualTestContext) {
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
-            input::init(cx);
+            // A second keymap would deliver every key twice to the second window.
+            if !cx.has_global::<input::Keymap>() {
+                input::init(cx);
+            }
         });
         let (dialog, cx) = cx.add_window_view(move |_, cx| ConflictsDialog::new(start, cx));
         let events: Events = Rc::default();

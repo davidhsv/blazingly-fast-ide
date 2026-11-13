@@ -26,6 +26,7 @@ use crate::run_producers::console_folds::{DisplayRow, Fold, fold_rows};
 use crate::theme;
 use crate::ui::console_find::{FindOptions, FindResult, LineMatcher, MAX_MATCHES, find_in_lines};
 use crate::ui::text_field::{TextField, TextFieldEvent};
+use crate::ui::tooltip::WithTooltip;
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
     AnyElement, App, ClipboardItem, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, FollowMode, Font,
@@ -1182,6 +1183,11 @@ impl RunView {
         let on = ButtonState { enabled: true, pressed: false, danger: false };
         let terminal = session.terminal;
         let id = session.id.clone();
+        let stop_tooltip =
+            if session.status == SessionStatus::Stopping { "Stopping… (click to kill)" } else { "Stop" };
+        let mac = crate::platform::keymap::is_mac_host();
+        let find_keys =
+            crate::platform::keymap::format_binding(&crate::platform::keymap::host_binding("Meta+F", mac), mac);
         div()
             .w(px(TOOLBAR_WIDTH))
             .h_full()
@@ -1193,54 +1199,78 @@ impl RunView {
             .py(px(4.0))
             .border_r_1()
             .border_color(theme::color(cx, "border"))
-            .child(self.tool_button("run-rerun", "rerun", on, cx, |view, _, cx| view.rerun(cx)))
-            .child(self.tool_button(
-                "run-debug",
-                "debug",
-                ButtonState { enabled: self.debug_available, ..on },
-                cx,
-                move |view, _, cx| view.debug_session(&id, cx),
-            ))
-            .child(self.tool_button(
-                "run-stop",
-                "stop",
-                ButtonState { enabled: live, danger: live, ..on },
-                cx,
-                |view, _, cx| view.stop(cx),
-            ))
+            .child(
+                self.tool_button("run-rerun", "rerun", on, cx, |view, _, cx| view.rerun(cx))
+                    .with_tooltip_shortcut("Rerun", "run.rerun"),
+            )
+            .child(
+                self.tool_button(
+                    "run-debug",
+                    "debug",
+                    ButtonState { enabled: self.debug_available, ..on },
+                    cx,
+                    move |view, _, cx| view.debug_session(&id, cx),
+                )
+                .with_tooltip_shortcut("Debug", "run.debug"),
+            )
+            .child(
+                self.tool_button(
+                    "run-stop",
+                    "stop",
+                    ButtonState { enabled: live, danger: live, ..on },
+                    cx,
+                    |view, _, cx| view.stop(cx),
+                )
+                .with_tooltip(stop_tooltip),
+            )
             .child(separator())
             .when(!terminal, |el| {
-                el.child(self.tool_button(
-                    "run-find",
-                    "search",
-                    ButtonState { pressed: self.find.open, ..on },
-                    cx,
-                    |view, window, cx| view.toggle_find(window, cx),
-                ))
-                .child(self.tool_button(
-                    "run-scroll-to-end",
-                    "arrow-down",
-                    ButtonState { pressed: self.follows(), ..on },
-                    cx,
-                    |view, _, cx| view.toggle_follow(cx),
-                ))
-                .child(self.tool_button(
-                    "run-soft-wrap",
-                    "soft-wrap",
-                    ButtonState { pressed: self.soft_wrap(), ..on },
-                    cx,
-                    |view, _, cx| view.toggle_soft_wrap(cx),
-                ))
+                el.child(
+                    self.tool_button(
+                        "run-find",
+                        "search",
+                        ButtonState { pressed: self.find.open, ..on },
+                        cx,
+                        |view, window, cx| view.toggle_find(window, cx),
+                    )
+                    // The console's own ⌘F / Ctrl+F, which no action binds.
+                    .with_tooltip_keys("Find…", find_keys),
+                )
+                .child(
+                    self.tool_button(
+                        "run-scroll-to-end",
+                        "arrow-down",
+                        ButtonState { pressed: self.follows(), ..on },
+                        cx,
+                        |view, _, cx| view.toggle_follow(cx),
+                    )
+                    .with_tooltip("Scroll to End"),
+                )
+                .child(
+                    self.tool_button(
+                        "run-soft-wrap",
+                        "soft-wrap",
+                        ButtonState { pressed: self.soft_wrap(), ..on },
+                        cx,
+                        |view, _, cx| view.toggle_soft_wrap(cx),
+                    )
+                    .with_tooltip("Soft-Wrap"),
+                )
             })
-            .child(self.tool_button("run-clear", "trash", on, cx, |view, _, cx| view.clear(cx)))
+            .child(
+                self.tool_button("run-clear", "trash", on, cx, |view, _, cx| view.clear(cx)).with_tooltip("Clear All"),
+            )
             .child(separator())
-            .child(self.tool_button(
-                "run-edit-configs",
-                "settings",
-                ButtonState { enabled: self.edit_available, ..on },
-                cx,
-                |view, _, cx| view.edit_configs(cx),
-            ))
+            .child(
+                self.tool_button(
+                    "run-edit-configs",
+                    "settings",
+                    ButtonState { enabled: self.edit_available, ..on },
+                    cx,
+                    |view, _, cx| view.edit_configs(cx),
+                )
+                .with_tooltip("Edit Configurations…"),
+            )
     }
 
     fn render_tabs(&self, cx: &mut Context<Self>) -> Div {
@@ -1290,6 +1320,7 @@ impl RunView {
                         div()
                             .id(SharedString::from(close_selector.clone()))
                             .debug_selector(move || close_selector.clone())
+                            .with_tooltip("Close Tab")
                             .size(px(16.0))
                             .flex()
                             .items_center()
@@ -1654,6 +1685,29 @@ mod tests {
 
     fn lines(view: &Entity<RunView>, cx: &mut VisualTestContext) -> Vec<String> {
         view.read_with(cx, |view, cx| view.lines(cx))
+    }
+
+    // Not from a spec: the toolbar's buttons and a tab's close button say what they do when the pointer
+    // rests on them, with the shortcut of the action they run (RunView.tsx's IconButton titles).
+    #[gpui_kit::test]
+    async fn the_toolbar_buttons_show_their_tooltips(cx: &mut TestAppContext) {
+        use crate::platform::keymap::{format_binding, host_binding, is_mac_host};
+        use crate::ui::tooltip::hovered_tooltip;
+        let mut store = RunStore::new();
+        start(&mut store, &config("app", "spring-boot"), 1, None);
+        let (_view, _, _, cx) = open(cx, store);
+        assert!(hovered_tooltip(cx, "run-rerun", "Rerun", Some("run.rerun")));
+        assert!(hovered_tooltip(cx, "run-debug", "Debug", Some("run.debug")));
+        assert!(hovered_tooltip(cx, "run-stop", "Stop", None));
+        assert!(!hovered_tooltip(cx, "run-stop", "Rerun", None), "each button has its own text");
+        let mac = is_mac_host();
+        let find = format!("Find…  {}", format_binding(&host_binding("Meta+F", mac), mac));
+        assert!(hovered_tooltip(cx, "run-find", &find, None), "{find}");
+        assert!(hovered_tooltip(cx, "run-scroll-to-end", "Scroll to End", None));
+        assert!(hovered_tooltip(cx, "run-soft-wrap", "Soft-Wrap", None));
+        assert!(hovered_tooltip(cx, "run-clear", "Clear All", None));
+        assert!(hovered_tooltip(cx, "run-edit-configs", "Edit Configurations…", None));
+        assert!(hovered_tooltip(cx, "run-tab-close-0", "Close Tab", None));
     }
 
     // src/features/run/RunView.test.tsx › sessionIcon › shows the execution arrow while running, the check for

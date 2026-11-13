@@ -39,8 +39,11 @@ pub const INFO: &str = "workbench.info";
 /// The action LightEdit's Open as Project runs.
 pub const LIGHT_EDIT_OPEN_PROJECT: &str = "lightEdit.openProject";
 
-/// Every built-in item: (id, side, priority, title, hidden by default, shown in LightEdit).
-const BUILT_INS: [(&str, StatusAlign, f64, Option<&str>, bool, bool); 18] = [
+/// A built-in item: (id, side, priority, title, hidden by default, shown in LightEdit).
+type BuiltIn = (&'static str, StatusAlign, f64, Option<&'static str>, bool, bool);
+
+/// Every built-in item.
+const BUILT_INS: [BuiltIn; 18] = [
     (BREADCRUMBS, StatusAlign::Left, 0.0, Some("Navigation Bar"), false, false),
     (CARET, StatusAlign::Right, 20.0, Some("Line:Column Number"), false, true),
     (LINE_ENDING, StatusAlign::Right, 30.0, Some("Line Separator"), false, true),

@@ -400,6 +400,9 @@ pub enum StatusBarEvent {
     ContextMenu { position: Point<Pixels> },
 }
 
+/// The shown items of one side with what each draws, in bar order.
+type DrawnSide = Vec<(StatusItemSpec, Drawn)>;
+
 /// A shown item as drawn: a view, or the text it showed.
 enum Drawn {
     View(AnyView),
@@ -474,7 +477,7 @@ impl StatusBar {
     }
 
     /// The content of each shown item that has something to draw, in bar order.
-    fn drawn(&self, window: &Window, cx: &App) -> (Vec<(StatusItemSpec, Drawn)>, Vec<(StatusItemSpec, Drawn)>) {
+    fn drawn(&self, window: &Window, cx: &App) -> (DrawnSide, DrawnSide) {
         let ctx = window_context(window, cx);
         let order = self.model.shown(&ctx);
         let draw = |specs: &[&StatusItemSpec]| {

@@ -5,9 +5,11 @@ mod bookmarks_window;
 use bookmarks_window::BOOKMARKS_TOOL_WINDOW;
 mod branches;
 mod build_window;
+mod chrome;
 mod code_insight;
 use crate::code_insight::{HIERARCHY_TOOL_WINDOW, PROBLEMS_TOOL_WINDOW, USAGES_TOOL_WINDOW};
 mod commit;
+mod conflicts;
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 mod diff_window;
 mod editor_find;
@@ -30,8 +32,11 @@ mod structure_window;
 use structure_window::STRUCTURE_TOOL_WINDOW;
 mod todo_window;
 use todo_window::TODO_TOOL_WINDOW;
+pub mod status_bar;
 pub mod status_bar_widgets;
+pub mod status_items;
 pub mod tasks;
+pub mod title_bar;
 pub mod tool_windows;
 pub mod welcome;
 pub mod welcome_model;
@@ -72,6 +77,7 @@ use crate::run::store::RunStore;
 use crate::run::view::{RunView, RunViewEvent};
 use crate::theme;
 use crate::ui::popup_menu::{Choice, PopupMenu, PopupMenuEvent};
+use crate::ui::tooltip::WithTooltip;
 use crate::vcs_ops::menu::MenuItem;
 use editor_find::TabFindBar;
 use gpui_kit::Subscription;
@@ -275,6 +281,9 @@ pub struct Workbench {
     git_log: Option<log_window::LogSlot>,
     /// The dialog a Git operation waits on.
     vcs_dialog: Option<branches::VcsDialog>,
+    /// Resolving the project's merge conflicts: the merge editor, the conflict banners and what the
+    /// Conflicts dialog remembers.
+    conflicts: conflicts::ConflictsSlot,
     /// The editor the Structure tool window follows.
     structure: Option<structure_window::StructureFeed>,
     /// What the TODO tool window is fed from.
@@ -285,6 +294,8 @@ pub struct Workbench {
     files: project_files::ProjectFiles,
     /// Problems, Find / Show Usages, the hierarchies and the language servers of the project.
     code_insight: code_insight::CodeInsight,
+    /// The title bar and the status bar, and what the window keeps for them.
+    chrome: chrome::Chrome,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -428,6 +439,7 @@ pub fn register_actions(cx: &mut App) {
     diff_window::register_actions(registry);
     run_configs::register_actions(registry);
     branches::register_actions(registry);
+    conflicts::register_actions(registry);
     commit::register_actions(registry);
     log_window::register_actions(registry);
     bookmarks_window::register_actions(registry);
@@ -435,6 +447,7 @@ pub fn register_actions(cx: &mut App) {
     todo_window::register_actions(registry);
     build_window::register_actions(registry);
     code_insight::register_actions(registry);
+    chrome::register_actions(registry);
     settings_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
@@ -904,6 +917,7 @@ impl Workbench {
             workbench.sync_notifications(cx);
         });
         let code_insight = code_insight::CodeInsight::new(label, window, cx);
+        let chrome = chrome::Chrome::new(window, cx);
         let mut workbench = Self {
             label: label.to_owned(),
             content: Content::Empty,
@@ -927,11 +941,13 @@ impl Workbench {
             commit: None,
             git_log: None,
             vcs_dialog: None,
+            conflicts: Default::default(),
             structure: None,
             todo: None,
             build: None,
             files: Default::default(),
             code_insight,
+            chrome,
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
@@ -1069,6 +1085,11 @@ impl Workbench {
                     self.with_layout(window, cx, |layout| layout.show(RUN_TOOL_WINDOW, true));
                 }
             }
+            EntryAction::Own(own) if own.command.starts_with(conflicts::FOLLOW_UP_PREFIX) => {
+                if !self.run_conflicts_follow_up(&own.command, window, cx) {
+                    tracing::debug!("the notification command {} has no handler any more", own.command);
+                }
+            }
             EntryAction::Own(own) if own.command.starts_with("vcs.deleted.") => {
                 if !self.run_vcs_follow_up(&own.command, window, cx) {
                     tracing::debug!("the notification command {} has no handler any more", own.command);
@@ -1144,6 +1165,9 @@ impl Workbench {
             }
             _ => (None, None),
         };
+        // The banner of a file with unresolved merge conflicts sits above its editor.
+        let banner =
+            editor.as_ref().and_then(|editor| self.conflict_banner_for(&editor.read(cx).path().to_string_lossy()));
         let editor_focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
         let titles = self.tab_titles_of(pane_id);
         let ids: Vec<String> = self
@@ -1195,6 +1219,8 @@ impl Workbench {
                             .child(
                                 div()
                                     .id(SharedString::from(format!("close:{id}")))
+                                    .debug_selector(|| format!("close:{id}"))
+                                    .with_tooltip("Close Tab")
                                     .size(gpui_kit::px(16.0))
                                     .flex_none()
                                     .rounded(gpui_kit::px(4.0))
@@ -1237,6 +1263,7 @@ impl Workbench {
             .flex()
             .flex_col()
             .children(strip)
+            .children(banner.map(|banner| div().flex_none().child(banner)))
             .children(find_bar.map(|bar| div().flex_none().child(bar)))
             .child(div().flex_1().min_h_0().children(editor))
     }
@@ -1744,6 +1771,7 @@ impl Workbench {
         set_context(window, cx, "popupOpen", self.popup.is_some());
         self.publish_run_context(window, cx);
         self.publish_vcs_context(window, cx);
+        self.publish_merge_context(window, cx);
         set_context(window, cx, "findPopupOpen", self.find_popup().is_some());
         let focused_bar = self.focused_find_bar(window, cx);
         set_context(window, cx, "findBarOpen", !self.shown_find_bars().is_empty());
@@ -3386,6 +3414,7 @@ impl Render for Workbench {
             self.shown_title = Some(title);
         }
         self.publish_context(window, cx);
+        self.sync_chrome(window, cx);
         if window.is_window_active() {
             menu::schedule_sync(window, cx);
         }
@@ -3433,6 +3462,7 @@ impl Render for Workbench {
                         .when(shown, |el| el.bg(theme::color(cx, "bg-stripe-selected")))
                         .hover(|el| el.bg(theme::color(cx, "bg-stripe-hover")))
                         .child(theme::icon(cx, &declared.icon, 20.0, color))
+                        .with_tooltip_shortcut(declared.title.clone(), action.clone())
                         .on_click(cx.listener(move |_, _, window, cx| {
                             execute_action_from(ActionSource::Toolbar, &action, None, window, cx);
                         }))
@@ -3501,6 +3531,8 @@ impl Render for Workbench {
                                     .child(
                                         div()
                                             .id(SharedString::from(format!("hide:{id}")))
+                                            .debug_selector(|| format!("hide:{id}"))
+                                            .with_tooltip_shortcut("Hide", "toolwindow.hideActive")
                                             .size(gpui_kit::px(22.0))
                                             .flex_none()
                                             .flex()
@@ -3599,49 +3631,13 @@ impl Render for Workbench {
             }))
             .flex()
             .flex_col()
-            .child(
-                // The title bar: the window's title on the frame colour; dragging it moves the window.
-                div()
-                    .h(theme::length(cx, "h-titlebar"))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .pl(gpui_kit::px(if cfg!(target_os = "macos") { WINDOW_BUTTONS_WIDTH } else { 10.0 }))
-                    .pr(gpui_kit::px(8.0))
-                    .text_color(theme::color(cx, "fg-strong"))
-                    .window_control_area(gpui_kit::WindowControlArea::Drag)
-                    .child(SharedString::from(self.shown_title.clone().unwrap_or_default()))
-                    .children(self.branch_widget().cloned())
-                    .children(self.merge_rebase_widget(cx).cloned())
-                    .child(div().flex_1())
-                    .children(self.run_widget().cloned())
-                    // The IDE mode of the window's project; a click switches it.
-                    .children(framed.then(|| {
-                        let full = self.ide_mode(cx).is_full();
-                        let i18n = &cx.default_global::<crate::platform::i18n::Localization>().0;
-                        let label = i18n.tx(if full { "Deep mode" } else { "Blaze mode" });
-                        let color = theme::color(cx, "fg-strong");
-                        div()
-                            .id("title:app.ideMode")
-                            .h(gpui_kit::px(30.0))
-                            .flex_none()
-                            .flex()
-                            .items_center()
-                            .gap(gpui_kit::px(5.0))
-                            .px(gpui_kit::px(8.0))
-                            .rounded(theme::length(cx, "radius-toolbar-button"))
-                            .hover(|el| el.bg(theme::color(cx, "bg-hover")))
-                            .child(theme::icon(cx, if full { "ide-mode-full" } else { "ide-mode-light" }, 16.0, color))
-                            .child(SharedString::from(label))
-                            .on_click(cx.listener(|_, _, window, cx| {
-                                execute_action_from(ActionSource::Toolbar, "ide.toggleMode", None, window, cx);
-                            }))
-                    })),
-            )
+            .child(self.title_bar().clone())
             .child(div().flex_1().min_h_0().w_full().child(body))
             .child(notification_balloons::layer(&self.balloons, cx))
+            .children(self.merge_window_layer(cx))
             .children(self.diff_window_layer(cx))
             .children(self.edit_configs_layer())
+            .children(self.customize_toolbar_layer())
             .children(self.vcs_dialog_layer())
             .children(self.file_dialog_layer())
             .children(self.settings_layer(cx))
@@ -3674,52 +3670,7 @@ impl Render for Workbench {
                 )
                 .with_priority(1)
             }))
-            .children(self.shows_status_bar(cx).then(|| {
-                // The status bar: plain UI text, items right-aligned as in the webview's footer.
-                div()
-                    .h(theme::length(cx, "h-statusbar") + gpui_kit::px(4.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .justify_end()
-                    .gap(gpui_kit::px(16.0))
-                    .pl(gpui_kit::px(12.0))
-                    .pr(gpui_kit::px(10.0))
-                    .text_color(theme::color(cx, "fg-muted"))
-                    .children(self.task_status().map(SharedString::from))
-                    .children(self.status_items(cx).into_iter().zip(["caret", "lineEnding", "encoding"]).map(
-                        |(text, item)| {
-                            let read_only = self.editor().is_some_and(|editor| editor.read(cx).status().read_only);
-                            // A read-only file's line separator cannot be changed.
-                            let enabled = !(item == "lineEnding" && read_only);
-                            div()
-                                .id(SharedString::from(format!("status:editor.{item}")))
-                                .debug_selector(|| format!("status:editor.{item}"))
-                                .px(gpui_kit::px(4.0))
-                                .rounded(gpui_kit::px(4.0))
-                                .when(enabled, |el| el.hover(|el| el.bg(theme::color(cx, "bg-hover"))))
-                                .child(SharedString::from(text))
-                                .when(enabled, |el| {
-                                    el.on_click(cx.listener(
-                                        move |workbench, event: &gpui_kit::ClickEvent, window, cx| {
-                                            let items = match item {
-                                                "caret" => return workbench.show_goto_line(window, cx),
-                                                "lineEnding" => workbench.line_ending_menu(cx),
-                                                _ => workbench.encoding_menu(cx),
-                                            };
-                                            workbench.show_menu(
-                                                &items,
-                                                event.position(),
-                                                |workbench, command, _, cx| workbench.run_status_command(command, cx),
-                                                window,
-                                                cx,
-                                            );
-                                        },
-                                    ))
-                                })
-                        },
-                    ))
-            }))
+            .children(self.shows_status_bar(cx).then(|| self.status_bar().clone()))
     }
 }
 
@@ -7236,6 +7187,49 @@ mod tests {
         (workbench, cx, [home, folder], root)
     }
 
+    /// `a.txt` reads "main\n" on `main` and "feature\n" on `feature`, both from "one\n": merging one
+    /// into the other conflicts. `main` is checked out.
+    fn conflicting_branches(root: &std::path::Path) {
+        init_repo(root);
+        git_in(root, &["checkout", "-q", "-b", "feature"]);
+        std::fs::write(root.join("a.txt"), "feature\n").expect("the file is written");
+        git_in(root, &["commit", "-q", "-am", "feature side"]);
+        git_in(root, &["checkout", "-q", "main"]);
+        std::fs::write(root.join("a.txt"), "main\n").expect("the file is written");
+        git_in(root, &["commit", "-q", "-am", "main side"]);
+    }
+
+    /// Merges `feature` into `main` from the Branches popup; the merge stops on the conflict and the
+    /// Conflicts dialog opens.
+    fn merge_into_conflicts(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> Entity<crate::vcs::conflicts_dialog::ConflictsDialog> {
+        choose_in_branch_menu(workbench, "feature", "Merge 'feature' into 'main'", cx);
+        wait_long(cx, "the Conflicts dialog", |cx| workbench.read_with(cx, |w, _| w.conflicts_dialog().is_some()));
+        workbench.read_with(cx, |w, _| w.conflicts_dialog()).expect("the dialog is open")
+    }
+
+    /// The merge editor, once it shows the file's versions.
+    fn merge_view_loaded(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> Entity<crate::vcs::merge_view::MergeView> {
+        wait_long(cx, "the merge editor's versions", |cx| {
+            let view = workbench.read_with(cx, |w, _| w.merge_view());
+            view.is_some_and(|view| view.read_with(cx, |view, _| view.text().is_some()))
+        });
+        workbench.read_with(cx, |w, _| w.merge_view()).expect("the merge editor is shown")
+    }
+
+    fn notice_titled(
+        workbench: &Entity<Workbench>,
+        title: &str,
+        cx: &mut VisualTestContext,
+    ) -> Option<notifications::IdeNotification> {
+        workbench.read_with(cx, |w, _| w.notifications().items().iter().find(|n| n.title == title).cloned())
+    }
+
     /// What the branch widget of the title bar says.
     fn branch_label(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> String {
         let Some(widget) = workbench.read_with(cx, |w, _| w.branch_widget().cloned()) else { return String::new() };
@@ -7310,6 +7304,15 @@ mod tests {
         workbench.read_with(cx, |w, _| w.notifications().items().iter().map(|n| n.title.clone()).collect())
     }
 
+    /// Waits for the notification `title` of a Git operation. The backend's event on what the operation
+    /// changed can refresh the window before the operation's own read returns, and the notice comes only
+    /// after that read.
+    fn wait_for_notice(workbench: &Entity<Workbench>, title: &str, cx: &mut VisualTestContext) {
+        wait_long(cx, &format!("the notice {title}"), |cx| {
+            notification_titles(workbench, cx).iter().any(|n| n == title)
+        });
+    }
+
     /// The branch widget names the current branch; Branches… opens the popup listing the local
     /// branches with the current one marked, and a click on Checkout in another branch's submenu checks
     /// it out, closes the popup and the widget follows. The action closes an open popup, Escape closes
@@ -7363,7 +7366,8 @@ mod tests {
         assert!(branches_rows(&workbench, cx).is_none(), "choosing closes the popup");
         wait_long(cx, "the checkout", |cx| branch_label(&workbench, cx) == "feature");
         assert_eq!(git_head(&root), "feature");
-        assert!(notification_titles(&workbench, cx).contains(&"Checked out feature".to_owned()));
+        // The recent branches are stored in the same step as the notice.
+        wait_for_notice(&workbench, "Checked out feature", cx);
         let recent = cx.update(|_, cx| {
             let key = crate::vcs_ops::branch_ops::recent_key(Some(&root.to_string_lossy()));
             cx.global::<UiStorage>().get(&key).map(str::to_owned)
@@ -7415,7 +7419,7 @@ mod tests {
         assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "OK closes the dialog");
         wait_long(cx, "the new branch", |cx| branch_label(&workbench, cx) == "my-next");
         assert_eq!(git_head(&root), "my-next");
-        assert!(notification_titles(&workbench, cx).contains(&"Created and checked out my-next".to_owned()));
+        wait_for_notice(&workbench, "Created and checked out my-next", cx);
 
         // Rename in the branch's submenu.
         choose_in_branch_menu(&workbench, "topic", "Rename…", cx);
@@ -7506,13 +7510,13 @@ mod tests {
         git_in(&other, &["push", "-q", "origin", "main"]);
         run_action(cx, "vcs.fetch", None);
         wait_long(cx, "the fetch", |cx| widget.read_with(cx, |widget, _| widget.counts()) == (1, 0));
-        assert!(notification_titles(&workbench, cx).contains(&"Fetch successful".to_owned()));
+        wait_for_notice(&workbench, "Fetch successful", cx);
     }
 
-    /// Merge in a branch's submenu stops on conflicts: the failure offers Resolve Conflicts, the
-    /// widget says the branch is merging and the title bar shows Resolve and Abort Merge, whose click
-    /// aborts the merge. Checkout over local changes in the way asks about Smart Checkout, and Escape
-    /// leaves the branch as it is.
+    /// Merge in a branch's submenu stops on conflicts: the Conflicts dialog opens on the file and the
+    /// conflicts are told with Resolve…; the widget says the branch is merging and the title bar shows
+    /// Resolve and Abort Merge, whose click (once the dialog is closed) aborts the merge. Checkout over
+    /// local changes in the way asks about Smart Checkout, and Escape leaves the branch as it is.
     #[gpui_kit::test]
     async fn a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar(cx: &mut TestAppContext) {
         let (workbench, cx, _folders, root) = git_project(cx, |root| {
@@ -7528,12 +7532,20 @@ mod tests {
 
         choose_in_branch_menu(&workbench, "feature", "Merge 'feature' into 'main'", cx);
         wait_long(cx, "the merge stops", |cx| workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).is_some()));
-        let failed = workbench.read_with(cx, |w, _| {
-            w.notifications().items().iter().find(|n| n.title == "Merge feature into main failed").cloned()
-        });
-        let failed = failed.expect("the stop is told");
-        let actions: Vec<&str> = failed.actions.iter().map(|action| action.label.as_str()).collect();
-        assert_eq!(actions, ["Resolve Conflicts…"]);
+        wait_long(cx, "the Conflicts dialog", |cx| workbench.read_with(cx, |w, _| w.conflicts_dialog().is_some()));
+        let dialog = workbench.read_with(cx, |w, _| w.conflicts_dialog()).expect("the dialog is open");
+        let names: Vec<String> =
+            dialog.read_with(cx, |dialog, _| dialog.rows().into_iter().map(|row| row.name).collect());
+        assert_eq!(names, ["a.txt"]);
+        assert!(
+            !notification_titles(&workbench, cx).contains(&"Merge feature into main failed".to_owned()),
+            "a stop on conflicts is not a failure"
+        );
+        let told = workbench
+            .read_with(cx, |w, _| w.notifications().items().iter().find(|n| n.title == "Merge conflicts").cloned());
+        let told = told.expect("the conflicts are told");
+        let actions: Vec<&str> = told.actions.iter().map(|action| action.label.as_str()).collect();
+        assert_eq!(actions, ["Resolve…"]);
         assert_eq!(branch_label(&workbench, cx), "Merging main");
         let operation = cx.update(|window, cx| {
             let context = crate::platform::context::window_context(window, cx);
@@ -7546,10 +7558,14 @@ mod tests {
         let merge = workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).cloned()).expect("the buttons show");
         assert_eq!(merge.read_with(cx, |merge, cx| merge.labels(cx)), ["Resolve Conflicts…", "Abort Merge"]);
 
+        // The dialog covers the window: it is closed first.
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.conflicts_dialog().is_none()), "Escape closes the dialog");
         click_on(cx, "merge-rebase-1");
         wait_long(cx, "the abort", |cx| workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).is_none()));
         assert!(!root.join(".git/MERGE_HEAD").exists(), "the merge is aborted");
-        assert!(notification_titles(&workbench, cx).contains(&"Merge aborted".to_owned()));
+        wait_for_notice(&workbench, "Merge aborted", cx);
         assert_eq!(branch_label(&workbench, cx), "main");
 
         // Local changes in the way of a checkout: Smart Checkout is asked about.
@@ -7565,6 +7581,730 @@ mod tests {
         assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "Escape closes the question");
         assert_eq!(git_head(&root), "main");
         assert_eq!(std::fs::read_to_string(root.join("a.txt")).expect("the file is read"), "local\n");
+    }
+
+    /// A merge that stops on conflicts opens the Conflicts dialog on the conflicted file; Accept Yours
+    /// writes our side, stages it, and the dialog, with nothing left, offers Commit…, which shows the
+    /// Commit tool window.
+    #[gpui_kit::test]
+    async fn a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::vcs::conflicts_dialog::{ACCEPT_YOURS, CONCLUDE, Conclusion};
+        let (workbench, cx, _folders, root) = git_project(cx, conflicting_branches);
+        let dialog = merge_into_conflicts(&workbench, cx);
+        let rows = dialog.read_with(cx, |dialog, _| dialog.rows());
+        let names: Vec<&str> = rows.iter().map(|row| row.name.as_str()).collect();
+        assert_eq!(names, ["a.txt"]);
+        assert!(rows[0].selected, "the first file is selected");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.conclusion()), None);
+        assert!(
+            !notification_titles(&workbench, cx).contains(&"Merge feature into main failed".to_owned()),
+            "a stop on conflicts is not a failure"
+        );
+
+        dialog.update(cx, |dialog, cx| dialog.press(ACCEPT_YOURS, cx));
+        wait_long(cx, "the file is resolved", |cx| dialog.read_with(cx, |dialog, _| dialog.rows().is_empty()));
+        assert_eq!(std::fs::read_to_string(root.join("a.txt")).expect("the file is read"), "main\n");
+        assert_eq!(git_in(&root, &["ls-files", "-u"]), "", "nothing is left unmerged");
+        assert!(root.join(".git/MERGE_HEAD").exists(), "the merge is still to be committed");
+        wait_for_notice(&workbench, "a.txt resolved", cx);
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.conclusion()), Some(Conclusion::Commit));
+        let buttons = dialog.read_with(cx, |dialog, _| dialog.buttons());
+        assert_eq!((buttons[0].id, buttons[0].label.as_str(), buttons[0].primary), (CONCLUDE, "Commit…", true));
+
+        dialog.update(cx, |dialog, cx| dialog.press(CONCLUDE, cx));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.conflicts_dialog().is_none()), "Commit… closes the dialog");
+        assert!(
+            workbench.read_with(cx, |w, _| w.is_tool_window_visible(COMMIT_TOOL_WINDOW)),
+            "Commit… shows the Commit tool window"
+        );
+    }
+
+    /// A conflicted file whose versions break lines with CRLF is written back with CRLF: Accept Yours
+    /// leaves our side's bytes on disk exactly, and Apply in the merge editor of another file writes
+    /// its result with CRLF too.
+    #[gpui_kit::test]
+    async fn a_file_with_crlf_line_breaks_is_resolved_with_crlf(cx: &mut TestAppContext) {
+        use crate::vcs::conflicts_dialog::{ACCEPT_YOURS, MERGE};
+        use crate::vcs_diff::merge_gutters::{MergeControl, MergeSide};
+        use crate::vcs_more::merge_actions::MergeCommand;
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            std::fs::write(root.join("a.txt"), "top\r\none\r\n").expect("the file is written");
+            std::fs::write(root.join("b.txt"), "top\r\none\r\n").expect("the file is written");
+            git_in(root, &["add", "."]);
+            git_in(root, &["commit", "-q", "-m", "crlf"]);
+            git_in(root, &["checkout", "-q", "-b", "feature"]);
+            std::fs::write(root.join("a.txt"), "top\r\nfeature\r\n").expect("the file is written");
+            std::fs::write(root.join("b.txt"), "top\r\nfeature\r\n").expect("the file is written");
+            git_in(root, &["commit", "-q", "-am", "feature side"]);
+            git_in(root, &["checkout", "-q", "main"]);
+            std::fs::write(root.join("a.txt"), "top\r\nmain\r\n").expect("the file is written");
+            std::fs::write(root.join("b.txt"), "top\r\nmain\r\n").expect("the file is written");
+            git_in(root, &["commit", "-q", "-am", "main side"]);
+        });
+        let dialog = merge_into_conflicts(&workbench, cx);
+        let names: Vec<String> =
+            dialog.read_with(cx, |dialog, _| dialog.rows().into_iter().map(|row| row.name).collect());
+        assert_eq!(names, ["a.txt", "b.txt"]);
+        dialog.update(cx, |dialog, cx| dialog.press(ACCEPT_YOURS, cx));
+        wait_long(cx, "a.txt is resolved", |cx| dialog.read_with(cx, |dialog, _| dialog.rows().len() == 1));
+        assert_eq!(std::fs::read(root.join("a.txt")).expect("the file is read"), b"top\r\nmain\r\n");
+
+        dialog.update(cx, |dialog, cx| dialog.press(MERGE, cx));
+        let view = merge_view_loaded(&workbench, cx);
+        let accept = MergeControl::Accept { index: 0, side: MergeSide::Right, resolve: true };
+        view.update(cx, |view, cx| view.apply_control(accept, cx));
+        view.update(cx, |view, cx| view.run(MergeCommand::Apply, cx));
+        wait_long(cx, "the merge editor closes", |cx| workbench.read_with(cx, |w, _| w.merge_view().is_none()));
+        assert_eq!(std::fs::read(root.join("b.txt")).expect("the file is read"), b"top\r\nfeature\r\n");
+        assert_eq!(git_in(&root, &["ls-files", "-u"]), "", "both files are staged");
+    }
+
+    /// Merge… opens the three-way merge editor on the base with the conflict between both sides;
+    /// accepting the left side for it and Apply write the resolved text without markers, stage the
+    /// file and close the editor; committing then concludes the merge.
+    #[gpui_kit::test]
+    async fn merge_opens_the_three_way_editor_and_apply_writes_and_stages_the_resolved_file(cx: &mut TestAppContext) {
+        use crate::vcs::conflicts_dialog::MERGE;
+        use crate::vcs_diff::merge_gutters::{MergeControl, MergeSide};
+        use crate::vcs_more::merge_actions::MergeCommand;
+        let (workbench, cx, _folders, root) = git_project(cx, conflicting_branches);
+        let dialog = merge_into_conflicts(&workbench, cx);
+        dialog.update(cx, |dialog, cx| dialog.press(MERGE, cx));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.conflicts_dialog().is_none()), "Merge… closes the dialog");
+        let view = merge_view_loaded(&workbench, cx);
+        let (result, changes) = view.read_with(cx, |view, _| (view.text(), view.changes().to_vec()));
+        assert_eq!(result.as_deref(), Some("one\n"), "the result starts as the base");
+        assert_eq!(changes.len(), 1, "{changes:?}");
+        assert!(changes[0].is_conflict());
+        let sides = (changes[0].left.as_str(), changes[0].base.as_str(), changes[0].right.as_str());
+        assert_eq!(sides, ("main\n", "one\n", "feature\n"));
+        assert!(
+            cx.update(|window, cx| workbench.read(cx).merge_editor_focused(window, cx)),
+            "the merge editor has the keyboard"
+        );
+
+        let accept = MergeControl::Accept { index: 0, side: MergeSide::Left, resolve: true };
+        view.update(cx, |view, cx| view.apply_control(accept, cx));
+        assert_eq!(view.read_with(cx, |view, _| view.text()).as_deref(), Some("main\n"));
+        assert_eq!(view.read_with(cx, |view, _| view.summary().pending), 0);
+        view.update(cx, |view, cx| view.run(MergeCommand::Apply, cx));
+        wait_long(cx, "the merge editor closes", |cx| workbench.read_with(cx, |w, _| w.merge_view().is_none()));
+        let written = std::fs::read_to_string(root.join("a.txt")).expect("the file is read");
+        assert_eq!(written, "main\n");
+        assert!(!written.contains("<<<<<<<") && !written.contains(">>>>>>>"), "{written}");
+        assert_eq!(git_in(&root, &["ls-files", "-u"]), "", "the file is staged");
+        assert!(notification_titles(&workbench, cx).contains(&"a.txt: conflicts resolved".to_owned()));
+
+        // Nothing is left to resolve: the title bar offers only Abort Merge, and a commit concludes it.
+        let merge = workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).cloned()).expect("the merge is stopped");
+        wait_long(cx, "the widget follows", |cx| merge.read_with(cx, |merge, cx| merge.labels(cx)) == ["Abort Merge"]);
+        git_in(&root, &["commit", "-q", "--no-edit"]);
+        workbench.update(cx, |w, cx| w.refresh_vcs(cx));
+        wait_long(cx, "the merge is concluded", |cx| {
+            workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).is_none())
+        });
+        // The branch menu merges the branch by its full reference, which git's message names.
+        assert_eq!(git_in(&root, &["log", "-1", "--format=%s"]), "Merge branch 'refs/heads/feature'");
+    }
+
+    /// While the merge editor has the keyboard, Next and Previous Difference move its caret between
+    /// the changes, and Apply All Non-Conflicting Changes, run as an action, takes both sides'
+    /// changes and leaves the conflict; it is then disabled.
+    #[gpui_kit::test]
+    async fn the_merge_actions_move_between_the_changes_and_apply_the_non_conflicting_ones(cx: &mut TestAppContext) {
+        use crate::platform::context::window_context;
+        use crate::vcs::conflicts_dialog::MERGE;
+        use crate::vcs_diff::merge_gutters::MergePane;
+        let (workbench, cx, _folders, _root) = git_project(cx, |root| {
+            init_repo(root);
+            std::fs::write(root.join("b.txt"), "1\n2\n3\n4\n5\n6\n7\n8\n9\n").expect("the file is written");
+            git_in(root, &["add", "."]);
+            git_in(root, &["commit", "-q", "-m", "numbers"]);
+            git_in(root, &["checkout", "-q", "-b", "feature"]);
+            std::fs::write(root.join("b.txt"), "one\n2\n3\n4\nfive feature\n6\n7\n8\n9\n")
+                .expect("the file is written");
+            git_in(root, &["commit", "-q", "-am", "feature side"]);
+            git_in(root, &["checkout", "-q", "main"]);
+            std::fs::write(root.join("b.txt"), "1\n2\n3\n4\nfive main\n6\n7\n8\nnine\n").expect("the file is written");
+            git_in(root, &["commit", "-q", "-am", "main side"]);
+        });
+        let dialog = merge_into_conflicts(&workbench, cx);
+        dialog.update(cx, |dialog, cx| dialog.press(MERGE, cx));
+        let view = merge_view_loaded(&workbench, cx);
+        let starts: Vec<usize> =
+            view.read_with(cx, |view, _| view.changes().iter().map(|change| change.from).collect());
+        assert_eq!(starts.len(), 3, "theirs on line 1, the conflict on line 5, ours on line 9: {starts:?}");
+        let caret = |cx: &mut VisualTestContext| view.read_with(cx, |view, _| view.selection(MergePane::Result).start);
+        assert_eq!(caret(cx), 0);
+        run_action(cx, "diff.nextDifference", None);
+        assert_eq!(caret(cx), starts[1]);
+        run_action(cx, "diff.nextDifference", None);
+        assert_eq!(caret(cx), starts[2]);
+        run_action(cx, "diff.prevDifference", None);
+        assert_eq!(caret(cx), starts[1]);
+
+        let enabled = |id: &'static str, cx: &mut VisualTestContext| {
+            cx.update(|window, cx| window_context(window, cx).is_truthy(id))
+        };
+        assert!(enabled("mergeEditorFocus", cx));
+        assert!(enabled("merge.applyAll", cx));
+        assert!(!enabled("merge.annotate", cx), "blame is not shown in the side panes");
+        run_action(cx, "merge.applyAll", None);
+        let (text, summary) = view.read_with(cx, |view, _| (view.text(), view.summary()));
+        assert_eq!(text.as_deref(), Some("one\n2\n3\n4\n5\n6\n7\n8\nnine\n"));
+        assert_eq!((summary.pending, summary.conflicts), (1, 1));
+        assert!(!enabled("merge.applyAll", cx), "nothing non-conflicting is left");
+    }
+
+    /// Once the last conflict of a merge is resolved, "All conflicts resolved" offers Commit… and Abort
+    /// Merge; Abort Merge undoes the merge and leaves the repository clean.
+    #[gpui_kit::test]
+    async fn abort_merge_once_its_conflicts_are_resolved_leaves_the_repository_clean(cx: &mut TestAppContext) {
+        use crate::vcs::conflicts_dialog::{ACCEPT_THEIRS, CLOSE};
+        let (workbench, cx, _folders, root) = git_project(cx, conflicting_branches);
+        let dialog = merge_into_conflicts(&workbench, cx);
+        dialog.update(cx, |dialog, cx| dialog.press(ACCEPT_THEIRS, cx));
+        wait_long(cx, "the conflicts are resolved", |cx| {
+            notice_titled(&workbench, "All conflicts resolved", cx).is_some()
+        });
+        assert_eq!(std::fs::read_to_string(root.join("a.txt")).expect("the file is read"), "feature\n");
+        let notice = notice_titled(&workbench, "All conflicts resolved", cx).expect("the resolution is told");
+        let labels: Vec<&str> = notice.actions.iter().map(|action| action.label.as_str()).collect();
+        assert_eq!(labels, ["Commit…", "Abort Merge"]);
+        dialog.update(cx, |dialog, cx| dialog.press(CLOSE, cx));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.conflicts_dialog().is_none()), "Close closes the dialog");
+
+        let abort = EntryAction::Own(notice.actions[1].clone());
+        workbench.update_in(cx, |w, window, cx| w.run_notification_action(abort, window, cx));
+        wait_long(cx, "the abort", |cx| workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).is_none()));
+        assert!(!root.join(".git/MERGE_HEAD").exists(), "the merge is aborted");
+        assert_eq!(std::fs::read_to_string(root.join("a.txt")).expect("the file is read"), "main\n");
+        assert_eq!(git_in(&root, &["status", "--porcelain"]), "", "the working tree is clean");
+        assert_eq!(git_head(&root), "main");
+        wait_for_notice(&workbench, "Merge aborted", cx);
+    }
+
+    /// A conflict raises the sticky "Merge conflicts" warning naming the file, with Resolve…, and the
+    /// file gets the conflict banner; once it is resolved the warning's balloon goes, "All conflicts
+    /// resolved" takes its place, and so does the banner.
+    #[gpui_kit::test]
+    async fn the_merge_conflicts_notification_appears_with_the_conflict_and_expires_once_it_is_resolved(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::vcs::conflicts_dialog::ACCEPT_YOURS;
+        let (workbench, cx, _folders, root) = git_project(cx, conflicting_branches);
+        let dialog = merge_into_conflicts(&workbench, cx);
+        let notice = notice_titled(&workbench, "Merge conflicts", cx).expect("the conflicts are told");
+        assert_eq!(notice.key.as_deref(), Some("vcs.conflicts"));
+        assert_eq!(notice.level, NotificationLevel::Warning);
+        assert_eq!(notice.body.as_deref(), Some("1 file has conflicts: a.txt"));
+        assert!(notice.sticky, "the warning stays until the conflicts go");
+        let actions: Vec<(&str, &str)> =
+            notice.actions.iter().map(|action| (action.label.as_str(), action.command.as_str())).collect();
+        assert_eq!(actions, [("Resolve…", "vcs.resolveConflicts")]);
+        let file = root.join("a.txt").to_string_lossy().into_owned();
+        let banner = workbench.read_with(cx, |w, _| w.conflict_banner_for(&file)).expect("the file has a banner");
+        assert!(banner.read_with(cx, |banner, _| banner.banner().is_some()));
+
+        dialog.update(cx, |dialog, cx| dialog.press(ACCEPT_YOURS, cx));
+        wait_long(cx, "the conflicts are resolved", |cx| {
+            notice_titled(&workbench, "All conflicts resolved", cx).is_some()
+        });
+        let shown = workbench
+            .read_with(cx, |w, _| w.notifications().items().iter().any(|n| n.title == "Merge conflicts" && n.balloon));
+        assert!(!shown, "the warning is expired");
+        assert!(workbench.read_with(cx, |w, _| w.conflict_banner_for(&file).is_none()), "the banner goes");
+    }
+
+    /// The rest of the merge editor's wiring on a stopped rebase whose dialog was closed: the editor's
+    /// banner opens the merge editor; its comparisons open the diff window over it, its menus the popup
+    /// and its questions a dialog whose No keeps it; Automatically Apply is stored; Accept Yours
+    /// resolves the file, and "All conflicts resolved" then offers Continue Rebase, which goes on.
+    #[gpui_kit::test]
+    async fn the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::vcs::conflicts_dialog::CLOSE;
+        use crate::vcs_diff::merge_gutters::{MergeControl, MergeSide};
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            conflicting_branches(root);
+            git_in(root, &["checkout", "-q", "feature"]);
+        });
+        choose_in_branch_menu(&workbench, "main", "Rebase 'feature' onto 'main'", cx);
+        wait_long(cx, "the Conflicts dialog", |cx| workbench.read_with(cx, |w, _| w.conflicts_dialog().is_some()));
+        let dialog = workbench.read_with(cx, |w, _| w.conflicts_dialog()).expect("the dialog is open");
+        dialog.update(cx, |dialog, cx| dialog.press(CLOSE, cx));
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.conflicts_dialog().is_none()));
+
+        // The banner over the conflicted file's editor opens the merge editor.
+        let file = root.join("a.txt");
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        click_on(cx, "conflict-banner-action-0");
+        let view = merge_view_loaded(&workbench, cx);
+        assert_eq!(view.read_with(cx, |view, _| view.path().to_owned()), file.to_string_lossy());
+        assert!(cx.update(|window, cx| workbench.read(cx).merge_editor_focused(window, cx)));
+
+        // Compare's menu lists the comparisons; choosing one, once the menu gave the keyboard back to
+        // the merge editor, opens the diff window over it; closing that gives the keyboard back.
+        run_action(cx, "merge.compare", None);
+        let menu = workbench.read_with(cx, |w, _| w.open_menu::<crate::vcs_more::merge_actions::MergeCommand>());
+        let lines = menu.expect("the Compare menu is open").read_with(cx, |menu, _| menu.lines());
+        assert_eq!(lines[0].get(2).map(|line| line.trim_start_matches("> ")), Some("Yours and Theirs"), "{lines:?}");
+        click_on(cx, "menu-row-0-2");
+        assert!(workbench.read_with(cx, |w, _| w.popup.is_none()), "choosing closes the menu");
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_some()), "the comparison is shown");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()), "Escape closes the comparison");
+        assert!(cx.update(|window, cx| workbench.read(cx).merge_editor_focused(window, cx)));
+
+        // The settings menu opens in the popup slot; Escape closes it and the merge editor keeps the keys.
+        run_action(cx, "merge.settings", None);
+        assert!(workbench.read_with(cx, |w, _| w.popup.is_some()), "the menu is shown");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.popup.is_none()), "Escape closes the menu");
+        assert!(
+            cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy("mergeEditorFocus"))
+        );
+        run_action(cx, "merge.autoApply", None);
+        let stored =
+            cx.update(|_, cx| cx.global::<UiStorage>().get(super::conflicts::AUTO_APPLY_KEY).map(str::to_owned));
+        assert_eq!(stored.as_deref(), Some("true"));
+        run_action(cx, "merge.autoApply", None);
+        run_action(cx, "merge.reload", None);
+        let view = merge_view_loaded(&workbench, cx);
+
+        // Cancel after a change asks; No keeps the editor, OK closes it.
+        let accept = MergeControl::Accept { index: 0, side: MergeSide::Left, resolve: false };
+        view.update(cx, |view, cx| view.apply_control(accept, cx));
+        assert!(view.read_with(cx, |view, _| view.is_modified()));
+        run_action(cx, "merge.cancel", None);
+        let question = wait_for_prompt(&workbench, cx);
+        assert_eq!(question.read_with(cx, |dialog, _| dialog.title().to_owned()), "Cancel Merge");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.merge_view().is_some()), "No keeps the merge editor");
+        assert!(
+            cx.update(|window, cx| workbench.read(cx).merge_editor_focused(window, cx)),
+            "the question gives the keyboard back to the merge editor"
+        );
+        run_action(cx, "merge.cancel", None);
+        wait_for_prompt(&workbench, cx);
+        cx.simulate_keystrokes("enter");
+        wait_long(cx, "the merge editor closes", |cx| workbench.read_with(cx, |w, _| w.merge_view().is_none()));
+        assert_eq!(git_in(&root, &["ls-files", "-u"]).lines().count(), 3, "the file is still unmerged");
+
+        // Accept Yours (the replayed commit's side) from a merge editor the banner opened: the rebase
+        // waits for Continue.
+        click_on(cx, "conflict-banner-action-0");
+        merge_view_loaded(&workbench, cx);
+        run_action(cx, "merge.acceptYours", None);
+        // The editor closes once the resolution's own read is back; the notice may come before, from
+        // the backend's event on the staged file.
+        wait_long(cx, "the merge editor closes", |cx| workbench.read_with(cx, |w, _| w.merge_view().is_none()));
+        wait_long(cx, "the conflicts are resolved", |cx| {
+            notice_titled(&workbench, "All conflicts resolved", cx).is_some()
+        });
+        let notice = notice_titled(&workbench, "All conflicts resolved", cx).expect("the resolution is told");
+        let labels: Vec<&str> = notice.actions.iter().map(|action| action.label.as_str()).collect();
+        assert_eq!(labels, ["Continue Rebase", "Abort Rebase"]);
+        assert!(root.join(".git/rebase-merge").exists() || root.join(".git/rebase-apply").exists());
+        let go_on = EntryAction::Own(notice.actions[0].clone());
+        workbench.update_in(cx, |w, window, cx| w.run_notification_action(go_on, window, cx));
+        wait_long(cx, "the rebase goes on", |cx| {
+            workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).is_none())
+                && !root.join(".git/rebase-merge").exists()
+                && !root.join(".git/rebase-apply").exists()
+        });
+        assert_eq!(std::fs::read_to_string(root.join("a.txt")).expect("the file is read"), "feature\n");
+        assert_eq!(git_in(&root, &["log", "-2", "--format=%s"]), "feature side\nmain side");
+        wait_for_notice(&workbench, "Rebase continued", cx);
+    }
+
+    /// A rebase that stops on a conflict opens the Conflicts dialog; once its last conflict is resolved
+    /// there, the rebase continues by itself and the dialog closes.
+    #[gpui_kit::test]
+    async fn a_rebase_whose_last_conflict_is_resolved_from_the_dialog_continues_by_itself(cx: &mut TestAppContext) {
+        use crate::vcs::conflicts_dialog::ACCEPT_YOURS;
+        use crate::vcs_ops::operations::InProgress;
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            conflicting_branches(root);
+            git_in(root, &["checkout", "-q", "feature"]);
+        });
+        choose_in_branch_menu(&workbench, "main", "Rebase 'feature' onto 'main'", cx);
+        wait_long(cx, "the Conflicts dialog", |cx| workbench.read_with(cx, |w, _| w.conflicts_dialog().is_some()));
+        let dialog = workbench.read_with(cx, |w, _| w.conflicts_dialog()).expect("the dialog is open");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.continue_when_resolved()), Some(InProgress::Rebase));
+
+        // During a rebase Yours is the commit being replayed: feature's.
+        dialog.update(cx, |dialog, cx| dialog.press(ACCEPT_YOURS, cx));
+        wait_long(cx, "the rebase goes on", |cx| {
+            workbench.read_with(cx, |w, cx| w.merge_rebase_widget(cx).is_none())
+                && !root.join(".git/rebase-merge").exists()
+                && !root.join(".git/rebase-apply").exists()
+        });
+        assert!(workbench.read_with(cx, |w, _| w.conflicts_dialog().is_none()), "the dialog closes by itself");
+        assert_eq!(std::fs::read_to_string(root.join("a.txt")).expect("the file is read"), "feature\n");
+        assert_eq!(git_head(&root), "feature");
+        assert_eq!(git_in(&root, &["log", "-2", "--format=%s"]), "feature side\nmain side");
+        wait_for_notice(&workbench, "Rebase continued", cx);
+        assert!(notice_titled(&workbench, "All conflicts resolved", cx).is_none(), "nothing is left to offer");
+    }
+
+    /// The status bar lists its items in the order their priorities give: the language servers
+    /// (5), the caret (20), the line separator (30), the encoding (40), the indentation (50) and the
+    /// read-only attribute (55). Its context menu hides one and stores the choice under
+    /// `appearance.statusBarWidgets`; View › Appearance › Status Bar Widgets shows it again.
+    // src/workbench/statusBarWidgets.test.tsx › status bar widgets › toggles a widget from the status bar
+    // context menu and persists it
+    #[gpui_kit::test]
+    async fn toggles_a_widget_from_the_status_bar_context_menu_and_persists_it(cx: &mut TestAppContext) {
+        use crate::workbench::status_bar_widgets::SetVisible;
+        use gpui_kit::{Modifiers, MouseButton, point, px};
+        use std::collections::BTreeMap;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.run_until_parked();
+        let bar = workbench.read_with(cx, |w, _| w.status_bar().clone());
+        // Background work comes and goes while the project is indexed: it is left out.
+        let shown = |cx: &mut VisualTestContext| -> Vec<String> {
+            let (_, right) = cx.update(|window, cx| bar.read(cx).shown(window, cx));
+            right.into_iter().filter(|id| id != status_items::TASKS).collect()
+        };
+        let expected = [
+            status_items::LANGUAGE_SERVICES,
+            status_items::CARET,
+            status_items::LINE_ENDING,
+            status_items::ENCODING,
+            status_items::INDENT,
+            status_items::READ_ONLY,
+        ];
+        assert_eq!(shown(cx), expected);
+        let selectors = [
+            "status:editor.caret",
+            "status:editor.lineEnding",
+            "status:editor.encoding",
+            "status:editor.indent",
+            "status:editor.readOnly",
+        ];
+        let mut edges = Vec::new();
+        for selector in selectors {
+            edges.push(cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn")).left());
+        }
+        assert!(edges.windows(2).all(|pair| pair[0] < pair[1]), "left to right: {edges:?}");
+        // The bar draws what the window's own accessor says.
+        let texts = cx.update(|window, cx| bar.read(cx).texts(window, cx));
+        let items = workbench.read_with(cx, |w, cx| w.status_items(cx));
+        assert!(texts.windows(3).any(|three| three == items.as_slice()), "{texts:?} {items:?}");
+
+        // A right click on the free space at the bar's left end opens its menu.
+        let bounds = cx.debug_bounds("status-bar").expect("the bar is drawn");
+        let at = point(bounds.left() + px(4.0), bounds.center().y);
+        cx.simulate_mouse_down(at, MouseButton::Right, Modifiers::default());
+        cx.simulate_mouse_up(at, MouseButton::Right, Modifiers::default());
+        cx.run_until_parked();
+        let menu = workbench.read_with(cx, |w, _| w.open_menu::<SetVisible>()).expect("the bar's menu is open");
+        let labels: Vec<String> =
+            menu.read_with(cx, |menu, _| menu.rows().iter().map(|row| row.label.clone()).collect());
+        assert_eq!(
+            labels,
+            [
+                "Language Services",
+                "Line:Column Number",
+                "Line Separator",
+                "File Encoding",
+                "Indentation",
+                "Read-only Attribute"
+            ]
+        );
+        let index = labels.iter().position(|label| label == "Line Separator").expect("listed");
+        for _ in 0..index {
+            cx.simulate_keystrokes("down");
+        }
+        cx.simulate_keystrokes("enter");
+        cx.run_until_parked();
+        let stored = |cx: &mut VisualTestContext| {
+            cx.update(|_, cx| crate::platform::settings::global(cx).appearance.status_bar_widgets)
+        };
+        assert_eq!(stored(cx), BTreeMap::from([(status_items::LINE_ENDING.to_owned(), false)]));
+        assert!(!shown(cx).contains(&status_items::LINE_ENDING.to_owned()));
+        assert!(cx.debug_bounds("status:editor.lineEnding").is_none());
+
+        // View › Appearance › Status Bar Widgets lists the titled items, the hidden one unchecked, each
+        // running the toggle with its id.
+        let widgets = cx.update(|window, cx| {
+            let dynamic = menu::state(window, cx).dynamic;
+            dynamic.get(super::menu_spec::DYNAMIC_STATUS_BAR_WIDGETS).cloned().unwrap_or_default()
+        });
+        let separator = widgets.iter().find(|item| item.label == "Line Separator").expect("listed");
+        assert_eq!(separator.action, "view.toggleStatusBarWidget");
+        assert_eq!(separator.arg.as_deref(), Some(status_items::LINE_ENDING));
+        assert_eq!(separator.checked, Some(false));
+        let caret = widgets.iter().find(|item| item.label == "Line:Column Number").expect("listed");
+        assert_eq!(caret.checked, Some(true));
+
+        run_action(cx, "view.toggleStatusBarWidget", Some(serde_json::json!(status_items::LINE_ENDING)));
+        assert_eq!(stored(cx), BTreeMap::from([(status_items::LINE_ENDING.to_owned(), true)]));
+        assert_eq!(shown(cx), expected);
+        assert!(cx.debug_bounds("status:editor.lineEnding").is_some());
+    }
+
+    // src/editor/core/view/statusItems.test.tsx (the line separator widget)
+    #[gpui_kit::test]
+    async fn a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator(
+        cx: &mut TestAppContext,
+    ) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        let bar = workbench.read_with(cx, |w, _| w.status_bar().clone());
+        click_on(cx, "status:editor.lineEnding");
+        let menu = workbench.read_with(cx, |w, _| w.open_menu::<StatusCommand>()).expect("the menu is open");
+        let labels: Vec<String> =
+            menu.read_with(cx, |menu, _| menu.rows().iter().map(|row| row.label.clone()).collect());
+        let crlf = labels.iter().position(|label| label.starts_with("CRLF")).expect("CRLF is offered");
+        for _ in 0..crlf {
+            cx.simulate_keystrokes("down");
+        }
+        cx.simulate_keystrokes("enter");
+        cx.run_until_parked();
+        assert_eq!(editor.read_with(cx, |editor, _| editor.status().line_ending), ide_text::LineEnding::CrLf);
+        assert!(editor.read_with(cx, |editor, _| editor.is_dirty()));
+        assert_eq!(workbench.read_with(cx, |w, cx| w.status_items(cx))[1], "CRLF");
+        let texts = cx.update(|window, cx| bar.read(cx).texts(window, cx));
+        assert!(texts.contains(&"CRLF".to_owned()), "the bar shows it too: {texts:?}");
+    }
+
+    /// The title bar of a project with a repository: the project and branch widgets on the left; the
+    /// run widget, the IDE mode switch and Search Everywhere on the right, by priority, then the gear.
+    /// Customize Main Toolbar takes the run widget off and stores the layout; Restore Defaults puts
+    /// it back.
+    // src/workbench/Workbench.test.tsx › status bar ordering › title items sort by priority within each side
+    #[gpui_kit::test]
+    async fn title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one(cx: &mut TestAppContext) {
+        use super::main_toolbar::{PROJECT_WIDGET, SEARCH_ENTRY, Side, VCS_WIDGET};
+        use super::title_bar::{IDE_MODE_ITEM, RUN_ITEM};
+        let (workbench, cx, _folders, _root) = git_project(cx, init_repo);
+        wait_long(cx, "the title widgets", |cx| {
+            workbench.read_with(cx, |w, _| w.run_widget().is_some() && w.branch_widget().is_some())
+        });
+        cx.run_until_parked();
+        let bar = workbench.read_with(cx, |w, _| w.title_bar().clone());
+        let shown = |cx: &mut VisualTestContext| cx.update(|window, cx| bar.read(cx).shown(window, cx));
+        let (left, right) = shown(cx);
+        assert_eq!(left, [PROJECT_WIDGET, VCS_WIDGET]);
+        assert_eq!(right, [RUN_ITEM, IDE_MODE_ITEM, SEARCH_ENTRY], "the Build hammer has nothing to build here");
+        let mut edges = Vec::new();
+        for selector in ["title:project", "title:vcs.branch", "title:run.widget", "title:app.ideMode", "title:gear"] {
+            edges.push(cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn")).left());
+        }
+        assert!(edges.windows(2).all(|pair| pair[0] < pair[1]), "{edges:?}");
+
+        run_action(cx, "toolbar.customize", None);
+        let dialog = workbench.read_with(cx, |w, _| w.customize_toolbar_dialog().cloned()).expect("the dialog is open");
+        let rows = dialog.read_with(cx, |dialog, _| dialog.rows(Side::Right));
+        assert_eq!(rows, ["Build Project", "Run Widget", "IDE Mode", "Search Everywhere"]);
+        click_on(cx, "customize-row:right:1");
+        click_on(cx, "customize-remove");
+        click_on(cx, "customize-ok");
+        assert!(workbench.read_with(cx, |w, _| w.customize_toolbar_dialog().is_none()), "OK closes the dialog");
+        let stored = |cx: &mut VisualTestContext| {
+            cx.update(|_, cx| crate::platform::settings::global(cx).appearance.main_toolbar)
+        };
+        let saved = stored(cx).expect("the layout is stored");
+        assert_eq!(saved.hidden, [RUN_ITEM]);
+        assert!(!saved.right.contains(&RUN_ITEM.to_owned()), "{saved:?}");
+        assert_eq!(shown(cx).1, [IDE_MODE_ITEM, SEARCH_ENTRY]);
+        assert!(cx.debug_bounds("title:run.widget").is_none());
+        assert!(cx.debug_bounds("run-widget-chooser").is_none());
+
+        run_action(cx, "toolbar.customize", None);
+        click_on(cx, "customize-restore");
+        click_on(cx, "customize-ok");
+        let saved = stored(cx).expect("the layout is stored");
+        assert!(saved.hidden.is_empty() && saved.right.contains(&RUN_ITEM.to_owned()), "{saved:?}");
+        assert_eq!(shown(cx).1, [RUN_ITEM, IDE_MODE_ITEM, SEARCH_ENTRY]);
+        assert!(cx.debug_bounds("title:run.widget").is_some());
+    }
+
+    // src/workbench/TitleBar.test.tsx › compact window header › shows the window title and follows it, without
+    // toolbar widgets
+    #[gpui_kit::test]
+    async fn shows_the_window_title_and_follows_it_without_toolbar_widgets(cx: &mut TestAppContext) {
+        use super::title_bar::TitleBarMode;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        cx.run_until_parked();
+        let bar = workbench.read_with(cx, |w, _| w.title_bar().clone());
+        let mode = |cx: &mut VisualTestContext| bar.read_with(cx, |bar, _| bar.mode());
+        let shown_title = |cx: &mut VisualTestContext| bar.read_with(cx, |bar, _| bar.shown_title().map(str::to_owned));
+        assert_eq!(mode(cx), TitleBarMode::Full);
+        assert!(cx.debug_bounds("title:gear").is_some() && cx.debug_bounds("title:project").is_some());
+        assert_eq!(shown_title(cx), None, "a project's full bar has no title of its own");
+
+        run_action(cx, "view.toggleToolbar", None);
+        assert_eq!(mode(cx), TitleBarMode::Compact);
+        assert!(cx.debug_bounds("title:compact").is_some());
+        for selector in ["title:gear", "title:project", "title:app.ideMode", "title:run.widget"] {
+            assert!(cx.debug_bounds(selector).is_none(), "{selector}");
+        }
+        let title = workbench.read_with(cx, |w, cx| w.title(cx));
+        assert_eq!(shown_title(cx), Some(title));
+
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.run_until_parked();
+        let title = workbench.read_with(cx, |w, cx| w.title(cx));
+        assert!(title.ends_with("notes.txt"), "{title}");
+        assert_eq!(shown_title(cx), Some(title), "it follows the window's title");
+
+        run_action(cx, "view.toggleToolbar", None);
+        assert_eq!(mode(cx), TitleBarMode::Full);
+        assert!(cx.debug_bounds("title:gear").is_some());
+    }
+
+    /// The title bar of a project without a repository: no branch widget and, with no Version Control
+    /// action to offer, no "Version Control" either; the project widget's and the gear's menus open in
+    /// the popup slot; the bar's context menu takes the IDE mode switch off
+    /// and Restore Default Toolbar brings it back; Customize Main Toolbar's Escape writes nothing. The
+    /// Welcome screen's bar carries its title only.
+    #[gpui_kit::test]
+    async fn the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry(cx: &mut TestAppContext) {
+        use super::main_toolbar::PROJECT_WIDGET;
+        use super::title_bar::{IDE_MODE_ITEM, ToolbarCommand};
+        use gpui_kit::{Modifiers, MouseButton, point};
+        let _home = start(cx);
+        let (_folder, _root, workbench, cx) = search_project(cx);
+        cx.run_until_parked();
+        let bar = workbench.read_with(cx, |w, _| w.title_bar().clone());
+        let menu_labels = |cx: &mut VisualTestContext| -> Vec<String> {
+            let menu = workbench.read_with(cx, |w, _| w.open_menu::<ToolbarCommand>()).expect("a menu is open");
+            menu.read_with(cx, |menu, _| menu.rows().iter().map(|row| row.label.clone()).collect())
+        };
+        let close = |cx: &mut VisualTestContext| {
+            cx.simulate_keystrokes("escape");
+            cx.run_until_parked();
+            assert!(workbench.read_with(cx, |w, _| w.popup.is_none()), "Escape closes the menu");
+        };
+
+        click_on(cx, "title:project");
+        let rows = menu_labels(cx);
+        assert_eq!(rows.first().map(String::as_str), Some("Open…"), "{rows:?}");
+        assert_eq!(rows.last().map(String::as_str), Some("Close Project"), "{rows:?}");
+        close(cx);
+        // No Version Control action is registered: the fallback has nothing to offer and is not drawn.
+        let (left, _) = cx.update(|window, cx| bar.read(cx).shown(window, cx));
+        assert_eq!(left, [PROJECT_WIDGET], "a project without a repository has no branch widget");
+        assert!(cx.debug_bounds("title:vcs.branch").is_none());
+        click_on(cx, "title:gear");
+        assert!(menu_labels(cx).contains(&"Customize Main Toolbar".to_owned()), "{:?}", menu_labels(cx));
+        close(cx);
+
+        // The bar's context menu: a check per entry, then Customize Toolbar… and Restore Default Toolbar.
+        let right_click = |cx: &mut VisualTestContext| {
+            let bounds = cx.debug_bounds("title-bar").expect("the bar is drawn");
+            let at = point(bounds.center().x, bounds.center().y);
+            cx.simulate_mouse_down(at, MouseButton::Right, Modifiers::default());
+            cx.simulate_mouse_up(at, MouseButton::Right, Modifiers::default());
+            cx.run_until_parked();
+        };
+        let click_row = |label: &str, cx: &mut VisualTestContext| {
+            let menu = workbench.read_with(cx, |w, _| w.open_menu::<ToolbarCommand>()).expect("a menu is open");
+            let rows: Vec<String> =
+                menu.read_with(cx, |menu, _| menu.rows().iter().map(|row| row.label.clone()).collect());
+            let index = rows.iter().position(|row| row == label).unwrap_or_else(|| panic!("{label} is in {rows:?}"));
+            // The separator before Customize Toolbar… counts as a line of the menu.
+            let entries = rows.iter().position(|row| row == "Customize Toolbar…").expect("listed");
+            let line = if index >= entries { index + 1 } else { index };
+            let selector: &'static str = Box::leak(format!("menu-row-0-{line}").into_boxed_str());
+            click_on(cx, selector);
+        };
+        let stored = |cx: &mut VisualTestContext| {
+            cx.update(|_, cx| crate::platform::settings::global(cx).appearance.main_toolbar)
+        };
+        right_click(cx);
+        click_row("IDE Mode", cx);
+        let saved = stored(cx).expect("the layout is stored");
+        assert_eq!(saved.hidden, [IDE_MODE_ITEM]);
+        assert!(cx.debug_bounds("title:app.ideMode").is_none(), "the switch is off the bar");
+        right_click(cx);
+        click_row("Restore Default Toolbar", cx);
+        assert_eq!(stored(cx), None, "the default toolbar is stored as none");
+        assert!(cx.debug_bounds("title:app.ideMode").is_some(), "the switch is back");
+
+        // Customize Main Toolbar: Escape cancels without writing.
+        run_action(cx, "toolbar.customize", None);
+        assert!(workbench.read_with(cx, |w, _| w.customize_toolbar_dialog().is_some()));
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.customize_toolbar_dialog().is_none()), "Escape closes it");
+        assert_eq!(stored(cx), None);
+
+        // The IDE mode switch and Search Everywhere run their actions from the bar.
+        let full = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, cx| w.ide_mode(cx).is_full());
+        let before = full(cx);
+        click_on(cx, "title:app.ideMode");
+        assert_eq!(full(cx), !before, "a click switches the IDE mode");
+        click_on(cx, "title:app.ideMode");
+        assert_eq!(full(cx), before, "and back");
+        click_on(cx, "title:action:navigate.searchEverywhere");
+        assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_some()), "Search Everywhere opens");
+        close(cx);
+
+        // The Welcome screen: its title, no toolbar and no gear.
+        workbench.update_in(cx, |w, window, cx| w.close_project(window, cx));
+        cx.run_until_parked();
+        assert_eq!(
+            bar.read_with(cx, |bar, _| bar.shown_title().map(str::to_owned)).as_deref(),
+            Some("Welcome to OpenIDEA")
+        );
+        assert!(cx.debug_bounds("title:window").is_some());
+        assert!(cx.debug_bounds("title:gear").is_none() && cx.debug_bounds("title:project").is_none());
+    }
+
+    /// The window's own buttons say what they do when the pointer rests on them: a stripe button its
+    /// tool window with the shortcut that shows it, a tool window's Hide with Hide Active Tool Window's
+    /// shortcut, an editor tab's close button, the title bar's gear and Search Everywhere, and the
+    /// status bar's caret with Go to Line's shortcut.
+    // src/workbench/toolwindows/ToolWindows.tsx (StripeButton, Hide), src/ui/Tabs.tsx (Close Tab),
+    // src/workbench/TitleBar.tsx (GearButton, ToolbarEntry)
+    #[gpui_kit::test]
+    async fn the_windows_buttons_show_their_tooltips(cx: &mut TestAppContext) {
+        use crate::ui::tooltip::hovered_tooltip;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.run_until_parked();
+        assert!(hovered_tooltip(cx, "stripe:project", "Project", Some("toolwindow.project")));
+        assert!(hovered_tooltip(cx, "hide:project", "Hide", Some("toolwindow.hideActive")));
+        let tab =
+            workbench.read_with(cx, |w, _| w.tabs().and_then(|tabs| tabs.pane(&tabs.active_pane)?.active.clone()));
+        let tab = tab.expect("a tab");
+        let close: &'static str = Box::leak(format!("close:{tab}").into_boxed_str());
+        assert!(hovered_tooltip(cx, close, "Close Tab", None));
+        assert!(hovered_tooltip(cx, "title:gear", "IDE and Project Settings", None));
+        // Search Everywhere shows its binding, or the double Shift no binding can name.
+        let bound = cx.update(|_, cx| {
+            let keymap = &cx.global::<crate::platform::input::Keymap>().0;
+            keymap.shortcut_label("navigate.searchEverywhere", crate::platform::keymap::is_mac_host())
+        });
+        let search = format!("Search Everywhere  {}", bound.as_deref().unwrap_or("⇧⇧"));
+        assert!(hovered_tooltip(cx, "title:action:navigate.searchEverywhere", &search, None), "{search}");
+        assert!(hovered_tooltip(cx, "status:editor.caret", "Go to Line:Column", Some("navigate.gotoLine")));
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -222,6 +222,10 @@ pub struct ProjectWidget {
 /// Computes a widget's view each time the bar is drawn; `None` while it shows nothing.
 pub type SlotProvider = Rc<dyn Fn(&Window, &App) -> Option<AnyView>>;
 
+/// Says each time the bar is drawn whether the project runs in Deep (full) mode; `None` without a
+/// project.
+pub type IdeModeProvider = Rc<dyn Fn(&Window, &App) -> Option<bool>>;
+
 /// What a registered widget draws.
 #[derive(Clone)]
 pub enum TitleSlot {
@@ -230,7 +234,7 @@ pub enum TitleSlot {
     Dynamic(SlotProvider),
     /// The IDE mode switch; the function says whether the project is in Deep (full) mode, `None`
     /// while there is no project.
-    IdeMode(Rc<dyn Fn(&Window, &App) -> Option<bool>>),
+    IdeMode(IdeModeProvider),
 }
 
 /// What the title bar asks of its window.

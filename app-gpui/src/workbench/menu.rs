@@ -12,8 +12,8 @@
 //! whose shortcut the table itself gives (Quit, window cycling).
 
 use super::menu_spec::{
-    DYNAMIC_TOOL_WINDOWS, DynamicItem, Entry, Native, OPEN_RECENT_ACTION, Os, RecentItem, action_ids, fires_natively,
-    item_enabled, recent_items, spec, without_action,
+    DYNAMIC_STATUS_BAR_WIDGETS, DYNAMIC_TOOL_WINDOWS, DynamicItem, Entry, Native, OPEN_RECENT_ACTION, Os, RecentItem,
+    action_ids, fires_natively, item_enabled, recent_items, spec, without_action,
 };
 use crate::backend::Backend;
 use crate::platform::actions::{ActionRegistry, ActionSource, execute_action_from, is_action_enabled};
@@ -463,7 +463,28 @@ pub fn state(window: &Window, cx: &mut App) -> MenuState {
         })
         .collect();
     tool_windows.sort_by(|a, b| collate::compare(&a.label, &b.label));
-    let dynamic = HashMap::from([(DYNAMIC_TOOL_WINDOWS.to_owned(), tool_windows)]);
+    // The titled items of this window's status bar, checked while shown; choosing one flips it.
+    let status_widgets: Vec<DynamicItem> = match super::for_window(window, cx) {
+        Some(workbench) => {
+            let status_bar = workbench.read(cx).status_bar().read(cx);
+            status_bar
+                .model()
+                .menu()
+                .into_iter()
+                .map(|row| DynamicItem {
+                    action: "view.toggleStatusBarWidget".to_owned(),
+                    label: if row.verbatim { row.label } else { i18n.tx(&row.label) },
+                    arg: Some(row.id),
+                    checked: Some(row.checked),
+                })
+                .collect()
+        }
+        None => Vec::new(),
+    };
+    let dynamic = HashMap::from([
+        (DYNAMIC_TOOL_WINDOWS.to_owned(), tool_windows),
+        (DYNAMIC_STATUS_BAR_WIDGETS.to_owned(), status_widgets),
+    ]);
 
     let mut ids: Vec<&str> = action_ids(entries);
     ids.extend(dynamic.values().flatten().map(|item| item.action.as_str()));

@@ -302,8 +302,11 @@ impl Workbench {
         if self.chrome.ide_mode.replace(ide_mode) != ide_mode {
             self.chrome.title_bar.update(cx, |_, cx| cx.notify());
         }
+        // The branch widget is the VCS entry only while the project is a repository; otherwise the
+        // entry is the "Version Control" fallback.
+        let repository = self.vcs_state().is_some_and(|state| state.available);
         let views = [
-            (VCS_WIDGET, self.branch_widget().cloned().map(AnyView::from)),
+            (VCS_WIDGET, self.branch_widget().filter(|_| repository).cloned().map(AnyView::from)),
             (MERGE_REBASE_ITEM, self.merge_rebase_widget(cx).cloned().map(AnyView::from)),
             (RUN_ITEM, self.run_widget().cloned().map(AnyView::from)),
         ];

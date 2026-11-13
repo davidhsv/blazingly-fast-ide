@@ -16,6 +16,7 @@ use crate::services::model::{
     ServicesTree, action_rows, add_service_menu, selection_actions, selection_menu, single_menu,
 };
 use crate::theme;
+use crate::ui::tooltip::WithTooltip;
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
     AnyView, App, ClickEvent, Context, Div, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, Modifiers,
@@ -392,31 +393,40 @@ impl ServicesView {
             .items_center()
             .gap(px(2.0))
             .px(px(6.0))
-            .child(self.tool_button("services-add".to_string(), "plus", true, cx, menu(ServicesMenu::AddService)))
+            .child(
+                self.tool_button("services-add".to_string(), "plus", true, cx, menu(ServicesMenu::AddService))
+                    .with_tooltip_shortcut("Add Service", "services.addService"),
+            )
             .child(Self::separator(cx))
-            .child(self.tool_button("services-expand-all".to_string(), "expand-all", has_roots, cx, |view, _, cx| {
-                view.expand_all(cx)
-            }))
-            .child(self.tool_button(
-                "services-collapse-all".to_string(),
-                "collapse-all",
-                has_roots,
-                cx,
-                |view, _, cx| view.collapse_all(cx),
-            ))
-            .child(self.tool_button(
-                "services-view-options".to_string(),
-                "filter",
-                has_roots,
-                cx,
-                menu(ServicesMenu::ViewOptions),
-            ))
+            .child(
+                self.tool_button("services-expand-all".to_string(), "expand-all", has_roots, cx, |view, _, cx| {
+                    view.expand_all(cx)
+                })
+                .with_tooltip("Expand All"),
+            )
+            .child(
+                self.tool_button("services-collapse-all".to_string(), "collapse-all", has_roots, cx, |view, _, cx| {
+                    view.collapse_all(cx)
+                })
+                .with_tooltip("Collapse All"),
+            )
+            .child(
+                self.tool_button(
+                    "services-view-options".to_string(),
+                    "filter",
+                    has_roots,
+                    cx,
+                    menu(ServicesMenu::ViewOptions),
+                )
+                .with_tooltip("View Options"),
+            )
             .when(!actions.is_empty(), |el| el.child(Self::separator(cx)))
             .children(actions.into_iter().map(|action| {
                 let id = action.id.clone();
                 self.tool_button(format!("services-action:{}", action.id), &action.icon, !action.disabled, cx, {
                     move |view, _, cx| view.run_action(&id, cx)
                 })
+                .with_tooltip(action.title.clone())
             }))
     }
 
@@ -801,6 +811,21 @@ mod tests {
         assert!(selected(&view, cx).is_empty());
         assert_eq!(view.read_with(cx, |view, _| view.detail_slot().cloned()), None);
         assert!(matches!(events.borrow().last(), Some(ServicesViewEvent::DetailChanged(None))));
+    }
+
+    // Not from a spec: the toolbar's buttons say what they do when the pointer rests on them, the
+    // selection's actions by their titles (ServicesTree.tsx's IconButton titles).
+    #[gpui_kit::test]
+    async fn the_toolbar_buttons_show_their_tooltips(cx: &mut TestAppContext) {
+        use crate::ui::tooltip::hovered_tooltip;
+        let (_view, _, cx) = open(cx, three(), false);
+        click(cx, "services-row:one", Modifiers::default());
+        assert!(hovered_tooltip(cx, "services-add", "Add Service", Some("services.addService")));
+        assert!(hovered_tooltip(cx, "services-expand-all", "Expand All", None));
+        assert!(hovered_tooltip(cx, "services-collapse-all", "Collapse All", None));
+        assert!(hovered_tooltip(cx, "services-view-options", "View Options", None));
+        assert!(hovered_tooltip(cx, "services-action:run", "Run", None));
+        assert!(hovered_tooltip(cx, "services-action:stop", "Stop", None));
     }
 
     #[gpui_kit::test]

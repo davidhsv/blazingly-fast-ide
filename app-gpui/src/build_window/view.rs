@@ -19,6 +19,7 @@ use crate::platform::virtual_docs::{basename, relative_path};
 use crate::run::links::{FileTarget, OutputLink, find_output_links};
 use crate::run::navigate::run_directory;
 use crate::theme;
+use crate::ui::tooltip::WithTooltip;
 use gpui_kit::{
     App, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, Font, FontStyle, Hsla,
     InteractiveText, IntoElement, Keystroke, Render, ScrollStrategy, SharedString, Stateful, StyledText, Subscription,
@@ -379,6 +380,11 @@ impl BuildView {
                 div()
                     .id(id)
                     .debug_selector(move || id.to_owned())
+                    // Stop names the action it runs, with its shortcut; Rebuild Last runs none.
+                    .map(|el| match id {
+                        "build-stop" => el.with_tooltip_shortcut(button.title, "build.stop"),
+                        _ => el.with_tooltip(button.title),
+                    })
                     .size(px(24.0))
                     .flex_none()
                     .flex()
@@ -834,6 +840,20 @@ mod tests {
         let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
         cx.simulate_click(bounds.center(), Modifiers::default());
         cx.run_until_parked();
+    }
+
+    // Not from a spec: the header's buttons say what they do when the pointer rests on them; Stop Build
+    // with the shortcut of its action (BuildView.tsx's IconButtons).
+    #[gpui_kit::test]
+    async fn the_header_buttons_show_their_tooltips(cx: &mut TestAppContext) {
+        use crate::ui::tooltip::hovered_tooltip;
+        let (run, _view, _, cx) = open(cx);
+        change(&run, cx, |run| {
+            run.start(BuildKind::Build, None, true, REQUEST, true);
+            run.apply(REQUEST, BuildEvent::Started { system: BuildSystem::Maven, title: "demo".to_owned() });
+        });
+        assert!(hovered_tooltip(cx, "build-rerun", "Rebuild Last", None));
+        assert!(hovered_tooltip(cx, "build-stop", "Stop Build", Some("build.stop")));
     }
 
     #[gpui_kit::test]

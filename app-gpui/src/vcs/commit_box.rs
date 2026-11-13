@@ -13,6 +13,7 @@ use crate::platform::input;
 use crate::theme;
 use crate::ui::text_area::{TextArea, TextAreaEvent};
 use crate::ui::text_field::{TextField, TextFieldEvent};
+use crate::ui::tooltip::WithTooltip;
 use crate::vcs_ops::commit_checks::CommitProblem;
 use crate::vcs_ops::commit_store::{CommitState, pending_fixup};
 use crate::vcs_ops::commit_view::{commit_and_push_label, commit_label, message_problems, wrap_at_margin};
@@ -700,6 +701,7 @@ impl CommitBox {
                 icon_button(cx, "history", history_open, has_history)
                     .id("commit-history")
                     .debug_selector(|| "commit-history".to_owned())
+                    .with_tooltip("Commit Message History")
                     .when(has_history, |el| {
                         el.on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.toggle_history(cx)))
                     }),
@@ -800,6 +802,7 @@ impl CommitBox {
                 icon_button(cx, "settings", options_open, true)
                     .id("commit-options")
                     .debug_selector(|| "commit-options".to_owned())
+                    .with_tooltip("Commit Options")
                     .on_click(cx.listener(|this, _: &ClickEvent, _, cx| this.toggle_options(cx))),
             )
     }
@@ -1088,6 +1091,16 @@ mod tests {
 
     fn area_text(view: &Entity<CommitBox>, cx: &mut VisualTestContext) -> String {
         view.read_with(cx, |view, cx| view.message_area().read(cx).text().to_owned())
+    }
+
+    // Not from a spec: the message's History and the Options gear say what they are when the pointer
+    // rests on them (CommitView.tsx's IconButton titles).
+    #[gpui_kit::test]
+    async fn the_history_and_options_buttons_show_their_tooltips(cx: &mut TestAppContext) {
+        use crate::ui::tooltip::hovered_tooltip;
+        let (_view, _, _, cx) = open(cx, CommitState::default(), input(0));
+        assert!(hovered_tooltip(cx, "commit-history", "Commit Message History", None));
+        assert!(hovered_tooltip(cx, "commit-options", "Commit Options", None));
     }
 
     // Not from a spec: the buttons follow what is included, Amend, a merge and running work.

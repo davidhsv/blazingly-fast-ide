@@ -129,6 +129,8 @@ impl Render for Tooltip {
             div().flex_none().whitespace_nowrap().font_family(keys_font).text_color(dimmed).child(shortcut)
         });
         let detail = self.detail.clone().map(|detail| div().text_color(dimmed).child(detail));
+        // Tests read what the bubble says by its first line.
+        let first = self.lines().into_iter().next().unwrap_or_default();
         // GPUI places the tooltip at the pointer: the margin keeps the bubble clear of it.
         div().pl(px(8.0)).pt(px(10.0)).child(
             div()
@@ -148,7 +150,15 @@ impl Render for Tooltip {
                 .text_size(theme::length(cx, "fs-ui"))
                 .line_height(px(16.0))
                 .text_color(fg)
-                .child(div().flex().items_center().gap(px(8.0)).child(title).children(shortcut))
+                .child(
+                    div()
+                        .debug_selector(move || format!("tooltip-text:{first}"))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(title)
+                        .children(shortcut),
+                )
                 .children(detail),
         )
     }
@@ -172,6 +182,19 @@ pub fn tooltip_with_shortcut(
     let (text, action_id) = (text.into(), action_id.into());
     move |_: &mut Window, cx: &mut App| {
         let tooltip = Tooltip::new(translate(&text, cx)).with_action_shortcut(&action_id, cx);
+        cx.new(|_| tooltip).into()
+    }
+}
+
+/// What `.tooltip(…)` takes: a tooltip showing `text`, translated, with `keys` as its shortcut: for a
+/// key the view handles itself, which no action binds.
+pub fn tooltip_with_keys(
+    text: impl Into<SharedString>,
+    keys: impl Into<SharedString>,
+) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
+    let (text, keys) = (text.into(), keys.into());
+    move |_: &mut Window, cx: &mut App| {
+        let tooltip = Tooltip::new(translate(&text, cx)).with_shortcut(keys.clone());
         cx.new(|_| tooltip).into()
     }
 }
@@ -206,6 +229,14 @@ pub trait WithTooltip: StatefulInteractiveElement + Sized {
         self.tooltip(tooltip_with_shortcut(text, action_id)).tooltip_show_delay(TOOLTIP_DELAY)
     }
 
+    fn with_tooltip_keys(self, text: impl Into<SharedString>, keys: impl Into<SharedString>) -> Self {
+        let text = text.into();
+        if text.is_empty() {
+            return self;
+        }
+        self.tooltip(tooltip_with_keys(text, keys)).tooltip_show_delay(TOOLTIP_DELAY)
+    }
+
     fn with_tooltip_lines(self, title: impl Into<SharedString>, detail: impl Into<SharedString>) -> Self {
         let title = title.into();
         if title.is_empty() {
@@ -216,6 +247,32 @@ pub trait WithTooltip: StatefulInteractiveElement + Sized {
 }
 
 impl<E: StatefulInteractiveElement> WithTooltip for E {}
+
+/// Rests the pointer on the element drawn as `selector` until its tooltip is due: whether the
+/// tooltip then shown reads `text` on its first line, followed by the shortcut the keymap binds to
+/// `action` when it binds one. The pointer moves off first, so a tooltip shown before goes.
+#[cfg(test)]
+pub fn hovered_tooltip(
+    cx: &mut gpui_kit::VisualTestContext,
+    selector: &'static str,
+    text: &str,
+    action: Option<&str>,
+) -> bool {
+    use gpui_kit::{Modifiers, point};
+    let shortcut = action.and_then(|action| cx.update(|_, cx| shortcut_label(action, cx)));
+    let expected = match shortcut {
+        Some(shortcut) => format!("{text}  {shortcut}"),
+        None => text.to_owned(),
+    };
+    cx.simulate_mouse_move(point(px(1.0), px(1.0)), None, Modifiers::default());
+    cx.run_until_parked();
+    let over = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn")).center();
+    cx.simulate_mouse_move(over, None, Modifiers::default());
+    cx.executor().advance_clock(TOOLTIP_DELAY + Duration::from_millis(10));
+    cx.run_until_parked();
+    let line: &'static str = Box::leak(format!("tooltip-text:{expected}").into_boxed_str());
+    cx.debug_bounds(line).is_some()
+}
 
 #[cfg(test)]
 mod tests {
@@ -322,6 +379,9 @@ mod tests {
         cx.executor().advance_clock(Duration::from_millis(60));
         cx.run_until_parked();
         assert!(shown(cx));
+        let line = format!("d:/project/src/main.rs  {}", expected_shortcut(cx).unwrap_or_default());
+        let selector: &'static str = Box::leak(format!("tooltip-text:{line}").into_boxed_str());
+        assert!(cx.debug_bounds(selector).is_some(), "the bubble reads {line}");
         // The bubble opens below and right of the pointer.
         let bubble = cx.debug_bounds("tooltip").expect("the tooltip is drawn");
         assert!(bubble.top() > over.y && bubble.left() > over.x);
