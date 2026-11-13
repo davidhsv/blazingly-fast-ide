@@ -390,23 +390,9 @@ pub fn init(cx: &mut App) {
         });
     }
     let registry = cx.default_global::<ActionRegistry>();
-    registry.handle("app.quit", |_, _, cx| {
-        // Each window is asked first; one with unsaved changes keeps the app open while it asks.
-        let windows = cx.windows();
-        let mut all = true;
-        for window in windows {
-            let closes = window
-                .update(cx, |_, window, cx| {
-                    super::for_window(window, cx).is_none_or(|workbench| {
-                        workbench.update(cx, |workbench, cx| workbench.confirm_close(window, cx))
-                    })
-                })
-                .unwrap_or(true);
-            all &= closes;
-        }
-        if all {
-            cx.quit();
-        }
+    registry.handle("app.quit", |_, window, cx| {
+        // The exit is confirmed once, then every window decides its own close; one that stays calls the quit off.
+        super::app_shell::quit(window, cx);
         Ok(())
     });
 }

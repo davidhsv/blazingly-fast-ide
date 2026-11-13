@@ -80,6 +80,8 @@ pub struct EditorIntelligence {
     lookup_incomplete: bool,
     /// The completion that is being asked: its word start and whether it was explicit.
     asking: Option<(u32, bool)>,
+    /// Completion that typing starts, waiting for the typing to pause.
+    activation: Option<Task<()>>,
     source: CompletionSource,
     hints: HintState,
     hint_view: Entity<HintView>,
@@ -200,6 +202,7 @@ impl EditorIntelligence {
             lookup_from: 0,
             lookup_incomplete: false,
             asking: None,
+            activation: None,
             source: CompletionSource::default(),
             hints: HintState::default(),
             hint_view: cx.new(|_| HintView::default()),
@@ -300,6 +303,7 @@ impl EditorIntelligence {
                 self.show_hint(cx);
                 self.close_hover(cx);
                 self.signature_follow(&[], true, None, cx);
+                self.activation = None;
                 let caret = editor.read(cx).caret();
                 if (self.lookup.read(cx).is_open() || self.asking.is_some()) && !self.word_holds(editor, caret, cx) {
                     self.close_lookup(cx);
@@ -343,8 +347,23 @@ impl EditorIntelligence {
             return;
         }
         if self.settings(cx).auto_popup && self.query_at(editor, false, cx).is_some() {
-            self.complete(false, cx);
+            self.activate_after_typing(cx);
+        } else {
+            self.activation = None;
         }
+    }
+
+    /// Starts completion once typing pauses for `ACTIVATE_ON_TYPING_DELAY_MS`: every keystroke
+    /// before that restarts the wait, so a word typed in one go asks the server once, at its end.
+    fn activate_after_typing(&mut self, cx: &mut Context<Self>) {
+        let task = cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(Duration::from_millis(ACTIVATE_ON_TYPING_DELAY_MS)).await;
+            let _ = this.update(cx, |this, cx| {
+                this.activation = None;
+                this.complete(false, cx);
+            });
+        });
+        self.activation = Some(task);
     }
 
     /// The word before the caret changed while the lookup is open or asked for: the rows are
@@ -375,6 +394,7 @@ impl EditorIntelligence {
 
     /// Asks the server for completion at the caret; `explicit` is Code › Code Completion › Basic.
     pub fn complete(&mut self, explicit: bool, cx: &mut Context<Self>) {
+        self.activation = None;
         let Some(editor) = self.editor.upgrade() else { return };
         let Some(query) = self.query_at(&editor, explicit, cx) else { return };
         let id = Backend::next_request_id();
@@ -495,6 +515,7 @@ impl EditorIntelligence {
 
     fn abort_completion(&mut self, cx: &mut Context<Self>) {
         self.asking = None;
+        self.activation = None;
         if let Some(id) = self.source.abort() {
             cx.global::<Backend>().host.cancel_request(id);
         }
@@ -1301,6 +1322,8 @@ impl EditorIntelligence {
 
 /// How long the hover waits, once the pointer left the text, for it to come into the popup.
 const HOVER_LEAVE_MS: u64 = 300;
+/// How long typing pauses before it starts completion.
+const ACTIVATE_ON_TYPING_DELAY_MS: u64 = 100;
 const NO_DOCUMENTATION: &str = "No documentation found";
 const NO_INTENTIONS: &str = "No intentions available";
 
@@ -1756,6 +1779,38 @@ mod tests {
             f.intelligence(cx).read_with(cx, |this, _| this.hint().map(str::to_owned)).as_deref(),
             Some("No suggestions")
         );
+        assert!(f.rows(cx).is_empty());
+        f.close(cx);
+    }
+
+    /// With the server already attached, a word typed in one go asks once, when the typing pauses,
+    /// at its end: no request goes out for the characters before it.
+    #[gpui_kit::test]
+    async fn a_word_typed_in_one_go_asks_the_attached_server_once_at_its_end(cx: &mut TestAppContext) {
+        let answers = json!({ "textDocument/completion": [item("fooBar", 6)] });
+        let (f, cx) = open(cx, &[("a.mock", "")], "a.mock", answers);
+        settle(cx, |_| !f.requests("textDocument/didOpen").is_empty());
+
+        cx.simulate_input("obj.");
+        cx.run_until_parked();
+        assert!(f.requests("textDocument/completion").is_empty(), "nothing is asked while typing goes on");
+        settle(cx, |cx| !f.rows(cx).is_empty());
+        assert_eq!(f.rows(cx), ["fooBar"]);
+        let asked = f.requests("textDocument/completion");
+        assert_eq!(asked.len(), 1, "{asked:#?}");
+        assert_eq!(asked[0]["params"]["context"], json!({ "triggerKind": 2, "triggerCharacter": "." }));
+        assert_eq!(asked[0]["params"]["position"], json!({ "line": 0, "character": 4 }));
+
+        // Moving the caret before the pause drops the pending start.
+        cx.simulate_keystrokes("escape");
+        cx.simulate_input(" ab");
+        f.put_caret(cx, 0);
+        settle(cx, |_| true);
+        for _ in 0..4 {
+            cx.executor().advance_clock(Duration::from_millis(50));
+            cx.run_until_parked();
+        }
+        assert_eq!(f.requests("textDocument/completion").len(), 1);
         assert!(f.rows(cx).is_empty());
         f.close(cx);
     }

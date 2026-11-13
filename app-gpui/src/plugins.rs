@@ -633,18 +633,44 @@ mod tests {
         );
     }
 
-    /// For a plugin outside this repository: `OPENIDEA_GPUI_TEST_PLUGIN=<folder> cargo test --lib
-    /// a_plugin_folder_named_by_the_environment_loads -- --ignored --nocapture`. The folder is
-    /// linked into a temporary home, agreed to with its required capabilities only, and must
-    /// come up without an error, contributing to the UI. With `OPENIDEA_GPUI_TEST_COMMAND=<id>`
-    /// that command is run without a project or an editor, which loads the plugin's code: the
-    /// plugin must be active afterwards, whatever the command itself answers.
+    /// Copies the folder `from` into `to`, recursively, without build output (`target`) or `.git`.
+    fn copy_folder(from: &Path, to: &Path) {
+        std::fs::create_dir_all(to).expect("the copy's folder is made");
+        for entry in std::fs::read_dir(from).expect("the folder is listed") {
+            let entry = entry.expect("an entry");
+            let target = to.join(entry.file_name());
+            if entry.file_type().expect("its type").is_dir() {
+                if entry.file_name() == "target" || entry.file_name() == ".git" {
+                    continue;
+                }
+                copy_folder(&entry.path(), &target);
+            } else {
+                std::fs::copy(entry.path(), &target).expect("the file is copied");
+            }
+        }
+    }
+
+    /// A plugin folder linked into a temporary home, agreed to with its required capabilities only,
+    /// comes up without an error and contributes to the UI; running one of its commands without a
+    /// project or an editor loads its code, and the plugin is active afterwards, whatever the command
+    /// answers. The folder is a copy, in a temporary folder, of the checked-in fixture `hello` (its
+    /// command `word-count`), which declares no secrets, so the login keychain is never asked; `OPENIDEA_GPUI_TEST_PLUGIN=<folder>` names another plugin folder,
+    /// copied the same way, and `OPENIDEA_GPUI_TEST_COMMAND=<id>` the command to run.
     #[gpui_kit::test]
-    #[ignore = "needs OPENIDEA_GPUI_TEST_PLUGIN to name a plugin folder"]
-    async fn a_plugin_folder_named_by_the_environment_loads(cx: &mut TestAppContext) {
+    async fn a_plugin_folder_copied_into_a_temporary_home_loads_and_runs_a_command(cx: &mut TestAppContext) {
         use ide_host::plugins::{Consent, PluginStatus};
         cx.executor().allow_parking();
-        let folder = std::env::var_os("OPENIDEA_GPUI_TEST_PLUGIN").expect("OPENIDEA_GPUI_TEST_PLUGIN names a folder");
+        let named = std::env::var_os("OPENIDEA_GPUI_TEST_PLUGIN").map(PathBuf::from);
+        let source = named
+            .clone()
+            .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../crates/ide-plugin/tests/fixtures/hello"));
+        let command = match std::env::var_os("OPENIDEA_GPUI_TEST_COMMAND") {
+            Some(command) => Some(command.to_string_lossy().into_owned()),
+            None => named.is_none().then(|| "word-count".to_owned()),
+        };
+        let copies = tempfile::tempdir().expect("a folder for the copy");
+        let folder = copies.path().join("plugin");
+        copy_folder(&source, &folder);
         let home = tempfile::tempdir().expect("a home");
         cx.update(|cx| {
             cx.set_global(ActiveTheme::default());
@@ -656,7 +682,7 @@ mod tests {
         settle(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());
         let id = cx.update(|cx| {
             let host = cx.global::<Plugins>().host.clone();
-            let info = host.link(Path::new(&folder)).expect("the plugin links");
+            let info = host.link(&folder).expect("the plugin links");
             let info = match info.status {
                 PluginStatus::NeedsConsent => host.grant(&info.id, &Consent::default()).expect("consent is recorded"),
                 _ => info,
@@ -687,8 +713,7 @@ mod tests {
                 info.version, info.status
             );
         });
-        if let Some(command) = std::env::var_os("OPENIDEA_GPUI_TEST_COMMAND") {
-            let command = command.to_string_lossy().into_owned();
+        if let Some(command) = command {
             let host = cx.update(|cx| cx.global::<Plugins>().host.clone());
             let invocation = Invocation {
                 command_chain: Vec::new(),

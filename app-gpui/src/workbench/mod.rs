@@ -2,6 +2,7 @@
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
 mod agents;
+mod app_shell;
 mod bookmarks_window;
 use bookmarks_window::BOOKMARKS_TOOL_WINDOW;
 mod branches;
@@ -250,8 +251,12 @@ pub struct Workbench {
     listener: u64,
     /// The editor that was active before the last tab change: it is saved when another takes over.
     previous_editor: Option<gpui_kit::WeakEntity<Editor>>,
-    /// The unsaved-changes question is on screen.
-    closing: bool,
+    /// The window's close requests: one is decided at a time.
+    close_requests: crate::app_models::close_guard::CloseRequests,
+    /// The next [`Workbench::leave`] follows a close decision, which settled the unsaved documents.
+    leave_decided: bool,
+    /// The close or open question shown over the window.
+    app_dialog: Option<app_shell::AppDialog>,
     /// A pending write of the editor session.
     session_save: Option<gpui_kit::Task<()>>,
     /// The popup that is open over everything else in the window.
@@ -884,11 +889,10 @@ pub fn active_editor(window: &Window, cx: &App) -> Option<Entity<Editor>> {
 impl Workbench {
     /// The workbench of `window`, known to the backend as `label`.
     pub fn new(label: &str, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        // Closing the window asks about unsaved changes first.
+        // Closing the window is decided first: the exit, the running processes, the unsaved documents.
+        // The hook reads every window's workbench, this one's included, so it runs outside an update.
         let guard = cx.weak_entity();
-        window.on_window_should_close(cx, move |window, cx| {
-            guard.update(cx, |workbench, cx| workbench.confirm_close(window, cx)).unwrap_or(true)
-        });
+        window.on_window_should_close(cx, move |window, cx| app_shell::window_should_close(&guard, window, cx));
         cx.observe_window_appearance(window, |_, window, cx| {
             crate::theme::appearance::system_appearance_changed(window.appearance(), cx);
         })
@@ -960,7 +964,9 @@ impl Workbench {
             task_timer: None,
             listener: listener.unwrap_or_default(),
             previous_editor: None,
-            closing: false,
+            close_requests: Default::default(),
+            leave_decided: false,
+            app_dialog: None,
             session_save: None,
             popup: None,
             light_find_bar: None,
@@ -1534,7 +1540,8 @@ impl Workbench {
     /// With autosave on, saves `editor` if it is unsaved, or every unsaved editor when none is
     /// named. A failure is reported; the text stays in its editor.
     fn autosave(&mut self, editor: Option<&Entity<Editor>>, cx: &mut Context<Self>) {
-        if !self.auto_save(cx) {
+        // While a close is decided its question owns the unsaved documents: Don't Save must hold.
+        if !self.auto_save(cx) || self.close_requests.deciding() {
             return;
         }
         let editors = match editor {
@@ -1574,57 +1581,6 @@ impl Workbench {
             }
             failure.map_or(Ok(()), Err)
         }
-    }
-
-    /// Whether the window may close now. With unsaved changes it may not: the user is asked to
-    /// save them, discard them or stay, and the window closes once that is settled.
-    pub fn confirm_close(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        let unsaved = self.unsaved_count(cx);
-        if unsaved == 0 {
-            return true;
-        }
-        if self.closing {
-            return false;
-        }
-        self.closing = true;
-        let project = match &self.content {
-            Content::Project { name, .. } => Some(name.clone()),
-            _ => None,
-        };
-        let i18n = &cx.default_global::<crate::platform::i18n::Localization>().0;
-        let project = project.unwrap_or_else(|| i18n.t("app.title.default", &[]));
-        let (title, body) = (
-            i18n.t("app.unsaved.title", &[]),
-            i18n.t("app.unsaved.body", &[("count", unsaved.into()), ("project", project.into())]),
-        );
-        let answers =
-            [i18n.t("app.unsaved.save", &[]), i18n.t("app.unsaved.discard", &[]), i18n.t("common.cancel", &[])];
-        let answers: Vec<&str> = answers.iter().map(String::as_str).collect();
-        let answer = window.prompt(gpui_kit::PromptLevel::Warning, &title, Some(&body), &answers, cx);
-        cx.spawn_in(window, async move |workbench, cx| {
-            let answer = answer.await.ok();
-            let saving = workbench.update(cx, |workbench, cx| {
-                workbench.closing = false;
-                (answer == Some(0)).then(|| workbench.save_all(cx))
-            });
-            let close = match (answer, saving) {
-                (Some(0), Ok(Some(saving))) => match saving.await {
-                    Ok(()) => true,
-                    Err(failure) => {
-                        let _ = workbench.update(cx, |workbench, cx| workbench.report_save_failure(failure, cx));
-                        false
-                    }
-                },
-                // Don't Save.
-                (Some(1), _) => true,
-                _ => false,
-            };
-            if close {
-                let _ = cx.update(|window, _| window.remove_window());
-            }
-        })
-        .detach();
-        false
     }
 
     /// Background tasks of this window, in listing order.
@@ -1960,7 +1916,11 @@ impl Workbench {
         cx: &mut Context<Self>,
         change: impl FnOnce(&mut ToolWindowLayout) -> Effects,
     ) {
-        let editor = self.editor().cloned();
+        // The active tab takes the keyboard back: its text editor, or the view of a tab that has none.
+        let editor_focus = self
+            .editor()
+            .map(|editor| editor.focus_handle(cx))
+            .or_else(|| self.active_tab_view().map(|v| v.focus.clone()));
         let Content::Project { layout, .. } = &mut self.content else { return };
         let effects = change(layout);
         if effects.persist {
@@ -1980,11 +1940,8 @@ impl Workbench {
                 window.focus(&focus, cx);
             }
         } else if effects.focus_editor {
-            match editor {
-                Some(editor) => {
-                    let focus = editor.focus_handle(cx);
-                    window.focus(&focus, cx);
-                }
+            match editor_focus {
+                Some(focus) => window.focus(&focus, cx),
                 // Nothing to edit: the focus leaves the tool window all the same.
                 None => window.blur(cx),
             }
@@ -2676,7 +2633,9 @@ impl Workbench {
 
     /// What is unsaved is saved and the tabs are remembered, before the window shows something else.
     fn leave(&mut self, cx: &mut Context<Self>) {
-        self.autosave(None, cx);
+        if !std::mem::take(&mut self.leave_decided) {
+            self.autosave(None, cx);
+        }
         self.save_session(cx);
         self.popup = None;
         self.drop_settings();
@@ -3738,6 +3697,7 @@ impl Render for Workbench {
             .children(self.debug_breakpoints_layer())
             .children(self.customize_toolbar_layer())
             .children(self.vcs_dialog_layer())
+            .children(self.app_dialog_layer())
             .children(self.file_dialog_layer())
             .children(self.database_dialog_layer())
             .children(self.database_prompt_layer())
@@ -4146,44 +4106,253 @@ mod tests {
         assert_eq!(titles, ["Disk is almost full"]);
     }
 
-    // src/features/app/closeGuard.ts › decideClose (the unsaved-changes question)
-    #[gpui_kit::test]
-    async fn closing_a_window_asks_about_unsaved_changes(cx: &mut TestAppContext) {
-        let _home = start(cx);
-        let folder = tempfile::tempdir().expect("a temporary folder");
-        let root = folder.path().canonicalize().expect("the folder exists");
-        std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
-        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
-        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
-        // Nothing unsaved: the window may close without a question.
-        assert!(workbench.update_in(cx, |workbench, window, cx| workbench.confirm_close(window, cx)));
+    /// The title of the close or open question shown over the workbench's window, while one is.
+    fn app_dialog_title(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<String> {
+        workbench.read_with(cx, |w, cx| w.app_dialog().map(|dialog| dialog.read(cx).title().to_owned()))
+    }
 
-        workbench
-            .update_in(cx, |workbench, window, cx| workbench.open_project_file(root.join("notes.txt"), window, cx));
-        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
-        cx.simulate_input("my ");
-        // Typed a moment ago: the document counts as unsaved before the backend has said so.
+    /// The text of the window's editor.
+    fn editor_text(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<String> {
+        workbench.read_with(cx, |w, cx| w.editor().map(|editor| editor.read(cx).text()))
+    }
+
+    /// Closing the last project window with unsaved changes asks about them, with autosave on as by
+    /// default: Cancel keeps the project and the text, Don't Save leaves the file as it is on disk,
+    /// Save All writes it; each time the window stays and shows the Welcome screen. Nothing unsaved
+    /// asks nothing.
+    #[gpui_kit::test]
+    async fn closing_asks_about_unsaved_changes_whatever_autosave_says(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("notes.txt", "notes\n")]);
+        assert!(cx.update(|_, cx| crate::platform::settings::effective("w1", cx).files.auto_save), "autosave is on");
+        let disk = || std::fs::read_to_string(root.join("notes.txt")).expect("readable");
+        let reopen = |cx: &mut VisualTestContext| {
+            workbench.update_in(cx, |w, window, cx| w.open_project(root.clone(), window, cx));
+            settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+            workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+            settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+            cx.update(|window, cx| {
+                let editor = workbench.read(cx).editor().cloned().expect("an editor");
+                // A reopened tab comes back with its caret: typing starts at the top.
+                editor.update(cx, |editor, cx| editor.select(0, 0, cx));
+                window.focus(&editor.focus_handle(cx), cx);
+            });
+            cx.simulate_input("my ");
+        };
+        let welcomes = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| w.project_tree().is_none() && w.welcome().is_some())
+        };
+
+        // Nothing unsaved: the last project window goes back to the Welcome screen at once.
+        assert!(!cx.simulate_close());
+        cx.run_until_parked();
+        assert!(cx.pending_prompt().is_none() && app_dialog_title(&workbench, cx).is_none());
+        assert!(welcomes(cx));
+        assert_eq!(cx.windows().len(), 1);
+
+        reopen(cx);
         assert_eq!(workbench.read_with(cx, |w, cx| w.unsaved_count(cx)), 1);
         assert!(!cx.simulate_close());
+        cx.run_until_parked();
         let (title, body) = cx.pending_prompt().expect("the question is asked");
         assert_eq!(title, "Unsaved Changes");
         let project = root.file_name().expect("a name").to_string_lossy().into_owned();
         assert_eq!(body, format!("1 file has unsaved changes in {project}. Save before closing?"));
-        // Cancel: the window and the text stay, nothing is written.
         cx.simulate_prompt_answer("Cancel");
         cx.run_until_parked();
-        assert_eq!(
-            workbench.read_with(cx, |w, cx| w.editor().map(|e| e.read(cx).text())).as_deref(),
-            Some("my notes\n")
-        );
+        assert_eq!(editor_text(&workbench, cx).as_deref(), Some("my notes\n"));
+        assert_eq!(disk(), "notes\n", "autosave saved nothing while the question was asked");
+        assert!(workbench.read_with(cx, |w, _| w.project_tree().is_some()), "the project stays");
+
+        // Don't Save: the window leaves the project, and the file keeps what it had on disk.
+        assert!(!cx.simulate_close());
+        cx.run_until_parked();
+        cx.simulate_prompt_answer("Don't Save");
+        settle(cx, welcomes);
+        for _ in 0..20 {
+            cx.executor().advance_clock(Duration::from_millis(50));
+            cx.run_until_parked();
+        }
+        assert_eq!(disk(), "notes\n", "Don't Save holds with autosave on");
+
+        // Save All writes the file, then the window leaves the project.
+        reopen(cx);
+        assert!(!cx.simulate_close());
+        cx.run_until_parked();
+        cx.simulate_prompt_answer("Save All");
+        settle(cx, |cx| welcomes(cx) && disk() == "my notes\n");
+        assert_eq!(cx.windows().len(), 1);
+    }
+
+    /// Opening another project in this window first settles leaving the one it shows: the unsaved
+    /// question comes after "Open Project" (This Window); Cancel keeps the project and the text,
+    /// Don't Save opens the other one and leaves the file as it is on disk. Close Project with
+    /// nothing unsaved asks nothing; an explicit `{path, newWindow: false}` opens here without the
+    /// "Open Project" question.
+    #[gpui_kit::test]
+    async fn opening_another_project_here_asks_about_the_unsaved_changes_of_this_one(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let other = tempfile::tempdir().expect("a temporary folder");
+        let other_root = other.path().canonicalize().expect("the folder exists");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&other_root, true, false)).expect("trusted");
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("notes.txt", "notes\n")]);
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.update(|window, cx| {
+            let editor = workbench.read(cx).editor().cloned().expect("an editor");
+            window.focus(&editor.focus_handle(cx), cx);
+        });
+        cx.simulate_input("my ");
+        let shown = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, cx| w.project_root(cx));
+        let path = serde_json::Value::String(other_root.to_string_lossy().into_owned());
+
+        run_action(cx, "file.openProjectPath", Some(path.clone()));
+        assert_eq!(app_dialog_title(&workbench, cx).as_deref(), Some("Open Project"));
+        click_on(cx, "prompt-button-same");
+        let (title, _) = cx.pending_prompt().expect("leaving asks about the unsaved file");
+        assert_eq!(title, "Unsaved Changes");
+        cx.simulate_prompt_answer("Cancel");
+        cx.run_until_parked();
+        assert_eq!(shown(cx).as_deref(), Some(&*root), "Cancel keeps the project");
+        assert_eq!(editor_text(&workbench, cx).as_deref(), Some("my notes\n"));
+
+        run_action(cx, "file.openProjectPath", Some(path));
+        click_on(cx, "prompt-button-same");
+        cx.simulate_prompt_answer("Don't Save");
+        settle(cx, |cx| shown(cx).as_deref() == Some(&*other_root));
         assert_eq!(std::fs::read_to_string(root.join("notes.txt")).expect("readable"), "notes\n");
 
-        // Save All writes the file, then the window closes.
+        // Close Project with nothing unsaved goes to the Welcome screen without a question.
+        run_action(cx, "file.closeProject", None);
+        assert!(cx.pending_prompt().is_none() && app_dialog_title(&workbench, cx).is_none());
+        assert!(workbench.read_with(cx, |w, _| w.project_tree().is_none() && w.welcome().is_some()));
+
+        // An explicit request names the window: no "Open Project" question.
+        let explicit = serde_json::json!({ "path": root.to_string_lossy(), "newWindow": false });
+        run_action(cx, "file.openProjectPath", Some(explicit));
+        assert!(app_dialog_title(&workbench, cx).is_none());
+        settle(cx, |cx| shown(cx).as_deref() == Some(&*root));
+        assert_eq!(cx.windows().len(), 1);
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// Closing the last window, which shows no project, confirms the exit (`general.confirmExit`,
+    /// on by default): Cancel keeps the window; Exit with "Don't ask again" closes it and turns the
+    /// setting off.
+    #[gpui_kit::test]
+    async fn closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        assert!(cx.update(|_, cx| crate::platform::settings::global(cx).general.confirm_exit));
         assert!(!cx.simulate_close());
-        cx.simulate_prompt_answer("Save All");
-        settle(cx, |_| std::fs::read_to_string(root.join("notes.txt")).is_ok_and(|text| text == "my notes\n"));
+        cx.run_until_parked();
+        assert_eq!(app_dialog_title(&workbench, cx).as_deref(), Some("Confirm Exit"));
+        let body = cx.update(|_, cx| {
+            let i18n = &cx.default_global::<crate::platform::i18n::Localization>().0;
+            i18n.t("app.exit.body", &[])
+        });
+        assert_eq!(body, "Are you sure you want to exit OpenIDEA?");
+        click_on(cx, "prompt-button-cancel");
+        assert!(app_dialog_title(&workbench, cx).is_none());
+        assert_eq!(cx.windows().len(), 1, "Cancel keeps the window");
+        assert!(cx.update(|_, cx| crate::platform::settings::global(cx).general.confirm_exit));
+
+        assert!(!cx.simulate_close());
+        cx.run_until_parked();
+        assert_eq!(app_dialog_title(&workbench, cx).as_deref(), Some("Confirm Exit"));
+        click_on(cx, "prompt-checkbox");
+        click_on(cx, "prompt-button-exit");
         settle(cx, |cx| cx.windows().is_empty());
+        assert!(
+            !cx.read(|cx| crate::platform::settings::global(cx).general.confirm_exit),
+            "Don't ask again turns it off"
+        );
+    }
+
+    /// Closing a project window whose run configuration still runs asks to terminate it first
+    /// (`run.confirmTerminate`), then about the unsaved documents: cancelling either keeps the
+    /// process running and the project open; Terminate then Don't Save stops it and the window goes
+    /// back to the Welcome screen once it has ended.
+    #[gpui_kit::test]
+    async fn closing_with_a_running_process_asks_to_terminate_it_before_the_unsaved_question(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root, store) = run_project(cx, vec![program("nap", "/bin/sleep", "30")]);
+        std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        let session = |cx: &mut VisualTestContext| {
+            store.read_with(cx, |store, _| store.sessions.iter().find(|s| s.config.name == "nap").cloned())
+        };
+        run_action(cx, "run.run", None);
+        wait_long(cx, "the start of sleep", |cx| session(cx).is_some_and(|s| s.is_live()));
+
+        // Only the process: Cancel keeps it running and the project open.
+        assert!(!cx.simulate_close());
+        cx.run_until_parked();
+        assert_eq!(app_dialog_title(&workbench, cx).as_deref(), Some("Process 'nap' Is Running"));
+        click_on(cx, "prompt-button-cancel");
+        assert!(session(cx).is_some_and(|s| s.is_live()));
+        assert!(workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+
+        // The process and an unsaved file: Terminate, then Cancel on the unsaved question, keeps both.
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.update(|window, cx| {
+            let editor = workbench.read(cx).editor().cloned().expect("an editor");
+            window.focus(&editor.focus_handle(cx), cx);
+        });
+        cx.simulate_input("my ");
+        assert!(!cx.simulate_close());
+        cx.run_until_parked();
+        assert_eq!(app_dialog_title(&workbench, cx).as_deref(), Some("Process 'nap' Is Running"));
+        click_on(cx, "prompt-button-terminate");
+        let (title, _) = cx.pending_prompt().expect("the unsaved question follows");
+        assert_eq!(title, "Unsaved Changes");
+        cx.simulate_prompt_answer("Cancel");
+        cx.run_until_parked();
+        assert!(session(cx).is_some_and(|s| s.is_live()), "cancelling the second question stops nothing");
+        assert_eq!(editor_text(&workbench, cx).as_deref(), Some("my notes\n"));
+
+        assert!(!cx.simulate_close());
+        cx.run_until_parked();
+        click_on(cx, "prompt-button-terminate");
+        cx.simulate_prompt_answer("Don't Save");
+        wait_long(cx, "the end of sleep", |cx| session(cx).is_none_or(|s| !s.is_live()));
+        wait_long(cx, "the Welcome screen", |cx| workbench.read_with(cx, |w, _| w.welcome().is_some()));
+        assert_eq!(std::fs::read_to_string(root.join("notes.txt")).expect("readable"), "notes\n");
+    }
+
+    /// Quit run as an action in a window with an unsaved editor confirms the exit, then asks about
+    /// the unsaved documents of that same window: Cancel keeps the window and the text, and a later
+    /// Quit asks again. The window cannot be updated from inside its own update, which is why the
+    /// windows are asked from outside the action.
+    #[gpui_kit::test]
+    async fn quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("notes.txt", "notes\n")]);
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.update(|window, cx| {
+            let editor = workbench.read(cx).editor().cloned().expect("an editor");
+            window.focus(&editor.focus_handle(cx), cx);
+        });
+        cx.simulate_input("my ");
+        let reentrant = cx.update(|window, cx| window.window_handle().update(cx, |_, _, _| ()).is_err());
+        assert!(reentrant, "a window's own update cannot reach it again");
+
+        for _ in 0..2 {
+            run_action(cx, "app.quit", None);
+            assert_eq!(app_dialog_title(&workbench, cx).as_deref(), Some("Confirm Exit"));
+            click_on(cx, "prompt-button-exit");
+            let (title, _) = cx.pending_prompt().expect("the unsaved question is asked");
+            assert_eq!(title, "Unsaved Changes");
+            cx.simulate_prompt_answer("Cancel");
+            cx.run_until_parked();
+            assert_eq!(cx.windows().len(), 1, "the window stays");
+            assert_eq!(editor_text(&workbench, cx).as_deref(), Some("my notes\n"));
+            assert_eq!(std::fs::read_to_string(root.join("notes.txt")).expect("readable"), "notes\n");
+        }
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
     }
 
     /// A tab whose document cannot be saved comes back with its text, and the failure is reported.
@@ -4704,9 +4873,12 @@ mod tests {
         // Escape closes the diff window.
         cx.update(|window, cx| execute_action_or_throw("vcs.showDiff", None, window, cx)).expect("it runs");
         assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_some()), "the active file's diff is shown");
-        cx.run_until_parked();
+        // The diff's sides are read off the main thread: the keys follow once they have arrived.
+        settle(cx, |cx| context_is_on(cx, "diffEditorFocus") && context_is_on(cx, "vcsAvailable"));
         cx.simulate_keystrokes("escape");
         assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()), "Escape closes the diff");
+        cx.run_until_parked();
+        assert!(!context_is_on(cx, "diffEditorFocus"), "the diff window is gone");
     }
 
     /// Find in Files: the action shows the Find window with the keyboard in its query, Enter
@@ -5255,38 +5427,53 @@ mod tests {
         run(cx, main, "file.openProjectPath", Some(&roots[0]));
         wait(cx, &|cx| project(cx, "main").as_deref() == Some(&roots[0]));
 
+        // The question shows over the window, with "Don't ask again"; its buttons are clicked.
+        let asked = |cx: &mut TestAppContext, window: gpui_kit::AnyWindowHandle| -> Option<String> {
+            window
+                .update(cx, |_, window, cx| {
+                    let workbench = for_window(window, cx)?;
+                    workbench.read(cx).app_dialog().map(|dialog| dialog.read(cx).title().to_owned())
+                })
+                .expect("the window is open")
+        };
+        let answer = |cx: &mut TestAppContext, window: gpui_kit::AnyWindowHandle, selector: &'static str| {
+            let mut visual = VisualTestContext::from_window(window, cx);
+            click_on(&mut visual, selector);
+        };
+
         // One with a project asks; New Window opens the next label.
         run(cx, main, "file.openProjectPath", Some(&roots[1]));
-        assert!(cx.has_pending_prompt());
-        cx.simulate_prompt_answer("New Window");
+        assert_eq!(asked(cx, main).as_deref(), Some("Open Project"));
+        answer(cx, main, "prompt-button-new");
         wait(cx, &|cx| labels(cx) == ["main", "project-1"] && project(cx, "project-1").as_deref() == Some(&roots[1]));
         assert_eq!(project(cx, "main").as_deref(), Some(&*roots[0]));
 
-        // A project that a window has is not opened again: that window comes to the front.
+        // A project that another window has is asked about like any other ("Open project in"
+        // decides first); This Window then brings that window to the front instead of opening it again.
         let second = window(cx, "project-1");
         run(cx, second, "file.openProjectPath", Some(&roots[0]));
-        assert!(!cx.has_pending_prompt());
+        assert_eq!(asked(cx, second).as_deref(), Some("Open Project"));
+        answer(cx, second, "prompt-button-same");
+        wait(cx, &|cx| cx.update(|cx| cx.active_window()) == Some(main));
         assert_eq!(labels(cx).len(), 2);
-        assert_eq!(cx.update(|cx| cx.active_window()), Some(main));
+        assert_eq!(project(cx, "project-1").as_deref(), Some(&*roots[1]));
 
         // Cancel leaves everything as it is; This Window replaces the window's project.
         run(cx, second, "file.openProjectPath", Some(&roots[2]));
-        cx.simulate_prompt_answer("Cancel");
-        cx.run_until_parked();
+        answer(cx, second, "prompt-button-cancel");
+        assert!(asked(cx, second).is_none());
         assert_eq!(project(cx, "project-1").as_deref(), Some(&*roots[1]));
+        // This Window with "Don't ask again" replaces the project and stores the answer.
         run(cx, second, "file.openProjectPath", Some(&roots[2]));
-        cx.simulate_prompt_answer("This Window");
+        answer(cx, second, "prompt-checkbox");
+        answer(cx, second, "prompt-button-same");
         wait(cx, &|cx| project(cx, "project-1").as_deref() == Some(&roots[2]));
         assert_eq!(labels(cx).len(), 2);
+        assert_eq!(cx.update(|cx| crate::platform::settings::global(cx).general.open_project_in), "same");
 
         // With the answer stored, nothing is asked.
-        cx.update(|cx| {
-            use ide_workspace::settings::SettingsScope;
-            crate::platform::settings::set("", SettingsScope::Global, "general.openProjectIn", &"same".into(), cx)
-                .expect("the setting is stored");
-        });
         run(cx, second, "file.openProjectPath", Some(&roots[1]));
-        assert!(!cx.has_pending_prompt());
+        assert!(asked(cx, second).is_none() && !cx.has_pending_prompt());
         wait(cx, &|cx| project(cx, "project-1").as_deref() == Some(&roots[1]));
 
         // Open… asks for a folder and opens what was picked the same way.
@@ -7599,6 +7786,115 @@ for line in sys.stdin:
     /// the file dialog, its name and arguments typed into the form; OK saves it to the project, selects it
     /// and closes the dialog. Cancel after an edit saves nothing. Create Run Configuration saves the
     /// configuration it is given and opens it in the dialog.
+    /// Every built-in type Edit Configurations offers is added through the dialog (Add New
+    /// Configuration, its label, Enter), named after its id, its required fields typed, and saved
+    /// with OK: the stored configuration has the type's kind and the command line the type builds
+    /// from what was typed, and the Run/Debug chooser lists it.
+    #[gpui_kit::test]
+    async fn edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type(cx: &mut TestAppContext) {
+        use crate::run::types::builtin_types;
+        const TYPES: [&str; 13] = [
+            "shell",
+            "program",
+            "npm",
+            "gradle",
+            "maven",
+            "godot",
+            "pytest",
+            "django-test",
+            "go",
+            "go-test",
+            "application",
+            "spring-boot",
+            "compound",
+        ];
+        let (workbench, cx, _folders, root, store) = run_project(cx, Vec::new());
+        let types = builtin_types();
+        let ids: Vec<&str> = types.iter().map(|ty| ty.id.as_str()).collect();
+        assert_eq!(ids, TYPES, "the dialog offers these built-in types");
+        let dialog = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.edit_configs_dialog().cloned());
+        let type_into = |cx: &mut VisualTestContext, key: &str, text: &str| {
+            cx.run_until_parked();
+            let open = dialog(cx).expect("the dialog is open");
+            let field = open.read_with(cx, |dialog, _| dialog.field(key)).unwrap_or_else(|| panic!("{key} is drawn"));
+            cx.update(|window, cx| window.focus(&field.focus_handle(cx), cx));
+            cx.simulate_keystrokes("cmd-a backspace");
+            cx.simulate_input(text);
+            cx.run_until_parked();
+        };
+        for ty in &types {
+            let id = ty.id.as_str();
+            run_action(cx, "run.editConfigs", None);
+            wait_long(cx, "opening Edit Configurations", |cx| dialog(cx).is_some());
+            let open = dialog(cx).expect("Edit Configurations opens");
+            click_on(cx, "run-edit-add");
+            cx.simulate_input(&ty.label);
+            cx.run_until_parked();
+            // Another type's label can hold this one ("Django Test" holds "Go Test"): walk to its row.
+            let rows = open.read_with(cx, |dialog, cx| dialog.type_lines(cx));
+            let at = rows
+                .iter()
+                .position(|row| row.trim_start_matches('>').trim() == ty.label)
+                .unwrap_or_else(|| panic!("{id}: {rows:?}"));
+            for _ in 0..at {
+                cx.simulate_keystrokes("down");
+            }
+            cx.simulate_keystrokes("enter");
+            cx.run_until_parked();
+            assert_eq!(open.read_with(cx, |dialog, _| dialog.selected()).as_deref(), Some("Unnamed"), "{id}");
+            type_into(cx, "name", id);
+            let mut params = ty.defaults.clone();
+            for field in ty.fields.iter().filter(|field| field.required && field.is_visible(&ty.defaults)) {
+                let typed = format!("{}-{id}", field.key);
+                type_into(cx, &format!("param:{}", field.key), &typed);
+                params.insert(field.key.clone(), typed);
+            }
+            if id == "compound" {
+                // A compound needs a member: the Shell Script configuration saved first.
+                click_on(cx, "run-edit-add-member");
+                let rows = open.read_with(cx, |dialog, _| dialog.menu_lines());
+                assert_eq!(rows.first().map(String::as_str), Some("shell"), "{rows:?}");
+                click_on(cx, "run-edit-menu-0");
+                cx.simulate_keystrokes("escape");
+                cx.run_until_parked();
+            }
+            click_on(cx, "run-edit-ok");
+            for _ in 0..500 {
+                if dialog(cx).is_none() {
+                    break;
+                }
+                cx.executor().advance_clock(Duration::from_millis(20));
+                cx.run_until_parked();
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            if let Some(open) = dialog(cx) {
+                let lines = open.read_with(cx, |dialog, cx| dialog.form_lines(cx));
+                panic!("{id} is not saved: {lines:#?}");
+            }
+            let saved = ide_run::load_user_configs(&root).expect("the configurations are read");
+            let config = saved.iter().find(|config| config.name == id).unwrap_or_else(|| panic!("{id} is saved"));
+            if id == "go-test" {
+                // Go Test is the test flavour of a Go configuration.
+                assert_eq!(config.kind, "go");
+                assert_eq!(config.extras.params.get("goKind").map(String::as_str), Some("test"));
+            } else {
+                assert_eq!(config.kind, id);
+            }
+            // No Gradle wrapper in the project: Gradle runs as `gradle`.
+            let env = crate::run::config_types::TypeEnv { windows: cfg!(windows), gradle_local: false };
+            match ty.line(&params, &env) {
+                Some(line) => assert_eq!((&config.command, &config.args), (&line.command, &line.args), "{id}"),
+                None => assert!(config.command.is_empty(), "{id} runs no process of its own"),
+            }
+            if id == "compound" {
+                let shell = saved.iter().find(|config| config.name == "shell").expect("shell is saved");
+                assert_eq!(config.extras.compound, std::slice::from_ref(&shell.id));
+            }
+            let listed = store.read_with(cx, |store, _| store.configs().iter().any(|c| c.name == id));
+            assert!(listed, "the chooser lists {id}");
+        }
+    }
+
     #[gpui_kit::test]
     async fn edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing(
         cx: &mut TestAppContext,
@@ -8450,10 +8746,12 @@ for line in sys.stdin:
         let file = root.join("a.txt");
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file.clone(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        assert!(!context_is_on(cx, "mergeEditorFocus"), "the text editor has the keyboard");
         click_on(cx, "conflict-banner-action-0");
         let view = merge_view_loaded(&workbench, cx);
         assert_eq!(view.read_with(cx, |view, _| view.path().to_owned()), file.to_string_lossy());
         assert!(cx.update(|window, cx| workbench.read(cx).merge_editor_focused(window, cx)));
+        assert!(context_is_on(cx, "mergeEditorFocus"));
 
         // Compare's menu lists the comparisons; choosing one, once the menu gave the keyboard back to
         // the merge editor, opens the diff window over it; closing that gives the keyboard back.
@@ -10154,6 +10452,100 @@ for line in sys.stdin:
         cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy(key))
     }
 
+    /// The text a context key holds, while it holds one.
+    fn context_text(cx: &mut VisualTestContext, key: &str) -> Option<String> {
+        cx.update(|window, cx| match crate::platform::context::window_context(window, cx).get(key) {
+            Some(crate::platform::context::ContextValue::Text(text)) => Some(text.to_string()),
+            _ => None,
+        })
+    }
+
+    /// The window's context keys follow what it shows and where the keyboard is, each read on and
+    /// off: `projectOpening` and `projectOpen` (no project, opening, open, closed); `editorFocus`,
+    /// `editorTextFocus`, `editorAreaFocus` and `editorPath` (the editor has the keyboard, then the
+    /// Project view, then no tab is open); `activeToolWindow` (the Project view, the Terminal, the
+    /// editor); `terminalFocus`; `vcsAvailable` (a folder without a repository, then one with).
+    #[gpui_kit::test]
+    async fn context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let plain = tempfile::tempdir().expect("a temporary folder");
+        let root = plain.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        let versioned = tempfile::tempdir().expect("a temporary folder");
+        let repo = versioned.path().canonicalize().expect("the folder exists");
+        init_repo(&repo);
+        for folder in [&root, &repo] {
+            cx.update(|cx| cx.global::<Backend>().host.trust.decide(folder, true, false)).expect("trusted");
+        }
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        let run = |cx: &mut VisualTestContext, id: &str| {
+            cx.update(|window, cx| execute_action_or_throw(id, None, window, cx))
+                .unwrap_or_else(|e| panic!("{id}: {e}"));
+            cx.run_until_parked();
+        };
+        let editor_keys = ["editorFocus", "editorTextFocus", "editorAreaFocus"];
+
+        // No project.
+        cx.run_until_parked();
+        assert!(!context_is_on(cx, "projectOpen") && !context_is_on(cx, "projectOpening"));
+        assert!(editor_keys.iter().all(|key| !context_is_on(cx, key)));
+        assert_eq!(context_text(cx, "editorPath"), None);
+
+        // Opening, then open.
+        workbench.update_in(cx, |w, window, cx| w.open_project(root.clone(), window, cx));
+        assert!(context_is_on(cx, "projectOpening"), "the project is opening");
+        assert!(!context_is_on(cx, "projectOpen"));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        assert!(context_is_on(cx, "projectOpen") && !context_is_on(cx, "projectOpening"));
+        assert!(!context_is_on(cx, "vcsAvailable"), "the folder has no repository");
+
+        // The editor has the keyboard.
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("notes.txt"), window, cx));
+        settle(cx, |cx| {
+            let editor = workbench.read_with(cx, |w, _| w.editor().cloned());
+            cx.update(|window, cx| editor.is_some_and(|editor| editor.focus_handle(cx).is_focused(window)))
+        });
+        assert!(editor_keys.iter().all(|key| context_is_on(cx, key)));
+        let path = root.join("notes.txt").to_string_lossy().into_owned();
+        assert_eq!(context_text(cx, "editorPath").as_deref(), Some(path.as_str()));
+        assert_eq!(context_text(cx, "activeToolWindow"), None, "no tool window has the keyboard");
+
+        // The Project view has it.
+        run(cx, "toolwindow.project");
+        assert!(editor_keys.iter().all(|key| !context_is_on(cx, key)));
+        assert_eq!(context_text(cx, "activeToolWindow").as_deref(), Some("project"));
+        assert!(!context_is_on(cx, "terminalFocus"));
+
+        // The Terminal has it, then the editor again.
+        run(cx, "toolwindow.terminal");
+        assert!(context_is_on(cx, "terminalFocus"));
+        assert_eq!(context_text(cx, "activeToolWindow").as_deref(), Some("terminal"));
+        cx.update(|window, cx| {
+            let editor = workbench.read(cx).editor().cloned().expect("an editor");
+            window.focus(&editor.focus_handle(cx), cx);
+        });
+        cx.run_until_parked();
+        assert!(!context_is_on(cx, "terminalFocus"));
+        assert!(editor_keys.iter().all(|key| context_is_on(cx, key)));
+        assert_eq!(context_text(cx, "activeToolWindow"), None);
+
+        // No tab: no editor path.
+        run(cx, "editor.closeAllTabs");
+        assert_eq!(context_text(cx, "editorPath"), None);
+        assert!(editor_keys.iter().all(|key| !context_is_on(cx, key)));
+
+        // Closed, then a project with a repository.
+        run(cx, "file.closeProject");
+        assert!(!context_is_on(cx, "projectOpen") && !context_is_on(cx, "vcsAvailable"));
+        workbench.update_in(cx, |w, window, cx| w.open_project(repo.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        wait_long(cx, "the repository is read", |cx| context_is_on(cx, "vcsAvailable"));
+        assert!(context_is_on(cx, "projectOpen"));
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
     #[gpui_kit::test]
     async fn a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking(
         cx: &mut TestAppContext,
@@ -10191,6 +10583,14 @@ for line in sys.stdin:
         cx.update(|window, cx| execute_action_or_throw("image.zoomIn", None, window, cx)).expect("it runs");
         cx.run_until_parked();
         assert_ne!(label(cx), before);
+        // The Project view takes the keyboard: the image tab stays active without it.
+        cx.update(|window, cx| execute_action_or_throw("toolwindow.project", None, window, cx)).expect("it runs");
+        cx.run_until_parked();
+        assert!(context_is_on(cx, "imageViewerActive") && !context_is_on(cx, "imageViewerFocus"));
+        // Escape in the tool window gives the keyboard back to the image.
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(context_is_on(cx, "imageViewerFocus"));
 
         // An image holds no unsaved changes: closing its tab asks nothing.
         cx.update(|window, cx| execute_action_or_throw("editor.closeTab", None, window, cx)).expect("it runs");
@@ -10712,10 +11112,15 @@ for line in sys.stdin:
         let panel = workbench.read_with(cx, |w, _| w.database_panel()).expect("the panel");
         let id = editor.read_with(cx, |editor, _| editor.id());
         assert_eq!(panel.read_with(cx, |panel, _| panel.lower()), super::database::Lower::Table(id));
+        // The table editor has the keyboard, with nothing changed yet.
+        cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
+        cx.run_until_parked();
+        assert!(context_is_on(cx, "dbTableEditorFocus") && !context_is_on(cx, "dbTableEditorChanges"));
 
         editor.update(cx, |editor, cx| editor.edit(&[CellEdit { row: 0, col: 1, value: cell("zed") }], cx));
         cx.run_until_parked();
         assert!(editor.read_with(cx, |editor, _| editor.is_dirty()));
+        assert!(context_is_on(cx, "dbTableEditorChanges"), "an edit waits to be submitted");
         run_action(cx, "db.submitChanges", None);
         let written = |cx: &mut VisualTestContext| db_query(cx, "select name from users where id = 1");
         wait_long(cx, "the write", |cx| written(cx) == Ok(vec![vec![cell("zed")]]));
@@ -10723,6 +11128,7 @@ for line in sys.stdin:
             editor.read_with(cx, |editor, _| !editor.is_loading() && !editor.is_dirty())
         });
         assert_eq!(rows(cx).and_then(|rows| rows.first().cloned()), Some(vec![cell("1"), cell("zed")]));
+        assert!(!context_is_on(cx, "dbTableEditorChanges"), "nothing waits once submitted");
 
         editor.update(cx, |editor, cx| editor.edit(&[CellEdit { row: 1, col: 1, value: cell("yan") }], cx));
         cx.run_until_parked();
@@ -10731,6 +11137,10 @@ for line in sys.stdin:
         assert!(!editor.read_with(cx, |editor, _| editor.is_dirty()));
         assert_eq!(editor.read_with(cx, |editor, _| editor.state().value(1, 1)), cell("bob"));
         assert_eq!(db_query(cx, "select name from users where id = 2"), Ok(vec![vec![cell("bob")]]));
+        // The Database tree takes the keyboard: the table editor's keys go off.
+        cx.update(|window, cx| window.focus(&tree.focus_handle(cx), cx));
+        cx.run_until_parked();
+        assert!(!context_is_on(cx, "dbTableEditorFocus") && context_is_on(cx, "databaseViewFocus"));
     }
 
     /// Execute SQL Statement in a `.sql` editor runs the statement at the caret on the project's

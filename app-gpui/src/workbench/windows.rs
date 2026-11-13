@@ -6,8 +6,7 @@
 use super::{Workbench, Workbenches, for_window, window_options};
 use crate::platform::actions::ActionRegistry;
 use crate::platform::i18n::Localization;
-use crate::platform::settings;
-use gpui_kit::{AnyWindowHandle, App, AppContext as _, PathPromptOptions, PromptLevel, Window};
+use gpui_kit::{AnyWindowHandle, App, AppContext as _, PathPromptOptions, Window};
 use std::path::{Path, PathBuf};
 
 pub const MAIN: &str = "main";
@@ -133,71 +132,17 @@ pub fn open_project(path: &Path, new_window: bool, window: &mut Window, cx: &mut
 }
 
 /// Opens the project at `path` where "Open project in" says: a window that shows nothing takes
-/// it; one with a project asks, or follows the stored answer.
+/// it; one with a project asks (with "Don't ask again"), or follows the stored answer. Opening it
+/// in this window first settles leaving the project it shows.
 pub fn open_project_with_policy(path: &Path, window: &mut Window, cx: &mut App) -> anyhow::Result<()> {
-    let Some(workbench) = for_window(window, cx) else { return open_project(path, true, window, cx) };
-    if workbench.read(cx).is_empty() || project_window(&canonical(path), cx).is_some() {
-        return open_project(path, false, window, cx);
-    }
-    let replace = |path: PathBuf, window: &mut Window, cx: &mut App| {
-        if let Some(workbench) = for_window(window, cx) {
-            workbench.update(cx, |workbench, cx| workbench.open_project(path, window, cx));
-        }
-    };
-    match settings::global(cx).general.open_project_in.as_str() {
-        "new" => open_project(path, true, window, cx),
-        "same" => {
-            replace(path.to_path_buf(), window, cx);
-            Ok(())
-        }
-        _ => {
-            let i18n = &cx.default_global::<Localization>().0;
-            let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
-            let (title, body) =
-                (i18n.t("app.window.askTitle", &[]), i18n.t("app.window.askBody", &[("name", name.into())]));
-            let answers =
-                [i18n.t("app.window.askThis", &[]), i18n.t("app.window.askNew", &[]), i18n.t("common.cancel", &[])];
-            let answers: Vec<&str> = answers.iter().map(String::as_str).collect();
-            let answer = window.prompt(PromptLevel::Info, &title, Some(&body), &answers, cx);
-            let path = path.to_path_buf();
-            window
-                .spawn(cx, async move |cx| {
-                    let answer = answer.await.ok();
-                    let _ = cx.update(|window, cx| match answer {
-                        Some(0) => replace(path, window, cx),
-                        Some(1) => {
-                            if let Err(error) = open_project(&path, true, window, cx) {
-                                tracing::error!("cannot open a window: {error:#}");
-                            }
-                        }
-                        _ => {}
-                    });
-                })
-                .detach();
-            Ok(())
-        }
-    }
+    super::app_shell::open_project_with_policy(path, Vec::new(), window, cx)
 }
 
-/// Opens loose `files` in `window`: as tabs of its project, or the last one for editing on its
-/// own when the window shows nothing; a window editing a loose file opens them in a new window.
+/// Opens loose `files` in `window`: as tabs of its project; otherwise each file of a project open
+/// in another window goes there, and every other file is edited on its own, the first in this
+/// window when it shows nothing.
 pub fn open_files(files: Vec<PathBuf>, window: &mut Window, cx: &mut App) -> anyhow::Result<()> {
-    let Some(workbench) = for_window(window, cx) else { return Ok(()) };
-    if workbench.read(cx).project_root(cx).is_some() {
-        workbench.update(cx, |workbench, cx| {
-            for file in files {
-                workbench.open_project_file(file, window, cx);
-            }
-        });
-        return Ok(());
-    }
-    let Some(file) = files.into_iter().next_back() else { return Ok(()) };
-    if workbench.read(cx).is_empty() {
-        workbench.update(cx, |workbench, cx| workbench.open_file(file, window, cx));
-    } else {
-        open_window(Target::File(file), cx)?;
-    }
-    Ok(())
+    super::app_shell::open_files(files, window, cx)
 }
 
 /// Asks for a folder (or files) and hands what was picked to `then` in the asking window.
@@ -242,9 +187,19 @@ pub fn register_actions(cx: &mut App) {
         });
         Ok(())
     });
-    registry.handle("file.openProjectPath", |call, window, cx| match path_argument(call.arg) {
-        Some(path) => open_project_with_policy(&path, window, cx),
-        None => Ok(()),
+    registry.handle("file.openProjectPath", |call, window, cx| match call.arg {
+        // An explicit choice of window: `newWindow` as asked, whatever "Open project in" says.
+        Some(serde_json::Value::Object(request)) => match request.get("path").and_then(serde_json::Value::as_str) {
+            Some(path) => {
+                let new_window = request.get("newWindow").and_then(serde_json::Value::as_bool).unwrap_or(false);
+                super::app_shell::open_project_explicit(Path::new(path), new_window, window, cx)
+            }
+            None => Ok(()),
+        },
+        arg => match path_argument(arg) {
+            Some(path) => open_project_with_policy(&path, window, cx),
+            None => Ok(()),
+        },
     });
     registry.handle("file.openRecentProject", |call, window, cx| match path_argument(call.arg) {
         Some(path) => open_project_with_policy(&path, window, cx),
@@ -267,9 +222,7 @@ pub fn register_actions(cx: &mut App) {
         Ok(())
     });
     registry.handle("file.closeProject", |_, window, cx| {
-        if let Some(workbench) = for_window(window, cx) {
-            workbench.update(cx, |workbench, cx| workbench.close_project(window, cx));
-        }
+        super::app_shell::request_close_project(window, cx);
         Ok(())
     });
     for (id, forward) in [("window.next", true), ("window.previous", false)] {

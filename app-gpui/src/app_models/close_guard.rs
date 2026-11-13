@@ -428,6 +428,11 @@ impl CloseRequests {
         }))
     }
 
+    /// A close is being decided.
+    pub fn deciding(&self) -> bool {
+        self.closing
+    }
+
     /// The request was settled (or failed): the next one is handled.
     pub fn finished(&mut self) {
         self.closing = false;

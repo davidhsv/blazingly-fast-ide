@@ -26,7 +26,7 @@ use crate::backend::Backend;
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::settings;
 use crate::run::store::RunStore;
-use crate::vcs::prompt_dialogs::{CANCEL, DialogAnswer, DialogButton, PromptDialog, PromptDialogEvent};
+use crate::vcs::prompt_dialogs::{CANCEL, DialogAnswer, DialogButton, Message, PromptDialog, PromptDialogEvent};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use futures::channel::oneshot;
 use futures::future::{Either, select};
@@ -132,7 +132,7 @@ impl Workbench {
         let settings = settings::effective(&self.label, cx);
         WindowCloseState {
             has_project: self.project_tree().is_some(),
-            light_edit: matches!(self.content, Content::Editor(_)),
+            light_edit: self.is_light_edit(),
             settings_confirm_exit: confirm_exit_enabled(Some(&settings)),
             confirm_terminate: settings.run.confirm_terminate,
             processes: self.running_process_names(cx),
@@ -171,17 +171,23 @@ impl Workbench {
         WindowState {
             project: self.project_root(cx).map(|root| root.to_string_lossy().into_owned()),
             workspace,
-            light_edit: matches!(self.content, Content::Editor(_)),
+            light_edit: self.is_light_edit(),
             remote: false,
             opening: matches!(self.content, Content::Opening(_)),
             open_project_in: settings.general.open_project_in,
         }
     }
 
+    /// Whether the window shows a loose file on its own (LightEdit): in an editor or a viewer.
+    fn is_light_edit(&self) -> bool {
+        matches!(self.content, Content::Editor(_) | Content::Viewer(_))
+    }
+
     /// The file the window edits on its own (LightEdit), or is opening to edit.
     fn light_edit_file(&self, cx: &App) -> Option<PathBuf> {
         match &self.content {
             Content::Editor(editor) => Some(editor.read(cx).path().to_path_buf()),
+            Content::Viewer(view) => view.input.path.as_ref().map(PathBuf::from),
             Content::Opening(path) => Some(path.clone()),
             _ => None,
         }
@@ -193,7 +199,7 @@ impl Workbench {
             Content::Opening(_) => None,
             Content::Project { .. } => Some(Ok(())),
             Content::Failed(message) => Some(Err(IdeError::new(ErrorKind::Io, message.to_string()))),
-            Content::Empty | Content::Editor(_) => {
+            Content::Empty | Content::Editor(_) | Content::Viewer(_) => {
                 Some(Err(IdeError::new(ErrorKind::Cancelled, "Project opening cancelled")))
             }
         }
@@ -214,11 +220,15 @@ impl Workbench {
     /// Leaves what the window shows for the Welcome screen: its project, or the file it edits on its
     /// own.
     fn close_to_welcome(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // The close was decided: what is unsaved was saved or let go, so leaving saves nothing.
+        self.leave_decided = true;
         if self.project_tree().is_some() {
             self.close_project(window, cx);
+            self.leave_decided = false;
             return;
         }
-        if !matches!(self.content, Content::Editor(_)) {
+        if !self.is_light_edit() {
+            self.leave_decided = false;
             return;
         }
         self.leave(cx);
@@ -262,7 +272,8 @@ impl Workbench {
             buttons.push(DialogButton { id: CANCEL.to_owned(), label, primary: false, danger: false });
         }
         let Prompt { title, body, checkbox, warning, .. } = prompt;
-        let dialog = cx.new(|cx| PromptDialog::message(title, body, warning, checkbox, buttons, window, cx));
+        let message = Message { title, body, warning, checkbox, buttons };
+        let dialog = cx.new(|cx| PromptDialog::message(message, window, cx));
         let mut sender = Some(sender);
         let events = cx.subscribe_in(&dialog, window, move |workbench, _, event: &PromptDialogEvent, window, cx| {
             let PromptDialogEvent::Closed(closed) = event;
@@ -353,14 +364,6 @@ enum Settled {
     Later(Task<bool>),
 }
 
-/// Where a decision that has to wait goes on from.
-enum Started {
-    /// The decision, at the step that waits.
-    At(CloseDecision, CloseStep),
-    /// Autosave saves what is unsaved first; the decision starts with what is still unsaved then.
-    AfterSaving(CloseInput),
-}
-
 /// The window is asked to close (its close button, Close Window, Quit): the close is decided as the
 /// models say. `true`: it closes now. Otherwise it stays, and closes by itself once the decision
 /// says so; the last window with a project returns to the Welcome screen instead.
@@ -386,7 +389,6 @@ pub(super) fn window_should_close(workbench: &WeakEntity<Workbench>, window: &mu
 fn request_close(workbench: &Entity<Workbench>, window: &mut Window, cx: &mut App) -> Settled {
     let context = CloseContext { quitting: quitting(cx), windows: window_count(cx) };
     let state = workbench.read(cx).close_state(cx);
-    let autosave = state.dirty > 0 && workbench.read(cx).auto_save(cx);
     let route = workbench.update(cx, |workbench, _| workbench.close_requests.request(context, true, state.clone()));
     match route {
         None => Settled::Now(false),
@@ -396,7 +398,7 @@ fn request_close(workbench: &Entity<Workbench>, window: &mut Window, cx: &mut Ap
         }
         Some(CloseRoute::ToWelcome) => {
             let input = leave_input(state.confirm_terminate, state.processes, state.dirty, state.project);
-            let settled = decide_close(workbench, input, autosave, window, cx);
+            let settled = decide_close(workbench, input, window, cx);
             after(workbench, settled, window, cx, |workbench, close, window, cx| {
                 if close {
                     workbench.close_to_welcome(window, cx);
@@ -404,7 +406,7 @@ fn request_close(workbench: &Entity<Workbench>, window: &mut Window, cx: &mut Ap
             });
             Settled::Now(false)
         }
-        Some(CloseRoute::Decide(input)) => decide_close(workbench, input, autosave, window, cx),
+        Some(CloseRoute::Decide(input)) => decide_close(workbench, input, window, cx),
     }
 }
 
@@ -413,12 +415,11 @@ fn request_close(workbench: &Entity<Workbench>, window: &mut Window, cx: &mut Ap
 /// close of the window is decided.
 fn request_leave(workbench: &Entity<Workbench>, window: &mut Window, cx: &mut App) -> Settled {
     let state = workbench.read(cx).close_state(cx);
-    let autosave = state.dirty > 0 && workbench.read(cx).auto_save(cx);
     // Two windows: leaving a project never asks to confirm the exit.
     let context = CloseContext { quitting: false, windows: 2 };
     let route = workbench.update(cx, |workbench, _| workbench.close_requests.request(context, true, state));
     match route {
-        Some(CloseRoute::Decide(input)) => decide_close(workbench, input, autosave, window, cx),
+        Some(CloseRoute::Decide(input)) => decide_close(workbench, input, window, cx),
         Some(_) => {
             workbench.update(cx, |workbench, _| workbench.close_requests.finished());
             Settled::Now(false)
@@ -432,7 +433,7 @@ pub(super) fn request_close_project(window: &mut Window, cx: &mut App) {
     let Some(workbench) = for_window(window, cx) else { return };
     let shows = {
         let workbench = workbench.read(cx);
-        workbench.project_tree().is_some() || matches!(workbench.content, Content::Editor(_))
+        workbench.project_tree().is_some() || workbench.is_light_edit()
     };
     if !shows {
         return;
@@ -468,19 +469,10 @@ fn after(
 }
 
 /// Decides `input` for the workbench's window, settling at once when nothing is asked or waited
-/// for. `autosave`: Files › Autosave is on and documents are unsaved, so they are saved first and
-/// only those that could not be are asked about. The window's close request is finished either way.
-fn decide_close(
-    workbench: &Entity<Workbench>,
-    input: CloseInput,
-    autosave: bool,
-    window: &mut Window,
-    cx: &mut App,
-) -> Settled {
+/// for. Unsaved documents are asked about whatever Files › Autosave says. The window's close request
+/// is finished either way.
+fn decide_close(workbench: &Entity<Workbench>, input: CloseInput, window: &mut Window, cx: &mut App) -> Settled {
     let this = workbench.downgrade();
-    if autosave {
-        return Settled::Later(window.spawn(cx, async move |cx| settle(this, cx, Started::AfterSaving(input)).await));
-    }
     let (mut decision, mut step) = CloseDecision::start(input, i18n(cx));
     loop {
         step = match step {
@@ -496,36 +488,20 @@ fn decide_close(
                 return Settled::Now(close);
             }
             waiting => {
-                let started = Started::At(decision, waiting);
-                return Settled::Later(window.spawn(cx, async move |cx| settle(this, cx, started).await));
+                return Settled::Later(window.spawn(cx, async move |cx| settle(this, cx, decision, waiting).await));
             }
         };
     }
 }
 
 /// Carries a decision through to the end, then finishes the window's close request.
-async fn settle(this: This, cx: &mut AsyncWindowContext, started: Started) -> bool {
-    let decided = decide_from(&this, cx, started).await;
+async fn settle(this: This, cx: &mut AsyncWindowContext, decision: CloseDecision, step: CloseStep) -> bool {
+    let decided = decide(&this, cx, decision, step).await;
     let _ = this.update(cx, |workbench, _| workbench.close_requests.finished());
     decided.unwrap_or_else(|error| {
         tracing::warn!("the close of a window was not decided: {error:#}");
         false
     })
-}
-
-async fn decide_from(this: &This, cx: &mut AsyncWindowContext, started: Started) -> anyhow::Result<bool> {
-    let (decision, step) = match started {
-        Started::At(decision, step) => (decision, step),
-        Started::AfterSaving(mut input) => {
-            let saving = this.update(cx, |workbench, cx| workbench.save_all(cx))?;
-            if let Err(failure) = saving.await {
-                this.update(cx, |workbench, cx| workbench.report_save_failure(failure, cx))?;
-            }
-            input.dirty = this.read_with(cx, |workbench, cx| workbench.unsaved_count(cx))?;
-            cx.update(|_, cx| CloseDecision::start(input, i18n(cx)))?
-        }
-    };
-    decide(this, cx, decision, step).await
 }
 
 /// Carries out the steps of `decision` from `step` on; whether the window may close.
@@ -766,7 +742,13 @@ async fn carry_out_open(
                 cx.update(|_, cx| flow.project_opened(Err(error), i18n(cx)))?
             }
             OpenStep::OpenProject { path } => {
-                this.update_in(cx, |workbench, window, cx| workbench.open_project(PathBuf::from(path), window, cx))?;
+                this.update_in(cx, |workbench, window, cx| {
+                    // Leaving what the window showed was decided first: it saves nothing more.
+                    workbench.leave_decided = true;
+                    workbench.open_project(PathBuf::from(path), window, cx);
+                    // An open that did not reach `leave` must not spare a later one its autosave.
+                    workbench.leave_decided = false;
+                })?;
                 let opened = project_opened(this, cx).await?;
                 cx.update(|_, cx| flow.project_opened(opened, i18n(cx)))?
             }

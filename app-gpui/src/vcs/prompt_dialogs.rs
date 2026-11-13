@@ -233,6 +233,16 @@ fn tx(cx: &mut App, text: &str) -> String {
 }
 
 /// The dialog a constructor describes.
+/// A message box's texts, in the UI language, for [`PromptDialog::message`].
+pub struct Message {
+    pub title: String,
+    pub body: String,
+    pub warning: bool,
+    /// The "Don't ask again" checkbox, unchecked.
+    pub checkbox: Option<String>,
+    pub buttons: Vec<DialogButton>,
+}
+
 struct Spec {
     title: String,
     message: Option<String>,
@@ -325,6 +335,21 @@ impl PromptDialog {
             width: request.width.map_or(WIDTH, |width| width as f32),
             field: None,
             checkbox: request.checkbox.map(|label| (label, false)),
+        };
+        Self::build(spec, window, cx)
+    }
+
+    /// A message box whose title, message, checkbox and buttons are in the UI language already
+    /// (the application shell's close and open questions); Escape answers [`CANCEL`].
+    pub fn message(message: Message, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let spec = Spec {
+            title: message.title,
+            message: Some(message.body),
+            warning: message.warning,
+            width: WIDTH,
+            field: None,
+            checkbox: message.checkbox.map(|label| (label, false)),
+            buttons: message.buttons,
         };
         Self::build(spec, window, cx)
     }
