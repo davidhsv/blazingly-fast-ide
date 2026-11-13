@@ -633,3 +633,11 @@ Completion, go to declaration / implementation / type declaration (by action and
 - In Light mode, which is the default, no server starts, so typing shows no lookup: the component offers word completion there and this app does not yet. Go to Declaration without a server finds only names local to the file.
 - Not wired: Tab through a snippet's fields (no template session in the editor), live templates and contributed rows in the lookup, Tab between arguments in parameter info, the bulb and the IDE's own intentions, the quick-fix and links inside the hover, the ⌘-hover declaration preview, next/previous error.
 - The settings and code-insight wiring were drafted by writers without the build (the advisor's suggestion to shorten the build lane); they are committed undeclared and wait for integration.
+
+## D77. The first launch of the real binary since the wiring slices
+
+Every slice since the Run tool window was proven in the test harness only. On 2026-11-13 the debug binary was built and started on a temporary git project with its directories redirected (`OPENIDEA_GPUI_HOME=<temp> target/debug/openidea-gpui <project>`), left for 25 seconds and stopped by its process id.
+
+- Measured: the process stayed alive; the backend logged the project as opened and indexed its two files; standard error was empty and standard output held no panic and no error, only two warnings from GPUI's text system about duplicate system fonts. At 25 seconds the debug build used 121 MB of resident memory and 0.1 % CPU.
+- Not done: nobody looked at the window (a screenshot would have captured the owner's screen), no key was pressed and no action was run in it. So this proves start-up, opening a project and idling without a crash, and nothing about what is drawn or about the macOS menu's key path.
+- The run uses its own application identifier and directories, so it does not touch the installed app's data or its single-instance state.
