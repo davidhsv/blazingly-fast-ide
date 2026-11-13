@@ -1555,7 +1555,7 @@ impl Workbench {
     // The dialogs
 
     /// Shows a dialog of an operation in place of any other; the receiver gets its answer.
-    fn show_prompt_dialog(
+    pub(super) fn show_prompt_dialog(
         &mut self,
         build: impl FnOnce(&mut Window, &mut Context<PromptDialog>) -> PromptDialog,
         window: &mut Window,

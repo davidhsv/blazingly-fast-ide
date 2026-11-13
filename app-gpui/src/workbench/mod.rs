@@ -1,7 +1,11 @@
 //! The window shell. For now: a frame around one editor (LightEdit), which is the part of the
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
+mod bookmarks_window;
+use bookmarks_window::BOOKMARKS_TOOL_WINDOW;
 mod branches;
+mod build_window;
+use crate::build_window::model::BUILD_TOOL_WINDOW;
 mod diff_window;
 mod editor_find;
 pub mod main_toolbar;
@@ -14,6 +18,10 @@ pub mod project_color;
 pub mod quick_switch;
 mod run_configs;
 mod services_window;
+mod structure_window;
+use structure_window::STRUCTURE_TOOL_WINDOW;
+mod todo_window;
+use todo_window::TODO_TOOL_WINDOW;
 pub mod status_bar_widgets;
 pub mod tasks;
 pub mod tool_windows;
@@ -253,6 +261,12 @@ pub struct Workbench {
     vcs: Option<branches::VcsSlot>,
     /// The dialog a Git operation waits on.
     vcs_dialog: Option<branches::VcsDialog>,
+    /// The editor the Structure tool window follows.
+    structure: Option<structure_window::StructureFeed>,
+    /// What the TODO tool window is fed from.
+    todo: Option<todo_window::TodoFeed>,
+    /// The project's build.
+    build: Option<build_window::BuildSlot>,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -329,7 +343,7 @@ pub const RUN_TOOL_WINDOW: &str = "run";
 pub use crate::services::model::SERVICES_TOOL_WINDOW;
 
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 8] = [
+const TOOL_WINDOWS: [&str; 12] = [
     PROJECT_TOOL_WINDOW,
     COMMIT_TOOL_WINDOW,
     TERMINAL_TOOL_WINDOW,
@@ -338,6 +352,10 @@ const TOOL_WINDOWS: [&str; 8] = [
     NOTIFICATIONS_TOOL_WINDOW,
     RUN_TOOL_WINDOW,
     SERVICES_TOOL_WINDOW,
+    BOOKMARKS_TOOL_WINDOW,
+    STRUCTURE_TOOL_WINDOW,
+    TODO_TOOL_WINDOW,
+    BUILD_TOOL_WINDOW,
 ];
 
 /// What the webview UI declares for tool window `id` (title, icon, side, order…), from the
@@ -389,6 +407,9 @@ pub fn register_actions(cx: &mut App) {
     diff_window::register_actions(registry);
     run_configs::register_actions(registry);
     branches::register_actions(registry);
+    bookmarks_window::register_actions(registry);
+    todo_window::register_actions(registry);
+    build_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
     let flags: [(&str, &str, Flag); 4] = [
@@ -876,6 +897,9 @@ impl Workbench {
             edit_configs: None,
             vcs: None,
             vcs_dialog: None,
+            structure: None,
+            todo: None,
+            build: None,
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
@@ -1300,7 +1324,11 @@ impl Workbench {
                     window.focus(&handle, cx);
                 }
             }
-            None => self.editor_observer = None,
+            None => {
+                self.editor_observer = None;
+                self.sync_structure_window(cx);
+                self.sync_todo_window(cx);
+            }
         }
         cx.notify();
     }
@@ -1725,6 +1753,8 @@ impl Workbench {
 
     fn observe_editor(&mut self, editor: &Entity<Editor>, cx: &mut Context<Self>) {
         self.editor_observer = Some(cx.observe(editor, |_, _, cx| cx.notify()));
+        self.sync_structure_window(cx);
+        self.sync_todo_window(cx);
     }
 
     /// The tool window layout, when a project is open.
@@ -1835,6 +1865,13 @@ impl Workbench {
                     let events = cx.subscribe_in(&view, window, Self::run_view_event);
                     Panel::new(view, Some(events))
                 }
+                BOOKMARKS_TOOL_WINDOW => self.mount_bookmarks(window, cx),
+                STRUCTURE_TOOL_WINDOW => self.mount_structure(window, cx),
+                TODO_TOOL_WINDOW => self.mount_todo(window, cx),
+                BUILD_TOOL_WINDOW => match self.mount_build(window, cx) {
+                    Some(panel) => panel,
+                    None => continue,
+                },
                 SERVICES_TOOL_WINDOW => match self.mount_services(window, cx) {
                     Some(panel) => panel,
                     None => continue,
@@ -1865,6 +1902,8 @@ impl Workbench {
             terminals.update(cx, |terminals, cx| terminals.open_tab(cx));
         }
         self.sync_services_window(cx);
+        self.sync_structure_window(cx);
+        self.sync_todo_window(cx);
     }
 
     /// The view of tool window `id`, once it has been shown.
@@ -2151,6 +2190,7 @@ impl Workbench {
         let writes =
             self.bookmarks.update(|items| toggle_bookmark(items, &path, line, &text, now, description.as_deref()));
         Self::save_bookmark_writes(writes, cx);
+        self.sync_bookmarks_window(cx);
         cx.notify();
     }
 
@@ -2160,6 +2200,7 @@ impl Workbench {
         let now = now_ms() as u64;
         let writes = self.bookmarks.update(|items| toggle_mnemonic(items, &path, line, &text, digit, now));
         Self::save_bookmark_writes(writes, cx);
+        self.sync_bookmarks_window(cx);
         cx.notify();
     }
 
@@ -2177,6 +2218,7 @@ impl Workbench {
         let borrowed: Vec<(&str, bool)> = targets.iter().map(|(path, dir)| (path.as_str(), *dir)).collect();
         let writes = self.bookmarks.update_data(|data| toggle_path_bookmarks(data, &borrowed, now));
         Self::save_bookmark_writes(writes, cx);
+        self.sync_bookmarks_window(cx);
         cx.notify();
     }
 
@@ -2230,6 +2272,7 @@ impl Workbench {
                 BookmarksPopupEvent::Changed(writes) => {
                     workbench.bookmarks = popup.read(cx).store().clone();
                     Self::save_bookmark_writes(writes, cx);
+                    workbench.sync_bookmarks_window(cx);
                 }
             }
         });
@@ -2247,6 +2290,7 @@ impl Workbench {
                 if let MnemonicChooserEvent::Done(writes) = event.clone() {
                     workbench.bookmarks = chooser.read(cx).store().clone();
                     Self::save_bookmark_writes(writes, cx);
+                    workbench.sync_bookmarks_window(cx);
                 }
                 workbench.close_popup(window, cx);
             });
@@ -2441,6 +2485,7 @@ impl Workbench {
         }
         self.leave(cx);
         self.reset_runs(cx);
+        self.reset_build(window, cx);
         self.drop_vcs();
         // The project's servers and runs stop in the background: this is the UI thread.
         cx.global::<Backend>().host.close_project_detached(&self.label);
@@ -2549,6 +2594,7 @@ impl Workbench {
     pub fn open_project(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
         self.leave(cx);
         self.reset_runs(cx);
+        self.reset_build(window, cx);
         self.drop_vcs();
         self.content = Content::Opening(root.clone());
         self.light_find_bar = None;
@@ -2711,6 +2757,7 @@ impl Workbench {
         let Some(popup) = self.popup.take() else { return };
         self.run_popup_closed(&popup.view, cx);
         self.vcs_popup_closed(&popup.view, cx);
+        self.structure_popup_closed(&popup.view, cx);
         if let Some(target) = popup.restore.or_else(|| self.editor().map(|editor| editor.focus_handle(cx))) {
             window.focus(&target, cx);
         }
@@ -4806,7 +4853,8 @@ mod tests {
 
     /// The selection moves by rows (round the ends, unless Shift is held), by groups of results
     /// and by pages; Show more adds rows and leaves the selection where it was; a click on a row
-    /// opens it and a click beside the popup closes it.
+    /// opens it and a click beside the popup closes it. The files are named so that no action's
+    /// title matches the query: only files and lines are listed.
     #[gpui_kit::test]
     async fn search_everywhere_moves_its_selection_shows_more_and_answers_the_mouse(cx: &mut TestAppContext) {
         use crate::platform::actions::execute_action_or_throw;
@@ -4814,26 +4862,26 @@ mod tests {
         let _home = start(cx);
         let (_folder, root, workbench, cx) = search_project(cx);
         for n in 0..10 {
-            std::fs::write(root.join(format!("item{n}.txt")), "item text\n").expect("the file is written");
+            std::fs::write(root.join(format!("zebra{n}.txt")), "zebra text\n").expect("the file is written");
         }
         settle(cx, |cx| {
             let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
-            ide_host::ops::nav::find_files(&host, "w1", "item".to_owned(), 50).is_ok_and(|found| found.len() == 10)
+            ide_host::ops::nav::find_files(&host, "w1", "zebra".to_owned(), 50).is_ok_and(|found| found.len() == 10)
         });
         cx.update(|window, cx| execute_action_or_throw("navigate.searchEverywhere", None, window, cx))
             .expect("it runs");
         let everywhere = popup(&workbench, cx);
-        type_query(cx, "item");
+        type_query(cx, "zebra");
         // Six files, six matching lines, and a "more" row for each.
         settle(cx, |cx| everywhere.read_with(cx, |popup, _| !popup.is_loading() && popup.lines().len() == 14));
         let selected = |cx: &mut VisualTestContext| everywhere.read_with(cx, |popup, _| popup.selected());
         let line = |cx: &mut VisualTestContext, index: usize| {
             everywhere.read_with(cx, |popup, _| popup.lines()[index].clone())
         };
-        assert_eq!(selected(cx).as_deref(), Some("item0.txt"));
+        assert_eq!(selected(cx).as_deref(), Some("zebra0.txt"));
 
         cx.simulate_keystrokes("down");
-        assert_eq!(selected(cx).as_deref(), Some("item1.txt"));
+        assert_eq!(selected(cx).as_deref(), Some("zebra1.txt"));
         cx.simulate_keystrokes("up up");
         assert_eq!(
             (selected(cx), line(cx, 13)),
@@ -4841,17 +4889,17 @@ mod tests {
             "Up at the top goes to the end"
         );
         cx.simulate_keystrokes("down");
-        assert_eq!(selected(cx).as_deref(), Some("item0.txt"), "Down at the end goes to the top");
+        assert_eq!(selected(cx).as_deref(), Some("zebra0.txt"), "Down at the end goes to the top");
         cx.simulate_keystrokes("shift-up");
-        assert_eq!(selected(cx).as_deref(), Some("item0.txt"), "with Shift the selection stops at the top");
+        assert_eq!(selected(cx).as_deref(), Some("zebra0.txt"), "with Shift the selection stops at the top");
 
         // The primary modifier with an arrow, and Page Down, go to the next group of results;
         // where there is none, Page Down moves by a page.
         cx.simulate_keystrokes("cmd-down");
         assert_eq!(selected(cx), Some(line(cx, 6)));
-        assert!(line(cx, 6).ends_with(":1 item text"));
+        assert!(line(cx, 6).ends_with(":1 zebra text"));
         cx.simulate_keystrokes("cmd-up");
-        assert_eq!(selected(cx).as_deref(), Some("item0.txt"));
+        assert_eq!(selected(cx).as_deref(), Some("zebra0.txt"));
         cx.simulate_keystrokes("pagedown");
         assert_eq!(selected(cx), Some(line(cx, 6)));
         cx.simulate_keystrokes("up up pagedown");
@@ -4865,7 +4913,7 @@ mod tests {
         settle(cx, |cx| everywhere.read_with(cx, |popup, _| !popup.is_loading() && popup.lines().len() == 17));
         assert_eq!(
             everywhere.read_with(cx, |popup, _| popup.lines()[..10].to_vec()),
-            (0..10).map(|n| format!("item{n}.txt")).collect::<Vec<_>>()
+            (0..10).map(|n| format!("zebra{n}.txt")).collect::<Vec<_>>()
         );
         assert_eq!(selected(cx), Some(line(cx, 12)));
 
@@ -4873,14 +4921,14 @@ mod tests {
         let row = cx.debug_bounds("search-everywhere-row-3").expect("the fourth row is drawn");
         cx.simulate_click(row.center(), Modifiers::default());
         settle(cx, |cx| {
-            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == root.join("item3.txt")))
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == root.join("zebra3.txt")))
         });
         assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()));
 
         // A click beside the popup closes it; one inside it does not.
         cx.update(|window, cx| execute_action_or_throw("navigate.gotoFile", None, window, cx)).expect("it runs");
         let everywhere = popup(&workbench, cx);
-        type_query(cx, "item");
+        type_query(cx, "zebra");
         settle(cx, |cx| everywhere.read_with(cx, |popup, _| popup.lines().len() == 10));
         let row = cx.debug_bounds("search-everywhere-row-0").expect("the first row is drawn");
         cx.simulate_click(point(row.left() + px(4.0), row.top() - px(40.0)), Modifiers::default());
@@ -5251,6 +5299,296 @@ mod tests {
         settle(cx, |cx| editor.read_with(cx, |editor, _| editor.caret_position() == (5, 0)));
         assert!(workbench.read_with(cx, |w, _| w.file_structure().is_none()));
         assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)));
+    }
+
+    /// The Structure tool window lists the symbols of the file being edited, selects the one the
+    /// caret moves into, puts the caret on the one Enter is pressed on, and lists a symbol typed into
+    /// the file once the edits settle.
+    #[gpui_kit::test]
+    async fn the_structure_window_follows_the_editor_and_goes_to_the_chosen_symbol(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        std::fs::write(root.join("Makefile"), "CC = gcc\n\nbuild: main.o\n\t$(CC) -o app main.o\n\nall: build\n")
+            .expect("the file is written");
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("Makefile"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        let caret_at = |cx: &mut VisualTestContext, line: u32, col: u32| {
+            editor.update(cx, |editor, cx| {
+                let at = editor.offset_of(line, col);
+                editor.select(at, at, cx);
+            });
+            cx.run_until_parked();
+        };
+        caret_at(cx, 3, 2);
+
+        run_action(cx, "toolwindow.structure", None);
+        let view = workbench.read_with(cx, |w, _| w.structure_window_view()).expect("the Structure window is shown");
+        let lines = |cx: &mut VisualTestContext| view.read_with(cx, |view, _| view.lines());
+        settle(cx, |cx| !lines(cx).is_empty());
+        assert_eq!(lines(cx), ["Makefile", "  CC", "  build", "  all"]);
+
+        // With Autoscroll from Source the symbol around the caret is selected, and follows it.
+        click_on(cx, "structure-autoscroll-from-source");
+        assert_eq!(view.read_with(cx, |view, _| view.selected()).as_deref(), Some("build"));
+        caret_at(cx, 5, 1);
+        assert_eq!(view.read_with(cx, |view, _| view.selected()).as_deref(), Some("all"));
+
+        // Enter on another symbol puts the caret on it and gives the editor the keyboard.
+        click_on(cx, "structure-autoscroll-to-source");
+        click_on(cx, "structure-row-1");
+        assert_eq!(editor.read_with(cx, |editor, _| editor.caret_position()), (5, 1), "a click only selects");
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| editor.read_with(cx, |editor, _| editor.caret_position() == (0, 0)));
+        assert!(cx.update(|window, cx| editor.focus_handle(cx).is_focused(window)));
+
+        // A rule typed at the end is listed once the edits settle.
+        editor.update(cx, |editor, cx| {
+            let end = editor.text().len() as u32;
+            editor.insert(Some(end..end), "test: all\n", cx);
+        });
+        cx.run_until_parked();
+        assert_eq!(lines(cx).len(), 4, "the symbols are read again only after the delay");
+        settle(cx, |cx| {
+            cx.executor().advance_clock(structure_window::RELOAD_DELAY);
+            lines(cx).len() == 5
+        });
+        assert_eq!(lines(cx).last().map(String::as_str), Some("  test"));
+    }
+
+    /// The TODO tool window lists the project's TODO comments by file with their counts, Enter opens
+    /// the file at the comment, a TODO typed into an open editor shows once its text is scanned, and
+    /// Show TODO Items in Current File narrows the list to the editor's file.
+    #[gpui_kit::test]
+    async fn the_todo_window_lists_the_projects_todo_comments_and_follows_what_is_typed(cx: &mut TestAppContext) {
+        use crate::features_a::todo_view::TodoView;
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::create_dir(root.join("src")).expect("a folder");
+        let (a, b) = (root.join("src/a.rs"), root.join("src/b.rs"));
+        std::fs::write(&a, "// TODO first\nfn a() {}\n// FIXME second\n").expect("the file is written");
+        std::fs::write(&b, "fn b() {} // TODO third\n").expect("the file is written");
+        std::fs::write(root.join("notes.txt"), "no comments here\n").expect("the file is written");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+
+        run_action(cx, "toolwindow.todo", None);
+        let view: Entity<TodoView> =
+            workbench.read_with(cx, |w, _| w.todo_window_view()).expect("the TODO tool window is shown");
+        let lines = |cx: &mut VisualTestContext| view.update(cx, |view, cx| view.lines(cx));
+        settle(cx, |cx| !lines(cx).is_empty());
+        assert_eq!(
+            lines(cx),
+            [
+                "a.rs  src  2 items",
+                "  (1, 4) TODO first",
+                "  (3, 4) FIXME second",
+                "b.rs  src  1 item",
+                "  (1, 14) TODO third",
+            ]
+        );
+
+        // Enter on an item opens its file with the caret on the comment.
+        click_on(cx, "todo-row-2");
+        // The preview pane shows the item's file, read-only, with the caret on the comment.
+        settle(cx, |cx| view.read_with(cx, |view, _| view.preview().is_some()));
+        let preview = view
+            .read_with(cx, |view, _| view.preview().cloned())
+            .and_then(|preview| preview.downcast::<Editor>().ok())
+            .expect("the preview is an editor");
+        preview.read_with(cx, |editor, _| {
+            assert!(editor.status().read_only);
+            assert_eq!(editor.caret_position(), (2, 3));
+            assert_eq!(editor.text(), "// TODO first\nfn a() {}\n// FIXME second\n");
+        });
+        cx.simulate_keystrokes("enter");
+        let at = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().map(|e| (e.read(cx).path().to_path_buf(), e.read(cx).caret_position()))
+            })
+        };
+        settle(cx, |cx| at(cx) == Some((a.clone(), (2, 3))));
+
+        // A TODO typed into the editor is listed once the editor's text is scanned.
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        editor.update(cx, |editor, cx| {
+            let end = editor.text().len() as u32;
+            editor.insert(Some(end..end), "// TODO fourth\n", cx);
+        });
+        cx.run_until_parked();
+        assert_eq!(lines(cx)[0], "a.rs  src  2 items", "the text is scanned only after the delay");
+        cx.executor().advance_clock(todo_window::LIVE_SCAN_DELAY);
+        cx.run_until_parked();
+        assert_eq!(lines(cx)[0], "a.rs  src  3 items");
+        assert_eq!(lines(cx)[3], "  (4, 4) TODO fourth");
+
+        // Show TODO Items in Current File: the editor's file alone; Refresh scans the project again.
+        run_action(cx, "todo.showCurrentFile", None);
+        assert_eq!(view.read_with(cx, |view, _| view.state().tab), crate::features_a::todo::TodoTab::CurrentFile);
+        assert_eq!(
+            lines(cx),
+            ["a.rs  src  3 items", "  (1, 4) TODO first", "  (3, 4) FIXME second", "  (4, 4) TODO fourth"]
+        );
+        std::fs::write(&b, "fn b() {} // TODO third\n// HACK fifth\n").expect("the file is written");
+        run_action(cx, "todo.refresh", None);
+        settle(cx, |cx| view.read_with(cx, |view, _| view.badge()) == Some(5));
+    }
+
+    /// The build's state as the window's context keys say it: `build.running` and `build.lastStatus`.
+    fn build_context(cx: &mut VisualTestContext) -> (bool, Option<String>) {
+        use crate::platform::context::{ContextValue, window_context};
+        cx.update(|window, cx| {
+            let keys = window_context(window, cx);
+            let status = match keys.get(crate::build_window::model::BUILD_LAST_STATUS) {
+                Some(ContextValue::Text(status)) => Some(status.to_string()),
+                _ => None,
+            };
+            (keys.is_truthy(crate::build_window::model::BUILD_RUNNING), status)
+        })
+    }
+
+    /// A trusted project of `files` (path, text), open in a window.
+    fn trusted_project<'a>(
+        cx: &'a mut TestAppContext,
+        files: &[(&str, &str)],
+    ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &'a mut VisualTestContext) {
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        for (path, text) in files {
+            let path = root.join(path);
+            std::fs::create_dir_all(path.parent().expect("a folder")).expect("the folder is made");
+            std::fs::write(path, text).expect("the file is written");
+        }
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        (folder, root, workbench, cx)
+    }
+
+    /// A project without a build system cannot be built: Build Project, Build Module, Rebuild Project
+    /// and Build Artifacts each end as a failed build the Build tool window shows with the backend's
+    /// reason, notified, with the context keys following the build.
+    #[gpui_kit::test]
+    async fn building_a_project_without_a_build_system_ends_in_a_failed_build(cx: &mut TestAppContext) {
+        use crate::build_window::view::BuildView;
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/alpha.rs", "pub fn alpha() {}\n")]);
+        let lines = |cx: &mut VisualTestContext| {
+            workbench
+                .read_with(cx, |w, _| w.tool_window_view(BUILD_TOOL_WINDOW))
+                .and_then(|view| view.downcast::<BuildView>().ok())
+                .map(|view| view.read_with(cx, |view, cx| view.lines(cx)))
+                .unwrap_or_default()
+        };
+        assert_eq!(build_context(cx), (false, None));
+
+        // The build starts at once: the context says so before the backend answers.
+        cx.update(|window, cx| execute_action_or_throw("build.buildProject", None, window, cx)).expect("it runs");
+        assert_eq!(build_context(cx), (true, None));
+        settle(cx, |cx| build_context(cx).1.is_some());
+        assert_eq!(build_context(cx), (false, Some("failed".to_owned())));
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(BUILD_TOOL_WINDOW)));
+        let reason = "no supported build system (Maven, Gradle, Cargo, Go, TypeScript, CMake) found";
+        assert_eq!(lines(cx), ["Build  1 error".to_owned(), format!("  {reason}")]);
+        let notified = workbench.read_with(cx, |w, _| {
+            w.notifications.items().iter().map(|n| (n.title.clone(), n.body.clone())).collect::<Vec<_>>()
+        });
+        assert_eq!(notified, [("Build failed".to_owned(), Some(reason.to_owned()))]);
+
+        let module = serde_json::json!({ "target": root.join("src/alpha.rs").to_string_lossy() });
+        for (id, arg, title) in [
+            ("build.buildModule", Some(module), "Build"),
+            ("build.rebuildProject", None, "Rebuild"),
+            ("build.buildArtifacts", None, "Build Artifacts"),
+        ] {
+            run_action(cx, id, arg);
+            settle(cx, |cx| !build_context(cx).0);
+            assert_eq!(build_context(cx).1.as_deref(), Some("failed"), "{id}");
+            assert_eq!(lines(cx)[0], format!("{title}  1 error"), "{id}");
+        }
+    }
+
+    /// A Cargo project builds with the `cargo` the tests run under, offline (it has no dependencies):
+    /// a type error fails the build, which lists it under its file and opens it; fixed, the build
+    /// succeeds; a build stopped while its build script runs ends cancelled.
+    #[gpui_kit::test]
+    async fn a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped(
+        cx: &mut TestAppContext,
+    ) {
+        use crate::build_window::view::BuildView;
+        let _home = start(cx);
+        let manifest = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n";
+        let (_folder, root, workbench, cx) =
+            trusted_project(cx, &[("Cargo.toml", manifest), ("src/lib.rs", "pub fn f() -> u32 {\n    \"x\"\n}\n")]);
+        let view = |cx: &mut VisualTestContext| {
+            workbench
+                .read_with(cx, |w, _| w.tool_window_view(BUILD_TOOL_WINDOW))
+                .and_then(|view| view.downcast::<BuildView>().ok())
+                .expect("the Build tool window is shown")
+        };
+        // A real compiler runs: up to a minute of real time.
+        let finished = |cx: &mut VisualTestContext| {
+            for _ in 0..6000 {
+                cx.run_until_parked();
+                if build_context(cx).1.is_some() {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("the build did not end within a minute");
+        };
+
+        run_action(cx, "build.buildProject", None);
+        finished(cx);
+        let lines = view(cx).read_with(cx, |view, cx| view.lines(cx));
+        assert_eq!(build_context(cx).1.as_deref(), Some("failed"), "{lines:?}");
+        assert!(lines[0].ends_with("  1 error"), "{lines:?}");
+        assert_eq!(lines[1], "  lib.rs  src  1 error", "{lines:?}");
+        assert!(lines[2].starts_with("    mismatched types") && lines[2].ends_with(":2:5"), "{lines:?}");
+        // The first error is selected and its place opened.
+        let lib = root.join("src/lib.rs");
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().is_some_and(|e| e.read(cx).path() == lib && e.read(cx).caret_position() == (1, 4))
+            })
+        });
+        let detail = view(cx).read_with(cx, |view, cx| view.detail_text(cx));
+        assert!(detail.is_some_and(|text| text.starts_with("mismatched types")));
+
+        std::fs::write(&lib, "pub fn f() -> u32 {\n    1\n}\n").expect("the file is written");
+        // A new build clears the last outcome while it runs.
+        run_action(cx, "build.buildProject", None);
+        finished(cx);
+        let lines = view(cx).read_with(cx, |view, cx| view.lines(cx));
+        assert_eq!(build_context(cx), (false, Some("success".to_owned())), "{lines:?}");
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(lines[0].contains("  finished "), "{lines:?}");
+
+        // A build script that sleeps keeps the build running until it is stopped.
+        std::fs::write(
+            root.join("build.rs"),
+            "fn main() { std::thread::sleep(std::time::Duration::from_secs(120)); }\n",
+        )
+        .expect("the file is written");
+        run_action(cx, "build.buildProject", None);
+        assert!(build_context(cx).0, "the build runs");
+        // The build script runs once cargo reports compiling the package.
+        for _ in 0..6000 {
+            cx.run_until_parked();
+            let console = view(cx).read_with(cx, |view, cx| view.console_lines(cx));
+            if console.iter().any(|line| line.contains("Compiling probe")) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        run_action(cx, "build.stop", None);
+        finished(cx);
+        assert_eq!(build_context(cx), (false, Some("cancelled".to_owned())));
+        assert!(view(cx).read_with(cx, |view, cx| view.lines(cx))[0].ends_with("  cancelled"));
     }
 
     /// Recent Files lists the project's files by when they were last shown and starts on the
@@ -5643,6 +5981,95 @@ mod tests {
         // Toggling where a bookmark is removes it.
         run(cx, "navigate.toggleBookmark", None);
         assert!(marks(cx).is_empty());
+    }
+
+    /// A bookmark toggled in the editor shows in the Bookmarks tool window, whose Enter opens the
+    /// file at its line; a list renamed and a bookmark deleted there are stored with the project, so a
+    /// new window on it lists them so.
+    #[gpui_kit::test]
+    async fn the_bookmarks_window_lists_opens_renames_and_deletes_what_the_project_stores(cx: &mut TestAppContext) {
+        use crate::everywhere::bookmarks_window::BookmarksWindow;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        let leak = |text: String| -> &'static str { Box::leak(text.into_boxed_str()) };
+        let (alpha, beta) = (root.join("src/alpha.rs"), root.join("src/beta.rs"));
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(beta.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        run_action(cx, "toolwindow.bookmarks", None);
+        let view =
+            workbench.read_with(cx, |w, _| w.bookmarks_window_view()).expect("the Bookmarks tool window is shown");
+        let lines = |cx: &mut VisualTestContext| view.read_with(cx, |view, cx| view.lines(cx));
+        let name = root.file_name().expect("a name").to_string_lossy().into_owned();
+
+        // Toggled in the editor, at the caret and at a line of another file.
+        run_action(cx, "navigate.toggleBookmark", None);
+        run_action(
+            cx,
+            "navigate.toggleBookmark",
+            Some(serde_json::json!({ "path": alpha.to_string_lossy(), "line": 2 })),
+        );
+        let shown = lines(cx);
+        assert_eq!(shown[0], format!("{name}  2 bookmarks · default"), "{shown:?}");
+        assert!(shown.iter().any(|line| line.trim_start().starts_with("alpha.rs:3")), "{shown:?}");
+        assert!(shown.iter().any(|line| line.trim_start().starts_with("beta.rs:1")), "{shown:?}");
+
+        // Enter on the bookmark opens its file with the caret at its line.
+        click_on(cx, leak(format!("bookmarks-row:b:{}:2", alpha.to_string_lossy())));
+        cx.simulate_keystrokes("enter");
+        settle(cx, |cx| {
+            workbench.read_with(cx, |w, cx| {
+                w.editor().is_some_and(|e| e.read(cx).path() == alpha && e.read(cx).caret_position().0 == 2)
+            })
+        });
+
+        // The list renamed in place, the bookmark of beta.rs deleted.
+        click_on(cx, "bookmarks-row:l:default");
+        cx.simulate_keystrokes("f2");
+        cx.simulate_input("Mine");
+        cx.simulate_keystrokes("enter");
+        click_on(cx, leak(format!("bookmarks-row:b:{}:0", beta.to_string_lossy())));
+        cx.simulate_keystrokes("delete");
+        cx.run_until_parked();
+        let names = |w: &Workbench| -> (Vec<String>, Vec<u32>) {
+            let data = w.bookmarks().data();
+            (data.lists.iter().map(|list| list.name.clone()).collect(), data.items.iter().map(|b| b.line).collect())
+        };
+        assert_eq!(workbench.read_with(cx, |w, _| names(w)), (vec!["Mine".to_owned()], vec![2]));
+        // Both changes are stored with the project at once.
+        let stored = |cx: &mut VisualTestContext, key: String| {
+            cx.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned)).unwrap_or_default()
+        };
+        let scope = root.to_string_lossy().into_owned();
+        let (items, lists) = (stored(cx, bookmarks_key(&scope)), stored(cx, lists_key(&scope)));
+        assert!(items.contains("alpha.rs") && !items.contains("beta.rs"), "{items}");
+        assert!(lists.contains("\"Mine\""), "{lists}");
+
+        // Toggled off and on again at the caret in the editor, the window follows.
+        run_action(cx, "navigate.toggleBookmark", None);
+        assert_eq!(lines(cx), ["Mine  0 bookmarks · default"]);
+        run_action(cx, "navigate.toggleBookmark", None);
+        assert_eq!(lines(cx)[0], "Mine  1 bookmark · default");
+
+        // New Bookmark List names the list in the window.
+        run_action(cx, "bookmarks.newList", None);
+        cx.simulate_input("Later");
+        cx.simulate_keystrokes("enter");
+        assert_eq!(lines(cx).last().map(String::as_str), Some("Later  0 bookmarks"));
+
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+        let (second, cx2) = cx.add_window_view(|window, cx| Workbench::new("w2", window, cx));
+        second.update_in(cx2, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx2, |cx| second.read_with(cx, |w, _| w.project_tree().is_some()));
+        run_action(cx2, "toolwindow.bookmarks", None);
+        let reopened = second
+            .read_with(cx2, |w, _| w.tool_window_view(BOOKMARKS_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<BookmarksWindow>().ok())
+            .expect("the Bookmarks tool window is shown");
+        let listed = reopened.read_with(cx2, |view, cx| view.lines(cx));
+        assert_eq!(listed[0], "Mine  1 bookmark · default", "{listed:?}");
+        assert_eq!(listed.len(), 4, "the list, alpha.rs, its line and the new list: {listed:?}");
+        assert!(listed[2].trim_start().starts_with("alpha.rs:3"), "{listed:?}");
+        assert_eq!(listed[3], "Later  0 bookmarks");
     }
 
     /// Find in Files opens as a popup that searches as the query is typed; Enter opens the

@@ -8,6 +8,7 @@
 pub mod bookmarks_popup;
 pub mod bookmarks_store;
 pub mod bookmarks_view;
+pub mod bookmarks_window;
 pub mod controller;
 pub mod filters;
 pub mod inherited;
@@ -21,4 +22,5 @@ pub mod recent_view;
 pub mod routes;
 pub mod store;
 pub mod structure_view;
+pub mod structure_window;
 pub mod view;

@@ -252,7 +252,7 @@ async fn inherited_of(
 /// Whether the server of the file knows supertypes and, when it does and they are `wanted`, the
 /// inherited members of each of `types`. `known` is an earlier yes for the same file: the server
 /// is not probed again.
-async fn inherited_of_types(
+pub(crate) async fn inherited_of_types(
     host: Arc<Host>,
     window: String,
     path: String,
@@ -309,7 +309,7 @@ fn flatten(
 }
 
 /// The node icon of a symbol kind. A kind without an icon of its own borrows the nearest one.
-fn symbol_icon(kind: SymbolKind) -> &'static str {
+pub(super) fn symbol_icon(kind: SymbolKind) -> &'static str {
     match kind {
         SymbolKind::File => "symbol-file",
         SymbolKind::Module => "symbol-module",

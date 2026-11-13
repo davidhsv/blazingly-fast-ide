@@ -5,4 +5,5 @@ pub mod http_client;
 pub mod logcat;
 pub mod notebook;
 pub mod todo;
+pub mod todo_view;
 pub mod vim;

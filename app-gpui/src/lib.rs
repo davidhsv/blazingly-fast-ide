@@ -3,6 +3,7 @@
 pub mod agents;
 pub mod app_models;
 pub mod backend;
+pub mod build_window;
 pub mod database;
 pub mod debugger;
 pub mod editor;
