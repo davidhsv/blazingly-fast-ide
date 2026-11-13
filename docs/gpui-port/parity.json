@@ -6004,20 +6004,20 @@
     "proof": "`workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; opens the menu of comparisons over the merge editor"
   },
   "action:merge.compareYoursTheirs": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; chosen from the Compare menu it opens the diff window over the merge editor, and Escape gives the keyboard back. Missing: which two versions the diff shows is not asserted"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`"
   },
   "action:merge.settings": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; opens the settings menu in the popup slot, and Escape closes it with the merge editor keeping the keyboard. Missing: the menu's rows are not asserted"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_compare::automatically_apply_non_conflicting_changes_is_checked_stored_and_starts_the_next_merge`"
   },
   "action:merge.autoApply": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; stores Automatically Apply Non-Conflicting Changes as on. Missing: turning it off again, its check mark and its effect on the next merge editor are not asserted"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_compare::automatically_apply_non_conflicting_changes_is_checked_stored_and_starts_the_next_merge`"
   },
   "action:merge.reload": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; the merge editor loads again. Missing: no test changes a version on disk and sees it re-read"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_compare::reload_from_disk_reads_the_versions_again`"
   },
   "action:merge.cancel": {
     "status": "done",
@@ -6326,5 +6326,93 @@
   "event:WorkspaceEditApplied": {
     "status": "done",
     "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; the rename's applied edit raises Refactoring applied with Undo, and after the undo Refactoring undone with Redo, notices raised only by the window's listener of this event, which also remembers the edit so that Edit › Undo takes it back"
+  },
+  "action:merge.accept": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_change::settles_one_side_of_a_conflict_and_leaves_the_text_the_other_side_then_replaces_it`, `workbench::tests::proofs_merge_change::takes_the_text_and_leaves_a_conflict_open_for_the_other_side`"
+  },
+  "action:merge.acceptTheirs": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_apply::accept_theirs_asks_once_the_result_was_changed_and_writes_their_version`"
+  },
+  "action:merge.apply": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_apply::resolve_simple_conflicts_then_apply_writes_both_sides_words_and_stages_the_file`, `workbench::tests::proofs_merge_apply::apply_merge_result_asks_about_unresolved_changes_and_writes_the_result`"
+  },
+  "action:merge.applyLeft": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_apply::applies_those_of_the_chosen_side_only`"
+  },
+  "action:merge.applyRight": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_apply::applies_those_of_the_chosen_side_only`"
+  },
+  "action:merge.change": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_change::resolve_merge_change_does_what_its_argument_says_to_the_change`"
+  },
+  "action:merge.compareBaseResult": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`"
+  },
+  "action:merge.compareBaseTheirs": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`"
+  },
+  "action:merge.compareBaseYours": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`"
+  },
+  "action:merge.compareResultTheirs": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`"
+  },
+  "action:merge.compareYoursResult": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_compare::each_comparison_shows_its_two_versions_in_the_diff_window`"
+  },
+  "action:merge.copy": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_edit::select_all_copy_cut_and_paste_edit_the_result`, `workbench::tests::proofs_merge_edit::a_side_pane_copies_its_version_but_is_not_cut_or_pasted_into`"
+  },
+  "action:merge.cut": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_edit::select_all_copy_cut_and_paste_edit_the_result`, `workbench::tests::proofs_merge_edit::a_side_pane_copies_its_version_but_is_not_cut_or_pasted_into`"
+  },
+  "action:merge.ignore": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_change::settles_one_side_of_a_conflict_and_leaves_the_text_the_other_side_then_replaces_it`, `workbench::tests::proofs_merge_change::merges_a_conflict_whose_sides_changed_different_words`"
+  },
+  "action:merge.paste": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_edit::select_all_copy_cut_and_paste_edit_the_result`, `workbench::tests::proofs_merge_edit::a_side_pane_copies_its_version_but_is_not_cut_or_pasted_into`"
+  },
+  "action:merge.resolveAutomatically": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_change::merges_a_conflict_whose_sides_changed_different_words`"
+  },
+  "action:merge.resolveSimple": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_apply::resolves_the_simple_conflicts_and_the_non_conflicting_changes_together_and_no_more`, `workbench::tests::proofs_merge_apply::resolve_simple_conflicts_then_apply_writes_both_sides_words_and_stages_the_file`"
+  },
+  "action:merge.resolveUsingTheirs": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_change::settles_the_change_at_once_when_resolving_using_a_side`"
+  },
+  "action:merge.resolveUsingYours": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_change::settles_the_change_at_once_when_resolving_using_a_side`"
+  },
+  "action:merge.revert": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_apply::resolves_the_simple_conflicts_and_the_non_conflicting_changes_together_and_no_more`"
+  },
+  "action:merge.selectAll": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs_merge_edit::select_all_copy_cut_and_paste_edit_the_result`, `workbench::tests::proofs_merge_edit::a_side_pane_copies_its_version_but_is_not_cut_or_pasted_into`"
+  },
+  "action:merge.annotate": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; registered and never enabled: the side panes draw no per-line blame"
   }
 }

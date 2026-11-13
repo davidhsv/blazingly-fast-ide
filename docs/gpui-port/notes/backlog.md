@@ -203,3 +203,9 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - Draft proofs3 DONE (23 tests: run, windows, rename via LSP, context, debug, nine editor keys): workbench/tests/proofs3_*.rs, workbench/debug/tests/proofs3_debug.rs, workbench/editor_language/tests/proofs3_editor_keys.rs; notes integration/proofs3.md. app.quit must ask about a live DEBUG session too (webview does): fix hunks in the notes (part 2 uncompiled). Not built: view.quickSwitchScheme, lightEditClose caller.
 - Draft proofs4 DONE (11 tests: run, shell, vcs, tooltip, remote urls): workbench/tests/proofs4_{run,shell,vcs}.rs, ui/tooltip/tests/proofs4_tooltip.rs, vcs_diff/model/tests/proofs4_remote_urls.rs; notes integration/proofs4.md. Not built: ipc run_resize (nothing calls resize_terminal: the run console never resizes its pty!), ipc history_content (vcs.localHistory has no handler). Tooltip: webview hides on key press and window blur, GPUI only on mouse move/down/scroll (GPUI's clear is not public: two approaches in the notes). 33 rows not reached (24 unit specs, 7 modules, 2 points) → next proofs writer.
 - PROOFS BATCH for an integrator: proofs3 (23 tests) + proofs4 (11 tests) + stale-gap corrections listed in both notes.
+
+## State after the stability slice (2026-11-13, 9c26a6e2)
+
+- Suite 6,477, 0 ignored (×3 by me), D88 written, merge rows recorded. registered_ids.txt = 491 ids; notes/sweep/registered_not_done.md = 198 registered ids whose action row is not done (161 partial) → the best proof-test input from now on.
+- RUNNING (cargo): app actions integrator = Part 0 gate guard + app_actions + proofs3/proofs4 batch.
+- After it: project/services/terminal (Host::set_trash → re-run Tauri suite) → GitHub (GhCli seam → Tauri suite) → plugin views → settings controls → "editor leftovers" (see the editor rows note) + plugin Java debug draft.

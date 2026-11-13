@@ -1,0 +1,198 @@
+- `agents.dockTask`: `workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `agents.openTask`: `workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `agents.openTaskInEditor`: `workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `agents.undockTask`: `workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `agents.useEditor`: `workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `agents.useToolWindow`: `workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet
+- `app.quit`: and_dont_ask_again_turns_it_off`; the exit is confirmed once and each window decides its close in turn, a window that stays calls the quit off; live debug sessions are not asked about; the macOS menu key path has no test
+- `bookmarks.toggleFileBookmark`: rks the given files: chosen from an editor tab's menu it bookmarks that tab's file and the row then offers Remove Bookmark. Missing: no test runs it without an argument (the active editor's file) or from the Project view
+- `build.buildArtifacts`: n_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; runs the build into the Build window; a caller cannot wait for its end, which the component offers
+- `build.buildModule`: n_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; runs the build into the Build window; a caller cannot wait for its end, which the component offers
+- `build.buildProject`: n_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; runs the build into the Build window; a caller cannot wait for its end, which the component offers
+- `build.rebuildProject`: n_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped`; runs the build into the Build window; a caller cannot wait for its end, which the component offers
+- `code.addCaretNextOccurrence`: caret_and_occurrence_commands_run_through_the_registry`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`; the hint shown when there is no further occurrence is only logged
+- `code.applyQuickFix`: ixes only and applies the preferred fix of the problem at the caret, or says No quick fixes available. Missing: the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does
+- `code.cleanupFile`: ath } it opens the file, applies the server's fix-all and organize-imports actions and reformats it. Missing: its reformat step never uses a plugin-contributed formatter, and no test turns a step off through the argument
+- `code.collapseBlock`: s a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens
+- `code.collapseRecursively`: s a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens
+- `code.commentBlock`: `editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; a block comment that contains its own closing token is refused, since the editor has no syntax tree to confirm its span
+- `code.commentLine`: `editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; a block comment that contains its own closing token is refused, since the editor has no syntax tree to confirm its span
+- `code.completeStatement`: `editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; the text rules only; the structural answers of the backend are not asked
+- `code.completion`: nd_bar`; the server's items with their extra edits, commit characters, documentation and sorting. Not yet: Tab through a snippet's fields, live templates and contributed rows in the list, word completion without a server
+- `code.cyclicExpandWord`: `editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; the hint shown when nothing expands is only logged
+- `code.cyclicExpandWordBackward`: `editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; the hint shown when nothing expands is only logged
+- `code.expandRecursively`: s a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens
+- `code.extendSelection`: othing with the Project view focused. Missing: no step is checked against a range only the backend's syntax tree gives (the arguments, the call, the statement), so the steps proven can come from the text's own candidates
+- `code.fold`: s a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens
+- `code.foldAll`: s a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens
+- `code.foldSelection`: s a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens
+- `code.foldToggle`: s a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens
+- `code.generate`: te actions at the caret and applies the chosen one; ⌘N in a Markdown file opens the New popup instead. Missing: the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does
+- `code.implementMethods`: hrough the registry it applies the only implement action at once. Missing: the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does, and no test chooses between several
+- `code.moveElementLeft`: `editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; elements are found from brackets and from comment and string spans, not from a syntax tree
+- `code.moveElementRight`: `editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; elements are found from brackets and from comment and string spans, not from a syntax tree
+- `code.moveStatementDown`: `editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; moves the line: without a syntax tree of the document it cannot move a whole statement or keep it inside its block
+- `code.moveStatementUp`: `editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; moves the line: without a syntax tree of the document it cannot move a whole statement or keep it inside its block
+- `code.overrideMethods`: sen_one`; with no override action it says Nothing to override. Missing: no test applies an override action, and the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does
+- `code.parameterInfo`: `editor::intelligence::tests::parameter_info_opens_after_a_parenthesis_and_follows_the_commas`; opens and follows the commas; Tab and Shift+Tab between arguments are not wired
+- `code.pasteFromHistory`: history; ⇧⌘V does nothing with the Project view focused. Missing: the empty-history message is a notification, not the hint at the caret, and the dialog lacks parts of the webview's (see the editor.pasteHistory overlay)
+- `code.quickDefinition`: rd, ← / → switch between several, and F4 opens it with the caret on it. Missing: the popup shows a window of lines around the name instead of the declaration's whole span from the syntax tree, without syntax highlighting
+- `code.quickDocumentation`: intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`; shows the documentation at the caret in the hover popup; the Documentation popup with its history and tool window is not used
+- `code.quickTypeDefinition`: ys No type definition found. Missing: no test shows a found type definition, and the popup shows a window of lines around the name instead of the declaration's whole span from the syntax tree, without syntax highlighting
+- `code.reformat`: egistry it applies the server's formatting edits as one undo step and says Formatted 1 line, or that nothing changed. Missing: a formatter a plugin contributes for the language is never used, where the webview prefers it
+- `code.reformatFile`: format_code_applies_the_servers_edits_and_reports_the_formatted_lines`; with { path } of a file that is not open it opens the file and formats it. Missing: as for Reformat Code, a plugin-contributed formatter is not used
+- `code.showIntentions`: d a quick fix's → menu whose Disable inspection turns the inspection off in the stored profile; the bulb and the IDE's own intentions are not wired, and the editor's underline is not shown to follow a disabled inspection
+- `code.shrinkSelection`: nk_selection_walk_the_syntax_ranges_around_the_caret`; Shrink Selection walks back through every extended step to the caret. Missing: as for Extend Selection, the steps are not checked against the backend's syntax ranges
+- `code.toggleCase`: `editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; escapes inside strings are not protected, which needs a syntax tree of the document
+- `code.unfold`: s a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens
+- `code.unfoldAll`: s a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens
+- `db.editData`: _database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the table opens with its rows, from the action and from F4 in the tree only; it shows in the lower half of the Database window, not in an editor tab
+- `db.execute`: nd_its_output_lines_and_a_failing_statement_its_error`; the statement at the caret runs on the only data source, rows and output shown; with two or more sources a plain .sql file only reports that a source must be chosen
+- `db.explainPlan`: `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the statement is explained by the backend; the Query Plan tab is not built
+- `db.openConsole`: `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the source's console file opens in an editor; the console's own toolbar is not shown
+- `db.refresh`: `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; runs on a source; the test asserts no visible change
+- `debug.cancelHotSwap`: `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps
+- `debug.hotReload`: `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps
+- `debug.hotRestart`: `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps
+- `debug.pluginStart`: t a project and runs it with one. Missing: the JDWP branch of a plugin detector (java-debug with debugArgs, debug.attach) is not reached, and a waiting request is answered when the session ends rather than when it starts
+- `debug.reloadChangedClasses`: `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps
+- `debug.toggleFieldWatchpoint`: `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; run on the fake language, where it reports that the line has no field; no test sets one
+- `debug.toggleMethodBreakpoint`: `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; run on the fake language, where it reports that the line has no method; no test sets one
+- `docker.refresh`: `services::docker::tests`; registered on the Docker model of the window; no test runs the action, and no daemon is reached in tests
+- `docker.toggleStoppedContainers`: `services::docker::tests`; registered on the Docker model of the window; no test runs the action, and no daemon is reached in tests
+- `docker.toggleUntaggedImages`: `services::docker::tests`; registered on the Docker model of the window; no test runs the action, and no daemon is reached in tests
+- `edit.copy`: enus::tests::right_click_in_the_selection_keeps_it_and_copy_puts_it_on_the_clipboard`; also runs from the editor's menu, putting the selection on the clipboard; acts on code editors only, not yet on text fields and lists
+- `edit.cut`: `workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists
+- `edit.paste`: `workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists
+- `edit.redo`: `workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`; acts on code editors only, not yet on text fields and lists
+- `edit.selectAll`: `workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists
+- `edit.undo`: `workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`; acts on code editors only, not yet on text fields and lists
+- `editor.closeTab`: n_in_tabs_that_the_keymap_cycles_closes_and_reopens`, `workbench::tests::a_tab_that_cannot_be_saved_reopens_with_its_text`; an unsaved document is always saved on close: the `files.autoSave` setting is not read (see D23)
+- `editor.copyPath`: name`; the absolute path goes on the clipboard and into the clipboard history and Copied <path> is said; it does not run without an editor tab. Missing: Copied <path> shows as a notification, not as the hint at the caret
+- `editor.copyPathReference`: `workbench::tests::copy_path_reference_lists_the_forms_of_the_edited_file_and_copies_one`; the path forms of the file; Path From Source Root is missing because nothing computes the project's roots yet
+- `editor.copyPathWithLineNumber`: aret's 1-based line (src/a.rs:3), or the text given, goes on the clipboard and into the clipboard history; it does not run with the Project view focused. Missing: the copied hint shows as a notification, not at the caret
+- `editor.decreaseFontSize`: px down to the lower limit; it does not run in a window without a project. Missing: it always acts on text editors; the webview first steps (or resets) the focused font zoom surface, such as a log or plugin content view
+- `editor.increaseFontSize`: itor's font grows by one px; it does not run in a window without a project. Missing: it always acts on text editors; the webview first steps (or resets) the focused font zoom surface, such as a log or plugin content view
+- `editor.pasteHistory.paste`: ntry and closes the dialog; without the dialog it does not run. Missing: its keymap bindings cannot fire, since their keyWhen pasteHistoryListFocus is never set in the app; the dialog's own Enter and Delete keys stand in
+- `editor.pasteHistory.remove`: from the clipboard history; without the dialog it does not run. Missing: its keymap bindings cannot fire, since their keyWhen pasteHistoryListFocus is never set in the app; the dialog's own Enter and Delete keys stand in
+- `editor.pinTab`: `workbench::tests::proofs_editor_actions_tabs::close_all_tabs_closes_the_pinned_tab_with_the_others`; run in a window it pins the active tab in the tab model; pinned tabs are not drawn differently
+- `editor.resetFontSize`: clauses_name`; every editor of the window goes back to the configured size. Missing: it always acts on text editors; the webview first steps (or resets) the focused font zoom surface, such as a log or plugin content view
+- `editor.showHint`: rms_of_the_edited_file`; run with { text } it shows the text, and the next hint replaces it. Missing: the hint is a notification, not the transient hint at the caret of the active editor, and the tone argument is ignored
+- `editor.toggleColumnSelection`: `editor::command_actions::tests::toggles_switch_column_selection_and_overwrite`; the toggle and Shift+arrows extend a block; dragging a block with the mouse is not built
+- `editor.unsplit`: `workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`; closes the active pane with its tabs; with autosave off the webview asks about unsaved tabs first, here each closed tab asks on its own
+- `editor.unsplitAll`: `workbench::tests::the_editor_splits_into_panes_that_show_and_edit_the_same_file`; same as Unsplit for the question about unsaved tabs
+- `file.openFile`: ts_open_in_this_window_a_new_one_or_the_one_that_has_them`; registered: files open as tabs of the project, or one for editing on its own; no test runs it, and a file of another window's project does not go to that window
+- `file.openInNewWindow`: `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; registered, with a folder dialog when no path is given; no test runs it
+- `file.openProject`: `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; asks for a folder and opens it by the same policy; not the webview's own Open dialog with its recent locations
+- `file.openProjectPath`: her_project_here_asks_about_the_unsaved_changes_of_this_one`; this window, a new window or the window that has the project, asked with "Don't ask again", after the leave question; Attach and remote projects are not built
+- `file.openRecent`: h_nothing_open_welcomes_with_the_recent_projects`; registered with the handler of welcome.recentProjects, which is the one the test runs; in a window with a project it does nothing, the Recent Projects popup is not built
+- `file.openRecentProject`: `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; same as Open Project Path, which see
+- `file.reloadAllFromDisk`: again; it does not run in a window without a project. Missing: project.refresh is not registered in the app, so the Project view is not read again as the webview's Reload All does; vcs.refresh runs but no test asserts it
+- `file.settings`: d the Global / project scopes over the pages made of plain options. Pages that are views of their own show "not available yet": fonts, colour scheme, code style schemes, file types, languages, inspections, SSH and others
+- `file.toggleReadOnly`: again both are writable; it does not run without an editor tab. Missing: the native target is always built as a file on disk without a banner, so nothing shows that a virtual document is refused as the webview refuses it
+- `find.highlightUsages`: No usages found in file. Missing: the status text is kept but the status bar does not draw it, and without a language server the webview's fallback to the local's same-scope occurrences from the syntax tree is not built
+- `find.inPath`: n editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match
+- `find.openInWindow`: ens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`; the Find window searches the file again through the backend: the bar's In Selection scope, its excluded occurrences and unsaved text are not carried over
+- `find.replaceInPath`: n editor on the document (it is the file's plain text with the matches marked), syntax colours in result rows, resizing and the remembered size, the scope editor, opening to the side, the selection end of an opened match
+- `find.showUsages`: show_usages_opens_the_chosen_one`, `workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the popup with the usages and opening one; it opens in the middle of the window, not at the caret
+- `find.usages`: erences_the_server_reports`; the Find Usages window with exclusion, rerun and tabs, from a language server's references and from text matches without one; the UI's own syntax fallback is not exercised; no preview colours
+- `merge.annotate`: `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; registered and never enabled: the side panes draw no per-line blame
+- `navigate.back`: ry, Back returns to the other file at the caret it had. Missing: only a file switch records a place; a jump inside one file (go to declaration, a far caret move) is not recorded as a navigation, as the webview records it
+- `navigate.declaration`: o_declaration_from_the_editor_menu_moves_the_caret_to_the_declaration`; one target opens (also from the editor menu's Go To), several are chosen from, none says so; without a server only names local to the file are found
+- `navigate.fileStructure`: mbols_and_goes_to_the_chosen_one`, `everywhere::structure_view::tests`; opens the popup for the active editor and, asked again, toggles the inherited members; see the search.fileStructure overlay for what the popup lacks
+- `navigate.findAction`: kbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay
+- `navigate.forward`: `workbench::editor_core::tests::back_and_forward_move_between_the_places_of_two_files`; Forward goes to where Back came from and stops at the newest place. Missing: as for Back, places inside one file are not recorded
+- `navigate.gotoBookmark0`: (no entry)
+- `navigate.gotoBookmark1`: (no entry)
+- `navigate.gotoBookmark2`: (no entry)
+- `navigate.gotoBookmark3`: (no entry)
+- `navigate.gotoBookmark4`: (no entry)
+- `navigate.gotoBookmark5`: (no entry)
+- `navigate.gotoBookmark6`: (no entry)
+- `navigate.gotoBookmark7`: (no entry)
+- `navigate.gotoBookmark8`: (no entry)
+- `navigate.gotoBookmark9`: (no entry)
+- `navigate.gotoFile`: `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay
+- `navigate.gotoLine`: _and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`; opens Go to Line:Column and moves the caret; it is a popup in the popup slot, which a click beside it closes, where the webview has a dialog
+- `navigate.gotoSymbol`: kbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay
+- `navigate.gotoTest`: py, and from the test it opens the subject again. Missing: Create New Test… runs templates.newFromTemplate, which the app does not register, and no test runs the chooser of several tests or the Rust test module insertion
+- `navigate.implementation`: `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`; implementations are not streamed while the search runs
+- `navigate.nextHighlightedUsage`: he caret goes to the next highlighted usage at the same place in the name, wrapping. Missing: without highlighted usages it falls back to navigate.nextOccurrence, which the app does not register, so it does nothing there
+- `navigate.prevHighlightedUsage`: aret goes to the previous highlighted usage at the same place in the name, wrapping. Missing: without highlighted usages it falls back to navigate.prevOccurrence, which the app does not register, so it does nothing there
+- `navigate.recentFiles`: d files. Not yet: Recent Locations, the files edited in this session (the list is empty, so Show edited only shows nothing), opening to the side, version control colours on names, keeping a row whose tab refused to close
+- `navigate.searchEverywhere`: `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay
+- `navigate.searchText`: bs`, `workbench::tests::search_everywhere_starts_with_the_editor_selection`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay
+- `navigate.showBookmarks`: ret_through_the_project`, `everywhere::bookmarks_popup::tests`; the popup lists the bookmarks by list and file, opens, removes and describes them. Its preview is the file's plain text, not a second editor on the document
+- `navigate.switcher`: release. Not yet: Recent Locations, the files edited in this session (the list is empty, so Show edited only shows nothing), opening to the side, version control colours on names, keeping a row whose tab refused to close
+- `navigate.toggleBookmark0`: (no entry)
+- `navigate.toggleBookmark1`: (no entry)
+- `navigate.toggleBookmark2`: (no entry)
+- `navigate.toggleBookmark3`: (no entry)
+- `navigate.toggleBookmark4`: (no entry)
+- `navigate.toggleBookmark5`: (no entry)
+- `navigate.toggleBookmark6`: (no entry)
+- `navigate.toggleBookmark7`: (no entry)
+- `navigate.toggleBookmark8`: (no entry)
+- `navigate.toggleBookmark9`: (no entry)
+- `navigate.toggleBookmarkWithMnemonic`: `everywhere::bookmarks_popup::tests`; opens the chooser for the caret's line; the chooser is tested as a view, not through the action, and shows in the popup slot instead of at the caret
+- `plugins.installFromDisk`: d and, accepted, lists the plugin and registers its commands as actions. Missing: without an argument the picker opens with no title and no test drives it, and a package file (unpacked first) is never installed by a test
+- `plugins.log.wrap`: `workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`; soft wrap starts on, where the original starts off
+- `plugins.settings`: ns_open_on_their_pages`; opens Settings on Plugins; in that test there is no plugin host and the page is unavailable; the listing through the host is proven on the Welcome page and the Plugins window, not inside Settings
+- `project.copy`: `workbench::tests::copy_and_paste_in_the_tree_go_through_the_copy_and_move_dialogs`; inside the tree; files are not put on the system clipboard, so other applications cannot paste them
+- `project.cut`: `workbench::tests::copy_and_paste_in_the_tree_go_through_the_copy_and_move_dialogs`; inside the tree; files are not put on the system clipboard, so other applications cannot paste them
+- `project.delete`: rches_deletes_and_reports_what_could_not_be_deleted`; the question, the safe-delete search and the failure report are tested. No test deletes a file for real: the backend sends it to the system Trash and has no test hook
+- `project.paste`: `workbench::tests::copy_and_paste_in_the_tree_go_through_the_copy_and_move_dialogs`; inside the tree; files are not put on the system clipboard, so other applications cannot paste them
+- `project.rename`: `workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; references are updated by the text search; no language server runs in the test, so the semantic update is not exercised
+- `refactor.rename`: Missing: the webview renames in place by default (the file's occurrences follow as you type, ⇧F6 again opens the dialog), falls back to a syntax-tree rename when the server cannot, and asks at the caret, not in a dialog
+- `run.editConfigs`: t_configs_view::tests`; add, edit, copy, move, remove and save through the form. Not yet: editing templates, importing configurations, run targets, the environment table, loading choices from the backend, Tomcat settings
+- `run.reloadConfigs`: `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; the same listing a project open does; no test runs the action itself
+- `run.run`: guration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; runs the selection, and opens the chooser when nothing is selected. With Current File selected it hands over to run.runContext, which is not built
+- `run.runConfig`: `run::driver::tests`; registered and reads an id, a configuration or a temporary one from its argument; no test runs it through the action
+- `run.services.hideConfig`: (no entry)
+- `run.services.openBrowser`: (no entry)
+- `run.stop`: _and_stop_ends_a_long_running_one`, `run::sessions::tests`; the focused window, the widget argument, the only running process and the menu of several. Contributed debug sessions are not counted: the debugger is not drawn
+- `run.stopProcess`: `run::driver::tests`; registered; no test runs it through the action
+- `services.addService`: _with_add_service_while_no_provider_has_a_node`; the menu opens near the top of the window rather than under the button, a type with several configurations adds all of them without the picker, and no test runs the action
+- `settings.appearance`: `workbench::tests::settings_appearance_applies_the_chosen_theme`; the theme choice over the built-in themes; plugin themes, Sync with OS, accent, zoom and the other controls of the page are slots
+- `settings.keymap`: ecorded_shortcut_that_the_keymap_then_resolves`, `settings_view::keymap::tests`; presets, search by name and by shortcut, assigning and removing shortcuts with conflicts; action icons and page-swipe shortcuts are missing
+- `terminal.closeSession`: `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; closes the active tab at once: the question asked when a command is still running is not there
+- `toolwindow.bookmarks`: (no entry)
+- `toolwindow.commit`: (no entry)
+- `toolwindow.debug`: (no entry)
+- `toolwindow.find`: (no entry)
+- `toolwindow.git`: (no entry)
+- `toolwindow.maximize`: `workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; the side is maximized in the layout and drawn over the editor and the other sides; the test checks the layout, not what is drawn
+- `toolwindow.problems`: (no entry)
+- `toolwindow.project`: (no entry)
+- `toolwindow.resizeDown`: (no entry)
+- `toolwindow.resizeLeft`: (no entry)
+- `toolwindow.resizeRight`: (no entry)
+- `toolwindow.resizeUp`: (no entry)
+- `toolwindow.run`: (no entry)
+- `toolwindow.services`: (no entry)
+- `toolwindow.structure`: (no entry)
+- `toolwindow.terminal`: (no entry)
+- `vcs.branches`: _is_aborted_from_the_title_bar`; one repository: checkout with its questions, favourites, options, merge and its abort. Not yet: commands across several repositories, Compare and Show Diff with Working Tree, the tag menu
+- `vcs.log.changes.compareBeforeWithLocal`: `workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; opens the diff window, not an editor tab
+- `vcs.log.changes.compareWithLocal`: `workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; opens the diff window, not an editor tab
+- `vcs.log.collapseLinear`: `workbench::log_actions::tests::collapse_and_expand_linear_branches_set_the_option_the_log_presents_its_graph_with`; the option is stored and the model collapses; the collapsed graph is not drawn
+- `vcs.log.compareVersions`: `workbench::log_actions::tests::compare_with_local_and_compare_versions_open_the_diff_window`; opens the diff window on the first file instead of the "Changes between" list
+- `vcs.log.compareWithLocal`: `workbench::log_actions::tests::compare_with_local_and_compare_versions_open_the_diff_window`; opens the diff window on the first file instead of the "Changes between" list
+- `vcs.log.expandLinear`: `workbench::log_actions::tests::collapse_and_expand_linear_branches_set_the_option_the_log_presents_its_graph_with`; the option is stored and the model expands; the collapsed graph is not drawn
+- `vcs.log.goToRef`: `workbench::log_actions::tests::copy_revision_and_the_navigation_actions_move_the_selection`; selects only a commit already loaded: no paging and no filter reset
+- `vcs.log.pushUpToHere`: `workbench::log_actions::tests::push_all_up_to_here_pushes_the_branch_to_the_bare_remote`; the Push dialog lists every outgoing commit, not only those up to the chosen one
+- `vcs.log.squashCommits`: `workbench::log_actions::tests::squash_commits_melds_the_selected_commits_with_the_typed_message`; the log has no multi-selection, so several commits reach the action only as its argument
+- `vcs.manageRemotes`: `workbench::vcs_operations::tests::the_remotes_dialog_adds_edits_and_removes_a_remote`; a password inside a remote URL is masked in the list and the edit field; the original shows the URL as stored
+- `vcs.newBranch`: `workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`; one repository; a new branch in several repositories at once is refused
+- `vcs.newTag`: `workbench::vcs_operations::tests::new_tag_creates_a_tag_and_refuses_an_invalid_or_duplicate_name`; the tag message is a one-line field, not a multi-line one
+- `vcs.push`: in_and_fetch_shows_what_came_in`; the current branch of one repository to a local remote. Not yet: pushing another branch, update and retry of a rejected push, the changed files of a commit, Cancel on the progress notice
+- `vcs.resolveConflicts`: resolved`; the Conflicts dialog and the three-way merge editor, with accept, apply, the non-conflicting commands and the notifications. The editor is a front window, not a tab; no blame and no syntax colours in its panes
+- `vcs.shelf.showDiffNewTab`: `workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`; opens the diff window, not an editor tab
+- `vcs.shelve`: `workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`; shelf rows show no time
+- `vcs.showCommit`: `workbench::vcs_operations::tests::show_log_shows_the_git_window_and_show_commit_selects_the_commit`; selects only a commit the log has already read
+- `vcs.showDiff`: ists_the_repositorys_changes_by_group_and_directory`; a changed file of the Commit window in a front window over the workbench; a folder (directory diff) and the editor-tab form are not built, and the panes are read-only
+- `vcs.showLog`: `workbench::vcs_operations::tests::show_log_shows_the_git_window_and_show_commit_selects_the_commit`; a branch or path argument opens the main log instead of a filtered one
+- `vcs.showShelf`: orkbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`; shelf rows show no time
+- `view.backgroundTasks`: sks status item runs the action and Background Tasks opens with the plugin's task and its working Cancel. Differs: the native action toggles, so running it again closes the popup, where the webview's action only opens it
+- `welcome.recentProjects`: `workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`; puts the keyboard in the Welcome screen's search; in a window with a project it does nothing, the Recent Projects popup is not built
+- `window.toggleFullScreen`: `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; registered on GPUI's own toggle; no test runs it (the test platform has no full screen)
