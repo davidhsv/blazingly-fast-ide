@@ -43,6 +43,11 @@ impl UiStorage {
         self.values.get(key).map(String::as_str)
     }
 
+    /// Every stored entry, in key order.
+    pub fn entries(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.values.iter().map(|(key, value)| (key.as_str(), value.as_str()))
+    }
+
     /// Stores `value` under `key`. A failed write is logged; the value stays for this session.
     pub fn set(&mut self, key: &str, value: String) {
         if self.values.get(key) == Some(&value) {

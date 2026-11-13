@@ -4,7 +4,9 @@ use super::*;
 #[gpui_kit::test]
 async fn keeps_dismissal_behavior_for_a_key_press_and_the_window_losing_the_focus(cx: &mut TestAppContext) {
     let cx = host(cx, "Project", true);
+    // The activation lands before the pointer rests on the button.
     cx.update(|window, _| window.activate_window());
+    cx.run_until_parked();
     hover(cx);
     assert!(shown(cx));
     cx.simulate_keystrokes("escape");

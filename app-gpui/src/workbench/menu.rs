@@ -471,6 +471,7 @@ pub fn state(window: &Window, cx: &mut App) -> MenuState {
         (DYNAMIC_TOOL_WINDOWS.to_owned(), tool_windows),
         (DYNAMIC_STATUS_BAR_WIDGETS.to_owned(), status_widgets),
         (super::menu_spec::DYNAMIC_PLUGIN_TOOLS.to_owned(), super::plugin_contributions::plugin_tool_items(cx)),
+        (super::menu_spec::DYNAMIC_LAYOUTS.to_owned(), super::app_actions::layout_menu_items(cx)),
     ]);
 
     let mut ids: Vec<&str> = action_ids(entries);

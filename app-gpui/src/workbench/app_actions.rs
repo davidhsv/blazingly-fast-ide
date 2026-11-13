@@ -15,7 +15,7 @@ use super::menu_spec::DynamicItem;
 use super::plugin_runtime::plugin_host;
 use super::services_window::on_workbench;
 use super::tool_windows::{NAMED_LAYOUTS_STORAGE_KEY, NamedLayouts, ToolWindowLayout};
-use super::{Workbench, for_window, windows};
+use super::{Workbench, for_window};
 use crate::app_models::invalidate_caches::{CachesEffect, schedule_failed};
 use crate::app_models::project_actions::{CreateProject, CreateStep, exported_storage, initial_location, is_exported};
 use crate::app_models::windows::open_failed_notice;
@@ -500,19 +500,13 @@ impl Workbench {
                 ..AskRequest::default()
             };
             // The message only informs: its answer changes nothing.
-            let _ = self.show_prompt_dialog(move |window, cx| PromptDialog::ask(request, window, cx), window, cx);
+            drop(self.show_prompt_dialog(move |window, cx| PromptDialog::ask(request, window, cx), window, cx));
             return;
         }
         let items: Vec<MenuItem<String>> =
             names.into_iter().map(|name| MenuItem::entry(name.clone(), Some(name))).collect();
         let position = gpui_kit::point(px(f32::from(window.viewport_size().width) / 2.0 - 120.0), px(80.0));
-        self.show_menu(
-            &items,
-            position,
-            move |workbench, name, window, cx| then(workbench, name, window, cx),
-            window,
-            cx,
-        );
+        self.show_menu(&items, position, then, window, cx);
     }
 
     /// Restore Tool Window Layout: the layout saved as `name`, leaving Distraction Free Mode first.
@@ -564,8 +558,11 @@ impl Workbench {
                     buttons: vec![AskButton { id: OK, label: "OK", primary: true }],
                     ..AskRequest::default()
                 };
-                let _ =
-                    workbench.show_prompt_dialog(move |window, cx| PromptDialog::ask(request, window, cx), window, cx);
+                drop(workbench.show_prompt_dialog(
+                    move |window, cx| PromptDialog::ask(request, window, cx),
+                    window,
+                    cx,
+                ));
             });
         })
         .detach();
@@ -618,11 +615,8 @@ impl Workbench {
         let layout_loaded = self.tool_windows().is_some_and(|layout| !layout.scope().is_empty());
         let effects = zen_mode(cx).set(active, layout_loaded);
         let here = window.window_handle().window_id();
-        let others: Vec<_> = windows::windows(cx)
-            .into_iter()
-            .map(|(_, handle)| handle)
-            .filter(|handle| handle.window_id() != here)
-            .collect();
+        // The other windows, without reading their workbenches: this one is being updated.
+        let others: Vec<_> = cx.windows().into_iter().filter(|handle| handle.window_id() != here).collect();
         for effect in effects {
             match effect {
                 Effect::Title(title) => retitle_zen(title, cx),
@@ -1154,7 +1148,7 @@ mod tests {
     use super::*;
     use crate::platform::actions::execute_action_or_throw;
     use crate::workbench::tests::{click_on, notification_titles, run_action, start, wait_long};
-    use crate::workbench::windows::Target;
+    use crate::workbench::windows::{self, Target};
     use crate::workbench::{RUN_TOOL_WINDOW, Workbenches};
     use gpui_kit::{AnyWindowHandle, TestAppContext, VisualTestContext};
     use std::cell::Cell;
@@ -1381,7 +1375,7 @@ mod tests {
         wait_long(&mut there, "the project opens there", |cx| {
             opened.read_with(cx, |w, cx| w.project_root(cx)).as_deref() == Some(&*root)
         });
-        assert!(!opened.read_with(&mut there, |w, cx| w.project_restricted(cx)));
+        assert!(!opened.read_with(&there, |w, cx| w.project_restricted(cx)));
         assert_eq!(trust_of(&root, &mut there), (true, true));
         assert!(cx.update(|cx| first.read(cx).project_root(cx).is_none()));
         cx.update(|cx| cx.global::<Backend>().host.close_project(&label));

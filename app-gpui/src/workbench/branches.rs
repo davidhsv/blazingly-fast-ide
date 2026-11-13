@@ -63,6 +63,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -83,9 +84,9 @@ pub(super) struct VcsSlot {
     /// Who waits for which refresh run.
     waiters: Vec<(u64, oneshot::Sender<()>)>,
     refreshing: Option<Task<()>>,
-    /// A Git command of the window runs: no read starts meanwhile, as a read writes the refreshed
-    /// index back and would take the index lock the command needs.
-    git_running: bool,
+    /// The Git command of the window that runs, by its number: no read starts meanwhile, as a read
+    /// writes the refreshed index back and would take the index lock the command needs.
+    git_running: Option<u64>,
     /// A read asked for while a command ran: it starts once the command ends.
     read_deferred: bool,
     /// Who waits for the running command or read to end before running a command of its own.
@@ -416,30 +417,63 @@ pub(super) async fn refresh(this: &This, cx: &mut AsyncWindowContext) -> anyhow:
     Ok(())
 }
 
+/// The number of the next Git command, across windows and repository states.
+static GIT_COMMANDS: AtomicU64 = AtomicU64::new(1);
+
+/// A Git command holding the window's gate. The gate opens when [`git_command_ended`] is called
+/// with it, or when it is dropped (its future was dropped before the command ended): a release
+/// task waits for the guard to go and opens the gate on the next turn, so a command that never
+/// ends cannot hold every later command and read of the window back.
+#[must_use = "the gate stays closed only while the guard lives"]
+pub(super) struct GitCommand {
+    number: u64,
+    /// Dropping it wakes the release task.
+    _release: oneshot::Sender<()>,
+}
+
 /// Waits until neither a read of the repository nor another Git command of the window runs, then
-/// holds reads off until [`git_command_ended`]. Every command of the window's operations runs between
-/// the two.
-pub(super) async fn git_command_starts(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
+/// holds reads off until the returned guard ends or is dropped. Every command of the window's
+/// operations runs while it holds a guard. `None` when the window has no repository state.
+pub(super) async fn git_command_starts(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<Option<GitCommand>> {
     loop {
-        let wait = this.update(cx, |workbench, _| {
-            let slot = workbench.vcs.as_mut()?;
-            if !slot.git_running && !slot.queue.in_flight() {
-                slot.git_running = true;
-                return None;
+        let wait = this.update(cx, |workbench, cx| {
+            let Some(slot) = workbench.vcs.as_mut() else { return Ok(None) };
+            if slot.git_running.is_none() && !slot.queue.in_flight() {
+                // A late release of an earlier command never opens this one's gate.
+                let number = GIT_COMMANDS.fetch_add(1, Ordering::Relaxed);
+                slot.git_running = Some(number);
+                let (release, released) = oneshot::channel::<()>();
+                cx.spawn(async move |workbench, cx| {
+                    // Ended or dropped: either way the command no longer runs.
+                    let _ = released.await;
+                    // A window that is gone has no gate to open.
+                    let _ = workbench.update(cx, |workbench, cx| workbench.end_git_command(number, cx));
+                })
+                .detach();
+                return Ok(Some(GitCommand { number, _release: release }));
             }
             let (sender, receiver) = oneshot::channel();
             slot.gate_waiters.push(sender);
-            Some(receiver)
+            Err(receiver)
         })?;
-        let Some(wait) = wait else { return Ok(()) };
-        // A waiter dropped with its window finds no slot on the next turn.
-        let _ = wait.await;
+        match wait {
+            Ok(command) => return Ok(command),
+            // A waiter dropped with its window finds no slot on the next turn.
+            Err(wait) => {
+                let _ = wait.await;
+            }
+        }
     }
 }
 
-/// The command started by [`git_command_starts`] ended: a read asked for meanwhile starts now.
-pub(super) fn git_command_ended(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
-    this.update(cx, |workbench, cx| workbench.end_git_command(cx))
+/// The command of `command` ended: a read asked for meanwhile starts now.
+pub(super) fn git_command_ended(
+    this: &This,
+    cx: &mut AsyncWindowContext,
+    command: Option<GitCommand>,
+) -> anyhow::Result<()> {
+    let Some(command) = command else { return Ok(()) };
+    this.update(cx, |workbench, cx| workbench.end_git_command(command.number, cx))
 }
 
 /// Saves the open documents so git sees what the editors hold; a failure leaves git with what is on
@@ -497,9 +531,9 @@ where
         #[cfg(test)]
         workbench.vcs_trace(format!("operation {title} starts"));
     })?;
-    git_command_starts(this, cx).await?;
+    let command = git_command_starts(this, cx).await?;
     let result = call(this, cx, work).await;
-    git_command_ended(this, cx)?;
+    git_command_ended(this, cx, command)?;
     let result = result?;
     #[cfg(test)]
     this.update(cx, |workbench, _| workbench.vcs_trace(format!("operation {title} ended: ok={}", result.is_ok())))?;
@@ -572,12 +606,12 @@ pub(super) async fn run_remote(
             })
             .collect()
     })?;
-    git_command_starts(this, cx).await?;
+    let command = git_command_starts(this, cx).await?;
     let ran = {
         let op = op.clone();
         call(this, cx, move |host, label| remote_in_repos(host, label, op, named)).await
     };
-    git_command_ended(this, cx)?;
+    git_command_ended(this, cx, command)?;
     let ran = ran?;
     let run = ran.unwrap_or_else(|error| RemoteRun { error: Some(error), ..RemoteRun::default() });
     refresh(this, cx).await?;
@@ -1028,7 +1062,7 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
         notice.sticky = Some(true);
         workbench.notify(notice, cx);
     })?;
-    git_command_starts(this, cx).await?;
+    let command = git_command_starts(this, cx).await?;
     let lines: Arc<Mutex<Vec<String>>> = Arc::default();
     let sink = Arc::clone(&lines);
     let path = repo_path(repo.as_deref());
@@ -1040,7 +1074,7 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
         git::vcs_operation(&host, &label, path, Backend::next_request_id(), op, channel).await
     })
     .await;
-    git_command_ended(this, cx)?;
+    git_command_ended(this, cx, command)?;
     let ran = ran?;
     refresh(this, cx).await?;
     let output = match lines.lock() {
@@ -1173,7 +1207,7 @@ impl Workbench {
         let trace: Vec<String> = slot.trace.iter().rev().take(40).rev().map(|line| format!("  {line}")).collect();
         format!(
             "busy={:?} operation={:?} available={} loading={} error={:?} status={} version={} queue={:?} \
-             reading={} debounce={}\nconsole:\n{}\ntrace:\n{}",
+             reading={} debounce={} git command={:?} read deferred={}\nconsole:\n{}\ntrace:\n{}",
             state.remote_busy,
             state.branch.as_ref().and_then(|branch| branch.operation.as_deref()),
             state.available,
@@ -1184,9 +1218,17 @@ impl Workbench {
             slot.queue,
             slot.refreshing.is_some(),
             slot.debounce.is_some(),
+            slot.git_running,
+            slot.read_deferred,
             console.join("\n"),
             trace.join("\n"),
         )
+    }
+
+    /// Whether a Git command of the window holds the gate.
+    #[cfg(test)]
+    pub(super) fn git_gate_closed(&self) -> bool {
+        self.vcs.as_ref().is_some_and(|slot| slot.git_running.is_some())
     }
 
     #[cfg(test)]
@@ -1263,7 +1305,7 @@ impl Workbench {
             queue: RefreshQueue::default(),
             waiters: Vec::new(),
             refreshing: None,
-            git_running: false,
+            git_running: None,
             read_deferred: false,
             gate_waiters: Vec::new(),
             debounce: None,
@@ -1381,7 +1423,7 @@ impl Workbench {
     }
 
     fn start_vcs_refresh(&mut self, cx: &mut Context<Self>) {
-        if let Some(slot) = self.vcs.as_mut().filter(|slot| slot.git_running) {
+        if let Some(slot) = self.vcs.as_mut().filter(|slot| slot.git_running.is_some()) {
             slot.read_deferred = true;
             #[cfg(test)]
             self.vcs_trace("read deferred: a Git command runs".to_owned());
@@ -1447,11 +1489,11 @@ impl Workbench {
         self.wake_git_gate();
     }
 
-    /// The command started by [`git_command_starts`] ended: the read it held off starts, and who
-    /// waits to run a command looks again.
-    fn end_git_command(&mut self, cx: &mut Context<Self>) {
-        let Some(slot) = self.vcs.as_mut() else { return };
-        slot.git_running = false;
+    /// The command `number` started by [`git_command_starts`] ended: the read it held off starts,
+    /// and who waits to run a command looks again. A command that ended already changes nothing.
+    fn end_git_command(&mut self, number: u64, cx: &mut Context<Self>) {
+        let Some(slot) = self.vcs.as_mut().filter(|slot| slot.git_running == Some(number)) else { return };
+        slot.git_running = None;
         if std::mem::take(&mut slot.read_deferred) {
             self.start_vcs_refresh(cx);
         }

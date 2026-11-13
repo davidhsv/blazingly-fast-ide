@@ -906,7 +906,12 @@ impl RunStore {
     pub fn enqueue(&mut self, session_id: &str, kind: ChunkKind, text: &str, now_ms: f64, hidden: bool) -> Enqueued {
         let Some(runtime) = self.runtimes.get_mut(session_id) else { return Enqueued::default() };
         if let Some(terminal) = &mut runtime.terminal {
-            return Enqueued { terminal_data: terminal.append(kind, text), ..Enqueued::default() };
+            let terminal_data = terminal.append(kind, text);
+            // The terminal console shows the output at once: it has no flush to wait for.
+            if terminal_data.is_some() {
+                self.bump(session_id);
+            }
+            return Enqueued { terminal_data, ..Enqueued::default() };
         }
         runtime.queue.push((kind, text.to_string()));
         if runtime.flush_handle.is_some() {

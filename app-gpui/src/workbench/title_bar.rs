@@ -600,7 +600,7 @@ impl TitleBar {
                     .rounded(theme::length(cx, "radius-popup"))
                     .hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover")))
                     .child(theme::icon(cx, &icon, 20.0, theme::color(cx, "fg-strong")))
-                    .tooltip(move |_, cx| {
+                    .tooltip(move |window, cx| {
                         let tooltip = Tooltip::new(title.clone()).with_action_shortcut(&tip_action, cx);
                         // Search Everywhere's double Shift is no binding the keymap can name.
                         let tooltip = if tooltip.shortcut().is_none() && tip_action == "navigate.searchEverywhere" {
@@ -608,7 +608,7 @@ impl TitleBar {
                         } else {
                             tooltip
                         };
-                        cx.new(|_| tooltip).into()
+                        tooltip.shown(window, cx)
                     })
                     .tooltip_show_delay(TOOLTIP_DELAY)
                     .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {

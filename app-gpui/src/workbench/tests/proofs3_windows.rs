@@ -49,13 +49,15 @@ fn wait(cx: &mut TestAppContext, what: &str, done: &dyn Fn(&mut TestAppContext) 
     panic!("{what} did not happen within three seconds");
 }
 
-/// Three folders, each with `notes.txt` and `other.txt`, canonical.
-fn folders() -> (Vec<tempfile::TempDir>, Vec<PathBuf>) {
+/// Three trusted folders, each with `notes.txt` and `other.txt`, canonical: decided folders open
+/// without the trust question.
+fn folders(cx: &mut TestAppContext) -> (Vec<tempfile::TempDir>, Vec<PathBuf>) {
     let folders: Vec<tempfile::TempDir> = (0..3).map(|_| tempfile::tempdir().expect("a temporary folder")).collect();
     let roots: Vec<PathBuf> = folders.iter().map(|f| f.path().canonicalize().expect("the folder exists")).collect();
     for root in &roots {
         std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
         std::fs::write(root.join("other.txt"), "other\n").expect("the file is written");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(root, true, false)).expect("trusted");
     }
     (folders, roots)
 }
@@ -68,7 +70,7 @@ fn folders() -> (Vec<tempfile::TempDir>, Vec<PathBuf>) {
 async fn open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it(cx: &mut TestAppContext) {
     let _home = start(cx);
     cx.update(gpui_kit::init);
-    let (_folders, roots) = folders();
+    let (_folders, roots) = folders(cx);
     let main = cx.update(|cx| windows::open_window(Target::Empty, cx)).expect("a window opens");
     run_in(cx, main, "file.openProjectPath", Some(&roots[0]));
     wait(cx, "the project to open", &|cx| project_of(cx, "main").as_deref() == Some(&*roots[0]));
@@ -116,7 +118,7 @@ async fn open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_ha
 async fn open_in_new_window_opens_the_given_or_picked_folder_in_a_new_window(cx: &mut TestAppContext) {
     let _home = start(cx);
     cx.update(gpui_kit::init);
-    let (_folders, roots) = folders();
+    let (_folders, roots) = folders(cx);
     let main = cx.update(|cx| windows::open_window(Target::Empty, cx)).expect("a window opens");
     run_in(cx, main, "file.openProjectPath", Some(&roots[0]));
     wait(cx, "the project to open", &|cx| project_of(cx, "main").as_deref() == Some(&*roots[0]));

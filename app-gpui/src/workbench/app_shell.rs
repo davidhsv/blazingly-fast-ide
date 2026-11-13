@@ -23,6 +23,8 @@ use crate::app_models::windows::{
     FileOpen, LooseFiles, LooseStep, OpenFlow, OpenOutcome, OpenStep, WindowState, WorkspaceMembers, editor_opens,
 };
 use crate::backend::Backend;
+use crate::debugger::actions::Debugger;
+use crate::debugger::state::{DebugSession, DebugState};
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::settings;
 use crate::run::store::RunStore;
@@ -118,6 +120,11 @@ fn live_sessions(store: &RunStore) -> Vec<String> {
     store.sessions.iter().filter(|session| session.is_live()).map(|session| session.id.clone()).collect()
 }
 
+/// The debug sessions whose program still runs, without the child sessions of another one.
+fn live_debug_sessions(state: &DebugState) -> impl Iterator<Item = &DebugSession> {
+    state.sessions().values().filter(|session| session.is_live() && session.parent.is_none())
+}
+
 /// Writes `false` to the global setting `key` on behalf of the window; a failure is logged, the close
 /// goes on either way.
 fn turn_off(label: &str, key: &str, cx: &mut App) {
@@ -146,13 +153,17 @@ impl Workbench {
 
     /// The names of the run configurations whose process is alive, each once.
     fn running_process_names(&self, cx: &App) -> Vec<String> {
-        let names: Vec<String> = self
+        let mut names: Vec<String> = self
             .run_driver()
             .map(|driver| {
                 let store = driver.read(cx).store().read(cx);
                 store.sessions.iter().filter(|s| s.is_live()).map(|s| s.config.name.clone()).collect()
             })
             .unwrap_or_default();
+        // A program running under the debugger is a running process too.
+        if let Some(debugger) = self.debug_driver().map(|driver| driver.read(cx).debugger().read(cx)) {
+            names.extend(live_debug_sessions(&debugger.state).map(|session| session.name.clone()));
+        }
         process_names::<std::convert::Infallible>(Ok(names))
     }
 
@@ -199,6 +210,8 @@ impl Workbench {
             Content::Opening(_) => None,
             Content::Project { .. } => Some(Ok(())),
             Content::Failed(message) => Some(Err(IdeError::new(ErrorKind::Io, message.to_string()))),
+            // The trust question of a project opening in this window is still waiting.
+            Content::Empty if self.trust_dialog().is_some() => None,
             Content::Empty | Content::Editor(_) | Content::Viewer(_) => {
                 Some(Err(IdeError::new(ErrorKind::Cancelled, "Project opening cancelled")))
             }
@@ -559,14 +572,29 @@ async fn decide(
 /// kills what is still shutting down) after [`TERMINATE_GRACE`]. A failure names the processes.
 async fn terminate(this: &This, cx: &mut AsyncWindowContext, names: &[String]) -> anyhow::Result<Result<(), String>> {
     for _ in 0..2 {
+        let debugger = this.update_in(cx, |workbench, window, cx| {
+            let debugger = workbench.debug_driver().map(|driver| driver.read(cx).debugger().clone());
+            let debugging = debugger.as_ref().is_some_and(|d| live_debug_sessions(&d.read(cx).state).next().is_some());
+            if debugging {
+                workbench.run_debug_action("debug.stop", None, window, cx);
+            }
+            debugger
+        })?;
         let store = this.update(cx, |workbench, cx| {
             let driver = workbench.run_driver()?.clone();
             let live = live_sessions(driver.read(cx).store().read(cx));
             driver.update(cx, |driver, cx| live.iter().for_each(|session| driver.stop(session, cx)));
             Some(driver.read(cx).store().clone())
         })?;
-        let Some(store) = store else { return Ok(Ok(())) };
-        if stopped(&store, cx).await? {
+        let runs_ended = match &store {
+            Some(store) => stopped(store, cx).await?,
+            None => true,
+        };
+        let debugging_ended = match &debugger {
+            Some(debugger) => debugging_stopped(debugger, cx).await?,
+            None => true,
+        };
+        if runs_ended && debugging_ended {
             return Ok(Ok(()));
         }
     }
@@ -578,6 +606,27 @@ async fn terminate(this: &This, cx: &mut AsyncWindowContext, names: &[String]) -
         workbench.notify(request, cx);
     })?;
     Ok(Err(message))
+}
+
+/// Whether every program of `debugger` ended within [`TERMINATE_GRACE`].
+async fn debugging_stopped(debugger: &Entity<Debugger>, cx: &mut AsyncWindowContext) -> anyhow::Result<bool> {
+    let (sender, receiver) = oneshot::channel::<()>();
+    let mut sender = Some(sender);
+    let _watch = cx.update(|_, cx| {
+        cx.observe(debugger, move |debugger, cx| {
+            if live_debug_sessions(&debugger.read(cx).state).next().is_none()
+                && let Some(sender) = sender.take()
+            {
+                let _ = sender.send(());
+            }
+        })
+    })?;
+    if cx.update(|_, cx| live_debug_sessions(&debugger.read(cx).state).next().is_none())? {
+        return Ok(true);
+    }
+    let timer = std::pin::pin!(cx.background_executor().timer(TERMINATE_GRACE));
+    let ended = std::pin::pin!(receiver);
+    Ok(matches!(select(ended, timer).await, Either::Left((Ok(()), _))))
 }
 
 /// Whether every process of `store` ended within [`TERMINATE_GRACE`].
@@ -605,6 +654,12 @@ async fn stopped(store: &Entity<RunStore>, cx: &mut AsyncWindowContext) -> anyho
 /// decides its own close in turn, its processes and unsaved documents; the app quits once all of
 /// them agreed. A window that keeps open calls the quit off.
 pub(super) fn quit(window: &mut Window, cx: &mut App) {
+    quit_then(window, cx, |cx| cx.quit());
+}
+
+/// [`quit`], ending with `end` once every window agreed to close: quitting, or quitting and
+/// starting again (Restart IDE).
+pub(super) fn quit_then(window: &mut Window, cx: &mut App, end: fn(&mut App)) {
     if quitting(cx) {
         return;
     }
@@ -632,7 +687,7 @@ pub(super) fn quit(window: &mut Window, cx: &mut App) {
                 return;
             }
         }
-        cx.update(|cx| cx.quit());
+        cx.update(end);
     })
     .detach();
 }
@@ -742,14 +797,23 @@ async fn carry_out_open(
                 cx.update(|_, cx| flow.project_opened(Err(error), i18n(cx)))?
             }
             OpenStep::OpenProject { path } => {
-                this.update_in(cx, |workbench, window, cx| {
-                    // Leaving what the window showed was decided first: it saves nothing more.
-                    workbench.leave_decided = true;
-                    workbench.open_project(PathBuf::from(path), window, cx);
-                    // An open that did not reach `leave` must not spare a later one its autosave.
-                    workbench.leave_decided = false;
-                })?;
-                let opened = project_opened(this, cx).await?;
+                // A folder nobody decided about is asked about first. Don't Open is a cancelled
+                // opening: nothing is reported and the window keeps what it shows.
+                let confirmed = super::app_actions::confirm_project_trust(this, cx, Path::new(&path)).await?;
+                let opened = match confirmed {
+                    Ok(true) => {
+                        this.update_in(cx, |workbench, window, cx| {
+                            // Leaving what the window showed was decided first: it saves nothing more.
+                            workbench.leave_decided = true;
+                            workbench.open_project(PathBuf::from(path), window, cx);
+                            // An open that did not reach `leave` must not spare a later one its autosave.
+                            workbench.leave_decided = false;
+                        })?;
+                        project_opened(this, cx).await?
+                    }
+                    Ok(false) => Err(IdeError::new(ErrorKind::Cancelled, "Project opening cancelled")),
+                    Err(error) => Err(error),
+                };
                 cx.update(|_, cx| flow.project_opened(opened, i18n(cx)))?
             }
             // A folder is attached only when it is trusted already: there is no trust question here.

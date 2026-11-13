@@ -119,7 +119,11 @@ impl Render for TrustDialog {
         ]
         .map(|text| div().child(SharedString::from(tx(cx, text))));
         let folder_label = tx(cx, "Trust projects in");
+        // A long parent folder is cut instead of pushing the buttons out of the dialog.
         let folder = checkbox(cx, folder_label, self.folder)
+            .flex_shrink(1.0)
+            .min_w_0()
+            .overflow_hidden()
             .id("trust-folder")
             .debug_selector(|| "trust-folder".to_owned())
             .child(path_line(cx, parent_of(&self.path)))
@@ -161,7 +165,7 @@ mod tests {
 
     type Runs = Rc<RefCell<Vec<&'static str>>>;
 
-    fn open(cx: &mut TestAppContext, path: &str) -> (Entity<TrustDialog>, Runs, &mut VisualTestContext) {
+    fn open<'a>(cx: &'a mut TestAppContext, path: &str) -> (Entity<TrustDialog>, Runs, &'a mut VisualTestContext) {
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);
@@ -210,6 +214,24 @@ mod tests {
         click(cx, "trust-folder");
         assert!(!dialog.read_with(cx, |dialog, _| dialog.folder()));
         assert!(runs.borrow().is_empty(), "the checkbox runs nothing");
+    }
+
+    #[gpui_kit::test]
+    async fn a_long_parent_folder_is_cut_and_keeps_the_buttons_inside_the_dialog(cx: &mut TestAppContext) {
+        let long = format!("/{}/new", ["a-folder-with-a-rather-long-name"; 12].join("/"));
+        let (_dialog, runs, cx) = open(cx, &long);
+        for selector in
+            ["trust-button-project.previewRestricted", "trust-button-project.dontOpen", "trust-button-project.trust"]
+        {
+            let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
+            assert!(
+                bounds.right() <= px(WIDTH),
+                "{selector} ends at {:?}, past the dialog's {WIDTH}px",
+                bounds.right()
+            );
+        }
+        click(cx, "trust-button-project.trust");
+        assert_eq!(*runs.borrow(), [TRUST]);
     }
 
     #[test]

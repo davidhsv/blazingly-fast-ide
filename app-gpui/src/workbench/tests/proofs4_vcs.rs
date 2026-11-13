@@ -127,10 +127,11 @@ async fn routes_all_paths_to_gitignore_then_refreshes_status_and_tree(cx: &mut T
     let listed = |cx: &mut VisualTestContext, rel: &str| {
         workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|s| s.status.iter().any(|f| f.rel_path == rel)))
     };
-    wait_long(cx, "the new file and folder are listed", |cx| listed(cx, "shared.log") && listed(cx, "out/"));
+    // The status lists the untracked files one by one, the folder's too.
+    wait_long(cx, "the new files are listed", |cx| listed(cx, "shared.log") && listed(cx, "out/build.bin"));
     let paths = [root.join("shared.log"), root.join("out")].map(|path| path.to_string_lossy().into_owned());
     run_action(cx, "vcs.ignoreShared", Some(serde_json::json!(paths)));
-    wait_long(cx, "the status to be read again", |cx| !listed(cx, "shared.log") && !listed(cx, "out/"));
+    wait_long(cx, "the status to be read again", |cx| !listed(cx, "shared.log") && !listed(cx, "out/build.bin"));
     let rules = std::fs::read_to_string(root.join(".gitignore")).expect("the rules are written");
     assert!(rules.contains("shared.log") && rules.contains("out"), "{rules}");
 }

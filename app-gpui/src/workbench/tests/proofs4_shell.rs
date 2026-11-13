@@ -98,6 +98,8 @@ async fn open_recent_lists_a_project_once_opened_and_choosing_it_opens_it(cx: &m
     let root = folder.path().canonicalize().expect("the folder exists");
     std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
     let name = root.file_name().expect("a folder name").to_string_lossy().into_owned();
+    // A decided folder reopens from Open Recent without the trust question.
+    cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("trusted");
     let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
     cx.update(|window, _| window.activate_window());
     let shown = |cx: &mut VisualTestContext| {

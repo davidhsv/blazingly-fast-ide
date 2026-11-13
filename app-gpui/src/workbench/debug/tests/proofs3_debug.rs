@@ -7,8 +7,11 @@ fn open_file(fixture: &Fixture, name: &str, text: &str, cx: &mut VisualTestConte
     std::fs::create_dir_all(path.parent().expect("a folder")).expect("the folder is made");
     std::fs::write(&path, text).expect("the file is written");
     fixture.workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(path.clone(), window, cx));
-    let shown =
-        |cx: &mut VisualTestContext| fixture.editor(cx).read_with(cx, |editor, _| editor.path() == path.as_path());
+    // The editor is momentarily absent while the file opens.
+    let shown = |cx: &mut VisualTestContext| {
+        let editor = fixture.workbench.read_with(cx, |workbench, _| workbench.editor().cloned());
+        editor.is_some_and(|editor| editor.read_with(cx, |editor, _| editor.path() == path.as_path()))
+    };
     long(cx, "the file in the editor", &shown);
 }
 
@@ -159,8 +162,15 @@ async fn quit_with_a_running_debug_session_asks_to_terminate_it(cx: &mut TestApp
         dialog_title(&fixture, cx).as_deref() == Some("Process 'main' Is Running")
     });
     click(cx, "prompt-button-terminate");
-    long(cx, "the end of the debugged program", &|cx| fixture.status(cx) != Some(SessionStatus::Running));
+    // The window closes its project only once the debugged program has ended, which takes the
+    // debugger with it.
+    long(cx, "the end of the debugged program", &|cx| {
+        let closed = fixture.workbench.read_with(cx, |w, _| w.debug_driver().is_none());
+        closed || fixture.status(cx) != Some(SessionStatus::Running)
+    });
     long(cx, "the Welcome screen", &|cx| fixture.workbench.read_with(cx, |w, _| w.welcome().is_some()));
+    let titles = notification_titles(&fixture, cx);
+    assert!(!titles.iter().any(|title| title == "Cannot stop process"), "{titles:?}");
     assert_eq!(cx.windows().len(), 1, "closing the project keeps the window");
 }
 

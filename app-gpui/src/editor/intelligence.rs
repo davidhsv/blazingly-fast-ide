@@ -1670,6 +1670,17 @@ mod tests {
         open: &str,
         answers: Value,
     ) -> (Fixture, &'a mut VisualTestContext) {
+        open_decided(cx, files, open, answers, true)
+    }
+
+    /// [`open`], with the project trusted or previewed in Restricted Mode as `trusted` says.
+    fn open_decided<'a>(
+        cx: &'a mut TestAppContext,
+        files: &[(&str, &str)],
+        open: &str,
+        answers: Value,
+        trusted: bool,
+    ) -> (Fixture, &'a mut VisualTestContext) {
         cx.executor().allow_parking();
         let (home, folder) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a folder"));
         let dirs = AppDirs::under(home.path());
@@ -1691,7 +1702,7 @@ mod tests {
             host.global_settings
                 .set(ide_workspace::settings::SettingsScope::Global, "ide.mode", json!("full"))
                 .expect("Full mode is set");
-            host.trust.decide(&root, true, false).expect("the project is trusted");
+            host.trust.decide(&root, trusted, false).expect("the project's trust is decided");
         });
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         cx.update(|window, _| window.activate_window());
@@ -1705,6 +1716,26 @@ mod tests {
             cx.update(|window, cx| editor.is_some_and(|editor| editor.focus_handle(cx).is_focused(window)))
         });
         (fixture, cx)
+    }
+
+    // Not from a spec: a project in Restricted Mode starts no language server. Its file opens and the
+    // server hears nothing, not even `initialize`; once the project is trusted the server gets it.
+    #[gpui_kit::test]
+    async fn a_project_in_restricted_mode_starts_no_language_server_until_it_is_trusted(cx: &mut TestAppContext) {
+        let (fixture, cx) = open_decided(cx, &[("a.mock", "one\n")], "a.mock", json!({}), false);
+        assert!(fixture.workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
+        for _ in 0..200 {
+            cx.executor().advance_clock(Duration::from_millis(50));
+            cx.run_until_parked();
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(fixture.server.received().is_empty(), "{:?}", fixture.server.received());
+
+        fixture.run(cx, "project.trust");
+        settle(cx, |cx| !fixture.workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
+        settle(cx, |_| !fixture.requests("textDocument/didOpen").is_empty());
+        assert_eq!(fixture.requests("initialize").len(), 1);
+        fixture.close(cx);
     }
 
     fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {

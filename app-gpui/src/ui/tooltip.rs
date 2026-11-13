@@ -2,17 +2,18 @@
 //! text, the shortcut of its action dimmed after it, and an optional line of detail below.
 //!
 //! GPUI shows a stateful element's tooltip after the pointer rests on it and hides it when the
-//! pointer leaves, a button is pressed, the wheel turns or a key is typed. A view adds one in a
-//! line: `.with_tooltip("Close Tab")` on an element with an id, or `.tooltip(tooltip("…"))` with
-//! GPUI's own method.
+//! pointer leaves, a button is pressed or the wheel turns; a bubble shown through [`Tooltip::shown`]
+//! also hides on a key press and when its window stops being the active one, until the pointer
+//! comes back to the element. A view adds one in a line: `.with_tooltip("Close Tab")` on an
+//! element with an id, or `.tooltip(tooltip("…"))` with GPUI's own method.
 
 use crate::platform::i18n::Localization;
 use crate::platform::input::Keymap;
 use crate::platform::keymap::is_mac_host;
 use crate::theme;
 use gpui_kit::{
-    AnyView, App, BoxShadow, Context, IntoElement, Render, Rgba, SharedString, StatefulInteractiveElement, Window, div,
-    prelude::*, px,
+    AnyView, App, BoxShadow, Context, IntoElement, Render, Rgba, SharedString, StatefulInteractiveElement,
+    Subscription, Window, div, prelude::*, px,
 };
 use std::time::Duration;
 
@@ -28,12 +29,45 @@ pub struct Tooltip {
     title: SharedString,
     shortcut: Option<SharedString>,
     detail: Option<SharedString>,
+    /// A key was pressed or the window lost the focus: the bubble draws nothing until GPUI drops it
+    /// when the pointer leaves, and a new one is built when the pointer rests on the element again.
+    dismissed: bool,
+    _dismissal: Vec<Subscription>,
 }
 
 impl Tooltip {
     /// A tooltip showing `title` as written.
     pub fn new(title: impl Into<SharedString>) -> Self {
-        Self { title: title.into(), shortcut: None, detail: None }
+        Self { title: title.into(), shortcut: None, detail: None, dismissed: false, _dismissal: Vec::new() }
+    }
+
+    /// The bubble as GPUI's `.tooltip(…)` builders return it, hidden by a key pressed in `window`
+    /// and by `window` stopping being the active one.
+    pub fn shown(self, window: &mut Window, cx: &mut App) -> AnyView {
+        let here = window.window_handle().window_id();
+        cx.new(|cx| {
+            let weak: gpui_kit::WeakEntity<Self> = cx.weak_entity();
+            let keys = cx.intercept_keystrokes(move |_, window, cx| {
+                if window.window_handle().window_id() == here {
+                    // A bubble already gone has nothing to hide.
+                    let _ = weak.update(cx, |tooltip, cx| tooltip.dismiss(cx));
+                }
+            });
+            let focus = cx.observe_window_activation(window, |tooltip, window, cx| {
+                if !window.is_window_active() {
+                    tooltip.dismiss(cx);
+                }
+            });
+            Self { _dismissal: vec![keys, focus], ..self }
+        })
+        .into()
+    }
+
+    fn dismiss(&mut self, cx: &mut Context<Self>) {
+        if !self.dismissed {
+            self.dismissed = true;
+            cx.notify();
+        }
     }
 
     /// The shortcut label shown dimmed after the title.
@@ -120,6 +154,9 @@ fn shadow(cx: &App) -> Vec<BoxShadow> {
 
 impl Render for Tooltip {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.dismissed {
+            return div().into_any_element();
+        }
         let fg = theme::color(cx, "fg-tooltip");
         let dimmed = fg.opacity(0.62);
         let max_width = (window.viewport_size().width - px(32.0)).clamp(px(0.0), px(MAX_WIDTH));
@@ -132,44 +169,48 @@ impl Render for Tooltip {
         // Tests read what the bubble says by its first line.
         let first = self.lines().into_iter().next().unwrap_or_default();
         // GPUI places the tooltip at the pointer: the margin keeps the bubble clear of it.
-        div().pl(px(8.0)).pt(px(10.0)).child(
-            div()
-                .debug_selector(|| "tooltip".to_owned())
-                .flex()
-                .flex_col()
-                .gap(px(2.0))
-                .max_w(max_width)
-                .px(px(10.0))
-                .py(px(6.0))
-                .rounded(theme::length(cx, "radius-tooltip"))
-                .border_1()
-                .border_color(theme::color(cx, "border-tooltip"))
-                .bg(theme::color(cx, "bg-tooltip"))
-                .shadow(shadow(cx))
-                .font_family(font_family("font-ui", cx))
-                .text_size(theme::length(cx, "fs-ui"))
-                .line_height(px(16.0))
-                .text_color(fg)
-                .child(
-                    div()
-                        .debug_selector(move || format!("tooltip-text:{first}"))
-                        .flex()
-                        .items_center()
-                        .gap(px(8.0))
-                        .child(title)
-                        .children(shortcut),
-                )
-                .children(detail),
-        )
+        div()
+            .pl(px(8.0))
+            .pt(px(10.0))
+            .child(
+                div()
+                    .debug_selector(|| "tooltip".to_owned())
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.0))
+                    .max_w(max_width)
+                    .px(px(10.0))
+                    .py(px(6.0))
+                    .rounded(theme::length(cx, "radius-tooltip"))
+                    .border_1()
+                    .border_color(theme::color(cx, "border-tooltip"))
+                    .bg(theme::color(cx, "bg-tooltip"))
+                    .shadow(shadow(cx))
+                    .font_family(font_family("font-ui", cx))
+                    .text_size(theme::length(cx, "fs-ui"))
+                    .line_height(px(16.0))
+                    .text_color(fg)
+                    .child(
+                        div()
+                            .debug_selector(move || format!("tooltip-text:{first}"))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .child(title)
+                            .children(shortcut),
+                    )
+                    .children(detail),
+            )
+            .into_any_element()
     }
 }
 
 /// What `.tooltip(…)` takes: a tooltip showing `text`, translated.
 pub fn tooltip(text: impl Into<SharedString>) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
     let text = text.into();
-    move |_: &mut Window, cx: &mut App| {
+    move |window: &mut Window, cx: &mut App| {
         let title = translate(&text, cx);
-        cx.new(|_| Tooltip::new(title)).into()
+        Tooltip::new(title).shown(window, cx)
     }
 }
 
@@ -180,9 +221,8 @@ pub fn tooltip_with_shortcut(
     action_id: impl Into<SharedString>,
 ) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
     let (text, action_id) = (text.into(), action_id.into());
-    move |_: &mut Window, cx: &mut App| {
-        let tooltip = Tooltip::new(translate(&text, cx)).with_action_shortcut(&action_id, cx);
-        cx.new(|_| tooltip).into()
+    move |window: &mut Window, cx: &mut App| {
+        Tooltip::new(translate(&text, cx)).with_action_shortcut(&action_id, cx).shown(window, cx)
     }
 }
 
@@ -193,9 +233,8 @@ pub fn tooltip_with_keys(
     keys: impl Into<SharedString>,
 ) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
     let (text, keys) = (text.into(), keys.into());
-    move |_: &mut Window, cx: &mut App| {
-        let tooltip = Tooltip::new(translate(&text, cx)).with_shortcut(keys.clone());
-        cx.new(|_| tooltip).into()
+    move |window: &mut Window, cx: &mut App| {
+        Tooltip::new(translate(&text, cx)).with_shortcut(keys.clone()).shown(window, cx)
     }
 }
 
@@ -205,9 +244,8 @@ pub fn tooltip_lines(
     detail: impl Into<SharedString>,
 ) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
     let (title, detail) = (title.into(), detail.into());
-    move |_: &mut Window, cx: &mut App| {
-        let tooltip = Tooltip::new(translate(&title, cx)).with_detail(translate(&detail, cx));
-        cx.new(|_| tooltip).into()
+    move |window: &mut Window, cx: &mut App| {
+        Tooltip::new(translate(&title, cx)).with_detail(translate(&detail, cx)).shown(window, cx)
     }
 }
 
@@ -282,6 +320,8 @@ mod tests {
     use gpui_kit::{
         Modifiers, MouseButton, Pixels, Point, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext, point,
     };
+
+    mod proofs4_tooltip;
 
     const ACTION: &str = "navigate.searchEverywhere";
 

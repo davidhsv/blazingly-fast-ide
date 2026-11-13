@@ -247,7 +247,10 @@ mod tests {
 
     type Events = Rc<RefCell<Vec<NewProjectEvent>>>;
 
-    fn open(cx: &mut TestAppContext, location: &str) -> (Entity<NewProjectDialog>, Events, &mut VisualTestContext) {
+    fn open<'a>(
+        cx: &'a mut TestAppContext,
+        location: &str,
+    ) -> (Entity<NewProjectDialog>, Events, &'a mut VisualTestContext) {
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);

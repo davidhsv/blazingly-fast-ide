@@ -1101,13 +1101,18 @@ impl RunDriver {
     }
 
     fn output(&mut self, session: &str, generation: u64, chunks: &[OutputChunk], cx: &mut Context<Self>) {
-        let (schedule, reveal) = self.store.update(cx, |store, _| {
-            let (mut schedule, mut reveal) = (None, false);
+        let (schedule, reveal) = self.store.update(cx, |store, cx| {
+            let (mut schedule, mut reveal, mut terminal) = (None, false, false);
             for chunk in chunks {
                 let (kind, text) = ChunkKind::of(chunk);
                 let queued = store.output(session, generation, kind, text, now_ms(), false);
                 schedule = schedule.or(queued.schedule);
                 reveal |= queued.reveal;
+                terminal |= queued.terminal_data.is_some();
+            }
+            // A terminal console shows its output as it comes.
+            if terminal {
+                cx.notify();
             }
             (schedule, reveal)
         });
@@ -1446,6 +1451,13 @@ impl RunDriver {
     }
 
     /// "Send EOF": closes the session's stdin.
+    /// The terminal console of `session` fits `cols` × `rows` cells: the size is kept for a process
+    /// still starting, and a running process's terminal is resized now.
+    pub fn resize_terminal(&mut self, session: &str, cols: u16, rows: u16, cx: &mut Context<Self>) {
+        let Some(run) = self.store.update(cx, |store, _| store.resize_terminal(session, cols, rows)) else { return };
+        self.apply_effects(vec![StartEffect::Resize { run, cols, rows }], cx);
+    }
+
     pub fn close_stdin(&mut self, session: &str, cx: &mut Context<Self>) {
         let Some(run) = self.store.read(cx).close_stdin(session) else { return };
         let Some(backend) = cx.try_global::<Backend>() else {

@@ -1555,6 +1555,8 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::path::Path;
 
+    mod proofs3_editor_keys;
+
     /// A trusted project of `files` in a window, `open` open in the editor with the keyboard. With
     /// `answers` the IDE is in Full mode and `*.mock` files have the fake language server, which
     /// offers the capabilities of `answers["capabilities"]` and has the opened file before this

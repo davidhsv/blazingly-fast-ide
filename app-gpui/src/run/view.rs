@@ -71,6 +71,13 @@ pub enum RunViewEvent {
     },
     /// Show the console's context menu ([`RunView::console_menu`]) here.
     ShowMenu(Point<Pixels>),
+    /// The terminal console of the session fits `cols` × `rows` cells: its process's terminal
+    /// follows.
+    Resize {
+        session: String,
+        cols: u16,
+        rows: u16,
+    },
 }
 
 /// A row of the console's context menu.
@@ -165,6 +172,8 @@ pub struct RunView {
     shown: Option<(String, u64)>,
     /// The output of a session that emulates a terminal, as console lines.
     terminal: Option<ConsoleModel>,
+    /// The size in cells last reported for a terminal console, with its session.
+    terminal_size: Rc<std::cell::Cell<Option<(u64, u16, u16)>>>,
     /// Scroll to End: the console follows new output; scrolling up turns it off, back to the end on.
     follow: bool,
     /// The user scrolled since Scroll to End was last set: the list's own following decides then.
@@ -247,6 +256,7 @@ impl RunView {
             keys: Vec::new(),
             shown: None,
             terminal: None,
+            terminal_size: Rc::default(),
             follow: true,
             user_scrolled: false,
             wrap_override: None,
@@ -1567,11 +1577,62 @@ impl Render for RunView {
                                     cx.emit(RunViewEvent::ShowMenu(event.position));
                                 }),
                             )
-                            .child(console),
+                            .child(console)
+                            .when(session.terminal, |el| el.relative().child(self.terminal_measure(&session, cx))),
                     ),
             ),
         )
     }
+}
+
+impl RunView {
+    /// The size in cells last reported for the shown terminal console: (columns, rows).
+    pub fn terminal_size(&self) -> Option<(u16, u16)> {
+        self.terminal_size.get().map(|(_, cols, rows)| (cols, rows))
+    }
+
+    /// Measures the terminal console in cells as it is laid out (the font's `M` wide, a row tall)
+    /// and reports a new size, so that the process's terminal wraps and redraws as the console does.
+    fn terminal_measure(&self, session: &RunSession, cx: &mut Context<Self>) -> impl IntoElement {
+        let reported = Rc::clone(&self.terminal_size);
+        let weak = cx.weak_entity();
+        let id = session.id.clone();
+        let key = session_key(&id);
+        let (font, font_size) = (Self::mono_font(cx), theme::length(cx, "fs-code"));
+        gpui_kit::canvas(
+            move |bounds, window, cx| {
+                let run = TextRun {
+                    len: 1,
+                    font,
+                    color: Hsla::default(),
+                    background_color: None,
+                    underline: None,
+                    strikethrough: None,
+                };
+                let cell = window.text_system().shape_line("M".into(), font_size, &[run], None).width.max(px(1.0));
+                let fit = |cells: f32| u16::try_from(cells.floor().max(0.0) as u32).unwrap_or(u16::MAX);
+                let (cols, rows) = (fit(bounds.size.width / cell), fit((bounds.size.height - px(8.0)) / px(ROW)));
+                if cols >= 1 && rows >= 1 && reported.get() != Some((key, cols, rows)) {
+                    reported.set(Some((key, cols, rows)));
+                    cx.defer(move |cx| {
+                        // A view that is gone reports nothing.
+                        let _ = weak.update(cx, |_, cx| cx.emit(RunViewEvent::Resize { session: id, cols, rows }));
+                    });
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .size_full()
+    }
+}
+
+/// A short key of a session id, to tell the sessions whose size was reported apart.
+fn session_key(id: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    id.hash(&mut hasher);
+    hasher.finish()
 }
 
 #[cfg(test)]

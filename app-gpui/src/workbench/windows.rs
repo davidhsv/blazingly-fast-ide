@@ -82,7 +82,7 @@ pub fn open_window(target: Target, cx: &mut App) -> anyhow::Result<AnyWindowHand
             let mut workbench = Workbench::new(&label, window, cx);
             match target {
                 Target::Empty => {}
-                Target::Project(root) => workbench.open_project(root, window, cx),
+                Target::Project(root) => workbench.open_project_asking(root, window, cx),
                 Target::File(file) => workbench.open_file(file, window, cx),
             }
             workbench
@@ -123,7 +123,9 @@ pub fn open_project(path: &Path, new_window: bool, window: &mut Window, cx: &mut
     }
     let here = for_window(window, cx).filter(|workbench| !new_window && workbench.read(cx).is_empty());
     match here {
-        Some(workbench) => workbench.update(cx, |workbench, cx| workbench.open_project(path.to_path_buf(), window, cx)),
+        Some(workbench) => {
+            workbench.update(cx, |workbench, cx| workbench.open_project_asking(path.to_path_buf(), window, cx))
+        }
         None => {
             open_window(Target::Project(path.to_path_buf()), cx)?;
         }

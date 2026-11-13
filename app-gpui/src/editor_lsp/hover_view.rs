@@ -679,13 +679,13 @@ impl QuickDocView {
             .when(enabled, |el| el.hover(|el| el.bg(hover_bg)))
             .tooltip({
                 let (title, keys) = (SharedString::from(title.to_owned()), shortcut.map(SharedString::from));
-                move |_, cx| {
+                move |window, cx| {
                     let tooltip = Tooltip::new(title.clone());
                     let tooltip = match &keys {
                         Some(keys) => tooltip.with_shortcut(keys.clone()),
                         None => tooltip,
                     };
-                    cx.new(|_| tooltip).into()
+                    tooltip.shown(window, cx)
                 }
             })
             .child(theme::icon(cx, icon, 16.0, color))

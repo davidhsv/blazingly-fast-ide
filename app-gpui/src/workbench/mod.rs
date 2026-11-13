@@ -2,6 +2,7 @@
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
 mod agents;
+mod app_actions;
 mod app_shell;
 pub mod background_tasks_view;
 mod bookmarks_window;
@@ -519,6 +520,7 @@ pub fn register_actions(cx: &mut App) {
     plugin_contributions::register_actions(registry);
     chrome::register_actions(registry);
     settings_window::register_actions(registry);
+    app_actions::register_actions(registry);
     plugins_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
@@ -1800,6 +1802,8 @@ impl Workbench {
             // The project's agents are listed again, with or without the agents themselves.
             IdeEvent::ProjectTrustChanged { trusted, .. } => {
                 self.agents_trust_changed(*trusted, cx);
+                // The Restricted Mode banner comes or goes.
+                cx.notify();
                 return;
             }
             _ => return,
@@ -1946,6 +1950,7 @@ impl Workbench {
         self.publish_vcs_context(window, cx);
         self.publish_agents_context(window, cx);
         self.publish_merge_context(window, cx);
+        self.publish_app_context(window, cx);
         self.publish_shelf_context(window, cx);
         self.publish_log_context(window, cx);
         set_context(window, cx, "findPopupOpen", self.find_popup().is_some());
@@ -2336,6 +2341,9 @@ impl Workbench {
                 driver.update(cx, |driver, cx| driver.send_input(&session, &line, cx));
             }
             RunViewEvent::SendEof(session) => driver.update(cx, |driver, cx| driver.close_stdin(&session, cx)),
+            RunViewEvent::Resize { session, cols, rows } => {
+                driver.update(cx, |driver, cx| driver.resize_terminal(&session, cols, rows, cx));
+            }
             RunViewEvent::OpenUrl(url) => driver.update(cx, |driver, cx| driver.open_url(&url, cx)),
             RunViewEvent::OpenLocation { target, cwd } => {
                 driver.update(cx, |driver, cx| driver.open_location(target, cwd, cx));
@@ -2761,6 +2769,7 @@ impl Workbench {
     pub fn shows_status_bar(&self, cx: &App) -> bool {
         (self.editor().is_some() || self.task_status().is_some())
             && crate::platform::settings::global(cx).appearance.show_status_bar
+            && !self.distraction_free(cx)
     }
 
     /// Whether the window shows nothing: no project, no file.
@@ -2992,6 +3001,10 @@ impl Workbench {
                             cx.try_global::<UiStorage>().and_then(|s| s.get(&storage_key(&scope)).map(str::to_owned));
                         let mut layout = Box::new(ToolWindowLayout::new());
                         layout.load(&scope, stored.as_deref());
+                        // In Distraction Free Mode the project's tool windows are hidden like the others'.
+                        if app_actions::zen_layout_loaded(&mut layout, cx) {
+                            workbench.show_distraction_free_hint(cx);
+                        }
                         let run = workbench.new_run_driver(&root.to_string_lossy(), window, cx);
                         let run_events = cx.subscribe_in(&run, window, Self::run_driver_event);
                         workbench.mount_debugger(&root.to_string_lossy(), window, cx);
@@ -3885,8 +3898,9 @@ impl Render for Workbench {
                     )
                 };
                 let sizes = layout.sizes();
-                // "Tool Window Bars" off hides the stripes; the windows stay reachable by action.
-                let bars = crate::platform::settings::global(cx).appearance.show_tool_window_bars;
+                // "Tool Window Bars" off hides the stripes, and so does Distraction Free Mode; the
+                // windows stay reachable by action.
+                let bars = self.shows_tool_window_bars(cx);
                 let right_stripe = [Slot::Right, Slot::RightSplit, Slot::BottomSplit]
                     .into_iter()
                     .any(|slot| bars && !on_stripe(slot).is_empty())
@@ -3945,6 +3959,7 @@ impl Render for Workbench {
             .flex()
             .flex_col()
             .child(self.title_bar().clone())
+            .children(self.restricted_banner(cx))
             .child(div().flex_1().min_h_0().w_full().child(body))
             .children(self.plugin_gutter_layer(cx))
             .child(notification_balloons::layer(&self.balloons, cx))
@@ -4001,6 +4016,13 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::time::Duration;
 
+    mod proofs3_context;
+    mod proofs3_rename_lsp;
+    mod proofs3_run;
+    mod proofs3_windows;
+    mod proofs4_run;
+    mod proofs4_shell;
+    mod proofs4_vcs;
     mod proofs_agents;
     mod proofs_database;
     mod proofs_editor_actions_find;
@@ -5670,6 +5692,10 @@ mod tests {
         for root in &roots {
             std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
         }
+        // Decided folders open without the trust question.
+        for root in &roots {
+            cx.update(|cx| cx.global::<Backend>().host.trust.decide(root, true, false)).expect("trusted");
+        }
         let run = |cx: &mut TestAppContext,
                    window: gpui_kit::AnyWindowHandle,
                    id: &'static str,
@@ -7134,6 +7160,8 @@ mod tests {
         let root = folder.path().canonicalize().expect("the folder exists");
         std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
         let name = root.file_name().expect("a folder name").to_string_lossy().into_owned();
+        // A decided folder reopens from the Welcome screen without the trust question.
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("trusted");
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         let welcome = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.welcome().cloned());
         let names = |cx: &mut VisualTestContext| -> Vec<String> {
@@ -7389,6 +7417,77 @@ mod tests {
         let nap = session(cx, "nap").expect("a session");
         assert_eq!((nap.status, nap.stopped), (SessionStatus::Finished, true));
         assert_eq!(row(cx, nap_key).and_then(|row| row.detail), Some("Stopped".to_owned()));
+    }
+
+    /// In Restricted Mode Run starts nothing: the configuration stays listed but the backend refuses
+    /// to run it, so the program never runs. Once the project is trusted it runs.
+    #[gpui_kit::test]
+    async fn a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted(cx: &mut TestAppContext) {
+        let marker = tempfile::tempdir().expect("a temporary folder");
+        let ran = marker.path().join("ran.txt");
+        let touch = program("touch", "/usr/bin/touch", &ran.to_string_lossy());
+        let (workbench, cx, _folders, _root, store) = run_project(cx, vec![touch]);
+        let restricted = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, cx| w.project_restricted(cx));
+        let listed = |cx: &mut VisualTestContext| {
+            store.read_with(cx, |store, _| store.configs().iter().map(|c| c.name.clone()).collect::<Vec<_>>())
+        };
+        run_action(cx, "project.revokeTrust", None);
+        wait_long(cx, "Restricted Mode", restricted);
+        assert_eq!(listed(cx), ["touch"]);
+        run_action(cx, "run.run", None);
+        for _ in 0..50 {
+            cx.executor().advance_clock(Duration::from_millis(20));
+            cx.run_until_parked();
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(store.read_with(cx, |store, _| store.sessions.iter().all(|s| !s.is_live())), "nothing runs");
+        assert!(!ran.exists(), "the program did not run");
+        let notice = notice_titled(&workbench, "Error running 'touch'", cx).expect("the refusal is reported");
+        assert!(notice.body.as_deref().is_some_and(|body| body.contains("Restricted Mode")), "{:?}", notice.body);
+
+        run_action(cx, "project.trust", None);
+        wait_long(cx, "the trust", |cx| !restricted(cx));
+        run_action(cx, "run.run", None);
+        wait_long(cx, "the program", |_| ran.exists());
+    }
+
+    /// The Run console of a configuration that emulates a terminal tells its process the size it
+    /// fits: `stty size` in the program reads the rows and columns the console reports, and the
+    /// new ones once the window is resized.
+    #[gpui_kit::test]
+    async fn a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize(cx: &mut TestAppContext) {
+        let mut sizes = ide_run::RunConfig {
+            command: "/bin/sh".to_owned(),
+            args: vec!["-c".to_owned(), "while true; do stty size; sleep 0.1; done".to_owned()],
+            ..crate::run::configs::blank_config("sizes", "sizes", "program")
+        };
+        sizes.extras.emulate_terminal = true;
+        let (workbench, cx, _folders, _root, store) = run_project(cx, vec![sizes]);
+        run_action(cx, "run.run", None);
+        wait_long(cx, "the Run tool window", |cx| {
+            workbench.read_with(cx, |w, _| w.tool_window_view(RUN_TOOL_WINDOW)).is_some()
+        });
+        let view = workbench
+            .read_with(cx, |w, _| w.tool_window_view(RUN_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<RunView>().ok())
+            .expect("the Run tool window holds its view");
+        let told = |cx: &mut VisualTestContext| {
+            let Some((cols, rows)) = view.read_with(cx, |view, _| view.terminal_size()) else { return false };
+            let line = format!("{rows} {cols}");
+            view.read_with(cx, |view, cx| view.lines(cx)).iter().any(|shown| shown.trim() == line)
+        };
+        wait_long(cx, "the program to read the console's size", told);
+        let before = view.read_with(cx, |view, _| view.terminal_size());
+
+        cx.simulate_resize(gpui_kit::size(gpui_kit::px(900.0), gpui_kit::px(640.0)));
+        wait_long(cx, "a new size", |cx| view.read_with(cx, |view, _| view.terminal_size()) != before);
+        wait_long(cx, "the program to read the new size", told);
+        let session = store.read_with(cx, |store, _| store.sessions.first().map(|s| s.id.clone())).expect("a session");
+        let driver = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
+        driver.update(cx, |driver, cx| driver.stop(&session, cx));
+        wait_long(cx, "the end of the program", |cx| {
+            store.read_with(cx, |store, _| store.sessions.iter().all(|s| !s.is_live()))
+        });
     }
 
     /// A program configuration that runs `command arg`.
@@ -8468,6 +8567,79 @@ for line in sys.stdin:
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         wait_long(cx, "the repository is read", |cx| !branch_label(&workbench, cx).is_empty());
         (workbench, cx, [home, folder], root)
+    }
+
+    /// A Git command whose future is dropped before its backend call returns opens the window's gate:
+    /// the next operation of the window runs to the end and the repository is read again.
+    #[gpui_kit::test]
+    async fn a_git_command_dropped_before_it_ends_lets_the_next_operation_run(cx: &mut TestAppContext) {
+        let (workbench, cx, _dirs, root) = git_project(cx, |root| {
+            init_repo(root);
+            git_in(root, &["branch", "feature"]);
+        });
+        let hanging = workbench.update_in(cx, |_, window, cx| {
+            cx.spawn_in(window, async move |this, cx| {
+                let never = |_, _| futures::future::pending::<ide_core::IdeResult<()>>();
+                branches::run_op::<(), _>(&this, cx, "Hang", None, false, never).await
+            })
+        });
+        wait_long(cx, "the hanging command takes the gate", |cx| workbench.read_with(cx, |w, _| w.git_gate_closed()));
+        drop(hanging);
+        cx.run_until_parked();
+        assert!(!workbench.read_with(cx, |w, _| w.git_gate_closed()), "the dropped command opened the gate");
+
+        choose_in_branch_menu(&workbench, "feature", "Checkout", cx);
+        wait_long(cx, "the checkout", |cx| branch_label(&workbench, cx) == "feature");
+        assert_eq!(git_head(&root), "feature");
+        wait_for_notice(&workbench, "Checked out feature", cx);
+        assert!(!workbench.read_with(cx, |w, _| w.git_gate_closed()), "the checkout released the gate");
+    }
+
+    /// In Restricted Mode no Git hook of the project runs: a checkout from the Branches popup is
+    /// refused, HEAD stays and the `post-checkout` hook writes nothing. Once the project is trusted the
+    /// same checkout runs, and so does its hook.
+    #[gpui_kit::test]
+    async fn a_project_in_restricted_mode_runs_no_git_hook_until_it_is_trusted(cx: &mut TestAppContext) {
+        use std::os::unix::fs::PermissionsExt;
+        let marker = tempfile::tempdir().expect("a temporary folder");
+        let ran = marker.path().join("hook-ran");
+        let home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        init_repo(&root);
+        git_in(&root, &["branch", "feature"]);
+        let hook = root.join(".git/hooks/post-checkout");
+        std::fs::create_dir_all(hook.parent().expect("a folder")).expect("the hooks folder is made");
+        std::fs::write(&hook, format!("#!/bin/sh\ntouch '{}'\n", ran.display())).expect("the hook is written");
+        std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).expect("the hook runs");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, false, false)).expect("previewed");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        wait_long(cx, "the repository is read", |cx| branch_label(&workbench, cx) == "main");
+        assert!(workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
+
+        choose_in_branch_menu(&workbench, "feature", "Checkout", cx);
+        let refused = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| {
+                w.notifications()
+                    .items()
+                    .iter()
+                    .any(|n| n.body.as_deref().is_some_and(|b| b.contains("Restricted Mode")))
+            })
+        };
+        wait_long(cx, "the refused checkout", refused);
+        assert_eq!(git_head(&root), "main");
+        assert!(!ran.exists(), "the hook did not run");
+
+        run_action(cx, "project.trust", None);
+        wait_long(cx, "the trust", |cx| workbench.read_with(cx, |w, cx| !w.project_restricted(cx)));
+        choose_in_branch_menu(&workbench, "feature", "Checkout", cx);
+        wait_long(cx, "the checkout", |cx| branch_label(&workbench, cx) == "feature");
+        assert_eq!(git_head(&root), "feature");
+        assert!(ran.exists(), "the hook ran in the trusted project");
+        drop(home);
     }
 
     /// `a.txt` reads "main\n" on `main` and "feature\n" on `feature`, both from "one\n": merging one
@@ -11478,6 +11650,84 @@ for line in sys.stdin:
         assert!(lines.iter().any(|line| line.starts_with("      v users")), "{lines:?}");
         // The source is connected now.
         assert!(tree.read_with(cx, |tree, _| tree.data().connected.contains("s1")));
+    }
+
+    /// In Restricted Mode the Database tools reach no database: connecting, Test Connection and
+    /// reading a source's schemas are refused with the backend's reason, and nothing connects. Once
+    /// the project is trusted the same source connects and lists its schema.
+    #[gpui_kit::test]
+    async fn a_project_in_restricted_mode_connects_to_no_database_until_it_is_trusted(cx: &mut TestAppContext) {
+        use crate::database::source_dialog::Field;
+        const REFUSED: &str = "Project is in Restricted Mode. Trust the project to enable execution.";
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+        // `app` (s1) gets a table; `other` (s2) is a second file, left unconnected.
+        sqlite_source(&root, cx);
+        std::fs::File::create(root.join("other.db")).expect("the database file is made");
+        let sources: Vec<ide_db::DataSource> = ["s1", "s2"]
+            .into_iter()
+            .zip(["app", "other"])
+            .map(|(id, name)| ide_db::DataSource {
+                id: id.into(),
+                name: name.into(),
+                driver: ide_db::DbDriver::Sqlite,
+                file: Some(root.join(format!("{name}.db")).into()),
+                ..Default::default()
+            })
+            .collect();
+        cx.update(|_, cx| {
+            let backend = cx.global::<Backend>();
+            let host = backend.host.clone();
+            backend.block_on(async move {
+                ide_host::ops::db::save_sources(&host, "w1", sources).await.expect("the sources are saved");
+            });
+        });
+        run_action(cx, "db.showToolWindow", None);
+        let tree = db_tree(&workbench, cx);
+        // Trusted, `app` connects and lists its schema.
+        db_expand(&tree, "app", cx);
+        db_row_key(&tree, "main", cx);
+        assert!(tree.read_with(cx, |tree, _| tree.data().connected.contains("s1")));
+
+        run_action(cx, "project.revokeTrust", None);
+        wait_long(cx, "Restricted Mode", |cx| workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
+        // The rows under the source `name`.
+        let under = |name: &str, cx: &mut VisualTestContext| -> Vec<String> {
+            let lines = tree.read_with(cx, |tree, _| tree.lines());
+            let source = |line: &String| !line.starts_with(' ');
+            let start = lines.iter().position(|line| source(line) && line[2..].starts_with(name));
+            let Some(start) = start else { return Vec::new() };
+            lines[start + 1..].iter().take_while(|line| !source(line)).map(|line| line.trim().to_owned()).collect()
+        };
+        // Connecting is refused.
+        db_expand(&tree, "other", cx);
+        wait_long(cx, "the refused connection", |cx| under("other", cx) == [REFUSED]);
+        assert!(!tree.read_with(cx, |tree, _| tree.data().connected.contains("s2")));
+        // Reading the schemas again is refused.
+        let app = db_row_key(&tree, "app", cx);
+        run_action(cx, "db.refresh", Some(serde_json::json!(app)));
+        wait_long(cx, "the refused schema read", |cx| under("app", cx) == [REFUSED]);
+        // Test Connection is refused.
+        run_action(cx, "db.newDataSource", None);
+        let dialog = workbench.read_with(cx, |w, _| w.database_source_dialog()).expect("the dialog is open");
+        let file = root.join("other.db").to_string_lossy().into_owned();
+        dialog.update_in(cx, |dialog, window, cx| dialog.edit(|form| form.set_type("sqlite"), window, cx));
+        dialog.update_in(cx, |dialog, window, cx| dialog.file_picked(Field::File, &file, window, cx));
+        dialog.update(cx, |dialog, cx| dialog.press_test(cx));
+        wait_long(cx, "Test Connection", |cx| dialog.read_with(cx, |dialog, _| dialog.form().test.is_some()));
+        let test = dialog.read_with(cx, |dialog, _| dialog.form().test.clone()).expect("an outcome");
+        assert!(!test.ok && test.text.contains(REFUSED), "{}", test.text);
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+
+        // Trusted again from the banner, `other` connects and lists its schema.
+        click_on(cx, "restricted-banner-trust");
+        wait_long(cx, "the trust", |cx| workbench.read_with(cx, |w, cx| !w.project_restricted(cx)));
+        let other = db_row_key(&tree, "other", cx);
+        run_action(cx, "db.refresh", Some(serde_json::json!(other)));
+        wait_long(cx, "the schema of other", |cx| under("other", cx) == ["> main"]);
+        assert!(tree.read_with(cx, |tree, _| tree.data().connected.contains("s2")));
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
     }
 
     /// Edit Data opens the table's rows in the table editor. Submit writes an edited cell to the

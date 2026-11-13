@@ -582,10 +582,17 @@ impl Workbench {
     /// its project (loaded first when the project is trusted).
     fn list_plugins(&self, host: &Arc<PluginHost>, page: &Entity<PluginsPage>, cx: &mut Context<Self>) {
         let root = self.project_root(cx);
+        // Only a trusted project's plugins are loaded. An untrusted one's were unloaded when it lost
+        // its trust; asking the host to restrict it again would announce a change on every listing,
+        // and every announced change lists the plugins again.
+        let trusted = cx
+            .try_global::<Backend>()
+            .zip(root.as_ref())
+            .is_some_and(|(backend, root)| backend.host.trust.trusted(root).unwrap_or(false));
         let work = host_work(host, cx, move |host| {
             host.wait_initial_load(INITIAL_LOAD_WAIT);
             host.sync_links();
-            if let Some(root) = &root {
+            if let Some(root) = root.as_ref().filter(|_| trusted) {
                 host.sync_project(root);
             }
             Ok(host.list(root.as_deref()))
@@ -1192,6 +1199,45 @@ mod tests {
         wait_long(cx, "the plugin is gone", |cx| {
             installed(&host, STRING_TOOLS).is_none() && !listed(&page, STRING_TOOLS, cx)
         });
+    }
+
+    /// A project's own plugins (under `.openidea/plugins`) load only while the project is trusted:
+    /// in Restricted Mode the Plugins page lists none of them and the host loads none; Trust Project
+    /// loads them; Revoke Trust unloads them again.
+    #[gpui_kit::test]
+    async fn a_projects_own_plugins_load_only_while_the_project_is_trusted(cx: &mut TestAppContext) {
+        let home = start_with_plugins(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        super::test_support::copy_dir(&fixture(&home, "hello"), &root.join(".openidea/plugins/hello"));
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, false, false)).expect("previewed");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        wait_long(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        assert!(workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
+        let loaded = |cx: &mut VisualTestContext| {
+            let host = cx.update(|_, cx| cx.global::<Plugins>().host.clone());
+            host.list(Some(&root)).plugins.iter().any(|plugin| plugin.id == "hello")
+        };
+        run_action(cx, "plugins.settings", None);
+        let page = workbench.read_with(cx, |w, _| w.settings_plugins_page().cloned()).expect("the Plugins page");
+        let lists_hello = |cx: &mut VisualTestContext| {
+            page.update(cx, |page, cx| page.rows(cx))
+                .into_iter()
+                .any(|row| matches!(row, ListRow::Item(item) if item.id == "hello"))
+        };
+        wait_long(cx, "the listing", |cx| !page.update(cx, |page, cx| page.rows(cx)).is_empty());
+        assert!(!lists_hello(cx) && !loaded(cx), "a restricted project's plugin is not loaded");
+
+        run_action(cx, "project.trust", None);
+        wait_long(cx, "the trust", |cx| workbench.read_with(cx, |w, cx| !w.project_restricted(cx)));
+        run_action(cx, "plugins.reloadAll", None);
+        wait_long(cx, "the project's plugin is listed", |cx| lists_hello(cx) && loaded(cx));
+
+        run_action(cx, "project.revokeTrust", None);
+        wait_long(cx, "the plugin is unloaded", |cx| !loaded(cx));
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
     }
 
     /// The checkbox of a plugin's row disables it on the host, and enables it again.

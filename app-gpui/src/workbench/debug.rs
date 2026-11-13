@@ -1025,6 +1025,7 @@ pub(super) mod tests {
     use crate::run::configs::blank_config;
     use gpui_kit::{Modifiers, MouseButton, MouseDownEvent, TestAppContext, VisualTestContext, point};
     use std::time::Duration;
+    mod proofs3_debug;
     mod proofs_debug;
 
     /// A debug adapter speaking DAP over stdio. It runs the launched `program` file line by line: it
@@ -1414,6 +1415,34 @@ while True:
         let view = fixture.view(cx).expect("the Debug tool window");
         assert_eq!(view.read_with(cx, |view, cx| view.finished_tabs(cx)), [true]);
         assert!(!context(cx, "debugSessionActive"));
+        close_project(&fixture, cx);
+    }
+
+    // Not from a spec: in Restricted Mode Run › Debug starts no session; once the project is trusted
+    // the same configuration runs under the debugger.
+    #[gpui_kit::test]
+    async fn a_project_in_restricted_mode_debugs_nothing_until_it_is_trusted(cx: &mut TestAppContext) {
+        let (fixture, cx) = open(cx, "start\nloop\nend\n");
+        let restricted = |cx: &mut VisualTestContext| fixture.workbench.read_with(cx, |w, cx| w.project_restricted(cx));
+        run(cx, "project.revokeTrust");
+        long(cx, "Restricted Mode", &restricted);
+        fixture.select_main(cx);
+        run(cx, "run.debug");
+        for _ in 0..50 {
+            cx.executor().advance_clock(Duration::from_millis(20));
+            cx.run_until_parked();
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(session_count(&fixture, cx), 0, "no session starts");
+        assert!(!context(cx, "debugSessionActive"));
+
+        run(cx, "project.trust");
+        long(cx, "the trust", &|cx| !restricted(cx));
+        fixture.select_main(cx);
+        run(cx, "run.debug");
+        long(cx, "the running session", &|cx| context(cx, "debugSessionRunning"));
+        run(cx, "debug.stop");
+        long(cx, "the end of the session", &|cx| fixture.status(cx) == Some(SessionStatus::Terminated));
         close_project(&fixture, cx);
     }
 

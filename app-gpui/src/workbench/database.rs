@@ -122,10 +122,45 @@ fn op_name(op: &DbOp) -> &'static str {
     }
 }
 
+/// The backend command a store request stands for, by which the trust of the window's project is
+/// checked: a project in Restricted Mode reaches no database, while console paths and exports,
+/// which run nothing, stay allowed.
+fn ipc_command(op: &DbOp) -> &'static str {
+    match op {
+        DbOp::LoadSources => "db_sources",
+        DbOp::SaveSources(_) => "db_save_sources",
+        DbOp::SetPassword { .. } => "db_set_password",
+        DbOp::SetSshSecret { .. } => "db_set_ssh_secret",
+        DbOp::TrustSshHost { .. } => "db_trust_ssh_host",
+        DbOp::Connect { .. } => "db_connect",
+        DbOp::Disconnect { .. } => "db_disconnect",
+        DbOp::SetManualCommit { .. } => "db_set_manual_commit",
+        DbOp::FinishTransaction { .. } => "db_finish_transaction",
+        DbOp::Databases { .. } => "db_databases",
+        DbOp::Schemas { .. } => "db_schemas",
+        DbOp::Tables { .. } => "db_tables",
+        DbOp::Details { .. } => "db_table_details",
+        DbOp::Ddl { .. } => "db_ddl",
+        DbOp::ObjectDdl { .. } => "db_object_ddl",
+        DbOp::Completion { .. } => "db_completion",
+        DbOp::Execute { .. } => "db_execute",
+        DbOp::Explain { .. } => "db_explain",
+        DbOp::History { .. } => "db_history",
+        DbOp::RemoveHistory { .. } => "db_remove_history",
+        DbOp::ConsolePath { .. } => "db_console_path",
+        DbOp::WriteFile { .. } => "db_export_file",
+        DbOp::TablePage { .. } => "db_table_page",
+        DbOp::ApplyEdits { .. } => "db_apply_edits",
+    }
+}
+
 /// Carries out a store request on the backend; `request` is the id a cancellable one runs under.
 async fn run_op(host: Arc<Host>, label: String, op: DbOp, request: Option<RequestId>) -> Answer {
     use ide_host::ops::db;
     let (host, w) = (host.as_ref(), label.as_str());
+    if let Err(error) = host.authorize_command(w, ipc_command(&op)) {
+        return Answer::Failed(error);
+    }
     let request = request.unwrap_or_else(Backend::next_request_id);
     match op {
         DbOp::LoadSources => match (db::sources(host, w), db::connected(host, w)) {
@@ -1077,6 +1112,7 @@ impl Workbench {
     /// Runs `work` on the backend with the host and the window's label, then `then` with its result.
     fn db_call<T, F, W>(
         &mut self,
+        command: &'static str,
         work: W,
         then: impl FnOnce(&mut Self, IdeResult<T>, &mut Window, &mut Context<Self>) + 'static,
         window: &mut Window,
@@ -1087,7 +1123,19 @@ impl Workbench {
         W: FnOnce(Arc<Host>, String) -> F + Send + 'static,
     {
         let label = self.label.clone();
-        let call = cx.try_global::<Backend>().map(|backend| backend.with_host(move |host| work(host, label)));
+        let call = cx.try_global::<Backend>().map(|backend| {
+            backend.with_host(move |host| {
+                // A project in Restricted Mode reaches no database.
+                let allowed = host.authorize_command(&label, command);
+                let work = allowed.map(|()| work(host, label));
+                async move {
+                    match work {
+                        Ok(work) => work.await,
+                        Err(error) => Err(error),
+                    }
+                }
+            })
+        });
         cx.spawn_in(window, async move |this, cx| {
             let result = match call {
                 None => Err(IdeError::unavailable("The backend is not running")),
@@ -1373,6 +1421,7 @@ impl Workbench {
         let weak = dialog.downgrade();
         match event.clone() {
             SourceDialogEvent::Test { source, password, ssh_secret } => self.db_call(
+                "db_test",
                 move |host, label| async move {
                     let (password, ssh_secret) =
                         (password.map(SecretText::into_inner), ssh_secret.map(SecretText::into_inner));
@@ -1385,6 +1434,7 @@ impl Workbench {
                 cx,
             ),
             SourceDialogEvent::TrustHost { config: None, source_id } => self.db_call(
+                "db_trust_ssh_host",
                 move |host, label| async move { ide_host::ops::db::trust_ssh_host(&host, &label, &source_id).await },
                 move |_, result, _, cx| {
                     let _ = weak.update(cx, |dialog, cx| match result {
@@ -1411,6 +1461,7 @@ impl Workbench {
                 self.carry_out_db(commands, window, cx);
             }
             SourceDialogEvent::LoadNames { id, databases } => self.db_call(
+                if databases { "db_databases" } else { "db_schemas" },
                 move |host, label| async move {
                     if databases {
                         ide_host::ops::db::databases(&host, &label, &id).await.map(|d| (d.names, Vec::new()))
@@ -1686,6 +1737,7 @@ impl Workbench {
                 let weak = results.downgrade();
                 let (id, schema, table) = (request.source_id, request.schema, request.table);
                 self.db_call(
+                    "db_table_details",
                     move |host, label| async move {
                         ide_host::ops::db::table_details(&host, &label, &id, &schema, &table).await
                     },
@@ -1813,6 +1865,7 @@ impl Workbench {
                 .db_step(cx, |store, _| store.apply_table_edits(id, &table.target, &table.schema, &table.table, edits)),
             TableEditorEvent::Export { path, contents, rows } => {
                 self.db_call(
+                    "db_export_file",
                     move |_, _| async move {
                         let written = tokio::task::spawn_blocking(move || std::fs::write(&path, contents)).await;
                         match written {

@@ -316,6 +316,8 @@ mod tests {
     use super::*;
     use crate::vcs::changes::ChangeKind;
 
+    mod proofs4_remote_urls;
+
     fn fs(
         rel: &str,
         staged: Option<ChangeKind>,

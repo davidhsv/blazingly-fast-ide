@@ -278,7 +278,8 @@ impl Workbench {
             Content::Project { name, .. } => {
                 let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned()).unwrap_or_default();
                 let project = ProjectWidget { name: name.clone(), root };
-                (TitleBarKind::Project, title_bar_mode(false, show_main_toolbar), None, Some(project))
+                let mode = title_bar_mode(self.distraction_free(cx), show_main_toolbar);
+                (TitleBarKind::Project, mode, None, Some(project))
             }
             Content::Editor(editor) => {
                 let name = editor.read(cx).path().file_name().map(|name| name.to_string_lossy().into_owned());
