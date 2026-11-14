@@ -2837,7 +2837,7 @@
   },
   "unit:src/features/plugins/__tests__/views.test.tsx": {
     "status": "partial",
-    "proof": "`plugin_models::view_helpers::tests`; the state and logic of 4 of 26 cases, on the model; the view is not built"
+    "proof": "`workbench::plugin_tool_windows::tests`, `plugin_views::view_node::tests`, `plugin_models::view_helpers::tests`; 15 of 26 cases through the views and the application. Missing: the four HTML frame cases and the HTML theme switch (HTML bodies are not drawn), adding a plugin, command-argument unpacking, context-menu projection, grouping one plugin, zero-based coordinates"
   },
   "unit:src/features/plugins/__tests__/webViews.test.tsx": {
     "status": "partial",
@@ -5769,7 +5769,7 @@
   },
   "action:debug.pluginStart": {
     "status": "partial",
-    "proof": "`workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`, `workbench::plugin_contributions::tests::debug_plugin_configuration_runs_only_while_a_project_is_open`; a plugin's debug request runs its configuration under the debug adapter in the Debug tool window, not in Run, and the plugin hears the session's exit code; the registry refuses the action without a project and runs it with one. Missing: the JDWP branch of a plugin detector (java-debug with debugArgs, debug.attach) is not reached, and a waiting request is answered when the session ends rather than when it starts"
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`, `workbench::plugin_contributions::tests::debug_plugin_configuration_runs_only_while_a_project_is_open`, `workbench::plugin_java_debug::tests::a_plugins_java_debug_request_attaches_to_the_port_the_jvm_announces`; a plugin's debug request runs under its adapter, and a Java one attaches to the JDWP port the process announces. Missing: nothing asserted depends on what the preparation step changed; Debug from the configuration chooser does not go through the attach"
   },
   "ipc:plugin_preview_install": {
     "status": "done",
@@ -5925,15 +5925,15 @@
   },
   "wit:wit/views.wit#views": {
     "status": "partial",
-    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `workbench::plugin_runtime::tests::a_plugin_opens_a_file_at_a_position_copies_text_and_opens_a_url`; open-log-tab opens a native log tab and open-location opens the file with the caret at the line and column. Missing: open-terminal only logs a warning, open-terminal-session, open-content-tab and reply-content-tab are refused, refresh, reveal and post-message reach no native view"
+    "proof": "`workbench::plugin_tool_windows::tests::a_plugins_view_is_a_tool_window_with_its_title_and_icon_that_shows_the_rendered_rows`, `workbench::plugin_tool_windows::tests::clicking_a_node_reaches_the_plugin_and_its_refresh_repaints_the_view`, `workbench::plugin_tool_windows::tests::reveal_shows_and_focuses_the_views_window_and_a_hidden_view_stays_hidden`, `workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`; contributed views render as tool windows with message, tree, list, form and table bodies, refresh and reveal work, log tabs and open-location work. Missing: HTML and web bodies, post-message, terminal sessions, content tabs, views in the Services window"
   },
   "wit:wit/views.wit#settings": {
     "status": "partial",
     "proof": "`workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`; get returns the global value the window applied (the saved profile the command reads). Missing: the project-over-global layering has no test"
   },
   "wit:wit/run.wit#run": {
-    "status": "partial",
-    "proof": "`workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`; start runs the plugin's configuration in the Run tool window, or under the debug adapter when asked to debug, and the plugin hears the exit. Missing: the JDWP debug of a plugin detector"
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`, `workbench::plugin_java_debug::tests::a_plugins_java_debug_request_attaches_to_the_port_the_jvm_announces`"
   },
   "wit:wit/run.wit#run-configurations": {
     "status": "done",
