@@ -39,6 +39,9 @@ pub enum MarkKind {
     WeakProblem,
     /// A line with an active breakpoint: its row is tinted and a dot is drawn in the gutter.
     BreakpointLine,
+    /// A line with a breakpoint a running session's debugger did not bind: its row is tinted and a
+    /// grey dot is drawn in the gutter.
+    UnverifiedBreakpoint,
     /// A line with a disabled or muted breakpoint: only a hollow dot in the gutter.
     InactiveBreakpoint,
     /// The line where the debugger is suspended: its row is tinted.
@@ -63,12 +66,12 @@ impl MarkKind {
 
     /// Tints the whole row of its line instead of the text.
     pub fn is_line(self) -> bool {
-        matches!(self, Self::BreakpointLine | Self::ExecutionLine)
+        matches!(self, Self::BreakpointLine | Self::UnverifiedBreakpoint | Self::ExecutionLine)
     }
 
     /// Draws a breakpoint dot in the gutter of its line.
     pub fn is_breakpoint(self) -> bool {
-        matches!(self, Self::BreakpointLine | Self::InactiveBreakpoint)
+        matches!(self, Self::BreakpointLine | Self::UnverifiedBreakpoint | Self::InactiveBreakpoint)
     }
 }
 

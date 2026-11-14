@@ -203,6 +203,25 @@ async fn a_breakpoint_the_adapter_reports_unbound_shows_its_message_in_the_break
     close_project(&fixture, cx);
 }
 
+// Not from a spec: a breakpoint the adapter reports unbound is drawn as such in the editor: its line keeps the
+// breakpoint tint and the gutter shows a grey dot, not the red one of a bound breakpoint.
+#[gpui_kit::test]
+async fn a_breakpoint_the_adapter_reports_unbound_shows_a_grey_dot_in_the_gutter(cx: &mut TestAppContext) {
+    let (fixture, cx) = open(cx, PROGRAM);
+    use_adapter(&fixture, &unverifying_adapter());
+    stop_at_the_breakpoint(&fixture, cx);
+    let unbound = fixture.line_mark(1, MarkKind::UnverifiedBreakpoint, cx);
+    let editor = fixture.editor(cx);
+    let painted = |kind: MarkKind, cx: &mut VisualTestContext| editor.read_with(cx, |e, _| e.painted_marks(kind));
+    long(cx, "the unbound breakpoint's mark", &|cx| {
+        fixture.marks(MarkLayer::Breakpoints, cx) == [unbound.clone()]
+            && !painted(MarkKind::UnverifiedBreakpoint, cx).is_empty()
+    });
+    assert!(painted(MarkKind::BreakpointLine, cx).is_empty(), "no red dot for the unbound breakpoint");
+    stop_session(&fixture, cx);
+    close_project(&fixture, cx);
+}
+
 /// The exception filters the Breakpoints dialog lists for `adapter`: (label, on).
 fn exception_filters(
     dialog: &Entity<BreakpointsDialog>,

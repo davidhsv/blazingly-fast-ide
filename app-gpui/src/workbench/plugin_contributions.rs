@@ -41,7 +41,7 @@ use crate::plugin_models::marker_icons::MarkerIcons;
 use crate::plugin_views::settings_page::{
     PluginSettingsEvent, PluginSettingsPage, SettingsDecl, declared_page_id, settings_page_id, settings_pages,
 };
-use crate::plugins::{Plugins, plugin_action_id};
+use crate::plugins::{Plugins, context_listing, plugin_action_id, window_listing};
 use crate::run::store::SessionStatus;
 use crate::settings_model::pages::SettingsPage;
 use crate::settings_model::staging::Scope;
@@ -55,7 +55,7 @@ use gpui_kit::{
 };
 use ide_core::DocId;
 use ide_extension::ActivationEvent;
-use ide_host::plugins::{CommandAnswer, WorkbenchEvent};
+use ide_host::plugins::{CommandAnswer, PluginsSnapshot, WorkbenchEvent};
 use ide_plugin::{InputMode, Invocation};
 use serde_json::{Value, json};
 use std::collections::{BTreeSet, HashMap};
@@ -128,15 +128,14 @@ pub(super) fn static_action_id(id: &str) -> &'static str {
     kept
 }
 
-/// The listed contributions of the live plugins.
-fn listed_contributions(cx: &App) -> Vec<Contribution> {
-    cx.try_global::<Plugins>().and_then(Plugins::snapshot).map(Contribution::from_snapshot).unwrap_or_default()
+/// The contributions of the live plugins in `listed`.
+fn listed_contributions(listed: Option<&PluginsSnapshot>) -> Vec<Contribution> {
+    listed.map(Contribution::from_snapshot).unwrap_or_default()
 }
 
-/// The name of plugin `plugin_id` as listed, else its id.
-fn listed_name(plugin_id: &str, cx: &App) -> String {
-    cx.try_global::<Plugins>()
-        .and_then(Plugins::snapshot)
+/// The name of plugin `plugin_id` in `listed`, else its id.
+fn listed_name(plugin_id: &str, listed: Option<&PluginsSnapshot>) -> String {
+    listed
         .and_then(|listed| listed.plugins.iter().find(|plugin| plugin.id == plugin_id))
         .map_or_else(|| plugin_id.to_owned(), |plugin| plugin.name.clone())
 }
@@ -146,12 +145,13 @@ fn holds(when: Option<&str>, ctx: &ContextKeys) -> bool {
     evaluate_when(when, ctx).unwrap_or(false)
 }
 
-/// The Tools menu's plugin entries, in the order the plugins are listed: each runs its command's
-/// action, titled as the action is (else `<plugin>: <command>`). Whether one can run is the
-/// action's own `when`.
-pub(super) fn plugin_tool_items(cx: &App) -> Vec<DynamicItem> {
+/// The Tools menu's plugin entries of the window whose context keys are `ctx`, in the order the
+/// plugins are listed: each runs its command's action, titled as the action is (else
+/// `<plugin>: <command>`). Whether one can run is the action's own `when`.
+pub(super) fn plugin_tool_items(ctx: &ContextKeys, cx: &App) -> Vec<DynamicItem> {
     let registry = cx.try_global::<ActionRegistry>();
-    listed_contributions(cx)
+    let listed = context_listing(ctx, cx);
+    listed_contributions(listed)
         .iter()
         .filter(|c| c.point == MENUS_POINT && c.text("menu") == Some(TOOLS_MENU))
         .filter_map(|c| {
@@ -159,17 +159,18 @@ pub(super) fn plugin_tool_items(cx: &App) -> Vec<DynamicItem> {
             let action = plugin_action_id(&c.plugin_id, command);
             let label = registry
                 .and_then(|registry| registry.get(&action))
-                .map_or_else(|| format!("{}: {command}", listed_name(&c.plugin_id, cx)), |a| a.meta.title.clone());
+                .map_or_else(|| format!("{}: {command}", listed_name(&c.plugin_id, listed)), |a| a.meta.title.clone());
             Some(DynamicItem { action, arg: None, label, checked: None })
         })
         .collect()
 }
 
-/// The items plugins put in toolbar slot `slot` (`editor.title`, `mainToolbar`, `commit.message`),
-/// each with its `when` for the slot's host to judge.
-pub fn plugin_slot_items(slot: &str, cx: &App) -> Vec<SlotItem> {
+/// The items plugins put in toolbar slot `slot` (`editor.title`, `mainToolbar`, `commit.message`) of
+/// the window whose context keys are `ctx`, each with its `when` for the slot's host to judge.
+pub fn plugin_slot_items(slot: &str, ctx: &ContextKeys, cx: &App) -> Vec<SlotItem> {
     let registry = cx.try_global::<ActionRegistry>();
-    listed_contributions(cx)
+    let listed = context_listing(ctx, cx);
+    listed_contributions(listed)
         .iter()
         .filter(|c| c.point == MENUS_POINT && c.text("menu") == Some(slot))
         .filter_map(|c| {
@@ -178,7 +179,7 @@ pub fn plugin_slot_items(slot: &str, cx: &App) -> Vec<SlotItem> {
             let registered = registry.and_then(|registry| registry.get(&action));
             let label = registered
                 .as_ref()
-                .map_or_else(|| format!("{}: {command}", listed_name(&c.plugin_id, cx)), |a| a.meta.title.clone());
+                .map_or_else(|| format!("{}: {command}", listed_name(&c.plugin_id, listed)), |a| a.meta.title.clone());
             let icon = registered.and_then(|a| a.meta.icon.clone());
             Some(SlotItem { action, label, icon, when: c.when().map(str::to_owned) })
         })
@@ -208,7 +209,7 @@ pub fn plugin_menu_items<C: Clone>(
     });
     let mut out: Vec<MenuItem<C>> = Vec::new();
     let mut groups: HashMap<(String, String), usize> = HashMap::new();
-    for c in listed_contributions(cx).iter().filter(|c| c.point == MENUS_POINT) {
+    for c in listed_contributions(context_listing(ctx, cx)).iter().filter(|c| c.point == MENUS_POINT) {
         if c.text("menu") != Some(menu.declared()) || !holds(c.when(), ctx) {
             continue;
         }
@@ -250,9 +251,10 @@ pub fn plugin_menu_items<C: Clone>(
     out
 }
 
-/// The Settings pages of the live plugins that declare settings, each plugin's page first.
-pub(super) fn plugin_settings_pages(cx: &App) -> Vec<SettingsPage> {
-    listed_contributions(cx)
+/// The Settings pages of the live plugins `window` sees that declare settings, each plugin's page
+/// first.
+pub(super) fn plugin_settings_pages(window: &Window, cx: &App) -> Vec<SettingsPage> {
+    listed_contributions(window_listing(window, cx))
         .iter()
         .filter(|c| c.point == SETTINGS_POINT)
         .filter_map(|c| Some(settings_pages(&c.plugin_id, &SettingsDecl::parse(&c.decl)?)))
@@ -260,9 +262,9 @@ pub(super) fn plugin_settings_pages(cx: &App) -> Vec<SettingsPage> {
         .collect()
 }
 
-/// What the providers of the live plugins look like: a change asks every gutter again.
-fn providers_fingerprint(cx: &App) -> Vec<(String, String)> {
-    let Some(listed) = cx.try_global::<Plugins>().and_then(Plugins::snapshot) else { return Vec::new() };
+/// What the providers of the live plugins in `listed` look like: a change asks every gutter again.
+fn providers_fingerprint(listed: Option<&PluginsSnapshot>) -> Vec<(String, String)> {
+    let Some(listed) = listed else { return Vec::new() };
     let mut providers: Vec<(String, String)> = listed
         .ui
         .iter()
@@ -472,7 +474,7 @@ impl Workbench {
             return;
         }
         if self.plugin_contributions.providers_observer.is_none() {
-            self.plugin_contributions.providers = providers_fingerprint(cx);
+            self.plugin_contributions.providers = providers_fingerprint(self.plugin_listing(cx));
             let observer =
                 cx.observe_global_in::<Plugins>(window, |workbench, _, cx| workbench.plugin_providers_listed(cx));
             self.plugin_contributions.providers_observer = Some(observer);
@@ -504,7 +506,7 @@ impl Workbench {
     /// The plugins were listed again: when their editor providers changed, every gutter's actions
     /// go at once and are asked for again.
     fn plugin_providers_listed(&mut self, cx: &mut Context<Self>) {
-        let providers = providers_fingerprint(cx);
+        let providers = providers_fingerprint(self.plugin_listing(cx));
         if providers == self.plugin_contributions.providers {
             return;
         }
@@ -767,7 +769,7 @@ impl Workbench {
     ) -> Vec<Subscription> {
         let model = dialog.read(cx).model().clone();
         let mut subscriptions = Vec::new();
-        for c in listed_contributions(cx).into_iter().filter(|c| c.point == SETTINGS_POINT) {
+        for c in listed_contributions(self.plugin_listing(cx)).into_iter().filter(|c| c.point == SETTINGS_POINT) {
             let Some(decl) = SettingsDecl::parse(&c.decl) else {
                 tracing::warn!("the settings of plugin {} are not readable here", c.plugin_id);
                 continue;

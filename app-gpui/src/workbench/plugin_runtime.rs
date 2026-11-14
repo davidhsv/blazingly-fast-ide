@@ -51,7 +51,7 @@ use gpui_kit::{
 use ide_core::{IdeEvent, IdeResult, TerminalId};
 use ide_host::plugins::{
     ActionPerformed, CommandAnswer, CommitAnswer, EventKind, PluginEditor, PluginEvent, PluginHost, PluginStatus,
-    PluginUpdate, Prompt, StatusItem, WindowRequest, WorkbenchEvent,
+    PluginUpdate, PluginsSnapshot, Prompt, StatusItem, WindowRequest, WorkbenchEvent,
 };
 use ide_plugin::Invocation;
 use serde_json::Value;
@@ -154,17 +154,25 @@ pub(super) fn plugin_host(cx: &App) -> Option<Arc<PluginHost>> {
     cx.try_global::<Plugins>().map(|plugins| plugins.host.clone())
 }
 
-/// The live contributions as last listed.
-fn plugin_contributions(cx: &App) -> Vec<Contribution> {
-    cx.try_global::<Plugins>().and_then(Plugins::snapshot).map(Contribution::from_snapshot).unwrap_or_default()
+/// The contributions of the live plugins in `listed`.
+fn plugin_contributions(listed: Option<&PluginsSnapshot>) -> Vec<Contribution> {
+    listed.map(Contribution::from_snapshot).unwrap_or_default()
 }
 
-/// The name of plugin `plugin_id` as listed, else its id.
-fn plugin_name(plugin_id: &str, cx: &App) -> String {
-    cx.try_global::<Plugins>()
-        .and_then(Plugins::snapshot)
+/// The name of plugin `plugin_id` in `listed`, else its id.
+fn plugin_name(plugin_id: &str, listed: Option<&PluginsSnapshot>) -> String {
+    listed
         .and_then(|listed| listed.plugins.iter().find(|plugin| plugin.id == plugin_id))
         .map_or_else(|| plugin_id.to_owned(), |plugin| plugin.name.clone())
+}
+
+impl Workbench {
+    /// The plugins this window sees, as last listed: the installed and linked ones, plus its
+    /// project's own while that project is trusted.
+    pub(super) fn plugin_listing<'a>(&self, cx: &'a App) -> Option<&'a PluginsSnapshot> {
+        let project = cx.try_global::<Backend>().and_then(|backend| backend.host.project(&self.label).ok());
+        cx.try_global::<Plugins>()?.listing_for(project.as_ref().map(|project| project.root.as_path()))
+    }
 }
 
 /// The declared status items of a listing, by `<plugin>/<id>`.
@@ -451,7 +459,7 @@ impl Workbench {
         if client.is_some_and(|client| client != self.label) {
             return;
         }
-        let contributions = plugin_contributions(cx);
+        let contributions = plugin_contributions(self.plugin_listing(cx));
         let handled = {
             let registry = cx.try_global::<ActionRegistry>();
             let has_action = |id: &str| registry.is_some_and(|registry| registry.contains(id));
@@ -560,7 +568,7 @@ impl Workbench {
                     if request.title.is_empty()
                         && let Some(plugin) = origin
                     {
-                        request.title = plugin_name(plugin, cx);
+                        request.title = plugin_name(plugin, self.plugin_listing(cx));
                     }
                     request.body = request.body.filter(|body| !body.is_empty());
                     self.notify(request, cx);
@@ -687,6 +695,10 @@ impl Workbench {
         let running = self.plugin_runtime.ui.status_items();
         let declared = self.plugin_runtime.declared.clone();
         let keys: BTreeSet<&String> = running.keys().chain(declared.keys()).collect();
+        // The items of the plugins this window sees: another project's own plugins show none here.
+        let listed = self.plugin_listing(cx).cloned();
+        let listed = listed.as_ref();
+        let seen = |plugin_id: &str| listed.is_some_and(|listed| listed.plugins.iter().any(|p| p.id == plugin_id));
         let mut wanted: BTreeMap<String, (StatusItemSpec, StatusText)> = BTreeMap::new();
         for key in keys {
             let declaration = declared.get(key);
@@ -697,8 +709,11 @@ impl Workbench {
             else {
                 continue;
             };
+            if !seen(&plugin_id) {
+                continue;
+            }
             let id = format!("{PLUGIN_STATUS_PREFIX}{key}");
-            let name = plugin_name(&plugin_id, cx);
+            let name = plugin_name(&plugin_id, listed);
             let what = declaration
                 .map(|d| d.item.tooltip.clone().filter(|t| !t.is_empty()).unwrap_or_else(|| d.item.text.clone()));
             let title = match what.filter(|what| !what.is_empty()) {
@@ -858,7 +873,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let running = self.run_plugin_command(plugin_id, command, arg, Vec::new(), cx);
-        let title = command_title(&plugin_contributions(cx), plugin_id, command);
+        let title = command_title(&plugin_contributions(self.plugin_listing(cx)), plugin_id, command);
         let (plugin, host) = (plugin_id.to_owned(), plugin_host(cx));
         cx.spawn(async move |workbench, cx| {
             let Err(error) = running.await else { return };
@@ -1308,7 +1323,7 @@ impl Workbench {
     /// The plugins were listed again: the declared status items, the `workspaceContains` keys
     /// their `when` clauses name, and the log tabs of a plugin that changed.
     fn plugins_listed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(listed) = cx.try_global::<Plugins>().and_then(Plugins::snapshot) else { return };
+        let Some(listed) = self.plugin_listing(cx) else { return };
         let contributions = Contribution::from_snapshot(listed);
         let states: HashMap<String, String> =
             listed.plugins.iter().map(|plugin| (plugin.id.clone(), plugin_state(plugin))).collect();
@@ -1568,6 +1583,8 @@ mod tests {
     use crate::platform::context::{ContextValue, window_context};
     use gpui_kit::{Modifiers, TestAppContext, VisualTestContext};
     use std::path::Path;
+
+    mod proofs6_plugin_runtime;
 
     const LABEL: &str = "w1";
 

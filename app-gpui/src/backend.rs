@@ -190,8 +190,12 @@ impl Backend {
                 syntax.get_or_init(|| Arc::new(Syntax::new()));
             })?;
         }
-        let runtime =
-            tokio::runtime::Builder::new_multi_thread().enable_all().thread_name("openidea-backend").build()?;
+        let mut runtime = tokio::runtime::Builder::new_multi_thread();
+        // A test app keeps its backend until the test binary exits, and a process may run only so many
+        // threads: the tests' runtimes keep two workers each instead of one per core.
+        #[cfg(test)]
+        runtime.worker_threads(2);
+        let runtime = runtime.enable_all().thread_name("openidea-backend").build()?;
         let languages = Arc::new(
             LanguageRegistry::load(Some(&dirs.config.join("languages"))).map_err(|e| anyhow::anyhow!(e.message))?,
         );

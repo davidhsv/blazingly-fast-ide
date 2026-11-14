@@ -6,6 +6,7 @@
 
 use crate::backend::Backend;
 use crate::platform::actions::{Action, ActionMeta, ActionRegistry};
+use crate::platform::context::{ContextKeys, ContextValue, window_context};
 use crate::theme::appearance::{self, PluginTheme};
 use crate::theme::themes::{ThemeChoice, ThemeChoiceId, ThemeKind, parse_plugin_theme_ref, plugin_theme_ref};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
@@ -18,7 +19,8 @@ use ide_host::plugins::{
 };
 use ide_plugin::{Invocation, Limits};
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -37,6 +39,10 @@ const TICKS_PER_SUPERVISION: u32 = 20;
 
 /// The extension point plugin themes are contributed to.
 const THEMES_POINT: &str = "themes";
+
+/// The context key naming the root of a window's open project. The window sees the own plugins of
+/// that project while it is trusted, and the actions of their commands are enabled there only.
+pub const PROJECT_ROOT_KEY: &str = "projectRoot";
 
 /// The extension point plugin commands are contributed to.
 const COMMANDS_POINT: &str = "commands";
@@ -90,8 +96,12 @@ type Listener = dyn Fn(Option<&str>, &PluginEvent, &mut App);
 /// The process-wide plugin host and what the UI last learned from it.
 pub struct Plugins {
     pub host: Arc<PluginHost>,
-    /// The plugins and their UI contributions as last listed; none before the first listing.
+    /// The installed and linked plugins and their UI contributions as last listed; none before the
+    /// first listing.
     snapshot: Option<PluginsSnapshot>,
+    /// What each open trusted project's windows see, by root: the installed and linked plugins plus
+    /// that project's own.
+    projects: BTreeMap<PathBuf, PluginsSnapshot>,
     listeners: Vec<(u64, Rc<Listener>)>,
     next_listener: u64,
     /// A listing in progress; a newer one replaces it.
@@ -188,6 +198,7 @@ impl Plugins {
         cx.set_global(Self {
             host,
             snapshot: None,
+            projects: BTreeMap::new(),
             listeners: Vec::new(),
             next_listener: 0,
             listing: None,
@@ -266,9 +277,15 @@ impl Plugins {
         self.listeners.retain(|(listener, _)| *listener != id);
     }
 
-    /// The plugins and their UI contributions as last listed.
+    /// The installed and linked plugins and their UI contributions as last listed.
     pub fn snapshot(&self) -> Option<&PluginsSnapshot> {
         self.snapshot.as_ref()
+    }
+
+    /// What a window whose project is at `root` sees: the installed and linked plugins, plus the
+    /// project's own while it is open and trusted.
+    pub fn listing_for(&self, root: Option<&Path>) -> Option<&PluginsSnapshot> {
+        root.and_then(|root| self.projects.get(root)).or(self.snapshot.as_ref())
     }
 
     /// How many listings have been projected into the UI since the host started.
@@ -277,7 +294,8 @@ impl Plugins {
     }
 
     /// Lists the plugins again, off the main thread, and projects what they contribute: the
-    /// installed and linked ones, and the own plugins of every open trusted project, loaded first.
+    /// installed and linked ones, and for each open trusted project those plus its own plugins,
+    /// loaded first.
     /// A project that is not trusted is left alone: its plugins were unloaded when it lost its
     /// trust, and restricting it again would announce a change, which lists the plugins again.
     pub fn refresh(cx: &mut App) {
@@ -302,23 +320,13 @@ impl Plugins {
             for root in &roots {
                 host.sync_project(root);
             }
-            let mut snapshot = host.list(None);
-            for root in &roots {
-                let own = host.list(Some(root));
-                let added: Vec<_> = own
-                    .plugins
-                    .into_iter()
-                    .filter(|plugin| !snapshot.plugins.iter().any(|listed| listed.id == plugin.id))
-                    .collect();
-                snapshot.ui.extend(own.ui.into_iter().filter(|c| added.iter().any(|plugin| plugin.id == c.plugin_id)));
-                snapshot.plugins.extend(added);
-            }
-            snapshot.plugins.sort_by_key(|plugin| plugin.name.to_lowercase());
-            snapshot
+            let projects: BTreeMap<PathBuf, PluginsSnapshot> =
+                roots.into_iter().map(|root| (host.list(Some(&root)), root)).map(|(own, root)| (root, own)).collect();
+            (host.list(None), projects)
         });
         let listing = cx.spawn(async move |cx: &mut AsyncApp| {
-            let snapshot = listed.await;
-            cx.update(|cx| Self::listed(snapshot, cx));
+            let (snapshot, projects) = listed.await;
+            cx.update(|cx| Self::listed(snapshot, projects, cx));
         });
         cx.global_mut::<Plugins>().listing = Some(listing);
     }
@@ -338,15 +346,19 @@ impl Plugins {
             .detach();
     }
 
-    fn listed(snapshot: PluginsSnapshot, cx: &mut App) {
+    fn listed(snapshot: PluginsSnapshot, projects: BTreeMap<PathBuf, PluginsSnapshot>, cx: &mut App) {
         cx.global_mut::<Plugins>().listings += 1;
+        let listings = || std::iter::once(&snapshot).chain(projects.values());
         let name_of = |plugin_id: &str| {
-            snapshot.plugins.iter().find(|plugin| plugin.id == plugin_id).map(|plugin| plugin.name.clone())
+            listings()
+                .flat_map(|listed| &listed.plugins)
+                .find(|plugin| plugin.id == plugin_id)
+                .map(|plugin| plugin.name.clone())
         };
-        // Offered by every theme picker while their plugin is live.
-        let themes: Vec<ThemeChoice> = snapshot
-            .ui
-            .iter()
+        // The appearance is the app's, not a window's: every theme picker offers the themes of every
+        // live plugin, a trusted project's own included.
+        let mut themes: Vec<ThemeChoice> = listings()
+            .flat_map(|listed| &listed.ui)
             .filter(|contribution| contribution.point == THEMES_POINT)
             .filter_map(|contribution| {
                 let decl: ThemeDef = serde_json::from_value(contribution.decl.clone()).ok()?;
@@ -359,9 +371,12 @@ impl Plugins {
                 })
             })
             .collect();
+        themes.dedup_by(|a, b| a.id == b.id);
         let active = applied_theme(&snapshot.active_theme);
-        Self::project_commands(&snapshot, cx);
-        cx.global_mut::<Plugins>().snapshot = Some(snapshot);
+        Self::project_commands(&snapshot, &projects, cx);
+        let plugins = cx.global_mut::<Plugins>();
+        plugins.snapshot = Some(snapshot);
+        plugins.projects = projects;
         appearance::set_plugin_theme(active, cx);
         appearance::set_contributed(themes, cx);
         follow_theme_setting(cx);
@@ -371,17 +386,23 @@ impl Plugins {
 impl Plugins {
     /// Makes every declared command of a live plugin an action (Find Action, the keymap, menus),
     /// in place of the ones registered for the previous listing. Running one runs the command
-    /// in the plugin, loading its code on first use.
-    fn project_commands(snapshot: &PluginsSnapshot, cx: &mut App) {
+    /// in the plugin, loading its code on first use. The commands of a project's own plugins are
+    /// enabled in that project's windows only.
+    fn project_commands(snapshot: &PluginsSnapshot, projects: &BTreeMap<PathBuf, PluginsSnapshot>, cx: &mut App) {
         let previous = std::mem::take(&mut cx.global_mut::<Plugins>().command_actions);
         let registry = cx.default_global::<ActionRegistry>();
         for id in &previous {
             registry.unregister(id);
         }
+        let installed = |id: &str| snapshot.plugins.iter().any(|plugin| plugin.id == id);
+        let own = projects.iter().flat_map(|(root, listed)| {
+            listed.ui.iter().filter(|c| !installed(&c.plugin_id)).map(move |c| (Some(root.as_path()), listed, c))
+        });
         let mut registered = Vec::new();
-        for contribution in snapshot.ui.iter().filter(|contribution| contribution.point == COMMANDS_POINT) {
+        let declared = snapshot.ui.iter().map(|c| (None, snapshot, c)).chain(own);
+        for (project, listed, contribution) in declared.filter(|(_, _, c)| c.point == COMMANDS_POINT) {
             let Ok(decl) = serde_json::from_value::<CommandDecl>(contribution.decl.clone()) else { continue };
-            let Some(plugin) = snapshot.plugins.iter().find(|plugin| plugin.id == contribution.plugin_id) else {
+            let Some(plugin) = listed.plugins.iter().find(|plugin| plugin.id == contribution.plugin_id) else {
                 continue;
             };
             let id = plugin_action_id(&plugin.id, &decl.id);
@@ -395,6 +416,7 @@ impl Plugins {
                 verbatim: true,
                 keywords: vec!["plugin".to_owned(), plugin.name.clone(), plugin.id.clone()],
                 description: Some(format!("From plugin {}", plugin.name)),
+                project: project.map(Path::to_path_buf),
                 ..ActionMeta::new(&id, &decl.title)
             };
             let (plugin_id, command_id, title) = (plugin.id.clone(), decl.id.clone(), decl.title.clone());
@@ -407,6 +429,24 @@ impl Plugins {
         }
         cx.global_mut::<Plugins>().command_actions = registered;
     }
+}
+
+/// The root of the project of the window whose context keys are `ctx`.
+pub fn context_project(ctx: &ContextKeys) -> Option<PathBuf> {
+    match ctx.get(PROJECT_ROOT_KEY) {
+        Some(ContextValue::Text(root)) if !root.is_empty() => Some(PathBuf::from(&**root)),
+        _ => None,
+    }
+}
+
+/// The plugins the window whose context keys are `ctx` sees, as last listed.
+pub fn context_listing<'a>(ctx: &ContextKeys, cx: &'a App) -> Option<&'a PluginsSnapshot> {
+    cx.try_global::<Plugins>()?.listing_for(context_project(ctx).as_deref())
+}
+
+/// The plugins `window` sees, as last listed.
+pub fn window_listing<'a>(window: &Window, cx: &'a App) -> Option<&'a PluginsSnapshot> {
+    context_listing(&window_context(window, cx), cx)
 }
 
 /// The editor a plugin call is about: the window's active editor, with its selection as lines
@@ -452,6 +492,11 @@ fn run_command(
     cx: &mut App,
 ) {
     let Some(workbench) = workbench::for_window(window, cx) else { return };
+    // A window runs only the plugins it sees: a project's own plugins in that project's windows.
+    if !window_listing(window, cx).is_some_and(|listed| listed.plugins.iter().any(|plugin| plugin.id == plugin_id)) {
+        tracing::warn!("plugin {plugin_id} is not available in this window");
+        return;
+    }
     let invocation = Invocation {
         command_chain: Vec::new(),
         client: Some(workbench.read(cx).label().to_owned()),

@@ -7,7 +7,7 @@
 //! The controls draw inside a [`ControlHost`]: the view that holds the model and the page's
 //! [`PageControls`] (its text fields and the open choice list).
 
-use crate::platform::i18n::{I18n, Localization};
+use crate::platform::i18n::{I18n, Localization, Param};
 use crate::platform::input;
 use crate::settings_model::page_spec::{OptionDetail, OptionSpec, PageSpec};
 use crate::settings_model::pages::{highlight_indices, label_matches};
@@ -15,9 +15,10 @@ use crate::settings_model::schema::{default_settings, get_at};
 use crate::settings_model::staging::{Scope, SettingsDialog};
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
+use crate::ui::tooltip::{TOOLTIP_DELAY, Tooltip};
 use gpui_kit::{
     AnyElement, AnyView, App, ClickEvent, Context, Div, Entity, Focusable, IntoElement, Keystroke, MouseButton,
-    SharedString, Subscription, Window, deferred, div, prelude::*, px,
+    SharedString, Stateful, Subscription, Window, deferred, div, prelude::*, px,
 };
 use serde_json::Value;
 use std::collections::BTreeSet;
@@ -421,6 +422,21 @@ pub fn highlight_segments(text: &str, query: &str) -> Vec<(String, bool)> {
 // Drawing
 
 /// `text` in the active locale.
+/// The tooltip of a number field holding a value it does not take: the range it takes, in the
+/// active language.
+pub fn range_tooltip(min: f64, max: f64) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
+    move |window: &mut Window, cx: &mut App| {
+        let ends = [Param::Number(min), Param::Number(max)];
+        let text = cx.default_global::<Localization>().0.tx_built(&["Enter a value between ", " and ", ""], &ends);
+        Tooltip::new(text).shown(window, cx)
+    }
+}
+
+/// `field` with the range tooltip when the value typed is `invalid`.
+pub fn with_range_tooltip(field: Stateful<Div>, invalid: bool, min: f64, max: f64) -> Stateful<Div> {
+    field.when(invalid, |field| field.tooltip(range_tooltip(min, max)).tooltip_show_delay(TOOLTIP_DELAY))
+}
+
 pub fn tx(cx: &App, text: &str) -> String {
     match cx.try_global::<Localization>() {
         Some(localization) => localization.0.tx(text),
@@ -579,11 +595,31 @@ fn select_box(cx: &App, label: &str) -> Div {
 
 /// What one option shows, read from the model before anything is drawn.
 enum Shown {
-    Toggle { key: &'static str, checked: bool },
-    Number { key: &'static str, field: Option<Entity<TextField>>, invalid: bool, unit: Option<&'static str> },
-    Select { key: &'static str, current: String, open: bool, choices: Vec<(&'static str, String)>, radio: bool },
-    Text { key: &'static str, field: Option<Entity<TextField>> },
-    Custom { view: Option<AnyView> },
+    Toggle {
+        key: &'static str,
+        checked: bool,
+    },
+    Number {
+        key: &'static str,
+        field: Option<Entity<TextField>>,
+        invalid: bool,
+        unit: Option<&'static str>,
+        range: (f64, f64),
+    },
+    Select {
+        key: &'static str,
+        current: String,
+        open: bool,
+        choices: Vec<(&'static str, String)>,
+        radio: bool,
+    },
+    Text {
+        key: &'static str,
+        field: Option<Entity<TextField>>,
+    },
+    Custom {
+        view: Option<AnyView>,
+    },
 }
 
 struct ShownOption {
@@ -627,11 +663,12 @@ fn shown_sections<V: ControlHost>(
             OptionSpec::Toggle { key, .. } => {
                 Shown::Toggle { key, checked: bool_value(model, scope, key) != detail.invert }
             }
-            OptionSpec::Number { key, unit, .. } => Shown::Number {
+            OptionSpec::Number { key, unit, min, max, .. } => Shown::Number {
                 key,
                 field: controls.field(key).cloned(),
                 invalid: controls.is_invalid(key),
                 unit: *unit,
+                range: (*min, *max),
             },
             OptionSpec::Select { key, options, .. } => {
                 let current = choice_value(model, scope, key, options).map(|(_, label)| i18n.tx(label));
@@ -744,11 +781,12 @@ fn draw_option<V: ControlHost>(option: ShownOption, query: &str, unavailable: &s
                 }))
             })
             .into_any_element(),
-        Shown::Number { key, field, invalid, unit } => {
+        Shown::Number { key, field, invalid, unit, range: (min, max) } => {
             let frame = field_frame(cx, NUMBER_FIELD_WIDTH, invalid)
                 .id(SharedString::from(format!("settings-number-{key}")))
                 .debug_selector(move || format!("settings-number-{key}"))
                 .children(field);
+            let frame = with_range_tooltip(frame, invalid, min, max);
             let unit = unit.map(|unit| div().text_color(theme::color(cx, "fg-subtle")).child(SharedString::from(unit)));
             row(cx, matched).child(row_label(cx, &label, query)).child(frame).children(unit).into_any_element()
         }

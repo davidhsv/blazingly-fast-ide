@@ -7,7 +7,8 @@ use super::{
     new_field, number, row, row_label, select_box,
 };
 use crate::platform::input;
-use crate::settings_view::controls::{number_text, parse_number_input, tx};
+use crate::settings_view::controls::{number_text, parse_number_input, tx, with_range_tooltip};
+
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
     AnyElement, App, ClickEvent, Context, Entity, EventEmitter, IntoElement, Keystroke, MouseButton, Render,
@@ -16,6 +17,10 @@ use gpui_kit::{
 use serde_json::Value;
 
 pub const PAGE: &str = "editor.font";
+
+/// The font weights a custom weight may take.
+const WEIGHT_MIN: f64 = 100.0;
+const WEIGHT_MAX: f64 = 900.0;
 
 /// The named font weights.
 pub const FONT_WEIGHTS: [(u16, &str); 9] = [
@@ -110,7 +115,7 @@ impl WeightView {
         let events = cx.subscribe(&field, |view: &mut Self, field, event: &TextFieldEvent, cx| match event {
             TextFieldEvent::Changed => {
                 let text = field.read(cx).text().to_owned();
-                let parsed = parse_number_input(&text, 100.0, 900.0, true);
+                let parsed = parse_number_input(&text, WEIGHT_MIN, WEIGHT_MAX, true);
                 view.invalid = parsed.is_none();
                 if let Some(n) = parsed {
                     let weight = font_weight_of(Some(n), view.default);
@@ -126,7 +131,8 @@ impl WeightView {
         let observe = cx.observe(&binding.model, |view: &mut Self, _, cx| {
             let weight = view.weight(cx);
             let shown = view.field.read(cx).text().to_owned();
-            let spells = parse_number_input(&shown, 100.0, 900.0, true).map(|n| font_weight_of(Some(n), view.default));
+            let spells =
+                parse_number_input(&shown, WEIGHT_MIN, WEIGHT_MAX, true).map(|n| font_weight_of(Some(n), view.default));
             if spells != Some(weight) && !view.invalid {
                 view.field.update(cx, |field, cx| field.set_text(&weight.to_string(), cx));
             }
@@ -246,10 +252,11 @@ impl Render for WeightView {
             drop_down(cx, rows)
         });
         let number = custom.then(|| {
-            frame(cx, NUMBER_FIELD, self.invalid)
+            let field = frame(cx, NUMBER_FIELD, self.invalid)
                 .id(SharedString::from(format!("settings-number-{key}")))
                 .debug_selector(move || format!("settings-number-{key}"))
-                .child(self.field.clone())
+                .child(self.field.clone());
+            with_range_tooltip(field, self.invalid, WEIGHT_MIN, WEIGHT_MAX)
         });
         let label = tx(cx, self.label);
         let hint = self.hint.map(|hint| hint_line(cx, &tx(cx, hint), super::LABEL_WIDTH));

@@ -175,7 +175,7 @@ impl Workbench {
         let languages = code_style_languages(cx);
         let languages: Vec<(&str, &str)> = languages.iter().map(|(id, name)| (id.as_str(), name.as_str())).collect();
         let mut pages = code_style_language_pages(&languages);
-        pages.extend(super::plugin_contributions::plugin_settings_pages(cx));
+        pages.extend(super::plugin_contributions::plugin_settings_pages(window, cx));
         let set = SettingsPageSet { specs: settings_registry(updates), pages };
         let dialog = cx.new(|cx| SettingsDialogView::new(model.clone(), set, has_project, cx));
         // No plugin registers default shortcuts with the keymap: there are none to list.

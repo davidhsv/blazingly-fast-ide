@@ -40,6 +40,7 @@ use crate::plugins::{Plugins, plugin_action_id};
 use crate::vcs_ops::menu::{MenuEntry, MenuItem};
 use gpui_kit::{App, AppContext as _, Context, Entity, Global, Pixels, Point, Subscription, Window};
 use ide_core::{IdeError, IdeResult};
+use ide_host::plugins::PluginsSnapshot;
 use ide_plugin::{View, ViewBody, ViewEvent};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
@@ -159,9 +160,9 @@ type Signature = (String, Anchor, bool, String);
 /// A window to register: its declaration, how it is registered, and its shown views (view, title).
 type Wanted = (WindowSpec, Signature, Vec<(String, String)>);
 
-/// The listed contributions of the live plugins.
-fn listed_contributions(cx: &App) -> Vec<Contribution> {
-    cx.try_global::<Plugins>().and_then(Plugins::snapshot).map(Contribution::from_snapshot).unwrap_or_default()
+/// The contributions of the live plugins in `listed`.
+fn listed_contributions(listed: Option<&PluginsSnapshot>) -> Vec<Contribution> {
+    listed.map(Contribution::from_snapshot).unwrap_or_default()
 }
 
 fn merge(effects: &mut Effects, more: Effects) {
@@ -257,7 +258,7 @@ impl Workbench {
 
     /// Brings the registered plugin windows in line with the listing and the window's context keys.
     pub(super) fn sync_plugin_tool_windows(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let specs = window_specs(&listed_contributions(cx));
+        let specs = window_specs(&listed_contributions(self.plugin_listing(cx)));
         let titled: Vec<(String, String, String)> = specs
             .iter()
             .map(|spec| (spec.id.clone(), spec.first().title.clone(), self.plugin_view_icon(spec.first())))
@@ -719,7 +720,7 @@ fn view_item_menu<C: Clone>(plugin: &str, view: &str, item: &str, ctx: &ContextK
     let registry = cx.try_global::<ActionRegistry>();
     let mut out: Vec<MenuItem<C>> = Vec::new();
     let mut groups: HashMap<String, usize> = HashMap::new();
-    let listed = listed_contributions(cx);
+    let listed = listed_contributions(crate::plugins::context_listing(ctx, cx));
     let entries = listed.iter().filter(|c| {
         c.point == MENUS_POINT
             && c.plugin_id == plugin

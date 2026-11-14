@@ -1069,7 +1069,7 @@ impl Workbench {
 pub fn slot_buttons(slot: &str, window: &Window, cx: &App) -> Vec<AnyElement> {
     let keys = window_context(window, cx);
     let (fg, hover) = (theme::color(cx, "fg-muted"), theme::color(cx, "bg-hover"));
-    plugin_slot_items(slot, cx)
+    plugin_slot_items(slot, &keys, cx)
         .into_iter()
         .filter(|item| evaluate_when(item.when.as_deref(), &keys).unwrap_or(false))
         .map(|item| {

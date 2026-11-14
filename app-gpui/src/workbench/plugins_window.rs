@@ -380,7 +380,7 @@ impl Workbench {
             PluginEvent::CommandsChanged => self.list_plugins_on_pages(cx),
             PluginEvent::ConsentRequested { plugin_id, capabilities } => {
                 let Some(host) = self.plugin_host(cx) else { return };
-                let listed = cx.try_global::<Plugins>().and_then(|plugins| plugins.snapshot());
+                let listed = self.plugin_listing(cx);
                 let plugin = listed.and_then(|listed| listed.plugins.iter().find(|plugin| &plugin.id == plugin_id));
                 let mut request = match plugin {
                     Some(plugin) => grant_request(plugin),
@@ -1044,6 +1044,10 @@ pub(crate) mod test_support {
 
 #[cfg(test)]
 mod tests {
+    mod project_plugins_per_window;
+    mod proofs6_plugins;
+    mod proofs6_plugins_market;
+
     use super::test_support::{CapturedLog, link, plugin_copy, start_with_plugins, trusted_project};
     use super::*;
     use crate::plugin_models::consent::Risk;
@@ -1483,8 +1487,8 @@ mod tests {
         let tool_window = workbench.read_with(cx, |w, _| {
             w.tool_windows().and_then(|layout| layout.window("plugin.hello.greetings")).is_some()
         });
-        let settings_page = cx.update(|_, cx| {
-            super::super::plugin_contributions::plugin_settings_pages(cx)
+        let settings_page = cx.update(|window, cx| {
+            super::super::plugin_contributions::plugin_settings_pages(window, cx)
                 .iter()
                 .any(|page| page.id == "plugins.settings-pages")
         });
@@ -1637,8 +1641,8 @@ mod tests {
             workbench
                 .read_with(cx, |w, _| w.tool_windows().is_none_or(|l| l.window("plugin.hello.greetings").is_none()))
         );
-        assert!(!cx.update(|_, cx| {
-            super::super::plugin_contributions::plugin_settings_pages(cx)
+        assert!(!cx.update(|window, cx| {
+            super::super::plugin_contributions::plugin_settings_pages(window, cx)
                 .iter()
                 .any(|page| page.id == "plugins.settings-pages")
         }));

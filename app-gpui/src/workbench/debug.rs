@@ -11,7 +11,7 @@ use crate::debugger::actions::{ActiveEditor, Dispatch, ViewCommand};
 use crate::debugger::breakpoints_view::{BreakpointsDialog, BreakpointsDialogEvent};
 use crate::debugger::driver::{DebugDriver, DebugDriverEvent};
 use crate::debugger::editor::breakpoint_gutter::{
-    ClickOutcome, GutterButton, GutterEditor, GutterPress, PressOutcome, build_markers,
+    BreakpointLook, ClickOutcome, GutterButton, GutterEditor, GutterPress, PressOutcome, build_markers,
 };
 use crate::debugger::effects::{DEBUG_TOOL_WINDOW, Effect, run_notification};
 use crate::debugger::focused_view::{DebugView, FRAMES_FOCUS, VARIABLES_FOCUS};
@@ -824,8 +824,11 @@ impl Workbench {
             let breakpoints: Vec<Mark> = markers
                 .iter()
                 .map(|marker| {
-                    let active = marker.look.tints_line();
-                    let kind = if active { MarkKind::BreakpointLine } else { MarkKind::InactiveBreakpoint };
+                    let kind = match marker.look {
+                        BreakpointLook::Unverified => MarkKind::UnverifiedBreakpoint,
+                        look if look.tints_line() => MarkKind::BreakpointLine,
+                        _ => MarkKind::InactiveBreakpoint,
+                    };
                     line_mark(marker.line, kind)
                 })
                 .collect();
@@ -1027,6 +1030,7 @@ pub(super) mod tests {
     use gpui_kit::{Modifiers, MouseButton, MouseDownEvent, TestAppContext, VisualTestContext, point};
     use std::time::Duration;
     mod proofs3_debug;
+    mod proofs6_debug;
     mod proofs_debug;
 
     /// A debug adapter speaking DAP over stdio. It runs the launched `program` file line by line: it

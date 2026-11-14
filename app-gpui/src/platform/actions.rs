@@ -58,6 +58,10 @@ pub struct ActionMeta {
     /// A toggle action (IDEA's ToggleAction): Search Everywhere shows an ON/OFF switch.
     #[serde(default)]
     pub toggle: bool,
+    /// The project whose own plugin contributes the action: it exists only in that project's
+    /// windows (their `projectRoot` context key names it).
+    #[serde(skip)]
+    pub project: Option<std::path::PathBuf>,
 }
 
 impl ActionMeta {
@@ -224,8 +228,17 @@ impl std::error::Error for ActionError {}
 /// Actions that stay available while a project is opening.
 const WHILE_OPENING: [&str; 4] = ["app.quit", "window.next", "window.previous", "window.toggleFullScreen"];
 
+/// Whether the action of `meta` exists in the window whose context keys are `ctx`: an action of a
+/// project's own plugin exists in that project's windows only.
+pub fn is_action_in_window(meta: &ActionMeta, ctx: &ContextKeys) -> bool {
+    meta.project.as_deref().is_none_or(|root| crate::plugins::context_project(ctx).as_deref() == Some(root))
+}
+
 /// Whether `meta` is enabled in `ctx`. A malformed `when` clause disables the action.
 pub fn is_action_enabled(meta: &ActionMeta, ctx: &ContextKeys) -> bool {
+    if !is_action_in_window(meta, ctx) {
+        return false;
+    }
     if ctx.is_truthy("projectOpening") && !WHILE_OPENING.contains(&meta.id.as_str()) {
         return false;
     }

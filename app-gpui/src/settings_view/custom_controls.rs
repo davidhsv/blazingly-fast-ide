@@ -405,6 +405,7 @@ mod tests {
     use crate::platform::storage::UiStorage;
     use crate::settings_model::schema::{get_at, settings_value};
     use crate::workbench::Workbench;
+    mod proofs6_custom_controls;
     use gpui_kit::{Focusable, Modifiers, TestAppContext, VisualTestContext};
     use serde_json::{Value, json};
     use std::path::PathBuf;
@@ -501,6 +502,42 @@ mod tests {
 
     fn is_open(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> bool {
         workbench.read_with(cx, |w, _| w.settings_dialog().is_some())
+    }
+
+    /// Rests the pointer on the field drawn as `selector`: whether a tooltip reads `text`, and
+    /// whether any tooltip shows.
+    fn field_tooltip(cx: &mut VisualTestContext, selector: &'static str, text: &str) -> (bool, bool) {
+        let reads = crate::ui::tooltip::hovered_tooltip(cx, selector, text, None);
+        (reads, cx.debug_bounds("tooltip").is_some())
+    }
+
+    // System Settings: a local history length out of its range is flagged with the range in the
+    // field's tooltip; a length in range shows none.
+    #[gpui_kit::test]
+    async fn a_number_out_of_range_on_a_standard_page_tells_its_range_in_a_tooltip(cx: &mut TestAppContext) {
+        const FIELD: &str = "settings-number-files.localHistoryDays";
+        let _home = start(cx);
+        let (workbench, cx) = window(cx);
+        open_page(cx, &workbench, "general");
+        type_into(cx, FIELD, "500");
+        assert_eq!(field_tooltip(cx, FIELD, "Enter a value between 1 and 365"), (true, true));
+        type_into(cx, FIELD, "30");
+        assert_eq!(field_tooltip(cx, FIELD, "Enter a value between 1 and 365"), (false, false));
+    }
+
+    // Build › Console: a buffer size below its range is flagged with the range in the field's
+    // tooltip; a size in range shows none.
+    #[gpui_kit::test]
+    async fn a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip(cx: &mut TestAppContext) {
+        const FIELD: &str = "settings-number-console.bufferKb";
+        let _home = start(cx);
+        let (workbench, cx) = window(cx);
+        open_page(cx, &workbench, pages::console::PAGE);
+        assert_eq!(effective_value(cx, "console.overrideBuffer"), Some(json!(true)), "the size is editable");
+        type_into(cx, FIELD, "8");
+        assert_eq!(field_tooltip(cx, FIELD, "Enter a value between 16 and 1048576"), (true, true));
+        type_into(cx, FIELD, "4096");
+        assert_eq!(field_tooltip(cx, FIELD, "Enter a value between 16 and 1048576"), (false, false));
     }
 
     // Build › Console: the buffer checkbox and its size apply; a fold pattern added and then

@@ -2262,7 +2262,7 @@ impl Element for EditorElement {
             MarkKind::ErrorProblem => theme::color(cx, "wave-error"),
             MarkKind::WarningProblem => theme::color(cx, "wave-warning"),
             MarkKind::WeakProblem => theme::color(cx, "fg-weak-warning"),
-            MarkKind::BreakpointLine => theme::color(cx, "bg-breakpoint-line"),
+            MarkKind::BreakpointLine | MarkKind::UnverifiedBreakpoint => theme::color(cx, "bg-breakpoint-line"),
             MarkKind::InactiveBreakpoint => theme::color(cx, "fg-gutter"),
             MarkKind::ExecutionLine => theme::color(cx, "bg-debug-line"),
         };
@@ -2299,7 +2299,7 @@ impl Element for EditorElement {
                     window.paint_quad(fill(row, theme::color(cx, "bg-current-line")));
                 }
                 // The breakpoint row is tinted, and the execution line goes over it.
-                for kind in [MarkKind::BreakpointLine, MarkKind::ExecutionLine] {
+                for kind in [MarkKind::BreakpointLine, MarkKind::UnverifiedBreakpoint, MarkKind::ExecutionLine] {
                     if marks.iter().any(|mark| mark.kind == kind && touches(mark.range.start, mark.range.end)) {
                         let row = Bounds::new(
                             point(bounds.left() + *gutter, top),
@@ -2404,6 +2404,9 @@ impl Element for EditorElement {
                     if mark.kind == MarkKind::BreakpointLine {
                         let danger = theme::color(cx, "danger");
                         window.paint_quad(quad(dot, diameter / 2.0, danger, px(0.0), danger, solid));
+                    } else if mark.kind == MarkKind::UnverifiedBreakpoint {
+                        let grey = theme::color(cx, "fg-gutter");
+                        window.paint_quad(quad(dot, diameter / 2.0, grey, px(0.0), grey, solid));
                     } else {
                         let ring = mark_color(cx, mark.kind);
                         window.paint_quad(quad(dot, diameter / 2.0, ring.opacity(0.0), px(1.5), ring, solid));

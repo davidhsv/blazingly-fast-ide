@@ -1006,6 +1006,15 @@ impl Workbench {
         cx.on_release(move |workbench, cx| {
             // The window is going: the session is written as it stands.
             workbench.save_session(cx);
+            // Its project closes with it, and the project's own plugins unless another window has it.
+            let root = cx.try_global::<Backend>().and_then(|backend| {
+                let root = backend.host.project(&workbench.label).ok().map(|project| project.root.clone());
+                backend.host.close_project_detached(&workbench.label);
+                root
+            });
+            if let Some(root) = root.filter(|_| cx.has_global::<crate::plugins::Plugins>()) {
+                crate::plugins::Plugins::release_project(root, cx);
+            }
             if cx.has_global::<Backend>() {
                 cx.global_mut::<Backend>().unlisten(workbench.listener);
             }
@@ -1966,6 +1975,11 @@ impl Workbench {
         let editor = self.editor().cloned();
         let focused = editor.as_ref().is_some_and(|editor| editor.focus_handle(cx).is_focused(window));
         set_context(window, cx, "projectOpening", matches!(self.content, Content::Opening(_)));
+        let root = cx.try_global::<Backend>().and_then(|backend| backend.host.project(&self.label).ok());
+        match root.map(|project| project.root.to_string_lossy().into_owned()) {
+            Some(root) => set_context(window, cx, crate::plugins::PROJECT_ROOT_KEY, root),
+            None => clear_context(window, cx, crate::plugins::PROJECT_ROOT_KEY),
+        }
         set_context(window, cx, "popupOpen", self.popup.is_some());
         self.publish_run_context(window, cx);
         self.publish_debug_context(window, cx);
@@ -4075,6 +4089,9 @@ mod tests {
     mod proofs5_layout;
     mod proofs5_navigation;
     mod proofs5_run;
+    mod proofs6_agents;
+    mod proofs6_database;
+    mod proofs6_workbench;
     mod proofs_agents;
     mod proofs_database;
     mod proofs_editor_actions_find;

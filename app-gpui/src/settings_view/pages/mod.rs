@@ -28,7 +28,9 @@ pub mod vcs_commit;
 pub mod vcs_confirmation;
 pub mod vcs_git;
 
-use super::controls::{button, check_box, number_json, number_text, parse_number_input, radio_dot, search_label, tx};
+use super::controls::{
+    button, check_box, number_json, number_text, parse_number_input, radio_dot, search_label, tx, with_range_tooltip,
+};
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::input;
 use crate::settings_model::deployment_model::{format_excludes, parse_excludes};
@@ -1048,10 +1050,14 @@ impl FormView {
             _ => format!("settings-text-{key}"),
         };
         let id = selector.clone();
-        frame(cx, width, invalid)
+        let drawn = frame(cx, width, invalid)
             .id(SharedString::from(id))
             .debug_selector(move || selector)
-            .children(bound.map(|bound| bound.field.clone()))
+            .children(bound.map(|bound| bound.field.clone()));
+        match kind {
+            Some(FieldKind::Number { min, max, .. }) => with_range_tooltip(drawn, invalid, min, max),
+            _ => drawn,
+        }
     }
 
     fn draw_field_row(&self, spec: &FieldSpec, query: &str, cx: &mut Context<Self>) -> AnyElement {

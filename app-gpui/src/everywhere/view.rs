@@ -11,7 +11,7 @@ use crate::backend::Backend;
 use crate::find::backend::{file_matches, to_backend};
 use crate::find::ipc::{FileMatch, FileMatches, SymbolFilter};
 use crate::find::query::parse_location_query;
-use crate::platform::actions::{ActionMeta, ActionRegistry, is_action_enabled};
+use crate::platform::actions::{ActionMeta, ActionRegistry, is_action_enabled, is_action_in_window};
 use crate::platform::context::ContextKeys;
 use crate::platform::i18n::Localization;
 use crate::platform::input;
@@ -189,9 +189,14 @@ impl SearchEverywhere {
     /// Runs `with` on the controller with what it reads from the app.
     fn with_env<R>(&mut self, cx: &App, with: impl FnOnce(&mut SeController, &SeEnv<'_>) -> R) -> Option<R> {
         let registry = cx.try_global::<ActionRegistry>()?;
-        let metas: Vec<ActionMeta> = registry.all().map(|action| action.meta.clone()).collect();
-        let actions: Vec<&ActionMeta> = metas.iter().collect();
         let context = Rc::clone(&self.context);
+        // The window's actions only: another project's plugin commands are not offered here.
+        let metas: Vec<ActionMeta> = registry
+            .all()
+            .filter(|action| is_action_in_window(&action.meta, &context))
+            .map(|action| action.meta.clone())
+            .collect();
+        let actions: Vec<&ActionMeta> = metas.iter().collect();
         let is_enabled = move |meta: &ActionMeta| is_action_enabled(meta, &context);
         let env = SeEnv {
             actions: &actions,
