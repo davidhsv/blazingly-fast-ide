@@ -486,6 +486,7 @@ fn dedup(items: impl Iterator<Item = String>) -> Vec<String> {
 mod tests {
     use super::*;
     use serde_json::json;
+    mod proofs7_vscode_preset;
     mod proofs_presets;
 
     // src/platform/keymap.test.ts › normalizes modifier order and case

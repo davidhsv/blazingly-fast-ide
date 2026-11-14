@@ -542,6 +542,7 @@ mod tests {
     use crate::run::application::{JvmContext, application_config};
     use crate::run::configs::{blank_config, to_cwd};
     use ide_lsp::jdtls::JavaCompileError;
+    mod proofs7_separator;
 
     fn strings(items: &[&str]) -> Vec<String> {
         items.iter().map(|item| item.to_string()).collect()

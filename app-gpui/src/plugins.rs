@@ -505,12 +505,21 @@ fn run_command(
         selected_paths: paths,
         global_settings: false,
     };
+    // A window whose project is not trusted (Restricted Mode, no project, a file on its own) runs no
+    // plugin command: the refusal is told as any other failure.
+    let allowed = match cx.try_global::<Backend>() {
+        Some(backend) => backend.host.authorize_command(workbench.read(cx).label(), "plugin_run_command"),
+        None => Err(ide_core::IdeError::internal("the backend is not running")),
+    };
     let host = cx.global::<Plugins>().host.clone();
     let (plugin, command, title) = (plugin_id.to_owned(), command_id.to_owned(), title.to_owned());
     // A command may run for as long as the host's time limit allows.
     let ran = host_blocking(cx, {
         let (host, plugin) = (host.clone(), plugin.clone());
-        move || host.run_command(&plugin, &command, arg.as_deref(), invocation)
+        move || {
+            allowed?;
+            host.run_command(&plugin, &command, arg.as_deref(), invocation)
+        }
     });
     cx.spawn(async move |cx: &mut AsyncApp| {
         let Err(error) = ran.await else { return };
@@ -692,11 +701,14 @@ mod tests {
     }
 
     /// A plugin with code: its commands are actions as soon as it is agreed to, before any of
-    /// its code is loaded; running one loads the Wasm, which reads the editor's selection and
-    /// rewrites it through the backend, and the editor follows. A command that fails says so
-    /// in the window.
+    /// its code is loaded. A window editing a file on its own has no trusted project: the command
+    /// is refused there, says so in the window and loads no code. In a trusted project's window
+    /// it loads the Wasm, which reads the editor's selection and rewrites it through the backend,
+    /// and the editor follows.
     #[gpui_kit::test]
-    async fn a_plugins_command_runs_its_wasm_on_the_editors_selection(cx: &mut TestAppContext) {
+    async fn a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project(
+        cx: &mut TestAppContext,
+    ) {
         use crate::platform::actions::{execute_action_or_throw, is_action_enabled};
         use crate::platform::context::window_context;
         /// Whether the action may run in `window` now.
@@ -761,12 +773,45 @@ mod tests {
         editor.update(cx, |editor, cx| editor.select(0, 15, cx));
         visual(cx, "the command is available", &|window, cx| available(SNAKE_CASE, window, cx));
         cx.update(|window, cx| execute_action_or_throw(SNAKE_CASE, None, window, cx)).expect("it runs");
+        let refusal = |cx: &mut gpui_kit::VisualTestContext| {
+            workbench.read_with(cx, |w, _| {
+                let notices = w.notifications().items();
+                notices
+                    .iter()
+                    .find(|n| n.title == "String Tools: To snake_case failed")
+                    .map(|n| (n.level, n.body.clone()))
+            })
+        };
+        visual(cx, "the refusal is told", &|_, cx| {
+            workbench.read(cx).notifications().items().iter().any(|n| n.title == "String Tools: To snake_case failed")
+        });
+        let restricted = "Project is in Restricted Mode. Trust the project to enable execution.";
+        assert_eq!(refusal(cx), Some((NotificationLevel::Error, Some(restricted.to_owned()))));
+        assert_eq!(editor.read_with(cx, |editor, _| editor.text()), "hello big world\n", "nothing was rewritten");
+        let status = |cx: &mut gpui_kit::VisualTestContext| {
+            cx.update(|_, cx| cx.global::<Plugins>().host.list(None).plugins[0].status)
+        };
+        assert_eq!(status(cx), PluginStatus::Inactive, "no plugin code was loaded");
+
+        // A project of its own, so that the file on its own stays the other window's alone.
+        let trusted = tempfile::tempdir().expect("a folder");
+        let root = trusted.path().canonicalize().expect("the folder exists");
+        let file = root.join("names.txt");
+        std::fs::write(&file, "hello big world\n").expect("the file is written");
+        cx.update(|_, cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("trusted");
+        let (project, cx) = cx.add_window_view(|window, cx| Workbench::new("w2", window, cx));
+        cx.update(|window, _| window.activate_window());
+        project.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        visual(cx, "the project opens", &|_, cx| project.read(cx).project_tree().is_some());
+        project.update_in(cx, |workbench, window, cx| workbench.open_project_file(file.clone(), window, cx));
+        visual(cx, "the file opens in the project", &|_, cx| project.read(cx).editor().is_some());
+        let editor = project.read_with(cx, |workbench, _| workbench.editor().cloned()).expect("an editor");
+        editor.update(cx, |editor, cx| editor.select(0, 15, cx));
+        visual(cx, "the command is available there", &|window, cx| available(SNAKE_CASE, window, cx));
+        cx.update(|window, cx| execute_action_or_throw(SNAKE_CASE, None, window, cx)).expect("it runs");
         visual(cx, "the plugin rewrote the selection", &|_, cx| editor.read(cx).text() == "hello_big_world\n");
-        assert_eq!(
-            cx.update(|_, cx| cx.global::<Plugins>().host.list(None).plugins[0].status),
-            PluginStatus::Active,
-            "running a command loaded the plugin's code"
-        );
+        assert_eq!(status(cx), PluginStatus::Active, "running a command loaded the plugin's code");
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w2"));
     }
 
     /// Copies the folder `from` into `to`, recursively, without build output (`target`) or `.git`.

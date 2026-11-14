@@ -686,6 +686,9 @@ pub(super) fn quit_then(window: &mut Window, cx: &mut App, end: fn(&mut App)) {
                 cx.update(|cx| cx.set_global(Quitting(false)));
                 return;
             }
+            // A window that agreed closes now, so its session is written and its project closes
+            // before the next window is asked.
+            let _ = handle.update(cx, |_, window, _| window.remove_window());
         }
         cx.update(end);
     })

@@ -236,6 +236,11 @@ impl EditorIntelligence {
         &self.hover
     }
 
+    /// The view drawing the hint at the caret.
+    pub fn hint_view(&self) -> &Entity<HintView> {
+        &self.hint_view
+    }
+
     pub fn lookup(&self) -> &Entity<CompletionLookup> {
         &self.lookup
     }

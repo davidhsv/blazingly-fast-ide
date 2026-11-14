@@ -16,6 +16,7 @@ mod tests {
     use crate::services::view::ServicesView;
     use gpui_kit::{Entity, TestAppContext, VisualTestContext};
     use std::path::PathBuf;
+    mod proofs7_move;
 
     /// A program configuration that runs `command arg`.
     fn program(id: &str, command: &str, arg: &str) -> ide_run::RunConfig {

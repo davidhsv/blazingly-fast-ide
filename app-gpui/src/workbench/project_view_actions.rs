@@ -558,6 +558,8 @@ mod tests {
     use serde_json::json;
     use std::cell::RefCell;
     use std::sync::Mutex;
+    mod proofs7_project_menu;
+    mod proofs7_tree_options;
 
     /// The key of the platform's keymap: ⌘ on macOS, Ctrl elsewhere.
     fn primary(key: &str) -> String {

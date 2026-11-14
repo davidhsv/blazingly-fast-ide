@@ -341,6 +341,7 @@ mod tests {
     use gpui_kit::{Context, IntoElement, Render, TestAppContext, VisualTestContext, div};
     use std::cell::RefCell;
     use std::rc::Rc;
+    mod proofs7_suspend;
 
     struct Empty;
 

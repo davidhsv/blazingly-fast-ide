@@ -1609,7 +1609,7 @@ mod tests {
         let chosen = InvalidateCachesOptions { local_history: true, ..InvalidateCachesOptions::default() };
         assert_eq!(pending(&data), Some(chosen), "the invalidation waits for the next start");
         assert!(workbench.read_with(cx, |w, _| w.invalidate_caches_dialog()).is_none());
-        close(cx);
+        assert!(cx.windows().is_empty(), "the window closed before the relaunch");
     }
 
     // src/features/app/__tests__/invalidateCaches.test.tsx › Invalidate Caches › Just Restart cancels a pending
@@ -1630,7 +1630,7 @@ mod tests {
         run_action(cx, "app.restart", None);
         wait_long(cx, "the app restarts", |_| relaunched.get() == 1);
         assert_eq!(pending(&data), None);
-        close(cx);
+        assert!(cx.windows().is_empty(), "the window closed before the relaunch");
     }
 
     /// Invalidate Caches deletes, at the next start, only the cache folders under the app's own

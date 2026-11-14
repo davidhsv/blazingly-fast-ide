@@ -438,6 +438,7 @@ mod tests {
     use gpui_kit::{Entity, Focusable, TestAppContext, VisualTestContext};
     use std::collections::BTreeSet;
     use std::time::Duration;
+    mod proofs7_extend_selection;
 
     struct Fixture {
         editor: Entity<Editor>,

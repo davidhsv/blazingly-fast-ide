@@ -1118,6 +1118,8 @@ mod tests {
     use gpui_kit::{Modifiers, MouseButton, TestAppContext, VisualTestContext, point};
     use std::collections::HashSet;
     use std::path::PathBuf;
+    mod proofs7_send_to_agent;
+    mod proofs7_toolbar_slots;
 
     const LABEL: &str = "w1";
     /// The id of the Hello fixture plugin.

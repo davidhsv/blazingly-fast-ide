@@ -173,6 +173,7 @@ pub fn relative_dir<'a>(root: &str, path: &'a str) -> Cow<'a, str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    mod proofs7_relative_dir;
 
     const JDT: &str = concat!(
         "jdt://contents/spring-boot-4.1.1.jar/org.springframework.boot/SpringApplication.class",

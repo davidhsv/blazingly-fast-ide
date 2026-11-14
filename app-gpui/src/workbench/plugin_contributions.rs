@@ -1017,6 +1017,8 @@ mod tests {
     use ide_host::plugins::PluginStatus;
     use std::path::{Path, PathBuf};
 
+    mod untrusted_windows;
+
     const LABEL: &str = "w1";
 
     /// A second copy of the plugin folder `first`, at `<home>/fixtures/<copy>`, its manifest rewritten

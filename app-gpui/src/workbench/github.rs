@@ -630,18 +630,18 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
     registry.handle("github.pullRequest.openInBrowser", |call, window, cx| {
         let number = number_arg(call.arg);
         on_workbench(window, cx, move |workbench, _, cx| {
-            let number = number.or_else(|| workbench.context_pull_request(cx));
-            if let Some(url) = number.and_then(|number| workbench.pull_request_url(number, cx)) {
-                cx.open_url(&url);
+            if let Some(number) = number.or_else(|| workbench.context_pull_request(cx)) {
+                workbench.with_pull_request_url(number, cx, |url, cx| cx.open_url(&url));
             }
         })
     });
     registry.handle("github.pullRequest.copyUrl", |call, window, cx| {
         let number = number_arg(call.arg);
         on_workbench(window, cx, move |workbench, _, cx| {
-            let number = number.or_else(|| workbench.context_pull_request(cx));
-            if let Some(url) = number.and_then(|number| workbench.pull_request_url(number, cx)) {
-                cx.write_to_clipboard(ClipboardItem::new_string(url));
+            if let Some(number) = number.or_else(|| workbench.context_pull_request(cx)) {
+                workbench.with_pull_request_url(number, cx, |url, cx| {
+                    cx.write_to_clipboard(ClipboardItem::new_string(url));
+                });
             }
         })
     });
@@ -739,14 +739,13 @@ impl Workbench {
     /// Open on GitHub: the page of the pull request the window points at, else of the repository.
     fn open_github_in_browser(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.show_pull_requests(window, cx);
-        let url = match self.context_pull_request(cx) {
-            Some(number) => self.pull_request_url(number, cx),
-            None => {
-                let connection = self.github.as_ref().and_then(|slot| slot.repo.connection.as_ref());
-                connection.map(|connection| connection.repository.url.clone())
-            }
-        };
-        if let Some(url) = url.filter(|url| !url.is_empty()) {
+        if let Some(number) = self.context_pull_request(cx) {
+            self.with_pull_request_url(number, cx, |url, cx| cx.open_url(&url));
+            return;
+        }
+        let connection = self.github.as_ref().and_then(|slot| slot.repo.connection.as_ref());
+        if let Some(url) = connection.map(|connection| connection.repository.url.clone()).filter(|url| !url.is_empty())
+        {
             cx.open_url(&url);
         }
     }
@@ -764,20 +763,43 @@ impl Workbench {
         }
     }
 
-    /// The web page of pull request `number`: from its details or its list row, else built from the
-    /// connected repository.
-    fn pull_request_url(&self, number: u32, cx: &App) -> Option<String> {
+    /// The web page of pull request `number` as gh gave it already: in its details or its list row.
+    fn known_pull_request_url(&self, number: u32, cx: &App) -> Option<String> {
         let slot = self.github.as_ref()?;
         let loaded = slot.tabs.get(&number).and_then(|tab| tab.details.as_ref()).map(|pr| pr.short.url.clone());
         let listed = || {
             let list = slot.window.read(cx).list().read(cx);
             list.list().items.iter().find(|pr| pr.number == number).map(|pr| pr.url.clone())
         };
-        let built = || {
-            let connection = slot.repo.connection.as_ref()?;
-            Some(format!("https://github.com/{}/pull/{number}", connection.coordinates.name_with_owner()))
-        };
-        loaded.filter(|url| !url.is_empty()).or_else(|| listed().filter(|url| !url.is_empty())).or_else(built)
+        loaded.filter(|url| !url.is_empty()).or_else(|| listed().filter(|url| !url.is_empty()))
+    }
+
+    /// Runs `then` with the web page of pull request `number`: the one gh gave already, else the one
+    /// in the details gh gives for it once they arrive. The page a repository's name would build can
+    /// be wrong (a renamed repository), so none is built; when gh fails, nothing runs.
+    fn with_pull_request_url(
+        &self,
+        number: u32,
+        cx: &mut Context<Self>,
+        then: impl FnOnce(String, &mut App) + 'static,
+    ) {
+        if let Some(url) = self.known_pull_request_url(number, cx) {
+            then(url, cx);
+            return;
+        }
+        let Some(slot) = self.github.as_ref() else { return };
+        let Some(connection) = slot.repo.connection.as_ref() else { return };
+        let repo = connection.coordinates.clone();
+        let dir = gh_dir(slot.repo.connected_root(), slot);
+        let details = gh_call(cx, &self.label, "gh_api", move |cli| find_pull_request(cli, &dir, &repo, number));
+        cx.spawn(async move |_, cx| match details.await {
+            Ok(pr) if !pr.short.url.is_empty() => {
+                cx.update(|cx| then(pr.short.url, cx));
+            }
+            Ok(_) => tracing::warn!(number, "gh gave no page for the pull request"),
+            Err(error) => tracing::warn!(number, "the pull request's page did not load: {}", redacted_text(&error)),
+        })
+        .detach();
     }
 
     /// The window shows the connection as it is now.
@@ -1527,6 +1549,7 @@ mod tests {
     use crate::platform::context::{ContextValue, window_context};
     use gpui_kit::{Focusable, TestAppContext, VisualTestContext};
     use std::cell::{Cell, RefCell};
+    mod proofs7_github_urls;
 
     const GITHUB_REMOTE: &str = "https://github.com/org/app.git";
 

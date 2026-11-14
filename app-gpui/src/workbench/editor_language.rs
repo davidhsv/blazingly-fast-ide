@@ -1566,6 +1566,7 @@ mod tests {
 
     mod proofs3_editor_keys;
     mod proofs5_editor;
+    mod proofs7_hint;
 
     /// A trusted project of `files` in a window, `open` open in the editor with the keyboard. With
     /// `answers` the IDE is in Full mode and `*.mock` files have the fake language server, which

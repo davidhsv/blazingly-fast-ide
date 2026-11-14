@@ -177,6 +177,9 @@ pub struct ProjectTree {
     selected: Option<String>,
     /// Folders being read.
     inflight: BTreeSet<String>,
+    /// How many folder listings the tree asked the backend for.
+    #[cfg(test)]
+    folder_reads: usize,
     /// A path to select and scroll to once its row exists.
     reveal: Option<String>,
     scroll: UniformListScrollHandle,
@@ -224,6 +227,8 @@ impl ProjectTree {
             model: TreeModel::default(),
             selected: None,
             inflight: BTreeSet::new(),
+            #[cfg(test)]
+            folder_reads: 0,
             reveal: None,
             scroll: UniformListScrollHandle::new(),
             listener,
@@ -341,6 +346,10 @@ impl ProjectTree {
         if !self.inflight.insert(path.to_owned()) {
             return;
         }
+        #[cfg(test)]
+        {
+            self.folder_reads += 1;
+        }
         let (window, dir, path) = (self.window_label.clone(), PathBuf::from(path), path.to_owned());
         let listing = cx
             .global::<Backend>()
@@ -455,6 +464,12 @@ impl ProjectTree {
             self.load_dir(dir, true, cx);
         }
         cx.notify();
+    }
+
+    /// How many folder listings the tree asked the backend for.
+    #[cfg(test)]
+    pub(crate) fn folder_reads(&self) -> usize {
+        self.folder_reads
     }
 
     /// Re-reads every loaded folder (View › Reload from Disk).

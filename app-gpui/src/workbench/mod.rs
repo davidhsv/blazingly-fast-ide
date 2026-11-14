@@ -4078,6 +4078,7 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::time::Duration;
 
+    mod project_threads;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;
@@ -4092,6 +4093,8 @@ mod tests {
     mod proofs6_agents;
     mod proofs6_database;
     mod proofs6_workbench;
+    mod proofs7_bookmark_digits;
+    mod proofs7_quit;
     mod proofs_agents;
     mod proofs_database;
     mod proofs_editor_actions_find;

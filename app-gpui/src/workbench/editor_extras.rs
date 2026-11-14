@@ -377,12 +377,13 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let i18n = &mut cx.default_global::<Localization>().0;
         let rows: Vec<ListRow> = options
             .iter()
             .enumerate()
             .map(|(index, option)| ListRow {
                 id: index.to_string(),
-                label: option.label.clone(),
+                label: i18n.tx_built(&["Unwrap '", "'"], &[Param::from(option.label.as_str())]),
                 preview: Some(unwrap_preview(state, option)),
                 ..ListRow::default()
             })
@@ -558,6 +559,8 @@ mod tests {
     use std::cell::Cell;
     use std::path::PathBuf;
     use std::rc::Rc;
+
+    mod levels_and_choosers;
 
     /// A trusted project of `files` in a window, `open` open in the editor with the keyboard. With
     /// `answers` the IDE is in Full mode, `*.mock` files have the fake language server answering

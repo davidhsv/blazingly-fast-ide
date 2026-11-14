@@ -421,6 +421,7 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::path::Path;
     use std::time::Duration;
+    mod proofs7_read_only;
 
     fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
         cx.executor().allow_parking();
