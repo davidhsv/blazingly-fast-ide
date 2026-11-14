@@ -1,0 +1,55 @@
+wait	3000
+open	/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/d101/project/src/main.rs
+wait	1500
+hover	125	19
+wait	200
+click	125	19
+wait	1500
+mark	tooltip-click
+wait	1000
+keys	escape
+wait	500
+action	file.settings	"editor.font"
+wait	2000
+mark	settings-font
+wait	1000
+action	plugins.settings
+wait	2000
+mark	settings-plugins
+wait	1000
+keys	escape
+wait	800
+action	navigate.findAction
+wait	1500
+mark	find-action-empty
+wait	1000
+keys	escape
+wait	500
+action	vcs.openDiff	{"path":"/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/d101/project/src/main.rs","left":{"type":"text","text":"fn main() {}\n","label":"Before"},"right":{"type":"worktree"}}
+wait	3000
+mark	diff
+wait	1000
+keys	escape
+wait	500
+action	toolwindow.database
+wait	1500
+mark	database
+wait	1000
+action	toolwindow.database
+action	toolwindow.terminal
+wait	3500
+mark	terminal
+wait	1000
+action	toolwindow.terminal
+wait	500
+action	toolwindow.commit
+wait	1500
+mark	commit
+wait	1000
+action	toolwindow.project
+wait	800
+action	toolwindow.focusEditor
+wait	500
+mark	end
+wait	500
+quit

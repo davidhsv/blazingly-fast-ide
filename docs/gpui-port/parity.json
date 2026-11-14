@@ -309,7 +309,7 @@
   },
   "action:toolwindow.focusEditor": {
     "status": "done",
-    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`"
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::focus_editor_runs_from_the_focused_project_view`"
   },
   "context:toolWindowFocus": {
     "status": "done",
@@ -1033,7 +1033,7 @@
   },
   "action:navigate.findAction": {
     "status": "partial",
-    "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`; opens Search Everywhere on its tab, starting with the editor's selection. The popup's own gaps are listed under the `search.everywhere` overlay"
+    "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`, `workbench::tests::find_action_says_what_to_do_when_it_has_nothing_to_list`; opens Search Everywhere on its tab, starting with the editor's selection, and an empty query says \"Type to search\". The popup's own gaps are listed under the `search.everywhere` overlay"
   },
   "action:navigate.gotoSymbol": {
     "status": "partial",
@@ -5276,8 +5276,8 @@
     "proof": "`workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`; opens the diff window, not an editor tab"
   },
   "action:vcs.shelve": {
-    "status": "partial",
-    "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`; shelf rows show no time"
+    "status": "done",
+    "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `vcs::shelf_time::tests::a_shelf_row_shows_its_files_then_when_it_was_shelved`, `vcs::shelf_time::tests::the_shelf_tab_shows_each_shelfs_time_after_its_files`; the shelved entry is listed with its files and the time it was shelved"
   },
   "action:vcs.showCommit": {
     "status": "partial",
@@ -5288,8 +5288,8 @@
     "proof": "`workbench::vcs_operations::tests::show_log_shows_the_git_window_and_show_commit_selects_the_commit`; a branch or path argument opens the main log instead of a filtered one"
   },
   "action:vcs.showShelf": {
-    "status": "partial",
-    "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`; shelf rows show no time"
+    "status": "done",
+    "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`, `vcs::shelf_time::tests::a_shelf_row_shows_its_files_then_when_it_was_shelved`, `vcs::shelf_time::tests::the_shelf_tab_shows_each_shelfs_time_after_its_files`; the Shelf tab lists each shelf with its files and its time"
   },
   "action:vcs.stash": {
     "status": "done",
@@ -6569,7 +6569,7 @@
   },
   "module:src/ui/Tooltip.tsx": {
     "status": "partial",
-    "proof": "`ui::tooltip::tests`; the delay, shortcut and detail lines and every dismissal of the webview's host. Missing: the placement beside a stripe and the flip near the window edge are GPUI's own positioning and are not asserted"
+    "proof": "`ui::tooltip::tests::a_press_before_the_delay_ends_keeps_the_tooltip_hidden_until_the_pointer_leaves`, `workbench::tests::a_pressed_widgets_tooltip_stays_off_the_menu_it_opened`, `ui::tooltip::tests`; the delay, shortcut and detail lines and every dismissal of the webview's host, and a press during the delay keeps the tooltip off the popup it opened. Missing: the placement beside a stripe and the flip near the window edge are GPUI's own positioning and are not asserted"
   },
   "action:navigate.selectInProjectView": {
     "status": "done",
