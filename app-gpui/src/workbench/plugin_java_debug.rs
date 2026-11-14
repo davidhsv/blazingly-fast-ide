@@ -230,12 +230,13 @@ mod tests {
     }
 
     /// The program the detector runs, standing for a JVM started with a waiting JDWP agent: it
-    /// prints its arguments, then JDWP's start-up line with the port in `jdwp.port` (when the
-    /// project has that file), and exits with 3 once the project has a file `release` (with 4 after
-    /// a minute without one, so a failed test leaves nothing running).
+    /// prints its arguments, then JDWP's start-up line with each address in `jdwp.port`, one per
+    /// line (when the project has that file), and exits with 3 once the project has a file
+    /// `release` (with 4 after a minute without one, so a failed test leaves nothing running).
     const JVM: &str = "#!/bin/sh\n\
         echo \"execution-tool $*\"\n\
-        if [ -f jdwp.port ]; then echo \"Listening for transport dt_socket at address: $(cat jdwp.port)\"; fi\n\
+        if [ -f jdwp.port ]; then while read -r at || [ -n \"$at\" ]; do\n\
+        \x20 echo \"Listening for transport dt_socket at address: $at\"; done < jdwp.port; fi\n\
         waited=0\n\
         while [ ! -f release ]; do\n\
         \x20 sleep 0.05; waited=$((waited + 1)); if [ \"$waited\" -gt 1200 ]; then exit 4; fi\n\
@@ -476,6 +477,10 @@ mod tests {
         assert!(lines.iter().any(|line| line == "execution-tool test appended --java_debug"), "{lines:?}");
         let run = fixture.run_session(cx).expect("the run's tab");
         assert!(run.is_live() && run.run_id.is_some(), "the JVM runs in the Run tool window: {run:?}");
+        // The adapter's stop can arrive before the debugger's start is answered with the process.
+        wait_long(cx, "the session is the process's", |cx| {
+            fixture.debug_sessions(cx).first().is_some_and(|s| s.1.is_some())
+        });
         assert_eq!(fixture.debug_sessions(cx), [(DebugStatus::Paused, run.run_id)]);
 
         run_action(cx, "debug.resume", None);
@@ -488,10 +493,11 @@ mod tests {
         assert_eq!((heard["status"].clone(), heard["killed"].clone()), (json!(3), json!(false)));
     }
 
-    /// A port the JVM announces that is not a TCP port is not attached to: no session, no report.
+    /// An announced port that is not a TCP port (out of range, zero, not a number, past any integer)
+    /// is not attached to: no session, no report.
     #[gpui_kit::test]
     async fn a_jdwp_port_out_of_range_is_not_attached_to(cx: &mut TestAppContext) {
-        let (fixture, cx) = project(cx, java_detector, &[("jdwp.port", "70000")]);
+        let (fixture, cx) = project(cx, java_detector, &[("jdwp.port", "70000\n0\nport\n99999999999999999999\n")]);
         fixture.debug_detected(cx);
         // The console line of the announcement, once shown, and the window having read past it.
         let announced = |cx: &mut VisualTestContext| {
@@ -499,7 +505,11 @@ mod tests {
             let driver = fixture.workbench.read_with(cx, |w, _| w.run_driver().cloned())?;
             driver.read_with(cx, |driver, cx| {
                 let console = driver.store().read(cx).console(&session.id)?;
-                console.lines().iter().find(|line| line.text.ends_with("address: 70000")).map(|line| line.id)
+                console
+                    .lines()
+                    .iter()
+                    .find(|line| line.text.ends_with("address: 99999999999999999999"))
+                    .map(|line| line.id)
             })
         };
         wait_long(cx, "the announcement is read", |cx| {
@@ -515,6 +525,20 @@ mod tests {
         wait_long(cx, "the plugin hears the exit", |cx| fixture.heard_exit(cx).is_some());
     }
 
+    /// A host the JVM names in its announcement is not where the debugger goes: it attaches to the
+    /// announced port on loopback only.
+    #[gpui_kit::test]
+    async fn an_announced_host_is_ignored_and_the_debugger_attaches_on_loopback(cx: &mut TestAppContext) {
+        let (fixture, cx) = project(cx, java_detector, &[("jdwp.port", "203.0.113.9:50123")]);
+        fixture.debug_detected(cx);
+        wait_long(cx, "the adapter is asked to attach", |_| fixture.attached_to().is_some());
+        assert_eq!(fixture.attached_to(), Some(json!({ "hostName": LOOPBACK, "port": 50123 })));
+        let lines = fixture.run_lines(cx);
+        assert!(lines.iter().any(|line| line.ends_with("address: 203.0.113.9:50123")), "{lines:?}");
+        fixture.release();
+        wait_long(cx, "the plugin hears the exit", |cx| fixture.heard_exit(cx).is_some());
+    }
+
     /// Stop in the debugger ends the session and the process it belongs to; the plugin hears that
     /// its run was killed.
     #[gpui_kit::test]
@@ -522,8 +546,13 @@ mod tests {
         let (fixture, cx) = project(cx, java_detector, &[("jdwp.port", JDWP_PORT)]);
         std::fs::write(fixture.root.join("main.fake"), "start\nloop\nend\n").expect("the program is written");
         fixture.debug_detected(cx);
+        // The session is the process's once its start is answered; events can show it running before.
         wait_long(cx, "the attached session", |cx| {
-            fixture.debug_sessions(cx).first().is_some_and(|(status, _)| *status == DebugStatus::Running)
+            let process = fixture.run_session(cx).and_then(|run| run.run_id);
+            fixture
+                .debug_sessions(cx)
+                .first()
+                .is_some_and(|(status, of)| *status == DebugStatus::Running && of.is_some() && *of == process)
         });
         run_action(cx, "debug.stop", None);
         wait_long(cx, "the session ends", |cx| {

@@ -35,7 +35,9 @@ pub mod notification_balloons;
 pub mod notifications;
 pub mod notifications_view;
 pub mod plugin_contributions;
+mod plugin_java_debug;
 mod plugin_runtime;
+mod plugin_tool_windows;
 mod plugins_window;
 pub mod project_color;
 mod project_files;
@@ -359,6 +361,8 @@ pub struct Workbench {
     plugin_runtime: plugin_runtime::PluginRuntime,
     /// Plugins' gutter actions, activation events and what else they contribute to the window.
     plugin_contributions: plugin_contributions::PluginContributions,
+    /// The tool windows of the views plugins declare, their panels and what they wait on.
+    plugin_tool_windows: plugin_tool_windows::PluginToolWindows,
 }
 
 /// Window title, IDEA style: `<project> – <file>`; with "Always show full path in window header"
@@ -1074,6 +1078,7 @@ impl Workbench {
             welcome: None,
             plugin_runtime: Default::default(),
             plugin_contributions: Default::default(),
+            plugin_tool_windows: Default::default(),
         };
         workbench.start_plugin_runtime(window, cx);
         workbench.listen_to_plugins(window, cx);
@@ -2199,7 +2204,11 @@ impl Workbench {
                         );
                     Panel::new(find, Some(opens))
                 }
-                _ => continue,
+                // A plugin's view, or nothing this app draws.
+                other => match self.mount_plugin_tool_window(other, window, cx) {
+                    Some(panel) => panel,
+                    None => continue,
+                },
             };
             if let Content::Project { panels, .. } = &mut self.content {
                 panels.insert(id, panel);
@@ -2817,6 +2826,7 @@ impl Workbench {
         self.drop_git_log();
         self.reset_code_insight(cx);
         self.drop_agents(cx);
+        self.drop_plugin_tool_windows();
         // The project's servers and runs stop in the background: this is the UI thread.
         self.drop_github();
         cx.global::<Backend>().host.close_project_detached(&self.label);
@@ -2980,6 +2990,7 @@ impl Workbench {
         self.drop_git_log();
         self.reset_code_insight(cx);
         self.drop_agents(cx);
+        self.drop_plugin_tool_windows();
         self.drop_github();
         self.files = Default::default();
         self.content = Content::Opening(root.clone());
@@ -3081,6 +3092,8 @@ impl Workbench {
                     }
                     effects
                 });
+                // The views plugins declare register after the IDE's own windows, reconciled the same way.
+                workbench.mount_plugin_tool_windows(window, cx);
                 // A restored tab gets its editor when it is the one showing.
                 workbench.tabs_changed(false, window, cx);
                 cx.notify();

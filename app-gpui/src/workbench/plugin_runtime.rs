@@ -377,7 +377,7 @@ impl Workbench {
     }
 
     /// The focused editor as a plugin call sees it: its file, language and selection.
-    fn plugin_editor(&self, cx: &App) -> Option<PluginEditor> {
+    pub(super) fn plugin_editor(&self, cx: &App) -> Option<PluginEditor> {
         let editor = self.editor()?.read(cx);
         Some(PluginEditor {
             path: editor.path().to_string_lossy().into_owned(),
@@ -526,6 +526,9 @@ impl Workbench {
             PluginEvent::OpenTerminal { plugin_id, title, .. } => {
                 tracing::warn!("plugin {plugin_id} asked for the terminal {title:?}, which this window cannot run");
             }
+            PluginEvent::ViewChanged { plugin_id, view } => self.plugin_view_changed(plugin_id, view, cx),
+            PluginEvent::RevealView { plugin_id, view } => self.reveal_plugin_view(plugin_id, view, window, cx),
+            PluginEvent::ViewMessage { plugin_id, view, .. } => self.plugin_view_message(plugin_id, view),
             // Only the kind is logged: such events carry what plugin views and pages exchange.
             other => tracing::debug!("plugin event not shown in this window: {}", plugin_event_kind(other)),
         }

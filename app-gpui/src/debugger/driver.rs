@@ -73,6 +73,14 @@ pub enum DebugDriverEvent {
     },
 }
 
+/// The port of the Java debug server in tests, answered instead of asking jdtls for one (jdtls
+/// needs a JDK and the java-debug bundle).
+#[cfg(test)]
+pub struct JavaDebugServerPort(pub u16);
+
+#[cfg(test)]
+impl gpui_kit::Global for JavaDebugServerPort {}
+
 /// The transitions' surroundings, from the fields of a [`Debugger`] and a [`Host`].
 macro_rules! ctx {
     ($debugger:ident, $host:ident) => {
@@ -807,11 +815,22 @@ impl DebugDriver {
                 },
                 Self::on_debugger(move |debugger, result, host| debugger.launch_resolved(ticket, result, host)),
             ),
-            BackendCall::JavaDebugServer { module } => self.ask(
-                cx,
-                move |host, label| async move { java::java_debug_server(&host, &label, PathBuf::from(module)).await },
-                Self::on_debugger(move |debugger, result, host| debugger.debug_server_started(ticket, result, host)),
-            ),
+            BackendCall::JavaDebugServer { module } => {
+                #[cfg(test)]
+                if let Some(port) = cx.try_global::<JavaDebugServerPort>().map(|server| server.0) {
+                    self.with_host(cx, |debugger, host| debugger.debug_server_started(ticket, Ok(port), host));
+                    return;
+                }
+                self.ask(
+                    cx,
+                    move |host, label| async move {
+                        java::java_debug_server(&host, &label, PathBuf::from(module)).await
+                    },
+                    Self::on_debugger(move |debugger, result, host| {
+                        debugger.debug_server_started(ticket, result, host);
+                    }),
+                );
+            }
             BackendCall::FsReadText(path) => self.ask_all(ticket, vec![BackendCall::FsReadText(path)], cx),
             BackendCall::FsReadDir(path) => self.ask(
                 cx,

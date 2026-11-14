@@ -81,7 +81,7 @@ const TASKS_POPUP_INSET: (f32, f32) = (16.0, 32.0);
 /// start.
 const RUN_UNAVAILABLE: &str = "Run service unavailable";
 const DEBUGGER_UNAVAILABLE: &str = "Debugger unavailable";
-const RUN_NOT_STARTED: &str = "Run did not start";
+pub(super) const RUN_NOT_STARTED: &str = "Run did not start";
 const APPLY_FAILED: &str = "Could not apply settings.";
 
 /// A context menu plugins add entries to, with the menu id a plugin declares for it.
@@ -117,7 +117,7 @@ pub struct SlotItem {
 
 /// The `&'static str` the menus' action rows take for action `id`. Plugin actions are named at run
 /// time: each id is kept once, for as long as the app runs (a plugin contributes a few).
-fn static_action_id(id: &str) -> &'static str {
+pub(super) fn static_action_id(id: &str) -> &'static str {
     static IDS: LazyLock<Mutex<BTreeSet<&'static str>>> = LazyLock::new(|| Mutex::new(BTreeSet::new()));
     let mut ids = IDS.lock().unwrap_or_else(PoisonError::into_inner);
     if let Some(known) = ids.get(id) {
@@ -300,6 +300,8 @@ pub(super) struct PluginContributions {
     activated_path: Option<String>,
     /// The request ids of the plugin debug runs under way that a plugin waits on, by operation.
     debug_requests: HashMap<String, String>,
+    /// The plugin debug runs whose JVM the Java debugger attaches to once it announces its port.
+    pub(super) java_debug: super::plugin_java_debug::JavaDebugRuns,
 }
 
 /// The tasks status item's click asks for a toggle (`{ "toggle": true }`); the action itself only opens the
@@ -343,6 +345,11 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         if debug {
+            // A detector that starts its JVM with a waiting JDWP agent runs in Run; the Java
+            // debugger attaches to the port the JVM announces.
+            if self.plugin_java_debug_request(request_id, operation, config, window, cx) {
+                return;
+            }
             return self.plugin_debug_request(request_id, operation, config, window, cx);
         }
         let Some(driver) = self.run_driver().cloned() else {
@@ -374,7 +381,13 @@ impl Workbench {
 
     /// A run request that is not carried out: the plugin hears that its run ended without a status,
     /// and why when it waits for the answer.
-    fn refuse_plugin_run(&mut self, request_id: &str, operation: &str, reason: &str, cx: &mut Context<Self>) {
+    pub(super) fn refuse_plugin_run(
+        &mut self,
+        request_id: &str,
+        operation: &str,
+        reason: &str,
+        cx: &mut Context<Self>,
+    ) {
         tracing::warn!("a plugin's run was not started: {reason}");
         self.finish_plugin_operation(operation, None, false, cx);
         if !request_id.is_empty() {

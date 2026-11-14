@@ -365,7 +365,7 @@ pub struct FieldControl {
     pub label: String,
     pub value: FieldValue,
     pub input: Option<FieldInput>,
-    pub(super) events: Vec<Subscription>,
+    pub(super) _events: Vec<Subscription>,
     pub(super) blur: Option<Subscription>,
 }
 
@@ -485,7 +485,7 @@ impl PluginViewPanel {
             label: field.label.clone(),
             value: field.value.clone(),
             input,
-            events,
+            _events: events,
             blur: None,
         }
     }
@@ -614,7 +614,11 @@ impl PluginViewPanel {
         let modifiers = keystroke.modifiers;
         let lead = self.tree.lead_index();
         let plain = !modifiers.control && !modifiers.alt && !modifiers.platform;
-        let typed = keystroke.key_char.as_deref().filter(|c| c.chars().count() == 1 && plain);
+        // Enter and Tab carry a control character, which is not typed text.
+        let typed = keystroke
+            .key_char
+            .as_deref()
+            .filter(|c| c.chars().count() == 1 && !c.chars().any(char::is_control) && plain);
         if let Some(typed) = typed.filter(|c| !(*c == " " && self.tree.query.is_empty())) {
             self.tree.query.push_str(typed);
             if let Some(hit) = find_match(&self.tree.rows, lead, 1, true, &self.tree.query, true) {
@@ -1380,7 +1384,7 @@ impl PluginViewPanel {
             .size_full()
             .flex()
             .flex_col()
-            .on_scroll_wheel(cx.listener(|_, _: &gpui_kit::ScrollWheelEvent, _, cx| cx.notify()))
+            .on_scroll(cx.listener(|_, _: &gpui_kit::ScrollEvent, _, cx| cx.notify()))
             .child(header)
             .child(div().flex_1().min_h_0().child(list))
             .into_any_element()
@@ -1485,6 +1489,43 @@ mod tests {
         let rows = tree_rows(&items);
         assert_eq!(rows.len(), MAX_ITEMS);
         assert_eq!(rows.last().map(|row| row.depth), Some(MAX_ITEMS - 1));
+    }
+
+    /// A plugin's tree of more items than the cap, each the child of the one before, is drawn in a
+    /// window up to the cap and still answers the keyboard; markup in a label is drawn as its text.
+    #[gpui_kit::test]
+    async fn a_tree_of_more_items_than_the_cap_each_inside_the_last_is_drawn_up_to_the_cap(cx: &mut TestAppContext) {
+        let mut items = vec![item("<b>0</b>", None, true, true)];
+        items.push(item("1", Some("<b>0</b>"), true, true));
+        for at in 2..MAX_ITEMS + 10 {
+            items.push(item(&at.to_string(), Some(&(at - 1).to_string()), true, true));
+        }
+        let (panel, events, cx) = open(cx, view(ViewBody::Tree(items)));
+        let lines = panel.read_with(cx, |p, _| p.lines());
+        // The last item drawn is open with its children past the cap: they show as loading.
+        assert_eq!(lines.len(), MAX_ITEMS + 1);
+        assert_eq!(lines[MAX_ITEMS].trim_start(), "Loading…");
+        assert_eq!(lines[0], "▾ <b>0</b>", "markup is text");
+        assert!(cx.debug_bounds("plugin-view-row:0").is_some(), "the first row is drawn");
+        cx.update(|window, cx| window.focus(&panel.read(cx).focus.clone(), cx));
+        cx.simulate_keystrokes("end");
+        assert_eq!(panel.read_with(cx, |p, _| p.tree_lead().map(str::to_owned)), Some((MAX_ITEMS - 1).to_string()));
+        cx.simulate_keystrokes("left");
+        assert!(events_of(&events).contains(&ViewEvent::Collapse { key: (MAX_ITEMS - 1).to_string() }));
+    }
+
+    /// A table claiming more rows than can be laid out is drawn in a window up to its cap.
+    #[gpui_kit::test]
+    async fn a_table_claiming_more_rows_than_can_be_laid_out_is_drawn_up_to_its_cap(cx: &mut TestAppContext) {
+        let huge = ViewTable { total_rows: u32::MAX, ..table(vec![vec!["/a", "1"]], 1, 0, false, false) };
+        let (panel, _events, cx) = open(cx, view(ViewBody::Table(huge)));
+        let lines = panel.read_with(cx, |p, _| p.lines());
+        assert_eq!(lines.first().map(String::as_str), Some("Route | Count"));
+        assert!(cx.debug_bounds("plugin-view-table-row:0").is_some(), "the first row is drawn");
+        assert_eq!(
+            drawn_rows(panel.read_with(cx, |p, _| p.table().cloned()).as_ref().expect("a table")),
+            MAX_TABLE_ROWS
+        );
     }
 
     #[test]

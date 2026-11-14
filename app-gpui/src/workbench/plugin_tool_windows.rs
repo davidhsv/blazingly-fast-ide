@@ -38,7 +38,7 @@ use crate::plugin_views::view_panel::{
 };
 use crate::plugins::{Plugins, plugin_action_id};
 use crate::vcs_ops::menu::{MenuEntry, MenuItem};
-use gpui_kit::{App, Context, Entity, Global, Pixels, Point, Subscription, Window};
+use gpui_kit::{App, AppContext as _, Context, Entity, Global, Pixels, Point, Subscription, Window};
 use ide_core::{IdeError, IdeResult};
 use ide_plugin::{View, ViewBody, ViewEvent};
 use serde_json::Value;
@@ -115,7 +115,9 @@ pub(super) fn declared_views(contributions: &[Contribution]) -> Vec<DeclaredView
                 "left" => Anchor::Left,
                 "right" => Anchor::Right,
                 "bottom" => Anchor::Bottom,
-                // `services` and anything this build does not know.
+                // A view of the Services tool window has no window of its own.
+                SERVICES_LOCATION => return None,
+                // A place this build does not know.
                 _ => return None,
             };
             Some(DeclaredView {
@@ -154,6 +156,9 @@ pub(super) fn window_specs(contributions: &[Contribution]) -> Vec<WindowSpec> {
 /// again.
 type Signature = (String, Anchor, bool, String);
 
+/// A window to register: its declaration, how it is registered, and its shown views (view, title).
+type Wanted = (WindowSpec, Signature, Vec<(String, String)>);
+
 /// The listed contributions of the live plugins.
 fn listed_contributions(cx: &App) -> Vec<Contribution> {
     cx.try_global::<Plugins>().and_then(Plugins::snapshot).map(Contribution::from_snapshot).unwrap_or_default()
@@ -184,7 +189,6 @@ struct WindowState {
 /// A view's panel and what it waits on.
 struct ViewSlot {
     window: String,
-    decl: DeclaredView,
     panel: Entity<PluginViewPanel>,
     /// Events for the plugin's `handle`, the next first; one is delivered at a time.
     queue: VecDeque<ViewEvent>,
@@ -267,7 +271,7 @@ impl Workbench {
         for spec in &specs {
             self.ask_plugin_view_icons(spec, window, cx);
         }
-        let mut wanted: BTreeMap<String, (WindowSpec, Signature, Vec<(String, String)>)> = BTreeMap::new();
+        let mut wanted: BTreeMap<String, Wanted> = BTreeMap::new();
         for spec in specs {
             let members: Vec<(String, String)> =
                 spec.shown(&ctx).into_iter().map(|view| (view.id.clone(), view.title.clone())).collect();
@@ -469,7 +473,6 @@ impl Workbench {
             key.clone(),
             ViewSlot {
                 window: window_id.to_owned(),
-                decl,
                 panel: panel.clone(),
                 queue: VecDeque::new(),
                 sending: false,
@@ -867,14 +870,14 @@ mod tests {
     }
 
     /// A linked copy of the Hello fixture, its manifest rewritten by `edit`, in a trusted project.
-    fn hello<'a>(
-        cx: &'a mut TestAppContext,
+    fn hello(
+        cx: &mut TestAppContext,
         edit: impl Fn(&str) -> String,
     ) -> (
         super::super::plugins_window::test_support::PluginHome,
         tempfile::TempDir,
         Entity<Workbench>,
-        &'a mut VisualTestContext,
+        &mut VisualTestContext,
     ) {
         let home = start_with_plugins(cx);
         let folder = plugin_copy(home.path(), "hello", edit);
@@ -985,6 +988,34 @@ mod tests {
         cx.run_until_parked();
         assert!(workbench.read_with(cx, |w, _| w.plugin_view_panel("hello", "greetings").is_none()));
         assert!(workbench.read_with(cx, |w, _| w.plugin_tool_window(GREETINGS).is_none()));
+    }
+
+    /// A project in Restricted Mode does not load its own plugins (`.openidea/plugins`), so the
+    /// views such a plugin declares get no tool window, no stripe button and no action, while an
+    /// installed plugin's view shows as always.
+    #[gpui_kit::test]
+    async fn a_restricted_projects_own_plugin_shows_no_view(cx: &mut TestAppContext) {
+        let home = start_with_plugins(cx);
+        let installed = plugin_copy(home.path(), "grouped-views", str::to_owned);
+        link(cx, &installed, &[], "reveal");
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let own = plugin_copy(home.path(), "hello", str::to_owned);
+        super::super::plugins_window::test_support::copy_dir(&own, &root.join(".openidea/plugins/hello"));
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, false, false)).expect("previewed");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new(LABEL, window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        wait_long(cx, "the installed plugin's view", |cx| {
+            registered(&workbench, "plugin.grouped-views.legacy", cx).is_some()
+        });
+        assert!(workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
+        let host = cx.update(|_, cx| cx.global::<Plugins>().host.clone());
+        assert!(!host.list(Some(&root)).plugins.iter().any(|p| p.id == "hello"), "the plugin is not loaded");
+        assert!(registered(&workbench, GREETINGS, cx).is_none());
+        assert!(cx.debug_bounds("stripe:plugin.hello.greetings").is_none());
+        assert!(!cx.update(|_, cx| cx.global::<ActionRegistry>().contains("toolwindow.plugin.hello.greetings")));
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project(LABEL));
     }
 
     /// The Tables fixture: its sortable header asks the plugin to sort and the rows come back in
