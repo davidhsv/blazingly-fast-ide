@@ -1,0 +1,456 @@
+{
+  "rows": {
+    "action:project.trust": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`; Trust Project from the Restricted Mode banner, from the trust question (with its parent folder when the checkbox is ticked) and through the registry trusts the project, the banner goes and its tools run. Missing: a workspace whose attached member is untrusted is not named in the banner, and Trust Project does not ask about that member first"
+    },
+    "action:project.previewRestricted": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`; the question's Preview in Restricted Mode runs the action: the project opens in Restricted Mode with the banner, decided as not trusted, and the next opening asks nothing"
+    },
+    "action:project.dontOpen": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `app_views::trust_dialog::tests::each_button_runs_its_action_and_escape_is_dont_open`; Don't Open (and Escape) closes the question, nothing opens, nothing is decided and nothing is reported"
+    },
+    "action:project.revokeTrust": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`; run through the registry it puts the window's project back in Restricted Mode (decided, not trusted) and its run configurations stop running; the Trust settings page that runs it with a path is its own row"
+    },
+    "action:project.removeTrustedLocation": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::removing_a_trusted_location_restricts_the_projects_inside_it`; run through the registry with a trusted location, the project open inside it loses its trust and shows in Restricted Mode"
+    },
+    "ipc:project_trust_set": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`; the trust store holds the project and its parent folder as trusted locations, and a previewed or revoked project as decided and not trusted, which only Host::set_project_trust writes; the window calls it with the path, trusted and folder, as the adapter does, and restricts the project's plugins when not trusted"
+    },
+    "ipc:project_trust_status": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`; an undecided folder is asked about by its root as the store names it, a decided one and a sibling in a trusted location open without a question; the window reads TrustStore::status, as the adapter does"
+    },
+    "ipc:project_trust_remove_location": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::removing_a_trusted_location_restricts_the_projects_inside_it`; the project inside the removed location becomes restricted, which only the store's removal plus Host::refresh_project_trust produce; the window calls remove_location, refresh_project_trust and PluginHost::restrict_project per untrusted project, as the adapter does"
+    },
+    "point.registerOverlay:project.trustDialog": {
+      "status": "done",
+      "proof": "`app_views::trust_dialog::tests`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`; Trust and Open Project? with the folder, Preview in Restricted Mode, Don't Open and Trust Project, the Trust projects in checkbox naming the parent folder, a long path cut so the buttons stay inside, Escape as Don't Open, shown in the window the project opens in"
+    },
+    "point.registerWorkbenchBanner:project.restrictedMode": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`; the banner over a restricted project with Trust Project, gone once trusted. Missing: the path of a workspace's untrusted attached member is not shown in it"
+    },
+    "unit:src/features/project-trust/trust.test.tsx": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`; 3 of 7 cases through the window. Not covered: the canonical folder of a symlinked path, Add folder… on the Trust settings page (not built), a local opening's decision kept on the client (no remote windows), and an attached member whose trust is lost"
+    },
+    "feature:project-trust": {
+      "status": "partial",
+      "proof": "`app_views::trust_dialog::tests`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`, `workbench::plugins_window::tests::a_projects_own_plugins_load_only_while_the_project_is_trusted`; the trust question before an undecided project opens, the Restricted Mode banner, the trust actions, and Restricted Mode refusing run configurations, the debugger, language servers, project plugins, Git hooks and database connections. Missing: the Project Trust settings page (lists, Revoke, Remove, Add folder…), attached workspace members, the local scope of a remote window"
+    },
+    "module:src/platform/projectTrust.ts": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`; an opening waits for the trust question and Don't Open cancels it without a report. Missing: the local scope a remote window asks with"
+    },
+    "action:layout.save": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`; run through the registry it asks Save Current Layout as with Layout name:, and the typed name is stored and listed"
+    },
+    "action:layout.restore": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::restores_by_name_through_the_action_window_tool_window_layouts_items`; with a name it brings back the saved visible windows; without a saved layout it says so; the menu's items restore by name, the last one checked. Missing: without a name the layouts are chosen from a popup menu, not the webview's titled list dialog"
+    },
+    "action:layout.restoreDefault": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::the_restore_default_layout_key_works_only_with_a_project`; through the registry and by its key (Shift-F12) it shows the default layout and clears the active name; without a project the key does nothing and the action is unavailable"
+    },
+    "action:layout.rename": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`; the layout chosen is renamed to the typed name. Missing: the layout is chosen from a popup menu, not a titled list dialog, and a taken name is reported in a message after OK instead of under the field"
+    },
+    "action:layout.delete": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`; the chosen layout is deleted once Delete Layout is confirmed and toolWindowLayoutsSaved turns off. Missing: the layout is chosen from a popup menu, not a titled list dialog"
+    },
+    "context:toolWindowLayoutsSaved": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`; read OFF before a layout is saved, ON after Save, OFF again once the last one is deleted"
+    },
+    "unit:src/workbench/toolwindows/layouts.test.ts": {
+      "status": "partial",
+      "proof": "`workbench::tool_windows::tests`, `workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::restores_by_name_through_the_action_window_tool_window_layouts_items`; 5 of 5 cases on the layout store, 2 of 5 also through the window (the default layout, restoring by name through the action with toolWindowLayoutsSaved). Through the window the saved sizes, replacing a layout of the same name and the reload that drops malformed entries are not asserted"
+    },
+    "module:src/workbench/toolwindows/layouts.ts": {
+      "status": "done",
+      "proof": "`workbench::tool_windows::tests`, `workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::the_restore_default_layout_key_works_only_with_a_project`, `workbench::app_actions::tests::restores_by_name_through_the_action_window_tool_window_layouts_items`; the named layouts in the UI storage, saved, restored, renamed and deleted from the window's actions, and listed for Window › Tool Window Layouts"
+    },
+    "action:editor.toggleZen": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::hides_tool_windows_and_restores_the_previous_layout_on_exit`, `workbench::title_bar::tests::the_main_toolbar_switch_and_distraction_free_make_the_compact_header`; run through the registry it hides the tool windows, stripes, status bar and main toolbar contents, publishes distractionFree, stores the mode, shows the hint and flips its title to Exit; again it brings the layout back. Missing: editor tabs, breadcrumbs and the gutter stay and the text is not centred at the Distraction free text width, and the menu bar item keeps its Enter label"
+    },
+    "module:src/workbench/distractionFree.ts": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::hides_tool_windows_and_restores_the_previous_layout_on_exit`, `platform_more::distraction_free::tests`; the toggle, its title, the context key, the stored flag, the hint and the hidden layout in the window; starting in the mode after a restart on the model only. Missing: hiding the editor tabs, breadcrumbs and gutter and centring the text column"
+    },
+    "action:app.about": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::about_shows_the_version_of_the_build`, `app_views::about_dialog::tests`; run through the registry it shows About with the version, the build, the facts with the configuration folder, Copy Info, the links and Close. Missing: the logo, and Keymap Reference and Show Log links (those actions are not registered)"
+    },
+    "point.registerOverlay:app.about": {
+      "status": "partial",
+      "proof": "`app_views::about_dialog::tests`, `workbench::app_actions::tests::about_shows_the_version_of_the_build`; the product and build lines, the facts, Copy Info, Show Config, Report an Issue, Close and Escape. Missing: the logo, and the Keymap Reference and Show Log links"
+    },
+    "action:file.newProject": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::new_project_creates_the_folder_and_opens_it`, `app_views::new_project_dialog::tests`; run through the registry it proposes the default project directory, refuses a folder that exists and is not empty, creates the folder and opens it after the trust question. Missing: Create Git repository is not run by a test, and Browse… does not start in the typed folder"
+    },
+    "point.registerOverlay:app.newProject": {
+      "status": "partial",
+      "proof": "`app_views::new_project_dialog::tests`, `workbench::app_actions::tests::new_project_creates_the_folder_and_opens_it`; name and location fields, validation, the Git checkbox, Create and Cancel, the error kept in the dialog. Missing: Browse… does not start in the typed folder, and the Git initialization is not exercised"
+    },
+    "action:file.invalidateCaches": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::invalidate_and_restart_schedules_the_chosen_caches_and_restarts`, `workbench::app_actions::tests::invalidating_every_cache_removes_only_the_apps_cache_folders`, `app_views::invalidate_caches_dialog::tests`; run through the registry it shows Invalidate Caches; Invalidate and Restart schedules the chosen caches and restarts, and the next start removes exactly those cache folders; the relaunch is observed through the Relaunch seam, as the spec mocks app_restart"
+    },
+    "point.registerOverlay:app.invalidateCaches": {
+      "status": "done",
+      "proof": "`app_views::invalidate_caches_dialog::tests`, `workbench::app_actions::tests::invalidate_and_restart_schedules_the_chosen_caches_and_restarts`, `workbench::app_actions::tests::just_restart_cancels_a_pending_invalidation_cancel_does_nothing`; the three optional caches, the Local History warning, Invalidate and Restart, Just Restart and Cancel"
+    },
+    "unit:src/features/app/__tests__/invalidateCaches.test.tsx": {
+      "status": "done",
+      "proof": "`app_models::invalidate_caches::tests`, `app_views::invalidate_caches_dialog::tests`, `workbench::app_actions::tests::invalidate_and_restart_schedules_the_chosen_caches_and_restarts`, `workbench::app_actions::tests::just_restart_cancels_a_pending_invalidation_cancel_does_nothing`; 2 of 2 cases through the dialog and the window, the restart observed through the Relaunch seam as the spec mocks app_restart"
+    },
+    "ipc:caches_schedule_invalidation": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::invalidate_and_restart_schedules_the_chosen_caches_and_restarts`, `workbench::app_actions::tests::just_restart_cancels_a_pending_invalidation_cancel_does_nothing`, `workbench::app_actions::tests::invalidating_every_cache_removes_only_the_apps_cache_folders`; the pending invalidation in the data folder is the one chosen, and none after Just Restart; the window calls ide_workspace::caches::schedule and caches::cancel, as the adapter does"
+    },
+    "action:app.restart": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::just_restart_cancels_a_pending_invalidation_cancel_does_nothing`; run through the registry it cancels a pending invalidation and quits through every window's close, then asks for the relaunch. Missing: the relaunch itself (App::restart) is replaced by a recorder in tests"
+    },
+    "ipc:app_restart": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::just_restart_cancels_a_pending_invalidation_cancel_does_nothing`, `workbench::app_actions::tests::invalidate_and_restart_schedules_the_chosen_caches_and_restarts`; the restart quits the way Quit does and then asks for the relaunch. Missing: the relaunch of the process (App::restart) is not exercised"
+    },
+    "action:file.exportSettings": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::exports_templates_macros_layouts_and_view_options_not_per_project_state`; run through the registry it asks for a file and writes the global settings with the IDE-level UI state, leaving per-project state behind, and reports Settings exported. Missing: the save dialog has no OpenIDEA settings file-type filter"
+    },
+    "ipc:settings_export": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::exports_templates_macros_layouts_and_view_options_not_per_project_state`; the bundle file holds the exported UI state, which only SettingsStore::export_bundle writes; the window calls it with the path and the storage map, as the adapter does"
+    },
+    "action:file.importSettings": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::exports_templates_macros_layouts_and_view_options_not_per_project_state`, `workbench::app_actions::tests::importing_a_file_that_is_not_a_settings_bundle_changes_nothing`; run through the registry it reads the chosen bundle, writes its UI state back, applies the settings and offers Restart; a file that is not a bundle is refused with the backend's reason and changes nothing. Missing: a JetBrains settings.zip is not imported, and the open dialog has no file-type filter"
+    },
+    "ipc:settings_import": {
+      "status": "partial",
+      "proof": "`workbench::app_actions::tests::exports_templates_macros_layouts_and_view_options_not_per_project_state`, `workbench::app_actions::tests::importing_a_file_that_is_not_a_settings_bundle_changes_nothing`; the imported global setting and UI state come back from SettingsStore::import_bundle, after which each project reloads its settings, file defaults and language servers, SSH configurations and the proxy apply, and SettingsChanged is sent. Missing: the MCP servers are not re-applied and the update checker is not woken, as the adapter does"
+    },
+    "action:file.togglePowerSave": {
+      "status": "done",
+      "proof": "`workbench::app_actions::tests::power_save_mode_toggles_the_global_setting`; run through the registry it flips general.powerSaveMode globally and the toggle shows it; the banner over editors is its own row"
+    },
+    "action:run.runConfig": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_run::run_configuration_runs_the_named_or_given_configuration_and_stop_process_ends_the_process`, `run::driver::tests`; run through the registry by id the configuration runs, exits 0 and its output shows in the Run tool window; given whole with temporary it runs and is kept as a temporary configuration"
+    },
+    "action:run.stopProcess": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_run::run_configuration_runs_the_named_or_given_configuration_and_stop_process_ends_the_process`; run through the registry with a running process's run id, that session ends as stopped"
+    },
+    "action:run.reloadConfigs": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_run::reload_run_configurations_lists_a_configuration_saved_since_the_project_opened`; a configuration saved after the project opened is listed only once the action has run through the registry"
+    },
+    "action:run": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_run::run_on_a_running_services_row_reruns_it_and_stop_ends_it`, `workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; run is a Services toolbar item in the webview too, with no registry id: on a stopped row it starts the configuration, on a running row it reads Rerun and starts it again in a later session with one live process"
+    },
+    "action:stop": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_run::run_on_a_running_services_row_reruns_it_and_stop_ends_it`, `workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; stop is a Services toolbar item in the webview too, with no registry id: it ends the session, the row reads Stopped and the button reads Run again"
+    },
+    "action:file.openFile": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it`; run through the registry it asks for files; the picked file opens as a tab of the window's project; from an empty window a file of another window's project opens there and that window comes to the front; a file of no open project is edited on its own in the asking window"
+    },
+    "action:file.openInNewWindow": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_windows::open_in_new_window_opens_the_given_or_picked_folder_in_a_new_window`; with a folder it opens it in a new window although the asking window has a project; a folder another window has brings that window to the front; without one it asks for a folder and opens the picked one in a new window"
+    },
+    "action:project.rename": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_rename_lsp::renaming_a_file_applies_the_reference_updates_its_language_server_returns`, `workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; the language server watching the file is asked workspace/willRenameFiles with the old and new URIs, its update of another file is previewed and applied with the rename, the server hears didRenameFiles, and Undo Move / Rename takes both back; text references and the open editor follow too"
+    },
+    "action:debug.toggleMethodBreakpoint": {
+      "status": "done",
+      "proof": "`workbench::debug::tests::proofs3_debug::toggle_method_breakpoint_on_a_declaration_sets_and_removes_a_method_breakpoint`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; on a Python def line it sets the method breakpoint listed in View Breakpoints, again it removes it, and on a line without a declaration it says so"
+    },
+    "action:debug.toggleFieldWatchpoint": {
+      "status": "done",
+      "proof": "`workbench::debug::tests::proofs3_debug::toggle_field_watchpoint_on_a_java_field_sets_and_removes_a_watchpoint`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; on a Java field declaration it sets the watchpoint a.A#count listed in View Breakpoints, again it removes it, and on a line without a field it says so"
+    },
+    "action:debug.hotReload": {
+      "status": "done",
+      "proof": "`workbench::debug::tests::proofs3_debug::hot_reload_and_hot_restart_reach_the_adapter_of_a_running_dart_session`; unavailable without a Dart session; on a running Dart session it sends hotReload to the adapter, whose answer shows in the debug console"
+    },
+    "action:debug.hotRestart": {
+      "status": "done",
+      "proof": "`workbench::debug::tests::proofs3_debug::hot_reload_and_hot_restart_reach_the_adapter_of_a_running_dart_session`; on a running Dart session it sends hotRestart to the adapter, whose answer shows in the debug console"
+    },
+    "ipc:debug_hot_reload": {
+      "status": "done",
+      "proof": "`workbench::debug::tests::proofs3_debug::hot_reload_and_hot_restart_reach_the_adapter_of_a_running_dart_session`; the adapter's answer to hotReload in the console can only come from the request; the debugger driver calls ide_host::ops::debug::debug_hot_reload with the session, as the adapter does"
+    },
+    "ipc:debug_hot_restart": {
+      "status": "done",
+      "proof": "`workbench::debug::tests::proofs3_debug::hot_reload_and_hot_restart_reach_the_adapter_of_a_running_dart_session`; the adapter's answer to hotRestart in the console can only come from the request; the debugger driver calls ide_host::ops::debug::debug_hot_restart with the session, as the adapter does"
+    },
+    "context:debugSessionDart": {
+      "status": "done",
+      "proof": "`workbench::debug::tests::proofs3_debug::hot_reload_and_hot_restart_reach_the_adapter_of_a_running_dart_session`; read OFF before a session and ON while the Dart session runs"
+    },
+    "ipc:run_stdin": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_run::a_line_typed_in_the_run_console_reaches_the_process_and_ctrl_d_ends_its_input`, `run::view::tests::types_erases_and_sends_a_line`; a line typed in the Run console of a process that reads it comes back as got hello, which only the process reading its stdin can print; the driver calls ide_host::ops::run::stdin, as the adapter does"
+    },
+    "ipc:run_close_stdin": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_run::a_line_typed_in_the_run_console_reaches_the_process_and_ctrl_d_ends_its_input`; Ctrl-D in the console of a process reading to the end of its input lets it print drained and exit 0 without being stopped; the driver calls ide_host::ops::run::close_stdin, as the adapter does"
+    },
+    "context:run.cmakeBuild": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs3_context::the_cmake_build_key_follows_the_selected_configuration`; read OFF with a program configuration selected and ON (app:build) with the CMake configure step and with the build selected"
+    },
+    "ipc:run_apply_settings": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs4_run::kept_temporary_configurations_take_todays_settings_and_are_stored_without_them`; kept temporary Go configurations that name no GOPATH are listed with the project's languages.go.gopath in their environment, which only the backend's settings put there; the driver calls ide_host::ops::run::apply_settings, as the adapter does"
+    },
+    "ipc:run_without_derived": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs4_run::kept_temporary_configurations_take_todays_settings_and_are_stored_without_them`; deleting the other temporary configuration stores the remaining one without GOPATH but with its own FOO, while the listed one keeps GOPATH; the driver calls ide_host::ops::run::without_derived, as the adapter does"
+    },
+    "ipc:fs_entry_kind": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs4_run::a_location_printed_in_the_output_opens_the_file_that_exists_there`; a click on notes.txt:2 printed by a process running in server/ opens server/notes.txt at line 2 although the root has one too, and docs.txt:1, a folder in server/, opens the root's file; the driver calls ide_host::ops::fs::entry_kind, as the adapter does"
+    },
+    "ipc:run_gradle_jvm_args_script": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs4_run::a_gradle_boot_run_with_vm_options_is_launched_with_the_init_scripts_written_for_it`; a Gradle BootRun with VM options is given a jvm-args init script holding them, which only the backend writes; the driver calls ide_host::ops::run::run_gradle_jvm_args_script, as the adapter does"
+    },
+    "ipc:run_gradle_init_script": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs4_run::a_gradle_boot_run_with_vm_options_is_launched_with_the_init_scripts_written_for_it`; the same launch is given the openidea-gradle-boot init script; the driver calls ide_host::ops::run::run_gradle_init_script, as the adapter does"
+    },
+    "ipc:term_kill": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs4_shell::closing_a_terminal_session_ends_its_shell`; the shell of a new terminal tab runs while the tab is open and is gone once Close Terminal Session releases the view, which calls ide_host::ops::term::kill, the same Terminals::kill the adapter calls"
+    },
+    "ipc:set_recent_project_groups": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs4_shell::a_group_named_on_the_welcome_screen_is_stored_with_its_project`, `workbench::welcome::tests::a_group_is_named_in_a_form_above_the_list`; New Group… on the Welcome screen's recent project, named Work, is read back from the recent projects file with the project in it and shows above it; the workbench calls RecentProjects::set_groups, as the adapter does"
+    },
+    "ipc:menu_refresh": {
+      "status": "done",
+      "proof": "`workbench::tests::proofs4_shell::open_recent_lists_a_project_once_opened_and_choosing_it_opens_it`, `workbench::menu::tests`; Open Recent is empty before anything is opened, lists the project once opened with its path as the argument, and choosing it opens the project; the refresh on every project open reads RecentProjects::list, the list the adapter installs"
+    },
+    "ipc:vcs_diff_revisions": {
+      "status": "done",
+      "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`, `workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`, `workbench::log_actions::tests::compare_with_local_and_compare_versions_open_the_diff_window`, `workbench::tests::proofs4_vcs::a_selected_merge_commit_lists_its_changes_against_its_parents`; Update Project counts the files that came in, Compare Versions opens the files between two commits, and a selected merge commit lists only the file both sides changed, or each parent's changes with Show Changes from Parents; the log calls the same ide_host::ops::vcs function as the adapter"
+    },
+    "ipc:run_resize": {
+      "status": "done",
+      "proof": "`workbench::tests::a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize`; stty size in a program run with Emulate terminal prints the rows and columns the Run console reports, and the new ones after the window is resized; the driver calls ide_host::ops::run::resize, as the adapter does"
+    },
+    "unit:src/features/vcs/__tests__/branches.test.ts": {
+      "status": "done",
+      "proof": "`vcs::branches::tests`, `vcs_diff::model::tests::reads_progress_and_remote_urls`, `vcs_diff::model::tests::proofs4_remote_urls::maps_ssh_scp_like_and_https_remotes_to_their_web_page`, `workbench::log_actions::tests::view_in_browser_opens_the_commit_page_of_the_remote`; all 13 cases, the remote web URL case with its exact inputs"
+    },
+    "unit:src/ui/Tooltip.test.tsx": {
+      "status": "done",
+      "proof": "`ui::tooltip::tests`; 4 of 4: shown after the delay with its shortcut, none without text, and hidden on pointer leave, press, wheel, a key press and the window losing the focus; the spec's stripe variants differ only in a CSS class"
+    },
+    "module:src/ui/Tooltip.tsx": {
+      "status": "partial",
+      "proof": "`ui::tooltip::tests`; the delay, shortcut and detail lines and every dismissal of the webview's host. Missing: the placement beside a stripe and the flip near the window edge are GPUI's own positioning and are not asserted"
+    }
+  },
+  "skipped": [
+    {
+      "key": "action:code.implementMethods",
+      "why": "Ctrl-I proves the key only; the recorded gaps (reformatting, choosing between several implement actions) are unchanged"
+    },
+    {
+      "key": "action:code.quickDefinition",
+      "why": "Alt-Space and Cmd-Y prove the keys only; the recorded gap (declaration span, highlighting) is unchanged"
+    },
+    {
+      "key": "action:navigate.gotoTest",
+      "why": "Cmd-Shift-T proves the key only; Create New Test and the chooser of several tests are still missing"
+    },
+    {
+      "key": "action:refactor.rename",
+      "why": "Shift-F6 proves the key only; in-place rename is still missing"
+    },
+    {
+      "key": "action:navigate.prevHighlightedUsage",
+      "why": "Ctrl-Alt-Up proves the key only; the fallback to navigate.prevOccurrence is still missing"
+    },
+    {
+      "key": "action:navigate.prevError",
+      "why": "already done"
+    },
+    {
+      "key": "action:navigate.previousMethod",
+      "why": "already done"
+    },
+    {
+      "key": "context:run.updatableRunning",
+      "why": "no test starts an updatable (tomcat / spring-boot) session"
+    },
+    {
+      "key": "ipc:project_trust_add_location",
+      "why": "no native caller: Add folder… of the Trust settings page is not built; the test adds the location through the store directly"
+    },
+    {
+      "key": "ipc:project_trust_list",
+      "why": "no native caller: the Trust settings page is not built; tests read decisions() directly"
+    },
+    {
+      "key": "settings:projectTrust",
+      "why": "the Project Trust settings page is not built"
+    },
+    {
+      "key": "ipc:app_build_info",
+      "why": "not a backend operation: About computes the same compile-time facts itself (this_build), so no asserted state comes from the adapter's function"
+    },
+    {
+      "key": "ipc:app_info",
+      "why": "not a backend operation and used well beyond About (platform, configuration folder); nothing here proves its other uses"
+    },
+    {
+      "key": "ipc:vcs_init",
+      "why": "the New Project test unticks Create Git repository, so vcs_init never runs"
+    },
+    {
+      "key": "point.registerEditorBanner:app.powerSave",
+      "why": "the Power Save banner above editors is not built"
+    },
+    {
+      "key": "unit:src/workbench/distractionFree.test.tsx",
+      "why": "already done"
+    },
+    {
+      "key": "unit:src/features/app/__tests__/newProject.test.ts",
+      "why": "already done; its model is now reached from the app, which the generator detects by itself"
+    },
+    {
+      "key": "event:ProjectTrustChanged",
+      "why": "already done; its clause about the webview's trusted-flag listener having no native counterpart may be stale (the banner now follows the trust), but whether the redraw comes from this event was not established"
+    },
+    {
+      "key": "unit:src/features/app/__tests__/menuBridge.test.ts",
+      "why": "its 'Not yet: saved layouts' names spec cases; the slot is filled now but no test reads the layouts in the menu state, so the gap stands"
+    },
+    {
+      "key": "ipc:history_list_dir",
+      "why": "reached only through Undo Delete after a delete that goes to the system Trash"
+    },
+    {
+      "key": "ipc:history_restore",
+      "why": "same as history_list_dir"
+    },
+    {
+      "key": "ipc:history_content",
+      "why": "the Local History view is not built"
+    },
+    {
+      "key": "unit:src/features/database/Grid.test.tsx",
+      "why": "no test of this slice touches it; the stale clause noted in proofs4.md is outside this slice"
+    },
+    {
+      "key": "action:debug.reloadChangedClasses",
+      "why": "needs the Java language server"
+    },
+    {
+      "key": "point.registerOverlay:app.termination",
+      "why": "the running-process question now includes debug sessions, but the Terminating panel with Kill is still missing; no change of status"
+    },
+    {
+      "key": "feature:app",
+      "why": "the app feature (3284 lines) spans far more than this slice (windows, LightEdit, updates, keymap reference, workspace dialog); not assessed as a whole"
+    },
+    {
+      "key": "shell:relaunch.rs",
+      "why": "the macOS wait-then-open relaunch is not exercised: tests replace the relaunch with a recorder, and whether App::restart keeps the environment is unverified"
+    },
+    {
+      "key": "action:run.stop",
+      "why": "its gap is the Stop menu not counting debug sessions; this slice changed the close and Quit question, not run.stop"
+    }
+  ],
+  "wrong_existing": [
+    {
+      "key": "action:app.quit",
+      "why": "The proof says live debug sessions are not asked about; Quit now names a program running under the debugger and stops it.",
+      "proof": "`workbench::debug::tests::proofs3_debug::quit_with_a_running_debug_session_asks_to_terminate_it`, `workbench::menu::tests`, `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`; the exit is confirmed once and each window decides its close in turn, a window that stays calls the quit off, and a program running under the debugger is asked about by name: Cancel keeps the window and the session, Terminate on closing the window ends it. Missing: the macOS menu key path has no test, and Terminate is exercised through the window's close, not through Quit",
+      "status": "partial"
+    },
+    {
+      "key": "action:services.addService",
+      "why": "The proof says no test runs the action; a test now runs it through the registry.",
+      "proof": "`workbench::tests::proofs3_run::add_service_opens_its_menu_and_a_chosen_type_shows_its_configurations`, `services::view::tests::shows_the_empty_state_with_add_service_while_no_provider_has_a_node`; run through the registry it shows the Services tool window and opens Add Service; Run Configuration Type › the project's category › Program shows the Program group with its configuration. Missing: the menu opens near the top of the window rather than under the button, and a type with several configurations adds all of them without the picker",
+      "status": "partial"
+    },
+    {
+      "key": "context:focusedDirectory",
+      "why": "The proof says no test reads it cleared after the tree loses the keyboard; a test now reads it ON, OFF and ON again.",
+      "proof": "`workbench::tests::proofs3_context::the_focused_directory_follows_the_project_views_keyboard`, `workbench::tests::proofs_editor_search_find::takes_the_focused_directory_of_the_project_view`; read ON for the folder selected while the Project view has the keyboard, OFF once the editor takes it, ON again for another folder. Missing: the other trees the webview publishes it from (Bookmarks, Commit) do not set it",
+      "status": "partial"
+    },
+    {
+      "key": "action:code.overrideMethods",
+      "why": "The proof says no test applies an override action; Ctrl-O now applies the offered override.",
+      "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::proofs3_editor_keys::ctrl_o_in_the_editor_overrides_the_offered_method`; with no override action it says Nothing to override; Ctrl-O in the editor applies the only override action the server offers, leaving the implement action. Missing: the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does",
+      "status": "partial"
+    },
+    {
+      "key": "ipc:vcs_log",
+      "why": "The proof says no test reads the log with a date range; the Date filter's Last 7 Days now reads it.",
+      "proof": "`vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`, `workbench::tests::proofs_vcs::the_log_user_filter_lists_the_authors_and_keeps_the_chosen_ones_commits`, `workbench::log_actions::tests::the_commit_menu_disables_history_rewriting_for_a_pushed_commit`, `workbench::log_actions::tests::a_commit_action_reads_a_commit_the_log_has_not_read`, `workbench::tests::proofs4_vcs::the_log_date_filter_keeps_the_commits_of_the_chosen_period`; the pages in the chosen order with the text, branch, user and date (Last 7 Days) filters, the @{u}..HEAD range and a commit read by id. Missing: the path filter and a typed date range (Select Folders… and the date range's Select… are not available)",
+      "status": "partial"
+    },
+    {
+      "key": "unit:src/features/vcs/__tests__/ignore.test.ts",
+      "why": "The proof says the status refresh afterwards is not asserted; the window's status is now read again after Add to .gitignore.",
+      "proof": "`vcs_ops::ignore::tests`, `workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`, `workbench::tests::proofs4_vcs::routes_all_paths_to_gitignore_then_refreshes_status_and_tree`; all 7 cases on the model; through the window Add to .gitignore on a file and a folder writes both rules and the status no longer lists them. Missing: the project tree reload, the refresh after the local-exclude write and after a failed write are not asserted",
+      "status": "partial"
+    },
+    {
+      "key": "point.registerToolWindow:run",
+      "why": "The proof says there is no terminal console; a run with Emulate terminal now shows its output and is told the console's size.",
+      "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::tests::a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize`, `run::view::tests`; tabs drawn in the body rather than the header, no stripe badge with the running count, no test tree or stack-trace tabs",
+      "status": "partial"
+    },
+    {
+      "key": "feature:run",
+      "why": "The proof lists the terminal console as not yet built; a run with Emulate terminal now shows its output and follows the console's size.",
+      "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`, `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::tests::a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize`, `run::view::tests`; the Run tool window with a plain or terminal console, the run widget in the title bar, the configuration chooser and Edit Configurations, on real processes. Not yet: context runs and gutter markers, the test tree, debugging, importing configurations, templates",
+      "status": "partial"
+    },
+    {
+      "key": "shell:menu.rs",
+      "why": "The proof lists the saved layouts as not yet in their slot; menu::state now fills the Tool Window Layouts slot from the saved layouts (read, not asserted in the bar).",
+      "proof": "`workbench::menu::tests`, `workbench::tests::the_menu_bar_follows_the_window_and_runs_chosen_items`, `workbench::app_actions::tests::restores_by_name_through_the_action_window_tool_window_layouts_items`; the macOS menu bar from the Tauri app's own table (menu_spec.rs, compared byte for byte by menuspec.mjs --check): labels in the language, each action's first shortcut, check marks, greyed-out items, the window's tool windows and the recent projects, replaced only when it changes; the saved layouts' items restore by name with the active one checked, but no test reads them in the bar. Not yet: the in-window menu of Windows and Linux, status bar widgets and plugin entries in their slots, the Enter / Exit Distraction Free label, Check for Updates, and most of the bar's actions have no handler yet",
+      "status": "partial"
+    },
+    {
+      "key": "unit:src/features/app/__tests__/closeGuard.test.ts",
+      "why": "The proof says a live debug session is neither named nor stopped; the close and Quit now name a program running under the debugger and Terminate ends it.",
+      "status": "partial",
+      "proof": "`app_models::close_guard::tests`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`, `workbench::tests::closing_with_a_running_process_asks_to_terminate_it_before_the_unsaved_question`, `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`, `workbench::debug::tests::proofs3_debug::quit_with_a_running_debug_session_asks_to_terminate_it`; every case on the model, and the order of the questions through the window: exit confirmation, running processes (a program under the debugger included, named and stopped on Terminate), unsaved changes; there is no Terminating panel with Kill"
+    }
+  ]
+}
