@@ -169,7 +169,7 @@
   },
   "module:src/workbench/TitleBar.tsx": {
     "status": "partial",
-    "proof": "`workbench::title_bar::tests`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::main_toolbar::tests`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`; the bar draws the project widget (initials, name, root tooltip, Open…/Close Project menu), the branch widget or Version Control fallback, the gear menu, the context menu and Customize Main Toolbar dialog, the compact, light-edit and bare headers, the main menu button where there is no native menu bar, and a plugin's mainToolbar button, whose click runs its command. Missing: the project avatar is drawn on the accent, not on the project's colours"
+    "proof": "`workbench::title_bar::tests`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::main_toolbar::tests`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`; the bar draws the project widget (initials, name, root tooltip, Open…/Close Project menu), the branch widget or Version Control fallback, the gear menu, the context menu and Customize Main Toolbar dialog, the compact, light-edit and bare headers, the main menu button where there is no native menu bar, and a plugin's mainToolbar button, whose click runs its command. Missing: no test reads the title bar avatar's colours (drawn on the project's colours, seen in the real window on 2026-11-14)"
   },
   "context:projectOpen": {
     "status": "done",
@@ -405,7 +405,7 @@
   },
   "module:src/workbench/projectColor.ts": {
     "status": "partial",
-    "proof": "`workbench::project_color::tests`, `workbench::welcome::tests::shows_brand_version_and_project_rows_with_badges_home_relative_paths_and_branches`; slots, initials and theme colours as the webview computes them; the Welcome rows show the initials on a tile drawn with the project's colours and the title bar's project widget shows the initials. Missing: no test reads the tile's colours, the title bar avatar uses the accent instead of the project colours, and the window has no project-colour gradient"
+    "proof": "`workbench::project_color::tests`, `workbench::welcome::tests::shows_brand_version_and_project_rows_with_badges_home_relative_paths_and_branches`; slots, initials and theme colours as the webview computes them; the Welcome rows show the initials on a tile drawn with the project's colours and the title bar's project widget shows the initials. `workbench::project_color::tests::the_avatar_is_drawn_on_the_projects_slot_colours` reads the tile's colours. Missing: the title bar avatar's colours are read by no test (seen in the real window on 2026-11-14), and the window has no project-colour gradient"
   },
   "unit:src/workbench/mainToolbar.test.ts": {
     "status": "done",
@@ -729,7 +729,7 @@
   },
   "ipc:plugin_run_command": {
     "status": "partial",
-    "proof": "`workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`; the Tools menu, the Project view menu, a status item, a notification button and a settings page action run the plugin's command through PluginHost::run_command on the blocking pool, with the window, its project and the focused editor. Missing: no test asserts the selected paths a menu passes, a command chain, or the project settings scope"
+    "proof": "`workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`, `workbench::plugin_contributions::tests::proofs10_menus_settings::a_plugin_command_reads_the_projects_setting_over_the_global_one`; the Tools menu, the Project view menu, a status item, a notification button and a settings page action run the plugin's command through PluginHost::run_command on the blocking pool, with the window, its project, the focused editor and the menu's selected paths. Missing: no test asserts a command chain, or the project settings scope of a settings page's action"
   },
   "ipc:vcs_log": {
     "status": "partial",
@@ -5848,8 +5848,8 @@
     "proof": "`workbench::plugin_contributions::tests::renders_owned_gutter_commands_and_drops_answers_to_superseded_buffers`, `workbench::plugin_contributions::tests::puts_the_actions_of_one_line_behind_one_icon_whose_click_opens_a_menu`; the gutter shows the plugin's action on its line from ide_host::ops::lsp::plugin_language_visuals for the editor's document, the adapter's call, and drops an answer for text that has changed since"
   },
   "ipc:plugin_subscribe": {
-    "status": "partial",
-    "proof": "`workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; the window hears the host's events through the app's listener, filtered by its label, in place of a channel per window. Missing: no test shows that another window's events stay out"
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::proofs10_host_ui::a_status_item_set_for_one_window_stays_out_of_another_window`; the window hears the host's events through the app's listener, filtered by its label, in place of a channel per window; a window-scoped item set for w1 never reaches a second window, which shows the global item set afterwards"
   },
   "point.registerMenuSlotItem:(at) src/features/plugins/uiPoints.tsx:177": {
     "status": "done",
@@ -5901,23 +5901,23 @@
   },
   "wit:wit/host.wit#ui": {
     "status": "partial",
-    "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_runtime::tests::a_plugin_opens_a_file_at_a_position_copies_text_and_opens_a_url`, `workbench::plugin_runtime::tests::a_plugins_text_question_is_answered_and_the_command_gets_the_text`, `workbench::plugin_runtime::tests::closes_a_question_the_plugin_gave_up_on_without_answering`; fixture plugins use notify, notify with actions, set-status-item, set and remove-window-status-item, set-context, copy-to-clipboard, open-url, input, pick and pick-many, and the window shows or answers each. Missing: pick-directory, confirm, input-multiline, remove-status-item, remove-context and locale are used by no app-level test"
+    "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_runtime::tests::a_plugin_opens_a_file_at_a_position_copies_text_and_opens_a_url`, `workbench::plugin_runtime::tests::a_plugins_text_question_is_answered_and_the_command_gets_the_text`, `workbench::plugin_runtime::tests::closes_a_question_the_plugin_gave_up_on_without_answering`, `workbench::plugin_runtime::tests::proofs10_host_ui::a_plugins_yes_no_question_shows_its_message_and_the_command_gets_the_answer`, `workbench::plugin_runtime::tests::proofs10_host_ui::asks_multi_line_text_and_confirms_on_ctrl_enter`, `workbench::plugin_runtime::tests::proofs10_host_ui::a_plugins_folder_question_opens_the_folder_dialog_and_the_command_gets_the_choice`, `workbench::plugin_runtime::tests::proofs10_host_ui::a_context_key_the_plugin_sets_is_on_and_removing_it_takes_it_away`, `workbench::plugin_runtime::tests::proofs10_events::a_status_item_the_plugin_removes_leaves_the_status_bar`; fixture plugins use notify, notify with actions, set-status-item, set and remove-window-status-item, set-context, copy-to-clipboard, open-url, input, pick and pick-many, and the window shows or answers each; confirm answers OK/Cancel as true/false, input-multiline confirms on Ctrl+Enter with the lines typed, pick-directory answers the folder chosen in the system dialog or none, remove-context clears the key, remove-status-item takes the item away. Missing: locale is told to the host at start (the start-up language) but no compiled test reads it, and the native app cannot change its language while running"
   },
   "wit:wit/events.wit#events": {
     "status": "partial",
-    "proof": "`workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugin_runtime::tests::a_changed_plugin_setting_reaches_the_plugin_as_settings_changed`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`, `workbench::plugin_contributions::tests::an_input_mode_change_reaches_the_plugin_that_wants_it`; subscribe and subscribe-paths with file-saved, action-performed, settings-changed, editor-focused and vcs-changed delivered by the window. Missing: file-opened, file-closed, files-changed and scheduled are asserted by no test, and input-mode-changed is produced by the test itself (nothing in the app reports an input mode)"
+    "proof": "`workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugin_runtime::tests::a_changed_plugin_setting_reaches_the_plugin_as_settings_changed`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`, `workbench::plugin_contributions::tests::an_input_mode_change_reaches_the_plugin_that_wants_it`, `workbench::plugin_runtime::tests::proofs10_events::a_file_whose_tab_closes_reaches_the_plugin_activated_by_file_closed`, `workbench::plugin_runtime::tests::proofs10_events::a_file_created_on_disk_reaches_the_plugin_as_files_changed`, `workbench::plugin_runtime::tests::proofs10_events::a_plugin_on_a_schedule_runs_when_its_period_is_over`; subscribe and subscribe-paths with file-saved, action-performed, settings-changed, editor-focused, vcs-changed, file-closed, files-changed and scheduled delivered by the window. Missing: file-opened and unsubscribe have a written test that is not compiled (its second half waits a fixed time), and input-mode-changed is produced by the test itself (nothing in the app reports an input mode)"
   },
   "wit:wit/events.wit#tasks": {
-    "status": "partial",
-    "proof": "`workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; begin shows the plugin's cancellable task in the status bar and Background Tasks, and Cancel makes is-cancelled stop it. Missing: report (progress and message) is asserted by no test"
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::plugin_runtime::tests::proofs10_events::a_plugins_task_shows_the_progress_and_message_it_reports`; begin shows the plugin's cancellable task in the status bar and Background Tasks, Cancel makes is-cancelled stop it, and report's message and done/total show in the window's task list while the task runs"
   },
   "wit:wit/exports.wit#commands": {
     "status": "done",
     "proof": "`workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `plugins::tests::a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project`; the window runs a plugin's exported run for its commands, from the Tools menu, a status item and the registry in a trusted project's window, and the command's effects show in the editor or a notification"
   },
   "wit:wit/exports.wit#event-handler": {
-    "status": "partial",
-    "proof": "`workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; handle receives the batches the window posts and the plugins record or show them. Missing: the same kinds as the events row (file-opened, file-closed, files-changed, scheduled)"
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`, `workbench::plugin_runtime::tests::proofs10_events::a_file_whose_tab_closes_reaches_the_plugin_activated_by_file_closed`, `workbench::plugin_runtime::tests::proofs10_events::a_file_created_on_disk_reaches_the_plugin_as_files_changed`, `workbench::plugin_runtime::tests::proofs10_events::a_plugin_on_a_schedule_runs_when_its_period_is_over`; handle receives the batches the window posts (file-saved, action-performed, editor-focused, vcs-changed, file-closed, files-changed, scheduled) and the plugins record or show them"
   },
   "wit:wit/exports.wit#lifecycle": {
     "status": "partial",
@@ -5928,8 +5928,8 @@
     "proof": "`workbench::plugin_tool_windows::tests::a_plugins_view_is_a_tool_window_with_its_title_and_icon_that_shows_the_rendered_rows`, `workbench::plugin_tool_windows::tests::clicking_a_node_reaches_the_plugin_and_its_refresh_repaints_the_view`, `workbench::plugin_tool_windows::tests::reveal_shows_and_focuses_the_views_window_and_a_hidden_view_stays_hidden`, `workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`; contributed views render as tool windows with message, tree, list, form and table bodies, refresh and reveal work, log tabs and open-location work. Missing: HTML and web bodies, post-message, terminal sessions, content tabs, views in the Services window"
   },
   "wit:wit/views.wit#settings": {
-    "status": "partial",
-    "proof": "`workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`; get returns the global value the window applied (the saved profile the command reads). Missing: the project-over-global layering has no test"
+    "status": "done",
+    "proof": "`workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `workbench::plugin_contributions::tests::proofs10_menus_settings::a_plugin_command_reads_the_projects_setting_over_the_global_one`; get returns the global value the window applied (the saved profile the command reads) and the project's value over the global one in a project's window"
   },
   "wit:wit/run.wit#run": {
     "status": "done",
@@ -5940,8 +5940,8 @@
     "proof": "`workbench::plugin_contributions::tests::a_plugins_run_detectors_are_listed_in_the_configuration_chooser`; the plugin's detected and dynamic configurations are listed with the project's and in the configuration chooser"
   },
   "wit:wit/workspace.wit#invocation": {
-    "status": "partial",
-    "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`; a command run from the window gets its project and focused editor (the word count of notes.txt). Missing: no test asserts the selected paths a menu passes"
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`; a command run from the window gets its project and focused editor (the word count of notes.txt), and selected-paths carries the Project view menu's file"
   },
   "wit:wit/language-features.wit#language-features": {
     "status": "partial",
@@ -7134,5 +7134,45 @@
   "ipc:vcs_compare_scope": {
     "status": "done",
     "proof": "`workbench::diff_tools::tests::compare_with_branch_diffs_the_file_against_the_branch_chosen`"
+  },
+  "wit:wit/host.wit#command-runner": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::proofs6_plugin_runtime::a_plugin_command_runs_an_ide_action_in_its_window_and_hears_the_outcome`, `workbench::plugin_runtime::tests::proofs10_host_ui::executes_host_command_requests_through_actions_and_returns_plugin_command_results`; execute runs an IDE action in the invoking window (theme toggled, a missing action fails the call) and another plugin's declared command, whose question shows there and whose result is execute's"
+  },
+  "wit:wit/host.wit#output": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::proofs10_host_api::a_plugins_output_channel_is_revealed_in_a_tab_with_what_it_wrote`; append and reveal open the channel's tab with the text. Missing: clear has no fixture caller"
+  },
+  "wit:wit/io.wit#secrets": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::proofs10_host_api::a_plugins_secret_is_stored_and_deleted_through_the_host`; set and delete reach the host's file store under the home, an undeclared name is refused. Missing: is-set has no fixture caller"
+  },
+  "wit:wit/io.wit#process": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_runs_its_granted_program_and_reads_its_output`, `workbench::plugin_runtime::tests::proofs10_events::a_plugins_task_shows_the_progress_and_message_it_reports`; run, run-command and start with child.wait answer the granted program's output. Missing: poll, write and kill"
+  },
+  "wit:wit/workspace.wit#editor": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_lists_the_windows_open_editors`, `workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_opens_a_file_and_selects_in_the_focused_editor`; open opens a project file in the window, set-selections moves the focused editor's caret, open-editors answers the window's tabs. Missing: reveal, document and apply-edits are used by no app-level test"
+  },
+  "wit:wit/workspace.wit#workspace": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_searches_the_projects_text`; search-text and root. Missing: project-of, read-file, write-file, exists, stat, find-files, symbols, open-project and projects are used by no app-level test"
+  },
+  "wit:wit/workspace.wit#vcs": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_reads_the_projects_log_blame_and_diff`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; log, blame and diff answer the commit, its author and the changed line, and status shows as the plugin's branch item. Missing: remotes, and fetch's effect is not asserted"
+  },
+  "wit:wit/host.wit#storage": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::proofs10_events::a_file_created_on_disk_reaches_the_plugin_as_files_changed`, `workbench::plugin_runtime::tests::proofs10_events::a_plugin_on_a_schedule_runs_when_its_period_is_over`; get and set back the fixtures' stored events and counts, which the tests read. Missing: delete and keys have no app-level test"
+  },
+  "ipc:mcp_set_open_editors": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_lists_the_windows_open_editors`; every project window reports its open tabs to the host's reports (the function the command calls), and a plugin asking for the window's open editors gets them"
+  },
+  "module:src/workbench/EditorArea.tsx": {
+    "status": "partial",
+    "proof": "`workbench::tests::empty_project_window::a_project_window_with_nothing_open_shows_the_status_bar_and_the_navigation_hints`; a pane with no tab shows the four navigation hints with the keymap's shortcuts and the drop remark, a click on a hint runs its action, and an open file takes their place. Missing: the two hints of a single-file window"
   }
 }

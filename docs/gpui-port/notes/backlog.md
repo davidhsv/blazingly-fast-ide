@@ -335,3 +335,14 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - ACCESSIBILITY GAP (large, new): the native window exposes almost no accessible elements (GPUI log: "focused element has no accessibility node"); the webview has real buttons/inputs/labels with aria-labels. Needs its own slice: accessibility ids/roles/labels on buttons, fields, lists, trees, tabs, menus.
 - CAUTION: the app's terminal starts the OWNER'S login shell with the real HOME even with OPENIDEA_GPUI_HOME; never type there in an inspection (it would write the owner's shell history), or set terminal.shellPath to a plain shell in the isolated home's settings first.
 - Memory seen: 128–154 MB idle after start, 202 MB after visiting Settings/Git/Commit/Terminal/Find.
+
+## State after the inspection-script slice (2026-11-14, 58d59b4b)
+
+- Suite 6,886 ×3 (mine, to files: a piped `head` cuts the suite short, never pipe it), clippy clean, `cargo check --release` ok. D99 written. Rows of proofs10 recorded.
+- THIRD INSPECTION DONE with the script: docs/gpui-port/notes/inspections/2026-11-14-c/ (run.sh launches with OPENIDEA_GPUI_HOME + HOME + ZDOTDIR on temp folders, captures at each mark, stops by PID, gives the focus back; `rclick_X_Y` marks post a click to the PID but it reaches NO GPUI view → the inspect script needs click/rclick/hover steps).
+- FONTS DECIDED: static faces from /Applications/IntelliJ IDEA.app/Contents/jbr/Contents/Home/lib/fonts (Inter 3.019 Regular/SemiBold/Italic/SemiBoldItalic, JetBrains Mono 2.304 all weights; OFL in the name tables). No download. Gap: no Inter Medium/Bold; versions differ from the webview's.
+- NEXT INTEGRATOR (cargo): $S/int_d100_brief.md = fonts, then visual defects (shadows, Commit and Push label, file status colours, two Settings pages overflowing, Find Action empty, diff syntax colours, Database filter field, trust path dots, terminal font chain, toolwindow.focusEditor, single-file empty hints, app menu title), then inspect click steps, fixed port 50123, two 4 s helpers, linker message. Rules for every integrator: $S/int_rules.md.
+- RUNNING (no cargo): Annotate + small VCS commands draft (drafts/annotate_integration.md); accessibility assessment (reports/a11y_assessment.md).
+- CARGO QUEUE after it: edit targets/popups/shelf time → database extras (+ proofs6_database_console.rs) → build tools (seam first) → annotate.
+- After the fonts integration: FOURTH INSPECTION (fonts and shadows are paint changes) with click steps: context menus, Find Action, Commit window, the two Settings pages, a running program, a debug session.
+- Remaining blank rows (rough): actions 293 (project 19, db 17, github 17, run 15, docker 13, dotnet 13, editor 12, refactor 12, deployment 11, maven 11, vcs 11, window 10, gradle 9…), IPC 315, modules 164, unit specs 157 blank + 125 model only + 152 partial, e2e 70, settings pages 45.

@@ -1,0 +1,7 @@
+wait	3000
+mark	empty-project-window
+wait	2500
+action	view.toggleTheme
+wait	1200
+mark	empty-dark
+wait	2500
