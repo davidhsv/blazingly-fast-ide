@@ -231,3 +231,9 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - Then: plugin views + plugin Java debug → settings controls → editor extras → diff tools.
 - Hypothesis to check: other ops::fs::delete callers (conflicts.rs:166, log_actions.rs:1085) are never reached by a test with a real file.
 - Project view rows merged. Small gaps to close in a proofs batch: run project.option.showExcluded/compact/foldersFirst, project.sortBy.modified, terminal.splitAndMoveRight through the registry; expandAll from a subfolder; Move Up/Down test must reopen Services; Copy Path popup gets empty roots (Path From Source Root never shows); ProjectView.test.tsx 2/27 cases.
+
+## State after the GitHub slice (2026-11-13, 2f559a80)
+
+- Suite 6,600, 0 ignored (×3 by me). D91 written. registered_ids.txt = 550.
+- RUNNING (cargo, background): Tauri suite → $S/tauri_suite4.log. RUNNING (no cargo): GitHub parity mapper → $S/parity_github.json; writers: build tools (Gradle/Maven), database leftovers.
+- NEXT (cargo): plugin views + plugin Java debug (no anchors scripts: the integrator re-derives anchors; mod.rs changed by app actions, Project view, GitHub) → settings controls → editor extras → diff tools.
