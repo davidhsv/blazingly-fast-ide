@@ -396,3 +396,31 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - NEW DEFECTS / LEFTOVERS for later integrators: ~20 `fn button` helpers with padding 12 (webview 16, min-width 72): settings_view/controls.rs:519, app_views/mod.rs:67, vcs/prompt_dialogs.rs:191, vcs/log_message_dialog.rs, vcs/interactive_rebase_dialog.rs, plugin_views/prompt_dialog.rs, plugin_models/plugins_page.rs:2018, project_view/file_dialogs.rs, database/source_dialog.rs, database/table_editor_view.rs, github/*, welcome.rs, workbench/database.rs, debugger/breakpoints_view.rs, everywhere/bookmarks_popup.rs → ONE shared button (also the accessibility slice 3 wants one: do both together). Local History diff uncoloured. Terminal size when it follows the editor font. Single-file window without tabs (LightEdit hints). Search Everywhere's "retry everywhere" hint (no include-non-project toggle natively).
 - CARGO QUEUE after d102: project view options + zoom → run/debug actions (+ wire the Run group of the context menus and the run gutter) → database extras (+ proofs6_database_console.rs) → build tools (seam first) → shared button + accessibility slices 1-3, 6 → vcs_stage_hunks.
 - Integrator rule added: file lists for formatting come from `git diff --name-only`, never `git status`; every launch of the binary, self-checks included, uses temp HOME/ZDOTDIR/OPENIDEA_GPUI_HOME.
+
+## Draft proofs11 views DONE (2026-11-14, NOT committed: commit after the running integrator ends)
+
+- 55 tests in 8 new files (only 8 `mod` lines needed): workbench/tests/proofs11_agents.rs, agents/{task_list_view,session_view,markdown_view}/tests/proofs11_*.rs, database/{grid_view,results_view}/tests/proofs11_*.rs, github/list_panel/tests/proofs11_list.rs, workbench/github/tests/proofs11_github.rs. Notes drafts/proofs11_views.md, report reports/draft_proofs11_views.md.
+- If they pass: done = Grid.test.tsx, github/list/list.test.tsx, action:github.pullRequests; partial with more cases = AgentsView 18/19, Markdown 7/18, messageEditing 14/18, sessionState 19/31, unread 6/18, results-view 13/14.
+- REAL GAPS it found: agent Markdown draws no images (box with alt text; MessageImages used by no view) and no Mermaid diagrams; the agents status count and tool-window badge (`status_item`, `badge`) have no caller outside tests; conversations as editor tabs (8 unread cases).
+- Possible differences (expected failures if true): retracting a turn with later messages may not ask to confirm; `layout.show(…, true)` may not give the Pull Requests window the keyboard; an edited result run in schema s2 may not ask for the s2 table details.
+- Slow/likely to fail: worktree-cleanup test, stop-timeout test (about 15 real seconds, wall clock).
+
+## Draft proofs11 windows DONE (2026-11-14, NOT committed: commit after the running integrator ends)
+
+- 20 tests in 10 new files: workbench/tests/proofs11_vcs_windows.rs, workbench/shelf/tests/proofs11_shelf.rs, workbench/vcs_operations/tests/proofs11_worktrees.rs, workbench/services_actions/tests/proofs11_docker.rs, workbench/debug/tests/proofs11_hotswap.rs, workbench/editor_core/tests/proofs11_read_only.rs, workbench/plugin_contributions/tests/proofs11_plugin_debug.rs, workbench/project_view_actions/tests/proofs11_import.rs, debugger/state/tests/proofs11_execution_state.rs, platform/keymap/tests/proofs11_host_modifier.rs. Notes drafts/proofs11_windows.md, report reports/draft_proofs11_windows.md.
+- Hunks needed: H1 services_window.rs (two test-only accessors), H2 debugger/driver.rs (a test answer to the hot-swap compile, after a delay), H3 platform/keymap.rs (`has_primary_modifier(modifiers, mac)`; private copies exist in a few views: replace them with it).
+- If they pass: done = ignore.test.ts, worktreesPanel.test.tsx, docker.refresh, docker.toggleStoppedContainers, docker.toggleUntaggedImages, debug.reloadChangedClasses, debug.cancelHotSwap, executionState.test.ts, keymaps/windows.test.ts (with H3). Partial stays: shelf.test.tsx, fileAttributes.ts, debug.pluginStart, fs.test.ts.
+- REAL DIFFERENCES it found (fix at integration, the tests demand the webview's behaviour): after "Add to .git/info/exclude", or after an ignore write that fails, the project tree is not reloaded (fix: `Workbench::add_to_ignore` calls `reload_all` on both outcomes; in the notes); the read-only toggle never treats a document as virtual.
+- NOT written: group 2 (diffDialog / diffToolbar / movedCode cases: the notes list the uncited cases by name), the 8 missing findPopup cases (a 25-row table maps spec cases to existing tests; a resizable popup seems absent), unityRefresh (no Unity view), the remote cases of fs.test.ts.
+- NEXT TEST-ONLY WRITER (when the diff font slice is in): diff view spec cases + the 8 findPopup cases.
+
+## State after the D102 slice (2026-11-14, code a4232263, proofs11 drafts fd01cf78)
+
+- Suite 6,908. D103 written. Inventory 1,161/3,145 (127 model only, 506 partial).
+- DONE: diff / merge / Local History draw with the editor's font settings (viewer_look wired), Local History diff coloured.
+- NOT DONE by D102 (it stopped after 40 min): edit targets + popup placement. DECIDED: drop the draft's Edit-menu greying by edit target (Tauri greys by when-clause only); the error log sink stays out (no native feeder).
+- NEXT INTEGRATOR: $S/int_d103_brief.md = the proofs11 batches (75 tests, 18 mod lines, hunks H1-H3, the ignore reload fix).
+- CARGO QUEUE after it: edit targets + popup placement (Go to Line as a dialog) → Annotate → project view options + zoom → run/debug actions (+ Run group of the context menus, run gutter) → database extras (+ proofs6_database_console.rs) → build tools (seam first) → shared button + accessibility slices → vcs_stage_hunks.
+- NEW GAPS: editor caret settings (block, blink, smooth motion) read by nothing in the editor; diff panes paint no caret.
+- NEXT TEST-ONLY WRITERS (no cargo): diff view spec cases (diffDialog 3/8, diffToolbar 14/25, movedCode 3/15) + the 8 findPopup cases; agents leftovers (messageEditing 4 cases, sessionState 12 cases).
+- Tell integrators the real elapsed time matters: D102 stopped "at two hours" after 40 minutes. Budget by work, not by its own clock: "finish Part A and Part B; stop only if a part is blocked".

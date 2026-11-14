@@ -908,3 +908,13 @@ Every slice since the Run tool window was proven in the test harness only. On 20
 - Not recorded that way, because they are behaviours with a native counterpart or real differences: the debugger editor spec's click on other gutters' empty space, the stricter `rgb()` parsing, and case folding per character in matching.
 - The Tauri workspace suite is not owed again: nothing under `crates/`, `src/`, `src-tauri/`, `e2e/` or the root manifests changed since its last green run (`git diff --stat c8d0b092 HEAD -- crates src src-tauri e2e package.json Cargo.toml Cargo.lock` prints nothing).
 - Memory of the empty project window, one `ps` sample each on the debug build: 160,768 KB before the fonts were bundled, 159,904 KB after. The fourteen embedded faces did not show in resident memory.
+
+## D103. The diff viewers draw code as the editor does; what was decided about two drafts
+
+- The diff, the merge editor and Local History's diff take family, size, line height, weight and ligatures from the editor's settings through the one font resolver the editor uses, and follow a change of the settings. The model that existed for this (`viewer_look`) was tested and called by nothing; it is wired now. Before, these views drew at the theme's code size and always with ligatures.
+- Local History's diff has syntax colours.
+- Caret: the merge editor's caret takes the block look. Blink and smooth motion are settings nothing reads natively, the editor included; that is a gap of the editor, recorded on the caret row.
+- Hover and completion popups are left as they are: in the webview they are outside the element that turns ligatures off, so they do not follow the setting there either (read in the sources; not looked at in the webview).
+- Edit menu greying, decided from `src-tauri/src/menu.rs`: the Tauri menu greys an item only by its when-clause, never by the edit target. The draft's greying by edit target is dropped when edit targets are integrated.
+- The error log sink draft stays out. The webview's error log is fed by uncaught window errors, the render error boundary, settings page registration and document sync errors; none has a native event today, and a failed action goes to the console in the webview, not to the error log. Shipping a sink nothing feeds would be dead code. The row stays partial.
+- Gates per slice from now on: the suite twice by the integration and once by me, and every new or changed test twenty times by filter. That catches an unstable new test better than five whole-suite runs and costs half the time.

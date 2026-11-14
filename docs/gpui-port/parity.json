@@ -2060,12 +2060,12 @@
     "proof": "`vcs_more::repository_paths::tests`"
   },
   "unit:src/features/vcs/__tests__/viewerCaret.test.ts": {
-    "status": "done",
-    "proof": "`vcs_more::viewer_look::tests`"
+    "status": "partial",
+    "proof": "`workbench::tests::the_merge_editor_draws_with_the_editors_font_and_caret_settings`, `vcs_more::viewer_look::tests`; the merge editor's caret takes the block look from the editor's setting. Missing: blink and smooth motion are read by nothing (the editor itself paints a fixed bar), the diff panes paint no caret, and the block caret's painted width is not asserted"
   },
   "unit:src/features/vcs/__tests__/viewerFont.test.ts": {
     "status": "done",
-    "proof": "`vcs_more::viewer_look::tests`"
+    "proof": "`workbench::vcs_operations::tests::the_diff_draws_with_the_editors_font_settings_and_follows_them`, `workbench::tests::the_merge_editor_draws_with_the_editors_font_and_caret_settings`, `workbench::diff_tools::tests::the_local_history_diff_is_coloured_and_drawn_as_the_editor_draws`, `vcs_more::viewer_look::tests`; the diff, the merge editor and Local History's diff paint with the editor's family, size, line height, weight and ligature setting, and follow a change of the settings"
   },
   "unit:src/features/vcs/diffBlame.test.ts": {
     "status": "done",
