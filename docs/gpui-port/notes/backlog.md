@@ -248,3 +248,11 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - RUNNING (cargo): settings controls integrator (+ Part 0: project plugins must load on open/trust without the Plugins page; editor font settings applied; ten slowest tests).
 - Open: HTML/web plugin view bodies (the app has web_view.rs unused; cannot run in test windows) → design task; "Debug Target…" from the chooser does not use the Java attach; a view whose body changes kind keeps the previous scroll handle.
 - CARGO QUEUE after it: editor extras → diff tools → database extras → build tools (BLOCKER: ~/.m2 + JDK scan seam first).
+
+## State after the Settings controls + project plugins slice (2026-11-14, b6400712)
+
+- Suite 6,699, 0 ignored (×3 by me; ~91 s: the ten slowest are plugin tests waiting on the process-wide plugin host lock, 12–17 s each). D93 written; settings rows recorded by hand.
+- RUNNING (cargo): editor extras integrator (Part 0: installed fonts read once, never on a paint path; Zen mode in the editor).
+- QUICK WINS: number fields' "Enter a value between {min} and {max}" hint (Form.tsx:149) → five settings pages become done; editor.font / editor.codeStyle have no settings: key (check the inventory's page ids); two-window test for merged plugin listings; window close must release project plugins.
+- MEASUREMENT FAIRNESS (must be fixed or disclosed before measuring): fonts on paint paths (in progress); branches and tags listed on every VCS refresh; TODO feed scans while hidden; publishing the context clones the repository list.
+- CARGO QUEUE after it: diff tools → database extras → build tools (BLOCKER: ~/.m2 + JDK scan seam first).

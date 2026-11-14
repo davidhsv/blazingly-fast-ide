@@ -4553,7 +4553,7 @@
   },
   "settings:appearance": {
     "status": "partial",
-    "proof": "`workbench::tests::settings_appearance_applies_the_chosen_theme`; Appearance… opens the page and the theme chosen there is applied and read back from the global settings; its 9 controls of their own (plugin themes, Sync with OS, accent, zoom…) draw \"This page is not available yet\""
+    "proof": "`settings_view::custom_controls::tests::appearance_accent_zoom_and_ui_options_apply`, `workbench::tests::settings_appearance_applies_the_chosen_theme`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; every row is drawn and the accent shows in the theme. Missing: Sync with OS and preferred themes for Theme, plugin icon themes, a colour picker"
   },
   "settings:keymap": {
     "status": "partial",
@@ -5705,23 +5705,23 @@
   },
   "settings:general": {
     "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Open project in, Default directory and Save files if the IDE is idle say This page is not available yet"
+    "proof": "`settings_view::custom_controls::tests::system_settings_open_in_directory_and_idle_save_apply`, `settings_view::custom_controls::tests::a_stored_attach_for_open_project_in_shows_ask`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; every row is drawn. Missing: the directory chooser has no title or start directory"
   },
   "settings:notifications": {
-    "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; the per-group Popup type table say This page is not available yet"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::notifications_no_popup_applies_and_the_groups_balloon_is_not_shown`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`"
   },
   "settings:build.console": {
     "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Override console cycle buffer size and Fold console lines that contain say This page is not available yet"
+    "proof": "`settings_view::custom_controls::tests::console_buffer_and_fold_patterns_apply_and_cancel_discards`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
   },
   "settings:build.debugger.dataViews": {
     "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Value tooltip delay say This page is not available yet"
+    "proof": "`settings_view::custom_controls::tests::data_views_delay_steps_with_the_arrows_and_reset_restores_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
   },
   "settings:tools.terminal": {
     "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Start directory, Environment variables, Shell path, Audible bell, Cursor shape and Use editor font say This page is not available yet"
+    "proof": "`settings_view::custom_controls::tests::terminal_environment_cursor_and_shell_apply`, `settings_view::custom_controls::tests::the_login_shell_is_read_after_the_dialog_opens`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
   },
   "settings:tools.mcpServer": {
     "status": "partial",
@@ -5729,19 +5729,19 @@
   },
   "settings:vcs.commit": {
     "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; its two controls of their own say This page is not available yet"
+    "proof": "`settings_view::custom_controls::tests::vcs_commit_limits_and_checks_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
   },
   "settings:vcs.confirmation": {
     "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; When files are created, When files are deleted and Limit history to say This page is not available yet"
+    "proof": "`settings_view::custom_controls::tests::vcs_confirmation_radio_buttons_and_history_limit_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
   },
   "settings:vcs.git": {
-    "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Path to Git executable, the large-file limit, Protected branches, the update method, incoming-commit checks and Passwords say This page is not available yet"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::vcs_git_test_protected_branches_and_update_method`, `settings_view::custom_controls::tests::git_test_is_refused_in_restricted_mode`, `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`"
   },
   "settings:build.deployment.options": {
-    "status": "partial",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Exclude items by name says This page is not available yet; controls not compared one by one"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::deployment_excludes_are_written_to_the_project`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`"
   },
   "event:ProjectTrustChanged": {
     "status": "done",
