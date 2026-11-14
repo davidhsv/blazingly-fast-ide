@@ -169,7 +169,7 @@
   },
   "module:src/workbench/TitleBar.tsx": {
     "status": "partial",
-    "proof": "`workbench::title_bar::tests`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::main_toolbar::tests`; the bar draws the project widget (initials, name, root tooltip, Open…/Close Project menu), the branch widget or Version Control fallback, the gear menu, the context menu and Customize Main Toolbar dialog, the compact, light-edit and bare headers and the main menu button where there is no native menu bar. Missing: the project avatar is drawn on the accent, not on the project's colours, and no test reads the plugins' mainToolbar slot buttons the bar draws"
+    "proof": "`workbench::title_bar::tests`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::main_toolbar::tests`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`; the bar draws the project widget (initials, name, root tooltip, Open…/Close Project menu), the branch widget or Version Control fallback, the gear menu, the context menu and Customize Main Toolbar dialog, the compact, light-edit and bare headers, the main menu button where there is no native menu bar, and a plugin's mainToolbar button, whose click runs its command. Missing: the project avatar is drawn on the accent, not on the project's colours"
   },
   "context:projectOpen": {
     "status": "done",
@@ -653,7 +653,7 @@
   },
   "feature:plugins": {
     "status": "partial",
-    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::plugins_window::tests::a_trusted_projects_own_plugins_load_when_it_opens_and_their_command_runs`, `workbench::plugins_window::tests::trusting_an_open_project_loads_its_own_plugins`, `workbench::plugins_window::tests::revoking_trust_unloads_the_projects_own_plugins_and_their_contributions`; the plugin host runs in the app: themes, commands as actions, the Plugins page (list, enable, uninstall, install with consent, secrets), status items, tasks, notifications, questions, context keys, log tabs, Tools, Project view, editor and Find results menus, the editor tab strip's toolbar slot, gutter actions, settings pages, runs and DAP debug requests, workbench events, and a trusted project's own plugins, loaded when it opens or is trusted and unloaded on Revoke Trust. Missing: plugin views and tool windows, web views, content tabs, OpenTerminal and terminal sessions, run targets, Run Anything, decorations, the JDWP debug branch, the editor tab and Problems menu entries and the mainToolbar and commit.message slots (built, untested), the marketplace and updates, IntelliJ theme imports, and one plugin listing for the whole app where the webview lists per window"
+    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `plugins::tests::a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project`, `workbench::plugin_contributions::tests::untrusted_windows`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_commit_message_entry_is_a_button_of_the_commit_message_toolbar`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::plugins_window::tests::a_trusted_projects_own_plugins_load_when_it_opens_and_their_command_runs`, `workbench::plugins_window::tests::trusting_an_open_project_loads_its_own_plugins`, `workbench::plugins_window::tests::revoking_trust_unloads_the_projects_own_plugins_and_their_contributions`; the plugin host runs in the app: themes, commands as actions, the Plugins page (list, enable, uninstall, install with consent, secrets), status items, tasks, notifications, questions, context keys, log tabs, Tools, Project view, editor and Find results menus, the editor tab strip's, title bar's and commit message's toolbar slots, gutter actions, settings pages, runs and DAP debug requests, workbench events, and a trusted project's own plugins, loaded when it opens or is trusted and unloaded on Revoke Trust; in Restricted Mode or a single-file window an installed plugin's commands, menu entries, status items, views, view events, settings actions, gutter actions, saved-file events and answers are refused, with the guard's reason where the webview shows one. Missing: plugin views and tool windows, web views, content tabs, OpenTerminal and terminal sessions, run targets, Run Anything, decorations, the JDWP debug branch, the editor tab and Problems menu entries, the plugin's own icon on a slot button, the marketplace and updates, IntelliJ theme imports, and one plugin listing for the whole app where the webview lists per window"
   },
   "feature:terminal": {
     "status": "partial",
@@ -1096,8 +1096,8 @@
     "proof": "`workbench::tests::proofs4_shell::open_recent_lists_a_project_once_opened_and_choosing_it_opens_it`, `workbench::menu::tests`; the adapter's function, menu::install with the recent list, is the Tauri shell's own; the native equivalent is workbench::menu::refresh_recent, run on every project open: Open Recent is empty before anything is opened, lists the project once opened with its path as the argument, and choosing it opens the project"
   },
   "action:app.quit": {
-    "status": "partial",
-    "proof": "`workbench::debug::tests::proofs3_debug::quit_with_a_running_debug_session_asks_to_terminate_it`, `workbench::menu::tests`, `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`; the exit is confirmed once and each window decides its close in turn, a window that stays calls the quit off, and a program running under the debugger is asked about by name: Cancel keeps the window and the session, Terminate on closing the window ends it. Missing: the macOS menu key path has no test, and Terminate is exercised through the window's close, not through Quit"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_quit::cmd_q_from_the_menu_bar_confirms_the_exit_and_closes_every_window`, `workbench::tests::proofs7_quit::terminate_chosen_from_quit_stops_the_running_program_and_closes_the_window`, `workbench::debug::tests::proofs3_debug::quit_with_a_running_debug_session_asks_to_terminate_it`, `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`; ⌘Q, the menu bar's own key (no keymap binds it), and the registry confirm the exit once, then each window decides its close in turn: a window that stays calls the quit off, a running program is asked about by name and Terminate stops it before its window closes, and with nothing left to ask every window closes"
   },
   "action:window.new": {
     "status": "done",
@@ -1340,8 +1340,8 @@
     "proof": "`settings_model::inspections_model::tests`"
   },
   "unit:src/features/settings/__tests__/keymap.test.ts": {
-    "status": "partial",
-    "proof": "`settings_model::keymap_model::tests`, `settings_model::keymap_groups::tests`, `settings_model::keymap_page::tests`, `platform::keymap::tests`, `platform::dispatcher::tests`; fifteen of twenty-one cases here. Of the six left to the platform's own keymap tests, two are there by name (canonical strokes, validated bindings); a user keymap on its parent preset, the VS Code preset covering every IntelliJ action id, and the dispatcher suspended while a shortcut is recorded were not found and are not verified"
+    "status": "done",
+    "proof": "`settings_model::keymap_model::tests`, `settings_model::keymap_groups::tests`, `settings_model::keymap_page::tests`, `settings_view::keymap::tests::records_strokes_in_canonical_form`, `platform::keymap::tests::validates_bindings`, `platform::keymap::tests::applies_settings_with_validation_and_custom_keymaps`, `platform::keymap::tests::proofs7_vscode_preset::ships_the_vs_code_preset_for_every_intellij_action_id`, `platform::input::tests::proofs7_suspend::a_suspended_window_runs_no_shortcut_until_it_is_resumed`; 21 of 21 cases: recording strokes through the Keymap page and the suspended dispatcher through a key pressed in the window; the other nineteen (search by translated title, validation, overrides, de-duplication, preset switching, plugin shortcuts, the four conflict cases, the mouse-only caret action, binding search, tree filter, tree groups, user keymaps, a user keymap on its parent preset, the VS Code preset, preset plus overrides) assert functions that render nothing and are reached from the Keymap page and the app's keymap"
   },
   "unit:src/features/settings/__tests__/languages.test.ts": {
     "status": "partial",
@@ -1540,8 +1540,8 @@
     "proof": "`debugger::actions::tests`, `run::java_launch::tests`"
   },
   "unit:src/features/debugger/__tests__/javaSeparator.test.ts": {
-    "status": "partial",
-    "proof": "`debugger::java::tests`; joining class and module paths with the host separator is `run::java_launch` logic and was not found by name there"
+    "status": "done",
+    "proof": "`run::java_launch::tests::proofs7_separator::joins_the_classpath_and_module_paths_using_the_host_separator`, `debugger::java::tests::splits_explicit_classpaths_without_damaging_paths`; 2 of 2 cases over the spec's five hosts: the join case asserts resolve_java_command, a function that renders nothing and is reached from the Java launch preparation of Run and Debug (JavaPreparation), for both ${classpath} and ${testClasspath}; the split case runs the debugger's launch flow for java-debug and the Kotlin adapter"
   },
   "unit:src/features/debugger/__tests__/launch.test.ts": {
     "status": "done",
@@ -1693,7 +1693,7 @@
   },
   "unit:src/platform/project.test.ts": {
     "status": "partial",
-    "proof": "`platform_more::project::tests`; the three relative-directory cases are `platform::virtual_docs` logic whose tests cover only the URI branch"
+    "proof": "`platform::virtual_docs::tests::proofs7_relative_dir`, `platform_more::project::tests`; the three relativeDir cases assert relative_dir, a function that renders nothing and is reached from the Problems and Usages views. Missing: the three opening cases (actions blocked while a project opens, reconciling a failed open, a cancelled trust question) are proven only on ProjectSession, which nothing in the application uses"
   },
   "unit:src/platform/proxySettings.test.ts": {
     "status": "partial",
@@ -1792,60 +1792,60 @@
     "proof": "`everywhere::bookmarks_popup::tests`"
   },
   "boundid:navigate.toggleBookmark0": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::toggle_bookmark_with_a_digit_marks_the_caret_line_with_that_digit_for_every_digit`; its key from the active keymap, pressed with the caret on a line of its own, gives that line a bookmark with mnemonic 0 and types nothing; run through the registry on the same line it removes that bookmark and run again it puts it back, as the webview's toggleMnemonic does"
   },
   "boundid:navigate.gotoBookmark0": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::go_to_bookmark_with_a_digit_puts_the_caret_on_that_bookmarks_line_for_every_digit`; its key pressed from another file, and the action run through the registry from another line of the file, put the caret at the start of the line of the bookmark with mnemonic 0"
   },
   "boundid:navigate.toggleBookmark1": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::toggle_bookmark_with_a_digit_marks_the_caret_line_with_that_digit_for_every_digit`; its key from the active keymap, pressed with the caret on a line of its own, gives that line a bookmark with mnemonic 1 and types nothing; run through the registry on the same line it removes that bookmark and run again it puts it back, as the webview's toggleMnemonic does"
   },
   "boundid:navigate.gotoBookmark1": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::go_to_bookmark_with_a_digit_puts_the_caret_on_that_bookmarks_line_for_every_digit`; its key pressed from another file, and the action run through the registry from another line of the file, put the caret at the start of the line of the bookmark with mnemonic 1"
   },
   "boundid:navigate.toggleBookmark2": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::toggle_bookmark_with_a_digit_marks_the_caret_line_with_that_digit_for_every_digit`; its key from the active keymap, pressed with the caret on a line of its own, gives that line a bookmark with mnemonic 2 and types nothing; run through the registry on the same line it removes that bookmark and run again it puts it back, as the webview's toggleMnemonic does"
   },
   "boundid:navigate.gotoBookmark2": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::go_to_bookmark_with_a_digit_puts_the_caret_on_that_bookmarks_line_for_every_digit`; its key pressed from another file, and the action run through the registry from another line of the file, put the caret at the start of the line of the bookmark with mnemonic 2"
   },
   "boundid:navigate.toggleBookmark3": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::toggle_bookmark_with_a_digit_marks_the_caret_line_with_that_digit_for_every_digit`; its key from the active keymap, pressed with the caret on a line of its own, gives that line a bookmark with mnemonic 3 and types nothing; run through the registry on the same line it removes that bookmark and run again it puts it back, as the webview's toggleMnemonic does"
   },
   "boundid:navigate.gotoBookmark3": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::go_to_bookmark_with_a_digit_puts_the_caret_on_that_bookmarks_line_for_every_digit`; its key pressed from another file, and the action run through the registry from another line of the file, put the caret at the start of the line of the bookmark with mnemonic 3"
   },
   "boundid:navigate.toggleBookmark4": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::toggle_bookmark_with_a_digit_marks_the_caret_line_with_that_digit_for_every_digit`; its key from the active keymap, pressed with the caret on a line of its own, gives that line a bookmark with mnemonic 4 and types nothing; run through the registry on the same line it removes that bookmark and run again it puts it back, as the webview's toggleMnemonic does"
   },
   "boundid:navigate.gotoBookmark4": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::go_to_bookmark_with_a_digit_puts_the_caret_on_that_bookmarks_line_for_every_digit`; its key pressed from another file, and the action run through the registry from another line of the file, put the caret at the start of the line of the bookmark with mnemonic 4"
   },
   "boundid:navigate.toggleBookmark5": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::toggle_bookmark_with_a_digit_marks_the_caret_line_with_that_digit_for_every_digit`; its key from the active keymap, pressed with the caret on a line of its own, gives that line a bookmark with mnemonic 5 and types nothing; run through the registry on the same line it removes that bookmark and run again it puts it back, as the webview's toggleMnemonic does"
   },
   "boundid:navigate.gotoBookmark5": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::go_to_bookmark_with_a_digit_puts_the_caret_on_that_bookmarks_line_for_every_digit`; its key pressed from another file, and the action run through the registry from another line of the file, put the caret at the start of the line of the bookmark with mnemonic 5"
   },
   "boundid:navigate.toggleBookmark6": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::toggle_bookmark_with_a_digit_marks_the_caret_line_with_that_digit_for_every_digit`; its key from the active keymap, pressed with the caret on a line of its own, gives that line a bookmark with mnemonic 6 and types nothing; run through the registry on the same line it removes that bookmark and run again it puts it back, as the webview's toggleMnemonic does"
   },
   "boundid:navigate.gotoBookmark6": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::go_to_bookmark_with_a_digit_puts_the_caret_on_that_bookmarks_line_for_every_digit`; its key pressed from another file, and the action run through the registry from another line of the file, put the caret at the start of the line of the bookmark with mnemonic 6"
   },
   "boundid:navigate.toggleBookmark7": {
     "status": "done",
@@ -1856,20 +1856,20 @@
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`"
   },
   "boundid:navigate.toggleBookmark8": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::toggle_bookmark_with_a_digit_marks_the_caret_line_with_that_digit_for_every_digit`; its key from the active keymap, pressed with the caret on a line of its own, gives that line a bookmark with mnemonic 8 and types nothing; run through the registry on the same line it removes that bookmark and run again it puts it back, as the webview's toggleMnemonic does"
   },
   "boundid:navigate.gotoBookmark8": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::go_to_bookmark_with_a_digit_puts_the_caret_on_that_bookmarks_line_for_every_digit`; its key pressed from another file, and the action run through the registry from another line of the file, put the caret at the start of the line of the bookmark with mnemonic 8"
   },
   "boundid:navigate.toggleBookmark9": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::toggle_bookmark_with_a_digit_marks_the_caret_line_with_that_digit_for_every_digit`; its key from the active keymap, pressed with the caret on a line of its own, gives that line a bookmark with mnemonic 9 and types nothing; run through the registry on the same line it removes that bookmark and run again it puts it back, as the webview's toggleMnemonic does"
   },
   "boundid:navigate.gotoBookmark9": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; one routine for the ten digits, tested with 7"
+    "status": "done",
+    "proof": "`workbench::tests::proofs7_bookmark_digits::go_to_bookmark_with_a_digit_puts_the_caret_on_that_bookmarks_line_for_every_digit`; its key pressed from another file, and the action run through the registry from another line of the file, put the caret at the start of the line of the bookmark with mnemonic 9"
   },
   "action:find.replaceInPath": {
     "status": "partial",
@@ -4144,8 +4144,8 @@
     "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`; shows the indentation; its menu is missing because the editor cannot change its indentation yet"
   },
   "point.registerStatusItem:editor.readOnly": {
-    "status": "partial",
-    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::status_items::tests::the_lock_flips_the_writable_bit_of_files_on_disk_only`; shows the lock, and its click runs file.toggleReadOnly, which asks and flips the file's writable bit (`workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`). Missing: no test clicks the item in a window"
+    "status": "done",
+    "proof": "`workbench::editor_core::tests::proofs7_read_only::a_click_on_the_status_bars_lock_asks_then_toggles_the_files_read_only_attribute`, `workbench::status_items::tests::the_lock_flips_the_writable_bit_of_files_on_disk_only`; a click on the status bar's lock asks Make File Read-only, confirmed the file is read-only on disk and its editor refuses typing; a click again asks Make File Writable and both are writable again"
   },
   "point.registerStatusItem:code-insight.servers": {
     "status": "partial",
@@ -4525,7 +4525,7 @@
   },
   "action:(dynamic) src/features/plugins/points.tsx:199": {
     "status": "done",
-    "proof": "`plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`; a linked, consented plugin's command becomes a registered action (title, category), is unavailable without an editor, and run through the registry in a workbench window it rewrites the editor's selection and activates the plugin"
+    "proof": "`plugins::tests::a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project`, `workbench::plugin_contributions::tests::untrusted_windows::a_plugin_command_run_as_an_action_is_refused_in_restricted_mode_and_runs_once_trusted`; a linked, consented plugin's command becomes a registered action (title, category) before its code loads and is unavailable without an editor; run through the registry in a single-file window or in Restricted Mode it is refused with the error notification <title> failed carrying the guard's reason, rewrites nothing and loads no code, and in a trusted project's window it rewrites the editor's selection and activates the plugin"
   },
   "action:(dynamic) src/features/search/index.ts:476": {
     "status": "done",
@@ -5749,7 +5749,7 @@
   },
   "ipc:app_quit": {
     "status": "partial",
-    "proof": "`workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`; Quit confirms the exit and asks each window about its unsaved changes, and Cancel keeps the window and its text; quitting itself (every window closed, the app exiting) is not asserted"
+    "proof": "`workbench::tests::proofs7_quit::terminate_chosen_from_quit_stops_the_running_program_and_closes_the_window`, `workbench::tests::proofs7_quit::cmd_q_from_the_menu_bar_confirms_the_exit_and_closes_every_window`, `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`; Quit confirms the exit, asks each window about its processes and unsaved changes, and closes each window that agrees before asking the next, as the adapter's continue_quit does; Cancel keeps the window. Missing: the process exit after the last window closes (the adapter's app.exit) is not observable in a test, and the native quit is a window flow, not a call to the adapter's function"
   },
   "action:plugins.installFromDisk": {
     "status": "partial",
@@ -5913,7 +5913,7 @@
   },
   "wit:wit/exports.wit#commands": {
     "status": "done",
-    "proof": "`workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`; the window runs a plugin's exported run for its commands, from the Tools menu, a status item and the registry, and the command's effects show in the editor or a notification"
+    "proof": "`workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `plugins::tests::a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project`; the window runs a plugin's exported run for its commands, from the Tools menu, a status item and the registry in a trusted project's window, and the command's effects show in the editor or a notification"
   },
   "wit:wit/exports.wit#event-handler": {
     "status": "partial",
@@ -5969,19 +5969,19 @@
   },
   "point.registerMenuGroup:agents.send": {
     "status": "partial",
-    "proof": "`workbench::context_menus::tests::right_click_in_a_plain_file_opens_the_editor_menu_and_moves_the_caret`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`; the editor's menu shows Send to Agent after Generate…, in the group's order. Missing: no test chooses the row from a menu, the Project view's row (the selected paths as argument) has no test, and the row for a virtual document is left out only as data"
+    "proof": "`workbench::context_menus::tests::proofs7_send_to_agent::send_to_agent_chosen_in_the_editors_menu_mentions_the_selected_lines_in_the_new_tasks_prompt`, `workbench::project_view_actions::tests::proofs7_project_menu::send_to_agent_in_a_folders_project_view_menu_mentions_the_folder_in_the_new_tasks_prompt`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`; chosen in the editor's menu inside a two-line selection it puts @a.txt:1-2 and the file in the New Task prompt, chosen in a folder's Project view menu it puts @src there, and the menu closes. Missing: no test shows the row left out for a virtual document, and the Project view sends one selected path where the webview sends every selected one"
   },
   "point.registerMenuGroup:search.bookmarks": {
     "status": "partial",
-    "proof": "`workbench::context_menus::tests::the_gutters_menu_adds_a_bookmark_on_the_clicked_line`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`; a right click in the gutter opens its menu with Add Bookmark first, choosing it bookmarks the clicked line, and the menu then offers Remove Bookmark. Missing: the row is the navigate.toggleBookmark action row, so it is greyed out while projectOpen fails where the webview's own row always runs; no test opens the gutter menu without a project"
+    "proof": "`workbench::context_menus::tests::the_gutters_menu_adds_a_bookmark_on_the_clicked_line`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`; a right click in the gutter opens its menu with Add Bookmark first, choosing it bookmarks the clicked line, and the menu then offers Remove Bookmark. Missing: without a project the row is greyed out where the webview's row looks enabled and runs nothing (its action's when fails), and no test opens the gutter menu without a project"
   },
   "point.registerMenuGroup:search.bookmarks.files": {
     "status": "partial",
-    "proof": "`workbench::context_menus::tests::the_tab_menus_bookmark_row_bookmarks_the_file_of_that_tab`, `workbench::context_menus::tests::the_tab_menu_acts_on_the_tab_it_was_opened_on`; the editor tab's menu offers Add Bookmark, choosing it bookmarks the file of the tab the menu was opened on (not the active one), and the menu then offers Remove Bookmark. Missing: the Project view's row (several paths, folders) has no test, and the action row greys out while projectOpen fails where the webview's own row always runs"
+    "proof": "`workbench::project_view_actions::tests::proofs7_project_menu::add_bookmark_in_a_folders_project_view_menu_bookmarks_the_folder`, `workbench::context_menus::tests::the_tab_menus_bookmark_row_bookmarks_the_file_of_that_tab`, `workbench::context_menus::tests::the_tab_menu_acts_on_the_tab_it_was_opened_on`; the editor tab's menu bookmarks the file of its tab, and a folder's Project view menu bookmarks the folder as a folder and then offers Remove Bookmark, which removes it. Missing: the Project view has a single selection, so several paths at once are not bookmarked, and the row is greyed out without a project where the webview's row looks enabled and runs nothing"
   },
   "point.registerMenuSlotItem:(at) src/features/plugins/uiPoints.tsx:182": {
     "status": "partial",
-    "proof": "`workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`; a plugin's editor.title entry is a button of the tab strip that runs its command, and an entry whose when fails has no button until a MODULE.bazel file makes it hold. Missing: the mainToolbar and commit.message slots are built but no test draws them, and a button without an action icon falls back to the plugin icon instead of the plugin's own"
+    "proof": "`workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_commit_message_entry_is_a_button_of_the_commit_message_toolbar`; a plugin's editor.title, mainToolbar and commit.message entries are buttons of the tab strip, the title bar and the commit message toolbar that run their command, and an entry whose when fails has no button until it holds. Missing: a button without an action icon falls back to the plugin icon instead of the plugin's own"
   },
   "unit:src/workbench/ContributedToolbar.test.tsx": {
     "status": "done",
@@ -5989,7 +5989,7 @@
   },
   "module:src/workbench/ContributedToolbar.tsx": {
     "status": "partial",
-    "proof": "`workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`; a small icon button per slot entry whose when holds, running its action. Missing: a button whose action has no icon falls back to the generic plugin icon rather than the plugin's own icon, the icon drawn is not asserted, and the mainToolbar and commit.message slots have no test"
+    "proof": "`workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_commit_message_entry_is_a_button_of_the_commit_message_toolbar`; a small icon button per slot entry whose when holds runs its action: in the editor tab strip, in the title bar (mainToolbar) and in the Commit window's message toolbar once it shows. Missing: a button whose action has no icon falls back to the generic plugin icon rather than the plugin's own, and the icon drawn is not asserted"
   },
   "module:src/editor/core/gutterMenu.ts": {
     "status": "partial",
@@ -6068,12 +6068,12 @@
     "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry, Fold Code Block folds the block around the caret, found from the text's brackets, and the lines shown change as the webview's do. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.extendSelection": {
-    "status": "partial",
-    "proof": "`editor::core_actions::tests::extend_and_shrink_selection_walk_the_syntax_ranges_around_the_caret`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; run through the registry four times, the selection grows from the caret to the word and then strictly further each time, and the key does nothing with the Project view focused. Missing: no step is checked against a range only the backend's syntax tree gives (the arguments, the call, the statement), so the steps proven can come from the text's own candidates"
+    "status": "done",
+    "proof": "`editor::core_actions::tests::proofs7_extend_selection::extend_selection_takes_the_call_around_its_arguments_from_the_syntax_tree`, `editor::core_actions::tests::extend_and_shrink_selection_walk_the_syntax_ranges_around_the_caret`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; run through the registry from inside an argument the first step is the word and each step selects strictly more, and one step is exactly call(one, two), a range that no word, bracket, string or line of the text gives, only the backend's syntax tree; the key does nothing with the Project view focused"
   },
   "action:code.shrinkSelection": {
-    "status": "partial",
-    "proof": "`editor::core_actions::tests::extend_and_shrink_selection_walk_the_syntax_ranges_around_the_caret`; Shrink Selection walks back through every extended step to the caret. Missing: as for Extend Selection, the steps are not checked against the backend's syntax ranges"
+    "status": "done",
+    "proof": "`editor::core_actions::tests::proofs7_extend_selection::extend_selection_takes_the_call_around_its_arguments_from_the_syntax_tree`, `editor::core_actions::tests::extend_and_shrink_selection_walk_the_syntax_ranges_around_the_caret`; run through the registry it walks back through every extended step, the backend's call range included, to the caret"
   },
   "action:code.autoIndentLines": {
     "status": "done",
@@ -6112,8 +6112,8 @@
     "proof": "`workbench::editor_core::tests::last_and_next_edit_location_walk_through_the_edits`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; run through the registry, it goes back towards the newest edit; it does not run in a window without a project"
   },
   "action:editor.showHint": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`; run with { text } it shows the text as the hint at the caret of the active editor, not as a notification, and the next hint replaces it. Missing: the tone it is given is passed on but no test reads it"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::proofs7_hint::show_editor_hint_draws_the_hint_in_the_tone_it_is_given`, `workbench::editor_language::tests::proofs7_hint::a_hint_at_the_caret_goes_away_after_four_seconds`, `workbench::editor_language::tests::proofs7_hint::an_edit_a_caret_move_or_escape_dismisses_the_hint_at_the_caret`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`; run through the registry with { text, tone } it shows the text at the caret of the active editor, drawn info without a tone and warning or error when asked, the next hint replaces it, it still shows at three seconds and is gone after four, and an edit, a caret move or Escape dismisses it"
   },
   "action:editor.copyPath": {
     "status": "done",
@@ -6129,7 +6129,7 @@
   },
   "action:file.reloadAllFromDisk": {
     "status": "partial",
-    "proof": "`workbench::editor_core::tests::reload_from_disk_reads_the_file_again_unless_it_has_unsaved_changes`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `workbench::editor_extras::tests::reload_all_from_disk_reads_the_project_tree_again`; every open document without unsaved changes reads its file again, then project.refresh and vcs.refresh run; it does not run in a window without a project. Missing: the Project view lists a file written outside the IDE afterwards, but the file watcher lists it too, so no test tells the reload from the watcher (one with the tree's watcher stopped would), and no test asserts vcs.refresh"
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::reload_all_from_disk_re_reads_every_folder_the_project_view_has_read`, `workbench::editor_core::tests::reload_from_disk_reads_the_file_again_unless_it_has_unsaved_changes`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `workbench::editor_extras::tests::reload_all_from_disk_reads_the_project_tree_again`; every open document without unsaved changes reads its file again, and the Project view lists every folder it has read again (four listings for four folders, none without the action); it does not run in a window without a project. Missing: no test asserts that vcs.refresh runs"
   },
   "action:file.toggleReadOnly": {
     "status": "partial",
@@ -6248,8 +6248,8 @@
     "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; Collapse, Expand, Toggle Fold, Collapse All and the recursive commands act only on the foldable lines the backend's fold ranges give (the test waits for them, and nothing else fills them); the editor calls ide_host::ops::doc::doc_folding with the window and the document, as the adapter does"
   },
   "ipc:doc_selection_ranges": {
-    "status": "partial",
-    "proof": "`editor::core_actions::tests::extend_and_shrink_selection_walk_the_syntax_ranges_around_the_caret`; Extend Selection calls ide_host::ops::doc::doc_selection_ranges with the document and the caret's offset, as the adapter does. Missing: no asserted step needs the backend's ranges; the text's own candidates could give each of them"
+    "status": "done",
+    "proof": "`editor::core_actions::tests::proofs7_extend_selection::extend_selection_takes_the_call_around_its_arguments_from_the_syntax_tree`; Extend Selection calls ide_host::ops::doc::doc_selection_ranges with the document and the caret's offset, as the adapter does, and one asserted step (the call around its arguments) is a range only those backend ranges give"
   },
   "ipc:fs_set_writable": {
     "status": "done",
@@ -6301,11 +6301,11 @@
   },
   "module:src/editor/core/actions.ts": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests`, `workbench::editor_core::tests`, `editor::command_actions::tests`, `workbench::editor_extras::tests`; folding with the gutter's chevrons, Expand to Level, Context Info, Custom Folding…, Unwrap/Remove…, Rainbow Brackets, Extend / Shrink Selection, Auto-Indent Lines, Scroll to Center, font size, Back / Forward, edit locations, Copy Path, Reload from Disk, the read-only toggle and Paste from History run through the registry besides the line and caret commands. Missing: Soft-Wrap, the Semantic Highlighting switch, Add or Remove Caret, fold-by-default, Context Info's syntax-tree fallback, the Unwrap/Remove chooser (untested), places inside one file for Back, and the hint at the caret"
+    "proof": "`editor::core_actions::tests`, `workbench::editor_core::tests`, `editor::command_actions::tests`, `workbench::editor_extras::tests`; folding with the gutter's chevrons, Expand to Level, Context Info, Custom Folding…, Unwrap/Remove… and its chooser, Rainbow Brackets, Extend / Shrink Selection, Auto-Indent Lines, Scroll to Center, font size, Back / Forward, edit locations, Copy Path, Reload from Disk, the read-only toggle and Paste from History run through the registry besides the line and caret commands. Missing: Soft-Wrap, the Semantic Highlighting switch, Add or Remove Caret, fold-by-default, Context Info's syntax-tree fallback, places inside one file for Back, and the hint at the caret"
   },
   "module:src/editor/core/fileAttributes.ts": {
     "status": "partial",
-    "proof": "`workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`, `editor_model::file_attributes::tests`; the question, the writable bit on disk through the backend and the editor's read-only state. Missing: the Cannot make … notification on failure has no test in a window"
+    "proof": "`workbench::editor_core::tests::proofs7_read_only::a_click_on_the_status_bars_lock_asks_then_toggles_the_files_read_only_attribute`, `workbench::editor_core::tests::proofs7_read_only::a_read_only_toggle_that_fails_says_it_cannot_make_the_file_read_only`, `workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`, `editor_model::file_attributes::tests`; the question, the writable bit on disk through the backend, the editor's read-only state, and on failure the error notification Cannot make notes.txt read-only with the editor left writable. Missing: no test shows a virtual document or a binary or too large file left alone, as toggleReadOnly does"
   },
   "module:src/editor/lsp/rename.ts": {
     "status": "partial",
@@ -6461,7 +6461,7 @@
   },
   "feature:project-trust": {
     "status": "partial",
-    "proof": "`app_views::trust_dialog::tests`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`, `workbench::plugins_window::tests::a_projects_own_plugins_load_only_while_the_project_is_trusted`; the trust question before an undecided project opens, the Restricted Mode banner, the trust actions, and Restricted Mode refusing run configurations, the debugger, language servers, project plugins, Git hooks and database connections. Missing: the Project Trust settings page (lists, Revoke, Remove, Add folder…), attached workspace members, the local scope of a remote window"
+    "proof": "`app_views::trust_dialog::tests`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`, `workbench::plugins_window::tests::a_projects_own_plugins_load_only_while_the_project_is_trusted`, `workbench::plugin_contributions::tests::untrusted_windows`; the trust question before an undecided project opens, the Restricted Mode banner, the trust actions, and Restricted Mode refusing run configurations, the debugger, language servers, project plugins, installed plugins' commands, menu entries, status items, views, view events, settings actions, gutter actions, saved-file events and question answers, Git hooks and database connections. Missing: the Project Trust settings page (lists, Revoke, Remove, Add folder…), attached workspace members, the local scope of a remote window"
   },
   "module:src/platform/projectTrust.ts": {
     "status": "partial",
@@ -6636,16 +6636,16 @@
     "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; run through the registry it says it is off, then on, and the tree shows the ignored .DS_Store; run again it hides it"
   },
   "action:project.option.showExcluded": {
-    "status": "partial",
-    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; registered as a toggle of the view options the tree acts on. Missing: no test runs it or reads what the tree shows after it"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::proofs7_tree_options::show_excluded_files_lists_ignored_entries_and_off_leaves_them_out`; on by default the folder .gitignore matches shows, dimmed; run through the registry it says it is off and the tree leaves the folder out, and run again it lists it again"
   },
   "action:project.option.compact": {
-    "status": "partial",
-    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; registered as a toggle of the view options the tree acts on. Missing: no test runs it or reads what the tree shows after it"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::proofs7_tree_options::compact_middle_packages_joins_a_chain_of_single_folders_into_one_row`; on by default the chain docs/guide/intro is one row; run through the registry it says it is off and the tree shows docs and guide as rows of their own, and run again it says it is on and joins the chain again"
   },
   "action:project.option.foldersFirst": {
-    "status": "partial",
-    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; registered as a toggle of the view options the tree acts on. Missing: no test runs it or reads what the tree shows after it"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::proofs7_tree_options::sort_folders_first_lists_folders_before_files_and_off_sorts_them_together`; on by default the tree lists b, a.txt, c.txt; run through the registry it says it is off and lists a.txt, b, c.txt, and run again it puts the folder first again"
   },
   "action:project.sortBy.type": {
     "status": "done",
@@ -6656,8 +6656,8 @@
     "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; run through the registry after Sort by Type it puts the tree back in name order, and it says it is off while Sort by Type is on"
   },
   "action:project.sortBy.modified": {
-    "status": "partial",
-    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; registered as one of the sort orders. Missing: no test runs it or reads the order it gives"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::proofs7_tree_options::sort_by_modification_time_lists_the_newest_file_first`; run through the registry it says it is on (Sort by Name off) and the tree lists b.txt, c.md, a.md, newest first, an order neither the name nor the type gives; Sort by Name then puts the names back in order"
   },
   "action:terminal.openAt": {
     "status": "done",
@@ -6692,12 +6692,12 @@
     "proof": "`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`; run through the registry it takes the active group's tabs into the group beside it without closing any. Missing: each split group does not get a tab strip of its own (one strip lists the tabs of every group) and the line between groups cannot be dragged"
   },
   "action:moveUp": {
-    "status": "partial",
-    "proof": "`workbench::services_actions::tests::move_up_and_move_down_reorder_a_configuration_within_its_type_and_store_the_order`; the Services toolbar's Move Up puts a configuration moved down back before the other one of its type group. Missing: no test reads it disabled on a group's first row, or the stored order in a Services window opened later"
+    "status": "done",
+    "proof": "`workbench::services_actions::tests::proofs7_move::move_up_and_down_are_greyed_out_at_the_ends_of_a_group_and_a_later_window_keeps_the_order`, `workbench::services_actions::tests::move_up_and_move_down_reorder_a_configuration_within_its_type_and_store_the_order`; the Services toolbar's Move Up puts a configuration moved down back before the other one of its type group, and it is greyed out on the group's first row, as the webview's is when there is no neighbour"
   },
   "action:moveDown": {
-    "status": "partial",
-    "proof": "`workbench::services_actions::tests::move_up_and_move_down_reorder_a_configuration_within_its_type_and_store_the_order`; the Services toolbar's Move Down puts a configuration after the next one of its type group and stores the project's order. Missing: no test reads it disabled on a group's last row, or the stored order in a Services window opened later"
+    "status": "done",
+    "proof": "`workbench::services_actions::tests::proofs7_move::move_up_and_down_are_greyed_out_at_the_ends_of_a_group_and_a_later_window_keeps_the_order`, `workbench::services_actions::tests::move_up_and_move_down_reorder_a_configuration_within_its_type_and_store_the_order`; the Services toolbar's Move Down puts a configuration after the next one of its type group, it is greyed out on the group's last row, and a Services window opened later on the project lists the moved order"
   },
   "action:run.services.openBrowser": {
     "status": "done",
@@ -6716,8 +6716,8 @@
     "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; Edit › Undo (edit.undo) while the Project view has the keyboard brings its last deleted file back from Local History and selects it. Missing: Undo of the view's last move or rename through it, and ⌘Z pressed in the tree"
   },
   "module:src/editor/lsp/hint.ts": {
-    "status": "partial",
-    "proof": "`editor_lsp::hint::tests`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; a hint shows at the caret of the active editor and the next one replaces it, and slow requests show their progress hint without flashing. Missing: no test of the application reads a hint's tone or its timeout, or that an edit, a caret move or Escape dismisses it"
+    "status": "done",
+    "proof": "`editor_lsp::hint::tests`, `workbench::editor_language::tests::proofs7_hint::show_editor_hint_draws_the_hint_in_the_tone_it_is_given`, `workbench::editor_language::tests::proofs7_hint::a_hint_at_the_caret_goes_away_after_four_seconds`, `workbench::editor_language::tests::proofs7_hint::an_edit_a_caret_move_or_escape_dismisses_the_hint_at_the_caret`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; the hint at the caret in its tone, replaced by the next one, gone after the 4000 ms timeout and dismissed by an edit, a caret move or Escape, and slow requests show their progress hint without flashing"
   },
   "action:github.pullRequests": {
     "status": "partial",
@@ -6748,16 +6748,16 @@
     "proof": "`workbench::github::tests::refresh_pull_request_loads_the_open_pull_request_again`, `workbench::github::tests::the_refresh_keys_work_only_in_the_pull_requests_window_on_their_tab`; run through the registry and with ⌘R / Ctrl+F5 in the #1 tab it asks gh again for the details, status, commits, changes and viewed states, and not for the list. Missing: no test shows a changed answer replacing what the tab shows, and the timeline and review threads are not reloaded"
   },
   "action:github.pullRequest.openInBrowser": {
-    "status": "partial",
-    "proof": "`workbench::github::tests::the_browser_and_copy_actions_use_the_pull_requests_page`; run through the registry for listed #2 it opens https://github.com/org/app/pull/2. Missing: for a pull request neither open nor listed the URL is built on github.com instead of loaded from GitHub, and that case is untested"
+    "status": "done",
+    "proof": "`workbench::github::tests::proofs7_github_urls::the_url_of_a_pull_request_neither_open_nor_listed_is_the_one_github_gives`, `workbench::github::tests::the_browser_and_copy_actions_use_the_pull_requests_page`; run through the registry for listed #2 it opens that row's page, and for #7, neither open nor listed, the page gh's details give, as the webview's prUrl does"
   },
   "action:github.pullRequest.copyUrl": {
-    "status": "partial",
-    "proof": "`workbench::github::tests::the_browser_and_copy_actions_use_the_pull_requests_page`, `workbench::github::tests::a_token_in_the_remote_url_is_never_kept_shown_copied_or_notified`; run through the registry for listed #2 it puts https://github.com/org/app/pull/2 on the clipboard, with no credential of the remote URL. Missing: for a pull request neither open nor listed the URL is built on github.com instead of loaded from GitHub, and that case is untested"
+    "status": "done",
+    "proof": "`workbench::github::tests::proofs7_github_urls::the_url_of_a_pull_request_neither_open_nor_listed_is_the_one_github_gives`, `workbench::github::tests::the_browser_and_copy_actions_use_the_pull_requests_page`, `workbench::github::tests::a_token_in_the_remote_url_is_never_kept_shown_copied_or_notified`; run through the registry for listed #2 it copies that row's page without the remote URL's credential, and for #7, neither open nor listed, it copies the page gh's details give (a renamed repository's), not one built from the repository's name, as the webview's prUrl does"
   },
   "action:github.openInBrowser": {
-    "status": "partial",
-    "proof": "`workbench::github::tests::the_browser_and_copy_actions_use_the_pull_requests_page`; run through the registry with the #1 tab active it opens https://github.com/org/app/pull/1. Missing: the repository's page when no pull request is in context is untested"
+    "status": "done",
+    "proof": "`workbench::github::tests::proofs7_github_urls::open_on_github_without_a_pull_request_in_context_opens_the_repositorys_page`, `workbench::github::tests::the_browser_and_copy_actions_use_the_pull_requests_page`; run through the registry with the #1 tab active it opens that pull request's page, and with the list shown and no pull request in context it opens the repository's page https://github.com/org/app"
   },
   "context:githubConnected": {
     "status": "done",
@@ -6840,32 +6840,32 @@
     "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; run through the registry the regions nested two deep stay open and the third level folds, as the webview's expandToLevelEffects does"
   },
   "boundid:code.expandToLevel2": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand to Level 1, which the test runs. Missing: no test runs Expand to Level 2 or presses ⌘* 2"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::expand_to_levels_two_to_five_fold_the_regions_nested_deeper`, `workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; ⌘* 2 with the caret in a region, which counts as level 1, leaves the regions nested 2 deep inside it open and folds the deeper ones, the shown lines checked; while the Project view has the keyboard the key folds nothing and the action is not available"
   },
   "boundid:code.expandToLevel3": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand to Level 1, which the test runs. Missing: no test runs Expand to Level 3 or presses ⌘* 3"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::expand_to_levels_two_to_five_fold_the_regions_nested_deeper`, `workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; ⌘* 3 with the caret in a region, which counts as level 1, leaves the regions nested 3 deep inside it open and folds the deeper ones, the shown lines checked; while the Project view has the keyboard the key folds nothing and the action is not available"
   },
   "boundid:code.expandToLevel4": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand to Level 1, which the test runs. Missing: no test runs Expand to Level 4 or presses ⌘* 4"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::expand_to_levels_two_to_five_fold_the_regions_nested_deeper`, `workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; ⌘* 4 with the caret in a region, which counts as level 1, leaves the regions nested 4 deep inside it open and folds the deeper ones, the shown lines checked; while the Project view has the keyboard the key folds nothing and the action is not available"
   },
   "boundid:code.expandToLevel5": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand to Level 1, which the test runs. Missing: no test runs Expand to Level 5 or presses ⌘* 5"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::expand_to_levels_two_to_five_fold_the_regions_nested_deeper`, `workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; ⌘* 5 with the caret in a region, which counts as level 1, leaves the regions nested 5 deep inside it open and folds the deeper ones, the shown lines checked; while the Project view has the keyboard the key folds nothing and the action is not available"
   },
   "boundid:code.expandAllToLevel3": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand All to Level 1 and 2, which the test runs. Missing: no test runs Expand All to Level 3 or presses ⌘⇧* 3"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::expand_to_levels_two_to_five_fold_the_regions_nested_deeper`, `workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; ⌘⇧* 3 in a file of seven nested regions leaves the regions nested 3 deep open and folds the deeper ones, the shown lines checked; while the Project view has the keyboard the key folds nothing and the action is not available"
   },
   "boundid:code.expandAllToLevel4": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand All to Level 1 and 2, which the test runs. Missing: no test runs Expand All to Level 4 or presses ⌘⇧* 4"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::expand_to_levels_two_to_five_fold_the_regions_nested_deeper`, `workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; ⌘⇧* 4 in a file of seven nested regions leaves the regions nested 4 deep open and folds the deeper ones, the shown lines checked; while the Project view has the keyboard the key folds nothing and the action is not available"
   },
   "boundid:code.expandAllToLevel5": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; registered by the same loop over the level as Expand All to Level 1 and 2, which the test runs; without an editor it does not run. Missing: no test runs Expand All to Level 5 or presses ⌘⇧* 5"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::expand_to_levels_two_to_five_fold_the_regions_nested_deeper`, `workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; ⌘⇧* 5 in a file of seven nested regions leaves the regions nested 5 deep open and folds the deeper ones, the shown lines checked; while the Project view has the keyboard the key folds nothing and the action is not available"
   },
   "action:editor.contextInfo": {
     "status": "partial",
@@ -6876,8 +6876,8 @@
     "proof": "`workbench::editor_extras::tests::custom_folding_lists_the_regions_and_moves_the_caret_to_the_chosen_one`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; ⌥⌘. in the editor lists the file's custom regions by name with their 1-based line, an unnamed one as (no description); the chosen one gets the caret on the first non-blank character of its marker line; a file without regions says No custom folding regions in this file; nothing while the Project view has the keyboard or without an editor"
   },
   "action:code.unwrap": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; ⇧⌘⌦ in the editor replaces the if around the caret by its body with the caret where the body starts, Nothing to unwrap here where nothing can be unwrapped, Unwrap/Remove is not available for this language in a file without a grammar; nothing while the Find bar has the keyboard or without an editor. Missing: no test runs the chooser (Choose the Statement to Unwrap/Remove) the webview opens when several statements can be unwrapped"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::unwrap_with_several_statements_around_the_caret_lists_them_innermost_first`, `workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; ⇧⌘⌦ replaces the if around the caret by its body, says Nothing to unwrap here or that the language has no Unwrap/Remove where it cannot; with two statements around the caret it lists Unwrap 'while' then Unwrap 'if', innermost first as the webview's unwrapOptions, changes nothing while choosing and unwraps the chosen one; nothing while the Find bar has the keyboard or without an editor"
   },
   "action:code.expressionTypeInfo": {
     "status": "partial",
@@ -6893,19 +6893,19 @@
   },
   "action:navigate.nextOccurrence": {
     "status": "partial",
-    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`; run through the registry and by ⌥⌘↓ it steps the results of the focused, last active or a visible tool window (TODO, Problems), opening each, and the status bar says 1 of 3 for eight seconds; with no tool window that steps the caret stays; in a window without a project it does not run. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), Usages is not stepped in a test, and a TODO step shows no i of n message"
+    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`; run through the registry and by ⌥⌘↓ it steps the results of the focused, last active or a visible tool window (TODO, Problems, Find Usages), opening each, and the status bar says which of how many (1 of 2, 2 of 2 in Find Usages); with nothing to step the caret stays and nothing is said; in a window without a project it does not run. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), and a TODO step shows no i of n message"
   },
   "action:navigate.prevOccurrence": {
     "status": "partial",
-    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`; run through the registry and by ⌥⌘↑ it steps back through the results of the TODO and Problems tool windows, opening each, and the status bar says which of how many; in a window without a project it does not run. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), Usages is not stepped in a test, and a TODO step shows no i of n message"
+    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`; run through the registry and by ⌥⌘↑ it steps back through the results of the TODO, Problems and Find Usages tool windows, opening each, and the status bar says which of how many; in a window without a project it does not run. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), and a TODO step shows no i of n message"
   },
   "action:editor.toggleRainbowBrackets": {
     "status": "done",
     "proof": "`workbench::editor_extras::tests::rainbow_brackets_colour_the_brackets_by_their_depth`, `editor::extras::tests::brackets_are_coloured_by_depth_and_unmatched_ones_are_marked`, `editor::extras::tests::strings_and_comments_are_skipped_lexically`; run through the registry it writes editor.rainbowBrackets in the global settings and shows itself toggled; on, the brackets are painted by depth in syn-bracket-1..3, an unmatched one in syn-invalid and a bracket inside a string keeps the string's colour; run again, the setting is off and the brackets are painted as before"
   },
   "action:project.refresh": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::reload_all_from_disk_reads_the_project_tree_again`; File › Reload All from Disk runs it and the Project view then lists a file written outside the IDE. Missing: the file watcher lists that file too, so the test passes without the reload; a proof needs a change that reaches the tree only through the action, such as a test with the tree's watcher stopped where the new row appears after project.refresh and not before, or one that counts the folder listings the action reads again"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::reload_all_from_disk_re_reads_every_folder_the_project_view_has_read`, `workbench::editor_extras::tests::reload_all_from_disk_reads_the_project_tree_again`; run by File › Reload All from Disk through the registry it asks the backend again for the listing of every folder the Project view has read (the project's folder and the three opened below it, four listings, no more), where the file watcher re-reads only a changed folder and nothing is read again without the action; a file written outside the IDE then shows"
   },
   "context:pasteHistoryListFocus": {
     "status": "partial",
@@ -6921,7 +6921,7 @@
   },
   "point.registerOccurrenceNavigator:(at) src/workbench/contributions.ts:1362": {
     "status": "partial",
-    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`; Next / Previous Occurrence step the Problems and TODO tool windows, in the order focused, last active, last used, visible. Missing: the navigators are a fixed list (Usages, Problems, TODO), not registered by the views; Find, Inspection and Hierarchy have none, Usages is untested, and the TODO window's step gives no index and total"
+    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`; Next / Previous Occurrence step the Problems, TODO and Find Usages tool windows, in the order focused, last active, last used, visible, and Find Usages says which of how many. Missing: the navigators are a fixed list (Usages, Problems, TODO), not registered by the views; Find, Inspection and Hierarchy have none, and the TODO window's step gives no index and total"
   },
   "ipc:syntax_support": {
     "status": "done",
@@ -6945,7 +6945,7 @@
   },
   "module:src/editor/core/extras.ts": {
     "status": "partial",
-    "proof": "`workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`, `editor::command_actions::tests::paste_as_plain_text_keeps_the_copied_indentation`, `workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`; Unwrap/Remove of one statement with its hints, Paste as Plain Text and Paste from History. Missing: the Unwrap/Remove chooser of several statements is not tested, and Paste from History has the gaps of its overlay row"
+    "proof": "`workbench::editor_extras::tests::levels_and_choosers::unwrap_with_several_statements_around_the_caret_lists_them_innermost_first`, `workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`, `editor::command_actions::tests::paste_as_plain_text_keeps_the_copied_indentation`, `workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`; Unwrap/Remove of one statement with its hints and its chooser of several statements, Paste as Plain Text and Paste from History. Missing: Paste from History has the gaps of its overlay row"
   },
   "module:src/editor/lsp/typeInfo.ts": {
     "status": "partial",

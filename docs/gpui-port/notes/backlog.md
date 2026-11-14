@@ -295,3 +295,4 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - RUNNING (cargo): STABILITY integrator (watcher events under load; then proofs8_unit + proofs9 batches). RUNNING (no cargo): proofs7 parity mapper → $S/parity_proofs7.json.
 - Threads: the app releases a project's threads (0 left); the test binary peaks at 3,340.
 - After stability: diff tools → database extras (+ proofs6_database_console.rs) → build tools (seam first).
+- proofs7 rows merged (45 done, 16 partial; 3 stale proofs fixed) → inventory 1,119/3,145. Small gaps: platform/project.test.ts opening cases are proven on ProjectSession, which nothing in the app uses; agents.send from the Project view sends one path (webview: every selected one) and has no virtual-document test; ipc:app_quit left partial (process exit not observable).
