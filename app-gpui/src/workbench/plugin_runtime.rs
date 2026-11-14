@@ -1487,10 +1487,6 @@ impl Workbench {
     /// The tabs changed: files that opened or closed are reported, and the focused file when it is
     /// another one.
     pub(super) fn plugin_tabs_changed(&mut self, cx: &mut Context<Self>) {
-        // A window that follows no plugin host has nobody to tell.
-        if self.plugin_runtime.listeners.is_none() {
-            return;
-        }
         let open: BTreeSet<String> = self
             .tabs()
             .map(|tabs| {
@@ -1502,6 +1498,16 @@ impl Workbench {
                     .collect()
             })
             .unwrap_or_default();
+        // Plugins and the MCP server list the window's editors from this report, plugin host or not.
+        if let Some(backend) = cx.try_global::<Backend>()
+            && self.project_root(cx).is_some()
+        {
+            backend.host.mcp_reports.set_open_editors(&self.label, open.iter().map(PathBuf::from).collect());
+        }
+        // A window that follows no plugin host has nobody else to tell.
+        if self.plugin_runtime.listeners.is_none() {
+            return;
+        }
         let opened: Vec<String> = open.difference(&self.plugin_runtime.open_files).cloned().collect();
         let closed: Vec<String> = self.plugin_runtime.open_files.difference(&open).cloned().collect();
         self.plugin_runtime.open_files = open;
@@ -1584,6 +1590,9 @@ mod tests {
     use gpui_kit::{Modifiers, TestAppContext, VisualTestContext};
     use std::path::Path;
 
+    mod proofs10_events;
+    mod proofs10_host_api;
+    mod proofs10_host_ui;
     mod proofs6_plugin_runtime;
     mod proofs9_status_snapshot;
 

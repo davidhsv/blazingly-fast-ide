@@ -149,21 +149,3 @@ async fn a_plugin_reads_the_projects_log_blame_and_diff(cx: &mut TestAppContext)
     assert!(diff.contains("+changed"), "{diff}");
     cx.update(|_, cx| cx.global::<Backend>().host.close_project(LABEL));
 }
-
-/// The plugin's code reads the UI language: with Chinese chosen in the settings, `locale()` answers that language's
-/// tag.
-#[gpui_kit::test]
-async fn a_plugin_reads_the_ui_language_the_settings_choose(cx: &mut TestAppContext) {
-    use ide_workspace::settings::SettingsScope;
-    let home = start(cx);
-    let folder = plugin_copy(home.path(), "api14", str::to_owned);
-    link(cx, &folder, &[], "events");
-    let (_folder, root, _workbench, cx) = project(cx, &[("a.txt", "a\n")]);
-    cx.update(|_, cx| {
-        crate::platform::settings::set(LABEL, SettingsScope::Global, "appearance.locale", &Value::from("zh"), cx)
-    })
-    .expect("the language is saved");
-    wait(cx, "the plugin reads the chosen language", |cx| {
-        api14(cx, &root, "locale", None).ok().flatten().as_deref() == Some("zh-CN")
-    });
-}

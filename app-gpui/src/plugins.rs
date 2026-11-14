@@ -171,6 +171,8 @@ impl Plugins {
             PluginHost::new(plugins_dir, Arc::new(sink), Limits::default()).map_err(|e| anyhow::anyhow!(e.message))?,
         );
         projects.set_plugin_host(&host);
+        // Plugin code reads the UI language with `ui.locale()`: the language the app runs in.
+        host.set_ui_locale(cx.default_global::<crate::platform::i18n::Localization>().0.locale_info().tag);
         // Plugin languages join detection, language servers and debuggers of every project, and
         // the syntax of the ones without a built-in grammar comes from their plugin.
         projects.languages.attach_plugins(host.language_store().clone());

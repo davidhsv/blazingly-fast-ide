@@ -1017,6 +1017,7 @@ mod tests {
     use ide_host::plugins::PluginStatus;
     use std::path::{Path, PathBuf};
 
+    mod proofs10_menus_settings;
     mod untrusted_windows;
 
     const LABEL: &str = "w1";

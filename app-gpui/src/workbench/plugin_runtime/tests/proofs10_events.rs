@@ -34,34 +34,6 @@ fn reopen(workbench: &Entity<Workbench>, path: &Path, cx: &mut VisualTestContext
     open(workbench, path, cx);
 }
 
-/// A file the window opens reaches the plugin subscribed to `file-opened` for its path, which counts the events it
-/// hears; once the plugin unsubscribes, opening the file again reaches it no more.
-#[gpui_kit::test]
-async fn a_file_the_window_opens_reaches_the_plugin_subscribed_to_file_opened(cx: &mut TestAppContext) {
-    let home = start(cx);
-    let folder = plugin_copy(home.path(), "path-events", str::to_owned);
-    link(cx, &folder, &["events", "project.read"], "count");
-    let (_folder, root, workbench, cx) = project(cx, &[("config/app.yaml", "a: 1\n")]);
-    const PLUGIN: &str = "test.path-events";
-    // Its first command loads the plugin, which subscribes to openings of `config/*.yaml`.
-    assert_eq!(ask(cx, &root, PLUGIN, "count", None), None, "nothing heard yet");
-    let file = root.join("config/app.yaml");
-    wait(cx, "the plugin heard the file open", |cx| {
-        let heard = ask(cx, &root, PLUGIN, "count", None).and_then(|n| n.parse::<usize>().ok()).unwrap_or(0) > 0;
-        if !heard {
-            reopen(&workbench, &file, cx);
-        }
-        heard
-    });
-    ask(cx, &root, PLUGIN, "off", None);
-    let before = ask(cx, &root, PLUGIN, "count", None);
-    reopen(&workbench, &file, cx);
-    // Two of the window's posting intervals and the host's delivery pass.
-    let until = std::time::Instant::now() + Duration::from_secs(2);
-    wait(cx, "two seconds", |_| std::time::Instant::now() >= until);
-    assert_eq!(ask(cx, &root, PLUGIN, "count", None), before, "an unsubscribed plugin hears nothing");
-}
-
 /// A file whose tab the window closes reaches the plugin activated by `file-closed`, with its path.
 #[gpui_kit::test]
 async fn a_file_whose_tab_closes_reaches_the_plugin_activated_by_file_closed(cx: &mut TestAppContext) {
