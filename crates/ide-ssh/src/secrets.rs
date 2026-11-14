@@ -659,7 +659,11 @@ mod tests {
         let path = tmp.path().join("ssh-passwords.json");
         with_file_vault(&path).set("a", "hunter2-file").unwrap();
         let vault = tmp.path().join("ssh-passwords.json.vault");
-        assert_eq!(files_containing(tmp.path(), "hunter2-file"), [vault.clone()], "only the vault holds it");
+        assert_eq!(
+            files_containing(tmp.path(), "hunter2-file"),
+            std::slice::from_ref(&vault),
+            "only the vault holds it"
+        );
         #[cfg(unix)]
         {
             assert_eq!(mode(&vault), 0o600);
