@@ -107,10 +107,10 @@ pub fn snapshots_before(entries: &[Revision], at: f64) -> BTreeMap<String, Revis
 
 /// Several revisions selected: the oldest and newest of them when they are snapshots of one file,
 /// to diff against each other. `entries` are newest first; the result is `(older, newer)`.
-pub fn revision_range<'a>(
-    entries: &'a [Revision],
+pub fn revision_range(
+    entries: &[Revision],
     selected: impl IntoIterator<Item = usize>,
-) -> Option<(&'a Revision, &'a Revision)> {
+) -> Option<(&Revision, &Revision)> {
     let mut indices: Vec<usize> = selected.into_iter().collect();
     indices.sort_unstable();
     indices.dedup();
@@ -493,6 +493,18 @@ impl LocalHistoryView {
         cx.notify();
     }
 
+    /// The texts of the diff `key` could not be read: the reason shows in place of the diff, unless
+    /// the detail moved on meanwhile.
+    pub fn diff_failed(&mut self, key: &str, error: String, cx: &mut Context<Self>) {
+        let Detail::Diff(data) = &self.detail else { return };
+        if diff_key(data) != key {
+            return;
+        }
+        self.diff_shown = None;
+        self.detail = Detail::Message(error);
+        cx.notify();
+    }
+
     /// Revert (Restore): the revision of the caret's row, or at a label every file's last revision
     /// before it, once the window has asked.
     pub fn revert(&mut self, cx: &mut Context<Self>) {
@@ -550,7 +562,7 @@ impl LocalHistoryView {
         true
     }
 
-    fn render_row(&self, index: usize, row: &HistoryRow, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_row(&self, index: usize, row: &HistoryRow, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let muted = theme::color(cx, "fg-muted");
         let folder = self.is_folder();
         let selected = row.active || row.selected;
@@ -634,7 +646,8 @@ impl Render for LocalHistoryView {
             .child(button);
         let list = match &self.loaded {
             Loaded::Failed(error) => message(error.clone()).into_any_element(),
-            Loaded::Loading => message("…".to_owned()).into_any_element(),
+            // Nothing to say until the history is read.
+            Loaded::Loading => div().into_any_element(),
             Loaded::Shown { entries, folder, .. } if entries.is_empty() => {
                 let empty =
                     if *folder { "No local history for this folder yet" } else { "No local history for this path yet" };
@@ -894,6 +907,30 @@ mod tests {
         let left: Vec<String> =
             viewer.read_with(cx, |viewer, _| viewer.left_lines()).into_iter().map(|line| line.text).collect();
         assert_eq!(left.first().map(String::as_str), Some("old"));
+    }
+
+    // The reason a diff cannot be read shows in its place; that of a diff the detail moved past does not.
+    #[gpui_kit::test]
+    async fn a_diff_that_cannot_be_read_shows_why_in_its_place(cx: &mut TestAppContext) {
+        let history = DirectoryHistory {
+            entries: vec![snap("/p/a.ts", 20.0, "Second", 'b'), snap("/p/a.ts", 10.0, "First", 'a')],
+            deleted: Vec::new(),
+        };
+        let (view, _events, cx) = open(cx, "/p/a.ts", history);
+        let key = |view: &Entity<LocalHistoryView>, cx: &mut VisualTestContext| {
+            view.read_with(cx, |view, _| match view.detail() {
+                Detail::Diff(data) => diff_key(data),
+                Detail::Message(_) => String::new(),
+            })
+        };
+        let first = key(&view, cx);
+        view.update(cx, |view, cx| view.select(1, cx));
+        view.update(cx, |view, cx| view.diff_failed(&first, "stale".to_owned(), cx));
+        assert!(matches!(view.read_with(cx, |view, _| view.detail().clone()), Detail::Diff(_)));
+        let second = key(&view, cx);
+        view.update(cx, |view, cx| view.diff_failed(&second, "the revision is gone".to_owned(), cx));
+        let shown = view.read_with(cx, |view, _| view.detail().clone());
+        assert_eq!(shown, Detail::Message("the revision is gone".to_owned()));
     }
 
     // Not from a spec: Recent Changes lists the newest events first, repeated saves of a file collapsed.

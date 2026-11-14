@@ -42,7 +42,7 @@ use crate::vcs_ops::compare_paths::{CompareStep, CompareTarget, RevisionChoice, 
 use crate::vcs_ops::dialogs::{ConfirmRequest, PromptRequest};
 use crate::vcs_ops::log_store::LogFiltersPatch;
 use crate::vcs_ops::menu::MenuItem;
-use crate::vcs_ops::ops::vcs_notice;
+use crate::vcs_ops::ops::{ConsoleKind, vcs_notice};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use futures::channel::oneshot;
 use gpui_kit::{
@@ -62,8 +62,6 @@ const PUT_LABEL: &str = "localHistory.putLabel";
 const RECENT_CHANGES: &str = "localHistory.recentChanges";
 /// Git › Show History for File.
 const SHOW_FILE_HISTORY: &str = "vcs.showHistory";
-/// What comparing directories says: the directory comparison has no view here.
-const NO_DIRECTORIES: &str = "Compare Directories is not available";
 /// How many events Recent Changes lists.
 const RECENT_LIMIT: usize = 40;
 
@@ -265,13 +263,19 @@ async fn revert_from_history(
     }
     let restore: Vec<(PathBuf, String)> =
         targets.iter().map(|target| (PathBuf::from(&target.path), target.id.clone())).collect();
+    let title = branches::i18n(&this, cx, |i18n| i18n.tx("Revert from Local History"))?;
+    this.update(cx, |workbench, _| workbench.log_vcs_console(ConsoleKind::Cmd, &title))?;
+    // The files change under the repository: no read of it runs meanwhile.
+    let command = branches::git_command_starts(&this, cx).await?;
     let restored = branches::call(&this, cx, move |host, window| async move {
         for (path, id) in restore {
             ide_host::ops::history::history_restore(&host, &window, path, id).await?;
         }
         Ok(())
     })
-    .await?;
+    .await;
+    branches::git_command_ended(&this, cx, command)?;
+    let restored = restored?;
     let notice = branches::i18n(&this, cx, |i18n| match restored {
         Ok(()) => {
             let title = match targets.as_slice() {
@@ -281,15 +285,19 @@ async fn revert_from_history(
             vcs_notice(NotificationLevel::Info, title)
         }
         Err(message) => {
-            let title = i18n.tx("Revert from Local History");
-            let failed = i18n.tx_built(&["", " failed"], &[Param::from(title)]);
+            let failed = i18n.tx_built(&["", " failed"], &[Param::from(title.as_str())]);
             let mut notice = vcs_notice(NotificationLevel::Error, failed);
             notice.body = Some(message);
             notice
         }
     })?;
+    this.update(cx, |workbench, _| {
+        let kind = if matches!(notice.level, NotificationLevel::Error) { ConsoleKind::Err } else { ConsoleKind::Info };
+        let text = notice.body.as_deref().unwrap_or(&notice.title).to_owned();
+        workbench.log_vcs_console(kind, &text);
+    })?;
     branches::notify(&this, cx, notice)?;
-    this.update(cx, |workbench, cx| workbench.refresh_vcs(cx))?;
+    branches::refresh(&this, cx).await?;
     // A tab closed meanwhile has nothing to show again.
     let _ = view.update(cx, |view, cx| view.load(cx));
     Ok(())
@@ -305,10 +313,10 @@ async fn compare_with_revision(this: This, cx: &mut AsyncWindowContext, paths: V
     .await?;
     let scope = match scope {
         Ok(scope) => scope,
+        // The action ends here, as any action whose backend call fails.
         Err(message) => {
-            let mut notice = vcs_notice(NotificationLevel::Error, "Compare with Branch or Revision failed");
-            notice.body = Some(message);
-            return branches::notify(&this, cx, notice);
+            tracing::warn!("compare with branch or revision: {message}");
+            return Ok(());
         }
     };
     let root = this.update(cx, |workbench, cx| workbench.compare_root(cx))?;
@@ -319,9 +327,11 @@ async fn compare_with_revision(this: This, cx: &mut AsyncWindowContext, paths: V
         // No revision was given, so one is always chosen.
         CompareStep::Chosen(_) => return Ok(()),
     };
+    // Folders and several files are compared in the path comparison, which this window does not have:
+    // the menus do not offer it for them.
     if !scope.single_file {
-        let notice = vcs_notice(NotificationLevel::Info, "Comparing folders with a branch is not available");
-        return branches::notify(&this, cx, notice);
+        tracing::info!("{paths:?} are not compared with a revision here: only a single file is");
+        return Ok(());
     }
     let (sender, chosen) = oneshot::channel();
     this.update_in(cx, |workbench, window, cx| {
@@ -364,8 +374,10 @@ impl Workbench {
             CompareOutcome::Nothing => {}
             CompareOutcome::Notify(text) => self.notify_compare(text, cx),
             CompareOutcome::OpenDiff(data) => self.open_compared_diff(*data, window, cx),
+            // Folders are compared in the directory comparison, which this window does not have: the
+            // menus do not offer it for them.
             CompareOutcome::CheckDirectory { .. } | CompareOutcome::ShowDirectories { .. } => {
-                self.notify_compare(NO_DIRECTORIES, cx);
+                tracing::info!("folders are not compared in this window");
             }
         }
     }
@@ -390,7 +402,9 @@ impl Workbench {
         let active = self.compare_active_path(cx);
         let path = match compare::compare_with_start(arg, &selection, active.as_deref(), env) {
             CompareWithStart::Notify(text) => return self.notify_compare(text, cx),
-            CompareWithStart::PickDirectory { .. } => return self.notify_compare(NO_DIRECTORIES, cx),
+            CompareWithStart::PickDirectory { path, .. } => {
+                return tracing::info!("{path} is a folder: not compared here");
+            }
             CompareWithStart::CheckKind { path } => path,
         };
         let Some(backend) = cx.try_global::<Backend>() else { return };
@@ -401,7 +415,7 @@ impl Workbench {
             let directory = matches!(kind.await, Ok(Ok(ide_vfs::EntryKind::Dir)));
             let picked = compare::compare_with_kind(&path, directory, env);
             let shown = this.update_in(cx, |workbench, window, cx| match picked {
-                CompareWithPick::PickDirectory { .. } => workbench.notify_compare(NO_DIRECTORIES, cx),
+                CompareWithPick::PickDirectory { path, .. } => tracing::info!("{path} is a folder: not compared here"),
                 CompareWithPick::PickFile { path, .. } => workbench.pick_file_to_compare(path, window, cx),
             });
             if let Err(error) = shown {
@@ -484,9 +498,12 @@ impl Workbench {
             let written = flatten(work.await);
             let _ = workbench.update(cx, |workbench, cx| match written {
                 Ok(()) => viewer.update(cx, |viewer, cx| viewer.run_command(DiffCommand::Refresh, cx)),
+                // The side is a document being saved, which says so when it cannot be.
                 Err(error) => {
-                    let mut notice = vcs_notice(NotificationLevel::Error, "Cannot apply the change");
-                    notice.body = Some(error);
+                    let notice = NotificationRequest {
+                        body: Some(error),
+                        ..NotificationRequest::new(NotificationLevel::Error, "Could not save")
+                    };
                     workbench.notify(notice, cx);
                 }
             });
@@ -562,17 +579,12 @@ impl Workbench {
             let right = load_text(&host, &label, side_load(&data.path, &data.right), &open).await?;
             Ok::<_, String>((left, right))
         });
-        cx.spawn(async move |workbench, cx| {
+        cx.spawn(async move |_, cx| {
             let loaded = work.await.map_err(|error| format!("{error:#}")).and_then(|loaded| loaded);
-            let _ = workbench.update(cx, |workbench, cx| match loaded {
-                Ok((left, right)) => {
-                    let _ = view.update(cx, |view, cx| view.diff_loaded(&key, &left, &right, cx));
-                }
-                Err(error) => {
-                    let mut notice = vcs_notice(NotificationLevel::Error, "Cannot load the diff");
-                    notice.body = Some(error);
-                    workbench.notify(notice, cx);
-                }
+            // A tab closed meanwhile shows nothing; a failure shows in place of the diff.
+            let _ = view.update(cx, |view, cx| match loaded {
+                Ok((left, right)) => view.diff_loaded(&key, &left, &right, cx),
+                Err(error) => view.diff_failed(&key, error, cx),
             });
         })
         .detach();
@@ -762,6 +774,18 @@ mod tests {
         ran.take()
     }
 
+    /// Waits until a save wrote `text` into `file` and its Local History has recorded it: the backend
+    /// writes the file before it records the revision.
+    fn saved(file: &Path, text: &str, cx: &mut VisualTestContext) {
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        let size = text.len() as u64;
+        wait_long(cx, "the save to be recorded", |_| {
+            let recorded = host.project("w1").ok().and_then(|project| project.history.list(file).ok());
+            read(file) == text
+                && recorded.is_some_and(|entries| entries.iter().any(|e| e.label == "Saved" && e.size == size))
+        });
+    }
+
     /// Opens `file` in the editor and gives the editor the keyboard.
     fn edit(workbench: &Entity<Workbench>, file: &Path, cx: &mut VisualTestContext) -> Entity<Editor> {
         let at = file.to_path_buf();
@@ -811,9 +835,10 @@ mod tests {
         Some(dialog.read_with(cx, |dialog, _| dialog.title()))
     }
 
-    /// Compare Files shows both files side by side, each editable: Accept Left Side writes the change
-    /// at the caret into the right file and the diff reads both again. Its key runs it only while the
-    /// diff window has the keyboard: in the editor it does nothing.
+    /// Compare Files shows both files side by side, each editable: Accept Left Side (its key) writes the
+    /// change at the caret into the right file and the diff reads both again. The keys of Accept Left
+    /// and Right Side run them only while the diff window has the keyboard: in the editor they do
+    /// nothing.
     #[gpui_kit::test]
     async fn compare_files_shows_both_files_and_accept_left_side_writes_the_change_into_the_right_one(
         cx: &mut TestAppContext,
@@ -827,7 +852,8 @@ mod tests {
         assert_eq!(diff_title(&workbench, cx).as_deref(), Some("a.txt ↔ b.txt"));
 
         run_action(cx, "diff.nextDifference", None);
-        run_action(cx, action::APPLY_LEFT_SIDE, None);
+        // With the diff window's keyboard the key runs Accept Left Side.
+        assert!(actions_run_by(apply_key(true), cx).contains(&action::APPLY_LEFT_SIDE.to_owned()));
         wait_long(cx, "the change is written", |_| read(&b) == "one\ntwo\nthree\n");
         assert_eq!(read(&a), "one\ntwo\nthree\n", "the left file is left as it was");
         wait_long(cx, "the diff is read again", |cx| changed_sides(&workbench, cx) == sides(&[], &[]));
@@ -851,8 +877,49 @@ mod tests {
         close_project(cx);
     }
 
-    /// Compare With… on the file selected in the tree asks for the other file and shows both; on a
-    /// folder it says that folders are not compared here.
+    /// The first level of the tree's context menu on `path`; the menu is closed again.
+    fn tree_menu(workbench: &Entity<Workbench>, path: &Path, cx: &mut VisualTestContext) -> Vec<String> {
+        use crate::project_view::context_menu::ProjectCommand;
+        select_in_tree(workbench, path, cx);
+        let selector: &'static str = Box::leak(format!("project-row:{}", text_of(path)).into_boxed_str());
+        let row = cx.debug_bounds(selector).expect("the row is drawn");
+        cx.simulate_mouse_down(row.center(), gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+        cx.simulate_mouse_up(row.center(), gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+        cx.run_until_parked();
+        let menu = workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).expect("the context menu is open");
+        let lines = menu.read_with(cx, |menu, _| menu.lines());
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        lines[0].iter().map(|line| line.trim_start_matches("> ").to_owned()).collect()
+    }
+
+    /// The Git submenu of the tree's context menu on `path`; the menu is closed again.
+    fn tree_git_menu(workbench: &Entity<Workbench>, path: &Path, cx: &mut VisualTestContext) -> Vec<String> {
+        use crate::project_view::context_menu::ProjectCommand;
+        select_in_tree(workbench, path, cx);
+        let selector: &'static str = Box::leak(format!("project-row:{}", text_of(path)).into_boxed_str());
+        let row = cx.debug_bounds(selector).expect("the row is drawn");
+        cx.simulate_mouse_down(row.center(), gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+        cx.simulate_mouse_up(row.center(), gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+        cx.run_until_parked();
+        let menu = workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).expect("the context menu is open");
+        let lines = menu.read_with(cx, |menu, _| menu.lines());
+        let git = lines[0].iter().position(|line| line.trim_start_matches("> ") == "Git");
+        let git = git.unwrap_or_else(|| panic!("Git in {lines:?}"));
+        let item: &'static str = Box::leak(format!("menu-row-0-{git}").into_boxed_str());
+        super::super::tests::click_on(cx, item);
+        let lines = menu.read_with(cx, |menu, _| menu.lines());
+        cx.simulate_keystrokes("escape");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        let shown = lines.get(1).unwrap_or_else(|| panic!("the Git submenu in {lines:?}"));
+        shown.iter().map(|line| line.trim_start_matches("> ").to_owned()).collect()
+    }
+
+    /// Compare With… on the file selected in the tree asks for the other file and shows both. A
+    /// folder is compared in the directory comparison, which the window does not have: the tree's
+    /// menu offers Compare With… for a file and not for a folder, and run on a folder the action asks
+    /// for nothing and opens nothing.
     #[gpui_kit::test]
     async fn compare_with_asks_for_the_other_file_and_shows_both(cx: &mut TestAppContext) {
         let _home = start(cx);
@@ -867,9 +934,14 @@ mod tests {
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();
 
+        assert!(tree_menu(&workbench, &a, cx).contains(&"Compare With…".to_owned()));
+        let folder = tree_menu(&workbench, &root.join("src"), cx);
+        assert!(!folder.contains(&"Compare With…".to_owned()), "{folder:?}");
         run_action(cx, action::COMPARE_WITH, Some(json!({ "path": text_of(&root.join("src")), "directory": true })));
-        wait_for_notice(&workbench, NO_DIRECTORIES, cx);
         assert!(!cx.did_prompt_for_paths(), "no file is asked for a folder");
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()));
+        let titles = notification_titles(&workbench, cx);
+        assert!(titles.is_empty(), "{titles:?}");
         close_project(cx);
     }
 
@@ -961,10 +1033,10 @@ mod tests {
         let editor = edit(&workbench, &file, cx);
         cx.simulate_input("x");
         run_action(cx, "file.save", None);
-        wait_long(cx, "the first save", |_| read(&file) == "xone\n");
+        saved(&file, "xone\n", cx);
         cx.simulate_input("y");
         run_action(cx, "file.save", None);
-        wait_long(cx, "the second save", |_| read(&file) == "xyone\n");
+        saved(&file, "xyone\n", cx);
         cx.simulate_input("z");
         assert!(editor.read_with(cx, |editor, _| editor.is_dirty()), "the last edit is not saved");
 
@@ -973,7 +1045,11 @@ mod tests {
         assert!(!view.read_with(cx, |view, _| view.is_folder()));
         let saved = entries_labelled(&view, "Saved", cx);
         assert!(saved.len() >= 2, "both saves are recorded: {saved:?}");
-        view.update(cx, |view, cx| view.select(saved[1], cx));
+        // The first save wrote "xone\n", five bytes.
+        let first = view.read_with(cx, |view, _| {
+            saved.iter().copied().find(|at| view.entries()[*at].size == 5).expect("the first save is listed")
+        });
+        view.update(cx, |view, cx| view.select(first, cx));
         let viewer = view.read_with(cx, |view, _| view.diff_viewer().clone());
         let shown = |cx: &mut VisualTestContext| {
             let left: Vec<String> = viewer.read_with(cx, |v, _| v.left_lines()).into_iter().map(|l| l.text).collect();
@@ -1002,6 +1078,7 @@ mod tests {
         wait_for_prompt(&workbench, cx);
         cx.simulate_keystrokes("enter");
         wait_for_notice(&workbench, "a.txt reverted", cx);
+        assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "nothing more is asked");
         assert_eq!(read(&file), "xone\n", "the revision is written");
         wait_long(cx, "the editor follows", |cx| {
             editor.read_with(cx, |editor, _| editor.text() == "xone\n" && !editor.is_dirty())
@@ -1021,7 +1098,7 @@ mod tests {
         edit(&workbench, &file, cx);
         cx.simulate_input("x");
         run_action(cx, "file.save", None);
-        wait_long(cx, "the save", |_| read(&file) == "xone\n");
+        saved(&file, "xone\n", cx);
 
         run_action(cx, PUT_LABEL, None);
         let dialog = wait_for_prompt(&workbench, cx);
@@ -1047,7 +1124,11 @@ mod tests {
         super::super::tests::click_on(cx, selector);
         let view = history_view(&workbench, 2, cx);
         assert_eq!(view.read_with(cx, |view, _| view.path().to_owned()), text_of(&file));
-        assert_eq!(view.read_with(cx, |view, _| view.entries()[0].label.clone()), "Before refactoring");
+        let listed: Vec<String> = view.read_with(cx, |view, _| {
+            view.entries().iter().map(|e| format!("{} {}B at {}", e.label, e.size, e.timestamp_ms)).collect()
+        });
+        let newest = view.read_with(cx, |view, _| view.entries()[0].label.clone());
+        assert_eq!(newest, "Before refactoring", "the entries, newest first: {listed:?}");
         assert!(view.read_with(cx, |view, _| view.entries()[0].is_label), "the label is the newest entry");
 
         // At the label the file goes back to its last revision before it.
@@ -1125,7 +1206,7 @@ mod tests {
     }
 
     /// Compare with Branch or Revision… on a file offers the repository's branches; the one chosen is
-    /// diffed against the working file. A folder is not compared here.
+    /// diffed against the working file. Run on a folder it opens nothing.
     #[gpui_kit::test]
     async fn compare_with_branch_diffs_the_file_against_the_branch_chosen(cx: &mut TestAppContext) {
         let (workbench, cx, _folders, root) = git_project(cx, |root| {
@@ -1135,7 +1216,15 @@ mod tests {
             git_in(root, &["commit", "-q", "-am", "feature side"]);
             git_in(root, &["checkout", "-q", "main"]);
             std::fs::write(root.join("a.txt"), "two\n").expect("the file is written");
+            std::fs::create_dir_all(root.join("dir")).expect("the folder is made");
+            std::fs::write(root.join("dir/b.txt"), "b\n").expect("the file is written");
         });
+        // The tree offers Compare with Branch… for the file and not for the folder.
+        let file_git = tree_git_menu(&workbench, &root.join("a.txt"), cx);
+        assert!(file_git.contains(&"Compare with Branch…".to_owned()), "{file_git:?}");
+        let folder_git = tree_git_menu(&workbench, &root.join("dir"), cx);
+        assert!(!folder_git.contains(&"Compare with Branch…".to_owned()), "{folder_git:?}");
+        assert!(folder_git.contains(&"Show History".to_owned()), "{folder_git:?}");
         let a = text_of(&root.join("a.txt"));
         run_action(cx, COMPARE_WITH_BRANCH, Some(json!({ "path": a })));
         wait_long(cx, "the branches are offered", |cx| {
@@ -1153,7 +1242,66 @@ mod tests {
         cx.simulate_keystrokes("escape");
         cx.run_until_parked();
 
+        // A folder is compared in the path comparison, which the window does not have: nothing opens.
+        let before = notification_titles(&workbench, cx);
         run_action(cx, COMPARE_WITH_BRANCH, Some(json!({ "path": text_of(&root) })));
-        wait_for_notice(&workbench, "Comparing folders with a branch is not available", cx);
+        // The scope is read off the window's thread: a second passes for any answer to arrive.
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        wait_long(cx, "a second", |_| std::time::Instant::now() >= until);
+        assert!(workbench.read_with(cx, |w, _| w.vcs_dialog_view::<RevisionChooser>().is_none()));
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()));
+        assert_eq!(notification_titles(&workbench, cx), before);
+    }
+    /// In Restricted Mode the Local History and compare commands run as in a trusted project: the
+    /// command guard lets every one of them through (none runs project code), so Put Label labels the
+    /// project and Show History lists it. Without a repository Git's Show History and Compare with
+    /// Branch do not run.
+    #[gpui_kit::test]
+    async fn local_history_and_the_compare_tools_work_in_restricted_mode(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        std::fs::write(root.join("a.txt"), "one\n").expect("the file is written");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, false, false)).expect("previewed");
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+        wait_long(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        assert!(workbench.read_with(cx, |w, cx| w.project_restricted(cx)), "the project is in Restricted Mode");
+        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+        let commands = [
+            "history_list_dir",
+            "history_content",
+            "history_restore",
+            "history_put_label",
+            "fs_entry_kind",
+            "fs_read_text",
+            "vcs_compare_scope",
+            "vcs_branches",
+            "vcs_tags",
+            "vcs_file_at",
+            "vcs_log",
+        ];
+        for command in commands {
+            assert!(host.authorize_command("w1", command).is_ok(), "{command} is allowed in Restricted Mode");
+        }
+        assert!(host.authorize_command("w1", "run_start").is_err(), "the guard does refuse execution");
+
+        run_action(cx, PUT_LABEL, None);
+        wait_for_prompt(&workbench, cx);
+        cx.simulate_input("Restricted");
+        cx.simulate_keystrokes("enter");
+        wait_for_notice(&workbench, "Label 'Restricted' added to Local History", cx);
+        run_action(cx, LOCAL_HISTORY, Some(json!(text_of(&root.join("a.txt")))));
+        let view = history_view(&workbench, 1, cx);
+        assert_eq!(view.read_with(cx, |view, _| view.entries()[0].label.clone()), "Restricted");
+        // The project is no Git repository: vcsAvailable is off, so the Git rows' actions do not run.
+        for id in [SHOW_FILE_HISTORY, COMPARE_WITH_BRANCH] {
+            let arg = json!([text_of(&root.join("a.txt"))]);
+            let refused =
+                cx.update(|window, cx| crate::platform::actions::execute_action_or_throw(id, Some(&arg), window, cx));
+            assert!(refused.is_err(), "{id} needs a repository");
+        }
+        close_project(cx);
     }
 }

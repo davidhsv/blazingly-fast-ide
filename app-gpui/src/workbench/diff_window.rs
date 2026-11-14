@@ -58,7 +58,7 @@ type LoadedSides = (String, String, bool);
 
 /// The text `load` stands for. `open` holds the texts of the open editors by path: a working file
 /// that is open shows its unsaved edits.
-async fn load_text(
+pub(super) async fn load_text(
     host: &Host,
     window: &str,
     load: SideLoad,
@@ -300,7 +300,7 @@ impl Workbench {
     }
 
     /// The texts of the open editors, by path.
-    fn open_texts(&self, cx: &App) -> HashMap<String, String> {
+    pub(super) fn open_texts(&self, cx: &App) -> HashMap<String, String> {
         self.editors()
             .into_iter()
             .map(|editor| {
@@ -448,8 +448,10 @@ impl Workbench {
                     let data = dialog.read(cx).data().clone();
                     self.find_diff_file(data, direction, cx);
                 }
-                // Both panes are read-only here, and have no menu of their own.
-                DiffViewEvent::Apply { .. } | DiffViewEvent::ShowMenu { .. } => {}
+                // An arrow, a hover Revert or Accept Left / Right Side on an editable side.
+                DiffViewEvent::Apply { target, change } => self.apply_diff_edit(*target, change, cx),
+                // The panes have no menu of their own.
+                DiffViewEvent::ShowMenu { .. } => {}
             },
             DiffDialogEvent::Close => self.close_diff(true, window, cx),
         }

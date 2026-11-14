@@ -149,6 +149,55 @@ async fn a_line_typed_in_the_run_console_reaches_the_process_and_ctrl_d_ends_its
     close_backend_project(cx);
 }
 
+/// Whether any process of the process group `group` is alive.
+fn group_alive(group: u32) -> bool {
+    std::process::Command::new("/bin/kill")
+        .args(["-0", "--", &format!("-{group}")])
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+/// A process that ignores the interrupt outlives the first Stop: its tab reads "Stopping… (click
+/// to kill)" while it keeps printing. The second Stop kills its whole process group, and the tab
+/// ends as stopped.
+#[gpui_kit::test]
+async fn a_second_stop_kills_a_process_that_ignores_the_interrupt(cx: &mut TestAppContext) {
+    let script = "trap '' INT; echo \"group $$\"; i=0; while :; do i=$((i+1)); echo \"tick $i\"; sleep 0.1; done";
+    let (workbench, cx, _folders, _root, store) = run_project(cx, vec![shell("deaf", script)]);
+    cx.update(|window, _| window.activate_window());
+    run_action(cx, "run.runConfig", Some(serde_json::Value::from("deaf")));
+    let view = run_view_of(&workbench, cx);
+    let lines = |cx: &mut VisualTestContext| view.read_with(cx, |view, cx| view.lines(cx));
+    wait_long(cx, "the first tick", |cx| lines(cx).iter().any(|line| line.starts_with("tick ")));
+    let group: u32 = lines(cx)
+        .iter()
+        .find_map(|line| line.strip_prefix("group ").and_then(|pid| pid.trim().parse().ok()))
+        .expect("the script prints its process group");
+    assert!(group_alive(group));
+    assert_eq!(view.read_with(cx, |view, cx| view.stop_title(cx)), "Stop");
+
+    click_on(cx, "run-stop");
+    wait_long(cx, "the tab to read stopping", |cx| {
+        session_of(&store, "deaf", cx).is_some_and(|s| s.status == SessionStatus::Stopping)
+    });
+    assert_eq!(view.read_with(cx, |view, cx| view.stop_title(cx)), "Stopping… (click to kill)");
+    let ticks = |cx: &mut VisualTestContext| lines(cx).iter().filter(|line| line.starts_with("tick ")).count();
+    let at_stop = ticks(cx);
+    wait_long(cx, "ticks after the interrupt", |cx| ticks(cx) >= at_stop + 5);
+    assert!(session_of(&store, "deaf", cx).is_some_and(|s| s.status == SessionStatus::Stopping));
+    assert!(group_alive(group), "the interrupt does not end the process");
+
+    click_on(cx, "run-stop");
+    wait_long(cx, "the end of the process", |cx| session_of(&store, "deaf", cx).is_some_and(|s| !s.is_live()));
+    let deaf = session_of(&store, "deaf", cx).expect("deaf ran");
+    assert_eq!((deaf.status, deaf.stopped), (SessionStatus::Finished, true));
+    // The killed `sleep` is reaped by the system, not by the run: it may linger for a moment.
+    wait_long(cx, "no process of the group to be left", |_| !group_alive(group));
+    assert!(!view.read_with(cx, |view, cx| view.can_stop(cx)), "Stop is off once the process is gone");
+    close_backend_project(cx);
+}
+
 /// On a running configuration's row in Services the Run button reads Rerun and starts the
 /// configuration again in a later session; Stop ends it, the row reads Stopped and the button
 /// reads Run again.

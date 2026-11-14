@@ -136,6 +136,9 @@ pub struct MenuContext<'a> {
     pub mac: bool,
     /// The ids of the registered actions.
     pub actions: &'a BTreeSet<String>,
+    /// The window compares folders and several paths with a revision (the path comparison); without
+    /// it Compare with Branch… is offered for a single file only.
+    pub compares_paths: bool,
     /// The shortcut the keymap shows for an action, by action id.
     pub shortcuts: &'a BTreeMap<String, String>,
     pub contributed: &'a Contributed,
@@ -333,7 +336,9 @@ fn git_menu(ctx: &MenuContext<'_>, nodes: &[&ProjectNode], single_file: Option<&
             act(ctx, "vcs.annotate", Some(Value::String(file.path.clone())), "Annotate with Git Blame")
         }),
         act(ctx, "vcs.showDiff", with(), "Show Diff"),
-        real.then(|| act(ctx, "vcs.compareWithBranch", with(), "Compare with Branch…")).flatten(),
+        (real && (ctx.compares_paths || single_file.is_some()))
+            .then(|| act(ctx, "vcs.compareWithBranch", with(), "Compare with Branch…"))
+            .flatten(),
         real.then(|| act(ctx, "vcs.showHistory", with(), "Show History")).flatten(),
         act(ctx, "vcs.rollback", with(), "Rollback…"),
         Some(MenuItem::Separator),
@@ -494,13 +499,17 @@ pub fn context_menu_items(ctx: &MenuContext<'_>, i18n: &mut I18n, nodes: &[&Proj
         let arg = Value::from(paths_of(&files));
         items.extend(delegated(ctx, "diff.compareFiles", arg, "Compare Files", Some("diff"), None));
     } else if let Some(single) = single.filter(|node| node.placeholder.is_none()) {
+        // A folder is compared in the directory comparison: without it, Compare With… is a file's.
+        let compares = !single.dir || ctx.actions.contains("diff.compareDirectories");
         let arg = if single.dir {
             json!({ "path": single.path, "directory": true })
         } else {
             Value::String(single.path.clone())
         };
         let shortcut = key_label(ctx, "project.compareWith");
-        items.extend(delegated(ctx, "diff.compareWith", arg, "Compare With…", Some("diff"), shortcut));
+        if compares {
+            items.extend(delegated(ctx, "diff.compareWith", arg, "Compare With…", Some("diff"), shortcut));
+        }
     }
 
     if let (Some(project), Some(single)) = (project, single)
@@ -599,6 +608,7 @@ pub mod testing {
         pub roots: Vec<RootFolder>,
         pub os: Os,
         pub actions: BTreeSet<String>,
+        pub compares_paths: bool,
         pub shortcuts: BTreeMap<String, String>,
         pub contributed: Contributed,
     }
@@ -615,6 +625,7 @@ pub mod testing {
                 roots: Vec::new(),
                 os: Os::Macos,
                 actions: registered.iter().map(|id| (*id).to_owned()).collect(),
+                compares_paths: true,
                 shortcuts: BTreeMap::new(),
                 contributed: Contributed::default(),
             }
@@ -631,6 +642,7 @@ pub mod testing {
                 os: self.os,
                 mac: true,
                 actions: &self.actions,
+                compares_paths: self.compares_paths,
                 shortcuts: &self.shortcuts,
                 contributed: &self.contributed,
             }
@@ -833,6 +845,22 @@ mod tests {
         for nodes in selections {
             assert!(has(&sub_of(&mut around, &nodes, "Git"), "Compare with Branch…"));
         }
+    }
+
+    /// Without the directory comparison a folder is offered no Compare With…, and without the path
+    /// comparison only a single file is offered Compare with Branch…; a file keeps both.
+    #[test]
+    fn folders_are_offered_no_comparison_the_window_cannot_show() {
+        let registered: Vec<&str> =
+            OTHER_ACTIONS.iter().copied().filter(|id| *id != "diff.compareDirectories").collect();
+        let mut around = Surroundings::new(project_state(), &registered);
+        around.compares_paths = false;
+        assert!(!has(&shown_labels(&mut around, &[dir("/p/src")]), "Compare With…"));
+        assert!(has(&shown_labels(&mut around, &[file("/p/a.py")]), "Compare With…"));
+        for nodes in [vec![dir("/p/src")], vec![file("/p/a.py"), file("/p/b.py")]] {
+            assert!(!has(&sub_of(&mut around, &nodes, "Git"), "Compare with Branch…"), "{nodes:?}");
+        }
+        assert!(has(&sub_of(&mut around, &[file("/p/a.py")], "Git"), "Compare with Branch…"));
     }
 
     // src/features/project-tree/contextMenu.test.ts › project view context menu ›

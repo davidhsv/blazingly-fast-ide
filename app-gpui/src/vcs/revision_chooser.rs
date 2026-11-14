@@ -11,7 +11,7 @@ use crate::platform::input;
 use crate::theme;
 use crate::ui::matching::fuzzy_match;
 use crate::ui::text_field::{TextField, TextFieldEvent};
-use crate::vcs::branches::{sort_local, sort_remote};
+use crate::vcs::branches::{self, sort_local, sort_remote};
 use crate::vcs::changes::base_name;
 use crate::vcs_ops::compare_paths::RevisionChoice;
 use gpui_kit::{
@@ -90,11 +90,20 @@ pub fn revision_items(repos: &[RepositoryRevisions], query: &str, i18n: &mut I18
             all.push(RevisionItem { section: true, ..RevisionItem::new(&name, root, Some(Vec::new())) });
         }
         let repositories = repo.root.clone().map(|root| vec![root]);
-        for branch in sort_local(&repo.branches, None) {
+        let listed: Vec<branches::Branch> = repo
+            .branches
+            .iter()
+            .map(|branch| branches::Branch {
+                name: branch.name.clone(),
+                remote: branch.remote,
+                current: branch.current,
+            })
+            .collect();
+        for branch in sort_local(&listed, None) {
             let detail = i18n.tx(if branch.current { "current branch" } else { "local" });
             all.push(RevisionItem::new(&branch.name, detail, repositories.clone()));
         }
-        for branch in sort_remote(&repo.branches, None) {
+        for branch in sort_remote(&listed, None) {
             all.push(RevisionItem::new(&branch.name, i18n.tx("remote"), repositories.clone()));
         }
         for tag in &repo.tags {

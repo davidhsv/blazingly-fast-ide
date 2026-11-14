@@ -174,6 +174,15 @@ pub const TAB_KINDS: &[TabKind] = &[
         icon: super::plugin_runtime::log_tab_icon,
         build: super::plugin_runtime::build_plugin_log_tab,
     },
+    TabKind {
+        id: crate::vcs::local_history_view::LOCAL_HISTORY_KIND,
+        restorable: false,
+        active_key: None,
+        focus_key: None,
+        title: crate::vcs::local_history_view::local_history_title,
+        icon: crate::vcs::local_history_view::local_history_icon,
+        build: super::diff_tools::build_local_history_tab,
+    },
 ];
 
 pub fn kind(id: &str) -> Option<&'static TabKind> {

@@ -1126,9 +1126,8 @@ mod tests {
     const HELLO: &str = "hello";
 
     /// The root of the editor's menu in a project, without a selection, with the actions this window
-    /// registers: Refactor, Local History and the Compare rows have none of their actions
-    /// registered, so they are not offered.
-    const ROOT: [&str; 11] = [
+    /// registers: Refactor has none of its actions registered, so it is not offered.
+    const ROOT: [&str; 14] = [
         "Show Context Actions",
         "Paste",
         "Copy / Paste Special",
@@ -1139,7 +1138,10 @@ mod tests {
         "Generate…",
         "Send to Agent",
         "Open In",
+        "Local History",
         "Git",
+        "Compare With…",
+        "Compare with Clipboard",
     ];
 
     /// Go To › without Super Method, whose action this window does not register.
@@ -1155,8 +1157,21 @@ mod tests {
     ];
 
     /// Git › for one file, with the rows whose actions this window registers.
-    const GIT: [&str; 11] =
-        ["Commit File…", "Add", "-", "Show Diff", "Rollback…", "-", "Push…", "Pull…", "Fetch", "-", "Branches…"];
+    const GIT: [&str; 13] = [
+        "Commit File…",
+        "Add",
+        "-",
+        "Show Diff",
+        "Compare with Branch…",
+        "Show History",
+        "Rollback…",
+        "-",
+        "Push…",
+        "Pull…",
+        "Fetch",
+        "-",
+        "Branches…",
+    ];
 
     // ---------------------------------------------------------------------------------------------
     // The rows as data
@@ -1698,7 +1713,10 @@ mod tests {
                 "Split Down",
                 "Add Bookmark",
                 "Open In",
+                "Local History",
                 "Git",
+                "Compare With…",
+                "Compare with Clipboard",
                 "Copy Path/Reference…",
                 "Rename File…",
                 "Configure Editor Tabs…",
@@ -1742,7 +1760,10 @@ mod tests {
                 "Hello: Word Count of Active File",
                 "Hello",
                 "Open In",
+                "Local History",
                 "Git",
+                "Compare With…",
+                "Compare with Clipboard",
             ]
         );
         choose(&menu, &["Hello"], cx);

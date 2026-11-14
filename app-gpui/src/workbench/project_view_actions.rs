@@ -49,6 +49,8 @@ const TREE_TOGGLES: [&str; 4] = ["showHidden", "showExcluded", "compact", "folde
 
 /// The Compare With action that asks for the file to compare with.
 const COMPARE_WITH_FILE: &str = "diff.compareWith";
+/// The diff feature's Compare Files, which two files selected in the tree go to.
+const COMPARE_FILES: &str = "diff.compareFiles";
 
 /// The action that reverts the last move or rename of the Project view.
 const UNDO_MOVE: &str = "project.undoMove";
@@ -408,6 +410,12 @@ impl Workbench {
         let files: Vec<String> = nodes.iter().filter(|node| !node.dir).map(|node| node.path.clone()).collect();
         let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned());
         match files.as_slice() {
+            // Two files go to the diff feature's Compare Files, which keeps their sides editable.
+            [left, right] if cx.try_global::<ActionRegistry>().is_some_and(|r| r.contains(COMPARE_FILES)) => {
+                let compare =
+                    Effect::RunAction { id: COMPARE_FILES, arg: Value::from(vec![left.clone(), right.clone()]) };
+                self.start_flow(immediate(vec![compare]), true, None, window, cx);
+            }
             [left, right] => self.open_diff(compare_files_data(left, right, root.as_deref()), window, cx),
             [first, ..] => self.compare_with_chosen_file(first.clone(), root, window, cx),
             [] => {}
@@ -983,8 +991,10 @@ mod tests {
         assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()));
 
         select_in_tree(&workbench, &a, cx);
-        assert_eq!(actions_run_by(&primary("d"), cx), ["project.compareWith"]);
-        assert!(cx.did_prompt_for_paths(), "the file to compare with is asked for");
+        // One file goes to the diff feature's Compare With…, which looks at the path off the window's
+        // thread before it asks for the other file.
+        assert_eq!(actions_run_by(&primary("d"), cx), ["project.compareWith", "diff.compareWith"]);
+        wait_long(cx, "the file to compare with is asked for", |cx| cx.did_prompt_for_paths());
         cx.simulate_path_prompt_response(move |_| Some(vec![b.clone()]));
         wait_long(cx, "the chosen file side by side", |cx| sides(&workbench, cx) == expected);
         cx.simulate_keystrokes("escape");

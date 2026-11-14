@@ -20,6 +20,7 @@ mod conflicts;
 pub mod context_menus;
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 use crate::debugger::effects::DEBUG_TOOL_WINDOW;
+mod diff_tools;
 mod diff_window;
 mod editor_core;
 mod editor_extras;
@@ -515,6 +516,7 @@ pub fn register_actions(cx: &mut App) {
     services_window::register_actions(registry);
     github::register_actions(registry);
     diff_window::register_actions(registry);
+    diff_tools::register_actions(registry);
     run_configs::register_actions(registry);
     debug::register_actions(registry);
     branches::register_actions(registry);
@@ -6635,11 +6637,15 @@ mod tests {
                 "Split and Move Down",
                 "Split Right",
                 "Split Down",
-                // The file's rows whose actions are registered: the bookmark group, Open In, Git, Copy
-                // Path/Reference… (Copy Absolute Path, File Name, Path From Content Root) and Rename File…
+                // The file's rows whose actions are registered: the bookmark group, Open In, Local
+                // History, Git, the Compare rows, Copy Path/Reference… (Copy Absolute Path, File Name,
+                // Path From Content Root) and Rename File…
                 "Add Bookmark",
                 "Open In",
+                "Local History",
                 "Git",
+                "Compare With…",
+                "Compare with Clipboard",
                 "Copy Path/Reference…",
                 "Rename File…",
                 // File › Settings… on the Editor Tabs page.

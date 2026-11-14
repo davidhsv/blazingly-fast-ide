@@ -145,6 +145,12 @@ debug.toggleFieldWatchpoint
 debug.toggleMethodBreakpoint
 debug.toggleTemporaryBreakpoint
 debug.viewBreakpoints
+diff.applyLeftSide
+diff.applyRightSide
+diff.compareFiles
+diff.compareTexts
+diff.compareWith
+diff.compareWithClipboard
 diff.jumpToSource
 diff.nextDifference
 diff.nextFile
@@ -256,6 +262,8 @@ layout.rename
 layout.restore
 layout.restoreDefault
 layout.save
+localHistory.putLabel
+localHistory.recentChanges
 markdown.editorAndPreview
 markdown.editorOnly
 markdown.previewOnly
@@ -385,6 +393,7 @@ project.rename
 project.reveal
 project.revealInFinder
 project.revokeTrust
+project.showHistory
 project.sortBy.modified
 project.sortBy.name
 project.sortBy.type
@@ -470,10 +479,12 @@ vcs.cherryPick.abort
 vcs.cherryPick.continue
 vcs.commit
 vcs.commitAndPush
+vcs.compareWithBranch
 vcs.createPatch
 vcs.fetch
 vcs.ignoreLocal
 vcs.ignoreShared
+vcs.localHistory
 vcs.log.branches.delete
 vcs.log.branches.navigate
 vcs.log.branches.new
@@ -546,6 +557,7 @@ vcs.shelf.showDiffNewTab
 vcs.shelve
 vcs.showCommit
 vcs.showDiff
+vcs.showHistory
 vcs.showLog
 vcs.showMessageHistory
 vcs.showShelf

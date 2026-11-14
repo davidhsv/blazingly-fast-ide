@@ -1127,6 +1127,8 @@ impl Workbench {
             os: this_os(),
             mac: cfg!(target_os = "macos"),
             actions: &actions,
+            // The path comparison of folders and several paths is not built in this window.
+            compares_paths: false,
             shortcuts: &shortcuts,
             contributed: &contributed,
         };
