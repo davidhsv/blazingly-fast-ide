@@ -51,6 +51,31 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
+/// The font code is drawn with: the first installed family of `families` (empty names skipped)
+/// followed by the theme's `--font-mono` list, the others after it for characters it lacks;
+/// weight `weight` (CSS 100 to 900); ligatures only when `ligatures` is on. The editor and the
+/// diff and merge viewers resolve their font here, so they draw the same text the same way.
+pub fn code_font_of(families: &[&str], ligatures: bool, weight: u16, cx: &App) -> Font {
+    let theme = cx.try_global::<theme::ActiveTheme>().map(|t| t.theme.font_families("font-mono")).unwrap_or_default();
+    let theme_default = theme.first().cloned();
+    let mut candidates: Vec<String> =
+        families.iter().filter(|name| !name.is_empty()).map(|name| (*name).to_owned()).chain(theme).collect();
+    candidates.dedup();
+    // Until the installed families are known, the theme's default family draws the text.
+    let chosen = match installed_fonts::installed(cx) {
+        Some(installed) => candidates.iter().position(|name| installed.contains(name)),
+        None => candidates.iter().position(|name| theme_default.as_ref() == Some(name)),
+    };
+    let family = chosen.map_or_else(|| installed_fonts::last_resort().to_owned(), |at| candidates.remove(at));
+    Font {
+        family: SharedString::from(family),
+        features: if ligatures { FontFeatures::default() } else { FontFeatures::disable_ligatures() },
+        fallbacks: (!candidates.is_empty()).then(|| FontFallbacks::from_fonts(candidates)),
+        weight: FontWeight(f32::from(weight.clamp(100, 900))),
+        style: FontStyle::Normal,
+    }
+}
+
 /// The colour token of a highlight kind, as the webview's highlight style assigns them.
 pub fn syntax_token(kind: SyntaxHighlightKind) -> &'static str {
     use SyntaxHighlightKind as K;
@@ -674,28 +699,7 @@ impl Editor {
     /// for characters it lacks; the main weight; ligatures only when they are turned on.
     pub fn code_font(&self, cx: &App) -> Font {
         let settings = &self.facts.font;
-        let theme =
-            cx.try_global::<theme::ActiveTheme>().map(|t| t.theme.font_families("font-mono")).unwrap_or_default();
-        let theme_default = theme.first().cloned();
-        let mut candidates: Vec<String> = [settings.family.clone(), settings.fallback.clone()]
-            .into_iter()
-            .filter(|name| !name.is_empty())
-            .chain(theme)
-            .collect();
-        candidates.dedup();
-        // Until the installed families are known, the theme's default family draws the text.
-        let chosen = match installed_fonts::installed(cx) {
-            Some(installed) => candidates.iter().position(|name| installed.contains(name)),
-            None => candidates.iter().position(|name| theme_default.as_ref() == Some(name)),
-        };
-        let family = chosen.map_or_else(|| installed_fonts::last_resort().to_owned(), |at| candidates.remove(at));
-        Font {
-            family: SharedString::from(family),
-            features: if settings.ligatures { FontFeatures::default() } else { FontFeatures::disable_ligatures() },
-            fallbacks: (!candidates.is_empty()).then(|| FontFallbacks::from_fonts(candidates)),
-            weight: FontWeight(f32::from(settings.weight.clamp(100, 900))),
-            style: FontStyle::Normal,
-        }
+        code_font_of(&[settings.family.as_str(), settings.fallback.as_str()], settings.ligatures, settings.weight, cx)
     }
 
     /// The font, size and line height the text is drawn with.

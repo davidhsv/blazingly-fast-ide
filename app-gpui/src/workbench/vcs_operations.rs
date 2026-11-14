@@ -1971,6 +1971,54 @@ mod tests {
         assert_eq!(dialog.read_with(cx, |dialog, _| dialog.data().path.clone()), path);
     }
 
+    /// The diff draws code as the editor does: with ligatures only while Settings › Editor › Font
+    /// turns them on, at the size it sets, and it follows a change of those settings at once.
+    #[gpui_kit::test]
+    async fn the_diff_draws_with_the_editors_font_settings_and_follows_them(cx: &mut TestAppContext) {
+        use crate::platform::settings;
+        use crate::vcs_diff::view::{CodeStyle, Pane};
+        use ide_workspace::settings::SettingsScope;
+        let (workbench, cx, _folders, root) = git_project(cx, init_repo);
+        let path = root.join("a.txt");
+        std::fs::write(&path, "one -> two\nx += 1\n").expect("the file is written");
+        run_action(cx, "vcs.showDiff", Some(json!(path.to_string_lossy())));
+        let dialog = workbench.read_with(cx, |w, _| w.diff_dialog().cloned()).expect("the diff is shown");
+        let viewer = dialog.read_with(cx, |dialog, _| dialog.viewer().clone());
+        // What each drawn pane drew its text with.
+        let drawn = |cx: &mut VisualTestContext| -> Vec<CodeStyle> {
+            cx.update(|window, _| window.refresh());
+            cx.run_until_parked();
+            viewer.read_with(cx, |viewer, _| {
+                [Pane::Left, Pane::Right, Pane::Unified]
+                    .into_iter()
+                    .filter_map(|pane| viewer.painted_style(pane).cloned())
+                    .collect()
+            })
+        };
+        let ligatures = |style: &CodeStyle| style.font.features.is_calt_enabled() != Some(false);
+        wait_long(cx, "the diff is drawn", |cx| {
+            viewer.read_with(cx, |viewer, _| viewer.difference_count() > 0) && !drawn(cx).is_empty()
+        });
+        let styles = drawn(cx);
+        assert!(styles.iter().all(|style| !ligatures(style)), "no ligatures while the setting is off: {styles:?}");
+        let label = workbench.read_with(cx, |w, _| w.label.clone());
+        let write = |key: &str, value: serde_json::Value, cx: &mut VisualTestContext| {
+            cx.update(|_, cx| settings::set(&label, SettingsScope::Global, key, &value, cx))
+                .expect("the setting is written");
+        };
+        write("editor.ligatures", json!(true), cx);
+        write("editor.fontSize", json!(17), cx);
+        wait_long(cx, "the diff follows the settings", |cx| {
+            let styles = drawn(cx);
+            !styles.is_empty() && styles.iter().all(|style| ligatures(style) && style.size == gpui_kit::px(17.0))
+        });
+        write("editor.ligatures", json!(false), cx);
+        wait_long(cx, "the ligatures are off again", |cx| {
+            let styles = drawn(cx);
+            !styles.is_empty() && styles.iter().all(|style| !ligatures(style))
+        });
+    }
+
     /// The diff colours both sides with the grammar of the file's language, as the editor does: a
     /// Rust keyword of the old text and of the new one is drawn as a keyword.
     #[gpui_kit::test]

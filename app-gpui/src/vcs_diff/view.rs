@@ -31,20 +31,23 @@ use super::diff_scroll::{
 };
 use super::doc::{Direction, Doc};
 use super::toolbar_view::{DiffCommand, DiffSummary, ToolbarItem, ToolbarState, counter_text, toolbar_items};
+use crate::backend::Backend;
 use crate::editor::buffer::{byte_of_col, col_of_byte};
-use crate::editor::view::{HighlightSpan, syntax_token};
+use crate::editor::view::{HighlightSpan, code_font_of, syntax_token};
 use crate::find::utf16;
 use crate::platform::i18n::Localization;
-use crate::platform::input;
+use crate::platform::{input, settings};
 use crate::theme;
+use crate::vcs_more::viewer_look::{ViewerFont, ViewerLook, viewer_caret, viewer_font};
 use gpui_kit::{
     AnyElement, App, Bounds, ClipboardItem, Context, DispatchPhase, Div, Element, ElementId, Entity, EventEmitter,
     FocusHandle, Focusable, Font, GlobalElementId, Hsla, InspectorElementId, IntoElement, Keystroke, LayoutId,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PathBuilder, Pixels, Point, Render, ScrollEvent,
-    ShapedLine, SharedString, Stateful, Style, Task, TextAlign, TextRun, Window, div, fill, font, point, prelude::*,
-    px, relative, size,
+    ShapedLine, SharedString, Stateful, Style, Task, TextAlign, TextRun, Window, div, fill, point, prelude::*, px,
+    relative, size,
 };
-use ide_core::TextChange;
+use ide_core::settings::EditorSettings;
+use ide_core::{IdeEvent, TextChange};
 use ide_language::SyntaxHighlightKind;
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
@@ -80,15 +83,69 @@ fn tx(cx: &App, text: &str) -> String {
     cx.try_global::<Localization>().map_or_else(|| text.to_owned(), |localization| localization.0.tx_template(text))
 }
 
-/// The height of a line of the panes.
-fn line_height(cx: &App) -> Pixels {
+/// The font, size and line height a viewer pane draws code with.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CodeStyle {
+    pub font: Font,
+    pub size: Pixels,
+    pub line_height: Pixels,
+}
+
+impl CodeStyle {
+    /// What `font` asks for, resolved as the editor resolves its own font; the theme's code size
+    /// and line height where the settings leave them.
+    pub fn of(font: &ViewerFont, cx: &App) -> Self {
+        let families: Vec<&str> = font.families.iter().flatten().map(String::as_str).collect();
+        Self {
+            font: code_font_of(&families, font.ligatures, font.weight, cx),
+            size: font.size.map_or_else(|| theme::length(cx, "fs-code"), px),
+            line_height: viewer_line_height(font, cx),
+        }
+    }
+}
+
+/// The height of a line of a viewer pane drawn in `font`.
+pub fn viewer_line_height(font: &ViewerFont, cx: &App) -> Pixels {
+    if let Some(height) = font.line_height {
+        return px(height);
+    }
     let height = theme::length(cx, "lh-code");
     if height > px(0.0) { height } else { px(20.0) }
 }
 
-/// The first font of the theme's `--font-mono` list that is installed.
-fn code_font(cx: &App) -> Font {
-    font(crate::theme::installed_fonts::mono_family(cx))
+/// The look of a viewer before any settings are read: the caret of the default settings, the
+/// theme's code font.
+pub fn default_look() -> ViewerLook {
+    ViewerLook { caret: viewer_caret(&EditorSettings::default()), font: viewer_font(None) }
+}
+
+/// Calls `apply` on `view` with the editor's settings of window `window` whenever a setting
+/// changes, so that a viewer keeps drawing as the editor does. Returns the backend listener to
+/// drop with the view; `None` without a backend.
+pub(crate) fn listen_to_editor_settings<V: 'static>(
+    window: &str,
+    apply: fn(&mut V, &EditorSettings, &mut Context<V>),
+    cx: &mut Context<V>,
+) -> Option<u64> {
+    if !cx.has_global::<Backend>() {
+        return None;
+    }
+    let (weak, window) = (cx.weak_entity(), window.to_owned());
+    Some(cx.global_mut::<Backend>().listen(move |event, cx| {
+        if matches!(event.event, IdeEvent::SettingsChanged { .. }) {
+            let editor = settings::effective(&window, cx).editor;
+            let _ = weak.update(cx, |view, cx| apply(view, &editor, cx));
+        }
+    }))
+}
+
+/// Drops the backend listener `listener`, when there is one and the backend still runs.
+pub(crate) fn stop_listening(listener: Option<u64>, cx: &mut App) {
+    if let Some(id) = listener
+        && cx.has_global::<Backend>()
+    {
+        cx.global_mut::<Backend>().unlisten(id);
+    }
 }
 
 /// The lines (0-based, end exclusive) chunk `chunk` covers on `side`. A side without lines is the
@@ -230,6 +287,8 @@ struct Painted {
     bounds: Bounds<Pixels>,
     text_left: Pixels,
     line_height: Pixels,
+    /// What the text was drawn with.
+    style: CodeStyle,
     first_row: usize,
     /// The text of each drawn row from `first_row`, shaped; `None` for a placeholder or a filler.
     lines: Vec<PaintedLine>,
@@ -393,6 +452,10 @@ pub struct DiffView {
     _hint_timer: Option<Task<()>>,
     epoch: Instant,
     key_claim: u64,
+    /// The font and caret, as the editor's settings ask for them.
+    look: ViewerLook,
+    /// Keeps `look` in step with the settings, once a window's settings are followed.
+    settings_listener: Option<u64>,
 }
 
 impl EventEmitter<DiffViewEvent> for DiffView {}
@@ -408,7 +471,11 @@ impl DiffView {
             move |keystroke, _, cx| weak.update(cx, |view, cx| view.key(keystroke, cx)).unwrap_or(false),
             cx,
         );
-        cx.on_release(|view, cx| input::release_keys(view.key_claim, cx)).detach();
+        cx.on_release(|view, cx| {
+            input::release_keys(view.key_claim, cx);
+            stop_listening(view.settings_listener, cx);
+        })
+        .detach();
         let mut view = Self {
             focus,
             raw: [left.to_owned(), right.to_owned()],
@@ -440,9 +507,46 @@ impl DiffView {
             _hint_timer: None,
             epoch: Instant::now(),
             key_claim,
+            look: default_look(),
+            settings_listener: None,
         };
         view.rebuild(cx);
         view
+    }
+
+    /// Draws as the editor of window `window` does, now and whenever its settings change.
+    pub fn follow_editor_settings(&mut self, window: &str, cx: &mut Context<Self>) {
+        let editor = settings::effective(window, cx).editor;
+        self.editor_settings_changed(&editor, cx);
+        stop_listening(self.settings_listener.take(), cx);
+        self.settings_listener = listen_to_editor_settings(window, Self::editor_settings_changed, cx);
+    }
+
+    fn editor_settings_changed(&mut self, editor: &EditorSettings, cx: &mut Context<Self>) {
+        if let Some(look) = self.look.follow(editor) {
+            self.look = look;
+            cx.notify();
+        }
+    }
+
+    /// The font and caret the panes draw with.
+    pub fn look(&self) -> &ViewerLook {
+        &self.look
+    }
+
+    /// The font, size and line height the panes draw code with.
+    pub fn code_style(&self, cx: &App) -> CodeStyle {
+        CodeStyle::of(&self.look.font, cx)
+    }
+
+    /// What `pane` was last drawn with; `None` before it is drawn.
+    pub fn painted_style(&self, pane: Pane) -> Option<&CodeStyle> {
+        self.panes[pane.index()].painted.as_ref().map(|painted| &painted.style)
+    }
+
+    /// The height of a line of the panes.
+    pub fn line_height(&self, cx: &App) -> Pixels {
+        viewer_line_height(&self.look.font, cx)
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -902,7 +1006,7 @@ impl DiffView {
         } else {
             (Pane::of(side), self.layout.index[ix(side)].get(line).copied().unwrap_or(0))
         };
-        let top = line_height(cx) * row as f32 - self.height(pane) * (1.0 / 3.0);
+        let top = self.line_height(cx) * row as f32 - self.height(pane) * (1.0 / 3.0);
         let now = self.now_ms();
         self.sync.scroll_to(side, false, now);
         self.scrolled(pane, top, cx);
@@ -951,7 +1055,7 @@ impl DiffView {
         if pane != Pane::Unified {
             self.focused = side;
         }
-        let top = line_height(cx) * row as f32 - self.height(pane) * 0.5;
+        let top = self.line_height(cx) * row as f32 - self.height(pane) * 0.5;
         self.scrolled(pane, top, cx);
     }
 
@@ -1012,7 +1116,7 @@ impl DiffView {
     }
 
     fn max_scroll(&self, pane: Pane, cx: &App) -> Pixels {
-        let content = line_height(cx) * self.layout.rows[pane.index()].len() as f32;
+        let content = self.line_height(cx) * self.layout.rows[pane.index()].len() as f32;
         (content - self.height(pane)).max(px(0.0))
     }
 
@@ -1022,7 +1126,7 @@ impl DiffView {
     }
 
     fn pane_scroll(&self, pane: Pane, cx: &App) -> PaneScroll {
-        let line_height = f64::from(line_height(cx));
+        let line_height = f64::from(self.line_height(cx));
         PaneScroll {
             top: f64::from(self.panes[pane.index()].scroll_top),
             left: 0.0,
@@ -1066,7 +1170,7 @@ impl DiffView {
             }
             return;
         }
-        let line_height = f64::from(line_height(cx));
+        let line_height = f64::from(self.line_height(cx));
         let now = self.now_ms();
         let (a, b) = (self.pane_scroll(Pane::Left, cx), self.pane_scroll(Pane::Right, cx));
         let follow = {
@@ -1097,7 +1201,7 @@ impl DiffView {
         let primary = if cfg!(target_os = "macos") { modifiers.platform } else { modifiers.control };
         let plain = !modifiers.control && !modifiers.platform && !modifiers.alt;
         let pane = self.focused_pane();
-        let line_height = line_height(cx);
+        let line_height = self.line_height(cx);
         match keystroke.key.as_str() {
             "f7" if plain && modifiers.shift => self.step(Direction::Previous, cx),
             "f7" if plain => self.step(Direction::Next, cx),
@@ -1285,7 +1389,7 @@ impl DiffView {
 
     /// The rows of `pane` in view.
     fn visible_rows(&self, pane: Pane, cx: &App) -> Range<usize> {
-        let line_height = line_height(cx);
+        let line_height = self.line_height(cx);
         let rows = self.layout.rows[pane.index()].len();
         let first = ((self.panes[pane.index()].scroll_top / line_height).floor().max(0.0) as usize).min(rows);
         let count = (self.height(pane) / line_height).ceil().max(0.0) as usize + 1;
@@ -1470,7 +1574,7 @@ impl DiffView {
         cx: &mut Context<Self>,
         press: impl Fn(&mut Self, &mut Context<Self>) + 'static,
     ) -> Stateful<Div> {
-        let line_height = line_height(cx);
+        let line_height = self.line_height(cx);
         let id = selector.clone();
         div()
             .id(SharedString::from(id))
@@ -1494,7 +1598,7 @@ impl DiffView {
     }
 
     fn render_pane(&self, pane: Pane, cx: &mut Context<Self>) -> Div {
-        let line_height = line_height(cx);
+        let line_height = self.line_height(cx);
         let scroll_top = self.panes[pane.index()].scroll_top;
         let visible = self.visible_rows(pane, cx);
         let top_of = |row: usize| line_height * row as f32 - scroll_top;
@@ -1576,7 +1680,7 @@ impl DiffView {
     }
 
     fn render_divider(&self, cx: &mut Context<Self>) -> Div {
-        let (drawn, _) = self.divider_shapes(f64::from(line_height(cx)));
+        let (drawn, _) = self.divider_shapes(f64::from(self.line_height(cx)));
         let mut column = div()
             .debug_selector(|| "diff-divider".to_owned())
             .relative()
@@ -1650,8 +1754,8 @@ impl Render for DiffView {
                     .child(SharedString::from(tx(cx, "Binary files cannot be shown as text"))),
             );
         }
-        let body =
-            div().flex_1().min_h_0().flex().font_family(code_font(cx).family).text_size(theme::length(cx, "fs-code"));
+        let style = self.code_style(cx);
+        let body = div().flex_1().min_h_0().flex().font_family(style.font.family).text_size(style.size);
         let body = if self.unified() {
             body.child(self.render_pane(Pane::Unified, cx))
         } else {
@@ -1712,6 +1816,7 @@ impl IntoElement for PaneElement {
 
 struct PanePaint {
     line_height: Pixels,
+    style: CodeStyle,
     text_left: Pixels,
     first_row: usize,
     /// Backgrounds, below the text.
@@ -1757,9 +1862,8 @@ impl Element for PaneElement {
         window: &mut Window,
         cx: &mut App,
     ) -> PanePaint {
-        let font_size = theme::length(cx, "fs-code");
-        let line_height = line_height(cx);
-        let code_font = code_font(cx);
+        let style = self.view.read(cx).code_style(cx);
+        let (font_size, line_height, code_font) = (style.size, style.line_height, style.font.clone());
         let plain = theme::color(cx, "fg-editor");
         let number_color = theme::color(cx, "fg-gutter");
         let selection_color = theme::color(cx, "bg-editor-selection");
@@ -1778,6 +1882,7 @@ impl Element for PaneElement {
         };
         let mut paint = PanePaint {
             line_height,
+            style,
             text_left,
             first_row: snapshot.first_row,
             fills: Vec::new(),
@@ -1876,7 +1981,8 @@ impl Element for PaneElement {
         let (view, pane) = (self.view.clone(), self.pane);
         window.on_mouse_event(move |event: &ScrollEvent, phase, window, cx| {
             if phase == DispatchPhase::Bubble && bounds.contains(&event.position) {
-                let delta = event.delta.pixel_delta(line_height(cx)).y;
+                let line = view.read(cx).line_height(cx);
+                let delta = event.delta.pixel_delta(line).y;
                 view.update(cx, |view, cx| view.scroll_by(pane, -delta, cx));
                 window.refresh();
             }
@@ -1901,6 +2007,7 @@ impl Element for PaneElement {
             bounds,
             text_left: prepared.text_left,
             line_height,
+            style: prepared.style.clone(),
             first_row: prepared.first_row,
             lines: std::mem::take(&mut prepared.lines)
                 .into_iter()
@@ -1979,8 +2086,8 @@ impl Element for DividerElement {
         _: &mut Window,
         cx: &mut App,
     ) -> Vec<BandShape> {
-        let line_height = f64::from(line_height(cx));
         let view = self.view.read(cx);
+        let line_height = f64::from(view.line_height(cx));
         if view.options.highlight == HighlightPolicy::None {
             return Vec::new();
         }
@@ -2340,7 +2447,7 @@ mod tests {
             cx.run_until_parked();
         };
         scroll(cx, 1200.0);
-        let line_height = cx.update(|_, cx| line_height(cx));
+        let line_height = view.read_with(cx, |view, cx| view.line_height(cx));
         let (left, right) = view.read_with(cx, |view, _| (view.scroll_top(Pane::Left), view.scroll_top(Pane::Right)));
         assert_eq!(left, px(1200.0));
         assert!(f32::from(right - left - line_height * 3.0).abs() <= 1.0, "{left:?} {right:?}");
@@ -2441,7 +2548,7 @@ mod tests {
         cx.simulate_keystrokes("cmd-a cmd-c");
         assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("one\nthree"));
         let pane = cx.debug_bounds("diff-pane-left").expect("the left pane is drawn");
-        let line_height = cx.update(|_, cx| line_height(cx));
+        let line_height = view.read_with(cx, |view, cx| view.line_height(cx));
         cx.simulate_click(point(pane.right() - px(4.0), pane.top() + line_height * 1.5), Modifiers::default());
         cx.run_until_parked();
         let selection = view.read_with(cx, |view, _| view.selection());

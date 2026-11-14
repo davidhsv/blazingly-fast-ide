@@ -369,6 +369,11 @@ impl LocalHistoryView {
         &self.diff
     }
 
+    /// The key of the diff the viewer shows, once its texts arrived.
+    pub fn shown_diff(&self) -> Option<&str> {
+        self.diff_shown.as_deref()
+    }
+
     /// "Restore" for a revision of a deleted file, else "Revert" (English).
     pub fn revert_label(&self) -> &'static str {
         match self.current() {

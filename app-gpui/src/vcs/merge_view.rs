@@ -23,8 +23,8 @@
 
 use crate::editor::buffer::{byte_of_col, col_of_byte};
 use crate::platform::i18n::{I18n, Localization, Param};
-use crate::platform::input;
 use crate::platform::keymap::is_mac_host;
+use crate::platform::{input, settings};
 use crate::theme;
 use crate::ui::text_field::TEXT_FIELD_CONTEXT;
 use crate::ui::tooltip::WithTooltip;
@@ -36,19 +36,21 @@ use crate::vcs_diff::merge_gutters::{
     MergeChange, MergeControl, MergePane, MergeSide, MergeTint, ResultMark, SideMarker, WAND_ICON, WAND_TITLE,
     merge_stripe, result_marks, side_marker, wand_marker,
 };
+use crate::vcs_diff::view::{CodeStyle, default_look, listen_to_editor_settings, stop_listening, viewer_line_height};
 use crate::vcs_more::merge_actions::MergeCommand;
 use crate::vcs_more::merge_model::{
     AutoSide, MergeAction, MergeEdit, MergeModel, MergeState, MergeSummary, MergeTransaction, can_apply,
 };
 use crate::vcs_more::merge_scroll::{PANES, anchor, follow_top, map_between, transfer};
+use crate::vcs_more::viewer_look::ViewerLook;
 use crate::vcs_ops::dialogs::ConfirmRequest;
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
     AnyElement, App, Bounds, ClickEvent, ClipboardItem, Context, DispatchPhase, Div, Element, ElementId,
-    ElementInputHandler, Entity, EntityInputHandler, EventEmitter, FocusHandle, Focusable, Font, GlobalElementId, Hsla,
+    ElementInputHandler, Entity, EntityInputHandler, EventEmitter, FocusHandle, Focusable, GlobalElementId, Hsla,
     InspectorElementId, IntoElement, KeyDownEvent, Keystroke, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, PathBuilder, Pixels, Point, Render, ScrollEvent, ShapedLine, SharedString, Style, TextAlign, TextRun,
-    UTF16Selection, Window, div, fill, font, point, prelude::*, px, relative, size,
+    UTF16Selection, Window, div, fill, point, prelude::*, px, relative, size,
 };
 use std::collections::HashMap;
 use std::ops::Range;
@@ -370,17 +372,6 @@ fn tx(cx: &App, text: &str) -> String {
     cx.try_global::<Localization>().map_or_else(|| text.to_owned(), |localization| localization.0.tx_template(text))
 }
 
-/// The height of a line of the panes.
-fn line_height(cx: &App) -> Pixels {
-    let height = theme::length(cx, "lh-code");
-    if height > px(0.0) { height } else { px(20.0) }
-}
-
-/// The first font of the theme's `--font-mono` list that is installed.
-fn code_font(cx: &App) -> Font {
-    font(crate::theme::installed_fonts::mono_family(cx))
-}
-
 /// The next character boundary after (before) `pos`: a surrogate pair is one character.
 fn char_boundary(doc: &Doc, pos: usize, forward: bool) -> usize {
     let units = doc.units();
@@ -448,6 +439,8 @@ struct Painted {
     bounds: Bounds<Pixels>,
     text_left: Pixels,
     line_height: Pixels,
+    /// What the text was drawn with.
+    style: CodeStyle,
     first_line: usize,
     /// The text of each drawn line from `first_line`, shaped.
     lines: Vec<(String, ShapedLine)>,
@@ -525,6 +518,10 @@ pub struct MergeView {
     /// The text being composed by an input method in the result.
     marked: Option<Range<usize>>,
     key_claim: u64,
+    /// The font and caret, as the editor's settings ask for them.
+    look: ViewerLook,
+    /// Keeps `look` in step with the settings, once a window's settings are followed.
+    settings_listener: Option<u64>,
     /// How many times the versions (or a failure to read them) arrived, for a test that reloads them.
     #[cfg(test)]
     loads: u64,
@@ -546,7 +543,11 @@ impl MergeView {
             move |keystroke, _, cx| weak.update(cx, |view, cx| view.claim_key(keystroke, cx)).unwrap_or(false),
             cx,
         );
-        cx.on_release(|view, cx| input::release_keys(view.key_claim, cx)).detach();
+        cx.on_release(|view, cx| {
+            input::release_keys(view.key_claim, cx);
+            stop_listening(view.settings_listener, cx);
+        })
+        .detach();
         Self {
             focus,
             path: path.to_owned(),
@@ -560,9 +561,46 @@ impl MergeView {
             dragging: None,
             marked: None,
             key_claim,
+            look: default_look(),
+            settings_listener: None,
             #[cfg(test)]
             loads: 0,
         }
+    }
+
+    /// Draws as the editor of window `window` does, now and whenever its settings change.
+    pub fn follow_editor_settings(&mut self, window: &str, cx: &mut Context<Self>) {
+        let editor = settings::effective(window, cx).editor;
+        self.editor_settings_changed(&editor, cx);
+        stop_listening(self.settings_listener.take(), cx);
+        self.settings_listener = listen_to_editor_settings(window, Self::editor_settings_changed, cx);
+    }
+
+    fn editor_settings_changed(&mut self, editor: &ide_core::settings::EditorSettings, cx: &mut Context<Self>) {
+        if let Some(look) = self.look.follow(editor) {
+            self.look = look;
+            cx.notify();
+        }
+    }
+
+    /// The font and caret the panes draw with.
+    pub fn look(&self) -> &ViewerLook {
+        &self.look
+    }
+
+    /// The font, size and line height the panes draw code with.
+    pub fn code_style(&self, cx: &App) -> CodeStyle {
+        CodeStyle::of(&self.look.font, cx)
+    }
+
+    /// What `pane` was last drawn with; `None` before it is drawn.
+    pub fn painted_style(&self, pane: MergePane) -> Option<&CodeStyle> {
+        self.panes[slot(pane)].painted.as_ref().map(|painted| &painted.style)
+    }
+
+    /// The height of a line of the panes.
+    pub fn line_height(&self, cx: &App) -> Pixels {
+        viewer_line_height(&self.look.font, cx)
     }
 
     /// How many times the versions (or a failure to read them) arrived.
@@ -1269,7 +1307,7 @@ impl MergeView {
     }
 
     fn page_lines(&self, pane: MergePane, cx: &App) -> isize {
-        ((self.height(pane) / line_height(cx)).floor() as isize).max(1)
+        ((self.height(pane) / self.line_height(cx)).floor() as isize).max(1)
     }
 
     fn lines_of(&self, pane: MergePane) -> usize {
@@ -1277,7 +1315,7 @@ impl MergeView {
     }
 
     fn max_scroll(&self, pane: MergePane, cx: &App) -> Pixels {
-        (line_height(cx) * self.lines_of(pane) as f32 - self.height(pane)).max(px(0.0))
+        (self.line_height(cx) * self.lines_of(pane) as f32 - self.height(pane)).max(px(0.0))
     }
 
     fn set_scroll(&mut self, pane: MergePane, top: Pixels, cx: &App) {
@@ -1290,7 +1328,7 @@ impl MergeView {
             top: f64::from(self.panes[slot(pane)].scroll_top),
             left: 0.0,
             client_height: f64::from(self.height(pane)),
-            scroll_height: self.lines_of(pane) as f64 * f64::from(line_height(cx)),
+            scroll_height: self.lines_of(pane) as f64 * f64::from(self.line_height(cx)),
             max_left: 0.0,
             doc_offset: 0.0,
         }
@@ -1311,7 +1349,7 @@ impl MergeView {
     /// Scrolls `pos` of `pane` to the middle of the pane; the others follow.
     fn center(&mut self, pane: MergePane, pos: usize, cx: &mut Context<Self>) {
         let Some(line) = self.loaded.as_ref().map(|loaded| loaded.doc(pane).line_at(pos).number - 1) else { return };
-        let top = line_height(cx) * line as f32 - self.height(pane) * 0.5;
+        let top = self.line_height(cx) * line as f32 - self.height(pane) * 0.5;
         self.set_scroll(pane, top, cx);
         self.follow(pane, cx);
     }
@@ -1322,7 +1360,7 @@ impl MergeView {
         else {
             return;
         };
-        let line_height = line_height(cx);
+        let line_height = self.line_height(cx);
         let (top, bottom) = (line_height * line as f32, line_height * (line + 1) as f32);
         let scroll = self.panes[slot(pane)].scroll_top;
         let height = self.height(pane);
@@ -1357,7 +1395,7 @@ impl MergeView {
 
     /// The other panes line up with `master`, a third down it, through the changes between them.
     fn follow(&mut self, master: MergePane, cx: &App) {
-        let line_height = f64::from(line_height(cx));
+        let line_height = f64::from(self.line_height(cx));
         let (offset, y) = anchor(&self.pane_scroll(master, cx));
         for pane in PANES {
             if pane == master {
@@ -1429,7 +1467,7 @@ impl MergeView {
 
     /// The lines of `pane` in view.
     fn visible_lines(&self, pane: MergePane, cx: &App) -> Range<usize> {
-        let line_height = line_height(cx);
+        let line_height = self.line_height(cx);
         let lines = self.lines_of(pane);
         let first = ((self.panes[slot(pane)].scroll_top / line_height).floor().max(0.0) as usize).min(lines);
         let count = (self.height(pane) / line_height).ceil().max(0.0) as usize + 1;
@@ -1639,7 +1677,7 @@ impl MergeView {
     }
 
     fn render_pane(&self, pane: MergePane, cx: &mut Context<Self>) -> Div {
-        let line_height = line_height(cx);
+        let line_height = self.line_height(cx);
         let scroll_top = self.panes[slot(pane)].scroll_top;
         let mut overlays: Vec<AnyElement> = Vec::new();
         if pane == MergePane::Result
@@ -1686,7 +1724,7 @@ impl MergeView {
     /// The divider beside `side`'s pane: the bands of the side's open changes, and their Accept and
     /// Ignore buttons at the first line of each.
     fn render_divider(&self, side: MergeSide, cx: &mut Context<Self>) -> Div {
-        let line_height = line_height(cx);
+        let line_height = self.line_height(cx);
         let pane = MergePane::Side(side);
         let scroll_top = self.panes[slot(pane)].scroll_top;
         let markers: Vec<(usize, SideMarker)> = match &self.loaded {
@@ -1961,12 +1999,13 @@ impl Render for MergeView {
             return root.child(toolbar).child(div().debug_selector(|| "merge-loading".to_owned()).flex_1());
         };
         let labels = self.render_labels(loaded, cx);
+        let style = self.code_style(cx);
         let body = div()
             .flex_1()
             .min_h_0()
             .flex()
-            .font_family(code_font(cx).family)
-            .text_size(theme::length(cx, "fs-code"))
+            .font_family(style.font.family)
+            .text_size(style.size)
             .child(self.render_pane(MergePane::Side(MergeSide::Left), cx))
             .child(self.render_divider(MergeSide::Left, cx))
             .child(self.render_pane(MergePane::Result, cx))
@@ -2015,6 +2054,7 @@ impl IntoElement for PaneElement {
 
 struct PanePaint {
     line_height: Pixels,
+    style: CodeStyle,
     text_left: Pixels,
     first_line: usize,
     /// Backgrounds, below the text.
@@ -2059,9 +2099,8 @@ impl Element for PaneElement {
         window: &mut Window,
         cx: &mut App,
     ) -> PanePaint {
-        let font_size = theme::length(cx, "fs-code");
-        let line_height = line_height(cx);
-        let code_font = code_font(cx);
+        let style = self.view.read(cx).code_style(cx);
+        let (font_size, line_height, code_font) = (style.size, style.line_height, style.font.clone());
         let (plain, dimmed) = (theme::color(cx, "fg-editor"), theme::color(cx, "fg-subtle"));
         let number_color = theme::color(cx, "fg-gutter");
         let selection_color = theme::color(cx, "bg-editor-selection");
@@ -2071,6 +2110,7 @@ impl Element for PaneElement {
         let focused = view.focus.is_focused(window);
         let mut paint = PanePaint {
             line_height,
+            style,
             text_left,
             first_line: 0,
             fills: Vec::new(),
@@ -2088,6 +2128,10 @@ impl Element for PaneElement {
             underline: None,
             strikethrough: None,
         };
+        let block_width = view.look.caret.block.then(|| {
+            let runs = [run(1, plain)];
+            window.text_system().shape_line(SharedString::from("0"), font_size, &runs, None).width
+        });
         for row in snapshot.rows {
             let top = bounds.top() + line_height * row.line as f32 - snapshot.scroll_top;
             if let Some(token) = row.tint {
@@ -2108,8 +2152,13 @@ impl Element for PaneElement {
                 paint.fills.push((area, selection_color));
             }
             if let Some(col) = row.caret {
-                let caret = Bounds::new(point(origin.x + x(col), top), size(px(1.5), line_height));
-                paint.overs.push((caret, theme::color(cx, "caret")));
+                let caret = theme::color(cx, "caret");
+                // Use block caret: one character wide, the text showing through it.
+                let (width, color) = match block_width {
+                    Some(width) => (width, caret.opacity(0.55)),
+                    None => (px(1.5), caret),
+                };
+                paint.overs.push((Bounds::new(point(origin.x + x(col), top), size(width, line_height)), color));
             }
             if let Some(token) = row.point {
                 let origin = point(bounds.left() + gutter, top - px(1.0));
@@ -2145,7 +2194,8 @@ impl Element for PaneElement {
         let (view, pane) = (self.view.clone(), self.pane);
         window.on_mouse_event(move |event: &ScrollEvent, phase, window, cx| {
             if phase == DispatchPhase::Bubble && bounds.contains(&event.position) {
-                let delta = event.delta.pixel_delta(line_height(cx)).y;
+                let line = view.read(cx).line_height(cx);
+                let delta = event.delta.pixel_delta(line).y;
                 view.update(cx, |view, cx| view.scroll_by(pane, -delta, cx));
                 window.refresh();
             }
@@ -2174,6 +2224,7 @@ impl Element for PaneElement {
             bounds,
             text_left: prepared.text_left,
             line_height,
+            style: prepared.style.clone(),
             first_line: prepared.first_line,
             lines: std::mem::take(&mut prepared.lines).into_iter().map(|(text, shaped, _)| (text, shaped)).collect(),
         };
@@ -2253,7 +2304,7 @@ impl Element for DividerElement {
         _: &mut Window,
         cx: &mut App,
     ) -> Vec<BandShape> {
-        let line_height = f64::from(line_height(cx));
+        let line_height = f64::from(self.view.read(cx).line_height(cx));
         let width = f32::from(bounds.size.width);
         self.view
             .read(cx)
@@ -2362,7 +2413,7 @@ mod tests {
     /// Clicks line `line` of `pane`, at its start.
     fn click_line(cx: &mut VisualTestContext, pane: &'static str, line: usize) {
         let bounds = cx.debug_bounds(pane).unwrap_or_else(|| panic!("{pane} is drawn"));
-        let line_height = cx.update(|_, cx| line_height(cx));
+        let line_height = cx.update(|_, cx| viewer_line_height(&crate::vcs_more::viewer_look::viewer_font(None), cx));
         let at = point(bounds.left() + px(2.0), bounds.top() + line_height * (line as f32 + 0.5));
         cx.simulate_click(at, Modifiers::default());
         cx.run_until_parked();

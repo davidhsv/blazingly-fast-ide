@@ -9478,6 +9478,49 @@ for line in sys.stdin:
         assert_eq!(git_in(&root, &["ls-files", "-u"]), "", "both files are staged");
     }
 
+    /// The merge editor draws its three panes with the editor's font settings and caret, and follows
+    /// a change of them: ligatures and the block caret only while the settings turn them on.
+    #[gpui_kit::test]
+    async fn the_merge_editor_draws_with_the_editors_font_and_caret_settings(cx: &mut TestAppContext) {
+        use crate::vcs::conflicts_dialog::MERGE;
+        use crate::vcs_diff::merge_gutters::{MergePane, MergeSide};
+        use ide_workspace::settings::SettingsScope;
+        let (workbench, cx, _folders, _root) = git_project(cx, |root| {
+            init_repo(root);
+            git_in(root, &["checkout", "-q", "-b", "feature"]);
+            std::fs::write(root.join("a.txt"), "feature -> one\n").expect("the file is written");
+            git_in(root, &["commit", "-q", "-am", "feature side"]);
+            git_in(root, &["checkout", "-q", "main"]);
+            std::fs::write(root.join("a.txt"), "main -> one\n").expect("the file is written");
+            git_in(root, &["commit", "-q", "-am", "main side"]);
+        });
+        let dialog = merge_into_conflicts(&workbench, cx);
+        dialog.update(cx, |dialog, cx| dialog.press(MERGE, cx));
+        let view = merge_view_loaded(&workbench, cx);
+        let panes = [MergePane::Side(MergeSide::Left), MergePane::Result, MergePane::Side(MergeSide::Right)];
+        // Whether each pane drew ligatures, once all three are drawn.
+        let ligatures = |cx: &mut VisualTestContext| -> Option<Vec<bool>> {
+            cx.update(|window, _| window.refresh());
+            cx.run_until_parked();
+            view.read_with(cx, |view, _| {
+                panes
+                    .iter()
+                    .map(|pane| {
+                        view.painted_style(*pane).map(|style| style.font.features.is_calt_enabled() != Some(false))
+                    })
+                    .collect()
+            })
+        };
+        wait_long(cx, "the panes are drawn without ligatures", |cx| ligatures(cx) == Some(vec![false; 3]));
+        assert!(!view.read_with(cx, |view, _| view.look().caret.block));
+        for key in ["editor.ligatures", "editor.appearance.blockCaret"] {
+            cx.update(|_, cx| crate::platform::settings::set("w1", SettingsScope::Global, key, &true.into(), cx))
+                .expect("it is stored");
+        }
+        wait_long(cx, "the panes draw ligatures", |cx| ligatures(cx) == Some(vec![true; 3]));
+        assert!(view.read_with(cx, |view, _| view.look().caret.block), "the caret is a block");
+    }
+
     /// Merge… opens the three-way merge editor on the base with the conflict between both sides;
     /// accepting the left side for it and Apply write the resolved text without markers, stage the
     /// file and close the editor; committing then concludes the merge.

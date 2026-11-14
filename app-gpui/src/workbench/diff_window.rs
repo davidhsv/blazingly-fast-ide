@@ -110,7 +110,7 @@ async fn load_sides(
 
 /// Syntax colours of the two sides of a diff of `path`, from the grammar of the file's language
 /// (none for a language without one); the editor colours the same file the same way.
-fn side_colours(host: &Host, path: &str, left: &str, right: &str) -> [Vec<HighlightSpan>; 2] {
+pub(super) fn side_colours(host: &Host, path: &str, left: &str, right: &str) -> [Vec<HighlightSpan>; 2] {
     let first_line = right.lines().next().or_else(|| left.lines().next());
     let language = host.languages.detect(Path::new(path), first_line);
     let syntax = host.syntax();
@@ -297,6 +297,8 @@ impl Workbench {
         let options = load_diff_options(cx.default_global::<UiStorage>().get(DIFF_OPTIONS_KEY));
         let shown = data.clone();
         let dialog = cx.new(|cx| DiffDialog::new(shown, options, cx));
+        let viewer = dialog.read(cx).viewer().clone();
+        viewer.update(cx, |viewer, cx| viewer.follow_editor_settings(&self.label, cx));
         let events = cx.subscribe_in(&dialog, window, Self::diff_dialog_event);
         // Another diff shown in its place gives the keyboard back to where it was before the first.
         let restore = match self.diff_window.take() {

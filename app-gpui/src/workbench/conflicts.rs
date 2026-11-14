@@ -512,6 +512,7 @@ impl Workbench {
             return;
         }
         let view = cx.new(|cx| MergeView::new(&path, stored_auto_apply(cx), cx));
+        view.update(cx, |view, cx| view.follow_editor_settings(&self.label, cx));
         let events = cx.subscribe_in(&view, window, Self::merge_view_event);
         // Another merge editor in its place gives the keyboard back to where it was before the first.
         let restore = match self.conflicts.merge.take() {

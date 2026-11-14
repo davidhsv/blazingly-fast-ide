@@ -34,6 +34,8 @@ pub struct ViewerFont {
     pub size: Option<f32>,
     pub line_height: Option<f32>,
     pub ligatures: bool,
+    /// The main font weight (CSS 100 to 900), Settings › Editor › Font's for all code text.
+    pub weight: u16,
 }
 
 /// The caret the editor's appearance settings ask for.
@@ -55,7 +57,8 @@ pub fn viewer_caret(editor: &EditorSettings) -> ViewerCaret {
 /// The font the editor's settings ask for; `None` (no settings yet) is the IDE's own.
 pub fn viewer_font(editor: Option<&EditorSettings>) -> ViewerFont {
     let Some(editor) = editor else {
-        return ViewerFont { families: None, size: None, line_height: None, ligatures: false };
+        let weight = EditorSettings::default().font_weight;
+        return ViewerFont { families: None, size: None, line_height: None, ligatures: false, weight };
     };
     let family = editor.font_family.trim();
     let fallback = editor.fallback_font.trim();
@@ -69,6 +72,7 @@ pub fn viewer_font(editor: Option<&EditorSettings>) -> ViewerFont {
         size: (editor.font_size > 0.0).then_some(editor.font_size),
         line_height: (editor.line_height > 0.0).then_some(editor.line_height),
         ligatures: editor.ligatures,
+        weight: editor.font_weight,
     }
 }
 

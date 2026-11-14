@@ -14,7 +14,7 @@
 //! Backend work runs off the window's thread; every failure is told as a notification.
 
 use super::branches::{self, This, finished};
-use super::diff_window::load_text;
+use super::diff_window::{load_text, side_colours};
 use super::services_window::on_workbench;
 use super::tab_views::TabView;
 use super::{GIT_TOOL_WINDOW, Workbench};
@@ -202,6 +202,12 @@ pub(super) fn build_local_history_tab(
         workbench.local_history_event(view, event, window, cx);
     });
     view.update(cx, |view, cx| view.load(cx));
+    // The diff draws as the editor of this window does.
+    let viewer = view.read(cx).diff_viewer().clone();
+    cx.defer_in(window, move |workbench, _, cx| {
+        let label = workbench.label.clone();
+        viewer.update(cx, |viewer, cx| viewer.follow_editor_settings(&label, cx));
+    });
     Some(TabView::new(LOCAL_HISTORY_KIND, input.clone(), &view, cx).with_subscription(events))
 }
 
@@ -577,13 +583,26 @@ impl Workbench {
         let work = backend.with_host(move |host| async move {
             let left = load_text(&host, &label, side_load(&data.path, &data.left), &open).await?;
             let right = load_text(&host, &label, side_load(&data.path, &data.right), &open).await?;
-            Ok::<_, String>((left, right))
+            // The sides are coloured with the grammar of the file's language, as the editor colours it.
+            let (path, shown) = (data.path.clone(), (left.clone(), right.clone()));
+            let colour = move || side_colours(&host, &path, &shown.0, &shown.1);
+            let colours = tokio::task::spawn_blocking(colour).await.unwrap_or_default();
+            Ok::<_, String>((left, right, colours))
         });
         cx.spawn(async move |_, cx| {
             let loaded = work.await.map_err(|error| format!("{error:#}")).and_then(|loaded| loaded);
             // A tab closed meanwhile shows nothing; a failure shows in place of the diff.
             let _ = view.update(cx, |view, cx| match loaded {
-                Ok((left, right)) => view.diff_loaded(&key, &left, &right, cx),
+                Ok((left, right, [a, b])) => {
+                    view.diff_loaded(&key, &left, &right, cx);
+                    // Only the diff still shown takes the colours: the texts set clear older ones.
+                    if view.shown_diff() == Some(key.as_str()) {
+                        view.diff_viewer().clone().update(cx, |viewer, cx| {
+                            viewer.set_highlights(Side::A, a, cx);
+                            viewer.set_highlights(Side::B, b, cx);
+                        });
+                    }
+                }
                 Err(error) => view.diff_failed(&key, error, cx),
             });
         })
@@ -1083,6 +1102,49 @@ mod tests {
         wait_long(cx, "the editor follows", |cx| {
             editor.read_with(cx, |editor, _| editor.text() == "xone\n" && !editor.is_dirty())
         });
+        close_project(cx);
+    }
+
+    /// The diff of a revision in Local History colours both sides with the grammar of the file's
+    /// language, and draws its code with the editor's font settings, following a change of them.
+    #[gpui_kit::test]
+    async fn the_local_history_diff_is_coloured_and_drawn_as_the_editor_draws(cx: &mut TestAppContext) {
+        use crate::vcs_diff::view::Pane;
+        use ide_language::SyntaxHighlightKind;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &[("main.rs", "// a\nfn main() {}\n")]);
+        let file = root.join("main.rs");
+        edit(&workbench, &file, cx);
+        cx.simulate_input("x");
+        run_action(cx, "file.save", None);
+        saved(&file, "x// a\nfn main() {}\n", cx);
+        run_action(cx, LOCAL_HISTORY, Some(json!({ "path": text_of(&file) })));
+        let view = history_view(&workbench, 1, cx);
+        view.update(cx, |view, cx| view.select(0, cx));
+        let viewer = view.read_with(cx, |view, _| view.diff_viewer().clone());
+        let keywords = |side: Side, cx: &mut VisualTestContext| {
+            viewer.read_with(cx, |viewer, _| {
+                viewer.syntax_highlights(side).iter().any(|span| span.kind == SyntaxHighlightKind::Keyword)
+            })
+        };
+        wait_long(cx, "both sides are coloured", |cx| keywords(Side::A, cx) && keywords(Side::B, cx));
+
+        let ligatures = |cx: &mut VisualTestContext| {
+            cx.update(|window, _| window.refresh());
+            cx.run_until_parked();
+            viewer.read_with(cx, |viewer, _| {
+                viewer
+                    .painted_style(Pane::Left)
+                    .or(viewer.painted_style(Pane::Unified))
+                    .map(|style| style.font.features.is_calt_enabled() != Some(false))
+            })
+        };
+        wait_long(cx, "the diff is drawn without ligatures", |cx| ligatures(cx) == Some(false));
+        cx.update(|_, cx| {
+            crate::platform::settings::set("w1", SettingsScope::Global, "editor.ligatures", &true.into(), cx)
+                .expect("the setting is stored");
+        });
+        wait_long(cx, "the diff draws ligatures", |cx| ligatures(cx) == Some(true));
         close_project(cx);
     }
 
