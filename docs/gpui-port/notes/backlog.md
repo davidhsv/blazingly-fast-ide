@@ -346,3 +346,10 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - CARGO QUEUE after it: edit targets/popups/shelf time → database extras (+ proofs6_database_console.rs) → build tools (seam first) → annotate.
 - After the fonts integration: FOURTH INSPECTION (fonts and shadows are paint changes) with click steps: context menus, Find Action, Commit window, the two Settings pages, a running program, a debug session.
 - Remaining blank rows (rough): actions 293 (project 19, db 17, github 17, run 15, docker 13, dotnet 13, editor 12, refactor 12, deployment 11, maven 11, vcs 11, window 10, gradle 9…), IPC 315, modules 164, unit specs 157 blank + 125 model only + 152 partial, e2e 70, settings pages 45.
+
+## Accessibility assessment DONE (2026-11-14): reports/a11y_assessment.md (all by reading; nothing run)
+
+- GPUI 0.3.12 already carries AccessKit and a macOS adapter per window (no flag). An element gets a node only with an `.id()` AND a role; the app sets no role anywhere (0 calls), so the tree is empty. No new dependency needed.
+- Webview: 1,253 aria-label, 559 role=, 13 live regions.
+- CARGO SLICES (each S/M, edits to compiled ui/ files, so integrator work, not drafts): 1 text inputs (ui/text_field.rs 78 uses, text_area, secret_field: id + role + label/value/placeholder), 2 ui/popup_menu.rs, 3 a button trait over the 67 local button helpers (label from WithTooltip text), 4 trees and lists, 5 dialogs, tabs, live regions, 6 a debug-only dump of `window.debug_a11y_tree_json()` as an inspect step. Proof in tests: gpui test `find(id)` gives role/label/value. RISK: duplicate element ids panic in debug builds once a client connects ("Duplicate a11y node id") → every slice needs a real-window run with the dump step.
+- Hypothesis (unmeasured): the "no accessibility node" log comes from text_field having a focus handle but no id.
