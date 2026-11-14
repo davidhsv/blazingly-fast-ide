@@ -81,6 +81,19 @@ pub struct JavaDebugServerPort(pub u16);
 #[cfg(test)]
 impl gpui_kit::Global for JavaDebugServerPort {}
 
+/// What every hot swap compile answers in a test, and after how long, in place of jdtls'
+/// `java/buildWorkspace` (which needs a JDK and a Java project). The delay lets a test cancel the
+/// compile while it runs.
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub struct JavaBuildAnswer {
+    pub status: ide_lsp::jdtls::JavaBuildStatus,
+    pub after: std::time::Duration,
+}
+
+#[cfg(test)]
+impl gpui_kit::Global for JavaBuildAnswer {}
+
 /// The transitions' surroundings, from the fields of a [`Debugger`] and a [`Host`].
 macro_rules! ctx {
     ($debugger:ident, $host:ident) => {
@@ -800,13 +813,29 @@ impl DebugDriver {
                 host.cancel_request(request);
                 Ok(())
             }),
-            BackendCall::JavaBuildWorkspace { module, request } => self.ask(
-                cx,
-                move |host, label| async move {
-                    java::java_build_workspace(&host, &label, PathBuf::from(module), Some(request)).await
-                },
-                Self::on_debugger(move |debugger, result, host| debugger.hot_swap_built(ticket, result, host)),
-            ),
+            BackendCall::JavaBuildWorkspace { module, request } => {
+                #[cfg(test)]
+                if let Some(answer) = cx.try_global::<JavaBuildAnswer>().copied() {
+                    cx.spawn(async move |this, cx| {
+                        cx.background_executor().timer(answer.after).await;
+                        let _ = this.update(cx, |driver, cx| {
+                            driver.with_host(cx, |debugger, host| {
+                                debugger.hot_swap_built(ticket, Ok(answer.status), host);
+                            });
+                            driver.pump(cx);
+                        });
+                    })
+                    .detach();
+                    return;
+                }
+                self.ask(
+                    cx,
+                    move |host, label| async move {
+                        java::java_build_workspace(&host, &label, PathBuf::from(module), Some(request)).await
+                    },
+                    Self::on_debugger(move |debugger, result, host| debugger.hot_swap_built(ticket, result, host)),
+                );
+            }
             BackendCall::JavaResolveLaunch { module, test_classpath, policy, request } => self.ask(
                 cx,
                 move |host, label| async move {

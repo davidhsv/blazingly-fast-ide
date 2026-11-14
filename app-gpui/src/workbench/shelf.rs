@@ -2374,6 +2374,8 @@ mod tests {
     use gpui_kit::{MouseButton, TestAppContext, VisualTestContext};
     use serde_json::json;
 
+    mod proofs11_shelf;
+
     /// `a.txt` reads "one\n" and `b.txt` "bee\n" in HEAD; both are changed in the working tree.
     fn two_changes(root: &Path) {
         init_repo(root);

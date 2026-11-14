@@ -653,6 +653,8 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    mod proofs11_task_list;
+
     type Events = Rc<RefCell<Vec<TaskListEvent>>>;
 
     /// Ten minutes after the epoch: tasks updated at 0 are "10m" old.

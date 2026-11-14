@@ -215,7 +215,7 @@ async fn deletes_the_right_clicked_selection_after_one_confirmation_excluding_gr
     assert!(row_index(&list, "Second, then wait", cx) < row_index(&list, "First greeting", cx));
     open_task(&workbench, &lower, cx);
     let list = open_history(&workbench, cx);
-    assert_eq!(list.read_with(cx, |list, _| list.selected()), [lower.clone()]);
+    assert_eq!(list.read_with(cx, |list, _| list.selected()), std::slice::from_ref(&lower));
     click_row(cx, &running, gpui_kit::Modifiers { shift: true, ..gpui_kit::Modifiers::default() });
     let mut selected = list.read_with(cx, |list, _| list.selected());
     selected.sort();
@@ -452,8 +452,22 @@ fn two_turns(
     task
 }
 
-/// Edit on the first message, a change and Send: the agent's session is rolled back before the edited text is
-/// sent, and the conversation shows the edited message with its new answer in place of the old turn.
+/// Where the agent last read `method`.
+fn last_index(calls: &[String], method: &str) -> usize {
+    calls.iter().rposition(|call| call == method).unwrap_or_else(|| panic!("{method} in {calls:?}"))
+}
+
+/// Confirms the fresh session that sending an edit of the first message asks for.
+fn start_fresh(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) {
+    let dialog = wait_for_prompt(workbench, cx);
+    assert_eq!(dialog.read_with(cx, |dialog, _| dialog.title().to_owned()), "Start a Fresh Agent Session");
+    click_on(cx, "prompt-button-ok");
+}
+
+/// Edit on the first message, a change and Send: once a fresh session is confirmed, the conversation is rolled
+/// back before the edited text is sent, and shows the edited message with its new answer in place of the old
+/// turn. Rolling back every turn starts the agent's session over, so the agent reads a second `session/new`
+/// and then the edited prompt.
 #[gpui_kit::test]
 async fn rolls_back_before_sending_the_edited_text_when_send_is_clicked(cx: &mut TestAppContext) {
     let home = start(cx);
@@ -463,24 +477,23 @@ async fn rolls_back_before_sending_the_edited_text_when_send_is_clicked(cx: &mut
     click_on(cx, "session-user-0-edit");
     cx.simulate_input(" edited");
     click_on(cx, "session-edit-send");
+    start_fresh(&workbench, cx);
     wait_long(cx, "the edited turn", |cx| {
+        let lines = agent_conversation(&workbench, cx);
         !agent_working(&store, &task, cx)
-            && shows(&workbench, "you: Original message edited", cx)
-            && shows(&workbench, "agent: Answer 2", cx)
+            && lines.iter().filter(|line| line.starts_with("you: ")).collect::<Vec<_>>()
+                == ["you: Original message edited"]
+            && lines.iter().filter(|line| line.starts_with("agent: ")).count() == 1
     });
-    let lines = agent_conversation(&workbench, cx);
-    assert!(!lines.iter().any(|line| line.starts_with("agent: Answer 1")), "{lines:?}");
-    assert_eq!(lines.iter().filter(|line| line.starts_with("you: ")).count(), 1, "{lines:?}");
     let calls = agent_calls(&folder);
-    let rollback = calls.iter().position(|call| call == "_openidea/rollback").expect("a rollback");
-    let last_prompt = calls.iter().rposition(|call| call == "session/prompt").expect("a prompt");
-    assert!(rollback < last_prompt, "the rollback comes before the edited text: {calls:?}");
+    assert_eq!(count(&calls, "session/new"), 2, "{calls:?}");
+    assert!(last_index(&calls, "session/new") < last_index(&calls, "session/prompt"), "{calls:?}");
     assert_eq!(count(&calls, "session/prompt"), 2, "{calls:?}");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }
 
-/// Sending an edit of a message while its turn still runs first stops the agent, then rolls the session back,
-/// then sends the edited text.
+/// Sending an edit of a message while its turn still runs first stops the agent, then rolls the session back
+/// (for the first message, by starting a fresh session), then sends the edited text.
 #[gpui_kit::test]
 async fn waits_for_a_running_turn_to_stop_before_rolling_it_back(cx: &mut TestAppContext) {
     let home = start(cx);
@@ -490,20 +503,23 @@ async fn waits_for_a_running_turn_to_stop_before_rolling_it_back(cx: &mut TestAp
     click_on(cx, "session-user-0-edit");
     cx.simulate_input(" now");
     click_on(cx, "session-edit-send");
+    start_fresh(&workbench, cx);
     wait_long(cx, "the edited turn", |cx| {
         !agent_working(&store, &task, cx)
             && shows(&workbench, "you: Say it and wait now", cx)
-            && shows(&workbench, "agent: Answer 2", cx)
+            && shows(&workbench, "agent: Answer", cx)
     });
     let calls = agent_calls(&folder);
-    let at = |method: &str| first_index(&calls, method);
-    let last_prompt = calls.iter().rposition(|call| call == "session/prompt").expect("a prompt");
-    assert!(at("session/cancel") < at("_openidea/rollback") && at("_openidea/rollback") < last_prompt, "{calls:?}");
+    let fresh = last_index(&calls, "session/new");
+    assert!(first_index(&calls, "session/cancel") < fresh, "the agent stops before the rollback: {calls:?}");
+    assert!(fresh < last_index(&calls, "session/prompt"), "the rollback comes before the edited text: {calls:?}");
+    assert_eq!(count(&calls, "session/new"), 2, "{calls:?}");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }
 
 /// Retract Message on a running first turn stops the agent before rolling back, and puts the message back in the
-/// composer above the draft there, sending nothing.
+/// composer above the draft there, sending nothing. Rolling back every turn drops the agent's session instead of
+/// asking the agent to rewind it.
 #[gpui_kit::test]
 async fn stops_before_rollback_and_restores_text_without_sending_turn_0(cx: &mut TestAppContext) {
     let home = start(cx);
@@ -518,8 +534,8 @@ async fn stops_before_rollback_and_restores_text_without_sending_turn_0(cx: &mut
     wait_long(cx, "the message back in the composer", |cx| draft_text(&store, &task, cx) == "Say it and wait\nDraft");
     wait_long(cx, "the turn to leave the conversation", |cx| !shows(&workbench, "you: Say it and wait", cx));
     let calls = agent_calls(&folder);
-    let at = |method: &str| first_index(&calls, method);
-    assert!(at("session/cancel") < at("_openidea/rollback"), "{calls:?}");
+    assert_eq!(count(&calls, "session/cancel"), 1, "the agent was stopped: {calls:?}");
+    assert_eq!(count(&calls, "_openidea/rollback"), 0, "the session is dropped, not rewound: {calls:?}");
     assert_eq!(count(&calls, "session/prompt"), 1, "nothing is sent: {calls:?}");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }
@@ -555,6 +571,7 @@ async fn keeps_the_draft_and_avoids_rollback_when_the_agent_does_not_stop_in_tim
     let (folder, workbench, store, cx) = editing_project(cx, home.path());
     let task = two_turns(&workbench, &store, "First question", "Then stubborn", cx);
     wait_until_working(&workbench, &store, &task, cx);
+    store.update(cx, |store, _| store.set_stop_timeout_ms(1_000.0));
     run_action(cx, "agents.retractMessage", Some(serde_json::json!({ "task": task, "turn": 1 })));
     wait_long(cx, "the message back in the composer", |cx| draft_text(&store, &task, cx) == "Then stubborn");
     let calls = agent_calls(&folder);
@@ -580,7 +597,8 @@ async fn recovers_the_original_prompt_when_rollback_fails(cx: &mut TestAppContex
 }
 
 /// Retract Message on a turn with later messages asks first, once however often it is asked for; Cancel keeps
-/// the conversation, and a confirmed retract rolls back that turn and puts its message in the composer.
+/// the conversation, and a confirmed retract rolls back that turn and puts its message in the composer. The
+/// first turn is rolled back by dropping the agent's session, so the agent is never asked to rewind.
 #[gpui_kit::test]
 async fn confirms_before_retracting_a_turn_with_later_messages_and_guards_repeated_clicks(cx: &mut TestAppContext) {
     let home = start(cx);
@@ -602,7 +620,9 @@ async fn confirms_before_retracting_a_turn_with_later_messages_and_guards_repeat
     click_on(cx, "prompt-button-ok");
     wait_long(cx, "the message back in the composer", |cx| draft_text(&store, &task, cx) == "First question");
     wait_long(cx, "the conversation to empty", |cx| !shows(&workbench, "you: ", cx));
-    assert_eq!(count(&agent_calls(&folder), "_openidea/rollback"), 1);
+    let calls = agent_calls(&folder);
+    assert_eq!(count(&calls, "_openidea/rollback"), 0, "{calls:?}");
+    assert_eq!(count(&calls, "session/prompt"), 2, "nothing more is sent: {calls:?}");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }
 

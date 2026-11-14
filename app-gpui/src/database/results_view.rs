@@ -1108,6 +1108,8 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    mod proofs11_results;
+
     type Events = Rc<RefCell<Vec<ResultsEvent>>>;
 
     fn open(cx: &mut TestAppContext) -> (Entity<ResultsView>, Events, &mut VisualTestContext) {

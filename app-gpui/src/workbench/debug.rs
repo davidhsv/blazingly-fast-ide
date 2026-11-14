@@ -327,17 +327,18 @@ impl Workbench {
         cx.notify();
     }
 
-    /// Publishes the context keys of the debugger: its sessions' state and which of its views has
-    /// the keyboard.
+    /// Publishes the context keys of the debugger: its sessions' state, whether a hot swap compile
+    /// runs, and which of its views has the keyboard.
     pub(super) fn publish_debug_context(&self, window: &mut Window, cx: &mut App) {
         let state = self.debug_driver().map(|driver| {
             let debugger = driver.read(cx).debugger().read(cx);
-            (debugger.state.published().context, debugger.focused.current())
+            (debugger.state.published().context, debugger.focused.current(), debugger.hot_swap.building())
         });
-        let (context, focused) = state.unwrap_or_default();
+        let (context, focused, building) = state.unwrap_or_default();
         for (key, value) in context.entries() {
             set_context(window, cx, key, value);
         }
+        set_context(window, cx, crate::debugger::hotswap::BUILDING_CONTEXT, building);
         let view = focused.map(|commands| commands.view);
         set_context(window, cx, FRAMES_FOCUS, view == Some(DebugView::Frames));
         set_context(window, cx, VARIABLES_FOCUS, view == Some(DebugView::Variables));
@@ -1028,6 +1029,7 @@ pub(super) mod tests {
     use crate::run::configs::blank_config;
     use gpui_kit::{Modifiers, MouseButton, MouseDownEvent, TestAppContext, VisualTestContext, point};
     use std::time::Duration;
+    mod proofs11_hotswap;
     mod proofs3_debug;
     mod proofs6_debug;
     mod proofs8_recent;

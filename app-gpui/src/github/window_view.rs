@@ -68,6 +68,9 @@ pub enum PullRequestsEvent {
     /// Show this menu at this point of the window; its rows go to
     /// [`PullRequestsWindow::run_command`].
     ShowMenu { position: Point<Pixels>, items: Vec<MenuItem<TabCommand>> },
+    /// What takes the keyboard in the window changed (it connected to a repository or lost it): a
+    /// window that holds the keyboard hands it on to its [`Focusable::focus_handle`].
+    FocusTargetChanged,
     /// An event of the list tab for the workbench: [`ListPanelEvent::Fetch`],
     /// [`ListPanelEvent::LoadChooser`] and [`ListPanelEvent::ShowMenu`] (the others the window
     /// handles itself, and passes on for information).
@@ -152,7 +155,15 @@ impl PullRequestsWindow {
         }
         self.connected = next;
         self.repo = repo;
+        if changed {
+            cx.emit(PullRequestsEvent::FocusTargetChanged);
+        }
         cx.notify();
+    }
+
+    /// Whether the keyboard is anywhere in the window.
+    pub fn holds_focus(&self, window: &Window, cx: &App) -> bool {
+        self.focus.contains_focused(window, cx)
     }
 
     /// The tool window is shown: gh is checked the first time; the list is refreshed, as IntelliJ

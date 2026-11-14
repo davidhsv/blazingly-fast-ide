@@ -411,6 +411,14 @@ impl PromptDialog {
         self.field.as_ref().map(|field| &field.entity)
     }
 
+    /// The dialog with its checkbox, if it has one, starting as `on`.
+    pub fn with_checked(mut self, on: bool) -> Self {
+        if let Some((_, checked)) = self.checkbox.as_mut() {
+            *checked = on;
+        }
+        self
+    }
+
     /// The checkbox's state.
     pub fn checked(&self) -> Option<bool> {
         self.checkbox.as_ref().map(|(_, on)| *on)

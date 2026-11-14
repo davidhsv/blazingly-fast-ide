@@ -529,6 +529,8 @@ mod tests {
     use gpui_kit::{Bounds, Entity, Modifiers, Pixels, TestAppContext, VisualTestContext, point};
     use std::cell::RefCell;
 
+    mod proofs11_markdown;
+
     type Events = Rc<RefCell<Vec<MarkdownEvent>>>;
 
     fn open<'a>(cx: &'a mut TestAppContext, text: &str) -> (Entity<MarkdownView>, Events, &'a mut VisualTestContext) {

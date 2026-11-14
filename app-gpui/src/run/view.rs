@@ -12,7 +12,7 @@
 
 use crate::find::utf16;
 use crate::platform::i18n::{Localization, Param};
-use crate::platform::input;
+use crate::platform::{input, keymap};
 use crate::run::ansi::{AnsiColor, SpanStyle};
 use crate::run::config_types::RunConfigTypes;
 use crate::run::configs::cwd_of;
@@ -121,7 +121,7 @@ fn compile_regex(pattern: &str, case_sensitive: bool) -> Option<LineMatcher> {
 
 /// The primary modifier: ⌘ on macOS, Ctrl elsewhere.
 fn primary(modifiers: &Modifiers) -> bool {
-    if cfg!(target_os = "macos") { modifiers.platform } else { modifiers.control }
+    keymap::has_primary_modifier(modifiers, keymap::is_mac_host())
 }
 
 /// `1234567` as `1,234,567`.

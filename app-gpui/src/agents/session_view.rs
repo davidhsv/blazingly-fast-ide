@@ -2197,6 +2197,7 @@ mod tests {
     use crate::agents::store::AgentCall;
     use gpui_kit::{Bounds, Modifiers, Pixels, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext};
     use std::cell::RefCell;
+    mod proofs11_session;
     mod proofs8_agent_reply;
 
     type Events = Rc<RefCell<Vec<SessionEvent>>>;

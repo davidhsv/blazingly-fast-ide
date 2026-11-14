@@ -16,6 +16,7 @@ mod tests {
     use crate::services::view::ServicesView;
     use gpui_kit::{Entity, TestAppContext, VisualTestContext};
     use std::path::PathBuf;
+    mod proofs11_docker;
     mod proofs7_move;
 
     /// A program configuration that runs `command arg`.

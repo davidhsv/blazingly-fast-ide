@@ -339,6 +339,8 @@ pub struct AgentsStore {
     next_ticket: u64,
     pending: HashMap<Ticket, Pending>,
     edits: HashMap<Ticket, EditFlow>,
+    /// How long an edit waits for its task to stop: [`STOP_TIMEOUT_MS`], shorter in a test.
+    stop_timeout_ms: f64,
 }
 
 /// The saved state a store starts from: the values of [`DRAFT_KEY`], [`HISTORY_KEY`] and
@@ -398,6 +400,12 @@ impl std::fmt::Debug for AgentsStore {
 }
 
 impl AgentsStore {
+    /// How long an edit waits for its task to stop, for a test that cannot wait [`STOP_TIMEOUT_MS`].
+    #[cfg(test)]
+    pub fn set_stop_timeout_ms(&mut self, ms: f64) {
+        self.stop_timeout_ms = ms;
+    }
+
     pub fn new(saved: Saved<'_>) -> Self {
         let location = saved.session_location.and_then(|s| serde_json::from_str::<String>(s).ok());
         Self {
@@ -430,6 +438,7 @@ impl AgentsStore {
             next_ticket: 0,
             pending: HashMap::new(),
             edits: HashMap::new(),
+            stop_timeout_ms: STOP_TIMEOUT_MS,
         }
     }
 
@@ -1164,7 +1173,7 @@ impl AgentsStore {
         if !self.task_busy(&task) {
             return self.roll_back(ticket);
         }
-        let deadline = now + STOP_TIMEOUT_MS;
+        let deadline = now + self.stop_timeout_ms;
         let step = self.edit_step(ticket, EditStage::Stopping { deadline });
         vec![
             AgentEffect::Call { ticket: Some(step), call: AgentCall::Cancel { task, subagent: None } },

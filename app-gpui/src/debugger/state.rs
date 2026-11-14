@@ -2050,6 +2050,8 @@ mod tests {
     use crate::run::ansi::{AnsiColor, SpanStyle};
     use std::collections::VecDeque;
 
+    mod proofs11_execution_state;
+
     const PATH: &str = "/proj/MsMemberUtils.java";
 
     fn id(id: u32) -> DebugSessionId {

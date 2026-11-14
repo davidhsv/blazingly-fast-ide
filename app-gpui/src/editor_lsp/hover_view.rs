@@ -15,7 +15,7 @@ use super::hover::HoverPopup;
 use super::markdown::{Block, DeclarationSummary, DocLink, Run, blocks_text, doc_link, is_empty_markup, markup_blocks};
 use crate::platform::i18n::Localization;
 use crate::platform::input::{self, Keymap};
-use crate::platform::keymap::is_mac_host;
+use crate::platform::keymap::{has_primary_modifier, is_mac_host};
 use crate::theme;
 use crate::ui::tooltip::Tooltip;
 use gpui_kit::{
@@ -632,7 +632,7 @@ impl QuickDocView {
 
     fn link(&mut self, href: &str, window: &mut Window, cx: &mut Context<Self>) {
         let modifiers = window.modifiers();
-        let primary = if is_mac_host() { modifiers.platform } else { modifiers.control };
+        let primary = has_primary_modifier(&modifiers, is_mac_host());
         let link = doc_link(href);
         if link != DocLink::Ignored {
             cx.emit(QuickDocEvent::Link { link, primary });

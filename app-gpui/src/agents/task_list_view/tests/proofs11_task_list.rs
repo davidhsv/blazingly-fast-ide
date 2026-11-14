@@ -2,7 +2,7 @@ use super::*;
 use crate::agents::fixtures::{agent, user};
 use crate::agents::session_view::SessionView;
 use crate::agents::store::{AgentEffect, Editors};
-use gpui_kit::{Context, IntoElement, Render, Window, div, prelude::*};
+use gpui_kit::{Context, IntoElement, Render, Window, div};
 use ide_agent::AgentEntry;
 
 /// What the tool window shows in place of the task list while a task is docked.

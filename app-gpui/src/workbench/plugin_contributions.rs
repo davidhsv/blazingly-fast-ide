@@ -1018,6 +1018,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     mod proofs10_menus_settings;
+    mod proofs11_plugin_debug;
     mod untrusted_windows;
 
     const LABEL: &str = "w1";

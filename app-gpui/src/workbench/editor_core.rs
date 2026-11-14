@@ -421,6 +421,7 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::path::Path;
     use std::time::Duration;
+    mod proofs11_read_only;
     mod proofs7_read_only;
 
     fn start(cx: &mut TestAppContext) -> tempfile::TempDir {

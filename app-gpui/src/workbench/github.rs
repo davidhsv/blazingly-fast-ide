@@ -47,7 +47,9 @@ use crate::platform::storage::UiStorage;
 use crate::vcs::git_forms::redacted_url;
 use crate::vcs_diff::diff_input::{DiffData, DiffSide};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
-use gpui_kit::{App, AsyncWindowContext, ClipboardItem, Context, Entity, Subscription, Task, Window, prelude::*};
+use gpui_kit::{
+    App, AsyncWindowContext, ClipboardItem, Context, Entity, Focusable, Subscription, Task, Window, prelude::*,
+};
 use ide_core::{CancellationToken, IdeResult};
 use ide_github::{GhApiRequest, GhAvailability, GhCli, PrDiffRevisions};
 use ide_host::Host;
@@ -1004,6 +1006,14 @@ impl Workbench {
             PullRequestsEvent::TabClosed(_) => {}
             // `githubPrTab` is published with the window's other context.
             PullRequestsEvent::ActiveTabChanged(_) => cx.notify(),
+            PullRequestsEvent::FocusTargetChanged => {
+                let Some(view) = self.pull_requests_window() else { return };
+                let view = view.read(cx);
+                if view.holds_focus(window, cx) {
+                    let target = view.focus_handle(cx);
+                    window.focus(&target, cx);
+                }
+            }
             PullRequestsEvent::ShowMenu { position, items } => {
                 let Some(view) = self.pull_requests_window().map(Entity::downgrade) else { return };
                 let run = move |_: &mut Self, command, _: &mut Window, cx: &mut Context<Self>| {
@@ -1549,6 +1559,7 @@ mod tests {
     use crate::platform::context::{ContextValue, window_context};
     use gpui_kit::{Focusable, TestAppContext, VisualTestContext};
     use std::cell::{Cell, RefCell};
+    mod proofs11_github;
     mod proofs7_github_urls;
     mod proofs9_github;
 

@@ -949,6 +949,11 @@ impl Workbench {
                 written.map(|files| files.into_iter().map(|file| file.0.to_string_lossy().into_owned()).collect());
             let outcome = ignore_written(destination, changed.as_deref());
             finished(this.update_in(cx, |workbench, window, cx| {
+                // The tree draws what is ignored, and a rule file outside the project (or a write that failed
+                // half-way) brings no change of the project's folders: it is read again either way.
+                if let Some(tree) = workbench.project_tree().cloned() {
+                    tree.update(cx, |tree, cx| tree.reload_all(cx));
+                }
                 if let Some(notice) = outcome.notification {
                     workbench.notify(notice, cx);
                 }
@@ -1075,6 +1080,7 @@ mod tests {
     use serde_json::json;
     use std::path::Path;
 
+    mod proofs11_worktrees;
     mod proofs_update;
 
     /// Runs git in `dir` without the machine's configuration; whether it succeeded. For commands

@@ -20,7 +20,7 @@ use crate::debugger::state::{DebugState, SessionStatus};
 use crate::debugger::value_changes::ValueChanges;
 use crate::debugger::values::{ValueKind, classify_value, one_line, sort_variables};
 use crate::platform::i18n::Localization;
-use crate::platform::input;
+use crate::platform::{input, keymap};
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use crate::vcs_ops::menu::MenuItem;
@@ -1082,7 +1082,7 @@ fn node_icon(node: &Node) -> &'static str {
 
 /// The primary modifier: ⌘ on macOS, Ctrl elsewhere.
 fn primary(modifiers: &Modifiers) -> bool {
-    if cfg!(target_os = "macos") { modifiers.platform } else { modifiers.control }
+    keymap::has_primary_modifier(modifiers, keymap::is_mac_host())
 }
 
 /// UI text in the active language.

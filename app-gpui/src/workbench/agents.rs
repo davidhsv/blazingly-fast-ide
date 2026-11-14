@@ -527,6 +527,21 @@ impl Workbench {
     }
 
     /// Calls `f` after `delay_ms`, unless the project changed meanwhile.
+    /// Lets the store look at its deadlines once the wall clock reads `at_ms`. Timers do not run on the
+    /// wall clock (a test's run on its own, and the system's may jump), so one that fires early waits
+    /// for the rest.
+    fn agents_wake_at(&mut self, at_ms: f64, cx: &mut Context<Self>) {
+        self.agents_after(at_ms - now_ms(), cx, move |workbench, cx| {
+            let now = now_ms();
+            if now < at_ms {
+                workbench.agents_wake_at(at_ms, cx);
+                return;
+            }
+            let effects = workbench.agents_step(cx, |store, _, i18n| store.tick(now, i18n));
+            workbench.carry_out_agents(effects.unwrap_or_default(), cx);
+        });
+    }
+
     fn agents_after(
         &mut self,
         delay_ms: f64,
@@ -664,11 +679,7 @@ impl Workbench {
                 AgentEffect::Create { ticket, request } => self.create_agent_task(ticket, *request, cx),
                 AgentEffect::Call { ticket, call } => self.run_agent_call(ticket, call, cx),
                 AgentEffect::Confirm { ticket, request } => self.confirm_agents(ticket, request, cx),
-                AgentEffect::WakeAt { at_ms } => self.agents_after(at_ms - now_ms(), cx, |workbench, cx| {
-                    let now = now_ms();
-                    let effects = workbench.agents_step(cx, |store, _, i18n| store.tick(now, i18n));
-                    workbench.carry_out_agents(effects.unwrap_or_default(), cx);
-                }),
+                AgentEffect::WakeAt { at_ms } => self.agents_wake_at(at_ms, cx),
                 AgentEffect::Finished { ticket, outcome } => self.agent_request_finished(ticket, outcome, cx),
             }
         }
@@ -918,6 +929,7 @@ impl Workbench {
     /// Asks once to delete the tasks of a batch, with the checkbox that removes their worktree folders.
     fn confirm_batch(&mut self, ticket: Ticket, request: ConfirmChecked, cx: &mut Context<Self>) {
         self.in_agents_window(cx, move |workbench, window, cx| {
+            let checked = request.checked;
             let ask = AskRequest {
                 title: request.title,
                 body: request.message,
@@ -929,7 +941,11 @@ impl Workbench {
                     AskButton { id: CANCEL, label: "Cancel", primary: false },
                 ],
             };
-            let answer = workbench.show_prompt_dialog(move |window, cx| PromptDialog::ask(ask, window, cx), window, cx);
+            let answer = workbench.show_prompt_dialog(
+                move |window, cx| PromptDialog::ask(ask, window, cx).with_checked(checked),
+                window,
+                cx,
+            );
             cx.spawn(async move |this, cx| {
                 let checked = answer.await.ok().filter(DialogAnswer::confirmed).map(|answer| answer.checked);
                 let _ = this.update(cx, |workbench, cx| {

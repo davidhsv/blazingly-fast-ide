@@ -1008,6 +1008,8 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    mod proofs11_grid;
+
     type Events = Rc<RefCell<Vec<GridEvent>>>;
 
     fn column(name: &str, type_name: &str) -> GridColumn {

@@ -4137,6 +4137,8 @@ mod tests {
     #[cfg(debug_assertions)]
     mod inspect_script;
     mod project_threads;
+    mod proofs11_agents;
+    mod proofs11_vcs_windows;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

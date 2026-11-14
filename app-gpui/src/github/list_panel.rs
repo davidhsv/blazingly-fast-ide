@@ -1615,6 +1615,8 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    mod proofs11_list;
+
     type Events = Rc<RefCell<Vec<ListPanelEvent>>>;
 
     fn connection() -> GhConnection {

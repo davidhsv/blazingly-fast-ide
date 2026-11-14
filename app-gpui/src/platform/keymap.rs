@@ -76,6 +76,11 @@ pub fn host_binding(binding: &str, mac: bool) -> String {
     if mac { binding.to_owned() } else { binding.replace("Meta+", "Ctrl+") }
 }
 
+/// Whether `modifiers` hold the primary modifier: ⌘ on macOS, Ctrl elsewhere (the Windows key is not it).
+pub fn has_primary_modifier(modifiers: &gpui_kit::Modifiers, mac: bool) -> bool {
+    if mac { modifiers.platform } else { modifiers.control }
+}
+
 /// A canonical stroke in macOS spelling, so tables keyed `Meta+C` also match Ctrl+C on Windows/Linux.
 pub fn mac_stroke(stroke: &str, mac: bool) -> String {
     if mac { stroke.to_owned() } else { normalize_binding(&stroke.replace("Ctrl+", "Meta+")) }
@@ -486,6 +491,7 @@ fn dedup(items: impl Iterator<Item = String>) -> Vec<String> {
 mod tests {
     use super::*;
     use serde_json::json;
+    mod proofs11_host_modifier;
     mod proofs7_vscode_preset;
     mod proofs_presets;
 

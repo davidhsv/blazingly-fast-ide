@@ -566,6 +566,7 @@ mod tests {
     use serde_json::json;
     use std::cell::RefCell;
     use std::sync::Mutex;
+    mod proofs11_import;
     mod proofs7_project_menu;
     mod proofs7_tree_options;
 

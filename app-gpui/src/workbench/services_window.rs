@@ -71,6 +71,19 @@ impl ServicesWindow {
     pub(super) fn detail(&self) -> Option<&Entity<ServiceDetailPane>> {
         self.detail.as_ref()
     }
+
+    /// What the window's tree is drawn from.
+    pub(super) fn state(&self) -> &Entity<ServicesState> {
+        &self.state
+    }
+}
+
+#[cfg(test)]
+impl ServicesState {
+    /// The Docker store, for a test that answers its reads itself instead of the window.
+    pub(super) fn docker_mut(&mut self) -> &mut DockerStore {
+        &mut self.docker
+    }
 }
 
 /// Builds the run-configuration provider's [`Services`] over the store and the state as they are.

@@ -36,7 +36,7 @@ use crate::editor::buffer::{byte_of_col, col_of_byte};
 use crate::editor::view::{HighlightSpan, code_font_of, syntax_token};
 use crate::find::utf16;
 use crate::platform::i18n::Localization;
-use crate::platform::{input, settings};
+use crate::platform::{input, keymap, settings};
 use crate::theme;
 use crate::vcs_more::viewer_look::{ViewerFont, ViewerLook, viewer_caret, viewer_font};
 use gpui_kit::{
@@ -1198,7 +1198,7 @@ impl DiffView {
     /// Page Up / Down, Home and End scroll the focused pane.
     fn key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
         let modifiers = &keystroke.modifiers;
-        let primary = if cfg!(target_os = "macos") { modifiers.platform } else { modifiers.control };
+        let primary = keymap::has_primary_modifier(modifiers, keymap::is_mac_host());
         let plain = !modifiers.control && !modifiers.platform && !modifiers.alt;
         let pane = self.focused_pane();
         let line_height = self.line_height(cx);
