@@ -1,0 +1,51 @@
+wait	3000
+open	/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/insp4/project/src/main.rs
+wait	1500
+rclick	614	307
+wait	1200
+mark	editor-context-menu
+wait	2200
+keys	escape
+wait	500
+rclick	334	58
+wait	1200
+mark	tab-context-menu
+wait	2200
+keys	escape
+wait	500
+click	130	19
+wait	1200
+mark	project-widget
+wait	2200
+keys	escape
+wait	500
+click	222	19
+wait	1200
+mark	branch-popup
+wait	2200
+keys	escape
+wait	500
+click	1120	19
+wait	1200
+mark	run-chooser
+wait	2200
+keys	escape
+wait	500
+click	1279	19
+wait	1200
+mark	run-more-menu
+wait	2200
+keys	escape
+wait	500
+click	1477	19
+wait	1200
+mark	gear-menu
+wait	2200
+keys	escape
+wait	500
+click	236	58
+wait	1200
+mark	project-view-options
+wait	2200
+keys	escape
+wait	500

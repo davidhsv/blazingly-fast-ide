@@ -353,3 +353,29 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - Webview: 1,253 aria-label, 559 role=, 13 live regions.
 - CARGO SLICES (each S/M, edits to compiled ui/ files, so integrator work, not drafts): 1 text inputs (ui/text_field.rs 78 uses, text_area, secret_field: id + role + label/value/placeholder), 2 ui/popup_menu.rs, 3 a button trait over the 67 local button helpers (label from WithTooltip text), 4 trees and lists, 5 dialogs, tabs, live regions, 6 a debug-only dump of `window.debug_a11y_tree_json()` as an inspect step. Proof in tests: gpui test `find(id)` gives role/label/value. RISK: duplicate element ids panic in debug builds once a client connects ("Duplicate a11y node id") → every slice needs a real-window run with the dump step.
 - Hypothesis (unmeasured): the "no accessibility node" log comes from text_field having a focus handle but no id.
+
+## Draft Annotate DONE (2026-11-14, NOT committed yet: commit after the running integrator ends, a draft's syntax error would make the commit hook restore the working tree under it)
+
+- Files: app-gpui/src/editor/view/annotations.rs (452 lines, child of editor::view), app-gpui/src/workbench/annotate.rs (638 lines, 7 e2e), notes integration/annotate_integration.md, report reports/draft_annotate.md.
+- Registers `vcs.annotate` only (IPC vcs_blame). Hunks in editor/view.rs (gutter column, mouse, hover area, prepaint/paint: breakpoint dot moves right), workbench/mod.rs (5), branches.rs (1), context_menus.rs (annotations_shown is hard-coded false today; an existing test's GIT list gains "Annotate with Git Blame").
+- NOT built: Annotate in the diff and merge viewers (they paint their own text; merge.annotate stays), inline blame of the caret line, tag menu (vcs_delete_tag/restore_tag: a tag row does nothing natively), Stashes list in the Commit window (vcs_stash_drop), vcs_stage_hunks (the writer says the view exists: diff toolbar needs a DiffCommand variant + can_stage + a workbench handler → give to an integrator directly), RevisionBrowser / PathFilterDialog / SelectionHistory (vcs_revision_files, vcs_revision_children, vcs_block_history).
+- Hypotheses to check first at integration: two EventEmitter impls on Editor resolve by closure annotation; publish_context runs on tab change; the hover child does not swallow the editor's mouse events. Likely first failures: click-on-entry test, tooltip test, amend test.
+
+## Draft Project view options + zoom DONE (2026-11-14, NOT committed yet, same reason as Annotate)
+
+- Files: app-gpui/src/project_view/{tree_clicks,pane}.rs, app-gpui/src/theme/zoom.rs, app-gpui/src/workbench/{project_view_options,zoom_actions}.rs (11 e2e), notes integration/project_view_options_integration.md, report reports/draft_project_view_options.md.
+- Registers 18 actions: project.option.{previewTab,singleClickOpen,singleClickExpand,autoscrollFromSource,autoscrollToSource}, project.viewMode.{project,projectFiles,openFiles,changedFiles}, project.{findUsages,reformatCode,optimizeImports,reloadFromDisk}, view.{zoomIn,zoomOut,resetZoom,quickSwitchScheme}. (The writer's own count in its report is muddled; this list is from its table.)
+- NOT registered: project.option.showMembers (tree loads no outlines), project.renameInline (no inline editor in the tree), project.viewMode.scratches (no scratches root), project.viewMode.unity (unbuilt wiring: ProjectTree is never given the Unity info).
+- Gaps it names: no "Project ▾" pane switcher in the header, no Locate button, Quick Switch has no hover preview, ZOOM SCALES ONLY THEME TOKENS (literal pixel sizes in views do not scale; GPUI has no window-wide scale → rows stay partial unless every literal is routed through the theme; check in the real window), preview/no-focus open always uses a text tab.
+- Its notes say "run cargo fmt after pasting": the integrator must NOT (rustfmt on the edited files only).
+- Likely first failures: reformat/optimize imports (fake server for an unopened file), panes test (git status reaching the tree + reopen), single-click expand after reopen, zoom row height.
+- CARGO QUEUE now: [running] fonts + visual defects → edit targets/popups/shelf time → annotate → project view options + zoom → database extras → build tools (seam first) → accessibility slices 1, 2, 6 → vcs_stage_hunks.
+
+## State after the fonts/shadows slice (2026-11-14, code 37784b0a, drafts 551aab2b + 3a24be63)
+
+- Suite 6,892 (integrator ×5, mine ×3). Fonts bundled (static, from IntelliJ's runtime), shadows from tokens, status colours in tree and tabs, inspect click/rclick/hover steps. D100 written.
+- FOURTH INSPECTION DONE: notes/inspections/2026-11-14-d/. COORDINATES: click steps take window POINTS; shots are 1500 px for 1536 pt → multiply a shot pixel by 1.024.
+- NEXT INTEGRATOR: $S/int_d101_brief.md = Part A (tooltip over popup, Settings row grid, Find Action empty, diff syntax colours, Database filter, terminal inset + font, toolwindow.focusEditor, UI font setting never applied, commit button metrics, single-file hints), Part B edit targets/popups/shelf time.
+- RUNNING (no cargo): run + debug actions draft (drafts/run_debug_actions_integration.md).
+- CARGO QUEUE after d101: annotate → project view options + zoom → database extras (+ proofs6_database_console.rs) → build tools (seam first) → accessibility slices 1, 2, 6 → vcs_stage_hunks → run/debug actions.
+- NOT DRAFTED YET (candidates for writers): GitHub part 2 (17 actions: createPullRequest, review mode, diff comments, timeline, submitReview…), window.* tab actions (10), workspace.* (4), refactor (12), db (17, partly in database extras), docker (13, needs a snapshot seam), http/graphql (13), maven/gradle (20, with build tools), dotnet (13), deployment (11).
