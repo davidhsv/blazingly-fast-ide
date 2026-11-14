@@ -319,3 +319,11 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 
 - The window opens, is legible, 128–154 MB RSS idle. DEFECTS for the next integrator's Part 0 (before features): (1) bundle the webview's fonts (Inter Variable, JetBrains Mono Variable from node_modules/@fontsource-variable/_/files/_.woff2 → GPUI needs ttf/otf: check what formats `add_fonts` takes; the fontsource packages ship woff2 only — find the upstream ttf in the repo or the Tauri bundle; license OFL; do NOT download) and use them as --font-ui / --font-mono; (2) title-bar project avatar uses the accent colour, not the project's colour; (3) trust dialog path ellipsis gap; (4) .openidea listed in the tree on first open: compare with the webview; (5) empty editor area / status bar with nothing open: compare; (6) status item hover look.
 - INSPECTION HOOK (debug builds only): env var naming a script of steps (run action id + args, open file, wait ms, write marker) so the next inspections cover editor-in-project, Git/Commit, Settings, terminal, menus, dialogs. Also for the measurement scenarios.
+
+## State after the diff tools slice (2026-11-14, 37c53373)
+
+- Suite 6,858, stable. D98 written; 15 rows recorded → inventory 1,146/3,145.
+- RUNNING (cargo): inspection hook + visual fixes (fonts, avatar, trust path, .openidea, empty state, status hover) + proofs10 plugin API tests.
+- WHEN IT REPORTS: verify, commit, then SECOND INSPECTION with the hook (script in $S/insp/USAGE.md): editor in a project, Project view, Git, Commit, Terminal, Settings ×3, Find in Files, Search Everywhere, a context menu, Run popup, Welcome → look, record under notes/inspections/<date>-2/, defects to the next integrator first.
+- FONTS: only .woff2 subsets exist locally (no ttf/otf, no fontTools/brotli); if GPUI/CoreText does not accept them, bundling needs the upstream TTFs (OFL) = a download → needs the owner's OK. Ask in the status message; do not download.
+- CARGO QUEUE after it: edit targets/popups/shelf time → database extras (+ proofs6_database_console.rs) → build tools (seam first).

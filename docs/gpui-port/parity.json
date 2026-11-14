@@ -3876,8 +3876,8 @@
     "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; the deleted file is back on disk with its text after Undo in the Project view, which only ide_host::ops::history::history_restore of its Local History snapshot writes; the window calls it with its label, the path and the snapshot id, as the adapter does"
   },
   "ipc:history_content": {
-    "status": "partial",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`; called for a Local History side of a diff, which no test opens"
+    "status": "done",
+    "proof": "`workbench::diff_tools::tests::show_history_diffs_a_saved_revision_and_revert_writes_it_back_once_confirmed`"
   },
   "ipc:vcs_diff_numstat": {
     "status": "done",
@@ -7078,5 +7078,61 @@
   "ipc:plugin_assets": {
     "status": "done",
     "proof": "`workbench::plugin_tool_windows::tests::proofs9_view_icon`"
+  },
+  "action:diff.compareFiles": {
+    "status": "done",
+    "proof": "`workbench::diff_tools::tests::compare_files_shows_both_files_and_accept_left_side_writes_the_change_into_the_right_one`"
+  },
+  "action:diff.applyLeftSide": {
+    "status": "partial",
+    "proof": "`workbench::diff_tools::tests::compare_files_shows_both_files_and_accept_left_side_writes_the_change_into_the_right_one`; only in a comparison opened by the compare actions, not in Show Diff"
+  },
+  "action:diff.applyRightSide": {
+    "status": "partial",
+    "proof": "`workbench::diff_tools::tests::compare_files_shows_both_files_and_accept_left_side_writes_the_change_into_the_right_one`; only in a comparison opened by the compare actions, not in Show Diff"
+  },
+  "action:diff.compareWith": {
+    "status": "partial",
+    "proof": "`workbench::diff_tools::tests::compare_with_asks_for_the_other_file_and_shows_both`; files only: comparing folders is not built, and the row is hidden on a folder"
+  },
+  "action:diff.compareWithClipboard": {
+    "status": "done",
+    "proof": "`workbench::diff_tools::tests::compare_with_clipboard_compares_the_file_or_the_selection_and_compare_texts_its_argument`"
+  },
+  "action:diff.compareTexts": {
+    "status": "done",
+    "proof": "`workbench::diff_tools::tests::compare_with_clipboard_compares_the_file_or_the_selection_and_compare_texts_its_argument`"
+  },
+  "action:vcs.localHistory": {
+    "status": "done",
+    "proof": "`workbench::diff_tools::tests::show_history_diffs_a_saved_revision_and_revert_writes_it_back_once_confirmed`"
+  },
+  "action:localHistory.putLabel": {
+    "status": "done",
+    "proof": "`workbench::diff_tools::tests::put_label_names_the_projects_state_and_shows_in_the_histories_and_recent_changes`"
+  },
+  "action:project.showHistory": {
+    "status": "done",
+    "proof": "`workbench::diff_tools::tests::put_label_names_the_projects_state_and_shows_in_the_histories_and_recent_changes`"
+  },
+  "action:localHistory.recentChanges": {
+    "status": "partial",
+    "proof": "`workbench::diff_tools::tests::put_label_names_the_projects_state_and_shows_in_the_histories_and_recent_changes`, `workbench::diff_tools::tests::the_recent_changes_key_runs_only_with_a_project_open`; the list has no time column"
+  },
+  "action:vcs.showHistory": {
+    "status": "partial",
+    "proof": "`workbench::diff_tools::tests::show_history_for_file_filters_the_git_log_to_the_file`; filters the main Git log instead of opening a tab of its own"
+  },
+  "action:vcs.compareWithBranch": {
+    "status": "partial",
+    "proof": "`workbench::diff_tools::tests::compare_with_branch_diffs_the_file_against_the_branch_chosen`; a single file only: folders and several paths are not compared"
+  },
+  "ipc:history_put_label": {
+    "status": "done",
+    "proof": "`workbench::diff_tools::tests::put_label_names_the_projects_state_and_shows_in_the_histories_and_recent_changes`"
+  },
+  "ipc:vcs_compare_scope": {
+    "status": "done",
+    "proof": "`workbench::diff_tools::tests::compare_with_branch_diffs_the_file_against_the_branch_chosen`"
   }
 }
