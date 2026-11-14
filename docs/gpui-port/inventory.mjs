@@ -144,7 +144,7 @@ function area(file) {
 // until then it proves a model that nothing calls.
 const gpuiSrc = join(root, "app-gpui/src");
 const withoutTests = (file) => {
-  if (file.endsWith("/tests.rs") || file.includes("/tests/")) return "";
+  if (file.endsWith("/tests.rs") || file.includes("/tests/") || testOnly.has(file)) return "";
   const text = readFileSync(file, "utf8");
   const at = text.indexOf("#[cfg(test)]");
   return at < 0 ? text : text.slice(0, at);
@@ -152,14 +152,16 @@ const withoutTests = (file) => {
 // Only files the crate declares are part of it: a file on disk that no `mod` line names is not
 // compiled, so it can neither be the application nor make anything reached.
 const declared = new Set();
-const declare = (file, childDir) => {
+// Files declared under `#[cfg(test)]`, or inside a module that is: test code wherever they sit.
+const testOnly = new Set();
+const declare = (file, childDir, test = false) => {
   if (declared.has(file) || !existsSync(file)) return;
   declared.add(file);
+  if (test) testOnly.add(file);
   const text = readFileSync(file, "utf8");
-  for (const m of text.matchAll(/^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([a-z_][a-z0-9_]*)\s*;/gm)) {
-    const flat = join(childDir, `${m[1]}.rs`);
-    if (existsSync(flat)) declare(flat, join(childDir, m[1]));
-    else declare(join(childDir, m[1], "mod.rs"), join(childDir, m[1]));
+  for (const m of text.matchAll(/^\s*(#\[cfg\(test\)\]\s*)?(?:pub(?:\([^)]*\))?\s+)?mod\s+([a-z_][a-z0-9_]*)\s*;/gm)) {
+    const [inner, flat] = [join(childDir, m[2]), join(childDir, `${m[2]}.rs`)];
+    declare(existsSync(flat) ? flat : join(inner, "mod.rs"), inner, test || Boolean(m[1]));
   }
 };
 declare(join(gpuiSrc, "lib.rs"), gpuiSrc);
@@ -170,12 +172,15 @@ const rustFiles = (dir) =>
     return statSync(path).isDirectory() ? rustFiles(path) : declared.has(path) ? [path] : [];
   });
 const unitCode = new Map();
+const unitFiles = new Map();
 for (const name of readdirSync(gpuiSrc)) {
   const path = join(gpuiSrc, name);
   const top = name.replace(/\.rs$/, "");
   const add = (unit, files) => {
-    const code = files.filter((f) => declared.has(f)).map(withoutTests);
+    const own = files.filter((f) => declared.has(f));
+    const code = own.map(withoutTests);
     if (code.length) unitCode.set(unit, (unitCode.get(unit) ?? "") + code.join("\n"));
+    if (own.length) unitFiles.set(unit, [...(unitFiles.get(unit) ?? []), ...own]);
   };
   if (!statSync(path).isDirectory()) add(top, [path]);
   else
@@ -186,11 +191,25 @@ for (const name of readdirSync(gpuiSrc)) {
       else if (child.endsWith(".rs")) add(`${top}::${child.replace(/\.rs$/, "")}`, [inner]);
     }
 }
-const reached = new Set([...unitCode.keys()].filter((u) => ["main", "lib", "workbench"].includes(u.split("::")[0])));
+// The seeds are the three modules themselves: a child of the workbench is reached like any other
+// unit, by being named, or by implementing a type its reached parent defines (`impl Workbench` in
+// a file of its own extends a reached type without naming the file).
+const reached = new Set([...unitCode.keys()].filter((u) => ["main", "lib", "workbench"].includes(u)));
+const typesOf = new Map();
+const types = (unit) => {
+  if (!typesOf.has(unit))
+    typesOf.set(
+      unit,
+      [...(unitCode.get(unit) ?? "").matchAll(/\b(?:struct|enum)\s+([A-Z]\w*)/g)].map((m) => m[1]),
+    );
+  return typesOf.get(unit);
+};
 const names = (unit, from) => {
   const [top, child] = unit.split("::");
   const code = unitCode.get(from);
   if (!child) return from.split("::")[0] !== top && new RegExp(`\\b${top}::`).test(code);
+  const extend = (t) => new RegExp(`\\bimpl(?:<[^>]*>)?\\s+(?:[\\w:]+\\s+for\\s+)?${t}\\b`).test(unitCode.get(unit));
+  if (from === top && types(top).some(extend)) return true;
   if (new RegExp(`\\b${top}::${child}\\b|\\b${top}::\\{[^}]*\\b${child}\\b`).test(code)) return true;
   return (
     from.split("::")[0] === top &&
@@ -209,13 +228,26 @@ const unitOf = (test) => {
   const [top, child] = test.split("::");
   return unitCode.has(`${top}::${child}`) ? `${top}::${child}` : top;
 };
+// A unit with no code outside tests (a `#[cfg(test)]` case module, a file of window tests) proves
+// the units it names: `crate::` paths, and its parent when it reaches it through `super::`.
+const subjectsOf = (test) => {
+  const unit = unitOf(test);
+  if ((unitCode.get(unit) ?? "").trim()) return [unit];
+  const text = (unitFiles.get(unit) ?? []).map((f) => readFileSync(f, "utf8")).join("\n");
+  const named = [...text.matchAll(/\bcrate::([a-z_]\w*(?:::[a-z_]\w*)?)/g)]
+    .map((m) => unitOf(`${m[1]}::_`))
+    .filter((u) => unitCode.has(u));
+  if (/\bsuper::/.test(text)) named.push(unit.split("::")[0]);
+  return named.length ? named : [unit];
+};
 const citedTests = (proof) => [...(proof ?? "").matchAll(/`([a-z_]\w*(?:::\w+)+)`/g)].map((m) => m[1]);
 
 const status = (key) => {
   const p = parity[key];
   if (!p) return { mark: "[ ]", proof: "" };
   const cited = citedTests(p.proof);
-  const modelOnly = p.status === "done" && cited.length > 0 && cited.every((t) => !reached.has(unitOf(t)));
+  const modelOnly =
+    p.status === "done" && cited.length > 0 && cited.every((t) => !subjectsOf(t).some((u) => reached.has(u)));
   const mark = modelOnly ? "[m]" : p.status === "done" ? "[x]" : p.status === "partial" ? "[~]" : "[ ]";
   return { mark, proof: p.proof ?? "" };
 };

@@ -85,7 +85,7 @@
   },
   "module:src/platform/actions.ts": {
     "status": "partial",
-    "proof": "`platform::actions::tests`, `platform::input::tests`; handlers exist for no feature action yet"
+    "proof": "`platform::actions::tests`, `platform::input::tests`, `workbench::tests::smoke_registered_actions::every_action_registered_in_a_project_window_is_known_to_the_manifest`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`; the registry runs every feature action of a project window, enablement follows `when`, `keyWhen` and projectOpening, and an action-performed listener hears a menu run with its source. Missing: no test makes a handler fail and reads its error from execute_action_or_throw while execute_action only logs it, and none checks that an action run from inside another action is not reported to listeners"
   },
   "design:icons": {
     "status": "done",
@@ -93,15 +93,15 @@
   },
   "unit:src/editor/core/sync/DocSync.test.ts": {
     "status": "partial",
-    "proof": "`editor::view::tests::typing_survives_a_backend_edit_that_has_not_arrived_yet`, `editor::view::tests::the_backends_own_edits_move_the_caret`; the edit pipeline is synchronous in process, so the queueing cases have no counterpart yet"
+    "proof": "`editor::view::tests::typing_survives_a_backend_edit_that_has_not_arrived_yet`, `editor::view::tests::the_backends_own_edits_move_the_caret`; 2 of 15 cases in substance (remote patches applied while idle, local edits kept over a late remote patch); the remaining cases test the webview's asynchronous DocSync queue (coalescing per frame, acks, overtaking patches, outOfSync and snapshot resyncs and the region diff they use), which has no native counterpart: the GPUI editor edits the backend document in process"
   },
   "module:src/editor/core/sync": {
     "status": "partial",
-    "proof": "`editor::view::tests`"
+    "proof": "`editor::view::tests::typing_survives_a_backend_edit_that_has_not_arrived_yet`, `editor::view::tests::the_backends_own_edits_move_the_caret`; the editor and the backend document stay in step: remote edits are applied and move the caret, and local typing survives a backend edit not yet applied. The webview's DocSync queue (one edit per frame, acks, rebasing over overtaking patches, outOfSync and snapshot resyncs) has no native counterpart: the GPUI editor edits the backend document in process"
   },
   "module:src/workbench/Workbench.tsx": {
     "status": "partial",
-    "proof": "`workbench::tests`; the frame with tool windows, status bar, popups and the Welcome view; the title bar has the title only (see its row)"
+    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`, `workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::title_bar::tests::the_main_toolbar_switch_and_distraction_free_make_the_compact_header`, `workbench::title_bar::tests::a_light_edit_bar_has_its_title_and_the_gear_and_the_welcome_bar_its_title_only`, `workbench::status_bar::tests::a_light_edit_window_shows_only_the_items_registered_for_it`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; the frame with title bar, tool windows, banners and status bar, the toolbar and status bar switches, Distraction Free, the LightEdit frame and the Welcome view. Missing: the opening screen is one line (Opening path…) without the brand, progress bar and project name, and has no test; the window carries no project-colour gradient; there is no window-group tab strip"
   },
   "action:file.save": {
     "status": "done",
@@ -164,12 +164,12 @@
     "proof": "`editor::view::editing_tests`, `editor::view::tests`, `editor::buffer::tests`, `editor::core_actions::tests`, `workbench::plugin_contributions::tests::a_fold_above_moves_every_line_below_it_to_its_row`; caret movement, selection, multiple carets, column selection, undo, clipboard, find, highlighting and folding on the backend's fold ranges, every line painted on its row below a fold; no fold chevrons on open regions or clicks on them, no fold-by-default on open, no bracket or indentation rules"
   },
   "module:src/workbench/StatusBar.tsx": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`; three editor items only"
+    "status": "done",
+    "proof": "`workbench::status_bar::tests`, `workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::tests::proofs5_layout::background_tasks_opens_the_popup_and_running_it_again_keeps_it_open`, `workbench::background_tasks_view::tests`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::status_items::tests::the_status_message_is_shown_while_there_is_one`; items ordered by priority on each side, light-edit items only, hidden widgets and the context menu that toggles them, the status message, the task item naming the working task with the count of the others, and the Background Tasks popup with its working, Cancelling… and disabled Cancel buttons"
   },
   "module:src/workbench/TitleBar.tsx": {
     "status": "partial",
-    "proof": "`workbench::tests::titles_name_the_project_then_the_file`; the title only: no project, branch or run widgets, no main menu"
+    "proof": "`workbench::title_bar::tests`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::main_toolbar::tests`; the bar draws the project widget (initials, name, root tooltip, Open…/Close Project menu), the branch widget or Version Control fallback, the gear menu, the context menu and Customize Main Toolbar dialog, the compact, light-edit and bare headers and the main menu button where there is no native menu bar. Missing: the project avatar is drawn on the accent, not on the project's colours, and no test reads the plugins' mainToolbar slot buttons the bar draws"
   },
   "context:projectOpen": {
     "status": "done",
@@ -220,12 +220,12 @@
     "proof": "`platform::command_line::tests`"
   },
   "unit:src/platform/cssColor.test.ts": {
-    "status": "partial",
-    "proof": "`platform::css_color::tests`; the computed-style probe of the second case needs a DOM and has no counterpart"
+    "status": "done",
+    "proof": "`platform::css_color::tests::parses_hex_rgb_and_color_srgb_and_formats_them_back`, `platform::css_color::tests::resolves_tokens_written_as_hsl`; both cases: hex, rgb() and color(srgb) parse and format back, and tokens written as hex or hsl() resolve to the same colours, through the token engine where the webview probes the browser (the probe element it checks is removed is the DOM's, with no native counterpart)"
   },
   "module:src/platform/cssColor.ts": {
     "status": "partial",
-    "proof": "`platform::css_color::tests`; `rgb()` parsing is the token engine's, which is stricter about separators and clamps channels"
+    "proof": "`platform::css_color::tests`; hex, rgb() and color(srgb) parse and format back as in the webview, and tokens resolve through the theme's token engine (used by the terminal palette and GitHub labels). The remaining difference is rgb() input the token engine parses more strictly (separators) and clamps (channels), where the webview's own parser keeps it as written; there is no browser computed style to fall back on"
   },
   "unit:src/platform/projectRoots.test.ts": {
     "status": "done",
@@ -257,7 +257,7 @@
   },
   "module:src/workbench/toolwindows/content.ts": {
     "status": "partial",
-    "proof": "`workbench::tool_windows::tests`; the model only: no window uses it yet"
+    "proof": "`workbench::tool_windows::tests::closes_the_selected_tab_of_the_first_strip_that_can_else_reports_false`; the model only: ContentTabs has no caller and toolwindow.closeContent (Close Tool Window Tab) has no handler, so no tool window's content tab closes through it"
   },
   "unit:src/ui/menuAim.test.ts": {
     "status": "done",
@@ -285,7 +285,7 @@
   },
   "module:src/ui/match.ts": {
     "status": "partial",
-    "proof": "`ui::matching::tests`; case folding is per character, which differs from JavaScript's whole-string lowercasing for a few letters (İ, final Σ)"
+    "proof": "`ui::matching::tests`; prefix, substring, camel-hump and speed-search matching with the webview's offsets and order. The remaining difference is case folding per character, where JavaScript lowercases the whole string (İ, final Σ): no native counterpart of whole-string folding is used"
   },
   "unit:src/platform/search.test.ts": {
     "status": "partial",
@@ -364,8 +364,8 @@
     "proof": "`editor::tabs::tests`, `editor::nav_history::tests`, `workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; one pane of tabs in the window: no splits, pinned or preview tabs drawn, no saved session, and camel humps are not ported"
   },
   "action:editor.closeTab": {
-    "status": "partial",
-    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`, `workbench::tests::a_tab_that_cannot_be_saved_reopens_with_its_text`; an unsaved document is always saved on close: the `files.autoSave` setting is not read (see D23)"
+    "status": "done",
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`, `workbench::tests::a_tab_that_cannot_be_saved_reopens_with_its_text`, `workbench::tests::without_autosave_closing_an_unsaved_tab_asks`; run through the registry it closes the active tab; with files.autoSave on an unsaved document is saved and a failed save brings the tab back with its text; with autosave off it asks Save All / Don't Save / Cancel where the webview discards the edits (D23)"
   },
   "action:editor.nextTab": {
     "status": "done",
@@ -397,7 +397,7 @@
   },
   "module:src/editor/core/view": {
     "status": "partial",
-    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`, `workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::a_tabs_menu_closes_pins_and_splits`, `workbench::context_menus::tests::the_tab_menu_acts_on_the_tab_it_was_opened_on`, `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`; a tab strip with its context menu (close, pin, split, bookmark, Git, Copy Path/Reference…, Rename File…, acting on the tab it was opened on) and the plugins' editor.title buttons, and three status items: no find bar, breadcrumbs, banners or go-to-line; the tab menu's Open in New Window is not built"
+    "proof": "`workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`, `workbench::tests::a_tabs_menu_closes_pins_and_splits`, `workbench::context_menus::tests::the_tab_menu_acts_on_the_tab_it_was_opened_on`, `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`, `workbench::tests::a_single_file_window_opens_the_find_bar_over_its_editor`, `workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`, `workbench::status_items::tests`, `editor::paste_history_view::tests`, `vcs::conflict_banner::tests`; the tab strip and its menu, the plugins' editor.title buttons, the find bar, Go to Line, Paste from History, the editor status items and the merge-conflict banner. Missing: breadcrumbs (editor_model::nav_bar has no caller), the read-only, binary, too-large and library-source banners, and the tab menu's Open in New Window"
   },
   "unit:src/workbench/projectColor.test.ts": {
     "status": "done",
@@ -405,7 +405,7 @@
   },
   "module:src/workbench/projectColor.ts": {
     "status": "partial",
-    "proof": "`workbench::project_color::tests`; the model only: no window uses it yet"
+    "proof": "`workbench::project_color::tests`, `workbench::welcome::tests::shows_brand_version_and_project_rows_with_badges_home_relative_paths_and_branches`; slots, initials and theme colours as the webview computes them; the Welcome rows show the initials on a tile drawn with the project's colours and the title bar's project widget shows the initials. Missing: no test reads the tile's colours, the title bar avatar uses the accent instead of the project colours, and the window has no project-colour gradient"
   },
   "unit:src/workbench/mainToolbar.test.ts": {
     "status": "done",
@@ -445,7 +445,7 @@
   },
   "module:src/workbench/notificationStore.ts": {
     "status": "partial",
-    "proof": "`workbench::notifications::tests`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`; fed from backend notify events, nothing drawn"
+    "proof": "`workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::notification_balloons::tests`, `workbench::notifications_view::tests`, `workbench::notifications::tests`; backend notify events become balloons and Notifications entries, with timeouts per level, sticky fade into the tool window, keys that replace, read marks, Don't Show Again and the groups shown as no popup. Missing: project notifications are not dropped when the project closes: Notifications::clear_project_notifications has no caller (the webview calls it on every project change)"
   },
   "event:Task": {
     "status": "partial",
@@ -573,7 +573,7 @@
   },
   "module:src/workbench/theme.ts": {
     "status": "partial",
-    "proof": "`theme::themes::tests`; choosing and resolving a theme as a model: the window still starts in the default theme and does not follow the OS"
+    "proof": "`theme::appearance::tests`, `theme::themes::tests`, `plugins::tests::a_linked_plugins_theme_is_offered_and_applied`; the windows draw with the theme the settings name, follow the OS mode under Sync with OS, take a custom accent and drop it again, keep a theme that could not be saved for the session, and apply a plugin theme. Missing: a project's own appearance.* does not give its window its own theme, because the theme is per process (D25)"
   },
   "unit:src/platform/colorScheme.test.ts": {
     "status": "partial",
@@ -641,7 +641,7 @@
   },
   "unit:src/features/vcs/__tests__/chunkOptimizer.test.ts": {
     "status": "partial",
-    "proof": "`vcs::conflicts::tests`; 2 of 4 cases: the others need the diff and three-way merge that are not ported"
+    "proof": "`vcs::conflicts::tests::moves_a_block_that_starts_in_the_middle_of_a_copy_to_where_the_copy_starts`, `vcs::conflicts::tests::leaves_a_change_that_already_starts_and_ends_at_a_blank_line_alone`, `vcs_diff::comparison::chunk_optimizer::tests`; 2 of 4 cases: the diff (vcs_diff::comparison::by_line) and the three-way merge (vcs_more::merge_diff3) run the optimizer, but no test checks over random edits that it only rearranges the unchanged stretches, or that a merge places an added function between its neighbours rather than across their braces"
   },
   "feature:vcs": {
     "status": "partial",
@@ -761,7 +761,7 @@
   },
   "unit:src/features/terminal/paste.test.ts": {
     "status": "partial",
-    "proof": "`terminal::paste::tests`, `terminal::encode::tests`; 20 of 25 cases: the five about a target disposed or replaced while a paste is read are the view's, which pastes text only"
+    "proof": "`terminal::paste::tests`, `terminal::encode::tests`; 19 of 24 cases: the five about a target disposed or replaced while a paste is read are the view's, which pastes text only"
   },
   "unit:src/features/terminal/persist.test.ts": {
     "status": "done",
@@ -773,11 +773,11 @@
   },
   "unit:src/features/terminal/imeInput.test.ts": {
     "status": "partial",
-    "proof": "`terminal::ime_input::tests`; 2 of 20 cases: the rest assert which DOM events reach xterm's textarea, which has no counterpart here (the view takes composed text from the OS input handler)"
+    "proof": "`terminal::ime_input::tests`; 2 of 20 cases on the model; the remaining cases test which DOM events of the webview reach xterm's textarea, which has no native counterpart: the terminal view takes composed text from the OS input handler (EntityInputHandler of terminal::view), which no test drives. terminal::ime_input is called by nothing the application reaches"
   },
   "unit:src/features/terminal/embedded.test.ts": {
     "status": "partial",
-    "proof": "`terminal::embedded::tests`, `terminal::windows_pty::tests`; 3 of 4 cases: IME delivery through DOM events has no counterpart"
+    "proof": "`terminal::embedded::tests`, `terminal::windows_pty::tests`; 3 of 4 cases on the model; the remaining case tests IME delivery through the webview's DOM events, which has no native counterpart: input-method text reaches the terminal view through the OS input handler, which no test drives. terminal::embedded is called by nothing the application reaches"
   },
   "unit:src/features/terminal/embeddedFit.test.ts": {
     "status": "done",
@@ -877,7 +877,7 @@
   },
   "unit:src/features/vcs/__tests__/deleteBranches.test.ts": {
     "status": "partial",
-    "proof": "`vcs_ops::branch_ops::tests`, `vcs_ops::branch_menu::tests`, `vcs_ops::log_pane_actions::tests`; all 12 cases, but the three about where the focus goes assert only the plan the model returns: no view carries it out yet"
+    "proof": "`vcs_ops::branch_ops::tests`, `vcs_ops::branch_menu::tests`, `vcs_ops::log_pane_actions::tests`; all 11 cases, but those about where the focus goes assert only the plan the model returns: no view carries it out yet"
   },
   "unit:src/features/vcs/__tests__/gitOps.test.ts": {
     "status": "done",
@@ -993,7 +993,7 @@
   },
   "unit:src/features/vcs/__tests__/diffScroll.test.ts": {
     "status": "partial",
-    "proof": "`vcs_diff::diff_scroll::tests`; 11 of 12 cases: the one about keeping the merge view from padding its panes asserts a private method of the web editor"
+    "proof": "`vcs_diff::diff_scroll::tests`; 9 of 10 cases: the remaining case tests a private method of the webview's CodeMirror MergeView (that it can be kept from padding its panes), which has no native counterpart: the native diff and merge views align their panes with vcs_diff::diff_scroll themselves"
   },
   "unit:src/features/vcs/__tests__/diffStripe.test.ts": {
     "status": "done",
@@ -1093,7 +1093,7 @@
   },
   "ipc:menu_refresh": {
     "status": "done",
-    "proof": "`workbench::tests::proofs4_shell::open_recent_lists_a_project_once_opened_and_choosing_it_opens_it`, `workbench::menu::tests`; Open Recent is empty before anything is opened, lists the project once opened with its path as the argument, and choosing it opens the project; the refresh on every project open reads RecentProjects::list, the list the adapter installs"
+    "proof": "`workbench::tests::proofs4_shell::open_recent_lists_a_project_once_opened_and_choosing_it_opens_it`, `workbench::menu::tests`; the adapter's function, menu::install with the recent list, is the Tauri shell's own; the native equivalent is workbench::menu::refresh_recent, run on every project open: Open Recent is empty before anything is opened, lists the project once opened with its path as the argument, and choosing it opens the project"
   },
   "action:app.quit": {
     "status": "partial",
@@ -1141,11 +1141,11 @@
   },
   "ipc:window_new": {
     "status": "done",
-    "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`"
+    "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; the adapter's function, windows::create_window, is the Tauri shell's own; the native equivalent is the window.new action (workbench::windows::open_window with an empty target), and run through the registry it adds window project-2 to the open windows"
   },
   "ipc:window_cycle": {
     "status": "done",
-    "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`, `workbench::windows::tests`"
+    "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`, `workbench::windows::tests::cycling_wraps_around_and_needs_two_windows`; the adapter's function, windows::cycle, is the Tauri shell's own; the native equivalent is the window.next and window.previous actions (workbench::windows::cycle_target over the open windows' labels): Next activates main from the last window and Previous goes back to it"
   },
   "ipc:close_project": {
     "status": "done",
@@ -1517,7 +1517,7 @@
   },
   "unit:src/features/debugger/__tests__/editor.test.ts": {
     "status": "partial",
-    "proof": "`debugger::editor::breakpoint_gutter::tests`, `debugger::editor::execution::tests`, `debugger::state::tests`; the breakpoint click area in other gutters and the execution line surviving an inline rendering error are properties of the web editor's DOM and are not ported; a cached editor state refreshed on remounting was not found by name"
+    "proof": "`debugger::editor::breakpoint_gutter::tests`, `debugger::editor::execution::tests`, `debugger::state::tests::tracks_pause_continue_termination_and_publishes_context_keys`, `debugger::state::tests::ignores_sessions_this_window_did_not_start_but_adopts_children_of_its_own`; 12 of 14 cases, including the cached editor state refreshed when an editor is shown again (`debugger::editor::execution::tests::an_editor_shown_again_takes_the_execution_point_of_the_moment`); the remaining cases test the DOM of the webview (the click area of other gutters' empty space, the execution line surviving an inline rendering error), which has no native counterpart"
   },
   "unit:src/features/debugger/__tests__/exceptions.test.ts": {
     "status": "done",
@@ -1653,7 +1653,7 @@
   },
   "unit:src/platform/keymaps/ideaParity.test.ts": {
     "status": "partial",
-    "proof": "`platform::keymap::tests::lets_scoped_actions_win_shared_keys`; the order in which actions sharing a key are declared. The table of seventy bindings checked against IDEA's own is not repeated: the presets are the webview's files, evaluated, not a copy"
+    "proof": "`platform::keymap::tests::lets_scoped_actions_win_shared_keys`; 1 of 2 cases; the remaining case checks seventy bindings of the webview's preset files against IDEA's, data of the webview the GPUI app loads from those same files: it has no copy of its own to check"
   },
   "unit:src/platform/keymaps/newElement.test.ts": {
     "status": "partial",
@@ -1701,7 +1701,7 @@
   },
   "unit:src/platform/remote.test.ts": {
     "status": "partial",
-    "proof": "`platform_more::remote::tests`; the two cases about channels in call arguments test the Tauri bridge and have no native counterpart"
+    "proof": "`platform_more::remote::tests`; 4 of 6 cases: served-command routing and the three cases about when routing ends; the remaining cases test the Tauri bridge (channels replaced with ids in call arguments, no arguments encoded as an empty object) of the webview, which has no native counterpart: the GPUI app calls the host directly"
   },
   "unit:src/platform/remoteSettings.test.ts": {
     "status": "done",
@@ -1725,7 +1725,7 @@
   },
   "unit:src/workbench/focus.test.ts": {
     "status": "partial",
-    "proof": "`platform_more::focus::tests`; three cases about the DOM caret when focus moves test the browser or the DOM and have no native counterpart"
+    "proof": "`platform_more::focus::tests`; 3 of 6 cases on the model; the remaining cases test the DOM caret and selection of the webview when focus moves (to the next editor, to a menu, out of an editable or read-only preview), which has no native counterpart. The unit is called by nothing the application reaches"
   },
   "unit:src/workbench/toolwindows/occurrences.test.ts": {
     "status": "done",
@@ -1745,7 +1745,7 @@
   },
   "unit:src/ui/selectableText.test.ts": {
     "status": "partial",
-    "proof": "`platform_more::selectable_text::tests`; three cases (a CSS class name, text-node targets, the execCommand fallback) test the DOM and have no native counterpart"
+    "proof": "`platform_more::selectable_text::tests`; 7 of 10 cases on the model; the remaining cases test the DOM of the webview (a CSS class name, text-node targets, the execCommand fallback), which has no native counterpart. The unit is called by nothing the application reaches"
   },
   "unit:src/ui/pointerDrag.test.ts": {
     "status": "done",
@@ -1785,7 +1785,7 @@
   },
   "point.registerOverlay:search.bookmarks": {
     "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_popup::tests`; the Bookmarks popup and the mnemonic chooser. Not yet: the Bookmarks tool window, bookmark marks in the editor gutter, new and renamed lists"
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`, `everywhere::bookmarks_window::tests::new_list_from_the_toolbar_is_named_in_place`, `everywhere::bookmarks_window::tests::f2_renames_a_list_and_a_name_another_list_has_is_refused`; the overlay's Bookmarks popup, mnemonic chooser and description editor; new and renamed lists are named in place in the Bookmarks tool window instead of a dialog. Missing: the chooser opens in the popup slot, not at the caret's line, and the popup's preview is the file's plain text, not an editor on the document"
   },
   "unit:src/features/search/__tests__/bookmarkPopups.test.tsx": {
     "status": "done",
@@ -2737,7 +2737,7 @@
   },
   "unit:src/features/agents/sessionState.test.tsx": {
     "status": "partial",
-    "proof": "`agents::session_view::tests`, `agents::session::tests`, `agents::follow::tests`, `agents::cards::tests`, `workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`; 13 of 30 cases on the conversation view, the others only on the models"
+    "proof": "`agents::session_view::tests`, `agents::session::tests`, `agents::follow::tests`, `agents::cards::tests`, `workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`; 14 of 31 cases on the conversation view, the others only on the models"
   },
   "unit:src/features/agents/unread.test.tsx": {
     "status": "partial",
@@ -3965,7 +3965,7 @@
   },
   "ipc:lsp_resolve_completion": {
     "status": "partial",
-    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`; asked for documentation and late edits; the fake server answers a fixed item"
+    "proof": "`editor_lsp::completion_view::tests::f1_shows_the_selected_rows_documentation_once_resolved`; the lookup shows a row's documentation once a resolve answer is handed to it. Missing: no test has a server answer completionItem/resolve through the window: the import in `editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import` comes in the completion answer itself, not from resolve"
   },
   "ipc:lsp_goto": {
     "status": "done",
@@ -4088,8 +4088,8 @@
     "proof": "`workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `settings_view::keymap::tests`; presets, search by name and by shortcut, assigning and removing shortcuts with conflicts; action icons and page-swipe shortcuts are missing"
   },
   "action:settings.appearance": {
-    "status": "partial",
-    "proof": "`workbench::tests::settings_appearance_applies_the_chosen_theme`; the theme choice over the built-in themes; plugin themes, Sync with OS, accent, zoom and the other controls of the page are slots"
+    "status": "done",
+    "proof": "`workbench::tests::settings_appearance_applies_the_chosen_theme`; run through the registry it opens Settings on the Appearance page, where the theme chosen and applied is the one the settings name and the windows draw with; the page's own gaps are on its row (settings:appearance)"
   },
   "action:plugins.settings": {
     "status": "partial",
@@ -4104,8 +4104,8 @@
     "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `code_insight::usages_view::tests`; see find.usages"
   },
   "point.registerToolWindow:hierarchy": {
-    "status": "partial",
-    "proof": "`workbench::tests::type_hierarchy_without_a_server_says_no_language_server_is_available`, `code_insight::hierarchy_view::tests`; see navigate.typeHierarchy"
+    "status": "done",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::call_hierarchy_lists_the_callers_the_server_reports`, `editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`, `workbench::tests::type_hierarchy_without_a_server_says_no_language_server_is_available`, `code_insight::hierarchy_view::tests`; the Hierarchy window opens titled by mode and root (Callers of target, Subtypes of Base), lists what the server reports, expands lazily, opens a caller at its call site, switches direction, refreshes and autoscrolls from its toolbar, says how to show a hierarchy when empty and that no server is available"
   },
   "point.registerOverlay:code-insight.usagesPopup": {
     "status": "partial",
@@ -4553,7 +4553,7 @@
   },
   "settings:appearance": {
     "status": "partial",
-    "proof": "`settings_view::custom_controls::tests::appearance_accent_zoom_and_ui_options_apply`, `workbench::tests::settings_appearance_applies_the_chosen_theme`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; every row is drawn and the accent shows in the theme. Missing: Sync with OS and preferred themes for Theme, plugin icon themes, a colour picker"
+    "proof": "`settings_view::custom_controls::tests::appearance_accent_zoom_and_ui_options_apply`, `settings_view::pages::appearance::tests`, `workbench::tests::settings_appearance_applies_the_chosen_theme`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `theme::appearance::tests::follows_the_os_mode_until_a_theme_is_chosen`; every row is drawn, the theme, accent (swatch or hex), zoom and UI options apply, and with appearance.syncWithOs set the windows follow the OS mode. Missing on the page: the Sync with OS checkbox and the preferred light and dark themes, plugin themes in the Theme choice and plugin icon themes (the page is built with an empty icon-theme list), and a colour picker"
   },
   "settings:keymap": {
     "status": "partial",
@@ -5756,8 +5756,8 @@
     "proof": "`workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`; run through the registry with a plugin folder or its plugin.toml, it shows the install page with the high-risk permission first, installs nothing when cancelled and, accepted, lists the plugin and registers its commands as actions. Missing: without an argument the picker opens with no title and no test drives it, and a package file (unpacked first) is never installed by a test"
   },
   "action:plugins.reloadAll": {
-    "status": "done",
-    "proof": "`workbench::plugins_window::tests::reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed`; run through the registry, every listed plugin is reloaded on the window's host and the page lists the plugin whose manifest broke as Failed with its reason, a state only a reload produces (sync_links skips a folder already loaded); the Could not reload notification has no test"
+    "status": "partial",
+    "proof": "`workbench::plugins_window::tests::reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed`; run through the registry, every listed plugin is reloaded on the window's host and the page lists the plugin whose manifest broke as Failed with its reason, a state only a reload produces. Missing: no test makes a reload fail and reads the Could not reload notification it then shows"
   },
   "action:plugins.log.toggleArgument": {
     "status": "done",
@@ -5797,7 +5797,7 @@
   },
   "ipc:plugin_set_secret": {
     "status": "done",
-    "proof": "`workbench::plugins_window::tests::a_secret_typed_into_the_page_is_stored_through_the_host_and_never_shown_emitted_or_logged`; Enter in the secret field calls PluginHost::set_secret with the plugin, the name and the typed value, which reaches the secret store; the value is in no event, log line or listing. Removing a secret from the page has no test"
+    "proof": "`workbench::plugins_window::tests::a_secret_typed_into_the_page_is_stored_through_the_host_and_never_shown_emitted_or_logged`, `plugin_models::plugins_page::tests::stores_and_removes_a_declared_secret_without_showing_its_value`; Enter in the secret field calls PluginHost::set_secret with the plugin, the name and the typed value, which reaches the secret store and is in no event, log line or listing; removing a secret is the same command with no value, which the page emits"
   },
   "ipc:plugin_status_items": {
     "status": "partial",
