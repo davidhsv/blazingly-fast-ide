@@ -133,6 +133,12 @@ impl TerminalView {
     /// leaves a view that says why.
     pub fn new(window_label: &str, options: TerminalOptions, cx: &mut Context<Self>) -> Self {
         let host = cx.global::<Backend>().host.clone();
+        #[cfg(test)]
+        crate::terminal::test_support::assert_plain_shell(
+            host.project(window_label).is_ok_and(|project| project.is_trusted()),
+            options.shell.as_deref(),
+            &options.args,
+        );
         let (cols, rows) = (usize::from(options.cols), usize::from(options.rows));
         let (sender, mut chunks) = unbounded::<String>();
         let on_output: ide_host::ops::Emit<String> = Arc::new(move |chunk| {
@@ -792,10 +798,12 @@ mod tests {
             input::init(cx);
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
             crate::terminal::test_support::isolate_shells(home.path(), cx);
+            crate::terminal::test_support::trusted_folder("w1", folder.path(), cx);
         });
+        let shell = crate::terminal::test_support::plain_shell(home.path());
         let options = TerminalOptions {
             cwd: ide_core::IpcPath(folder.path().to_path_buf()),
-            shell: None,
+            shell: Some(shell.to_string_lossy().into_owned()),
             args: Vec::new(),
             env: BTreeMap::new(),
             cols: 80,

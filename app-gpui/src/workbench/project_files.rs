@@ -750,7 +750,7 @@ impl Workbench {
                         BackendCall::FsRename { from, to } => {
                             ide_host::ops::fs::rename(&host, from.into(), to.into()).await
                         }
-                        BackendCall::FsDelete(path) => ide_host::ops::fs::delete(&host, &label, path.into()).await,
+                        BackendCall::FsDelete(path) => crate::backend::delete_path(&host, &label, path.into()).await,
                         BackendCall::FsCopy { from, to } => {
                             ide_host::ops::fs::copy(&host, from.into(), to.into()).await
                         }

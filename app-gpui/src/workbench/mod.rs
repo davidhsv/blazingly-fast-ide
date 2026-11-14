@@ -25,6 +25,7 @@ mod editor_core;
 mod editor_find;
 mod editor_intelligence;
 mod editor_language;
+mod github;
 mod log_actions;
 mod log_window;
 pub mod main_toolbar;
@@ -49,6 +50,7 @@ pub use settings_window::apply_keymap_settings;
 mod shelf;
 mod structure_window;
 pub mod tab_views;
+use crate::github::window_view::PULL_REQUESTS_TOOL_WINDOW;
 use structure_window::STRUCTURE_TOOL_WINDOW;
 mod terminal_actions;
 mod todo_window;
@@ -314,6 +316,8 @@ pub struct Workbench {
     plugin_ui: plugins_window::PluginsSlot,
     /// The Git state of the project, with the branch widget of the title bar.
     vcs: Option<branches::VcsSlot>,
+    /// The Pull Requests tool window of the project: the GitHub connection and the opened pull requests.
+    github: Option<github::GithubSlot>,
     /// The commit draft of the project and the Commit tool window's message box.
     commit: Option<commit::CommitSlot>,
     /// The Git tool window's log and the details pane beside it.
@@ -434,7 +438,7 @@ pub const RUN_TOOL_WINDOW: &str = "run";
 pub use crate::services::model::SERVICES_TOOL_WINDOW;
 
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 18] = [
+const TOOL_WINDOWS: [&str; 19] = [
     PROJECT_TOOL_WINDOW,
     COMMIT_TOOL_WINDOW,
     TERMINAL_TOOL_WINDOW,
@@ -453,6 +457,7 @@ const TOOL_WINDOWS: [&str; 18] = [
     crate::agents::model::TOOL_WINDOW,
     DATABASE_TOOL_WINDOW,
     DEBUG_TOOL_WINDOW,
+    PULL_REQUESTS_TOOL_WINDOW,
 ];
 
 /// What the contributions manifest declares for tool window `id` (title, icon, side, order…).
@@ -500,6 +505,7 @@ pub fn register_actions(cx: &mut App) {
     windows::register_actions(cx);
     let registry = cx.default_global::<ActionRegistry>();
     services_window::register_actions(registry);
+    github::register_actions(registry);
     diff_window::register_actions(registry);
     run_configs::register_actions(registry);
     debug::register_actions(registry);
@@ -1033,6 +1039,7 @@ impl Workbench {
             light_find_bar: None,
             editor_core: Default::default(),
             services: None,
+            github: None,
             diff_window: None,
             run_widget: None,
             edit_configs: None,
@@ -1951,6 +1958,7 @@ impl Workbench {
         self.publish_run_context(window, cx);
         self.publish_debug_context(window, cx);
         self.publish_vcs_context(window, cx);
+        self.publish_github_context(window, cx);
         self.publish_agents_context(window, cx);
         self.publish_merge_context(window, cx);
         self.publish_app_context(window, cx);
@@ -2164,6 +2172,10 @@ impl Workbench {
                     Some(panel) => panel,
                     None => continue,
                 },
+                PULL_REQUESTS_TOOL_WINDOW => match self.mount_pull_requests(window, cx) {
+                    Some(panel) => panel,
+                    None => continue,
+                },
                 crate::agents::model::TOOL_WINDOW => match self.mount_agents_panel(window, cx) {
                     Some(panel) => panel,
                     None => continue,
@@ -2203,6 +2215,7 @@ impl Workbench {
             terminals.update(cx, |terminals, cx| terminals.open_tab(cx));
         }
         self.sync_services_window(cx);
+        self.sync_pull_requests_window(cx);
         self.sync_structure_window(cx);
         self.sync_todo_window(cx);
         self.sync_code_insight(cx);
@@ -2805,6 +2818,7 @@ impl Workbench {
         self.reset_code_insight(cx);
         self.drop_agents(cx);
         // The project's servers and runs stop in the background: this is the UI thread.
+        self.drop_github();
         cx.global::<Backend>().host.close_project_detached(&self.label);
         self.content = Content::Empty;
         self.light_find_bar = None;
@@ -2966,6 +2980,7 @@ impl Workbench {
         self.drop_git_log();
         self.reset_code_insight(cx);
         self.drop_agents(cx);
+        self.drop_github();
         self.files = Default::default();
         self.content = Content::Opening(root.clone());
         self.light_find_bar = None;
@@ -4800,6 +4815,7 @@ mod tests {
         let folder = tempfile::tempdir().expect("a temporary folder");
         let root = folder.path().canonicalize().expect("the folder exists");
         std::fs::write(root.join("notes.txt"), "notes\n").expect("the file is written");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the folder is trusted");
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
@@ -4898,6 +4914,7 @@ mod tests {
         let _home = start(cx);
         let folder = tempfile::tempdir().expect("a temporary folder");
         let root = folder.path().canonicalize().expect("the folder exists");
+        cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the folder is trusted");
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
@@ -5278,6 +5295,14 @@ mod tests {
     pub(super) fn search_project(
         cx: &mut TestAppContext,
     ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &mut VisualTestContext) {
+        search_project_with(cx, false)
+    }
+
+    /// [`search_project`], trusted first when `trusted` (its terminals then start the plain shell).
+    fn search_project_with(
+        cx: &mut TestAppContext,
+        trusted: bool,
+    ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &mut VisualTestContext) {
         let folder = tempfile::tempdir().expect("a temporary folder");
         let root = folder.path().canonicalize().expect("the folder exists");
         std::fs::create_dir(root.join("src")).expect("a folder");
@@ -5288,6 +5313,10 @@ mod tests {
         .expect("the file is written");
         std::fs::write(root.join("src/beta.rs"), "pub fn other() {}\n").expect("the file is written");
         std::fs::write(root.join("notes.txt"), "first\n  a needle here\n").expect("the file is written");
+        if trusted {
+            cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false))
+                .expect("the folder is trusted");
+        }
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
@@ -5561,7 +5590,7 @@ mod tests {
         use crate::platform::actions::execute_action_or_throw;
         use crate::terminal::panel::TerminalPanel;
         let _home = start(cx);
-        let (_folder, _root, workbench, cx) = search_project(cx);
+        let (_folder, _root, workbench, cx) = search_project_with(cx, true);
         cx.update(|window, cx| execute_action_or_throw("toolwindow.terminal", None, window, cx)).expect("it runs");
         let terminals = workbench
             .read_with(cx, |w, _| w.tool_window_view(TERMINAL_TOOL_WINDOW))
@@ -8606,6 +8635,47 @@ for line in sys.stdin:
         assert_eq!(git_head(&root), "feature");
         wait_for_notice(&workbench, "Checked out feature", cx);
         assert!(!workbench.read_with(cx, |w, _| w.git_gate_closed()), "the checkout released the gate");
+    }
+
+    /// A remote operation whose future is dropped while it waits for the gate leaves nothing marked
+    /// as running: the next Fetch of the window runs and is told, and no warning says that another
+    /// remote operation is in progress.
+    #[gpui_kit::test]
+    async fn a_remote_operation_dropped_before_it_ends_lets_the_next_one_run(cx: &mut TestAppContext) {
+        let remote = tempfile::tempdir().expect("a temporary folder");
+        let parent = remote.path().canonicalize().expect("the folder exists");
+        let bare_path = parent.join("origin.git").to_string_lossy().into_owned();
+        git_in(&parent, &["init", "-q", "--bare", "-b", "main", &bare_path]);
+        let (workbench, cx, _dirs, _root) = git_project(cx, |root| {
+            init_repo(root);
+            git_in(root, &["remote", "add", "origin", &bare_path]);
+            git_in(root, &["push", "-q", "-u", "origin", "main"]);
+        });
+        let hanging = workbench.update_in(cx, |_, window, cx| {
+            cx.spawn_in(window, async move |this, cx| {
+                let never = |_, _| futures::future::pending::<ide_core::IdeResult<()>>();
+                branches::run_op::<(), _>(&this, cx, "Hang", None, false, never).await
+            })
+        });
+        wait_long(cx, "the hanging command takes the gate", |cx| workbench.read_with(cx, |w, _| w.git_gate_closed()));
+        let waiting = workbench.update_in(cx, |_, window, cx| {
+            cx.spawn_in(window, async move |this, cx| {
+                let fetch = ide_host::ops::vcs::RemoteOp::Fetch;
+                branches::run_remote(&this, cx, fetch, None, vec![None]).await
+            })
+        });
+        wait_long(cx, "the fetch is marked as running", |cx| {
+            workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|state| state.remote_busy.is_some()))
+        });
+        drop(waiting);
+        drop(hanging);
+        cx.run_until_parked();
+
+        run_action(cx, "vcs.fetch", None);
+        wait_for_notice(&workbench, "Fetch successful", cx);
+        let titles = notification_titles(&workbench, cx);
+        assert!(!titles.contains(&"Another remote operation is in progress".to_owned()), "{titles:?}");
+        assert!(workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|state| state.remote_busy.is_none())));
     }
 
     /// In Restricted Mode no Git hook of the project runs: a checkout from the Branches popup is

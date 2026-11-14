@@ -219,6 +219,16 @@ find.scrollToResults
 find.showUsageResults
 find.showUsages
 find.usages
+github.changeRepository
+github.checkoutPullRequest
+github.openInBrowser
+github.pullRequest.checkoutBranch
+github.pullRequest.copyUrl
+github.pullRequest.openInBrowser
+github.pullRequest.refresh
+github.pullRequest.show
+github.pullRequests
+github.refresh
 ide.toggleMode
 image.actualSize
 image.fitToWindow
@@ -413,6 +423,7 @@ toolwindow.maximize
 toolwindow.notifications
 toolwindow.problems
 toolwindow.project
+toolwindow.pullRequests
 toolwindow.resizeDown
 toolwindow.resizeLeft
 toolwindow.resizeRight

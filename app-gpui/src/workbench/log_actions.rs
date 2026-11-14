@@ -1082,7 +1082,7 @@ async fn get_from_revision(
         for (path, after) in files {
             let Some(rev) = after else {
                 if path.exists() {
-                    ide_host::ops::fs::delete(&host, &label, path).await?;
+                    crate::backend::delete_path(&host, &label, path).await?;
                 }
                 continue;
             };

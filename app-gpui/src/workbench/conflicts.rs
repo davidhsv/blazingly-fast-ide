@@ -163,7 +163,7 @@ pub(super) async fn save_exact(host: &Host, label: &str, path: PathBuf, text: St
 /// Resolves `path` with `text` (`None`: the side taken deleted the file, so it goes) and stages it.
 async fn write_resolved(host: &Host, label: &str, path: PathBuf, text: Option<String>) -> IdeResult<()> {
     match text {
-        None => ide_host::ops::fs::delete(host, label, path.clone()).await?,
+        None => crate::backend::delete_path(host, label, path.clone()).await?,
         Some(text) => save_exact(host, label, path.clone(), text).await?,
     }
     git::vcs_stage(host, label, vec![path]).await

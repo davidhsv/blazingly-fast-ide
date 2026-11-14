@@ -12,7 +12,7 @@
 //! URL that carries a credential is masked before it is kept, and gh's and git's output is masked
 //! the same way before it reaches a notification or the log.
 
-use super::branches::{This, finished, refresh, run_action_later, save_all};
+use super::branches::{This, finished, git_command_ended, git_command_starts, refresh, run_action_later, save_all};
 use super::services_window::on_workbench;
 use super::{Panel, Workbench};
 use crate::backend::Backend;
@@ -100,6 +100,9 @@ pub(super) struct GithubSlot {
     _events: Subscription,
 }
 
+/// Changed files as gh answered them, or why they did not load.
+type LoadedFiles = Result<Vec<CommitFile>, String>;
+
 /// A `#N` tab: its panel and what was loaded for it.
 struct PullRequestTab {
     panel: Entity<DetailsPanel>,
@@ -107,10 +110,10 @@ struct PullRequestTab {
     mergeability: Option<MergeabilityState>,
     commits: Vec<GhCommitShort>,
     /// The pull request's changes; `None` while they load.
-    files: Option<Result<Vec<CommitFile>, String>>,
+    files: Option<LoadedFiles>,
     viewed: HashMap<String, FileViewedState>,
     /// The commit chosen in the picker and its changes (`None` while they load).
-    commit: Option<(String, Option<Result<Vec<CommitFile>, String>>)>,
+    commit: Option<(String, Option<LoadedFiles>)>,
     /// Bumped by each load: the answers of an older one are dropped.
     generation: u64,
     loading: Option<Task<()>>,
@@ -234,18 +237,44 @@ fn gh_program(cx: &App) -> Result<Option<GhCli>, String> {
     Ok(Some(stand_in.cli.clone()))
 }
 
-/// Runs blocking gh `work` on the backend's runtime with the gh to run; the failure is its message.
-fn gh_call<T, W>(cx: &App, work: W) -> impl Future<Output = Result<T, String>> + 'static + use<T, W>
+/// The machine's gh ([`GhCli::located`]).
+#[cfg(not(test))]
+fn located_gh() -> GhCli {
+    GhCli::located()
+}
+
+/// A test never runs the machine's gh, which would reach GitHub with the account signed in there.
+#[cfg(test)]
+fn located_gh() -> GhCli {
+    panic!("a test asked for the machine's gh; it runs only the stand-in it sets")
+}
+
+/// Runs blocking gh `work` for window `label` on the backend's runtime with the gh to run; the
+/// failure is its message. `command` is the backend command the work stands for: like every command
+/// that runs a program, it is refused (and nothing runs) while the window's project is in Restricted
+/// Mode.
+fn gh_call<T, W>(
+    cx: &App,
+    label: &str,
+    command: &str,
+    work: W,
+) -> impl Future<Output = Result<T, String>> + 'static + use<T, W>
 where
     T: Send + 'static,
     W: FnOnce(&GhCli) -> Result<T, String> + Send + 'static,
 {
-    let program = gh_program(cx);
+    let authorized = cx.try_global::<Backend>().map(|backend| backend.host.authorize_command(label, command));
+    let program = match authorized {
+        Some(Err(error)) => Err(error.message),
+        _ => gh_program(cx),
+    };
+    #[cfg(test)]
+    assert!(!matches!(program, Ok(None)), "a test asked for the machine's gh; it runs only the stand-in it sets");
     let call = cx.try_global::<Backend>().map(|backend| {
         backend.call(async move {
             tokio::task::spawn_blocking(move || {
                 // Looking gh up reads the disk, so it happens here and not on the window's thread.
-                let cli = program?.unwrap_or_else(GhCli::located);
+                let cli = program?.unwrap_or_else(located_gh);
                 work(&cli)
             })
             .await
@@ -511,22 +540,23 @@ async fn run_checkout(this: This, cx: &mut AsyncWindowContext, dir: PathBuf, num
         let progress = cx.default_global::<Localization>().0.tx_built(&["Checking out #", "…"], &n);
         workbench.begin_outside_git_operation(&progress, cx)
     })?;
-    if !started {
-        return Ok(());
-    }
+    let Ok(mark) = started else { return Ok(()) };
     save_all(&this, cx).await?;
     // A read of the repository still running would hold the index lock the checkout takes.
     refresh(&this, cx).await?;
+    // gh runs git: it holds the window's gate as the window's own Git commands do.
+    let command = git_command_starts(&this, cx).await?;
     let work = move |cli: &GhCli| {
         let cancel = CancellationToken::new();
         let output = |line: String| tracing::debug!(line = %redacted_text(&line), "gh pr checkout");
         cli.checkout(&dir, number, &cancel, &output).map_err(|error| error.message)
     };
-    let run = this.update(cx, |_, cx| gh_call(cx, work))?;
+    let run = this.update(cx, |workbench, cx| gh_call(cx, &workbench.label, "gh_pr_checkout", work))?;
     let result = run.await;
+    git_command_ended(&this, cx, command)?;
     refresh(&this, cx).await?;
     this.update(cx, |workbench, cx| {
-        workbench.end_outside_git_operation();
+        workbench.end_outside_git_operation(mark);
         let i18n = &mut cx.default_global::<Localization>().0;
         let request = match result {
             Ok(()) => {
@@ -819,7 +849,7 @@ impl Workbench {
         let Some(request) = slot.repo.remotes_listed(&ticket, lists, saved.as_deref()) else { return };
         slot.primary = primary;
         let dir = gh_dir(request.probe.as_deref(), slot);
-        let call = gh_call(cx, move |cli| Ok(cli.availability(&dir)));
+        let call = gh_call(cx, &self.label, "gh_availability", move |cli| Ok(cli.availability(&dir)));
         slot.refreshing = Some(cx.spawn(async move |this, cx| {
             let answer = call.await;
             let _ = this.update(cx, |workbench, cx| workbench.github_availability_answered(request, answer, cx));
@@ -851,7 +881,7 @@ impl Workbench {
         let Some(slot) = self.github.as_mut() else { return };
         let dir = gh_dir(request.root.as_deref(), slot);
         let repo = request.coordinates.clone();
-        let call = gh_call(cx, move |cli| find_repository_and_user(cli, &dir, &repo));
+        let call = gh_call(cx, &self.label, "gh_api", move |cli| find_repository_and_user(cli, &dir, &repo));
         slot.connecting = Some(cx.spawn(async move |this, cx| {
             let answer = call.await;
             let _ = this.update(cx, |workbench, cx| workbench.github_connected(request, answer, cx));
@@ -994,7 +1024,7 @@ impl Workbench {
         let dir = gh_dir(slot.repo.connected_root(), slot);
         let ListRequest { ticket, request } = request;
         let list = slot.window.read(cx).list().clone();
-        let call = gh_call(cx, move |cli| gh_api(cli, &dir, &request));
+        let call = gh_call(cx, &self.label, "gh_api", move |cli| gh_api(cli, &dir, &request));
         slot.list_fetch = Some(cx.spawn(async move |this, cx| {
             let answer = call.await;
             let _ = this.update(cx, |_, cx| list.update(cx, |list, cx| list.search_answered(ticket, answer, cx)));
@@ -1029,7 +1059,7 @@ impl Workbench {
         let Some(repo) = slot.repo.connection.as_ref().map(|c| c.coordinates.clone()) else { return };
         let dir = gh_dir(slot.repo.connected_root(), slot);
         let request = rest_page_request(&repo, source.list(), ticket.cursor);
-        let call = gh_call(cx, move |cli| gh_api(cli, &dir, &request));
+        let call = gh_call(cx, &self.label, "gh_api", move |cli| gh_api(cli, &dir, &request));
         cx.spawn(async move |this, cx| {
             let answer = call.await;
             let _ = this.update(cx, |workbench, cx| workbench.chooser_page_loaded(chip, source, ticket, answer, cx));
@@ -1124,17 +1154,17 @@ impl Workbench {
         let generation = tab.generation;
         let details = {
             let (dir, repo) = (dir.clone(), repo.clone());
-            gh_call(cx, move |cli| find_pull_request(cli, &dir, &repo, number))
+            gh_call(cx, &self.label, "gh_api", move |cli| find_pull_request(cli, &dir, &repo, number))
         };
         let mergeability = {
             let (dir, repo) = (dir.clone(), repo.clone());
-            gh_call(cx, move |cli| {
+            gh_call(cx, &self.label, "gh_api", move |cli| {
                 find_mergeability(cli, &dir, &repo, number).map(|data| build_mergeability_state(&data, admin))
             })
         };
         let commits = {
             let (dir, repo) = (dir.clone(), repo.clone());
-            gh_call(cx, move |cli| {
+            gh_call(cx, &self.label, "gh_api", move |cli| {
                 let nodes: Vec<CommitNode> =
                     pull_request_pages(cli, &dir, (&repo, number), "pullRequestCommits", "commits")?;
                 Ok(nodes.into_iter().map(|node| node.commit).collect::<Vec<_>>())
@@ -1142,9 +1172,9 @@ impl Workbench {
         };
         let files = {
             let (dir, repo) = (dir.clone(), repo.clone());
-            gh_call(cx, move |cli| pull_request_files(cli, &dir, &repo, number))
+            gh_call(cx, &self.label, "gh_api", move |cli| pull_request_files(cli, &dir, &repo, number))
         };
-        let viewed = gh_call(cx, move |cli| viewed_states(cli, &dir, &repo, number));
+        let viewed = gh_call(cx, &self.label, "gh_api", move |cli| viewed_states(cli, &dir, &repo, number));
         tab.loading = Some(cx.spawn(async move |this, cx| {
             let details = details.await;
             let shown = this.update(cx, |workbench, cx| {
@@ -1305,7 +1335,7 @@ impl Workbench {
         tab.commit = oid.clone().map(|oid| (oid, None));
         tab.commit_loading = oid.map(|oid| {
             let shown = oid.clone();
-            let call = gh_call(cx, move |cli| commit_files(cli, &dir, &repo, &oid));
+            let call = gh_call(cx, &self.label, "gh_api", move |cli| commit_files(cli, &dir, &repo, &oid));
             cx.spawn(async move |this, cx| {
                 let files = call.await;
                 let _ = this.update(cx, |workbench, cx| {
@@ -1342,7 +1372,7 @@ impl Workbench {
         };
         let dir = gh_dir(slot.repo.connected_root(), slot);
         // Only git runs here (it fetches what is missing from the connected remote).
-        let call = gh_call(cx, move |_| {
+        let call = gh_call(cx, &self.label, "gh_pr_prepare_diff", move |_| {
             let cancel = CancellationToken::new();
             let output = |line: String| tracing::debug!(line = %redacted_text(&line), "preparing a pull request diff");
             ide_github::prepare_diff(
@@ -1457,7 +1487,9 @@ impl Workbench {
     fn run_pull_request_mutation(&mut self, number: u32, requests: Vec<GhApiRequest>, cx: &mut Context<Self>) {
         let Some(slot) = self.github.as_ref() else { return };
         let dir = gh_dir(slot.repo.connected_root(), slot);
-        let call = gh_call(cx, move |cli| requests.iter().try_for_each(|request| gh_api(cli, &dir, request).map(drop)));
+        let call = gh_call(cx, &self.label, "gh_api", move |cli| {
+            requests.iter().try_for_each(|request| gh_api(cli, &dir, request).map(drop))
+        });
         self.push_pull_request_inputs(number, cx);
         cx.spawn(async move |this, cx| {
             let result = call.await;
@@ -1977,11 +2009,22 @@ exit 1
         open_first(&workbench, cx);
         focus_window(&workbench, cx);
         assert_eq!(context_text(cx, "githubPrTab").as_deref(), Some("pr"));
-        let before = started(cx);
+        let (before, details) = (started(cx), details_requests(&root));
         cx.simulate_keystrokes(refresh_keys());
         cx.run_until_parked();
         assert!(!checking(cx), "the list's refresh does not run in a pull request's tab");
         assert_eq!(started(cx), before + 5, "the pull request's details, status, commits, changes, viewed");
+        wait_long(cx, "the pull request is asked for again", |_| details_requests(&root) == details + 1);
+
+        // The list tab again, with #1 still open: the list refreshes and the pull request does not.
+        window.update(cx, |window, cx| window.select_tab(GhTab::List, cx));
+        focus_window(&workbench, cx);
+        assert_eq!(context_text(cx, "githubPrTab").as_deref(), Some("list"));
+        let searches = calls_with(&root, "query issueSearch");
+        cx.simulate_keystrokes(refresh_keys());
+        wait_long(cx, "the list is asked for again", |_| calls_with(&root, "query issueSearch") > searches);
+        wait_long(cx, "the refresh settles", |cx| !checking(cx) && listed(&workbench, cx).len() == 2);
+        assert_eq!(details_requests(&root), details + 1, "the pull request's refresh does not run in the list tab");
 
         // Elsewhere again: nothing happens.
         blur(cx);
@@ -2050,6 +2093,43 @@ exit 1
         run_action(cx, "github.changeRepository", None);
         wait_long(cx, "the window connects again", |cx| context_on(cx, "githubConnected"));
         assert_eq!(content(&workbench, cx), Some(ToolWindowContent::Connected));
+    }
+
+    /// In Restricted Mode no GitHub command runs, as no other command that runs a program does:
+    /// Checkout Pull Request… says it could not check out and leaves the branch, and a refresh
+    /// shows why and starts no gh. Trusted again, the window connects and the same checkout runs.
+    #[gpui_kit::test]
+    async fn in_restricted_mode_the_window_runs_no_gh_until_the_project_is_trusted_again(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = github_project(cx, GITHUB_REMOTE, github_answers);
+        show_list(&workbench, 2, cx);
+        run_action(cx, "project.revokeTrust", None);
+        wait_long(cx, "the project is restricted", |cx| workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
+        let (calls, before) = (gh_calls(&root).len(), started(cx));
+
+        run_action(cx, "github.checkoutPullRequest", Some(json!(1)));
+        wait_for_notice(&workbench, "Couldn't check out #1", cx);
+        let body = workbench.read_with(cx, |w, _| {
+            let notice = w.notifications().items().iter().find(|n| n.title == "Couldn't check out #1").cloned();
+            notice.and_then(|notice| notice.body)
+        });
+        assert!(body.is_some_and(|body| body.contains("Restricted Mode")), "the notice says why");
+        assert_eq!(git_head(&root), "main");
+        run_action(cx, "github.refresh", None);
+        let refused = |cx: &mut VisualTestContext| match content(&workbench, cx) {
+            Some(ToolWindowContent::Unavailable(shown)) => shown.message.is_some_and(|m| m.contains("Restricted Mode")),
+            _ => false,
+        };
+        wait_long(cx, "the window says why gh does not run", refused);
+        assert!(!context_on(cx, "githubConnected"));
+        assert_eq!((gh_calls(&root).len(), started(cx)), (calls, before), "no gh ran in Restricted Mode");
+
+        run_action(cx, "project.trust", None);
+        wait_long(cx, "the project is trusted", |cx| !workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
+        run_action(cx, "github.refresh", None);
+        wait_long(cx, "the window connects again", |cx| context_on(cx, "githubConnected"));
+        run_action(cx, "github.checkoutPullRequest", Some(json!(1)));
+        wait_for_notice(&workbench, "Checked out pull request #1", cx);
+        assert_eq!(git_head(&root), "fix-crash");
     }
 
     /// With gh not signed in, the window says so; Run gh auth login asks for `gh auth login` in a

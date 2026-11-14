@@ -42,20 +42,129 @@ pub fn gh_executable() -> Option<PathBuf> {
     .clone()
 }
 
+/// The gh program the calls run: the one this machine has ([`gh_executable`]), or a program the
+/// caller names (with leading arguments of its own, e.g. a script and its interpreter). The free
+/// functions of this crate run the located one.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GhCli {
+    exe: Option<PathBuf>,
+    leading: Vec<String>,
+}
+
+impl GhCli {
+    /// The gh [`gh_executable`] finds; none when it finds none.
+    pub fn located() -> Self {
+        Self { exe: gh_executable(), leading: Vec::new() }
+    }
+
+    /// The program at `exe`, whatever is installed.
+    pub fn at(exe: impl Into<PathBuf>) -> Self {
+        Self { exe: Some(exe.into()), leading: Vec::new() }
+    }
+
+    /// No gh: every call answers as on a machine without it.
+    pub fn not_installed() -> Self {
+        Self { exe: None, leading: Vec::new() }
+    }
+
+    /// `arg` goes before gh's own arguments on every call.
+    pub fn arg(mut self, arg: impl Into<String>) -> Self {
+        self.leading.push(arg.into());
+        self
+    }
+
+    fn command(&self, root: &Path, args: &[&str]) -> IdeResult<Command> {
+        let exe = self
+            .exe
+            .as_deref()
+            .ok_or_else(|| IdeError::unavailable("gh executable not found; install the GitHub CLI"))?;
+        let mut cmd = Command::new(exe);
+        cmd.current_dir(root)
+            .args(&self.leading)
+            .args(args)
+            .env("GH_PROMPT_DISABLED", "1")
+            .env("GH_NO_UPDATE_NOTIFIER", "1")
+            .env("GH_PAGER", "cat")
+            .env("NO_COLOR", "1")
+            .env("CLICOLOR", "0")
+            .env("GIT_TERMINAL_PROMPT", "0");
+        tracing::debug!(?args, "gh");
+        Ok(cmd)
+    }
+
+    fn run(&self, root: &Path, args: &[&str]) -> IdeResult<String> {
+        let out = process::run(self.command(root, args)?, QUICK, None)?;
+        if out.success { Ok(out.stdout) } else { Err(failure(&out.stderr, &out.stdout)) }
+    }
+
+    fn run_streaming(
+        &self,
+        root: &Path,
+        args: &[&str],
+        cancel: &CancellationToken,
+        on_output: &dyn Fn(String),
+    ) -> IdeResult<String> {
+        let mut stdout = String::new();
+        let (ok, stderr) = process::stream(self.command(root, args)?, cancel, &mut |stream, line| {
+            if stream == process::Stream::Stdout {
+                stdout.push_str(&line);
+                stdout.push('\n');
+            }
+            if !line.trim().is_empty() {
+                on_output(line);
+            }
+        })?;
+        if ok { Ok(stdout) } else { Err(failure(&stderr.join("\n"), &stdout)) }
+    }
+
+    /// Whether gh is installed and signed in, and which GitHub repository `root` maps to.
+    pub fn availability(&self, root: &Path) -> GhAvailability {
+        if self.exe.is_none() {
+            return GhAvailability::NotInstalled;
+        }
+        let (repo, login) = std::thread::scope(|s| {
+            let repo = s.spawn(|| {
+                let cmd = self.command(root, &["repo", "view", "--json", REPO_FIELDS])?;
+                process::run(cmd, QUICK, None)
+            });
+            let login = s.spawn(|| self.run(root, &["api", "user", "--jq", ".login"]));
+            (repo.join(), login.join())
+        });
+        let login = login.ok().and_then(Result::ok).map(|l| l.trim().to_owned()).filter(|l| !l.is_empty());
+        match repo {
+            Ok(Ok(out)) if out.success => match parse_repo(&out.stdout) {
+                Ok(repo) => GhAvailability::Ready { repo, login },
+                Err(e) => GhAvailability::Error { message: format!("unexpected gh output: {e}") },
+            },
+            Ok(Ok(out)) => classify_failure(if out.stderr.trim().is_empty() { &out.stdout } else { &out.stderr }),
+            Ok(Err(e)) => GhAvailability::Error { message: e.message },
+            Err(_) => GhAvailability::Error { message: "gh check panicked".into() },
+        }
+    }
+
+    /// `gh pr checkout <n>`: creates / updates a local branch for the pull request and switches to it.
+    pub fn checkout(
+        &self,
+        root: &Path,
+        number: u32,
+        cancel: &CancellationToken,
+        on_output: &dyn Fn(String),
+    ) -> IdeResult<()> {
+        let n = number.to_string();
+        self.run_streaming(root, &["pr", "checkout", &n], cancel, on_output).map(drop)
+    }
+
+    /// Runs `req`; returns the response body (JSON text, empty for `204 No Content`).
+    pub fn api(&self, root: &Path, req: &GhApiRequest) -> IdeResult<String> {
+        let args = api_args(req)?;
+        let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+        let out = process::run_with_input(self.command(root, &refs)?, req.body.as_deref(), QUICK, None)?;
+        if out.success { Ok(out.stdout) } else { Err(failure(&out.stderr, &out.stdout)) }
+    }
+}
+
 fn command(root: &Path, args: &[&str]) -> IdeResult<Command> {
-    let exe =
-        gh_executable().ok_or_else(|| IdeError::unavailable("gh executable not found; install the GitHub CLI"))?;
-    let mut cmd = Command::new(exe);
-    cmd.current_dir(root)
-        .args(args)
-        .env("GH_PROMPT_DISABLED", "1")
-        .env("GH_NO_UPDATE_NOTIFIER", "1")
-        .env("GH_PAGER", "cat")
-        .env("NO_COLOR", "1")
-        .env("CLICOLOR", "0")
-        .env("GIT_TERMINAL_PROMPT", "0");
-    tracing::debug!(?args, "gh");
-    Ok(cmd)
+    GhCli::located().command(root, args)
 }
 
 fn failure(stderr: &str, stdout: &str) -> IdeError {
@@ -75,8 +184,7 @@ fn failure(stderr: &str, stdout: &str) -> IdeError {
 }
 
 fn run(root: &Path, args: &[&str]) -> IdeResult<String> {
-    let out = process::run(command(root, args)?, QUICK, None)?;
-    if out.success { Ok(out.stdout) } else { Err(failure(&out.stderr, &out.stdout)) }
+    GhCli::located().run(root, args)
 }
 
 fn run_streaming(
@@ -85,17 +193,7 @@ fn run_streaming(
     cancel: &CancellationToken,
     on_output: &dyn Fn(String),
 ) -> IdeResult<String> {
-    let mut stdout = String::new();
-    let (ok, stderr) = process::stream(command(root, args)?, cancel, &mut |stream, line| {
-        if stream == process::Stream::Stdout {
-            stdout.push_str(&line);
-            stdout.push('\n');
-        }
-        if !line.trim().is_empty() {
-            on_output(line);
-        }
-    })?;
-    if ok { Ok(stdout) } else { Err(failure(&stderr.join("\n"), &stdout)) }
+    GhCli::located().run_streaming(root, args, cancel, on_output)
 }
 
 fn parse<T>(r: serde_json::Result<T>) -> IdeResult<T> {
@@ -104,27 +202,7 @@ fn parse<T>(r: serde_json::Result<T>) -> IdeResult<T> {
 
 /// Whether gh is installed and signed in, and which GitHub repository `root` maps to.
 pub fn availability(root: &Path) -> GhAvailability {
-    if gh_executable().is_none() {
-        return GhAvailability::NotInstalled;
-    }
-    let (repo, login) = std::thread::scope(|s| {
-        let repo = s.spawn(|| {
-            let cmd = command(root, &["repo", "view", "--json", REPO_FIELDS])?;
-            process::run(cmd, QUICK, None)
-        });
-        let login = s.spawn(|| run(root, &["api", "user", "--jq", ".login"]));
-        (repo.join(), login.join())
-    });
-    let login = login.ok().and_then(Result::ok).map(|l| l.trim().to_owned()).filter(|l| !l.is_empty());
-    match repo {
-        Ok(Ok(out)) if out.success => match parse_repo(&out.stdout) {
-            Ok(repo) => GhAvailability::Ready { repo, login },
-            Err(e) => GhAvailability::Error { message: format!("unexpected gh output: {e}") },
-        },
-        Ok(Ok(out)) => classify_failure(if out.stderr.trim().is_empty() { &out.stdout } else { &out.stderr }),
-        Ok(Err(e)) => GhAvailability::Error { message: e.message },
-        Err(_) => GhAvailability::Error { message: "gh check panicked".into() },
-    }
+    GhCli::located().availability(root)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -204,8 +282,7 @@ pub fn review_comments(root: &Path, number: u32) -> IdeResult<Vec<PrReviewCommen
 
 /// `gh pr checkout <n>`: creates / updates a local branch for the pull request and switches to it.
 pub fn checkout(root: &Path, number: u32, cancel: &CancellationToken, on_output: &dyn Fn(String)) -> IdeResult<()> {
-    let n = number.to_string();
-    run_streaming(root, &["pr", "checkout", &n], cancel, on_output).map(drop)
+    GhCli::located().checkout(root, number, cancel, on_output)
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -321,10 +398,7 @@ pub fn api_args(req: &GhApiRequest) -> IdeResult<Vec<String>> {
 
 /// Runs `req`; returns the response body (JSON text, empty for `204 No Content`).
 pub fn api(root: &Path, req: &GhApiRequest) -> IdeResult<String> {
-    let args = api_args(req)?;
-    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let out = process::run_with_input(command(root, &refs)?, req.body.as_deref(), QUICK, None)?;
-    if out.success { Ok(out.stdout) } else { Err(failure(&out.stderr, &out.stdout)) }
+    GhCli::located().api(root, req)
 }
 
 /// Revisions to diff a pull request's files with, present in the local repository.

@@ -89,6 +89,8 @@ pub(super) struct VcsSlot {
     git_running: Option<u64>,
     /// A read asked for while a command ran: it starts once the command ends.
     read_deferred: bool,
+    /// The operation marked as running in `state.remote_busy`, by its number (see [`BusyMark`]).
+    busy_mark: Option<u64>,
     /// Who waits for the running command or read to end before running a command of its own.
     gate_waiters: Vec<oneshot::Sender<()>>,
     /// The read a burst of backend events asks for, once they stop.
@@ -466,6 +468,44 @@ pub(super) async fn git_command_starts(this: &This, cx: &mut AsyncWindowContext)
     }
 }
 
+/// An operation of the window marked as running (`remote_busy`): no other operation starts while it
+/// lives. The mark goes when the operation clears it, or when the guard is dropped (its future was
+/// dropped before the operation ended): a release task waits for the guard to go and clears the mark
+/// on the next turn, so an operation that never ends cannot make every later one answer that another
+/// is in progress.
+#[must_use = "the operation is marked as running only while the guard lives"]
+pub(super) struct BusyMark {
+    /// Dropping it wakes the release task.
+    _release: oneshot::Sender<()>,
+}
+
+/// Another Git operation of the window runs.
+#[derive(Debug)]
+pub(super) struct OperationRuns;
+
+/// Marks an operation showing `progress` as running in `slot`, until the returned guard goes.
+fn mark_busy(slot: &mut VcsSlot, progress: String, cx: &mut Context<Workbench>) -> BusyMark {
+    // A late release of an earlier mark never clears this one.
+    let number = GIT_COMMANDS.fetch_add(1, Ordering::Relaxed);
+    slot.state.remote_busy = Some(progress);
+    slot.busy_mark = Some(number);
+    let (release, released) = oneshot::channel::<()>();
+    cx.spawn(async move |workbench, cx| {
+        // Cleared or dropped: either way the operation no longer runs.
+        let _ = released.await;
+        // A window that is gone has nothing to clear.
+        let _ = workbench.update(cx, |workbench, cx| workbench.clear_busy_mark(number, cx));
+    })
+    .detach();
+    BusyMark { _release: release }
+}
+
+/// The operation marked in `slot` ended: another one can start.
+fn clear_busy(slot: &mut VcsSlot) {
+    slot.state.remote_busy = None;
+    slot.busy_mark = None;
+}
+
 /// The command of `command` ended: a read asked for meanwhile starts now.
 pub(super) fn git_command_ended(
     this: &This,
@@ -578,25 +618,23 @@ pub(super) async fn run_remote(
 ) -> anyhow::Result<bool> {
     let (progress, done) = remote_titles(&op);
     let started = this.update(cx, |workbench, cx| {
-        let Some(slot) = workbench.vcs.as_mut() else { return false };
+        let slot = workbench.vcs.as_mut()?;
         if slot.state.remote_busy.is_some() {
             let warning = vcs_notice(NotificationLevel::Warning, "Another remote operation is in progress");
             workbench.notify(warning, cx);
-            return false;
+            return None;
         }
         let progress = cx.default_global::<Localization>().0.tx(progress);
-        slot.state.remote_busy = Some(progress.clone());
+        let mark = mark_busy(slot, progress.clone(), cx);
         slot.console.log(ConsoleKind::Cmd, &remote_console_line(&op, detail.as_deref()), now_ms());
         let mut notice = vcs_notice(NotificationLevel::Info, format!("{progress}…"));
         notice.key = Some("vcs.remote".to_owned());
         notice.body = detail.clone();
         notice.sticky = Some(true);
         workbench.notify(notice, cx);
-        true
+        Some(mark)
     })?;
-    if !started {
-        return Ok(false);
-    }
+    let Some(_mark) = started else { return Ok(false) };
     let named: Vec<(Option<PathBuf>, Option<String>)> = vcs_state(this, cx, |state| {
         repos
             .iter()
@@ -636,7 +674,7 @@ pub(super) async fn run_remote(
         };
         notice.key = Some("vcs.remote".to_owned());
         if let Some(slot) = workbench.vcs.as_mut() {
-            slot.state.remote_busy = None;
+            clear_busy(slot);
             for line in &run.lines {
                 slot.console.log(ConsoleKind::Out, line, now_ms());
             }
@@ -1052,15 +1090,16 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
     })?;
     let Some((repo, before)) = started else { return Ok(false) };
     save_all(this, cx).await?;
-    this.update(cx, |workbench, cx| {
-        let Some(slot) = workbench.vcs.as_mut() else { return };
+    let _mark = this.update(cx, |workbench, cx| {
+        let slot = workbench.vcs.as_mut()?;
         let progress = cx.default_global::<Localization>().0.tx(progress);
-        slot.state.remote_busy = Some(progress.clone());
+        let mark = mark_busy(slot, progress.clone(), cx);
         slot.console.log(ConsoleKind::Cmd, &format!("git {}", describe_operation(&op, before.as_deref())), now_ms());
         let mut notice = vcs_notice(NotificationLevel::Info, format!("{progress}…"));
         notice.key = Some(OPERATION_KEY.to_owned());
         notice.sticky = Some(true);
         workbench.notify(notice, cx);
+        Some(mark)
     })?;
     let command = git_command_starts(this, cx).await?;
     let lines: Arc<Mutex<Vec<String>>> = Arc::default();
@@ -1085,7 +1124,7 @@ pub(super) async fn run_git_operation(this: &This, cx: &mut AsyncWindowContext, 
     this.update_in(cx, |workbench, window, cx| {
         let resolver = cx.try_global::<ActionRegistry>().is_some_and(|registry| registry.contains(RESOLVE_CONFLICTS));
         let Some(slot) = workbench.vcs.as_mut() else { return };
-        slot.state.remote_busy = None;
+        clear_busy(slot);
         for line in &output {
             slot.console.log(ConsoleKind::Out, line, now_ms());
         }
@@ -1256,6 +1295,31 @@ impl Workbench {
         }
     }
 
+    /// Marks a Git operation the window does not run itself (gh's checkout of a pull request) as
+    /// running, as the window's own runners do: no other operation starts meanwhile, until
+    /// [`Self::end_outside_git_operation`] or until the mark is dropped. [`OperationRuns`] (with a
+    /// warning) while another one runs; no mark when the project has no repository to guard.
+    pub(super) fn begin_outside_git_operation(
+        &mut self,
+        progress: &str,
+        cx: &mut Context<Self>,
+    ) -> Result<Option<BusyMark>, OperationRuns> {
+        let Some(slot) = self.vcs.as_mut() else { return Ok(None) };
+        if slot.state.remote_busy.is_some() {
+            let warning = vcs_notice(NotificationLevel::Warning, "Another Git operation is in progress");
+            self.notify(warning, cx);
+            return Err(OperationRuns);
+        }
+        Ok(Some(mark_busy(slot, progress.to_owned(), cx)))
+    }
+
+    /// The operation [`Self::begin_outside_git_operation`] marked has ended.
+    pub(super) fn end_outside_git_operation(&mut self, mark: Option<BusyMark>) {
+        if let (Some(slot), Some(_)) = (self.vcs.as_mut(), mark) {
+            clear_busy(slot);
+        }
+    }
+
     /// The Branches popup, while it is open.
     pub fn branches_popup(&self) -> Option<Entity<BranchesPopup>> {
         self.popup.as_ref().and_then(|popup| popup.view.clone().downcast().ok())
@@ -1307,6 +1371,7 @@ impl Workbench {
             refreshing: None,
             git_running: None,
             read_deferred: false,
+            busy_mark: None,
             gate_waiters: Vec::new(),
             debounce: None,
             tags: Vec::new(),
@@ -1500,6 +1565,14 @@ impl Workbench {
         self.wake_git_gate();
     }
 
+    /// The operation marked `number` by [`mark_busy`] was dropped before it cleared its mark: the
+    /// mark goes and the buttons that waited for it can be pressed again.
+    fn clear_busy_mark(&mut self, number: u64, cx: &mut Context<Self>) {
+        let Some(slot) = self.vcs.as_mut().filter(|slot| slot.busy_mark == Some(number)) else { return };
+        clear_busy(slot);
+        self.vcs_state_changed(cx);
+    }
+
     fn wake_git_gate(&mut self) {
         let Some(slot) = self.vcs.as_mut() else { return };
         for waiter in slot.gate_waiters.drain(..) {
@@ -1528,6 +1601,7 @@ impl Workbench {
         }
         self.sync_commit_box(cx);
         self.sync_log_panes(cx);
+        self.github_vcs_changed(cx);
         cx.notify();
     }
 

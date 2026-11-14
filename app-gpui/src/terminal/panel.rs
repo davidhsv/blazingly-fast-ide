@@ -455,6 +455,7 @@ mod tests {
             crate::platform::input::init(cx);
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
             crate::terminal::test_support::isolate_shells(home.path(), cx);
+            crate::terminal::test_support::trusted_folder("w1", &root, cx);
         });
         let panel_root = root.clone();
         let (panel, cx) = cx.add_window_view(|_, cx| TerminalPanel::new("w1", panel_root, cx));
@@ -521,6 +522,8 @@ mod tests {
             crate::platform::input::init(cx);
             Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
             crate::terminal::test_support::isolate_shells(home.path(), cx);
+            crate::terminal::test_support::trusted_folder("w1", &root, cx);
+            crate::terminal::test_support::trusted_folder("w2", &root, cx);
         });
         {
             let panel_root = root.clone();

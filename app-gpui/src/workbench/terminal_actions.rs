@@ -254,37 +254,23 @@ impl Workbench {
 
 #[cfg(test)]
 mod tests {
-    use super::super::plugins_window::test_support::{program, trusted_project};
+    use super::super::plugins_window::test_support::trusted_project;
     use super::super::tests::{click_on, run_action, start, wait_long};
     use super::*;
     use crate::platform::actions::execute_action_or_throw;
-    use crate::platform::command_line::quote_path;
     use crate::project_tree::ProjectTree;
     use crate::terminal::store::GroupLayout;
     use crate::terminal::view::TerminalView;
     use gpui_kit::{Bounds, Focusable, Pixels, TestAppContext, VisualTestContext};
-    use ide_workspace::settings::SettingsScope;
     use serde_json::json;
     use std::path::{Path, PathBuf};
 
-    /// A plain shell for the tests: `/bin/sh` reading a script, so neither interactive nor a login
-    /// shell, with no startup file and no history; it runs each line typed into it.
-    const PLAIN_SHELL: &str = "#!/bin/sh\nwhile IFS= read -r line; do eval \"$line\"; done\n";
-
-    /// Makes [`PLAIN_SHELL`], at `<home>/bin/plainsh`, the shell of every terminal the test starts
-    /// (on top of the home of its own `start` gives them, with `HISTFILE=/dev/null`). Returns its
-    /// path.
+    /// Makes the plain shell of [`crate::terminal::test_support`], at `<home>/bin/plainsh`, the
+    /// shell of every terminal the test starts (on top of the home of its own `start` gives them,
+    /// with `HISTFILE=/dev/null`). Returns its path.
     fn plain_shells(home: &Path, cx: &mut VisualTestContext) -> PathBuf {
-        let bin = home.join("bin");
-        program(&bin, "plainsh", PLAIN_SHELL);
-        let shell = bin.join("plainsh");
-        let line = quote_path(&shell.to_string_lossy());
-        cx.update(|_, cx| {
-            settings::set("", SettingsScope::Global, "terminal.shellPath", &json!(line), cx).expect("the shell is set");
-            settings::set("", SettingsScope::Global, "terminal.shellIntegration", &json!(false), cx)
-                .expect("shell integration is off");
-        });
-        shell
+        cx.update(|_, cx| crate::terminal::test_support::isolate_shells(home, cx));
+        crate::terminal::test_support::plain_shell(home)
     }
 
     fn text_of(path: &Path) -> String {

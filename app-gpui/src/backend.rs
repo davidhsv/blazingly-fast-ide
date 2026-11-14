@@ -17,6 +17,48 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
 
+/// Hosts whose deletes go to the trash folder of their test home ([`trash_into_test_home`]).
+#[cfg(test)]
+static TEST_TRASHES: std::sync::Mutex<Vec<std::sync::Weak<Host>>> = std::sync::Mutex::new(Vec::new());
+
+/// Puts the folder `trash` of the test home of `dirs` in the place of the system Trash for every
+/// delete of `host`, so that no test reaches the user's Trash. Each deleted path moves there under
+/// a numbered name, as two deletes may remove paths of the same name.
+#[cfg(test)]
+fn trash_into_test_home(host: &Arc<Host>, dirs: &AppDirs) {
+    use ide_core::IdeError;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    assert!(dirs.isolated, "a test backend runs under a home of its own");
+    let trash = dirs.data.parent().unwrap_or(&dirs.data).join("trash");
+    let next = AtomicU64::new(1);
+    host.set_trash(Some(Arc::new(move |path: &Path| {
+        std::fs::create_dir_all(&trash).map_err(IdeError::from)?;
+        let name = path.file_name().ok_or_else(|| IdeError::invalid("a path without a name"))?;
+        let number = next.fetch_add(1, Ordering::Relaxed);
+        std::fs::rename(path, trash.join(format!("{number}-{}", name.to_string_lossy()))).map_err(IdeError::from)
+    })));
+    let mut trashes = TEST_TRASHES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    trashes.retain(|trashed| trashed.strong_count() > 0);
+    trashes.push(Arc::downgrade(host));
+}
+
+/// Deletes `path` as File › Delete does ([`ide_host::ops::fs::delete`]): Local History keeps its
+/// contents and it moves to the system Trash, or where the host's override says. In a test build a
+/// host without the test trash of [`Backend::start`] panics instead of reaching the system Trash.
+pub async fn delete_path(host: &Host, window: &str, path: PathBuf) -> ide_core::IdeResult<()> {
+    #[cfg(test)]
+    assert!(
+        TEST_TRASHES
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .any(|trashed| trashed.upgrade().is_some_and(|trashed| std::ptr::eq(Arc::as_ptr(&trashed), host))),
+        "a test deletes {} with a host whose deletes reach the system Trash",
+        path.display()
+    );
+    ide_host::ops::fs::delete(host, window, path).await
+}
+
 /// Identifier of the app's directories. Its own, so the GPUI app never shares settings, caches
 /// or single-instance state with an installed Tauri build running next to it.
 pub const APP_IDENTIFIER: &str =
@@ -161,6 +203,8 @@ impl Backend {
             runtime: runtime.handle().clone(),
             project_environment: false,
         }));
+        #[cfg(test)]
+        trash_into_test_home(&host, &dirs);
         let backend = Self {
             host,
             dirs,
