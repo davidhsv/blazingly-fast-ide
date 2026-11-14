@@ -6,7 +6,6 @@
 - Nobody has looked at the real window: the binary was launched once on a temp project for 25 s with an isolated home (no panic, 121 MB RSS), no key pressed.
 - `crates/ide-language`, `crates/ide-workspace` and the root `Cargo.toml` were changed additively by early commits; `src/` and `src-tauri/` are untouched. The Tauri app's build and tests must be re-run and the commands recorded before claiming it still passes.
 - Before measuring idle CPU, fix or disclose: branches and tags are listed on every VCS refresh; the TODO feed scans while its window is hidden; publishing the context locks and clones the repository list every time.
-- No test performs a successful file delete (the backend sends to the system Trash).
 - Light mode, the default, starts no language server, and there is no word completion without one.
 - The merge editor and the diff are front windows, not editor tabs.
 - Text added natively is not in `src/platform/locales`.
@@ -22,3 +21,6 @@
 - Git commands of a window are serialised with its repository reads (D88). Commit or Stage during a long fetch or pull waits for it. The gate is released by a call, not yet by a guard.
 - Restart in the native app: not checked whether the relaunched process keeps `OPENIDEA_GPUI_HOME` (`ps -E -p <pid>` after a Restart in a dev build). Until then a relaunch from an isolated run could come back on the user's real directories.
 - Restricted Mode, by reading: saving run configurations and the Git file writes (patches, shelf, change lists) are not trust-checked natively.
+- Docker: a `docker` program is installed on the machine. Services tests written before 2026-11-13 could have reached it (not measured what they did); since commit `7fedad68` every workbench test writes a Docker configuration with no connections.
+- The older terminal tests start a login shell (with the temp `HOME`, `ZDOTDIR` and no history file); only the newer ones use a plain `/bin/sh` script.
+- `remote_plugins::api14_stage3_remote_terminal_pins_and_exit_events_stay_on_the_execution_host` (a backend test this work did not touch) is intermittent under load: 3 failures in 5 in one run, 10 passes in 10 alone.
