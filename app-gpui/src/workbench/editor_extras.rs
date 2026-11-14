@@ -1,7 +1,6 @@
 //! More of the editor's actions: Expand to Level N / Expand All to Level N, Context Info, Custom
-//! Folding, Unwrap/Remove, Expression Type Info, Reformat File…, Rerun Search, the Semantic
-//! Highlighting and Rainbow Brackets switches, Add or Remove Caret, and Next / Previous Occurrence
-//! with the status bar's message.
+//! Folding, Unwrap/Remove, Expression Type Info, Reformat File…, Rerun Search, the Rainbow Brackets
+//! switch, and Next / Previous Occurrence with the status bar's message.
 //!
 //! Next / Previous Occurrence step through the results of the focused tool window, else of the last
 //! active, the last used or a visible one: the first of them that can step (Usages, Problems, TODO). The step
@@ -32,7 +31,6 @@ use crate::platform_more::occurrences::{Direction, OccurrenceStep};
 use crate::project_tree::ProjectTree;
 use crate::workbench::active_editor;
 use gpui_kit::{App, AppContext as _, Context, Entity, Focusable, Window};
-use ide_core::settings::EditorSettings;
 use ide_core::{DocId, IdeError, IdeResult, Pos};
 use ide_syntax::NodeAt;
 use ide_workspace::settings::SettingsScope;
@@ -63,9 +61,6 @@ pub(super) struct EditorExtras {
     status_info: Option<(String, u64)>,
     shown: u64,
 }
-
-/// A Color Scheme switch that is also a toggle action: its id, its setting key and how to read it.
-type SchemeSwitch = (&'static str, &'static str, fn(&EditorSettings) -> bool);
 
 /// What the tree-sitter structure says at the caret: `None` when the language has no grammar.
 type ChainAnswer = IdeResult<Option<Option<NodeAt>>>;
@@ -113,29 +108,24 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
             on_workbench(window, cx, move |workbench, _, cx| workbench.go_to_occurrence(direction, cx))
         });
     }
-    let switches: [SchemeSwitch; 2] = [
-        ("editor.toggleSemanticHighlighting", "editor.semanticHighlighting", |editor| editor.semantic_highlighting),
-        ("editor.toggleRainbowBrackets", "editor.rainbowBrackets", |editor| editor.rainbow_brackets),
-    ];
-    for (id, key, read) in switches {
-        registry.handle_toggle(
-            id,
-            move |_, cx| read(&settings::global(cx).editor),
-            move |_, window, cx| {
-                let next = !read(&settings::global(cx).editor);
-                if let Err(error) = settings::set("", SettingsScope::Global, key, &next.into(), cx) {
-                    on_workbench(window, cx, move |workbench, _, cx| {
-                        let request = NotificationRequest {
-                            body: Some(error.message),
-                            ..NotificationRequest::new(NotificationLevel::Error, "Cannot change the setting")
-                        };
-                        workbench.notify(request, cx);
-                    })?;
-                }
-                Ok(())
-            },
-        );
-    }
+    // The Color Scheme switch Rainbow brackets, as a toggle action.
+    registry.handle_toggle(
+        "editor.toggleRainbowBrackets",
+        |_, cx| settings::global(cx).editor.rainbow_brackets,
+        |_, window, cx| {
+            let next = !settings::global(cx).editor.rainbow_brackets;
+            if let Err(error) = settings::set("", SettingsScope::Global, "editor.rainbowBrackets", &next.into(), cx) {
+                on_workbench(window, cx, move |workbench, _, cx| {
+                    let request = NotificationRequest {
+                        body: Some(error.message),
+                        ..NotificationRequest::new(NotificationLevel::Error, "Cannot change the setting")
+                    };
+                    workbench.notify(request, cx);
+                })?;
+            }
+            Ok(())
+        },
+    );
     // File › Reload All from Disk runs it after reading the open documents again.
     registry.handle("project.refresh", |_, window, cx| {
         on_workbench(window, cx, |workbench, _, cx| {
@@ -144,9 +134,6 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
             }
         })
     });
-    // The pointer gesture is the editor's own (it reads this action's bindings); run from a menu or
-    // Find Action, the action does nothing.
-    registry.handle("editor.addOrRemoveCaret", |_, _, _| Ok(()));
 }
 
 /// Shows `text` (English source text) as the hint of `editor`, at `pos` (the caret when `None`),
@@ -559,15 +546,18 @@ mod tests {
     use crate::editor::extras::FoldMarker;
     use crate::editor::intelligence::fake_server::FakeServer;
     use crate::editor::marks::MarkLayer;
+    use crate::editor::view::EditorEvent;
     use crate::platform::actions::execute_action_or_throw;
     use crate::platform::context::window_context;
     use crate::platform::input;
     use crate::platform::storage::UiStorage;
     use crate::theme;
     use crate::workbench;
-    use gpui_kit::{Modifiers, TestAppContext, VisualTestContext, point, px};
+    use gpui_kit::{Modifiers, Pixels, Point, TestAppContext, VisualTestContext, point, px};
     use serde_json::{Value, json};
+    use std::cell::Cell;
     use std::path::PathBuf;
+    use std::rc::Rc;
 
     /// A trusted project of `files` in a window, `open` open in the editor with the keyboard. With
     /// `answers` the IDE is in Full mode, `*.mock` files have the fake language server answering
@@ -629,6 +619,7 @@ mod tests {
         (fixture, cx)
     }
 
+    #[track_caller]
     fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
         for _ in 0..400 {
             cx.executor().advance_clock(Duration::from_millis(50));
@@ -688,13 +679,9 @@ mod tests {
             intelligence.read_with(cx, |this, _| this.hint().map(str::to_owned))
         }
 
+        #[track_caller]
         fn wait_hint(&self, cx: &mut VisualTestContext, text: &str) {
             settle(cx, |cx| self.hint(cx).as_deref() == Some(text));
-        }
-
-        /// The titles of the window's notifications, where the editor hint of the window shows.
-        fn notices(&self, cx: &mut VisualTestContext) -> Vec<String> {
-            self.workbench.read_with(cx, |w, _| w.notifications().items().iter().map(|n| n.title.clone()).collect())
         }
 
         fn server(&self) -> &FakeServer {
@@ -709,6 +696,7 @@ mod tests {
             self.server().received().into_iter().filter(|message| message["method"] == method).collect()
         }
 
+        #[track_caller]
         fn wait_opened(&self, cx: &mut VisualTestContext, name: &str) {
             let name = format!("/{name}");
             settle(cx, |_| {
@@ -806,11 +794,41 @@ mod tests {
         assert!(f.unavailable(cx, "code.expandAllToLevel1"), "the editor does not have the keyboard");
         cx.simulate_keystrokes("cmd-shift-* 1");
         assert_eq!(f.shown_lines(cx), [0, 1, 2, 3, 4, 5, 6, 7]);
+        assert!(f.unavailable(cx, "code.expandToLevel1"));
+        cx.simulate_keystrokes("cmd-* 1");
+        assert_eq!(f.shown_lines(cx), [0, 1, 2, 3, 4, 5, 6, 7]);
         f.close(cx);
     }
 
-    /// The gutter shows a chevron on every line that starts a fold; a click on it folds the region,
-    /// a click on the closed chevron opens it again.
+    /// Where line `line` shows its fold chevron, and a point of its breakpoint area.
+    fn gutter_points(editor: &Entity<Editor>, line: u32, cx: &mut VisualTestContext) -> (Point<Pixels>, Point<Pixels>) {
+        cx.run_until_parked();
+        editor.read_with(cx, |e, cx| {
+            let at = e.position_of(e.offset_of(line, 0)).expect("the line is painted");
+            let (bounds, line_height) = (e.painted_bounds().expect("the editor is painted"), e.line_height(cx));
+            let y = at.y + line_height / 2.0;
+            (point(at.x - e.fold_column_width(cx) / 2.0, y), point(bounds.left() + px(8.0), y))
+        })
+    }
+
+    /// The presses the editor reports from its gutter, which set breakpoints.
+    fn count_gutter_presses(editor: &Entity<Editor>, cx: &mut VisualTestContext) -> Rc<Cell<usize>> {
+        let presses = Rc::new(Cell::new(0));
+        let counted = Rc::clone(&presses);
+        cx.update(|_, cx| {
+            cx.subscribe(editor, move |_, event: &EditorEvent, _| {
+                if matches!(event, EditorEvent::GutterPressed { .. }) {
+                    counted.set(counted.get() + 1);
+                }
+            })
+            .detach();
+        });
+        presses
+    }
+
+    /// The gutter shows a chevron on every line that starts a fold; a click on it folds the region
+    /// and leaves the caret, the selection and the breakpoints alone; a click on the closed chevron
+    /// opens it again.
     #[gpui_kit::test]
     async fn a_click_on_the_fold_chevron_folds_and_unfolds_its_region(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("src/main.rs", NESTED)], "src/main.rs", None);
@@ -819,21 +837,40 @@ mod tests {
         let marker = |cx: &mut VisualTestContext, line| editor.read_with(cx, |e, _| e.fold_marker(line));
         assert_eq!(marker(cx, 1), Some(FoldMarker::Open));
         assert_eq!(marker(cx, 3), None);
-        let chevron = |cx: &mut VisualTestContext, row: f32| {
-            cx.run_until_parked();
-            let (bounds, line_height) = editor.read_with(cx, |e, cx| (e.painted_bounds(), e.line_height(cx)));
-            let bounds = bounds.expect("the editor is painted");
-            let gutter = cx.update(|_, cx| theme::length(cx, "w-gutter"));
-            point(bounds.left() + gutter - px(6.0), bounds.top() + line_height * (row + 0.5))
-        };
-        let at = chevron(cx, 1.0);
-        cx.simulate_click(at, Modifiers::default());
+        let presses = count_gutter_presses(&editor, cx);
+        // A selection outside the region, on the first line.
+        editor.update(cx, |e, cx| e.select(1, 3, cx));
+        let selection = |cx: &mut VisualTestContext| editor.read_with(cx, |e, _| e.selections().to_vec());
+        let before = selection(cx);
+        let (chevron, _) = gutter_points(&editor, 1, cx);
+        cx.simulate_click(chevron, Modifiers::default());
         cx.run_until_parked();
         assert_eq!(f.shown_lines(cx), [0, 1, 6, 7]);
         assert_eq!(marker(cx, 1), Some(FoldMarker::Closed));
-        let at = chevron(cx, 1.0);
-        cx.simulate_click(at, Modifiers::default());
+        assert_eq!(selection(cx), before, "the caret and the selection stay");
+        assert_eq!(presses.get(), 0, "no breakpoint is toggled");
+        assert!(editor.read_with(cx, |e, _| e.marks(MarkLayer::Breakpoints).is_empty()));
+        let (chevron, _) = gutter_points(&editor, 1, cx);
+        cx.simulate_click(chevron, Modifiers::default());
         cx.run_until_parked();
+        assert_eq!(f.shown_lines(cx), [0, 1, 2, 3, 4, 5, 6, 7]);
+        assert_eq!(selection(cx), before);
+        assert_eq!(presses.get(), 0);
+        f.close(cx);
+    }
+
+    /// A press in the breakpoint area of a line that starts a fold is the breakpoint's: nothing
+    /// folds.
+    #[gpui_kit::test]
+    async fn a_click_in_the_breakpoint_area_folds_nothing(cx: &mut TestAppContext) {
+        let (f, cx) = open(cx, &[("src/main.rs", NESTED)], "src/main.rs", None);
+        f.wait_folds(cx);
+        let editor = f.active(cx);
+        let presses = count_gutter_presses(&editor, cx);
+        let (_, breakpoints) = gutter_points(&editor, 1, cx);
+        cx.simulate_click(breakpoints, Modifiers::default());
+        cx.run_until_parked();
+        assert_eq!(presses.get(), 1, "the press is reported from the gutter");
         assert_eq!(f.shown_lines(cx), [0, 1, 2, 3, 4, 5, 6, 7]);
         f.close(cx);
     }
@@ -846,17 +883,18 @@ mod tests {
         f.wait_folds(cx);
         f.caret_to(cx, 3, 12);
         f.run(cx, "editor.contextInfo");
-        let headers = "fn a() {\n    if x {\n        if y {".to_owned();
-        assert!(f.notices(cx).contains(&headers), "{:?}", f.notices(cx));
+        let headers = "fn a() {\n    if x {\n        if y {";
+        f.wait_hint(cx, headers);
         f.caret_to(cx, 0, 0);
         cx.simulate_keystrokes("ctrl-shift-q");
-        assert!(f.notices(cx).contains(&NO_CONTEXT_INFO.to_owned()), "{:?}", f.notices(cx));
+        f.wait_hint(cx, NO_CONTEXT_INFO);
+        // Inside the blocks again, with the Project view's keyboard: nothing is shown.
+        f.caret_to(cx, 3, 12);
         f.focus_project_tree(cx);
         assert!(f.unavailable(cx, "editor.contextInfo"));
-        let before = f.notices(cx).len();
         cx.simulate_keystrokes("ctrl-shift-q");
         idle(cx);
-        assert_eq!(f.notices(cx).len(), before, "the Project view has the keyboard");
+        assert_ne!(f.hint(cx).as_deref(), Some(headers), "the Project view has the keyboard");
         f.close(cx);
     }
 
@@ -888,7 +926,7 @@ mod tests {
         f.workbench.update_in(cx, |w, window, cx| w.open_project_file(plain.clone(), window, cx));
         settle(cx, |cx| f.at(cx).is_some_and(|(path, _)| path == plain));
         f.run(cx, "navigate.customRegion");
-        assert!(f.notices(cx).contains(&NO_CUSTOM_REGIONS.to_owned()), "{:?}", f.notices(cx));
+        f.wait_hint(cx, NO_CUSTOM_REGIONS);
         f.close(cx);
     }
 
@@ -916,14 +954,14 @@ mod tests {
 
         f.caret_to(cx, 0, 1);
         f.run(cx, "code.unwrap");
-        settle(cx, |cx| f.notices(cx).contains(&NOTHING_TO_UNWRAP.to_owned()));
+        f.wait_hint(cx, NOTHING_TO_UNWRAP);
 
         let notes = f.root.join("notes.txt");
         f.workbench.update_in(cx, |w, window, cx| w.open_project_file(notes.clone(), window, cx));
         settle(cx, |cx| f.at(cx).is_some_and(|(path, _)| path == notes));
         f.caret_to(cx, 1, 4);
         f.run(cx, "code.unwrap");
-        settle(cx, |cx| f.notices(cx).contains(&UNWRAP_UNAVAILABLE.to_owned()));
+        f.wait_hint(cx, UNWRAP_UNAVAILABLE);
         assert_eq!(f.text(cx), "if a {\n    foo();\n}\n");
         f.close(cx);
     }
@@ -1052,6 +1090,10 @@ mod tests {
         settle(cx, |cx| f.at(cx) == Some((b.clone(), (0, 13))));
         f.run(cx, "navigate.prevOccurrence");
         settle(cx, |cx| f.at(cx) == Some((a.clone(), (2, 3))));
+        // ⌃⌥↑ in the editor, with no highlighted usages: Previous Occurrence.
+        f.focus_editor(cx);
+        cx.simulate_keystrokes("ctrl-alt-up");
+        settle(cx, |cx| f.at(cx) == Some((a.clone(), (0, 3))));
         f.close(cx);
     }
 
@@ -1086,26 +1128,100 @@ mod tests {
         f.close(cx);
     }
 
-    /// Semantic Highlighting and Rainbow Brackets switch their Color Scheme setting on and off, and
-    /// the actions show the switch's state.
+    /// Rainbow Brackets switches its Color Scheme setting and the action shows its state: on, the
+    /// brackets are drawn by depth in the scheme's three colours, an unmatched one in the error
+    /// colour, and a bracket inside a string keeps the string's colour; off, they are drawn as before.
     #[gpui_kit::test]
-    async fn the_color_scheme_switches_flip_their_settings(cx: &mut TestAppContext) {
-        let (f, cx) = open(cx, &[("src/main.rs", "fn a() {}\n")], "src/main.rs", None);
-        let toggled = |cx: &mut VisualTestContext, id: &str| {
+    async fn rainbow_brackets_colour_the_brackets_by_their_depth(cx: &mut TestAppContext) {
+        let text = "fn a() { b(\"(\", c[0]); }\n)\n";
+        let (f, cx) = open(cx, &[("src/main.rs", text)], "src/main.rs", None);
+        let editor = f.active(cx);
+        settle(cx, |cx| editor.read_with(cx, |e, _| !e.highlights().is_empty()));
+        let toggled = |cx: &mut VisualTestContext| {
             cx.update(|window, cx| {
-                let action = cx.global::<ActionRegistry>().get(id).expect("registered");
+                let action = cx.global::<ActionRegistry>().get("editor.toggleRainbowBrackets").expect("registered");
                 action.is_toggled(window, cx)
             })
         };
-        assert_eq!(toggled(cx, "editor.toggleSemanticHighlighting"), Some(false));
-        f.run(cx, "editor.toggleSemanticHighlighting");
-        let editor = |cx: &mut VisualTestContext| cx.update(|_, cx| settings::global(cx).editor);
-        assert!(editor(cx).semantic_highlighting);
-        assert_eq!(toggled(cx, "editor.toggleSemanticHighlighting"), Some(true));
+        let painted = |cx: &mut VisualTestContext, line: u32, col: u32| {
+            cx.update(|window, _| window.refresh());
+            cx.run_until_parked();
+            editor.read_with(cx, |e, _| e.painted_color_at(line, col))
+        };
+        let color = |cx: &mut VisualTestContext, token: &str| cx.update(|_, cx| theme::color(cx, token));
+        let (first, second, third, invalid) = (
+            color(cx, "syn-bracket-1"),
+            color(cx, "syn-bracket-2"),
+            color(cx, "syn-bracket-3"),
+            color(cx, "syn-invalid"),
+        );
+        assert_eq!(toggled(cx), Some(false));
+        let string = painted(cx, 0, 12);
+        let before: Vec<_> = [(0, 4), (0, 10), (0, 17), (1, 0)].iter().map(|&(l, c)| painted(cx, l, c)).collect();
+        assert!(!before.contains(&Some(second)) && !before.contains(&Some(third)), "{before:?}");
+
         f.run(cx, "editor.toggleRainbowBrackets");
-        assert!(editor(cx).rainbow_brackets);
+        assert!(cx.update(|_, cx| settings::global(cx).editor.rainbow_brackets));
+        assert_eq!(toggled(cx), Some(true));
+        settle(cx, |cx| painted(cx, 0, 10) == Some(second));
+        for (col, expected) in
+            [(4, first), (5, first), (7, first), (10, second), (17, third), (19, third), (20, second)]
+        {
+            assert_eq!(painted(cx, 0, col), Some(expected), "column {col}");
+        }
+        assert_eq!(painted(cx, 0, 23), Some(first));
+        assert_eq!(painted(cx, 1, 0), Some(invalid), "the unmatched bracket");
+        assert_eq!(painted(cx, 0, 12), string, "the bracket in the string");
+
         f.run(cx, "editor.toggleRainbowBrackets");
-        assert!(!editor(cx).rainbow_brackets);
+        assert!(!cx.update(|_, cx| settings::global(cx).editor.rainbow_brackets));
+        settle(cx, |cx| painted(cx, 0, 10) == before[1]);
+        f.close(cx);
+    }
+
+    /// Distraction Free Mode hides the editor's tab strip and gutter and centres the text at the
+    /// text width of Settings › Editor › General; leaving it brings them back.
+    #[gpui_kit::test]
+    async fn distraction_free_mode_hides_the_tabs_and_the_gutter_and_centres_the_text(cx: &mut TestAppContext) {
+        let line = "x".repeat(120);
+        let (f, cx) = open(cx, &[("notes.txt", line.as_str())], "notes.txt", None);
+        let editor = f.active(cx);
+        let tab =
+            f.workbench.read_with(cx, |w, _| w.tabs().and_then(|tabs| tabs.pane(&tabs.active_pane)?.active.clone()));
+        let tab: &'static str = Box::leak(format!("tab:{}", tab.expect("a tab")).into_boxed_str());
+        let geometry = |cx: &mut VisualTestContext| {
+            cx.update(|window, _| window.refresh());
+            cx.run_until_parked();
+            editor.read_with(cx, |e, cx| {
+                let bounds = e.painted_bounds().expect("painted");
+                let start = e.position_of(e.offset_of(0, 0)).expect("painted").x;
+                let eighty = e.position_of(e.offset_of(0, 80)).expect("painted").x;
+                (start - bounds.left(), eighty - start, bounds.size.width, e.fold_column_width(cx))
+            })
+        };
+        let (left, _, _, fold) = geometry(cx);
+        assert!(cx.debug_bounds(tab).is_some(), "the tab strip is drawn");
+        assert_eq!(fold, px(crate::editor::view::FOLD_GUTTER));
+        assert_eq!(left, cx.update(|_, cx| theme::length(cx, "w-gutter")) + fold, "the text starts after the gutter");
+
+        f.run(cx, "editor.toggleZen");
+        let (left, eighty, width, fold) = geometry(cx);
+        assert!(cx.debug_bounds(tab).is_none(), "the tab strip is hidden");
+        assert_eq!(fold, px(0.0), "no fold chevrons");
+        let column = eighty + px(22.0);
+        assert!(((width - column) / 2.0 - left).abs() < px(1.0), "centred: {left:?} of {width:?} for {column:?}");
+        // Left of the text is no gutter: a press there sets no breakpoint.
+        let presses = count_gutter_presses(&editor, cx);
+        let top = editor.read_with(cx, |e, _| e.painted_bounds().expect("painted").top());
+        let x = editor.read_with(cx, |e, _| e.painted_bounds().expect("painted").left()) + px(8.0);
+        cx.simulate_click(point(x, top + px(4.0)), Modifiers::default());
+        cx.run_until_parked();
+        assert_eq!(presses.get(), 0);
+
+        f.run(cx, "editor.toggleZen");
+        let (left, _, _, _) = geometry(cx);
+        assert!(cx.debug_bounds(tab).is_some(), "the tab strip is back");
+        assert_eq!(left, cx.update(|_, cx| theme::length(cx, "w-gutter")) + px(crate::editor::view::FOLD_GUTTER));
         f.close(cx);
     }
 
@@ -1129,7 +1245,8 @@ mod tests {
         f.close(cx);
     }
 
-    /// Reload All from Disk reads the project tree again: a file written outside the IDE shows.
+    /// Reload All from Disk reads the project tree again: a file written outside the IDE shows. The
+    /// file watcher shows it as well, so the test cannot tell the reload from the watcher.
     #[gpui_kit::test]
     async fn reload_all_from_disk_reads_the_project_tree_again(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("a.txt", "one\n")], "a.txt", None);
@@ -1144,12 +1261,14 @@ mod tests {
         f.close(cx);
     }
 
-    /// Go to Test with two tests of the file offers both; Create New Test… is offered only while the
-    /// file templates can create a file, as an action that is not registered is not offered.
+    /// Go to Test with two tests of the file offers both; Create New Test… needs the New File
+    /// dialog of the file templates, so without it the row is not offered and a file without tests
+    /// opens no chooser.
     #[gpui_kit::test]
     async fn go_to_test_offers_create_new_test_only_with_the_file_templates(cx: &mut TestAppContext) {
         let files = [
             ("src/calc.py", "def add(a, b):\n    return a + b\n"),
+            ("src/alone.py", "def one():\n    return 1\n"),
             ("tests/test_calc.py", "def test_add():\n    pass\n"),
             ("tests/calc_test.py", "def test_sum():\n    pass\n"),
         ];
@@ -1157,20 +1276,139 @@ mod tests {
         let indexed = |cx: &mut VisualTestContext| {
             cx.update(|_, cx| {
                 let host = cx.global::<Backend>().host.clone();
-                ["test_calc.py", "calc_test.py"].into_iter().all(|name| {
+                ["test_calc.py", "calc_test.py", "alone.py"].into_iter().all(|name| {
                     let found = ide_host::ops::nav::find_files(&host, "w1", name.to_owned(), 50);
                     found.is_ok_and(|found| !found.is_empty())
                 })
             })
         };
         settle(cx, indexed);
+        assert!(!cx.update(|_, cx| cx.global::<ActionRegistry>().contains("templates.newFromTemplate")));
         f.run(cx, "navigate.gotoTest");
         let list = f.popup_list(cx);
         let lines = list.read_with(cx, |list, _| list.lines());
-        let creates = lines.iter().any(|line| line.starts_with("Create New Test…"));
-        let templates = cx.update(|_, cx| cx.global::<ActionRegistry>().contains("templates.newFromTemplate"));
-        assert_eq!(creates, templates, "{lines:?}");
-        assert_eq!(lines.len(), if templates { 3 } else { 2 }, "{lines:?}");
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert!(!lines.iter().any(|line| line.starts_with("Create New Test…")), "{lines:?}");
+        cx.simulate_keystrokes("escape");
+        settle(cx, |cx| f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none()));
+
+        let alone = f.root.join("src/alone.py");
+        f.workbench.update_in(cx, |w, window, cx| w.open_project_file(alone.clone(), window, cx));
+        settle(cx, |cx| f.at(cx).is_some_and(|(path, _)| path == alone));
+        f.run(cx, "navigate.gotoTest");
+        idle(cx);
+        assert!(f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none()), "no chooser");
+        assert_eq!(f.at(cx).map(|(path, _)| path), Some(alone));
+        f.close(cx);
+    }
+
+    /// Next Occurrence steps through the problems of the Problems window and the status bar says
+    /// which of how many for a while; ⌥⌘↑ in the editor steps back.
+    #[gpui_kit::test]
+    async fn next_occurrence_says_which_of_how_many_in_the_status_bar(cx: &mut TestAppContext) {
+        use super::super::tests::{publish, published};
+        use ide_core::Severity;
+        let (f, cx) = open(cx, &[("a.txt", "one\ntwo\nthree\n")], "a.txt", None);
+        let a = f.root.join("a.txt");
+        f.run(cx, "toolwindow.problems");
+        assert!(f.workbench.read_with(cx, |w, _| w.problems_view()).is_some(), "the Problems window is shown");
+        let problems = vec![
+            published(0, 0, Severity::Error, "first"),
+            published(1, 1, Severity::Error, "second"),
+            published(2, 2, Severity::Error, "third"),
+        ];
+        publish(&f.workbench, cx, &a, problems);
+        let bar = f.workbench.read_with(cx, |w, _| w.status_bar().clone());
+        let says = |cx: &mut VisualTestContext, text: &str| {
+            cx.update(|window, cx| bar.read(cx).texts(window, cx)).iter().any(|shown| shown == text)
+        };
+        f.run(cx, "navigate.nextOccurrence");
+        settle(cx, |cx| f.at(cx) == Some((a.clone(), (0, 0))));
+        assert!(says(cx, "1 of 3"));
+        f.run(cx, "navigate.nextOccurrence");
+        settle(cx, |cx| f.at(cx) == Some((a.clone(), (1, 1))));
+        assert!(says(cx, "2 of 3") && !says(cx, "1 of 3"));
+        f.focus_editor(cx);
+        cx.simulate_keystrokes("cmd-alt-up");
+        settle(cx, |cx| f.at(cx) == Some((a.clone(), (0, 0))));
+        assert!(says(cx, "1 of 3"));
+        // The message goes after eight seconds.
+        cx.executor().advance_clock(Duration::from_secs(9));
+        cx.run_until_parked();
+        assert!(!says(cx, "1 of 3"));
+        f.close(cx);
+    }
+
+    /// Next and Previous Occurrence need a project: in a window editing a loose file their keys
+    /// move nothing.
+    #[gpui_kit::test]
+    async fn the_occurrence_keys_do_nothing_without_a_project(cx: &mut TestAppContext) {
+        cx.executor().allow_parking();
+        let (home, folder) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a folder"));
+        let file = folder.path().canonicalize().expect("the folder exists").join("notes.txt");
+        std::fs::write(&file, "// TODO one\n// TODO two\n").expect("the file is written");
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            input::init(cx);
+            crate::editor::actions::register(cx);
+            workbench::register_actions(cx);
+            cx.set_global(UiStorage::default());
+            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            workbench::menu::init(cx);
+        });
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |w, window, cx| w.open_file(file.clone(), window, cx));
+        let editor = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.editor().cloned());
+        settle(cx, |cx| {
+            let editor = editor(cx);
+            cx.update(|window, cx| editor.is_some_and(|editor| editor.focus_handle(cx).is_focused(window)))
+        });
+        let editor = editor(cx).expect("an editor");
+        editor.update(cx, |e, cx| e.select(15, 15, cx));
+        let caret = |cx: &mut VisualTestContext| editor.read_with(cx, |e, _| e.caret_position());
+        for (id, key) in [("navigate.nextOccurrence", "cmd-alt-down"), ("navigate.prevOccurrence", "cmd-alt-up")] {
+            assert!(cx.update(|window, cx| execute_action_or_throw(id, None, window, cx)).is_err(), "{id} runs");
+            cx.simulate_keystrokes(key);
+            idle(cx);
+            assert_eq!(caret(cx), (1, 3), "{key} moved the caret");
+        }
+    }
+
+    /// In Paste from History, Enter pastes the chosen entry; Backspace edits the filter while it
+    /// has text and deletes the chosen entry once it is empty; Delete deletes it.
+    #[gpui_kit::test]
+    async fn the_paste_history_keys_edit_the_filter_or_act_on_the_chosen_entry(cx: &mut TestAppContext) {
+        use crate::editor::view::EditorClipboard;
+        let (f, cx) = open(cx, &[("notes.txt", "alpha beta gamma\n")], "notes.txt", None);
+        let editor = f.active(cx);
+        for (from, to) in [(0, 5), (6, 10), (11, 16)] {
+            editor.update(cx, |e, cx| e.select(from, to, cx));
+            f.run(cx, "edit.copy");
+        }
+        let history = |cx: &mut VisualTestContext| -> Vec<String> {
+            cx.update(|_, cx| {
+                cx.default_global::<EditorClipboard>().0.entries().iter().map(|entry| entry.text.clone()).collect()
+            })
+        };
+        assert_eq!(history(cx), ["gamma", "beta", "alpha"]);
+        editor.update(cx, |e, cx| e.select(17, 17, cx));
+        f.run(cx, "code.pasteFromHistory");
+        let dialog = f.workbench.read_with(cx, |w, _| w.paste_history_dialog()).expect("the dialog is open");
+        let filter = |cx: &mut VisualTestContext| dialog.read_with(cx, |d, cx| d.field().read(cx).text().to_owned());
+        cx.simulate_input("be");
+        cx.simulate_keystrokes("backspace");
+        assert_eq!(filter(cx), "b");
+        assert_eq!(history(cx), ["gamma", "beta", "alpha"], "Backspace edited the filter");
+        cx.simulate_keystrokes("backspace");
+        assert_eq!(filter(cx), "");
+        cx.simulate_keystrokes("backspace");
+        assert_eq!(history(cx), ["beta", "alpha"], "Backspace in the empty filter deletes the chosen entry");
+        cx.simulate_keystrokes("delete");
+        assert_eq!(history(cx), ["alpha"]);
+        cx.simulate_keystrokes("enter");
+        assert!(f.workbench.read_with(cx, |w, _| w.paste_history_dialog().is_none()));
+        assert_eq!(f.text(cx), "alpha beta gamma\nalpha");
         f.close(cx);
     }
 
@@ -1178,9 +1416,6 @@ mod tests {
     #[gpui_kit::test]
     async fn the_editor_actions_need_an_editor(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("src/main.rs", "fn a() {}\n")], "src/main.rs", None);
-        let before = f.active(cx).read_with(cx, |e, _| (e.text(), e.selections().to_vec()));
-        f.run(cx, "editor.addOrRemoveCaret");
-        assert_eq!(f.active(cx).read_with(cx, |e, _| (e.text(), e.selections().to_vec())), before);
         f.run(cx, "editor.closeTab");
         settle(cx, |cx| f.editor(cx).is_none());
         let ids = [
@@ -1191,7 +1426,6 @@ mod tests {
             "code.unwrap",
             "code.expressionTypeInfo",
             "code.reformatDialog",
-            "editor.addOrRemoveCaret",
         ];
         for id in ids {
             assert!(f.unavailable(cx, id), "{id} runs without an editor");

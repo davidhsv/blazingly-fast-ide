@@ -51,6 +51,9 @@ use gpui_kit::App;
 /// backend with the app's directories.
 pub fn init(cx: &mut App) -> anyhow::Result<()> {
     cx.set_global(theme::ActiveTheme::default());
+    // The installed font families are read once, off the window's thread; views draw with the
+    // theme's default family until they arrive.
+    theme::installed_fonts::load(cx, false, |_, _| {});
     platform::input::init(cx);
     editor::actions::register(cx);
     cx.default_global::<platform::i18n::Localization>();

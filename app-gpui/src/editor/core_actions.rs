@@ -175,12 +175,17 @@ pub(super) fn refresh_folds(editor: &mut Editor, cx: &mut Context<Editor>) {
     .detach();
 }
 
-/// Applies what a folding command answers: the folds change, then the selection moves where the
-/// command says. A caret a new fold hides goes to the fold's start, where the placeholder is.
 fn run_fold(editor: &mut Editor, command: FoldCommand, cx: &mut Context<Editor>) {
     let state = editor.edit_state();
     let Some(edit) = command(&state, editor) else { return };
-    let changed = editor.core.folds.apply(&state, &edit.effects);
+    apply_fold_edit(editor, &state, edit, cx);
+}
+
+/// Applies what a folding command answers for the text of `state`: the folds change, then the
+/// selection moves where the command says. A caret a new fold hides goes to the fold's start, where
+/// the placeholder is.
+pub(super) fn apply_fold_edit(editor: &mut Editor, state: &EditState, edit: FoldEdit, cx: &mut Context<Editor>) {
+    let changed = editor.core.folds.apply(state, &edit.effects);
     let (ranges, main) = match edit.selection {
         Some(selection) => (selection.selections, selection.main),
         None => (state.selections.clone(), state.main),

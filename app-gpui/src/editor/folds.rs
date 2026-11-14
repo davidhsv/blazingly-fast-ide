@@ -67,6 +67,11 @@ impl Folds {
         self.foldable.get(line as usize).is_some_and(Option::is_some)
     }
 
+    /// The backend's fold ranges as offsets, sorted by start.
+    pub fn backend(&self) -> &[BackendFold] {
+        &self.backend
+    }
+
     /// Applies a folding command's effects to the text of `state`. Answers whether anything changed.
     pub fn apply(&mut self, state: &EditState, effects: &[FoldEffect]) -> bool {
         let folded = apply_fold_effects(&self.folded, effects);

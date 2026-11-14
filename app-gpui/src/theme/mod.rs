@@ -5,6 +5,7 @@ pub mod color_scheme;
 pub mod fonts;
 pub mod icls;
 pub mod icons;
+pub mod installed_fonts;
 pub mod themes;
 pub mod tokens;
 

@@ -15,6 +15,7 @@ use super::pages::{self, Binding, ControlEvent, FormView, Part, ScopeOf, StackVi
 use crate::backend::Backend;
 use crate::settings_model::staging::Scope;
 use crate::theme::fonts::{FontFamily, FontStatus, SystemFonts, merge_font_families};
+use crate::theme::installed_fonts;
 use gpui_kit::{
     AnyView, App, AppContext, Entity, EventEmitter, PathPromptOptions, Render, SharedString, Subscription, Window,
     font, px,
@@ -342,43 +343,37 @@ fn saved_git_hosts(store: Option<&ide_ssh::git_creds::GitCredentials>) -> Vec<St
     store.map(ide_ssh::git_creds::GitCredentials::list).unwrap_or_default()
 }
 
-/// Reads the installed fonts off the window's thread (hundreds of families are resolved and
-/// measured); the pickers say they are loading meanwhile, and follow the list once it is read.
+/// Lists the installed fonts for the pickers off the window's thread (hundreds of families are
+/// resolved and measured); the pickers say they are loading meanwhile, and follow the list once it
+/// is read. The first picker shown uses the families the app read at start; the refresh button
+/// reads them from the system again.
 fn load_font_catalog(cx: &mut App) {
+    let status = cx.try_global::<FontCatalog>().map(|catalog| catalog.0.status);
     // Two pickers on a page ask together: the fonts are read once.
-    if cx.try_global::<FontCatalog>().is_some_and(|catalog| catalog.0.status == FontStatus::Loading) {
+    if status == Some(FontStatus::Loading) {
         return;
     }
+    let refresh = status.is_some_and(|status| status != FontStatus::Idle);
     let mut loading = cx.try_global::<FontCatalog>().map(|catalog| catalog.0.clone()).unwrap_or_default();
     loading.status = FontStatus::Loading;
     cx.set_global(FontCatalog(loading));
-    let text_system = cx.text_system().clone();
-    let read = cx.background_executor().spawn(async move { system_font_catalog(&text_system) });
-    cx.spawn(async move |cx| {
-        let catalog = read.await;
-        cx.update(|cx| {
-            cx.set_global(catalog);
-            cx.refresh_windows();
-        });
-    })
-    .detach();
-}
-
-/// The names of the installed font families. Test builds read none: no test depends on the
-/// fonts of the machine it runs on.
-fn installed_font_names(text_system: &gpui_kit::TextSystem) -> Vec<String> {
-    #[cfg(not(test))]
-    return text_system.all_font_names();
-    #[cfg(test)]
-    {
-        let _ = text_system;
-        Vec::new()
-    }
+    installed_fonts::load(cx, refresh, |names, cx| {
+        let (names, text_system) = (names.to_vec(), cx.text_system().clone());
+        let read = cx.background_executor().spawn(async move { system_font_catalog(names, &text_system) });
+        cx.spawn(async move |cx| {
+            let catalog = read.await;
+            cx.update(|cx| {
+                cx.set_global(catalog);
+                cx.refresh_windows();
+            });
+        })
+        .detach();
+    });
 }
 
 /// The installed families, each marked monospaced when its "i" is as wide as its "W".
-fn system_font_catalog(text_system: &gpui_kit::TextSystem) -> FontCatalog {
-    let fonts: Vec<FontFamily> = installed_font_names(text_system)
+fn system_font_catalog(names: Vec<String>, text_system: &gpui_kit::TextSystem) -> FontCatalog {
+    let fonts: Vec<FontFamily> = names
         .into_iter()
         .map(|name| {
             let id = text_system.resolve_font(&font(SharedString::from(name.clone())));
@@ -1005,7 +1000,7 @@ mod tests {
     // open editor draws its text with; a family that is not installed gives way to the fallback font.
     #[gpui_kit::test]
     async fn the_editor_draws_with_the_font_applied_on_the_font_page(cx: &mut TestAppContext) {
-        use crate::editor::view::InstalledFontNames;
+        use crate::theme::installed_fonts::InstalledFontNames;
         let _home = start(cx);
         // The families the machine has, as far as the editor knows: given here, never read.
         cx.update(|cx| cx.set_global(InstalledFontNames(vec!["Test Mono".to_owned(), "Test Fallback".to_owned()])));

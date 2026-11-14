@@ -229,11 +229,7 @@ fn small_text(cx: &App, color: &str, text: String) -> Div {
 
 /// The first font of the theme's `--font-mono` list that is installed: paths are code.
 fn code_font(cx: &App) -> SharedString {
-    let families =
-        cx.try_global::<theme::ActiveTheme>().map(|active| active.theme.font_families("font-mono")).unwrap_or_default();
-    let installed = cx.text_system().all_font_names();
-    let family = families.into_iter().find(|family| installed.contains(family)).unwrap_or_else(|| "Menlo".to_owned());
-    SharedString::from(family)
+    crate::theme::installed_fonts::mono_family(cx)
 }
 
 // ---------------------------------------------------------------------------

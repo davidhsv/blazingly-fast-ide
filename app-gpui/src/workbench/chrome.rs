@@ -18,7 +18,7 @@ use super::services_window::on_workbench;
 use super::status_bar::{StatusBar, StatusBarEvent, StatusClick, StatusContent, StatusText};
 use super::status_bar_widgets::SetVisible;
 use super::status_items::{
-    self, Indent, caret_item, encoding_item, indent_item, line_ending_item, read_only_item, task_item,
+    self, Indent, caret_item, encoding_item, indent_item, info_item, line_ending_item, read_only_item, task_item,
 };
 use super::title_bar::{
     ActionChoice, BUILD_ITEM, CustomizeToolbarDialog, CustomizeToolbarEvent, IDE_MODE_ITEM, MERGE_REBASE_ITEM,
@@ -43,8 +43,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 /// The status items whose text the window feeds, from what it knows: the background tasks and the
-/// shown editor's caret, line separator, encoding, indentation and read-only attribute.
-const FED_STATUS_ITEMS: [&str; 6] = [
+/// shown editor's caret, line separator, encoding, indentation and read-only attribute, the
+/// highlighted usages' count and the transient status message.
+const FED_STATUS_ITEMS: [&str; 8] = [
+    status_items::USAGES,
+    status_items::INFO,
     status_items::TASKS,
     status_items::CARET,
     status_items::LINE_ENDING,
@@ -259,7 +262,9 @@ impl Workbench {
         });
         let editor_items = editor_items.unwrap_or_else(|| EDITOR_STATUS_ITEMS.map(|id| (id, None)));
         let registry = cx.try_global::<ActionRegistry>();
+        let usages = self.usages_status().map(|text| StatusText::new(text).tooltip(text));
         std::iter::once((status_items::TASKS, task_item(self.tasks.tasks(), i18n)))
+            .chain([(status_items::USAGES, usages), (status_items::INFO, info_item(self.status_info()))])
             .chain(editor_items)
             .map(|(id, text)| (id, text.map(|text| reachable(text, registry))))
             .collect()

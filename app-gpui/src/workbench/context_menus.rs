@@ -1618,7 +1618,8 @@ mod tests {
         let editor = f.open_file("a.txt", cx);
         let line_start = editor.read_with(cx, |editor, _| editor.offset_of(1, 0));
         let text_at = at_offset(&editor, line_start, cx);
-        let gutter = point(text_at.x - px(12.0), text_at.y);
+        // Left of the fold chevrons' column, where the breakpoints are.
+        let gutter = point(text_at.x - px(crate::editor::view::FOLD_GUTTER) - px(12.0), text_at.y);
         // A breakpoint is set by the press the editor reports from its gutter: count those.
         let presses = Rc::new(std::cell::Cell::new(0));
         let counted = Rc::clone(&presses);

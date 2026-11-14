@@ -4,6 +4,7 @@ pub mod actions;
 pub mod buffer;
 pub mod command_actions;
 pub mod core_actions;
+pub mod extras;
 pub mod find_bar;
 pub mod find_model;
 pub mod folds;

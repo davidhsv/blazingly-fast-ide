@@ -32,6 +32,12 @@ pub struct EditorFacts {
     pub insert_doc_stub: bool,
     /// Editor › Font: what the text is drawn with.
     pub font: EditorFont,
+    /// Color Scheme › Rainbow brackets: `()`, `[]` and `{}` are coloured by their nesting depth.
+    pub rainbow_brackets: bool,
+    /// Code Folding › Show code folding outline: the gutter's column of fold chevrons.
+    pub fold_outline: bool,
+    /// Distraction Free Mode's text width, in characters.
+    pub distraction_free_width: u32,
 }
 
 /// The font Editor › Font names for the editor's text.
@@ -124,6 +130,9 @@ impl EditorFacts {
                 ligatures: editor.ligatures,
                 weight: editor.font_weight,
             },
+            rainbow_brackets: editor.rainbow_brackets,
+            fold_outline: editor.folding.show_outline,
+            distraction_free_width: editor.appearance.distraction_free_width,
         }
     }
 

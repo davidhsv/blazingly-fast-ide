@@ -22,6 +22,7 @@ use crate::build_window::model::BUILD_TOOL_WINDOW;
 use crate::debugger::effects::DEBUG_TOOL_WINDOW;
 mod diff_window;
 mod editor_core;
+mod editor_extras;
 mod editor_find;
 mod editor_intelligence;
 mod editor_language;
@@ -42,6 +43,7 @@ mod plugins_window;
 pub mod project_color;
 mod project_files;
 mod project_view_actions;
+pub(crate) use app_actions::zen_active as distraction_free_active;
 pub use project_view_actions::undo_in_project_view;
 pub mod quick_switch;
 mod run_configs;
@@ -329,6 +331,8 @@ pub struct Workbench {
     /// The editor language actions: the refactorings undoable as one step, the highlighted usages,
     /// the rename waiting for its edit.
     language: editor_language::EditorLanguage,
+    /// The status bar's transient message (Next Occurrence's "2 of 5").
+    extras: editor_extras::EditorExtras,
     /// Resolving the project's merge conflicts: the merge editor, the conflict banners and what the
     /// Conflicts dialog remembers.
     conflicts: conflicts::ConflictsSlot,
@@ -530,6 +534,7 @@ pub fn register_actions(cx: &mut App) {
     database::register_actions(registry);
     code_insight::register_actions(registry);
     editor_language::register_actions(registry);
+    editor_extras::register_actions(registry);
     agents::register_actions(registry);
     tab_views::register_actions(registry);
     plugin_runtime::register_actions(registry);
@@ -1054,6 +1059,7 @@ impl Workbench {
             git_log: None,
             vcs_dialog: None,
             language: Default::default(),
+            extras: Default::default(),
             conflicts: Default::default(),
             vcs_operations: Default::default(),
             shelf: Default::default(),
@@ -1374,9 +1380,10 @@ impl Workbench {
                     .collect()
             })
             .unwrap_or_default();
-        // The tab strip: the selected tab is a rounded pill; the rest are plain titles.
+        // The tab strip: the selected tab is a rounded pill; the rest are plain titles. Distraction
+        // Free Mode hides it.
         let strip =
-            (!titles.is_empty()).then(|| {
+            (!titles.is_empty() && !distraction_free_active(cx)).then(|| {
                 div()
                     .h(theme::length(cx, "h-header"))
                     .flex_none()
@@ -1975,6 +1982,11 @@ impl Workbench {
         set_context(window, cx, "findBarFocus", focused_bar.is_some());
         set_context(window, cx, "findBarHasResults", focused_bar.is_some_and(|bar| bar.read(cx).has_results()));
         set_context(window, cx, "pasteHistoryOpen", self.paste_history_dialog().is_some());
+        // The dialog's list and filter are one keyboard target: while it has the keyboard, the keys
+        // bound to Paste and Delete in the keymap run them.
+        let paste_list_focused =
+            self.paste_history_dialog().is_some_and(|dialog| dialog.focus_handle(cx).contains_focused(window, cx));
+        set_context(window, cx, "pasteHistoryListFocus", paste_list_focused);
         set_context(window, cx, "projectOpen", self.project_tree().is_some());
         set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor(_) | Content::Viewer(_)));
         set_context(window, cx, "textEditorActive", editor.is_some());

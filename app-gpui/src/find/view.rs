@@ -189,6 +189,15 @@ impl FindPanel {
         self.run(query, cx);
     }
 
+    /// Rerun Search: the search last made runs again with the same query and options; without one,
+    /// what is typed is searched.
+    pub fn rerun(&mut self, cx: &mut Context<Self>) {
+        match self.searched.clone() {
+            Some(query) => self.run(query, cx),
+            None => self.search(cx),
+        }
+    }
+
     fn run(&mut self, query: SearchQuery, cx: &mut Context<Self>) {
         self.searched = Some(query.clone());
         self.restarted = true;

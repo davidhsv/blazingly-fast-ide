@@ -378,12 +378,7 @@ fn line_height(cx: &App) -> Pixels {
 
 /// The first font of the theme's `--font-mono` list that is installed.
 fn code_font(cx: &App) -> Font {
-    let families =
-        cx.try_global::<theme::ActiveTheme>().map(|t| t.theme.font_families("font-mono")).unwrap_or_default();
-    let installed = cx.text_system().all_font_names();
-    let family =
-        families.into_iter().find(|f| installed.iter().any(|name| name == f)).unwrap_or_else(|| "Menlo".to_owned());
-    font(SharedString::from(family))
+    font(crate::theme::installed_fonts::mono_family(cx))
 }
 
 /// The next character boundary after (before) `pos`: a surrogate pair is one character.

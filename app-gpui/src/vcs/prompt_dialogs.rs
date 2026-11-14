@@ -145,11 +145,7 @@ impl EventEmitter<PromptDialogEvent> for PromptDialog {}
 
 /// The first font of the theme's `--font-mono` list that is installed: names and revisions are code.
 pub(super) fn code_font(cx: &App) -> SharedString {
-    let families =
-        cx.try_global::<theme::ActiveTheme>().map(|active| active.theme.font_families("font-mono")).unwrap_or_default();
-    let installed = cx.text_system().all_font_names();
-    let family = families.into_iter().find(|family| installed.contains(family)).unwrap_or_else(|| "Menlo".to_owned());
-    SharedString::from(family)
+    crate::theme::installed_fonts::mono_family(cx)
 }
 
 /// The smallest edit that turns `old` into `new`: the UTF-16 range of `old` it replaces and the text
@@ -166,7 +162,7 @@ fn minimal_edit(old: &str, new: &str) -> (Range<usize>, String) {
 }
 
 /// A check box with its label.
-pub(super) fn checkbox(cx: &App, label: String, on: bool) -> Div {
+pub(crate) fn checkbox(cx: &App, label: String, on: bool) -> Div {
     let mark = on.then(|| theme::icon(cx, "check", 12.0, theme::color(cx, "fg-button-primary")));
     div()
         .flex_none()
@@ -192,7 +188,7 @@ pub(super) fn checkbox(cx: &App, label: String, on: bool) -> Div {
 }
 
 /// A button: filled when `primary`, outlined otherwise, greyed out when it cannot be pressed.
-pub(super) fn button(cx: &App, label: String, primary: bool, danger: bool, enabled: bool) -> Div {
+pub(crate) fn button(cx: &App, label: String, primary: bool, danger: bool, enabled: bool) -> Div {
     let face = div()
         .flex_none()
         .h(px(BUTTON_HEIGHT))

@@ -12,7 +12,7 @@ use crate::backend::{Backend, BackendEvent};
 use crate::platform::dispatcher::{Mods, stroke};
 use crate::platform::input::{self, Keymap};
 use crate::platform::settings;
-use crate::theme;
+use crate::theme::{self, installed_fonts};
 use alacritty_terminal::vte::ansi::{CursorShape, Rgb};
 use futures::StreamExt as _;
 use futures::channel::mpsc::unbounded;
@@ -470,19 +470,11 @@ impl TerminalView {
     /// The terminal's font and its size: the editor's, or the one set for the terminal.
     fn font(cx: &App) -> (Font, Pixels, f32) {
         let terminal = settings::global(cx).terminal;
-        let installed = cx.text_system().all_font_names();
-        let named =
-            (!terminal.use_editor_font && installed.contains(&terminal.font_family)).then_some(terminal.font_family);
-        let family = named.unwrap_or_else(|| {
-            let families =
-                cx.try_global::<theme::ActiveTheme>().map(|t| t.theme.font_families("font-mono")).unwrap_or_default();
-            families.into_iter().find(|family| installed.contains(family)).unwrap_or_else(|| "Menlo".to_owned())
-        });
-        (
-            font(SharedString::from(family)),
-            px(terminal.font_size.clamp(6.0, 72.0)),
-            terminal.line_height.clamp(0.8, 3.0),
-        )
+        // A family of its own counts once it is known to be installed.
+        let installed = installed_fonts::installed(cx).is_some_and(|names| names.contains(&terminal.font_family));
+        let named = (!terminal.use_editor_font && installed).then_some(SharedString::from(terminal.font_family));
+        let family = named.unwrap_or_else(|| installed_fonts::mono_family(cx));
+        (font(family), px(terminal.font_size.clamp(6.0, 72.0)), terminal.line_height.clamp(0.8, 3.0))
     }
 }
 

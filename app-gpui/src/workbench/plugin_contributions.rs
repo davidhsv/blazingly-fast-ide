@@ -72,7 +72,7 @@ const TOOLS_MENU: &str = "tools";
 const BACKGROUND_TASKS: &str = "view.backgroundTasks";
 /// Debug Plugin Configuration: a plugin's debug request, under the debugger of the window.
 const DEBUG_PLUGIN_START: &str = "debug.pluginStart";
-/// The size of a gutter action's icon, and its distance from the text.
+/// The size of a gutter action's icon, and its distance from the fold chevrons' column.
 const GUTTER_ICON: f32 = 12.0;
 const GUTTER_INSET: f32 = 13.0;
 /// The popup's corner keeps this far from the window's bottom right (above the status bar).
@@ -625,13 +625,15 @@ impl Workbench {
         let Some(editor) = self.editor().cloned() else { return Vec::new() };
         let id = editor.entity_id();
         let markers = self.plugin_gutter_markers(&editor);
-        if markers.is_empty() {
+        // Distraction Free Mode draws no gutter.
+        if markers.is_empty() || super::distraction_free_active(cx) {
             return Vec::new();
         }
-        let (places, line_height) = {
+        let (places, line_height, fold_column) = {
             let editor = editor.read(cx);
             let Some(painted) = editor.painted_lines() else { return Vec::new() };
             let line_height = editor.line_height(cx);
+            let fold_column = editor.fold_column_width(cx);
             let first = painted.start;
             // The editor's top: where its first painted row would start unscrolled.
             let top = editor
@@ -649,7 +651,7 @@ impl Workbench {
                     inside.then_some((index, at))
                 })
                 .collect();
-            (places, line_height)
+            (places, line_height, fold_column)
         };
         let color = theme::color(cx, "fg-muted");
         places
@@ -657,7 +659,8 @@ impl Workbench {
             .map(|(index, at)| {
                 let marker = &markers[index];
                 let line = marker.line;
-                let corner = point(at.x - px(GUTTER_INSET), at.y + (line_height - px(GUTTER_ICON)) / 2.0);
+                // Left of the fold chevrons' column.
+                let corner = point(at.x - fold_column - px(GUTTER_INSET), at.y + (line_height - px(GUTTER_ICON)) / 2.0);
                 let icon = div()
                     .id(SharedString::from(format!("plugin-gutter-{line}")))
                     .debug_selector(move || format!("plugin-gutter:{line}"))
@@ -1446,6 +1449,41 @@ mod tests {
             run_in_window(cx, &root, &id, "state", None).ok().flatten().as_deref() == Some("gutter")
         });
         assert_eq!(editor_state(&editor, cx), before, "the caret, the selection and the breakpoints are as they were");
+    }
+
+    /// The fold chevron and a plugin's icon on one line are each their own: a click on the chevron
+    /// folds the plugin's region and runs no gutter action, leaving the caret, the selection and the
+    /// breakpoints alone; a click on the icon runs its action and leaves the fold as it is.
+    #[gpui_kit::test]
+    async fn a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing(
+        cx: &mut TestAppContext,
+    ) {
+        let home = start_with_plugins(cx);
+        let folder = plugin_copy(home.path(), "language-features", str::to_owned);
+        let id = link(cx, &folder, &[], "run");
+        let (_folder, root, workbench, cx) = trusted_project(cx, LABEL, &[("notes.txt", "one\ntwo\nthree\nfour\n")]);
+        let editor = open_file(&workbench, root.join("notes.txt"), cx);
+        wait_long(cx, "the icon is drawn", |cx| cx.debug_bounds("plugin-gutter:0").is_some());
+        wait_long(cx, "the plugin's fold is offered", |cx| editor.read_with(cx, |e, _| e.fold_marker(0).is_some()));
+        let shown = |cx: &mut VisualTestContext| editor.read_with(cx, |e, _| e.shown_lines());
+        editor.update(cx, |editor, cx| editor.set_selections(vec![(14, 16)], 0, cx));
+        let before = editor_state(&editor, cx);
+        let chevron = editor.read_with(cx, |e, cx| {
+            let at = e.position_of(e.offset_of(0, 0)).expect("the line is painted");
+            point(at.x - e.fold_column_width(cx) / 2.0, at.y + e.line_height(cx) / 2.0)
+        });
+        let icon = cx.debug_bounds("plugin-gutter:0").expect("the icon");
+        assert!(!icon.contains(&chevron), "the icon {icon:?} is left of the chevron {chevron:?}");
+        cx.simulate_click(chevron, Modifiers::default());
+        cx.run_until_parked();
+        assert_eq!(shown(cx), [0, 3, 4], "the region folds");
+        assert_eq!(editor_state(&editor, cx), before, "the caret, the selection and the breakpoints stay");
+        let state = |cx: &mut VisualTestContext| run_in_window(cx, &root, &id, "state", None).ok().flatten();
+        assert_ne!(state(cx).as_deref(), Some("gutter"), "no gutter action ran");
+        wait_long(cx, "the icon is drawn", |cx| cx.debug_bounds("plugin-gutter:0").is_some());
+        click(cx, "plugin-gutter:0");
+        wait_long(cx, "the command ran", |cx| state(cx).as_deref() == Some("gutter"));
+        assert_eq!(shown(cx), [0, 3, 4], "the fold stays");
     }
 
     // src/features/plugins/languageVisuals.test.ts

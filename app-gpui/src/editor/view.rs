@@ -28,7 +28,7 @@ use crate::editor_commands::{
 };
 use crate::platform::input::{self, EDITOR_CONTEXT};
 use crate::platform::keymap::normalize_binding;
-use crate::theme;
+use crate::theme::{self, installed_fonts};
 use gpui_kit::MouseMoveEvent;
 use gpui_kit::{
     AnyView, App, Bounds, ClipboardItem, Context, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
@@ -83,6 +83,18 @@ const HIGHLIGHT_DELAY: std::time::Duration = std::time::Duration::from_millis(40
 /// The action whose mouse binding adds or removes a caret where the editor is clicked.
 const ADD_CARET_ACTION: &str = "editor.addOrRemoveCaret";
 
+/// The width of the fold chevrons' column, the gutter's last before the text, right of the line
+/// numbers, the breakpoints and the plugins' icons.
+pub const FOLD_GUTTER: f32 = 16.0;
+
+/// The colours Rainbow brackets cycle through by depth.
+const BRACKET_COLORS: [&str; 3] = ["syn-bracket-1", "syn-bracket-2", "syn-bracket-3"];
+
+/// Whether Distraction Free Mode is on: the editors draw no gutter and centre their text.
+fn distraction_free(cx: &App) -> bool {
+    crate::workbench::distraction_free_active(cx)
+}
+
 /// A highlighted range: UTF-16 offsets and its kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HighlightSpan {
@@ -133,7 +145,11 @@ impl EditorStatus {
 /// What the last frame drew, for hit-testing and the platform's text input.
 struct Layout {
     bounds: Bounds<Pixels>,
-    /// Left edge of the text, right of the gutter.
+    /// Width of the gutter, the fold chevrons' column included; none in Distraction Free Mode.
+    gutter: Pixels,
+    /// Width of the fold chevrons' column, the gutter's last.
+    fold_column: Pixels,
+    /// Left edge of the text: right of the gutter, or of the margin that centres it.
     text_left: Pixels,
     line_height: Pixels,
     /// The first painted row (a row is a line no fold hides).
@@ -145,6 +161,9 @@ struct Layout {
     /// tests only, so a frame allocates nothing for it.
     #[cfg(test)]
     painted_marks: Vec<(super::marks::MarkKind, Bounds<Pixels>)>,
+    /// The colour runs (UTF-8 lengths) each painted row was shaped with; for tests only.
+    #[cfg(test)]
+    painted_colors: Vec<Vec<(usize, Hsla)>>,
 }
 
 /// The editors that show each document. The backend reports the edits it makes itself, not the
@@ -233,9 +252,9 @@ pub struct Editor {
     /// Text being composed by an input method, at the main caret.
     marked: Option<Range<u32>>,
     scroll_top: Pixels,
-    highlights: Vec<HighlightSpan>,
+    pub(super) highlights: Vec<HighlightSpan>,
     /// The version `highlights` were computed for.
-    highlights_version: u32,
+    pub(super) highlights_version: u32,
     /// Ranges drawn behind or over the text, by who set them.
     marks: HashMap<MarkLayer, Vec<Mark>>,
     /// The language's facts and the settings the commands read.
@@ -259,6 +278,10 @@ pub struct Editor {
     history: History,
     /// Where a drag selection began, while the mouse button is down.
     drag_anchor: Option<u32>,
+    /// The pointer is over the gutter: the open folds' chevrons show.
+    gutter_hovered: bool,
+    /// The brackets of the text with their depths, for Rainbow brackets.
+    pub(super) brackets: std::cell::RefCell<super::extras::BracketCache>,
     /// A caret-adding press, while the mouse button is down.
     adding: Option<AddingCaret>,
     /// Where a ⌥-drag column selection began, while the mouse button is down.
@@ -361,6 +384,8 @@ impl Editor {
             listener,
             history: History::default(),
             drag_anchor: None,
+            gutter_hovered: false,
+            brackets: Default::default(),
             adding: None,
             column_drag: None,
             dirty: info.dirty,
@@ -523,6 +548,21 @@ impl Editor {
         painted.iter().filter(|(painted, _)| *painted == kind).map(|(_, bounds)| *bounds).collect()
     }
 
+    /// The colour the last frame drew the character at `col` (UTF-16) of `line` in, if it painted
+    /// the line.
+    #[cfg(test)]
+    pub fn painted_color_at(&self, line: u32, col: u32) -> Option<Hsla> {
+        let layout = self.layout.as_ref()?;
+        let row = layout.line_of.iter().position(|painted| *painted == line)?;
+        let (text, _) = layout.lines.get(row)?;
+        let byte = buffer::byte_of_col(text, col);
+        let mut at = 0;
+        layout.painted_colors.get(row)?.iter().find_map(|&(len, color)| {
+            at += len;
+            (byte < at).then_some(color)
+        })
+    }
+
     /// The marks `layer` set, in document order.
     pub fn marks(&self, layer: MarkLayer) -> &[Mark] {
         self.marks.get(&layer).map_or(&[], Vec::as_slice)
@@ -588,13 +628,21 @@ impl Editor {
     }
 
     /// The font size, line height and gutter width the editor paints with: the theme's, the font
-    /// and the line height scaled by the editor's font zoom.
+    /// and the line height scaled by the editor's font zoom. Distraction Free Mode has no gutter.
     fn metrics(&self, cx: &App) -> (Pixels, Pixels, Pixels) {
         let font = &self.facts.font;
         let size = if font.size > 0.0 { px(font.size) } else { theme::length(cx, "fs-code") };
         let line = if font.line_height > 0.0 { px(font.line_height) } else { theme::length(cx, "lh-code") };
         let zoomed = (size + px(self.core.font_zoom as f32)).max(px(1.0));
-        (zoomed, line * (zoomed / size), theme::length(cx, "w-gutter"))
+        let gutter =
+            if distraction_free(cx) { px(0.0) } else { theme::length(cx, "w-gutter") + self.fold_column_width(cx) };
+        (zoomed, line * (zoomed / size), gutter)
+    }
+
+    /// The width of the fold chevrons' column: none while Code Folding › Show code folding outline
+    /// is off, or in Distraction Free Mode.
+    pub fn fold_column_width(&self, cx: &App) -> Pixels {
+        if self.facts.fold_outline && !distraction_free(cx) { px(FOLD_GUTTER) } else { px(0.0) }
     }
 
     /// The font size the editor paints with.
@@ -628,18 +676,19 @@ impl Editor {
         let settings = &self.facts.font;
         let theme =
             cx.try_global::<theme::ActiveTheme>().map(|t| t.theme.font_families("font-mono")).unwrap_or_default();
+        let theme_default = theme.first().cloned();
         let mut candidates: Vec<String> = [settings.family.clone(), settings.fallback.clone()]
             .into_iter()
             .filter(|name| !name.is_empty())
             .chain(theme)
             .collect();
         candidates.dedup();
-        let installed = match cx.try_global::<InstalledFontNames>() {
-            Some(known) => known.0.clone(),
-            None => cx.text_system().all_font_names(),
+        // Until the installed families are known, the theme's default family draws the text.
+        let chosen = match installed_fonts::installed(cx) {
+            Some(installed) => candidates.iter().position(|name| installed.contains(name)),
+            None => candidates.iter().position(|name| theme_default.as_ref() == Some(name)),
         };
-        let chosen = candidates.iter().position(|name| installed.contains(name));
-        let family = chosen.map_or_else(|| "Menlo".to_owned(), |at| candidates.remove(at));
+        let family = chosen.map_or_else(|| installed_fonts::last_resort().to_owned(), |at| candidates.remove(at));
         Font {
             family: SharedString::from(family),
             features: if settings.ligatures { FontFeatures::default() } else { FontFeatures::disable_ligatures() },
@@ -1612,6 +1661,11 @@ impl Editor {
         window.focus(&self.focus, cx);
         if let Some(line) = self.gutter_line_at(event.position) {
             (self.drag_anchor, self.adding) = (None, None);
+            // The chevrons' column opens and closes the line's fold and takes no breakpoint.
+            if self.in_fold_column(event.position) {
+                self.toggle_fold_at_line(line, cx);
+                return;
+            }
             cx.emit(EditorEvent::GutterPressed { line, shift: event.modifiers.shift, alt: event.modifiers.alt });
             return;
         }
@@ -1662,12 +1716,20 @@ impl Editor {
         self.drag_anchor = Some(self.anchor());
     }
 
+    /// Whether `position` is on the column of the fold chevrons, the gutter's last before the text.
+    fn in_fold_column(&self, position: Point<Pixels>) -> bool {
+        self.layout.as_ref().is_some_and(|layout| {
+            let x = position.x - layout.bounds.left();
+            x >= layout.gutter - layout.fold_column && x < layout.gutter
+        })
+    }
+
     /// The 0-based line whose gutter (left of the text) is under `position`.
     fn gutter_line_at(&self, position: Point<Pixels>) -> Option<u32> {
         let layout = self.layout.as_ref()?;
         let x = position.x - layout.bounds.left();
         let y = position.y - layout.bounds.top() + self.scroll_top;
-        if x < px(0.0) || x >= layout.text_left || y < px(0.0) {
+        if x < px(0.0) || x >= layout.gutter || y < px(0.0) {
             return None;
         }
         let line = self.core.folds.line_of_row((y / layout.line_height) as u32);
@@ -1677,6 +1739,11 @@ impl Editor {
     fn mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
         if event.pressed_button != Some(MouseButton::Left) {
             (self.drag_anchor, self.adding, self.column_drag) = (None, None, None);
+            let over_gutter = self.gutter_line_at(event.position).is_some();
+            if over_gutter != self.gutter_hovered {
+                self.gutter_hovered = over_gutter;
+                cx.notify();
+            }
             if event.pressed_button.is_none() {
                 self.hover(self.text_offset_at(event.position), event.modifiers, cx);
             }
@@ -2000,7 +2067,9 @@ impl Element for EditorElement {
     ) -> Prepared {
         let editor = self.editor.read(cx);
         let (font_size, line_height, gutter) = editor.metrics(cx);
+        let fold_column = editor.fold_column_width(cx);
         let code_font = editor.code_font(cx);
+        let brackets = editor.facts.rainbow_brackets.then(|| editor.bracket_marks());
         let plain = theme::color(cx, "fg-editor");
         let number_color = theme::color(cx, "fg-gutter");
         let match_color = theme::color(cx, "fg-search-match");
@@ -2043,6 +2112,8 @@ impl Element for EditorElement {
         let mut numbers = Vec::with_capacity(painted.len());
         let mut placeholders = Vec::with_capacity(painted.len());
         let mut markers = Vec::with_capacity(painted.len());
+        #[cfg(test)]
+        let mut painted_colors = Vec::with_capacity(painted.len());
         for &line in &painted {
             let range = buffer::line_range(&editor.rope, line);
             let text = buffer::slice(&editor.rope, range.start, range.end);
@@ -2069,6 +2140,19 @@ impl Element for EditorElement {
             if at < text.len() || runs.is_empty() {
                 runs.push(run(text.len() - at, plain));
             }
+            // Rainbow brackets: over the syntax colour, by depth in the scheme's three colours, the
+            // unmatched ones in the error colour.
+            if let Some(brackets) = &brackets {
+                let first = brackets.partition_point(|mark| mark.at < range.start);
+                for mark in brackets[first..].iter().take_while(|mark| mark.at < range.end) {
+                    let from = buffer::byte_of_col(&text, mark.at - range.start);
+                    let color = match mark.depth {
+                        Some(depth) => theme::color(cx, BRACKET_COLORS[depth as usize % BRACKET_COLORS.len()]),
+                        None => theme::color(cx, "syn-invalid"),
+                    };
+                    runs = recolor(runs, from, from + 1, color);
+                }
+            }
             for mark in marks.iter().filter(|mark| mark.kind.recolors_text()) {
                 if mark.range.end > range.start && mark.range.start < range.end {
                     let from = buffer::byte_of_col(&text, mark.range.start.saturating_sub(range.start));
@@ -2076,6 +2160,8 @@ impl Element for EditorElement {
                     runs = recolor(runs, from, to, match_color);
                 }
             }
+            #[cfg(test)]
+            painted_colors.push(runs.iter().map(|run| (run.len, run.color)).collect());
             let shaped = window.text_system().shape_line(text.clone().into(), font_size, &runs, None);
             lines.push((text, shaped));
             let label = (line + 1).to_string();
@@ -2100,21 +2186,36 @@ impl Element for EditorElement {
                 };
                 (shape(name, placeholder_color), shape(tail, plain))
             }));
-            markers.push(folded.map(|_| {
-                let chevron = "›";
+            // A folded header shows the closed chevron; a line that starts an open fold shows the
+            // open one while the pointer is over the gutter.
+            let open = editor.gutter_hovered && folds.is_foldable(line);
+            let chevron = if folded.is_some() { Some("›") } else { open.then_some("⌄") };
+            markers.push(chevron.map(|chevron| {
                 window.text_system().shape_line(chevron.into(), font_size, &[run(chevron.len(), marker_color)], None)
             }));
         }
+        // Distraction Free Mode centres a column of its width in characters (and the caret's room).
+        let text_left = if distraction_free(cx) {
+            let zero = window.text_system().shape_line("0".into(), font_size, &[run(1, plain)], None);
+            let column = zero.width * editor.facts.distraction_free_width.clamp(20, 500) as f32 + px(22.0);
+            ((bounds.size.width - column) / 2.0).max(px(0.0))
+        } else {
+            gutter
+        };
         Prepared {
             layout: Layout {
                 bounds,
-                text_left: gutter,
+                gutter,
+                fold_column,
+                text_left,
                 line_height,
                 first_line: first_row,
                 lines,
                 line_of: painted,
                 #[cfg(test)]
                 painted_marks: Vec::new(),
+                #[cfg(test)]
+                painted_colors,
             },
             numbers,
             gutter,
@@ -2151,7 +2252,7 @@ impl Element for EditorElement {
         });
 
         let Prepared { layout, numbers, gutter, marks, placeholders, markers } = prepared;
-        let line_height = layout.line_height;
+        let (line_height, text_left, fold_column) = (layout.line_height, layout.text_left, layout.fold_column);
         let focused = focus.is_focused(window);
         let mark_color = |cx: &App, kind: MarkKind| match kind {
             MarkKind::FindOccurrence => theme::color(cx, "bg-search-match"),
@@ -2177,7 +2278,7 @@ impl Element for EditorElement {
                 let row = layout.first_line + index as u32;
                 let top = bounds.top() + line_height * row as f32 - scroll_top;
                 let range = buffer::line_range(&rope, line);
-                let text_origin = point(bounds.left() + *gutter, top);
+                let text_origin = point(bounds.left() + text_left, top);
                 let x_of = |offset: u32| {
                     shaped.x_for_index(buffer::byte_of_col(text, offset.clamp(range.start, range.end) - range.start))
                 };
@@ -2258,8 +2359,8 @@ impl Element for EditorElement {
                     let after = point(origin.x + chip.size.width + px(2.0), top);
                     let _ = tail.paint(after, line_height, TextAlign::Left, None, window, cx);
                 }
-                if let Some(marker) = markers.get(index).and_then(Option::as_ref) {
-                    let x = bounds.left() + *gutter - px(10.0);
+                if let Some(marker) = markers.get(index).and_then(Option::as_ref).filter(|_| fold_column > px(0.0)) {
+                    let x = bounds.left() + *gutter - (fold_column + marker.width) / 2.0;
                     let _ = marker.paint(point(x, top), line_height, TextAlign::Left, None, window, cx);
                 }
                 for mark in marks.iter().filter(|mark| mark.kind.is_underline()) {
@@ -2284,14 +2385,14 @@ impl Element for EditorElement {
                         window.paint_quad(fill(struck, mark_color(cx, mark.kind)));
                     }
                 }
-                if let Some(number) = numbers.get(index) {
-                    let x = bounds.left() + *gutter - number.width - px(12.0);
+                if let Some(number) = numbers.get(index).filter(|_| *gutter > px(0.0)) {
+                    let x = bounds.left() + *gutter - fold_column - number.width - px(12.0);
                     let _ =
                         number.paint(point(x.max(bounds.left()), top), line_height, TextAlign::Left, None, window, cx);
                 }
                 let breakpoint =
                     marks.iter().find(|mark| mark.kind.is_breakpoint() && touches(mark.range.start, mark.range.end));
-                if let Some(mark) = breakpoint {
+                if let Some(mark) = breakpoint.filter(|_| *gutter > px(0.0)) {
                     let diameter = px(10.0);
                     let dot = Bounds::new(
                         point(bounds.left() + px(4.0), top + (line_height - diameter) / 2.0),
@@ -2325,25 +2426,22 @@ impl Element for EditorElement {
             layout,
             Layout {
                 bounds,
-                text_left: *gutter,
+                gutter: *gutter,
+                fold_column,
+                text_left,
                 line_height,
                 first_line: 0,
                 lines: Vec::new(),
                 line_of: Vec::new(),
                 #[cfg(test)]
                 painted_marks: Vec::new(),
+                #[cfg(test)]
+                painted_colors: Vec::new(),
             },
         );
         self.editor.update(cx, |editor, _| editor.layout = Some(layout));
     }
 }
-
-/// The installed font families, when they are known already (read for the font pickers, or
-/// given by a test); without it the editor asks the system.
-#[derive(Debug, Clone, Default)]
-pub struct InstalledFontNames(pub Vec<String>);
-
-impl gpui_kit::Global for InstalledFontNames {}
 
 #[cfg(test)]
 mod tests {

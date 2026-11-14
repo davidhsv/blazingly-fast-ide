@@ -9,7 +9,7 @@ use super::core_actions::apply_fold_edit;
 use super::view::Editor;
 use crate::editor_commands::folding::{self, FoldEdit, FoldEffect};
 use crate::editor_commands::regions::{CustomRegion, custom_regions};
-use crate::editor_commands::{leading_space, utf16_len};
+use crate::editor_commands::{CommentTokens, leading_space, utf16_len};
 use gpui_kit::Context;
 use ide_language::FoldKind;
 
@@ -109,5 +109,211 @@ impl Editor {
         let offset = self.offset_of(line, col);
         self.select(offset, offset, cx);
         self.scroll_to_line(line.saturating_sub(REGION_TOP_MARGIN), cx);
+    }
+}
+
+/// A bracket of the text and its nesting depth from 0; `None`: it has no partner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BracketMark {
+    /// Its UTF-16 offset.
+    pub at: u32,
+    pub depth: Option<u32>,
+}
+
+/// How a scan for brackets steps over strings and comments: the UTF-16 ranges the highlighter
+/// found, sorted; or, without highlights, the language's comment tokens and quotes.
+pub enum Literals<'a> {
+    Ranges(&'a [(u32, u32)]),
+    Lexical(&'a CommentTokens),
+}
+
+/// The brackets kept for the text version and highlights they were found in.
+#[derive(Debug, Default)]
+pub struct BracketCache {
+    key: Option<(u32, u32)>,
+    marks: std::rc::Rc<Vec<BracketMark>>,
+}
+
+/// What the scanner is inside of, without highlights.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Lexical {
+    Code,
+    LineComment,
+    BlockComment,
+    Quoted(char),
+}
+
+/// The brackets `()`, `[]` and `{}` of `text` outside strings and comments, each with its depth;
+/// one without a partner (a closer that closes nothing, an opener never closed) has none.
+pub fn bracket_marks(text: &str, literals: Literals<'_>) -> Vec<BracketMark> {
+    let mut out: Vec<BracketMark> = Vec::new();
+    // Each open bracket: its closer and its index in `out`.
+    let mut open: Vec<(char, usize)> = Vec::new();
+    let (mut i, mut at) = (0usize, 0u32);
+    let mut skip = 0usize;
+    let mut mode = Lexical::Code;
+    while let Some(ch) = text[i..].chars().next() {
+        let step = |i: &mut usize, at: &mut u32, ch: char| {
+            *i += ch.len_utf8();
+            *at += ch.len_utf16() as u32;
+        };
+        match &literals {
+            Literals::Ranges(ranges) => {
+                while ranges.get(skip).is_some_and(|&(_, to)| to <= at) {
+                    skip += 1;
+                }
+                if ranges.get(skip).is_some_and(|&(from, _)| from <= at) {
+                    step(&mut i, &mut at, ch);
+                    continue;
+                }
+            }
+            Literals::Lexical(comments) => {
+                let rest = &text[i..];
+                match mode {
+                    Lexical::Code => {
+                        let line = comments.line.as_deref().filter(|token| rest.starts_with(token));
+                        let block = comments.block.as_ref().filter(|(token, _)| rest.starts_with(token.as_str()));
+                        let entered = if let Some(token) = line {
+                            Some((Lexical::LineComment, token.len()))
+                        } else if let Some((token, _)) = block {
+                            Some((Lexical::BlockComment, token.len()))
+                        } else if ch == '"' || ch == '`' || (ch == '\'' && quote_starts_string(text, i)) {
+                            Some((Lexical::Quoted(ch), 1))
+                        } else {
+                            None
+                        };
+                        if let Some((next, len)) = entered {
+                            mode = next;
+                            at += text[i..i + len].encode_utf16().count() as u32;
+                            i += len;
+                            continue;
+                        }
+                    }
+                    Lexical::LineComment | Lexical::BlockComment => {
+                        let close = match (mode, &comments.block) {
+                            (Lexical::BlockComment, Some((_, close))) => close.as_str(),
+                            _ => "\n",
+                        };
+                        if rest.starts_with(close) {
+                            mode = Lexical::Code;
+                            at += close.encode_utf16().count() as u32;
+                            i += close.len();
+                        } else {
+                            step(&mut i, &mut at, ch);
+                        }
+                        continue;
+                    }
+                    Lexical::Quoted(quote) => {
+                        step(&mut i, &mut at, ch);
+                        if ch == '\\' {
+                            if let Some(escaped) = text[i..].chars().next() {
+                                step(&mut i, &mut at, escaped);
+                            }
+                        } else if ch == quote || (ch == '\n' && quote != '`') {
+                            mode = Lexical::Code;
+                        }
+                        continue;
+                    }
+                }
+            }
+        }
+        match ch {
+            '(' | '[' | '{' => {
+                let closer = match ch {
+                    '(' => ')',
+                    '[' => ']',
+                    _ => '}',
+                };
+                out.push(BracketMark { at, depth: Some(open.len() as u32) });
+                open.push((closer, out.len() - 1));
+            }
+            ')' | ']' | '}' => {
+                if open.last().is_some_and(|&(closer, _)| closer == ch) {
+                    open.pop();
+                    out.push(BracketMark { at, depth: Some(open.len() as u32) });
+                } else {
+                    out.push(BracketMark { at, depth: None });
+                }
+            }
+            _ => {}
+        }
+        step(&mut i, &mut at, ch);
+    }
+    for (_, index) in open {
+        out[index].depth = None;
+    }
+    out
+}
+
+/// Whether the `'` at byte `i` starts a string: not when it ends a word (Haskell's `x'`) or has no
+/// partner on its line (Rust's lifetimes).
+fn quote_starts_string(text: &str, i: usize) -> bool {
+    if text[..i].chars().next_back().is_some_and(|before| before.is_alphanumeric() || before == '_') {
+        return false;
+    }
+    let line = text[i + 1..].split('\n').next().unwrap_or("");
+    line.contains('\'')
+}
+
+impl Editor {
+    /// The brackets of the text with their depths, found again only when the text or its
+    /// highlights changed. Strings and comments are skipped: by the highlights of the current
+    /// text when there are, else by the language's comment tokens and quotes.
+    pub fn bracket_marks(&self) -> std::rc::Rc<Vec<BracketMark>> {
+        use ide_language::SyntaxHighlightKind as K;
+        let key = (self.version(), self.highlights_version);
+        let mut cache = self.brackets.borrow_mut();
+        if cache.key != Some(key) {
+            let text = self.text();
+            let current = self.highlights_version == self.version() && !self.highlights.is_empty();
+            let marks = if current {
+                let literal = |kind: K| {
+                    matches!(kind, K::Comment | K::DocComment | K::String | K::StringSpecial | K::Escape | K::Regexp)
+                };
+                let mut ranges: Vec<(u32, u32)> = Vec::new();
+                for span in self.highlights.iter().filter(|span| literal(span.kind)) {
+                    match ranges.last_mut() {
+                        Some(last) if span.from <= last.1 => last.1 = last.1.max(span.to),
+                        _ => ranges.push((span.from, span.to)),
+                    }
+                }
+                bracket_marks(&text, Literals::Ranges(&ranges))
+            } else {
+                bracket_marks(&text, Literals::Lexical(&self.facts().language.comments))
+            };
+            *cache = BracketCache { key: Some(key), marks: std::rc::Rc::new(marks) };
+        }
+        cache.marks.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn depths(text: &str, literals: Literals<'_>) -> Vec<(u32, Option<u32>)> {
+        bracket_marks(text, literals).into_iter().map(|mark| (mark.at, mark.depth)).collect()
+    }
+
+    // Brackets nest by depth; a closer without its opener and an opener never closed have none.
+    #[test]
+    fn brackets_are_coloured_by_depth_and_unmatched_ones_are_marked() {
+        let none = CommentTokens::default();
+        assert_eq!(
+            depths("f(a[b{c}])", Literals::Lexical(&none)),
+            [(1, Some(0)), (3, Some(1)), (5, Some(2)), (7, Some(2)), (8, Some(1)), (9, Some(0))]
+        );
+        assert_eq!(depths("(]", Literals::Lexical(&none)), [(0, None), (1, None)]);
+    }
+
+    // Without highlights strings and comments are skipped by the language's tokens and quotes; a
+    // lifetime's quote starts no string.
+    #[test]
+    fn strings_and_comments_are_skipped_lexically() {
+        let rust = CommentTokens { line: Some("//".to_owned()), block: Some(("/*".to_owned(), "*/".to_owned())) };
+        let text = "(\"(\" // (\n/* { */ 'a)";
+        assert_eq!(depths(text, Literals::Lexical(&rust)), [(0, Some(0)), (20, Some(0))]);
+        // The ranges the highlighter found are skipped as given.
+        assert_eq!(depths("(x)(y)", Literals::Ranges(&[(0, 3)])), [(3, Some(0)), (5, Some(0))]);
     }
 }

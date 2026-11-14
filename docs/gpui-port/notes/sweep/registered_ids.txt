@@ -44,7 +44,18 @@ code.cyclicExpandWord
 code.cyclicExpandWordBackward
 code.deleteLine
 code.duplicateLine
+code.expandAllToLevel1
+code.expandAllToLevel2
+code.expandAllToLevel3
+code.expandAllToLevel4
+code.expandAllToLevel5
 code.expandRecursively
+code.expandToLevel1
+code.expandToLevel2
+code.expandToLevel3
+code.expandToLevel4
+code.expandToLevel5
+code.expressionTypeInfo
 code.extendSelection
 code.fold
 code.foldAll
@@ -69,6 +80,7 @@ code.quickDefinition
 code.quickDocumentation
 code.quickTypeDefinition
 code.reformat
+code.reformatDialog
 code.reformatFile
 code.reformatWithOxfmt
 code.reformatWithPrettier
@@ -86,6 +98,7 @@ code.toggleCase
 code.unfold
 code.unfoldAll
 code.unselectOccurrence
+code.unwrap
 db.collapseAll
 db.copyReference
 db.disconnect
@@ -157,6 +170,7 @@ editor.codeBlockEnd
 editor.codeBlockEndWithSelection
 editor.codeBlockStart
 editor.codeBlockStartWithSelection
+editor.contextInfo
 editor.copyPath
 editor.copyPathReference
 editor.copyPathWithLineNumber
@@ -181,6 +195,7 @@ editor.splitDown
 editor.splitRight
 editor.toggleColumnSelection
 editor.toggleInsertState
+editor.toggleRainbowBrackets
 editor.toggleZen
 editor.unsplit
 editor.unsplitAll
@@ -215,6 +230,7 @@ find.popup.recentSearches
 find.previous
 find.replaceInFile
 find.replaceInPath
+find.rerun
 find.scrollToResults
 find.showUsageResults
 find.showUsages
@@ -275,6 +291,7 @@ merge.selectAll
 merge.settings
 navigate.back
 navigate.callHierarchy
+navigate.customRegion
 navigate.declaration
 navigate.fileStructure
 navigate.findAction
@@ -301,9 +318,11 @@ navigate.nextEditLocation
 navigate.nextError
 navigate.nextHighlightedUsage
 navigate.nextMethod
+navigate.nextOccurrence
 navigate.prevBookmark
 navigate.prevError
 navigate.prevHighlightedUsage
+navigate.prevOccurrence
 navigate.previousMethod
 navigate.recentFiles
 navigate.searchEverywhere
@@ -360,6 +379,7 @@ project.option.showExcluded
 project.option.showHidden
 project.paste
 project.previewRestricted
+project.refresh
 project.removeTrustedLocation
 project.rename
 project.reveal

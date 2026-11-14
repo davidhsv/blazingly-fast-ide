@@ -170,13 +170,13 @@ const OVERRIDE: KindRun =
 
 /// How a reformat was asked for.
 #[derive(Debug, Clone, Copy)]
-struct FormatRun {
-    explicit: bool,
-    selection_only: bool,
-    tool: Option<ExternalFormatter>,
+pub(super) struct FormatRun {
+    pub(super) explicit: bool,
+    pub(super) selection_only: bool,
+    pub(super) tool: Option<ExternalFormatter>,
 }
 
-const REFORMAT: FormatRun = FormatRun { explicit: true, selection_only: true, tool: None };
+pub(super) const REFORMAT: FormatRun = FormatRun { explicit: true, selection_only: true, tool: None };
 
 /// The steps of Code Cleanup in File; all of them unless the argument says otherwise.
 #[derive(Debug, Clone, Copy)]
@@ -193,7 +193,7 @@ impl Cleanup {
     }
 }
 
-type This = WeakEntity<Workbench>;
+pub(super) type This = WeakEntity<Workbench>;
 
 /// The file an action is given: `"path"` or `{ path }`.
 fn path_arg(arg: Option<&Value>) -> Option<PathBuf> {
@@ -402,7 +402,7 @@ fn format_question(
 
 /// Reformats `editor`'s selection (or the whole file) through `lsp_format`, as one undo step.
 /// Answers whether the text changed.
-async fn format_document(
+pub(super) async fn format_document(
     this: &This,
     editor: &Entity<Editor>,
     run: FormatRun,
@@ -458,7 +458,7 @@ async fn format_document(
 
 /// The enabled action of `kind` that runs without asking (preferred first) applied to the whole
 /// file, as Code Cleanup does; answers whether one was applied.
-async fn apply_silently(
+pub(super) async fn apply_silently(
     this: &This,
     editor: &Entity<Editor>,
     kind: &'static str,
@@ -870,7 +870,16 @@ async fn goto_test(this: &This, editor: &Entity<Editor>, cx: &mut AsyncWindowCon
         match step {
             GotoTestStep::Run(run) => workbench.run_test_choice(editor, run, window, cx),
             GotoTestStep::Hint(text) => hint(editor, text, None, Tone::Info, None, cx),
-            GotoTestStep::Choose { title, items } => workbench.choose_test(editor, &title, items, window, cx),
+            GotoTestStep::Choose { title, mut items } => {
+                // Create New Test… opens the New File dialog of the file templates: without that
+                // action the row is not offered, and a file without tests shows no chooser.
+                if !cx.global::<ActionRegistry>().contains("templates.newFromTemplate") {
+                    items.retain(|item| !matches!(item.run, TestRun::CreateTest(_)));
+                }
+                if !items.is_empty() {
+                    workbench.choose_test(editor, &title, items, window, cx);
+                }
+            }
         }
     })
 }

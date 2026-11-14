@@ -200,11 +200,7 @@ fn preview_lines(text: &str) -> Vec<SharedString> {
 
 /// The first font of the theme's `--font-mono` list that is installed.
 fn code_font(cx: &App) -> SharedString {
-    let families =
-        cx.try_global::<theme::ActiveTheme>().map(|active| active.theme.font_families("font-mono")).unwrap_or_default();
-    let installed = cx.text_system().all_font_names();
-    let family = families.into_iter().find(|family| installed.contains(family)).unwrap_or_else(|| "Menlo".to_owned());
-    SharedString::from(family)
+    crate::theme::installed_fonts::mono_family(cx)
 }
 
 /// A button of the description editor: filled when `primary`, outlined otherwise.

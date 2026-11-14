@@ -33,6 +33,7 @@ pub mod markdown;
 pub mod navigation;
 pub mod outside_project;
 pub mod positions;
+pub mod reformat_dialog;
 pub mod rename;
 pub mod semantic;
 pub mod signature;

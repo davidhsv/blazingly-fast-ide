@@ -131,7 +131,7 @@ fn zen_mode(cx: &mut App) -> &mut DistractionFree {
 }
 
 /// Whether Distraction Free Mode is on.
-fn zen_active(cx: &App) -> bool {
+pub(crate) fn zen_active(cx: &App) -> bool {
     match cx.try_global::<ZenMode>().and_then(|zen| zen.0.as_ref()) {
         Some(mode) => mode.is_active(),
         None => cx.try_global::<UiStorage>().and_then(|s| s.get(DISTRACTION_FREE_STORAGE_KEY)) == Some("1"),

@@ -1018,6 +1018,7 @@ pub(super) mod tests {
     use crate::debugger::breakpoints_view::DialogRow;
     use crate::debugger::state::SessionStatus;
     use crate::debugger::variables_view::VariableCommand;
+    use crate::editor::view::FOLD_GUTTER;
     use crate::platform::actions::execute_action_or_throw;
     use crate::platform::context::window_context;
     use crate::platform::input;
@@ -1349,7 +1350,8 @@ while True:
         let at = editor.read_with(cx, |editor, _| editor.position_of(editor.offset_of(2, 0)));
         let at = at.expect("line 3 is painted");
         let press = |cx: &mut VisualTestContext| {
-            let position = point(at.x - gpui_kit::px(12.0), at.y + gpui_kit::px(4.0));
+            // Left of the fold chevrons' column, where the breakpoints are.
+            let position = point(at.x - gpui_kit::px(FOLD_GUTTER + 12.0), at.y + gpui_kit::px(4.0));
             cx.simulate_event(MouseDownEvent {
                 button: MouseButton::Left,
                 position,
@@ -1773,7 +1775,7 @@ while True:
         let at = |line: u32, cx: &mut VisualTestContext| {
             let at = editor.read_with(cx, |editor, _| editor.position_of(editor.offset_of(line, 0)));
             let at = at.expect("the line is painted");
-            point(at.x - gpui_kit::px(12.0), at.y + gpui_kit::px(4.0))
+            point(at.x - gpui_kit::px(FOLD_GUTTER + 12.0), at.y + gpui_kit::px(4.0))
         };
         let press = |line: u32, modifiers: Modifiers, cx: &mut VisualTestContext| {
             let position = at(line, cx);
