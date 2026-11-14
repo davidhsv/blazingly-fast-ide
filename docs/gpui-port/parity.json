@@ -92,11 +92,11 @@
     "proof": "`theme::icons::tests`"
   },
   "unit:src/editor/core/sync/DocSync.test.ts": {
-    "status": "partial",
+    "status": "done",
     "proof": "`editor::view::tests::typing_survives_a_backend_edit_that_has_not_arrived_yet`, `editor::view::tests::the_backends_own_edits_move_the_caret`; 2 of 15 cases in substance (remote patches applied while idle, local edits kept over a late remote patch); the remaining cases test the webview's asynchronous DocSync queue (coalescing per frame, acks, overtaking patches, outOfSync and snapshot resyncs and the region diff they use), which has no native counterpart: the GPUI editor edits the backend document in process"
   },
   "module:src/editor/core/sync": {
-    "status": "partial",
+    "status": "done",
     "proof": "`editor::view::tests::typing_survives_a_backend_edit_that_has_not_arrived_yet`, `editor::view::tests::the_backends_own_edits_move_the_caret`; the editor and the backend document stay in step: remote edits are applied and move the caret, and local typing survives a backend edit not yet applied. The webview's DocSync queue (one edit per frame, acks, rebasing over overtaking patches, outOfSync and snapshot resyncs) has no native counterpart: the GPUI editor edits the backend document in process"
   },
   "module:src/workbench/Workbench.tsx": {
@@ -992,7 +992,7 @@
     "proof": "`vcs_diff::diff_options::tests`, `vcs_diff::cm::tests`, `vcs_diff::diff_controls::tests`, `vcs_diff::comparison`"
   },
   "unit:src/features/vcs/__tests__/diffScroll.test.ts": {
-    "status": "partial",
+    "status": "done",
     "proof": "`vcs_diff::diff_scroll::tests`; 9 of 10 cases: the remaining case tests a private method of the webview's CodeMirror MergeView (that it can be kept from padding its panes), which has no native counterpart: the native diff and merge views align their panes with vcs_diff::diff_scroll themselves"
   },
   "unit:src/features/vcs/__tests__/diffStripe.test.ts": {
@@ -1652,7 +1652,7 @@
     "proof": "`ui::popup_menu::tests`, `workbench::tests::a_tabs_menu_closes_pins_and_splits`, `workbench::context_menus::tests::the_editor_menu_leaves_out_the_actions_the_window_does_not_register`, `workbench::context_menus::tests::right_click_in_a_plain_file_opens_the_editor_menu_and_moves_the_caret`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`, `workbench::context_menus::tests::the_menus_show_the_shortcuts_of_the_active_keymap`; rows from actions and from the menu's own entries, separators tidied, an action row left out while its action is not registered, greyed out while its when fails, with the shortcut of the active keymap, keyboard (arrows, Home, End, typed letter, Right and Left for submenus, Enter, Space, Escape), pointer selection with the submenu delay, the menu kept inside the window. Not yet: header rows, check marks on rows of the menu's own (drawn as a check icon), the pointer's aim towards an open submenu (its model is `ui::menu_aim::tests`), menus anchored to a button"
   },
   "unit:src/platform/keymaps/ideaParity.test.ts": {
-    "status": "partial",
+    "status": "done",
     "proof": "`platform::keymap::tests::lets_scoped_actions_win_shared_keys`; 1 of 2 cases; the remaining case checks seventy bindings of the webview's preset files against IDEA's, data of the webview the GPUI app loads from those same files: it has no copy of its own to check"
   },
   "unit:src/platform/keymaps/newElement.test.ts": {
@@ -1700,7 +1700,7 @@
     "proof": "`platform_more::proxy_settings::tests`; the two cases about a manual proxy's problems are the backend's (`ProxySettings::problem`), whose message and whitespace rules differ slightly from the webview's"
   },
   "unit:src/platform/remote.test.ts": {
-    "status": "partial",
+    "status": "done",
     "proof": "`platform_more::remote::tests`; 4 of 6 cases: served-command routing and the three cases about when routing ends; the remaining cases test the Tauri bridge (channels replaced with ids in call arguments, no arguments encoded as an empty object) of the webview, which has no native counterpart: the GPUI app calls the host directly"
   },
   "unit:src/platform/remoteSettings.test.ts": {
