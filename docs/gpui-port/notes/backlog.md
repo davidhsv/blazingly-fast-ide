@@ -266,3 +266,10 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - GAP INDEX DONE (notes/sweep/gap_index.{md,json}): 683 open built rows in 154 groups + 105 singletons; 433 rows finish with ONE piece each. Test-only: 84 rows (+13 probable); proof rewrite / decision: 22; blocked on things tests may not use: 20. "First ten things to do" ≈ 68 rows. RUNNING (no cargo): proofs7 writer on the test-only groups; a mapper for stale proofs, wrong rows and the inventory.mjs quirks → $S/parity_fixes.json.
 - M-size product groups worth an integrator each (from the index): plugin host app-level tests of wired WIT functions (10+6), fold gutter chevrons + fold-by-default (9+2; partly in editor extras), agent conversation as an editor tab, number-field range hint (S, 5 settings pages), Go to Line as a dialog, shelf rows show their time, error log sink, hot swap with a fake adapter.
 - ORDER for integrators from now: Part 0 trust-boundary (per-window plugin listing) → proofs batches (proofs6 ×2, proofs7) → diff tools → database extras → build tools (seam first).
+
+## State after the editor extras + font cache slice (2026-11-14, 99c9c9fc / 57f7958c)
+
+- Suite 6,728, 0 ignored (×3 by me; ~93 s). D94 written. registered_ids.txt = 570. Crate clippy clean on ide-ssh / ide-host / ide-github after one fix in an ide-ssh test (ours).
+- RUNNING (cargo): per-window plugin listing (trust boundary) + number-field range hint + proofs6 batches. RUNNING (no cargo): editor extras parity mapper → $S/parity_editor_extras.json; proofs7 writer; parity fixes mapper → $S/parity_fixes.json.
+- PER-FRAME COSTS still open (measurement fairness): settings::global(cx) copies the whole Settings under a lock in TerminalView::font (prepaint), shows_status_bar and shows_tool_window_bars (render); `sample <pid> 10` on the idle binary when cargo is free (isolated home, temp project, no plugin, no Restart).
+- CARGO QUEUE after it: proofs7 batch + diff tools → database extras → build tools (seam first).
