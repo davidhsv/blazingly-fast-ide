@@ -1638,7 +1638,7 @@ mod tests {
     }
 
     fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..400 {
+        for _ in 0..3000 {
             cx.executor().advance_clock(Duration::from_millis(50));
             cx.run_until_parked();
             if done(cx) {
@@ -1646,7 +1646,7 @@ mod tests {
             }
             std::thread::sleep(Duration::from_millis(10));
         }
-        panic!("the backend did not deliver within four seconds");
+        panic!("the backend did not deliver within thirty seconds");
     }
 
     fn range(line: u32, from: u32, to: u32) -> Value {

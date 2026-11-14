@@ -48,46 +48,71 @@ pub fn run(name: &str, cx: &mut App) -> bool {
     }
 }
 
-/// The bundled faces load, resolve by the family names the theme draws with at the weights the
-/// interface uses, and draw semibold with a face of its own. The report says first what
-/// the families resolved to before the faces were registered.
+/// The bundled faces load, resolve by the family names the theme draws with, and draw the weights
+/// the interface and the editor use with faces of their own. The report says what each family
+/// resolved to before the faces were registered, then for every weight and italic which family
+/// and whether a face other than the regular one draws it, then the families the theme's
+/// interface and code lists pick. Inter has no medium or bold face: what they fall back to is
+/// reported, not failed.
 fn fonts(cx: &mut App) -> anyhow::Result<String> {
     use crate::theme::fonts::{BUNDLED_MONO_FAMILY, BUNDLED_UI_FAMILY};
-    use gpui_kit::{FontWeight, font};
+    use crate::theme::installed_fonts::{InstalledFontNames, mono_family, ui_family};
+    use gpui_kit::{FontStyle, FontWeight, font};
     let text_system = cx.text_system().clone();
-    let resolved = |family: &str, weight: FontWeight| {
-        let id = text_system.resolve_font(&gpui_kit::Font { weight, ..font(family.to_owned()) });
+    let resolved = |family: &str, weight: FontWeight, style: FontStyle| {
+        let id = text_system.resolve_font(&gpui_kit::Font { weight, style, ..font(family.to_owned()) });
         (id, text_system.get_font_for_id(id).map(|found| found.family.to_string()))
     };
     let mut report = String::new();
     for family in [BUNDLED_UI_FAMILY, BUNDLED_MONO_FAMILY] {
-        let (_, before) = resolved(family, FontWeight::NORMAL);
+        let (_, before) = resolved(family, FontWeight::NORMAL, FontStyle::Normal);
         report.push_str(&format!("before registering, {family} resolves to {before:?}\n"));
     }
     crate::theme::bundled_fonts::register(cx)?;
+    let weights = [
+        ("400", FontWeight::NORMAL, FontStyle::Normal),
+        ("500", FontWeight::MEDIUM, FontStyle::Normal),
+        ("600", FontWeight::SEMIBOLD, FontStyle::Normal),
+        ("700", FontWeight::BOLD, FontStyle::Normal),
+        ("400 italic", FontWeight::NORMAL, FontStyle::Italic),
+    ];
     let mut failures = Vec::new();
-    for family in [BUNDLED_UI_FAMILY, BUNDLED_MONO_FAMILY] {
-        let mut ids = Vec::new();
-        for weight in [FontWeight::NORMAL, FontWeight::SEMIBOLD] {
-            let (id, found) = resolved(family, weight);
-            if found.as_deref() != Some(family) {
-                failures.push(format!("{family} at {weight:?} resolves to {found:?}"));
-                continue;
-            }
+    for (family, required) in [(BUNDLED_UI_FAMILY, &["600"][..]), (BUNDLED_MONO_FAMILY, &["600", "700"][..])] {
+        let (regular, found) = resolved(family, FontWeight::NORMAL, FontStyle::Normal);
+        if found.as_deref() != Some(family) {
+            failures.push(format!("{family} 400 resolves to {found:?}"));
+        }
+        let mut seen: Vec<(&str, gpui_kit::FontId)> = Vec::new();
+        for (name, weight, style) in weights {
+            let (id, found) = resolved(family, weight, style);
+            let own = id != regular;
+            // A weight without a face of its own falls back to the nearest one the family has.
+            let face = match seen.iter().find(|(_, earlier)| *earlier == id) {
+                Some((earlier, _)) => format!("the {earlier} face"),
+                None => "a face of its own".to_owned(),
+            };
+            seen.push((name, id));
             let width: f32 = "Hamburgefonstiv"
                 .chars()
                 .map(|ch| text_system.advance(id, px(100.0), ch).map(|size| f32::from(size.width)))
                 .sum::<anyhow::Result<f32>>()?;
-            report.push_str(&format!("{family} {weight:?}: {id:?}, width {width}\n"));
-            ids.push(id);
+            report.push_str(&format!("{family} {name}: {found:?}, {face} ({id:?}, width {width})\n"));
+            if found.as_deref() != Some(family) {
+                failures.push(format!("{family} {name} resolves to {found:?}"));
+            } else if required.contains(&name) && !own {
+                failures.push(format!("{family} {name} is drawn with the regular face"));
+            }
         }
-        // A monospaced face keeps its advances at every weight: a semibold drawn from its own outlines
-        // has a face of its own.
-        if let [regular, semibold] = ids[..]
-            && semibold == regular
-        {
-            failures.push(format!("{family}: semibold is drawn with the regular face"));
-        }
+    }
+    // What the views draw with once the installed families are known, as at start.
+    cx.set_global(crate::theme::ActiveTheme::default());
+    cx.set_global(InstalledFontNames(text_system.all_font_names()));
+    report.push_str(&format!("--font-ui draws with {:?}, --font-mono with {:?}\n", ui_family(cx), mono_family(cx)));
+    if ui_family(cx).as_ref() != BUNDLED_UI_FAMILY {
+        failures.push(format!("--font-ui draws with {:?}", ui_family(cx)));
+    }
+    if mono_family(cx).as_ref() != BUNDLED_MONO_FAMILY {
+        failures.push(format!("--font-mono draws with {:?}", mono_family(cx)));
     }
     anyhow::ensure!(failures.is_empty(), "{}\n{report}", failures.join("\n"));
     Ok(report)

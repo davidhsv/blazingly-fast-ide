@@ -1381,6 +1381,8 @@ impl Workbench {
             (None, None, None) => None,
         };
         let titles = self.tab_titles_of(pane_id);
+        let colors: Vec<Option<gpui_kit::Hsla>> =
+            self.tab_colors_of(pane_id).into_iter().map(|token| token.map(|token| theme::color(cx, &token))).collect();
         let ids: Vec<(String, String)> = self
             .tabs()
             .and_then(|tabs| tabs.pane(pane_id))
@@ -1399,18 +1401,18 @@ impl Workbench {
             .unwrap_or_default();
         // The tab strip: the selected tab is a rounded pill; the rest are plain titles. Distraction
         // Free Mode hides it.
-        let strip =
-            (!titles.is_empty() && !distraction_free_active(cx)).then(|| {
-                div()
-                    .h(theme::length(cx, "h-header"))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap(gpui_kit::px(2.0))
-                    .px(gpui_kit::px(4.0))
-                    .border_b_1()
-                    .border_color(theme::color(cx, "border-editor-tabs"))
-                    .children(titles.into_iter().zip(ids).map(|(TabTitle { name, hint, active }, (id, icon))| {
+        let strip = (!titles.is_empty() && !distraction_free_active(cx)).then(|| {
+            div()
+                .h(theme::length(cx, "h-header"))
+                .flex_none()
+                .flex()
+                .items_center()
+                .gap(gpui_kit::px(2.0))
+                .px(gpui_kit::px(4.0))
+                .border_b_1()
+                .border_color(theme::color(cx, "border-editor-tabs"))
+                .children(titles.into_iter().zip(ids).zip(colors).map(
+                    |((TabTitle { name, hint, active }, (id, icon)), color)| {
                         let (select, close) = (id.clone(), id.clone());
                         let (select_pane, close_pane) = (pane_id.to_owned(), pane_id.to_owned());
                         let (menu_pane, menu_tab) = (pane_id.to_owned(), id.clone());
@@ -1430,7 +1432,11 @@ impl Workbench {
                             .when(active, |el| el.bg(theme::color(cx, selected)))
                             .when(!active, |el| el.hover(|el| el.bg(theme::color(cx, "bg-tab-hover"))))
                             .child(theme::icon(cx, &icon, 16.0, theme::color(cx, "fg-strong")))
-                            .child(SharedString::from(name))
+                            .child(
+                                div()
+                                    .when_some(color, |el, color| el.text_color(color))
+                                    .child(SharedString::from(name)),
+                            )
                             .children(hint.map(|hint| {
                                 div().text_color(theme::color(cx, "fg-muted")).child(SharedString::from(hint))
                             }))
@@ -1472,11 +1478,12 @@ impl Workbench {
                                     );
                                 }),
                             )
-                    }))
-                    .child(div().flex_1())
-                    .children(context_menus::slot_buttons("editor.title", window, cx))
-                    .children(layout_actions)
-            });
+                    },
+                ))
+                .child(div().flex_1())
+                .children(context_menus::slot_buttons("editor.title", window, cx))
+                .children(layout_actions)
+        });
         div()
             .size_full()
             .min_w_0()
@@ -1505,6 +1512,13 @@ impl Workbench {
 
     /// The editor area: the panes as the splits arrange them, side by side or stacked, sharing
     /// the room evenly with a line between them.
+    /// The colour tokens the version control status gives the titles of the tabs of `pane`, in
+    /// strip order; `None` for a tab drawn in the strip's own colour.
+    pub fn tab_colors_of(&self, pane: &str) -> Vec<Option<String>> {
+        let Some(pane) = self.tabs().and_then(|tabs| tabs.pane(pane)) else { return Vec::new() };
+        pane.tabs.iter().map(|tab| tab.input.path.as_deref().and_then(|path| self.file_color(path))).collect()
+    }
+
     fn editor_area(&self, node: &LayoutNode, window: &Window, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
         match node {
             LayoutNode::Pane { pane_id } => self.pane_element(pane_id, window, cx).into_any_element(),
@@ -4035,6 +4049,7 @@ impl Render for Workbench {
             .size_full()
             .bg(theme::color(cx, if framed { "bg-frame" } else { "bg-app" }))
             .text_color(theme::color(cx, "fg"))
+            .font_family(theme::installed_fonts::ui_family(cx))
             .text_size(theme::length(cx, "fs-ui"))
             // Modifier taps and mouse buttons have no application-level hook: forward them.
             .on_modifiers_changed(cx.listener(|workbench, event: &ModifiersChangedEvent, window, cx| {
@@ -4056,17 +4071,17 @@ impl Render for Workbench {
             .child(notification_balloons::layer(&self.balloons, cx))
             .children(self.merge_window_layer(cx))
             .children(self.diff_window_layer(cx))
-            .children(self.edit_configs_layer())
-            .children(self.debug_breakpoints_layer())
-            .children(self.customize_toolbar_layer())
-            .children(self.vcs_dialog_layer())
-            .children(self.app_dialog_layer())
-            .children(self.file_dialog_layer())
-            .children(self.database_dialog_layer())
-            .children(self.database_prompt_layer())
+            .children(self.edit_configs_layer(cx))
+            .children(self.debug_breakpoints_layer(cx))
+            .children(self.customize_toolbar_layer(cx))
+            .children(self.vcs_dialog_layer(cx))
+            .children(self.app_dialog_layer(cx))
+            .children(self.file_dialog_layer(cx))
+            .children(self.database_dialog_layer(cx))
+            .children(self.database_prompt_layer(cx))
             .children(self.settings_layer(cx))
-            .children(self.plugins_dialog_layer())
-            .children(self.plugin_prompt_layer())
+            .children(self.plugins_dialog_layer(cx))
+            .children(self.plugin_prompt_layer(cx))
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
                 gpui_kit::deferred(
@@ -4077,6 +4092,8 @@ impl Render for Workbench {
                         .occlude()
                         .flex()
                         .justify_center()
+                        // The popup keeps its own height, so its shadow is drawn under it only.
+                        .items_start()
                         .pt(gpui_kit::px(80.0))
                         .on_mouse_down(
                             gpui_kit::MouseButton::Left,
@@ -4090,6 +4107,8 @@ impl Render for Workbench {
                         )
                         .child(
                             div()
+                                .rounded(theme::length(cx, "radius-popup-large"))
+                                .shadow(theme::shadow(cx, "shadow-popup"))
                                 .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| cx.stop_propagation())
                                 .child(popup.view.clone()),
                         ),
@@ -4098,6 +4117,12 @@ impl Render for Workbench {
             }))
             .children(self.shows_status_bar(cx).then(|| self.status_bar().clone()))
     }
+}
+
+/// A dialog as a window over the workbench: the dialog's corners and the theme's `--shadow-dialog`
+/// under it. The window behind is not dimmed: a dialog stands for a window of its own.
+fn dialog_frame(dialog: impl IntoElement, cx: &App) -> gpui_kit::Div {
+    div().rounded(theme::length(cx, "radius-popup")).shadow(theme::shadow(cx, "shadow-dialog")).child(dialog)
 }
 
 #[cfg(test)]
@@ -8750,6 +8775,46 @@ for line in sys.stdin:
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         wait_long(cx, "the repository is read", |cx| !branch_label(&workbench, cx).is_empty());
         (workbench, cx, [home, folder], root)
+    }
+
+    // src/features/project-tree/ProjectView.tsx and src/editor/core/view/EditorArea.tsx: the label
+    // of a file in the Project view and the title of its editor tab take the colour of its status.
+    #[gpui_kit::test]
+    async fn a_modified_or_unversioned_file_is_coloured_in_the_project_view_and_on_its_tab(cx: &mut TestAppContext) {
+        let (workbench, cx, _dirs, root) = git_project(cx, |root| {
+            init_repo(root);
+            std::fs::write(root.join("a.txt"), "changed\n").expect("the file is written");
+            std::fs::write(root.join("b.txt"), "new\n").expect("the file is written");
+            std::fs::write(root.join(".gitignore"), "").expect("the file is written");
+            git_in(root, &["add", ".gitignore"]);
+            git_in(root, &["commit", "-q", "-m", "ignore"]);
+        });
+        let tree = workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("the project view");
+        let color = |name: &str, cx: &mut VisualTestContext| {
+            tree.read_with(cx, |tree, _| {
+                let row = tree.rows().into_iter().find(|row| row.node.label == name)?;
+                tree.label_color(&row.node.key)
+            })
+        };
+        wait_long(cx, "the status colours the rows", |cx| color("a.txt", cx).is_some() && color("b.txt", cx).is_some());
+        assert_eq!(color("a.txt", cx).as_deref(), Some("vcs-modified"));
+        assert_eq!(color("b.txt", cx).as_deref(), Some("vcs-untracked"));
+        assert_eq!(color(".gitignore", cx), None, "an unchanged file keeps the tree's colour");
+
+        let file = root.join("a.txt");
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file.clone(), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let tab_colors = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| w.tabs().map(|tabs| w.tab_colors_of(&tabs.active_pane)).unwrap_or_default())
+        };
+        assert_eq!(tab_colors(cx), [Some("vcs-modified".to_owned())]);
+
+        // Once committed, the file is drawn as any other, in the tree and on its tab.
+        git_in(&root, &["commit", "-q", "-am", "change"]);
+        workbench.update(cx, |w, cx| w.refresh_vcs(cx));
+        wait_long(cx, "the colour goes with the change", |cx| color("a.txt", cx).is_none());
+        assert_eq!(tab_colors(cx), [None]);
+        assert_eq!(color("b.txt", cx).as_deref(), Some("vcs-untracked"));
     }
 
     /// A Git command whose future is dropped before its backend call returns opens the window's gate:

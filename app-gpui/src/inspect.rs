@@ -10,6 +10,10 @@
 //! - `keys <keystrokes>`: GPUI keystrokes separated by spaces (`cmd-shift-a escape`), dispatched
 //!   to the active window as typed keys are;
 //! - `type <text>`: the text, typed into the focused element character by character;
+//! - `click <x> <y>`, `rclick <x> <y>`: the pointer moves to the point (in pixels from the
+//!   top-left of the window's content) and the left or right button is pressed and released
+//!   there, through the window's own input dispatch;
+//! - `hover <x> <y>`: the pointer moves to the point;
 //! - `wait <milliseconds>`;
 //! - `mark <name>`: appends `mark <name> <unix milliseconds>` to the log;
 //! - `quit`.
@@ -25,7 +29,10 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use futures::FutureExt as _;
-use gpui_kit::{AnyWindowHandle, App, AsyncApp, Keystroke, Modifiers, Task, Window};
+use gpui_kit::{
+    AnyWindowHandle, App, AsyncApp, Keystroke, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    Pixels, PlatformInput, Point, Task, Window, point, px,
+};
 
 use crate::platform::actions::execute_action_or_throw;
 use crate::workbench::windows;
@@ -36,10 +43,20 @@ const FRAME_TIMEOUT: Duration = Duration::from_secs(1);
 /// One thing the script does.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Step {
-    Action { id: String, arg: Option<serde_json::Value> },
+    Action {
+        id: String,
+        arg: Option<serde_json::Value>,
+    },
     Open(PathBuf),
     Keys(Vec<String>),
     Type(String),
+    /// A press and release of `button` at a point of the window's content.
+    Click {
+        at: Point<Pixels>,
+        button: MouseButton,
+    },
+    /// The pointer moves to a point of the window's content.
+    Hover(Point<Pixels>),
     Wait(Duration),
     Mark(String),
     Quit,
@@ -101,10 +118,24 @@ fn parse_step(text: &str) -> Result<Step, String> {
             let millis = millis.parse::<u64>().map_err(|_| format!("{millis} is not a number of milliseconds"))?;
             Ok(Step::Wait(Duration::from_millis(millis)))
         }
+        "click" => Ok(Step::Click { at: parse_point(name, rest)?, button: MouseButton::Left }),
+        "rclick" => Ok(Step::Click { at: parse_point(name, rest)?, button: MouseButton::Right }),
+        "hover" => Ok(Step::Hover(parse_point(name, rest)?)),
         "mark" => Ok(Step::Mark(required("a name")?.to_owned())),
         "quit" => Ok(Step::Quit),
         other => Err(format!("there is no step called {other:?}")),
     }
+}
+
+/// The point `<x> <y>` (tab-separated, in pixels) a pointer step names.
+fn parse_point(name: &str, rest: &str) -> Result<Point<Pixels>, String> {
+    let coordinates: Vec<&str> = rest.split('\t').map(str::trim).collect();
+    let [x, y] = coordinates[..] else { return Err(format!("{name} needs an x and a y")) };
+    let coordinate = |text: &str| match text.parse::<f32>() {
+        Ok(value) if value.is_finite() && value >= 0.0 => Ok(px(value)),
+        _ => Err(format!("{text} is not a coordinate")),
+    };
+    Ok(point(coordinate(x)?, coordinate(y)?))
 }
 
 /// Where the script's marks and failures go: the log file, or the application's log without one.
@@ -229,8 +260,28 @@ fn perform(step: &Step, window: &mut Window, cx: &mut App) -> Result<(), String>
             }
             Ok(())
         }
+        Step::Click { at, button } => {
+            let (position, button) = (*at, *button);
+            move_pointer(position, window, cx);
+            let modifiers = Modifiers::default();
+            let down = MouseDownEvent { button, position, modifiers, click_count: 1, first_mouse: false };
+            window.dispatch_event(PlatformInput::MouseDown(down), cx);
+            let up = MouseUpEvent { button, position, modifiers, click_count: 1 };
+            window.dispatch_event(PlatformInput::MouseUp(up), cx);
+            Ok(())
+        }
+        Step::Hover(position) => {
+            move_pointer(*position, window, cx);
+            Ok(())
+        }
         Step::Wait(_) | Step::Mark(_) | Step::Quit => Ok(()),
     }
+}
+
+/// Moves the pointer to `position`, as the platform reports a move: hover states and tooltips follow.
+fn move_pointer(position: Point<Pixels>, window: &mut Window, cx: &mut App) {
+    let moved = MouseMoveEvent { position, pressed_button: None, modifiers: Modifiers::default() };
+    window.dispatch_event(PlatformInput::MouseMove(moved), cx);
 }
 
 /// The keystroke that types `typed` on a US layout.
@@ -262,6 +313,9 @@ mod tests {
                       type\t  two words\n\
                       wait\t250\n\
                       mark\tafter settings\n\
+                      click\t10\t20.5\n\
+                      rclick\t0\t7\n\
+                      hover\t3\t4\n\
                       quit";
         assert_eq!(
             steps(script),
@@ -273,6 +327,9 @@ mod tests {
                 Ok(Step::Type("  two words".into())),
                 Ok(Step::Wait(Duration::from_millis(250))),
                 Ok(Step::Mark("after settings".into())),
+                Ok(Step::Click { at: point(px(10.0), px(20.5)), button: MouseButton::Left }),
+                Ok(Step::Click { at: point(px(0.0), px(7.0)), button: MouseButton::Right }),
+                Ok(Step::Hover(point(px(3.0), px(4.0)))),
                 Ok(Step::Quit),
             ]
         );
@@ -289,11 +346,11 @@ mod tests {
     #[test]
     fn says_why_a_line_is_not_a_step() {
         let reasons: Vec<String> =
-            steps("click\tbutton\naction\naction\tx\t{not json\nopen\trelative/path\nwait\tsoon\nmark\ntype\nkeys\t ")
+            steps("tap\tbutton\naction\naction\tx\t{not json\nopen\trelative/path\nwait\tsoon\nmark\ntype\nkeys\t \nclick\t1\nhover\tleft\t2")
                 .into_iter()
                 .map(|step| step.expect_err("each line is wrong"))
                 .collect();
-        assert_eq!(reasons[0], "there is no step called \"click\"");
+        assert_eq!(reasons[0], "there is no step called \"tap\"");
         assert_eq!(reasons[1], "action needs an id");
         assert!(reasons[2].starts_with("the argument is not JSON"), "{}", reasons[2]);
         assert_eq!(reasons[3], "relative/path is not an absolute path");
@@ -301,6 +358,8 @@ mod tests {
         assert_eq!(reasons[5], "mark needs a name");
         assert_eq!(reasons[6], "type needs text");
         assert_eq!(reasons[7], "keys needs keystrokes");
+        assert_eq!(reasons[8], "click needs an x and a y");
+        assert_eq!(reasons[9], "left is not a coordinate");
     }
 
     #[test]

@@ -531,7 +531,7 @@ impl Workbench {
     }
 
     /// Customize Main Toolbar as a layer over the window, below the popup slot.
-    pub(super) fn customize_toolbar_layer(&self) -> Option<AnyElement> {
+    pub(super) fn customize_toolbar_layer(&self, cx: &App) -> Option<AnyElement> {
         let dialog = self.customize_toolbar_dialog()?.clone();
         let layer = div()
             .id("customize-toolbar-layer")
@@ -541,7 +541,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(dialog);
+            .child(super::dialog_frame(dialog, cx));
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 }

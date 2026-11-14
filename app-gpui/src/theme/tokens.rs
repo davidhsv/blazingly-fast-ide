@@ -57,7 +57,7 @@ impl Color {
     }
 }
 
-fn split_top_level(input: &str, separator: char) -> Vec<&str> {
+pub(crate) fn split_top_level(input: &str, separator: char) -> Vec<&str> {
     let mut parts = Vec::new();
     let (mut depth, mut start) = (0usize, 0usize);
     for (i, c) in input.char_indices() {

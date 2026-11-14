@@ -783,7 +783,7 @@ impl Workbench {
     }
 
     /// The dialog of the plugin pages over the window, Settings included, while one is open.
-    pub(super) fn plugins_dialog_layer(&self) -> Option<AnyElement> {
+    pub(super) fn plugins_dialog_layer(&self, cx: &App) -> Option<AnyElement> {
         let view = self.plugin_ui.dialog.as_ref()?.view.view();
         let layer = div()
             .id("plugins-dialog-layer")
@@ -793,7 +793,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(view);
+            .child(super::dialog_frame(view, cx));
         Some(gpui_kit::deferred(layer).with_priority(2).into_any_element())
     }
 

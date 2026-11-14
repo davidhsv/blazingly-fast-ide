@@ -229,7 +229,8 @@ fn button(cx: &App, label: &str, primary: bool, enabled: bool) -> Div {
         .bg(theme::color(cx, bg))
         .text_color(theme::color(cx, fg))
         .whitespace_nowrap()
-        .child(SharedString::from(label.to_owned()))
+        // A button given less room than its label ends the label in an ellipsis.
+        .child(div().min_w_0().truncate().child(SharedString::from(label.to_owned())))
 }
 
 /// A check box with its label.

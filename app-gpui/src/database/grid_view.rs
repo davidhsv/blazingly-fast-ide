@@ -957,10 +957,8 @@ impl Render for GridView {
         .track_scroll(&self.scroll)
         .flex_1()
         .w_full();
-        let family = cx
-            .try_global::<theme::ActiveTheme>()
-            .and_then(|active| active.theme.font_families("font-mono").into_iter().next())
-            .unwrap_or_else(|| theme::fonts::BUNDLED_MONO_FAMILY.to_owned());
+        let family =
+            crate::theme::installed_fonts::theme_family(cx, "font-mono", theme::fonts::BUNDLED_MONO_FAMILY).to_string();
         div()
             .size_full()
             .flex()

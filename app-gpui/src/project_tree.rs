@@ -14,6 +14,7 @@ use crate::project_tree_model::{
 use crate::project_tree_paths::ancestors_within;
 use crate::project_view::store::ProjectViewState;
 use crate::theme;
+use crate::vcs_diff::model::FileDecorations;
 use gpui_kit::{
     App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent, MouseButton,
     MouseDownEvent, Pixels, Point, Render, ScrollStrategy, SharedString, Task, UniformListScrollHandle, Window, div,
@@ -191,6 +192,8 @@ pub struct ProjectTree {
     scroll: UniformListScrollHandle,
     listener: Option<u64>,
     persist: Option<Task<()>>,
+    /// The colours files and folders take from their version control status.
+    decorations: FileDecorations,
 }
 
 impl EventEmitter<OpenFile> for ProjectTree {}
@@ -234,6 +237,7 @@ impl ProjectTree {
             selected: None,
             inflight: BTreeSet::new(),
             read_again: BTreeSet::new(),
+            decorations: FileDecorations::default(),
             #[cfg(test)]
             folder_reads: 0,
             #[cfg(test)]
@@ -308,6 +312,23 @@ impl ProjectTree {
     }
 
     /// The visible lines, top to bottom.
+    /// Takes the colours the version control status gives files and folders.
+    pub fn set_decorations(&mut self, decorations: FileDecorations, cx: &mut Context<Self>) {
+        self.decorations = decorations;
+        cx.notify();
+    }
+
+    /// The colour token the label of the row with `key` is drawn in, when its status gives one;
+    /// a faded entry without one is drawn muted.
+    pub fn label_color(&self, key: &str) -> Option<String> {
+        self.rows().into_iter().find(|row| row.node.key == key).and_then(|row| self.decoration_color(&row.node))
+    }
+
+    fn decoration_color(&self, node: &ProjectNode) -> Option<String> {
+        let decoration = self.decorations.get(&node.path)?;
+        decoration.color.or_else(|| (decoration.faded == Some(true)).then(|| "fg-muted".to_owned()))
+    }
+
     pub fn rows(&self) -> Vec<Row> {
         rows(&self.model, &self.expanded)
     }
@@ -664,13 +685,16 @@ impl Render for ProjectTree {
         let (fg, dimmed, chevron_color) =
             (theme::color(cx, "fg-strong"), theme::color(cx, "fg-muted"), theme::color(cx, "fg-icon"));
         let selected = self.selected.clone();
+        let label_colors: Vec<Option<gpui_kit::Hsla>> =
+            rows.iter().map(|row| self.decoration_color(&row.node).map(|token| theme::color(cx, &token))).collect();
         let list = uniform_list(
             "project-tree",
             rows.len(),
             cx.processor(move |_, range: std::ops::Range<usize>, _, cx| {
-                rows[range]
+                rows[range.clone()]
                     .iter()
-                    .map(|row| {
+                    .zip(&label_colors[range])
+                    .map(|(row, label_color)| {
                         let node = &row.node;
                         let chevron = if node.dir {
                             let name = if row.expanded { "chevron-down" } else { "chevron-right" };
@@ -713,7 +737,12 @@ impl Render for ProjectTree {
                             .when(selected.as_deref() == Some(node.key.as_str()), |el| el.bg(selected_bg))
                             .child(chevron)
                             .child(theme::icon(cx, icon, 16.0, color))
-                            .child(div().whitespace_nowrap().child(SharedString::from(node.label.clone())))
+                            .child(
+                                div()
+                                    .whitespace_nowrap()
+                                    .when_some(*label_color, |el, color| el.text_color(color))
+                                    .child(SharedString::from(node.label.clone())),
+                            )
                             .when_some(node.detail.clone(), |el, detail| {
                                 el.child(div().whitespace_nowrap().text_color(dimmed).child(SharedString::from(detail)))
                             })

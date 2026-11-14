@@ -213,10 +213,8 @@ impl Render for ServiceDetailPane {
             PaneText::Console(session) => self.store.read(cx).console(&session).map_or(0, |c| c.lines().len()),
             PaneText::Lines(lines) => lines.len(),
         };
-        let family = cx
-            .try_global::<theme::ActiveTheme>()
-            .and_then(|active| active.theme.font_families("font-mono").into_iter().next())
-            .unwrap_or_else(|| theme::fonts::BUNDLED_MONO_FAMILY.to_owned());
+        let family =
+            crate::theme::installed_fonts::theme_family(cx, "font-mono", theme::fonts::BUNDLED_MONO_FAMILY).to_string();
         let list = uniform_list(
             "services-detail-lines",
             count,

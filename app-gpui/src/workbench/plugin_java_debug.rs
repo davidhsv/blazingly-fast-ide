@@ -546,7 +546,13 @@ mod tests {
     /// its run was killed.
     #[gpui_kit::test]
     async fn stop_ends_the_process_and_the_session(cx: &mut TestAppContext) {
-        let (fixture, cx) = project(cx, java_detector, &[("jdwp.port", JDWP_PORT)]);
+        // A port free on this machine now, so no other process's listener answers for the JVM's.
+        let port = std::net::TcpListener::bind(("127.0.0.1", 0))
+            .and_then(|listener| listener.local_addr())
+            .expect("a free port")
+            .port()
+            .to_string();
+        let (fixture, cx) = project(cx, java_detector, &[("jdwp.port", port.as_str())]);
         std::fs::write(fixture.root.join("main.fake"), "start\nloop\nend\n").expect("the program is written");
         fixture.debug_detected(cx);
         // The session is the process's once its start is answered; events can show it running before.

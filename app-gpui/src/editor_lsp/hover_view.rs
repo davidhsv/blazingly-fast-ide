@@ -32,10 +32,7 @@ pub(crate) type LinkHandler = Rc<dyn Fn(&str, &mut Window, &mut App)>;
 
 /// The first family of the theme's font list `token`, else `fallback`.
 pub(crate) fn font_family(cx: &App, token: &str, fallback: &str) -> Font {
-    let name = cx
-        .try_global::<theme::ActiveTheme>()
-        .and_then(|active| active.theme.font_families(token).into_iter().next())
-        .unwrap_or_else(|| fallback.to_owned());
+    let name = crate::theme::installed_fonts::theme_family(cx, token, fallback).to_string();
     font(SharedString::from(name))
 }
 
@@ -61,6 +58,7 @@ pub(crate) fn popup_surface(cx: &App) -> Div {
         .border_1()
         .border_color(theme::color(cx, "border-popup"))
         .rounded(theme::length(cx, "radius-popup"))
+        .shadow(theme::shadow(cx, "shadow-popup"))
         .text_color(theme::color(cx, "fg"))
 }
 

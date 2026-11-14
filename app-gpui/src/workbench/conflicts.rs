@@ -744,6 +744,7 @@ impl Workbench {
             .border_1()
             .border_color(theme::color(cx, "border"))
             .rounded(theme::length(cx, "radius-small"))
+            .shadow(theme::shadow(cx, "shadow-dialog"))
             .overflow_hidden()
             .child(view);
         let layer = div().id("merge-window").absolute().inset_0().occlude().child(frame);

@@ -317,7 +317,7 @@ impl Workbench {
     }
 
     /// The close or open question over the window, while one is open.
-    pub(super) fn app_dialog_layer(&self) -> Option<AnyElement> {
+    pub(super) fn app_dialog_layer(&self, cx: &App) -> Option<AnyElement> {
         let view = self.app_dialog.as_ref()?.view.clone();
         let layer = div()
             .id("app-dialog-layer")
@@ -327,7 +327,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(view);
+            .child(super::dialog_frame(view, cx));
         Some(gpui_kit::deferred(layer).with_priority(2).into_any_element())
     }
 }

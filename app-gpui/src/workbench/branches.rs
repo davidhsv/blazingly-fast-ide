@@ -29,6 +29,7 @@ use crate::vcs::prompt_dialogs::{
     CANCEL, DialogAnswer, PromptDialog, PromptDialogEvent, PushDialog, PushDialogEvent, PushDialogInput, PushRepo,
     PushRequest,
 };
+use crate::vcs_diff::model::{FileDecorations, status_decorations};
 use crate::vcs_more::remote_results::outgoing_push;
 use crate::vcs_ops::branch_menu::{BranchCommand, pull_into};
 use crate::vcs_ops::branch_ops::{
@@ -114,6 +115,8 @@ pub(super) struct VcsSlot {
     /// Resolve, Continue and Abort while an operation is stopped.
     merge_widget: Entity<MergeRebaseWidget>,
     _widget_events: [Subscription; 2],
+    /// The colours the status gives files and folders in the Project view and on the editor tabs.
+    decorations: FileDecorations,
     /// What reached the repository's reading, for a test that times out to print.
     #[cfg(test)]
     trace: Vec<String>,
@@ -1386,6 +1389,7 @@ impl Workbench {
             widget,
             merge_widget,
             _widget_events: [events, controls],
+            decorations: FileDecorations::default(),
             #[cfg(test)]
             trace: Vec::new(),
             #[cfg(test)]
@@ -1607,6 +1611,16 @@ impl Workbench {
     fn vcs_state_changed(&mut self, cx: &mut Context<Self>) {
         let popup = self.branches_popup();
         let active = self.editor().map(|editor| editor.read(cx).path().to_string_lossy().into_owned());
+        let propagate = crate::platform::settings::effective(&self.label, cx).vcs.show_dirty_directories;
+        let decorations = {
+            let Some(slot) = self.vcs.as_mut() else { return };
+            let i18n = &mut cx.default_global::<Localization>().0;
+            slot.decorations.set("vcs", status_decorations(&slot.state.status, propagate, i18n));
+            slot.decorations.clone()
+        };
+        if let Some(tree) = self.project_tree().cloned() {
+            tree.update(cx, |tree, cx| tree.set_decorations(decorations, cx));
+        }
         let Some(slot) = self.vcs.as_ref() else { return };
         let current = current_repo_for(active.as_deref(), &slot.state.roots, slot.state.repo.as_deref());
         let widget_state = BranchWidgetState::from_vcs(&slot.state, current, None, popup.is_some());
@@ -1625,6 +1639,11 @@ impl Workbench {
         self.sync_log_panes(cx);
         self.github_vcs_changed(cx);
         cx.notify();
+    }
+
+    /// The colour token the version control status gives the file at `path`, as its tab shows it.
+    pub(super) fn file_color(&self, path: &str) -> Option<String> {
+        self.vcs.as_ref()?.decorations.get(path)?.color
     }
 
     /// What the Branches popup shows.
@@ -1990,7 +2009,7 @@ impl Workbench {
     }
 
     /// The dialog of a Git operation over the window, while one is open.
-    pub(super) fn vcs_dialog_layer(&self) -> Option<AnyElement> {
+    pub(super) fn vcs_dialog_layer(&self, cx: &App) -> Option<AnyElement> {
         let view = self.vcs_dialog.as_ref()?.view.clone();
         let layer = div()
             .id("vcs-dialog-layer")
@@ -2000,7 +2019,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(view);
+            .child(super::dialog_frame(view, cx));
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 }

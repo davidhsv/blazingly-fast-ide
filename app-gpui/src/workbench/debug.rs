@@ -948,7 +948,7 @@ impl Workbench {
     }
 
     /// The Breakpoints dialog over the window, while it is open.
-    pub(super) fn debug_breakpoints_layer(&self) -> Option<AnyElement> {
+    pub(super) fn debug_breakpoints_layer(&self, cx: &App) -> Option<AnyElement> {
         let dialog = self.breakpoints_dialog()?.clone();
         let layer = div()
             .id("debug-breakpoints-layer")
@@ -958,7 +958,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(dialog);
+            .child(super::dialog_frame(dialog, cx));
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 }
@@ -983,10 +983,8 @@ impl Render for DebugConsolePane {
             let state = &self.debugger.read(cx).state;
             state.active().map_or(0, |session| state.console(session).len())
         };
-        let family = cx
-            .try_global::<theme::ActiveTheme>()
-            .and_then(|active| active.theme.font_families("font-mono").into_iter().next())
-            .unwrap_or_else(|| theme::fonts::BUNDLED_MONO_FAMILY.to_owned());
+        let family =
+            crate::theme::installed_fonts::theme_family(cx, "font-mono", theme::fonts::BUNDLED_MONO_FAMILY).to_string();
         let list = uniform_list(
             "debug-console-lines",
             count,

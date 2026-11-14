@@ -506,6 +506,7 @@ impl Workbench {
             .border_1()
             .border_color(theme::color(cx, "border"))
             .rounded(theme::length(cx, "radius-small"))
+            .shadow(theme::shadow(cx, "shadow-dialog"))
             .overflow_hidden()
             .child(dialog);
         let layer = div().id("diff-window").absolute().inset_0().occlude().child(window);

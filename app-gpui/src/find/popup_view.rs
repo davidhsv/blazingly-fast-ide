@@ -432,10 +432,7 @@ fn could_be_regex(text: &str) -> bool {
 
 /// The first family of the code font.
 fn code_font(cx: &App) -> SharedString {
-    let family = cx
-        .try_global::<theme::ActiveTheme>()
-        .and_then(|active| active.theme.font_families("font-mono").into_iter().next());
-    SharedString::from(family.unwrap_or_else(|| "Menlo".to_owned()))
+    crate::theme::installed_fonts::mono_family(cx)
 }
 
 /// A square button showing `icon`, lit while `pressed`.

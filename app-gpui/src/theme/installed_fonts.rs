@@ -101,21 +101,56 @@ pub fn installed(cx: &App) -> Option<&[String]> {
     cx.try_global::<InstalledFontNames>().map(|known| known.0.as_slice())
 }
 
-/// The first of `candidates` that is installed; while the installed families are not known, the
-/// first candidate. `None` when the list is known and holds none of them (or there are none).
-pub fn first_installed(cx: &App, candidates: &[String]) -> Option<String> {
-    match installed(cx) {
-        Some(names) => candidates.iter().find(|family| names.contains(family)).cloned(),
-        None => candidates.first().cloned(),
+/// The names a stylesheet gives the variable faces of the bundled families. The app registers
+/// static faces under the families' own names ("Inter", "JetBrains Mono"), so these draw only
+/// when the system has a family of that name installed.
+const VARIABLE_FACE_NAMES: [&str; 2] = ["Inter Variable", "JetBrains Mono Variable"];
+
+/// The family the text system draws for a generic CSS family, `None` for a named one.
+fn generic_family(name: &str) -> Option<&'static str> {
+    match name {
+        "system-ui" | "-apple-system" | "BlinkMacSystemFont" | "ui-sans-serif" | "sans-serif" => Some(".SystemUIFont"),
+        "ui-monospace" | "monospace" => Some(LAST_RESORT),
+        _ => None,
     }
 }
 
-/// The theme's code font: the first family of its `--font-mono` list that is installed; the
-/// list's first family until the installed ones are known; Menlo when none of them is installed.
-pub fn mono_family(cx: &App) -> SharedString {
+/// The first of `candidates` that can be drawn, in their order: a generic family as the
+/// system's, a named one when it is installed (the bundled faces are, once registered). While
+/// the installed families are not known, the first named one other than a variable face's
+/// name. `None` when nothing in the list can be drawn (or there are no candidates).
+pub fn first_installed(cx: &App, candidates: &[String]) -> Option<String> {
+    let known = installed(cx);
+    candidates.iter().find_map(|family| {
+        if let Some(generic) = generic_family(family) {
+            return Some(generic.to_owned());
+        }
+        let drawable = match known {
+            Some(names) => names.contains(family),
+            None => !VARIABLE_FACE_NAMES.contains(&family.as_str()),
+        };
+        drawable.then(|| family.clone())
+    })
+}
+
+/// The family the theme's font list `token` (`font-ui`, `font-mono`, `font-keys`) draws with, as
+/// [`first_installed`] picks it; `last_resort` when none of the list can be drawn.
+pub fn theme_family(cx: &App, token: &str, last_resort: &str) -> SharedString {
     let families =
-        cx.try_global::<super::ActiveTheme>().map(|active| active.theme.font_families("font-mono")).unwrap_or_default();
-    SharedString::from(first_installed(cx, &families).unwrap_or_else(|| LAST_RESORT.to_owned()))
+        cx.try_global::<super::ActiveTheme>().map(|active| active.theme.font_families(token)).unwrap_or_default();
+    SharedString::from(first_installed(cx, &families).unwrap_or_else(|| last_resort.to_owned()))
+}
+
+/// The theme's code font: the first family of its `--font-mono` list that can be drawn; Menlo
+/// when none of them can.
+pub fn mono_family(cx: &App) -> SharedString {
+    theme_family(cx, "font-mono", LAST_RESORT)
+}
+
+/// The theme's interface font: the first family of its `--font-ui` list that can be drawn; the
+/// system's interface font when none of them can.
+pub fn ui_family(cx: &App) -> SharedString {
+    theme_family(cx, "font-ui", ".SystemUIFont")
 }
 
 /// The family drawn when none of the wanted ones is installed.
@@ -145,6 +180,35 @@ mod tests {
             assert_eq!(mono_family(cx).as_ref(), families[1]);
             cx.set_global(InstalledFontNames(vec!["Nothing Of The Theme".to_owned()]));
             assert_eq!(mono_family(cx).as_ref(), "Menlo");
+        });
+    }
+
+    // The interface font follows the order of the theme's `--font-ui` list: the variable face's
+    // name is passed over for "Inter" while the installed families are not known, "Inter" draws
+    // once the list (which holds the registered faces) is known, and the system's interface font
+    // when it is missing. A family the user picks comes first when it is installed.
+    #[gpui_kit::test]
+    fn the_interface_font_is_the_first_drawable_family_of_the_themes_list(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            cx.set_global(super::super::ActiveTheme::default());
+            let families = cx.global::<super::super::ActiveTheme>().theme.font_families("font-ui");
+            assert_eq!(families.first().map(String::as_str), Some("Inter Variable"), "{families:?}");
+            assert_eq!(ui_family(cx).as_ref(), "Inter");
+            assert_eq!(mono_family(cx).as_ref(), "JetBrains Mono");
+            cx.set_global(InstalledFontNames(vec!["Inter".to_owned(), "JetBrains Mono".to_owned()]));
+            assert_eq!(ui_family(cx).as_ref(), "Inter");
+            assert_eq!(mono_family(cx).as_ref(), "JetBrains Mono");
+            cx.set_global(InstalledFontNames(vec!["Menlo".to_owned()]));
+            assert_eq!(ui_family(cx).as_ref(), ".SystemUIFont");
+            assert_eq!(mono_family(cx).as_ref(), "Menlo");
+
+            let custom = crate::theme::fonts::ui_font_family("Fira Sans", "");
+            cx.global_mut::<super::super::ActiveTheme>().theme.set("font-ui", &custom);
+            cx.set_global(InstalledFontNames(vec!["Inter".to_owned(), "Fira Sans".to_owned()]));
+            assert_eq!(ui_family(cx).as_ref(), "Fira Sans", "the user's family wins");
+            cx.set_global(InstalledFontNames(vec!["Inter".to_owned()]));
+            assert_eq!(ui_family(cx).as_ref(), ".SystemUIFont", "a missing family falls back as the list says");
+            assert_eq!(theme_family(cx, "font-keys", "Nothing").as_ref(), ".SystemUIFont");
         });
     }
 

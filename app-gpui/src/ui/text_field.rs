@@ -437,10 +437,7 @@ impl Element for TextFieldElement {
         } else {
             (SharedString::from(field.text.clone()), theme::color(cx, "fg-strong"))
         };
-        let family = cx
-            .try_global::<theme::ActiveTheme>()
-            .and_then(|active| active.theme.font_families("font-ui").into_iter().next())
-            .unwrap_or_else(|| ".SystemUIFont".to_owned());
+        let family = crate::theme::installed_fonts::theme_family(cx, "font-ui", ".SystemUIFont").to_string();
         let run = TextRun {
             len: text.len(),
             font: font(SharedString::from(family)),

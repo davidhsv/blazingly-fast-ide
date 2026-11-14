@@ -444,6 +444,7 @@ impl<C: Clone + 'static> Render for PopupMenu<C> {
                 .border_1()
                 .border_color(theme::color(cx, "border-popup"))
                 .rounded(theme::length(cx, "radius-popup"))
+                .shadow(theme::shadow(cx, "shadow-popup"))
                 .occlude()
                 // A click on the menu's own surface is not a click beside it.
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())

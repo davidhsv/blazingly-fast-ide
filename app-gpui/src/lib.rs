@@ -53,6 +53,11 @@ use gpui_kit::App;
 /// backend with the app's directories.
 pub fn init(cx: &mut App) -> anyhow::Result<()> {
     cx.set_global(theme::ActiveTheme::default());
+    // The bundled faces are registered before the installed families are read, so the list
+    // holds them, and before the first window draws.
+    if let Err(error) = theme::bundled_fonts::register(cx) {
+        tracing::error!("the bundled fonts cannot be registered: {error:#}");
+    }
     // The installed font families are read once, off the window's thread; views draw with the
     // theme's default family until they arrive.
     theme::installed_fonts::load(cx, false, |_, _| {});

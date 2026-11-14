@@ -921,7 +921,7 @@ impl Workbench {
     }
 
     /// The Data Source dialog over the window, while one is open.
-    pub(super) fn database_dialog_layer(&self) -> Option<AnyElement> {
+    pub(super) fn database_dialog_layer(&self, cx: &App) -> Option<AnyElement> {
         let dialog = self.database.as_ref()?.source_dialog.as_ref()?.dialog.clone();
         let layer = div()
             .id("db-dialog-layer")
@@ -931,12 +931,12 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(dialog);
+            .child(super::dialog_frame(dialog, cx));
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 
     /// The Database question over everything else, while one is open.
-    pub(super) fn database_prompt_layer(&self) -> Option<AnyElement> {
+    pub(super) fn database_prompt_layer(&self, cx: &App) -> Option<AnyElement> {
         let view = self.database.as_ref()?.prompt.as_ref()?.view.clone();
         let layer = div()
             .id("db-prompt-layer")
@@ -946,7 +946,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(view);
+            .child(super::dialog_frame(view, cx));
         Some(gpui_kit::deferred(layer).with_priority(2).into_any_element())
     }
 

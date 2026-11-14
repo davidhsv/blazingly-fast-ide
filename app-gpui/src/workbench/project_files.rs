@@ -1530,7 +1530,7 @@ impl Workbench {
     }
 
     /// The dialog of a file operation over the window, while one is open.
-    pub(super) fn file_dialog_layer(&self) -> Option<AnyElement> {
+    pub(super) fn file_dialog_layer(&self, cx: &App) -> Option<AnyElement> {
         let view = self.files.dialog.as_ref()?.view.clone();
         let layer = div()
             .id("file-dialog-layer")
@@ -1540,7 +1540,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(view);
+            .child(super::dialog_frame(view, cx));
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 }

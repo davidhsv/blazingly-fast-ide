@@ -322,7 +322,7 @@ impl Workbench {
                     cx.stop_propagation();
                 }
             }))
-            .child(dialog);
+            .child(super::dialog_frame(dialog, cx));
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 }

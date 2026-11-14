@@ -674,11 +674,7 @@ impl Render for StatusBar {
 
 /// The first family of font token `name` the theme lists, the system font for its CSS aliases.
 pub(super) fn font_family(name: &str, cx: &App) -> SharedString {
-    let first = cx
-        .try_global::<theme::ActiveTheme>()
-        .and_then(|active| active.theme.font_families(name).into_iter().next())
-        .filter(|family| !matches!(family.as_str(), "-apple-system" | "BlinkMacSystemFont" | "system-ui"));
-    SharedString::from(first.unwrap_or_else(|| ".SystemUIFont".to_owned()))
+    crate::theme::installed_fonts::theme_family(cx, name, ".SystemUIFont")
 }
 
 /// The stored choices of the effective settings object, for [`StatusBar::set_overrides`].

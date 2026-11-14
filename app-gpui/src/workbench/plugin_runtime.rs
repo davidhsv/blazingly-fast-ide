@@ -1142,7 +1142,7 @@ impl Workbench {
     }
 
     /// The question over the window, while one waits.
-    pub(super) fn plugin_prompt_layer(&self) -> Option<AnyElement> {
+    pub(super) fn plugin_prompt_layer(&self, cx: &App) -> Option<AnyElement> {
         let view = self.plugin_runtime.prompts.last()?.view.clone();
         let layer = div()
             .id("plugin-prompt-layer")
@@ -1152,7 +1152,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(view);
+            .child(super::dialog_frame(view, cx));
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 

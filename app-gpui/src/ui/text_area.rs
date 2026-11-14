@@ -196,10 +196,7 @@ fn metrics(cx: &App) -> (Pixels, Pixels) {
 }
 
 fn ui_font(cx: &App) -> Font {
-    let family = cx
-        .try_global::<theme::ActiveTheme>()
-        .and_then(|active| active.theme.font_families("font-ui").into_iter().next())
-        .unwrap_or_else(|| ".SystemUIFont".to_owned());
+    let family = crate::theme::installed_fonts::theme_family(cx, "font-ui", ".SystemUIFont").to_string();
     font(SharedString::from(family))
 }
 

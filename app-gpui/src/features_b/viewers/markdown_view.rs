@@ -1027,10 +1027,7 @@ impl Render for MarkdownView {
         let children: Vec<AnyElement> = {
             let app: &App = cx;
             let family = |token: &str, fallback: &str| {
-                let name = app
-                    .try_global::<theme::ActiveTheme>()
-                    .and_then(|active| active.theme.font_families(token).into_iter().next())
-                    .unwrap_or_else(|| fallback.to_owned());
+                let name = crate::theme::installed_fonts::theme_family(app, token, fallback).to_string();
                 font(SharedString::from(name))
             };
             let mut builder = Builder {
@@ -1073,10 +1070,8 @@ impl Render for MarkdownView {
         )
         .absolute()
         .size_0();
-        let ui_family = cx
-            .try_global::<theme::ActiveTheme>()
-            .and_then(|active| active.theme.font_families("font-ui").into_iter().next())
-            .unwrap_or_else(|| theme::fonts::BUNDLED_UI_FAMILY.to_owned());
+        let ui_family =
+            crate::theme::installed_fonts::theme_family(cx, "font-ui", theme::fonts::BUNDLED_UI_FAMILY).to_string();
         let bottom = window.viewport_size().height * 0.4;
         div()
             .relative()

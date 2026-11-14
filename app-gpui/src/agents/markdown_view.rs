@@ -30,10 +30,7 @@ pub enum MarkdownClick {
 pub type MarkdownHandler = Rc<dyn Fn(&MarkdownClick, &mut Window, &mut App)>;
 
 fn family(cx: &App, token: &str, fallback: &str) -> Font {
-    let name = cx
-        .try_global::<theme::ActiveTheme>()
-        .and_then(|active| active.theme.font_families(token).into_iter().next())
-        .unwrap_or_else(|| fallback.to_owned());
+    let name = crate::theme::installed_fonts::theme_family(cx, token, fallback).to_string();
     font(SharedString::from(name))
 }
 

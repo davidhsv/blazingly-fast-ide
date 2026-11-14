@@ -585,7 +585,7 @@ impl Workbench {
     }
 
     /// Edit Configurations over the window, while it is open.
-    pub(super) fn edit_configs_layer(&self) -> Option<AnyElement> {
+    pub(super) fn edit_configs_layer(&self, cx: &App) -> Option<AnyElement> {
         let dialog = self.edit_configs_dialog()?.clone();
         let layer = div()
             .id("run-edit-configs-layer")
@@ -595,7 +595,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(dialog);
+            .child(super::dialog_frame(dialog, cx));
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 }

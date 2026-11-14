@@ -45,3 +45,32 @@ async fn an_inspection_script_runs_an_action_types_into_the_editor_and_marks(cx:
     let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
     host.close_project("w1");
 }
+
+/// A right click the script sends at a Project view row, in window coordinates, reaches the row
+/// through the window's input dispatch and opens the row's context menu.
+#[gpui_kit::test]
+async fn an_inspection_script_right_click_on_a_project_row_opens_its_context_menu(cx: &mut TestAppContext) {
+    use crate::project_view::context_menu::ProjectCommand;
+    let home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/lib.rs", "pub fn a() {}\n")]);
+    cx.update(|window, _| window.activate_window());
+    let file = root.join("src/lib.rs");
+    select_in_tree(&workbench, &file, cx);
+    let selector: &'static str = Box::leak(format!("project-row:{}", text_of(&file)).into_boxed_str());
+    let row = cx.debug_bounds(selector).expect("the row is drawn");
+    let (x, y) = (f32::from(row.center().x), f32::from(row.center().y));
+    let log = home.path().join("inspect.log");
+    let script = format!("hover\t{x}\t{y}\nrclick\t{x}\t{y}\nmark\tmenu\n");
+    let _script = cx.update(|_, cx| crate::inspect::start(&script, Some(log.clone()), cx));
+    let read_log = || std::fs::read_to_string(&log).unwrap_or_default();
+    settle(cx, |cx| {
+        // Test windows have no frame loop: each step waits for the frame this delivers.
+        cx.update(|window, cx| window.simulate_next_frame(cx));
+        read_log().contains("done\t")
+    });
+    assert!(!read_log().contains("fail\t"), "{}", read_log());
+    let menu = workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).expect("the context menu is open");
+    let lines = menu.read_with(cx, |menu, _| menu.lines());
+    assert!(lines[0].iter().any(|line| line.trim_start_matches("> ") == "Copy Path/Reference…"), "{lines:?}");
+    close_backend_project(cx);
+}

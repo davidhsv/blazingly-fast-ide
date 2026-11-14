@@ -12,8 +12,8 @@ use crate::platform::input::Keymap;
 use crate::platform::keymap::is_mac_host;
 use crate::theme;
 use gpui_kit::{
-    AnyView, App, BoxShadow, Context, IntoElement, Render, Rgba, SharedString, StatefulInteractiveElement,
-    Subscription, Window, div, prelude::*, px,
+    AnyView, App, BoxShadow, Context, IntoElement, Render, SharedString, StatefulInteractiveElement, Subscription,
+    Window, div, prelude::*, px,
 };
 use std::time::Duration;
 
@@ -127,29 +127,12 @@ fn translate(text: &str, cx: &App) -> SharedString {
 /// The first family of font token `name` that GPUI can name; the system font for the CSS
 /// aliases of it.
 fn font_family(name: &str, cx: &App) -> SharedString {
-    let first = cx
-        .try_global::<theme::ActiveTheme>()
-        .and_then(|active| active.theme.font_families(name).into_iter().next())
-        .filter(|family| !matches!(family.as_str(), "-apple-system" | "BlinkMacSystemFont" | "system-ui"));
-    SharedString::from(first.unwrap_or_else(|| ".SystemUIFont".to_owned()))
+    crate::theme::installed_fonts::theme_family(cx, name, ".SystemUIFont")
 }
 
-/// The tooltip's drop shadow from `--shadow-tooltip` (`<x> <y> <blur> <colour>`); none when the
-/// theme does not define one.
+/// The tooltip's drop shadow, `--shadow-tooltip`.
 fn shadow(cx: &App) -> Vec<BoxShadow> {
-    let value = cx.try_global::<theme::ActiveTheme>().and_then(|active| active.theme.resolved("shadow-tooltip"));
-    let Some(value) = value else { return Vec::new() };
-    let mut parts = value.split_whitespace();
-    let mut lengths = [0.0_f32; 3];
-    for length in &mut lengths {
-        match parts.next().and_then(|part| part.trim_end_matches("px").parse().ok()) {
-            Some(parsed) => *length = parsed,
-            None => return Vec::new(),
-        }
-    }
-    let Some(color) = theme::tokens::parse_color(&parts.collect::<Vec<_>>().join(" ")) else { return Vec::new() };
-    let color = Rgba { r: color.r, g: color.g, b: color.b, a: color.a };
-    vec![BoxShadow::new(px(lengths[0]), px(lengths[1]), color.into()).blur_radius(px(lengths[2]))]
+    theme::shadow(cx, "shadow-tooltip")
 }
 
 impl Render for Tooltip {

@@ -16,7 +16,7 @@ use crate::platform::i18n::Localization;
 use crate::theme;
 use gpui_kit::{
     App, BoxShadow, Context, Deferred, Div, Entity, EventEmitter, FontWeight, HoverListenerMode, IntoElement, Render,
-    Rgba, SharedString, Stateful, Window, deferred, div, prelude::*, px,
+    SharedString, Stateful, Window, deferred, div, prelude::*, px,
 };
 use std::rc::Rc;
 
@@ -283,25 +283,9 @@ pub(super) fn toast(
         .child(close)
 }
 
-/// A drop shadow as a `--shadow-*` token writes it: `<x> <y> <blur> <colour>`.
-fn parse_shadow(value: &str) -> Option<BoxShadow> {
-    let mut parts = value.split_whitespace();
-    let mut lengths = [0.0_f32; 3];
-    for length in &mut lengths {
-        *length = parts.next()?.trim_end_matches("px").parse().ok()?;
-    }
-    let color = theme::tokens::parse_color(&parts.collect::<Vec<_>>().join(" "))?;
-    let color = Rgba { r: color.r, g: color.g, b: color.b, a: color.a };
-    Some(BoxShadow::new(px(lengths[0]), px(lengths[1]), color.into()).blur_radius(px(lengths[2])))
-}
-
 /// The shadow under a balloon; none when the theme does not define one.
 fn balloon_shadow(cx: &App) -> Vec<BoxShadow> {
-    cx.try_global::<theme::ActiveTheme>()
-        .and_then(|active| active.theme.resolved("shadow-balloon"))
-        .and_then(|value| parse_shadow(&value))
-        .into_iter()
-        .collect()
+    theme::shadow(cx, "shadow-balloon")
 }
 
 /// What the balloons ask of their window.
@@ -886,15 +870,12 @@ mod tests {
 
     #[gpui_kit::test]
     async fn the_shadow_is_the_themes(cx: &mut TestAppContext) {
-        let shadow = parse_shadow("0 8px 24px rgba(0, 0, 0, 0.45)").expect("a shadow");
-        assert_eq!((shadow.offset, shadow.blur_radius), (point(px(0.0), px(8.0)), px(24.0)));
-        assert!((shadow.color.a - 0.45).abs() < 0.001);
-        assert_eq!(parse_shadow("none"), None);
-        assert_eq!(parse_shadow("0 8px"), None);
         cx.update(|cx| {
             assert!(balloon_shadow(cx).is_empty(), "no theme, no shadow");
             cx.set_global(theme::ActiveTheme::default());
-            assert_eq!(balloon_shadow(cx).len(), 1);
+            let shadow = balloon_shadow(cx);
+            assert_eq!(shadow.len(), 1);
+            assert_eq!((shadow[0].offset, shadow[0].blur_radius), (point(px(0.0), px(8.0)), px(24.0)));
         });
     }
 }
