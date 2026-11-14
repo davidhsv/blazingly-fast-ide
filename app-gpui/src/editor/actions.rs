@@ -21,7 +21,11 @@ pub(super) fn on_editor(
 
 pub fn register(cx: &mut App) {
     let registry = cx.default_global::<ActionRegistry>();
-    registry.handle("edit.undo", |_, window, cx| {
+    registry.handle("edit.undo", |call, window, cx| {
+        // While the Project view has the keyboard, Undo reverts the view's last delete or move first.
+        if call.ctx.is_truthy("projectViewFocus") && workbench::undo_in_project_view(window, cx) {
+            return Ok(());
+        }
         // With nothing of its own left to undo, the editor undoes the refactoring of its file.
         if workbench::undo_refactoring(window, cx) {
             return Ok(());

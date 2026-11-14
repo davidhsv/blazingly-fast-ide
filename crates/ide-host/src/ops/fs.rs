@@ -133,17 +133,23 @@ pub fn set_writable(host: &Host, window: &str, path: PathBuf, writable: bool) ->
     }
 }
 
-/// Moves to the trash; Local History keeps the contents so deleted files can be restored.
+/// Moves to the trash (or where [`Host::set_trash`] says); Local History keeps the contents so
+/// deleted files can be restored.
 pub async fn delete(host: &Host, window: &str, path: PathBuf) -> IdeResult<()> {
     let history = host.project(window).ok().map(|p| p.history.clone());
+    let trash = host.trash_override();
     host.blocking(move || {
         let paths = ide_workspace::file_ops::deletion_paths(&path)?;
         if let Some(h) = history {
-            for p in paths {
-                h.record_deletion(&p, DELETE_SNAPSHOT_LIMIT);
+            for p in &paths {
+                h.record_deletion(p, DELETE_SNAPSHOT_LIMIT);
             }
         }
-        ide_workspace::file_ops::delete(&path)
+        match trash {
+            // Every path the project's rules delete together (an asset and its `.meta`).
+            Some(trash) => paths.iter().try_for_each(|p| trash(p.as_path())),
+            None => ide_workspace::file_ops::delete(&path),
+        }
     })
     .await
 }
@@ -164,4 +170,48 @@ pub async fn read_text(host: &Host, window: &str, path: PathBuf) -> IdeResult<St
         None => Ok(ide_vfs::load_text(&path)?.text),
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::HostConfig;
+    use ide_core::{IdeError, NullSink, error::ErrorKind};
+    use std::path::Path;
+    use std::sync::Arc;
+
+    /// A delete goes where `set_trash` says instead of the system Trash: a file and a folder leave
+    /// their place whole; a path that is not there is refused.
+    #[tokio::test]
+    async fn a_delete_goes_where_set_trash_says_instead_of_the_system_trash() {
+        let root = tempfile::tempdir().unwrap();
+        let host = Host::new(HostConfig {
+            config_dir: root.path().join("config"),
+            data_dir: root.path().join("data"),
+            local_data_dir: root.path().join("data"),
+            languages: Arc::new(ide_language::LanguageRegistry::load(None).unwrap()),
+            syntax: Arc::default(),
+            sink_for: Box::new(|_| Arc::new(NullSink)),
+            owner: |window| window,
+            runtime: tokio::runtime::Handle::current(),
+            project_environment: false,
+        });
+        let trash = root.path().join("trash");
+        std::fs::create_dir_all(&trash).unwrap();
+        let into = trash.clone();
+        host.set_trash(Some(Arc::new(move |path: &Path| {
+            let name = path.file_name().ok_or_else(|| IdeError::invalid("a path without a name"))?;
+            std::fs::rename(path, into.join(name)).map_err(IdeError::from)
+        })));
+        let dir = root.path().join("project/src");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.txt"), "a\n").unwrap();
+        delete(&host, "w", dir.join("a.txt")).await.unwrap();
+        assert!(!dir.join("a.txt").exists());
+        assert_eq!(std::fs::read_to_string(trash.join("a.txt")).unwrap(), "a\n");
+        delete(&host, "w", dir.clone()).await.unwrap();
+        assert!(!dir.exists() && trash.join("src").is_dir());
+        let error = delete(&host, "w", dir.join("gone.txt")).await.unwrap_err();
+        assert_eq!(error.kind, ErrorKind::NotFound);
+    }
 }

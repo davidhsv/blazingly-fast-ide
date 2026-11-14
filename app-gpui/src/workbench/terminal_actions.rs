@@ -223,8 +223,7 @@ impl Workbench {
         if !busy {
             return self.close_terminal_tab(tab, window, cx);
         }
-        let question = cx
-            .update_default_global::<Localization, _>(|localization, _| terminate_confirmation(title, &localization.0));
+        let question = terminate_confirmation(title, &cx.default_global::<Localization>().0);
         let request =
             ConfirmRequest { title: question.title, message: question.message, ok_label: question.ok, danger: false };
         let answer = self.show_prompt_dialog(move |window, cx| PromptDialog::confirm(request, window, cx), window, cx);

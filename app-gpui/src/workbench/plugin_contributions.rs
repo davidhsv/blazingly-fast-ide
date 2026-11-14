@@ -302,10 +302,21 @@ pub(super) struct PluginContributions {
     debug_requests: HashMap<String, String>,
 }
 
+/// The tasks status item's click asks for a toggle (`{ "toggle": true }`); the action itself only opens the
+/// popup.
+fn call_toggles(arg: Option<&Value>) -> bool {
+    arg.and_then(|arg| arg.get("toggle")).and_then(Value::as_bool).unwrap_or(false)
+}
+
 /// Registers the Background Tasks popup's action and Debug Plugin Configuration.
 pub(super) fn register_actions(registry: &mut ActionRegistry) {
-    registry.handle(BACKGROUND_TASKS, |_, window, cx| {
-        on_workbench(window, cx, |workbench, window, cx| workbench.toggle_background_tasks(window, cx))
+    registry.handle(BACKGROUND_TASKS, |call, window, cx| {
+        let toggle = call_toggles(call.arg);
+        on_workbench(window, cx, move |workbench, window, cx| {
+            if toggle || workbench.background_tasks_popup().is_none() {
+                workbench.toggle_background_tasks(window, cx);
+            }
+        })
     });
     // Arg: `{ config, operation }`; the plugin of `operation` hears how the session went.
     registry.handle(DEBUG_PLUGIN_START, |call, window, cx| {
@@ -1812,7 +1823,7 @@ mod tests {
         let seen = seen.borrow().clone();
         let cancelling = Some(CancelButton::Disabled("Cancelling…".to_owned()));
         assert!(seen.contains(&cancelling), "Cancel showed Cancelling… while the task ended: {seen:?}");
-        run_action(cx, BACKGROUND_TASKS, None);
+        run_action(cx, BACKGROUND_TASKS, Some(json!({ "toggle": true })));
         assert!(workbench.read_with(cx, |w, _| w.background_tasks_popup().is_none()));
     }
 }

@@ -38,8 +38,11 @@ mod plugin_runtime;
 mod plugins_window;
 pub mod project_color;
 mod project_files;
+mod project_view_actions;
+pub use project_view_actions::undo_in_project_view;
 pub mod quick_switch;
 mod run_configs;
+mod services_actions;
 mod services_window;
 mod settings_window;
 pub use settings_window::apply_keymap_settings;
@@ -47,6 +50,7 @@ mod shelf;
 mod structure_window;
 pub mod tab_views;
 use structure_window::STRUCTURE_TOOL_WINDOW;
+mod terminal_actions;
 mod todo_window;
 mod vcs_operations;
 use todo_window::TODO_TOOL_WINDOW;
@@ -510,6 +514,8 @@ pub fn register_actions(cx: &mut App) {
     project_files::register_actions(registry);
     editor_core::register_actions(registry);
     todo_window::register_actions(registry);
+    project_view_actions::register_actions(registry);
+    terminal_actions::register_actions(registry);
     build_window::register_actions(registry);
     database::register_actions(registry);
     code_insight::register_actions(registry);
@@ -629,9 +635,6 @@ pub fn register_actions(cx: &mut App) {
                 terminal.update(cx, |terminal, cx| terminal.clear(cx));
             }
         })
-    });
-    registry.handle("terminal.closeSession", |_, window, cx| {
-        on_terminals(window, cx, |terminals, cx| terminals.close_active_tab(cx))
     });
     for (id, tab) in [
         ("navigate.searchEverywhere", SeTab::All),
@@ -4023,6 +4026,10 @@ mod tests {
     mod proofs4_run;
     mod proofs4_shell;
     mod proofs4_vcs;
+    mod proofs5_database;
+    mod proofs5_layout;
+    mod proofs5_navigation;
+    mod proofs5_run;
     mod proofs_agents;
     mod proofs_database;
     mod proofs_editor_actions_find;
@@ -4062,6 +4069,11 @@ mod tests {
             menu::init(cx);
             crate::terminal::test_support::isolate_shells(home.path(), cx);
         });
+        // No Docker connection: showing Services looks up and runs no Docker program.
+        let data = cx.update(|cx| cx.global::<Backend>().dirs.data.clone());
+        std::fs::create_dir_all(&data).expect("the data folder is made");
+        std::fs::write(data.join("docker.json"), r#"{ "connections": [], "registries": [] }"#)
+            .expect("the Docker settings are written");
         home
     }
 
@@ -4840,7 +4852,7 @@ mod tests {
         assert_eq!(again.entity_id(), terminal.entity_id(), "the same session");
 
         // New Terminal Tab opens a second shell with the keyboard in it; Close Terminal Session
-        // ends it and the first tab shows again.
+        // ends it once the backend says the shell runs nothing, and the first tab shows again.
         cx.update(|window, cx| execute_action_or_throw("terminal.new", None, window, cx)).expect("it runs");
         let titles = |cx: &mut VisualTestContext| terminals(cx).read_with(cx, |panel, _| panel.tab_titles());
         assert_eq!(titles(cx), [("Local".to_owned(), false), ("Local (2)".to_owned(), true)]);
@@ -4848,6 +4860,7 @@ mod tests {
         let second = terminals(cx).read_with(cx, |panel, _| panel.active_view().cloned()).expect("a tab");
         assert!(cx.update(|window, cx| second.focus_handle(cx).is_focused(window)));
         cx.update(|window, cx| execute_action_or_throw("terminal.closeSession", None, window, cx)).expect("it runs");
+        long(cx, &|cx| titles(cx).len() == 1);
         assert_eq!(titles(cx), [("Local".to_owned(), true)]);
         // Clear Terminal Buffer empties the first tab's screen down to its prompt.
         cx.update(|window, cx| {
@@ -4870,8 +4883,7 @@ mod tests {
 
         // With no tab left, New Terminal Tab opens exactly one and shows the window.
         cx.update(|window, cx| execute_action_or_throw("terminal.closeSession", None, window, cx)).expect("it runs");
-        cx.run_until_parked();
-        assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
+        long(cx, &|cx| !workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
         cx.update(|window, cx| execute_action_or_throw("terminal.new", None, window, cx)).expect("it runs");
         assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)));
         assert_eq!(titles(cx), [("Local".to_owned(), true)]);
@@ -6499,9 +6511,10 @@ mod tests {
                 "Split and Move Down",
                 "Split Right",
                 "Split Down",
-                // The file's rows whose actions are registered: the bookmark group, Git, Copy Path/Reference…
-                // (Copy Absolute Path) and Rename File…
+                // The file's rows whose actions are registered: the bookmark group, Open In, Git, Copy
+                // Path/Reference… (Copy Absolute Path, File Name, Path From Content Root) and Rename File…
                 "Add Bookmark",
+                "Open In",
                 "Git",
                 "Copy Path/Reference…",
                 "Rename File…",
@@ -8763,6 +8776,15 @@ for line in sys.stdin:
         workbench.read_with(cx, |w, _| w.notifications().items().iter().map(|n| n.title.clone()).collect())
     }
 
+    /// The hint showing at the caret of the active editor, once the effects under way are delivered.
+    pub(super) fn editor_hint(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<String> {
+        cx.run_until_parked();
+        workbench.read_with(cx, |w, cx| {
+            let intelligence = crate::editor::intelligence::EditorIntelligence::of(w.editor()?, cx)?;
+            intelligence.read(cx).hint().map(str::to_owned)
+        })
+    }
+
     /// Waits for the notification `title` of a Git operation. The backend's event on what the operation
     /// changed can refresh the window before the operation's own read returns, and the notice comes only
     /// after that read.
@@ -10108,7 +10130,7 @@ for line in sys.stdin:
         cx.run_until_parked();
         assert!(workbench.read_with(cx, |w, _| w.copy_path_popup()).is_none());
         assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()), Some("src/notes.txt".to_owned()));
-        assert!(notification_titles(&workbench, cx).contains(&"Copied src/notes.txt".to_owned()));
+        assert_eq!(editor_hint(&workbench, cx).as_deref(), Some("Copied src/notes.txt"));
 
         select_in_tree(&workbench, &file, cx);
         run_action(cx, "project.copyAbsolutePath", None);

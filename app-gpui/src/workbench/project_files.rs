@@ -74,7 +74,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 /// What is carried out once a flow is done.
-type Done = Box<dyn FnOnce(&mut Workbench, Outcome, &mut Window, &mut Context<Workbench>)>;
+pub(super) type Done = Box<dyn FnOnce(&mut Workbench, Outcome, &mut Window, &mut Context<Workbench>)>;
 
 /// The operation under way.
 struct Running {
@@ -497,7 +497,7 @@ impl Workbench {
 
     /// Runs `run` on the Project view's state as the tree shows it now, with the surroundings the
     /// operations know; what it changed in the expansion and the row to reveal goes back to the tree.
-    fn with_view<R>(
+    pub(super) fn with_view<R>(
         &mut self,
         in_tree: bool,
         window: &mut Window,
@@ -542,7 +542,7 @@ impl Workbench {
     }
 
     /// Starts an operation in place of any that waits; `done` runs once it is done.
-    fn start_flow(
+    pub(super) fn start_flow(
         &mut self,
         (flow, step): (Flow, Step),
         in_tree: bool,
@@ -609,14 +609,14 @@ impl Workbench {
     }
 
     /// The nodes an action acts on: its argument's paths, else the tree's selection.
-    fn nodes_for(&mut self, arg: Option<&Value>, cx: &mut Context<Self>) -> Vec<Arc<ProjectNode>> {
+    pub(super) fn nodes_for(&mut self, arg: Option<&Value>, cx: &mut Context<Self>) -> Vec<Arc<ProjectNode>> {
         if let Some(tree) = self.project_tree().cloned() {
             tree.read(cx).mirror_into(&mut self.files.state);
         }
         nodes_from(&self.files.state, arg)
     }
 
-    fn active_file_path(&self, cx: &App) -> Option<String> {
+    pub(super) fn active_file_path(&self, cx: &App) -> Option<String> {
         self.editor().map(|editor| editor.read(cx).path().to_string_lossy().into_owned())
     }
 
@@ -639,11 +639,7 @@ impl Workbench {
                 }
             }
             Effect::OpenDialog(request) => self.show_file_dialog(request, window, cx),
-            Effect::RevealInFileManager(paths) => {
-                for path in paths {
-                    cx.reveal_path(Path::new(&path));
-                }
-            }
+            Effect::RevealInFileManager(paths) => super::project_view_actions::reveal_in_file_manager(paths, cx),
             Effect::ViewUsages { name, usages } => {
                 let arg = serde_json::json!({ "symbol": name, "locations": usages });
                 self.run_flow_action("find.showUsageResults", arg, window, cx);
@@ -677,13 +673,7 @@ impl Workbench {
             Effect::ShowProjectView { focus } => {
                 self.with_layout(window, cx, |layout| layout.show(PROJECT_TOOL_WINDOW, focus));
             }
-            Effect::MarkDirectory { path, .. } => {
-                let request = NotificationRequest {
-                    body: Some(path),
-                    ..NotificationRequest::new(NotificationLevel::Warning, "Mark Directory as is not available here")
-                };
-                self.notify(request, cx);
-            }
+            Effect::MarkDirectory { path, role } => self.mark_directory_as(path, role, window, cx),
         }
     }
 
@@ -1098,6 +1088,12 @@ impl Workbench {
         labels.collect()
     }
 
+    /// Builds what the Project view's menus are made from: the tree's state, the project, whether it is a Git
+    /// repository, the registered actions and their shortcuts. No other feature contributes rows.
+    pub(super) fn with_menu_context<R>(&self, cx: &App, build: impl FnOnce(&MenuContext<'_>, &App) -> R) -> R {
+        self.with_contributed_menu_context(Contributed::default(), cx, build)
+    }
+
     /// [`Self::with_menu_context`], with the groups other features contribute to the menus.
     fn with_contributed_menu_context<R>(
         &self,
@@ -1165,7 +1161,7 @@ impl Workbench {
     }
 
     /// Carries out a row of the Project view's menus for `nodes` (the selection when empty).
-    fn run_project_command(
+    pub(super) fn run_project_command(
         &mut self,
         command: ProjectCommand,
         nodes: Vec<Arc<ProjectNode>>,

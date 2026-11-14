@@ -12,6 +12,7 @@
 use super::actions::on_editor;
 use super::history::EditKind;
 use super::view::Editor;
+use crate::editor::intelligence::EditorIntelligence;
 use crate::editor_commands::column_mode::Block;
 use crate::editor_commands::editing::{self, OccurrenceOutcome, OccurrenceSearch};
 use crate::editor_commands::tree::SyntaxTree;
@@ -20,6 +21,7 @@ use crate::editor_commands::word_completion::{self, ExpandDirection, ExpandOutco
 use crate::editor_commands::{
     Edit, EditState, IndentContext, Selection, caret_commands, comments, lines, move_element,
 };
+use crate::editor_lsp::hint::Tone;
 use crate::platform::actions::ActionRegistry;
 use crate::workbench;
 use gpui_kit::{App, Context};
@@ -204,7 +206,7 @@ fn next_occurrence(editor: &mut Editor, cx: &mut Context<Editor>) {
     let run = recall(&editor.memory.occurrence, &editor.stamp());
     let step = editing::next_occurrence(&editor.edit_state(), run);
     if step.outcome == OccurrenceOutcome::NotFound {
-        tracing::debug!("no further occurrence of the selection");
+        show_hint(editor, "Not found, press again to search from the top", cx);
     }
     if let Some(edit) = step.edit {
         apply_once(editor, edit, cx);
@@ -237,8 +239,15 @@ fn expand_word(editor: &mut Editor, direction: ExpandDirection, cx: &mut Context
                 editor.memory.expand = Some(session);
             }
         }
-        ExpandOutcome::Hint(hint) => tracing::debug!("{hint}"),
+        ExpandOutcome::Hint(hint) => show_hint(editor, hint, cx),
     }
+}
+
+/// Shows `hint` (English source text) at the caret of `editor`, once the current effects are delivered.
+fn show_hint(editor: &Editor, hint: &'static str, cx: &mut Context<Editor>) {
+    let intelligence = editor.overlay().and_then(|overlay| overlay.clone().downcast::<EditorIntelligence>().ok());
+    let Some(intelligence) = intelligence else { return };
+    cx.defer(move |cx| intelligence.update(cx, |this, cx| this.show_hint_at(hint, None, Tone::Info, None, cx)));
 }
 
 /// Paste as Plain Text: the clipboard's text as copied, without Reformat on Paste.

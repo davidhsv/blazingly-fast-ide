@@ -190,7 +190,7 @@ pub fn task_item(tasks: &[BackgroundTask], i18n: &I18n) -> Option<StatusText> {
     let item = StatusText::new(i18n.tx(&current.title))
         .tooltip(tooltip)
         .progress(if current.done { Some(1.0) } else { current.fraction })
-        .on_click(StatusClick::action("view.backgroundTasks"));
+        .on_click(StatusClick::Action { id: "view.backgroundTasks".to_owned(), arg: Some(json!({ "toggle": true })) });
     let more = running.len().saturating_sub(1);
     Some(if more > 0 { item.suffix(format!("+{more}")) } else { item })
 }
@@ -385,7 +385,9 @@ mod tests {
         assert_eq!(item.text, "Building index");
         assert_eq!(item.progress.and_then(|progress| progress.fraction), Some(0.5));
         assert_eq!(item.suffix, None);
-        assert_eq!(item.click, Some(StatusClick::action("view.backgroundTasks")));
+        let toggle =
+            StatusClick::Action { id: "view.backgroundTasks".to_owned(), arg: Some(json!({ "toggle": true })) };
+        assert_eq!(item.click, Some(toggle));
     }
 
     #[test]

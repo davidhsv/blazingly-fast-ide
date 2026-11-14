@@ -55,7 +55,7 @@ async fn copy_reference_copies_the_qualified_name_of_the_declaration_at_the_care
     choose_reference(&workbench, cx);
     assert!(workbench.read_with(cx, |w, _| w.copy_path_popup()).is_none());
     assert_eq!(cx.read_from_clipboard().and_then(|item| item.text()).as_deref(), Some("com.acme.Orders#place"));
-    assert!(notification_titles(&workbench, cx).contains(&"Copied reference: com.acme.Orders#place".to_owned()));
+    assert_eq!(editor_hint(&workbench, cx).as_deref(), Some("Copied reference: com.acme.Orders#place"));
 
     // In the method's leading whitespace the reference is the caret's place.
     edit_at(&workbench, &root.join(java), "    public void", 1, cx);

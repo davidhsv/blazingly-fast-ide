@@ -9,11 +9,13 @@
 use super::services_window::on_workbench;
 use super::{Content, Workbench, Workbenches};
 use crate::backend::Backend;
+use crate::editor::intelligence::EditorIntelligence;
 use crate::editor::nav_history::{EditHistory, NavigationHistory, Place};
 use crate::editor::paste_history_view::{PasteHistoryDialog, PasteHistoryEvent};
 use crate::editor::view::{EditOrigin, Editor, EditorClipboard, EditorEvent};
 use crate::editor_commands::copy_reference::relative_path;
 use crate::editor_commands::extras::{paste_chosen, paste_from_history_hint};
+use crate::editor_lsp::hint::Tone;
 use crate::editor_model::file_attributes::{ToggleTarget, confirmed, toggle_failure_title, toggle_read_only};
 use crate::platform::actions::{ActionRegistry, execute_action};
 use crate::platform::i18n::Localization;
@@ -28,8 +30,6 @@ use std::path::PathBuf;
 
 /// The action that copies the edited file's absolute path.
 const COPY_PATH: &str = "editor.copyPath";
-/// The key of the editor hint's notification: a new hint replaces the one before.
-const HINT_KEY: &str = "editor.hint";
 
 /// The places the caret has been in the window's editors.
 #[derive(Debug, Default)]
@@ -47,7 +47,12 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         .handle("navigate.nextEditLocation", |_, window, cx| on_workbench(window, cx, Workbench::next_edit_location));
     registry.handle("editor.showHint", |call, window, cx| {
         let text = call.arg.and_then(|arg| arg.get("text")).and_then(Value::as_str).unwrap_or_default().to_owned();
-        on_workbench(window, cx, move |workbench, _, cx| workbench.show_hint(text, cx))
+        let tone = match call.arg.and_then(|arg| arg.get("tone")).and_then(Value::as_str) {
+            Some("warning") => Tone::Warning,
+            Some("error") => Tone::Error,
+            _ => Tone::Info,
+        };
+        on_workbench(window, cx, move |workbench, _, cx| workbench.show_hint_toned(text, tone, cx))
     });
     registry.handle(COPY_PATH, |_, window, cx| {
         on_workbench(window, cx, |workbench, _, cx| {
@@ -238,17 +243,21 @@ impl Workbench {
         self.go_to_place(place, window, cx);
     }
 
-    /// The editor hint: a short message about what an editor command did or could not do. It shows as
-    /// a notification, which the next hint replaces.
+    /// The editor hint: a short message about what an editor command did or could not do, shown at the
+    /// caret of the active editor until the next hint replaces it. Without an editor nothing shows.
     pub fn show_hint(&mut self, text: String, cx: &mut Context<Self>) {
-        if text.is_empty() {
-            return;
-        }
-        let request = NotificationRequest {
-            key: Some(HINT_KEY.to_owned()),
-            ..NotificationRequest::new(NotificationLevel::Info, text)
-        };
-        self.notify(request, cx);
+        self.show_hint_toned(text, Tone::Info, cx);
+    }
+
+    /// [`Workbench::show_hint`] in `tone`.
+    pub fn show_hint_toned(&mut self, text: String, tone: Tone, cx: &mut Context<Self>) {
+        let Some(editor) = self.editor().cloned().filter(|_| !text.is_empty()) else { return };
+        // Shown once the current effects are delivered: the caret move of the command would hide it.
+        cx.defer(move |cx| {
+            if let Some(intelligence) = EditorIntelligence::of(&editor, cx) {
+                intelligence.update(cx, |this, cx| this.show_hint_at(&text, None, tone, None, cx));
+            }
+        });
     }
 
     /// Puts `text` on the clipboard and in the clipboard history, and says so in the hint.
@@ -402,6 +411,7 @@ fn paste_into(editor: &Entity<Editor>, text: &str, linewise: bool, cx: &mut App)
 
 #[cfg(test)]
 mod tests {
+    use super::super::tests::editor_hint;
     use super::*;
     use crate::backend::AppDirs;
     use crate::platform::actions::execute_action_or_throw;
@@ -569,10 +579,11 @@ mod tests {
         caret_to(&a, 2, 3, cx);
         let absolute = root.join("src/a.rs").to_string_lossy().into_owned();
         run(cx, "editor.showHint", Some(serde_json::json!({ "text": "A hint" })));
-        assert!(titles(&workbench, cx).contains(&"A hint".to_owned()));
+        assert_eq!(editor_hint(&workbench, cx).as_deref(), Some("A hint"));
+        assert!(!titles(&workbench, cx).contains(&"A hint".to_owned()), "the hint is not a notification");
         run(cx, "editor.copyPath", None);
         assert_eq!(clipboard(cx).as_deref(), Some(absolute.as_str()));
-        assert!(titles(&workbench, cx).contains(&format!("Copied {absolute}")), "{:?}", titles(&workbench, cx));
+        assert_eq!(editor_hint(&workbench, cx), Some(format!("Copied {absolute}")));
         run(cx, "editor.copyPathWithLineNumber", None);
         assert_eq!(clipboard(cx).as_deref(), Some("src/a.rs:3"));
         run(cx, "editor.copyPathWithLineNumber", Some(Value::from("given:9")));
@@ -672,7 +683,7 @@ mod tests {
         let editor = open(&workbench, &root.join("notes.txt"), cx);
         run(cx, "code.pasteFromHistory", None);
         assert!(workbench.read_with(cx, |w, _| w.paste_history_dialog().is_none()));
-        assert!(titles(&workbench, cx).contains(&"Nothing to paste: the clipboard history is empty".to_owned()));
+        assert_eq!(editor_hint(&workbench, cx).as_deref(), Some("Nothing to paste: the clipboard history is empty"));
         for (from, to) in [(0, 5), (6, 10)] {
             editor.update(cx, |editor, cx| editor.select(from, to, cx));
             run(cx, "edit.copy", None);

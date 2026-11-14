@@ -36,6 +36,9 @@ use std::sync::{Arc, OnceLock};
 /// Event sink for one window (by label).
 pub type SinkFactory = Box<dyn Fn(&str) -> SharedSink + Send + Sync>;
 
+/// What a delete does with a path in place of moving it to the system Trash ([`Host::set_trash`]).
+pub type TrashFn = Arc<dyn Fn(&std::path::Path) -> IdeResult<()> + Send + Sync>;
+
 pub struct HostConfig {
     pub config_dir: PathBuf,
     /// Persistent user state, including credentials and recovery history.
@@ -56,6 +59,8 @@ pub struct HostConfig {
 
 pub struct Host {
     pub(crate) mcp_executable: RwLock<Option<PathBuf>>,
+    /// Where deletes go instead of the system Trash; `None` (the default): the system Trash.
+    trash: RwLock<Option<TrashFn>>,
     plugin_host: Arc<RwLock<std::sync::Weak<plugins::PluginHost>>>,
     pub mcp_reports: mcp::Reports,
     pub mcp_requests: mcp::Requests,
@@ -127,6 +132,7 @@ impl Host {
         let host = Self {
             plugin_host: Arc::default(),
             mcp_executable: RwLock::default(),
+            trash: RwLock::default(),
             mcp_reports: Default::default(),
             mcp_requests: Default::default(),
             trust: trust::TrustStore::load(&config_dir, &data_dir),
@@ -182,6 +188,18 @@ impl Host {
     /// Publishes only the executable of the running built-in MCP service.
     pub fn set_mcp_executable(&self, executable: Option<PathBuf>) {
         *self.mcp_executable.write() = executable;
+    }
+
+    /// Puts `trash` in the place of the system Trash for every delete of this host from now on
+    /// (`None`: the system Trash again). It is given each path a delete removes, once Local History
+    /// has kept its contents. Tests use it so that no delete reaches the user's Trash.
+    pub fn set_trash(&self, trash: Option<TrashFn>) {
+        *self.trash.write() = trash;
+    }
+
+    /// Where deletes go instead of the system Trash, if anywhere.
+    pub(crate) fn trash_override(&self) -> Option<TrashFn> {
+        self.trash.read().clone()
     }
 
     pub fn set_plugin_host(&self, plugins: &Arc<plugins::PluginHost>) {

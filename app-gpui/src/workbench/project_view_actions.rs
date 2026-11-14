@@ -53,10 +53,13 @@ const COMPARE_WITH_FILE: &str = "diff.compareWith";
 /// The action that reverts the last move or rename of the Project view.
 const UNDO_MOVE: &str = "project.undoMove";
 
+/// Shows a path in the OS file manager.
+type RevealFn = Rc<dyn Fn(&Path, &mut App)>;
+
 /// Where the OS file manager is asked to show a path. Without this global the platform's file
 /// manager is; a test puts a recorder in its place, as the test platform has no file manager.
 #[derive(Clone)]
-pub(crate) struct FileManager(pub(crate) Rc<dyn Fn(&Path, &mut App)>);
+pub(crate) struct FileManager(pub(crate) RevealFn);
 
 impl Global for FileManager {}
 
@@ -783,6 +786,8 @@ mod tests {
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         cx.update(|window, _| window.activate_window());
         let file_path = if cfg!(target_os = "macos") { "cmd-alt-f12" } else { "ctrl-alt-f12" };
+        // Keys reach the keymap in this window: Save, which has no condition, runs.
+        assert_eq!(actions_run_by(&primary("s"), cx), ["file.save"]);
         for keys in ["alt-f1", file_path] {
             assert_eq!(actions_run_by(keys, cx), Vec::<String>::new(), "{keys}");
         }
@@ -1105,7 +1110,7 @@ mod tests {
         close_project(cx);
     }
 
-    /// Find in Folder… opens Find in Files on the selected folder.
+    /// Find in Folder… opens Find in Files on the selected folder, shown relative to the project.
     #[gpui_kit::test]
     async fn find_in_folder_opens_find_in_files_on_the_selected_folder(cx: &mut TestAppContext) {
         let _home = start(cx);
@@ -1116,7 +1121,9 @@ mod tests {
         wait_long(cx, "Find in Files to open", |cx| workbench.read_with(cx, |w, _| w.find_popup().is_some()));
         let popup = workbench.read_with(cx, |w, _| w.find_popup()).expect("Find in Files is open");
         let directory = popup.read_with(cx, |popup, cx| popup.directory_field().read(cx).text().to_owned());
-        assert_eq!(directory, text_of(&src));
+        assert_eq!(directory, "src");
+        let scope = popup.read_with(cx, |popup, _| popup.query().scope.clone());
+        assert_eq!(scope, crate::find::ipc::SearchScope::Directory { path: text_of(&src) });
         close_project(cx);
     }
 
@@ -1125,7 +1132,8 @@ mod tests {
     #[gpui_kit::test]
     async fn the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on(cx: &mut TestAppContext) {
         let _home = start(cx);
-        let files = [(".env", "A=1\n"), ("a.txt", ""), ("b.rs", "")];
+        // `.DS_Store` is one of the names the project ignores, which only Show Hidden Files brings back.
+        let files = [(".DS_Store", "x"), ("a.txt", ""), ("b.rs", "")];
         let (_folder, _root, workbench, cx) = trusted_project(cx, "w1", &files);
         let tree = project_tree_of(&workbench, cx);
         let toggled = |id: &str, cx: &mut VisualTestContext| {
@@ -1138,7 +1146,7 @@ mod tests {
         assert_eq!(toggled("project.option.showHidden", cx), Some(false));
         run_action(cx, "project.option.showHidden", None);
         assert_eq!(toggled("project.option.showHidden", cx), Some(true));
-        wait_long(cx, "the hidden file", |cx| tree_labels(&tree, cx).contains(&".env".to_owned()));
+        wait_long(cx, "the hidden file", |cx| tree_labels(&tree, cx).contains(&".DS_Store".to_owned()));
 
         run_action(cx, "project.option.showHidden", None);
         wait_long(cx, "the hidden file to go", |cx| tree_labels(&tree, cx) == ["a.txt", "b.rs"]);

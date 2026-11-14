@@ -1124,9 +1124,9 @@ mod tests {
     const HELLO: &str = "hello";
 
     /// The root of the editor's menu in a project, without a selection, with the actions this window
-    /// registers: Refactor, Open In, Local History and the Compare rows have none of their actions
+    /// registers: Refactor, Local History and the Compare rows have none of their actions
     /// registered, so they are not offered.
-    const ROOT: [&str; 10] = [
+    const ROOT: [&str; 11] = [
         "Show Context Actions",
         "Paste",
         "Copy / Paste Special",
@@ -1136,6 +1136,7 @@ mod tests {
         "Rename…",
         "Generate…",
         "Send to Agent",
+        "Open In",
         "Git",
     ];
 
@@ -1660,7 +1661,7 @@ mod tests {
     }
 
     /// A tab's menu acts on the tab it was opened on, not on the active one; its file rows are the
-    /// bookmark group and Git, then Copy Path/Reference… and Rename File….
+    /// bookmark group, Open In and Git, then Copy Path/Reference… and Rename File….
     #[gpui_kit::test]
     async fn the_tab_menu_acts_on_the_tab_it_was_opened_on(cx: &mut TestAppContext) {
         use crate::workbench::TabCommand;
@@ -1693,6 +1694,7 @@ mod tests {
                 "Split Right",
                 "Split Down",
                 "Add Bookmark",
+                "Open In",
                 "Git",
                 "Copy Path/Reference…",
                 "Rename File…",
@@ -1736,6 +1738,7 @@ mod tests {
                 "Send to Agent",
                 "Hello: Word Count of Active File",
                 "Hello",
+                "Open In",
                 "Git",
             ]
         );

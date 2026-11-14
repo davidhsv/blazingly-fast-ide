@@ -4,15 +4,18 @@
 //! carries its effects out (a terminal for a new session, an end for a disposed one, the
 //! remembered tabs to storage) and shows the active tab's terminal.
 
-use super::store::{SessionCommand, SessionSnapshot, SessionStatus, TerminalEffect, Terminals, start_directory};
+use super::store::{
+    GroupLayout, SessionCommand, SessionSnapshot, SessionStatus, SplitOrientation, TerminalEffect, Terminals,
+    start_directory,
+};
 use super::view::{TerminalEvent, TerminalView};
 use crate::platform::command_line::parse_shell_command;
 use crate::platform::settings;
 use crate::platform::storage::UiStorage;
 use crate::theme;
 use gpui_kit::{
-    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Render, SharedString, Subscription,
-    Window, div, prelude::*, px,
+    AnyElement, App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Render, SharedString,
+    Subscription, Window, div, prelude::*, px,
 };
 use ide_terminal::TerminalOptions;
 use std::collections::HashMap;
@@ -64,6 +67,33 @@ impl TerminalPanel {
 
     pub fn terminals(&self) -> &Terminals {
         &self.terminals
+    }
+
+    /// The project folder terminals start in.
+    pub fn root(&self) -> &str {
+        &self.root
+    }
+
+    /// Carries out `change` on the tabs, then what it asked for: the shells of the tabs that show
+    /// start and the project's tabs are stored. The tab the panel started with counts as claimed.
+    pub fn change<R>(&mut self, cx: &mut Context<Self>, change: impl FnOnce(&mut Terminals) -> R) -> R {
+        self.fresh = false;
+        let result = change(&mut self.terminals);
+        self.carry_out(cx);
+        result
+    }
+
+    /// The terminal of tab `id`, once its shell has started.
+    pub fn view_of_tab(&self, id: &str) -> Option<&Entity<TerminalView>> {
+        let tab = self.terminals.tab(id)?;
+        self.views.get(&tab.session).map(|(view, _)| view)
+    }
+
+    /// The tab groups the window shows, in layout order, each with its selected tab.
+    pub fn panes(&self) -> Vec<(String, Option<String>)> {
+        let selected = self.terminals.selected();
+        let groups = self.terminals.layout().groups().into_iter();
+        groups.map(|group| (group.to_owned(), selected.get(group).cloned())).collect()
     }
 
     /// The terminal of the active tab.
@@ -181,28 +211,71 @@ impl TerminalPanel {
         cx.notify();
     }
 
-    /// Starts the shell of the active tab's session if it has none yet. A tab that is not
-    /// showing, such as one remembered from the last run, costs no process until it is selected.
+    /// Starts the shells of the tabs that show, one per tab group, that have none yet. A tab that is
+    /// not showing, such as one remembered from the last run, costs no process until it is selected.
     fn start_active(&mut self, cx: &mut Context<Self>) {
-        let Some(key) = self.terminals.active_session().map(|session| session.key.clone()) else { return };
-        if self.views.contains_key(&key) {
+        let shown: Vec<String> = self
+            .terminals
+            .layout()
+            .groups()
+            .into_iter()
+            .filter_map(|group| self.terminals.selected().get(group))
+            .filter_map(|id| self.terminals.tab(id))
+            .map(|tab| tab.session.clone())
+            .collect();
+        for key in shown {
+            self.start_session(&key, cx);
+        }
+    }
+
+    /// Starts the shell of session `key` if it has none yet.
+    fn start_session(&mut self, key: &str, cx: &mut Context<Self>) {
+        if self.views.contains_key(key) {
             return;
         }
-        let Some(options) = self.options(&key, cx) else { return };
+        let Some(options) = self.options(key, cx) else { return };
         let label = self.window_label.clone();
         let view = cx.new(|cx| TerminalView::new(&label, options, cx));
-        let session = key.clone();
+        let session = key.to_owned();
         let events = cx.subscribe(&view, move |panel: &mut TerminalPanel, view, event: &TerminalEvent, cx| {
             panel.terminal_event(&session, &view, event, cx);
         });
-        let state = self.snapshot(&key, &view, cx);
-        self.views.insert(key.clone(), (view, events));
-        self.terminals.set_session_state(&key, state);
+        let state = self.snapshot(key, &view, cx);
+        self.views.insert(key.to_owned(), (view, events));
+        self.terminals.set_session_state(key, state);
     }
 
     /// How many sessions have a running terminal behind them.
     pub fn started(&self) -> usize {
         self.views.len()
+    }
+
+    /// The tab groups as the layout splits them, side by side or stacked, each showing its
+    /// selected tab's terminal, with a one-pixel line between them.
+    fn layout_element(&self, layout: &GroupLayout, cx: &App) -> AnyElement {
+        match layout {
+            GroupLayout::Group(group) => {
+                let view = self.terminals.selected().get(group).and_then(|id| self.view_of_tab(id)).cloned();
+                let selector = format!("terminal-group:{group}");
+                div()
+                    .debug_selector(move || selector.clone())
+                    .flex_1()
+                    .min_w_0()
+                    .min_h_0()
+                    .size_full()
+                    .children(view)
+                    .into_any_element()
+            }
+            GroupLayout::Split(split) => {
+                let pane = div().flex_1().min_w_0().min_h_0().size_full().flex().gap(px(1.0));
+                let pane = pane.bg(theme::color(cx, "border"));
+                let pane = match split.orientation {
+                    SplitOrientation::Horizontal => pane.flex_row(),
+                    SplitOrientation::Vertical => pane.flex_col(),
+                };
+                pane.children(split.children.iter().map(|child| self.layout_element(child, cx))).into_any_element()
+            }
+        }
     }
 
     /// What the terminal of session `key` reports about itself.
@@ -345,7 +418,7 @@ impl Render for TerminalPanel {
             .track_focus(&self.focus)
             .text_size(theme::length(cx, "fs-ui"))
             .child(strip)
-            .child(div().flex_1().min_h_0().children(self.active_view().cloned()))
+            .child(div().flex_1().min_h_0().flex().child(self.layout_element(self.terminals.layout(), cx)))
     }
 }
 
