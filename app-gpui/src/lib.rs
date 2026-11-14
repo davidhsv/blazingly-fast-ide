@@ -18,6 +18,8 @@ pub mod features_a;
 pub mod features_b;
 pub mod find;
 pub mod github;
+#[cfg(debug_assertions)]
+pub mod inspect;
 pub mod platform;
 pub mod platform_more;
 pub mod plugin_models;

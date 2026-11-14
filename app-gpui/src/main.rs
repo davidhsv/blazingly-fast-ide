@@ -37,5 +37,10 @@ fn main() {
             return;
         }
         cx.activate(true);
+        #[cfg(debug_assertions)]
+        if let Some(script) = std::env::var_os("OPENIDEA_GPUI_INSPECT") {
+            let log = std::env::var_os("OPENIDEA_GPUI_INSPECT_LOG").map(PathBuf::from);
+            openidea_gpui::inspect::start_from_file(std::path::Path::new(&script), log, cx);
+        }
     });
 }
