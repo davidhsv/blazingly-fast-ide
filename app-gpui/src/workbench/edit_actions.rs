@@ -28,11 +28,6 @@ const EDIT_ACTIONS: [(&str, EditCommand); 6] = [
     ("edit.selectAll", EditCommand::SelectAll),
 ];
 
-/// The command of the Edit action `id`.
-fn command_of(id: &str) -> Option<EditCommand> {
-    EDIT_ACTIONS.iter().find(|(action, _)| *action == id).map(|(_, command)| *command)
-}
-
 /// Puts the Edit actions in front of the editor's handlers of the same ids, which run when nothing
 /// that answers for the Edit commands has the keyboard. Runs after [`crate::editor::actions::register`].
 pub(super) fn register_actions(registry: &mut ActionRegistry) {
@@ -67,26 +62,7 @@ fn run(
     }
 }
 
-/// Whether the Edit menu greys out the item of action `id`: an Edit command the element with the
-/// keyboard cannot do now.
-pub(super) fn edit_item_disabled(id: &str, window: &Window, cx: &App) -> bool {
-    command_of(id).is_some_and(|command| edit_target::can_edit(command, window, cx) == Some(false))
-}
-
 impl EditTarget for TextField {
-    fn can_edit(&self, command: EditCommand, cx: &App) -> bool {
-        let selected = !self.selection().is_empty();
-        match command {
-            EditCommand::Undo => self.can_undo(),
-            EditCommand::Redo => self.can_redo(),
-            EditCommand::Cut | EditCommand::Copy => selected,
-            EditCommand::Paste => {
-                !self.is_read_only() && cx.read_from_clipboard().and_then(|item| item.text()).is_some()
-            }
-            EditCommand::SelectAll => !self.text().is_empty(),
-        }
-    }
-
     fn edit(&mut self, command: EditCommand, _: &mut Window, cx: &mut Context<Self>) -> bool {
         match command {
             EditCommand::Undo => self.undo(cx),
@@ -104,19 +80,6 @@ impl EditTarget for TextField {
 
 /// The multi-line fields (the commit message): the same commands on their text.
 impl EditTarget for TextArea {
-    fn can_edit(&self, command: EditCommand, cx: &App) -> bool {
-        let selected = !self.selection().is_empty();
-        let editable = !self.is_read_only() && !self.is_disabled();
-        match command {
-            EditCommand::Undo => self.can_undo(),
-            EditCommand::Redo => self.can_redo(),
-            EditCommand::Cut => selected && editable,
-            EditCommand::Copy => selected,
-            EditCommand::Paste => editable && cx.read_from_clipboard().and_then(|item| item.text()).is_some(),
-            EditCommand::SelectAll => !self.text().is_empty(),
-        }
-    }
-
     fn edit(&mut self, command: EditCommand, _: &mut Window, cx: &mut Context<Self>) -> bool {
         match command {
             EditCommand::Undo => {
@@ -142,13 +105,6 @@ impl EditTarget for TextArea {
 
 /// A secret is never put on the clipboard: Copy and Cut are taken and do nothing.
 impl EditTarget for SecretField {
-    fn can_edit(&self, command: EditCommand, cx: &App) -> bool {
-        match command {
-            EditCommand::Cut | EditCommand::Copy => false,
-            _ => self.state().read(cx).can_edit(command, cx),
-        }
-    }
-
     fn edit(&mut self, command: EditCommand, window: &mut Window, cx: &mut Context<Self>) -> bool {
         match command {
             EditCommand::Cut | EditCommand::Copy => false,
@@ -165,10 +121,6 @@ impl EditTarget for SecretField {
 /// The Project view: Undo brings back what its last file operation changed; the other commands have
 /// nothing to act on in it.
 impl EditTarget for ProjectTree {
-    fn can_edit(&self, command: EditCommand, _: &App) -> bool {
-        command == EditCommand::Undo
-    }
-
     fn edit(&mut self, command: EditCommand, window: &mut Window, cx: &mut Context<Self>) -> bool {
         if command != EditCommand::Undo {
             return false;
@@ -183,10 +135,6 @@ impl EditTarget for ProjectTree {
 
 /// The Services tree: Select All selects every row; the other commands have nothing to act on.
 impl EditTarget for ServicesView {
-    fn can_edit(&self, command: EditCommand, _: &App) -> bool {
-        command == EditCommand::SelectAll && !self.rows().is_empty()
-    }
-
     fn edit(&mut self, command: EditCommand, _: &mut Window, cx: &mut Context<Self>) -> bool {
         if command != EditCommand::SelectAll {
             return false;
@@ -246,17 +194,6 @@ mod tests {
         })
     }
 
-    /// Whether the Edit menu greys out `id`: the rule the menu bar applies, and on Windows and Linux,
-    /// where the Edit items are the actions themselves, the menu state as built.
-    fn greyed(cx: &mut VisualTestContext, id: &str) -> bool {
-        let greyed = cx.update(|window, cx| edit_item_disabled(id, window, cx));
-        if !cfg!(target_os = "macos") {
-            let in_menu = cx.update(|window, cx| super::super::menu::state(window, cx).disabled.contains(id));
-            assert_eq!(in_menu, greyed, "the menu bar shows {id} as the rule says");
-        }
-        greyed
-    }
-
     fn focus<V: Focusable>(view: &Entity<V>, cx: &mut VisualTestContext) {
         cx.update(|window, cx| {
             window.activate_window();
@@ -311,7 +248,7 @@ mod tests {
     }
 
     // A dialog's text field: every Edit command through the registry and through its key acts on the
-    // field; the Edit menu greys out what the field cannot do; the editor is left alone.
+    // field; the editor is left alone.
     #[gpui_kit::test]
     async fn the_edit_commands_act_on_the_text_field_of_a_dialog(cx: &mut TestAppContext) {
         let (workbench, cx, _dirs, root) = git_project(cx, |root| {
@@ -332,17 +269,15 @@ mod tests {
         // Through the registry.
         set_clipboard(cx, "before");
         field.update(cx, |field, cx| field.select_range(0..0, cx));
-        assert!(greyed(cx, "edit.copy") && greyed(cx, "edit.cut"), "nothing is selected");
-        assert!(!greyed(cx, "edit.paste") && !greyed(cx, "edit.selectAll"));
+        run(cx, "edit.copy");
+        assert_eq!(clipboard(cx).as_deref(), Some("before"), "with nothing selected Copy copies nothing");
         run(cx, "edit.selectAll");
         assert_eq!(selected_of(&field, cx), start_text);
-        assert!(!greyed(cx, "edit.copy"));
         run(cx, "edit.copy");
         assert_eq!(clipboard(cx), Some(start_text.clone()));
         assert_eq!(history_top(cx), Some(start_text.clone()), "the copy is in the clipboard history");
         run(cx, "edit.cut");
         assert_eq!(text_of(&field, cx), "");
-        assert!(!greyed(cx, "edit.undo") && greyed(cx, "edit.redo"));
         run(cx, "edit.undo");
         assert_eq!(text_of(&field, cx), start_text);
         run(cx, "edit.redo");
@@ -414,7 +349,7 @@ mod tests {
     }
 
     // The Project view: Copy, Cut, Paste, Select All and Redo leave the editor and the clipboard as
-    // they were and are greyed out in the Edit menu; Undo stays available for its file operations.
+    // they were; Undo is left to its file operations.
     #[gpui_kit::test]
     async fn in_the_project_view_the_edit_commands_leave_the_editor_alone(cx: &mut TestAppContext) {
         let _home = start(cx);
@@ -427,12 +362,10 @@ mod tests {
         focus(&tree, cx);
         set_clipboard(cx, "before");
         for id in ["edit.copy", "edit.cut", "edit.paste", "edit.selectAll", "edit.redo"] {
-            assert!(greyed(cx, id), "{id} is greyed out");
             run(cx, id);
             assert_eq!(editor.read_with(cx, |e, _| e.text()), text, "{id} leaves the editor");
             assert_eq!(clipboard(cx).as_deref(), Some("before"), "{id} leaves the clipboard");
         }
-        assert!(!greyed(cx, "edit.undo"));
         // Without a file operation to undo, Undo does not reach the editor either.
         run(cx, "edit.undo");
         assert_eq!(editor.read_with(cx, |e, _| e.text()), text);
@@ -489,7 +422,6 @@ mod tests {
         set_clipboard(cx, "before");
         run(cx, "edit.copy");
         assert_eq!(clipboard(cx).as_deref(), Some("before"));
-        assert_eq!(cx.update(|window, cx| edit_target::can_edit(EditCommand::Copy, window, cx)), Some(false));
     }
 
     // A password field is never copied or cut, through the registry or the keys; Paste, Select All
@@ -513,7 +445,6 @@ mod tests {
             assert_eq!(clipboard(cx).as_deref(), Some("before"), "{key}");
         }
         assert_eq!(secret.read_with(cx, |secret, cx| secret.text(cx).to_owned()), SECRET);
-        assert_eq!(cx.update(|window, cx| edit_target::can_edit(EditCommand::Copy, window, cx)), Some(false));
         assert_ne!(history_top(cx).as_deref(), Some(SECRET), "the secret is not in the clipboard history");
 
         run(cx, "edit.paste");

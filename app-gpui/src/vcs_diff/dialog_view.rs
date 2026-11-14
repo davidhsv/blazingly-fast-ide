@@ -13,7 +13,9 @@ use super::doc::Direction;
 use super::file_tree::{FileTreeNode, build_file_tree};
 use super::toolbar_view::{DiffToolbar, DiffToolbarEvent};
 use super::view::{DiffView, DiffViewEvent};
-use crate::platform::input;
+use crate::platform::dispatcher;
+use crate::platform::input::{self, Keymap};
+use crate::platform::keymap::normalize_binding;
 use crate::theme;
 use gpui_kit::{
     App, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke, Render, SharedString,
@@ -22,6 +24,9 @@ use gpui_kit::{
 
 /// Width of the files list.
 const FILES_WIDTH: f32 = 220.0;
+
+/// The action whose shortcut closes the diff window.
+const CLOSE_CONTENT: &str = "toolwindow.closeContent";
 
 /// What the diff window asks of its window.
 #[derive(Clone, Debug, PartialEq)]
@@ -83,6 +88,14 @@ pub fn file_rows(data: &DiffData) -> Vec<FileRow> {
     let mut out = Vec::new();
     flatten(&tree, 0, &mut out);
     out
+}
+
+/// Whether `keystroke` is bound to closing a tool window's content in the keymap in use.
+fn is_close_shortcut(keystroke: &Keystroke, cx: &App) -> bool {
+    let stroke = dispatcher::stroke(&input::key_name(&keystroke.key), input::mods(&keystroke.modifiers));
+    cx.try_global::<Keymap>().is_some_and(|keymap| {
+        keymap.0.bindings_for(CLOSE_CONTENT).iter().any(|binding| normalize_binding(binding) == stroke)
+    })
 }
 
 pub struct DiffDialog {
@@ -217,11 +230,12 @@ impl DiffDialog {
         }
     }
 
-    /// Escape closes the window.
+    /// Escape closes the window, and so does the shortcut that closes a tool window's content (⌘W):
+    /// the window owns it, so the editor tab behind it stays open.
     fn key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
         let modifiers = &keystroke.modifiers;
         let plain = !modifiers.control && !modifiers.platform && !modifiers.alt && !modifiers.shift;
-        if keystroke.key == "escape" && plain {
+        if (keystroke.key == "escape" && plain) || is_close_shortcut(keystroke, cx) {
             self.close(cx);
             return true;
         }

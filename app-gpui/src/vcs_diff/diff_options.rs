@@ -388,6 +388,8 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    mod proofs12_moved_code;
+
     fn chunks(a: &str, b: &str, ignore: IgnorePolicy) -> Vec<Chunk> {
         idea_chunks(&Doc::new(a), &Doc::new(b), ignore, HighlightPolicy::Words).chunks
     }

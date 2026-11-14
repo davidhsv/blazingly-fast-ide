@@ -4,6 +4,7 @@ pub mod console_find;
 pub mod matching;
 pub mod menu_aim;
 pub mod pattern_index;
+pub mod popup_anchor;
 pub mod popup_menu;
 pub mod secret_field;
 pub mod text_area;

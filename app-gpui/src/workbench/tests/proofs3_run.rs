@@ -290,3 +290,34 @@ async fn add_service_opens_its_menu_and_a_chosen_type_shows_its_configurations(c
     assert_eq!(row(cx, "run:config:nap").as_deref(), Some("nap"));
     close_backend_project(cx);
 }
+
+/// Add Service opens its menu under the Services toolbar's Add button: from the action while the
+/// Services window is hidden (it shows the window first), from the action while it is shown, and from
+/// the button.
+#[gpui_kit::test]
+async fn add_service_opens_its_menu_under_its_button(cx: &mut TestAppContext) {
+    use gpui_kit::px;
+    let (workbench, cx, _folders, _root, _store) = run_project(cx, vec![program("nap", "/bin/sleep", "30")]);
+    cx.update(|window, _| window.activate_window());
+    assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(SERVICES_TOOL_WINDOW)));
+    let under_button = |cx: &mut VisualTestContext| {
+        cx.run_until_parked();
+        let button = cx.debug_bounds("services-add").expect("the Add button is drawn");
+        let row = cx.debug_bounds("menu-row-0-0").expect("the menu's first row is drawn");
+        let (dx, dy) = (row.left() - button.left(), row.top() - (button.bottom() + px(2.0)));
+        assert!(dx >= px(0.0) && dx <= px(8.0), "{dx:?}");
+        assert!(dy >= px(0.0) && dy <= px(8.0), "{dy:?}");
+    };
+    run_action(cx, "services.addService", None);
+    assert!(workbench.read_with(cx, |w, _| w.open_menu::<Vec<NodeCommand>>()).is_some());
+    under_button(cx);
+    cx.simulate_keystrokes("escape");
+    run_action(cx, "services.addService", None);
+    assert!(workbench.read_with(cx, |w, _| w.open_menu::<Vec<NodeCommand>>()).is_some());
+    under_button(cx);
+    cx.simulate_keystrokes("escape");
+    click_on(cx, "services-add");
+    assert!(workbench.read_with(cx, |w, _| w.open_menu::<Vec<NodeCommand>>()).is_some());
+    under_button(cx);
+    close_backend_project(cx);
+}

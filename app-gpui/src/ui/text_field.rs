@@ -3,6 +3,7 @@
 //! method support every text input has, and tells its owner when the text changes, when Enter
 //! submits it and when Escape gives up.
 
+use crate::platform::edit_target::{TextHistory, TextState};
 use crate::theme;
 use gpui_kit::{
     App, Bounds, ClipboardItem, Context, Element, ElementId, ElementInputHandler, Entity, EntityInputHandler,
@@ -39,6 +40,8 @@ pub struct TextField {
     painted: Option<(Bounds<Pixels>, ShapedLine)>,
     /// Typing, pasting and deleting change nothing; the text can still be selected and copied.
     read_only: bool,
+    /// The steps Undo and Redo walk.
+    history: TextHistory,
 }
 
 impl EventEmitter<TextFieldEvent> for TextField {}
@@ -61,8 +64,10 @@ fn byte_of(text: &str, at: usize) -> usize {
 
 impl TextField {
     pub fn new(cx: &mut Context<Self>) -> Self {
+        let focus = cx.focus_handle();
+        crate::platform::edit_target::register(&focus, cx.weak_entity(), cx);
         Self {
-            focus: cx.focus_handle(),
+            focus,
             text: String::new(),
             anchor: 0,
             head: 0,
@@ -70,6 +75,7 @@ impl TextField {
             marked: None,
             painted: None,
             read_only: false,
+            history: TextHistory::default(),
         }
     }
 
@@ -97,6 +103,7 @@ impl TextField {
     pub fn set_text(&mut self, text: &str, cx: &mut Context<Self>) {
         self.text = text.to_owned();
         (self.anchor, self.head) = (self.text.len(), self.text.len());
+        self.history.clear();
         self.marked = None;
         cx.notify();
     }
@@ -143,6 +150,72 @@ impl TextField {
         cx.notify();
     }
 
+    /// The text and selection now, for the undo history.
+    fn snapshot(&self) -> TextState {
+        TextState { text: self.text.clone(), anchor: self.anchor, head: self.head }
+    }
+
+    /// Puts back a state of the history; the owner hears of the change.
+    fn restore(&mut self, state: TextState, cx: &mut Context<Self>) {
+        self.text = state.text;
+        (self.anchor, self.head) = (state.anchor.min(self.text.len()), state.head.min(self.text.len()));
+        self.marked = None;
+        cx.emit(TextFieldEvent::Changed);
+        cx.notify();
+    }
+
+    /// Takes back the last edit (a run of typing is one); false when there is none.
+    pub fn undo(&mut self, cx: &mut Context<Self>) -> bool {
+        if self.read_only {
+            return false;
+        }
+        let Some(previous) = self.history.undo(self.snapshot()) else { return false };
+        self.restore(previous, cx);
+        true
+    }
+
+    /// Makes again what [`Self::undo`] took back; false when there is nothing.
+    pub fn redo(&mut self, cx: &mut Context<Self>) -> bool {
+        if self.read_only {
+            return false;
+        }
+        let Some(next) = self.history.redo(self.snapshot()) else { return false };
+        self.restore(next, cx);
+        true
+    }
+
+    /// Puts the selected text on the clipboard and in the clipboard history of Paste from History;
+    /// false with nothing selected.
+    pub fn copy(&mut self, cx: &mut Context<Self>) -> bool {
+        let selected = self.selected_text().to_owned();
+        if selected.is_empty() {
+            return false;
+        }
+        cx.write_to_clipboard(ClipboardItem::new_string(selected.clone()));
+        cx.default_global::<crate::editor::view::EditorClipboard>().0.record(&selected, false);
+        true
+    }
+
+    /// Copies the selection and deletes it (a read-only field keeps it); false with nothing selected.
+    pub fn cut(&mut self, cx: &mut Context<Self>) -> bool {
+        if !self.copy(cx) {
+            return false;
+        }
+        self.replace(None, "", cx);
+        true
+    }
+
+    /// Replaces the selection with the clipboard's text; false when the clipboard holds none.
+    pub fn paste(&mut self, cx: &mut Context<Self>) -> bool {
+        match cx.read_from_clipboard().and_then(|item| item.text()) {
+            Some(text) => {
+                self.replace(None, &text, cx);
+                true
+            }
+            None => false,
+        }
+    }
+
     pub fn is_read_only(&self) -> bool {
         self.read_only
     }
@@ -153,6 +226,9 @@ impl TextField {
             return;
         }
         let range = range.unwrap_or_else(|| self.selection());
+        // One character typed over no selection joins the run of typing before it.
+        let typing = range.is_empty() && new_text.chars().count() == 1;
+        self.history.record(self.snapshot(), typing);
         // One line: what is pasted or composed with line breaks is joined by spaces.
         let single: String = new_text.split(['\r', '\n']).filter(|part| !part.is_empty()).collect::<Vec<_>>().join(" ");
         self.text.replace_range(range.clone(), &single);
@@ -193,6 +269,7 @@ impl TextField {
     }
 
     fn move_to(&mut self, to: usize, extend: bool, cx: &mut Context<Self>) {
+        self.history.break_run();
         self.head = to;
         if !extend {
             self.anchor = to;
@@ -204,26 +281,20 @@ impl TextField {
         let keystroke = &event.keystroke;
         let (modifiers, key) = (keystroke.modifiers, keystroke.key.as_str());
         let selection = self.selection();
+        if modifiers.secondary(cx) && !modifiers.alt && modifiers.shift && key == "z" && self.redo(cx) {
+            cx.stop_propagation();
+            return;
+        }
         if modifiers.secondary(cx) && !modifiers.alt && !modifiers.shift {
             let handled = match key {
                 "a" => {
                     self.select_all(cx);
                     true
                 }
-                "c" | "x" if !selection.is_empty() => {
-                    cx.write_to_clipboard(ClipboardItem::new_string(self.selected_text().to_owned()));
-                    if key == "x" {
-                        self.replace(None, "", cx);
-                    }
-                    true
-                }
-                "v" => match cx.read_from_clipboard().and_then(|item| item.text()) {
-                    Some(text) => {
-                        self.replace(None, &text, cx);
-                        true
-                    }
-                    None => false,
-                },
+                "c" => self.copy(cx),
+                "x" => self.cut(cx),
+                "v" => self.paste(cx),
+                "z" => self.undo(cx),
                 _ => false,
             };
             if handled {

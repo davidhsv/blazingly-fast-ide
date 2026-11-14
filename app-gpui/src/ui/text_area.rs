@@ -346,8 +346,10 @@ fn lay_out(text: &str, wrap: Option<Pixels>, color: Hsla, window: &Window, cx: &
 
 impl TextArea {
     pub fn new(cx: &mut Context<Self>) -> Self {
+        let focus = cx.focus_handle();
+        crate::platform::edit_target::register(&focus, cx.weak_entity(), cx);
         Self {
-            focus: cx.focus_handle(),
+            focus,
             text: String::new(),
             anchor: 0,
             head: 0,
@@ -483,6 +485,52 @@ impl TextArea {
         let now = self.snapshot();
         self.undo.push(now);
         self.restore(after, cx);
+    }
+
+    pub fn can_undo(&self) -> bool {
+        self.editable() && !self.undo.is_empty()
+    }
+
+    pub fn can_redo(&self) -> bool {
+        self.editable() && !self.redo.is_empty()
+    }
+
+    /// Puts the selected text on the clipboard and in the clipboard history of Paste from History;
+    /// false with nothing selected.
+    pub fn copy(&mut self, cx: &mut Context<Self>) -> bool {
+        let selected = self.selected_text().to_owned();
+        if selected.is_empty() {
+            return false;
+        }
+        cx.write_to_clipboard(ClipboardItem::new_string(selected.clone()));
+        cx.default_global::<crate::editor::view::EditorClipboard>().0.record(&selected, false);
+        true
+    }
+
+    /// Copies the selection and deletes it unless the area is read-only; false with nothing selected.
+    pub fn cut(&mut self, cx: &mut Context<Self>) -> bool {
+        if !self.copy(cx) {
+            return false;
+        }
+        if !self.read_only {
+            self.edit(None, "", EditKind::Other, cx);
+        }
+        true
+    }
+
+    /// Replaces the selection with the clipboard's text; false when it holds none or the area is not
+    /// editable.
+    pub fn paste(&mut self, cx: &mut Context<Self>) -> bool {
+        if !self.editable() {
+            return false;
+        }
+        match cx.read_from_clipboard().and_then(|item| item.text()) {
+            Some(text) => {
+                self.edit(None, &text, EditKind::Other, cx);
+                true
+            }
+            None => false,
+        }
     }
 
     fn editable(&self) -> bool {
@@ -667,20 +715,9 @@ impl TextArea {
                     self.select_all(cx);
                     true
                 }
-                ("c" | "x", false) if !selection.is_empty() => {
-                    cx.write_to_clipboard(ClipboardItem::new_string(self.selected_text().to_owned()));
-                    if key == "x" {
-                        self.edit(None, "", EditKind::Other, cx);
-                    }
-                    true
-                }
-                ("v", false) if editable => match cx.read_from_clipboard().and_then(|item| item.text()) {
-                    Some(text) => {
-                        self.edit(None, &text, EditKind::Other, cx);
-                        true
-                    }
-                    None => false,
-                },
+                ("c", false) => self.copy(cx),
+                ("x", false) => self.cut(cx),
+                ("v", false) if editable => self.paste(cx),
                 ("z", false) if editable => {
                     self.undo(cx);
                     true

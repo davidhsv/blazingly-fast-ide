@@ -11,6 +11,7 @@
 use super::{Popup, Workbench};
 use crate::editor::goto_line::{GotoLine, GotoLineEvent};
 use crate::editor::view::Editor;
+use crate::theme;
 use gpui_kit::{
     AnyElement, App, Context, Entity, FocusHandle, Focusable, Pixels, Point, Render, Size, Subscription, Window, div,
     prelude::*,
@@ -56,10 +57,13 @@ impl Workbench {
         crate::ui::popup_anchor::select_in_chooser(editor, window.viewport_size(), cx)
     }
 
-    /// What the popup slot draws for `popup`: the popup in the slot's usual place, or anchored at its
-    /// point. A press inside it does not reach the backdrop that closes it.
-    pub(super) fn popup_body(popup: &Popup) -> AnyElement {
+    /// What the popup slot draws for `popup`: the popup in its rounded, shadowed frame, in the slot's
+    /// usual place or anchored at its point. A press inside it does not reach the backdrop that
+    /// closes it.
+    pub(super) fn popup_body(popup: &Popup, cx: &App) -> AnyElement {
         let body = div()
+            .rounded(theme::length(cx, "radius-popup-large"))
+            .shadow(theme::shadow(cx, "shadow-popup"))
             .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .child(popup.view.clone());
         match popup.at {
@@ -126,7 +130,7 @@ impl Workbench {
 
     /// The dialog's layer: over the window, which it keeps from the pointer, with the dialog in the
     /// middle. A click beside it changes nothing.
-    pub(super) fn goto_line_layer(&self) -> Option<AnyElement> {
+    pub(super) fn goto_line_layer(&self, cx: &App) -> Option<AnyElement> {
         let view = self.goto_line.as_ref()?.view.clone();
         let layer = div()
             .id("goto-line-layer")
@@ -136,7 +140,7 @@ impl Workbench {
             .flex()
             .items_center()
             .justify_center()
-            .child(div().debug_selector(|| "goto-line-dialog".to_owned()).child(view));
+            .child(super::dialog_frame(view, cx).debug_selector(|| "goto-line-dialog".to_owned()));
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 }
@@ -190,6 +194,13 @@ mod tests {
     fn anchored_bounds(cx: &mut VisualTestContext) -> Bounds<Pixels> {
         cx.run_until_parked();
         cx.debug_bounds("popup-anchored").expect("the popup is drawn at its point")
+    }
+
+    /// Asserts that the popup's corner is at `expected`, up to the whole pixel layout rounds it to.
+    fn assert_at(bounds: Bounds<Pixels>, expected: Point<Pixels>) {
+        let off = |a: Pixels, b: Pixels| f32::from(a - b).abs();
+        let (dx, dy) = (off(bounds.origin.x, expected.x), off(bounds.origin.y, expected.y));
+        assert!(dx < 1.0 && dy < 1.0, "the popup is at {:?}, not at {expected:?}", bounds.origin);
     }
 
     fn editor_has_keyboard(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> bool {
@@ -333,7 +344,7 @@ mod tests {
         run_action(cx, "find.showUsages", None);
         wait_long(cx, "the usages popup", |cx| workbench.read_with(cx, |w, _| w.usages_popup().is_some()));
         let bounds = anchored_bounds(cx);
-        assert_eq!(bounds.origin, point(caret.x, caret.y + px(4.0)));
+        assert_at(bounds, point(caret.x, caret.y + px(4.0)));
         close_project(cx);
     }
 
@@ -351,7 +362,7 @@ mod tests {
         });
         assert!(chooser.is_some(), "the chooser is open");
         let bounds = anchored_bounds(cx);
-        assert_eq!(bounds.origin, point(caret.x, caret.y + px(6.0)));
+        assert_at(bounds, point(caret.x, caret.y + px(6.0)));
         close_project(cx);
     }
 

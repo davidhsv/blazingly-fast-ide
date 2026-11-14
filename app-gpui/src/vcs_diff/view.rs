@@ -164,6 +164,31 @@ pub fn chunk_lines(chunk: &Chunk, side: Side, doc: &Doc) -> Range<usize> {
     (line.number - 1)..doc.line_at((to - 1).min(doc.len())).number
 }
 
+/// The line (0-based) of the other side of `docs` matching `line` of `from`, given the `chunks` between
+/// them: lines before a change keep their place, a line inside one keeps its offset into it (at most
+/// its last line), lines past it shift.
+pub fn map_line(chunks: &[Chunk], from: Side, docs: [&Doc; 2], line: usize) -> usize {
+    let (src, dst) = (docs[ix(from)], docs[ix(from.other())]);
+    let span = |start: usize, end: usize, doc: &Doc| {
+        let first = doc.line_at(start.min(doc.len())).number - 1;
+        let last = if end > start { doc.line_at((end - 1).min(doc.len())).number } else { first };
+        (first, last)
+    };
+    let mut shift = 0isize;
+    for chunk in chunks {
+        let (from_src, to_src) = span(chunk.from(from), chunk.to(from), src);
+        if line < from_src {
+            break;
+        }
+        let (from_dst, to_dst) = span(chunk.from(from.other()), chunk.to(from.other()), dst);
+        if line < to_src {
+            return (from_dst + (line - from_src)).min(from_dst.max(to_dst.saturating_sub(1)));
+        }
+        shift = to_dst as isize - to_src as isize;
+    }
+    (line as isize + shift).clamp(0, dst.lines() as isize - 1) as usize
+}
+
 /// The unchanged lines of `side` around the chunks: before the first, between two, after the last.
 fn gap_ranges(chunks: &[Chunk], side: Side, doc: &Doc) -> Vec<Range<usize>> {
     let mut out = Vec::with_capacity(chunks.len() + 1);
@@ -740,25 +765,12 @@ impl DiffView {
     /// The line of the other side matching `line` of `from`: lines before a change keep their place,
     /// a line inside one keeps its offset into it (at most its last line), lines past it shift.
     pub fn map_line(&self, from: Side, line: usize) -> usize {
-        let (src, dst) = (&self.docs[ix(from)], &self.docs[ix(from.other())]);
-        let span = |start: usize, end: usize, doc: &Doc| {
-            let first = doc.line_at(start.min(doc.len())).number - 1;
-            let last = if end > start { doc.line_at((end - 1).min(doc.len())).number } else { first };
-            (first, last)
-        };
-        let mut shift = 0isize;
-        for chunk in &self.diff.chunks {
-            let (from_src, to_src) = span(chunk.from(from), chunk.to(from), src);
-            if line < from_src {
-                break;
-            }
-            let (from_dst, to_dst) = span(chunk.from(from.other()), chunk.to(from.other()), dst);
-            if line < to_src {
-                return (from_dst + (line - from_src)).min(from_dst.max(to_dst.saturating_sub(1)));
-            }
-            shift = to_dst as isize - to_src as isize;
-        }
-        (line as isize + shift).clamp(0, dst.lines() as isize - 1) as usize
+        map_line(&self.diff.chunks, from, [&self.docs[0], &self.docs[1]], line)
+    }
+
+    /// The text a side shows, line breaks normalized.
+    pub fn side_text(&self, side: Side) -> String {
+        self.docs[ix(side)].to_string()
     }
 
     fn unified(&self) -> bool {

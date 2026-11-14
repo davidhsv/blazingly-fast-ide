@@ -7,6 +7,7 @@ pub mod context;
 pub mod css_color;
 pub mod date_format;
 pub mod dispatcher;
+pub mod edit_target;
 pub mod file_presentation;
 pub mod git_ref_name;
 pub mod i18n;

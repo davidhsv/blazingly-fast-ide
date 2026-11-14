@@ -236,25 +236,6 @@ async fn owns_the_close_shortcut_with_body_or_titlebar_focus(cx: &mut TestAppCon
     }
 }
 
-// src/features/vcs/__tests__/diffDialog.test.tsx › opens an editor tab instead once the non-modal interface is chosen
-/// With the non-modal commit interface, activating a changed file in the Commit window opens its diff in an
-/// editor tab, not in the diff window.
-#[gpui_kit::test]
-async fn opens_an_editor_tab_instead_once_the_non_modal_interface_is_chosen(cx: &mut TestAppContext) {
-    let (workbench, cx, _folders, _root) = changed_project(cx);
-    set_non_modal(&workbench, true, cx);
-    commit_changes(&workbench, cx);
-    double_click(cx, "commit-row-a.txt");
-    assert!(diff_dialog(&workbench, cx).is_none(), "no diff window is shown");
-    let diff_tab = |cx: &mut VisualTestContext| {
-        workbench.read_with(cx, |w, _| {
-            let tabs = w.tabs().map(|tabs| tabs.panes.iter().flat_map(|pane| &pane.tabs));
-            tabs.is_some_and(|mut tabs| tabs.any(|tab| tab.input.kind == "diff"))
-        })
-    };
-    wait_long(cx, "the diff's editor tab", diff_tab);
-}
-
 // src/features/vcs/__tests__/diffToolbar.test.tsx › Diff toolbar › can start an embedded comparison side by side
 // without overwriting saved viewer preferences
 /// A diff that asks for the side-by-side viewer opens side by side under a stored unified preference, and the

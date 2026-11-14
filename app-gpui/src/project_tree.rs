@@ -224,8 +224,10 @@ impl ProjectTree {
             tree.write_expanded(cx);
         })
         .detach();
+        let focus = cx.focus_handle();
+        crate::platform::edit_target::register(&focus, cx.weak_entity(), cx);
         let mut tree = Self {
-            focus: cx.focus_handle(),
+            focus,
             window_label: window_label.to_owned(),
             root,
             name,

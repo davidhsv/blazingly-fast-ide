@@ -94,19 +94,27 @@ pub struct ServicesView {
     wanted: Option<DetailSlot>,
     detail: Option<(DetailSlot, AnyView)>,
     scroll: UniformListScrollHandle,
+    /// Where the toolbar's Add Service button was last drawn, for the menu it opens.
+    add_button: Rc<std::cell::Cell<Option<gpui_kit::Bounds<Pixels>>>>,
+    /// Add Service was asked for before the button was drawn: its menu opens once it is.
+    add_menu_pending: Rc<std::cell::Cell<bool>>,
 }
 
 impl EventEmitter<ServicesViewEvent> for ServicesView {}
 
 impl ServicesView {
     pub fn new(source: Rc<dyn ServicesSource>, cx: &mut Context<Self>) -> Self {
+        let focus = cx.focus_handle();
+        crate::platform::edit_target::register(&focus, cx.weak_entity(), cx);
         Self {
-            focus: cx.focus_handle(),
+            focus,
             tree: ServicesTree::new(),
             source,
             wanted: None,
             detail: None,
             scroll: UniformListScrollHandle::new(),
+            add_button: Rc::default(),
+            add_menu_pending: Rc::default(),
         }
     }
 
@@ -147,6 +155,22 @@ impl ServicesView {
 
     // -----------------------------------------------------------------------------------------------
     // Read by the caller and by tests
+
+    /// Opens the Add Service menu under the toolbar's Add button; `drawn` when the button is on screen
+    /// as it was last drawn. Otherwise the menu waits for the button's next frame, so that it opens
+    /// under the button and not where the button was before.
+    pub fn show_add_service_menu(&mut self, drawn: bool, cx: &mut Context<Self>) {
+        match self.add_button.get().filter(|_| drawn) {
+            Some(button) => {
+                let position = crate::ui::popup_anchor::button_menu(Some(button));
+                cx.emit(ServicesViewEvent::ShowMenu { menu: ServicesMenu::AddService, position });
+            }
+            None => {
+                self.add_menu_pending.set(true);
+                cx.notify();
+            }
+        }
+    }
 
     pub fn tree(&self) -> &ServicesTree {
         &self.tree
@@ -321,8 +345,15 @@ impl ServicesView {
         }
     }
 
-    fn key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
+    fn key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let modifiers = event.keystroke.modifiers;
+        // ⌘A / Ctrl+A selects every row, as Edit › Select All does here.
+        if event.keystroke.key == "a" && modifiers.secondary(cx) && !modifiers.alt && !modifiers.shift {
+            let command = crate::app_models::edit_command::EditCommand::SelectAll;
+            <Self as crate::platform::edit_target::EditTarget>::edit(self, command, window, cx);
+            cx.stop_propagation();
+            return;
+        }
         if modifiers.control || modifiers.alt || modifiers.platform {
             return;
         }
@@ -393,10 +424,35 @@ impl ServicesView {
             .items_center()
             .gap(px(2.0))
             .px(px(6.0))
-            .child(
-                self.tool_button("services-add".to_string(), "plus", true, cx, menu(ServicesMenu::AddService))
-                    .with_tooltip_shortcut("Add Service", "services.addService"),
-            )
+            .child({
+                let (measured, pending) = (Rc::clone(&self.add_button), Rc::clone(&self.add_menu_pending));
+                let view = cx.weak_entity();
+                let measure = gpui_kit::canvas(
+                    move |bounds, window, cx| {
+                        measured.set(Some(bounds));
+                        if pending.take() {
+                            // The menu opens once this frame is drawn, under the button where it now is.
+                            let position = crate::ui::popup_anchor::button_menu(Some(bounds));
+                            let event = ServicesViewEvent::ShowMenu { menu: ServicesMenu::AddService, position };
+                            let view = view.clone();
+                            window.defer(cx, move |_, cx| {
+                                let _ = view.update(cx, |_, cx| cx.emit(event));
+                            });
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_full();
+                let open = |view: &mut Self, _: &ClickEvent, cx: &mut Context<Self>| {
+                    let position = crate::ui::popup_anchor::button_menu(view.add_button.get());
+                    cx.emit(ServicesViewEvent::ShowMenu { menu: ServicesMenu::AddService, position });
+                };
+                self.tool_button("services-add".to_string(), "plus", true, cx, open)
+                    .relative()
+                    .child(measure)
+                    .with_tooltip_shortcut("Add Service", "services.addService")
+            })
             .child(Self::separator(cx))
             .child(
                 self.tool_button("services-expand-all".to_string(), "expand-all", has_roots, cx, |view, _, cx| {

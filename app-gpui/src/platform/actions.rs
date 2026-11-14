@@ -204,6 +204,12 @@ impl Action {
     pub fn is_toggled(&self, window: &Window, cx: &App) -> Option<bool> {
         self.toggled.as_ref().map(|toggled| toggled(window, cx))
     }
+
+    /// Runs the handler alone, without the `when` check or the listeners: for a handler that puts
+    /// itself in front of another one.
+    pub fn run_handler(&self, call: &ActionCall, window: &mut Window, cx: &mut App) -> anyhow::Result<()> {
+        (self.run)(call, window, cx)
+    }
 }
 
 /// Why an action could not be run.

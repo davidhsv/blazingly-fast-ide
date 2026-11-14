@@ -22,6 +22,7 @@ use crate::build_window::model::BUILD_TOOL_WINDOW;
 use crate::debugger::effects::DEBUG_TOOL_WINDOW;
 mod diff_tools;
 mod diff_window;
+mod edit_actions;
 mod editor_core;
 mod editor_extras;
 mod editor_find;
@@ -42,6 +43,7 @@ mod plugin_java_debug;
 mod plugin_runtime;
 mod plugin_tool_windows;
 mod plugins_window;
+mod popup_placement;
 pub mod project_color;
 mod project_files;
 mod project_view_actions;
@@ -75,7 +77,6 @@ pub mod windows;
 
 use crate::backend::{Backend, BackendEvent};
 use crate::editor::find_bar::{FindBar, scroll_to_results, toggle_scroll_to_results};
-use crate::editor::goto_line::{GotoLine, GotoLineEvent};
 use crate::editor::intelligence::EditorIntelligence;
 use crate::editor::session::{self, FileViewState};
 use crate::editor::tabs::{
@@ -248,6 +249,8 @@ struct Popup {
     view: AnyView,
     /// What had the keyboard when the popup opened.
     restore: Option<FocusHandle>,
+    /// Where its top left corner goes; `None`: centred near the top of the window.
+    at: Option<gpui_kit::Point<gpui_kit::Pixels>>,
     _events: Subscription,
 }
 
@@ -332,6 +335,8 @@ pub struct Workbench {
     git_log: Option<log_window::LogSlot>,
     /// The dialog a Git operation waits on.
     vcs_dialog: Option<branches::VcsDialog>,
+    /// Go to Line:Column while it is open.
+    goto_line: Option<popup_placement::GotoLineDialog>,
     /// The editor language actions: the refactorings undoable as one step, the highlighted usages,
     /// the rename waiting for its edit.
     language: editor_language::EditorLanguage,
@@ -526,6 +531,7 @@ pub fn register_actions(cx: &mut App) {
     conflicts::register_actions(registry);
     vcs_operations::register_actions(registry);
     shelf::register_actions(registry);
+    edit_actions::register_actions(registry);
     commit::register_actions(registry);
     log_window::register_actions(registry);
     log_actions::register_actions(registry);
@@ -1072,6 +1078,7 @@ impl Workbench {
             commit: None,
             git_log: None,
             vcs_dialog: None,
+            goto_line: None,
             language: Default::default(),
             extras: Default::default(),
             conflicts: Default::default(),
@@ -2691,27 +2698,13 @@ impl Workbench {
                 }
                 workbench.close_popup(window, cx);
             });
-        self.open_popup(&chooser, events, window, cx);
+        let at = self.editor_popup_at(crate::ui::popup_anchor::mnemonic_chooser, window, cx);
+        self.open_popup_at(&chooser, events, at, window, cx);
     }
 
     /// Opens Go to Line:Column for the active editor; the chosen place gets the caret.
     pub fn show_goto_line(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let position = self.editor().map(|editor| editor.read(cx).caret_position());
-        let popup = cx.new(|cx| GotoLine::new(position, cx));
-        let events = cx.subscribe_in(&popup, window, |workbench, _, event: &GotoLineEvent, window, cx| {
-            workbench.close_popup(window, cx);
-            if let GotoLineEvent::Go { line, col } = *event
-                && let Some(editor) = workbench.editor().cloned()
-            {
-                editor.update(cx, |editor, cx| {
-                    // The line and the column are held inside the document.
-                    let at = editor.offset_of(line, col);
-                    editor.select(at, at, cx);
-                    editor.scroll_to_line(line.saturating_sub(5), cx);
-                });
-            }
-        });
-        self.open_popup(&popup, events, window, cx);
+        self.open_goto_line_dialog(window, cx);
     }
 
     pub fn find_popup(&self) -> Option<Entity<FindPopup>> {
@@ -3205,7 +3198,7 @@ impl Workbench {
         self.close_popup(window, cx);
         let restore = window.focused(cx);
         window.focus(&view.focus_handle(cx), cx);
-        self.popup = Some(Popup { view: view.clone().into(), restore, _events: events });
+        self.popup = Some(Popup { view: view.clone().into(), restore, at: None, _events: events });
         cx.notify();
     }
 
@@ -4083,6 +4076,7 @@ impl Render for Workbench {
             .children(self.settings_layer(cx))
             .children(self.plugins_dialog_layer(cx))
             .children(self.plugin_prompt_layer(cx))
+            .children(self.goto_line_layer(cx))
             .children(self.popup.as_ref().map(|popup| {
                 // Over the whole window; a click beside the popup closes it.
                 gpui_kit::deferred(
@@ -4106,13 +4100,7 @@ impl Render for Workbench {
                                 }
                             }),
                         )
-                        .child(
-                            div()
-                                .rounded(theme::length(cx, "radius-popup-large"))
-                                .shadow(theme::shadow(cx, "shadow-popup"))
-                                .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                                .child(popup.view.clone()),
-                        ),
+                        .child(Self::popup_body(popup, cx)),
                 )
                 .with_priority(1)
             }))
@@ -4139,6 +4127,8 @@ mod tests {
     mod project_threads;
     mod proofs11_agents;
     mod proofs11_vcs_windows;
+    mod proofs12_diff_window;
+    mod proofs12_find_popup;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;
@@ -6790,11 +6780,11 @@ mod tests {
         settle(cx, |cx| at(cx).is_some());
 
         run(cx, "navigate.gotoLine", None);
-        assert!(workbench.read_with(cx, |w, _| w.popup.is_some()));
+        assert!(workbench.read_with(cx, |w, _| w.goto_line_dialog().is_some()));
         cx.simulate_input("3:5");
         cx.simulate_keystrokes("enter");
         assert_eq!(at(cx), Some((alpha.clone(), (2, 4))));
-        assert!(workbench.read_with(cx, |w, _| w.popup.is_none()));
+        assert!(workbench.read_with(cx, |w, _| w.goto_line_dialog().is_none()));
 
         // A bookmark at the caret, one on a line of a file that is not open, one with a digit.
         run(cx, "navigate.toggleBookmark", None);
@@ -7174,6 +7164,9 @@ mod tests {
         assert_eq!(editor.read_with(cx, |e, _| e.version()), version + 1);
         assert_eq!(sibling.read_with(cx, |e, _| (e.text(), e.caret())), (editor.read_with(cx, |e, _| e.text()), 25));
         assert!(marks(cx).is_empty());
+        // Undo goes to the editor's history while the editor has the keyboard; in the bar's fields it
+        // takes back their own typing.
+        cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
         run(cx, "edit.undo");
         assert_eq!(
             editor.read_with(cx, |e, _| e.text()),

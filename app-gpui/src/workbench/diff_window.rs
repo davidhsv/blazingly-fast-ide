@@ -21,26 +21,39 @@ use crate::vcs_diff::compare::action;
 use crate::vcs_diff::dialog_view::{DiffDialog, DiffDialogEvent};
 use crate::vcs_diff::diff_input::{DiffData, SideLoad, diff_key, side_file, side_load};
 use crate::vcs_diff::diff_navigation::{ChainSearch, ChainStep};
-use crate::vcs_diff::diff_options::{DIFF_OPTIONS_KEY, Side, load_diff_options, save_diff_options};
-use crate::vcs_diff::doc::Direction;
+use crate::vcs_diff::diff_options::{
+    DIFF_OPTIONS_KEY, HighlightPolicy, IgnorePolicy, Side, idea_chunks, load_diff_options, save_diff_options,
+};
+use crate::vcs_diff::doc::{Direction, Doc};
 use crate::vcs_diff::toolbar_view::{DiffCommand, DiffToolbarEvent, settings_menu};
-use crate::vcs_diff::view::{DiffView, DiffViewEvent};
+use crate::vcs_diff::view::{DiffView, DiffViewEvent, map_line};
 use crate::vcs_more::show_diff::{ChangesView, SHOW_DIFF, ShowDiffStart, ShownDiffs, show_diff_files, show_diff_start};
 use crate::vcs_ops::actions::{PathContext, commit_window_focused};
 use crate::vcs_ops::ops::vcs_notice;
 use crate::workbench::notifications::NotificationLevel;
 use gpui_kit::{
-    AnyElement, App, Context, Entity, FocusHandle, Focusable, IntoElement, Subscription, Task, WeakEntity, Window, div,
-    prelude::*, px,
+    AnyElement, App, Bounds, Context, CursorStyle, Entity, FocusHandle, Focusable, IntoElement, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, PathBuilder, Pixels, Point, Size, Subscription, Task, WeakEntity,
+    Window, div, prelude::*, px,
 };
 use ide_host::Host;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-/// How far the diff window keeps from the edges of the window.
-const MARGIN_X: f32 = 72.0;
-const MARGIN_Y: f32 = 56.0;
+/// Where the size the diff window was last resized to is kept, as `{"w":…,"h":…}`.
+const SIZE_KEY: &str = "openidea.vcs.diffDialogSize";
+/// The size the diff window opens at before it was ever resized, at most: the window less this room.
+const DEFAULT_SIZE: (f32, f32) = (1100.0, 720.0);
+const DEFAULT_ROOM: f32 = 64.0;
+/// The room a diff window leaves inside the window, whatever its size.
+const EDGE_ROOM: f32 = 24.0;
+/// The smallest size the grip resizes the diff window to.
+const MIN_SIZE: (f32, f32) = (480.0, 280.0);
+/// The side of the resize grip at the bottom right corner.
+const GRIP_SIZE: f32 = 16.0;
+/// Where the grip's strokes start along its left and top edges.
+const GRIP_STROKES: [f32; 2] = [2.7, 8.2];
 
 /// The diff shown in front of the window, with what loads for it.
 pub(super) struct DiffWindow {
@@ -51,11 +64,49 @@ pub(super) struct DiffWindow {
     loading: Option<Task<()>>,
     /// The search along the chain for the next or previous file with changes.
     finding: Option<Task<()>>,
+    /// A diff of two revisions whose file is in the working tree: Jump to Source opens it there.
+    working_copy: bool,
+    /// Where the diff window is drawn, in window coordinates.
+    bounds: Bounds<Pixels>,
+    /// While the grip is dragged: where the press was and the size then.
+    resizing: Option<(Point<Pixels>, Size<Pixels>)>,
     _events: Subscription,
 }
 
-/// Both texts of a diff, and whether a side on disk is not text.
-type LoadedSides = (String, String, bool);
+/// The size a diff window opens at in a window of `viewport`: the size `stored` remembers, else the
+/// usual one, kept inside the window.
+fn opening_size(stored: Option<&str>, viewport: Size<Pixels>) -> Size<Pixels> {
+    let (width, height) = (f32::from(viewport.width), f32::from(viewport.height));
+    let remembered = stored.and_then(|text| serde_json::from_str::<Value>(text).ok()).and_then(|value| {
+        let side = |key: &str| value.get(key).and_then(Value::as_f64).map(|n| n as f32);
+        Some((side("w")?, side("h")?))
+    });
+    let (w, h) =
+        remembered.unwrap_or((DEFAULT_SIZE.0.min(width - DEFAULT_ROOM), DEFAULT_SIZE.1.min(height - DEFAULT_ROOM)));
+    gpui_kit::size(px(w.min(width - EDGE_ROOM).max(0.0)), px(h.min(height - EDGE_ROOM).max(0.0)))
+}
+
+/// The size the grip dragged from `start` (when the size was `from`) to `at` gives, in a window of
+/// `viewport`: no smaller than the least size, no larger than the window allows.
+fn dragged_size(from: Size<Pixels>, start: Point<Pixels>, at: Point<Pixels>, viewport: Size<Pixels>) -> Size<Pixels> {
+    let clamp = |size: Pixels, delta: Pixels, least: f32, room: Pixels| {
+        px(f32::from(size + delta).max(least).min(f32::from(room) - EDGE_ROOM))
+    };
+    gpui_kit::size(
+        clamp(from.width, at.x - start.x, MIN_SIZE.0, viewport.width),
+        clamp(from.height, at.y - start.y, MIN_SIZE.1, viewport.height),
+    )
+}
+
+/// What the load of a diff brings back.
+struct LoadedSides {
+    left: String,
+    right: String,
+    /// A side on disk is not text.
+    binary: bool,
+    /// Neither side is a file, and the diff's path is one in the working tree.
+    working_copy: bool,
+}
 
 /// The text `load` stands for. `open` holds the texts of the open editors by path: a working file
 /// that is open shows its unsaved edits.
@@ -101,11 +152,16 @@ async fn load_sides(
     let left = load_text(host, window, side_load(&data.path, &data.left), open).await?;
     let right = load_text(host, window, side_load(&data.path, &data.right), open).await?;
     let mut binary = false;
-    for path in disk_paths(data) {
+    let disk = disk_paths(data);
+    for path in &disk {
         binary |=
             ide_host::ops::bytes::fs_probe(host, window, PathBuf::from(path)).await.map_err(|e| e.message)?.binary;
     }
-    Ok((left, right, binary))
+    // A diff of two revisions jumps to the working copy of its file while there is one; a file that
+    // is gone or unreadable has none.
+    let working_copy =
+        disk.is_empty() && ide_host::ops::bytes::fs_probe(host, window, PathBuf::from(&data.path)).await.is_ok();
+    Ok(LoadedSides { left, right, binary, working_copy })
 }
 
 /// Syntax colours of the two sides of a diff of `path`, from the grammar of the file's language
@@ -300,14 +356,30 @@ impl Workbench {
         let viewer = dialog.read(cx).viewer().clone();
         viewer.update(cx, |viewer, cx| viewer.follow_editor_settings(&self.label, cx));
         let events = cx.subscribe_in(&dialog, window, Self::diff_dialog_event);
-        // Another diff shown in its place gives the keyboard back to where it was before the first.
-        let restore = match self.diff_window.take() {
-            Some(previous) => previous.restore,
-            None => window.focused(cx),
+        // Another diff shown in its place gives the keyboard back to where it was before the first,
+        // and keeps its place on the screen.
+        let (restore, bounds) = match self.diff_window.take() {
+            Some(previous) => (previous.restore, previous.bounds),
+            None => {
+                let viewport = window.viewport_size();
+                let size = opening_size(cx.default_global::<UiStorage>().get(SIZE_KEY), viewport);
+                let origin =
+                    gpui_kit::point((viewport.width - size.width) / 2.0, (viewport.height - size.height) / 2.0);
+                (window.focused(cx), Bounds { origin, size })
+            }
         };
         let viewer_focus = dialog.read(cx).viewer().read(cx).focus_handle(cx);
         window.focus(&viewer_focus, cx);
-        self.diff_window = Some(DiffWindow { dialog, restore, loading: None, finding: None, _events: events });
+        self.diff_window = Some(DiffWindow {
+            dialog,
+            restore,
+            loading: None,
+            finding: None,
+            working_copy: false,
+            bounds,
+            resizing: None,
+            _events: events,
+        });
         self.load_diff(data, cx);
         cx.notify();
     }
@@ -343,7 +415,7 @@ impl Workbench {
         let work = backend.with_host(move |host| async move {
             let loaded = load_sides(&host, &label, &data, &open).await;
             let colours = match &loaded {
-                Ok((left, right, false)) => {
+                Ok(LoadedSides { left, right, binary: false, .. }) => {
                     let (path, left, right) = (data.path.clone(), left.clone(), right.clone());
                     let colour = move || side_colours(&host, &path, &left, &right);
                     tokio::task::spawn_blocking(colour).await.unwrap_or_default()
@@ -377,14 +449,20 @@ impl Workbench {
             return;
         }
         match loaded.map_err(|error| error.to_string()).and_then(|loaded| loaded) {
-            Ok((left, right, binary)) => {
+            Ok(LoadedSides { left, right, binary, working_copy }) => {
                 dialog.update(cx, |dialog, cx| dialog.loaded(&left, &right, binary, cx));
                 let [a, b] = colours;
                 let viewer = dialog.read(cx).viewer().clone();
                 viewer.update(cx, |viewer, cx| {
                     viewer.set_highlights(Side::A, a, cx);
                     viewer.set_highlights(Side::B, b, cx);
+                    if working_copy {
+                        viewer.set_has_source(true, cx);
+                    }
                 });
+                if let Some(open) = self.diff_window.as_mut() {
+                    open.working_copy = working_copy;
+                }
             }
             Err(error) => {
                 let mut notice = vcs_notice(NotificationLevel::Error, "Cannot load the diff");
@@ -444,8 +522,8 @@ impl Workbench {
     fn show_diff_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(viewer) = self.diff_viewer(cx) else { return };
         let items = settings_menu(&viewer.read(cx).options());
-        let width = f32::from(window.viewport_size().width);
-        let position = gpui_kit::point(px((width - MARGIN_X - 260.0).max(0.0)), px(MARGIN_Y + 72.0));
+        let Some(bounds) = self.diff_window.as_ref().map(|open| open.bounds) else { return };
+        let position = gpui_kit::point((bounds.right() - px(260.0)).max(px(0.0)), bounds.top() + px(72.0));
         self.show_menu(
             &items,
             position,
@@ -503,7 +581,9 @@ impl Workbench {
     }
 
     /// Jump to Source: opens the file of `side` at its `line`; on a revision side, the working file of the
-    /// other side at the line it shows there. The diff window closes, and the editor keeps the keyboard.
+    /// other side at the line it shows there. A diff of two revisions opens the working copy of its file,
+    /// at the line the shown one has become there. The diff window closes, and the editor keeps the
+    /// keyboard.
     fn jump_to_diff_source(&mut self, side: Side, line: u32, col: u32, window: &mut Window, cx: &mut Context<Self>) {
         let Some(dialog) = self.diff_dialog().cloned() else { return };
         let (data, viewer) = {
@@ -518,10 +598,63 @@ impl Workbench {
                 (path.to_owned(), u32::try_from(mapped).unwrap_or(u32::MAX), 0)
             }),
         };
-        // A diff of two revisions has no file to open.
-        let Some((path, line, col)) = target else { return };
+        if let Some((path, line, col)) = target {
+            self.close_diff(false, window, cx);
+            self.open_project_file_at(PathBuf::from(path), line, col, window, cx);
+            return;
+        }
+        // A diff of two revisions without a working copy has no file to open.
+        if !self.diff_window.as_ref().is_some_and(|open| open.working_copy) {
+            return;
+        }
+        let shown = viewer.read(cx).side_text(side);
+        self.jump_to_working_copy(data.path.clone(), shown, line, col, window, cx);
         self.close_diff(false, window, cx);
-        self.open_project_file_at(PathBuf::from(path), line, col, window, cx);
+    }
+
+    /// Opens the working copy of `path` at the line that `line` of `shown`, another version of the file,
+    /// has become there: through a diff of the two, once the working text is loaded off the window's
+    /// thread. The column is kept when the line reads the same in both.
+    fn jump_to_working_copy(
+        &mut self,
+        path: String,
+        shown: String,
+        line: u32,
+        col: u32,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let open = self.open_texts(cx);
+        let label = self.label.clone();
+        let file = path.clone();
+        let work = cx.try_global::<Backend>().map(|backend| {
+            backend.with_host(move |host| async move {
+                load_text(&host, &label, SideLoad::WorkingText { path: file }, &open).await
+            })
+        });
+        cx.spawn_in(window, async move |workbench, cx| {
+            let working = match work {
+                Some(work) => work.await.map_err(|error| error.to_string()).and_then(|loaded| loaded),
+                None => Err("no backend".to_owned()),
+            };
+            let (line, col) = match &working {
+                Ok(working) => {
+                    let (from, to) = (Doc::new(&shown), Doc::new(&working.replace("\r\n", "\n")));
+                    let chunks = idea_chunks(&from, &to, IgnorePolicy::None, HighlightPolicy::Lines).chunks;
+                    let mapped = map_line(&chunks, Side::A, [&from, &to], line as usize);
+                    let same = from.lines() > line as usize
+                        && mapped < to.lines()
+                        && from.line_text(from.line(line as usize + 1)) == to.line_text(to.line(mapped + 1));
+                    (u32::try_from(mapped).unwrap_or(u32::MAX), if same { col } else { 0 })
+                }
+                // The working copy cannot be read: its file opens at the line shown, as it would be.
+                Err(_) => (line, col),
+            };
+            let _ = workbench.update_in(cx, |workbench, window, cx| {
+                workbench.open_project_file_at(PathBuf::from(path), line, col, window, cx);
+            });
+        })
+        .detach();
     }
 
     /// Publishes whether the project is under version control and whether the diff window has the
@@ -539,22 +672,100 @@ impl Workbench {
         set_context(window, cx, "vcsAvailable", versioned);
     }
 
-    /// The diff window over the window, while one is shown.
+    /// A press on the diff window's grip starts resizing it.
+    fn start_diff_resize(&mut self, at: Point<Pixels>) {
+        if let Some(open) = self.diff_window.as_mut() {
+            open.resizing = Some((at, open.bounds.size));
+        }
+    }
+
+    /// The pointer moved while the grip is dragged: the diff window takes the size it points at, its
+    /// top left corner staying where it is. A move without the button ends the drag.
+    fn diff_resize_moved(&mut self, event: &MouseMoveEvent, window: &Window, cx: &mut Context<Self>) {
+        let Some(open) = self.diff_window.as_mut() else { return };
+        let Some((start, from)) = open.resizing else { return };
+        if event.pressed_button != Some(MouseButton::Left) {
+            return self.end_diff_resize(cx);
+        }
+        open.bounds.size = dragged_size(from, start, event.position, window.viewport_size());
+        cx.notify();
+    }
+
+    /// The grip is let go: the size is remembered for the next diff window.
+    fn end_diff_resize(&mut self, cx: &mut Context<Self>) {
+        let Some(open) = self.diff_window.as_mut() else { return };
+        if open.resizing.take().is_none() {
+            return;
+        }
+        let size = open.bounds.size;
+        let stored = serde_json::json!({ "w": f32::from(size.width), "h": f32::from(size.height) });
+        cx.default_global::<UiStorage>().set(SIZE_KEY, stored.to_string());
+    }
+
+    /// The diff window over the window, while one is shown, with its resize grip.
     pub(super) fn diff_window_layer(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let dialog = self.diff_dialog()?.clone();
-        let window = div()
+        let open = self.diff_window.as_ref()?;
+        let bounds = open.bounds;
+        let stroke = theme::color(cx, "fg-faint");
+        // Two short diagonal strokes across the corner, as a resize grip is drawn.
+        let strokes = gpui_kit::canvas(
+            |_, _, _| {},
+            move |corner: Bounds<Pixels>, _, window, _| {
+                for reach in GRIP_STROKES {
+                    let mut line = PathBuilder::stroke(px(1.2));
+                    line.move_to(corner.origin + gpui_kit::point(px(reach), px(GRIP_SIZE)));
+                    line.line_to(corner.origin + gpui_kit::point(px(GRIP_SIZE), px(reach)));
+                    if let Ok(path) = line.build() {
+                        window.paint_path(path, stroke);
+                    }
+                }
+            },
+        )
+        .size_full();
+        let grip = div()
+            .id("diff-window-resize")
+            .debug_selector(|| "diff-window-resize".to_owned())
             .absolute()
-            .top(px(MARGIN_Y))
-            .bottom(px(MARGIN_Y))
-            .left(px(MARGIN_X))
-            .right(px(MARGIN_X))
+            .right_0()
+            .bottom_0()
+            .size(px(GRIP_SIZE))
+            .cursor(CursorStyle::ResizeUpLeftDownRight)
+            .opacity(0.55)
+            .hover(|grip| grip.opacity(1.0))
+            .child(strokes)
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|workbench, event: &MouseDownEvent, _, cx| {
+                    workbench.start_diff_resize(event.position);
+                    cx.stop_propagation();
+                }),
+            );
+        let frame = div()
+            .absolute()
+            .left(bounds.left())
+            .top(bounds.top())
+            .w(bounds.size.width)
+            .h(bounds.size.height)
             .border_1()
             .border_color(theme::color(cx, "border"))
             .rounded(theme::length(cx, "radius-small"))
             .shadow(theme::shadow(cx, "shadow-dialog"))
             .overflow_hidden()
-            .child(dialog);
-        let layer = div().id("diff-window").absolute().inset_0().occlude().child(window);
+            .child(open.dialog.clone())
+            .child(grip);
+        let layer = div()
+            .id("diff-window")
+            .absolute()
+            .inset_0()
+            .occlude()
+            .on_mouse_move(cx.listener(|workbench, event: &MouseMoveEvent, window, cx| {
+                workbench.diff_resize_moved(event, window, cx)
+            }))
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(|workbench, _: &MouseUpEvent, _, cx| workbench.end_diff_resize(cx)),
+            )
+            .child(frame);
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 }

@@ -292,10 +292,11 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
     });
     registry.handle("services.addService", |_, window, cx| {
         on_workbench(window, cx, |workbench, window, cx| {
+            let drawn = workbench.is_tool_window_visible(SERVICES_TOOL_WINDOW);
             workbench.with_layout(window, cx, |layout| layout.show(SERVICES_TOOL_WINDOW, true));
-            let width = f32::from(window.viewport_size().width);
-            let position = gpui_kit::point(px((width / 2.0 - 120.0).max(0.0)), px(44.0));
-            workbench.show_services_menu(ServicesMenu::AddService, position, window, cx);
+            if let Some(view) = workbench.services_window(window, cx).map(|services| services.view.clone()) {
+                view.update(cx, |view, cx| view.show_add_service_menu(drawn, cx));
+            }
         })
     });
     // The toolbar buttons of a type group, by the node key the argument names.

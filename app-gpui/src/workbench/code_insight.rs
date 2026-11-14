@@ -785,7 +785,8 @@ impl Workbench {
         let find_keys = shortcut(cx, "find.usages");
         let view = cx.new(|cx| UsagesPopup::new(content, access, preview, find_keys, cx));
         let events = cx.subscribe_in(&view, window, Self::usages_popup_event);
-        self.open_popup(&view, events, window, cx);
+        let at = self.editor_popup_at(crate::ui::popup_anchor::usages_popup, window, cx);
+        self.open_popup_at(&view, events, at, window, cx);
     }
 
     /// A popup closed: when it was Show Usages, its search is cancelled.

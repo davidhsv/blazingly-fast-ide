@@ -284,7 +284,8 @@ impl Workbench {
                 let menu = self.with_menu_context(cx, |ctx, _| select_in_targets(ctx, &path, active.as_deref()));
                 let mut items: Vec<Item> = vec![MenuItem::entry(menu.title, None)];
                 items.extend(menu.items);
-                self.show_project_chooser(&items, window, cx);
+                let position = self.select_in_popup_at(&path, window, cx);
+                self.show_project_chooser_at(&items, position, window, cx);
             }
         }
     }
@@ -306,6 +307,17 @@ impl Workbench {
     /// A chooser of Project view rows; the one chosen is carried out on the selection.
     fn show_project_chooser(&mut self, items: &[Item], window: &mut Window, cx: &mut Context<Self>) {
         let position = Self::chooser_position(window);
+        self.show_project_chooser_at(items, position, window, cx);
+    }
+
+    /// [`Self::show_project_chooser`] with its corner at `position`.
+    fn show_project_chooser_at(
+        &mut self,
+        items: &[Item],
+        position: gpui_kit::Point<gpui_kit::Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let run = |workbench: &mut Self, command: ProjectCommand, window: &mut Window, cx: &mut Context<Self>| {
             workbench.run_project_command(command, Vec::new(), true, window, cx);
         };

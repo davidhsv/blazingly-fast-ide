@@ -1,8 +1,8 @@
 //! What Edit › Undo, Redo, Cut, Copy, Paste and Select All act on outside the code editor: the
 //! element that has the keyboard. A text field, a list or a tree registers its focus handle with
-//! the view that answers for it; the Edit actions ask the innermost registered element around the
-//! keyboard whether a command applies and have it carry the command out. With none of them around
-//! the keyboard the editor's own handling runs, as before.
+//! the view that answers for it; the Edit actions have the innermost registered element around the
+//! keyboard carry the command out. With none of them around the keyboard the editor's own handling
+//! runs.
 //!
 //! The text fields' undo history lives here too: a field records its text before each edit, a run
 //! of typing as one step, as every text input of the platform does.
@@ -13,7 +13,7 @@ use std::fmt;
 use std::rc::Rc;
 
 /// An element the Edit commands can act on.
-pub trait EditTarget: 'static {
+pub trait EditTarget: Sized + 'static {
     /// Whether the element takes `command` at all. One that does not leaves it to the window (the
     /// Project view's Undo restores its last file operation that way).
     fn handles(&self, command: EditCommand) -> bool {
@@ -21,21 +21,17 @@ pub trait EditTarget: 'static {
         true
     }
 
-    /// Whether `command` would do something now: the Edit menu greys it out otherwise.
-    fn can_edit(&self, command: EditCommand, cx: &App) -> bool;
-
     /// Carries `command` out. Answers whether anything changed (the text, the selection or the
     /// clipboard); a command the element handles but cannot do now does nothing.
     fn edit(&mut self, command: EditCommand, window: &mut Window, cx: &mut Context<Self>) -> bool;
 }
 
-type CanFn = dyn Fn(EditCommand, &App) -> Option<bool>;
+/// Carries a command out on a registered element: `None` once the element is gone, or for a command
+/// it does not handle.
 type RunFn = dyn Fn(EditCommand, &mut Window, &mut App) -> Option<bool>;
 
 struct Entry {
     focus: WeakFocusHandle,
-    /// `None` once the element is gone, or for a command it does not handle.
-    can: Rc<CanFn>,
     run: Rc<RunFn>,
 }
 
@@ -50,31 +46,25 @@ impl Global for EditTargets {}
 /// Has `target` answer the Edit commands while `focus`, or an element inside it that is not
 /// registered itself, has the keyboard.
 pub fn register<T: EditTarget>(focus: &FocusHandle, target: WeakEntity<T>, cx: &mut App) {
-    let read = target.clone();
-    let can = move |command: EditCommand, cx: &App| -> Option<bool> {
-        let entity = read.upgrade()?;
-        let target = entity.read(cx);
-        target.handles(command).then(|| target.can_edit(command, cx))
-    };
     let run = move |command: EditCommand, window: &mut Window, cx: &mut App| -> Option<bool> {
         let entity = target.upgrade()?;
         entity.update(cx, |target, cx| target.handles(command).then(|| target.edit(command, window, cx)))
     };
     let targets = cx.default_global::<EditTargets>();
     targets.entries.retain(|entry| entry.focus.upgrade().is_some());
-    targets.entries.push(Entry { focus: focus.downgrade(), can: Rc::new(can), run: Rc::new(run) });
+    targets.entries.push(Entry { focus: focus.downgrade(), run: Rc::new(run) });
 }
 
 /// The registered element answering for the keyboard: the focused element itself, else the
 /// innermost registered element that contains it.
-fn focused_entry(window: &Window, cx: &App) -> Option<(Rc<CanFn>, Rc<RunFn>)> {
+fn focused_entry(window: &Window, cx: &App) -> Option<Rc<RunFn>> {
     let focused = window.focused(cx)?;
     let targets = cx.try_global::<EditTargets>()?;
     let mut around: Option<(FocusHandle, &Entry)> = None;
     for entry in &targets.entries {
         let Some(handle) = entry.focus.upgrade() else { continue };
         if handle == focused {
-            return Some((entry.can.clone(), entry.run.clone()));
+            return Some(entry.run.clone());
         }
         if !handle.contains_focused(window, cx) {
             continue;
@@ -85,20 +75,13 @@ fn focused_entry(window: &Window, cx: &App) -> Option<(Rc<CanFn>, Rc<RunFn>)> {
             around = Some((handle, entry));
         }
     }
-    around.map(|(_, entry)| (entry.can.clone(), entry.run.clone()))
-}
-
-/// Whether `command` applies to what has the keyboard; `None` when no registered element answers
-/// for it (the editor's own state then decides).
-pub fn can_edit(command: EditCommand, window: &Window, cx: &App) -> Option<bool> {
-    let (can, _) = focused_entry(window, cx)?;
-    can(command, cx)
+    around.map(|(_, entry)| entry.run.clone())
 }
 
 /// Carries `command` out on what has the keyboard. `None` when no registered element takes it:
 /// the caller then leaves it to the editor. `Some(changed)` otherwise.
 pub fn edit(command: EditCommand, window: &mut Window, cx: &mut App) -> Option<bool> {
-    let (_, run) = focused_entry(window, cx)?;
+    let run = focused_entry(window, cx)?;
     run(command, window, cx)
 }
 

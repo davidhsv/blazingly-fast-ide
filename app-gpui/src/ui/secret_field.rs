@@ -59,7 +59,9 @@ impl SecretField {
             }
             cx.notify();
         });
-        Self { focus: cx.focus_handle(), state, placeholder: SharedString::default(), _state_events: events }
+        let focus = cx.focus_handle();
+        crate::platform::edit_target::register(&focus, cx.weak_entity(), cx);
+        Self { focus, state, placeholder: SharedString::default(), _state_events: events }
     }
 
     /// The text shown, muted, while the field is empty.
@@ -82,6 +84,11 @@ impl SecretField {
     pub fn set_text(&mut self, text: &str, cx: &mut Context<Self>) {
         self.state.update(cx, |state, cx| state.set_text(text, cx));
         cx.notify();
+    }
+
+    /// The edited text and selection, for the Edit commands; never drawn.
+    pub(crate) fn state(&self) -> &Entity<TextField> {
+        &self.state
     }
 
     /// Empties the field.
@@ -131,6 +138,9 @@ impl SecretField {
                 "a" => self.state.update(cx, |state, cx| state.select_all(cx)),
                 // A secret is not copied or cut: the keys are taken so that nothing else copies it.
                 "c" | "x" => {}
+                "z" => {
+                    self.state.update(cx, |state, cx| state.undo(cx));
+                }
                 "v" => {
                     let Some(pasted) = cx.read_from_clipboard().and_then(|item| item.text()) else { return };
                     self.replace_units(None, &pasted, window, cx);
