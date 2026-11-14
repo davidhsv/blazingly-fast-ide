@@ -1430,4 +1430,217 @@ mod tests {
         wait_long(cx, "All settings… opens Settings", open);
         assert!(workbench.read_with(cx, |w, _| w.welcome().is_some()), "over the Welcome screen");
     }
+
+    /// The own plugins a project carries for these tests: Hello (a command, a Tools menu entry, a
+    /// status item and a view) and Model Profiles (a settings page), under `.openidea/plugins`.
+    fn project_with_own_plugins(home: &tempfile::TempDir) -> (tempfile::TempDir, PathBuf) {
+        let folder = tempfile::tempdir().expect("a temporary folder");
+        let root = folder.path().canonicalize().expect("the folder exists");
+        let tools = |text: &str| format!("{text}\n[[contributes.menus]]\nmenu = \"tools\"\ncommand = \"word-count\"\n");
+        let hello = plugin_copy(home.path(), "hello", tools);
+        super::test_support::copy_dir(&hello, &root.join(".openidea/plugins/hello"));
+        let profiles = fixture(home, "settings-pages");
+        super::test_support::copy_dir(&profiles, &root.join(".openidea/plugins/settings-pages"));
+        (folder, root)
+    }
+
+    /// What of the project's own plugins the window has: the plugins loaded on the host, their
+    /// command as an action, the Tools menu entry, the status item, the view's tool window and the
+    /// settings page.
+    #[derive(Debug, PartialEq, Eq)]
+    struct OwnPlugins {
+        loaded: bool,
+        action: bool,
+        menu: bool,
+        status: bool,
+        tool_window: bool,
+        settings_page: bool,
+    }
+
+    const WORD_COUNT: &str = "plugin.hello.word-count";
+    const ALL: OwnPlugins =
+        OwnPlugins { loaded: true, action: true, menu: true, status: true, tool_window: true, settings_page: true };
+    const NONE: OwnPlugins = OwnPlugins {
+        loaded: false,
+        action: false,
+        menu: false,
+        status: false,
+        tool_window: false,
+        settings_page: false,
+    };
+
+    fn own_plugins(workbench: &Entity<Workbench>, root: &Path, cx: &mut VisualTestContext) -> OwnPlugins {
+        use super::super::menu;
+        use super::super::menu_spec::DYNAMIC_PLUGIN_TOOLS;
+        let host = cx.update(|_, cx| cx.global::<Plugins>().host.clone());
+        let listed = host.list(Some(root)).plugins;
+        let loaded = ["hello", "settings-pages"].iter().all(|id| listed.iter().any(|plugin| plugin.id == *id));
+        let state = cx.update(|window, cx| menu::state(window, cx));
+        let menu =
+            state.dynamic.get(DYNAMIC_PLUGIN_TOOLS).is_some_and(|items| items.iter().any(|i| i.action == WORD_COUNT));
+        let status =
+            workbench.read_with(cx, |w, cx| w.status_bar().read(cx).model().spec("plugin.hello/hello").is_some());
+        let tool_window = workbench.read_with(cx, |w, _| {
+            w.tool_windows().and_then(|layout| layout.window("plugin.hello.greetings")).is_some()
+        });
+        let settings_page = cx.update(|_, cx| {
+            super::super::plugin_contributions::plugin_settings_pages(cx)
+                .iter()
+                .any(|page| page.id == "plugins.settings-pages")
+        });
+        OwnPlugins {
+            loaded,
+            action: cx.update(|_, cx| cx.global::<ActionRegistry>().contains(WORD_COUNT)),
+            menu,
+            status,
+            tool_window,
+            settings_page,
+        }
+    }
+
+    /// Agrees to the project's own plugins once they are loaded (each needs the user's consent).
+    fn agree_to_own_plugins(root: &Path, cx: &mut VisualTestContext) {
+        let host = cx.update(|_, cx| cx.global::<Plugins>().host.clone());
+        wait_long(cx, "the project's plugins are loaded", |_| {
+            let listed = host.list(Some(root)).plugins;
+            ["hello", "settings-pages"].iter().all(|id| listed.iter().any(|plugin| plugin.id == *id))
+        });
+        for plugin in host.list(Some(root)).plugins.into_iter().filter(|p| p.status == PluginStatus::NeedsConsent) {
+            host.grant(&plugin.id, &Consent::default()).expect("consent is recorded");
+        }
+    }
+
+    /// A window that opens the project at `root`, trusted beforehand or not decided (`None`).
+    fn open_with_own_plugins<'a>(
+        cx: &'a mut TestAppContext,
+        root: &Path,
+        trusted: Option<bool>,
+    ) -> (Entity<Workbench>, &'a mut VisualTestContext) {
+        if let Some(trusted) = trusted {
+            cx.update(|cx| cx.global::<Backend>().host.trust.decide(root, trusted, false)).expect("decided");
+        }
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        let path = root.to_path_buf();
+        workbench.update_in(cx, |workbench, window, cx| workbench.open_project(path, window, cx));
+        wait_long(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        (workbench, cx)
+    }
+
+    /// Lets the plugin host deliver what it queued (it flushes every 250 ms) for about a second.
+    fn let_events_flow(cx: &mut VisualTestContext) {
+        let until = std::time::Instant::now() + Duration::from_secs(1);
+        wait_long(cx, "two seconds", |_| std::time::Instant::now() >= until);
+    }
+
+    fn listings(cx: &mut VisualTestContext) -> u64 {
+        cx.update(|_, cx| cx.global::<Plugins>().listings())
+    }
+
+    /// A trusted project's own plugins load when it opens, without the Plugins page: the command
+    /// is an action and runs through the registry, and the menu entry, the status item, the view's
+    /// tool window and the settings page are there.
+    #[gpui_kit::test]
+    async fn a_trusted_projects_own_plugins_load_when_it_opens_and_their_command_runs(cx: &mut TestAppContext) {
+        let home = start_with_plugins(cx);
+        let (_folder, root) = project_with_own_plugins(&home);
+        let (workbench, cx) = open_with_own_plugins(cx, &root, Some(true));
+        agree_to_own_plugins(&root, cx);
+        wait_long(cx, "the project's plugins contribute", |cx| own_plugins(&workbench, &root, cx) == ALL);
+        assert!(workbench.read_with(cx, |w, _| w.settings_plugins_page().is_none()), "no Plugins page was opened");
+        run_action(cx, WORD_COUNT, None);
+        let host = cx.update(|_, cx| cx.global::<Plugins>().host.clone());
+        wait_long(cx, "the command loaded the plugin's code", |_| {
+            host.info_of("hello").is_ok_and(|info| info.status == PluginStatus::Active)
+        });
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// A project whose trust is not decided opens in Restricted Mode: none of its own plugins loads
+    /// or contributes, and the plugins are not listed over and over meanwhile.
+    #[gpui_kit::test]
+    async fn an_undecided_projects_own_plugins_do_not_load_and_the_listing_does_not_repeat(cx: &mut TestAppContext) {
+        let home = start_with_plugins(cx);
+        let (_folder, root) = project_with_own_plugins(&home);
+        let (workbench, cx) = open_with_own_plugins(cx, &root, None);
+        assert!(workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
+        let_events_flow(cx);
+        let before = listings(cx);
+        let_events_flow(cx);
+        let repeated = listings(cx) - before;
+        assert!(repeated <= 1, "the plugins were listed {repeated} more times in a quiet second");
+        assert_eq!(own_plugins(&workbench, &root, cx), NONE);
+        // With the Plugins page open, which lists the window's plugins on every announced change.
+        run_action(cx, "plugins.settings", None);
+        let page = workbench.read_with(cx, |w, _| w.settings_plugins_page().cloned()).expect("the Plugins page");
+        wait_long(cx, "the page's listing", |cx| !page.update(cx, |page, cx| page.rows(cx)).is_empty());
+        let before = listings(cx);
+        let_events_flow(cx);
+        let repeated = listings(cx) - before;
+        assert!(repeated <= 1, "with the Plugins page open the plugins were listed {repeated} more times");
+        assert_eq!(own_plugins(&workbench, &root, cx), NONE);
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// Trust Project, granted after the project opened in Restricted Mode, loads its own plugins.
+    #[gpui_kit::test]
+    async fn trusting_an_open_project_loads_its_own_plugins(cx: &mut TestAppContext) {
+        let home = start_with_plugins(cx);
+        let (_folder, root) = project_with_own_plugins(&home);
+        let (workbench, cx) = open_with_own_plugins(cx, &root, None);
+        let_events_flow(cx);
+        assert_eq!(own_plugins(&workbench, &root, cx), NONE);
+        run_action(cx, "project.trust", None);
+        wait_long(cx, "the trust", |cx| workbench.read_with(cx, |w, cx| !w.project_restricted(cx)));
+        agree_to_own_plugins(&root, cx);
+        wait_long(cx, "the project's plugins contribute", |cx| own_plugins(&workbench, &root, cx) == ALL);
+        let before = listings(cx);
+        let_events_flow(cx);
+        let repeated = listings(cx) - before;
+        assert!(repeated <= 1, "the plugins were listed {repeated} more times in a quiet second");
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// Revoke Trust unloads the project's own plugins: their action, menu entry, status item, tool
+    /// window and settings page go.
+    #[gpui_kit::test]
+    async fn revoking_trust_unloads_the_projects_own_plugins_and_their_contributions(cx: &mut TestAppContext) {
+        let home = start_with_plugins(cx);
+        let (_folder, root) = project_with_own_plugins(&home);
+        let (workbench, cx) = open_with_own_plugins(cx, &root, Some(true));
+        agree_to_own_plugins(&root, cx);
+        wait_long(cx, "the project's plugins contribute", |cx| own_plugins(&workbench, &root, cx) == ALL);
+        run_action(cx, "project.revokeTrust", None);
+        wait_long(cx, "the project's plugins are gone", |cx| own_plugins(&workbench, &root, cx) == NONE);
+        let before = listings(cx);
+        let_events_flow(cx);
+        let repeated = listings(cx) - before;
+        assert!(repeated <= 1, "the plugins were listed {repeated} more times in a quiet second");
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// Closing the project unloads its own plugins, and what they contributed goes.
+    #[gpui_kit::test]
+    async fn closing_a_project_unloads_its_own_plugins(cx: &mut TestAppContext) {
+        let home = start_with_plugins(cx);
+        let (_folder, root) = project_with_own_plugins(&home);
+        let (workbench, cx) = open_with_own_plugins(cx, &root, Some(true));
+        agree_to_own_plugins(&root, cx);
+        wait_long(cx, "the project's plugins contribute", |cx| own_plugins(&workbench, &root, cx) == ALL);
+        workbench.update_in(cx, |w, window, cx| w.close_project(window, cx));
+        wait_long(cx, "the project's plugins are gone", |cx| {
+            let host = cx.update(|_, cx| cx.global::<Plugins>().host.clone());
+            let loaded = host.list(Some(&root)).plugins.iter().any(|plugin| plugin.id == "hello");
+            !loaded && !cx.update(|_, cx| cx.global::<ActionRegistry>().contains(WORD_COUNT))
+        });
+        assert!(
+            workbench
+                .read_with(cx, |w, _| w.tool_windows().is_none_or(|l| l.window("plugin.hello.greetings").is_none()))
+        );
+        assert!(!cx.update(|_, cx| {
+            super::super::plugin_contributions::plugin_settings_pages(cx)
+                .iter()
+                .any(|page| page.id == "plugins.settings-pages")
+        }));
+    }
 }

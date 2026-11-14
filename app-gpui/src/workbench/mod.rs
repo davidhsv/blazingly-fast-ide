@@ -2829,7 +2829,12 @@ impl Workbench {
         self.drop_plugin_tool_windows();
         // The project's servers and runs stop in the background: this is the UI thread.
         self.drop_github();
+        let root = cx.global::<Backend>().host.project(&self.label).ok().map(|project| project.root.clone());
         cx.global::<Backend>().host.close_project_detached(&self.label);
+        // The project's own plugins go with it.
+        if let Some(root) = root.filter(|_| cx.has_global::<crate::plugins::Plugins>()) {
+            crate::plugins::Plugins::release_project(root, cx);
+        }
         self.content = Content::Empty;
         self.light_find_bar = None;
         self.sync_welcome(window, cx);

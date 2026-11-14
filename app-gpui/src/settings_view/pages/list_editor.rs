@@ -288,8 +288,7 @@ impl ListEditor {
                 true
             }
             "escape" => {
-                self.end_edit(cx);
-                cx.notify();
+                self.cancel_edit(window, cx);
                 true
             }
             _ => false,

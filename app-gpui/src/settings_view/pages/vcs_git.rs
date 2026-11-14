@@ -108,15 +108,7 @@ impl EventEmitter<ControlEvent> for GitExecutableView {}
 impl GitExecutableView {
     /// `detected`: the executable found on the PATH.
     pub fn new(binding: Binding, detected: Option<&str>, cx: &mut Context<Self>) -> Self {
-        let placeholder = match detected {
-            Some(path) => {
-                let localization = cx.default_global::<crate::platform::i18n::Localization>();
-                localization
-                    .0
-                    .tx_built(&["Auto-detected: ", ""], &[crate::platform::i18n::Param::Text(path.to_owned())])
-            }
-            None => tx(cx, "Auto-detected"),
-        };
+        let placeholder = Self::placeholder(detected, cx);
         let text = binding.text(EXECUTABLE_KEY, cx);
         let field = new_field(&text, Some(placeholder), cx);
         let events = cx.subscribe(&field, |view: &mut Self, field, event: &TextFieldEvent, cx| match event {
@@ -139,6 +131,25 @@ impl GitExecutableView {
         });
         cx.on_release(|view: &mut Self, cx: &mut App| input::release_keys(view.claim, cx)).detach();
         Self { binding, field, result: None, testing: false, claim, _subscriptions: vec![events, observe] }
+    }
+
+    /// What the empty field says: the executable found on the PATH, once it is known.
+    fn placeholder(detected: Option<&str>, cx: &mut App) -> String {
+        match detected {
+            Some(path) => {
+                let localization = cx.default_global::<crate::platform::i18n::Localization>();
+                localization
+                    .0
+                    .tx_built(&["Auto-detected: ", ""], &[crate::platform::i18n::Param::Text(path.to_owned())])
+            }
+            None => tx(cx, "Auto-detected"),
+        }
+    }
+
+    /// The executable found on the PATH, looked up off the window's thread.
+    pub fn set_detected(&mut self, detected: Option<&str>, cx: &mut Context<Self>) {
+        let placeholder = Self::placeholder(detected, cx);
+        self.field.update(cx, |field, cx| field.set_placeholder(placeholder, cx));
     }
 
     pub fn field(&self) -> &Entity<TextField> {

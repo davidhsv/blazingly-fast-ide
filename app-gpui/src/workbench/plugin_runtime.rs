@@ -407,6 +407,10 @@ impl Workbench {
 
     fn plugin_project_changed(&mut self, stop_logs: bool, window: &mut Window, cx: &mut Context<Self>) {
         let root = self.plugin_runtime.root.clone().flatten();
+        // A trusted project's own plugins load with it, and leave the listing when it goes.
+        if cx.has_global::<Plugins>() {
+            Plugins::refresh(cx);
+        }
         self.plugin_runtime.status_revision += 1;
         let effects = self.plugin_runtime.ui.project_changed();
         self.apply_runtime_effects(effects, None, window, cx);
@@ -860,9 +864,7 @@ impl Workbench {
             let Err(error) = running.await else { return };
             let _ = workbench.update(cx, |workbench, cx| {
                 Plugins::refresh(cx);
-                let status = host
-                    .and_then(|host| host.list(None).plugins.into_iter().find(|p| p.id == plugin))
-                    .map(|p| p.status);
+                let status = host.and_then(|host| host.info_of(&plugin).ok()).map(|p| p.status);
                 let i18n = &mut cx.default_global::<Localization>().0;
                 if let Some(request) = command_failure(&title, &error, status, i18n) {
                     workbench.notify(request, cx);

@@ -79,6 +79,16 @@ impl TextField {
         self
     }
 
+    /// Replaces the text shown while the field is empty.
+    pub fn set_placeholder(&mut self, placeholder: impl Into<SharedString>, cx: &mut Context<Self>) {
+        self.placeholder = placeholder.into();
+        cx.notify();
+    }
+
+    pub fn placeholder(&self) -> &str {
+        &self.placeholder
+    }
+
     pub fn text(&self) -> &str {
         &self.text
     }

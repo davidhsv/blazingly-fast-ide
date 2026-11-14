@@ -79,4 +79,19 @@ mod tests {
             view.read_with(cx, |view, _| view.field("general.defaultProjectDirectory").cloned()).expect("a field");
         assert_eq!(field.read_with(cx, |field, _| field.text().to_owned()), "/tmp/projects");
     }
+
+    // behavior settings › loads a stored legacy "attach" as Ask
+    #[gpui_kit::test]
+    async fn a_stored_legacy_attach_loads_as_ask_and_stages_nothing(cx: &mut TestAppContext) {
+        let stored = [("general.openProjectIn", serde_json::json!("attach"))];
+        let model = cx.update(|cx| dialog_model(PAGE, &stored, cx));
+        let binding = Binding::fixed(model.clone(), PAGE, Scope::Global);
+        let (_, parts) = forms().remove(0);
+        let (view, _, cx) = open(cx, move |_, cx| FormView::new(binding, parts, cx));
+        let lines = view.read_with(cx, |view, cx| view.lines(cx));
+        assert_eq!(lines, ["Open project in: ( ) New window ( ) Current window (•) Ask"]);
+        assert!(staged(&model, cx).is_empty(), "showing the default stages nothing");
+        click(cx, "settings-radio-general.openProjectIn-same");
+        assert_eq!(staged(&model, cx), [("global:general.openProjectIn".to_owned(), "\"same\"".to_owned())]);
+    }
 }

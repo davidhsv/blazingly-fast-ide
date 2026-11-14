@@ -187,6 +187,9 @@ impl Workbench {
         });
         let mut subscriptions = vec![cx.subscribe_in(&dialog, window, Self::settings_dialog_event)];
         subscriptions.extend(self.mount_plugin_settings_pages(&dialog, has_project, window, cx));
+        let label = self.label.clone();
+        let install = crate::settings_view::custom_controls::Install { window_label: &label, has_project };
+        subscriptions.extend(crate::settings_view::custom_controls::install(&dialog, install, window, cx));
         let plugins = match self.plugin_host(cx) {
             Some(host) => {
                 let (page, events) = self.new_plugins_page(host, window, cx);

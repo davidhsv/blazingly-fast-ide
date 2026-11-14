@@ -98,6 +98,7 @@ pub struct Plugins {
     listing: Option<Task<()>>,
     /// Ids of the actions registered for plugin commands.
     command_actions: Vec<String>,
+    listings: u64,
     _pump: Task<()>,
 }
 
@@ -191,6 +192,7 @@ impl Plugins {
             next_listener: 0,
             listing: None,
             command_actions: Vec::new(),
+            listings: 0,
             _pump: pump,
         });
         // The plugin host's selected theme follows the theme the settings name.
@@ -269,14 +271,50 @@ impl Plugins {
         self.snapshot.as_ref()
     }
 
-    /// Lists the plugins again, off the main thread, and projects what they contribute.
+    /// How many listings have been projected into the UI since the host started.
+    pub fn listings(&self) -> u64 {
+        self.listings
+    }
+
+    /// Lists the plugins again, off the main thread, and projects what they contribute: the
+    /// installed and linked ones, and the own plugins of every open trusted project, loaded first.
+    /// A project that is not trusted is left alone: its plugins were unloaded when it lost its
+    /// trust, and restricting it again would announce a change, which lists the plugins again.
     pub fn refresh(cx: &mut App) {
         let host = cx.global::<Plugins>().host.clone();
+        let projects = cx.try_global::<Backend>().map(|backend| backend.host.clone());
         let listed = cx.background_executor().spawn(async move {
             // A listing made at start-up would otherwise hold no plugins and drop the selected theme.
             host.wait_initial_load(INITIAL_LOAD_WAIT);
             host.sync_links();
-            host.list(None)
+            let mut roots: Vec<PathBuf> = projects
+                .iter()
+                .flat_map(|projects| {
+                    projects
+                        .projects()
+                        .into_iter()
+                        .map(|project| project.root.clone())
+                        .filter(|root| projects.trust.trusted(root).unwrap_or(false))
+                })
+                .collect();
+            roots.sort();
+            roots.dedup();
+            for root in &roots {
+                host.sync_project(root);
+            }
+            let mut snapshot = host.list(None);
+            for root in &roots {
+                let own = host.list(Some(root));
+                let added: Vec<_> = own
+                    .plugins
+                    .into_iter()
+                    .filter(|plugin| !snapshot.plugins.iter().any(|listed| listed.id == plugin.id))
+                    .collect();
+                snapshot.ui.extend(own.ui.into_iter().filter(|c| added.iter().any(|plugin| plugin.id == c.plugin_id)));
+                snapshot.plugins.extend(added);
+            }
+            snapshot.plugins.sort_by_key(|plugin| plugin.name.to_lowercase());
+            snapshot
         });
         let listing = cx.spawn(async move |cx: &mut AsyncApp| {
             let snapshot = listed.await;
@@ -285,7 +323,23 @@ impl Plugins {
         cx.global_mut::<Plugins>().listing = Some(listing);
     }
 
+    /// Unloads the own plugins of the project at `root` off the main thread, unless another
+    /// window still has it open; the host announces the change, and the plugins are listed again.
+    pub fn release_project(root: PathBuf, cx: &mut App) {
+        let host = cx.global::<Plugins>().host.clone();
+        let projects = cx.try_global::<Backend>().map(|backend| backend.host.clone());
+        cx.background_executor()
+            .spawn(async move {
+                let open = projects.is_some_and(|projects| projects.projects().iter().any(|p| p.root == root));
+                if !open {
+                    host.restrict_project(&root);
+                }
+            })
+            .detach();
+    }
+
     fn listed(snapshot: PluginsSnapshot, cx: &mut App) {
+        cx.global_mut::<Plugins>().listings += 1;
         let name_of = |plugin_id: &str| {
             snapshot.plugins.iter().find(|plugin| plugin.id == plugin_id).map(|plugin| plugin.name.clone())
         };
@@ -417,7 +471,7 @@ fn run_command(
         let Err(error) = ran.await else { return };
         cx.update(|cx| {
             Plugins::refresh(cx);
-            let stopped = host.list(None).plugins.iter().any(|p| p.id == plugin && p.status == PluginStatus::Failed);
+            let stopped = host.info_of(&plugin).is_ok_and(|info| info.status == PluginStatus::Failed);
             if stopped || error.kind == ide_core::error::ErrorKind::PermissionDenied {
                 return;
             }

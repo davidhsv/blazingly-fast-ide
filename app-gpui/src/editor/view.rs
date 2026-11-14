@@ -32,10 +32,10 @@ use crate::theme;
 use gpui_kit::MouseMoveEvent;
 use gpui_kit::{
     AnyView, App, Bounds, ClipboardItem, Context, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
-    EntityInputHandler, FocusHandle, Focusable, Font, GlobalElementId, Hsla, InspectorElementId, IntoElement,
-    KeyDownEvent, LayoutId, Modifiers, MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollEvent, ShapedLine,
-    SharedString, Style, TextAlign, TextRun, UTF16Selection, WeakEntity, Window, div, fill, font, point, prelude::*,
-    px, quad, relative, size,
+    EntityInputHandler, FocusHandle, Focusable, Font, FontFallbacks, FontFeatures, FontStyle, FontWeight,
+    GlobalElementId, Hsla, InspectorElementId, IntoElement, KeyDownEvent, LayoutId, Modifiers, MouseButton,
+    MouseDownEvent, Pixels, Point, Render, ScrollEvent, ShapedLine, SharedString, Style, TextAlign, TextRun,
+    UTF16Selection, WeakEntity, Window, div, fill, point, prelude::*, px, quad, relative, size,
 };
 use ide_core::error::ErrorKind;
 use ide_core::{ChangeSet, DocId, IdeEvent, IdeResult, LanguageId, TextChange};
@@ -302,7 +302,11 @@ impl Editor {
                 });
             }
             IdeEvent::SettingsChanged { .. } => {
-                let _ = weak.update(cx, |editor, _| editor.read_facts());
+                let _ = weak.update(cx, |editor, cx| {
+                    editor.read_facts();
+                    // The font may have changed.
+                    cx.notify();
+                });
             }
             _ => {}
         });
@@ -586,7 +590,9 @@ impl Editor {
     /// The font size, line height and gutter width the editor paints with: the theme's, the font
     /// and the line height scaled by the editor's font zoom.
     fn metrics(&self, cx: &App) -> (Pixels, Pixels, Pixels) {
-        let (size, line) = (theme::length(cx, "fs-code"), theme::length(cx, "lh-code"));
+        let font = &self.facts.font;
+        let size = if font.size > 0.0 { px(font.size) } else { theme::length(cx, "fs-code") };
+        let line = if font.line_height > 0.0 { px(font.line_height) } else { theme::length(cx, "lh-code") };
         let zoomed = (size + px(self.core.font_zoom as f32)).max(px(1.0));
         (zoomed, line * (zoomed / size), theme::length(cx, "w-gutter"))
     }
@@ -615,14 +621,38 @@ impl Editor {
         cx.notify();
     }
 
-    /// The first font of the theme's `--font-mono` list that is installed.
-    fn code_font(cx: &App) -> Font {
-        let families =
+    /// The font the text is drawn with: the first family that is installed of the one Editor ›
+    /// Font names, its fallback font and the theme's `--font-mono` list, with the others after it
+    /// for characters it lacks; the main weight; ligatures only when they are turned on.
+    pub fn code_font(&self, cx: &App) -> Font {
+        let settings = &self.facts.font;
+        let theme =
             cx.try_global::<theme::ActiveTheme>().map(|t| t.theme.font_families("font-mono")).unwrap_or_default();
-        let installed = cx.text_system().all_font_names();
-        let family =
-            families.into_iter().find(|f| installed.iter().any(|name| name == f)).unwrap_or_else(|| "Menlo".to_owned());
-        font(SharedString::from(family))
+        let mut candidates: Vec<String> = [settings.family.clone(), settings.fallback.clone()]
+            .into_iter()
+            .filter(|name| !name.is_empty())
+            .chain(theme)
+            .collect();
+        candidates.dedup();
+        let installed = match cx.try_global::<InstalledFontNames>() {
+            Some(known) => known.0.clone(),
+            None => cx.text_system().all_font_names(),
+        };
+        let chosen = candidates.iter().position(|name| installed.contains(name));
+        let family = chosen.map_or_else(|| "Menlo".to_owned(), |at| candidates.remove(at));
+        Font {
+            family: SharedString::from(family),
+            features: if settings.ligatures { FontFeatures::default() } else { FontFeatures::disable_ligatures() },
+            fallbacks: (!candidates.is_empty()).then(|| FontFallbacks::from_fonts(candidates)),
+            weight: FontWeight(f32::from(settings.weight.clamp(100, 900))),
+            style: FontStyle::Normal,
+        }
+    }
+
+    /// The font, size and line height the text is drawn with.
+    pub fn text_style(&self, cx: &App) -> (Font, Pixels, Pixels) {
+        let (size, line_height, _) = self.metrics(cx);
+        (self.code_font(cx), size, line_height)
     }
 
     /// The document's line break as its text holds it.
@@ -1970,7 +2000,7 @@ impl Element for EditorElement {
     ) -> Prepared {
         let editor = self.editor.read(cx);
         let (font_size, line_height, gutter) = editor.metrics(cx);
-        let code_font = Editor::code_font(cx);
+        let code_font = editor.code_font(cx);
         let plain = theme::color(cx, "fg-editor");
         let number_color = theme::color(cx, "fg-gutter");
         let match_color = theme::color(cx, "fg-search-match");
@@ -2307,6 +2337,13 @@ impl Element for EditorElement {
         self.editor.update(cx, |editor, _| editor.layout = Some(layout));
     }
 }
+
+/// The installed font families, when they are known already (read for the font pickers, or
+/// given by a test); without it the editor asks the system.
+#[derive(Debug, Clone, Default)]
+pub struct InstalledFontNames(pub Vec<String>);
+
+impl gpui_kit::Global for InstalledFontNames {}
 
 #[cfg(test)]
 mod tests {

@@ -47,7 +47,8 @@ mod tests {
     // Not from a spec: the buffer checkbox and its size stage the two console settings.
     #[gpui_kit::test]
     async fn the_buffer_checkbox_and_size_stage_the_console_settings(cx: &mut TestAppContext) {
-        let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
+        // The buffer is overridden by default: start from a project that turned it off.
+        let model = cx.update(|cx| dialog_model(PAGE, &[("console.overrideBuffer", serde_json::json!(false))], cx));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Project);
         let (_, parts) = forms().remove(0);
         let (view, _, cx) = open(cx, move |_, cx| FormView::new(binding, parts, cx));

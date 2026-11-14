@@ -64,6 +64,8 @@ pub struct PickerSpec {
     pub mono_only: Option<bool>,
     /// When the picker can be used.
     pub gate: Gate,
+    /// What the row says under the field, after the status line.
+    pub hint: Option<&'static str>,
 }
 
 pub struct FontPicker {
@@ -76,6 +78,7 @@ pub struct FontPicker {
     gate: Gate,
     /// "Show only monospaced fonts", when the picker offers it.
     mono_only: Option<bool>,
+    hint: Option<&'static str>,
     field: Entity<TextField>,
     open: bool,
     /// The list follows what is typed only after something was typed.
@@ -90,7 +93,7 @@ impl EventEmitter<ControlEvent> for FontPicker {}
 impl FontPicker {
     /// The picker `spec` describes.
     pub fn new(binding: Binding, spec: PickerSpec, cx: &mut Context<Self>) -> Self {
-        let PickerSpec { key, label, name, allow_empty, mono_only, gate } = spec;
+        let PickerSpec { key, label, name, allow_empty, mono_only, gate, hint } = spec;
         let text = binding.text(key, cx);
         let placeholder = allow_empty.then(|| tx(cx, "None"));
         let field = new_field(&text, placeholder, cx);
@@ -127,6 +130,7 @@ impl FontPicker {
             allow_empty,
             gate,
             mono_only,
+            hint,
             field,
             open: false,
             filtering: false,
@@ -174,6 +178,7 @@ impl FontPicker {
             out.push(format!("[{}] {}", if on { "x" } else { " " }, tx(cx, "Show only monospaced fonts")));
         }
         out.push(format!("    {}", tx(cx, self.status(cx))));
+        out.extend(self.hint.map(|hint| format!("    {}", tx(cx, hint))));
         if self.open {
             out.extend(
                 self.suggestions(cx).iter().map(|font| format!("  • {} ({})", font.name, tx(cx, kind_of(font)))),
@@ -244,6 +249,11 @@ impl FontPicker {
 
 impl Render for FontPicker {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // The installed fonts are read the first time a picker is shown, not when Settings opens.
+        let unread = cx.try_global::<FontCatalog>().is_none_or(|catalog| catalog.0.status == FontStatus::Idle);
+        if unread {
+            cx.emit(ControlEvent::RefreshFonts);
+        }
         let name = self.name;
         let query = self.binding.query(cx);
         let matched = self.binding.matches(self.label, cx);
@@ -320,6 +330,7 @@ impl Render for FontPicker {
                     .children(mono),
             )
             .child(hint_line(cx, &status, super::LABEL_WIDTH))
+            .children(self.hint.map(|hint| hint_line(cx, &tx(cx, hint), super::LABEL_WIDTH)))
     }
 }
 
@@ -343,11 +354,11 @@ mod tests {
         FontCatalog(catalog)
     }
 
-    fn picker(
-        cx: &mut TestAppContext,
+    fn picker<'a>(
+        cx: &'a mut TestAppContext,
         saved: &str,
         mono_only: Option<bool>,
-    ) -> (Entity<FontPicker>, Entity<crate::settings_model::staging::SettingsDialog>, &mut VisualTestContext) {
+    ) -> (Entity<FontPicker>, Entity<crate::settings_model::staging::SettingsDialog>, &'a mut VisualTestContext) {
         cx.update(|cx| cx.set_global(catalog(FontStatus::Ready)));
         let model = cx.update(|cx| dialog_model(PAGE, &[("editor.fontFamily", json!(saved))], cx));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Global);
@@ -359,6 +370,7 @@ mod tests {
                 allow_empty: true,
                 mono_only,
                 gate: Gate::Always,
+                hint: None,
             };
             FontPicker::new(binding, spec, cx)
         });
@@ -444,6 +456,7 @@ mod tests {
                 allow_empty: false,
                 mono_only: Some(true),
                 gate: Gate::Off("terminal.useEditorFont"),
+                hint: None,
             };
             FontPicker::new(binding, spec, cx)
         });

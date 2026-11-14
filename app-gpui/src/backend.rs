@@ -127,6 +127,8 @@ pub struct Backend {
     events: UnboundedSender<BackendEvent>,
     /// Kept so the event pump lives as long as the backend.
     _pump: Task<()>,
+    /// The saved Git HTTPS credentials of this backend's data directory.
+    git_credentials: Option<ide_ssh::git_creds::GitCredentials>,
 }
 
 impl Global for Backend {}
@@ -164,8 +166,15 @@ impl Backend {
         if dirs.isolated {
             ide_ssh::secrets::keep_secrets_in_files();
         }
-        // Saved git HTTPS credentials (askpass answers them silently).
-        ide_ssh::git_creds::init(dirs.data.join("git-credentials.json"));
+        // Saved git HTTPS credentials (askpass answers them silently). The store installed is the
+        // process's; this backend keeps the one it installed, so a backend started meanwhile
+        // elsewhere in the process (tests) does not hand it another directory's.
+        let git_credentials = {
+            static INSTALL: parking_lot::Mutex<()> = parking_lot::const_mutex(());
+            let _installing = INSTALL.lock();
+            ide_ssh::git_creds::init(dirs.data.join("git-credentials.json"));
+            ide_ssh::git_creds::get()
+        };
         // File › Invalidate Caches… requested at the last run.
         let removed = ide_workspace::caches::apply_pending(&dirs.data, &dirs.local_data);
         if !removed.is_empty() {
@@ -213,6 +222,7 @@ impl Backend {
             next_listener: 0,
             events: sender,
             _pump: Task::ready(()),
+            git_credentials,
         };
         let _ = cx;
         Ok((backend, events))
@@ -256,6 +266,11 @@ impl Backend {
 
     pub fn unlisten(&mut self, id: u64) {
         self.listeners.retain(|(listener, _)| *listener != id);
+    }
+
+    /// The saved Git HTTPS credentials (Settings › Git › Passwords), when their store started.
+    pub fn git_credentials(&self) -> Option<&ide_ssh::git_creds::GitCredentials> {
+        self.git_credentials.as_ref()
     }
 
     /// Runs backend work on the backend's runtime; the returned future is awaited from GPUI's

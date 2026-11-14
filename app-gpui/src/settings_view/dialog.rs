@@ -232,6 +232,11 @@ impl SettingsDialogView {
         cx.notify();
     }
 
+    /// The view drawn for the control of its own labelled `label` on `page`, when it has one.
+    pub fn custom_control(&self, page: &str, label: &str) -> Option<&AnyView> {
+        self.custom_views.get(&(page.to_owned(), label.to_owned()))
+    }
+
     /// More texts the search finds `page` by (the action names of the Keymap).
     pub fn set_page_labels(&mut self, page: &str, labels: Vec<String>, cx: &mut Context<Self>) {
         self.extra_labels.insert(page.to_owned(), labels);

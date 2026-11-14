@@ -47,6 +47,7 @@ pub fn font_picker() -> PickerSpec {
         allow_empty: false,
         mono_only: Some(true),
         gate: Gate::Always,
+        hint: None,
     }
 }
 
@@ -59,6 +60,7 @@ pub fn fallback_picker() -> PickerSpec {
         allow_empty: true,
         mono_only: None,
         gate: Gate::Always,
+        hint: Some("For symbols not supported by the main font"),
     }
 }
 

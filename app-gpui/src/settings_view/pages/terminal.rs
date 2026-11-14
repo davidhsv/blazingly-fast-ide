@@ -110,9 +110,10 @@ pub fn font_slot() -> Vec<FontPiece> {
             allow_empty: false,
             mono_only: Some(true),
             gate: own,
+            hint: None,
         }),
         FontPiece::Form(vec![
-            number("terminal.fontSize", "Size", 6.0, 72.0, 1.0).fractional().unit("px").gate(own).indented().into(),
+            number("terminal.fontSize", "Size", 6.0, 72.0, 1.0).fractional().unit("px").indented().into(),
             number("terminal.lineHeight", "Line height", 0.5, 3.0, 0.1).fractional().into(),
         ]),
         FontPiece::Picker(PickerSpec {
@@ -122,6 +123,7 @@ pub fn font_slot() -> Vec<FontPiece> {
             allow_empty: true,
             mono_only: None,
             gate: Gate::Always,
+            hint: Some("Used for characters the main font lacks."),
         }),
         FontPiece::Form(vec![number("terminal.columnWidth", "Column width", 0.5, 2.0, 0.1).fractional().into()]),
     ]
@@ -171,6 +173,12 @@ impl ShellPathView {
 
     pub fn shells(&self) -> &[String] {
         &self.shells
+    }
+
+    /// The login shell the empty field names, read off the window's thread.
+    pub fn set_default_shell(&mut self, default_shell: &str, cx: &mut Context<Self>) {
+        let placeholder = default_shell.to_owned();
+        self.field.update(cx, |field, cx| field.set_placeholder(placeholder, cx));
     }
 
     /// The installed shells the list offers.
@@ -305,7 +313,7 @@ mod tests {
         let mut forms = forms();
         let (_, cursor) = forms.remove(2);
         let (_, options) = forms.remove(1);
-        let both = vec![cursor, options].concat();
+        let both = [cursor, options].concat();
         let (view, seen, cx) = open(cx, move |_, cx| FormView::new(binding, both, cx));
         click(cx, "settings-select-terminal.cursorShape");
         click(cx, "settings-choice-terminal.cursorShape-bar");
@@ -317,5 +325,26 @@ mod tests {
         assert!(lines[0].starts_with("Cursor shape: Vertical ▾ ["), "{lines:?}");
         click(cx, "settings-link-own-keymap");
         assert_eq!(seen.borrow().as_slice(), ["open keymap"]);
+    }
+
+    // terminal settings › the terminal's size stays editable while the editor font is used, and the
+    // fallback font says what it is for
+    #[gpui_kit::test]
+    async fn the_size_stays_editable_with_the_editor_font_and_the_fallback_says_what_it_is_for(
+        cx: &mut TestAppContext,
+    ) {
+        use super::super::font_picker::FontPicker;
+        let model = cx.update(|cx| dialog_model(PAGE, &[("terminal.useEditorFont", serde_json::json!(true))], cx));
+        let mut pieces = font_slot().into_iter().skip(2);
+        let Some(FontPiece::Form(parts)) = pieces.next() else { panic!("the size form") };
+        let binding = Binding::fixed(model.clone(), PAGE, Scope::Global);
+        let (view, _, cx) = open(cx, move |_, cx| FormView::new(binding, parts, cx));
+        let lines = view.read_with(cx, |view, cx| view.lines(cx));
+        assert!(lines.iter().any(|line| line.contains("Size: ") && !line.contains("(disabled)")), "{lines:?}");
+        let Some(FontPiece::Picker(spec)) = pieces.next() else { panic!("the fallback picker") };
+        let binding = Binding::fixed(model, PAGE, Scope::Global);
+        let picker = cx.update(|_, cx| cx.new(|cx| FontPicker::new(binding, spec, cx)));
+        let lines = picker.read_with(cx, |picker, cx| picker.lines(cx));
+        assert!(lines.contains(&"    Used for characters the main font lacks.".to_owned()), "{lines:?}");
     }
 }

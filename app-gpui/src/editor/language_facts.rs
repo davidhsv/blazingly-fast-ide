@@ -30,6 +30,25 @@ pub struct EditorFacts {
     pub reformat_on_paste: PasteReindent,
     /// Smart Keys › Enter › Insert documentation comment stub.
     pub insert_doc_stub: bool,
+    /// Editor › Font: what the text is drawn with.
+    pub font: EditorFont,
+}
+
+/// The font Editor › Font names for the editor's text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EditorFont {
+    /// The family; empty: the theme's monospaced one.
+    pub family: String,
+    /// The family tried for characters the main one lacks; empty: none.
+    pub fallback: String,
+    /// The size in pixels; zero or less: the theme's.
+    pub size: f32,
+    /// The line height in pixels; zero or less: the theme's.
+    pub line_height: f32,
+    /// Whether ligatures are drawn.
+    pub ligatures: bool,
+    /// The main font weight (CSS 100 to 900).
+    pub weight: u16,
 }
 
 impl Default for EditorFacts {
@@ -97,6 +116,14 @@ impl EditorFacts {
             backspace_unindent: keys.backspace_unindent.clone(),
             reformat_on_paste,
             insert_doc_stub: keys.insert_doc_stub,
+            font: EditorFont {
+                family: editor.font_family.trim().to_owned(),
+                fallback: editor.fallback_font.trim().to_owned(),
+                size: editor.font_size,
+                line_height: editor.line_height,
+                ligatures: editor.ligatures,
+                weight: editor.font_weight,
+            },
         }
     }
 

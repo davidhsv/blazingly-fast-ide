@@ -3,5 +3,7 @@
 //! [`crate::settings_model`] state.
 
 pub mod controls;
+pub mod custom_controls;
 pub mod dialog;
 pub mod keymap;
+pub mod pages;

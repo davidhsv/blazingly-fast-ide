@@ -215,6 +215,7 @@ pub fn custom_font_slot() -> Vec<FontPiece> {
             allow_empty: false,
             mono_only: None,
             gate: on,
+            hint: None,
         }),
         FontPiece::Picker(PickerSpec {
             key: "appearance.uiFontFallback",
@@ -223,6 +224,7 @@ pub fn custom_font_slot() -> Vec<FontPiece> {
             allow_empty: true,
             mono_only: None,
             gate: on,
+            hint: None,
         }),
         FontPiece::Form(vec![number("appearance.uiFontSize", "Size:", 10.0, 18.0, 1.0).gate(on).into()]),
     ]
@@ -381,8 +383,10 @@ mod tests {
         let field = view.read_with(cx, |view, _| view.field().clone());
         type_over(&field, "#FF0000", cx);
         assert_eq!(staged(&model, cx), [("global:appearance.accent".to_owned(), "\"#ff0000\"".to_owned())]);
+        // Typed a character at a time, "#ff0" is a colour on the way and is staged; "#ff00" is not.
         type_over(&field, "#ff00", cx);
-        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["Accent colour: Custom colour #ff0000 (invalid)"]);
+        assert_eq!(staged(&model, cx), [("global:appearance.accent".to_owned(), "\"#ff0\"".to_owned())]);
+        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["Accent colour: Custom colour #ff0 (invalid)"]);
     }
 
     // appearance & behavior settings › steps zoom within 50–300% (a stored zoom between the steps

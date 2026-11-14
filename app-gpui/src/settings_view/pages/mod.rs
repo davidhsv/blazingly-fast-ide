@@ -612,6 +612,19 @@ pub struct FormView {
 impl EventEmitter<ControlEvent> for FormView {}
 
 impl FormView {
+    /// The choice of a radio row that shows as selected: the value of `key` when it is one of
+    /// `choices`, else the setting's default (a value an older version stored, such as `attach`
+    /// for Open project in, loads as the default).
+    fn radio_value(&self, key: &str, choices: &[(&'static str, &'static str)], cx: &App) -> Option<String> {
+        let known = |value: Option<&Value>| {
+            value
+                .and_then(Value::as_str)
+                .filter(|value| choices.iter().any(|(choice, _)| choice == value))
+                .map(str::to_owned)
+        };
+        known(self.binding.value(key, cx).as_ref()).or_else(|| known(get_at(&DEFAULTS, key)))
+    }
+
     pub fn new(binding: Binding, parts: Vec<Part>, cx: &mut Context<Self>) -> Self {
         let wanted: Vec<(&'static str, FieldKind, Gate, Option<&'static str>)> = flat(&parts)
             .into_iter()
@@ -819,11 +832,11 @@ impl FormView {
                 out.extend(spec.hint.map(|hint| format!("    {}", tx(cx, hint))));
             }
             Part::Radio { key, label, choices, hint } => {
-                let current = self.binding.value(key, cx);
+                let current = self.radio_value(key, choices, cx);
                 let shown: Vec<String> = choices
                     .iter()
                     .map(|(value, text)| {
-                        let on = current.as_ref().and_then(Value::as_str) == Some(*value);
+                        let on = current.as_deref() == Some(*value);
                         format!("({}) {}", if on { "•" } else { " " }, tx(cx, text))
                     })
                     .collect();
@@ -895,13 +908,13 @@ impl FormView {
             Part::Field(spec) => self.draw_field_row(spec, query, cx),
             Part::Radio { key, label, choices, hint } => {
                 let key = *key;
-                let current = self.binding.value(key, cx);
+                let current = self.radio_value(key, choices, cx);
                 let matched = self.binding.matches(label, cx);
                 let radios: Vec<AnyElement> = choices
                     .iter()
                     .map(|(value, text)| {
                         let value = *value;
-                        let on = current.as_ref().and_then(Value::as_str) == Some(value);
+                        let on = current.as_deref() == Some(value);
                         let text = tx(cx, text);
                         div()
                             .id(SharedString::from(format!("settings-radio-{key}-{value}")))
@@ -1220,7 +1233,10 @@ pub(crate) mod test_support {
     /// The staged edits as (scope:key, JSON).
     pub fn staged(model: &Entity<SettingsDialog>, cx: &mut VisualTestContext) -> Vec<(String, String)> {
         model.read_with(cx, |dialog, _| {
-            dialog.staged().map(|change| (stage_key(change.scope, &change.key), change.value.to_string())).collect()
+            dialog
+                .staged()
+                .map(|change| (stage_key(change.scope, &change.key).replacen('|', ":", 1), change.value.to_string()))
+                .collect()
         })
     }
 }
@@ -1277,7 +1293,8 @@ mod tests {
     // their value, and the lines show what is staged.
     #[gpui_kit::test]
     async fn the_form_stages_checkboxes_radio_buttons_and_choices(cx: &mut TestAppContext) {
-        let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
+        // The buffer is overridden by default: start from settings that turned it off.
+        let model = cx.update(|cx| dialog_model(PAGE, &[("console.overrideBuffer", json!(false))], cx));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Global);
         let (view, _, cx) = open(cx, move |_, cx| FormView::new(binding, parts(), cx));
         click(cx, "settings-toggle-console.overrideBuffer");
