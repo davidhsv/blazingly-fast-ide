@@ -161,7 +161,7 @@
   },
   "module:src/editor/core/cm": {
     "status": "partial",
-    "proof": "`editor::view::editing_tests`, `editor::view::tests`, `editor::buffer::tests`, `editor::core_actions::tests`, `workbench::plugin_contributions::tests::a_fold_above_moves_every_line_below_it_to_its_row`; caret movement, selection, multiple carets, column selection, undo, clipboard, find, highlighting and folding on the backend's fold ranges, every line painted on its row below a fold; no fold chevrons on open regions or clicks on them, no fold-by-default on open, no bracket or indentation rules"
+    "proof": "`editor::view::editing_tests`, `editor::view::tests`, `editor::buffer::tests`, `editor::core_actions::tests`, `workbench::plugin_contributions::tests::a_fold_above_moves_every_line_below_it_to_its_row`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::rainbow_brackets_colour_the_brackets_by_their_depth`, `workbench::editor_extras::tests::distraction_free_mode_hides_the_tabs_and_the_gutter_and_centres_the_text`; caret movement, selection, multiple carets, column selection, undo, clipboard, find, highlighting, folding on the backend's fold ranges with the gutter's chevrons, every line painted on its row below a fold, rainbow brackets and the centred column of Distraction Free Mode; no fold-by-default on open, no bracket or indentation rules, no sticky lines or margin guides"
   },
   "module:src/workbench/StatusBar.tsx": {
     "status": "done",
@@ -653,7 +653,7 @@
   },
   "feature:plugins": {
     "status": "partial",
-    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`; the plugin host runs in the app: themes, commands as actions, the Plugins page (list, enable, uninstall, install with consent, secrets), status items, tasks, notifications, questions, context keys, log tabs, Tools, Project view, editor and Find results menus, the editor tab strip's toolbar slot, gutter actions, settings pages, runs and DAP debug requests, and workbench events. Missing: plugin views and tool windows, web views, content tabs, OpenTerminal and terminal sessions, run targets, Run Anything, decorations, the JDWP debug branch, the editor tab and Problems menu entries and the mainToolbar and commit.message slots (built, untested), the marketplace and updates, IntelliJ theme imports"
+    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `plugins::tests::a_plugins_command_runs_its_wasm_on_the_editors_selection`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::plugins_window::tests::a_trusted_projects_own_plugins_load_when_it_opens_and_their_command_runs`, `workbench::plugins_window::tests::trusting_an_open_project_loads_its_own_plugins`, `workbench::plugins_window::tests::revoking_trust_unloads_the_projects_own_plugins_and_their_contributions`; the plugin host runs in the app: themes, commands as actions, the Plugins page (list, enable, uninstall, install with consent, secrets), status items, tasks, notifications, questions, context keys, log tabs, Tools, Project view, editor and Find results menus, the editor tab strip's toolbar slot, gutter actions, settings pages, runs and DAP debug requests, workbench events, and a trusted project's own plugins, loaded when it opens or is trusted and unloaded on Revoke Trust. Missing: plugin views and tool windows, web views, content tabs, OpenTerminal and terminal sessions, run targets, Run Anything, decorations, the JDWP debug branch, the editor tab and Problems menu entries and the mainToolbar and commit.message slots (built, untested), the marketplace and updates, IntelliJ theme imports, and one plugin listing for the whole app where the webview lists per window"
   },
   "feature:terminal": {
     "status": "partial",
@@ -721,7 +721,7 @@
   },
   "ipc:plugin_list": {
     "status": "partial",
-    "proof": "`workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed`, `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`; the pages list through wait_initial_load, sync_links, sync_project and list with the window's project root, as the adapter does. Missing: no test lists a plugin of the project itself"
+    "proof": "`workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed`, `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`, `workbench::plugins_window::tests::a_trusted_projects_own_plugins_load_when_it_opens_and_their_command_runs`, `workbench::plugins_window::tests::trusting_an_open_project_loads_its_own_plugins`, `workbench::plugins_window::tests::an_undecided_projects_own_plugins_do_not_load_and_the_listing_does_not_repeat`; the Plugins page lists through wait_initial_load, sync_links, sync_project and list with the window's project root, as the adapter does, and the app's listing syncs and lists every open trusted project's own plugins, whose command, menu entry, status item, tool window and settings page appear. Missing: the app's listing is one merge over every open trusted project, where the adapter lists per window, and an untrusted project's folder is not synced as the adapter does; no test opens two windows"
   },
   "ipc:plugin_set_theme": {
     "status": "done",
@@ -825,7 +825,7 @@
   },
   "point.registerToolWindow:find": {
     "status": "partial",
-    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`, `find::window_store::tests`; one search with its results by file. Not yet: result tabs, grouping options, replace, preview, the header menu"
+    "proof": "`workbench::tests::find_in_files_searches_the_project_and_opens_a_match`, `find::window_store::tests`, `workbench::editor_extras::tests::rerun_search_finds_what_was_written_since_the_search`; one search with its results by file, and ⌘R runs it again while the window is active. Not yet: result tabs, grouping options, replace, preview, the header menu, Next / Previous Occurrence through its results"
   },
   "ipc:search_start": {
     "status": "done",
@@ -945,7 +945,7 @@
   },
   "feature:search": {
     "status": "partial",
-    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `workbench::tests::file_structure_lists_the_editors_symbols_and_goes_to_the_chosen_one`, `workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`; Find and Replace in Files, Search Everywhere, Recent Files and the Switcher, File Structure and Bookmarks all open and work as popups, the Find tool window lists results. Each has its gaps listed on its own overlay row; none has the webview's preview editor, and the Structure and Bookmarks tool windows are missing"
+    "proof": "`workbench::tests::find_in_files_opens_a_popup_that_searches_opens_and_hands_over`, `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `workbench::tests::file_structure_lists_the_editors_symbols_and_goes_to_the_chosen_one`, `workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `workbench::editor_extras::tests::rerun_search_finds_what_was_written_since_the_search`; Find and Replace in Files, Search Everywhere, Recent Files and the Switcher, File Structure and Bookmarks all open and work as popups, the Find tool window lists results and Rerun Search (⌘R) runs its search again. Each has its gaps listed on its own overlay row; none has the webview's preview editor, and the Structure and Bookmarks tool windows are missing"
   },
   "action:terminal.new": {
     "status": "done",
@@ -3569,7 +3569,7 @@
   },
   "point.registerToolWindow:todo": {
     "status": "partial",
-    "proof": "`workbench::tests::the_todo_window_lists_the_projects_todo_comments_and_follows_what_is_typed`, `features_a::todo_view::tests`; project, current file and scope tabs with a read-only preview. Not yet: the Changes tab (change lists are not fed), stored settings, rescans on save, the badge, previous and next occurrence"
+    "proof": "`workbench::tests::the_todo_window_lists_the_projects_todo_comments_and_follows_what_is_typed`, `features_a::todo_view::tests`, `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`; project, current file and scope tabs with a read-only preview, and Next / Previous Occurrence stepping through its items. Not yet: the Changes tab (change lists are not fed), stored settings, rescans on save, the badge, the i of n status message of a step"
   },
   "action:todo.refresh": {
     "status": "done",
@@ -3957,7 +3957,7 @@
   },
   "point.registerOverlay:editor-lsp.popups": {
     "status": "partial",
-    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`, `editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`, `editor::intelligence::tests::parameter_info_opens_after_a_parenthesis_and_follows_the_commas`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`, `workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `editor_lsp::definition_view::tests`; the lookup, hover, parameter info, intentions, the target chooser and the quick definition popup; rename asks in a dialog instead of the popup at the caret, and the reformat and imports-on-paste dialogs are not built"
+    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`, `editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`, `editor::intelligence::tests::parameter_info_opens_after_a_parenthesis_and_follows_the_commas`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`, `workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `editor_lsp::definition_view::tests`, `workbench::editor_extras::tests::reformat_file_reformats_the_scope_chosen_in_the_dialog`; the lookup, hover, parameter info, intentions, the target chooser, the quick definition popup and the Reformat File dialog; rename asks in a dialog instead of the popup at the caret, Expression Type Info shows a hint instead of the doc popup, and the imports-on-paste dialog is not built"
   },
   "ipc:lsp_completion": {
     "status": "done",
@@ -4097,7 +4097,7 @@
   },
   "point.registerToolWindow:problems": {
     "status": "partial",
-    "proof": "`workbench::tests::the_problems_window_lists_published_problems_and_opens_the_chosen_one`, `code_insight::problems_view::tests`; published problems by file with counts, opening one; the stripe badge, file decorations in the Project view and the IDE's own inspections are missing"
+    "proof": "`workbench::tests::the_problems_window_lists_published_problems_and_opens_the_chosen_one`, `code_insight::problems_view::tests`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`; published problems by file with counts, opening one, and Next / Previous Occurrence stepping through them with i of n in the status bar; the stripe badge, file decorations in the Project view and the IDE's own inspections are missing"
   },
   "point.registerToolWindow:usages": {
     "status": "partial",
@@ -4561,7 +4561,7 @@
   },
   "feature:settings": {
     "status": "partial",
-    "proof": "`workbench::tests::settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes`, `workbench::tests::settings_cancel_after_an_edit_writes_nothing`, `workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`, `workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `workbench::tests::settings_appearance_applies_the_chosen_theme`, `workbench::tests::settings_for_new_projects_and_plugins_open_on_their_pages`; the dialog with search, page tree, Global/This project scope, Apply/Cancel/OK, the Keymap and Plugins pages and every option-table page; about 40 of the 68 pages (all language, build-tool and feature pages) and every control of its own draw \"This page is not available yet\""
+    "proof": "`workbench::tests::settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes`, `workbench::tests::settings_cancel_after_an_edit_writes_nothing`, `workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`, `workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `workbench::tests::settings_appearance_applies_the_chosen_theme`, `workbench::tests::settings_for_new_projects_and_plugins_open_on_their_pages`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::the_search_and_the_modified_marker_treat_own_controls_like_standard_ones`, `settings_view::custom_controls::tests::the_editor_draws_with_the_font_applied_on_the_font_page`; the dialog with search, page tree, Global/This project scope, Apply/Cancel/OK, the Keymap and Plugins pages, every option-table page, and the own controls of Appearance, General, Notifications, Console, Data Views, Deployment Options, Terminal, Commit, Confirmation, Git, Editor › Font and Code Style, the editor drawing with the font set on the Font page. Missing: the pages the app does not build (most language, build-tool and feature pages) and the MCP server's Endpoint still say This page is not available yet, and the gaps listed on each settings row"
   },
   "ipc:settings_get_global": {
     "status": "partial",
@@ -5573,7 +5573,7 @@
   },
   "unit:src/editor/lsp/Popups.test.tsx": {
     "status": "partial",
-    "proof": "`editor::intelligence::tests::proofs_editor_lsp::a_quick_fixs_arrow_menu_opens_with_the_right_arrow_and_runs_its_controls`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor_lsp::definition_view::tests::switches_between_several_definitions_with_left_right_and_edits_the_source_with_f4`; 3 of 13 cases (the row's → menu and its items, the lazily fetched preview, several definitions switched with ← / → and edited with F4); numbered rows, pinning, the selection report, the imports-on-paste dialog (2), the documentation history and tool window (4) and the reformat dialog are not proven"
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::a_quick_fixs_arrow_menu_opens_with_the_right_arrow_and_runs_its_controls`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor_lsp::definition_view::tests::switches_between_several_definitions_with_left_right_and_edits_the_source_with_f4`, `editor_lsp::reformat_dialog::tests::runs_with_the_scope_and_options_chosen`; 4 of 13 cases (the row's → menu and its items, the lazily fetched preview, several definitions switched with ← / → and edited with F4, the reformat dialog's Run with its options); numbered rows, pinning, the selection report, the imports-on-paste dialog (2) and the documentation history and tool window (4) are not proven"
   },
   "ipc:index_file_extensions": {
     "status": "done",
@@ -6033,39 +6033,39 @@
   },
   "action:code.fold": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `editor::core_actions::tests::the_caret_skips_the_lines_a_fold_hides`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; run through the registry on the backend's fold ranges, Collapse folds the region at the caret and the caret steps to the fold's header and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `editor::core_actions::tests::the_caret_skips_the_lines_a_fold_hides`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry on the backend's fold ranges, Collapse folds the region at the caret and the caret steps to the fold's header and the lines shown change as the webview's do. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.unfold": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; run through the registry on the backend's fold ranges, Expand opens the fold at the caret, keeping an inner fold folded and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry on the backend's fold ranges, Expand opens the fold at the caret, keeping an inner fold folded and the lines shown change as the webview's do. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.foldToggle": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry on the backend's fold ranges, Toggle Fold folds the region at the caret and opens it on a second run and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry on the backend's fold ranges, Toggle Fold folds the region at the caret and opens it on a second run and the lines shown change as the webview's do. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.foldAll": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; run through the registry on the backend's fold ranges, Collapse All leaves only the outer lines shown and Expand All shows them all again; it does not run without an editor tab. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry on the backend's fold ranges, Collapse All leaves only the outer lines shown and Expand All shows them all again; it does not run without an editor tab. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.unfoldAll": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry on the backend's fold ranges, Expand All opens every fold and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry on the backend's fold ranges, Expand All opens every fold and the lines shown change as the webview's do. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.collapseRecursively": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry on the backend's fold ranges, Collapse Recursively folds the region at the caret with the regions inside it and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry on the backend's fold ranges, Collapse Recursively folds the region at the caret with the regions inside it and the lines shown change as the webview's do. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.expandRecursively": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry on the backend's fold ranges, Expand Recursively opens the region at the caret with the folds inside it and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry on the backend's fold ranges, Expand Recursively opens the region at the caret with the folds inside it and the lines shown change as the webview's do. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.foldSelection": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::plugin_contributions::tests::a_fold_above_moves_every_line_below_it_to_its_row`; run through the registry, Fold Selection folds the selected lines and every line below is painted on its row. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::plugin_contributions::tests::a_fold_above_moves_every_line_below_it_to_its_row`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry, Fold Selection folds the selected lines and every line below is painted on its row. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.collapseBlock": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; run through the registry, Fold Code Block folds the block around the caret, found from the text's brackets, and the lines shown change as the webview's do. Missing: the gutter draws a chevron only on a folded line and a click on it does nothing (the webview's gutter shows open regions too and folds or unfolds on click), and Settings › Code Folding's fold-by-default is not applied when a file opens"
+    "proof": "`editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::a_click_in_the_breakpoint_area_folds_nothing`, `workbench::plugin_contributions::tests::a_click_on_the_fold_chevron_runs_no_gutter_action_and_one_on_the_icon_folds_nothing`; run through the registry, Fold Code Block folds the block around the caret, found from the text's brackets, and the lines shown change as the webview's do. The gutter's fold column shows a chevron on every line that starts a fold, and a click on it folds or opens that region, leaving the caret, the selection and the breakpoints alone; a press in the breakpoint area folds nothing. Missing: Settings › Code Folding's fold-by-default is not applied when a file opens, and no test draws the column with folding.showOutline off or checks that open chevrons show only while the pointer is over the gutter"
   },
   "action:code.extendSelection": {
     "status": "partial",
@@ -6129,7 +6129,7 @@
   },
   "action:file.reloadAllFromDisk": {
     "status": "partial",
-    "proof": "`workbench::editor_core::tests::reload_from_disk_reads_the_file_again_unless_it_has_unsaved_changes`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; every open document without unsaved changes reads its file again; it does not run in a window without a project. Missing: project.refresh is not registered in the app, so the Project view is not read again as the webview's Reload All does; vcs.refresh runs but no test asserts it"
+    "proof": "`workbench::editor_core::tests::reload_from_disk_reads_the_file_again_unless_it_has_unsaved_changes`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `workbench::editor_extras::tests::reload_all_from_disk_reads_the_project_tree_again`; every open document without unsaved changes reads its file again, then project.refresh and vcs.refresh run; it does not run in a window without a project. Missing: the Project view lists a file written outside the IDE afterwards, but the file watcher lists it too, so no test tells the reload from the watcher (one with the tree's watcher stopped would), and no test asserts vcs.refresh"
   },
   "action:file.toggleReadOnly": {
     "status": "partial",
@@ -6141,11 +6141,11 @@
   },
   "action:editor.pasteHistory.paste": {
     "status": "partial",
-    "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; run through the registry in the open dialog it pastes the selected entry and closes the dialog; without the dialog it does not run. Missing: its keymap bindings cannot fire, since their keyWhen pasteHistoryListFocus is never set in the app; the dialog's own Enter and Delete keys stand in"
+    "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `workbench::editor_extras::tests::the_paste_history_keys_edit_the_filter_or_act_on_the_chosen_entry`, `workbench::editor_extras::tests::the_paste_history_keys_are_enabled_while_its_dialog_has_the_keyboard`; run through the registry in the open dialog it pastes the selected entry and closes the dialog; without the dialog it does not run; Enter pastes the chosen entry and closes the dialog; pasteHistoryListFocus is on while the dialog has the keyboard. Missing: the dialog's own key handling answers Enter, Delete and Backspace as well, so no test shows the keymap binding (keyWhen pasteHistoryListFocus) is what runs"
   },
   "action:editor.pasteHistory.remove": {
     "status": "partial",
-    "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `editor::paste_history_view::tests::deletes_selected_entries_selects_a_neighbour_and_handles_removing_the_last_entry`; run through the registry in the open dialog it removes the selected entry from the clipboard history; without the dialog it does not run. Missing: its keymap bindings cannot fire, since their keyWhen pasteHistoryListFocus is never set in the app; the dialog's own Enter and Delete keys stand in"
+    "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `editor::paste_history_view::tests::deletes_selected_entries_selects_a_neighbour_and_handles_removing_the_last_entry`, `workbench::editor_extras::tests::the_paste_history_keys_edit_the_filter_or_act_on_the_chosen_entry`, `workbench::editor_extras::tests::the_paste_history_keys_are_enabled_while_its_dialog_has_the_keyboard`; run through the registry in the open dialog it removes the selected entry from the clipboard history; without the dialog it does not run; Delete, and Backspace in an empty filter, delete the chosen entry while Backspace with text edits the filter; pasteHistoryListFocus is on while the dialog has the keyboard. Missing: the dialog's own key handling answers Enter, Delete and Backspace as well, so no test shows the keymap binding (keyWhen pasteHistoryListFocus) is what runs"
   },
   "action:refactor.rename": {
     "status": "partial",
@@ -6213,15 +6213,15 @@
   },
   "action:find.highlightUsages": {
     "status": "partial",
-    "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`; run through the registry it marks the occurrences the server reports, keeps the status text 3 usages of 'foo' found (…), removes the marks when run again on a usage or on Escape, and says No usages found in file. Missing: the status text is kept but the status bar does not draw it, and without a language server the webview's fallback to the local's same-scope occurrences from the syntax tree is not built"
+    "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`, `workbench::editor_extras::tests::the_status_bar_shows_the_highlighted_usages_count`; run through the registry it marks the occurrences the server reports, the status bar shows 3 usages of 'foo' found (…) until the marks go, it removes the marks when run again on a usage or on Escape, and says No usages found in file. Missing: without a language server the webview's fallback to the local's same-scope occurrences from the syntax tree is not built"
   },
   "action:navigate.nextHighlightedUsage": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`; run through the registry the caret goes to the next highlighted usage at the same place in the name, wrapping. Missing: without highlighted usages it falls back to navigate.nextOccurrence, which the app does not register, so it does nothing there"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`, `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`; run through the registry the caret goes to the next highlighted usage at the same place in the name, wrapping; with no highlighted usages ⌃⌥↓ in the editor runs Next Occurrence and steps the TODO tool window's items, as the webview's fallback does"
   },
   "action:navigate.prevHighlightedUsage": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`; run through the registry the caret goes to the previous highlighted usage at the same place in the name, wrapping. Missing: without highlighted usages it falls back to navigate.prevOccurrence, which the app does not register, so it does nothing there"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`, `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`; run through the registry the caret goes to the previous highlighted usage at the same place in the name, wrapping; with no highlighted usages ⌃⌥↑ in the editor runs Previous Occurrence and steps back through the TODO tool window's items, as the webview's fallback does"
   },
   "action:code.quickDefinition": {
     "status": "partial",
@@ -6233,7 +6233,7 @@
   },
   "action:navigate.gotoTest": {
     "status": "partial",
-    "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`; run through the registry from src/calc.py it opens tests/test_calc.py, and from the test it opens the subject again. Missing: Create New Test… runs templates.newFromTemplate, which the app does not register, and no test runs the chooser of several tests or the Rust test module insertion"
+    "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`, `workbench::editor_extras::tests::go_to_test_offers_create_new_test_only_with_the_file_templates`; run through the registry from src/calc.py it opens tests/test_calc.py, and from the test the subject again; with two tests it offers both in a chooser. Missing: Create New Test… needs templates.newFromTemplate, which the app does not register, so the row is left out and a file without tests opens no chooser where the webview opens Choose Test for X (0 found) with that row; the Rust test module insertion is untested"
   },
   "action:navigate.nextMethod": {
     "status": "done",
@@ -6297,11 +6297,11 @@
   },
   "unit:src/editor/core/view/PasteHistoryDialog.test.tsx": {
     "status": "partial",
-    "proof": "`editor::paste_history_view::tests::filters_full_contents_as_you_type_and_resets_selection_including_empty_results`, `editor::paste_history_view::tests::extends_and_shrinks_selection_with_shift_arrow_from_the_search_field`, `editor::paste_history_view::tests::deletes_selected_entries_selects_a_neighbour_and_handles_removing_the_last_entry`, `editor::paste_history_view::tests::deletes_only_matching_selections_while_allowing_backspace_to_edit_the_filter`; 4 of 12 cases. Missing: the preview's grammar and editor font, ⌘-click pasting with focus restored, ⇧-click, double-click, Escape restoring focus with IME commit keys ignored, the actions scoped by pasteHistoryOpen and pasteHistoryListFocus, the reset on reopening and the two read-only or closed editor cases"
+    "proof": "`editor::paste_history_view::tests::filters_full_contents_as_you_type_and_resets_selection_including_empty_results`, `editor::paste_history_view::tests::extends_and_shrinks_selection_with_shift_arrow_from_the_search_field`, `editor::paste_history_view::tests::deletes_selected_entries_selects_a_neighbour_and_handles_removing_the_last_entry`, `editor::paste_history_view::tests::deletes_only_matching_selections_while_allowing_backspace_to_edit_the_filter`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `workbench::editor_extras::tests::the_paste_history_keys_edit_the_filter_or_act_on_the_chosen_entry`, `workbench::editor_extras::tests::the_paste_history_keys_are_enabled_while_its_dialog_has_the_keyboard`; 5 of 12 cases: the actions scoped to the open dialog with Backspace, Delete and Enter acting on the chosen entry and the keys off once it closes. Missing: the preview's grammar and editor font, ⌘-click pasting with focus restored, ⇧-click, double-click, Escape restoring focus with IME commit keys ignored, the reset on reopening and the two read-only or closed editor cases"
   },
   "module:src/editor/core/actions.ts": {
     "status": "partial",
-    "proof": "`editor::core_actions::tests`, `workbench::editor_core::tests`, `editor::command_actions::tests`; folding, Extend / Shrink Selection, Auto-Indent Lines, Scroll to Center, font size, Back / Forward, edit locations, Copy Path, Reload from Disk, the read-only toggle and Paste from History run through the registry besides the line and caret commands. Missing: Soft-Wrap, Unwrap/Remove…, Context Info, Custom Folding…, Expand to Level, the fold gutter and fold-by-default, places inside one file for Back, and the hint at the caret"
+    "proof": "`editor::core_actions::tests`, `workbench::editor_core::tests`, `editor::command_actions::tests`, `workbench::editor_extras::tests`; folding with the gutter's chevrons, Expand to Level, Context Info, Custom Folding…, Unwrap/Remove…, Rainbow Brackets, Extend / Shrink Selection, Auto-Indent Lines, Scroll to Center, font size, Back / Forward, edit locations, Copy Path, Reload from Disk, the read-only toggle and Paste from History run through the registry besides the line and caret commands. Missing: Soft-Wrap, the Semantic Highlighting switch, Add or Remove Caret, fold-by-default, Context Info's syntax-tree fallback, the Unwrap/Remove chooser (untested), places inside one file for Back, and the hint at the caret"
   },
   "module:src/editor/core/fileAttributes.ts": {
     "status": "partial",
@@ -6313,11 +6313,11 @@
   },
   "module:src/editor/lsp/format.ts": {
     "status": "partial",
-    "proof": "`workbench::editor_language::tests::reformat_code_applies_the_servers_edits_and_reports_the_formatted_lines`, `workbench::editor_language::tests::reformat_with_a_named_formatter_runs_that_formatter`, `editor_lsp::format::tests`; formatDocument through the server and the named formatters, with the formatted-lines hint. Missing: plugin-contributed formatters, the Reformat File… dialog, formatLines of generated code"
+    "proof": "`workbench::editor_language::tests::reformat_code_applies_the_servers_edits_and_reports_the_formatted_lines`, `workbench::editor_language::tests::reformat_with_a_named_formatter_runs_that_formatter`, `editor_lsp::format::tests`, `workbench::editor_extras::tests::reformat_file_reformats_the_scope_chosen_in_the_dialog`; formatDocument through the server and the named formatters, with the formatted-lines hint, and the Reformat File… dialog's scope. Missing: plugin-contributed formatters (so Optimize imports is always offered), the dialog's Optimize imports run in a window, formatLines of generated code"
   },
   "module:src/editor/navigation/gotoTest.ts": {
     "status": "partial",
-    "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`, `editor_refactor::goto_test::tests`; from a subject to its only test and back. Missing: no test runs the chooser or Create New Test… in a window"
+    "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`, `editor_refactor::goto_test::tests`, `workbench::editor_extras::tests::go_to_test_offers_create_new_test_only_with_the_file_templates`; from a subject to its only test and back, and the chooser of two tests. Missing: Create New Test… (templates.newFromTemplate is not registered) and the chooser of a file without tests"
   },
   "module:src/editor/navigation/structureNav.ts": {
     "status": "partial",
@@ -6493,11 +6493,11 @@
   },
   "action:editor.toggleZen": {
     "status": "partial",
-    "proof": "`workbench::app_actions::tests::hides_tool_windows_and_restores_the_previous_layout_on_exit`, `workbench::title_bar::tests::the_main_toolbar_switch_and_distraction_free_make_the_compact_header`; run through the registry it hides the tool windows, stripes, status bar and main toolbar contents, publishes distractionFree, stores the mode, shows the hint and flips its title to Exit; again it brings the layout back. Missing: editor tabs, breadcrumbs and the gutter stay and the text is not centred at the Distraction free text width, and the menu bar item keeps its Enter label"
+    "proof": "`workbench::app_actions::tests::hides_tool_windows_and_restores_the_previous_layout_on_exit`, `workbench::title_bar::tests::the_main_toolbar_switch_and_distraction_free_make_the_compact_header`, `workbench::editor_extras::tests::distraction_free_mode_hides_the_tabs_and_the_gutter_and_centres_the_text`; run through the registry it hides the tool windows, stripes, status bar and main toolbar contents, the editor's tab strip, gutter, fold column and plugin icons, centres the text at the Distraction free text width, publishes distractionFree, stores the mode, shows the hint and flips its title to Exit; again it brings the layout back. Missing: the menu bar item keeps its Enter label"
   },
   "module:src/workbench/distractionFree.ts": {
     "status": "partial",
-    "proof": "`workbench::app_actions::tests::hides_tool_windows_and_restores_the_previous_layout_on_exit`, `platform_more::distraction_free::tests`; the toggle, its title, the context key, the stored flag, the hint and the hidden layout in the window; starting in the mode after a restart on the model only. Missing: hiding the editor tabs, breadcrumbs and gutter and centring the text column"
+    "proof": "`workbench::app_actions::tests::hides_tool_windows_and_restores_the_previous_layout_on_exit`, `platform_more::distraction_free::tests`, `workbench::editor_extras::tests::distraction_free_mode_hides_the_tabs_and_the_gutter_and_centres_the_text`; the toggle, its title, the context key, the stored flag, the hint, the hidden layout in the window, and the editor without tabs or gutter with its text centred. Missing: starting in the mode after a restart is proven on the model only, and the menu bar label does not flip"
   },
   "action:app.about": {
     "status": "partial",
@@ -6826,5 +6826,129 @@
   "ipc:db_statements": {
     "status": "done",
     "proof": "`database::console_view::tests::executes_the_statement_at_the_caret`; Execute splits the console text with ide_db::split::statement_at (what ops::db::statements calls once it has the driver) and runs only 'select 2', the statement at the caret; the native code makes the calls the adapter's function makes, not the function itself"
+  },
+  "boundid:code.expandToLevel1": {
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; run through the registry with the caret in the body of an if, the region around the caret stays open and the region nested in it folds, as the webview's expandToLevelEffects does; ⌘* 1 does the same in the editor and nothing while the Project view has the keyboard, where the action is not available; without an editor it does not run"
+  },
+  "boundid:code.expandAllToLevel1": {
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; run through the registry the outermost regions of the file stay open and every region inside them folds; ⌘⇧* 1 does the same in the editor and nothing while the Project view has the keyboard, where the action is not available"
+  },
+  "boundid:code.expandAllToLevel2": {
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; run through the registry the regions nested two deep stay open and the third level folds, as the webview's expandToLevelEffects does"
+  },
+  "boundid:code.expandToLevel2": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand to Level 1, which the test runs. Missing: no test runs Expand to Level 2 or presses ⌘* 2"
+  },
+  "boundid:code.expandToLevel3": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand to Level 1, which the test runs. Missing: no test runs Expand to Level 3 or presses ⌘* 3"
+  },
+  "boundid:code.expandToLevel4": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand to Level 1, which the test runs. Missing: no test runs Expand to Level 4 or presses ⌘* 4"
+  },
+  "boundid:code.expandToLevel5": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand to Level 1, which the test runs. Missing: no test runs Expand to Level 5 or presses ⌘* 5"
+  },
+  "boundid:code.expandAllToLevel3": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand All to Level 1 and 2, which the test runs. Missing: no test runs Expand All to Level 3 or presses ⌘⇧* 3"
+  },
+  "boundid:code.expandAllToLevel4": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; registered by the same loop over the level as Expand All to Level 1 and 2, which the test runs. Missing: no test runs Expand All to Level 4 or presses ⌘⇧* 4"
+  },
+  "boundid:code.expandAllToLevel5": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; registered by the same loop over the level as Expand All to Level 1 and 2, which the test runs; without an editor it does not run. Missing: no test runs Expand All to Level 5 or presses ⌘⇧* 5"
+  },
+  "action:editor.contextInfo": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::context_info_shows_the_header_lines_of_the_code_around_the_caret`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; run through the registry and by ⌃⇧Q the hint shows the header lines of the blocks around the caret, outermost first, from the backend's fold ranges, and No context information here on a line inside none; nothing while the Project view has the keyboard. Missing: without backend fold ranges the webview falls back to the syntax tree's blocks (enclosingHeaders), which is not built"
+  },
+  "action:navigate.customRegion": {
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::custom_folding_lists_the_regions_and_moves_the_caret_to_the_chosen_one`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; ⌥⌘. in the editor lists the file's custom regions by name with their 1-based line, an unnamed one as (no description); the chosen one gets the caret on the first non-blank character of its marker line; a file without regions says No custom folding regions in this file; nothing while the Project view has the keyboard or without an editor"
+  },
+  "action:code.unwrap": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; ⇧⌘⌦ in the editor replaces the if around the caret by its body with the caret where the body starts, Nothing to unwrap here where nothing can be unwrapped, Unwrap/Remove is not available for this language in a file without a grammar; nothing while the Find bar has the keyboard or without an editor. Missing: no test runs the chooser (Choose the Statement to Unwrap/Remove) the webview opens when several statements can be unwrapped"
+  },
+  "action:code.expressionTypeInfo": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::expression_type_info_shows_the_type_of_the_expression_at_the_caret`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; ⌃⇧P and the registry ask the server's hover once and show the type split off its signature at the expression, and say no type information was found when the hover is empty; nothing is asked while the Project view has the keyboard. Missing: the webview shows the type in the documentation popup as highlighted code; here it is a plain editor hint"
+  },
+  "action:code.reformatDialog": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::reformat_file_reformats_the_scope_chosen_in_the_dialog`, `editor_lsp::reformat_dialog::tests::runs_with_the_scope_and_options_chosen`, `editor_lsp::reformat_dialog::tests::without_a_selection_only_the_whole_file_is_offered`, `editor_lsp::reformat_dialog::tests::remembers_the_scope_only_from_a_run_with_a_selection`; ⌥⇧⌘L in the editor opens Reformat File: name with Selected text offered and chosen when there is a selection, and Run sends one rangeFormatting request; without a selection only the whole file is offered and Run formats it; Escape closes it without formatting; the scope is remembered only from a run with a selection; nothing while the Project view has the keyboard. Missing: no window test runs it with Optimize imports ticked (source.organizeImports before formatting), and Optimize imports is always offered, where the webview leaves it out when a plugin's formatter formats the file"
+  },
+  "action:find.rerun": {
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::rerun_search_finds_what_was_written_since_the_search`; ⌘R with the Find tool window active runs its search again, so a file changed on disk since is found; the action is not available and ⌘R in the editor opens nothing while the Find tool window is not the active one, as the webview's activeToolWindow == 'find' clause"
+  },
+  "action:navigate.nextOccurrence": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`; run through the registry and by ⌥⌘↓ it steps the results of the focused, last active or a visible tool window (TODO, Problems), opening each, and the status bar says 1 of 3 for eight seconds; with no tool window that steps the caret stays; in a window without a project it does not run. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), Usages is not stepped in a test, and a TODO step shows no i of n message"
+  },
+  "action:navigate.prevOccurrence": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`; run through the registry and by ⌥⌘↑ it steps back through the results of the TODO and Problems tool windows, opening each, and the status bar says which of how many; in a window without a project it does not run. Missing: the Find, Inspection and Hierarchy tool windows do not step (the webview registers occurrence navigators for them), Usages is not stepped in a test, and a TODO step shows no i of n message"
+  },
+  "action:editor.toggleRainbowBrackets": {
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::rainbow_brackets_colour_the_brackets_by_their_depth`, `editor::extras::tests::brackets_are_coloured_by_depth_and_unmatched_ones_are_marked`, `editor::extras::tests::strings_and_comments_are_skipped_lexically`; run through the registry it writes editor.rainbowBrackets in the global settings and shows itself toggled; on, the brackets are painted by depth in syn-bracket-1..3, an unmatched one in syn-invalid and a bracket inside a string keeps the string's colour; run again, the setting is off and the brackets are painted as before"
+  },
+  "action:project.refresh": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::reload_all_from_disk_reads_the_project_tree_again`; File › Reload All from Disk runs it and the Project view then lists a file written outside the IDE. Missing: the file watcher lists that file too, so the test passes without the reload; a proof needs a change that reaches the tree only through the action, such as a test with the tree's watcher stopped where the new row appears after project.refresh and not before, or one that counts the folder listings the action reads again"
+  },
+  "context:pasteHistoryListFocus": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::the_paste_history_keys_are_enabled_while_its_dialog_has_the_keyboard`, `workbench::editor_extras::tests::the_paste_history_keys_edit_the_filter_or_act_on_the_chosen_entry`; read off before Paste from History opens, on while its dialog has the keyboard and off after Escape. Missing: it is on while the filter field has the keyboard as well, where the webview sets it only while the list itself is focused"
+  },
+  "point.registerStatusItem:editor-lsp.usagesStatus": {
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::the_status_bar_shows_the_highlighted_usages_count`; while usages are highlighted the status bar shows 3 usages of 'foo' found (…), and once Escape removes the highlighting no usages text is shown"
+  },
+  "point.registerStatusItem:workbench.info": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`; the status bar shows Next / Previous Occurrence's 1 of 3, a newer message replaces it and it goes after eight seconds. Missing: nothing else feeds it (the webview's debugger, Vim and Stop Background Processes messages), and it is not shown in a light-edit window"
+  },
+  "point.registerOccurrenceNavigator:(at) src/workbench/contributions.ts:1362": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`; Next / Previous Occurrence step the Problems and TODO tool windows, in the order focused, last active, last used, visible. Missing: the navigators are a fixed list (Usages, Problems, TODO), not registered by the views; Find, Inspection and Hierarchy have none, Usages is untested, and the TODO window's step gives no index and total"
+  },
+  "ipc:syntax_support": {
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`; Unwrap/Remove calls ide_host::ops::syntax::syntax_support with the window's label and the editor's language, as the adapter does: for the Rust file it goes on to the syntax tree and unwraps, and for the plain text file it says Unwrap/Remove is not available for this language, which only that answer decides"
+  },
+  "ipc:syntax_node_at": {
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`; Unwrap/Remove calls ide_host::ops::syntax::syntax_node_at with the window's label, the document and the caret's empty range, as the adapter does; the if is replaced by its body, an edit built only from the node and ancestors it returns, and on the function's first line it says Nothing to unwrap here"
+  },
+  "unit:src/editor/core/cm/rainbowBrackets.test.ts": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::rainbow_brackets_colour_the_brackets_by_their_depth`, `editor::extras::tests::brackets_are_coloured_by_depth_and_unmatched_ones_are_marked`, `editor::extras::tests::strings_and_comments_are_skipped_lexically`; 1 of 6 cases through the application (the setting turns the colours on and off), with parts of three more: depths 0 to 2 painted in the three colours, an unmatched closer, a bracket in a string skipped with the highlights. Missing through a view: the palette cycling from depth 3, mismatched and unclosed openers, comments and the lexical skipping without highlights, and the depth far into a long document after an edit (on the model only, or not at all)"
+  },
+  "unit:src/editor/core/cm/distractionFree.test.ts": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::distraction_free_mode_hides_the_tabs_and_the_gutter_and_centres_the_text`, `platform_more::distraction_free::tests::clamps_the_text_width_setting`; 1 of 3 cases through the editor: in the mode the gutter goes and the text is centred at the configured width (the editor draws no margin guides or sticky lines to hide); normally the gutter is drawn. Missing: the 80-column default is asserted on the model only, and no right margin is drawn to show"
+  },
+  "unit:src/features/settings/components/FontPicker.test.tsx": {
+    "status": "partial",
+    "proof": "`settings_view::pages::font_picker::tests::keeps_missing_saved_names_searches_outside_the_old_list_and_accepts_manual_names`, `settings_view::pages::font_picker::tests::filters_only_suggestions_permits_cjk_proportional_fallback_and_empty_fallback`, `settings_view::pages::font_picker::tests::reflects_external_saved_value_changes_and_disables_an_inherited_selection`, `settings_view::pages::font_picker::tests::explains_the_loading_state_without_declaring_saved_fonts_missing`; 3 of 5 cases through the picker: a missing saved name kept and searched past, a manual name accepted, mono-only suggestions with a CJK fallback and an empty one, an inherited selection following outside changes disabled. Missing: the loading, error, empty and browser messages are checked on the message function only, and keeping a manual entry through a fallback list and a native retry is not tested"
+  },
+  "module:src/editor/core/extras.ts": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`, `editor::command_actions::tests::paste_as_plain_text_keeps_the_copied_indentation`, `workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`; Unwrap/Remove of one statement with its hints, Paste as Plain Text and Paste from History. Missing: the Unwrap/Remove chooser of several statements is not tested, and Paste from History has the gaps of its overlay row"
+  },
+  "module:src/editor/lsp/typeInfo.ts": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::expression_type_info_shows_the_type_of_the_expression_at_the_caret`, `editor_lsp::type_info::tests`; extractTypeInfo and Expression Type Info from the server's hover, with the no-type hint. Missing: the type is shown as a plain editor hint, not the documentation popup the webview opens"
   }
 }
