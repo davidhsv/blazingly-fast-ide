@@ -288,3 +288,10 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - Draft proofs8 (unit specs) DONE (23 tests in 13 files): 5 spec files would become done (caretCommands, chunkOptimizer, previewOnly, fileStructure, AgentReply); partial: build 4/13, fileRefactor 3/6, chooserPinned 3/5, removal 9/11, vim 15/17, todo 12/13; notes integration/proofs8_unit.md. Two product fixes as hunks (a Cancel pressed before the file refactoring's search starts stops nothing; Debug does not mark the configuration recent). chunkOptimizer's old proof ran an optimizer no product code calls: the new tests run the one the diff and merge use.
 - DECIDED (to write as D96 when these rows are merged): a case of a `.test.tsx` spec that asserts a pure function and renders nothing is proven by a Rust test of the equivalent function, provided that function is reached from the application; only cases that render or interact need a view or window test. With it build, fileRefactor, chooserPinned and removal become complete once their fixes land (the notes give both counts).
 - PROOFS BATCHES waiting for an integrator: proofs8_unit (23 tests) + proofs9 (11 tests). proofs7 is with the running integrator.
+
+## State after the trust rule + threads + proofs7 slice (2026-11-14, 8eda5d54)
+
+- Suite 6,800; UNSTABLE UNDER LOAD (3/5 green for me, 4/5 for the integrator). D96 written (incl. the pure-function rule for spec cases).
+- RUNNING (cargo): STABILITY integrator (watcher events under load; then proofs8_unit + proofs9 batches). RUNNING (no cargo): proofs7 parity mapper → $S/parity_proofs7.json.
+- Threads: the app releases a project's threads (0 left); the test binary peaks at 3,340.
+- After stability: diff tools → database extras (+ proofs6_database_console.rs) → build tools (seam first).
