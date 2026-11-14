@@ -237,3 +237,4 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - Suite 6,600, 0 ignored (×3 by me). D91 written. registered_ids.txt = 550.
 - RUNNING (cargo, background): Tauri suite → $S/tauri_suite4.log. RUNNING (no cargo): GitHub parity mapper → $S/parity_github.json; writers: build tools (Gradle/Maven), database leftovers.
 - NEXT (cargo): plugin views + plugin Java debug (no anchors scripts: the integrator re-derives anchors; mod.rs changed by app actions, Project view, GitHub) → settings controls → editor extras → diff tools.
+- GitHub rows merged. Gaps: PR checkout shows no gh output and cannot be cancelled (webview: output line + Cancel); PR refresh does not reload timeline/threads (not built); 17 github.* actions unregistered (timeline, review mode, comments, create PR, submit review, toggle viewed, worktree, delete merged branch, update branch) → a 'GitHub part 2' draft.

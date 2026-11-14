@@ -2636,8 +2636,8 @@
     "proof": "`github::repository::tests`"
   },
   "unit:src/features/github/details/details.test.tsx": {
-    "status": "partial",
-    "proof": "`github::details_view::tests`; the state and logic of 5 of 5 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`github::details_panel::tests::shows_the_loading_line_until_the_mergeability_loads`, `github::details_panel::tests::lists_checks_conflicts_required_reviews_and_reviewers`, `github::details_panel::tests::offers_reopen_post_and_nothing_for_closed_draft_and_merged_pull_requests`, `github::details_panel::tests::shows_the_authors_request_review_and_once_accepted_the_merge_button`, `github::details_panel::tests::shows_submit_review_to_reviewers_and_set_myself_as_reviewer_to_guests`, `workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`; 5 of 5 cases on the details panel the Pull Requests window shows"
   },
   "unit:src/features/github/details/model.test.ts": {
     "status": "done",
@@ -2653,7 +2653,7 @@
   },
   "unit:src/features/github/list/list.test.tsx": {
     "status": "partial",
-    "proof": "`github::list::tests`; the state and logic of 15 of 15 cases, on the model; the view is not built"
+    "proof": "`github::list_panel::tests::starts_with_every_open_pull_request_and_renders_the_rows`, `github::list_panel::tests::opens_the_context_menu_with_intellijs_items_on_the_clicked_row`, `github::list_panel::tests::shows_the_empty_states_and_clears_filters`, `github::list_panel::tests::shows_load_errors_with_retry`, `github::list_panel::tests::applies_the_text_on_enter_and_keeps_it_in_the_history`, `github::list_panel::tests::resets_a_chip_with_its_x_and_shows_the_quick_filter_badge`, `github::list_panel::tests::resets_a_chip_with_delete`, `github::list_panel::tests::chooses_a_chip_value_from_its_popup`, `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::a_search_term_filters_the_list_through_a_new_request`, `github::list::tests`; 8 of 15 cases on the list view the Pull Requests window shows. Missing on the view: the quick filters' exact-match rule, the history text, setting and clearing the text, the history's save rules, the reviewers' order, the info line and comment tooltip, and the next page past 70% of the scroll (only on the model)"
   },
   "unit:src/features/github/reviewMode/reviewMode.test.tsx": {
     "status": "partial",
@@ -2669,7 +2669,7 @@
   },
   "unit:src/features/github/toolwindow/toolwindow.test.tsx": {
     "status": "partial",
-    "proof": "`github::toolwindow::tests`; the state and logic of 7 of 8 cases, on the model; the view is not built"
+    "proof": "`github::window_view::tests::shows_ghs_state_when_it_is_not_ready`, `github::window_view::tests::offers_the_repository_selector_for_several_github_remotes`, `github::window_view::tests::shows_the_list_tab_named_after_the_repository_once_connected`, `github::window_view::tests::registers_the_window_and_offers_its_header_actions`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::change_repository_disconnects_then_connects_again`, `github::toolwindow::tests`; 3 of 8 cases on the window view in the application: gh's state, the repository selector and the list tab named after the repository. Missing: tab de-duplication and closing back to the previous tab, the list selection as fallback target and the timeline tabs' keys (only on the model), the timeline editor and 8 of the 17 actions the registration case names, and no test asserts that Change Repository shows the window while not connected"
   },
   "unit:src/features/github/ui/ui.test.tsx": {
     "status": "partial",
@@ -6718,5 +6718,73 @@
   "module:src/editor/lsp/hint.ts": {
     "status": "partial",
     "proof": "`editor_lsp::hint::tests`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; a hint shows at the caret of the active editor and the next one replaces it, and slow requests show their progress hint without flashing. Missing: no test of the application reads a hint's tone or its timeout, or that an edit, a caret move or Escape dismisses it"
+  },
+  "action:github.pullRequests": {
+    "status": "partial",
+    "proof": "`workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::a_search_term_filters_the_list_through_a_new_request`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::with_gh_not_signed_in_the_window_shows_the_sign_in_state_and_offers_gh_auth_login`, `workbench::github::tests::without_a_github_remote_the_window_shows_that_state`; run through the registry it checks gh, connects to the repository of the project's GitHub remote and lists its open pull requests with state, author and labels, or shows why it cannot connect. Missing: no test asserts that the tool window becomes visible and takes the keyboard, and the list's next pages and chooser popups are not driven in the application"
+  },
+  "action:github.refresh": {
+    "status": "done",
+    "proof": "`workbench::github::tests::refresh_list_checks_gh_again_and_asks_for_the_list_again`, `workbench::github::tests::the_refresh_keys_work_only_in_the_pull_requests_window_on_their_tab`; run through the registry and with ⌘R / Ctrl+F5 in the list tab it checks gh and the connection again and lists the pull requests again; the key does nothing in a pull request's tab or with no tool window active"
+  },
+  "action:github.changeRepository": {
+    "status": "done",
+    "proof": "`workbench::github::tests::change_repository_disconnects_then_connects_again`; run through the registry while connected it disconnects and forgets the choice (githubConnected goes off), and run again while not connected it shows the window, checks gh and connects"
+  },
+  "action:github.checkoutPullRequest": {
+    "status": "partial",
+    "proof": "`workbench::github::tests::checkout_pull_request_checks_out_the_number_it_is_given`, `workbench::github::tests::in_restricted_mode_the_window_runs_no_gh_until_the_project_is_trusted_again`; run through the registry with a number it checks out that pull request's branch and says Checked out pull request #1, says Couldn't check out #2 when gh fails, and in Restricted Mode refuses and leaves HEAD. Missing: without a number or a selected pull request the webview asks for one, natively nothing happens; the window's progress line with gh's output and its Cancel button"
+  },
+  "action:github.pullRequest.checkoutBranch": {
+    "status": "partial",
+    "proof": "`workbench::github::tests::checkout_branch_checks_out_the_pull_requests_branch_and_the_branch_widget_follows`; run through the registry on the open #1 tab it runs gh pr checkout, says Checked out pull request #1, HEAD is fix-crash and the title bar's branch widget follows. Missing: the window's progress line with gh's output and its Cancel button (the native checkout cannot be cancelled)"
+  },
+  "action:github.pullRequest.show": {
+    "status": "partial",
+    "proof": "`workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`; run through the registry it opens the #1 tab with its title, base and head branches, the checks' summary, the commit and the changed files, and githubPrTab is pr. Missing: the timeline editor the webview opens beside it, review threads and the pending review, and reloading details already loaded"
+  },
+  "action:github.pullRequest.refresh": {
+    "status": "partial",
+    "proof": "`workbench::github::tests::refresh_pull_request_loads_the_open_pull_request_again`, `workbench::github::tests::the_refresh_keys_work_only_in_the_pull_requests_window_on_their_tab`; run through the registry and with ⌘R / Ctrl+F5 in the #1 tab it asks gh again for the details, status, commits, changes and viewed states, and not for the list. Missing: no test shows a changed answer replacing what the tab shows, and the timeline and review threads are not reloaded"
+  },
+  "action:github.pullRequest.openInBrowser": {
+    "status": "partial",
+    "proof": "`workbench::github::tests::the_browser_and_copy_actions_use_the_pull_requests_page`; run through the registry for listed #2 it opens https://github.com/org/app/pull/2. Missing: for a pull request neither open nor listed the URL is built on github.com instead of loaded from GitHub, and that case is untested"
+  },
+  "action:github.pullRequest.copyUrl": {
+    "status": "partial",
+    "proof": "`workbench::github::tests::the_browser_and_copy_actions_use_the_pull_requests_page`, `workbench::github::tests::a_token_in_the_remote_url_is_never_kept_shown_copied_or_notified`; run through the registry for listed #2 it puts https://github.com/org/app/pull/2 on the clipboard, with no credential of the remote URL. Missing: for a pull request neither open nor listed the URL is built on github.com instead of loaded from GitHub, and that case is untested"
+  },
+  "action:github.openInBrowser": {
+    "status": "partial",
+    "proof": "`workbench::github::tests::the_browser_and_copy_actions_use_the_pull_requests_page`; run through the registry with the #1 tab active it opens https://github.com/org/app/pull/1. Missing: the repository's page when no pull request is in context is untested"
+  },
+  "context:githubConnected": {
+    "status": "done",
+    "proof": "`workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::change_repository_disconnects_then_connects_again`, `workbench::github::tests::in_restricted_mode_the_window_runs_no_gh_until_the_project_is_trusted_again`; off before the window is shown, after Change Repository disconnects and in Restricted Mode; on once connected and after reconnecting"
+  },
+  "context:githubPrTab": {
+    "status": "partial",
+    "proof": "`workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`, `workbench::github::tests::the_refresh_keys_work_only_in_the_pull_requests_window_on_their_tab`; list with the list tab active, pr with a pull request's tab active, list again on going back, and the refresh keys follow it. Missing: create, since the New Pull Request tab is not built"
+  },
+  "ipc:gh_availability": {
+    "status": "done",
+    "proof": "`workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::with_gh_not_signed_in_the_window_shows_the_sign_in_state_and_offers_gh_auth_login`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::without_a_github_remote_the_window_shows_that_state`; the window shows Connected, Not logged in to GitHub, GitHub CLI is not installed or No GitHub repository from what GhCli::availability makes of gh repo view and gh api user; the window calls GhCli::availability with the repository's folder, the function ide_github::availability delegates to"
+  },
+  "ipc:gh_api": {
+    "status": "done",
+    "proof": "`workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::a_search_term_filters_the_list_through_a_new_request`, `workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`; the rows, labels, the search's result and the pull request's details, checks and files come from the GraphQL and REST answers of gh api; the window calls GhCli::api with the repository's folder and a GhApiRequest, the function ide_github::api delegates to"
+  },
+  "ipc:gh_pr_checkout": {
+    "status": "done",
+    "proof": "`workbench::github::tests::checkout_branch_checks_out_the_pull_requests_branch_and_the_branch_widget_follows`, `workbench::github::tests::checkout_pull_request_checks_out_the_number_it_is_given`; HEAD moves to the pull request's branch only through gh pr checkout, and gh's failure is reported; the window calls GhCli::checkout with the repository's folder, the number, a cancellation token and an output callback, the function ide_github::checkout delegates to, then reads the repository again as VcsChanged makes the webview do"
+  },
+  "point.registerToolWindow:pullRequests": {
+    "status": "partial",
+    "proof": "`github::window_view::tests::registers_the_window_and_offers_its_header_actions`, `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`, `workbench::github::tests::the_refresh_keys_work_only_in_the_pull_requests_window_on_their_tab`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`; the Pull Requests window is declared with its title and icon, mounts on first use, shows gh's state, the list tab and #N tabs, and takes the keyboard. Missing: the New Pull Request tab, the header's Create Pull Request and Select Opened Pull Request actions (not registered), and the progress line with Cancel"
+  },
+  "feature:github": {
+    "status": "partial",
+    "proof": "`workbench::github::tests`, `github::window_view::tests`, `github::list_panel::tests`, `github::details_panel::tests`; the Pull Requests window connects through gh, lists, filters and opens pull requests, refreshes, checks out their branches, opens and copies their pages, changes repository, offers gh auth login and Install gh, and runs no gh in Restricted Mode. Missing: Create Pull Request, the timeline editor, review mode, review in the diff and comments, Submit Review, viewed toggling, Open in Worktree, Delete Branch, the GitHub clone source, the Git log's checks and the dialogs overlay"
   }
 }
