@@ -27,6 +27,7 @@ mod editor_extras;
 mod editor_find;
 mod editor_intelligence;
 mod editor_language;
+pub mod empty_editor;
 mod github;
 mod log_actions;
 mod log_window;
@@ -143,6 +144,8 @@ enum Content {
     /// A project: its file tree and the file being edited.
     Project {
         name: String,
+        /// The project's own name, which its colour is derived from.
+        color_name: String,
         /// Which tool windows are shown, where and how large.
         layout: Box<ToolWindowLayout>,
         /// The last focus request of `layout` that was carried out.
@@ -1372,7 +1375,10 @@ impl Workbench {
         let body: Option<gpui_kit::AnyElement> = match (view, host, editor) {
             (Some((view, _)), _, _) => Some(view.into_any_element()),
             (None, Some(host), _) => Some(host.into_any_element()),
-            (None, None, editor) => editor.map(IntoElement::into_any_element),
+            (None, None, Some(editor)) => Some(editor.into_any_element()),
+            // A pane without a tab shows the navigation hints.
+            (None, None, None) if shown_tab.is_none() => Some(empty_editor::empty_editor(cx).into_any_element()),
+            (None, None, None) => None,
         };
         let titles = self.tab_titles_of(pane_id);
         let ids: Vec<(String, String)> = self
@@ -2836,10 +2842,10 @@ impl Workbench {
         self.popup.as_ref().and_then(|popup| popup.view.clone().downcast().ok())
     }
 
-    /// Whether the status bar is drawn: there is something for it to say and View › Appearance ›
-    /// Status Bar is on.
+    /// Whether the status bar is drawn: a project is open or there is something for it to say, and
+    /// View › Appearance › Status Bar is on.
     pub fn shows_status_bar(&self, cx: &App) -> bool {
-        (self.editor().is_some() || self.task_status().is_some())
+        (matches!(self.content, Content::Project { .. }) || self.editor().is_some() || self.task_status().is_some())
             && crate::platform::settings::global(cx).appearance.show_status_bar
             && !self.distraction_free(cx)
     }
@@ -3062,8 +3068,9 @@ impl Workbench {
             let recent = ide_workspace::RecentProjects::load(&config);
             recent.touch(&project.root, branch)?;
             recent.rename(&project.root, Some(&info.display_name))?;
-            let name = if info.display_name.is_empty() { info.name } else { info.display_name };
-            ide_core::IdeResult::Ok((project.root.clone(), name))
+            // The name shown is the display name; the colour follows the project's own name.
+            let name = if info.display_name.is_empty() { info.name.clone() } else { info.display_name };
+            ide_core::IdeResult::Ok((project.root.clone(), name, info.name))
         });
         cx.spawn_in(window, async move |workbench, cx| {
             let result = opened.await;
@@ -3071,7 +3078,7 @@ impl Workbench {
                 let opened =
                     result.map_err(|error| error.to_string()).and_then(|opened| opened.map_err(|error| error.message));
                 workbench.content = match opened {
-                    Ok((root, name)) => {
+                    Ok((root, name, color_name)) => {
                         // It is the most recent project now: Open Recent lists it first.
                         menu::refresh_recent(cx);
                         workbench.load_bookmarks(&root.to_string_lossy(), cx);
@@ -3103,6 +3110,7 @@ impl Workbench {
                         };
                         Content::Project {
                             name,
+                            color_name,
                             layout,
                             focus_served: 0,
                             tree,
@@ -4099,6 +4107,9 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::time::Duration;
 
+    mod empty_project_window;
+    #[cfg(debug_assertions)]
+    mod inspect_script;
     mod project_threads;
     mod proofs3_context;
     mod proofs3_rename_lsp;

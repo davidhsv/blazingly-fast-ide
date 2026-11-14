@@ -1746,8 +1746,11 @@ mod tests {
         fixture.close(cx);
     }
 
+    /// Waits for `done` while the backend's work comes back; thirty seconds of wall time, which a loaded
+    /// machine can need for a language server's answer.
     fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..400 {
+        let started = std::time::Instant::now();
+        while started.elapsed() < Duration::from_secs(30) {
             cx.executor().advance_clock(Duration::from_millis(50));
             cx.run_until_parked();
             if done(cx) {
@@ -1755,7 +1758,7 @@ mod tests {
             }
             std::thread::sleep(Duration::from_millis(10));
         }
-        panic!("the backend did not deliver within four seconds");
+        panic!("the backend did not deliver within thirty seconds");
     }
 
     impl Fixture {

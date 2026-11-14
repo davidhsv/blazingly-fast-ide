@@ -33,8 +33,64 @@ pub fn run(name: &str, cx: &mut App) -> bool {
             .detach();
             true
         }
+        "fonts" => {
+            match fonts(cx) {
+                Ok(report) => println!("fonts: ok\n{report}"),
+                Err(error) => {
+                    eprintln!("fonts: {error:#}");
+                    std::process::exit(1);
+                }
+            }
+            cx.quit();
+            true
+        }
         _ => false,
     }
+}
+
+/// The bundled faces load, resolve by the family names the theme draws with at the weights the
+/// interface uses, and draw semibold with a face of its own. The report says first what
+/// the families resolved to before the faces were registered.
+fn fonts(cx: &mut App) -> anyhow::Result<String> {
+    use crate::theme::fonts::{BUNDLED_MONO_FAMILY, BUNDLED_UI_FAMILY};
+    use gpui_kit::{FontWeight, font};
+    let text_system = cx.text_system().clone();
+    let resolved = |family: &str, weight: FontWeight| {
+        let id = text_system.resolve_font(&gpui_kit::Font { weight, ..font(family.to_owned()) });
+        (id, text_system.get_font_for_id(id).map(|found| found.family.to_string()))
+    };
+    let mut report = String::new();
+    for family in [BUNDLED_UI_FAMILY, BUNDLED_MONO_FAMILY] {
+        let (_, before) = resolved(family, FontWeight::NORMAL);
+        report.push_str(&format!("before registering, {family} resolves to {before:?}\n"));
+    }
+    crate::theme::bundled_fonts::register(cx)?;
+    let mut failures = Vec::new();
+    for family in [BUNDLED_UI_FAMILY, BUNDLED_MONO_FAMILY] {
+        let mut ids = Vec::new();
+        for weight in [FontWeight::NORMAL, FontWeight::SEMIBOLD] {
+            let (id, found) = resolved(family, weight);
+            if found.as_deref() != Some(family) {
+                failures.push(format!("{family} at {weight:?} resolves to {found:?}"));
+                continue;
+            }
+            let width: f32 = "Hamburgefonstiv"
+                .chars()
+                .map(|ch| text_system.advance(id, px(100.0), ch).map(|size| f32::from(size.width)))
+                .sum::<anyhow::Result<f32>>()?;
+            report.push_str(&format!("{family} {weight:?}: {id:?}, width {width}\n"));
+            ids.push(id);
+        }
+        // A monospaced face keeps its advances at every weight: a semibold drawn from its own outlines
+        // has a face of its own.
+        if let [regular, semibold] = ids[..]
+            && semibold == regular
+        {
+            failures.push(format!("{family}: semibold is drawn with the regular face"));
+        }
+    }
+    anyhow::ensure!(failures.is_empty(), "{}\n{report}", failures.join("\n"));
+    Ok(report)
 }
 
 struct Blank;

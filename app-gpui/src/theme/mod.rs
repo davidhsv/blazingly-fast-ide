@@ -1,6 +1,7 @@
 //! The visual design: tokens, themes and icons, all read from the webview UI's sources.
 
 pub mod appearance;
+pub mod bundled_fonts;
 pub mod color_scheme;
 pub mod fonts;
 pub mod icls;

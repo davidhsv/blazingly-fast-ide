@@ -78,6 +78,11 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 gpui-kit = { version = "=0.9.1", features = ["test-support"] }
 tempfile = "3"
 
+[lints.rust]
+# The debug builds' unwind tables pass the 16 MB the linker's compact unwind index can address, so the
+# linker says it falls back to the DWARF tables; that only slows the unwinding of a panic.
+linker_messages = "allow"
+
 [profile.dev]
 opt-level = 0
 debug = "line-tables-only"

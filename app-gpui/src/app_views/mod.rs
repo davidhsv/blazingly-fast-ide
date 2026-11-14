@@ -9,7 +9,7 @@ pub mod trust_dialog;
 
 use crate::platform::i18n::Localization;
 use crate::theme;
-use gpui_kit::{App, Div, FontWeight, MouseButton, SharedString, Stateful, div, prelude::*, px};
+use gpui_kit::{App, Div, FontWeight, MouseButton, SharedString, Stateful, div, prelude::*, px, relative};
 
 const BUTTON_HEIGHT: f32 = 28.0;
 const FIELD_HEIGHT: f32 = 28.0;
@@ -129,14 +129,36 @@ pub(crate) fn field_frame(cx: &App, invalid: bool) -> Div {
 /// A path on one line: the folders before its last part, then the last part, so that a long path
 /// that is cut keeps its final folder in view.
 pub(crate) fn path_line(cx: &App, path: &str) -> Div {
-    let cut = path.rfind(['/', '\\']).unwrap_or(0);
-    let (head, tail) = path.split_at(cut);
+    let (head, tail) = path_parts(path);
     div()
         .flex()
         .min_w_0()
         .overflow_hidden()
         .whitespace_nowrap()
         .text_color(theme::color(cx, "fg-strong"))
-        .child(div().min_w_0().truncate().child(SharedString::from(head.to_owned())))
-        .child(div().flex_none().child(SharedString::from(tail.to_owned())))
+        // A cut head ends at a whole character, short of its box; aligned right, its ellipsis
+        // meets the last part instead of leaving a gap before it.
+        .child(div().min_w_0().truncate().text_right().child(SharedString::from(head.to_owned())))
+        // The last part keeps at most 70% of the line, cut at its end beyond that.
+        .child(div().flex_none().max_w(relative(0.7)).truncate().child(SharedString::from(tail.to_owned())))
+}
+
+/// The folders before the last part of `path`, and the last part with its separator.
+fn path_parts(path: &str) -> (&str, &str) {
+    path.split_at(path.rfind(['/', '\\']).unwrap_or(0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A long path is cut before its last part only: the last folder keeps its separator and stays
+    // whole, the folders before it are what an ellipsis may shorten.
+    #[test]
+    fn a_long_path_keeps_its_last_folder_whole() {
+        let head = "/private/tmp/claude-502/-Users-someone--claude-personal-spares-spare-BDrKLZ/ef45d052/scratchpad";
+        assert_eq!(path_parts(&format!("{head}/project")), (head, "/project"));
+        assert_eq!(path_parts(r"C:\work\demo"), (r"C:\work", r"\demo"));
+        assert_eq!(path_parts("demo"), ("", "demo"));
+    }
 }

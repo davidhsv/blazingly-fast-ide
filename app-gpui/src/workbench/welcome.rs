@@ -6,7 +6,7 @@
 //! asks to remove it. The view changes nothing but itself: what it wants opened, removed or
 //! regrouped it reports as a [`WelcomeEvent`], and the menus of its rows are for its window to show.
 
-use super::project_color::{project_colors, project_initials};
+use super::project_color::{project_avatar, project_initials};
 use super::welcome_model::{
     GroupNameError, KeyMods, ListKey, OPEN_PROJECT, ProjectGroup, RecentEntry, RecentMatch, RecentRow, WelcomeAction,
     WelcomeCommand, create_group, fold_key, group_menu, group_name_error, group_of, handle_list_key, landing_text,
@@ -20,15 +20,14 @@ use crate::platform::input::{self, Keymap};
 use crate::platform::keymap::is_mac_host;
 use crate::platform::misc::platform_info::Os;
 use crate::theme;
-use crate::theme::tokens::Color;
 use crate::ui::matching::index_runs;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
     AnyView, App, ClickEvent, ClipboardItem, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, FontWeight,
-    Hsla, IntoElement, Keystroke, MouseButton, MouseDownEvent, Pixels, Point, PromptLevel, Render, Rgba,
-    ScrollStrategy, SharedString, Stateful, Subscription, UniformList, UniformListScrollHandle, Window, div,
-    linear_color_stop, linear_gradient, point, prelude::*, px, uniform_list,
+    IntoElement, Keystroke, MouseButton, MouseDownEvent, Pixels, Point, PromptLevel, Render, ScrollStrategy,
+    SharedString, Stateful, Subscription, UniformList, UniformListScrollHandle, Window, div, point, prelude::*, px,
+    uniform_list,
 };
 use ide_workspace::{RecentProject, RecentProjectGroup};
 use std::path::{Path, PathBuf};
@@ -897,10 +896,6 @@ fn shown_actions(cx: &App) -> Vec<WelcomeAction> {
     welcome_actions(|id| registry.is_some_and(|registry| registry.contains(id)))
 }
 
-fn hsla(color: Color) -> Hsla {
-    Rgba { r: color.r, g: color.g, b: color.b, a: color.a }.into()
-}
-
 /// A push button; the `primary` one is what Enter does.
 fn button(cx: &App, selector: String, label: SharedString, primary: bool) -> Stateful<Div> {
     let hover = theme::color(cx, "bg-hover");
@@ -950,21 +945,7 @@ fn marked(cx: &App, text: &str, indices: Option<&[usize]>) -> Div {
 
 /// The tile of a project: its initials on the colours of its name.
 fn tile(cx: &App, name: &str) -> Div {
-    let colors = cx.try_global::<theme::ActiveTheme>().map(|active| project_colors(name, &active.theme));
-    let start = colors.and_then(|colors| colors.start).map_or_else(|| theme::color(cx, "accent"), hsla);
-    let end = colors.and_then(|colors| colors.end).map_or(start, hsla);
-    div()
-        .flex_none()
-        .size(px(20.0))
-        .flex()
-        .items_center()
-        .justify_center()
-        .rounded(theme::length(cx, "radius-small"))
-        .bg(linear_gradient(135.0, linear_color_stop(start, 0.0), linear_color_stop(end, 1.0)))
-        .text_color(theme::color(cx, "fg-button-primary"))
-        .text_size(theme::length(cx, "fs-tiny"))
-        .font_weight(FontWeight::SEMIBOLD)
-        .child(SharedString::from(project_initials(name)))
+    project_avatar(name, name, cx)
 }
 
 /// The inside of a project's row: its tile, its name with its branch, and its path under them.

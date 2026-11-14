@@ -1,7 +1,11 @@
 //! Project identity, IDEA style: a colour slot (1–9, like IDEA's `RecentProject.ColorN`) derived
 //! from the project name, and the initials shown in the title bar's project widget.
 
-use crate::theme::tokens::{Color, Theme, parse_color};
+use crate::theme::{
+    self,
+    tokens::{Color, Theme, parse_color},
+};
+use gpui_kit::{App, Div, FontWeight, Hsla, Rgba, SharedString, linear_color_stop, linear_gradient, prelude::*, px};
 
 pub const PROJECT_COLOR_COUNT: u32 = 9;
 
@@ -92,6 +96,34 @@ pub fn project_colors(name: &str, theme: &Theme) -> ProjectColors {
     }
 }
 
+/// The avatar's gradient for the project named `color_name` in the active theme: its slot's colours,
+/// the accent where the theme resolves the slot to no colour.
+pub fn avatar_fill(color_name: &str, cx: &App) -> (Hsla, Hsla) {
+    let colors = cx.try_global::<theme::ActiveTheme>().map(|active| project_colors(color_name, &active.theme));
+    let hsla = |color: Color| Hsla::from(Rgba { r: color.r, g: color.g, b: color.b, a: color.a });
+    let start = colors.and_then(|colors| colors.start).map_or_else(|| theme::color(cx, "accent"), hsla);
+    let end = colors.and_then(|colors| colors.end).map_or(start, hsla);
+    (start, end)
+}
+
+/// A project's avatar: the initials of `label` on the colours of `color_name`, as the title bar's
+/// project widget and the Welcome screen's project rows draw it.
+pub fn project_avatar(color_name: &str, label: &str, cx: &App) -> Div {
+    let (start, end) = avatar_fill(color_name, cx);
+    gpui_kit::div()
+        .flex_none()
+        .size(px(20.0))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded(theme::length(cx, "radius-small"))
+        .bg(linear_gradient(135.0, linear_color_stop(start, 0.0), linear_color_stop(end, 1.0)))
+        .text_color(theme::color(cx, "fg-button-primary"))
+        .text_size(theme::length(cx, "fs-tiny"))
+        .font_weight(FontWeight::SEMIBOLD)
+        .child(SharedString::from(project_initials(label)))
+}
+
 fn fallback(slot: u32) -> (&'static str, &'static str) {
     FALLBACK[(slot as usize - 1) % FALLBACK.len()]
 }
@@ -156,5 +188,24 @@ mod tests {
         );
         // Slot 8: a defined token that is no colour does not fall back; the end has no token at all.
         assert_eq!(project_colors("a", &theme), ProjectColors { start: None, end: None });
+    }
+
+    // The title bar's avatar and the Welcome screen's tile draw a project on its slot's colours (the
+    // default theme defines all nine), never on the accent of slot 5's fallback for another slot.
+    #[gpui_kit::test]
+    fn the_avatar_is_drawn_on_the_projects_slot_colours(cx: &mut gpui_kit::TestAppContext) {
+        cx.update(|cx| {
+            cx.set_global(crate::theme::ActiveTheme::default());
+            let as_hsla = |color: Option<Color>| {
+                let color = color.expect("the default theme defines every slot");
+                Hsla::from(Rgba { r: color.r, g: color.g, b: color.b, a: color.a })
+            };
+            for name in ["idea", "py-demo", "project"] {
+                let colors = project_colors(name, &cx.global::<crate::theme::ActiveTheme>().theme);
+                assert_eq!(avatar_fill(name, cx), (as_hsla(colors.start), as_hsla(colors.end)), "{name}");
+            }
+            assert_eq!(project_color_index("idea"), 2);
+            assert_ne!(avatar_fill("idea", cx).0, theme::color(cx, "accent"));
+        });
     }
 }

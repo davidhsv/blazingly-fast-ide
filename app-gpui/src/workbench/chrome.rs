@@ -280,9 +280,9 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let (kind, mode, title, project) = match &self.content {
-            Content::Project { name, .. } => {
+            Content::Project { name, color_name, .. } => {
                 let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned()).unwrap_or_default();
-                let project = ProjectWidget { name: name.clone(), root };
+                let project = ProjectWidget { name: name.clone(), color_name: color_name.clone(), root };
                 let mode = title_bar_mode(self.distraction_free(cx), show_main_toolbar);
                 (TitleBarKind::Project, mode, None, Some(project))
             }

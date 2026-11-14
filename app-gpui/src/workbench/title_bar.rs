@@ -215,7 +215,10 @@ impl TitleBarFrame {
 /// The project widget: the project's name on its avatar, its folder as tooltip.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectWidget {
+    /// The name shown, whose initials the avatar carries.
     pub name: String,
+    /// The project's own name, which the avatar's colours are derived from.
+    pub color_name: String,
     pub root: String,
 }
 
@@ -535,18 +538,8 @@ impl TitleBar {
             Drawn::Project => {
                 let label = self.project.as_ref().map_or_else(|| "OpenIDEA".to_owned(), |project| project.name.clone());
                 let root = self.project.as_ref().map(|project| project.root.clone()).unwrap_or_default();
-                let avatar = div()
-                    .flex_none()
-                    .size(px(20.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded(theme::length(cx, "radius-small"))
-                    .bg(theme::color(cx, "accent"))
-                    .text_color(theme::color(cx, "fg-button-primary"))
-                    .text_size(theme::length(cx, "fs-tiny"))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(SharedString::from(super::project_color::project_initials(&label)));
+                let color_name = self.project.as_ref().map_or(label.as_str(), |project| project.color_name.as_str());
+                let avatar = super::project_color::project_avatar(color_name, &label, cx);
                 Self::widget_button(id, cx)
                     .child(avatar)
                     .child(div().min_w_0().truncate().child(SharedString::from(label)))
@@ -1682,7 +1675,14 @@ mod tests {
                 };
                 bar.register(item, slot, cx);
             }
-            bar.set_project(Some(ProjectWidget { name: "py-demo".to_owned(), root: "/work/py-demo".to_owned() }), cx);
+            bar.set_project(
+                Some(ProjectWidget {
+                    name: "py-demo".to_owned(),
+                    color_name: "py-demo".to_owned(),
+                    root: "/work/py-demo".to_owned(),
+                }),
+                cx,
+            );
             bar
         });
         let events: Events = Rc::default();
