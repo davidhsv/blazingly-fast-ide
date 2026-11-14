@@ -5736,8 +5736,8 @@
     "proof": "`settings_view::custom_controls::tests::vcs_confirmation_radio_buttons_and_history_limit_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
   },
   "settings:vcs.git": {
-    "status": "done",
-    "proof": "`settings_view::custom_controls::tests::vcs_git_test_protected_branches_and_update_method`, `settings_view::custom_controls::tests::git_test_is_refused_in_restricted_mode`, `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`"
+    "status": "partial",
+    "proof": "`settings_view::custom_controls::tests::vcs_git_test_protected_branches_and_update_method`, `settings_view::custom_controls::tests::git_test_is_refused_in_restricted_mode`, `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
   },
   "settings:build.deployment.options": {
     "status": "done",
