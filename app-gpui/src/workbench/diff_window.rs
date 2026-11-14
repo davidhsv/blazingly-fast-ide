@@ -10,6 +10,7 @@
 use super::services_window::on_workbench;
 use super::{COMMIT_TOOL_WINDOW, Workbench};
 use crate::backend::Backend;
+use crate::editor::view::HighlightSpan;
 use crate::platform::actions::ActionRegistry;
 use crate::platform::context::set_context;
 use crate::platform::i18n::Localization;
@@ -35,7 +36,7 @@ use gpui_kit::{
 use ide_host::Host;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// How far the diff window keeps from the edges of the window.
 const MARGIN_X: f32 = 72.0;
@@ -105,6 +106,25 @@ async fn load_sides(
             ide_host::ops::bytes::fs_probe(host, window, PathBuf::from(path)).await.map_err(|e| e.message)?.binary;
     }
     Ok((left, right, binary))
+}
+
+/// Syntax colours of the two sides of a diff of `path`, from the grammar of the file's language
+/// (none for a language without one); the editor colours the same file the same way.
+fn side_colours(host: &Host, path: &str, left: &str, right: &str) -> [Vec<HighlightSpan>; 2] {
+    let first_line = right.lines().next().or_else(|| left.lines().next());
+    let language = host.languages.detect(Path::new(path), first_line);
+    let syntax = host.syntax();
+    let spans = |text: &str| -> Vec<HighlightSpan> {
+        let Some(highlights) = syntax.highlights(&language, text) else { return Vec::new() };
+        let (triples, _) = highlights.data.as_chunks::<3>();
+        triples
+            .iter()
+            .filter_map(|&[from, to, kind]| {
+                Some(HighlightSpan { from, to, kind: *highlights.kinds.get(kind as usize)? })
+            })
+            .collect()
+    };
+    [spans(left), spans(right)]
 }
 
 /// The neighbour of `from` along its chain, in `direction`, that has changes to show.
@@ -318,10 +338,24 @@ impl Workbench {
         let Some(backend) = cx.try_global::<Backend>() else { return };
         let label = self.label.clone();
         let key = diff_key(&data);
-        let work = backend.with_host(move |host| async move { load_sides(&host, &label, &data, &open).await });
+        let work = backend.with_host(move |host| async move {
+            let loaded = load_sides(&host, &label, &data, &open).await;
+            let colours = match &loaded {
+                Ok((left, right, false)) => {
+                    let (path, left, right) = (data.path.clone(), left.clone(), right.clone());
+                    let colour = move || side_colours(&host, &path, &left, &right);
+                    tokio::task::spawn_blocking(colour).await.unwrap_or_default()
+                }
+                _ => Default::default(),
+            };
+            (loaded, colours)
+        });
         let task = cx.spawn(async move |workbench, cx| {
-            let loaded = work.await;
-            let _ = workbench.update(cx, |workbench, cx| workbench.diff_loaded(&shown, &key, loaded, cx));
+            let (loaded, colours) = match work.await {
+                Ok((loaded, colours)) => (Ok(loaded), colours),
+                Err(error) => (Err(error), Default::default()),
+            };
+            let _ = workbench.update(cx, |workbench, cx| workbench.diff_loaded(&shown, &key, loaded, colours, cx));
         });
         if let Some(open) = self.diff_window.as_mut() {
             open.loading = Some(task);
@@ -333,6 +367,7 @@ impl Workbench {
         shown: &WeakEntity<DiffDialog>,
         key: &str,
         loaded: anyhow::Result<Result<LoadedSides, String>>,
+        colours: [Vec<HighlightSpan>; 2],
         cx: &mut Context<Self>,
     ) {
         let Some(dialog) = self.diff_dialog().filter(|dialog| dialog.downgrade() == *shown).cloned() else { return };
@@ -340,7 +375,15 @@ impl Workbench {
             return;
         }
         match loaded.map_err(|error| error.to_string()).and_then(|loaded| loaded) {
-            Ok((left, right, binary)) => dialog.update(cx, |dialog, cx| dialog.loaded(&left, &right, binary, cx)),
+            Ok((left, right, binary)) => {
+                dialog.update(cx, |dialog, cx| dialog.loaded(&left, &right, binary, cx));
+                let [a, b] = colours;
+                let viewer = dialog.read(cx).viewer().clone();
+                viewer.update(cx, |viewer, cx| {
+                    viewer.set_highlights(Side::A, a, cx);
+                    viewer.set_highlights(Side::B, b, cx);
+                });
+            }
             Err(error) => {
                 let mut notice = vcs_notice(NotificationLevel::Error, "Cannot load the diff");
                 notice.body = Some(error);

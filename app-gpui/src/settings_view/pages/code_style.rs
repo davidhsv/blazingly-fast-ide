@@ -151,7 +151,7 @@ impl Render for SchemeView {
                     .child(div().relative().child(boxed).children(list))
                     .children(copy),
             )
-            .child(hint_line(cx, &note, super::LABEL_WIDTH))
+            .child(hint_line(cx, &note, 0.0))
     }
 }
 

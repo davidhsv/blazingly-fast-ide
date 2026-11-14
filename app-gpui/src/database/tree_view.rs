@@ -1500,7 +1500,8 @@ impl DatabaseTree {
         div()
             .id(id)
             .debug_selector(move || id.to_owned())
-            .size(px(24.0))
+            // The small icon buttons of a tool window's toolbar.
+            .size(px(20.0))
             .flex_none()
             .flex()
             .items_center()
@@ -1553,6 +1554,7 @@ impl DatabaseTree {
             }
         };
         div()
+            .debug_selector(|| "db-tree-toolbar".to_owned())
             .h(px(32.0))
             .flex_none()
             .flex()
@@ -1588,7 +1590,27 @@ impl DatabaseTree {
             ))
             .child(self.tool_button("db-tree-edit-data", "db-table", table, cx, on_selection(TreeAction::EditData)))
             .child(ddl_button)
-            .child(div().flex_1().min_w(px(80.0)).max_w(px(280.0)).ml(px(4.0)).child(self.filter_field.clone()))
+            .child(
+                // A framed search field: the frame keeps the text off the pane's edge.
+                div()
+                    .debug_selector(|| "db-tree-filter".to_owned())
+                    .flex_1()
+                    .min_w(px(80.0))
+                    .max_w(px(280.0))
+                    .ml(px(4.0))
+                    .h(theme::length(cx, "h-field"))
+                    .flex()
+                    .items_center()
+                    .gap(px(2.0))
+                    .pl(px(8.0))
+                    .pr(px(4.0))
+                    .rounded(theme::length(cx, "radius-control"))
+                    .border_1()
+                    .border_color(theme::color(cx, "border-button"))
+                    .bg(theme::color(cx, "bg-field"))
+                    .child(div().mr(px(4.0)).child(theme::icon(cx, "search", 14.0, theme::color(cx, "fg-muted"))))
+                    .child(div().flex_1().min_w_0().child(self.filter_field.clone())),
+            )
     }
 
     fn render_empty(&self, cx: &mut Context<Self>) -> Div {
@@ -1911,6 +1933,32 @@ mod tests {
 
     fn menu_labels(items: &[MenuItem<TreeCommand>]) -> Vec<String> {
         items.iter().map(|item| item.label().unwrap_or("-").to_owned()).collect()
+    }
+
+    /// The tree in a pane as wide as the Database tool window docked on the right.
+    struct Narrow(Entity<DatabaseTree>);
+
+    const PANE: f32 = 300.0;
+
+    impl Render for Narrow {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(PANE)).h_full().flex().flex_col().child(self.0.clone())
+        }
+    }
+
+    /// The filter field is framed and keeps the toolbar's inset from the pane's right edge.
+    #[gpui_kit::test]
+    async fn the_filter_field_is_framed_inside_the_toolbar(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            cx.set_global(UiStorage::default());
+        });
+        let (_, cx) = cx.add_window_view(|_, cx| Narrow(cx.new(DatabaseTree::new)));
+        let toolbar = bounds_of(cx, "db-tree-toolbar");
+        let filter = bounds_of(cx, "db-tree-filter");
+        assert!(toolbar.right() <= px(PANE), "the toolbar fits the pane: {toolbar:?}");
+        assert!(filter.right() <= toolbar.right() - px(6.0), "{filter:?} keeps the inset of {toolbar:?}");
+        assert!(filter.size.width >= px(80.0), "{filter:?}");
     }
 
     #[gpui_kit::test]

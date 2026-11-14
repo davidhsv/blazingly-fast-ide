@@ -44,7 +44,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 /// Shown on Available when no marketplace index is configured.
 pub const NO_REPOSITORY: &str = "There is no online plugin repository";
 
-const SIDE_WIDTH: f32 = 300.0;
+const SIDE_WIDTH: f32 = 280.0;
 const ROW_HEIGHT: f32 = 44.0;
 const BUTTON_HEIGHT: f32 = 24.0;
 const ICON_SIZE: f32 = 20.0;
@@ -2322,16 +2322,20 @@ impl PluginsPage {
         let Some(details) = self.details(cx) else {
             let (title, body) = self.empty_details(cx);
             let muted = theme::color(cx, "fg-muted");
+            // The pane takes the room left beside the list and no more; the text wraps inside it.
             return div()
+                .debug_selector(|| "plugins-details-empty".to_owned())
                 .flex_1()
+                .min_w_0()
                 .flex()
                 .flex_col()
                 .items_center()
                 .justify_center()
                 .gap(px(8.0))
                 .p(px(24.0))
-                .child(div().text_color(theme::color(cx, "fg-strong")).child(SharedString::from(title)))
-                .children(body.map(|body| div().text_color(muted).text_center().child(SharedString::from(body))))
+                .text_center()
+                .child(div().text_color(muted).child(SharedString::from(title)))
+                .children(body.map(|body| div().max_w(px(320.0)).text_color(muted).child(SharedString::from(body))))
                 .into_any_element();
         };
         let (fg, muted, strong) = (theme::color(cx, "fg"), theme::color(cx, "fg-muted"), theme::color(cx, "fg-strong"));

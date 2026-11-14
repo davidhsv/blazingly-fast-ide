@@ -274,7 +274,7 @@ impl Render for ShellPathView {
                     .child(div().relative().child(menu).children(list))
                     .child(browse),
             )
-            .child(hint_line(cx, &hint, super::LABEL_WIDTH))
+            .child(hint_line(cx, &hint, 0.0))
     }
 }
 

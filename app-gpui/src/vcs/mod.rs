@@ -25,4 +25,5 @@ pub mod merge_view;
 pub mod patch_dialogs;
 pub mod prompt_dialogs;
 pub mod revision_chooser;
+pub mod shelf_time;
 pub mod shelf_view;

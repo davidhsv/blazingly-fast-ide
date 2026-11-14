@@ -259,7 +259,7 @@ impl Render for WeightView {
             with_range_tooltip(field, self.invalid, WEIGHT_MIN, WEIGHT_MAX)
         });
         let label = tx(cx, self.label);
-        let hint = self.hint.map(|hint| hint_line(cx, &tx(cx, hint), super::LABEL_WIDTH));
+        let hint = self.hint.map(|hint| hint_line(cx, &tx(cx, hint), 0.0));
         div()
             .flex()
             .flex_col()

@@ -25,8 +25,6 @@ use std::collections::BTreeSet;
 
 /// The height of a row of controls.
 const ROW_HEIGHT: f32 = 28.0;
-/// The width of the label column of a row.
-const LABEL_WIDTH: f32 = 220.0;
 const TEXT_FIELD_WIDTH: f32 = 280.0;
 const NUMBER_FIELD_WIDTH: f32 = 80.0;
 /// How far Up and Down move a number.
@@ -545,7 +543,7 @@ fn row(cx: &App, matched: bool) -> Div {
         .min_h(px(ROW_HEIGHT))
         .flex()
         .items_center()
-        .gap(px(12.0))
+        .gap(px(8.0))
         .px(px(4.0))
         .rounded(theme::length(cx, "radius-small"))
         .text_color(theme::color(cx, "fg"))
@@ -554,7 +552,16 @@ fn row(cx: &App, matched: bool) -> Div {
 
 /// The label column of a row.
 fn row_label(cx: &App, label: &str, query: &str) -> Div {
-    div().flex_none().w(px(LABEL_WIDTH)).overflow_hidden().child(search_label(cx, label, query))
+    form_label(cx, label, query)
+}
+
+/// A row's label as wide as its text, followed by the colon the active language writes after a
+/// label (French puts a no-break space before it): each row's control starts right after its own
+/// label, so a long label never pushes a control out of the page.
+pub fn form_label(cx: &App, label: &str, query: &str) -> Div {
+    let french = cx.try_global::<Localization>().is_some_and(|localization| localization.0.locale() == "fr");
+    let colon = if french { "\u{a0}:" } else { ":" };
+    div().flex_none().flex().whitespace_nowrap().child(search_label(cx, label, query)).child(colon)
 }
 
 /// The frame a text field is drawn in.

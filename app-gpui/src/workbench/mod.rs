@@ -4058,6 +4058,7 @@ impl Render for Workbench {
                 workbench.for_each_intelligence(cx, |intelligence, cx| intelligence.modifiers_changed(modifiers, cx));
             }))
             .capture_any_mouse_down(cx.listener(|_, event: &MouseDownEvent, window, cx| {
+                crate::ui::tooltip::note_press(window, cx);
                 if input::mouse_down(event.button, &event.modifiers, false, window, cx).consumed() {
                     cx.stop_propagation();
                 }
@@ -4201,6 +4202,28 @@ mod tests {
         std::fs::write(data.join("docker.json"), r#"{ "connections": [], "registries": [] }"#)
             .expect("the Docker settings are written");
         home
+    }
+
+    /// Settings › Appearance › Use custom font: the workbench draws its interface in the family
+    /// chosen, and in the theme's again once the option is off.
+    #[gpui_kit::test]
+    async fn a_custom_interface_font_is_the_family_the_workbench_draws_with(cx: &mut TestAppContext) {
+        use crate::platform::settings::{SettingsWrite, set_global};
+        let _home = start(cx);
+        cx.update(crate::theme::appearance::init);
+        let (_workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        let drawn = |cx: &mut VisualTestContext| cx.update(|_, cx| theme::installed_fonts::ui_family(cx).to_string());
+        let theme_font = drawn(cx);
+        assert_ne!(theme_font, "Menlo");
+        let writes = [
+            SettingsWrite { key: "appearance.useCustomFont", value: serde_json::Value::Bool(true) },
+            SettingsWrite { key: "appearance.uiFontFamily", value: serde_json::Value::from("Menlo") },
+        ];
+        cx.update(|_, cx| set_global("w1", &writes, cx)).expect("the settings are stored");
+        settle(cx, |cx| drawn(cx) == "Menlo");
+        let off = [SettingsWrite { key: "appearance.useCustomFont", value: serde_json::Value::Bool(false) }];
+        cx.update(|_, cx| set_global("w1", &off, cx)).expect("the setting is stored");
+        settle(cx, |cx| drawn(cx) == theme_font);
     }
 
     /// View › Toggle Light/Dark Theme switches every window and stores the choice.
@@ -9971,6 +9994,138 @@ for line in sys.stdin:
         run_action(cx, "view.toggleToolbar", None);
         assert_eq!(mode(cx), TitleBarMode::Full);
         assert!(cx.debug_bounds("title:gear").is_some());
+    }
+
+    /// Find Action with no query lists the recent actions, and says "Type to search" while there
+    /// are none; a query nothing answers says "Nothing found in project files". Search Everywhere's
+    /// All tab with no query says nothing.
+    #[gpui_kit::test]
+    async fn find_action_says_what_to_do_when_it_has_nothing_to_list(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, _root, workbench, cx) = search_project(cx);
+        run_action(cx, "navigate.findAction", None);
+        let everywhere = workbench.read_with(cx, |w, _| w.search_everywhere()).expect("the popup is open");
+        assert_eq!(everywhere.read_with(cx, |popup, _| popup.tab()), SeTab::Actions);
+        settle(cx, |cx| cx.debug_bounds("search-everywhere-empty:Type to search").is_some());
+        assert!(everywhere.read_with(cx, |popup, _| popup.lines()).is_empty(), "no action was run yet");
+
+        type_query(cx, "zzqqxx");
+        settle(cx, |cx| cx.debug_bounds("search-everywhere-empty:Nothing found in project files").is_some());
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+
+        run_action(cx, "navigate.searchEverywhere", None);
+        let everywhere = workbench.read_with(cx, |w, _| w.search_everywhere()).expect("the popup is open");
+        assert_eq!(everywhere.read_with(cx, |popup, _| popup.tab()), SeTab::All);
+        assert!(cx.debug_bounds("search-everywhere-empty:Type to search").is_none());
+    }
+
+    /// With the Project view focused, `toolWindowFocus` is on and Focus Editor runs: the editor takes
+    /// the keyboard and the key goes off. Run from the editor, the action is unavailable. After
+    /// Settings is closed with Escape, Activate Project Window focuses the visible Project view;
+    /// Escape there (after a ⇧F10 that opens nothing) hands the keyboard to the editor.
+    #[gpui_kit::test]
+    async fn focus_editor_runs_from_the_focused_project_view(cx: &mut TestAppContext) {
+        use crate::platform::actions::execute_action_or_throw;
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("main.zig", "const a = 1;\n")]);
+        cx.update(|window, _| window.activate_window());
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("main.zig"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        cx.run_until_parked();
+        assert!(context_is_on(cx, "editorFocus") && !context_is_on(cx, "toolWindowFocus"));
+        let unavailable = cx.update(|window, cx| execute_action_or_throw("toolwindow.focusEditor", None, window, cx));
+        assert!(unavailable.is_err(), "from the editor there is no tool window to leave");
+
+        run_action(cx, "file.settings", Some(serde_json::Value::from("editor.font")));
+        assert!(workbench.read_with(cx, |w, _| w.settings_dialog().is_some()), "Settings is open");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.settings_dialog().is_none()), "Escape closes Settings");
+        run_action(cx, "toolwindow.project", None);
+        let tree = workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree");
+        assert!(cx.update(|window, cx| tree.focus_handle(cx).is_focused(window)), "the Project view is focused");
+        assert!(context_is_on(cx, "toolWindowFocus") && context_is_on(cx, "projectViewFocus"));
+
+        run_action(cx, "toolwindow.focusEditor", None);
+        assert!(context_is_on(cx, "editorFocus") && !context_is_on(cx, "toolWindowFocus"));
+        assert!(!cx.update(|window, cx| tree.focus_handle(cx).is_focused(window)));
+        run_action(cx, "toolwindow.project", None);
+        cx.simulate_keystrokes("shift-f10");
+        cx.run_until_parked();
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        // Escape in a tool window gives the keyboard to the editor: no tool window has it then, so
+        // Focus Editor has nothing to do and is unavailable.
+        assert!(context_is_on(cx, "editorFocus") && !context_is_on(cx, "toolWindowFocus"));
+        let unavailable = cx.update(|window, cx| execute_action_or_throw("toolwindow.focusEditor", None, window, cx));
+        assert!(unavailable.is_err());
+    }
+
+    /// A press on the project widget hides its tooltip, and a press before the tooltip's delay has run
+    /// keeps it from showing: the menu the press opens is never covered by it.
+    #[gpui_kit::test]
+    async fn a_pressed_widgets_tooltip_stays_off_the_menu_it_opened(cx: &mut TestAppContext) {
+        use super::title_bar::ToolbarCommand;
+        use crate::ui::tooltip::TOOLTIP_DELAY;
+        use gpui_kit::{Modifiers, MouseButton};
+        let _home = start(cx);
+        let (_folder, _root, workbench, cx) = search_project(cx);
+        cx.run_until_parked();
+        let widget = cx.debug_bounds("title:project").expect("the project widget is drawn").center();
+        let away = cx.debug_bounds("title-bar").expect("the bar is drawn").bottom_right();
+        let rest = |cx: &mut VisualTestContext| {
+            cx.executor().advance_clock(TOOLTIP_DELAY + std::time::Duration::from_millis(10));
+            cx.run_until_parked();
+        };
+        let press = |cx: &mut VisualTestContext| {
+            cx.simulate_mouse_down(widget, MouseButton::Left, Modifiers::default());
+            cx.simulate_mouse_up(widget, MouseButton::Left, Modifiers::default());
+            cx.run_until_parked();
+        };
+        let menu_shown_uncovered = |cx: &mut VisualTestContext| {
+            assert!(workbench.read_with(cx, |w, _| w.open_menu::<ToolbarCommand>().is_some()), "the menu is open");
+            assert!(cx.debug_bounds("menu-row-0-0").is_some(), "the menu's first row is drawn");
+            assert!(cx.debug_bounds("tooltip").is_none(), "no tooltip covers the menu");
+        };
+
+        cx.simulate_mouse_move(widget, None, Modifiers::default());
+        rest(cx);
+        assert!(cx.debug_bounds("tooltip").is_some(), "the tooltip shows once the pointer rests");
+        press(cx);
+        rest(cx);
+        menu_shown_uncovered(cx);
+        cx.simulate_keystrokes("escape");
+        cx.simulate_mouse_move(away, None, Modifiers::default());
+        rest(cx);
+        assert!(workbench.read_with(cx, |w, _| w.popup.is_none()), "Escape closes the menu");
+
+        // Pressed as soon as the pointer arrives: the delay ends with the menu open.
+        cx.simulate_mouse_move(widget, None, Modifiers::default());
+        cx.executor().advance_clock(std::time::Duration::from_millis(50));
+        press(cx);
+        rest(cx);
+        menu_shown_uncovered(cx);
+    }
+
+    /// Settings at its default size cuts nothing of the Font page: its controls lie inside the dialog.
+    #[gpui_kit::test]
+    async fn the_font_page_fits_inside_the_settings_dialog_at_its_default_size(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, _root, _workbench, cx) = search_project(cx);
+        let inside = |cx: &mut VisualTestContext, selector: &'static str| {
+            let dialog = cx.debug_bounds("settings-dialog").expect("Settings is drawn");
+            let drawn = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
+            assert!(
+                drawn.left() >= dialog.left() && drawn.right() <= dialog.right() && drawn.bottom() <= dialog.bottom(),
+                "{selector} at {drawn:?} lies inside the dialog at {dialog:?}"
+            );
+        };
+        run_action(cx, "file.settings", Some(serde_json::Value::from("editor.font")));
+        wait_long(cx, "the Font page shows", |cx| cx.debug_bounds("settings-font-editor-mono").is_some());
+        for selector in ["settings-font-editor", "settings-font-editor-refresh", "settings-font-editor-mono"] {
+            inside(cx, selector);
+        }
     }
 
     /// The title bar of a project without a repository: no branch widget but "Version Control ▾" with

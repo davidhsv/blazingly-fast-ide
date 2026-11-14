@@ -325,12 +325,34 @@ impl Render for FontPicker {
             .child(
                 row(cx, matched)
                     .child(row_label(cx, &label, &query))
-                    .child(div().relative().child(field).children(list))
-                    .child(refresh)
+                    .child(
+                        // The picker: its field and Refresh, the status of the font list under them,
+                        // wrapped within the picker's widest.
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(4.0))
+                            .min_w(px(200.0))
+                            .max_w(px(420.0))
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(6.0))
+                                    .child(div().relative().child(field).children(list))
+                                    .child(refresh),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(11.0))
+                                    .text_color(theme::color(cx, "fg-muted"))
+                                    .child(SharedString::from(status)),
+                            ),
+                    )
                     .children(mono),
             )
-            .child(hint_line(cx, &status, super::LABEL_WIDTH))
-            .children(self.hint.map(|hint| hint_line(cx, &tx(cx, hint), super::LABEL_WIDTH)))
+            // The row's own help line spans its label and its control.
+            .children(self.hint.map(|hint| hint_line(cx, &tx(cx, hint), 0.0)))
     }
 }
 

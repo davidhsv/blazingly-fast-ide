@@ -50,8 +50,6 @@ use std::sync::LazyLock;
 
 /// The height of a row of controls.
 pub const ROW_HEIGHT: f32 = 28.0;
-/// The width of the label column of a row.
-pub const LABEL_WIDTH: f32 = 220.0;
 /// How far an option that depends on another is indented below it.
 pub const INDENT: f32 = 20.0;
 pub const WIDE_FIELD: f32 = 360.0;
@@ -194,9 +192,9 @@ pub fn row(cx: &App, matched: bool) -> Div {
         .when(matched, |el| el.bg(theme::color(cx, "warning").opacity(0.08)))
 }
 
-/// The label column of a row.
+/// The label column of a row: as wide as its text, the control right after it.
 pub fn row_label(cx: &App, label: &str, query: &str) -> Div {
-    div().flex_none().w(px(LABEL_WIDTH)).overflow_hidden().child(search_label(cx, label, query))
+    super::controls::form_label(cx, label, query)
 }
 
 /// The frame a text field is drawn in.
@@ -1093,7 +1091,8 @@ impl FormView {
             .children(unit)
             .children(browse)
             .children(note);
-        let indent = if spec.indent { LABEL_WIDTH + INDENT } else { LABEL_WIDTH };
+        // A row's help line spans its label and its control.
+        let indent = if spec.indent { INDENT } else { 0.0 };
         with_hint(drawn, spec.hint.map(|hint| tx(cx, hint)), indent, cx)
     }
 }

@@ -1970,4 +1970,36 @@ mod tests {
         let dialog = workbench.read_with(cx, |w, _| w.diff_dialog().cloned()).expect("the diff is shown");
         assert_eq!(dialog.read_with(cx, |dialog, _| dialog.data().path.clone()), path);
     }
+
+    /// The diff colours both sides with the grammar of the file's language, as the editor does: a
+    /// Rust keyword of the old text and of the new one is drawn as a keyword.
+    #[gpui_kit::test]
+    async fn the_diff_colours_the_syntax_of_both_sides(cx: &mut TestAppContext) {
+        use crate::vcs_diff::diff_options::Side;
+        use ide_language::SyntaxHighlightKind;
+        let (workbench, cx, _folders, root) = git_project(cx, init_repo);
+        let path = root.join("main.rs");
+        std::fs::write(&path, "fn main() {\n    let answer = 42;\n}\n").expect("the file is written");
+        let data = json!({
+            "path": path.to_string_lossy(),
+            "left": { "type": "text", "text": "fn main() {}\n", "label": "Before" },
+            "right": { "type": "worktree" },
+        });
+        run_action(cx, "vcs.openDiff", Some(data));
+        let dialog = workbench.read_with(cx, |w, _| w.diff_dialog().cloned()).expect("the diff is shown");
+        let viewer = dialog.read_with(cx, |dialog, _| dialog.viewer().clone());
+        let keyword_at = |side: Side, from: u32, cx: &mut VisualTestContext| {
+            viewer.read_with(cx, |viewer, _| {
+                viewer
+                    .syntax_highlights(side)
+                    .iter()
+                    .any(|span| span.from == from && span.to == from + 2 && span.kind == SyntaxHighlightKind::Keyword)
+            })
+        };
+        wait_long(cx, "both sides are coloured", |cx| keyword_at(Side::A, 0, cx) && keyword_at(Side::B, 0, cx));
+        // `let` on the new side's second line.
+        assert!(viewer.read_with(cx, |viewer, _| {
+            viewer.syntax_highlights(Side::B).iter().any(|span| span.from == 16 && span.to == 19)
+        }));
+    }
 }

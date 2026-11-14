@@ -44,8 +44,41 @@ pub fn run(name: &str, cx: &mut App) -> bool {
             cx.quit();
             true
         }
+        "text-width" => {
+            match text_widths(cx) {
+                Ok(report) => println!("text-width: ok\n{report}"),
+                Err(error) => {
+                    eprintln!("text-width: {error:#}");
+                    std::process::exit(1);
+                }
+            }
+            cx.quit();
+            true
+        }
         _ => false,
     }
+}
+
+/// The widths of the commit buttons' labels in the interface font (the bundled Inter) at 13px:
+/// the sum of the glyphs' advances (kerning left out), what a layout of the Commit tool window has
+/// to make room for.
+fn text_widths(cx: &mut App) -> anyhow::Result<String> {
+    use crate::theme::fonts::BUNDLED_UI_FAMILY;
+    use gpui_kit::font;
+    crate::theme::bundled_fonts::register(cx)?;
+    let text_system = cx.text_system().clone();
+    let id = text_system.resolve_font(&font(BUNDLED_UI_FAMILY));
+    let found = text_system.get_font_for_id(id).map(|found| found.family.to_string());
+    anyhow::ensure!(found.as_deref() == Some(BUNDLED_UI_FAMILY), "{BUNDLED_UI_FAMILY} resolves to {found:?}");
+    let mut report = String::new();
+    for label in ["Commit", "Commit and Push…", "Commit an…"] {
+        let width: f32 = label
+            .chars()
+            .map(|ch| text_system.advance(id, px(13.0), ch).map(|size| f32::from(size.width)))
+            .sum::<anyhow::Result<f32>>()?;
+        report.push_str(&format!("{label:?} in {BUNDLED_UI_FAMILY} 13px: {width:.2}px\n"));
+    }
+    Ok(report)
 }
 
 /// The bundled faces load, resolve by the family names the theme draws with, and draw the weights

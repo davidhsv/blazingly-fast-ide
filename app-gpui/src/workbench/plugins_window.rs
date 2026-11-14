@@ -1648,4 +1648,20 @@ mod tests {
                 .any(|page| page.id == "plugins.settings-pages")
         }));
     }
+
+    /// Settings › Plugins at the dialog's default size: the details pane, with nothing selected, lies
+    /// inside the dialog and its text wraps there.
+    #[gpui_kit::test]
+    async fn the_plugins_details_pane_fits_inside_the_settings_dialog(cx: &mut TestAppContext) {
+        let _home = start_with_plugins(cx);
+        let (_folder, _root, _workbench, cx) = trusted_project(cx, "w1", &[("a.txt", "a\n")]);
+        run_action(cx, "plugins.settings", None);
+        wait_long(cx, "the details pane shows", |cx| cx.debug_bounds("plugins-details-empty").is_some());
+        let dialog = cx.debug_bounds("settings-dialog").expect("Settings is drawn");
+        let pane = cx.debug_bounds("plugins-details-empty").expect("the pane is drawn");
+        assert!(
+            pane.left() >= dialog.left() && pane.right() <= dialog.right() && pane.bottom() <= dialog.bottom(),
+            "the pane at {pane:?} lies inside the dialog at {dialog:?}"
+        );
+    }
 }

@@ -4,7 +4,9 @@
 //! GPUI shows a stateful element's tooltip after the pointer rests on it and hides it when the
 //! pointer leaves, a button is pressed or the wheel turns; a bubble shown through [`Tooltip::shown`]
 //! also hides on a key press and when its window stops being the active one, until the pointer
-//! comes back to the element. A view adds one in a line: `.with_tooltip("Close Tab")` on an
+//! comes back to the element. A press during the delay cancels the bubble too (GPUI would show it
+//! after the press, over the popup the press opened): the window's root reports its presses
+//! through [`note_press`]. A view adds one in a line: `.with_tooltip("Close Tab")` on an
 //! element with an id, or `.tooltip(tooltip("…"))` with GPUI's own method.
 
 use crate::platform::i18n::Localization;
@@ -12,10 +14,11 @@ use crate::platform::input::Keymap;
 use crate::platform::keymap::is_mac_host;
 use crate::theme;
 use gpui_kit::{
-    AnyView, App, BoxShadow, Context, IntoElement, Render, SharedString, StatefulInteractiveElement, Subscription,
-    Window, div, prelude::*, px,
+    AnyView, App, BoxShadow, Context, Global, IntoElement, Render, SharedString, StatefulInteractiveElement,
+    Subscription, Window, WindowId, div, prelude::*, px,
 };
-use std::time::Duration;
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 /// How long the pointer rests on an element before its tooltip shows (GPUI's own default is
 /// 500ms; [`WithTooltip`] uses this one).
@@ -23,6 +26,28 @@ pub const TOOLTIP_DELAY: Duration = Duration::from_millis(600);
 
 /// The widest a tooltip grows before its text wraps.
 const MAX_WIDTH: f32 = 720.0;
+
+/// When a mouse button was last pressed in each window, by the executor's clock.
+#[derive(Default)]
+struct LastPress(HashMap<WindowId, Instant>);
+
+impl Global for LastPress {}
+
+/// Notes a mouse button pressed in `window`: a tooltip whose delay is running then shows nothing,
+/// since the press went to the element the pointer rests on.
+pub fn note_press(window: &Window, cx: &mut App) {
+    let now = cx.background_executor().now();
+    cx.default_global::<LastPress>().0.insert(window.window_handle().window_id(), now);
+}
+
+/// Whether a button was pressed in `window` while the delay of a tooltip due now was running: the
+/// delay started at the latest [`TOOLTIP_DELAY`] ago, when the pointer came to rest.
+fn pressed_during_delay(window: &Window, cx: &App) -> bool {
+    let now = cx.background_executor().now();
+    cx.try_global::<LastPress>()
+        .and_then(|presses| presses.0.get(&window.window_handle().window_id()).copied())
+        .is_some_and(|at| now.saturating_duration_since(at) < TOOLTIP_DELAY)
+}
 
 /// The bubble: a title, the shortcut that runs the same action, a line of detail.
 pub struct Tooltip {
@@ -42,9 +67,11 @@ impl Tooltip {
     }
 
     /// The bubble as GPUI's `.tooltip(…)` builders return it, hidden by a key pressed in `window`
-    /// and by `window` stopping being the active one.
+    /// and by `window` stopping being the active one, and empty when a button was pressed while its
+    /// delay ran (it stays empty until the pointer leaves the element).
     pub fn shown(self, window: &mut Window, cx: &mut App) -> AnyView {
         let here = window.window_handle().window_id();
+        let dismissed = pressed_during_delay(window, cx);
         cx.new(|cx| {
             let weak: gpui_kit::WeakEntity<Self> = cx.weak_entity();
             let keys = cx.intercept_keystrokes(move |_, window, cx| {
@@ -58,7 +85,7 @@ impl Tooltip {
                     tooltip.dismiss(cx);
                 }
             });
-            Self { _dismissal: vec![keys, focus], ..self }
+            Self { dismissed, _dismissal: vec![keys, focus], ..self }
         })
         .into()
     }
@@ -322,7 +349,7 @@ mod tests {
             } else {
                 button.with_tooltip(self.text)
             };
-            div().size_full().p(px(40.0)).child(button)
+            div().size_full().p(px(40.0)).capture_any_mouse_down(|_, window, cx| note_press(window, cx)).child(button)
         }
     }
 
@@ -432,6 +459,28 @@ mod tests {
             ..Default::default()
         });
         assert!(!shown(cx), "the wheel hides the tooltip");
+    }
+
+    #[gpui_kit::test]
+    async fn a_press_before_the_delay_ends_keeps_the_tooltip_hidden_until_the_pointer_leaves(cx: &mut TestAppContext) {
+        let cx = host(cx, "Project", false);
+        let over = button(cx);
+        cx.simulate_mouse_move(over, None, Modifiers::default());
+        cx.executor().advance_clock(Duration::from_millis(50));
+        cx.simulate_mouse_down(over, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(over, MouseButton::Left, Modifiers::default());
+        cx.executor().advance_clock(TOOLTIP_DELAY + Duration::from_millis(10));
+        cx.run_until_parked();
+        assert!(!shown(cx), "the press cancels the tooltip that was due");
+        cx.simulate_mouse_move(over + point(px(2.0), px(1.0)), None, Modifiers::default());
+        cx.executor().advance_clock(TOOLTIP_DELAY * 2);
+        cx.run_until_parked();
+        assert!(!shown(cx), "moving on the pressed element does not bring it back");
+
+        cx.simulate_mouse_move(point(px(400.0), px(400.0)), None, Modifiers::default());
+        cx.run_until_parked();
+        hover(cx);
+        assert!(shown(cx), "the pointer coming back shows it again");
     }
 
     #[gpui_kit::test]

@@ -2483,9 +2483,13 @@ mod tests {
         assert_eq!(tabs, ["Commit", "Shelf"]);
         assert!(panel.read_with(cx, |p, _| p.content().is_some()), "the Shelf tab shows the shelf");
         let shelf = workbench.read_with(cx, |w, _| w.shelf_view().cloned()).expect("the Shelf tab is shown");
-        wait_long(cx, "the shelf is listed", |cx| shelf.update(cx, |s, cx| s.lines(cx)) == ["Work 2 files"]);
+        // The row reads its files, then when the shelf was made.
+        let listed = |lines: &[String]| lines.len() == 1 && lines[0].starts_with("Work 2 files · ");
+        wait_long(cx, "the shelf is listed", |cx| listed(&shelf.update(cx, |s, cx| s.lines(cx))));
         shelf.update(cx, |s, cx| s.toggle(&id, cx));
-        assert_eq!(shelf.update(cx, |s, cx| s.lines(cx)), ["Work 2 files", "  a.txt", "  b.txt"]);
+        let lines = shelf.update(cx, |s, cx| s.lines(cx));
+        assert!(listed(&lines[..1]), "{lines:?}");
+        assert_eq!(lines[1..], ["  a.txt", "  b.txt"]);
 
         // Refresh Shelf reads what changed on disk: a shelf deleted outside is gone.
         std::fs::remove_dir_all(root.join(".openidea/shelf").join(&id)).expect("the shelf is removed");

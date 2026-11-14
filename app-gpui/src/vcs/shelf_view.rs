@@ -7,6 +7,7 @@
 
 use super::changes::{EffectiveKind, base_name, dir_name};
 use super::commit_view::kind_color;
+use super::shelf_time::{ShelfClock, date_options, shelf_detail};
 use crate::platform::i18n::Localization;
 use crate::theme;
 use crate::vcs_diff::model::file_count;
@@ -109,6 +110,8 @@ pub struct ShelfPanel {
     loaded: bool,
     expanded: HashSet<String>,
     selected: Option<String>,
+    /// What the shelves' times are dated against.
+    clock: ShelfClock,
 }
 
 impl EventEmitter<ShelfPanelEvent> for ShelfPanel {}
@@ -126,7 +129,20 @@ fn file_kind(kind: ChangeKind) -> EffectiveKind {
 
 impl ShelfPanel {
     pub fn new(cx: &mut Context<Self>) -> Self {
-        Self { focus: cx.focus_handle(), shelves: Vec::new(), loaded: false, expanded: HashSet::new(), selected: None }
+        Self {
+            focus: cx.focus_handle(),
+            shelves: Vec::new(),
+            loaded: false,
+            expanded: HashSet::new(),
+            selected: None,
+            clock: ShelfClock::default(),
+        }
+    }
+
+    /// Dates the shelves against `clock` instead of the wall clock.
+    pub fn set_clock(&mut self, clock: ShelfClock, cx: &mut Context<Self>) {
+        self.clock = clock;
+        cx.notify();
     }
 
     /// The shelves as the backend lists them; `loaded` once they were read.
@@ -201,15 +217,16 @@ impl ShelfPanel {
     /// The visible lines, indented by depth: a shelf with its number of files, a file with its
     /// folder.
     pub fn lines(&self, cx: &mut App) -> Vec<String> {
+        let options = date_options(cx);
         let i18n = &mut cx.default_global::<Localization>().0;
         self.rows()
             .into_iter()
             .map(|row| {
                 let detail = match row.kind {
-                    None => {
-                        let count = self.shelves.iter().find(|entry| entry.id == row.key).map_or(0, |e| e.files.len());
-                        file_count(count, i18n)
-                    }
+                    None => match self.shelves.iter().find(|entry| entry.id == row.key) {
+                        Some(entry) => shelf_detail(entry.files.len(), entry.time_ms, self.clock, &options, i18n),
+                        None => file_count(0, i18n),
+                    },
                     Some(_) => row.detail,
                 };
                 let line = format!("{}{} {detail}", "  ".repeat(row.depth), row.label);
@@ -333,6 +350,7 @@ impl ShelfPanel {
 
     fn render_rows(&self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let rows = self.rows();
+        let options = date_options(cx);
         let muted = theme::color(cx, "fg-muted");
         if rows.is_empty() {
             let i18n = &cx.default_global::<Localization>().0;
@@ -355,8 +373,9 @@ impl ShelfPanel {
                 let shelf = row.kind.is_none();
                 let color = row.kind.map_or(fg, |kind| theme::color(cx, kind_color(kind)));
                 let detail = if shelf {
-                    let count = self.shelves.iter().find(|entry| entry.id == row.key).map_or(0, |e| e.files.len());
-                    file_count(count, &mut cx.default_global::<Localization>().0)
+                    let entry = self.shelves.iter().find(|entry| entry.id == row.key);
+                    let (files, time) = entry.map_or((0, 0.0), |entry| (entry.files.len(), entry.time_ms));
+                    shelf_detail(files, time, self.clock, &options, &mut cx.default_global::<Localization>().0)
                 } else {
                     row.detail.clone()
                 };

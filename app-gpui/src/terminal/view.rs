@@ -7,7 +7,7 @@
 use super::emulator::{Effect, Emulator, Palette, SelectBy};
 use super::encode::{KeyModes, KeyMods, encode_key, encode_paste};
 use super::keys::{CLOSE_SESSION_ACTION, FIND_ACTION, KeyContext, KeyEvent, KeyFocus, KeyHandling, route_terminal_key};
-use super::theme::terminal_theme;
+use super::theme::{terminal_font, terminal_theme};
 use crate::backend::{Backend, BackendEvent};
 use crate::platform::dispatcher::{Mods, stroke};
 use crate::platform::input::{self, Keymap};
@@ -18,10 +18,10 @@ use futures::StreamExt as _;
 use futures::channel::mpsc::unbounded;
 use gpui_kit::{
     App, Bounds, ClipboardItem, Context, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
-    EntityInputHandler, EventEmitter, FocusHandle, Focusable, Font, FontStyle, FontWeight, GlobalElementId, Hsla,
-    InspectorElementId, IntoElement, KeyDownEvent, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, Pixels,
-    Point, Render, Rgba, ScrollEvent, SharedString, Style, Task, TextAlign, TextRun, UTF16Selection, UnderlineStyle,
-    Window, div, fill, font, outline, point, prelude::*, px, relative, size,
+    EntityInputHandler, EventEmitter, FocusHandle, Focusable, Font, FontFallbacks, FontStyle, FontWeight,
+    GlobalElementId, Hsla, InspectorElementId, IntoElement, KeyDownEvent, LayoutId, MouseButton, MouseDownEvent,
+    MouseMoveEvent, Pixels, Point, Render, Rgba, ScrollEvent, SharedString, Style, Task, TextAlign, TextRun,
+    UTF16Selection, UnderlineStyle, Window, div, fill, font, outline, point, prelude::*, px, relative, size,
 };
 use ide_core::{IdeEvent, TerminalId};
 use ide_host::Host;
@@ -467,14 +467,26 @@ impl TerminalView {
         }
     }
 
-    /// The terminal's font and its size: the editor's, or the one set for the terminal.
+    /// The terminal's font and its size. The family is the editor's, or the one set for the
+    /// terminal, then its fallback, the code font stack and the Nerd Font symbol families: the first
+    /// that can be drawn draws the grid, the others the glyphs it lacks.
     fn font(cx: &App) -> (Font, Pixels, f32) {
-        let terminal = settings::global(cx).terminal;
-        // A family of its own counts once it is known to be installed.
-        let installed = installed_fonts::installed(cx).is_some_and(|names| names.contains(&terminal.font_family));
-        let named = (!terminal.use_editor_font && installed).then_some(SharedString::from(terminal.font_family));
-        let family = named.unwrap_or_else(|| installed_fonts::mono_family(cx));
-        (font(family), px(terminal.font_size.clamp(6.0, 72.0)), terminal.line_height.clamp(0.8, 3.0))
+        let settings = settings::global(cx);
+        let base = cx.try_global::<theme::ActiveTheme>().map(|active| theme::fonts::mono_stack(&active.theme));
+        let wanted = terminal_font(&settings.terminal, Some(&settings.editor), &base.unwrap_or_default(), None);
+        let families: Vec<String> = wanted
+            .family
+            .split(',')
+            .map(|family| family.trim().trim_matches(['"', '\'']).to_owned())
+            .filter(|family| !family.is_empty())
+            .collect();
+        let (family, fallbacks) = installed_fonts::family_with_fallbacks(cx, &families);
+        let font = Font {
+            fallbacks: (!fallbacks.is_empty()).then(|| FontFallbacks::from_fonts(fallbacks)),
+            ..font(SharedString::from(family))
+        };
+        let terminal = settings.terminal;
+        (font, px(terminal.font_size.clamp(6.0, 72.0)), terminal.line_height.clamp(0.8, 3.0))
     }
 }
 
@@ -560,6 +572,9 @@ impl Render for TerminalView {
             .on_mouse_down(MouseButton::Left, cx.listener(Self::mouse_down))
             .on_mouse_move(cx.listener(Self::mouse_move))
             .on_mouse_up(MouseButton::Left, cx.listener(|view, _, _, _| view.selecting = false))
+            // The grid keeps an inset from the panel's top and left edges.
+            .pt(px(6.0))
+            .pl(px(8.0))
             .child(TerminalElement { view: cx.entity() })
     }
 }
@@ -776,6 +791,20 @@ mod tests {
 
     fn screen(view: &Entity<TerminalView>, cx: &mut VisualTestContext) -> String {
         view.read_with(cx, |view, _| view.emulator.lines().join("\n"))
+    }
+
+    /// The grid is drawn in the first family of the terminal's list that can be drawn, with the
+    /// rest of the list (the code font stack, the Nerd Font symbol families) as fallbacks for the
+    /// glyphs it lacks.
+    #[gpui_kit::test]
+    async fn the_grid_font_falls_back_along_the_terminals_family_list(cx: &mut TestAppContext) {
+        cx.update(|cx| cx.set_global(theme::ActiveTheme::default()));
+        let (font, _, _) = cx.update(|cx| TerminalView::font(cx));
+        assert_eq!(font.family.as_ref(), "JetBrains Mono");
+        let fallbacks = font.fallbacks.map(|list| list.fallback_list().to_vec()).unwrap_or_default();
+        assert!(fallbacks.contains(&"Symbols Nerd Font Mono".to_owned()), "{fallbacks:?}");
+        assert!(fallbacks.contains(&installed_fonts::last_resort().to_owned()), "{fallbacks:?}");
+        assert!(!fallbacks.contains(&"JetBrains Mono".to_owned()), "the family is not its own fallback");
     }
 
     /// A real shell on the backend's PTY: what is typed reaches it, what it prints is on the

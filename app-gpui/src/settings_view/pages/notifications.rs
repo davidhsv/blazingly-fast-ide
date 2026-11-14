@@ -1,7 +1,7 @@
 //! Appearance & Behavior › Notifications: per notification group, how its notifications pop up
 //! and whether the Notifications tool window lists them.
 
-use super::{Binding, ControlEvent, drop_down, drop_down_row, row, row_label, select_box};
+use super::{Binding, ControlEvent, drop_down, drop_down_row, row, select_box};
 use crate::settings_view::controls::{check_box, search_label, tx};
 use crate::theme;
 use crate::workbench::notifications::{GROUPS_SETTINGS_KEY, NOTIFICATION_GROUPS};
@@ -10,6 +10,9 @@ use gpui_kit::{
     prelude::*, px,
 };
 use serde_json::{Map, Value, json};
+
+/// The width of the table's Group column: every row's choices line up under their heading.
+const GROUP_COLUMN: f32 = 220.0;
 
 pub const PAGE: &str = "notifications";
 
@@ -87,7 +90,7 @@ impl Render for NotificationGroupsView {
             .gap(px(8.0))
             .px(px(4.0))
             .text_color(muted)
-            .child(div().w(px(super::LABEL_WIDTH)).child(SharedString::from(tx(cx, "Group"))))
+            .child(div().w(px(GROUP_COLUMN)).child(SharedString::from(tx(cx, "Group"))))
             .child(div().w(px(180.0)).child(SharedString::from(tx(cx, "Popup type"))))
             .child(SharedString::from(tx(cx, "Show in tool window")));
         let rows: Vec<AnyElement> = NOTIFICATION_GROUPS
@@ -127,7 +130,9 @@ impl Render for NotificationGroupsView {
                     .on_click(cx.listener(move |view, _: &ClickEvent, _, cx| view.set(id, None, Some(!log), cx)));
                 let title = tx(cx, title);
                 row(cx, matched)
-                    .child(row_label(cx, &title, &query))
+                    .child(
+                        div().flex_none().w(px(GROUP_COLUMN)).overflow_hidden().child(search_label(cx, &title, &query)),
+                    )
                     .child(div().w(px(180.0)).relative().child(boxed).children(list))
                     .child(check)
                     .into_any_element()

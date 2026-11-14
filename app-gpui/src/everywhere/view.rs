@@ -623,6 +623,27 @@ impl Render for SearchEverywhere {
         )
         .track_scroll(&self.scroll)
         .size_full();
+        // Nothing to list once the sources answered: what to do next, as a line in the list's place.
+        // The All tab with no query lists nothing without saying so.
+        let empty_query = self.query_text().trim().is_empty();
+        let show_empty =
+            self.rows.is_empty() && !self.controller.is_loading() && (!empty_query || self.tab != SeTab::All);
+        let body = if show_empty {
+            let text = if empty_query { "Type to search" } else { "Nothing found in project files" };
+            let text = cx.default_global::<Localization>().0.tx(text);
+            let selector = format!("search-everywhere-empty:{text}");
+            div()
+                .debug_selector(move || selector)
+                .h(px(64.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(theme::color(cx, "fg-faint"))
+                .child(SharedString::from(text))
+                .into_any_element()
+        } else {
+            list.into_any_element()
+        };
         div()
             .w(px(680.0))
             .h(px(440.0))
@@ -646,6 +667,6 @@ impl Render for SearchEverywhere {
                     .child(div().flex_1().min_w_0().child(self.field.clone())),
             )
             .child(tabs)
-            .child(div().flex_1().min_h_0().mt(px(4.0)).child(list))
+            .child(div().flex_1().min_h_0().mt(px(4.0)).child(body))
     }
 }

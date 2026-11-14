@@ -14,6 +14,7 @@ use super::{ActiveTheme, tokens::ThemeAttributes};
 use crate::backend::Backend;
 use crate::platform::settings;
 use crate::platform::storage::UiStorage;
+use crate::settings_model::appearance_runtime::appearance_options;
 use gpui_kit::{App, Global, WindowAppearance};
 use ide_core::IdeEvent;
 use ide_core::settings::AppearanceSettings;
@@ -134,6 +135,16 @@ pub fn apply(cx: &mut App) {
         }
         for (name, value) in &applied.overrides {
             theme.set(name, value);
+        }
+        // "Use custom font" sets the interface font and its sizes on the root, over every theme.
+        let custom = appearance_options(&options);
+        if let Some(stack) = &custom.font_ui {
+            theme.set("--font-ui", stack);
+        }
+        if let Some(sizes) = custom.font_sizes {
+            for (name, size) in ["--fs-ui", "--fs-small", "--fs-tiny"].into_iter().zip(sizes) {
+                theme.set(name, &format!("{size}px"));
+            }
         }
         cx.set_global(ActiveTheme { theme });
         cx.refresh_windows();

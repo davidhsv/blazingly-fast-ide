@@ -198,9 +198,10 @@ fn icon_button(cx: &App, icon: &str, pressed: bool, enabled: bool) -> Div {
             "fg-muted"
         },
     );
+    // The small icon buttons of a tool window.
     div()
         .flex_none()
-        .size(px(22.0))
+        .size(px(20.0))
         .flex()
         .items_center()
         .justify_center()
@@ -210,7 +211,8 @@ fn icon_button(cx: &App, icon: &str, pressed: bool, enabled: bool) -> Div {
         .child(theme::icon(cx, icon, 16.0, color))
 }
 
-/// A button with a text label. The primary one is filled; one that cannot be used is drawn faint.
+/// A button with a text label, of the dialog buttons' size: at least 72 wide, 16 of padding each
+/// side. The primary one is filled; one that cannot be used is drawn faint.
 fn button(cx: &App, label: &str, primary: bool, enabled: bool) -> Div {
     let (bg, fg, border) = if primary && enabled {
         ("bg-button-primary", "fg-button-primary", "bg-button-primary")
@@ -220,9 +222,12 @@ fn button(cx: &App, label: &str, primary: bool, enabled: bool) -> Div {
     div()
         .flex_none()
         .h(theme::length(cx, "h-button"))
-        .px(px(12.0))
+        .min_w(px(72.0))
+        .px(px(16.0))
         .flex()
         .items_center()
+        .justify_center()
+        .gap(px(6.0))
         .rounded(theme::length(cx, "radius-small"))
         .border_1()
         .border_color(theme::color(cx, border))
@@ -777,7 +782,8 @@ impl CommitBox {
             .flex()
             .items_center()
             .gap(px(8.0))
-            .px(px(8.0))
+            .pl(px(10.0))
+            .pr(px(6.0))
             .child(
                 button(cx, &commit.label, true, commit.enabled)
                     .id("commit-commit")
@@ -1122,6 +1128,24 @@ mod tests {
 
     // Not from a spec: the message's History and the Options gear say what they are when the pointer
     // rests on them (CommitView.tsx's IconButton titles).
+    /// The commit row: 10 from the left edge and 6 from the right, 8 between its items; a text button
+    /// at least 72 wide with 16 of padding each side, the options button 20 square.
+    #[gpui_kit::test]
+    async fn the_commit_buttons_have_the_dialog_buttons_metrics(cx: &mut TestAppContext) {
+        let (_view, _, _, cx) = open(cx, CommitState::default(), input(1));
+        let bounds = |cx: &mut VisualTestContext, selector: &'static str| {
+            cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"))
+        };
+        let (commit, second, options) =
+            (bounds(cx, "commit-commit"), bounds(cx, "commit-second"), bounds(cx, "commit-options"));
+        let width = cx.update(|window, _| window.viewport_size().width);
+        assert_eq!(commit.left(), px(10.0));
+        assert!(commit.size.width >= px(72.0), "{commit:?}");
+        assert_eq!(second.left(), commit.right() + px(8.0));
+        assert_eq!(options.size.width, px(20.0));
+        assert_eq!(options.right(), width - px(6.0));
+    }
+
     #[gpui_kit::test]
     async fn the_history_and_options_buttons_show_their_tooltips(cx: &mut TestAppContext) {
         use crate::ui::tooltip::hovered_tooltip;

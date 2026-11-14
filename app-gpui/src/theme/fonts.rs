@@ -1,9 +1,10 @@
 //! Font families: the family lists the editor, terminal and interface fonts resolve to, and the
 //! catalogue of families the font pickers suggest.
 //!
-//! "JetBrains Mono" is the bundled default, registered as "JetBrains Mono Variable" as well; the
-//! bundled variable face stays in every list so the family renders without a system install, but
-//! the installed family comes first: its hinted static outlines render like IntelliJ IDEA's.
+//! "JetBrains Mono" is the bundled default. Its static faces are registered under that name only
+//! ([`super::bundled_fonts`]), so the family draws without a system install. The lists keep the
+//! stylesheet's "JetBrains Mono Variable" after it: that name draws only where the system has a
+//! family of that name installed.
 //!
 //! Measuring text and asking the native font system are the caller's: the functions take a
 //! measuring closure or the answer, and return what to load or ask next.

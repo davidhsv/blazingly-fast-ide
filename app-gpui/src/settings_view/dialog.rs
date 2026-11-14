@@ -1126,6 +1126,7 @@ impl Render for SettingsDialogView {
             div().flex_1().min_h_0().flex().child(sidebar).child(main)
         };
         div()
+            .debug_selector(|| "settings-dialog".to_owned())
             .w(px(DIALOG_WIDTH))
             .h(px(DIALOG_HEIGHT))
             .flex()

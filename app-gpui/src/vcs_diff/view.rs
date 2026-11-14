@@ -454,6 +454,8 @@ impl DiffView {
             return;
         }
         self.raw = [left.to_owned(), right.to_owned()];
+        // Colours of the old texts would fall on the wrong ranges of the new ones.
+        self.highlights = [Vec::new(), Vec::new()];
         self.expanded.clear();
         self.rebuild(cx);
         cx.notify();
@@ -463,6 +465,11 @@ impl DiffView {
     pub fn set_editable(&mut self, editable: ArrowSides, cx: &mut Context<Self>) {
         self.editable = editable;
         cx.notify();
+    }
+
+    /// The syntax colours of a side's text.
+    pub fn syntax_highlights(&self, side: Side) -> &[HighlightSpan] {
+        &self.highlights[ix(side)]
     }
 
     /// Syntax colours of a side's text, sorted by their start.

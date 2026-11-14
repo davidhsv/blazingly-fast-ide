@@ -115,6 +115,38 @@ fn generic_family(name: &str) -> Option<&'static str> {
     }
 }
 
+/// The family that draws the `font-family` list `families` (most wanted first) and, after it, the
+/// other families of the list that can be drawn: the fallbacks for the glyphs it lacks. A generic
+/// family counts as the system's; a named one as [`first_installed`] counts it. The last resort
+/// draws when nothing in the list can.
+pub fn family_with_fallbacks(cx: &App, families: &[String]) -> (String, Vec<String>) {
+    let known = installed(cx);
+    let mut drawable: Vec<String> = Vec::new();
+    for family in families {
+        let name = match generic_family(family) {
+            Some(generic) => generic.to_owned(),
+            None => {
+                let can = match known {
+                    Some(names) => names.contains(family),
+                    None => !VARIABLE_FACE_NAMES.contains(&family.as_str()),
+                };
+                if !can {
+                    continue;
+                }
+                family.clone()
+            }
+        };
+        if !drawable.contains(&name) {
+            drawable.push(name);
+        }
+    }
+    if drawable.is_empty() {
+        return (LAST_RESORT.to_owned(), Vec::new());
+    }
+    let family = drawable.remove(0);
+    (family, drawable)
+}
+
 /// The first of `candidates` that can be drawn, in their order: a generic family as the
 /// system's, a named one when it is installed (the bundled faces are, once registered). While
 /// the installed families are not known, the first named one other than a variable face's

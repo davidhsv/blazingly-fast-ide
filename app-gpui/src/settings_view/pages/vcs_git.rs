@@ -217,9 +217,7 @@ impl Render for GitExecutableView {
                 Ok(text) => ("success", text.clone(), "settings-git-ok"),
                 Err(text) => ("danger", text.clone(), "settings-git-error"),
             };
-            hint_line(cx, &text, super::LABEL_WIDTH)
-                .debug_selector(move || selector.to_owned())
-                .text_color(theme::color(cx, color))
+            hint_line(cx, &text, 0.0).debug_selector(move || selector.to_owned()).text_color(theme::color(cx, color))
         });
         div()
             .flex()
@@ -303,7 +301,7 @@ impl Render for GitCredentialsView {
                         .child(row_label(cx, &label, &query))
                         .child(super::muted(cx, &empty)),
                 )
-                .child(hint_line(cx, &hint, super::LABEL_WIDTH))
+                .child(hint_line(cx, &hint, 0.0))
                 .into_any_element();
         }
         let forget = tx(cx, "Forget");
