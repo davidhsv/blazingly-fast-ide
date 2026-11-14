@@ -230,3 +230,4 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - NEXT (cargo): GitHub integrator (GhCli seam in crates/ide-github → Tauri suite again) + a small part: move the older terminal tests to the plain shell; remote_busy drop test.
 - Then: plugin views + plugin Java debug → settings controls → editor extras → diff tools.
 - Hypothesis to check: other ops::fs::delete callers (conflicts.rs:166, log_actions.rs:1085) are never reached by a test with a real file.
+- Project view rows merged. Small gaps to close in a proofs batch: run project.option.showExcluded/compact/foldersFirst, project.sortBy.modified, terminal.splitAndMoveRight through the registry; expandAll from a subfolder; Move Up/Down test must reopen Services; Copy Path popup gets empty roots (Path From Source Root never shows); ProjectView.test.tsx 2/27 cases.

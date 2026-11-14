@@ -109,7 +109,7 @@
   },
   "action:edit.undo": {
     "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`; acts on code editors only, not yet on text fields and lists"
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; acts on code editors, and run through the registry while the Project view has the keyboard it brings the view's last deleted file back from Local History and selects it. Missing: text fields and other lists, ⌘Z pressed in the tree (edit.undo has no key binding and the tree passes no modified keys on), and the Project view's Undo of a move"
   },
   "action:edit.redo": {
     "status": "partial",
@@ -133,7 +133,7 @@
   },
   "feature:project-tree": {
     "status": "partial",
-    "proof": "`project_tree::tests`, `project_tree_model::tests`, `project_tree_paths::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`; the tree lists, compacts, filters by option, follows the disk, remembers its expansion and reveals a path. Not yet: multi-selection, inline new/rename, file operations and clipboard, drag and drop, context menu, header actions, view modes, contributed roots, Show Members. The Project view's operations, menus, panes, clipboard and Select In exist as models (`project_view::operations::tests`, `project_view::store::tests`, `project_view::context_menu::tests`) that no view is drawn from yet: none of the roughly forty project actions has a handler"
+    "proof": "`project_tree::tests`, `project_tree_model::tests`, `project_tree_paths::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`, `workbench::tests::the_tree_context_menu_offers_the_model_rows_and_creates_from_new`, `workbench::tests::move_and_copy_go_through_their_dialogs`, `workbench::project_view_actions::tests`; the tree lists, compacts, filters by option, follows the disk, remembers its expansion and reveals a path; its context menu, New, Move, Copy, Cut and Paste, Delete with Undo from Local History, Select In, File Path, Reveal in Finder, the Copy Path forms, Mark Directory as, Expand / Collapse All, Show Hidden Files and the sort orders run in the window. Not yet: multi-selection, inline new/rename, files on the system clipboard, drag and drop, header actions, view modes, contributed roots, Show Members, ⌘Z in the tree"
   },
   "point.registerToolWindow:project": {
     "status": "partial",
@@ -233,7 +233,7 @@
   },
   "module:src/platform/projectRoots.ts": {
     "status": "partial",
-    "proof": "`platform::project_roots::tests`; loading detected roots from the backend and its subscriptions are not wired"
+    "proof": "`platform::project_roots::tests`, `workbench::project_view_actions::tests::the_copy_path_forms_copy_the_selection_and_the_source_root_path_follows_mark_directory_as`, `workbench::project_view_actions::tests::an_excluded_folder_shows_as_excluded_and_the_search_skips_it`; the project's roots and detected roots are read from the backend when an action needs them (Copy Path From Source Root, Mark Directory as). Missing: no store of them is kept and reloaded on projectRootsChanged"
   },
   "unit:src/workbench/toolwindows/store.test.ts": {
     "status": "partial",
@@ -249,7 +249,7 @@
   },
   "module:src/workbench/toolwindows/store.ts": {
     "status": "partial",
-    "proof": "`workbench::tool_windows::tests`, `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; drives both stripes and the left, right and bottom sides with their split areas. Not yet: resizing, maximizing, moving windows between sides"
+    "proof": "`workbench::tool_windows::tests`, `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `workbench::tests::proofs5_layout::maximize_tool_window_draws_the_focused_side_across_the_window`; drives both stripes and the left, right and bottom sides with their split areas, and draws a maximized side across the window. Not yet: resizing, moving windows between sides"
   },
   "module:src/workbench/toolwindows/layouts.ts": {
     "status": "done",
@@ -461,7 +461,7 @@
   },
   "point.registerStatusItem:workbench.tasks": {
     "status": "done",
-    "proof": "`workbench::status_items::tests`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; the current task with its progress and count, and a click opens Background Tasks with every running task"
+    "proof": "`workbench::status_items::tests`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; the current task with its progress and count, and a click toggles Background Tasks, which lists every running task"
   },
   "unit:src/platform/virtualDocs.test.ts": {
     "status": "done",
@@ -525,7 +525,7 @@
   },
   "module:src/platform/fileManager.ts": {
     "status": "partial",
-    "proof": "`platform::misc::file_manager::tests`; the reveal call itself is not wired"
+    "proof": "`platform::misc::file_manager::tests`, `workbench::project_view_actions::tests::reveal_in_finder_shows_the_selection_or_the_edited_file_in_the_file_manager`, `workbench::project_view_actions::tests::file_path_lists_the_file_then_every_folder_up_to_the_root`; the file manager's name per OS, and Reveal in Finder, File Path's rows and Open In › Finder ask the file manager to show the path (gpui's reveal_path, a recorder in tests). Missing: gpui's reveal reports no failure, so there is no Cannot reveal in Finder notice"
   },
   "unit:src/platform/errorLog.test.ts": {
     "status": "partial",
@@ -657,11 +657,11 @@
   },
   "feature:terminal": {
     "status": "partial",
-    "proof": "`terminal::panel::tests::tabs_are_shells_of_their_own`, `terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `terminal::store::tests`; the Terminal tool window with tabs, each a shell (typing, paste, selection, scrollback, resize, clear, exit), remembered per project. Not yet: splits drawn, rename and tab menus, find, links, mouse reporting, predefined and plugin sessions, command titles (needs shell-integration marks)"
+    "proof": "`terminal::panel::tests::tabs_are_shells_of_their_own`, `terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `terminal::store::tests`, `workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`, `workbench::terminal_actions::tests::run_command_runs_its_program_in_a_tab_of_its_own_and_a_predefined_session_runs_the_shell`, `workbench::terminal_actions::tests::close_session_asks_before_terminating_a_running_command_and_closes_an_idle_shell_at_once`; the Terminal tool window with tabs, each a shell (typing, paste, selection, scrollback, resize, clear, exit), remembered per project; split groups drawn side by side or stacked, Open in Terminal, Run Command and New Predefined Session tabs, and the question before closing a running command. Not yet: a tab strip per split group, rename and tab menus, find, links, mouse reporting, plugin sessions, command titles (needs shell-integration marks)"
   },
   "point.registerToolWindow:terminal": {
     "status": "partial",
-    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `terminal::panel::tests::tabs_are_shells_of_their_own`; tabs in the window's body rather than its header, no splits drawn"
+    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `terminal::panel::tests::tabs_are_shells_of_their_own`, `workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`, `workbench::terminal_actions::tests::open_in_terminal_on_a_folder_opens_a_shell_there_named_after_it`; the Terminal at the bottom with tabs of shells, opened at a folder or for a program; split groups are drawn side by side or stacked. Missing: tabs in the window's body rather than its header, each split group does not get a tab strip of its own (one strip lists the tabs of every group) and the line between groups cannot be dragged"
   },
   "action:ide.toggleMode": {
     "status": "done",
@@ -957,7 +957,7 @@
   },
   "action:terminal.closeSession": {
     "status": "partial",
-    "proof": "`workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; closes the active tab at once: the question asked when a command is still running is not there"
+    "proof": "`workbench::terminal_actions::tests::close_session_asks_before_terminating_a_running_command_and_closes_an_idle_shell_at_once`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; run through the registry on a tab running a program it asks Process 'Nap' Is Running: Cancel keeps the tab, Terminate closes it; a shell waiting for input closes without a question and the last tab closing hides the Terminal. Missing: ⌘W in the terminal and the tab's × close without the question"
   },
   "context:terminalFocus": {
     "status": "done",
@@ -1248,8 +1248,8 @@
     "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`, `workbench::tests::shows_the_window_title_and_follows_it_without_toolbar_widgets`; flips and stores appearance.showMainToolbar, and the title bar then drops its gear, project, IDE mode and run widgets for the compact title that follows the window's title, and brings them back"
   },
   "action:toolwindow.maximize": {
-    "status": "partial",
-    "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; the side is maximized in the layout and drawn over the editor and the other sides; the test checks the layout, not what is drawn"
+    "status": "done",
+    "proof": "`workbench::tests::proofs5_layout::maximize_tool_window_draws_the_focused_side_across_the_window`, `workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`; run through the registry on the focused Project view its header is drawn across the window (its end past three quarters of the width, from under half), ⌘⇧' draws it back at its width; with the editor focused the action does not run"
   },
   "boundid:toolwindow.resizeLeft": {
     "status": "done",
@@ -1777,11 +1777,11 @@
   },
   "action:navigate.toggleBookmarkWithMnemonic": {
     "status": "partial",
-    "proof": "`everywhere::bookmarks_popup::tests`; opens the chooser for the caret's line; the chooser is tested as a view, not through the action, and shows in the popup slot instead of at the caret"
+    "proof": "`workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`; ⌥F3 and the registry open the chooser for the caret's line, the digit typed gives the line a bookmark with that mnemonic and closes it, on that line it offers Change Mnemonic; without an editor the action does not run and ⌥F3 opens nothing. Missing: the chooser shows in the popup slot instead of at the caret"
   },
   "action:bookmarks.toggleFileBookmark": {
-    "status": "partial",
-    "proof": "`everywhere::bookmarks_store::tests`, `workbench::context_menus::tests::the_tab_menus_bookmark_row_bookmarks_the_file_of_that_tab`; bookmarks the given files: chosen from an editor tab's menu it bookmarks that tab's file and the row then offers Remove Bookmark. Missing: no test runs it without an argument (the active editor's file) or from the Project view"
+    "status": "done",
+    "proof": "`workbench::tests::proofs5_navigation::toggle_file_bookmark_without_targets_bookmarks_the_active_editors_file`, `workbench::context_menus::tests::the_tab_menus_bookmark_row_bookmarks_the_file_of_that_tab`, `everywhere::bookmarks_store::tests`; run through the registry without targets it bookmarks the active editor's file (nothing without an editor) and stores it with the project, with the targets the Project view's and tab's menus give it bookmarks a folder or the tab's file, and toggled again on a bookmarked file it removes that bookmark"
   },
   "point.registerOverlay:search.bookmarks": {
     "status": "partial",
@@ -3008,16 +3008,16 @@
     "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; elements are found from brackets and from comment and string spans, not from a syntax tree"
   },
   "action:code.cyclicExpandWord": {
-    "status": "partial",
-    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; the hint shown when nothing expands is only logged"
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`, `workbench::editor_language::tests::proofs5_editor::cyclic_expand_word_with_nothing_to_expand_says_so_at_the_caret`; ⌥/ on a word nothing completes says No suitable completions found at the caret and leaves the text"
   },
   "action:code.cyclicExpandWordBackward": {
-    "status": "partial",
-    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; the hint shown when nothing expands is only logged"
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`, `workbench::editor_language::tests::proofs5_editor::cyclic_expand_word_with_nothing_to_expand_says_so_at_the_caret`; run through the registry with no word before the caret it says No word to expand at the caret"
   },
   "action:code.addCaretNextOccurrence": {
-    "status": "partial",
-    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`; the hint shown when there is no further occurrence is only logged"
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; past the last occurrence ⌃G says Not found, press again to search from the top at the caret and adds nothing, and pressed again it adds the first occurrence"
   },
   "unit:src/features/services/services.test.ts": {
     "status": "done",
@@ -3049,11 +3049,11 @@
   },
   "action:docker.toggleStoppedContainers": {
     "status": "partial",
-    "proof": "`services::docker::tests`; registered on the Docker model of the window; no test runs the action, and no daemon is reached in tests"
+    "proof": "`workbench::services_actions::tests::the_docker_view_options_flip_and_store_what_the_tree_leaves_out`, `services::docker::tests`; run through the registry it flips Show Stopped Containers and stores the Docker filters. Missing: no test shows a Docker tree without the stopped containers (the tests have no Docker connection)"
   },
   "action:docker.toggleUntaggedImages": {
     "status": "partial",
-    "proof": "`services::docker::tests`; registered on the Docker model of the window; no test runs the action, and no daemon is reached in tests"
+    "proof": "`workbench::services_actions::tests::the_docker_view_options_flip_and_store_what_the_tree_leaves_out`, `services::docker::tests`; run through the registry it flips Show Untagged Images and stores the Docker filters. Missing: no test shows a Docker tree without the untagged images (the tests have no Docker connection)"
   },
   "point.registerToolWindow:services": {
     "status": "partial",
@@ -3660,12 +3660,12 @@
     "proof": "`workbench::tests::move_and_copy_go_through_their_dialogs`"
   },
   "action:project.delete": {
-    "status": "partial",
-    "proof": "`workbench::tests::delete_asks_and_cancelling_keeps_everything`, `workbench::tests::a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted`; the question, the safe-delete search and the failure report are tested. No test deletes a file for real: the backend sends it to the system Trash and has no test hook"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`, `workbench::tests::delete_asks_and_cancelling_keeps_everything`, `workbench::tests::a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted`; Delete… asks Delete 'notes.txt'?, searches for usages and reports what could not be deleted; confirmed, the file leaves the disk and the tree for the trash (the host's trash override takes the place of the system Trash in the test) and Undo in the Project view brings it back from Local History"
   },
   "action:editor.copyPathReference": {
     "status": "partial",
-    "proof": "`workbench::tests::copy_path_reference_lists_the_forms_of_the_edited_file_and_copies_one`; the path forms of the file; Path From Source Root is missing because nothing computes the project's roots yet"
+    "proof": "`workbench::tests::copy_path_reference_lists_the_forms_of_the_edited_file_and_copies_one`; the popup lists Absolute Path, File Name, Path From Content Root, Path with line number and Reference, and the form chosen goes on the clipboard with Copied <form> in the hint at the caret. Missing: the popup is given no project roots, so Path From Source Root never shows in it"
   },
   "action:project.copyAbsolutePath": {
     "status": "done",
@@ -3856,8 +3856,8 @@
     "proof": "`workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`, `workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`, `workbench::log_actions::tests::compare_with_local_and_compare_versions_open_the_diff_window`, `workbench::tests::proofs4_vcs::a_selected_merge_commit_lists_its_changes_against_its_parents`; Update Project counts the files that came in, Compare Versions opens the files between two commits, and a selected merge commit lists only the file both sides changed, or each parent's changes with Show Changes from Parents; the log calls the same ide_host::ops::vcs function as the adapter"
   },
   "ipc:fs_delete": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted`; called with a file that is already gone: a real delete would go to the system Trash"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`, `workbench::tests::a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted`; a confirmed Delete… takes docs/notes.txt off the disk and out of the tree into the trash folder the test gives the host in place of the system Trash, with its text, which only ide_host::ops::fs::delete moves there (after Local History records it); the window calls ops::fs::delete with its label and the path, as the adapter does"
   },
   "ipc:fs_rename": {
     "status": "partial",
@@ -3868,12 +3868,12 @@
     "proof": "`editor::intelligence::tests::proofs_editor_lsp::find_usages_lists_the_references_the_server_reports`; Find Usages lists exactly the server's two locations, not the name's other text matches, asked at the caret through ide_host::ops::lsp::lsp_references as the adapter"
   },
   "ipc:history_list_dir": {
-    "status": "partial",
-    "proof": "`workbench::tests::new_file_in_the_project_view_creates_selects_and_opens_the_file`; called by the Project view's local-history flow, which no test runs"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; Undo in the Project view after a delete brings the file back with its text, restored from the snapshot ide_host::ops::history::history_list_dir lists for its folder; the window calls it with its label and the folder, as the adapter does"
   },
   "ipc:history_restore": {
-    "status": "partial",
-    "proof": "`workbench::tests::new_file_in_the_project_view_creates_selects_and_opens_the_file`; called by the Project view's local-history flow, which no test runs"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; the deleted file is back on disk with its text after Undo in the Project view, which only ide_host::ops::history::history_restore of its Local History snapshot writes; the window calls it with its label, the path and the snapshot id, as the adapter does"
   },
   "ipc:history_content": {
     "status": "partial",
@@ -4288,8 +4288,8 @@
     "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the source's console file opens in an editor; the console's own toolbar is not shown"
   },
   "action:db.refresh": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; runs on a source; the test asserts no visible change"
+    "status": "done",
+    "proof": "`workbench::tests::proofs5_database::refresh_in_the_tree_lists_a_table_created_since_it_was_read`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; ⌘R with the tables folder selected in the focused tree reads the tables again and a table created since shows, the tables read before stay; ⌘R in a text editor (databaseViewFocus off) does not refresh the tree"
   },
   "point.registerToolWindow:database": {
     "status": "partial",
@@ -5512,8 +5512,8 @@
     "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Stop All, run through run.services.stopAll on the Program group, ends both sessions and both rows say Stopped"
   },
   "action:open-browser": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Open in Browser is enabled while a server with a port runs and disabled after Stop; it is never run, so opening the URL is not shown"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`, `workbench::tests::proofs5_run::open_in_browser_opens_the_started_servers_page_and_remove_from_services_hides_a_row`; the toolbar's Open in Browser is enabled while a server with a port runs and disabled after Stop; run through run.services.openBrowser on the group it opens http://localhost:8123, and nothing while no server runs"
   },
   "module:src/platform/serverPort.ts": {
     "status": "done",
@@ -5764,8 +5764,8 @@
     "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`; run through the registry with { id, checked }, the active log tab's Verbose switch turns on and the program restarts with its argument, whose output then shows in the tab"
   },
   "action:view.backgroundTasks": {
-    "status": "partial",
-    "proof": "`workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; the tasks status item runs the action and Background Tasks opens with the plugin's task and its working Cancel. Differs: the native action toggles, so running it again closes the popup, where the webview's action only opens it"
+    "status": "done",
+    "proof": "`workbench::tests::proofs5_layout::background_tasks_opens_the_popup_and_running_it_again_keeps_it_open`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::status_items::tests::tracks_task_events_and_shows_the_current_task`; run through the registry it opens the popup and, run again, keeps it open, as the webview's does; the tasks status item's click runs it with { toggle: true }, which closes the open popup, and the popup lists the plugin's task with its working Cancel"
   },
   "action:debug.pluginStart": {
     "status": "partial",
@@ -6113,15 +6113,15 @@
   },
   "action:editor.showHint": {
     "status": "partial",
-    "proof": "`workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`; run with { text } it shows the text, and the next hint replaces it. Missing: the hint is a notification, not the transient hint at the caret of the active editor, and the tone argument is ignored"
+    "proof": "`workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`; run with { text } it shows the text as the hint at the caret of the active editor, not as a notification, and the next hint replaces it. Missing: the tone it is given is passed on but no test reads it"
   },
   "action:editor.copyPath": {
-    "status": "partial",
-    "proof": "`workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; the absolute path goes on the clipboard and into the clipboard history and Copied <path> is said; it does not run without an editor tab. Missing: Copied <path> shows as a notification, not as the hint at the caret"
+    "status": "done",
+    "proof": "`workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`, `workbench::editor_language::tests::proofs5_editor::the_copy_path_actions_say_what_they_copied_at_the_caret`; the absolute path goes on the clipboard and into the clipboard history and Copied <path> shows as the hint at the caret, not as a notification; it does not run without an editor tab"
   },
   "action:editor.copyPathWithLineNumber": {
-    "status": "partial",
-    "proof": "`workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; the path from the project root with the caret's 1-based line (src/a.rs:3), or the text given, goes on the clipboard and into the clipboard history; it does not run with the Project view focused. Missing: the copied hint shows as a notification, not at the caret"
+    "status": "done",
+    "proof": "`workbench::editor_core::tests::the_copy_path_actions_copy_the_forms_of_the_edited_file`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`, `workbench::editor_language::tests::proofs5_editor::the_copy_path_actions_say_what_they_copied_at_the_caret`; the path from the project root with the caret's 1-based line (src/a.rs:3), or the text given, goes on the clipboard and into the clipboard history, and Copied src/a.txt:2 shows as the hint at the caret; it does not run with the Project view focused"
   },
   "action:file.reloadFromDisk": {
     "status": "done",
@@ -6137,7 +6137,7 @@
   },
   "action:code.pasteFromHistory": {
     "status": "partial",
-    "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`; with an empty history it only says so; otherwise the dialog lists the copies newest first and the chosen one is pasted at the caret, put on the clipboard and on top of the history; ⇧⌘V does nothing with the Project view focused. Missing: the empty-history message is a notification, not the hint at the caret, and the dialog lacks parts of the webview's (see the editor.pasteHistory overlay)"
+    "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `workbench::editor_core::tests::the_editor_actions_do_nothing_outside_the_editor`, `workbench::editor_language::tests::proofs5_editor::paste_from_history_with_an_empty_history_says_so_at_the_caret`; ⇧⌘V with an empty history says so in the hint at the caret and opens no dialog; otherwise the dialog lists the copies newest first and the chosen one is pasted at the caret, put on the clipboard and on top of the history; ⇧⌘V does nothing with the Project view focused. Missing: the dialog lacks parts of the webview's (see the editor.pasteHistory overlay)"
   },
   "action:editor.pasteHistory.paste": {
     "status": "partial",
@@ -6181,7 +6181,7 @@
   },
   "action:code.cleanupFile": {
     "status": "partial",
-    "proof": "`workbench::editor_language::tests::optimize_imports_and_code_cleanup_apply_the_servers_source_actions`; with { path } it opens the file, applies the server's fix-all and organize-imports actions and reformats it. Missing: its reformat step never uses a plugin-contributed formatter, and no test turns a step off through the argument"
+    "proof": "`workbench::editor_language::tests::optimize_imports_and_code_cleanup_apply_the_servers_source_actions`, `workbench::editor_language::tests::proofs5_editor::code_cleanup_in_file_leaves_out_the_steps_its_argument_turns_off`; with { path } it opens the file, applies the server's fix-all and organize-imports actions and reformats it; optimizeImports: false and reformat: false leave the imports in their order and the file unformatted. Missing: its reformat step never uses a plugin-contributed formatter"
   },
   "action:code.generate": {
     "status": "partial",
@@ -6229,7 +6229,7 @@
   },
   "action:code.quickTypeDefinition": {
     "status": "partial",
-    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`; run through the registry it asks the server for the type definition and says No type definition found. Missing: no test shows a found type definition, and the popup shows a window of lines around the name instead of the declaration's whole span from the syntax tree, without syntax highlighting"
+    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs5_editor::quick_type_definition_shows_the_type_definitions_lines_and_f4_opens_it`; run through the registry it shows the found type definition's file, line and lines in a popup with the keyboard, F4 opens it with the caret on it, and with none it says No type definition found. Missing: the popup shows a window of lines around the name instead of the declaration's whole span from the syntax tree, without syntax highlighting"
   },
   "action:navigate.gotoTest": {
     "status": "partial",
@@ -6284,8 +6284,8 @@
     "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`; the marks are exactly the three ranges the server's documentHighlight answer gives; the window calls ide_host::ops::lsp::lsp_document_highlights with the document and the caret's position, as the adapter does"
   },
   "ipc:project_roots": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::opens_the_only_test_of_a_class`; Go to Test reads the project's roots through ide_host::ops::project::roots, as the adapter does. Missing: the asserted result does not depend on the roots (the test file is found by name either way)"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::the_copy_path_forms_copy_the_selection_and_the_source_root_path_follows_mark_directory_as`, `workbench::editor_language::tests::opens_the_only_test_of_a_class`; after Mark Directory as › Sources Root on src, Copy Path From Source Root copies app/a.txt for src/app/a.txt, a form only the roots ide_host::ops::project::roots returns give; Go to Test reads the roots the same way; the window calls ops::project::roots with its label, as the adapter does"
   },
   "context:pasteHistoryOpen": {
     "status": "done",
@@ -6570,5 +6570,153 @@
   "module:src/ui/Tooltip.tsx": {
     "status": "partial",
     "proof": "`ui::tooltip::tests`; the delay, shortcut and detail lines and every dismissal of the webview's host. Missing: the placement beside a stripe and the flip near the window edge are GPUI's own positioning and are not asserted"
+  },
+  "action:navigate.selectInProjectView": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::select_in_project_view_selects_the_edited_file_and_reveal_leaves_the_keyboard_where_it_was`; run through the registry from the editor it shows the Project view with the edited file selected and the tree holding the keyboard (projectViewFocus on)"
+  },
+  "action:project.reveal": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::select_in_project_view_selects_the_edited_file_and_reveal_leaves_the_keyboard_where_it_was`; run through the registry with a path it selects that file in the Project view and leaves the keyboard in the editor (projectViewFocus off, editorFocus on)"
+  },
+  "action:navigate.selectIn": {
+    "status": "partial",
+    "proof": "`workbench::project_view_actions::tests::select_in_lists_the_places_that_show_the_file_and_the_project_view_selects_it`, `workbench::project_view_actions::tests::the_navigation_choosers_keys_run_nothing_without_a_project`; ⌥F1 in the editor runs it and opens the Select In chooser (Project View, the file manager, Terminal), Enter on Project View selects the edited file in the tree, and a path given is selected without the chooser; in a window without a project ⌥F1 runs nothing. Missing: the chooser opens near the top of the window instead of at the caret, without contributed targets (selectIn menu groups) or the Navigation Bar row"
+  },
+  "action:navigate.showFilePath": {
+    "status": "partial",
+    "proof": "`workbench::project_view_actions::tests::file_path_lists_the_file_then_every_folder_up_to_the_root`, `workbench::project_view_actions::tests::the_navigation_choosers_keys_run_nothing_without_a_project`; ⌥⌘F12 in the editor runs it and lists the edited file and every folder above it up to the root of the disk, Escape shows nothing and the folder chosen is shown in the file manager; in a window without a project the key runs nothing. Missing: the rows show the names only, without each folder's path beside it"
+  },
+  "action:project.revealInFinder": {
+    "status": "partial",
+    "proof": "`workbench::project_view_actions::tests::reveal_in_finder_shows_the_selection_or_the_edited_file_in_the_file_manager`; run through the registry it asks the file manager to show the tree's selection while the tree has the keyboard, the edited file from the editor, and the paths given; Open In › Finder in the tree's context menu asks the same. Missing: gpui's reveal reports no failure, so there is no Cannot reveal in Finder notice"
+  },
+  "action:project.expandAll": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::expand_all_and_collapse_all_open_and_close_every_folder_and_their_keys_act_in_the_tree_only`; ⌘= in the tree runs it and opens every folder below the project, read as it goes; in the editor the key does not run it; from the registry it acts wherever the keyboard is"
+  },
+  "action:project.collapseAll": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::expand_all_and_collapse_all_open_and_close_every_folder_and_their_keys_act_in_the_tree_only`; ⌘- in the tree and the registry close every folder but the project root and give the tree the keyboard (projectViewFocus on); in the editor the key does not run it"
+  },
+  "action:project.copyPath": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::the_copy_path_forms_copy_the_selection_and_the_source_root_path_follows_mark_directory_as`; run through the registry with { kind, paths } it copies that form of the paths given (relative: gen/c.txt) and without a kind the absolute path"
+  },
+  "action:project.copyFileName": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::the_copy_path_forms_copy_the_selection_and_the_source_root_path_follows_mark_directory_as`; run through the registry on the tree's selection it puts the file's name (a.txt) on the clipboard"
+  },
+  "action:project.copyRelativePath": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::the_copy_path_forms_copy_the_selection_and_the_source_root_path_follows_mark_directory_as`; run through the registry on the tree's selection it puts the path from the content root (src/app/a.txt) on the clipboard"
+  },
+  "action:project.copySourceRootPath": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::the_copy_path_forms_copy_the_selection_and_the_source_root_path_follows_mark_directory_as`; once src is marked Sources Root from the context menu, run through the registry on src/app/a.txt it copies app/a.txt, the path below the source root the backend's project roots name"
+  },
+  "action:project.compareWith": {
+    "status": "partial",
+    "proof": "`workbench::project_view_actions::tests::compare_with_shows_two_files_side_by_side_and_asks_for_the_second_of_one`; on two files it shows them side by side in the diff window, on one ⌘D in the tree runs it and asks for the other file, and with the editor's keyboard neither the action nor ⌘D runs. Missing: the webview hands over to diff.compareFiles and diff.compareWith, which are not registered; here the diff opens directly and the second file comes from the OS file picker"
+  },
+  "action:project.open": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::jump_to_source_opens_the_selected_file`; F4 in the tree and the registry open the selected file in the editor; with the editor's keyboard F4 does not run it"
+  },
+  "action:project.findInFolder": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::find_in_folder_opens_find_in_files_on_the_selected_folder`; run through the registry on the selected folder it opens Find in Files scoped to that folder, shown relative to the project (src)"
+  },
+  "action:project.openInTerminal": {
+    "status": "done",
+    "proof": "`workbench::terminal_actions::tests::open_in_terminal_on_a_folder_opens_a_shell_there_named_after_it`; run through the registry on a folder selected in the tree it opens the Terminal with one tab named after the folder, whose shell has the keyboard and runs there"
+  },
+  "action:project.option.showHidden": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; run through the registry it says it is off, then on, and the tree shows the ignored .DS_Store; run again it hides it"
+  },
+  "action:project.option.showExcluded": {
+    "status": "partial",
+    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; registered as a toggle of the view options the tree acts on. Missing: no test runs it or reads what the tree shows after it"
+  },
+  "action:project.option.compact": {
+    "status": "partial",
+    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; registered as a toggle of the view options the tree acts on. Missing: no test runs it or reads what the tree shows after it"
+  },
+  "action:project.option.foldersFirst": {
+    "status": "partial",
+    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; registered as a toggle of the view options the tree acts on. Missing: no test runs it or reads what the tree shows after it"
+  },
+  "action:project.sortBy.type": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; run through the registry it says it is on (Sort by Name off) and the tree lists b.rs before a.txt"
+  },
+  "action:project.sortBy.name": {
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; run through the registry after Sort by Type it puts the tree back in name order, and it says it is off while Sort by Type is on"
+  },
+  "action:project.sortBy.modified": {
+    "status": "partial",
+    "proof": "`workbench::project_view_actions::tests::the_view_options_change_what_the_tree_shows_and_say_whether_they_are_on`; registered as one of the sort orders. Missing: no test runs it or reads the order it gives"
+  },
+  "action:terminal.openAt": {
+    "status": "done",
+    "proof": "`workbench::terminal_actions::tests::open_in_terminal_on_a_folder_opens_a_shell_there_named_after_it`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`; run through the registry with a folder it opens a tab named after the folder whose shell starts there, beside the tabs already open; without a project it is refused"
+  },
+  "action:terminal.runCommand": {
+    "status": "done",
+    "proof": "`workbench::terminal_actions::tests::run_command_runs_its_program_in_a_tab_of_its_own_and_a_predefined_session_runs_the_shell`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`; run through the registry with { program, args, name } it opens a tab of that name running the program in the project instead of a shell, and without a program it opens nothing; without a project it is refused"
+  },
+  "action:terminal.newPredefinedSession": {
+    "status": "done",
+    "proof": "`workbench::terminal_actions::tests::run_command_runs_its_program_in_a_tab_of_its_own_and_a_predefined_session_runs_the_shell`; run through the registry with a shell's path it opens a tab named after the program running that shell, which answers what is typed into it"
+  },
+  "action:terminal.splitRight": {
+    "status": "partial",
+    "proof": "`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`; run through the registry it puts a new shell beside the active tab, drawn side by side, with the keyboard; typing reaches that shell only. Missing: each split group does not get a tab strip of its own (one strip lists the tabs of every group) and the line between groups cannot be dragged"
+  },
+  "action:terminal.splitDown": {
+    "status": "partial",
+    "proof": "`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`; run through the registry it puts a new shell below the active tab, drawn stacked. Missing: each split group does not get a tab strip of its own (one strip lists the tabs of every group) and the line between groups cannot be dragged"
+  },
+  "action:terminal.splitAndMoveDown": {
+    "status": "partial",
+    "proof": "`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`; run through the registry it moves a tab of a group with more than one into a new group drawn below, and leaves a group's only tab where it is. Missing: each split group does not get a tab strip of its own (one strip lists the tabs of every group) and the line between groups cannot be dragged"
+  },
+  "action:terminal.splitAndMoveRight": {
+    "status": "partial",
+    "proof": "`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`; registered with the other splits. Missing: no test runs it"
+  },
+  "action:terminal.unsplit": {
+    "status": "partial",
+    "proof": "`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`; run through the registry it takes the active group's tabs into the group beside it without closing any. Missing: each split group does not get a tab strip of its own (one strip lists the tabs of every group) and the line between groups cannot be dragged"
+  },
+  "action:moveUp": {
+    "status": "partial",
+    "proof": "`workbench::services_actions::tests::move_up_and_move_down_reorder_a_configuration_within_its_type_and_store_the_order`; the Services toolbar's Move Up puts a configuration moved down back before the other one of its type group. Missing: no test reads it disabled on a group's first row, or the stored order in a Services window opened later"
+  },
+  "action:moveDown": {
+    "status": "partial",
+    "proof": "`workbench::services_actions::tests::move_up_and_move_down_reorder_a_configuration_within_its_type_and_store_the_order`; the Services toolbar's Move Down puts a configuration after the next one of its type group and stores the project's order. Missing: no test reads it disabled on a group's last row, or the stored order in a Services window opened later"
+  },
+  "action:run.services.openBrowser": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs5_run::open_in_browser_opens_the_started_servers_page_and_remove_from_services_hides_a_row`, `run_testing::services::tests::opens_the_known_group_url_and_offers_a_named_choice_for_several_web_apps`; run through the registry on a type group it opens nothing while no server runs and http://localhost:8123 once its started server reported the port"
+  },
+  "action:run.services.hideConfig": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs5_run::open_in_browser_opens_the_started_servers_page_and_remove_from_services_hides_a_row`; run through the registry with a configuration id it removes that configuration's row from the Services tree and leaves the other configuration and the group"
+  },
+  "ipc:term_is_busy": {
+    "status": "partial",
+    "proof": "`workbench::terminal_actions::tests::close_session_asks_before_terminating_a_running_command_and_closes_an_idle_shell_at_once`; Close Terminal Session on an idle shell asks ide_host::ops::term::is_busy, the same Terminals::is_busy the adapter calls, and closes the tab without a question. Missing: an error also counts as not busy, and no test has the backend answer busy for a shell running a command in the foreground (a program of the tab's own is busy without asking)"
+  },
+  "point.registerUndoHandler:(at) src/features/project-tree/index.ts:209": {
+    "status": "partial",
+    "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; Edit › Undo (edit.undo) while the Project view has the keyboard brings its last deleted file back from Local History and selects it. Missing: Undo of the view's last move or rename through it, and ⌘Z pressed in the tree"
+  },
+  "module:src/editor/lsp/hint.ts": {
+    "status": "partial",
+    "proof": "`editor_lsp::hint::tests`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; a hint shows at the caret of the active editor and the next one replaces it, and slow requests show their progress hint without flashing. Missing: no test of the application reads a hint's tone or its timeout, or that an edit, a caret move or Escape dismisses it"
   }
 }
