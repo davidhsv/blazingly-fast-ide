@@ -439,3 +439,29 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - CARGO QUEUE after it: Annotate → project view options + zoom → run/debug actions (+ Run group of the context menus, run gutter) → database extras (+ proofs6_database_console.rs) → build tools (seam first) → shared button + accessibility slices → vcs_stage_hunks → diff viewer gaps (the proofs12 pending tests are its spec).
 - GAPS FOUND by proofs11 (feature work, not drafted): agent Markdown images and Mermaid diagrams; agents unread count status item + tool-window badge (models exist: `status_item`, `badge`, no caller); conversations as editor tabs; virtual documents in the read-only toggle; Compare with Local / cross-root Unshelve in the shelf; Java attach from the configuration chooser.
 - NEXT TEST-ONLY WRITERS (no cargo; these yield ~12 rows per 75 tests): agents leftovers (messageEditing 4, sessionState 12), unit specs still "model only" (127 rows: list them by directory and pick those whose view exists), partial unit specs with "N of M" where the view exists.
+
+## Draft proofs13 app DONE (2026-11-14, NOT committed: after the running integrator)
+
+- 43 tests in 9 new files: workbench/tests/proofs13_{close_guard,light_edit_close,ide_mode,shell,windows,tasks,focus,database}.rs, workbench/editor_extras/tests/proofs13_editor.rs. Notes drafts/proofs13_app.md, report reports/draft_proofs13_app.md. Accessors needed: `PromptDialog::body()` (vcs/prompt_dialogs.rs), `TableEditorView::filter_options(kind)` (database/table_editor_view.rs).
+- If they pass: done = ideMode (3/3), ExportDialog (1/1), SqlFilterInput (3/3), lightEditClose once fixed; + ipc:cancel_task, context:editorFocus. Partial forward: closeGuard 18/22, shell 5/9, windows 8/48, tasks 6/9, focus 1/6, distractionFree 2/3, rainbowBrackets 5/6. WorkspaceDialog 0/9 (no view, no handlers).
+- EXPECTED TO FAIL = REAL GAPS: Close Tab does nothing in a single-file window; `help.keymapReference` offered in the Welcome Help menu with no handler and no view; a second loose file opens its own window instead of a tab (single-file windows have no tabs); `lightEdit.openProject` (status item "Open Containing Folder as Project") has no handler.
+- POSSIBLE REAL BUG: Quit with Don't Save may still autosave the file (the quit path never marks leaving as decided): if `discards_without_saving` fails it is a bug of the app, fix it.
+- Not buildable as tests (features missing): Workspace dialog and workspace.* actions, remote/WSL windows, Attach, file drops on the workbench, launch cases (19) beyond the first argument, the editor's right margin.
+
+## Draft proofs13 agents DONE (2026-11-14, NOT committed: after the running integrator)
+
+- 34 tests in 9 files + fixtures: workbench/tests/proofs13_agents_{fixtures,images,failed_send,stale_editor,delete_failure,config,new_task,pending}.rs, agents/session_view/tests/proofs13_agents_{session,session_pending}.rs. Notes drafts/proofs13_agents.md, report reports/draft_proofs13_agents.md. 27 expected to pass, 7 expected to fail (already in the two `_pending` files).
+- Hunks: A workbench/agents.rs test-only `spawn_guard::FailingPrompts(Option<String>)` (a send that fails before the backend; without it drop failed_send + stale_editor), B vcs/prompt_dialogs.rs test-only `PromptDialog::message_text()` (same need as proofs13 app's `PromptDialog::body()`: ONE accessor for both).
+- If they pass: done = AgentsView.test.tsx 19/19; partial forward: messageEditing 17/18, sessionState 29/31, ConfigPickers 7/13, composerCommands 1/12. HomeEditor 0/4 and agentRegistry 0/26 unchanged (views missing).
+- SPEC OF THE MISSING AGENTS VIEWS is in the notes, case by case: Agents settings page (Registry and Built-in tabs: no control for `tools.agents` in custom_controls.rs), New Task page chips / slash-command popup / image paste / project selector (logic in composer.rs `completion_at`, store.rs `draft_config`, used by no view), picker search field, compact "Agent settings" popup, docked changes panel, image tiles that open, question-card hover preview.
+- Real differences expected: after an edit's send fails the inline editor stays open and later draws over the re-sent message; pickers close after each choice.
+- NEXT INTEGRATOR after d104: $S/int_d105_brief.md = proofs13 (app + agents: 77 tests, accessors, hunk A).
+
+## State after the proofs12 + edit targets integration (2026-11-14, code 409ce08e, proofs13 drafts b1769860)
+
+- Suite 7,038. D105 written. Inventory 1,188/3,145 (127 model only, 481 partial).
+- DONE: edit commands on text fields and trees, Go to Line dialog, popups at the caret / under their button, diff window (size, resize, close shortcut, Jump to Source from a revision diff), 36 proofs12 tests. PENDING files (undeclared specs of later slices): workbench/tests/proofs12_{diff_soft_wraps,diff_tabs,find_popup}_pending.rs, vcs_diff/view/tests/proofs12_moved_code_view_pending.rs.
+- NEXT INTEGRATOR: $S/int_d105_brief.md = proofs13 (app shell 43 + agents 34 tests; accessors; hunk A; Quit with Don't Save suspicion; keymapReference, lightEdit.openProject, Close Tab in a single-file window if small).
+- CARGO QUEUE after it: Annotate → project view options + zoom → run/debug actions (+ Run group of the context menus, run gutter) → database extras (+ proofs6_database_console.rs) → build tools (seam first) → shared button + accessibility slices → vcs_stage_hunks → diff viewer gaps (soft wraps, moved code, diff tab) → agents views (settings page, New Task chips, slash commands, changes panel).
+- TO COMPARE with the webview: usage rows in the interface font show `->` as an arrow (Inter's contextual alternates); does the webview draw those rows in the mono font or with the same substitution?
+- The Services window of an inspection lists the machine's real Docker containers even with a temp HOME: never commit such shots.

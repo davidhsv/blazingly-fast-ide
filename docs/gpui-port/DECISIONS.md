@@ -927,3 +927,12 @@ Every slice since the Run tool window was proven in the test harness only. On 20
 - Test-only seams added: an answer to the hot swap compile in place of the language server, and a shorter agent stop timeout (the production 15 s is proven by the store's unit test only).
 - The check "is the platform's primary modifier held" exists once, in the keymap module, instead of four private copies.
 - Known and recorded as gaps, not fixed: agent Markdown draws no images or diagrams; the unread count in the status bar and the tool-window badge have no caller; a virtual document is not recognised by the read-only toggle.
+
+## D105. Edit commands on text fields and lists; popups where the webview puts them; the diff window
+
+- Edit › Undo, Redo, Cut, Copy, Paste and Select All act on what has the keyboard: a code editor, a text field, a tree. A password field refuses Copy and Cut, by action and by key. Copies made in text fields go to the clipboard history. Menu items are not greyed by the edit target (the Tauri menu does not).
+- Go to Line is a centred dialog. Show Usages, the bookmark mnemonic chooser and Select In open at the caret; Add Service opens under its button, also when the action has to show the Services window first (the menu waits for the button's next drawn frame, as the webview waits one animation frame).
+- The diff window opens centred at the webview's size, can be resized by its corner grip and remembers its size; it owns the close shortcut; Jump to Source works from a diff of two revisions when the file exists in the working tree, mapping the line through a diff against the working text.
+- Seven tests of the diff and Find in Files specs wait in undeclared `_pending` files for behaviour that is not built: soft wraps in the diff (its painter draws single lines), moved-code marks, links and the "(edited)" label, a diff editor tab for the non-modal setting, a resizable Find in Files popup with its split.
+- A test of mine that this changed: Undo with the find field focused takes back the field's typing, as in the webview; the test now focuses the editor before undoing a Replace All.
+- Seen in the real window and not compared with the webview: usage rows are drawn in the interface font, whose contextual alternates turn `->` into an arrow.

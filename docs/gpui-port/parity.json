@@ -109,27 +109,27 @@
   },
   "action:edit.undo": {
     "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; acts on code editors, and run through the registry while the Project view has the keyboard it brings the view's last deleted file back from Local History and selects it. Missing: text fields and other lists, ⌘Z pressed in the tree (edit.undo has no key binding and the tree passes no modified keys on), and the Project view's Undo of a move"
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; acts on code editors, and run through the registry while the Project view has the keyboard it brings the view's last deleted file back from Local History and selects it. In a text field it takes back the field's typing (`workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`). Missing: ⌘Z pressed in the tree (edit.undo has no key binding and the tree passes no modified keys on), and the Project view's Undo of a move"
   },
   "action:edit.redo": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`; acts on code editors only, not yet on text fields and lists"
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut"
   },
   "action:edit.copy": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::context_menus::tests::right_click_in_the_selection_keeps_it_and_copy_puts_it_on_the_clipboard`; also runs from the editor's menu, putting the selection on the clipboard; acts on code editors only, not yet on text fields and lists"
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::context_menus::tests::right_click_in_the_selection_keeps_it_and_copy_puts_it_on_the_clipboard`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut"
   },
   "action:edit.cut": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists"
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut"
   },
   "action:edit.paste": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists"
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut"
   },
   "action:edit.selectAll": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`; acts on code editors only, not yet on text fields and lists"
+    "status": "done",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`, `workbench::edit_actions::tests::select_all_in_the_services_tree_selects_every_row`; selects all of what has the keyboard: a code editor, a text field, every row of the Services tree"
   },
   "feature:project-tree": {
     "status": "partial",
@@ -1649,7 +1649,7 @@
   },
   "module:src/ui/Menu.tsx": {
     "status": "partial",
-    "proof": "`ui::popup_menu::tests`, `workbench::tests::a_tabs_menu_closes_pins_and_splits`, `workbench::context_menus::tests::the_editor_menu_leaves_out_the_actions_the_window_does_not_register`, `workbench::context_menus::tests::right_click_in_a_plain_file_opens_the_editor_menu_and_moves_the_caret`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`, `workbench::context_menus::tests::the_menus_show_the_shortcuts_of_the_active_keymap`; rows from actions and from the menu's own entries, separators tidied, an action row left out while its action is not registered, greyed out while its when fails, with the shortcut of the active keymap, keyboard (arrows, Home, End, typed letter, Right and Left for submenus, Enter, Space, Escape), pointer selection with the submenu delay, the menu kept inside the window. Not yet: header rows, check marks on rows of the menu's own (drawn as a check icon), the pointer's aim towards an open submenu (its model is `ui::menu_aim::tests`), menus anchored to a button"
+    "proof": "`ui::popup_menu::tests`, `workbench::tests::a_tabs_menu_closes_pins_and_splits`, `workbench::context_menus::tests::the_editor_menu_leaves_out_the_actions_the_window_does_not_register`, `workbench::context_menus::tests::right_click_in_a_plain_file_opens_the_editor_menu_and_moves_the_caret`, `workbench::context_menus::tests::in_a_git_repository_the_editor_menus_git_rows_are_enabled`, `workbench::context_menus::tests::the_menus_show_the_shortcuts_of_the_active_keymap`; rows from actions and from the menu's own entries, separators tidied, an action row left out while its action is not registered, greyed out while its when fails, with the shortcut of the active keymap, keyboard (arrows, Home, End, typed letter, Right and Left for submenus, Enter, Space, Escape), pointer selection with the submenu delay, the menu kept inside the window. Not yet: header rows, check marks on rows of the menu's own (drawn as a check icon), the pointer's aim towards an open submenu (its model is `ui::menu_aim::tests`)"
   },
   "unit:src/platform/keymaps/ideaParity.test.ts": {
     "status": "done",
@@ -1752,12 +1752,12 @@
     "proof": "`platform_more::pointer_drag::tests`"
   },
   "action:navigate.gotoLine": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`; opens Go to Line:Column and moves the caret; it is a popup in the popup slot, which a click beside it closes, where the webview has a dialog"
+    "status": "done",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`, `workbench::popup_placement::tests::escape_closes_go_to_line_and_the_editor_has_the_keyboard_again`, `workbench::popup_placement::tests::go_to_line_is_a_dialog_and_enter_moves_the_caret_to_the_typed_line_and_column`, `workbench::popup_placement::tests::go_to_line_takes_a_line_a_line_and_column_and_a_comma`, `workbench::popup_placement::tests::the_go_to_line_key_runs_nothing_while_a_tool_window_has_the_keyboard`; opens Go to Line:Column as a centred dialog, Enter moves the caret to the typed line and column, Escape gives the keyboard back to the editor, and the key runs nothing while a tool window has the keyboard"
   },
   "point.registerOverlay:editor.gotoLine": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`; see the navigate.gotoLine action"
+    "status": "done",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`, `workbench::popup_placement::tests::escape_closes_go_to_line_and_the_editor_has_the_keyboard_again`, `workbench::popup_placement::tests::go_to_line_is_a_dialog_and_enter_moves_the_caret_to_the_typed_line_and_column`, `workbench::popup_placement::tests::go_to_line_takes_a_line_a_line_and_column_and_a_comma`, `workbench::popup_placement::tests::the_go_to_line_key_runs_nothing_while_a_tool_window_has_the_keyboard`; see the navigate.gotoLine action"
   },
   "action:navigate.toggleBookmark": {
     "status": "done",
@@ -1776,8 +1776,8 @@
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_popup::tests`; the popup lists the bookmarks by list and file, opens, removes and describes them. Its preview is the file's plain text, not a second editor on the document"
   },
   "action:navigate.toggleBookmarkWithMnemonic": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`; ⌥F3 and the registry open the chooser for the caret's line, the digit typed gives the line a bookmark with that mnemonic and closes it, on that line it offers Change Mnemonic; without an editor the action does not run and ⌥F3 opens nothing. Missing: the chooser shows in the popup slot instead of at the caret"
+    "status": "done",
+    "proof": "`workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`; ⌥F3 and the registry open the chooser for the caret's line, the digit typed gives the line a bookmark with that mnemonic and closes it, on that line it offers Change Mnemonic; without an editor the action does not run and ⌥F3 opens nothing; the chooser opens under the caret's line (`workbench::popup_placement::tests::the_mnemonic_chooser_opens_under_the_caret`)"
   },
   "action:bookmarks.toggleFileBookmark": {
     "status": "done",
@@ -1901,7 +1901,7 @@
   },
   "unit:src/features/search/__tests__/findPopup.test.tsx": {
     "status": "partial",
-    "proof": "`find::popup_view::tests`; the view has its own twenty-three tests of the same behaviours (typing, options, mask, scopes, navigation, replace, history), written from the component and not from this spec: its twenty-five cases were not matched one by one"
+    "proof": "`find::popup_view::tests`, `workbench::tests::proofs12_find_popup::alt_letters_pick_the_scope_tab`, `workbench::tests::proofs12_find_popup::blocks_replace_replace_all_enter_and_the_all_keys_during_debounce`, `workbench::tests::proofs12_find_popup::clears_retained_rows_and_the_count_when_the_new_search_finds_nothing`, `workbench::tests::proofs12_find_popup::closing_remembers_the_search_text`, `workbench::tests::proofs12_find_popup::cmd_click_toggles_rows_into_the_selection`, `workbench::tests::proofs12_find_popup::find_next_keys_move_the_selection_and_alt_down_lists_recent_searches`, `workbench::tests::proofs12_find_popup::invalidates_when_search_options_change`, `workbench::tests::proofs12_find_popup::keeps_opening_an_outdated_result_available`, `workbench::tests::proofs12_find_popup::keeps_the_replace_preview_a_diff_in_place_of_the_code_preview`, `workbench::tests::proofs12_find_popup::marks_retained_rows_immediately_and_waits_for_the_first_new_file`, `workbench::tests::proofs12_find_popup::names_the_one_option_in_use_and_clears_it`, `workbench::tests::proofs12_find_popup::rejects_replace_all_if_the_query_changes_while_confirmation_is_open`, `workbench::tests::proofs12_find_popup::shift_down_extends_the_selection_and_enter_in_replace_mode_replaces_the_selected_rows`, `workbench::tests::proofs12_find_popup::shows_the_preview_only_once_something_matches`, `workbench::tests::proofs12_find_popup::the_directory_scopes_browse_button_picks_the_folder_starting_at_the_current_one`, `workbench::tests::proofs12_find_popup::the_pin_is_a_remembered_toggle_that_keeps_the_popup_open_when_a_result_is_opened`; 23 of 25 cases, four of them in part (the browse dialog's starting folder, validation only while the query rests, scope-tab letters not underlined). Missing: a multi-line query, and a resizable popup that remembers its size and its split"
   },
   "ipc:doc_set_line_ending": {
     "status": "done",
@@ -2360,8 +2360,8 @@
     "proof": "`editor_commands::extras::tests`"
   },
   "unit:src/editor/core/clipboardHistory.test.ts": {
-    "status": "partial",
-    "proof": "`editor_commands::clipboard_history::tests`; 7 of 8 cases: copies made in text fields are not recorded"
+    "status": "done",
+    "proof": "`editor_commands::clipboard_history::tests`, `workbench::edit_actions::tests::records_the_selected_text_of_inputs`; 8 of 8 cases: copies made in text fields are recorded too"
   },
   "unit:src/editor/lsp/authorLens.test.ts": {
     "status": "done",
@@ -2760,8 +2760,8 @@
     "proof": "`app_models::console_copy::tests`, `platform_more::selectable_text::tests::copies_the_panes_own_selection_on_the_copy_keys`; the key decisions; copying from the build output, database results and terminal (4 cases) needs those views"
   },
   "unit:src/features/app/__tests__/editCommand.test.ts": {
-    "status": "partial",
-    "proof": "`app_models::edit_command::tests`; 1 of 2 cases: undo through the focused editor's own history needs a workbench test"
+    "status": "done",
+    "proof": "`app_models::edit_command::tests`, `workbench::edit_actions::tests::use_the_focused_editors_history_including_programmatic_edits`; 2 of 2 cases: undo and redo go through the focused editor's own history, programmatic edits included"
   },
   "unit:src/features/app/__tests__/ideMode.test.tsx": {
     "status": "partial",
@@ -3041,7 +3041,7 @@
   },
   "action:services.addService": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs3_run::add_service_opens_its_menu_and_a_chosen_type_shows_its_configurations`, `services::view::tests::shows_the_empty_state_with_add_service_while_no_provider_has_a_node`; run through the registry it shows the Services tool window and opens Add Service; Run Configuration Type › the project's category › Program shows the Program group with its configuration. Missing: the menu opens near the top of the window rather than under the button, and a type with several configurations adds all of them without the picker"
+    "proof": "`workbench::tests::proofs3_run::add_service_opens_its_menu_and_a_chosen_type_shows_its_configurations`, `services::view::tests::shows_the_empty_state_with_add_service_while_no_provider_has_a_node`; run through the registry it shows the Services tool window and opens Add Service; Run Configuration Type › the project's category › Program shows the Program group with its configuration. The menu opens under its button, also when the action shows the hidden tool window first (`workbench::tests::proofs3_run::add_service_opens_its_menu_under_its_button`). Missing: a type with several configurations adds all of them without the picker"
   },
   "action:docker.refresh": {
     "status": "done",
@@ -3389,15 +3389,15 @@
   },
   "unit:src/features/vcs/__tests__/diffDialog.test.tsx": {
     "status": "partial",
-    "proof": "`vcs_diff::dialog_view::tests`; 3 of 8 cases by name"
+    "proof": "`vcs_diff::dialog_view::tests`, `workbench::tests::proofs12_diff_window::owns_the_close_shortcut_with_body_or_titlebar_focus`, `workbench::tests::proofs12_diff_window::remembers_the_resized_size_for_the_next_opening`; 7 of 8 cases: the window owns the close shortcut, is resizable and remembers its size. Missing: the editor tab opened instead once the non-modal interface is chosen (there is no diff tab)"
   },
   "unit:src/features/vcs/__tests__/diffToolbar.test.tsx": {
     "status": "partial",
-    "proof": "`vcs_diff::view::tests`, `vcs_diff::toolbar_view::tests`; 14 of 25 cases by name"
+    "proof": "`vcs_diff::view::tests`, `vcs_diff::toolbar_view::tests`, `workbench::tests::proofs12_diff_window::jumps_on_cmd_down_in_the_intellij_macos_keymap_only_while_a_diff_pane_has_focus`, `workbench::tests::proofs12_diff_window::jumps_to_the_working_copy_of_a_file_shown_at_a_revision`, `workbench::tests::proofs12_diff_window::maps_a_line_of_the_commit_to_the_working_copy`, `workbench::tests::proofs12_diff_window::maps_a_line_of_the_parent_through_the_diff_to_the_working_copy`; 20 of 25 cases. Missing: the three soft-wrap cases (the diff painter draws single lines) and the two that need a diff editor tab"
   },
   "unit:src/features/vcs/__tests__/movedCode.test.tsx": {
     "status": "partial",
-    "proof": "`vcs_diff::view::tests`; 3 of 15 cases by name"
+    "proof": "`vcs_diff::view::tests`, `vcs_diff::diff_options::tests::proofs12_moved_code::classifies_whitespace_only_differences_under_every_ignore_policy`, `vcs_diff::diff_options::tests::proofs12_moved_code::does_not_classify_an_ordinary_edit_shifted_by_nearby_insertions_as_a_move`, `vcs_diff::diff_options::tests::proofs12_moved_code::does_not_label_copied_code_repeated_blocks_braces_or_indentation_only_edits_as_moves`, `vcs_diff::diff_options::tests::proofs12_moved_code::handles_unicode_no_final_newline_and_multiple_independently_moved_blocks`, `vcs_diff::diff_options::tests::proofs12_moved_code::keeps_utf16_edit_offsets_correct_for_unicode_and_a_missing_final_newline`, `vcs_diff::diff_options::tests::proofs12_moved_code::leaves_large_approximate_comparisons_usable_as_ordinary_line_hunks`, `vcs_diff::diff_options::tests::proofs12_moved_code::pairs_a_moved_block_with_an_edit_and_preserves_revert`, `vcs_diff::diff_options::tests::proofs12_moved_code::pairs_a_moved_function_while_preserving_all_transferable_line_hunks`, `vcs_diff::diff_options::tests::proofs12_moved_code::recognizes_reindented_moved_code_and_records_token_changes_separately`, `vcs_diff::diff_options::tests::proofs12_moved_code::rejects_major_rewrites_repeated_alternatives_and_weak_matches_between_unrelated_functions`; 13 of 15 cases. Missing: the edited-move label with its word edits and the move links (only the counter knows about moves); the Highlight lines and Do not highlight cases are asserted without moved code"
   },
   "unit:src/features/settings/__tests__/dialog.test.tsx": {
     "status": "partial",
@@ -4056,8 +4056,8 @@
     "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`, `editor::intelligence::tests::proofs_editor_lsp::find_usages_lists_the_references_the_server_reports`; the Find Usages window with exclusion, rerun and tabs, from a language server's references and from text matches without one; the UI's own syntax fallback is not exercised; no preview colours"
   },
   "action:find.showUsages": {
-    "status": "partial",
-    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the popup with the usages and opening one; it opens in the middle of the window, not at the caret"
+    "status": "done",
+    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`, `workbench::popup_placement::tests::show_usages_opens_under_the_caret`; the popup with the usages opens under the caret's line and opens the chosen one"
   },
   "action:find.showUsageResults": {
     "status": "done",
@@ -4108,8 +4108,8 @@
     "proof": "`editor::intelligence::tests::proofs_editor_lsp::call_hierarchy_lists_the_callers_the_server_reports`, `editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`, `workbench::tests::type_hierarchy_without_a_server_says_no_language_server_is_available`, `code_insight::hierarchy_view::tests`; the Hierarchy window opens titled by mode and root (Callers of target, Subtypes of Base), lists what the server reports, expands lazily, opens a caller at its call site, switches direction, refreshes and autoscrolls from its toolbar, says how to show a hierarchy when empty and that no server is available"
   },
   "point.registerOverlay:code-insight.usagesPopup": {
-    "status": "partial",
-    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `code_insight::usages_popup::tests`; see find.showUsages"
+    "status": "done",
+    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `code_insight::usages_popup::tests`, `workbench::popup_placement::tests::show_usages_opens_under_the_caret`; see find.showUsages"
   },
   "point.registerOverlay:settings.dialog": {
     "status": "partial",
@@ -5632,8 +5632,8 @@
     "proof": "`editor::view::editing_tests::proofs_editor_multi_caret::each_preset_keeps_the_default_gesture`, `editor::view::editing_tests::proofs_editor_multi_caret::matches_the_complete_stroke_and_only_the_left_button`, `editor::view::editing_tests::proofs_editor_multi_caret::uses_rebinding_immediately_and_yields_column_selection_to_the_caret_gesture`, `editor::view::editing_tests::proofs_editor_multi_caret::honours_removal_of_the_caret_gesture_and_restores_it`, `editor::view::editing_tests::proofs_editor_multi_caret::restores_alt_drag_column_selection_once_the_caret_gesture_is_removed`, `editor::view::editing_tests::proofs_editor_multi_caret::matches_normalized_ctrl_alt_strokes_as_reported_for_right_alt_on_windows`; 5 of 6 cases; middle-button column selection is not built"
   },
   "module:src/editor/core/clipboardHistory.ts": {
-    "status": "partial",
-    "proof": "`editor::view::editing_tests::proofs_editor_clipboard_history::copies_and_cuts_are_recorded_newest_first_and_the_latest_line_copy_pastes_above`, `editor::view::editing_tests::proofs_editor_clipboard_history::the_clipboard_history_keeps_the_latest_thirty_copies`, `workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`; copies and cuts in an editor are recorded newest first without repeats, at most thirty, the latest line copy pastes above the caret's line, and Paste from History pastes the chosen entry, puts it on top and removes entries; copies outside editors are not recorded"
+    "status": "done",
+    "proof": "`editor::view::editing_tests::proofs_editor_clipboard_history::copies_and_cuts_are_recorded_newest_first_and_the_latest_line_copy_pastes_above`, `editor::view::editing_tests::proofs_editor_clipboard_history::the_clipboard_history_keeps_the_latest_thirty_copies`, `workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`; copies and cuts in an editor are recorded newest first without repeats, at most thirty, the latest line copy pastes above the caret's line, and Paste from History pastes the chosen entry, puts it on top and removes entries, and a copy made in a text field is recorded (`workbench::edit_actions::tests::records_the_selected_text_of_inputs`)"
   },
   "unit:src/editor/core/cm/syntaxHighlight.test.ts": {
     "status": "done",
@@ -6581,7 +6581,7 @@
   },
   "action:navigate.selectIn": {
     "status": "partial",
-    "proof": "`workbench::project_view_actions::tests::select_in_lists_the_places_that_show_the_file_and_the_project_view_selects_it`, `workbench::project_view_actions::tests::the_navigation_choosers_keys_run_nothing_without_a_project`; ⌥F1 in the editor runs it and opens the Select In chooser (Project View, the file manager, Terminal), Enter on Project View selects the edited file in the tree, and a path given is selected without the chooser; in a window without a project ⌥F1 runs nothing. Missing: the chooser opens near the top of the window instead of at the caret, without contributed targets (selectIn menu groups) or the Navigation Bar row"
+    "proof": "`workbench::project_view_actions::tests::select_in_lists_the_places_that_show_the_file_and_the_project_view_selects_it`, `workbench::project_view_actions::tests::the_navigation_choosers_keys_run_nothing_without_a_project`; ⌥F1 in the editor runs it and opens the Select In chooser (Project View, the file manager, Terminal), Enter on Project View selects the edited file in the tree, and a path given is selected without the chooser; in a window without a project ⌥F1 runs nothing. The chooser opens under the caret (`workbench::popup_placement::tests::select_in_opens_its_chooser_under_the_caret_of_the_edited_file`). Missing: contributed targets (selectIn menu groups) or the Navigation Bar row"
   },
   "action:navigate.showFilePath": {
     "status": "partial",
