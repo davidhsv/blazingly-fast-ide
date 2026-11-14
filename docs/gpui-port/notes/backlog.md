@@ -424,3 +424,18 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - NEW GAPS: editor caret settings (block, blink, smooth motion) read by nothing in the editor; diff panes paint no caret.
 - NEXT TEST-ONLY WRITERS (no cargo): diff view spec cases (diffDialog 3/8, diffToolbar 14/25, movedCode 3/15) + the 8 findPopup cases; agents leftovers (messageEditing 4 cases, sessionState 12 cases).
 - Tell integrators the real elapsed time matters: D102 stopped "at two hours" after 40 minutes. Budget by work, not by its own clock: "finish Part A and Part B; stop only if a part is blocked".
+
+## Draft proofs12 (diff + Find in Files) DONE (2026-11-14, NOT committed: after the running integrator)
+
+- 43 tests in 5 new files: workbench/tests/proofs12_{find_popup,diff_window,diff_soft_wraps}.rs, vcs_diff/view/tests/proofs12_moved_code_view.rs, vcs_diff/diff_options/tests/proofs12_moved_code.rs. Notes drafts/proofs12_diff_find.md (per spec: every case → the test or the reason), report reports/draft_proofs12_diff_find.md. Hunk H1: `DiffView::soft_wraps()` (only for proofs12_diff_soft_wraps.rs).
+- 11 tests are EXPECTED TO FAIL until the app gains the behaviour → these are the DIFF VIEWER'S REAL GAPS (a feature slice, not test work): Jump to Source from a revision-to-revision diff (maps the line to the working file); the non-modal commit-diff setting (show_diff always passes false; no diff editor tabs at all); soft wraps in the diff (setting stored, read by nothing, no "Use Soft Wraps" menu item); moved code links, moved-line marks and the "(edited)" label (only the counter knows about moves); diff window resizable with its size remembered, and Cmd+W closing it; Find in Files popup resizable, multi-line query field, scope-tab letters underlined, browse dialog starting at the current folder (GPUI's prompt has no starting directory).
+- Rows all stay partial: diffToolbar 16/25, movedCode 13/15, diffDialog 5/8, findPopup 19/25.
+- INTEGRATION: declare the passing tests; keep the 11 expected failures in their own undeclared file(s) as the spec of the diff-viewer feature slice.
+
+## State after the proofs11 integration (2026-11-14, code 7d7dccee, proofs12 drafts 3f9ec673)
+
+- Suite 6,983 (integrator ×2, proofs11 ×20, mine ×1). D104 written. 14 rows done, 10 partial moved forward.
+- NEXT INTEGRATOR: $S/int_d104_brief.md = proofs12 (43 tests; failing ones whose behaviour is not small go to `proofs12_*_pending.rs`, undeclared) then edit targets + popup placement.
+- CARGO QUEUE after it: Annotate → project view options + zoom → run/debug actions (+ Run group of the context menus, run gutter) → database extras (+ proofs6_database_console.rs) → build tools (seam first) → shared button + accessibility slices → vcs_stage_hunks → diff viewer gaps (the proofs12 pending tests are its spec).
+- GAPS FOUND by proofs11 (feature work, not drafted): agent Markdown images and Mermaid diagrams; agents unread count status item + tool-window badge (models exist: `status_item`, `badge`, no caller); conversations as editor tabs; virtual documents in the read-only toggle; Compare with Local / cross-root Unshelve in the shelf; Java attach from the configuration chooser.
+- NEXT TEST-ONLY WRITERS (no cargo; these yield ~12 rows per 75 tests): agents leftovers (messageEditing 4, sessionState 12), unit specs still "model only" (127 rows: list them by directory and pick those whose view exists), partial unit specs with "N of M" where the view exists.

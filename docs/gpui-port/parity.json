@@ -900,8 +900,8 @@
     "proof": "`vcs_ops::clone::tests`, `vcs_ops::remote_ui::tests`"
   },
   "unit:src/features/vcs/__tests__/ignore.test.ts": {
-    "status": "partial",
-    "proof": "`vcs_ops::ignore::tests`, `workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`, `workbench::tests::proofs4_vcs::routes_all_paths_to_gitignore_then_refreshes_status_and_tree`; all 7 cases on the model; through the window Add to .gitignore on a file and a folder writes both rules and the status no longer lists them. Missing: the project tree reload, the refresh after the local-exclude write and after a failed write are not asserted"
+    "status": "done",
+    "proof": "`vcs_ops::ignore::tests`, `workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`, `workbench::tests::proofs4_vcs::routes_all_paths_to_gitignore_then_refreshes_status_and_tree`, `workbench::tests::proofs11_vcs_windows::add_to_gitignore_reloads_the_project_tree_with_the_file_ignored`, `workbench::tests::proofs11_vcs_windows::add_to_local_exclude_refreshes_the_status_and_the_project_tree`, `workbench::tests::proofs11_vcs_windows::refreshes_after_a_failed_or_partially_completed_multi_repository_write`; all 7 cases on the model; through the window the ignore actions write their file, the status is read again and the project tree is reloaded, after .gitignore, after the local exclude file, and after a write that fails"
   },
   "unit:src/features/vcs/__tests__/commitChecks.test.ts": {
     "status": "done",
@@ -1185,7 +1185,7 @@
   },
   "unit:src/features/project-tree/fs.test.ts": {
     "status": "partial",
-    "proof": "`project_view::fs::tests`; the import and its task are checked on the model, not against the backend calls the spec mocks, and a disconnected upload is checked only to finish its task"
+    "proof": "`project_view::fs::tests`, `workbench::project_view_actions::tests::proofs11_import::uses_project_copy_for_a_local_destination`; the local-copy case runs through the Project view. Missing: the three cases of a remote window"
   },
   "unit:src/features/project-tree/moduleGroups.test.ts": {
     "status": "done",
@@ -1524,8 +1524,8 @@
     "proof": "`debugger::breakpoints::exceptions::tests`"
   },
   "unit:src/features/debugger/__tests__/executionState.test.ts": {
-    "status": "partial",
-    "proof": "`debugger::state::tests`, `debugger::actions::tests::each_resuming_action_clears_the_old_execution_point_before_its_request`; nine of ten cases found by name; the one about locals named like Object.prototype properties was not found and is not verified"
+    "status": "done",
+    "proof": "`debugger::state::tests`, `debugger::actions::tests::each_resuming_action_clears_the_old_execution_point_before_its_request`, `debugger::state::tests::proofs11_execution_state::retains_locals_whose_names_are_object_prototype_properties`; ten of ten cases"
   },
   "unit:src/features/debugger/__tests__/hotswap.test.ts": {
     "status": "done",
@@ -2556,8 +2556,8 @@
     "proof": "`database::dialogs::tests`; the state and logic of 1 of 1 cases, on the model; the view is not built"
   },
   "unit:src/features/database/Grid.test.tsx": {
-    "status": "partial",
-    "proof": "`database::grid_view::tests`, `database::results_view::tests`, `database::grid::tests`; 11 of 12 cases on the views shown in the Database window; \"preserves short values and truncates only beyond the preview\" only on the model"
+    "status": "done",
+    "proof": "`database::grid_view::tests`, `database::results_view::tests`, `database::grid::tests`, `database::grid_view::tests::proofs11_grid::preserves_short_values_and_truncates_only_beyond_the_preview_limit`; 12 of 12 cases on the views shown in the Database window"
   },
   "unit:src/features/database/SourceDialog.test.tsx": {
     "status": "done",
@@ -2589,7 +2589,7 @@
   },
   "unit:src/features/database/results-view.test.tsx": {
     "status": "partial",
-    "proof": "`database::results_view::tests`, `database::store::tests`, `database::result_session::tests`; 6 of 14 cases on the views and the store, the other 8 only on the model"
+    "proof": "`database::results_view::tests`, `database::store::tests`, `database::result_session::tests`, `database::results_view::tests::proofs11_results::explains_why_a_result_is_read_only`, `database::results_view::tests::proofs11_results::keeps_a_read_only_data_source_read_only`, `database::results_view::tests::proofs11_results::keeps_a_table_without_a_primary_key_read_only`, `database::results_view::tests::proofs11_results::keeps_an_unresolved_sql_server_table_schema_read_only`, `database::results_view::tests::proofs11_results::keeps_clickhouse_read_only`, `database::results_view::tests::proofs11_results::keeps_every_cell_of_a_pasted_row_in_the_submitted_edits`, `database::results_view::tests::proofs11_results::makes_a_single_table_select_with_its_primary_key_editable_and_submits_in_one_transaction`, `database::results_view::tests::proofs11_results::matches_case_sensitive_key_columns_exactly`, `database::results_view::tests::proofs11_results::uses_the_execution_schema_even_after_the_console_selection_changes`; 13 of 14 cases on the views and the store. Missing: \"records the selected schema or connection default\", which belongs to the console's execution"
   },
   "unit:src/features/database/sql/format.test.ts": {
     "status": "done",
@@ -2652,8 +2652,8 @@
     "proof": "`github::review_diff::tests`; the state and logic of 11 of 11 cases, on the model; the view is not built"
   },
   "unit:src/features/github/list/list.test.tsx": {
-    "status": "partial",
-    "proof": "`github::list_panel::tests::starts_with_every_open_pull_request_and_renders_the_rows`, `github::list_panel::tests::opens_the_context_menu_with_intellijs_items_on_the_clicked_row`, `github::list_panel::tests::shows_the_empty_states_and_clears_filters`, `github::list_panel::tests::shows_load_errors_with_retry`, `github::list_panel::tests::applies_the_text_on_enter_and_keeps_it_in_the_history`, `github::list_panel::tests::resets_a_chip_with_its_x_and_shows_the_quick_filter_badge`, `github::list_panel::tests::resets_a_chip_with_delete`, `github::list_panel::tests::chooses_a_chip_value_from_its_popup`, `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::a_search_term_filters_the_list_through_a_new_request`, `github::list::tests`; 8 of 15 cases on the list view the Pull Requests window shows. Missing on the view: the quick filters' exact-match rule, the history text, setting and clearing the text, the history's save rules, the reviewers' order, the info line and comment tooltip, and the next page past 70% of the scroll (only on the model)"
+    "status": "done",
+    "proof": "`github::list_panel::tests::starts_with_every_open_pull_request_and_renders_the_rows`, `github::list_panel::tests::opens_the_context_menu_with_intellijs_items_on_the_clicked_row`, `github::list_panel::tests::shows_the_empty_states_and_clears_filters`, `github::list_panel::tests::shows_load_errors_with_retry`, `github::list_panel::tests::applies_the_text_on_enter_and_keeps_it_in_the_history`, `github::list_panel::tests::resets_a_chip_with_its_x_and_shows_the_quick_filter_badge`, `github::list_panel::tests::resets_a_chip_with_delete`, `github::list_panel::tests::chooses_a_chip_value_from_its_popup`, `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::a_search_term_filters_the_list_through_a_new_request`, `github::list::tests`, `github::list_panel::tests::proofs11_list::formats_the_info_line_and_the_comment_tooltip`, `github::list_panel::tests::proofs11_list::offers_intellijs_quick_filters_checked_only_on_an_exact_match`, `github::list_panel::tests::proofs11_list::orders_reviewers_approved_changes_requested_commented_re_requested_needs_review`, `github::list_panel::tests::proofs11_list::requests_the_next_page_past_70_percent_of_the_scroll`, `github::list_panel::tests::proofs11_list::saves_searches_by_intellijs_rules_waiting_10_seconds_for_chip_only_changes`, `github::list_panel::tests::proofs11_list::sets_or_clears_the_text`, `github::list_panel::tests::proofs11_list::writes_the_history_text_like_get_short_text`; 15 of 15 cases on the list view the Pull Requests window shows"
   },
   "unit:src/features/github/reviewMode/reviewMode.test.tsx": {
     "status": "partial",
@@ -2681,7 +2681,7 @@
   },
   "unit:src/features/agents/AgentsView.test.tsx": {
     "status": "partial",
-    "proof": "`agents::task_list_view::tests`, `agents::task_list::tests`, `agents::task_actions::tests`, `workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`; 9 of 19 cases on the view shown in the Agents window, the others only on the models"
+    "proof": "`agents::task_list_view::tests`, `agents::task_list::tests`, `agents::task_actions::tests`, `workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`, `workbench::tests::proofs11_agents::applies_worktree_cleanup_only_to_worktree_tasks`, `workbench::tests::proofs11_agents::archives_only_eligible_tasks_in_a_mixed_selection`, `workbench::tests::proofs11_agents::cancels_the_whole_batch`, `workbench::tests::proofs11_agents::deletes_the_right_clicked_selection_after_one_confirmation_excluding_group_headers`, `workbench::tests::proofs11_agents::unarchives_only_archived_tasks_in_a_mixed_selection`, `agents::task_list_view::tests::proofs11_task_list::gives_the_whole_tool_window_to_the_conversation_when_the_docked_task_is_the_only_one`, `agents::task_list_view::tests::proofs11_task_list::includes_the_current_session_in_history_and_keeps_the_conversation_mounted`, `agents::task_list_view::tests::proofs11_task_list::keeps_placement_out_of_session_menus`, `agents::task_list_view::tests::proofs11_task_list::offers_to_archive_only_the_eligible_tasks_of_a_mixed_selection`, `agents::task_list_view::tests::proofs11_task_list::offers_to_unarchive_only_the_archived_tasks_of_a_mixed_selection`, `agents::task_list_view::tests::proofs11_task_list::opens_tabs_as_usual_without_a_docked_conversation`; 18 of 19 cases on the views shown in the Agents window. Missing: \"continues after an error and reports the failed task\" (no way to make one task's delete fail in a test)"
   },
   "unit:src/features/agents/ConfigPickers.test.tsx": {
     "status": "partial",
@@ -2693,7 +2693,7 @@
   },
   "unit:src/features/agents/Markdown.test.tsx": {
     "status": "partial",
-    "proof": "`agents::markdown_view::tests`, `agents::markdown::tests`; 3 of 18 cases on the view, the others only on the model"
+    "proof": "`agents::markdown_view::tests`, `agents::markdown::tests`, `agents::markdown_view::tests::proofs11_markdown::does_not_open_unsupported_links_as_files`, `agents::markdown_view::tests::proofs11_markdown::ignores_data_attributes_written_in_a_reply_keeping_its_own`, `agents::markdown_view::tests::proofs11_markdown::keeps_raw_markup_from_reaching_the_page`, `agents::markdown_view::tests::proofs11_markdown::opens_a_markdown_file_link`; 7 of 18 cases on the view. Missing: images (drawn as a box with the alt text) and diagrams (a Mermaid block stays code)"
   },
   "unit:src/features/agents/agentRegistry.test.tsx": {
     "status": "partial",
@@ -2725,7 +2725,7 @@
   },
   "unit:src/features/agents/messageEditing.test.tsx": {
     "status": "partial",
-    "proof": "`agents::session_view::tests`, `agents::composer_view::tests`, `agents::message_editor::tests`, `agents::store::tests`; 7 of 18 cases on the views, the others only on the models"
+    "proof": "`agents::session_view::tests`, `agents::composer_view::tests`, `agents::message_editor::tests`, `agents::store::tests`, `workbench::tests::proofs11_agents::confirms_before_retracting_a_turn_with_later_messages_and_guards_repeated_clicks`, `workbench::tests::proofs11_agents::keeps_the_draft_and_avoids_rollback_when_the_agent_does_not_stop_in_time`, `workbench::tests::proofs11_agents::keeps_the_transcript_and_running_session_when_a_fresh_session_rerun_is_cancelled`, `workbench::tests::proofs11_agents::recovers_the_original_prompt_when_rollback_fails`, `workbench::tests::proofs11_agents::rolls_back_before_sending_the_edited_text_when_send_is_clicked`, `workbench::tests::proofs11_agents::stops_before_rollback_and_restores_text_without_sending_turn_0`, `workbench::tests::proofs11_agents::stops_before_rollback_and_restores_text_without_sending_turn_1`, `workbench::tests::proofs11_agents::waits_for_a_running_turn_to_stop_before_rolling_it_back`; 14 of 18 cases on the views. Missing: the four cases about images or a failed send"
   },
   "unit:src/features/agents/permission.test.ts": {
     "status": "done",
@@ -2737,11 +2737,11 @@
   },
   "unit:src/features/agents/sessionState.test.tsx": {
     "status": "partial",
-    "proof": "`agents::session_view::tests`, `agents::session::tests`, `agents::follow::tests`, `agents::cards::tests`, `workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`; 14 of 31 cases on the conversation view, the others only on the models"
+    "proof": "`agents::session_view::tests`, `agents::session::tests`, `agents::follow::tests`, `agents::cards::tests`, `workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`, `agents::session_view::tests::proofs11_session::fetches_a_conversation_once_and_shows_it_again_from_the_store_when_its_tab_reopens`, `agents::session_view::tests::proofs11_session::keeps_the_latest_usage_limits_per_provider_without_marking_anything_unread`, `agents::session_view::tests::proofs11_session::keeps_tool_reasoning_plan_and_approval_rows_in_one_author_run`, `agents::session_view::tests::proofs11_session::sends_the_original_option_id_then_collapses_the_resolved_card`, `agents::session_view::tests::proofs11_session::shows_the_providers_usage_limits_by_default_and_each_meter_as_settings_tools_agents_chat_allows`; 19 of 31 cases on the conversation view. Missing: scroll and follow geometry, tag kinds, question cards, docked changes"
   },
   "unit:src/features/agents/unread.test.tsx": {
     "status": "partial",
-    "proof": "`agents::store::tests`; the state and logic of 18 of 18 cases, on the model; the view is not built"
+    "proof": "`agents::store::tests`, `agents::task_list_view::tests::proofs11_task_list::clears_only_the_viewed_task_and_keeps_reading_while_either_split_shows_it`, `agents::task_list_view::tests::proofs11_task_list::does_not_mark_historical_tasks_unread_but_tracks_replies_even_without_loaded_entries`, `agents::task_list_view::tests::proofs11_task_list::ignores_user_messages_thoughts_empty_replies_and_subagent_streaming`, `agents::task_list_view::tests::proofs11_task_list::leaves_a_task_unread_while_its_kept_alive_tab_is_hidden_and_reads_it_once_shown`, `agents::task_list_view::tests::proofs11_task_list::marks_background_status_transitions_unread`; 6 of 18 cases on the task list; the rest on the model. Missing: the status-bar count and the tool-window badge have no caller, conversations are not editor tabs, and the window-focus cases"
   },
   "unit:src/features/app/__tests__/WorkspaceDialog.test.tsx": {
     "status": "partial",
@@ -3044,16 +3044,16 @@
     "proof": "`workbench::tests::proofs3_run::add_service_opens_its_menu_and_a_chosen_type_shows_its_configurations`, `services::view::tests::shows_the_empty_state_with_add_service_while_no_provider_has_a_node`; run through the registry it shows the Services tool window and opens Add Service; Run Configuration Type › the project's category › Program shows the Program group with its configuration. Missing: the menu opens near the top of the window rather than under the button, and a type with several configurations adds all of them without the picker"
   },
   "action:docker.refresh": {
-    "status": "partial",
-    "proof": "`services::docker::tests`; registered on the Docker model of the window; no test runs the action, and no daemon is reached in tests"
+    "status": "done",
+    "proof": "`services::docker::tests`, `workbench::services_actions::tests::proofs11_docker::refresh_docker_reads_the_connection_again_and_the_tree_shows_what_it_found`; run through the registry on a Services window fed a snapshot, the connection is read again and the tree shows what it found; no daemon is reached in tests"
   },
   "action:docker.toggleStoppedContainers": {
-    "status": "partial",
-    "proof": "`workbench::services_actions::tests::the_docker_view_options_flip_and_store_what_the_tree_leaves_out`, `services::docker::tests`; run through the registry it flips Show Stopped Containers and stores the Docker filters. Missing: no test shows a Docker tree without the stopped containers (the tests have no Docker connection)"
+    "status": "done",
+    "proof": "`workbench::services_actions::tests::the_docker_view_options_flip_and_store_what_the_tree_leaves_out`, `services::docker::tests`, `workbench::services_actions::tests::proofs11_docker::show_stopped_containers_leaves_the_stopped_container_out_of_the_tree`; the toggle stores the filter and the tree leaves the stopped container out"
   },
   "action:docker.toggleUntaggedImages": {
-    "status": "partial",
-    "proof": "`workbench::services_actions::tests::the_docker_view_options_flip_and_store_what_the_tree_leaves_out`, `services::docker::tests`; run through the registry it flips Show Untagged Images and stores the Docker filters. Missing: no test shows a Docker tree without the untagged images (the tests have no Docker connection)"
+    "status": "done",
+    "proof": "`workbench::services_actions::tests::the_docker_view_options_flip_and_store_what_the_tree_leaves_out`, `services::docker::tests`, `workbench::services_actions::tests::proofs11_docker::show_untagged_images_leaves_the_untagged_image_out_of_the_tree`; the toggle stores the filter and the tree leaves the untagged image out"
   },
   "point.registerToolWindow:services": {
     "status": "partial",
@@ -4672,12 +4672,12 @@
     "proof": "`workbench::debug::tests::proofs3_debug::hot_reload_and_hot_restart_reach_the_adapter_of_a_running_dart_session`; on a running Dart session it sends hotRestart to the adapter, whose answer shows in the debug console"
   },
   "action:debug.reloadChangedClasses": {
-    "status": "partial",
-    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps"
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`, `workbench::debug::tests::proofs11_hotswap::reload_changed_classes_compiles_then_reloads_the_classes_into_the_java_session`; with a Java session of the fake adapter the action compiles (a test answer stands for the language server), then the adapter redefines the classes"
   },
   "action:debug.cancelHotSwap": {
-    "status": "partial",
-    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; registered and run without a session that supports it, where it does nothing; no test hot-swaps"
+    "status": "done",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`, `workbench::debug::tests::proofs11_hotswap::cancel_hot_swap_build_aborts_the_reload_before_any_class_is_redefined`; cancelling while the compile runs aborts the reload before any class is redefined; the building context key is read on and off"
   },
   "context:debugFramesFocus": {
     "status": "done",
@@ -5448,12 +5448,12 @@
     "proof": "`workbench::log_actions::tests::compare_with_local_and_compare_versions_open_the_diff_window`; Compare with Local reads the files that differ from the commit and opens them in the diff window; the webview lists them in the Changes between dialog first"
   },
   "unit:src/features/vcs/__tests__/worktreesPanel.test.tsx": {
-    "status": "partial",
-    "proof": "`vcs::git_forms::tests::marks_the_linked_project_root_current_when_its_main_worktree_is_also_listed`, `vcs::git_forms::tests::marks_both_opened_roots_current_while_grouping_their_repository_once`, `vcs::git_forms::tests::disables_removal_of_the_worktree_containing_project`, `vcs::git_forms::tests::allows_removal_when_project_is_outside_the_worktree`, `vcs::git_forms::tests::keeps_the_main_worktree_protected`, `workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`; all 5 cases are asserted on the form spec that the Worktrees dialog draws. Through the dialog only the current marker of the project's worktree and an enabled Remove for a worktree outside the project are asserted. The repository row grouped once for two opened roots, the disabled Remove with its tooltip for a worktree containing the project, and the protected main worktree have no window test"
+    "status": "done",
+    "proof": "`vcs::git_forms::tests::marks_the_linked_project_root_current_when_its_main_worktree_is_also_listed`, `vcs::git_forms::tests::marks_both_opened_roots_current_while_grouping_their_repository_once`, `vcs::git_forms::tests::disables_removal_of_the_worktree_containing_project`, `vcs::git_forms::tests::allows_removal_when_project_is_outside_the_worktree`, `vcs::git_forms::tests::keeps_the_main_worktree_protected`, `workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`, `workbench::vcs_operations::tests::proofs11_worktrees::disables_removal_of_the_worktree_containing_project`, `workbench::vcs_operations::tests::proofs11_worktrees::keeps_the_main_worktree_protected`, `workbench::vcs_operations::tests::proofs11_worktrees::marks_both_opened_roots_current_while_grouping_their_repository_once`; all 5 cases on the form the Worktrees dialog draws, and through the dialog: the current marker, the repository row grouped once for two opened roots, the disabled Remove with its tooltip for the worktree containing the project, and the protected main worktree"
   },
   "unit:src/features/vcs/__tests__/shelf.test.tsx": {
     "status": "partial",
-    "proof": "`vcs::shelf_view::tests::preserves_file_targets_through_selection_menus_toolbar_and_activation`, `vcs::shelf_view::tests::keeps_file_scope_from_selection_and_explicit_targets_rejects_stale_files`, `workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`, `workbench::shelf::tests::copy_patch_puts_the_shelved_patch_on_the_clipboard`, `workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`, `workbench::shelf::model_tests::compares_saved_sides_keeps_binary_files_out_of_text_diffs_and_scopes_chains`, `workbench::shelf::model_tests::maps_saved_and_local_diffs_to_the_owning_repo`, `workbench::shelf::model_tests::keeps_legacy_shelves_on_the_primary_repo_after_selecting_another_repo`, `workbench::shelf::model_tests::the_shelf_menu_disables_rename_for_a_file`; through the app and the Shelf view: the saved base and version of a file with no chain, Compare with Local against the working file with the shelf's files as the chain, selection, toolbar Unshelve and Enter to Show Diff on a file target, Show Diff with shelfFocus. Only on the model: rejecting stale targets, keeping binary files out, mapping to the owning repository (4 of the 5 variants, the project below the repository is missing), legacy shelves on the primary repository, the file menu's rows with Rename disabled. Not asserted: skipping a missing or binary local file in Compare with Local, the Unshelve changelist path mapping across roots, that Copy as Patch copies only the selected file of a shelf with several, the Ctrl+D/Meta+D binding and its refusal in an editor, choosing Copy as Patch from the file's context menu"
+    "proof": "`vcs::shelf_view::tests::preserves_file_targets_through_selection_menus_toolbar_and_activation`, `vcs::shelf_view::tests::keeps_file_scope_from_selection_and_explicit_targets_rejects_stale_files`, `workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`, `workbench::shelf::tests::copy_patch_puts_the_shelved_patch_on_the_clipboard`, `workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`, `workbench::shelf::model_tests::compares_saved_sides_keeps_binary_files_out_of_text_diffs_and_scopes_chains`, `workbench::shelf::model_tests::maps_saved_and_local_diffs_to_the_owning_repo`, `workbench::shelf::model_tests::keeps_legacy_shelves_on_the_primary_repo_after_selecting_another_repo`, `workbench::shelf::model_tests::the_shelf_menu_disables_rename_for_a_file`, `workbench::shelf::tests::proofs11_shelf::copies_only_the_selected_file_patch_through_the_scoped_patch_command`, `workbench::shelf::tests::proofs11_shelf::routes_the_configured_show_diff_shortcut_to_the_focused_shelf_selection`; Copy as Patch of one file from the file's context menu, and the diff shortcut in the Shelf tab with its refusal in an editor. Missing: Compare with Local skipping files, and unshelving across roots, are only on the model"
   },
   "action:debug.startConfig": {
     "status": "done",
@@ -5548,8 +5548,8 @@
     "proof": "`platform::keymap::tests::proofs_presets::the_eclipse_presets_load_switch_without_stale_overrides_and_parent_a_custom_keymap`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_have_valid_bindings_no_duplicates_and_no_unreviewed_new_conflicts`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_bind_eclipses_own_keys`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_preserve_official_removals_and_platform_specific_bindings`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_leave_undo_and_redo_to_the_focused_component`, `platform::keymap::tests::proofs_presets::the_eclipse_presets_use_the_bundled_run_and_debug_choices`, `platform::dispatcher::tests::proofs_keypad::the_eclipse_presets_tell_keypad_folding_from_font_size_and_block_comments`, `platform::dispatcher::tests::proofs_keypad::keypad_aliases_keep_working_for_existing_presets`; 6 of 8 cases; the two keypad cases pass in the dispatcher on keypad key names that GPUI never reports, so keypad bindings cannot fire in the app (D16)"
   },
   "unit:src/platform/keymaps/windows.test.ts": {
-    "status": "partial",
-    "proof": "`platform::keymap::tests::proofs_presets::the_windows_keymaps_cover_the_same_actions_as_their_macos_presets`, `platform::keymap::tests::proofs_presets::the_windows_keymaps_never_bind_the_windows_key`, `platform::keymap::tests::proofs_presets::the_idea_windows_preset_binds_ideas_windows_keys`, `platform::keymap::tests::proofs_presets::the_vscode_windows_preset_reads_cmd_as_ctrl`, `platform::keymap::tests::proofs_presets::macos_keeps_cmd`, `platform::keymap::tests::proofs_presets::windows_uses_ctrl_and_spells_shortcuts_out`; 4 of 6 cases; the two host-modifier cases miss their hasPrimaryModifier asserts"
+    "status": "done",
+    "proof": "`platform::keymap::tests::proofs_presets::the_windows_keymaps_cover_the_same_actions_as_their_macos_presets`, `platform::keymap::tests::proofs_presets::the_windows_keymaps_never_bind_the_windows_key`, `platform::keymap::tests::proofs_presets::the_idea_windows_preset_binds_ideas_windows_keys`, `platform::keymap::tests::proofs_presets::the_vscode_windows_preset_reads_cmd_as_ctrl`, `platform::keymap::tests::proofs_presets::macos_keeps_cmd`, `platform::keymap::tests::proofs_presets::windows_uses_ctrl_and_spells_shortcuts_out`, `platform::keymap::tests::proofs11_host_modifier::macos_keeps_cmd`, `platform::keymap::tests::proofs11_host_modifier::windows_uses_ctrl_and_spells_shortcuts_out`; 6 of 6 cases, the two host-modifier cases with their primary-modifier asserts"
   },
   "ipc:lsp_call_hierarchy": {
     "status": "done",
@@ -5769,7 +5769,7 @@
   },
   "action:debug.pluginStart": {
     "status": "partial",
-    "proof": "`workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`, `workbench::plugin_contributions::tests::debug_plugin_configuration_runs_only_while_a_project_is_open`, `workbench::plugin_java_debug::tests::a_plugins_java_debug_request_attaches_to_the_port_the_jvm_announces`; a plugin's debug request runs under its adapter, and a Java one attaches to the JDWP port the process announces. Missing: nothing asserted depends on what the preparation step changed; Debug from the configuration chooser does not go through the attach"
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`, `workbench::plugin_contributions::tests::debug_plugin_configuration_runs_only_while_a_project_is_open`, `workbench::plugin_java_debug::tests::a_plugins_java_debug_request_attaches_to_the_port_the_jvm_announces`, `workbench::plugin_contributions::tests::proofs11_plugin_debug::the_debug_preparation_changes_the_program_and_the_session_launches_the_changed_one`; the plugin's debug preparation changes the program and the session launches the changed one. Missing: Debug from the configuration chooser does not go through the Java attach"
   },
   "ipc:plugin_preview_install": {
     "status": "done",
@@ -6305,7 +6305,7 @@
   },
   "module:src/editor/core/fileAttributes.ts": {
     "status": "partial",
-    "proof": "`workbench::editor_core::tests::proofs7_read_only::a_click_on_the_status_bars_lock_asks_then_toggles_the_files_read_only_attribute`, `workbench::editor_core::tests::proofs7_read_only::a_read_only_toggle_that_fails_says_it_cannot_make_the_file_read_only`, `workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`, `editor_model::file_attributes::tests`; the question, the writable bit on disk through the backend, the editor's read-only state, and on failure the error notification Cannot make notes.txt read-only with the editor left writable. Missing: no test shows a virtual document or a binary or too large file left alone, as toggleReadOnly does"
+    "proof": "`workbench::editor_core::tests::proofs7_read_only::a_click_on_the_status_bars_lock_asks_then_toggles_the_files_read_only_attribute`, `workbench::editor_core::tests::proofs7_read_only::a_read_only_toggle_that_fails_says_it_cannot_make_the_file_read_only`, `workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`, `editor_model::file_attributes::tests`, `workbench::editor_core::tests::proofs11_read_only::a_binary_file_is_left_alone_by_the_read_only_toggle`, `workbench::editor_core::tests::proofs11_read_only::a_too_large_file_is_left_alone_by_the_read_only_toggle`; a binary file and a too large file are left alone by the read-only toggle. Missing: a virtual document is never recognised as one natively"
   },
   "module:src/editor/lsp/rename.ts": {
     "status": "partial",
@@ -6720,8 +6720,8 @@
     "proof": "`editor_lsp::hint::tests`, `workbench::editor_language::tests::proofs7_hint::show_editor_hint_draws_the_hint_in_the_tone_it_is_given`, `workbench::editor_language::tests::proofs7_hint::a_hint_at_the_caret_goes_away_after_four_seconds`, `workbench::editor_language::tests::proofs7_hint::an_edit_a_caret_move_or_escape_dismisses_the_hint_at_the_caret`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; the hint at the caret in its tone, replaced by the next one, gone after the 4000 ms timeout and dismissed by an edit, a caret move or Escape, and slow requests show their progress hint without flashing"
   },
   "action:github.pullRequests": {
-    "status": "partial",
-    "proof": "`workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::a_search_term_filters_the_list_through_a_new_request`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::with_gh_not_signed_in_the_window_shows_the_sign_in_state_and_offers_gh_auth_login`, `workbench::github::tests::without_a_github_remote_the_window_shows_that_state`; run through the registry it checks gh, connects to the repository of the project's GitHub remote and lists its open pull requests with state, author and labels, or shows why it cannot connect. Missing: no test asserts that the tool window becomes visible and takes the keyboard, and the list's next pages and chooser popups are not driven in the application"
+    "status": "done",
+    "proof": "`workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::a_search_term_filters_the_list_through_a_new_request`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::with_gh_not_signed_in_the_window_shows_the_sign_in_state_and_offers_gh_auth_login`, `workbench::github::tests::without_a_github_remote_the_window_shows_that_state`, `workbench::github::tests::proofs11_github::the_chip_choosers_run_a_new_search_and_load_their_users_through_gh`, `workbench::github::tests::proofs11_github::the_list_asks_gh_for_its_next_page_and_appends_it`, `workbench::github::tests::proofs11_github::view_pull_requests_shows_the_tool_window_and_gives_it_the_keyboard`; run through the registry it checks gh, connects to the repository of the project's GitHub remote and lists its open pull requests, or shows why it cannot connect; the tool window becomes visible and keeps the keyboard once it connects, the list asks gh for its next page, and the chip choosers run a new search"
   },
   "action:github.refresh": {
     "status": "done",
@@ -7174,5 +7174,13 @@
   "module:src/workbench/EditorArea.tsx": {
     "status": "partial",
     "proof": "`workbench::tests::empty_project_window::a_project_window_with_nothing_open_shows_the_status_bar_and_the_navigation_hints`; a pane with no tab shows the four navigation hints with the keymap's shortcuts and the drop remark, a click on a hint runs its action, and an open file takes their place. Missing: the two hints of a single-file window"
+  },
+  "context:debugCanHotSwap": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs11_hotswap::reload_changed_classes_compiles_then_reloads_the_classes_into_the_java_session`, `workbench::debug::tests::proofs11_hotswap::cancel_hot_swap_build_aborts_the_reload_before_any_class_is_redefined`; off before a session that can reload classes, on once the Java session reports it"
+  },
+  "context:debugHotSwapBuilding": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs11_hotswap::cancel_hot_swap_build_aborts_the_reload_before_any_class_is_redefined`, `workbench::debug::tests::proofs11_hotswap::reload_changed_classes_compiles_then_reloads_the_classes_into_the_java_session`; on while the changed classes compile, off before and after"
   }
 }
