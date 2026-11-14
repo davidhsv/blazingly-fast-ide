@@ -2164,8 +2164,8 @@
     "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`"
   },
   "ipc:recent_project_groups": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`; read when the Welcome screen is built, only with no groups stored"
+    "status": "done",
+    "proof": "`workbench::tests::proofs6_workbench::the_welcome_screen_shows_the_stored_project_groups_with_their_projects`"
   },
   "ipc:set_recent_project_groups": {
     "status": "done",
@@ -4308,8 +4308,8 @@
     "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
   },
   "ipc:db_connected": {
-    "status": "partial",
-    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`; read with the sources when the window loads; no asserted state can only come from it"
+    "status": "done",
+    "proof": "`workbench::tests::proofs6_database::the_tree_marks_a_data_source_connected_when_the_backend_already_holds_its_connection`"
   },
   "ipc:db_test": {
     "status": "done",
@@ -5712,32 +5712,32 @@
     "proof": "`settings_view::custom_controls::tests::notifications_no_popup_applies_and_the_groups_balloon_is_not_shown`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`"
   },
   "settings:build.console": {
-    "status": "partial",
-    "proof": "`settings_view::custom_controls::tests::console_buffer_and_fold_patterns_apply_and_cancel_discards`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::console_buffer_and_fold_patterns_apply_and_cancel_discards`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
   },
   "settings:build.debugger.dataViews": {
-    "status": "partial",
-    "proof": "`settings_view::custom_controls::tests::data_views_delay_steps_with_the_arrows_and_reset_restores_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::data_views_delay_steps_with_the_arrows_and_reset_restores_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
   },
   "settings:tools.terminal": {
-    "status": "partial",
-    "proof": "`settings_view::custom_controls::tests::terminal_environment_cursor_and_shell_apply`, `settings_view::custom_controls::tests::the_login_shell_is_read_after_the_dialog_opens`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::terminal_environment_cursor_and_shell_apply`, `settings_view::custom_controls::tests::the_login_shell_is_read_after_the_dialog_opens`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
   },
   "settings:tools.mcpServer": {
     "status": "partial",
     "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page opens and one of its controls, changed with the mouse, is stored after Apply; Endpoint say This page is not available yet"
   },
   "settings:vcs.commit": {
-    "status": "partial",
-    "proof": "`settings_view::custom_controls::tests::vcs_commit_limits_and_checks_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::vcs_commit_limits_and_checks_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
   },
   "settings:vcs.confirmation": {
-    "status": "partial",
-    "proof": "`settings_view::custom_controls::tests::vcs_confirmation_radio_buttons_and_history_limit_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::vcs_confirmation_radio_buttons_and_history_limit_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
   },
   "settings:vcs.git": {
-    "status": "partial",
-    "proof": "`settings_view::custom_controls::tests::vcs_git_test_protected_branches_and_update_method`, `settings_view::custom_controls::tests::git_test_is_refused_in_restricted_mode`, `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; an out-of-range number is flagged but shows no \"Enter a value between…\" hint, and the tests operate some of the page's own controls, the rest compared by reading"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::vcs_git_test_protected_branches_and_update_method`, `settings_view::custom_controls::tests::git_test_is_refused_in_restricted_mode`, `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
   },
   "settings:build.deployment.options": {
     "status": "done",
@@ -6950,5 +6950,113 @@
   "module:src/editor/lsp/typeInfo.ts": {
     "status": "partial",
     "proof": "`workbench::editor_extras::tests::expression_type_info_shows_the_type_of_the_expression_at_the_caret`, `editor_lsp::type_info::tests`; extractTypeInfo and Expression Type Info from the server's hover, with the no-type hint. Missing: the type is shown as a plain editor hint, not the documentation popup the webview opens"
+  },
+  "ipc:plugin_catalog": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins::the_marketplace_tab_lists_the_plugins_of_the_local_catalog`"
+  },
+  "ipc:plugin_unpack_package": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins::installing_a_package_file_from_disk_unpacks_it_and_installs_its_plugin`"
+  },
+  "ipc:plugin_roll_back": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins::roll_back_returns_an_updated_plugin_to_its_previous_version`"
+  },
+  "ipc:plugin_set_capability": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins::a_permissions_row_revokes_and_allows_the_permission_on_the_host`"
+  },
+  "ipc:plugin_grant": {
+    "status": "partial",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins::review_permissions_grants_a_plugin_waiting_for_consent`; granted from the Plugins page only: a running plugin asking for consent is not driven"
+  },
+  "ipc:plugin_market": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins_market::the_marketplace_lists_the_indexs_plugins_and_install_downloads_and_installs_one`"
+  },
+  "ipc:plugin_market_download": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins_market::the_marketplace_lists_the_indexs_plugins_and_install_downloads_and_installs_one`"
+  },
+  "ipc:plugin_market_url": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins_market::plugin_repository_shows_the_stored_url_and_saves_a_new_one_the_host_keeps`"
+  },
+  "ipc:plugin_set_market_url": {
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins_market::plugin_repository_shows_the_stored_url_and_saves_a_new_one_the_host_keeps`"
+  },
+  "ipc:plugin_answer_command": {
+    "status": "done",
+    "proof": "`workbench::plugin_runtime::tests::proofs6_plugin_runtime::a_plugin_command_runs_an_ide_action_in_its_window_and_hears_the_outcome`"
+  },
+  "ipc:term_available_shells": {
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::proofs6_custom_controls::the_shell_path_list_offers_the_installed_shells`"
+  },
+  "ipc:debug_capabilities": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::the_frame_menu_offers_reset_frame_only_when_the_adapter_can_restart_frames`"
+  },
+  "ipc:debug_threads": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::the_thread_chooser_lists_every_thread_the_adapter_reports`"
+  },
+  "ipc:debug_breakpoint_states": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::a_breakpoint_the_adapter_reports_unbound_shows_its_message_in_the_breakpoints_dialog`"
+  },
+  "ipc:debug_exception_filters": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::the_breakpoints_dialog_lists_the_adapters_exception_filters_and_a_ticked_one_reaches_it`"
+  },
+  "ipc:debug_set_exception_breakpoints": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::the_breakpoints_dialog_lists_the_adapters_exception_filters_and_a_ticked_one_reaches_it`"
+  },
+  "ipc:debug_set_function_breakpoints": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::a_method_breakpoint_set_during_a_session_reaches_the_adapter_and_shows_it_verified`"
+  },
+  "ipc:debug_data_breakpoint_info": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::add_field_watchpoint_on_a_local_sets_the_watchpoint_the_adapter_names`"
+  },
+  "ipc:debug_set_data_breakpoints": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::add_field_watchpoint_on_a_local_sets_the_watchpoint_the_adapter_names`"
+  },
+  "ipc:debug_listen_for_jvm": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::listening_for_a_remote_jvm_waits_on_its_port_until_the_jvm_connects`"
+  },
+  "ipc:cancel_request": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::proofs6_debug::cancel_on_the_listening_notice_stops_listening_for_the_remote_jvm`; only the debugger's use of it"
+  },
+  "ipc:sdk_php_effective": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::a_php_debug_start_warns_when_the_php_chosen_in_settings_loads_no_xdebug`"
+  },
+  "ipc:sdk_php_xdebug": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::a_php_debug_start_warns_when_the_php_chosen_in_settings_loads_no_xdebug`"
+  },
+  "ipc:run_dotnet_resolve": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs6_debug::a_dotnet_debug_start_debugs_the_build_output_the_project_names`"
+  },
+  "ipc:db_export_file": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs6_database::go_to_ddl_writes_the_tables_definition_to_a_file_and_opens_it`"
+  },
+  "ipc:agent_set_config": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs6_agents::picking_a_setting_in_the_composer_changes_it_in_the_running_agent`"
+  },
+  "ipc:agent_changes": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs6_agents::a_finished_turn_lists_the_file_the_agent_edited_among_the_tasks_changes`; the test reads the agents store: no native view shows a task's changes"
   }
 }
