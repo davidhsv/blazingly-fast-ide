@@ -1,0 +1,13 @@
+wait	3000
+action	vcs.showDiff	"/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/ddfg/projmodal/notes.txt"
+wait	3000
+mark	modal-wrapped
+wait	1500
+keys	escape
+wait	800
+action	vcs.showDiff	"/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/ddfg/projmodal/code.js"
+wait	3000
+mark	modal-moved
+wait	1500
+keys	escape
+wait	800

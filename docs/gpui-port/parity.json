@@ -3388,16 +3388,16 @@
     "proof": "`features_b::viewers::file_kinds::tests`, `features_b::viewers::hex::tests`, `features_b::viewers::image_zoom::tests`"
   },
   "unit:src/features/vcs/__tests__/diffDialog.test.tsx": {
-    "status": "partial",
-    "proof": "`vcs_diff::dialog_view::tests`, `workbench::tests::proofs12_diff_window::owns_the_close_shortcut_with_body_or_titlebar_focus`, `workbench::tests::proofs12_diff_window::remembers_the_resized_size_for_the_next_opening`; 7 of 8 cases: the window owns the close shortcut, is resizable and remembers its size. Missing: the editor tab opened instead once the non-modal interface is chosen (there is no diff tab)"
+    "status": "done",
+    "proof": "`vcs_diff::dialog_view::tests`, `workbench::tests::proofs12_diff_window::owns_the_close_shortcut_with_body_or_titlebar_focus`, `workbench::tests::proofs12_diff_window::remembers_the_resized_size_for_the_next_opening`, `workbench::tests::proofs12_diff_tabs::opens_an_editor_tab_instead_once_the_non_modal_interface_is_chosen`; 8 of 8 cases: the window owns the close shortcut, is resizable and remembers its size, and an editor tab opens instead once the non-modal commit interface is chosen"
   },
   "unit:src/features/vcs/__tests__/diffToolbar.test.tsx": {
-    "status": "partial",
-    "proof": "`vcs_diff::view::tests`, `vcs_diff::toolbar_view::tests`, `workbench::tests::proofs12_diff_window::jumps_on_cmd_down_in_the_intellij_macos_keymap_only_while_a_diff_pane_has_focus`, `workbench::tests::proofs12_diff_window::jumps_to_the_working_copy_of_a_file_shown_at_a_revision`, `workbench::tests::proofs12_diff_window::maps_a_line_of_the_commit_to_the_working_copy`, `workbench::tests::proofs12_diff_window::maps_a_line_of_the_parent_through_the_diff_to_the_working_copy`; 20 of 25 cases. Missing: the three soft-wrap cases (the diff painter draws single lines) and the two that need a diff editor tab"
+    "status": "done",
+    "proof": "`vcs_diff::view::tests`, `vcs_diff::toolbar_view::tests`, `workbench::tests::proofs12_diff_window::jumps_on_cmd_down_in_the_intellij_macos_keymap_only_while_a_diff_pane_has_focus`, `workbench::tests::proofs12_diff_window::jumps_to_the_working_copy_of_a_file_shown_at_a_revision`, `workbench::tests::proofs12_diff_window::maps_a_line_of_the_commit_to_the_working_copy`, `workbench::tests::proofs12_diff_window::maps_a_line_of_the_parent_through_the_diff_to_the_working_copy`, `workbench::tests::proofs12_diff_soft_wraps::soft_wraps_follow_the_editors_setting`, `workbench::tests::proofs12_diff_soft_wraps::soft_wraps_reconfigure_without_losing_the_selection`, `workbench::tests::proofs12_diff_soft_wraps::soft_wraps_turn_on_from_the_settings_menu_and_stay_on`, `workbench::diff_tab::tests::maximizes_a_diff_tab_and_restores_the_layout_without_rebuilding_its_editor`, `workbench::diff_tab::tests::restores_the_shared_layout_after_the_diff_tab_is_remounted`, `vcs_diff::tab_view::tests::does_not_offer_editor_maximization_in_an_embedded_diff`; 25 of 25 cases: the toolbar's controls and counter, the line mapping, the three soft-wrap cases on the wrapped panes, and the two that maximize a diff tab and restore the layout"
   },
   "unit:src/features/vcs/__tests__/movedCode.test.tsx": {
-    "status": "partial",
-    "proof": "`vcs_diff::view::tests`, `vcs_diff::diff_options::tests::proofs12_moved_code::classifies_whitespace_only_differences_under_every_ignore_policy`, `vcs_diff::diff_options::tests::proofs12_moved_code::does_not_classify_an_ordinary_edit_shifted_by_nearby_insertions_as_a_move`, `vcs_diff::diff_options::tests::proofs12_moved_code::does_not_label_copied_code_repeated_blocks_braces_or_indentation_only_edits_as_moves`, `vcs_diff::diff_options::tests::proofs12_moved_code::handles_unicode_no_final_newline_and_multiple_independently_moved_blocks`, `vcs_diff::diff_options::tests::proofs12_moved_code::keeps_utf16_edit_offsets_correct_for_unicode_and_a_missing_final_newline`, `vcs_diff::diff_options::tests::proofs12_moved_code::leaves_large_approximate_comparisons_usable_as_ordinary_line_hunks`, `vcs_diff::diff_options::tests::proofs12_moved_code::pairs_a_moved_block_with_an_edit_and_preserves_revert`, `vcs_diff::diff_options::tests::proofs12_moved_code::pairs_a_moved_function_while_preserving_all_transferable_line_hunks`, `vcs_diff::diff_options::tests::proofs12_moved_code::recognizes_reindented_moved_code_and_records_token_changes_separately`, `vcs_diff::diff_options::tests::proofs12_moved_code::rejects_major_rewrites_repeated_alternatives_and_weak_matches_between_unrelated_functions`; 13 of 15 cases. Missing: the edited-move label with its word edits and the move links (only the counter knows about moves); the Highlight lines and Do not highlight cases are asserted without moved code"
+    "status": "done",
+    "proof": "`vcs_diff::view::tests`, `vcs_diff::diff_options::tests::proofs12_moved_code::classifies_whitespace_only_differences_under_every_ignore_policy`, `vcs_diff::diff_options::tests::proofs12_moved_code::does_not_classify_an_ordinary_edit_shifted_by_nearby_insertions_as_a_move`, `vcs_diff::diff_options::tests::proofs12_moved_code::does_not_label_copied_code_repeated_blocks_braces_or_indentation_only_edits_as_moves`, `vcs_diff::diff_options::tests::proofs12_moved_code::handles_unicode_no_final_newline_and_multiple_independently_moved_blocks`, `vcs_diff::diff_options::tests::proofs12_moved_code::keeps_utf16_edit_offsets_correct_for_unicode_and_a_missing_final_newline`, `vcs_diff::diff_options::tests::proofs12_moved_code::leaves_large_approximate_comparisons_usable_as_ordinary_line_hunks`, `vcs_diff::diff_options::tests::proofs12_moved_code::pairs_a_moved_block_with_an_edit_and_preserves_revert`, `vcs_diff::diff_options::tests::proofs12_moved_code::pairs_a_moved_function_while_preserving_all_transferable_line_hunks`, `vcs_diff::diff_options::tests::proofs12_moved_code::recognizes_reindented_moved_code_and_records_token_changes_separately`, `vcs_diff::diff_options::tests::proofs12_moved_code::rejects_major_rewrites_repeated_alternatives_and_weak_matches_between_unrelated_functions`, `vcs_diff::view::tests::proofs12_moved_code_view::labels_edited_moves_and_highlights_only_their_internal_word_edits`, `vcs_diff::view::tests::proofs12_moved_code_view::shows_native_move_links_follows_them_in_both_directions_and_updates_after_editing`, `vcs_diff::view::tests::proofs12_moved_code_view::omits_inner_edits_in_highlight_lines_mode`, `vcs_diff::view::tests::proofs12_moved_code_view::respects_do_not_highlight`, `vcs_diff::view::moved::tests::labels_the_links_by_direction_and_edits`, `vcs_diff::view::moved::tests::places_the_edits_of_a_move_on_their_lines`; 15 of 15 cases: the detection of moved blocks, their labels with the word edits inside an edited move, the links followed in both directions, and the Highlight lines and Do not highlight modes with moved code"
   },
   "unit:src/features/settings/__tests__/dialog.test.tsx": {
     "status": "partial",
@@ -3409,11 +3409,11 @@
   },
   "action:vcs.showDiff": {
     "status": "partial",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`; a changed file of the Commit window in a front window over the workbench; a folder (directory diff) and the editor-tab form are not built, and the panes are read-only"
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `vcs::commit_view::tests::lists_the_repositorys_changes_by_group_and_directory`, `workbench::diff_tab::tests::show_diff_opens_a_titled_diff_tab_that_closes_like_any_tab`, `workbench::tests::proofs12_diff_tabs::opens_an_editor_tab_instead_once_the_non_modal_interface_is_chosen`; a changed file of the Commit window opens its diff in an editor tab under the non-modal commit interface and in a window over the workbench under the modal one. Missing: a folder (directory diff) is not built, and the panes are read-only"
   },
   "action:diff.nextDifference": {
     "status": "done",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::continues_between_changed_files_from_toolbar_buttons_and_the_keymap`; Next Difference steps through the differences in the diff window and in a diff tab"
   },
   "action:diff.prevDifference": {
     "status": "done",
@@ -3421,23 +3421,23 @@
   },
   "action:diff.nextFile": {
     "status": "done",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `workbench::diff_tab::tests::compares_the_next_and_previous_file_in_a_diff_tab_from_the_keymap`; Compare Next File walks the changed files in the diff window and, from the keymap, in a diff tab"
   },
   "action:diff.jumpToSource": {
     "status": "done",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `workbench::diff_tab::tests::jump_to_source_opens_the_file_at_the_caret_and_keeps_the_diff_tab`; Jump to Source opens the file at the caret's line from the diff window and from a diff tab, which stays open"
   },
   "action:diff.prevFile": {
     "status": "done",
-    "proof": "`workbench::tests::proofs_vcs::compare_previous_file_walks_back_and_the_diff_settings_menu_opens`; after Next File reaches b.txt, Compare Previous File shows a.txt again with two / TWO"
+    "proof": "`workbench::tests::proofs_vcs::compare_previous_file_walks_back_and_the_diff_settings_menu_opens`, `workbench::diff_tab::tests::compares_the_next_and_previous_file_in_a_diff_tab_from_the_keymap`; Compare Previous File walks the changed files in the diff window and, from the keymap, in a diff tab"
   },
   "action:diff.showSettings": {
     "status": "done",
-    "proof": "`workbench::tests::proofs_vcs::compare_previous_file_walks_back_and_the_diff_settings_menu_opens`, `vcs_diff::toolbar_view::tests`; run in the diff window it opens the viewer's settings menu over the window, which Escape closes leaving the diff; the menu's entries are checked in the toolbar view"
+    "proof": "`workbench::tests::proofs_vcs::compare_previous_file_walks_back_and_the_diff_settings_menu_opens`, `vcs_diff::toolbar_view::tests`, `workbench::diff_tab::tests::diff_settings_opens_the_settings_menu_under_the_diff_tabs_toolbar`; in the diff window it opens the viewer's settings menu over the window, which Escape closes leaving the diff; in a diff tab the menu opens under the tab's toolbar and Use Soft Wraps flips the tab's panes; the menu's entries are checked in the toolbar view"
   },
   "context:diffEditorFocus": {
     "status": "done",
-    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`"
+    "proof": "`workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `workbench::diff_tab::tests::compares_the_next_and_previous_file_in_a_diff_tab_from_the_keymap`; on while a diff viewer has the keyboard, in the window and in a tab, and off after it loses it"
   },
   "context:vcsAvailable": {
     "status": "done",
@@ -7365,7 +7365,7 @@
   },
   "e2e:e2e/diff-navigation.spec.ts": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs18_e2e_diff_navigation::continues_between_changed_files_from_toolbar_buttons_and_the_keymap`; 1 of 3 flows driven whole: from a diff, the toolbar's buttons and the keymap continue to the next and previous changed file. Missing: maximizing a diff preview and restoring the layout (the native diff is a window, not an editor tab), and skipping a binary sibling in the window"
+    "proof": "`workbench::tests::proofs18_e2e_diff_navigation::continues_between_changed_files_from_toolbar_buttons_and_the_keymap`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::maximizes_a_diff_preview_tab_and_restores_its_previous_layout`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::continues_between_changed_files_from_toolbar_buttons_and_the_keymap`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::skips_binary_and_unchanged_siblings_and_restores_after_changing_preview_files`; 2 of 3 flows driven whole in a diff tab (maximizing a diff preview tab and restoring the layout; continuing between changed files from the toolbar and the keymap); the third (skipping binary and unchanged siblings, then Restore Size bringing back the maximized Project view) is driven to its end. Missing: its last check, that the diff's toolbar is hidden under the maximized Project view, is not asserted"
   },
   "e2e:e2e/editor.spec.ts": {
     "status": "partial",
@@ -7986,5 +7986,9 @@
   "module:src/editor/refactor/serverIntroduce.ts": {
     "status": "partial",
     "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::offer_idea_s_occurrences_choice_when_the_server_has_both_variants`; Refactor This and the eight refactorings run through a project window. Missing: the in-place naming after an extract"
+  },
+  "point.registerEditorKind:diff": {
+    "status": "partial",
+    "proof": "`workbench::diff_tab::tests::show_diff_opens_a_titled_diff_tab_that_closes_like_any_tab`, `vcs_diff::tab_view::tests::a_diff_tab_offers_maximize_editor_and_restore_size`, `vcs_diff::tab_view::tests::asks_for_the_next_file_of_its_chain_after_the_boundary_hint`, `vcs_diff::tab_view::tests::does_not_offer_editor_maximization_in_an_embedded_diff`; Show Diff opens a titled diff tab that closes like any tab, with its toolbar, Maximize Editor and the settings menu. Missing: the tab is not restored with the session, and the working copy's side is not editable"
   }
 }

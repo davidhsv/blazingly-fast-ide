@@ -1,0 +1,23 @@
+wait	3000
+action	vcs.showDiff	"/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/ddfg/projtab/notes.txt"
+wait	3000
+mark	tab-wrapped
+wait	1500
+action	toolwindow.hideAll
+wait	1500
+mark	tab-maximized
+wait	1500
+action	toolwindow.hideAll
+wait	1500
+mark	tab-restored
+wait	1500
+action	vcs.showDiff	"/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/ddfg/projtab/code.js"
+wait	3000
+mark	tab-moved
+wait	1500
+action	diff.showSettings
+wait	1500
+mark	tab-settings-menu
+wait	1500
+keys	escape
+wait	800
