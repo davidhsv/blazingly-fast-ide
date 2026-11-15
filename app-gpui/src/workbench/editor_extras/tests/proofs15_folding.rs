@@ -36,7 +36,7 @@ async fn the_fold_column_is_drawn_only_while_show_code_folding_outline_is_on(cx:
 
     let (chevron, _) = gutter_points(&editor, 1, cx);
     set_global("editor.folding.showOutline", json!(false), cx);
-    settle(cx, |cx| editor.read_with(cx, |e, cx| e.fold_column_width(cx)) == px(0.0));
+    settle(cx, "no fold column", |cx| editor.read_with(cx, |e, cx| e.fold_column_width(cx)) == px(0.0));
     assert_eq!(text_left(&editor, 0, cx), gutter, "the text starts where the fold column was");
     // Where the chevron of line 1 was drawn is now text: a click there puts the caret on the line
     // and folds nothing.
@@ -54,7 +54,7 @@ async fn the_fold_column_is_drawn_only_while_show_code_folding_outline_is_on(cx:
     assert_eq!(f.shown_lines(cx), [0, 1, 2, 3, 4, 5, 6, 7]);
 
     set_global("editor.folding.showOutline", json!(true), cx);
-    settle(cx, |cx| editor.read_with(cx, |e, cx| e.fold_column_width(cx)) == fold);
+    settle(cx, "the fold column", |cx| editor.read_with(cx, |e, cx| e.fold_column_width(cx)) == fold);
     assert_eq!(text_left(&editor, 0, cx), gutter + fold);
     let (chevron, _) = gutter_points(&editor, 1, cx);
     cx.simulate_click(chevron, Modifiers::default());
@@ -73,7 +73,7 @@ fn show(f: &Fixture, file: &str, cx: &mut VisualTestContext) -> Entity<Editor> {
     let path = f.root.join(file);
     let wanted = path.clone();
     f.workbench.update_in(cx, |w, window, cx| w.open_project_file(path, window, cx));
-    settle(cx, |cx| f.editor(cx).is_some_and(|e| e.read_with(cx, |e, _| e.path() == wanted)));
+    settle(cx, "the editor of the file", |cx| f.editor(cx).is_some_and(|e| e.read_with(cx, |e, _| e.path() == wanted)));
     f.wait_folds(cx);
     f.active(cx)
 }
@@ -87,7 +87,7 @@ async fn a_file_opens_with_the_regions_fold_by_default_names_folded(cx: &mut Tes
     let files = [("src/a.rs", HEADED), ("src/b.rs", HEADED)];
     let (f, cx) = open(cx, &files, "src/a.rs", None);
     f.wait_folds(cx);
-    settle(cx, |cx| f.shown_lines(cx) == [0, 2, 4, 5, 6, 7, 8, 9, 10, 11]);
+    settle(cx, "the shown lines", |cx| f.shown_lines(cx) == [0, 2, 4, 5, 6, 7, 8, 9, 10, 11]);
     let editor = f.active(cx);
     assert_eq!(editor.read_with(cx, |e, _| e.fold_marker(0)), Some(FoldMarker::Closed));
     assert_eq!(editor.read_with(cx, |e, _| e.fold_marker(2)), Some(FoldMarker::Closed));
@@ -99,7 +99,7 @@ async fn a_file_opens_with_the_regions_fold_by_default_names_folded(cx: &mut Tes
         }
     });
     show(&f, "src/b.rs", cx);
-    settle(cx, |cx| f.shown_lines(cx) == [0, 2, 3, 4, 5, 8, 9, 10, 11]);
+    settle(cx, "the shown lines", |cx| f.shown_lines(cx) == [0, 2, 3, 4, 5, 8, 9, 10, 11]);
     f.close(cx);
 }
 
@@ -139,10 +139,10 @@ async fn folding_by_default_keeps_the_line_a_file_is_opened_at_in_view(cx: &mut 
     let path = f.root.join("src/b.rs");
     let wanted = path.clone();
     f.workbench.update_in(cx, |w, window, cx| w.open_project_file_at(path, 150, 0, window, cx));
-    settle(cx, |cx| f.editor(cx).is_some_and(|e| e.read_with(cx, |e, _| e.path() == wanted)));
+    settle(cx, "the editor of the file", |cx| f.editor(cx).is_some_and(|e| e.read_with(cx, |e, _| e.path() == wanted)));
     f.wait_folds(cx);
     let editor = f.active(cx);
-    settle(cx, |cx| editor.read_with(cx, |e, _| e.shown_lines().len()) == 223 - 1 - 19);
+    settle(cx, "the shown lines", |cx| editor.read_with(cx, |e, _| e.shown_lines().len()) == 223 - 1 - 19);
     cx.update(|window, _| window.refresh());
     cx.run_until_parked();
     let (caret, bounds) = editor.read_with(cx, |e, _| (e.position_of(e.offset_of(150, 0)), e.painted_bounds()));

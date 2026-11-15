@@ -1,9 +1,10 @@
-//! The application's own dialogs: About, New Project, Invalidate Caches and the question asked
-//! before an untrusted project opens. Each view shows what its constructor was given and reports
-//! through events what the workbench must do; none of them reaches the backend.
+//! The application's own dialogs: About, Keymap Reference, New Project, Invalidate Caches and the
+//! question asked before an untrusted project opens. Each view shows what its constructor was given
+//! and reports through events what the workbench must do; none of them reaches the backend.
 
 pub mod about_dialog;
 pub mod invalidate_caches_dialog;
+pub mod keymap_reference_dialog;
 pub mod new_project_dialog;
 pub mod trust_dialog;
 

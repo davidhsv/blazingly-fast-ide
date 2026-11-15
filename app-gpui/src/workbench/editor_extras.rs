@@ -612,11 +612,11 @@ mod tests {
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         cx.update(|window, _| window.activate_window());
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        settle(cx, "the project tree", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         let file = root.join(open);
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file, window, cx));
         let fixture = Fixture { workbench, root, server, _folders: (home, folder) };
-        settle(cx, |cx| {
+        settle(cx, "the editor takes the keyboard", |cx| {
             let editor = fixture.editor(cx);
             cx.update(|window, cx| editor.is_some_and(|editor| editor.focus_handle(cx).is_focused(window)))
         });
@@ -626,17 +626,29 @@ mod tests {
         (fixture, cx)
     }
 
+    /// Waits for `done`, named `what`, while the backend's work comes back, moving the executor's clock
+    /// so debounced work runs.
     #[track_caller]
-    fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..3000 {
+    fn settle(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
+        let started = std::time::Instant::now();
+        let poll = |cx: &mut VisualTestContext| {
             cx.executor().advance_clock(Duration::from_millis(50));
             cx.run_until_parked();
-            if done(cx) {
+            let reached = done(cx);
+            if !reached {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            reached
+        };
+        for _ in 0..3000 {
+            if poll(cx) {
                 return;
             }
-            std::thread::sleep(Duration::from_millis(10));
         }
-        panic!("the backend did not deliver within thirty seconds");
+        // Whether more time would have been enough tells a slow backend from one that never answers.
+        let ran_out = started.elapsed();
+        let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
+        panic!("{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})");
     }
 
     /// Lets the backend work for a while, for asserting that nothing happened.
@@ -688,7 +700,7 @@ mod tests {
 
         #[track_caller]
         fn wait_hint(&self, cx: &mut VisualTestContext, text: &str) {
-            settle(cx, |cx| self.hint(cx).as_deref() == Some(text));
+            settle(cx, "the hint", |cx| self.hint(cx).as_deref() == Some(text));
         }
 
         fn server(&self) -> &FakeServer {
@@ -706,7 +718,7 @@ mod tests {
         #[track_caller]
         fn wait_opened(&self, cx: &mut VisualTestContext, name: &str) {
             let name = format!("/{name}");
-            settle(cx, |_| {
+            settle(cx, "the server hears the opened document", |_| {
                 let opened = self.requests("textDocument/didOpen");
                 let uri = |message: &Value| message["params"]["textDocument"]["uri"].as_str().map(str::to_owned);
                 opened.iter().filter_map(uri).any(|uri| uri.ends_with(&name))
@@ -752,11 +764,13 @@ mod tests {
 
         fn wait_folds(&self, cx: &mut VisualTestContext) {
             let editor = self.active(cx);
-            settle(cx, |cx| editor.read_with(cx, |e, _| e.folds_are_current()));
+            settle(cx, "the folds", |cx| editor.read_with(cx, |e, _| e.folds_are_current()));
         }
 
         fn popup_list(&self, cx: &mut VisualTestContext) -> Entity<ListPopup> {
-            settle(cx, |cx| self.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_some()));
+            settle(cx, "the list popup", |cx| {
+                self.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_some())
+            });
             self.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>()).expect("the list is open")
         }
 
@@ -931,7 +945,7 @@ mod tests {
 
         let plain = f.root.join("src/plain.rs");
         f.workbench.update_in(cx, |w, window, cx| w.open_project_file(plain.clone(), window, cx));
-        settle(cx, |cx| f.at(cx).is_some_and(|(path, _)| path == plain));
+        settle(cx, "the editor of plain", |cx| f.at(cx).is_some_and(|(path, _)| path == plain));
         f.run(cx, "navigate.customRegion");
         f.wait_hint(cx, NO_CUSTOM_REGIONS);
         f.close(cx);
@@ -956,7 +970,7 @@ mod tests {
         f.focus_editor(cx);
         f.caret_to(cx, 2, 8);
         cx.simulate_keystrokes("cmd-shift-delete");
-        settle(cx, |cx| f.text(cx) == "fn f() {\n    foo();\n}\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "fn f() {\n    foo();\n}\n");
         assert_eq!(f.at(cx).map(|(_, caret)| caret), Some((1, 4)));
 
         f.caret_to(cx, 0, 1);
@@ -965,7 +979,7 @@ mod tests {
 
         let notes = f.root.join("notes.txt");
         f.workbench.update_in(cx, |w, window, cx| w.open_project_file(notes.clone(), window, cx));
-        settle(cx, |cx| f.at(cx).is_some_and(|(path, _)| path == notes));
+        settle(cx, "the editor of notes", |cx| f.at(cx).is_some_and(|(path, _)| path == notes));
         f.caret_to(cx, 1, 4);
         f.run(cx, "code.unwrap");
         f.wait_hint(cx, UNWRAP_UNAVAILABLE);
@@ -1027,7 +1041,7 @@ mod tests {
         let dialog = f.workbench.read_with(cx, |w, _| w.reformat_dialog()).expect("the dialog is open");
         assert!(dialog.read_with(cx, |d, _| d.offers_selection() && d.options().selection_only));
         cx.simulate_keystrokes("enter");
-        settle(cx, |cx| f.text(cx) == "let x=1\nlet  y=2\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "let x=1\nlet  y=2\n");
         assert!(f.workbench.read_with(cx, |w, _| w.reformat_dialog().is_none()));
         assert_eq!(f.requests("textDocument/rangeFormatting").len(), 1);
         assert!(f.requests("textDocument/formatting").is_empty());
@@ -1040,7 +1054,7 @@ mod tests {
         assert!(f.workbench.read_with(cx, |w, _| w.reformat_dialog().is_none()));
         f.run(cx, "code.reformatDialog");
         cx.simulate_keystrokes("enter");
-        settle(cx, |cx| f.text(cx) == "let x=1\nlet y=2\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "let x=1\nlet y=2\n");
         assert_eq!(f.requests("textDocument/formatting").len(), 1);
         f.close(cx);
     }
@@ -1061,12 +1075,16 @@ mod tests {
         let editor = f.active(cx);
         editor.update(cx, |e, cx| e.select(5, 5, cx));
         f.run(cx, "find.highlightUsages");
-        settle(cx, |cx| editor.read_with(cx, |e, _| !e.marks(MarkLayer::Usages).is_empty()));
+        settle(cx, "the usage marks", |cx| editor.read_with(cx, |e, _| !e.marks(MarkLayer::Usages).is_empty()));
         let bar = f.workbench.read_with(cx, |w, _| w.status_bar().clone());
         let texts = |cx: &mut VisualTestContext| cx.update(|window, cx| bar.read(cx).texts(window, cx));
-        settle(cx, |cx| texts(cx).iter().any(|text| text.starts_with("3 usages of 'foo' found (")));
+        settle(cx, "the usages count in the status bar", |cx| {
+            texts(cx).iter().any(|text| text.starts_with("3 usages of 'foo' found ("))
+        });
         cx.simulate_keystrokes("escape");
-        settle(cx, |cx| !texts(cx).iter().any(|text| text.contains("usages of 'foo'")));
+        settle(cx, "the usages count leaves the status bar", |cx| {
+            !texts(cx).iter().any(|text| text.contains("usages of 'foo'"))
+        });
         f.close(cx);
     }
 
@@ -1086,21 +1104,21 @@ mod tests {
 
         f.run(cx, "toolwindow.todo");
         let view = f.workbench.read_with(cx, |w, _| w.todo_window_view()).expect("the TODO tool window is shown");
-        settle(cx, |cx| view.update(cx, |view, cx| !view.lines(cx).is_empty()));
+        settle(cx, "the tool window's lines", |cx| view.update(cx, |view, cx| !view.lines(cx).is_empty()));
         f.run(cx, "navigate.nextOccurrence");
-        settle(cx, |cx| f.at(cx) == Some((a.clone(), (0, 3))));
+        settle(cx, "the caret in a at 0:3", |cx| f.at(cx) == Some((a.clone(), (0, 3))));
         // ⌥⌘↓ from the tool window.
         cx.simulate_keystrokes("cmd-alt-down");
-        settle(cx, |cx| f.at(cx) == Some((a.clone(), (2, 3))));
+        settle(cx, "the caret in a at 2:3", |cx| f.at(cx) == Some((a.clone(), (2, 3))));
         f.focus_editor(cx);
         cx.simulate_keystrokes("ctrl-alt-down");
-        settle(cx, |cx| f.at(cx) == Some((b.clone(), (0, 13))));
+        settle(cx, "the caret in b at 0:13", |cx| f.at(cx) == Some((b.clone(), (0, 13))));
         f.run(cx, "navigate.prevOccurrence");
-        settle(cx, |cx| f.at(cx) == Some((a.clone(), (2, 3))));
+        settle(cx, "the caret in a at 2:3", |cx| f.at(cx) == Some((a.clone(), (2, 3))));
         // ⌃⌥↑ in the editor, with no highlighted usages: Previous Occurrence.
         f.focus_editor(cx);
         cx.simulate_keystrokes("ctrl-alt-up");
-        settle(cx, |cx| f.at(cx) == Some((a.clone(), (0, 3))));
+        settle(cx, "the caret in a at 0:3", |cx| f.at(cx) == Some((a.clone(), (0, 3))));
         f.close(cx);
     }
 
@@ -1126,12 +1144,12 @@ mod tests {
             files.sort_unstable();
             files
         };
-        settle(cx, |cx| files(cx) == ["src/alpha.rs"]);
+        settle(cx, "the files listed", |cx| files(cx) == ["src/alpha.rs"]);
         // A file the search went through, changed on disk since.
         std::fs::write(f.root.join("src/beta.rs"), "fn widget_two() {}\n").expect("the file is written");
         // ⌘R with the Find tool window active.
         cx.simulate_keystrokes("cmd-r");
-        settle(cx, |cx| files(cx) == ["src/alpha.rs", "src/beta.rs"]);
+        settle(cx, "the files listed", |cx| files(cx) == ["src/alpha.rs", "src/beta.rs"]);
         f.close(cx);
     }
 
@@ -1143,7 +1161,7 @@ mod tests {
         let text = "fn a() { b(\"(\", c[0]); }\n)\n";
         let (f, cx) = open(cx, &[("src/main.rs", text)], "src/main.rs", None);
         let editor = f.active(cx);
-        settle(cx, |cx| editor.read_with(cx, |e, _| !e.highlights().is_empty()));
+        settle(cx, "the highlights", |cx| editor.read_with(cx, |e, _| !e.highlights().is_empty()));
         let toggled = |cx: &mut VisualTestContext| {
             cx.update(|window, cx| {
                 let action = cx.global::<ActionRegistry>().get("editor.toggleRainbowBrackets").expect("registered");
@@ -1170,7 +1188,7 @@ mod tests {
         f.run(cx, "editor.toggleRainbowBrackets");
         assert!(cx.update(|_, cx| settings::global(cx).editor.rainbow_brackets));
         assert_eq!(toggled(cx), Some(true));
-        settle(cx, |cx| painted(cx, 0, 10) == Some(second));
+        settle(cx, "the painted colour", |cx| painted(cx, 0, 10) == Some(second));
         for (col, expected) in
             [(4, first), (5, first), (7, first), (10, second), (17, third), (19, third), (20, second)]
         {
@@ -1182,7 +1200,7 @@ mod tests {
 
         f.run(cx, "editor.toggleRainbowBrackets");
         assert!(!cx.update(|_, cx| settings::global(cx).editor.rainbow_brackets));
-        settle(cx, |cx| painted(cx, 0, 10) == before[1]);
+        settle(cx, "the painted colour", |cx| painted(cx, 0, 10) == before[1]);
         f.close(cx);
     }
 
@@ -1261,10 +1279,10 @@ mod tests {
         let labels = |cx: &mut VisualTestContext| {
             tree.read_with(cx, |tree, _| tree.rows().iter().map(|row| row.node.label.to_string()).collect::<Vec<_>>())
         };
-        settle(cx, |cx| labels(cx).contains(&"a.txt".to_owned()));
+        settle(cx, "a.txt in the tree", |cx| labels(cx).contains(&"a.txt".to_owned()));
         std::fs::write(f.root.join("b.txt"), "two\n").expect("the file is written");
         f.run(cx, "file.reloadAllFromDisk");
-        settle(cx, |cx| labels(cx).contains(&"b.txt".to_owned()));
+        settle(cx, "b.txt in the tree", |cx| labels(cx).contains(&"b.txt".to_owned()));
         f.close(cx);
     }
 
@@ -1289,7 +1307,7 @@ mod tests {
                 })
             })
         };
-        settle(cx, indexed);
+        settle(cx, "the index", indexed);
         assert!(!cx.update(|_, cx| cx.global::<ActionRegistry>().contains("templates.newFromTemplate")));
         f.run(cx, "navigate.gotoTest");
         let list = f.popup_list(cx);
@@ -1297,11 +1315,13 @@ mod tests {
         assert_eq!(lines.len(), 2, "{lines:?}");
         assert!(!lines.iter().any(|line| line.starts_with("Create New Test…")), "{lines:?}");
         cx.simulate_keystrokes("escape");
-        settle(cx, |cx| f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none()));
+        settle(cx, "the list popup closes", |cx| {
+            f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none())
+        });
 
         let alone = f.root.join("src/alone.py");
         f.workbench.update_in(cx, |w, window, cx| w.open_project_file(alone.clone(), window, cx));
-        settle(cx, |cx| f.at(cx).is_some_and(|(path, _)| path == alone));
+        settle(cx, "the editor of alone", |cx| f.at(cx).is_some_and(|(path, _)| path == alone));
         f.run(cx, "navigate.gotoTest");
         idle(cx);
         assert!(f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none()), "no chooser");
@@ -1330,14 +1350,14 @@ mod tests {
             cx.update(|window, cx| bar.read(cx).texts(window, cx)).iter().any(|shown| shown == text)
         };
         f.run(cx, "navigate.nextOccurrence");
-        settle(cx, |cx| f.at(cx) == Some((a.clone(), (0, 0))));
+        settle(cx, "the caret in a at 0:0", |cx| f.at(cx) == Some((a.clone(), (0, 0))));
         assert!(says(cx, "1 of 3"));
         f.run(cx, "navigate.nextOccurrence");
-        settle(cx, |cx| f.at(cx) == Some((a.clone(), (1, 1))));
+        settle(cx, "the caret in a at 1:1", |cx| f.at(cx) == Some((a.clone(), (1, 1))));
         assert!(says(cx, "2 of 3") && !says(cx, "1 of 3"));
         f.focus_editor(cx);
         cx.simulate_keystrokes("cmd-alt-up");
-        settle(cx, |cx| f.at(cx) == Some((a.clone(), (0, 0))));
+        settle(cx, "the caret in a at 0:0", |cx| f.at(cx) == Some((a.clone(), (0, 0))));
         assert!(says(cx, "1 of 3"));
         // The message goes after eight seconds.
         cx.executor().advance_clock(Duration::from_secs(9));
@@ -1367,7 +1387,7 @@ mod tests {
         cx.update(|window, _| window.activate_window());
         workbench.update_in(cx, |w, window, cx| w.open_file(file.clone(), window, cx));
         let editor = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.editor().cloned());
-        settle(cx, |cx| {
+        settle(cx, "the editor takes the keyboard", |cx| {
             let editor = editor(cx);
             cx.update(|window, cx| editor.is_some_and(|editor| editor.focus_handle(cx).is_focused(window)))
         });
@@ -1424,7 +1444,7 @@ mod tests {
     async fn the_editor_actions_need_an_editor(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("src/main.rs", "fn a() {}\n")], "src/main.rs", None);
         f.run(cx, "editor.closeTab");
-        settle(cx, |cx| f.editor(cx).is_none());
+        settle(cx, "the editor closes", |cx| f.editor(cx).is_none());
         let ids = [
             "code.expandToLevel1",
             "code.expandAllToLevel5",

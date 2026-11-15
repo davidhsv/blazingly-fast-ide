@@ -27,7 +27,9 @@ async fn implement_methods_offers_every_implement_action_and_applies_the_chosen_
     assert_eq!(lines.len(), 2, "{lines:?}");
     assert!(!lines.iter().any(|line| line.contains("Generate constructor")), "{lines:?}");
     cx.simulate_keystrokes("escape");
-    settle(cx, |cx| f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none()));
+    settle(cx, "the list popup closes", |cx| {
+        f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none())
+    });
     assert_eq!(f.text(cx), "class A {\n}\n", "Escape applies nothing");
 
     // ⌃I in the editor.
@@ -45,7 +47,7 @@ async fn implement_methods_offers_every_implement_action_and_applies_the_chosen_
         cx.simulate_keystrokes("down");
     }
     cx.simulate_keystrokes("enter");
-    settle(cx, |cx| f.text(cx) == "class A {\n  walk() {}\n}\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "class A {\n  walk() {}\n}\n");
     assert!(f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none()), "the list closes");
     f.close(cx);
 }
@@ -62,7 +64,7 @@ async fn implement_methods_indents_the_inserted_members_under_the_brace(cx: &mut
     ] }));
     f.put_caret(cx, 6);
     f.run(cx, "code.implementMethods");
-    settle(cx, |cx| f.text(cx) == "class A {\n    run() {\n        go()\n    }\n}\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "class A {\n    run() {\n        go()\n    }\n}\n");
     f.close(cx);
 }
 
@@ -85,7 +87,7 @@ async fn implement_methods_range_formats_inserted_lines_that_are_not_under_a_bra
     }));
     f.put_caret(cx, 0);
     f.run(cx, "code.implementMethods");
-    settle(cx, |cx| f.text(cx) == "a =1\nb =2\nx  =0\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "a =1\nb =2\nx  =0\n");
     let requests = f.requests("textDocument/rangeFormatting");
     assert_eq!(requests.len(), 1, "{requests:?}");
     let asked = &requests[0]["params"]["range"];

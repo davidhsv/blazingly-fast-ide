@@ -28,7 +28,7 @@ async fn ctrl_i_in_the_editor_implements_the_missing_members(cx: &mut TestAppCon
     ];
     let (f, cx) = class_with_actions(cx, &actions);
     cx.simulate_keystrokes("ctrl-i");
-    settle(cx, |cx| f.text(cx) == "class A {\n  run() {}\n}\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "class A {\n  run() {}\n}\n");
     f.close(cx);
 }
 
@@ -41,7 +41,7 @@ async fn ctrl_o_in_the_editor_overrides_the_offered_method(cx: &mut TestAppConte
     ];
     let (f, cx) = class_with_actions(cx, &actions);
     cx.simulate_keystrokes("ctrl-o");
-    settle(cx, |cx| f.text(cx) == "class A {\n  toString() {}\n}\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "class A {\n  toString() {}\n}\n");
     f.close(cx);
 }
 
@@ -54,7 +54,9 @@ fn quick_definition_by_key(cx: &mut TestAppContext, keys: &str) {
     f.answer(json!({ "textDocument/definition": [{ "uri": uri(&b), "range": { "start": at, "end": at } }] }));
     f.put_caret(cx, 7);
     cx.simulate_keystrokes(keys);
-    settle(cx, |cx| f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_some()));
+    settle(cx, "the definition popup", |cx| {
+        f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_some())
+    });
     let popup = f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>()).expect("the popup");
     assert_eq!(popup.read_with(cx, |p, _| p.header()), ["b.mock", "b.mock:3"], "{keys}");
     assert_eq!(popup.read_with(cx, |p, _| p.lines()), ["2  one", "3    target", "4  three"], "{keys}");
@@ -88,16 +90,16 @@ async fn cmd_shift_t_in_the_editor_goes_to_the_test_and_back(cx: &mut TestAppCon
             found.is_ok_and(|found| !found.is_empty())
         })
     };
-    settle(cx, indexed);
+    settle(cx, "the index", indexed);
     cx.simulate_keystrokes("cmd-shift-t");
-    settle(cx, |cx| f.editing(cx, &test));
+    settle(cx, "the editor of test", |cx| f.editing(cx, &test));
     // The opened test has the keyboard: the same key goes back.
-    settle(cx, |cx| {
+    settle(cx, "the editor takes the keyboard", |cx| {
         let editor = f.active(cx);
         cx.update(|window, cx| editor.focus_handle(cx).is_focused(window))
     });
     cx.simulate_keystrokes("cmd-shift-t");
-    settle(cx, |cx| f.editing(cx, &subject));
+    settle(cx, "the editor of subject", |cx| f.editing(cx, &subject));
     f.close(cx);
 }
 
@@ -122,7 +124,7 @@ async fn shift_f6_in_the_editor_renames_the_element_at_the_caret(cx: &mut TestAp
     assert_eq!(dialog.read_with(cx, |d, _| d.title().to_owned()), "Rename 'foo'");
     assert_eq!(retype(&dialog, "bar", cx), "foo");
     cx.simulate_keystrokes("enter");
-    settle(cx, |cx| f.text(cx) == "let bar = 1\nbar + bar\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "let bar = 1\nbar + bar\n");
     f.close(cx);
 }
 
@@ -139,13 +141,13 @@ async fn shift_f2_in_the_editor_goes_to_the_previous_error(cx: &mut TestAppConte
     let text = "let foo = 1\nbar\n  baz\n";
     let (f, cx) = open(cx, &[("a.mock", text)], "a.mock", Some(json!({ "diagnostics": diagnostics })), &[]);
     let editor = f.active(cx);
-    settle(cx, |cx| cx.update(|_, cx| problems(&editor, cx).len()) == 3);
+    settle(cx, "3 problems", |cx| cx.update(|_, cx| problems(&editor, cx).len()) == 3);
     f.put_caret(cx, 0);
     cx.simulate_keystrokes("shift-f2");
-    settle(cx, |cx| f.caret(cx) == 18);
+    settle(cx, "the caret at 18", |cx| f.caret(cx) == 18);
     f.wait_hint(cx, "unknown baz");
     cx.simulate_keystrokes("shift-f2");
-    settle(cx, |cx| f.caret(cx) == 4);
+    settle(cx, "the caret at 4", |cx| f.caret(cx) == 4);
     f.wait_hint(cx, "unknown foo");
     f.close(cx);
 }
@@ -165,7 +167,7 @@ async fn ctrl_shift_up_in_the_editor_goes_to_the_previous_method(cx: &mut TestAp
     // On `two`'s name.
     f.put_caret(cx, 17);
     cx.simulate_keystrokes("ctrl-shift-up");
-    settle(cx, |cx| f.caret(cx) == 3);
+    settle(cx, "the caret at 3", |cx| f.caret(cx) == 3);
     assert_eq!(f.text(cx), text, "no line moved");
     f.close(cx);
 }
@@ -186,7 +188,7 @@ async fn ctrl_alt_up_in_the_editor_goes_to_the_previous_highlighted_usage(cx: &m
     let editor = f.active(cx);
     f.put_caret(cx, 5);
     f.run(cx, "find.highlightUsages");
-    settle(cx, |cx| editor.read_with(cx, |e, _| e.marks(MarkLayer::Usages).len() == 3));
+    settle(cx, "3 usage marks", |cx| editor.read_with(cx, |e, _| e.marks(MarkLayer::Usages).len() == 3));
     cx.simulate_keystrokes("ctrl-alt-up");
     assert_eq!(f.caret(cx), 19, "it goes round to the last usage");
     cx.simulate_keystrokes("ctrl-alt-up");

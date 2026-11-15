@@ -1,6 +1,7 @@
 //! Help › Keymap Reference: the dialog listing every bound action with its shortcuts, shown in the
-//! window's dialog slot from any window (a project, a loose file, the Welcome screen). It lists the
-//! keymap in effect when it opens; Escape closes it and gives the keyboard back.
+//! window's dialog slot from any window (a project, a loose file, the Welcome screen), near the top of
+//! the window as a light popup. It lists the keymap in effect when it opens; Escape, or leaving the
+//! window, closes it and gives the keyboard back.
 
 use super::Workbench;
 use super::services_window::on_workbench;
@@ -12,7 +13,7 @@ use crate::platform::context::window_context;
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::input::Keymap;
 use crate::platform::keymap::is_mac_host;
-use gpui_kit::{App, Context, Entity, Focusable, Window};
+use gpui_kit::{App, AppContext, Context, Entity, Focusable, Window};
 use std::collections::HashMap;
 
 pub(super) fn register_actions(registry: &mut ActionRegistry) {
@@ -64,6 +65,7 @@ impl Workbench {
         });
         let focus = dialog.focus_handle(cx);
         self.open_vcs_dialog(dialog.into(), focus, events, window, cx);
+        self.place_vcs_dialog_at_top(cx);
     }
 }
 
@@ -181,5 +183,25 @@ mod tests {
                 host.close_project(&label);
             }
         });
+    }
+
+    /// The reference sits a tenth of the window's height below its top, centred across, and closes
+    /// when the window is left, giving the keyboard back.
+    #[gpui_kit::test]
+    async fn sits_near_the_top_and_closes_when_the_window_is_left(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+        let before = cx.update(|window, cx| window.focused(cx));
+        run_action(cx, KEYMAP_REFERENCE, None);
+        let bounds = cx.debug_bounds("keymap-reference").expect("the dialog is drawn");
+        let size = cx.update(|window, _| window.viewport_size());
+        assert!((bounds.top() - size.height * 0.1).abs() < gpui_kit::px(1.0), "{bounds:?} in {size:?}");
+        assert!((bounds.center().x - size.width / 2.0).abs() < gpui_kit::px(1.0), "{bounds:?} in {size:?}");
+
+        cx.deactivate_window();
+        assert!(workbench.read_with(cx, |w, _| w.keymap_reference()).is_none(), "leaving the window closes it");
+        assert_eq!(cx.update(|window, cx| window.focused(cx)), before, "the keyboard is given back");
     }
 }

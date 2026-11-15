@@ -180,7 +180,22 @@ pub(super) fn wait_for_answer(
     line: &str,
     cx: &mut VisualTestContext,
 ) {
-    wait_long(cx, line, |cx| !agent_working(store, task, cx) && shows(workbench, line, cx));
+    wait_long(cx, line, |cx| {
+        !agent_working(store, task, cx) && shows(workbench, line, cx) && turn_ended(store, task, cx)
+    });
+}
+
+/// Whether the turn of the last message sent to `task` has its end recorded. The footers of the conversation show
+/// that time (and the reply's buttons move right to make room), so a click on them waits for it.
+pub(super) fn turn_ended(store: &Entity<AgentsStore>, task: &str, cx: &mut VisualTestContext) -> bool {
+    store.read_with(cx, |store, _| {
+        let entries = store.entries(task, None).unwrap_or_default();
+        let last = entries.iter().rev().find_map(|entry| match entry {
+            ide_agent::AgentEntry::User { steered: false, done_ms, .. } => Some(done_ms.is_some()),
+            _ => None,
+        });
+        last.unwrap_or(false)
+    })
 }
 
 /// The lines of the agent's log `name` in the project's folder.

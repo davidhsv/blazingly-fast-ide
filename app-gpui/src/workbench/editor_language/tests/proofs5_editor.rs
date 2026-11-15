@@ -31,8 +31,8 @@ async fn code_cleanup_in_file_leaves_out_the_steps_its_argument_turns_off(cx: &m
     }));
     let arg = json!({ "path": c.to_string_lossy(), "optimizeImports": false, "reformat": false });
     f.run_with(cx, "code.cleanupFile", Some(arg));
-    settle(cx, |cx| f.editing(cx, &c));
-    settle(cx, |cx| f.text(cx) == "import d\nimport c\nlet x = 1;\n");
+    settle(cx, "the editor of c", |cx| f.editing(cx, &c));
+    settle(cx, "the editor's text", |cx| f.text(cx) == "import d\nimport c\nlet x = 1;\n");
     let asked = f.requests("textDocument/codeAction");
     assert_eq!(asked.len(), 1, "only the fix-all step asks the server: {asked:?}");
     assert_eq!(asked[0]["params"]["context"]["only"], json!(["source.fixAll"]));
@@ -52,15 +52,17 @@ async fn quick_type_definition_shows_the_type_definitions_lines_and_f4_opens_it(
     f.answer(json!({ "textDocument/typeDefinition": [{ "uri": uri(&t), "range": { "start": at, "end": at } }] }));
     f.put_caret(cx, 6);
     f.run(cx, "code.quickTypeDefinition");
-    settle(cx, |cx| f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_some()));
+    settle(cx, "the definition popup", |cx| {
+        f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_some())
+    });
     let popup = f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>()).expect("the popup");
     assert_eq!(popup.read_with(cx, |p, _| p.header()), ["t.mock", "t.mock:3"]);
     assert_eq!(popup.read_with(cx, |p, _| p.lines()), ["2  one", "3    Shape", "4  three"]);
     assert!(cx.update(|window, cx| popup.focus_handle(cx).is_focused(window)), "the popup has the keyboard");
     cx.simulate_keystrokes("f4");
-    settle(cx, |cx| f.editing(cx, &t));
+    settle(cx, "the editor of t", |cx| f.editing(cx, &t));
     let opened = f.active(cx);
-    settle(cx, |cx| opened.read_with(cx, |e, _| e.caret_position()) == (2, 2));
+    settle(cx, "the caret at 2:2", |cx| opened.read_with(cx, |e, _| e.caret_position()) == (2, 2));
     assert!(f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_none()));
     assert!(f.requests("textDocument/definition").is_empty(), "it asks for the type definition, not the definition");
     f.close(cx);

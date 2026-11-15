@@ -30,7 +30,7 @@ fn show(f: &Fixture, file: &str, cx: &mut VisualTestContext) -> Entity<Editor> {
     let path = f.root.join(file);
     let wanted = path.clone();
     f.workbench.update_in(cx, |w, window, cx| w.open_project_file(path, window, cx));
-    settle(cx, |cx| f.editor(cx).is_some_and(|e| e.read_with(cx, |e, _| e.path() == wanted)));
+    settle(cx, "the editor of the file", |cx| f.editor(cx).is_some_and(|e| e.read_with(cx, |e, _| e.path() == wanted)));
     f.active(cx)
 }
 
@@ -42,7 +42,7 @@ async fn colours_brackets_by_nesting_depth_cycling_through_the_palette(cx: &mut 
     let editor = f.active(cx);
     rainbow_on(&f, cx);
     let [first, second, third, _] = palette(cx);
-    settle(cx, |cx| painted(&editor, 0, 3, cx) == Some(second));
+    settle(cx, "the painted colour", |cx| painted(&editor, 0, 3, cx) == Some(second));
     let opening = [(1, first), (3, second), (5, third), (7, first)];
     let closing = [(9, first), (10, third), (11, second), (12, first)];
     for (col, colour) in opening.into_iter().chain(closing) {
@@ -68,7 +68,7 @@ async fn marks_unmatched_and_mismatched_brackets(cx: &mut TestAppContext) {
     for (file, marks) in cases {
         let editor = show(&f, file, cx);
         let (col, colour) = marks[0];
-        settle(cx, |cx| painted(&editor, 0, col, cx) == Some(colour));
+        settle(cx, "the painted colour", |cx| painted(&editor, 0, col, cx) == Some(colour));
         for &(col, colour) in marks {
             assert_eq!(painted(&editor, 0, col, cx), Some(colour), "{file} column {col}");
         }
@@ -83,10 +83,10 @@ async fn skips_strings_comments_and_regexps_with_the_syntax_tree(cx: &mut TestAp
     let text = "f(\"(\", /[(]/, `{`) // )\n/* ] */ g([1, {a: 2}])\n";
     let (f, cx) = open(cx, &[("a.js", text)], "a.js", None);
     let editor = f.active(cx);
-    settle(cx, |cx| editor.read_with(cx, |e, _| !e.highlights().is_empty()));
+    settle(cx, "the highlights", |cx| editor.read_with(cx, |e, _| !e.highlights().is_empty()));
     rainbow_on(&f, cx);
     let [first, second, third, invalid] = palette(cx);
-    settle(cx, |cx| painted(&editor, 1, 10, cx) == Some(second));
+    settle(cx, "the painted colour", |cx| painted(&editor, 1, 10, cx) == Some(second));
     let coloured = [(0, 1, first), (0, 17, first), (1, 9, first), (1, 10, second), (1, 14, third)];
     for (line, col, colour) in coloured.into_iter().chain([(1, 19, third), (1, 20, second), (1, 21, first)]) {
         assert_eq!(painted(&editor, line, col, cx), Some(colour), "{line}:{col}");
@@ -109,7 +109,7 @@ async fn knows_the_depth_at_a_viewport_far_into_the_document_and_after_edits(cx:
     let [first, second, third, invalid] = palette(cx);
     let (opener, closer) = (5001, 5002);
     editor.update(cx, |e, cx| e.scroll_to_line(4990, cx));
-    settle(cx, |cx| painted(&editor, opener, 0, cx) == Some(second));
+    settle(cx, "the painted colour", |cx| painted(&editor, opener, 0, cx) == Some(second));
     assert_eq!(painted(&editor, opener, 2, cx), Some(second), "]");
     assert_eq!(painted(&editor, closer, 0, cx), Some(first), "}}");
 
@@ -124,7 +124,7 @@ async fn knows_the_depth_at_a_viewport_far_into_the_document_and_after_edits(cx:
     }
     assert!(editor.read_with(cx, |e, _| e.text().lines().nth(20).is_some_and(|line| line.starts_with('('))));
     editor.update(cx, |e, cx| e.scroll_to_line(4990, cx));
-    settle(cx, |cx| painted(&editor, opener, 0, cx) == Some(third));
+    settle(cx, "the painted colour", |cx| painted(&editor, opener, 0, cx) == Some(third));
     assert_eq!(painted(&editor, opener, 2, cx), Some(third), "]");
     assert_eq!(painted(&editor, closer, 0, cx), Some(invalid), "}} is unmatched");
     f.close(cx);
@@ -164,7 +164,7 @@ async fn defaults_the_text_width_to_80_columns_and_centres_at_the_configured_wid
         crate::platform::settings::set("w1", SettingsScope::Global, key, &width, cx)
     })
     .expect("the width is stored");
-    settle(cx, |cx| centred_at(cx, 100));
+    settle(cx, "the editor centred at 100", |cx| centred_at(cx, 100));
     assert!(!centred_at(cx, 80));
     f.run(cx, "editor.toggleZen");
     f.close(cx);

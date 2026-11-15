@@ -43,6 +43,8 @@ pub struct KeymapReferenceDialog {
     focus: FocusHandle,
     key_claims: [u64; 2],
     _filter_events: Subscription,
+    /// Like every popup near the top of the window, the reference closes once the window is left.
+    _deactivation: Subscription,
 }
 
 impl EventEmitter<KeymapReferenceEvent> for KeymapReferenceDialog {}
@@ -75,7 +77,20 @@ impl KeymapReferenceDialog {
             }
         })
         .detach();
-        let mut dialog = Self { input, filter, groups: Vec::new(), focus, key_claims, _filter_events: filter_events };
+        let deactivation = cx.observe_window_activation(window, |_, window, cx| {
+            if !window.is_window_active() {
+                cx.emit(KeymapReferenceEvent::Closed);
+            }
+        });
+        let mut dialog = Self {
+            input,
+            filter,
+            groups: Vec::new(),
+            focus,
+            key_claims,
+            _filter_events: filter_events,
+            _deactivation: deactivation,
+        };
         dialog.groups = dialog.compute_groups(cx);
         dialog
     }

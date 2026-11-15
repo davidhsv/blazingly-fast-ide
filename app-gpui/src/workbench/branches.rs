@@ -130,6 +130,8 @@ pub(super) struct VcsDialog {
     view: AnyView,
     /// What had the keyboard before the dialog opened.
     restore: Option<FocusHandle>,
+    /// Shown near the top of the window, as a light popup is, rather than in its middle.
+    top: bool,
     _events: Subscription,
 }
 
@@ -176,7 +178,7 @@ fn root_text(root: &VcsRoot) -> String {
 }
 
 /// Runs `work` on the backend with the host and the window's label; the failure is its message.
-fn host_call<T, F, W>(
+pub(super) fn host_call<T, F, W>(
     label: String,
     cx: &App,
     work: W,
@@ -1998,8 +2000,17 @@ impl Workbench {
             None => window.focused(cx),
         };
         window.focus(&focus, cx);
-        self.vcs_dialog = Some(VcsDialog { view, restore, _events: events });
+        self.vcs_dialog = Some(VcsDialog { view, restore, top: false, _events: events });
         cx.notify();
+    }
+
+    /// The dialog shown sits a tenth of the window's height below its top, centred across, as a light
+    /// popup (a chooser, a reference) does.
+    pub(super) fn place_vcs_dialog_at_top(&mut self, cx: &mut Context<Self>) {
+        if let Some(dialog) = self.vcs_dialog.as_mut() {
+            dialog.top = true;
+            cx.notify();
+        }
     }
 
     pub(super) fn close_vcs_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -2012,16 +2023,14 @@ impl Workbench {
 
     /// The dialog of a Git operation over the window, while one is open.
     pub(super) fn vcs_dialog_layer(&self, cx: &App) -> Option<AnyElement> {
-        let view = self.vcs_dialog.as_ref()?.view.clone();
-        let layer = div()
-            .id("vcs-dialog-layer")
-            .absolute()
-            .inset_0()
-            .occlude()
-            .flex()
-            .items_center()
-            .justify_center()
-            .child(super::dialog_frame(view, cx));
+        let dialog = self.vcs_dialog.as_ref()?;
+        let frame = super::dialog_frame(dialog.view.clone(), cx);
+        let layer = div().id("vcs-dialog-layer").absolute().inset_0().occlude().flex();
+        let layer = if dialog.top {
+            layer.flex_col().items_center().child(div().flex_none().h(gpui_kit::relative(0.1))).child(frame)
+        } else {
+            layer.items_center().justify_center().child(frame)
+        };
         Some(gpui_kit::deferred(layer).with_priority(1).into_any_element())
     }
 }

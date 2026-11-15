@@ -7,6 +7,7 @@ pub mod api;
 pub mod batches;
 pub mod clone;
 pub mod create;
+pub mod create_view;
 pub mod data_model;
 pub mod details;
 pub mod details_panel;

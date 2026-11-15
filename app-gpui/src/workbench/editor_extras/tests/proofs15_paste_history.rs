@@ -103,7 +103,9 @@ async fn the_paste_history_keys_are_the_ones_the_keymap_binds(cx: &mut TestAppCo
     let bound = |cx: &mut VisualTestContext, id: &str, key: &str| {
         cx.update(|_, cx| cx.global::<input::Keymap>().0.bindings_for(id).iter().any(|binding| binding == key))
     };
-    settle(cx, |cx| bound(cx, "editor.pasteHistory.paste", "Tab") && bound(cx, "editor.pasteHistory.remove", "F6"));
+    settle(cx, "the paste history's keys", |cx| {
+        bound(cx, "editor.pasteHistory.paste", "Tab") && bound(cx, "editor.pasteHistory.remove", "F6")
+    });
     let editor = f.active(cx);
     for (from, to) in [(0, 5), (6, 10), (11, 16)] {
         editor.update(cx, |e, cx| e.select(from, to, cx));

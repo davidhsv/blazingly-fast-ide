@@ -1,6 +1,7 @@
 use super::*;
 use crate::github::time::timestamp_ms;
 use crate::github::ui_model::full_date_time;
+use crate::github::window_view::TabCommand;
 use crate::platform::date_format::DateFormatOptions;
 use crate::platform::local_time::utc_offset_minutes;
 use crate::platform::settings;
@@ -116,4 +117,34 @@ async fn shows_the_plain_date_and_time_with_pretty_formatting_off(cx: &mut TestA
     let info = list.update(cx, |list, cx| list.rows(cx))[0].row.info.clone();
     assert!(info.starts_with(&format!("#1 · created {created}")), "{info}");
     assert!(!info.contains(" ago") && !info.contains("yesterday"), "{info}");
+}
+
+/// Create Pull Request… opens the New Pull Request tab once; closing it selects the tab before it. Tabs that do
+/// not fit beside the header's buttons scroll, the active one into view; this one is wider than the narrow tool
+/// window leaves room for, so it is closed from its menu.
+#[gpui_kit::test]
+async fn opens_the_new_pull_request_tab_once_and_closes_back_to_the_previous_tab(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, _root) = github_project(cx, GITHUB_REMOTE, github_answers);
+    let window = show_list(&workbench, 2, cx);
+    run_action(cx, "github.pullRequest.show", Some(json!(5)));
+    run_action(cx, "github.pullRequest.show", Some(json!(7)));
+    run_action(cx, "github.createPullRequest", None);
+    click_on(cx, "gh-create-pull-request");
+    assert_eq!(window.update(cx, |window, cx| window.tab_titles(cx)), ["app", "#5", "#7", "New Pull Request at app"]);
+    assert_eq!(context_text(cx, "githubPrTab").as_deref(), Some("create"));
+    assert!(cx.debug_bounds("gh-tab-loading").is_none(), "the tab shows the New Pull Request view");
+    let tab = cx.debug_bounds("gh-tab-3").expect("the tab is drawn");
+    let strip = cx.debug_bounds("gh-tabs").expect("the strip is drawn");
+    let create = cx.debug_bounds("gh-create-pull-request").expect("the + button is drawn");
+    assert_eq!(tab.left(), strip.left(), "the strip scrolls the active tab into view");
+    assert!(create.left() >= strip.right(), "the header's buttons stay beside the strip: {create:?} {strip:?}");
+    cx.simulate_mouse_down(tab.center(), gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+    cx.simulate_mouse_up(tab.center(), gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+    cx.run_until_parked();
+    let menu = workbench.read_with(cx, |w, _| w.open_menu::<TabCommand>()).expect("the tab's menu is open");
+    let rows = menu.read_with(cx, |menu, _| menu.lines());
+    assert_eq!(rows[0].first().map(|row| row.trim_start_matches("> ")), Some("Close Tab"), "{rows:?}");
+    click_on(cx, "menu-row-0-0");
+    assert_eq!(tab_titles(&window, cx), ["app", "#5", "#7"]);
+    assert_eq!(window.read_with(cx, |window, _| window.tabs().active), GhTab::PullRequest(7));
 }

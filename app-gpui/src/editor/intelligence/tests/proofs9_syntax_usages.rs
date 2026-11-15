@@ -65,12 +65,12 @@ fn open_javascript<'a>(
     let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
     cx.update(|window, _| window.activate_window());
     workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-    settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+    settle(cx, "the project tree", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
     let file = root.join(open);
     workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file, window, cx));
     let fixture = Fixture { workbench, root, server, _folders: (home, folder) };
     let name = format!("/{open}");
-    settle(cx, |_| {
+    settle(cx, "the server hears the opened document", |_| {
         let opened = fixture.requests("textDocument/didOpen");
         let uri = |message: &Value| message["params"]["textDocument"]["uri"].as_str().map(str::to_owned);
         opened.iter().filter_map(uri).any(|uri| uri.ends_with(&name))
@@ -82,7 +82,9 @@ fn open_javascript<'a>(
 /// and the note it shows over them.
 fn listed_usages(f: &Fixture, cx: &mut VisualTestContext) -> (Vec<(String, u32, u32)>, Option<String>) {
     let view = f.workbench.read_with(cx, |w, _| w.usages_view()).expect("the Find Usages window is shown");
-    settle(cx, |cx| view.read_with(cx, |view, _| view.search().is_some_and(|search| !search.loading)));
+    settle(cx, "the search results", |cx| {
+        view.read_with(cx, |view, _| view.search().is_some_and(|search| !search.loading))
+    });
     view.read_with(cx, |view, _| {
         let Some(search) = view.search() else { return (Vec::new(), None) };
         let mut found: Vec<(String, u32, u32)> = search

@@ -44,15 +44,15 @@ fn open_reporting_work<'a>(cx: &'a mut TestAppContext, text: &str) -> (Fixture, 
     let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
     cx.update(|window, _| window.activate_window());
     workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-    settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+    settle(cx, "the project tree", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
     let file = root.join("a.mock");
     workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file, window, cx));
     let fixture = Fixture { workbench, root, server, _folders: (home, folder) };
-    settle(cx, |cx| {
+    settle(cx, "the editor takes the keyboard", |cx| {
         let editor = fixture.editor(cx);
         cx.update(|window, cx| editor.is_some_and(|editor| editor.focus_handle(cx).is_focused(window)))
     });
-    settle(cx, |_| !fixture.requests("textDocument/didOpen").is_empty());
+    settle(cx, "the server hears textDocument/didOpen", |_| !fixture.requests("textDocument/didOpen").is_empty());
     (fixture, cx)
 }
 
@@ -69,25 +69,33 @@ async fn cancelling_a_language_servers_work_in_background_tasks_asks_the_server_
     // The answers are read on every message: the server reports the work on the next change.
     f.server.answer(json!({ "progress": "Indexing mock" }));
     cx.simulate_input("x");
-    settle(cx, |cx| task_titled(&f, "Indexing mock", cx).is_some());
+    settle(cx, "the task 'Indexing mock' is listed", |cx| task_titled(&f, "Indexing mock", cx).is_some());
     let task = task_titled(&f, "Indexing mock", cx).expect("the work is listed");
     assert!(can_cancel(&task), "the server made it cancellable");
     assert!(f.requests("window/workDoneProgress/cancel").is_empty(), "nothing is cancelled yet");
 
+    // The project's own indexing can still be listed above the work; its end would move the work's row (and its
+    // cancel button) up under the click, so the popup is opened once the work is all that runs.
+    settle(cx, "the work alone in the background tasks", |cx| {
+        f.workbench.read_with(cx, |w, _| w.tasks().tasks().iter().all(|listed| listed.id == task.id))
+    });
+
     f.run(cx, "view.backgroundTasks");
-    let index = f
-        .workbench
-        .read_with(cx, |w, _| w.tasks().tasks().iter().position(|listed| listed.id == task.id))
-        .expect("the popup lists the work");
-    let selector: &'static str = Box::leak(format!("task-cancel:{index}").into_boxed_str());
-    settle(cx, |cx| cx.debug_bounds(selector).is_some());
+    let rows =
+        f.workbench.read_with(cx, |w, _| w.background_tasks_popup()).map(|popup| popup.read_with(cx, |p, _| p.rows()));
+    settle(cx, &format!("the work's cancel button is drawn (popup rows {rows:?})"), |cx| {
+        cx.debug_bounds("task-cancel:0").is_some()
+    });
+    let selector = "task-cancel:0";
     let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
     cx.simulate_click(bounds.center(), Modifiers::default());
     cx.run_until_parked();
 
     let message = task_titled(&f, "Indexing mock", cx).and_then(|task| task.message);
     assert_eq!(message.as_deref(), Some("Cancelling…"));
-    settle(cx, |_| !f.requests("window/workDoneProgress/cancel").is_empty());
+    settle(cx, "the server hears window/workDoneProgress/cancel", |_| {
+        !f.requests("window/workDoneProgress/cancel").is_empty()
+    });
     let asked = f.requests("window/workDoneProgress/cancel");
     assert_eq!(asked[0]["params"], json!({ "token": "work-1" }));
     f.close(cx);

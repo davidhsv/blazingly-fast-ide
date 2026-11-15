@@ -24,12 +24,12 @@ async fn an_items_import_that_only_its_resolve_answer_carries_goes_in_with_the_a
     let (f, cx) = open(cx, &[("a.mock", "")], "a.mock", answers);
 
     cx.simulate_input("obj.");
-    settle(cx, |cx| !f.rows(cx).is_empty());
+    settle(cx, "the lookup's rows", |cx| !f.rows(cx).is_empty());
     assert_eq!(f.rows(cx), ["fooBar", "other"]);
     assert_eq!(f.text(cx), "obj.", "the completion answer itself changes nothing");
 
     cx.simulate_keystrokes("enter");
-    settle(cx, |cx| f.text(cx) == "use foo;\nobj.fooBar");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "use foo;\nobj.fooBar");
     assert!(f.rows(cx).is_empty(), "the lookup closed");
     let asked = f.requests("completionItem/resolve");
     assert!(!asked.is_empty(), "the item was resolved");

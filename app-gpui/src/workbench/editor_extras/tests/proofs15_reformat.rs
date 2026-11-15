@@ -30,7 +30,7 @@ async fn reformat_file_with_optimize_imports_organizes_the_imports_before_format
     cx.run_until_parked();
     assert!(dialog.read_with(cx, |d, _| d.options().optimize_imports));
     cx.simulate_keystrokes("enter");
-    settle(cx, |cx| f.text(cx) == "import a\nimport b\nlet x=1\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "import a\nimport b\nlet x=1\n");
     assert!(f.workbench.read_with(cx, |w, _| w.reformat_dialog().is_none()));
 
     let received = f.server().received();

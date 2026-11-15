@@ -1723,11 +1723,11 @@ mod tests {
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         cx.update(|window, _| window.activate_window());
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        settle(cx, "the project tree", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         let file = root.join(open);
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file, window, cx));
         let fixture = Fixture { workbench, root, server, _folders: (home, folder) };
-        settle(cx, |cx| {
+        settle(cx, "the editor takes the keyboard", |cx| {
             let editor = fixture.editor(cx);
             cx.update(|window, cx| editor.is_some_and(|editor| editor.focus_handle(cx).is_focused(window)))
         });
@@ -1737,16 +1737,29 @@ mod tests {
         (fixture, cx)
     }
 
-    fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
-        for _ in 0..3000 {
+    /// Waits for `done`, named `what`, while the backend's work comes back, moving the executor's clock
+    /// so debounced work runs.
+    #[track_caller]
+    fn settle(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
+        let started = std::time::Instant::now();
+        let poll = |cx: &mut VisualTestContext| {
             cx.executor().advance_clock(Duration::from_millis(50));
             cx.run_until_parked();
-            if done(cx) {
+            let reached = done(cx);
+            if !reached {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            reached
+        };
+        for _ in 0..3000 {
+            if poll(cx) {
                 return;
             }
-            std::thread::sleep(Duration::from_millis(10));
         }
-        panic!("the backend did not deliver within thirty seconds");
+        // Whether more time would have been enough tells a slow backend from one that never answers.
+        let ran_out = started.elapsed();
+        let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
+        panic!("{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})");
     }
 
     fn range(line: u32, from: u32, to: u32) -> Value {
@@ -1806,7 +1819,7 @@ mod tests {
         }
 
         fn wait_hint(&self, cx: &mut VisualTestContext, text: &str) {
-            settle(cx, |cx| self.hint(cx).as_deref() == Some(text));
+            settle(cx, "the hint", |cx| self.hint(cx).as_deref() == Some(text));
         }
 
         fn server(&self) -> &FakeServer {
@@ -1823,7 +1836,7 @@ mod tests {
 
         fn wait_opened(&self, cx: &mut VisualTestContext, name: &str) {
             let name = format!("/{name}");
-            settle(cx, |_| {
+            settle(cx, "the server hears the opened document", |_| {
                 let opened = self.requests("textDocument/didOpen");
                 let uri = |message: &Value| message["params"]["textDocument"]["uri"].as_str().map(str::to_owned);
                 opened.iter().filter_map(uri).any(|uri| uri.ends_with(&name))
@@ -1863,12 +1876,14 @@ mod tests {
         }
 
         fn prompt(&self, cx: &mut VisualTestContext) -> Entity<PromptDialog> {
-            settle(cx, |cx| self.workbench.read_with(cx, |w, _| w.vcs_prompt().is_some()));
+            settle(cx, "the dialog", |cx| self.workbench.read_with(cx, |w, _| w.vcs_prompt().is_some()));
             self.workbench.read_with(cx, |w, _| w.vcs_prompt()).expect("the dialog is open")
         }
 
         fn list(&self, cx: &mut VisualTestContext) -> Entity<ListPopup> {
-            settle(cx, |cx| self.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_some()));
+            settle(cx, "the list popup", |cx| {
+                self.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_some())
+            });
             self.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>()).expect("the list is open")
         }
 
@@ -1912,7 +1927,7 @@ mod tests {
         let previewing = |cx: &mut VisualTestContext| {
             f.workbench.read_with(cx, |w, cx| w.vcs_prompt().is_some_and(|d| d.read(cx).title() != "Rename 'foo'"))
         };
-        settle(cx, previewing);
+        settle(cx, "the preview", previewing);
         let preview = f.prompt(cx);
         assert_eq!(preview.read_with(cx, |d, _| d.title().to_owned()), "Rename 'foo' to 'bar'");
         let buttons: Vec<String> = preview.read_with(cx, |d, _| d.buttons().iter().map(|b| b.label.clone()).collect());
@@ -1920,19 +1935,23 @@ mod tests {
         assert_eq!(f.requests("textDocument/rename")[0]["params"]["newName"], "bar");
         assert_eq!(f.text(cx), "let foo = 1\nfoo + foo\n", "nothing changes before the preview is confirmed");
         cx.simulate_keystrokes("enter");
-        settle(cx, |cx| f.text(cx) == "let bar = 1\nbar + bar\n");
-        settle(cx, |cx| f.project_text(cx, &b) == "use bar\n");
-        settle(cx, |cx| f.notices(cx).contains(&("Refactoring applied".to_owned(), vec!["Undo".to_owned()])));
+        settle(cx, "the editor's text", |cx| f.text(cx) == "let bar = 1\nbar + bar\n");
+        settle(cx, "the text of b on disk", |cx| f.project_text(cx, &b) == "use bar\n");
+        settle(cx, "the notice 'Refactoring applied'", |cx| {
+            f.notices(cx).contains(&("Refactoring applied".to_owned(), vec!["Undo".to_owned()]))
+        });
 
         // One Undo in the editor takes the whole rename back.
         f.run(cx, "edit.undo");
-        settle(cx, |cx| f.text(cx) == "let foo = 1\nfoo + foo\n");
-        settle(cx, |cx| f.project_text(cx, &b) == "use foo\n");
-        settle(cx, |cx| f.notices(cx).contains(&("Refactoring undone".to_owned(), vec!["Redo".to_owned()])));
+        settle(cx, "the editor's text", |cx| f.text(cx) == "let foo = 1\nfoo + foo\n");
+        settle(cx, "the text of b on disk", |cx| f.project_text(cx, &b) == "use foo\n");
+        settle(cx, "the notice 'Refactoring undone'", |cx| {
+            f.notices(cx).contains(&("Refactoring undone".to_owned(), vec!["Redo".to_owned()]))
+        });
         // The notification's Redo renames both again.
         f.workbench.update(cx, |w, cx| assert!(w.run_language_notification(WORKSPACE_UNDO_COMMAND, cx)));
-        settle(cx, |cx| f.text(cx) == "let bar = 1\nbar + bar\n");
-        settle(cx, |cx| f.project_text(cx, &b) == "use bar\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "let bar = 1\nbar + bar\n");
+        settle(cx, "the text of b on disk", |cx| f.project_text(cx, &b) == "use bar\n");
 
         // A rename inside this file only is applied without a preview.
         let a_edits: Vec<Value> =
@@ -1949,7 +1968,7 @@ mod tests {
         assert_eq!(dialog.read_with(cx, |d, _| d.title().to_owned()), "Rename 'bar'");
         assert_eq!(retype(&dialog, "baz", cx), "bar");
         cx.simulate_keystrokes("enter");
-        settle(cx, |cx| f.text(cx) == "let baz = 1\nbaz + baz\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "let baz = 1\nbaz + baz\n");
         assert!(f.workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "no preview for one file");
 
         // Nothing renamable at the caret.
@@ -1972,7 +1991,7 @@ mod tests {
             "textDocument/formatting": [text_edit(range(0, 3, 5), " "), text_edit(range(0, 6, 7), " = ")],
         }));
         f.run(cx, "code.reformat");
-        settle(cx, |cx| f.text(cx) == "let x = 1\nok\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "let x = 1\nok\n");
         f.wait_hint(cx, "Formatted 1 line");
         let asked = f.requests("textDocument/formatting");
         assert_eq!(asked.len(), 1);
@@ -1991,8 +2010,8 @@ mod tests {
         let b = f.root.join("b.mock");
         f.answer(json!({ "capabilities": capabilities, "textDocument/formatting": [text_edit(range(0, 2, 4), " ")] }));
         f.run_with(cx, "code.reformatFile", Some(json!({ "path": b.to_string_lossy() })));
-        settle(cx, |cx| f.editing(cx, &b));
-        settle(cx, |cx| f.text(cx) == "fn f\n");
+        settle(cx, "the editor of b", |cx| f.editing(cx, &b));
+        settle(cx, "the editor's text", |cx| f.text(cx) == "fn f\n");
         f.close(cx);
     }
 
@@ -2018,14 +2037,14 @@ mod tests {
         let files = [("README.md", "#   Title\n"), ("a.py", "x=1\n")];
         let (f, cx) = open(cx, &files, "README.md", None, &settings);
         f.run(cx, "code.reformatWithPrettier");
-        settle(cx, |cx| f.text(cx) == "# by prettier\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "# by prettier\n");
         f.run(cx, "code.reformatWithOxfmt");
-        settle(cx, |cx| f.text(cx) == "# by oxfmt\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "# by oxfmt\n");
         let py = f.root.join("a.py");
         f.workbench.update_in(cx, |w, window, cx| w.open_project_file(py.clone(), window, cx));
-        settle(cx, |cx| f.editing(cx, &py));
+        settle(cx, "the editor of py", |cx| f.editing(cx, &py));
         f.run(cx, "code.reformatWithRuff");
-        settle(cx, |cx| f.text(cx) == "x = 1  # by ruff\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "x = 1  # by ruff\n");
         f.close(cx);
     }
 
@@ -2052,7 +2071,7 @@ mod tests {
         };
         f.answer(json!({ "capabilities": capabilities.clone(), "textDocument/codeAction": [sort(&a, "a", "b")] }));
         f.run(cx, "code.optimizeImports");
-        settle(cx, |cx| f.text(cx) == "import a\nimport b\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "import a\nimport b\n");
         let asked = f.requests("textDocument/codeAction");
         assert_eq!(asked[0]["params"]["context"]["only"], json!(["source.organizeImports"]));
         assert_eq!(asked[0]["params"]["range"]["start"], json!({ "line": 0, "character": 0 }));
@@ -2065,8 +2084,8 @@ mod tests {
         // Optimize Imports in File on a file that is not open: it opens, then its imports are sorted.
         f.answer(json!({ "capabilities": capabilities.clone(), "textDocument/codeAction": [sort(&b, "x", "y")] }));
         f.run_with(cx, "code.optimizeImportsFile", Some(json!({ "path": b.to_string_lossy() })));
-        settle(cx, |cx| f.editing(cx, &b));
-        settle(cx, |cx| f.text(cx) == "import x\nimport y\n");
+        settle(cx, "the editor of b", |cx| f.editing(cx, &b));
+        settle(cx, "the editor's text", |cx| f.text(cx) == "import x\nimport y\n");
 
         let fix_all = json!({
             "title": "Fix all",
@@ -2079,8 +2098,8 @@ mod tests {
             "textDocument/formatting": [text_edit(range(2, 0, 3), "var")],
         }));
         f.run_with(cx, "code.cleanupFile", Some(json!({ "path": c.to_string_lossy() })));
-        settle(cx, |cx| f.editing(cx, &c));
-        settle(cx, |cx| f.text(cx) == "import c\nimport d\nvar x = 1;\n");
+        settle(cx, "the editor of c", |cx| f.editing(cx, &c));
+        settle(cx, "the editor's text", |cx| f.text(cx) == "import c\nimport d\nvar x = 1;\n");
         f.close(cx);
     }
 
@@ -2101,19 +2120,19 @@ mod tests {
         let text = "let foo = 1\nbar\n  baz\n";
         let (f, cx) = open(cx, &[("a.mock", text)], "a.mock", Some(json!({ "diagnostics": diagnostics })), &[]);
         let editor = f.active(cx);
-        settle(cx, |cx| cx.update(|_, cx| problems(&editor, cx).len()) == 3);
+        settle(cx, "3 problems", |cx| cx.update(|_, cx| problems(&editor, cx).len()) == 3);
 
         f.put_caret(cx, 0);
         cx.simulate_keystrokes("f2");
-        settle(cx, |cx| f.caret(cx) == 4);
+        settle(cx, "the caret at 4", |cx| f.caret(cx) == 4);
         f.wait_hint(cx, "unknown foo");
         f.run(cx, "navigate.nextError");
-        settle(cx, |cx| f.caret(cx) == 18);
+        settle(cx, "the caret at 18", |cx| f.caret(cx) == 18);
         f.wait_hint(cx, "unknown baz");
         f.run(cx, "navigate.nextError");
-        settle(cx, |cx| f.caret(cx) == 4);
+        settle(cx, "the caret at 4", |cx| f.caret(cx) == 4);
         f.run(cx, "navigate.prevError");
-        settle(cx, |cx| f.caret(cx) == 18);
+        settle(cx, "the caret at 18", |cx| f.caret(cx) == 18);
 
         f.run(cx, "code.showErrorDescription");
         f.wait_hint(cx, "unknown baz");
@@ -2132,7 +2151,7 @@ mod tests {
         let (f, cx) = open(cx, &[("a.mock", "let foo = 1\n")], "a.mock", Some(answers), &[]);
         let a = f.root.join("a.mock");
         let editor = f.active(cx);
-        settle(cx, |cx| cx.update(|_, cx| !problems(&editor, cx).is_empty()));
+        settle(cx, "the problems", |cx| cx.update(|_, cx| !problems(&editor, cx).is_empty()));
         let fix = |title: &str, name: &str, preferred: bool| {
             json!({
                 "title": title,
@@ -2146,7 +2165,7 @@ mod tests {
         f.answer(json!({ "diagnostics": [problem.clone()], "textDocument/codeAction": actions }));
         f.put_caret(cx, 5);
         f.run(cx, "code.applyQuickFix");
-        settle(cx, |cx| f.text(cx) == "let foe = 1\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "let foe = 1\n");
         let asked = f.requests("textDocument/codeAction");
         assert_eq!(asked[0]["params"]["context"]["only"], json!(["quickfix"]));
 
@@ -2179,7 +2198,7 @@ mod tests {
         };
         f.put_caret(cx, 5);
         f.run(cx, "find.highlightUsages");
-        settle(cx, |cx| !marks(cx).is_empty());
+        settle(cx, "the marks", |cx| !marks(cx).is_empty());
         assert_eq!(marks(cx), [4..7, 12..15, 18..21]);
         let status = f.workbench.read_with(cx, |w, _| w.usages_status().map(str::to_owned)).expect("the status text");
         assert!(status.starts_with("3 usages of 'foo' found ("), "{status}");
@@ -2200,7 +2219,7 @@ mod tests {
         assert!(f.workbench.read_with(cx, |w, _| w.usages_status().is_none()));
         // Escape removes it too.
         f.run(cx, "find.highlightUsages");
-        settle(cx, |cx| !marks(cx).is_empty());
+        settle(cx, "the marks", |cx| !marks(cx).is_empty());
         cx.simulate_keystrokes("escape");
         assert!(marks(cx).is_empty());
 
@@ -2222,15 +2241,17 @@ mod tests {
         f.answer(json!({ "textDocument/definition": [{ "uri": uri(&b), "range": { "start": at, "end": at } }] }));
         f.put_caret(cx, 7);
         f.run(cx, "code.quickDefinition");
-        settle(cx, |cx| f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_some()));
+        settle(cx, "the definition popup", |cx| {
+            f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_some())
+        });
         let popup = f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>()).expect("the popup");
         assert_eq!(popup.read_with(cx, |p, _| p.header()), ["b.mock", "b.mock:3"]);
         assert_eq!(popup.read_with(cx, |p, _| p.lines()), ["2  one", "3    target", "4  three"]);
         assert!(cx.update(|window, cx| popup.focus_handle(cx).is_focused(window)), "the popup has the keyboard");
         cx.simulate_keystrokes("f4");
-        settle(cx, |cx| f.editing(cx, &b));
+        settle(cx, "the editor of b", |cx| f.editing(cx, &b));
         let opened = f.active(cx);
-        settle(cx, |cx| opened.read_with(cx, |e, _| e.caret_position()) == (2, 2));
+        settle(cx, "the caret at 2:2", |cx| opened.read_with(cx, |e, _| e.caret_position()) == (2, 2));
         assert!(f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_none()));
 
         f.answer(json!({ "textDocument/typeDefinition": [] }));
@@ -2270,14 +2291,14 @@ mod tests {
             cx.simulate_keystrokes("down");
         }
         cx.simulate_keystrokes("enter");
-        settle(cx, |cx| f.text(cx) == "class A {\n  toString() {}\n}\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "class A {\n  toString() {}\n}\n");
 
         f.answer(json!({ "textDocument/codeAction": [
             action("Implement missing members", "quickfix", "  run() {}\n"),
             action("Generate constructor", "source.generate.constructor", "  A() {}\n"),
         ] }));
         f.run(cx, "code.implementMethods");
-        settle(cx, |cx| f.text(cx) == "class A {\n  run() {}\n  toString() {}\n}\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "class A {\n  run() {}\n  toString() {}\n}\n");
 
         f.run(cx, "code.overrideMethods");
         f.wait_hint(cx, "Nothing to override");
@@ -2290,7 +2311,7 @@ mod tests {
     async fn cmd_n_in_a_markdown_file_opens_the_new_popup(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("README.md", "# Title\n")], "README.md", None, &[]);
         cx.simulate_keystrokes("cmd-n");
-        settle(cx, |cx| f.workbench.read_with(cx, |w, _| w.new_popup().is_some()));
+        settle(cx, "the New popup", |cx| f.workbench.read_with(cx, |w, _| w.new_popup().is_some()));
         assert_eq!(f.text(cx), "# Title\n");
         f.close(cx);
     }
@@ -2312,11 +2333,11 @@ mod tests {
                 found.is_ok_and(|found| !found.is_empty())
             })
         };
-        settle(cx, indexed);
+        settle(cx, "the index", indexed);
         f.run(cx, "navigate.gotoTest");
-        settle(cx, |cx| f.editing(cx, &test));
+        settle(cx, "the editor of test", |cx| f.editing(cx, &test));
         f.run(cx, "navigate.gotoTest");
-        settle(cx, |cx| f.editing(cx, &subject));
+        settle(cx, "the editor of subject", |cx| f.editing(cx, &subject));
         f.close(cx);
     }
 
@@ -2339,9 +2360,9 @@ mod tests {
         f.answer(json!({ "capabilities": capabilities, "textDocument/documentSymbol": symbols }));
         f.put_caret(cx, 0);
         f.run(cx, "navigate.nextMethod");
-        settle(cx, |cx| f.caret(cx) == 17);
+        settle(cx, "the caret at 17", |cx| f.caret(cx) == 17);
         f.run(cx, "navigate.previousMethod");
-        settle(cx, |cx| f.caret(cx) == 3);
+        settle(cx, "the caret at 3", |cx| f.caret(cx) == 3);
         f.close(cx);
     }
 

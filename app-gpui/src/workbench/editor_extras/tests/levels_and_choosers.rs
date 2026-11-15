@@ -76,13 +76,13 @@ async fn unwrap_with_several_statements_around_the_caret_lists_them_innermost_fi
     assert_eq!(lines, ["Unwrap 'while' · while b {", "Unwrap 'if' · if a {"]);
     assert_eq!(f.text(cx), text, "nothing changes while choosing");
     cx.simulate_keystrokes("down enter");
-    settle(cx, |cx| f.text(cx) == "fn f() {\n    while b {\n        foo();\n    }\n}\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "fn f() {\n    while b {\n        foo();\n    }\n}\n");
     assert!(f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none()), "the chooser closed");
 
     // Only the `while` is around the caret now.
     f.caret_to(cx, 2, 8);
     cx.simulate_keystrokes("cmd-shift-delete");
-    settle(cx, |cx| f.text(cx) == "fn f() {\n    foo();\n}\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "fn f() {\n    foo();\n}\n");
     assert!(f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none()), "no chooser");
     f.close(cx);
 }
@@ -113,18 +113,20 @@ async fn next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many(
 
     f.run(cx, "find.usages");
     let view = f.workbench.read_with(cx, |w, _| w.usages_view()).expect("the Find Usages window is shown");
-    settle(cx, |cx| view.read_with(cx, |view, _| view.search().is_some_and(|search| !search.loading)));
+    settle(cx, "the search results", |cx| {
+        view.read_with(cx, |view, _| view.search().is_some_and(|search| !search.loading))
+    });
     f.focus_editor(cx);
     cx.simulate_keystrokes("cmd-alt-down");
-    settle(cx, |cx| f.at(cx) == Some((a.clone(), (1, 0))));
+    settle(cx, "the caret in a at 1:0", |cx| f.at(cx) == Some((a.clone(), (1, 0))));
     assert_eq!(says(cx).as_deref(), Some("1 of 2"));
     f.focus_editor(cx);
     cx.simulate_keystrokes("cmd-alt-down");
-    settle(cx, |cx| f.at(cx) == Some((a.clone(), (1, 9))));
+    settle(cx, "the caret in a at 1:9", |cx| f.at(cx) == Some((a.clone(), (1, 9))));
     assert_eq!(says(cx).as_deref(), Some("2 of 2"));
     f.focus_editor(cx);
     cx.simulate_keystrokes("cmd-alt-up");
-    settle(cx, |cx| f.at(cx) == Some((a.clone(), (1, 0))));
+    settle(cx, "the caret in a at 1:0", |cx| f.at(cx) == Some((a.clone(), (1, 0))));
     assert_eq!(says(cx).as_deref(), Some("1 of 2"));
     f.close(cx);
 }
@@ -141,12 +143,14 @@ async fn reload_all_from_disk_re_reads_every_folder_the_project_view_has_read(cx
         tree.read_with(cx, |tree, _| tree.rows().iter().map(|row| row.node.label.to_string()).collect::<Vec<_>>())
     };
     let key = |path: &str| f.root.join(path).to_string_lossy().into_owned();
-    settle(cx, |cx| labels(cx).contains(&"src".to_owned()));
+    settle(cx, "src in the tree", |cx| labels(cx).contains(&"src".to_owned()));
     for folder in ["src", "src/lib", "docs"] {
         let folder = key(folder);
         tree.update(cx, |tree, cx| tree.toggle(&folder, cx));
     }
-    settle(cx, |cx| ["b.txt", "c.txt"].iter().all(|label| labels(cx).contains(&(*label).to_owned())));
+    settle(cx, "b.txt and c.txt in the tree", |cx| {
+        ["b.txt", "c.txt"].iter().all(|label| labels(cx).contains(&(*label).to_owned()))
+    });
     let reads = |cx: &mut VisualTestContext| tree.read_with(cx, |tree, _| tree.folder_reads());
     // The reads stop once every opened folder is listed.
     let mut before = reads(cx);
@@ -162,7 +166,7 @@ async fn reload_all_from_disk_re_reads_every_folder_the_project_view_has_read(cx
     assert_eq!(reads(cx), before, "nothing is read again without the action");
 
     f.run(cx, "file.reloadAllFromDisk");
-    settle(cx, |cx| reads(cx) == before + 4);
+    settle(cx, "4 more folder reads", |cx| reads(cx) == before + 4);
     idle(cx);
     assert_eq!(reads(cx), before + 4, "one listing for each folder read before, and no more");
     f.close(cx);

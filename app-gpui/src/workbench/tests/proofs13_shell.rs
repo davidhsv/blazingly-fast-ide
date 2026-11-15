@@ -107,3 +107,15 @@ async fn orders_buttons_like_macos_idea_adds_one_cancel_and_enter_picks_the_defa
     assert_eq!(cx.windows().len(), 1, "no window is added");
     cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
 }
+
+/// Help › Keymap Reference is an action of the window that shows the bound actions grouped by
+/// category.
+#[gpui_kit::test]
+async fn renders_the_overlay(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+    cx.update(|window, _| window.activate_window());
+    let registered = cx.update(|_, cx| cx.global::<ActionRegistry>().contains("help.keymapReference"));
+    assert!(registered, "Keymap Reference is an action");
+    run_action(cx, "help.keymapReference", None);
+}

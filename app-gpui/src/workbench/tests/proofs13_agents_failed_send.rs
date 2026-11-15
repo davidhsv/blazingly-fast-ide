@@ -1,5 +1,6 @@
 use super::proofs13_agents_fixtures::*;
 use super::*;
+use crate::agents::store::AgentsStore;
 use crate::workbench::agents::spawn_guard::FailingPrompts;
 
 /// From now on every message sent to an agent fails with `error` before it reaches the backend (`None`: they go
@@ -24,6 +25,34 @@ pub(super) fn wait_for_composer_focus(workbench: &Entity<Workbench>, cx: &mut Vi
     wait_long(cx, "the composer to take the keyboard", |cx| {
         cx.update(|window, cx| composer.focus_handle(cx).is_focused(window))
     });
+}
+
+/// What decides whether Regenerate Response on the first reply of `task` asks for a fresh session: the drawn
+/// button, a reply operation under way, the task's status, the permission the store grants, an open dialog.
+fn regenerate_state(
+    workbench: &Entity<Workbench>,
+    store: &Entity<AgentsStore>,
+    task: &str,
+    cx: &mut VisualTestContext,
+) -> String {
+    let bounds = cx.debug_bounds("session-reply-1-regenerate");
+    let time = cx.debug_bounds("session-time-1");
+    let busy = workbench.read_with(cx, |w, _| w.agent_reply_busy(task));
+    let dialog = workbench.read_with(cx, |w, _| w.vcs_prompt().is_some());
+    let (status, regenerate) = store.read_with(cx, |store, _| {
+        let Some(found) = store.task(task) else { return (None, None) };
+        let entries = store.entries(task, None).unwrap_or_default();
+        let replies = crate::agents::model::reply_turns(entries);
+        let turns = crate::agents::model::turn_numbers(entries).len();
+        let regenerate = replies
+            .values()
+            .find(|reply| reply.turn == 0)
+            .map(|reply| crate::agents::model::reply_operations(found, Some(reply), turns).regenerate);
+        (Some(found.status), regenerate)
+    });
+    format!(
+        "button {bounds:?}, time {time:?}, busy {busy}, status {status:?}, regenerate {regenerate:?}, dialog {dialog}"
+    )
 }
 
 /// Regenerate Response on the first reply of a message sent with an image, once a fresh session is confirmed, rolls
@@ -51,7 +80,23 @@ fn recovers_images_after_a_failed_regeneration(cx: &mut TestAppContext, draft: b
     }
 
     fail_sends(cx, Some("Send failed"));
+    let (session, _) = workbench.read_with(cx, |w, _| w.docked_agent_session()).expect("the conversation docks");
+    let heard = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let _heard = {
+        let heard = heard.clone();
+        cx.update(|_, cx| {
+            cx.subscribe(&session, move |_, event: &crate::agents::session_view::SessionEvent, _| {
+                if let crate::agents::session_view::SessionEvent::Message(action) = event {
+                    heard.borrow_mut().push(format!("{action:?}"));
+                }
+            })
+        })
+    };
+    let before = regenerate_state(&workbench, &store, &task, cx);
     click_on(cx, "session-reply-1-regenerate");
+    let after = regenerate_state(&workbench, &store, &task, cx);
+    let what = format!("the dialog (before the click: {before}; after: {after}; heard: {:?})", heard.borrow());
+    wait_long(cx, &what, |cx| workbench.read_with(cx, |w, _| w.vcs_prompt().is_some()));
     start_fresh(&workbench, cx);
     let text = if draft { "Original message\nAnother draft @README.md" } else { "Original message" };
     wait_long(cx, "the message back in the composer", |cx| {

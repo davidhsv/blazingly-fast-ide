@@ -20,11 +20,12 @@ use crate::theme;
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
     AnyElement, AnyView, App, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, IntoElement,
-    MouseButton, MouseDownEvent, Pixels, Point, Render, SharedString, Stateful, Subscription, Window, deferred, div,
-    prelude::*, px,
+    MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollHandle, SharedString, Stateful, Subscription, Window,
+    deferred, div, prelude::*, px,
 };
 use ide_github::GhAvailability;
 use serde_json::{Value, json};
+use std::cell::Cell;
 use std::collections::HashMap;
 
 /// The tool window's id (`registerToolWindow` in `src/features/github/index.ts`).
@@ -92,6 +93,10 @@ pub struct PullRequestsWindow {
     titles: HashMap<u32, String>,
     /// What the `#N` and New Pull Request tabs show.
     views: HashMap<GhTab, AnyView>,
+    /// The tabs scroll sideways when they do not fit beside the header's buttons.
+    tab_scroll: ScrollHandle,
+    /// The tab last scrolled into view: a newly active tab is brought into view once.
+    scrolled_to: Cell<Option<GhTab>>,
     _list_events: Subscription,
 }
 
@@ -114,6 +119,8 @@ impl PullRequestsWindow {
             selector_open: false,
             titles: HashMap::new(),
             views: HashMap::new(),
+            tab_scroll: ScrollHandle::new(),
+            scrolled_to: Cell::new(None),
             _list_events: list_events,
         }
     }
@@ -598,15 +605,22 @@ impl PullRequestsWindow {
         let active = self.tabs.active;
         let (fg, muted) = (theme::color(cx, "fg"), theme::color(cx, "fg-muted"));
         let (selected_bg, hover) = (theme::color(cx, "bg-tab-selected"), theme::color(cx, "bg-hover"));
+        if self.scrolled_to.get() != Some(active)
+            && let Some(index) = items.iter().position(|item| item.tab == active)
+        {
+            self.tab_scroll.scroll_to_item(index);
+            self.scrolled_to.set(Some(active));
+        }
         let mut strip = div()
-            .h(px(TAB_STRIP_HEIGHT))
-            .flex_none()
+            .id("gh-tabs")
+            .debug_selector(|| "gh-tabs".to_owned())
+            .flex_shrink(1.0)
+            .min_w_0()
             .flex()
             .items_center()
             .gap(px(2.0))
-            .px(px(4.0))
-            .border_b_1()
-            .border_color(theme::color(cx, "border"));
+            .overflow_x_scroll()
+            .track_scroll(&self.tab_scroll);
         for (index, item) in items.into_iter().enumerate() {
             let tab = item.tab;
             let selector = format!("gh-tab-{index}");
@@ -657,7 +671,16 @@ impl PullRequestsWindow {
             );
         }
         let header_menu = self.header_menu();
-        strip
+        div()
+            .h(px(TAB_STRIP_HEIGHT))
+            .flex_none()
+            .flex()
+            .items_center()
+            .gap(px(2.0))
+            .px(px(4.0))
+            .border_b_1()
+            .border_color(theme::color(cx, "border"))
+            .child(strip)
             .child(div().flex_1())
             .child(icon_button(cx, "gh-create-pull-request", "plus").on_click(cx.listener(
                 |_, _: &ClickEvent, _, cx| {

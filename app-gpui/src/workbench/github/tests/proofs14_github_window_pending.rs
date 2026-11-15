@@ -30,19 +30,3 @@ async fn registers_the_window_the_timeline_editor_and_the_actions(cx: &mut TestA
     });
     assert!(missing.is_empty(), "not registered: {missing:?}");
 }
-
-/// Create Pull Request… opens the New Pull Request tab once; closing it selects the tab before it.
-#[gpui_kit::test]
-async fn opens_the_new_pull_request_tab_once_and_closes_back_to_the_previous_tab(cx: &mut TestAppContext) {
-    let (workbench, cx, _folders, _root) = github_project(cx, GITHUB_REMOTE, github_answers);
-    let window = show_list(&workbench, 2, cx);
-    run_action(cx, "github.pullRequest.show", Some(json!(5)));
-    run_action(cx, "github.pullRequest.show", Some(json!(7)));
-    run_action(cx, "github.createPullRequest", None);
-    click_on(cx, "gh-create-pull-request");
-    assert_eq!(window.update(cx, |window, cx| window.tab_titles(cx)), ["app", "#5", "#7", "New Pull Request at app"]);
-    assert_eq!(context_text(cx, "githubPrTab").as_deref(), Some("create"));
-    assert!(cx.debug_bounds("gh-tab-loading").is_none(), "the tab shows the New Pull Request view");
-    click_on(cx, "gh-tab-close-3");
-    assert_eq!(window.read_with(cx, |window, _| window.tabs().active), GhTab::PullRequest(7));
-}

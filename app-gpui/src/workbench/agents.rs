@@ -1353,6 +1353,12 @@ impl Workbench {
         self.agents.as_ref().map(|slot| slot.store.clone())
     }
 
+    /// Whether a reply operation (Regenerate, Branch, Retract) of `task` is under way, so further clicks are ignored.
+    #[cfg(test)]
+    pub(super) fn agent_reply_busy(&self, task: &str) -> bool {
+        self.agents.as_ref().is_some_and(|slot| slot.models.replies.is_busy(task))
+    }
+
     /// The docked conversation and its composer.
     pub(super) fn docked_agent_session(&self) -> Option<(Entity<SessionView>, Entity<ComposerView>)> {
         let docked = self.agents.as_ref()?.docked.as_ref()?;

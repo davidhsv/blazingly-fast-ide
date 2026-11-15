@@ -63,6 +63,9 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+#[path = "github_part2.rs"]
+mod part2;
+
 /// The action that runs a program in a new Terminal tab (`{ program, args, name?, cwd? }`).
 const TERMINAL_RUN_COMMAND: &str = "terminal.runCommand";
 
@@ -99,6 +102,8 @@ pub(super) struct GithubSlot {
     connecting: Option<Task<()>>,
     /// The list page on its way (a newer search makes the older answer void).
     list_fetch: Option<Task<()>>,
+    /// The New Pull Request tab, and Create Pull Request… waiting for the connection.
+    part2: part2::Part2State,
     _events: Subscription,
 }
 
@@ -647,6 +652,7 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
             }
         })
     });
+    part2::register_part2_actions(registry);
 }
 
 impl Workbench {
@@ -685,6 +691,7 @@ impl Workbench {
                 refreshing: None,
                 connecting: None,
                 list_fetch: None,
+                part2: part2::Part2State::default(),
                 _events: events,
             });
         }
@@ -717,6 +724,7 @@ impl Workbench {
         };
         set_context(window, cx, "githubConnected", connected);
         set_context(window, cx, "githubPrTab", tab);
+        self.publish_github_part2_context(window, cx);
     }
 
     /// The repository was read again: the open tabs say again whether their branch is checked out.
@@ -726,6 +734,7 @@ impl Workbench {
         for number in numbers {
             self.push_pull_request_inputs(number, cx);
         }
+        self.github_part2_vcs_changed(cx);
     }
 
     /// View Pull Requests: shows the window (checking gh the first time); a window already shown
@@ -810,6 +819,7 @@ impl Workbench {
         let (view, repo) = (slot.window.clone(), slot.repo.clone());
         view.update(cx, |view, cx| view.set_repository(repo, cx));
         cx.notify();
+        self.github_part2_repository_pushed(cx);
     }
 
     /// Carries out what a disconnect asks: the saved choice and the cached lists go.
@@ -995,15 +1005,15 @@ impl Workbench {
                     tracing::info!(number, "github: the timeline editor of PullRequestOpened is not built");
                 }
             }
-            PullRequestsEvent::CreateOpened => {
-                tracing::info!("github: CreateOpened needs the New Pull Request view, which is not built");
-            }
+            PullRequestsEvent::CreateOpened => self.open_create_tab(window, cx),
             PullRequestsEvent::TabClosed(GhTab::PullRequest(number)) => {
                 if let Some(slot) = self.github.as_mut() {
                     slot.tabs.remove(&number);
                 }
             }
-            PullRequestsEvent::TabClosed(_) => {}
+            // The form lives as long as its tab.
+            PullRequestsEvent::TabClosed(GhTab::Create) => self.drop_create_tab(),
+            PullRequestsEvent::TabClosed(GhTab::List) => {}
             // `githubPrTab` is published with the window's other context.
             PullRequestsEvent::ActiveTabChanged(_) => cx.notify(),
             PullRequestsEvent::FocusTargetChanged => {
@@ -1565,7 +1575,7 @@ mod tests {
     mod proofs7_github_urls;
     mod proofs9_github;
 
-    const GITHUB_REMOTE: &str = "https://github.com/org/app.git";
+    pub(super) const GITHUB_REMOTE: &str = "https://github.com/org/app.git";
 
     /// A token that must never show up anywhere the window keeps, shows or logs.
     const SENTINEL: &str = "ghp_SENTINEL0123456789abcdefSENTINEL";
@@ -1574,7 +1584,7 @@ mod tests {
     /// files beside it, logs each call (its arguments, a tab and the request body) to `calls.log`
     /// there, and fails loudly on anything else. It drops the credential variables gh would read and
     /// runs git without the machine's configuration; it reaches no network.
-    const FAKE_GH: &str = r##"unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
+    pub(super) const FAKE_GH: &str = r##"unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
 D="$(cd "$(dirname "$0")" && pwd -P)"
 body=""
 case " $* " in *" --input - "*) body="$(cat)" ;; esac
@@ -1634,7 +1644,7 @@ exit 1
     /// to look like `remote` in the repository's own configuration (`url.<remote>.insteadOf`), which
     /// also lets git reach local files only. The fake gh beside the answers `answers` gives (given
     /// the HEAD commit) stands in for gh.
-    fn github_project<'a>(
+    pub(super) fn github_project<'a>(
         cx: &'a mut TestAppContext,
         remote: &str,
         answers: impl FnOnce(&str) -> Vec<(&'static str, String)>,
@@ -1692,7 +1702,7 @@ exit 1
     }
 
     /// An open pull request as the list's `pullRequestInfoShort` reads it.
-    fn pull_request(number: u32, title: &str, author: &str, draft: bool, label: &str) -> Value {
+    pub(super) fn pull_request(number: u32, title: &str, author: &str, draft: bool, label: &str) -> Value {
         json!({
             "id": format!("PR_{number}"),
             "url": format!("https://github.com/org/app/pull/{number}"),
@@ -1728,7 +1738,7 @@ exit 1
 
     /// A connected repository org/app with two open pull requests: #1 by alice (label bug, head
     /// `fix-crash` at `head`, one passing check, one changed file) and the draft #2 by bob (docs).
-    fn github_answers(head: &str) -> Vec<(&'static str, String)> {
+    pub(super) fn github_answers(head: &str) -> Vec<(&'static str, String)> {
         let fix = pull_request(1, "Fix the crash on start", "alice", false, "bug");
         let docs = pull_request(2, "Document the setup", "bob", true, "docs");
         let mut details = fix.clone();
@@ -1827,13 +1837,13 @@ exit 1
     }
 
     /// gh's calls in the repository at `root`, each its arguments, a tab and the request body.
-    fn gh_calls(root: &Path) -> Vec<String> {
+    pub(super) fn gh_calls(root: &Path) -> Vec<String> {
         let log = std::fs::read_to_string(root.join(".git").join("fake-gh").join("calls.log"));
         log.unwrap_or_default().lines().map(str::to_owned).collect()
     }
 
     /// How many of gh's calls in the repository at `root` contain `text`.
-    fn calls_with(root: &Path, text: &str) -> usize {
+    pub(super) fn calls_with(root: &Path, text: &str) -> usize {
         gh_calls(root).iter().filter(|call| call.contains(text)).count()
     }
 
@@ -1854,14 +1864,17 @@ exit 1
         cx.update(|window, cx| window_context(window, cx).is_truthy(key))
     }
 
-    fn context_text(cx: &mut VisualTestContext, key: &str) -> Option<String> {
+    pub(super) fn context_text(cx: &mut VisualTestContext, key: &str) -> Option<String> {
         cx.update(|window, cx| match window_context(window, cx).get(key) {
             Some(ContextValue::Text(text)) => Some(text.to_string()),
             _ => None,
         })
     }
 
-    fn window_of(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<Entity<PullRequestsWindow>> {
+    pub(super) fn window_of(
+        workbench: &Entity<Workbench>,
+        cx: &mut VisualTestContext,
+    ) -> Option<Entity<PullRequestsWindow>> {
         workbench.read_with(cx, |w, _| w.pull_requests_window().cloned())
     }
 
@@ -1878,7 +1891,7 @@ exit 1
     }
 
     /// View Pull Requests, then the list as gh answers it, once the connection is published.
-    fn show_list(
+    pub(super) fn show_list(
         workbench: &Entity<Workbench>,
         count: usize,
         cx: &mut VisualTestContext,
@@ -1891,7 +1904,7 @@ exit 1
     }
 
     /// View Pull Request on #1, then its details, checks and changes.
-    fn open_first(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Entity<DetailsPanel> {
+    pub(super) fn open_first(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Entity<DetailsPanel> {
         run_action(cx, "github.pullRequest.show", Some(json!(1)));
         let panel = workbench.read_with(cx, |w, _| w.pull_request_details(1).cloned()).expect("#1 has a tab");
         wait_long(cx, "the pull request loads", |cx| {

@@ -48,16 +48,16 @@ fn open_with<'a>(
     let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
     cx.update(|window, _| window.activate_window());
     workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-    settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+    settle(cx, "the project tree", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
     let file = root.join(open);
     workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file, window, cx));
     let fixture = Fixture { workbench, root, server, _folders: (home, folder) };
-    settle(cx, |cx| {
+    settle(cx, "the editor takes the keyboard", |cx| {
         let editor = fixture.editor(cx);
         cx.update(|window, cx| editor.is_some_and(|editor| editor.focus_handle(cx).is_focused(window)))
     });
     let name = format!("/{open}");
-    settle(cx, |_| {
+    settle(cx, "the server hears the opened document", |_| {
         let opened = fixture.requests("textDocument/didOpen");
         let uri = |message: &Value| message["params"]["textDocument"]["uri"].as_str().map(str::to_owned);
         opened.iter().filter_map(uri).any(|uri| uri.ends_with(&name))
@@ -100,12 +100,12 @@ async fn an_accepted_completion_items_command_runs_on_the_server(cx: &mut TestAp
     });
     let (f, cx) = open_with(cx, &[("a.mock", "")], "a.mock", answers);
     cx.simulate_input("obj.");
-    settle(cx, |cx| !f.rows(cx).is_empty());
+    settle(cx, "the lookup's rows", |cx| !f.rows(cx).is_empty());
     assert_eq!(f.rows(cx), ["fooBar"]);
     assert!(f.requests("workspace/executeCommand").is_empty(), "nothing runs before the item is accepted");
 
     cx.simulate_keystrokes("enter");
-    settle(cx, |_| !f.requests("workspace/executeCommand").is_empty());
+    settle(cx, "the server hears workspace/executeCommand", |_| !f.requests("workspace/executeCommand").is_empty());
     assert_eq!(f.text(cx), "obj.fooBar");
     let ran = f.requests("workspace/executeCommand");
     assert_eq!(ran.len(), 1);
@@ -139,7 +139,7 @@ async fn call_hierarchy_lists_the_callers_the_server_reports(cx: &mut TestAppCon
             })
         })
     };
-    settle(cx, |cx| callers(cx).is_some());
+    settle(cx, "the callers", |cx| callers(cx).is_some());
     assert_eq!(callers(cx), Some(vec![("caller".to_owned(), "b.mock".to_owned())]));
     let root = f.workbench.read_with(cx, |w, _| w.hierarchy().root().map(|root| root.name.clone()));
     assert_eq!(root.as_deref(), Some("target"));
@@ -177,7 +177,7 @@ async fn type_hierarchy_lists_the_subtypes_the_server_reports(cx: &mut TestAppCo
             })
         })
     };
-    settle(cx, |cx| subtypes(cx).is_some());
+    settle(cx, "the subtypes", |cx| subtypes(cx).is_some());
     assert_eq!(subtypes(cx), Some(vec![("Derived".to_owned(), "b.mock".to_owned())]));
     let view = f.workbench.read_with(cx, |w, _| w.hierarchy_view()).expect("the Hierarchy window is shown");
     let title = view.update(cx, |view, cx| view.title(&mut cx.default_global::<Localization>().0));
@@ -204,7 +204,9 @@ async fn find_usages_lists_the_references_the_server_reports(cx: &mut TestAppCon
     f.run(cx, "find.usages");
 
     let view = f.workbench.read_with(cx, |w, _| w.usages_view()).expect("the Find Usages window is shown");
-    settle(cx, |cx| view.read_with(cx, |view, _| view.search().is_some_and(|search| !search.loading)));
+    settle(cx, "the search results", |cx| {
+        view.read_with(cx, |view, _| view.search().is_some_and(|search| !search.loading))
+    });
     let found: Vec<(String, u32, u32)> = view.read_with(cx, |view, _| {
         let groups = view.search().map(|search| search.groups.as_slice()).unwrap_or_default();
         groups
@@ -231,15 +233,17 @@ async fn the_server_status_item_lists_the_projects_server_and_restart_starts_it_
     let mock = |cx: &mut VisualTestContext| {
         item.read_with(cx, |item, _| item.servers().iter().find(|server| server.name == "mock-ls").cloned())
     };
-    settle(cx, |cx| mock(cx).is_some_and(|server| server.status == ServerStatus::Ready && server.root.is_some()));
+    settle(cx, "the server ready with its root", |cx| {
+        mock(cx).is_some_and(|server| server.status == ServerStatus::Ready && server.root.is_some())
+    });
     let server = mock(cx).expect("the mock server is listed");
     assert_eq!(server.languages, ["mock"]);
     assert_eq!(server.root, Some(to_ipc(&f.root)));
     assert_eq!(f.requests("initialize").len(), 1);
 
     item.update(cx, |_, cx| cx.emit(ServerStatusEvent::Restart(server.id)));
-    settle(cx, |_| f.requests("initialize").len() == 2);
-    settle(cx, |cx| mock(cx).is_some_and(|server| server.status == ServerStatus::Ready));
+    settle(cx, "the server hears initialize twice", |_| f.requests("initialize").len() == 2);
+    settle(cx, "the server ready", |cx| mock(cx).is_some_and(|server| server.status == ServerStatus::Ready));
     f.close(cx);
 }
 
@@ -262,19 +266,21 @@ async fn a_context_action_that_edits_two_files_changes_both(cx: &mut TestAppCont
     f.put_caret(cx, 5);
     f.run(cx, "code.showIntentions");
     let intelligence = f.intelligence(cx);
-    settle(cx, |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
+    settle(cx, "the intentions list", |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
     let list = intelligence.read_with(cx, |this, _| this.intentions()).expect("the intentions");
     let lines = list.read_with(cx, |list, _| list.lines());
     assert_eq!(lines.len(), 1, "{lines:?}");
     assert!(lines[0].contains("Rename to bar everywhere"), "{lines:?}");
-    settle(cx, |cx| list.read_with(cx, |list, _| list.preview_text().is_some_and(|text| !text.is_empty())));
+    settle(cx, "the intention's preview", |cx| {
+        list.read_with(cx, |list, _| list.preview_text().is_some_and(|text| !text.is_empty()))
+    });
     let preview = list.read_with(cx, |list, _| list.preview_text()).expect("a preview");
     assert!(preview.contains("let bar = 1"), "{preview}");
     assert!(preview.ends_with("Also changes 1 other file"), "{preview}");
 
     cx.simulate_keystrokes("enter");
-    settle(cx, |cx| f.text(cx) == "let bar = 1\n");
-    settle(cx, |cx| project_text(cx, &b) == "bar()\n");
+    settle(cx, "the editor's text", |cx| f.text(cx) == "let bar = 1\n");
+    settle(cx, "the text of b on disk", |cx| project_text(cx, &b) == "bar()\n");
     assert!(intelligence.read_with(cx, |this, _| this.intentions().is_none()));
     f.close(cx);
 }
@@ -302,14 +308,14 @@ async fn a_quick_fixs_arrow_menu_opens_with_the_right_arrow_and_runs_its_control
     });
     f.server.answer(json!({ "diagnostics": [problem], "textDocument/codeAction": [fix] }));
     let intelligence = f.intelligence(cx);
-    settle(cx, |cx| intelligence.read_with(cx, |this, _| !this.problems().is_empty()));
+    settle(cx, "the problems", |cx| intelligence.read_with(cx, |this, _| !this.problems().is_empty()));
     let inspections =
         |cx: &mut VisualTestContext| cx.update(|_, cx| crate::platform::settings::effective("w1", cx).inspections);
     let before = inspections(cx);
 
     f.put_caret(cx, 5);
     f.run(cx, "code.showIntentions");
-    settle(cx, |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
+    settle(cx, "the intentions list", |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
     let list = intelligence.read_with(cx, |this, _| this.intentions()).expect("the intentions");
     assert!(list.read_with(cx, |list, _| list.lines())[0].contains("Remove foo"));
     let submenu = |cx: &mut VisualTestContext| list.read_with(cx, |list, _| list.submenu_lines());
@@ -324,8 +330,8 @@ async fn a_quick_fixs_arrow_menu_opens_with_the_right_arrow_and_runs_its_control
     assert!(intelligence.read_with(cx, |this, _| this.intentions().is_some()));
 
     cx.simulate_keystrokes("right down enter");
-    settle(cx, |cx| intelligence.read_with(cx, |this, _| this.intentions().is_none()));
-    settle(cx, |cx| inspections(cx) != before);
+    settle(cx, "the intentions list closes", |cx| intelligence.read_with(cx, |this, _| this.intentions().is_none()));
+    settle(cx, "the inspections changed", |cx| inspections(cx) != before);
     assert!(format!("{:?}", inspections(cx)).contains("MOCK001"), "the inspection of MOCK001 is turned off");
     assert_eq!(f.text(cx), text, "the fix itself is not applied");
     f.close(cx);

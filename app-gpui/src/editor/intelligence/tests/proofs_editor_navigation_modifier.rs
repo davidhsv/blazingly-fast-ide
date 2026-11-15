@@ -29,7 +29,7 @@ fn over(f: &Fixture, cx: &mut VisualTestContext, offset: u32) -> gpui_kit::Point
 fn documented(cx: &mut TestAppContext) -> (Fixture, &mut VisualTestContext) {
     let answers: Value = serde_json::from_str(ANSWERS).expect("the answers are JSON");
     let (f, cx) = open(cx, &[("a.mock", "foo bar baz\n")], "a.mock", answers);
-    settle(cx, |_| !f.requests("textDocument/didOpen").is_empty());
+    settle(cx, "the server hears textDocument/didOpen", |_| !f.requests("textDocument/didOpen").is_empty());
     (f, cx)
 }
 
@@ -46,7 +46,7 @@ async fn the_plain_hover_yields_while_the_navigation_modifier_is_held(cx: &mut T
 
     let at = over(&f, cx, 6);
     cx.simulate_mouse_move(at, None, Modifiers::default());
-    settle(cx, |cx| !hover_lines(&f, cx).is_empty());
+    settle(cx, "the hover", |cx| !hover_lines(&f, cx).is_empty());
     assert_eq!(hover_lines(&f, cx), ["bar is a name"]);
     f.close(cx);
 }
@@ -57,7 +57,7 @@ async fn pressing_the_navigation_modifier_closes_an_open_hover(cx: &mut TestAppC
     let (f, cx) = documented(cx);
     let at = over(&f, cx, 5);
     cx.simulate_mouse_move(at, None, Modifiers::default());
-    settle(cx, |cx| !hover_lines(&f, cx).is_empty());
+    settle(cx, "the hover", |cx| !hover_lines(&f, cx).is_empty());
     let navigation = cx.update(|_, cx| Modifiers::secondary_key(cx));
     cx.simulate_modifiers_change(navigation);
     cx.run_until_parked();

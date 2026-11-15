@@ -233,18 +233,34 @@ mod tests {
     /// prints its arguments, then JDWP's start-up line with each address in `jdwp.port`, one per
     /// line (when the project has that file), and exits with 3 once the project has a file
     /// `release` (with 4 after a minute without one, so a failed test leaves nothing running). Like
-    /// a JVM it exits on SIGINT: without the trap a shell whose `sleep` ends just as the signal
-    /// comes takes it as handled and goes on.
-    const JVM: &str = "#!/bin/sh\n\
-        trap 'exit 130' INT\n\
-        echo \"execution-tool $*\"\n\
-        if [ -f jdwp.port ]; then while read -r at || [ -n \"$at\" ]; do\n\
-        \x20 echo \"Listening for transport dt_socket at address: $at\"; done < jdwp.port; fi\n\
-        waited=0\n\
-        while [ ! -f release ]; do\n\
-        \x20 sleep 0.05; waited=$((waited + 1)); if [ \"$waited\" -gt 1200 ]; then exit 4; fi\n\
-        done\n\
-        exit 3\n";
+    /// a JVM it exits on SIGINT, Stop's signal.
+    ///
+    /// It is Python, not a shell script: a test binary started in the background of a script has
+    /// SIGINT ignored, every process it starts inherits that, and a shell cannot trap a signal ignored
+    /// when it started, so a shell JVM would outlive the Stop until its minute ran out.
+    const JVM: &str = "import os, signal, sys, time\n\
+        signal.signal(signal.SIGINT, lambda *_: sys.exit(130))\n\
+        print('execution-tool ' + ' '.join(sys.argv[1:]), flush=True)\n\
+        if os.path.exists('jdwp.port'):\n\
+        \x20   with open('jdwp.port') as ports:\n\
+        \x20       for at in ports.read().splitlines():\n\
+        \x20           print(f'Listening for transport dt_socket at address: {at}', flush=True)\n\
+        deadline = time.monotonic() + 60\n\
+        while not os.path.exists('release'):\n\
+        \x20   if time.monotonic() > deadline:\n\
+        \x20       sys.exit(4)\n\
+        \x20   time.sleep(0.05)\n\
+        sys.exit(3)\n";
+
+    /// [`JVM`] as a program, run by the `python3` the tests' adapters run (found on `PATH`).
+    fn jvm() -> String {
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        let python = std::env::split_paths(&path)
+            .map(|folder| folder.join("python3"))
+            .find(|candidate| candidate.is_file())
+            .expect("python3 is on PATH, as the fake adapters need");
+        format!("#!{}\n{JVM}", python.display())
+    }
 
     /// The fake adapter of the debugger's tests, able to attach: an attach runs `main.fake` as a
     /// launch would, after writing the host and port it was asked for to `attach.json`; with a file
@@ -356,7 +372,7 @@ mod tests {
     ) -> (Fixture, &'a mut VisualTestContext) {
         let home = start_home(cx);
         let bin = home.path().join("bin");
-        program(&bin, "execution-tool", JVM);
+        program(&bin, "execution-tool", &jvm());
         programs_in(&bin, cx);
         let folder = plugin_copy(home.path(), "execution", edit);
         link(cx, &folder, &["process:execution-tool"], "debug");

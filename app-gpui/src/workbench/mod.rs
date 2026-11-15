@@ -32,6 +32,7 @@ mod editor_intelligence;
 mod editor_language;
 pub mod empty_editor;
 mod github;
+mod keymap_reference;
 mod log_actions;
 mod log_window;
 pub mod main_toolbar;
@@ -594,6 +595,7 @@ pub fn register_actions(cx: &mut App) {
     chrome::register_actions(registry);
     settings_window::register_actions(registry);
     app_actions::register_actions(registry);
+    keymap_reference::register_actions(registry);
     plugins_window::register_actions(registry);
     // View › Appearance: each item shows and flips one global appearance setting.
     type Flag = fn(&ide_core::settings::AppearanceSettings) -> bool;
@@ -4329,7 +4331,8 @@ mod tests {
 
     /// Waits for `done` while the backend's work comes back, without moving the executor's clock.
     /// Its budget is that of [`wait_long`]: on a loaded machine opening a project alone can take
-    /// longer than three seconds.
+    /// longer than three seconds. The panic names the caller's line, which tells the waits apart.
+    #[track_caller]
     fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
         let started = std::time::Instant::now();
         let poll = |cx: &mut VisualTestContext| {

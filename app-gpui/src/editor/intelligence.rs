@@ -1715,11 +1715,11 @@ mod tests {
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
         cx.update(|window, _| window.activate_window());
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
-        settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        settle(cx, "the project tree", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         let file = root.join(open);
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project_file(file, window, cx));
         let fixture = Fixture { workbench, root, server, _folders: (home, folder) };
-        settle(cx, |cx| {
+        settle(cx, "the editor takes the keyboard", |cx| {
             let editor = fixture.editor(cx);
             cx.update(|window, cx| editor.is_some_and(|editor| editor.focus_handle(cx).is_focused(window)))
         });
@@ -1740,25 +1740,37 @@ mod tests {
         assert!(fixture.server.received().is_empty(), "{:?}", fixture.server.received());
 
         fixture.run(cx, "project.trust");
-        settle(cx, |cx| !fixture.workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
-        settle(cx, |_| !fixture.requests("textDocument/didOpen").is_empty());
+        settle(cx, "the project out of restricted mode", |cx| {
+            !fixture.workbench.read_with(cx, |w, cx| w.project_restricted(cx))
+        });
+        settle(cx, "the server hears textDocument/didOpen", |_| !fixture.requests("textDocument/didOpen").is_empty());
         assert_eq!(fixture.requests("initialize").len(), 1);
         fixture.close(cx);
     }
 
-    /// Waits for `done` while the backend's work comes back; thirty seconds of wall time, which a loaded
-    /// machine can need for a language server's answer.
-    fn settle(cx: &mut VisualTestContext, done: impl Fn(&mut VisualTestContext) -> bool) {
+    /// Waits for `done`, named `what`, while the backend's work comes back; about thirty seconds of wall
+    /// time, which a loaded machine can need for a language server's answer.
+    #[track_caller]
+    fn settle(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
         let started = std::time::Instant::now();
-        while started.elapsed() < Duration::from_secs(30) {
+        let poll = |cx: &mut VisualTestContext| {
             cx.executor().advance_clock(Duration::from_millis(50));
             cx.run_until_parked();
-            if done(cx) {
+            let reached = done(cx);
+            if !reached {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            reached
+        };
+        for _ in 0..3000 {
+            if poll(cx) {
                 return;
             }
-            std::thread::sleep(Duration::from_millis(10));
         }
-        panic!("the backend did not deliver within thirty seconds");
+        // Whether more time would have been enough tells a slow backend from one that never answers.
+        let ran_out = started.elapsed();
+        let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
+        panic!("{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})");
     }
 
     impl Fixture {
@@ -1819,7 +1831,7 @@ mod tests {
         let (f, cx) = open(cx, &[("a.mock", "")], "a.mock", answers);
 
         cx.simulate_input("obj.");
-        settle(cx, |cx| !f.rows(cx).is_empty());
+        settle(cx, "the lookup's rows", |cx| !f.rows(cx).is_empty());
         assert_eq!(f.rows(cx), ["fooBar", "fooBaz", "other"]);
         let asked = f.requests("textDocument/completion");
         assert_eq!(asked.len(), 1);
@@ -1846,7 +1858,7 @@ mod tests {
 
         // Basic completion opens it again; Escape closes it and the text stays.
         f.run(cx, "code.completion");
-        settle(cx, |cx| !f.rows(cx).is_empty());
+        settle(cx, "the lookup's rows", |cx| !f.rows(cx).is_empty());
         assert_eq!(f.rows(cx), ["fooBar", "fooBaz"]);
         cx.simulate_keystrokes("escape");
         assert!(f.rows(cx).is_empty());
@@ -1855,7 +1867,7 @@ mod tests {
         // Explicit completion that finds nothing: the hint says so.
         f.server.answer(json!({ "textDocument/completion": [] }));
         f.run(cx, "code.completion");
-        settle(cx, |cx| f.intelligence(cx).read_with(cx, |this, _| this.hint().is_some()));
+        settle(cx, "the hint", |cx| f.intelligence(cx).read_with(cx, |this, _| this.hint().is_some()));
         assert_eq!(
             f.intelligence(cx).read_with(cx, |this, _| this.hint().map(str::to_owned)).as_deref(),
             Some("No suggestions")
@@ -1870,12 +1882,12 @@ mod tests {
     async fn a_word_typed_in_one_go_asks_the_attached_server_once_at_its_end(cx: &mut TestAppContext) {
         let answers = json!({ "textDocument/completion": [item("fooBar", 6)] });
         let (f, cx) = open(cx, &[("a.mock", "")], "a.mock", answers);
-        settle(cx, |_| !f.requests("textDocument/didOpen").is_empty());
+        settle(cx, "the server hears textDocument/didOpen", |_| !f.requests("textDocument/didOpen").is_empty());
 
         cx.simulate_input("obj.");
         cx.run_until_parked();
         assert!(f.requests("textDocument/completion").is_empty(), "nothing is asked while typing goes on");
-        settle(cx, |cx| !f.rows(cx).is_empty());
+        settle(cx, "the lookup's rows", |cx| !f.rows(cx).is_empty());
         assert_eq!(f.rows(cx), ["fooBar"]);
         let asked = f.requests("textDocument/completion");
         assert_eq!(asked.len(), 1, "{asked:#?}");
@@ -1886,7 +1898,7 @@ mod tests {
         cx.simulate_keystrokes("escape");
         cx.simulate_input(" ab");
         f.put_caret(cx, 0);
-        settle(cx, |_| true);
+        settle(cx, "the backend's pending work", |_| true);
         for _ in 0..4 {
             cx.executor().advance_clock(Duration::from_millis(50));
             cx.run_until_parked();
@@ -1909,11 +1921,15 @@ mod tests {
         let (f, cx) = open(cx, &[("a.mock", "")], "a.mock", answers);
         cx.simulate_input("obj.");
         // The server is answering the first request when the next character asks again.
-        settle(cx, |_| f.requests("textDocument/completion").len() == 1);
+        settle(cx, "the server hears textDocument/completion once", |_| {
+            f.requests("textDocument/completion").len() == 1
+        });
         cx.simulate_input("x");
-        settle(cx, |cx| !f.rows(cx).is_empty());
+        settle(cx, "the lookup's rows", |cx| !f.rows(cx).is_empty());
         assert_eq!(f.rows(cx), ["xFresh"]);
-        settle(cx, |_| f.requests("textDocument/completion").len() == 2);
+        settle(cx, "the server hears textDocument/completion twice", |_| {
+            f.requests("textDocument/completion").len() == 2
+        });
         for _ in 0..30 {
             cx.executor().advance_clock(Duration::from_millis(50));
             cx.run_until_parked();
@@ -1943,9 +1959,11 @@ mod tests {
         });
         let modifiers = cx.update(|_, cx| Modifiers::secondary_key(cx));
         cx.simulate_click(at, modifiers);
-        settle(cx, |cx| f.editor(cx).is_some_and(|editor| editor.read_with(cx, |e, _| e.path() == b.as_path())));
+        settle(cx, "the editor of b", |cx| {
+            f.editor(cx).is_some_and(|editor| editor.read_with(cx, |e, _| e.path() == b.as_path()))
+        });
         let opened = f.editor(cx).expect("the target's editor");
-        settle(cx, |cx| opened.read_with(cx, |editor, _| editor.caret_position()) == (2, 2));
+        settle(cx, "the caret at 2:2", |cx| opened.read_with(cx, |editor, _| editor.caret_position()) == (2, 2));
         let asked = f.requests("textDocument/definition");
         assert_eq!(asked.len(), 1);
         assert_eq!(asked[0]["params"]["position"], json!({ "line": 0, "character": 7 }));
@@ -1955,12 +1973,12 @@ mod tests {
         // Two targets: the chooser lists them, Enter opens the selected one.
         f.workbench
             .update_in(cx, |workbench, window, cx| workbench.open_project_file(f.root.join("a.mock"), window, cx));
-        settle(cx, |cx| f.editor(cx).is_some_and(|e| e == editor));
+        settle(cx, "the editor back", |cx| f.editor(cx).is_some_and(|e| e == editor));
         f.server.answer(json!({ "textDocument/definition": [location(&b, 2, 2), location(&c, 0, 2)] }));
         f.put_caret(cx, 7);
         f.run(cx, "navigate.declaration");
         let intelligence = f.intelligence(cx);
-        settle(cx, |cx| intelligence.read_with(cx, |this, _| this.chooser().is_some()));
+        settle(cx, "the chooser", |cx| intelligence.read_with(cx, |this, _| this.chooser().is_some()));
         let chooser = intelligence.read_with(cx, |this, _| this.chooser()).expect("the chooser");
         let labels: Vec<String> =
             chooser.read_with(cx, |chooser, _| chooser.rows().iter().map(|row| row.detail.clone()).collect());
@@ -1970,26 +1988,32 @@ mod tests {
             "the chooser has the keyboard"
         );
         cx.simulate_keystrokes("down enter");
-        settle(cx, |cx| f.editor(cx).is_some_and(|editor| editor.read_with(cx, |e, _| e.path() == c.as_path())));
+        settle(cx, "the editor of c", |cx| {
+            f.editor(cx).is_some_and(|editor| editor.read_with(cx, |e, _| e.path() == c.as_path()))
+        });
         assert!(intelligence.read_with(cx, |this, _| this.chooser().is_none()));
 
         // None: the hint at the caret.
         f.workbench
             .update_in(cx, |workbench, window, cx| workbench.open_project_file(f.root.join("a.mock"), window, cx));
-        settle(cx, |cx| f.editor(cx).is_some_and(|e| e == editor));
+        settle(cx, "the editor back", |cx| f.editor(cx).is_some_and(|e| e == editor));
         f.server.answer(json!({ "textDocument/definition": [] }));
         f.run(cx, "navigate.declaration");
         let not_found = |cx: &mut VisualTestContext| {
             intelligence.read_with(cx, |this, _| this.hint() == Some("Cannot find declaration to go to"))
         };
-        settle(cx, not_found);
+        settle(cx, "the not-found hint", not_found);
 
         // Go to Implementation and Go to Type Declaration ask their own methods.
         f.server.answer(json!({ "textDocument/implementation": [], "textDocument/typeDefinition": [] }));
         f.run(cx, "navigate.implementation");
-        settle(cx, |cx| intelligence.read_with(cx, |this, _| this.hint() == Some("No implementations found")));
+        settle(cx, "the hint 'No implementations found'", |cx| {
+            intelligence.read_with(cx, |this, _| this.hint() == Some("No implementations found"))
+        });
         f.run(cx, "navigate.typeDeclaration");
-        settle(cx, |cx| intelligence.read_with(cx, |this, _| this.hint() == Some("Cannot find type declaration")));
+        settle(cx, "the hint 'Cannot find type declaration'", |cx| {
+            intelligence.read_with(cx, |this, _| this.hint() == Some("Cannot find type declaration"))
+        });
         assert_eq!(f.requests("textDocument/implementation").len(), 1);
         assert_eq!(f.requests("textDocument/typeDefinition").len(), 1);
         f.close(cx);
@@ -2013,7 +2037,7 @@ mod tests {
         let marks = |cx: &mut VisualTestContext| {
             editor.read_with(cx, |editor, _| editor.marks(MarkLayer::Diagnostics).to_vec())
         };
-        settle(cx, |cx| !marks(cx).is_empty());
+        settle(cx, "the marks", |cx| !marks(cx).is_empty());
         assert_eq!(marks(cx), [Mark { range: 4..7, kind: MarkKind::ErrorProblem }]);
 
         let intelligence = f.intelligence(cx);
@@ -2024,7 +2048,7 @@ mod tests {
             editor.read_with(cx, |editor, cx| (editor.position_of(5).expect("painted"), editor.line_height(cx)));
         let over = gpui_kit::point(at.x + px(1.0), at.y + line_height / 2.0);
         cx.simulate_mouse_move(over, None, Modifiers::default());
-        settle(cx, |cx| !hover_lines(cx).is_empty());
+        settle(cx, "the hover", |cx| !hover_lines(cx).is_empty());
         assert_eq!(hover_lines(cx), ["error: unknown name", "  mock", "  More actions…", "bar is a name"]);
         let asked = f.requests("textDocument/hover");
         assert_eq!(
@@ -2042,7 +2066,7 @@ mod tests {
         cx.simulate_mouse_move(over, None, Modifiers::default());
         // Beside the text, the hover goes away.
         cx.simulate_mouse_move(gpui_kit::point(over.x + px(3000.0), over.y), None, Modifiers::default());
-        settle(cx, |cx| hover_lines(cx).is_empty());
+        settle(cx, "the hover closes", |cx| hover_lines(cx).is_empty());
 
         // An edit before the problem moves its underline with the text, until the server publishes
         // again (it publishes nothing from now on).
@@ -2056,7 +2080,7 @@ mod tests {
         // Quick Documentation at the caret.
         f.put_caret(cx, 2);
         f.run(cx, "code.quickDocumentation");
-        settle(cx, |cx| !hover_lines(cx).is_empty());
+        settle(cx, "the hover", |cx| !hover_lines(cx).is_empty());
         assert_eq!(hover_lines(cx), ["bar is a name"]);
         cx.simulate_keystrokes("escape");
         assert!(hover_lines(cx).is_empty());
@@ -2079,15 +2103,15 @@ mod tests {
         let params = f.intelligence(cx).read_with(cx, |this, _| this.parameter_info().clone());
         let rows = |cx: &mut VisualTestContext| params.read_with(cx, |params, _| params.rows());
         cx.simulate_input("call(");
-        settle(cx, |cx| !rows(cx).is_empty());
+        settle(cx, "the lookup's rows", |cx| !rows(cx).is_empty());
         assert_eq!(rows(cx), ["> call([a], b)"]);
         cx.simulate_input("1,");
-        settle(cx, |cx| rows(cx) == ["> call(a, [b])"]);
+        settle(cx, "the rows shown", |cx| rows(cx) == ["> call(a, [b])"]);
         cx.simulate_keystrokes("escape");
         assert!(rows(cx).is_empty());
         f.put_caret(cx, 5);
         f.run(cx, "code.parameterInfo");
-        settle(cx, |cx| !rows(cx).is_empty());
+        settle(cx, "the lookup's rows", |cx| !rows(cx).is_empty());
         assert_eq!(rows(cx), ["> call([a], b)"]);
         f.close(cx);
     }
@@ -2114,7 +2138,7 @@ mod tests {
         f.put_caret(cx, 5);
         f.run(cx, "code.showIntentions");
         let intelligence = f.intelligence(cx);
-        settle(cx, |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
+        settle(cx, "the intentions list", |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
         let list = intelligence.read_with(cx, |this, _| this.intentions()).expect("the intentions");
         let lines = list.read_with(cx, |list, _| list.lines());
         assert_eq!(lines.len(), 2, "{lines:?}");
@@ -2125,21 +2149,23 @@ mod tests {
         );
         // The lazy action's preview asks the server to resolve it.
         cx.simulate_keystrokes("down");
-        settle(cx, |_| !f.requests("codeAction/resolve").is_empty());
-        settle(cx, |cx| list.read_with(cx, |list, _| list.preview_text().is_some()));
+        settle(cx, "the server hears codeAction/resolve", |_| !f.requests("codeAction/resolve").is_empty());
+        settle(cx, "the intention's preview", |cx| list.read_with(cx, |list, _| list.preview_text().is_some()));
         cx.simulate_keystrokes("up enter");
-        settle(cx, |cx| f.text(cx) == "let bar = 1\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "let bar = 1\n");
         assert!(intelligence.read_with(cx, |this, _| this.intentions().is_none()));
 
         // A lazy action chosen at once is resolved by the backend as it is applied.
         f.run(cx, "code.showIntentions");
-        settle(cx, |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
+        settle(cx, "the intentions list", |cx| intelligence.read_with(cx, |this, _| this.intentions().is_some()));
         cx.simulate_keystrokes("down enter");
-        settle(cx, |cx| f.text(cx) == "1\n");
+        settle(cx, "the editor's text", |cx| f.text(cx) == "1\n");
 
         f.server.answer(json!({ "textDocument/codeAction": [] }));
         f.run(cx, "code.showIntentions");
-        settle(cx, |cx| intelligence.read_with(cx, |this, _| this.hint() == Some("No intentions available")));
+        settle(cx, "the hint 'No intentions available'", |cx| {
+            intelligence.read_with(cx, |this, _| this.hint() == Some("No intentions available"))
+        });
         f.close(cx);
     }
 
@@ -2150,7 +2176,7 @@ mod tests {
         let answers = json!({ "textDocument/completion": [item("fooBar", 6)] });
         let (f, cx) = open(cx, &[("a.mock", "")], "a.mock", answers);
         cx.simulate_input("obj.");
-        settle(cx, |cx| !f.rows(cx).is_empty());
+        settle(cx, "the lookup's rows", |cx| !f.rows(cx).is_empty());
         // The Find bar takes the keyboard: the lookup closes.
         f.workbench.update_in(cx, |workbench, window, cx| workbench.show_find_bar(false, window, cx));
         cx.run_until_parked();
@@ -2158,7 +2184,7 @@ mod tests {
         let editor = f.editor(cx).expect("an editor");
         cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
         f.run(cx, "code.completion");
-        settle(cx, |cx| !f.rows(cx).is_empty());
+        settle(cx, "the lookup's rows", |cx| !f.rows(cx).is_empty());
         let bar_open =
             |cx: &mut VisualTestContext| f.workbench.read_with(cx, |workbench, _| workbench.find_bar().is_some());
         assert!(bar_open(cx));
