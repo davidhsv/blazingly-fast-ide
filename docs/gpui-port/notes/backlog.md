@@ -783,3 +783,6 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 
 - DRAFT READY 2026-11-15: HTTP Client (8 files, 32 tests; brief `$S/int_http_client_brief.md`, notes `$S/drafts/http_client_integration.md`). Expected: 4 unit rows done (spring ×3, endpointProviders), endpoints 1/3, httpClient 5/18 (highlighting has no hook), 7 actions, ipc http_* + spring_route_sources; NOT plugin_endpoints. Open question for its integrator: the backend proxy setting may be process-wide (one test process here).
 - Draft queue now: terminal, editor paint, HTTP Client (+ Deployment when its writer reports) → no more feature writers until below three.
+
+- DRAFT READY 2026-11-15: Deployment (6 files, 11 actions, 13 end-to-end tests on a local-folder server; no backend seam needed; brief `$S/int_deployment_brief.md`, notes `$S/drafts/deployment_integration.md`). Part 0 of its brief: redact the Debug of `features_b/deployment/store.rs` `SecretAnswer`/`SecretForm` (plain SSH password today, unused types).
+- Draft queue now: terminal, editor paint, HTTP Client, Deployment (4) → NO feature writers. Cargo order after diff gaps: terminal → editor paint → Deployment (it carries the secret fix) → HTTP Client → shared controls + accessibility → vcs_stage_hunks → zoom px → file prompt slice.
