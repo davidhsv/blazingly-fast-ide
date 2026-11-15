@@ -1,4 +1,5 @@
-//! Implement Methods with several implement actions at the caret.
+//! Implement Methods with several implement actions at the caret, and the indentation of the lines
+//! an applied implement action inserts.
 
 use super::*;
 
@@ -46,5 +47,48 @@ async fn implement_methods_offers_every_implement_action_and_applies_the_chosen_
     cx.simulate_keystrokes("enter");
     settle(cx, |cx| f.text(cx) == "class A {\n  walk() {}\n}\n");
     assert!(f.workbench.read_with(cx, |w, _| w.language_popup::<ListPopup>().is_none()), "the list closes");
+    f.close(cx);
+}
+
+/// A server that generates its members at column 0 right under the class's `{`: the inserted
+/// lines move one indentation level in, keeping their own nesting, and the rest of the file stays.
+#[gpui_kit::test]
+async fn implement_methods_indents_the_inserted_members_under_the_brace(cx: &mut TestAppContext) {
+    let (f, cx) = open(cx, &[("a.mock", "class A {\n}\n")], "a.mock", Some(json!({})), &[]);
+    let a = f.root.join("a.mock");
+    let edit = edit(&a, vec![text_edit(range(1, 0, 0), "run() {\n    go()\n}\n")]);
+    f.answer(json!({ "textDocument/codeAction": [
+        { "title": "Implement missing members", "kind": "quickfix", "edit": edit },
+    ] }));
+    f.put_caret(cx, 6);
+    f.run(cx, "code.implementMethods");
+    settle(cx, |cx| f.text(cx) == "class A {\n    run() {\n        go()\n    }\n}\n");
+    f.close(cx);
+}
+
+/// Inserted lines that do not open under a `{` are range-formatted: only the server's edits inside
+/// the inserted lines are applied, and the user's line below them stays as it was.
+#[gpui_kit::test]
+async fn implement_methods_range_formats_inserted_lines_that_are_not_under_a_brace(cx: &mut TestAppContext) {
+    let capabilities = json!({ "documentRangeFormattingProvider": true });
+    let (f, cx) = open(cx, &[("a.mock", "x  =0\n")], "a.mock", Some(json!({ "capabilities": capabilities })), &[]);
+    let a = f.root.join("a.mock");
+    let edit = edit(&a, vec![text_edit(range(0, 0, 0), "a  =1\nb  =2\n")]);
+    f.answer(json!({
+        "capabilities": capabilities,
+        "textDocument/codeAction": [{ "title": "Implement missing members", "kind": "quickfix", "edit": edit }],
+        "textDocument/rangeFormatting": [
+            text_edit(range(0, 1, 3), " "),
+            text_edit(range(1, 1, 3), " "),
+            text_edit(range(2, 1, 3), " "),
+        ],
+    }));
+    f.put_caret(cx, 0);
+    f.run(cx, "code.implementMethods");
+    settle(cx, |cx| f.text(cx) == "a =1\nb =2\nx  =0\n");
+    let requests = f.requests("textDocument/rangeFormatting");
+    assert_eq!(requests.len(), 1, "{requests:?}");
+    let asked = &requests[0]["params"]["range"];
+    assert_eq!((asked["start"]["line"].as_u64(), asked["end"]["line"].as_u64()), (Some(0), Some(1)));
     f.close(cx);
 }

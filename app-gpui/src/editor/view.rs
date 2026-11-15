@@ -193,6 +193,9 @@ struct Layout {
     /// The colour runs (UTF-8 lengths) each painted row was shaped with; for tests only.
     #[cfg(test)]
     painted_colors: Vec<Vec<(usize, Hsla)>>,
+    /// The fold chevrons the last frame drew, by document line; for tests only.
+    #[cfg(test)]
+    painted_chevrons: Vec<(u32, super::extras::FoldMarker)>,
 }
 
 /// The editors that show each document. The backend reports the edits it makes itself, not the
@@ -578,6 +581,12 @@ impl Editor {
     pub fn painted_marks(&self, kind: super::marks::MarkKind) -> Vec<Bounds<Pixels>> {
         let painted = self.layout.as_ref().map(|layout| layout.painted_marks.as_slice()).unwrap_or_default();
         painted.iter().filter(|(painted, _)| *painted == kind).map(|(_, bounds)| *bounds).collect()
+    }
+
+    /// The fold chevrons the last frame drew in the gutter, by document line, top to bottom.
+    #[cfg(test)]
+    pub fn painted_fold_markers(&self) -> Vec<(u32, super::extras::FoldMarker)> {
+        self.layout.as_ref().map(|layout| layout.painted_chevrons.clone()).unwrap_or_default()
     }
 
     /// The colour the last frame drew the character at `col` (UTF-16) of `line` in, if it painted
@@ -2137,6 +2146,8 @@ impl Element for EditorElement {
         let mut markers = Vec::with_capacity(painted.len());
         #[cfg(test)]
         let mut painted_colors = Vec::with_capacity(painted.len());
+        #[cfg(test)]
+        let mut painted_chevrons = Vec::new();
         for &line in &painted {
             let range = buffer::line_range(&editor.rope, line);
             let text = buffer::slice(&editor.rope, range.start, range.end);
@@ -2213,6 +2224,11 @@ impl Element for EditorElement {
             // open one while the pointer is over the gutter.
             let open = editor.gutter_hovered && folds.is_foldable(line);
             let chevron = if folded.is_some() { Some("›") } else { open.then_some("⌄") };
+            #[cfg(test)]
+            if chevron.is_some() && fold_column > px(0.0) {
+                use super::extras::FoldMarker;
+                painted_chevrons.push((line, if folded.is_some() { FoldMarker::Closed } else { FoldMarker::Open }));
+            }
             markers.push(chevron.map(|chevron| {
                 window.text_system().shape_line(chevron.into(), font_size, &[run(chevron.len(), marker_color)], None)
             }));
@@ -2244,6 +2260,8 @@ impl Element for EditorElement {
                 painted_marks: Vec::new(),
                 #[cfg(test)]
                 painted_colors,
+                #[cfg(test)]
+                painted_chevrons,
             },
             numbers,
             gutter,
@@ -2474,6 +2492,8 @@ impl Element for EditorElement {
                 painted_marks: Vec::new(),
                 #[cfg(test)]
                 painted_colors: Vec::new(),
+                #[cfg(test)]
+                painted_chevrons: Vec::new(),
             },
         );
         self.editor.update(cx, |editor, _| editor.layout = Some(layout));

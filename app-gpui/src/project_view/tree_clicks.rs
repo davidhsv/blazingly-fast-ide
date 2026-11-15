@@ -54,7 +54,7 @@ pub fn row_click(options: &ViewOptions, node: &ProjectNode, count: usize, plain:
         return RowClick::Select;
     }
     if is_folder(node) {
-        let toggles = if options.single_click_expand { count % 2 == 1 } else { count % 2 == 0 };
+        let toggles = count.is_multiple_of(2) != options.single_click_expand;
         return if toggles { RowClick::Toggle } else { RowClick::Select };
     }
     if !is_file(node) {

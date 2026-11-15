@@ -48,6 +48,7 @@ mod popup_placement;
 pub mod project_color;
 mod project_files;
 mod project_view_actions;
+mod project_view_options;
 pub(crate) use app_actions::zen_active as distraction_free_active;
 pub use project_view_actions::undo_in_project_view;
 pub mod quick_switch;
@@ -64,6 +65,7 @@ use structure_window::STRUCTURE_TOOL_WINDOW;
 mod terminal_actions;
 mod todo_window;
 mod vcs_operations;
+mod zoom_actions;
 use todo_window::TODO_TOOL_WINDOW;
 pub mod status_bar;
 pub mod status_bar_widgets;
@@ -362,6 +364,8 @@ pub struct Workbench {
     build: Option<build_window::BuildSlot>,
     /// The Project view's file operations.
     files: project_files::ProjectFiles,
+    /// What the Project view's behaviour options need of the window.
+    tree_options: project_view_options::TreeOptionsSlot,
     /// The Database tools of the open project, once shown or used.
     database: Option<database::DatabaseSlot>,
     /// Problems, Find / Show Usages, the hierarchies and the language servers of the project.
@@ -544,6 +548,8 @@ pub fn register_actions(cx: &mut App) {
     editor_core::register_actions(registry);
     todo_window::register_actions(registry);
     project_view_actions::register_actions(registry);
+    project_view_options::register_actions(registry);
+    zoom_actions::register_actions(registry);
     terminal_actions::register_actions(registry);
     build_window::register_actions(registry);
     database::register_actions(registry);
@@ -1097,6 +1103,7 @@ impl Workbench {
             todo: None,
             build: None,
             files: Default::default(),
+            tree_options: Default::default(),
             database: None,
             code_insight,
             agents: None,
@@ -1633,6 +1640,7 @@ impl Workbench {
         self.release_closed_views(window, cx);
         self.load_active_tab(focus, window, cx);
         self.note_active_tab(cx);
+        self.project_view_tabs_changed(cx);
         self.plugin_tabs_changed(cx);
         self.session_save = Some(cx.spawn(async move |workbench, cx| {
             cx.background_executor().timer(SESSION_SAVE_DELAY).await;
@@ -3118,6 +3126,7 @@ impl Workbench {
                             workbench.open_project_file(event.0.clone(), window, cx);
                         });
                         let menus = cx.subscribe_in(&tree, window, Self::tree_context_menu);
+                        workbench.watch_tree_requests(&tree, window, cx);
                         let project_panel = Panel::new(tree.clone(), Some(menus));
                         // The tabs, splits and carets the project was left with.
                         let saved = cx.try_global::<UiStorage>().and_then(|s| session::load_session(s, &scope));
@@ -4154,6 +4163,8 @@ mod tests {
     mod proofs13_shell;
     mod proofs13_tasks;
     mod proofs13_windows;
+    mod proofs15_full_screen;
+    mod proofs15_merge_resolve;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

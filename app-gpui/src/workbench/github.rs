@@ -1561,6 +1561,7 @@ mod tests {
     use std::cell::{Cell, RefCell};
     mod proofs11_github;
     mod proofs14_github_window;
+    mod proofs15_github_refresh;
     mod proofs7_github_urls;
     mod proofs9_github;
 

@@ -146,6 +146,8 @@ pub fn apply(cx: &mut App) {
                 theme.set(name, &format!("{size}px"));
             }
         }
+        // The IDE zoom scales every length of the theme: text sizes, row heights, paddings.
+        super::zoom::apply_zoom(&mut theme, options.zoom);
         cx.set_global(ActiveTheme { theme });
         cx.refresh_windows();
     }

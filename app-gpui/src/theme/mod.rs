@@ -9,6 +9,7 @@ pub mod icons;
 pub mod installed_fonts;
 pub mod themes;
 pub mod tokens;
+pub mod zoom;
 
 use gpui_kit::{AnyElement, App, BoxShadow, Global, Hsla, Pixels, Rgba, img, prelude::*, px, svg};
 use tokens::{Theme, ThemeAttributes, Tokens};

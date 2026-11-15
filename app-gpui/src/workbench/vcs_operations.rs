@@ -1081,6 +1081,7 @@ mod tests {
     use std::path::Path;
 
     mod proofs11_worktrees;
+    mod proofs15_reload_all;
     mod proofs_update;
 
     /// Runs git in `dir` without the machine's configuration; whether it succeeded. For commands

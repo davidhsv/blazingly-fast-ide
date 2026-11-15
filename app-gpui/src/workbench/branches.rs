@@ -1639,6 +1639,7 @@ impl Workbench {
         self.sync_log_panes(cx);
         self.github_vcs_changed(cx);
         self.annotations_vcs_changed(cx);
+        self.feed_changed_files(cx);
         cx.notify();
     }
 

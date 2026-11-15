@@ -13,7 +13,8 @@ use crate::editor_commands::folding::{
 };
 use crate::editor_commands::{CommentTokensAt, EditState, map_after, map_before};
 use ide_core::TextChange;
-use ide_language::FoldRange;
+use ide_core::editor_settings::FoldingSettings;
+use ide_language::{FoldKind, FoldRange};
 
 /// What a folded header line shows after its text.
 pub const PLACEHOLDER: &str = "…";
@@ -45,6 +46,32 @@ impl Folds {
         self.backend = folds_from_ranges(state, ranges, comments);
         self.foldable = foldable_lines(state, &self.backend);
         self.answered = Some(version);
+    }
+
+    /// The backend's regions Code Folding › Fold by default names for the text of `state`: imports,
+    /// the comment that starts at or above the first line of code (the file header; a `#!` line is
+    /// not code), and the other comments (documentation comments).
+    pub fn folded_by_default(&self, state: &EditState, folding: &FoldingSettings) -> Vec<FoldRegion> {
+        if !folding.file_header && !folding.imports && !folding.doc_comments {
+            return Vec::new();
+        }
+        let first_code = (0..state.line_count())
+            .map(|number| state.line(number))
+            .find(|line| {
+                let text = line.text.trim();
+                !text.is_empty() && !text.starts_with("#!")
+            })
+            .map_or(0, |line| line.from);
+        self.backend
+            .iter()
+            .filter(|fold| match fold.kind {
+                FoldKind::Imports => folding.imports,
+                FoldKind::Comment if state.line_at(fold.from).from <= first_code => folding.file_header,
+                FoldKind::Comment => folding.doc_comments,
+                FoldKind::Region => false,
+            })
+            .map(|fold| (fold.from, fold.to))
+            .collect()
     }
 
     /// The document version the backend's fold ranges are of.
@@ -233,7 +260,6 @@ pub fn toggle_fold(state: &EditState, folds: &Folds) -> Vec<FoldEffect> {
 mod tests {
     use super::*;
     use crate::editor_commands::folding::fold_at_caret;
-    use ide_language::FoldKind;
 
     const TEXT: &str = "fn a() {\n    if x {\n        y();\n    }\n    z();\n}\nfn b() {}\n";
 
@@ -261,6 +287,30 @@ mod tests {
         assert_eq!(folds.row_of_line(3), 1);
         assert_eq!(folds.row_count(state.line_count()), 6);
         assert_eq!(folds.folded_on(&state, 1), Some(inner));
+    }
+
+    #[test]
+    fn fold_by_default_names_the_header_the_imports_or_the_documentation_comments() {
+        let state = EditState::new("#!/bin/x\n// a\n// b\nuse a;\nuse b;\n/// c\n/// d\nfn f() {\n}\n");
+        let ranges = [
+            FoldRange { start_line: 1, end_line: 2, kind: FoldKind::Comment },
+            FoldRange { start_line: 3, end_line: 4, kind: FoldKind::Imports },
+            FoldRange { start_line: 5, end_line: 6, kind: FoldKind::Comment },
+            FoldRange { start_line: 7, end_line: 8, kind: FoldKind::Region },
+        ];
+        let mut folds = Folds::default();
+        folds.set_backend(&state, &ranges, &|_| Vec::new(), 1);
+        let header = (state.line(1).to, state.line(2).to);
+        let imports = (state.line(3).to, state.line(4).to);
+        let docs = (state.line(5).to, state.line(6).to);
+        let chosen = |file_header, imports, doc_comments| {
+            let folding = FoldingSettings { show_outline: true, file_header, imports, doc_comments };
+            folds.folded_by_default(&state, &folding)
+        };
+        assert_eq!(chosen(true, true, false), [header, imports]);
+        assert_eq!(chosen(true, false, true), [header, docs]);
+        assert_eq!(chosen(false, false, true), [docs]);
+        assert!(chosen(false, false, false).is_empty());
     }
 
     #[test]

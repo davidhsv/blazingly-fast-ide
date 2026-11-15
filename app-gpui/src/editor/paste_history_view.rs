@@ -7,8 +7,10 @@ use crate::editor_commands::clipboard_history::{ClipboardEntry, clip_label};
 use crate::find::row_selection::{
     Keyed, RowSelection, SINGLE_FIRST, SelectMode, is_row_selected, select_row, selected_rows, selection_mode,
 };
+use crate::platform::dispatcher::stroke;
 use crate::platform::i18n::Localization;
 use crate::platform::input;
+use crate::platform::keymap::normalize_binding;
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
@@ -20,6 +22,17 @@ use gpui_kit::{
 const LABEL_WIDTH: u32 = 80;
 /// The dialog's width.
 const WIDTH: f32 = 680.0;
+/// The action whose shortcuts paste the chosen rows.
+const PASTE_ACTION: &str = "editor.pasteHistory.paste";
+/// The action whose shortcuts remove the chosen rows from the history.
+const REMOVE_ACTION: &str = "editor.pasteHistory.remove";
+
+/// Whether `keystroke` is a shortcut of `action` in the keymap in use.
+fn is_bound(action: &str, keystroke: &Keystroke, cx: &App) -> bool {
+    let Some(keymap) = cx.try_global::<input::Keymap>() else { return false };
+    let pressed = stroke(&input::key_name(&keystroke.key), input::mods(&keystroke.modifiers));
+    keymap.0.bindings_for(action).iter().any(|binding| normalize_binding(binding) == pressed)
+}
 
 /// What the dialog asks of its owner.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,18 +220,20 @@ impl PasteHistoryDialog {
         self.select(next, selection_mode(shift, false), cx);
     }
 
-    /// The keys the dialog handles itself while it has the keyboard; the keymap's bindings for them
-    /// do not run.
+    /// The keys the dialog handles itself while it has the keyboard: the keymap's shortcuts of Paste
+    /// and Delete, and the list's navigation keys. The keymap's other bindings for them do not run.
     fn claim_key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
         let key = keystroke.key.as_str();
         let query_empty = self.field.read(cx).text().is_empty();
-        match key {
-            "enter" => self.paste(None, cx),
-            "delete" => self.remove(cx),
-            // Backspace edits the filter while it has text.
-            "backspace" if query_empty => self.remove(cx),
-            "up" | "down" | "pageup" | "pagedown" => self.navigate(key, keystroke.modifiers.shift, cx),
-            _ => return false,
+        if is_bound(PASTE_ACTION, keystroke, cx) {
+            self.paste(None, cx);
+        // Backspace edits the filter while it has text, even where it is bound to Delete.
+        } else if is_bound(REMOVE_ACTION, keystroke, cx) && (query_empty || key != "backspace") {
+            self.remove(cx);
+        } else if matches!(key, "up" | "down" | "pageup" | "pagedown") {
+            self.navigate(key, keystroke.modifiers.shift, cx);
+        } else {
+            return false;
         }
         true
     }

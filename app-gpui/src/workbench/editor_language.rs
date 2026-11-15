@@ -27,14 +27,14 @@ use crate::editor_lsp::diagnostics::{
 };
 use crate::editor_lsp::format::{
     FormatAsk, FormatFailure, FormatStart, IndentStyle, format_answer, format_failure, format_options, formatted_text,
-    start_format,
+    range_format_changes, start_format,
 };
-use crate::editor_lsp::format_guard::FormatGuardOptions;
+use crate::editor_lsp::format_guard::{FormatGuardOptions, format_excluded};
 use crate::editor_lsp::generate::{is_generate_action, is_implement_title, is_override_title};
 use crate::editor_lsp::hint::Tone;
 use crate::editor_lsp::intentions::{
-    IntentionItem, IntentionRun, KindOutcome, action_items, is_quick_fix, kind_outcome, quick_fix_icon,
-    quick_fix_order, silent_action, sort_code_actions,
+    IntentionItem, IntentionRun, KindOutcome, action_items, changed_lines, indent_under_brace, is_quick_fix,
+    kind_outcome, quick_fix_icon, quick_fix_order, silent_action, sort_code_actions,
 };
 use crate::editor_lsp::intentions_view::{ListOptions, ListPopup, ListPopupEvent, ListRow, intention_rows};
 use crate::editor_lsp::lsp::{error_hint, incomplete_note, is_cancelled, is_no_server};
@@ -373,14 +373,6 @@ fn format_question(
     if let FormatStart::Nothing(text) = start_format(&ask, &guard) {
         return Err(text.map(str::to_owned));
     }
-    let facts = e.facts();
-    let tabs = facts.indent_unit.contains('\t');
-    let editor_indent = IndentStyle {
-        tab_size: facts.tab_size,
-        insert_spaces: !tabs,
-        indent_size: (!tabs).then(|| facts.indent_unit.chars().count() as u32),
-    };
-    let indent = format_options(editor_indent, None);
     let selection = e.selection();
     let range = (run.selection_only && !selection.is_empty())
         .then(|| offsets_to_range(e.rope(), selection.start, selection.end));
@@ -390,14 +382,22 @@ fn format_question(
         rope: e.rope().clone(),
         path,
         range,
-        options: FormatOptions {
-            tab_size: indent.tab_size,
-            insert_spaces: indent.insert_spaces,
-            on_save: false,
-            tool: run.tool,
-        },
+        options: editor_format_options(e, run.tool),
         guard,
     })
+}
+
+/// The format options of `editor`'s indentation, for `tool` or the language server.
+fn editor_format_options(editor: &Editor, tool: Option<ExternalFormatter>) -> FormatOptions {
+    let facts = editor.facts();
+    let tabs = facts.indent_unit.contains('\t');
+    let editor_indent = IndentStyle {
+        tab_size: facts.tab_size,
+        insert_spaces: !tabs,
+        indent_size: (!tabs).then(|| facts.indent_unit.chars().count() as u32),
+    };
+    let indent = format_options(editor_indent, None);
+    FormatOptions { tab_size: indent.tab_size, insert_spaces: indent.insert_spaces, on_save: false, tool }
 }
 
 /// Reformats `editor`'s selection (or the whole file) through `lsp_format`, as one undo step.
@@ -500,14 +500,113 @@ async fn apply_action(
     if let Some(reason) = action.disabled_reason.clone() {
         return this.update(cx, |_, cx| hint(editor, reason, None, Tone::Info, None, cx));
     }
+    let kind = action.kind.clone().unwrap_or_default();
+    let (before, version) = this.update(cx, |_, cx| {
+        let e = editor.read(cx);
+        (e.rope().clone(), e.version())
+    })?;
     let applied = call(this, cx, move |host, label| async move {
         ide_host::ops::lsp::lsp_apply_code_action(&host, &label, doc, action).await
     })
     .await?;
     if let Err(error) = applied {
-        this.update(cx, |_, cx| report(editor, &error, cx))?;
+        return this.update(cx, |_, cx| report(editor, &error, cx));
+    }
+    // Organizing imports and fixing all leave the file as the server wrote it; other actions insert
+    // code in the server's own indentation, which follows the file's style once reformatted.
+    if !kind.starts_with("source.organizeImports") && !kind.starts_with("source.fixAll") {
+        reformat_generated(this, editor, &before, version, cx).await?;
     }
     Ok(())
+}
+
+/// Reformats the lines an applied code action inserted into `editor`, once its edit has arrived
+/// (`before` and `version` are the text before it): a block the server wrote at the indentation of
+/// the `{` above moves one level in, any other span of two or more lines is range-formatted. Spans
+/// are taken bottom up so the line numbers of the ones above stay valid.
+async fn reformat_generated(
+    this: &This,
+    editor: &Entity<Editor>,
+    before: &ropey::Rope,
+    version: u32,
+    cx: &mut AsyncWindowContext,
+) -> anyhow::Result<()> {
+    edited_since(this, editor, version, cx).await?;
+    let spans = this.update(cx, |_, cx| changed_lines(before, editor.read(cx).rope()))?;
+    for (from, to) in spans.into_iter().rev() {
+        if to <= from {
+            continue;
+        }
+        let shifted = this.update(cx, |_, cx| {
+            let e = editor.read(cx);
+            let shift = indent_under_brace(e.rope(), from, to, &e.facts().indent_unit);
+            if shift.is_empty() {
+                return false;
+            }
+            editor.update(cx, |e, cx| {
+                let selections = mapped_selections(e, &shift);
+                let main = e.main_index();
+                e.apply_edit(&shift, selections, main, cx);
+            });
+            true
+        })?;
+        // A server that generated code without its context formats ranges the same way (back to
+        // column 0), so its range formatting is skipped then.
+        if !shifted && !format_lines(this, editor, from, to, cx).await? {
+            return Ok(());
+        }
+    }
+    Ok(())
+}
+
+/// Range-formats lines `from..=to` of `editor` silently, keeping only the server's edits inside
+/// them and none that would move the indented lines to column 0. Answers `false` when the text
+/// changed while the server answered, so later spans would no longer be where they were.
+async fn format_lines(
+    this: &This,
+    editor: &Entity<Editor>,
+    from: u32,
+    to: u32,
+    cx: &mut AsyncWindowContext,
+) -> anyhow::Result<bool> {
+    let question = this.update(cx, |workbench, cx| {
+        let e = editor.read(cx);
+        let settings = crate::platform::settings::effective(&workbench.label, cx);
+        let guard = FormatGuardOptions::from(&settings.editor.code_style);
+        let root = workbench.project_root(cx).map(|root| to_ipc(&root));
+        if e.is_read_only() || format_excluded(&to_ipc(e.path()), root.as_deref(), &guard.do_not_format) {
+            return None;
+        }
+        let rope = e.rope().clone();
+        let start = buffer::line_range(&rope, from).start;
+        let end = buffer::line_range(&rope, to).end;
+        let range = offsets_to_range(&rope, start, end);
+        Some((e.doc(), e.version(), rope, start, end, range, editor_format_options(e, None)))
+    })?;
+    let Some((doc, version, rope, start, end, range, options)) = question else { return Ok(true) };
+    let answer = call(this, cx, move |host, label| async move {
+        ide_host::ops::lsp::lsp_format(&host, &label, doc, Some(range), options).await
+    })
+    .await?;
+    let Ok(edits) = answer else { return Ok(true) };
+    this.update(cx, |_, cx| {
+        if editor.read(cx).version() != version {
+            return false;
+        }
+        let Some(changes) = range_format_changes(&rope, &edits, start, end) else { return true };
+        let changes: Vec<TextChange> = changes
+            .into_iter()
+            .filter(|change| buffer::slice(&rope, change.from, change.to) != change.insert)
+            .collect();
+        if !changes.is_empty() {
+            editor.update(cx, |e, cx| {
+                let selections = mapped_selections(e, &changes);
+                let main = e.main_index();
+                e.apply_edit(&changes, selections, main, cx);
+            });
+        }
+        true
+    })
 }
 
 /// The actions of `run`'s kind at the selection (or in the file): one is applied, several are
@@ -1564,6 +1663,7 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::path::Path;
 
+    mod proofs15_implement;
     mod proofs3_editor_keys;
     mod proofs5_editor;
     mod proofs7_hint;

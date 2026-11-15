@@ -411,8 +411,15 @@ pub fn changed_lines(before: &Rope, after: &Rope) -> Vec<(u32, u32)> {
     if before == after {
         return Vec::new();
     }
-    let old: Vec<String> = (0..buffer::line_count(before)).map(|line| buffer::line_text(before, line)).collect();
-    let new: Vec<String> = (0..buffer::line_count(after)).map(|line| buffer::line_text(after, line)).collect();
+    let old_lines: Vec<String> = (0..buffer::line_count(before)).map(|line| buffer::line_text(before, line)).collect();
+    let new_lines: Vec<String> = (0..buffer::line_count(after)).map(|line| buffer::line_text(after, line)).collect();
+    // The lines both texts start and end with are left out first, so a block inserted above a line
+    // equal to its own last one (a `}` above the class's `}`) is the inserted lines, not a shifted
+    // match of them.
+    let head = old_lines.iter().zip(&new_lines).take_while(|(a, b)| a == b).count();
+    let tail = old_lines[head..].iter().rev().zip(new_lines[head..].iter().rev()).take_while(|(a, b)| a == b).count();
+    let old = &old_lines[head..old_lines.len() - tail];
+    let new = &new_lines[head..new_lines.len() - tail];
     let (n, m) = (old.len(), new.len());
     let mut lcs = vec![vec![0u32; m + 1]; n + 1];
     for i in (0..n).rev() {
@@ -444,9 +451,9 @@ pub fn changed_lines(before: &Rope, after: &Rope) -> Vec<(u32, u32)> {
             }
         }
         if j > start {
-            push(start as u32, j as u32 - 1);
+            push((head + start) as u32, (head + j) as u32 - 1);
         } else if removed {
-            let at = (start as u32).min(m.saturating_sub(1) as u32);
+            let at = ((head + start) as u32).min(new_lines.len().saturating_sub(1) as u32);
             push(at, at);
         }
     }
@@ -748,6 +755,13 @@ mod tests {
     #[test]
     fn spans_the_lines_an_edit_inserted() {
         assert_eq!(changed_lines(&rope("class A {\n}\n"), &rope("class A {\n  f() {\n  }\n}\n")), [(1, 2)]);
+    }
+
+    #[test]
+    fn spans_an_inserted_block_whose_last_line_equals_the_line_below_it() {
+        let after = rope("class A {\nrun() {\n    go()\n}\n}\n");
+        assert_eq!(changed_lines(&rope("class A {\n}\n"), &after), [(1, 3)]);
+        assert_eq!(changed_lines(&rope("a\nb\nc\n"), &rope("a\nc\n")), [(1, 1)]);
     }
 
     #[test]

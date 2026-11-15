@@ -167,12 +167,37 @@ pub(super) fn refresh_folds(editor: &mut Editor, cx: &mut Context<Editor>) {
             }
             let state = editor.edit_state();
             let mut folds = std::mem::take(&mut editor.core.folds);
+            let first_answer = folds.answered().is_none();
             folds.set_backend(&state, &ranges, &|pos: u32| editor.facts().comments_at(pos), version);
             editor.core.folds = folds;
+            if first_answer {
+                fold_by_default(editor, &state, cx);
+            }
             cx.notify();
         });
     })
     .detach();
+}
+
+/// Folds the regions Code Folding › Fold by default names, once, when the backend's first fold
+/// ranges of the file arrive. Rows above the caret that fold away keep the caret's line where it was
+/// on screen, so a line the file was opened at stays in view.
+fn fold_by_default(editor: &mut Editor, state: &EditState, cx: &mut Context<Editor>) {
+    let folding = crate::platform::settings::effective(editor.window_label(), cx).editor.folding;
+    let chosen = editor.core.folds.folded_by_default(state, &folding);
+    if chosen.is_empty() {
+        return;
+    }
+    let head = editor.caret();
+    let caret_line = editor.caret_position().0;
+    let row_before = editor.core.folds.row_of_line(caret_line);
+    let effects = chosen.iter().map(|&region| folding::FoldEffect::Fold(region)).collect();
+    apply_fold_edit(editor, state, FoldEdit { effects, selection: None }, cx);
+    if head > 0 && !chosen.iter().any(|&(from, to)| from < head && head <= to) {
+        let rows = row_before.saturating_sub(editor.core.folds.row_of_line(caret_line));
+        let shift = editor.line_height(cx) * rows as f32;
+        editor.scroll_by(-shift, cx);
+    }
 }
 
 fn run_fold(editor: &mut Editor, command: FoldCommand, cx: &mut Context<Editor>) {

@@ -562,6 +562,9 @@ mod tests {
 
     mod levels_and_choosers;
     mod proofs13_editor;
+    mod proofs15_folding;
+    mod proofs15_paste_history;
+    mod proofs15_reformat;
 
     /// A trusted project of `files` in a window, `open` open in the editor with the keyboard. With
     /// `answers` the IDE is in Full mode, `*.mock` files have the fake language server answering

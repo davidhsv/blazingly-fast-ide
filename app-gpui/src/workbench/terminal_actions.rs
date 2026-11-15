@@ -265,6 +265,8 @@ mod tests {
     use serde_json::json;
     use std::path::{Path, PathBuf};
 
+    mod proofs15_terminal;
+
     /// Makes the plain shell of [`crate::terminal::test_support`], at `<home>/bin/plainsh`, the
     /// shell of every terminal the test starts (on top of the home of its own `start` gives them,
     /// with `HISTFILE=/dev/null`). Returns its path.

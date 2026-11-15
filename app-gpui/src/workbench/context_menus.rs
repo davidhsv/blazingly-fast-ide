@@ -1004,7 +1004,14 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let Some(layout) = self.tool_windows() else { return };
-        let items = tool_window_options(layout, id, keymap_shortcut("toolwindow.hideActive", cx));
+        let mut items = tool_window_options(layout, id, keymap_shortcut("toolwindow.hideActive", cx));
+        // The Project view's own options come first in its Options menu.
+        if id == super::PROJECT_TOOL_WINDOW {
+            let mut rows = super::project_view_options::header_menu_rows();
+            rows.push(MenuItem::Separator);
+            rows.append(&mut items);
+            items = rows;
+        }
         self.show_tool_window_menu(id, &items, position, window, cx);
     }
 
@@ -1811,7 +1818,10 @@ mod tests {
         let (f, cx) = open(cx, &[("a.txt", "a\n")], Setup::default());
         click(cx, "more:project".to_owned());
         let menu = f.workbench.read_with(cx, |w, _| w.open_menu::<ToolWindowCommand>()).expect("the options are open");
-        assert_eq!(shown(&menu, cx)[0], ["Move To", "Maximize", "-", "Hide"]);
+        // The Project view's own options come first, then the rows every tool window has.
+        let rows = shown(&menu, cx).swap_remove(0);
+        assert_eq!(rows.first().map(String::as_str), Some("Appearance"));
+        assert!(rows.ends_with(&["-", "Move To", "Maximize", "-", "Hide"].map(str::to_owned)), "{rows:?}");
         choose(&menu, &["Move To"], cx);
         assert!(disabled(&menu, "Left Top", cx), "the window's own area cannot be chosen");
         choose(&menu, &["Move To", "Right Top"], cx);

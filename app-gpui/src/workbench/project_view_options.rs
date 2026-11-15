@@ -413,7 +413,9 @@ mod tests {
         })
     }
 
-    /// Closes the window's project and opens it again; the new tree once it lists the project.
+    /// Closes the window's project and opens it again; the new tree once it lists the project (a pane
+    /// of some files only lists them once they are known). The caller must hold no handle on the old
+    /// tree, which writes its expansion when it is released.
     fn reopen(workbench: &Entity<Workbench>, root: &Path, cx: &mut VisualTestContext) -> Entity<ProjectTree> {
         let before = project_tree_of(workbench, cx).entity_id();
         workbench.update_in(cx, |w, window, cx| w.close_project(window, cx));
@@ -424,7 +426,9 @@ mod tests {
             workbench.read_with(cx, |w, _| w.project_tree().is_some_and(|tree| tree.entity_id() != before))
         });
         let tree = project_tree_of(workbench, cx);
-        wait_loaded(&tree, cx);
+        if matches!(tree.read_with(cx, |tree, _| tree.pane().mode()), ViewMode::Project | ViewMode::ProjectFiles) {
+            wait_loaded(&tree, cx);
+        }
         tree
     }
 
@@ -528,6 +532,7 @@ mod tests {
         wait_long(cx, "src to open once", |cx| shows_app(&tree, cx));
 
         // The choice is remembered: the project opened again behaves the same.
+        drop(tree);
         let tree = reopen(&workbench, &root, cx);
         assert_eq!(toggled("project.option.singleClickExpand", cx), Some(true));
         wait_long(cx, "src as it was left", |cx| shows_app(&tree, cx));
@@ -714,6 +719,7 @@ mod tests {
 
         // The pane is remembered: the project opened again shows "All Changed Files".
         run_action(cx, "project.viewMode.changedFiles", None);
+        drop(tree);
         let tree = reopen(&workbench, &root, cx);
         assert_eq!(pane(&tree, cx), ViewMode::ChangedFiles);
         wait_long(cx, "the changed file again", |cx| tree_labels(&tree, cx) == ["b.txt"]);
@@ -777,7 +783,10 @@ mod tests {
         let files = [("b.mock", "fn  f\n"), ("c.mock", "import y\nimport x\n")];
         let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &files);
         let (b, c) = (root.join("b.mock"), root.join("c.mock"));
-        let range = |line: u32, from: u32, to: u32| json!({ "start": { "line": line, "character": from }, "end": { "line": line, "character": to } });
+        let range = |line: u32, from: u32, to: u32| {
+            let at = |character: u32| json!({ "line": line, "character": character });
+            json!({ "start": at(from), "end": at(to) })
+        };
         let capabilities = json!({ "documentFormattingProvider": true });
         server.answer(json!({
             "capabilities": capabilities.clone(),
@@ -791,7 +800,9 @@ mod tests {
         let organize = json!({
             "title": "Organize imports",
             "kind": "source.organizeImports",
-            "edit": { "changes": { format!("file://{}", c.display()): [{ "range": whole, "newText": "import x\nimport y" }] } },
+            "edit": {
+                "changes": { format!("file://{}", c.display()): [{ "range": whole, "newText": "import x\nimport y" }] },
+            },
         });
         server.answer(json!({ "capabilities": capabilities, "textDocument/codeAction": [organize] }));
         select_in_tree(&workbench, &c, cx);

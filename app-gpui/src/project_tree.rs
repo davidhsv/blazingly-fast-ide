@@ -8,11 +8,13 @@ use crate::backend::{Backend, BackendEvent};
 use crate::platform::paths::is_same_or_inside;
 use crate::platform::storage::UiStorage;
 use crate::project_tree_model::{
-    FsChange, Listings, ProjectNode, SortKey, TreeModel, TreeOptions, build_model, drop_listings, is_dir_entry,
-    key_like, merge_listing, node_key_for, path_of_key, plan_refresh, visible_entries, visible_info,
+    FsChange, Listings, ProjectNode, SortKey, TreeModel, TreeOptions, drop_listings, is_dir_entry, key_like,
+    merge_listing, node_key_for, path_of_key, plan_refresh, visible_entries, visible_info,
 };
 use crate::project_tree_paths::ancestors_within;
+use crate::project_view::pane::TreePane;
 use crate::project_view::store::ProjectViewState;
+use crate::project_view::tree_clicks::{OpenRequest, RowClick, row_click, selection_open};
 use crate::theme;
 use crate::vcs_diff::model::FileDecorations;
 use gpui_kit::{
@@ -189,6 +191,8 @@ pub struct ProjectTree {
     trace: Vec<String>,
     /// A path to select and scroll to once its row exists.
     reveal: Option<String>,
+    /// The pane shown, and the files the filtered panes list.
+    pane: TreePane,
     scroll: UniformListScrollHandle,
     listener: Option<u64>,
     persist: Option<Task<()>>,
@@ -205,6 +209,7 @@ impl ProjectTree {
         let root = root.to_string_lossy().into_owned();
         let storage = cx.try_global::<UiStorage>();
         let options = storage.map(ViewOptions::stored).unwrap_or_default();
+        let pane = TreePane::stored(storage);
         // The tree as it was left: a collapsed root stays collapsed. Only a first open expands it.
         let expanded = storage
             .and_then(|storage| storage.get(&expanded_key(&root)))
@@ -245,6 +250,7 @@ impl ProjectTree {
             #[cfg(test)]
             trace: Vec::new(),
             reveal: None,
+            pane,
             scroll: UniformListScrollHandle::new(),
             listener,
             persist: None,
@@ -280,6 +286,9 @@ impl ProjectTree {
         state.root = Some(self.root.clone());
         state.name.clone_from(&self.name);
         state.options = self.options.clone();
+        state.mode = self.pane.mode();
+        state.set_open_files(self.pane.open_files());
+        state.set_changed_files(self.pane.changed_files());
         state.ignored = self.ignored.clone();
         state.listings.clone_from(&self.listings);
         state.expanded.clone_from(&self.expanded);
@@ -290,9 +299,14 @@ impl ProjectTree {
     /// Takes over what an operation changed in `state`: the expansion, and the row it asked to
     /// reveal. Returns whether the tree is to get the keyboard focus for that row.
     pub fn follow_state(&mut self, state: &mut ProjectViewState, cx: &mut Context<Self>) -> Option<bool> {
+        // The pane first: the expansion that comes with it is the new pane's.
+        let switched = self.pane.set_mode(state.mode);
         if state.expanded != self.expanded {
             self.expanded.clone_from(&state.expanded);
             self.expansion_changed(cx);
+        }
+        if switched {
+            self.rebuild(cx);
         }
         let request = state.reveal_request.take()?;
         self.reveal_path(&request.path, cx);
@@ -361,8 +375,9 @@ impl ProjectTree {
     /// Rebuilds the rows from what is loaded, asks for the folders that are open but not read,
     /// and serves a pending reveal.
     fn rebuild(&mut self, cx: &mut Context<Self>) {
-        self.model =
-            build_model(&self.root, &self.name, &self.listings, &self.options.tree_options(), &self.ignored, None);
+        self.model = self.pane.model(&self.root, &self.name, &self.listings, &self.options, &self.ignored);
+        // The folders of an "Open Files" or "All Changed Files" pane open as they appear.
+        self.pane.auto_expand(&self.model, &mut self.expanded);
         for dir in visible_info(&self.model, &self.expanded).pending {
             self.load_dir(&dir, false, cx);
         }
@@ -561,7 +576,7 @@ impl ProjectTree {
     }
 
     fn write_expanded(&self, cx: &mut App) {
-        if !cx.has_global::<UiStorage>() {
+        if !cx.has_global::<UiStorage>() || !self.pane.keeps_stored_expansion() {
             return;
         }
         let keys: Vec<&String> = self.expanded.iter().take(MAX_PERSISTED).collect();
@@ -597,7 +612,7 @@ impl ProjectTree {
         let Some(node) = self.model.by_key.get(key).cloned() else { return };
         if node.dir {
             self.toggle(key, cx);
-        } else if node.entry.is_some() {
+        } else if node.placeholder.is_none() && node.member.is_none() && !node.group {
             cx.emit(OpenFile(PathBuf::from(&node.path)));
         }
     }
@@ -641,6 +656,7 @@ impl ProjectTree {
             return;
         }
         let rows = self.rows();
+        let before = self.selected.clone();
         let current = self.selected.as_ref().and_then(|selected| rows.iter().position(|row| &row.node.key == selected));
         let row = current.and_then(|index| rows.get(index));
         let key_at = |index: usize| rows.get(index).map(|row| row.node.key.clone());
@@ -662,11 +678,62 @@ impl ProjectTree {
             ("enter", Some(row)) => self.activate(&row.node.key.clone(), cx),
             _ => return,
         }
+        if self.selected != before {
+            self.selection_changed(cx);
+        }
         if let Some(index) = self.selected.as_ref().and_then(|key| rows.iter().position(|row| &row.node.key == key)) {
             self.scroll.scroll_to_item(index, ScrollStrategy::Top);
         }
         cx.stop_propagation();
         cx.notify();
+    }
+}
+
+impl ProjectTree {
+    /// The pane shown.
+    pub fn pane(&self) -> &TreePane {
+        &self.pane
+    }
+
+    /// The files open in editor tabs, which "Open Files" lists.
+    pub fn set_open_files(&mut self, paths: &[String], cx: &mut Context<Self>) {
+        if self.pane.set_open_files(paths) {
+            self.rebuild(cx);
+        }
+    }
+
+    /// The files with local changes, which "All Changed Files" lists.
+    pub fn set_changed_files(&mut self, paths: &[String], cx: &mut Context<Self>) {
+        if self.pane.set_changed_files(paths) {
+            self.rebuild(cx);
+        }
+    }
+
+    /// The `count`th click of a burst on the row of `key`; `plain` when no modifier is held. The
+    /// row is selected, then the view options decide what else happens.
+    fn click_row(&mut self, key: &str, count: usize, plain: bool, cx: &mut Context<Self>) {
+        let moved = self.selected.as_deref() != Some(key);
+        self.select(key, cx);
+        let Some(node) = self.model.by_key.get(key).cloned() else { return };
+        match row_click(&self.options, &node, count, plain) {
+            RowClick::Select => {}
+            RowClick::Toggle => self.toggle(key, cx),
+            RowClick::Open { preview: false, focus: true } => self.activate(key, cx),
+            RowClick::Open { preview, focus } => {
+                cx.emit(OpenRequest { path: PathBuf::from(&node.path), preview, focus });
+            }
+        }
+        if moved && plain {
+            self.selection_changed(cx);
+        }
+    }
+
+    /// The selection moved: with Autoscroll to Source its file opens, the keyboard staying here.
+    fn selection_changed(&mut self, cx: &mut Context<Self>) {
+        let node = self.selected.as_ref().and_then(|key| self.model.by_key.get(key));
+        if let Some(request) = node.and_then(|node| selection_open(&self.options, node)) {
+            cx.emit(request);
+        }
     }
 }
 
@@ -750,10 +817,8 @@ impl Render for ProjectTree {
                             })
                             .on_click(cx.listener(move |tree, event: &ClickEvent, window, cx| {
                                 window.focus(&tree.focus, cx);
-                                tree.select(&clicked, cx);
-                                if event.click_count() >= 2 {
-                                    tree.activate(&clicked, cx);
-                                }
+                                let plain = !event.modifiers().modified();
+                                tree.click_row(&clicked, event.click_count(), plain, cx);
                             }))
                             .on_mouse_down(
                                 MouseButton::Right,
