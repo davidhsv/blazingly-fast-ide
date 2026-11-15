@@ -147,7 +147,9 @@ const withoutTests = (file) => {
   if (file.endsWith("/tests.rs") || file.includes("/tests/") || testOnly.has(file)) return "";
   const text = readFileSync(file, "utf8");
   const at = text.indexOf("#[cfg(test)]");
-  return at < 0 ? text : text.slice(0, at);
+  // A module named only in a comment is not used: line comments are left out before anything is looked
+  // for. Block comments stay: `/*` also occurs inside glob strings, and the crate writes none.
+  return (at < 0 ? text : text.slice(0, at)).replace(/(^|\s)\/\/.*$/gm, "$1");
 };
 // Only files the crate declares are part of it: a file on disk that no `mod` line names is not
 // compiled, so it can neither be the application nor make anything reached.
