@@ -5,7 +5,7 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1279/3145 rows at parity, 121 model only, 504 partial, 15 with nothing to port.**
+**Overall: 1287/3145 rows at parity, 121 model only, 501 partial, 15 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
@@ -52,13 +52,13 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerDevSamples` | 0 | 0 | 0 | 0 | 1 |
 | Settings pages | 16 | 0 | 7 | 0 | 68 |
 | Features | 0 | 0 | 16 | 0 | 43 |
-| Editor, platform, workbench and design-system modules | 28 | 1 | 65 | 0 | 253 |
+| Editor, platform, workbench and design-system modules | 29 | 1 | 64 | 0 | 253 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 21 |
-| IPC commands | 274 | 0 | 23 | 15 | 599 |
+| IPC commands | 279 | 0 | 23 | 15 | 599 |
 | Backend events (IdeEvent) | 15 | 0 | 3 | 0 | 31 |
 | Plugin API interfaces (wit/) | 8 | 0 | 12 | 0 | 49 |
-| Behaviour specification: unit tests (vitest) | 344 | 120 | 136 | 0 | 753 |
+| Behaviour specification: unit tests (vitest) | 346 | 120 | 134 | 0 | 753 |
 | Behaviour specification: end-to-end specs (Playwright) | 7 | 0 | 10 | 0 | 70 |
 
 ## Actions (439/836 at parity, 163 partial)
@@ -1640,7 +1640,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `web` | 283 |  |
 | [~] | `welcome` | 1944 | `workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::welcome::tests`, `workbench::plugins_window::tests::the_welcome_screen_lists_projects_and_customize_and_plugins_only_with_a_plugin_host`, `workbench::plugins_window::tests::customize_changes_the_theme_and_the_font_size_through_the_global_settings`, `workbench::plugins_window::tests::all_settings_on_customize_opens_the_settings_dialog`; the Welcome screen with search, groups, row menus, remove and reopen, the Customize page (theme, accent, font, keymap, All settings…) and the Plugins page with a plugin host. Missing: the Recent Projects popup, the project popup of the title bar, reopening the last project at start, and the IntelliJ theme imports of the Plugins page |
 
-## Editor, platform, workbench and design-system modules (28/253 at parity, 1 model only, 65 partial)
+## Editor, platform, workbench and design-system modules (29/253 at parity, 1 model only, 64 partial)
 
 Outside `src/features/`: the text editor (CodeMirror today), the platform layer, the workbench shell and the `src/ui` primitives.
 
@@ -1738,7 +1738,7 @@ Outside `src/features/`: the text editor (CodeMirror today), the platform layer,
 | [x] | `src/platform/buildFiles.ts` | 7 | `platform::virtual_docs::tests` |
 | [ ] | `src/platform/buildModel.ts` | 17 |  |
 | [ ] | `src/platform/buildToolRecovery.ts` | 38 |  |
-| [~] | `src/platform/candidateFonts.ts` | 79 | `theme::fonts::tests`; nothing measures fonts for it yet |
+| [x] | `src/platform/candidateFonts.ts` | 79 | `settings_view::custom_controls::tests::the_installed_fonts_are_read_once_a_font_picker_is_shown`, `settings_view::pages::font_picker::tests::explains_the_loading_state_without_declaring_saved_fonts_missing`; the font pickers list the families the text system reports, read once a picker is shown, and explain the loading state. The module's other part measures text on a canvas to guess the installed fonts when the webview has no catalog from the backend; the native catalog always comes from the text system, so there is nothing to do for it (D102) |
 | [x] | `src/platform/classFiles.ts` | 9 | `platform::virtual_docs::tests` |
 | [ ] | `src/platform/clientSettings.ts` | 107 |  |
 | [ ] | `src/platform/clipboard.ts` | 52 |  |
@@ -1942,7 +1942,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [ ] | `src-tauri/src/window_work_area.rs` | 209 |  |
 | [~] | `src-tauri/src/windows.rs` | 2281 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 
-## IPC commands (274/599 at parity, 23 partial, 15 with nothing to port)
+## IPC commands (279/599 at parity, 23 partial, 15 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -1977,8 +1977,8 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `analysis_locate_duplicates` | src-tauri/src/commands/analysis.rs | `ide_host::ops` | yes |  |
 | [ ] | `android_devices` | src-tauri/src/commands/android.rs | desktop shell | yes |  |
 | [ ] | `android_logcat` | src-tauri/src/commands/android.rs | desktop shell | yes |  |
-| [ ] | `app_build_info` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
-| [ ] | `app_cancel_quit` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [x] | `app_build_info` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::app_actions::tests::about_shows_the_version_of_the_build`, `app_views::about_dialog::tests::names_the_version_of_the_build_and_lists_its_facts`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: About names the version of the build and lists its facts (the runtime fact names GPUI where the webview names Tauri) |
+| [x] | `app_cancel_quit` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: cancelling a window's unsaved-changes question during Quit stops the quit, keeps every window, and the next Quit asks again from the start |
 | [ ] | `app_check_update` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [ ] | `app_cli_install` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [ ] | `app_cli_uninstall` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
@@ -2514,7 +2514,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `web_open` | src-tauri/src/commands/web.rs | desktop shell | yes |  |
 | [ ] | `web_unresolved_references` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
 | [ ] | `web_url` | src-tauri/src/commands/web.rs | desktop shell | yes |  |
-| [ ] | `window_close_context` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [x] | `window_close_context` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::proofs13_close_guard::does_not_confirm_exit_for_one_of_several_windows_or_during_quit`, `workbench::tests::proofs13_close_guard::confirms_exit_for_the_last_window_when_enabled`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: closing a window confirms the exit only for the last window and not during a quit, and the last project window goes back to Welcome (windows closing together as a tab group belong to the window-group rows) |
 | [ ] | `window_complete_launch` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [x] | `window_cycle` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`, `workbench::windows::tests::cycling_wraps_around_and_needs_two_windows`; the adapter's function, windows::cycle, is the Tauri shell's own; the native equivalent is the window.next and window.previous actions (workbench::windows::cycle_target over the open windows' labels): Next activates main from the last window and Previous goes back to it |
 | [ ] | `window_flash_taskbar` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
@@ -2532,7 +2532,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `window_open_comparison` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [ ] | `window_open_deployment` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [ ] | `window_open_file_in_new_window` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
-| [ ] | `window_open_files` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [x] | `window_open_files` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it`, `workbench::tests::proofs13_windows::leaves_files_to_the_existing_light_edit_window_or_their_projects_window`, `workbench::tests::proofs13_windows::turns_a_window_without_a_project_into_light_edit_when_no_light_edit_window_exists`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: a loose file opened from a window goes to the window whose project has it, which comes to the front, else to the single-file window, else this window becomes one |
 | [~] | `window_open_project` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; see the file.openProjectPath action |
 | [ ] | `window_open_projects` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [ ] | `window_open_remote` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
@@ -2540,7 +2540,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `window_set_titlebar_height` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [ ] | `window_start_drag` | src-tauri/src/commands/window_drag.rs | desktop shell | yes |  |
 | [ ] | `window_take_launch` | src-tauri/src/commands/window.rs | desktop shell | no |  |
-| [ ] | `window_toggle_fullscreen` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [x] | `window_toggle_fullscreen` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::proofs15_full_screen::toggle_full_screen_puts_the_window_in_full_screen_and_takes_it_out`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: Toggle Full Screen puts the window in native full screen and takes it out, through the registry and by its shortcut |
 | [ ] | `workspace_attach` | src-tauri/src/commands/workspace.rs | `ide_host::ops` | yes |  |
 | [ ] | `workspace_create` | src-tauri/src/commands/workspace.rs | desktop shell | yes |  |
 | [ ] | `workspace_discover_projects` | src-tauri/src/commands/workspace.rs | desktop shell | yes |  |
@@ -2638,7 +2638,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `invocation` | wit/workspace.wit | `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`; a command run from the window gets its project and focused editor (the word count of notes.txt), and selected-paths carries the Project view menu's file |
 | [~] | `vcs` | wit/workspace.wit | `workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_reads_the_projects_log_blame_and_diff`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; log, blame and diff answer the commit, its author and the changed line, and status shows as the plugin's branch item. Missing: remotes, and fetch's effect is not asserted |
 
-## Behaviour specification: unit tests (vitest) (344/753 at parity, 120 model only, 136 partial)
+## Behaviour specification: unit tests (vitest) (346/753 at parity, 120 model only, 134 partial)
 
 753 files, 6287 cases. A row is at parity when the behaviour its cases assert is covered by Rust tests of the GPUI app.
 
@@ -2932,7 +2932,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `src/features/debugger/__tests__/console.test.ts` | 6 | `debugger::state::tests` |
 | [ ] | `src/features/debugger/__tests__/debugConsoleLinks.test.tsx` | 4 |  |
 | [ ] | `src/features/debugger/__tests__/debugFind.test.tsx` | 10 |  |
-| [~] | `src/features/debugger/__tests__/editor.test.ts` | 14 | `debugger::editor::breakpoint_gutter::tests`, `debugger::editor::execution::tests`, `debugger::state::tests::tracks_pause_continue_termination_and_publishes_context_keys`, `debugger::state::tests::ignores_sessions_this_window_did_not_start_but_adopts_children_of_its_own`; 12 of 14 cases, including the cached editor state refreshed when an editor is shown again (`debugger::editor::execution::tests::an_editor_shown_again_takes_the_execution_point_of_the_moment`); the remaining cases test the DOM of the webview (the click area of other gutters' empty space, the execution line surviving an inline rendering error), which has no native counterpart |
+| [x] | `src/features/debugger/__tests__/editor.test.ts` | 14 | `debugger::editor::breakpoint_gutter::tests`, `debugger::editor::execution::tests`, `debugger::state::tests::tracks_pause_continue_termination_and_publishes_context_keys`, `debugger::state::tests::ignores_sessions_this_window_did_not_start_but_adopts_children_of_its_own`, `workbench::plugin_contributions::tests::a_gutter_icon_click_neither_moves_the_caret_nor_toggles_a_breakpoint`; 12 of 14 cases, including the cached editor state refreshed when an editor is shown again (`debugger::editor::execution::tests::an_editor_shown_again_takes_the_execution_point_of_the_moment`); a click on another gutter's marker toggles no breakpoint while a click on that gutter's empty space does. The last case checks that the execution line survives a decoration whose script throws while rendering; native inline values are plain strings with no such path (D102) |
 | [x] | `src/features/debugger/__tests__/exceptions.test.ts` | 4 | `debugger::breakpoints::exceptions::tests` |
 | [x] | `src/features/debugger/__tests__/executionState.test.ts` | 10 | `debugger::state::tests`, `debugger::actions::tests::each_resuming_action_clears_the_old_execution_point_before_its_request`, `debugger::state::tests::proofs11_execution_state::retains_locals_whose_names_are_object_prototype_properties`; ten of ten cases |
 | [ ] | `src/features/debugger/__tests__/expressionCompletion.test.tsx` | 2 |  |
@@ -3024,7 +3024,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [~] | `src/features/plugins/__tests__/views.test.tsx` | 26 | `workbench::plugin_tool_windows::tests`, `plugin_views::view_node::tests`, `plugin_models::view_helpers::tests`; 15 of 26 cases through the views and the application. Missing: the four HTML frame cases and the HTML theme switch (HTML bodies are not drawn), adding a plugin, command-argument unpacking, context-menu projection, grouping one plugin, zero-based coordinates |
 | [ ] | `src/features/plugins/__tests__/viewWindows.test.tsx` | 12 |  |
 | [~] | `src/features/plugins/__tests__/webViews.test.tsx` | 18 | `plugin_models::web_frames::tests`; the state and logic of 3 of 18 cases, on the model; the view is not built |
-| [~] | `src/features/plugins/__tests__/workspaceContains.test.ts` | 13 | `plugin_models::workspace_contains::tests`; 12 of 13 cases: stopping to listen on disposal is the caller's part, which is not wired |
+| [x] | `src/features/plugins/__tests__/workspaceContains.test.ts` | 13 | `plugin_models::workspace_contains::tests`; 12 of 13 cases. The thirteenth checks that the script module unregisters its event handlers when disposed; natively the reaction is part of the window's event handling and goes with the window (D102) |
 | [x] | `src/features/plugins/activeFile.test.ts` | 1 | `plugin_models::active_file::tests` |
 | [m] | `src/features/plugins/indexedMarkers.test.ts` | 8 | `plugin_models::indexed_markers::tests` |
 | [~] | `src/features/plugins/languageVisuals.test.ts` | 3 | `plugin_models::language_visuals::tests`; 2 of 3 cases: highlighting an embedded slice with its own grammar needs the editor |

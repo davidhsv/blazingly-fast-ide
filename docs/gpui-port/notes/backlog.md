@@ -705,3 +705,10 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - Recorded partial: model.test.ts 14/15, ExecutePopup.test.tsx (9/9 on state; Tab, Page keys, section click, build change not driven through the drawn popup), actions.test.tsx 2/4, linkage.test.tsx 4/16, feature:build-tools.
 - MISSING FEATURES by cases: Dependency Analyzer 14; automatic syncs 9 (stale build, first import, profile toggle, applied scripts: `is_build_file` ignores applied scripts); Add/Unlink Maven Projects 8; POM navigation 7; version catalog 5; workspace 4.
 - TEST-ONLY leftovers (3 cases): the Maven window leaving when the POM goes; dropping a late link result; reloading one chosen build. + ExecutePopup through the drawn popup (4 cases) → a small test batch finishes ExecutePopup.test.tsx and moves actions/linkage.
+
+## Shell plumbing rows read one by one (2026-11-15). D118. Inventory 1,287/3,145.
+
+- Recorded done: ipc app_build_info, app_cancel_quit, window_close_context, window_open_files, window_toggle_fullscreen (native behaviour + test); candidateFonts.ts, workspaceContains.test.ts, debugger editor.test.ts (D102).
+- TEST-ONLY (3 ipc rows): user_font_data (a font of the user's folder draws), app_info, window_start_drag → see docs/.../triage/plumbing_rows.json `asserts`.
+- HELD until a test proves the user-visible part: module fonts.ts, fonts.test.ts, keptTabs.test.tsx, selectableText.test.ts. Rows with a user-visible open case (8): see plumbing_rows.json group 2.
+- MISSING window features (23 rows): tab groups 9; title bar chrome 3 (full-screen inset never released; window buttons under zoom = HYPOTHESIS to check in the real window; other windows' projects in the project widget); remote 2; comparison window for folders; deployment window; WSL; dock bounce; Settings as its own window.

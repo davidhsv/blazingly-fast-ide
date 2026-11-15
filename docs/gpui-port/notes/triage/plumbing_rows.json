@@ -1,0 +1,763 @@
+[
+  {
+    "key": "ipc:app_build_info",
+    "group": 1,
+    "class": "behaviour-proven",
+    "user_sees": "The About dialog's version, build number, profile, OS/arch and runtime, plus 'You are up to date (version X)' after a check. The Check for Updates action and Settings › Updates page exist only when an update endpoint is configured.",
+    "webview_callers": [
+      "src/features/app/host.ts:17",
+      "src/features/app/updates.tsx:107",
+      "src/features/settings/pages/registry.tsx:67",
+      "src/features/settings/pages/updates.tsx:23"
+    ],
+    "native": "app-gpui/src/app_views/about_dialog.rs:this_build; app-gpui/src/workbench/menu.rs (CHECK_FOR_UPDATES left out: the app has no updater)",
+    "tests": [
+      "workbench::app_actions::tests::about_shows_the_version_of_the_build",
+      "app_views::about_dialog::tests::names_the_version_of_the_build_and_lists_its_facts"
+    ],
+    "asserts": "app.about through the registry opens About with 'OpenIDEA <CARGO_PKG_VERSION>' and the Configuration fact. The dialog's info text starts 'Version: X\\nBuild: '. The runtime fact says GPUI where the webview says the Tauri version. Updates stay hidden in both when no endpoint is configured; the update check itself belongs to the app.checkForUpdates row.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:app_cancel_quit",
+    "group": 1,
+    "class": "behaviour-proven",
+    "user_sees": "When the user cancels a window's unsaved-changes question during Quit, the quit stops, every window stays, and the next Quit asks again from the start.",
+    "webview_callers": ["src/features/app/closeGuard.ts:184", "src/features/app/closeGuard.ts:208"],
+    "native": "app-gpui/src/workbench/app_shell.rs:quit_then (resets the Quitting global when a window does not close)",
+    "tests": ["workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it"],
+    "asserts": "The test runs app.quit twice. Each time it gets Confirm Exit, then Unsaved Changes, answers Cancel, and checks that the window and the unsaved text stay and nothing is written. The second round asks Confirm Exit again, which happens only if the first quit was called off (quit_then returns early while Quitting is set).",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:app_info",
+    "group": 1,
+    "class": "behaviour-untested",
+    "user_sees": "The welcome screen's version, the About dialog's Configuration folder and its Show Config link, the title bar style for the platform (overlay on macOS, frameless elsewhere), ConPTY settings for the Windows terminal, and resize handles on Wayland.",
+    "webview_callers": [
+      "src/platform/platformInfo.ts:42",
+      "src/features/welcome/recent.ts:70",
+      "src/features/app/AboutDialog.tsx:54"
+    ],
+    "native": "app-gpui/src/app_views/about_dialog.rs (config folder from Backend dirs); app-gpui/src/workbench/title_bar.rs:TitleBarFrame (per-OS frame); welcome version from the build",
+    "tests": [
+      "workbench::app_actions::tests::about_shows_the_version_of_the_build",
+      "workbench::welcome::tests::shows_brand_version_and_project_rows_with_badges_home_relative_paths_and_branches"
+    ],
+    "asserts": "Proven: About lists Configuration = the backend's config dir (about_shows_the_version_of_the_build). Also shown: the welcome version (view test with an injected version). Untested: the per-platform parts, since the native app has been run and tested on macOS only. These are the Windows build number the webview gives xterm for ConPTY reflow, and the Wayland edge resize handles. A test, or a run on those platforms, would assert terminal reflow on Windows and edge resizing on a Wayland session.",
+    "confidence": "low"
+  },
+  {
+    "key": "ipc:clipboard_image",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Pasting a raw clipboard image (a screenshot) into an agent conversation's composer attaches it as an image. The command does real work only on Linux (WebKitGTK leaves clipboardData empty) and returns null elsewhere.",
+    "webview_callers": ["src/features/agents/Composer.tsx:322"],
+    "native": "",
+    "tests": [],
+    "asserts": "Missing: the native conversation composer (agents/composer_view.rs) has no image paste and no way to add an image. Only agents/new_task_view.rs reads ClipboardEntry::Image, and that module is not declared in agents/mod.rs, so its test (attaches_the_clipboards_image_when_pasting_without_text) is not in the build. A test would write an image to the clipboard, press cmd-v in a conversation's composer, and assert the draft's images and the chip.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:log_frontend",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "The log file that Help › Show Log opens (and that is attached to an issue report) contains the window's uncaught UI errors and logged failures under the target 'frontend'.",
+    "webview_callers": ["src/platform/errorLog.ts:25", "src/platform/errorLog.ts:44"],
+    "native": "",
+    "tests": [],
+    "asserts": "Missing: native tracing goes to stderr only (main.rs tracing_subscriber::fmt().init()). There is no log file, help.showLog is not registered (About shows its link only when registered), and platform/error_log_sink.rs is not declared (D103). Forwarding itself is not needed natively, since tracing is in process. What is missing is the file and the UI failures reaching it. A test would make a window task fail and assert that a 'frontend' line lands in the log file that Show Log opens.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:remote_invoke",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Everything a Remote Development window does (files, editor, run, VCS on the SSH host or WSL distro) goes through this forwarder to the remote backend.",
+    "webview_callers": ["src/platform/remote.ts:61"],
+    "native": "",
+    "tests": [],
+    "asserts": "Missing: there are no remote windows natively. app_shell.rs:carry_out_open answers OpenStep::ConnectRemote with the error '<path> is on another machine'. features_b/remote_dev has models only and is used by nothing outside itself.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:user_font_data",
+    "group": 1,
+    "class": "behaviour-untested",
+    "user_sees": "A font installed for the user only (for example in ~/Library/Fonts) draws in the editor and terminal on macOS. WKWebView cannot see such fonts, so the webview loads their bytes over this raw IPC.",
+    "webview_callers": ["src/platform/fonts.ts:69"],
+    "native": "app-gpui/src/theme/installed_fonts.rs:family_with_fallbacks (GPUI's text system draws any installed family by name)",
+    "tests": ["settings_view::custom_controls::tests::the_editor_draws_with_the_font_applied_on_the_font_page"],
+    "asserts": "The editor-font test proves that a family the text system lists is drawn, but it injects the installed list. Native enumeration is CoreText's all-families collection (gpui-fast-apple text_system.rs all_font_names via create_for_all_families, family loading via font-kit SystemSource). Read in source and not measured: that it includes user-domain fonts (~/Library/Fonts). Missing test or real-window check: pick a font that exists only in ~/Library/Fonts (this machine has BebasNeue there), apply it on the Font page, and assert that the picker lists it and the editor's text_style family is it, not the fallback.",
+    "confidence": "low"
+  },
+  {
+    "key": "ipc:window_close_context",
+    "group": 1,
+    "class": "behaviour-proven",
+    "user_sees": "Closing a window confirms the exit only for the last window and not during a quit. Closing the last project window shows the Welcome screen instead. A tab group closing together counts as one window.",
+    "webview_callers": ["src/features/app/closeGuard.ts:182"],
+    "native": "app-gpui/src/workbench/app_shell.rs:request_close (CloseContext{quitting, windows: window_count})",
+    "tests": [
+      "workbench::tests::proofs13_close_guard::does_not_confirm_exit_for_one_of_several_windows_or_during_quit",
+      "workbench::tests::proofs13_close_guard::confirms_exit_for_the_last_window_when_enabled",
+      "workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says"
+    ],
+    "asserts": "With two windows, one closes without a question, and a quit confirms once and then closes all. The last window asks Confirm Exit. The last project window goes back to Welcome. The tab-group counting has no native counterpart because there are no groups; it belongs to the window-group rows.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_complete_launch",
+    "group": 1,
+    "class": "no-user-behaviour",
+    "user_sees": "Nothing the user can see. It releases the shell's 'opening' reservation once the webview has consumed its launch, so the shell's routing stops reading the pending launch for that window.",
+    "webview_callers": ["src/features/app/windows.ts:270"],
+    "native": "",
+    "tests": [],
+    "asserts": "The reservation exists because a Tauri window's page takes its launch asynchronously after it loads. Natively a window is created with its Target and opens it in process (windows::open_window), so there is no handoff to release. Not checked: whether a second open of the same project, made while the first window is still opening, focuses that window natively (that belongs to the open-project rows).",
+    "confidence": "low"
+  },
+  {
+    "key": "ipc:window_flash_taskbar",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "When a breakpoint stops a session in a background window, the dock icon bounces (the Windows taskbar flashes, or Linux sets the urgency hint) until the window is focused or the session resumes.",
+    "webview_callers": ["src/features/debugger/taskbarFlash.ts:20", "src/features/debugger/taskbarFlash.ts:37"],
+    "native": "app-gpui/src/debugger/taskbar_flash.rs:TaskbarFlash (decision model); app-gpui/src/debugger/driver.rs (BackendCall::WindowFlashTaskbar is treated as a failure and never asks the OS)",
+    "tests": [
+      "debugger::taskbar_flash::tests::flashes_once_until_stopped_and_never_without_a_shell",
+      "debugger::state::tests::flashes_when_a_breakpoint_stops_an_unfocused_window"
+    ],
+    "asserts": "The tests assert only the model's decisions (flash once, stop on focus or resume). Missing: driver.rs answers the flash request with taskbar_flash_failed(), so the user never sees an attention request. A test would need a platform hook for request_user_attention and assert it is called on a background breakpoint stop and cleared on focus.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_group_cancel_close",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "When the user cancels the unsaved-changes question of one project tab during Close Other/Left/Right Project Tabs, the remaining tabs of the batch stay open. For a single window it only marks the close as settled, and the window stays.",
+    "webview_callers": [
+      "src/features/app/closeGuard.ts:184",
+      "src/features/app/closeGuard.ts:192",
+      "src/features/app/closeGuard.ts:208",
+      "src/features/app/closeGuard.ts:212"
+    ],
+    "native": "app-gpui/src/workbench/app_shell.rs:request_close / close_requests.finished (single-window part only)",
+    "tests": ["workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says"],
+    "asserts": "The single-window effect exists and is proven: after Cancel the project stays and the next close asks again. The batch-stop part is missing because there are no window tab groups natively.",
+    "confidence": "low"
+  },
+  {
+    "key": "ipc:window_group_close",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Closing one project tab of a window tab group from its tab.",
+    "webview_callers": ["src/features/app/windows.ts:413"],
+    "native": "",
+    "tests": [],
+    "asserts": "Missing: window tab groups. platform/window_groups.rs is a model nothing calls.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_group_close_tabs",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Close Other / Left / Right Project Tabs closes those project windows one by one, each asking about its unsaved changes, then selects the kept tab.",
+    "webview_callers": ["src/features/app/windows.ts:298"],
+    "native": "",
+    "tests": [],
+    "asserts": "Missing: window tab groups.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_group_current",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "The project tab strip of a grouped window (names, current tab) and the windowGrouped context key.",
+    "webview_callers": ["src/platform/windowGroups.ts:19"],
+    "native": "app-gpui/src/platform/window_groups.rs:is_window_grouped (model only, no caller)",
+    "tests": [],
+    "asserts": "Missing: window tab groups. No action of the group (window.mergeAllWindows, detachTab, selectTab, closeTab, close*Tabs, reorderTabs, nextTab) is registered natively; menu_spec.rs only names three of them. platform/window_groups.rs is a model with no caller outside its tests.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_group_detach",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Window › Move Tab to New Window takes the project tab out of its group.",
+    "webview_callers": ["src/features/app/windows.ts:396"],
+    "native": "",
+    "tests": [],
+    "asserts": "Missing: window tab groups. menu_spec.rs lists window.detachTab, but nothing registers it.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_group_merge",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Window › Merge All Project Windows turns every project window into tabs of one window.",
+    "webview_callers": ["src/features/app/windows.ts:388"],
+    "native": "",
+    "tests": [],
+    "asserts": "Missing: window tab groups.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_group_reorder",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Dragging a project tab reorders the group's tabs.",
+    "webview_callers": ["src/features/app/windows.ts:443"],
+    "native": "app-gpui/src/platform/window_groups.rs:reordered_tabs (model only, no caller)",
+    "tests": [],
+    "asserts": "Missing: window tab groups.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_group_restore",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "With 'Reopen projects on startup' on, every project window and tab group open at quit comes back after the first project opens.",
+    "webview_callers": ["src/platform/windowGroups.ts:41"],
+    "native": "app-gpui/src/workbench/welcome_model.rs (reopens the last project only)",
+    "tests": [],
+    "asserts": "Missing: natively only the last project reopens (welcome_model::tests::reopens_the_last_project_when_the_launch_named_none). No session of several windows or groups is saved or restored. A test would quit with two project windows and start again, then assert two windows with those projects.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_group_select",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Clicking a project tab, or Next/Previous Project Tab, switches the group's shown project.",
+    "webview_callers": ["src/platform/windowGroups.ts:24", "src/features/app/windows.ts:404"],
+    "native": "app-gpui/src/platform/window_groups.rs:cycled_tab (model only, no caller)",
+    "tests": [],
+    "asserts": "Missing: window tab groups.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_is_fullscreen",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "In native full screen the title bar drops the space it keeps for the macOS window buttons, so its content starts at the left edge.",
+    "webview_callers": ["src/workbench/useFullscreen.ts:17"],
+    "native": "app-gpui/src/workbench/title_bar.rs:TitleBarFrame::leading (has a fullscreen flag that nothing sets)",
+    "tests": [],
+    "asserts": "Missing: TitleBarFrame.fullscreen is only ever false (no assignment outside defaults and tests), so the 82 px inset stays in full screen. A test would toggle full screen and assert the title bar's leading padding drops from WINDOW_BUTTONS_WIDTH to 10.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_open_comparison",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Compare Versions of two Git Log commits, or Compare with Branch, opens a window listing the files that differ between the two revisions.",
+    "webview_callers": ["src/features/vcs/operations.tsx:535"],
+    "native": "",
+    "tests": ["workbench::diff_tools::tests::compare_with_branch_diffs_the_file_against_the_branch_chosen"],
+    "asserts": "Missing, and asserted as missing by a native test: compare_with_branch_diffs_the_file_against_the_branch_chosen runs Compare with Branch on a folder and asserts that nothing opens ('A folder is compared in the path comparison, which the window does not have'). Compare Versions of two log commits and Compare Branches have no comparison window either (D83: 'Changes between' not wired).",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_open_deployment",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Sync with Deployed opens a window comparing local paths with a deployment server, with Jump to Source back into the project.",
+    "webview_callers": ["src/features/deployment/windowBridge.ts:11"],
+    "native": "app-gpui/src/features_b/deployment/comparison.rs:DeploymentComparison (model only, no caller outside the module)",
+    "tests": [],
+    "asserts": "Missing: the deployment comparison window.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_open_file_in_new_window",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "An editor tab's 'Open in New Window', or dropping a tab outside the window, saves the file, opens it in a new window (with its project or in LightEdit), and removes the tab.",
+    "webview_callers": ["src/editor/core/controller.ts:1537"],
+    "native": "",
+    "tests": [],
+    "asserts": "Missing: the native editor tab menu has no Open in New Window, and a tab dropped outside the window does not detach. A test would run the tab's menu item and assert a second window edits the file and the tab is gone.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_open_files",
+    "group": 1,
+    "class": "behaviour-proven",
+    "user_sees": "Loose files opened from a window without a local project go to the window whose project has them (brought to the front), else to the LightEdit window, else this window turns into LightEdit.",
+    "webview_callers": ["src/features/app/windows.ts:110"],
+    "native": "app-gpui/src/workbench/app_shell.rs:route_files",
+    "tests": [
+      "workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it",
+      "workbench::tests::proofs13_windows::leaves_files_to_the_existing_light_edit_window_or_their_projects_window",
+      "workbench::tests::proofs13_windows::turns_a_window_without_a_project_into_light_edit_when_no_light_edit_window_exists"
+    ],
+    "asserts": "Open File from an empty window hands a project's file to the window that has the project, which comes to the front, and edits other files on its own. A file another window edits loose goes to that window and the asking window stays empty. Without a LightEdit window, this one becomes it.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_open_projects",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "The title bar project widget's popup lists the projects open in other windows (and the current one) above the recent ones, to switch to them.",
+    "webview_callers": ["src/features/welcome/ProjectPopup.tsx:27"],
+    "native": "app-gpui/src/workbench/title_bar.rs:project_menu (Open…, Recent Projects, Close Project only)",
+    "tests": [],
+    "asserts": "Missing: the native project widget menu lists neither the open projects nor the recent ones inline, and has no filter. A test would open two project windows, open the widget, and assert the other project is listed and that choosing it focuses its window.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_open_remote",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Opening a recent remote project, or connecting to an SSH host or WSL distro, opens or focuses a remote window.",
+    "webview_callers": [
+      "src/features/welcome/RecentList.tsx:133",
+      "src/workbench/projectWindow.ts:61",
+      "src/workbench/projectWindow.ts:65"
+    ],
+    "native": "",
+    "tests": [],
+    "asserts": "Missing: Remote Development (see remote_invoke).",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:window_open_settings",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Settings (and Settings for New Projects, Plugins, Keymap) opens on its page; for new projects it edits the global layer.",
+    "webview_callers": ["src/features/settings/index.ts:104"],
+    "native": "app-gpui/src/workbench/settings_window.rs (Settings dialog layer over the window)",
+    "tests": ["workbench::tests::settings_for_new_projects_and_plugins_open_on_their_pages"],
+    "asserts": "The page and scope parts are proven by settings_for_new_projects_and_plugins_open_on_their_pages: file.newProjectsSettings opens on languages.java in the Global scope, and plugins.settings opens on plugins. Missing: the webview's Settings is a separate OS window, opened or focused and navigated, that the user can keep beside the project. Natively it is a modal layer inside the window, and no decision accepts that difference.",
+    "confidence": "low"
+  },
+  {
+    "key": "ipc:window_set_titlebar_height",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "On macOS the window buttons stay vertically centred in the title bar when its height changes (IDE zoom, the compact Distraction Free header).",
+    "webview_callers": ["src/workbench/nativeTitlebar.ts:26"],
+    "native": "app-gpui/src/workbench/mod.rs:window_options (traffic_light_position fixed at 13,13)",
+    "tests": [],
+    "asserts": "Hypothesis: the native buttons sit at a fixed position while the title bar's height follows the theme length, which zoom scales (D108), so they are not centred at 150 % or in the compact header. To check, look at the real window at zoom 150 % and in Distraction Free mode. A fix would set the traffic-light position from the bar height.",
+    "confidence": "low"
+  },
+  {
+    "key": "ipc:window_start_drag",
+    "group": 1,
+    "class": "behaviour-untested",
+    "user_sees": "Dragging the title bar's empty space moves the window. Double-click zooms it. A quick tap does not leave the window following the pointer.",
+    "webview_callers": ["src/workbench/window-drag.ts:57"],
+    "native": "app-gpui/src/workbench/title_bar.rs:TitleBar::render (.window_control_area(WindowControlArea::Drag) on the bar; AppKit runs the drag)",
+    "tests": [],
+    "asserts": "The tap guard is a WebKit workaround with nothing to port. A test would hit-test the title bar's drag space and assert it reports WindowControlArea::Drag, and that a widget inside the bar does not; whether the test platform exposes that is unverified.",
+    "confidence": "low"
+  },
+  {
+    "key": "ipc:window_take_launch",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "A window opens what it was opened for: a project, files with caret positions from `openidea --line/--column`, `openidea diff a b`, a remote project, a Settings page, a comparison or a deployment window. A second `openidea` invocation lands in the running app.",
+    "webview_callers": [
+      "src/features/settings/index.ts:175",
+      "src/features/app/windows.ts:233",
+      "src/features/vcs/ComparisonWindow.tsx:107",
+      "src/features/deployment/window.tsx:79"
+    ],
+    "native": "app-gpui/src/workbench/windows.rs:open_window(Target::{Empty,Project,File}); app-gpui/src/main.rs (one path argument)",
+    "tests": [
+      "workbench::tests::proofs13_windows::leaves_files_to_the_existing_light_edit_window_or_their_projects_window"
+    ],
+    "asserts": "Natively a window opens its Target in process, so the project and single-file parts exist. Missing: --line/--column, the CLI diff, several files, remote launches and the hand-off to a running instance (main.rs reads args().nth(1) only). The comparison and deployment windows are missing too (own rows). A test would launch with a file and line 12 and assert the caret.",
+    "confidence": "low"
+  },
+  {
+    "key": "ipc:window_toggle_fullscreen",
+    "group": 1,
+    "class": "behaviour-proven",
+    "user_sees": "View › Toggle Full Screen (⌃⌘F) puts the window in native full screen and takes it out.",
+    "webview_callers": ["src/features/app/windows.ts:559"],
+    "native": "app-gpui/src/workbench/windows.rs:register_actions (window.toggleFullScreen -> window.toggle_fullscreen())",
+    "tests": [
+      "workbench::tests::proofs15_full_screen::toggle_full_screen_puts_the_window_in_full_screen_and_takes_it_out"
+    ],
+    "asserts": "window.toggleFullScreen through the registry, and cmd-ctrl-f on a Mac host, turn window.is_fullscreen() on and off. A tab group entering full screen together is part of the window-group rows.",
+    "confidence": "high"
+  },
+  {
+    "key": "ipc:wsl_resolve",
+    "group": 1,
+    "class": "behaviour-missing",
+    "user_sees": "Opening a \\\\wsl.localhost\\<distro>\\… folder (Windows) opens it as a WSL project that runs in the distro, not as a network folder.",
+    "webview_callers": ["src/platform/remote.ts:272", "src/features/app/windows.ts:59"],
+    "native": "app-gpui/src/workbench/app_shell.rs:carry_out_open (OpenStep::ResolveWsl answered with wsl_resolved(None))",
+    "tests": [],
+    "asserts": "Missing: WSL. The native open flow always treats the folder as local.",
+    "confidence": "high"
+  },
+  {
+    "key": "module:src/platform/candidateFonts.ts",
+    "group": 2,
+    "class": "all-webview-mechanics",
+    "user_sees": "In the webview, the font pickers fall back to a short list of measured candidates when the backend font list cannot be had. The native pickers always list the installed families.",
+    "native": "app-gpui/src/settings_view/custom_controls.rs:load_font_catalog / system_font_catalog",
+    "tests": [
+      "settings_view::custom_controls::tests::the_installed_fonts_are_read_once_a_font_picker_is_shown",
+      "settings_view::pages::font_picker::tests::explains_the_loading_state_without_declaring_saved_fonts_missing"
+    ],
+    "asserts": "The first page with a font picker reads the installed families, and the picker states what came back, including the empty-catalog message.",
+    "open_cases": [
+      {
+        "case": "detectCandidateFonts canvas width probing",
+        "class": "webview-mechanics",
+        "why": "A recovery path for a webview without a backend catalog: it compares canvas measureText widths. The native catalog comes from the text system, which has no failure path, so theme::fonts::detect_candidate_fonts is called only by its tests."
+      }
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "module:src/platform/cssColor.ts",
+    "group": 2,
+    "class": "has-user-visible",
+    "user_sees": "The colours drawn for colour strings: terminal palette tokens, GitHub label colours, Mermaid colours.",
+    "native": "app-gpui/src/platform/css_color.rs:parse_color / resolve_token_color",
+    "tests": ["platform::css_color::tests::parses_hex_rgb_and_color_srgb_and_formats_them_back"],
+    "asserts": "hex, rgb() and color(srgb) parse and format back. Nothing asserts loosely written rgb().",
+    "open_cases": [
+      {
+        "case": "rgb() input parsed more strictly (separators) and clamped (channels) natively, where the webview keeps it as written",
+        "class": "user-visible",
+        "why": "D102 already ruled it a difference in result: a loose rgb() draws a different colour, or none, natively."
+      }
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "module:src/platform/fonts.ts",
+    "group": 2,
+    "class": "all-webview-mechanics",
+    "user_sees": "Editor, terminal and interface text draws in the chosen family, then the fallback font, then the bundled stack.",
+    "native": "app-gpui/src/theme/installed_fonts.rs:family_with_fallbacks / first_installed; app-gpui/src/theme/bundled_fonts.rs:register",
+    "tests": [
+      "settings_view::custom_controls::tests::the_editor_draws_with_the_font_applied_on_the_font_page",
+      "terminal::view::tests::the_grid_font_falls_back_along_the_terminals_family_list",
+      "workbench::tests::a_custom_interface_font_is_the_family_the_workbench_draws_with",
+      "theme::bundled_fonts::tests::the_bundled_faces_register_with_the_text_system",
+      "theme::installed_fonts::tests::the_interface_font_is_the_first_drawable_family_of_the_themes_list"
+    ],
+    "asserts": "The editor draws the applied family and falls back to the fallback font. The terminal falls back along its list. A custom UI font is drawn. The bundled faces register.",
+    "open_cases": [
+      {
+        "case": "CSS font-family stack strings (monoFontFamily, uiFontFamily, monoStack via getComputedStyle)",
+        "class": "webview-mechanics",
+        "why": "CSS strings for the DOM, canvas and xterm. Natively they are GPUI Font values, and the drawn order is proven by the tests listed."
+      },
+      {
+        "case": "macOS user font resolver (user_font_data bytes, FontFace, document.fonts)",
+        "class": "webview-mechanics",
+        "why": "WKWebView hides user-installed fonts from CSS. GPUI's text system draws them by name. The native counterpart (a user-domain font draws) is read in source, not measured; see ipc:user_font_data."
+      },
+      {
+        "case": "fontsLoaded waiting for faces before xterm measures",
+        "class": "webview-mechanics",
+        "why": "Asynchronous FontFace loading. GPUI resolves fonts synchronously at layout."
+      }
+    ],
+    "confidence": "low"
+  },
+  {
+    "key": "module:src/platform/systemFonts.ts",
+    "group": 2,
+    "class": "has-user-visible",
+    "user_sees": "The font pickers' list of families, their monospaced marks, loading/ready/empty states and refresh.",
+    "native": "app-gpui/src/settings_view/custom_controls.rs:load_font_catalog / system_font_catalog; app-gpui/src/theme/fonts.rs:SystemFonts",
+    "tests": [
+      "settings_view::custom_controls::tests::the_installed_fonts_are_read_once_a_font_picker_is_shown",
+      "settings_view::pages::font_picker::tests::explains_the_loading_state_without_declaring_saved_fonts_missing"
+    ],
+    "asserts": "The families are read once, when the first picker shows, and the empty state is shown. Nothing compares the families or the monospaced marks with the backend's.",
+    "open_cases": [
+      {
+        "case": "the list is not fed from the backend's ide_fonts::families",
+        "class": "user-visible",
+        "why": "Natively the names come from GPUI's all_font_names, and 'monospaced' means equal 'i'/'W' advances at 16 px. The backend uses the fixed-pitch flag, PANOSE or advances, so which families are listed and marked can differ (for example a symbol-only Nerd font)."
+      },
+      {
+        "case": "error and browser fallback to detected candidates ('limited' source)",
+        "class": "webview-mechanics",
+        "why": "Covers an IPC failure or the absence of Tauri. The native read cannot fail."
+      }
+    ],
+    "confidence": "low"
+  },
+  {
+    "key": "module:src/ui/Tooltip.tsx",
+    "group": 2,
+    "class": "has-user-visible",
+    "user_sees": "Where a tooltip appears: beside a stripe button, below other controls, flipped near the window edge.",
+    "native": "app-gpui/src/ui/tooltip.rs:Tooltip (GPUI's own placement)",
+    "tests": [
+      "ui::tooltip::tests::a_press_before_the_delay_ends_keeps_the_tooltip_hidden_until_the_pointer_leaves",
+      "workbench::tests::a_pressed_widgets_tooltip_stays_off_the_menu_it_opened"
+    ],
+    "asserts": "The delay, the content lines and the dismissals. Placement is not asserted.",
+    "open_cases": [
+      {
+        "case": "placement beside a stripe and the flip near the window edge",
+        "class": "user-visible",
+        "why": "The position is what the user sees. The webview uses floating-ui side placement with flip and shift; native tooltips use GPUI's cursor-relative placement with no stripe side. They differ, and no test covers it."
+      }
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "unit:src/editor/core/view/keptTabs.test.tsx",
+    "group": 2,
+    "class": "all-webview-mechanics",
+    "user_sees": "Switching back to an agent conversation, a plugin tab or a Docker log tab shows it as it was, without a rebuild.",
+    "native": "app-gpui/src/workbench/tab_views.rs:TabViews (one view entity per open tab, dropped only on close); app-gpui/src/editor/tabs.rs:kept_tabs (test-only)",
+    "tests": [
+      "editor::tabs::tests::keep_alive_kinds_keep_their_recent_tabs_while_another_tab_is_active",
+      "agents::session::tests::leaves_a_task_unread_while_its_kept_alive_tab_is_hidden_and_reads_it_once_shown"
+    ],
+    "asserts": "The model's keep set, and that a hidden kept-alive conversation leaves its task unread. No window test switches away and back to show the same view.",
+    "open_cases": [
+      {
+        "case": "kept tabs stay mounted but hidden, and only the plain tab is rebuilt (React mount counts, aria-hidden)",
+        "class": "webview-mechanics",
+        "why": "It counts which React components stay mounted. Natively every open tab keeps its GPUI entity until it closes, so nothing is ever rebuilt."
+      },
+      {
+        "case": "the least recently used kept tabs beyond the limit of 5 are unmounted",
+        "class": "webview-mechanics",
+        "why": "A DOM memory budget. Natively there is no limit; the user only ever sees no rebuild."
+      }
+    ],
+    "confidence": "low"
+  },
+  {
+    "key": "unit:src/features/debugger/__tests__/editor.test.ts",
+    "group": 2,
+    "class": "has-user-visible",
+    "user_sees": "A click on the empty space of another gutter column toggles the line's breakpoint, while a click on that column's marker does not. The execution line keeps following the pause.",
+    "native": "app-gpui/src/workbench/plugin_contributions.rs (plugin gutter column) with the breakpoint gutter; app-gpui/src/debugger/editor/execution.rs",
+    "tests": [
+      "workbench::plugin_contributions::tests::a_gutter_icon_click_neither_moves_the_caret_nor_toggles_a_breakpoint",
+      "debugger::editor::execution::tests::highlights_the_suspended_line_and_shows_inline_values",
+      "debugger::editor::execution::tests::an_editor_shown_again_takes_the_execution_point_of_the_moment"
+    ],
+    "asserts": "A click on the empty cell of the plugin icon column sets a breakpoint; a click on the icon runs its command and leaves the caret and breakpoints alone. The suspended line is highlighted. With that test cited and the other case being mechanics, the row has no open case left that lacks a native proof.",
+    "open_cases": [
+      {
+        "case": "toggles from empty space in other gutters but leaves their markers alone",
+        "class": "user-visible",
+        "why": "D102 ruled it user-visible, and it is proven natively. The spec clicks an extra gutter's marker (no breakpoint) and that gutter's empty cell on another line (one breakpoint). a_gutter_icon_click_neither_moves_the_caret_nor_toggles_a_breakpoint clicks the empty cell of the plugin icon column one line below the icon (one breakpoint), then the icon (caret, selection and breakpoints unchanged). The row's proof does not cite that test, and its claim that the case has no native counterpart is wrong."
+      },
+      {
+        "case": "keeps the execution line synchronized if inline rendering throws",
+        "class": "webview-mechanics",
+        "why": "A throwing JS getter inside a CodeMirror decoration, caught by exceptionSink. Native inline values are plain strings with no throwing path. The visible part, the line following the pause, is proven by the execution tests."
+      }
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "unit:src/features/plugins/__tests__/workspaceContains.test.ts",
+    "group": 2,
+    "class": "all-webview-mechanics",
+    "user_sees": "Plugin contributions gated by workspaceContains appear and disappear as the named files are created or removed.",
+    "native": "app-gpui/src/workbench/plugin_runtime.rs:answer_workspace_contains / plugin_backend_event",
+    "tests": [
+      "plugin_models::workspace_contains::tests::re_evaluates_when_the_file_is_created_and_deleted",
+      "plugin_models::workspace_contains::tests::ignores_unrelated_changes"
+    ],
+    "asserts": "Re-evaluation on create and delete, and unrelated changes are ignored.",
+    "open_cases": [
+      {
+        "case": "stops listening when disposed",
+        "class": "webview-mechanics",
+        "why": "Checks that the JS module unregisters its Tauri IPC event handlers. Natively the reaction lives in the Workbench's event handler and drops with it. Nothing is visible."
+      }
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "unit:src/features/terminal/embedded.test.ts",
+    "group": 2,
+    "class": "has-user-visible",
+    "user_sees": "In a Run console that emulates a terminal, text committed by an input method (Pinyin, dead keys, emoji) reaches the program once.",
+    "native": "app-gpui/src/run/view.rs:console_key (keystroke key_char only, no input handler); app-gpui/src/terminal/view.rs has the IME handler for the Terminal tool window only",
+    "tests": ["terminal::view::tests::proofs14_ime::sends_a_composition_commit_reported_without_compositionstart"],
+    "asserts": "An IME commit reaches the shell once in the Terminal tool window. Nothing types IME text into a Run console.",
+    "open_cases": [
+      {
+        "case": "delivers input-method commits to the owner on macOS as the terminal sessions do",
+        "class": "user-visible",
+        "why": "The DOM part (keyCode 229, InputEvent) is mechanics, but IME text reaching the program is visible. Hypothesis: RunView registers no input handler, so composed text never arrives. To check, run simulate_input('ü') on a focused Run console and read the pending input."
+      }
+    ],
+    "confidence": "low"
+  },
+  {
+    "key": "unit:src/platform/fonts.test.ts",
+    "group": 2,
+    "class": "all-webview-mechanics",
+    "user_sees": "The chosen font, its fallback and the bundled fonts draw, and user fonts work on macOS.",
+    "native": "app-gpui/src/theme/installed_fonts.rs:family_with_fallbacks; app-gpui/src/theme/bundled_fonts.rs:register",
+    "tests": [
+      "settings_view::custom_controls::tests::the_editor_draws_with_the_font_applied_on_the_font_page",
+      "terminal::view::tests::the_grid_font_falls_back_along_the_terminals_family_list",
+      "theme::bundled_fonts::tests::the_bundled_faces_register_with_the_text_system"
+    ],
+    "asserts": "The drawn family follows the setting and falls back to the fallback font, and the bundled faces register.",
+    "open_cases": [
+      {
+        "case": "monoFontFamily/uiFontFamily stacks and CSS escaping (3 cases)",
+        "class": "webview-mechanics",
+        "why": "Builds and escapes CSS font-family strings. The native counterpart is the drawn family order, proven above."
+      },
+      {
+        "case": "macOS user font resolver (7 cases: load data once, skip available/bundled/Nerd families, canvas probes)",
+        "class": "webview-mechanics",
+        "why": "WKWebView needs font bytes over IPC through FontFace and canvas detection. GPUI draws installed families directly. The native counterpart (a user-domain font draws) is read in source, not measured; see ipc:user_font_data."
+      }
+    ],
+    "confidence": "low"
+  },
+  {
+    "key": "unit:src/platform/icls.test.ts",
+    "group": 2,
+    "class": "has-user-visible",
+    "user_sees": "Importing an IntelliJ .icls colour scheme: a malformed file is refused, and the imported scheme persists and is listed, checked, in the scheme menu.",
+    "native": "app-gpui/src/theme/icls.rs:parse_icls / import_scheme; app-gpui/src/app_models/jetbrains_settings.rs",
+    "tests": ["theme::icls::tests::imports_pycharm_dot_keys_after_shared_defaults_without_inherited_font_effects"],
+    "asserts": "The model cases. Refusal is covered only for what the hand-written parser rejects.",
+    "open_cases": [
+      {
+        "case": "hand-written XML parser accepts input DOMParser rejects (parsererror, doctype)",
+        "class": "user-visible",
+        "why": "A difference in result like the rgb() case of D102: a file the webview refuses ('Invalid .icls color scheme') is imported natively."
+      },
+      {
+        "case": "settings round trip by JSON only (webview runs validateSettings and lists the scheme checked in the menu)",
+        "class": "user-visible",
+        "why": "The user sees the scheme survive the store and appear in the scheme menu. Natively only a JSON round trip is tested, and the colour scheme pages are not built (D84)."
+      }
+    ],
+    "confidence": "low"
+  },
+  {
+    "key": "unit:src/platform/proxySettings.test.ts",
+    "group": 2,
+    "class": "has-user-visible",
+    "user_sees": "Settings › HTTP Proxy, manual configuration: 'Proxy host is empty', 'Invalid proxy host', the port range, 'Proxy login is empty'.",
+    "native": "app-gpui/src/settings_view/pages/general_http_proxy.rs:ProxyForm::problem (undeclared draft, not in the build); crates/ide-core ProxySettings::problem",
+    "tests": [],
+    "asserts": "A missing test would open HTTP Proxy, choose Manual, type hosts '  ', 'http://proxy' and 'user@proxy', port 0 and an empty login with authentication on, and assert the exact messages.",
+    "open_cases": [
+      {
+        "case": "reports a missing or invalid host, port and login",
+        "class": "user-visible",
+        "why": "The messages are shown. The backend's wording differs ('Invalid proxy host: {host}', whitespace rule), and the draft page that matches the webview is not declared, so no proxy page is built (D84)."
+      },
+      {
+        "case": "checks only a manual configuration",
+        "class": "user-visible",
+        "why": "Whether a problem shows at all. Both implementations agree, but no built page shows it."
+      }
+    ],
+    "confidence": "high"
+  },
+  {
+    "key": "unit:src/ui/selectableText.test.ts",
+    "group": 2,
+    "class": "all-webview-mechanics",
+    "user_sees": "A right-click on selected read-only text offers Copy, and ⌘C copies it.",
+    "native": "app-gpui/src/platform_more/selectable_text.rs:copy_menu_for / copies_selection (not reached by the app)",
+    "tests": [
+      "platform_more::selectable_text::tests::offers_copy_of_the_selection_in_a_selectable_pane",
+      "platform_more::selectable_text::tests::copies_the_text_captured_when_the_menu_opened"
+    ],
+    "asserts": "The model offers Copy for a selection and copies the captured text. No window test right-clicks a preview. The row's other, already-counted cases still need the app to reach the model. Caveat: the user-visible counterpart is not proven, because nothing the app reaches calls copy_menu_for (copies_selection is used only by the tests of app_models/console_copy.rs).",
+    "open_cases": [
+      {
+        "case": "is a real class name",
+        "class": "webview-mechanics",
+        "why": "Checks that a CSS-module class string exists. GPUI has no class names."
+      },
+      {
+        "case": "resolves text-node targets",
+        "class": "webview-mechanics",
+        "why": "A DOM event target can be a Text node. GPUI hit-testing has none."
+      },
+      {
+        "case": "falls back to execCommand when the clipboard API is missing",
+        "class": "webview-mechanics",
+        "why": "A browser clipboard API fallback. GPUI writes the clipboard directly."
+      }
+    ],
+    "confidence": "low"
+  },
+  {
+    "key": "unit:src/workbench/focus.test.ts",
+    "group": 2,
+    "class": "has-user-visible",
+    "user_sees": "After a popup closes the keyboard returns to the editor unless the popup handed it elsewhere. Focus Editor reaches a restored editor. Focus moves do not lose or scroll carets.",
+    "native": "app-gpui/src/workbench (popup close handling); app-gpui/src/platform_more/focus.rs:FocusTracker (not wired)",
+    "tests": [
+      "workbench::tests::proofs13_focus::returns_focus_to_the_editor_when_the_last_popup_closes_and_focus_was_left_nowhere",
+      "platform_more::focus::tests::leaves_focus_alone_when_the_popup_handed_it_to_another_component",
+      "workbench::tests::focus_editor_runs_from_the_focused_project_view"
+    ],
+    "asserts": "Through the window: Escape on a popup with the keyboard nowhere gives it to the editor. The hand-off case is model-only.",
+    "open_cases": [
+      {
+        "case": "leaves focus alone when the popup handed it to another component",
+        "class": "user-visible",
+        "why": "Where the keyboard ends up is visible. Only a model test exists, on an unwired FocusTracker. A window test would close a popup that focused a tool window and assert that window keeps the keyboard."
+      },
+      {
+        "case": "waits for the restored editor to become visible before focusing it",
+        "class": "webview-mechanics",
+        "why": "Browser focus() does nothing on a hidden element. GPUI focuses a FocusHandle regardless; the visible part is covered by focus_editor_runs_from_the_focused_project_view."
+      },
+      {
+        "case": "leaves the caret to the next editor when focus moves between editors",
+        "class": "webview-mechanics",
+        "why": "One shared DOM Selection across contenteditables. Each native editor owns its selections."
+      },
+      {
+        "case": "drops the editor's caret when focus moves to a menu, so focusing again cannot scroll",
+        "class": "webview-mechanics",
+        "why": "WebKit scrolls to the DOM selection on focus. The native editor does not scroll on focus (no test checks it)."
+      },
+      {
+        "case": "keeps the selection in an unrelated editable or read-only preview (2 cases)",
+        "class": "webview-mechanics",
+        "why": "The shared DOM Selection again. Native views keep their own selection state."
+      }
+    ],
+    "confidence": "low"
+  },
+  {
+    "key": "unit:src/features/settings/__tests__/contrast.test.ts",
+    "group": 2,
+    "class": "all-webview-mechanics",
+    "user_sees": "Every theme keeps text, syntax, status and VCS colours readable (WCAG AA, 7:1 for high contrast).",
+    "native": "app-gpui/src/theme/tokens.rs:TOKENS_CSS (include_str of src/styles/tokens.css); app-gpui/src/settings_model/contrast.rs",
+    "tests": [
+      "settings_model::contrast::tests::light_text_meets_wcag_aa_on_the_editor_and_popup_surfaces",
+      "settings_model::contrast::tests::high_contrast_dark_reaches_7_to_1_for_text_and_4_5_to_1_for_everything_readable",
+      "settings_model::contrast::tests::have_a_tokens_css_block_for_every_palette_theme_id_and_no_other"
+    ],
+    "asserts": "All spec cases run against the same tokens.css the native theme includes.",
+    "open_cases": [
+      {
+        "case": "the row is model-only because settings_model::contrast has no runtime caller",
+        "class": "webview-mechanics",
+        "why": "Strictly a data lint rather than webview mechanics, like D102's ideaParity.test.ts: it checks colour data both apps load from one file and by design has no runtime caller. parity.json already says done while INVENTORY.md shows [m]."
+      }
+    ],
+    "confidence": "high"
+  }
+]

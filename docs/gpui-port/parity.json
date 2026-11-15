@@ -604,8 +604,8 @@
     "proof": "`theme::fonts::tests`"
   },
   "module:src/platform/candidateFonts.ts": {
-    "status": "partial",
-    "proof": "`theme::fonts::tests`; nothing measures fonts for it yet"
+    "status": "done",
+    "proof": "`settings_view::custom_controls::tests::the_installed_fonts_are_read_once_a_font_picker_is_shown`, `settings_view::pages::font_picker::tests::explains_the_loading_state_without_declaring_saved_fonts_missing`; the font pickers list the families the text system reports, read once a picker is shown, and explain the loading state. The module's other part measures text on a canvas to guess the installed fonts when the webview has no catalog from the backend; the native catalog always comes from the text system, so there is nothing to do for it (D102)"
   },
   "unit:src/platform/systemFonts.test.ts": {
     "status": "done",
@@ -1516,8 +1516,8 @@
     "proof": "`debugger::state::tests`"
   },
   "unit:src/features/debugger/__tests__/editor.test.ts": {
-    "status": "partial",
-    "proof": "`debugger::editor::breakpoint_gutter::tests`, `debugger::editor::execution::tests`, `debugger::state::tests::tracks_pause_continue_termination_and_publishes_context_keys`, `debugger::state::tests::ignores_sessions_this_window_did_not_start_but_adopts_children_of_its_own`; 12 of 14 cases, including the cached editor state refreshed when an editor is shown again (`debugger::editor::execution::tests::an_editor_shown_again_takes_the_execution_point_of_the_moment`); the remaining cases test the DOM of the webview (the click area of other gutters' empty space, the execution line surviving an inline rendering error), which has no native counterpart"
+    "status": "done",
+    "proof": "`debugger::editor::breakpoint_gutter::tests`, `debugger::editor::execution::tests`, `debugger::state::tests::tracks_pause_continue_termination_and_publishes_context_keys`, `debugger::state::tests::ignores_sessions_this_window_did_not_start_but_adopts_children_of_its_own`, `workbench::plugin_contributions::tests::a_gutter_icon_click_neither_moves_the_caret_nor_toggles_a_breakpoint`; 12 of 14 cases, including the cached editor state refreshed when an editor is shown again (`debugger::editor::execution::tests::an_editor_shown_again_takes_the_execution_point_of_the_moment`); a click on another gutter's marker toggles no breakpoint while a click on that gutter's empty space does. The last case checks that the execution line survives a decoration whose script throws while rendering; native inline values are plain strings with no such path (D102)"
   },
   "unit:src/features/debugger/__tests__/exceptions.test.ts": {
     "status": "done",
@@ -2844,8 +2844,8 @@
     "proof": "`plugin_models::web_frames::tests`; the state and logic of 3 of 18 cases, on the model; the view is not built"
   },
   "unit:src/features/plugins/__tests__/workspaceContains.test.ts": {
-    "status": "partial",
-    "proof": "`plugin_models::workspace_contains::tests`; 12 of 13 cases: stopping to listen on disposal is the caller's part, which is not wired"
+    "status": "done",
+    "proof": "`plugin_models::workspace_contains::tests`; 12 of 13 cases. The thirteenth checks that the script module unregisters its event handlers when disposed; natively the reaction is part of the window's event handling and goes with the window (D102)"
   },
   "unit:src/features/plugins/activeFile.test.ts": {
     "status": "done",
@@ -7674,5 +7674,25 @@
   "feature:build-tools": {
     "status": "partial",
     "proof": "`workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`, `workbench::build_tools::tests::reload_reads_the_dependency_trees_with_maven_and_refreshes_the_tree`, `workbench::build_tools::tests::stop_cancels_a_running_sync_without_an_error`, `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`, `workbench::build_tools::tests::a_task_runs_by_its_path_with_the_builds_wrapper_and_offline`, `workbench::build_tools::tests::execute_maven_goal_runs_the_typed_line_and_offers_it_again_as_recent`, `workbench::build_tools::tests::the_execute_list_scrolls_to_the_completion_the_keyboard_selects`, `workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`, `workbench::build_tools::tests::does_not_link_or_start_gradle_imports_in_an_untrusted_project`; the Maven and Gradle tool windows with their trees, toolbars and options, Reload with progress, Stop and its errors, phase, goal and task runs through the Run window, the Execute popup with completion and recent lines, Gradle Link and Unlink, and nothing linked or synced in Restricted Mode. Missing: the Dependency Analyzer, Add and Unlink Maven Projects, automatic syncs (stale builds, first import, profile toggles, applied scripts), POM navigation, the version catalog, the Run Anything provider, the Execute popup's project chooser as a select, the buttons a sync error offers, and Link and Unlink off in a Workspace window"
+  },
+  "ipc:app_build_info": {
+    "status": "done",
+    "proof": "`workbench::app_actions::tests::about_shows_the_version_of_the_build`, `app_views::about_dialog::tests::names_the_version_of_the_build_and_lists_its_facts`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: About names the version of the build and lists its facts (the runtime fact names GPUI where the webview names Tauri)"
+  },
+  "ipc:app_cancel_quit": {
+    "status": "done",
+    "proof": "`workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: cancelling a window's unsaved-changes question during Quit stops the quit, keeps every window, and the next Quit asks again from the start"
+  },
+  "ipc:window_close_context": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs13_close_guard::does_not_confirm_exit_for_one_of_several_windows_or_during_quit`, `workbench::tests::proofs13_close_guard::confirms_exit_for_the_last_window_when_enabled`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: closing a window confirms the exit only for the last window and not during a quit, and the last project window goes back to Welcome (windows closing together as a tab group belong to the window-group rows)"
+  },
+  "ipc:window_open_files": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it`, `workbench::tests::proofs13_windows::leaves_files_to_the_existing_light_edit_window_or_their_projects_window`, `workbench::tests::proofs13_windows::turns_a_window_without_a_project_into_light_edit_when_no_light_edit_window_exists`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: a loose file opened from a window goes to the window whose project has it, which comes to the front, else to the single-file window, else this window becomes one"
+  },
+  "ipc:window_toggle_fullscreen": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs15_full_screen::toggle_full_screen_puts_the_window_in_full_screen_and_takes_it_out`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: Toggle Full Screen puts the window in native full screen and takes it out, through the registry and by its shortcut"
   }
 }
