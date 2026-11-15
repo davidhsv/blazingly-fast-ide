@@ -530,7 +530,8 @@ mod tests {
         assert!(!notification_titles(&workbench, cx).contains(&"Cannot annotate".to_owned()));
     }
 
-    /// A click on a line's entry shows that line's commit in the Git log, and sets no breakpoint.
+    /// A click on a line's entry, with the pointer resting on it first as a user's does, shows that
+    /// line's commit in the Git log, and sets no breakpoint.
     #[gpui_kit::test]
     async fn a_click_on_an_entry_shows_its_commit_in_the_git_log(cx: &mut TestAppContext) {
         let (workbench, cx, _folders, root) = git_project(cx, two_authors);
@@ -539,6 +540,9 @@ mod tests {
         wait_long(cx, "the annotations", |cx| shown(&editor, cx).len() == 3);
         let bob = git_in(&root, &["rev-parse", "HEAD"]);
         let at = column_point(&editor, 1, cx);
+        cx.simulate_mouse_move(at, None, Modifiers::default());
+        cx.run_until_parked();
+        assert!(cx.debug_bounds(HOVER_SELECTOR).is_some(), "the press lands on the entry's tooltip area");
         cx.simulate_click(at, Modifiers::default());
         cx.run_until_parked();
         wait_long(cx, "the Git window", |cx| workbench.read_with(cx, |w, _| w.is_tool_window_visible(GIT_TOOL_WINDOW)));
@@ -612,6 +616,24 @@ mod tests {
         let cy = expected(&root, "HEAD", "Cy", cx);
         assert_eq!(shown(&editor, cx)[1], (1, cy.0, cy.1));
         assert_eq!(editor.read_with(cx, |editor, _| editor.text()), "alpha\nBETA\ngamma\n");
+    }
+
+    /// The action's toggle follows the active editor: off on a tab whose editor shows no annotations,
+    /// on again back on the annotated one.
+    #[gpui_kit::test]
+    async fn the_toggle_follows_the_active_editor(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = git_project(cx, two_authors);
+        std::fs::write(root.join("c.txt"), "other\n").expect("the file is written");
+        let editor = open_file(&workbench, &root, "b.txt", cx);
+        run_action(cx, ANNOTATE, None);
+        wait_long(cx, "the annotations", |cx| shown(&editor, cx).len() == 3);
+        assert_eq!(toggled(cx), Some(true));
+        let other = open_file(&workbench, &root, "c.txt", cx);
+        assert!(!annotated(&other, cx));
+        assert_eq!(toggled(cx), Some(false));
+        let again = open_file(&workbench, &root, "b.txt", cx);
+        assert_eq!(again.entity_id(), editor.entity_id(), "the annotated tab is selected again");
+        assert_eq!(toggled(cx), Some(true));
     }
 
     /// The gutter's own menu says Close Annotations while the column shows, and choosing it closes

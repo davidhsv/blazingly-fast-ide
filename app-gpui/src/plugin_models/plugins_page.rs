@@ -3394,6 +3394,8 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
+    mod proofs14_page;
+
     type Events = Rc<RefCell<Vec<PluginsPageEvent>>>;
 
     fn init(cx: &mut TestAppContext) {

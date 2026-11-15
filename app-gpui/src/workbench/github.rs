@@ -1560,6 +1560,7 @@ mod tests {
     use gpui_kit::{Focusable, TestAppContext, VisualTestContext};
     use std::cell::{Cell, RefCell};
     mod proofs11_github;
+    mod proofs14_github_window;
     mod proofs7_github_urls;
     mod proofs9_github;
 

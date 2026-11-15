@@ -51,6 +51,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
+pub mod annotations;
+
 /// The font code is drawn with: the first installed family of `families` (empty names skipped)
 /// followed by the theme's `--font-mono` list, the others after it for characters it lacks;
 /// weight `weight` (CSS 100 to 900); ligatures only when `ligatures` is on. The editor and the
@@ -174,6 +176,8 @@ struct Layout {
     gutter: Pixels,
     /// Width of the fold chevrons' column, the gutter's last.
     fold_column: Pixels,
+    /// Width of the blame annotations' column, the gutter's first; none while it is not shown.
+    annotation_column: Pixels,
     /// Left edge of the text: right of the gutter, or of the margin that centres it.
     text_left: Pixels,
     line_height: Pixels,
@@ -318,6 +322,8 @@ pub struct Editor {
     created: std::time::Instant,
     /// Folding, Extend / Shrink Selection and the font zoom ([`super::core_actions`]).
     pub(super) core: super::core_actions::CoreState,
+    /// Blame annotations shown in the gutter's first column ([`annotations`]).
+    annotations: Option<annotations::Annotations>,
 }
 
 impl Editor {
@@ -417,6 +423,7 @@ impl Editor {
             generation: 0,
             created: std::time::Instant::now(),
             core: Default::default(),
+            annotations: None,
         };
         editor.refresh_highlights(cx);
         editor
@@ -881,6 +888,9 @@ impl Editor {
             *marks = map_marks(marks, &changes);
         }
         self.marks.retain(|_, marks| !marks.is_empty());
+        if let Some(annotations) = self.annotations.as_mut() {
+            annotations.map(&old, &changes);
+        }
         // The colours move with the text until the new highlights arrive; a range whose text is gone goes.
         if !changes.is_empty() {
             self.highlights = self
@@ -1665,6 +1675,10 @@ impl Editor {
         window.focus(&self.focus, cx);
         if let Some(line) = self.gutter_line_at(event.position) {
             (self.drag_anchor, self.adding) = (None, None);
+            // The blame annotations' column answers its own presses: no breakpoint toggles there.
+            if self.press_annotation(event.position, cx) {
+                return;
+            }
             // The chevrons' column opens and closes the line's fold and takes no breakpoint.
             if self.in_fold_column(event.position) {
                 self.toggle_fold_at_line(line, cx);
@@ -1748,6 +1762,7 @@ impl Editor {
                 self.gutter_hovered = over_gutter;
                 cx.notify();
             }
+            self.hover_annotation(Some(event.position), cx);
             if event.pressed_button.is_none() {
                 self.hover(self.text_offset_at(event.position), event.modifiers, cx);
             }
@@ -1983,9 +1998,11 @@ impl Render for Editor {
             .on_hover(cx.listener(|editor, hovered: &bool, _, cx| {
                 if !hovered {
                     editor.hover(None, Modifiers::default(), cx);
+                    editor.hover_annotation(None, cx);
                 }
             }))
             .child(EditorElement { editor: cx.entity() })
+            .children(self.annotation_hover_target())
             .children(self.overlay.clone().map(|overlay| div().absolute().top_0().left_0().size_0().child(overlay)))
     }
 }
@@ -2012,6 +2029,8 @@ struct Prepared {
     placeholders: Vec<Option<(ShapedLine, ShapedLine)>>,
     /// Per painted row: the chevron of a folded line in the gutter.
     markers: Vec<Option<ShapedLine>>,
+    /// The blame annotations' column, when it is shown.
+    annotations: Option<annotations::PreparedColumn>,
 }
 
 /// `runs` (covering a line's bytes in order) with the bytes `from..to` in `color`.
@@ -2198,6 +2217,10 @@ impl Element for EditorElement {
                 window.text_system().shape_line(chevron.into(), font_size, &[run(chevron.len(), marker_color)], None)
             }));
         }
+        // The blame annotations' column, when shown, is the gutter's first and widens it.
+        let column = editor.prepare_annotations(&painted, gutter > px(0.0), window, cx);
+        let annotation_column = column.as_ref().map_or(px(0.0), annotations::PreparedColumn::width);
+        let gutter = gutter + annotation_column;
         // Distraction Free Mode centres a column of its width in characters (and the caret's room).
         let text_left = if distraction_free(cx) {
             let zero = window.text_system().shape_line("0".into(), font_size, &[run(1, plain)], None);
@@ -2211,6 +2234,7 @@ impl Element for EditorElement {
                 bounds,
                 gutter,
                 fold_column,
+                annotation_column,
                 text_left,
                 line_height,
                 first_line: first_row,
@@ -2226,6 +2250,7 @@ impl Element for EditorElement {
             marks,
             placeholders,
             markers,
+            annotations: column,
         }
     }
 
@@ -2255,8 +2280,9 @@ impl Element for EditorElement {
             }
         });
 
-        let Prepared { layout, numbers, gutter, marks, placeholders, markers } = prepared;
-        let (line_height, text_left, fold_column) = (layout.line_height, layout.text_left, layout.fold_column);
+        let Prepared { layout, numbers, gutter, marks, placeholders, markers, annotations } = prepared;
+        let (line_height, text_left, fold_column, annotation_column) =
+            (layout.line_height, layout.text_left, layout.fold_column, layout.annotation_column);
         let focused = focus.is_focused(window);
         let mark_color = |cx: &App, kind: MarkKind| match kind {
             MarkKind::FindOccurrence => theme::color(cx, "bg-search-match"),
@@ -2394,12 +2420,15 @@ impl Element for EditorElement {
                     let _ =
                         number.paint(point(x.max(bounds.left()), top), line_height, TextAlign::Left, None, window, cx);
                 }
+                if let Some(column) = annotations.as_ref() {
+                    column.paint_row(index, bounds.left(), top, line_height, window, cx);
+                }
                 let breakpoint =
                     marks.iter().find(|mark| mark.kind.is_breakpoint() && touches(mark.range.start, mark.range.end));
                 if let Some(mark) = breakpoint.filter(|_| *gutter > px(0.0)) {
                     let diameter = px(10.0);
                     let dot = Bounds::new(
-                        point(bounds.left() + px(4.0), top + (line_height - diameter) / 2.0),
+                        point(bounds.left() + annotation_column + px(4.0), top + (line_height - diameter) / 2.0),
                         size(diameter, diameter),
                     );
                     let solid = gpui_kit::BorderStyle::Solid;
@@ -2435,6 +2464,7 @@ impl Element for EditorElement {
                 bounds,
                 gutter: *gutter,
                 fold_column,
+                annotation_column,
                 text_left,
                 line_height,
                 first_line: 0,

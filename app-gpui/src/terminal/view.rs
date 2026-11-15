@@ -778,6 +778,8 @@ mod tests {
     use std::collections::BTreeMap;
     use std::time::Duration;
 
+    mod proofs14_ime;
+
     fn settle(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
         for _ in 0..3000 {
             cx.run_until_parked();

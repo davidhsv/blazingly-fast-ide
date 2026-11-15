@@ -2,6 +2,7 @@
 //! workbench the editor slice needs. Tool windows, the title bar and the status bar follow.
 
 mod agents;
+mod annotate;
 mod app_actions;
 mod app_shell;
 pub mod background_tasks_view;
@@ -347,6 +348,8 @@ pub struct Workbench {
     conflicts: conflicts::ConflictsSlot,
     /// The Git menu's repository operations: Show Commit in Git Log waiting for the log.
     vcs_operations: vcs_operations::VcsOperationsSlot,
+    /// The editors that show blame annotations, and the head commit they were blamed on.
+    annotate: annotate::AnnotateSlot,
     /// The project's change lists and shelf.
     shelf: shelf::ShelfSlot,
     /// What the Git log's actions keep for their notifications' buttons (Undo of a history rewrite).
@@ -530,6 +533,7 @@ pub fn register_actions(cx: &mut App) {
     branches::register_actions(registry);
     conflicts::register_actions(registry);
     vcs_operations::register_actions(registry);
+    annotate::register_actions(registry);
     shelf::register_actions(registry);
     edit_actions::register_actions(registry);
     commit::register_actions(registry);
@@ -1086,6 +1090,7 @@ impl Workbench {
             extras: Default::default(),
             conflicts: Default::default(),
             vcs_operations: Default::default(),
+            annotate: Default::default(),
             shelf: Default::default(),
             log_actions: Default::default(),
             structure: None,
@@ -2021,6 +2026,7 @@ impl Workbench {
         self.publish_run_context(window, cx);
         self.publish_debug_context(window, cx);
         self.publish_vcs_context(window, cx);
+        self.publish_annotate_context(window, cx);
         self.publish_github_context(window, cx);
         self.publish_agents_context(window, cx);
         self.publish_merge_context(window, cx);

@@ -109,6 +109,9 @@ pub struct Plugins {
     /// Ids of the actions registered for plugin commands.
     command_actions: Vec<String>,
     listings: u64,
+    /// Commands run from a window's actions or menus whose answer came back, succeeded or failed: a
+    /// failure the window does not report shows nothing else that says it arrived.
+    commands_answered: u64,
     _pump: Task<()>,
 }
 
@@ -206,6 +209,7 @@ impl Plugins {
             listing: None,
             command_actions: Vec::new(),
             listings: 0,
+            commands_answered: 0,
             _pump: pump,
         });
         // The plugin host's selected theme follows the theme the settings name.
@@ -293,6 +297,11 @@ impl Plugins {
     /// How many listings have been projected into the UI since the host started.
     pub fn listings(&self) -> u64 {
         self.listings
+    }
+
+    /// How many plugin commands run from a window's actions or menus have answered.
+    pub fn commands_answered(&self) -> u64 {
+        self.commands_answered
     }
 
     /// Lists the plugins again, off the main thread, and projects what they contribute: the
@@ -524,8 +533,10 @@ fn run_command(
         }
     });
     cx.spawn(async move |cx: &mut AsyncApp| {
-        let Err(error) = ran.await else { return };
+        let ran = ran.await;
         cx.update(|cx| {
+            cx.global_mut::<Plugins>().commands_answered += 1;
+            let Err(error) = ran else { return };
             Plugins::refresh(cx);
             let stopped = host.info_of(&plugin).is_ok_and(|info| info.status == PluginStatus::Failed);
             if stopped || error.kind == ide_core::error::ErrorKind::PermissionDenied {

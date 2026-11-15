@@ -725,8 +725,7 @@ impl Workbench {
             },
             paths_bookmarked: !targets.is_empty()
                 && targets.iter().all(|(path, _)| path_bookmark_at(&data.paths, path).is_some()),
-            // No blame annotations are drawn in this window's editors.
-            annotations_shown: false,
+            annotations_shown: ctx.paths.first().is_some_and(|path| self.annotations_shown_for(path, cx)),
             plugins,
         }
     }
@@ -769,6 +768,9 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         window.focus(&editor.focus_handle(cx), cx);
+        if let Some(line) = editor.read(cx).annotation_line_at(position) {
+            return self.show_annotation_menu(editor, line, position, window, cx);
+        }
         if let Some(line) = gutter_line_at(editor.read(cx), position) {
             self.publish_context(window, cx);
             return self.show_gutter_menu(editor, line, position, window, cx);
@@ -1157,10 +1159,11 @@ mod tests {
     ];
 
     /// Git › for one file, with the rows whose actions this window registers.
-    const GIT: [&str; 13] = [
+    const GIT: [&str; 14] = [
         "Commit File…",
         "Add",
         "-",
+        "Annotate with Git Blame",
         "Show Diff",
         "Compare with Branch…",
         "Show History",

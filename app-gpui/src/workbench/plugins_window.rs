@@ -152,14 +152,20 @@ fn capabilities_from<T: serde::Serialize>(capabilities: &T) -> Vec<Capability> {
 }
 
 /// Registers the Plugins actions that drive a page outside the open dialogs: Install Plugin from
-/// Disk… (the argument is a folder, its `plugin.toml` or a package file; none: a picker) and Reload
-/// Plugins. Neither has a condition.
+/// Disk… (the argument is a folder, its `plugin.toml` or a package file; none: a picker), Update All
+/// Plugins (the update announcement's button) and Reload Plugins. None has a condition.
 pub(super) fn register_actions(registry: &mut ActionRegistry) {
     registry.handle("plugins.installFromDisk", |call, window, cx| {
         let path = call.arg.and_then(Value::as_str).map(str::to_owned);
         on_workbench(window, cx, move |workbench, window, cx| match workbench.action_plugins_page(window, cx) {
             Some(page) => page.update(cx, |page, cx| page.install_from_disk(path.as_deref(), false, true, cx)),
             None => tracing::info!("Plugins: this window has no plugin host to install with"),
+        })
+    });
+    registry.handle("plugins.updateAll", |_, window, cx| {
+        on_workbench(window, cx, |workbench, window, cx| match workbench.action_plugins_page(window, cx) {
+            Some(page) => page.update(cx, |page, cx| page.update_all(cx)),
+            None => tracing::info!("Plugins: this window has no plugin host to update with"),
         })
     });
     registry.handle("plugins.reloadAll", |_, window, cx| {

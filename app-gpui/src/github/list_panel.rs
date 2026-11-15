@@ -1616,6 +1616,7 @@ mod tests {
     use std::rc::Rc;
 
     mod proofs11_list;
+    mod proofs14_ui;
 
     type Events = Rc<RefCell<Vec<ListPanelEvent>>>;
 

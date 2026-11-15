@@ -1593,6 +1593,7 @@ mod tests {
     mod proofs10_events;
     mod proofs10_host_api;
     mod proofs10_host_ui;
+    mod proofs14_plugins;
     mod proofs6_plugin_runtime;
     mod proofs9_status_snapshot;
 
