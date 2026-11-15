@@ -2669,7 +2669,7 @@
   },
   "unit:src/features/github/toolwindow/toolwindow.test.tsx": {
     "status": "partial",
-    "proof": "`github::window_view::tests::shows_ghs_state_when_it_is_not_ready`, `github::window_view::tests::offers_the_repository_selector_for_several_github_remotes`, `github::window_view::tests::shows_the_list_tab_named_after_the_repository_once_connected`, `github::window_view::tests::registers_the_window_and_offers_its_header_actions`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::change_repository_disconnects_then_connects_again`, `github::toolwindow::tests`, `workbench::github::tests::proofs14_github_window::opens_each_pull_request_once_and_closes_back_to_the_previous_tab`, `workbench::github::tests::proofs14_github_window::opens_the_tool_window_for_change_repository_or_account_while_not_connected`, `workbench::github::tests::proofs14_github_window::targets_the_active_pull_request_tab_else_the_list_selection`; 6 of 8 cases through the window. Missing: the New Pull Request tab, the timeline editor and seven of the actions the registration case names (two tests wait undeclared)"
+    "proof": "`github::window_view::tests::shows_ghs_state_when_it_is_not_ready`, `github::window_view::tests::offers_the_repository_selector_for_several_github_remotes`, `github::window_view::tests::shows_the_list_tab_named_after_the_repository_once_connected`, `github::window_view::tests::registers_the_window_and_offers_its_header_actions`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::change_repository_disconnects_then_connects_again`, `github::toolwindow::tests`, `workbench::github::tests::proofs14_github_window::opens_each_pull_request_once_and_closes_back_to_the_previous_tab`, `workbench::github::tests::proofs14_github_window::opens_the_tool_window_for_change_repository_or_account_while_not_connected`, `workbench::github::tests::proofs14_github_window::targets_the_active_pull_request_tab_else_the_list_selection`, `workbench::github::tests::proofs14_github_window::opens_the_new_pull_request_tab_once_and_closes_back_to_the_previous_tab`; 7 of 8 cases through the window. Missing: the registration case still lacks the timeline editor and four actions (show timeline, refresh timeline, select opened pull request, submit review); its test waits undeclared"
   },
   "unit:src/features/github/ui/ui.test.tsx": {
     "status": "partial",
@@ -2789,7 +2789,7 @@
   },
   "unit:src/features/app/__tests__/shell.test.tsx": {
     "status": "partial",
-    "proof": "`app_models::shell::tests`, `workbench::tests::proofs13_shell::escape_cancels`, `workbench::tests::proofs13_shell::is_project_file_like_idea`, `workbench::tests::proofs13_shell::lists_version_build_and_platform`, `workbench::tests::proofs13_shell::orders_buttons_like_macos_idea_adds_one_cancel_and_enter_picks_the_default`; 5 of 9 cases through the window. Missing: the Keymap Reference dialog is not built (its test waits undeclared), two cases are only on the model, one has no native counterpart"
+    "proof": "`app_models::shell::tests`, `workbench::tests::proofs13_shell::escape_cancels`, `workbench::tests::proofs13_shell::is_project_file_like_idea`, `workbench::tests::proofs13_shell::lists_version_build_and_platform`, `workbench::tests::proofs13_shell::orders_buttons_like_macos_idea_adds_one_cancel_and_enter_picks_the_default`, `workbench::tests::proofs13_shell::renders_the_overlay`, `workbench::keymap_reference::tests::filters_by_title_id_or_shortcut`; 8 of 9 cases through the window; the ninth (the host of a remote project) has no native counterpart yet (no remote windows)"
   },
   "unit:src/features/app/__tests__/updates.test.ts": {
     "status": "done",
@@ -7302,5 +7302,25 @@
   "point.registerMenuGroup:run.context": {
     "status": "partial",
     "proof": "`workbench::run_context::tests::the_editors_menu_offers_run_for_the_file_and_runs_it`, `workbench::run_context::tests::the_project_views_menu_offers_run_for_the_file_and_runs_it`, `workbench::run_context::tests::the_tabs_menu_offers_modify_run_configuration_for_its_file`; the Run rows of the editor's, the Project view's and the tab's menus. Missing: executor rows (no executor exists natively)"
+  },
+  "action:github.createPullRequest": {
+    "status": "done",
+    "proof": "`workbench::github::part2::tests::create_pull_request_before_the_window_connects_opens_the_tab_once_connected`, `workbench::github::part2::tests::create_pull_request_creates_the_current_branchs_pull_request_and_opens_its_tab`, `workbench::github::tests::proofs14_github_window::opens_the_new_pull_request_tab_once_and_closes_back_to_the_previous_tab`; opens the New Pull Request tab (once the window connects, if it has not yet), with the branches, the template, the commits and the check for an open pull request; Create pushes when needed and creates it through gh, asserted on the fake's arguments, and its tab opens. Not built in the tab: the changes panel, reviewers, assignees and labels, search in the branch pickers"
+  },
+  "action:github.pullRequest.toggleViewed": {
+    "status": "done",
+    "proof": "`workbench::github::part2::tests::toggle_viewed_marks_the_selected_file_viewed_then_not_viewed`; marks the selected file of the pull request's tab viewed, then not viewed, through gh"
+  },
+  "action:github.pullRequest.openInWorktree": {
+    "status": "done",
+    "proof": "`workbench::github::part2::tests::open_in_worktree_adds_the_pull_requests_head_as_a_worktree_and_opens_it`; adds the pull request's head as a worktree beside the project and opens it"
+  },
+  "action:help.keymapReference": {
+    "status": "done",
+    "proof": "`workbench::keymap_reference::tests::filters_by_title_id_or_shortcut`, `workbench::keymap_reference::tests::opens_in_a_window_that_edits_a_loose_file`, `workbench::keymap_reference::tests::renders_the_overlay`, `workbench::keymap_reference::tests::sits_near_the_top_and_closes_when_the_window_is_left`, `workbench::tests::proofs13_shell::renders_the_overlay`; opens the Keymap Reference dialog near the top of the window (project window, single-file window, Welcome): the preset with its count, the grouped shortcuts, a filter by title, id or shortcut; Escape or leaving the window closes it"
+  },
+  "point.registerOverlay:app.keymapReference": {
+    "status": "partial",
+    "proof": "`workbench::keymap_reference::tests::filters_by_title_id_or_shortcut`, `workbench::keymap_reference::tests::opens_in_a_window_that_edits_a_loose_file`, `workbench::keymap_reference::tests::renders_the_overlay`, `workbench::keymap_reference::tests::sits_near_the_top_and_closes_when_the_window_is_left`; the dialog is drawn over the window near its top and closes on Escape and when the window is left. Missing: closing on a click outside it, and following a keymap change while it is open"
   }
 }
