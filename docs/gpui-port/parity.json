@@ -4276,16 +4276,16 @@
     "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the table opens with its rows, from the action and from F4 in the tree only; it shows in the lower half of the Database window, not in an editor tab"
   },
   "action:db.execute": {
-    "status": "partial",
-    "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`; the statement at the caret runs on the only data source, rows and output shown; with two or more sources a plain .sql file only reports that a source must be chosen"
+    "status": "done",
+    "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`, `workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`; the statement at the caret runs, rows and output shown; a plain .sql file with two or more sources runs on the one chosen in the toolbar"
   },
   "action:db.explainPlan": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the statement is explained by the backend; the Query Plan tab is not built"
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`, `database::plan_view::tests::a_narrow_plan_puts_the_properties_under_the_tree_and_a_wide_one_beside_it`, `database::plan_view::tests::an_empty_plan_shows_no_rows`, `database::plan_view::tests::collapsing_an_operation_hides_what_is_under_it`, `database::plan_view::tests::explain_again_asks_once_until_the_new_plan_arrives`, `database::plan_view::tests::roots_the_operations_in_the_statement_with_everything_expanded`, `database::plan_view::tests::selecting_an_operation_shows_its_properties`; the statement is explained by the backend and the Query Plan tab shows the plan's tree with the selected node's properties, beside the tree in a wide pane and under it in a narrow one; running again replaces it"
   },
   "action:db.openConsole": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the source's console file opens in an editor; the console's own toolbar is not shown"
+    "status": "done",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`, `workbench::tests::proofs6_database_console::a_sqlite_console_runs_in_the_default_schema_its_completion_model_names`; the source's console file opens in an editor with its toolbar (run, explain, history, row limit, transaction mode, data source and schema), bound to its source's default schema"
   },
   "action:db.refresh": {
     "status": "done",
@@ -4293,11 +4293,11 @@
   },
   "point.registerToolWindow:database": {
     "status": "partial",
-    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`, `workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`, `workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`, `workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the tree with sources, schemas, tables and columns, the Data Source dialog, results, the table editor; schema-object dialogs, Query History, SSH configurations, import and export are missing"
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`, `workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`, `workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`, `workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::modify_table_new_column_and_new_table_change_the_file_and_the_tree`, `workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`; the tree with sources, schemas, tables and columns, the Data Source dialog, results, the Query Plan, the table editor, the table dialogs and Query History. Missing: the index and key dialogs and SSH configurations"
   },
   "point.registerOverlay:database.dialogs": {
     "status": "partial",
-    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`, `workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`, `workbench::tests::the_password_a_connection_asks_for_is_masked_and_answers_the_store`; the Data Source dialog, the rename and drop questions and the masked password question; the schema-object, export and import dialogs are not built"
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`, `workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`, `workbench::tests::the_password_a_connection_asks_for_is_masked_and_answers_the_store`, `workbench::database_extras::tests::modify_table_new_column_and_new_table_change_the_file_and_the_tree`, `workbench::database_extras::tests::truncate_asks_and_deletes_every_row_of_the_table`, `workbench::database_extras::tests::import_data_inserts_the_rows_of_a_csv_file_into_the_table`, `workbench::database_extras::tests::the_table_editors_import_and_export_browse_open_their_dialogs`, `workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`; the Data Source dialog, the rename and drop questions, the masked password question, Modify Table and Create Table, the truncate question, Import Data and Query History. Missing: the index and key dialogs, the export dialog's own options and SSH configurations"
   },
   "point.registerServiceView:dbResults": {
     "status": "partial",
@@ -5496,8 +5496,8 @@
     "proof": "`workbench::tests::proofs_database::go_to_ddl_on_a_trigger_opens_its_definition`; Go to DDL on a SQLite trigger opens an editor holding create trigger users_audit, read through ide_host::ops::db::object_ddl, the function the adapter calls"
   },
   "ipc:db_explain": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs_database::explain_plan_logs_the_explained_statement_and_its_plan_nodes`; Explain Plan asks ide_host::ops::db::explain and the Output tab logs the explained statement and its plan node count with no rows retrieved; the Query Plan tab is not drawn"
+    "status": "done",
+    "proof": "`workbench::tests::proofs_database::explain_plan_logs_the_explained_statement_and_its_plan_nodes`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`; Explain Plan asks ide_host::ops::db::explain, the adapter's function; the Output tab logs the statement and its node count and the Query Plan tab draws the nodes that only that reply carries"
   },
   "action:run-all": {
     "status": "done",
@@ -7394,5 +7394,77 @@
   "e2e:e2e/toolwindows.spec.ts": {
     "status": "partial",
     "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; 3 of 10 flows: cmd-1 focuses, hides and re-shows the Project view; toolwindow.terminal opens the Terminal and toggles it closed; a typed command reaches the shell and its output shows. Missing: a maximized Terminal on each side and Restore Size (`workbench::tests::proofs5_layout::maximize_tool_window_draws_the_focused_side_across_the_window` maximizes the Project view only), cmd-4 toggling Run with Shift+Escape (`workbench::tests::proofs_tool_windows::hide_active_tool_window_hides_the_focused_project_view` hides the Project view), cmd-shift-F12 restoring with a second press (the test restores with F12), the terminal input focused on first and later opening, a late view not taking focus, Split Right giving the group its own header (`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them` has no own header), closing a group's last tab focusing its neighbour"
+  },
+  "action:db.ddlToClipboard": {
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::generate_ddl_copies_a_tables_definition_and_appends_it_to_the_console`, `workbench::database_extras::tests::generate_ddl_in_restricted_mode_is_refused_with_the_backends_reason`; copies a table's definition (and a data source's) to the clipboard; in a restricted project it is refused with the backend's reason. Missing: the password question and retry around the request when the connection asks for one"
+  },
+  "action:db.ddlToConsole": {
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::generate_ddl_copies_a_tables_definition_and_appends_it_to_the_console`, `workbench::database_extras::tests::generate_ddl_in_restricted_mode_is_refused_with_the_backends_reason`; appends the definition to the source's console. Missing: the password question and retry around the request when the connection asks for one"
+  },
+  "action:db.goToReferencedTable": {
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::the_trees_navigation_actions_reach_the_referenced_table_and_the_console`; selects the table a foreign key refers to in the tree"
+  },
+  "action:db.jumpToConsole": {
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::the_trees_navigation_actions_reach_the_referenced_table_and_the_console`; opens the console of the selected row's data source"
+  },
+  "action:db.separateProceduresAndFunctions": {
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::the_trees_navigation_actions_reach_the_referenced_table_and_the_console`; switches the tree between one routines folder and separate procedures and functions folders"
+  },
+  "action:db.modifyTable": {
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::modify_table_new_column_and_new_table_change_the_file_and_the_tree`; its shortcut opens Modify Table on the tree's table and not in an editor; a column added there changes the file and shows in the tree. Missing: the data-type suggestions of the type field"
+  },
+  "action:db.newColumn": {
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::modify_table_new_column_and_new_table_change_the_file_and_the_tree`; opens Modify Table with a new column selected, and OK adds it. Missing: the data-type suggestions"
+  },
+  "action:db.newTable": {
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::modify_table_new_column_and_new_table_change_the_file_and_the_tree`; opens Create Table on the schema, and OK creates the table, which then shows in the tree. Missing: the data-type suggestions"
+  },
+  "action:db.truncate": {
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::truncate_asks_and_deletes_every_row_of_the_table`; asks first, then deletes every row of the table"
+  },
+  "action:db.importData": {
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::import_data_inserts_the_rows_of_a_csv_file_into_the_table`, `workbench::database_extras::tests::the_table_editors_import_and_export_browse_open_their_dialogs`; opens Import Data on the table, reads the picked CSV file, matches its columns by name and inserts the rows; Enter imports and Escape cancels. Missing: the password question and retry around the request when the connection asks for one"
+  },
+  "action:db.runSqlScript": {
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::run_sql_script_runs_a_picked_file_and_a_template_opens_in_the_console`; runs the statements of a picked file on the data source. Missing: the picker's .sql/.ddl filter (the platform's file prompt takes none)"
+  },
+  "action:db.queryHistory": {
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::tests::proofs6_database_console::delete_in_query_history_removes_the_statement_from_the_stored_history`; lists the statements run on the data source, filters them, pastes one into the console and deletes one from the stored history"
+  },
+  "action:db.goToColumn": {
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::go_to_column_lists_the_columns_of_the_table_editor_with_the_keyboard`; lists the columns of the table editor, filters them by typing and moves to the chosen one with the keyboard"
+  },
+  "ipc:db_history": {
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`; Browse Query History lists what ide_host::ops::db::history, the adapter's function, returns for the data source after statements ran"
+  },
+  "ipc:db_remove_history": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs6_database_console::delete_in_query_history_removes_the_statement_from_the_stored_history`; Delete in Query History calls ide_host::ops::db::remove_history, the adapter's function; the stored history read again no longer holds the statement"
+  },
+  "ipc:db_set_manual_commit": {
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::manual_commit_keeps_changes_pending_until_commit_or_roll_back`; the console's transaction chooser calls ide_host::ops::db::set_manual_commit, the adapter's function; a change made after it is not seen by a second connection until Commit"
+  },
+  "ipc:db_finish_transaction": {
+    "status": "done",
+    "proof": "`workbench::database_extras::tests::manual_commit_keeps_changes_pending_until_commit_or_roll_back`; Commit and Roll Back call ide_host::ops::db::finish_transaction, the adapter's function; the pending change is then kept or gone in the file"
+  },
+  "ipc:db_completion": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs6_database_console::a_sqlite_console_runs_in_the_default_schema_its_completion_model_names`; a console bound to its source loads ide_host::ops::db::completion, the adapter's function; the default schema the console runs in is the one that model names"
   }
 }

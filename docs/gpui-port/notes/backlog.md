@@ -598,3 +598,22 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - NEXT INTEGRATOR: $S/int_d111_brief.md = Part A (tooltip real flow, double colon, the quick-fix test's cause), Part B database extras (reconciled notes).
 - THEN: proofs18 (42 e2e flow tests; 7 e2e rows done if they pass; one hunk: SettingsDialogView::page_view; pending files list missing steps: rename in place, double-click a tool window title to maximize, breadcrumbs / navigate.navigationBar, modified mark on a tab) → build tools (seam first) → agents views → diff gaps alone → shared button + accessibility → vcs_stage_hunks → zoom's literal px.
 - RUNNING (no cargo): build tools reconciler + the seam design for crates/ide-build.
+
+## Build tools RECONCILED (2026-11-15): drafts/build_tools_reconciled.md (copy to docs/.../integration/ at the next commit); brief $S/int_d113_brief.md
+
+- SEAM (crates/): ide_build::maven::set_maven_user_home, ide_sdk::java::set_jdk_candidates, ide_host::ops::build::isolate_from_user_home; defaults = today's behaviour; no signature or IPC change; two test binaries. AFTER IT: crate tests + clippy + export_bindings + `git status --short src/ src-tauri/` empty, then MY Tauri workspace suite in the background.
+- Draft edits: toolwindow.gradle's condition (new key build.gradleWindow), stand-in JDK in tests, shared checkbox, popup frame. Dropped: the menu section, "cargo fmt", the old (wrong) isolation section.
+- ADDED BY ME to the brief: a test-build guard that refuses any mvn/gradle/java outside the temp home/project, with a test that tries.
+- Never run a sync or goal in the real binary during an inspection (it would start the machine's Maven).
+
+## State after the D111 slice (2026-11-15, code 767e28d2, reconciled build-tools drafts 29fa4e92). D114.
+
+- Suite 7,297 (my two runs alone passed), web_view, clippy, build clean. Inventory 1,266/3,145 (122 model only, 479 partial). Rows by `$S/parity_d111.py`.
+- Database extras LIVE. Left partial: password ask/retry (`withConnection`) around DDL, templates, Import; data-type suggestions; index/key dialogs; SSH configurations; console gutter marks; plan tab close button; editor-tab consoles and tables; `.sql` filter of Run SQL Script (GPUI prompt has none). Blank db rows left: db.new, db.pluginConnect, db.quickDoc, db.sqlScript; ipc db_connect, db_databases, db_schema_objects, db_set_password, db_set_ssh_secret, db_trust_ssh_host; editor kind db-table; contribution database.console; e2e databaseDialogLayout; SqlHighlight.test.tsx.
+- Tooltip-over-popup and the Appearance "::" are FIXED and seen in the real window (notes/inspections/2026-11-15-c/). Kept difference: native "UI font:" label (webview has none).
+- Quick-fix test: fake server answers now written by rename; cause is a hypothesis (1/880 before, 0/550 after).
+- RUNNING (cargo): integrator d112 = `$S/int_d112_brief.md`: Part 0 two cut texts in the Database window (plan Params ellipsis, Filter objects field), Part A proofs18 (42 e2e flow tests, all files except `workbench/diff_tab/tests/proofs18_e2e_diff_navigation.rs`, which belongs to the diff gaps slice).
+- RUNNING (no cargo): two writers for 28 blank Settings pages → drafts `settings_languages_integration.md` (17 pages of languages.tsx, files `languages_*.rs`, tests `proofs19_settings_languages.rs`) and `settings_misc_integration.md` (11 pages: build.cmake/gradle/maven, tools.actionsOnSave/externalTools, vcs.issueNavigation/mappings, general.dateFormats/httpProxy/updates, editor.files; tests `proofs19_settings_misc.rs`).
+- CARGO QUEUE after d112: build tools (`$S/int_d113_brief.md`; seam in crates first; then MY Tauri workspace suite) → Settings pages (both drafts in one integration) → agents views → diff gaps alone (+ the diff_tab proofs18 file) → shared button + accessibility → vcs_stage_hunks → zoom's literal px.
+- Remaining blank Settings pages after the two drafts: iconThemePages:18, registry.tsx:62/69/82, build.deployment, build.runTargets, editor.fileTemplates, editor.general.postfixCompletion, editor.liveTemplates, editor.todo, editor.vim, languages.servers, projectTrust, tools.agents, tools.sshConfigurations, vcs.github, vcs.log.
+- `app-gpui/target` is at 90 GB: `cargo clean -p openidea-gpui` at the next cargo gap (not while an integrator runs).
