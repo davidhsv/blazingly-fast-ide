@@ -673,3 +673,12 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - AFTER BUILD TOOLS REPORTS: my app-gpui verification, THEN the Tauri workspace suite at the root (one heavy build at a time: do NOT launch the next integrator until it finishes), THEN the next integrator.
 - The refactor integration must report `unit:` rows (it wires `editor_refactor` models: model-only rows should flip).
 - Seam check done early (crates diff read at 4 files): default-preserving, fingerprint.rs is named in the notes §1.2.
+
+## After the mapper, the agents reconciler and the triage (2026-11-15, 28972401). D116.
+
+- Inventory 1,274/3,145 (122 model only, 480 partial, 15 "nothing to port" = `[–]`, status "none" in parity.json, checked by inventory.mjs: only `ipc:` keys, no `commands.<camel>` nor quoted name under src/ outside bindings.ts).
+- TRIAGE in docs/gpui-port/notes/triage/ (rows.json, batches.md): 56 test-only, 279 small, 238 feature, 16 blocked, 15 record-only; blank ipc: 36 called natively, 238 not called, 32 tauri-only (left blank: each needs its own look). Densest small batches: editor paint models (14), git log (14), terminal (13), app shell (11+11), plugins (7). Features by rows: deployment 22, remote dev 18, syntax tree in editor 17, docker 17, notebook 14, http client 13.
+- AGENTS VIEWS RECONCILED (09f42991): `docs/.../integration/agents_views_reconciled.md`, 42 hunks, `$S/agv/anchors.py` (`python3 -I anchors.py <worktree>`; `--apply`). Expected: ConfigPickers.test.tsx done 13/13, HomeEditor.test.tsx done 4/4, composerCommands partial, sessionState 30/31.
+- RUNNING (no cargo): diff gaps reconciler; test writers proofs20 A (debugger, database, run: ~19 rows) → `$S/drafts/proofs20_a.md`, B (app shell, project view, editor, agents, GitHub: ~24 rows) → `$S/drafts/proofs20_b.md`.
+- RECORD-ONLY candidates from the triage (15 rows: fonts/candidateFonts/systemFonts modules, keptTabs, debugger editor DOM cases, workspaceContains, terminal embedded IME, icls, proxySettings, selectableText, focus, contrast): each needs reading against D102 before recording; not done yet.
+- CARGO QUEUE: [running] build tools → (my verification, then Tauri workspace suite) → Settings A → Settings B → agents views (reconciled) → proofs20 A+B (test-only) → refactor + Git text actions → diff gaps → shared button + accessibility → vcs_stage_hunks → zoom px.
