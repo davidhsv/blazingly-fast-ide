@@ -31,6 +31,7 @@ pub fn forms() -> Vec<(&'static str, Vec<Part>)> {
                      break are configured in",
                 ),
                 text: "Editor › General",
+                after: Some("."),
                 page: "editor.general",
                 query: None,
             }],

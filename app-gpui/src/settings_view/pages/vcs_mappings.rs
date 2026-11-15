@@ -89,13 +89,16 @@ impl Render for MappingsView {
                         .items_center()
                         .gap(px(6.0))
                         .child(theme::icon(cx, "folder", 16.0, theme::color(cx, "fg-icon")))
-                        .child(cell(format!("{} {}", tx(cx, "<Project>"), mapping.root))),
+                        .child(
+                            cell(format!("{} {}", tx(cx, "<Project>"), mapping.root))
+                                .id("settings-vcs-mapping-0-root")
+                                .tooltip(crate::ui::tooltip::tooltip(mapping.root.clone())),
+                        ),
                 )
                 .child(cell(vcs_name(mapping, cx)).w(px(120.0))),
         };
         div()
             .ml(px(4.0))
-            .max_w(px(560.0))
             .flex()
             .flex_col()
             .rounded(theme::length(cx, "radius-small"))

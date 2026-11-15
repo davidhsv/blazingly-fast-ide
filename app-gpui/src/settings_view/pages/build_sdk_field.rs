@@ -3,9 +3,8 @@
 //! JDK", "Auto"…) and the path stored when it is none of them, with Detect again and Browse….
 //!
 //! The installations are looked for once the field is first drawn, through a [`Detector`]: the
-//! backend's detection reads the PATH, the system's folders and the version managers' folders
-//! (it may run `java_home`), so it never runs on opening the dialog, and a test gives a
-//! [`SdkDetection`] of its own instead.
+//! backend's detection reads the PATH, the system's folders and the version managers' folders, so
+//! it never runs on opening the dialog, and a test gives a [`SdkDetection`] of its own instead.
 
 use super::{Binding, ControlEvent, Then, drop_down, drop_down_row, hint_line, row, row_label, select_box};
 use crate::backend::Backend;
@@ -233,7 +232,7 @@ impl Render for SdkFieldView {
                 .collect();
             drop_down(cx, rows)
         });
-        let icon_button = |cx: &mut Context<Self>, name: &'static str, icon: &str| {
+        let icon_button = |cx: &mut Context<Self>, name: &'static str, icon: &str, title: &'static str| {
             let selector = format!("settings-sdk-{key}-{name}");
             div()
                 .id(SharedString::from(selector.clone()))
@@ -244,16 +243,17 @@ impl Render for SdkFieldView {
                 .justify_center()
                 .rounded(theme::length(cx, "radius-small"))
                 .hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover")))
+                .tooltip(crate::ui::tooltip::tooltip(title))
                 .child(theme::icon(cx, icon, 16.0, theme::color(cx, "fg-icon")))
         };
         let detect = if self.detection == Detection::Loading {
             super::muted(cx, &tx(cx, "Detecting installations")).into_any_element()
         } else {
-            icon_button(cx, "refresh", "refresh")
+            icon_button(cx, "refresh", "refresh", "Detect again")
                 .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.detect(cx)))
                 .into_any_element()
         };
-        let browse = icon_button(cx, "browse", "folder-open")
+        let browse = icon_button(cx, "browse", "folder-open", "Browse…")
             .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.browse(cx)));
         let drawn = row(cx, self.binding.matches(self.spec.label, cx))
             .child(row_label(cx, &label, &query))
@@ -371,6 +371,23 @@ mod tests {
         );
         click(cx, "settings-sdk-languages.java.maven.runnerJre-refresh");
         assert_eq!(asked.borrow().len(), 2, "Detect again looks again");
+    }
+
+    // Not from a spec: without a detection of its own a test build looks for nothing: the PATH, the
+    // system's folders and the version managers are never read, and no tool runs.
+    #[gpui_kit::test]
+    async fn a_test_build_without_a_detection_of_its_own_finds_nothing(cx: &mut TestAppContext) {
+        let found: Rc<RefCell<Option<Vec<SdkChoice>>>> = Rc::default();
+        let keep = found.clone();
+        cx.update(|cx| {
+            assert!(!cx.has_global::<SdkDetection>());
+            let detect = detector("w1", cx);
+            let then: Then<Vec<SdkChoice>> = Rc::new(move |choices: Vec<SdkChoice>, _: &mut App| {
+                *keep.borrow_mut() = Some(choices);
+            });
+            detect("jdk", then, cx);
+        });
+        assert_eq!(found.borrow().as_deref(), Some(&[][..]), "answered at once, with nothing");
     }
 
     // Not from a spec: Browse… asks for a folder and the one chosen is staged.

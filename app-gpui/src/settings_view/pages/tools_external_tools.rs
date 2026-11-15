@@ -112,7 +112,7 @@ fn set_text(tool: &mut ExternalTool, name: &str, text: String) {
     }
 }
 
-fn flag_of(tool: &mut ExternalTool, name: &str) -> Option<&mut bool> {
+fn flag_of<'a>(tool: &'a mut ExternalTool, name: &str) -> Option<&'a mut bool> {
     match name {
         "synchronizeAfter" => Some(&mut tool.synchronize_after),
         "openConsole" => Some(&mut tool.open_console),
@@ -299,7 +299,7 @@ impl ExternalToolsView {
     fn toolbar(&self, cx: &mut Context<Self>) -> gpui_kit::Div {
         let len = self.tools(cx).len();
         let current = self.current(cx);
-        let tool = |cx: &mut Context<Self>, icon: &str, name: &str, enabled: bool| {
+        let tool = |cx: &mut Context<Self>, icon: &str, name: &str, enabled: bool, title: &'static str| {
             let selector = format!("settings-tools-{name}");
             let color = theme::color(cx, if enabled { "fg-icon" } else { "fg-faint" });
             div()
@@ -311,20 +311,21 @@ impl ExternalToolsView {
                 .justify_center()
                 .rounded(theme::length(cx, "radius-small"))
                 .when(enabled, |el| el.hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover"))))
+                .tooltip(crate::ui::tooltip::tooltip(title))
                 .child(theme::icon(cx, icon, 16.0, color))
         };
         let has = current.is_some();
         let up = current.is_some_and(|at| at > 0);
         let down = current.is_some_and(|at| at + 1 < len);
-        let add =
-            tool(cx, "plus", "add", true).on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.add(false, cx)));
-        let remove = tool(cx, "minus", "remove", has)
+        let add = tool(cx, "plus", "add", true, "Add")
+            .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.add(false, cx)));
+        let remove = tool(cx, "minus", "remove", has, "Remove")
             .when(has, |el| el.on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.remove(cx))));
-        let copy = tool(cx, "copy", "copy", has)
+        let copy = tool(cx, "copy", "copy", has, "Copy")
             .when(has, |el| el.on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.add(true, cx))));
-        let move_up = tool(cx, "arrow-up", "up", up)
+        let move_up = tool(cx, "arrow-up", "up", up, "Move Up")
             .when(up, |el| el.on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.move_by(-1, cx))));
-        let move_down = tool(cx, "arrow-down", "down", down)
+        let move_down = tool(cx, "arrow-down", "down", down, "Move Down")
             .when(down, |el| el.on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.move_by(1, cx))));
         div()
             .flex()

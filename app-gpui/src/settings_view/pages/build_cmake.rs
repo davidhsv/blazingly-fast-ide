@@ -6,14 +6,14 @@
 //! the list. Arguments are edited as a command line and stored as the words it splits into.
 
 use super::tools_record_table::{Column, ReadRows, RecordTable, TableSpec, WriteRows};
-use super::{Binding, ControlEvent, WIDE_FIELD, frame, new_field, row, row_label};
+use super::{Binding, ControlEvent, WIDE_FIELD, drop_down, drop_down_row, frame, new_field, row, row_label};
 use crate::platform::command_line::{format_args, parse_args};
 use crate::settings_view::controls::tx;
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
-    AnyElement, App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, Render, SharedString,
-    Subscription, Window, div, prelude::*, px,
+    AnyElement, App, AppContext, ClickEvent, Context, Entity, EventEmitter, Focusable, IntoElement, Render,
+    SharedString, Subscription, Window, div, prelude::*, px,
 };
 use ide_core::settings::CMakeProfile;
 use std::cell::Cell;
@@ -31,6 +31,20 @@ const FIELDS: [(&str, &str); 6] = [
     ("buildDir", "Build directory"),
     ("buildArgs", "Build arguments"),
 ];
+
+/// The values a field suggests while it has the keyboard: (field, suggestions).
+const SUGGESTIONS: [(&str, &[&str]); 2] = [
+    ("buildType", &["Debug", "Release", "RelWithDebInfo", "MinSizeRel"]),
+    ("generator", &["Ninja", "Unix Makefiles", "Ninja Multi-Config", "Visual Studio 17 2022", "Xcode"]),
+];
+
+/// The suggestions of field `name` for the text typed: those that contain it, ignoring case, other
+/// than the text itself.
+pub fn suggestions(name: &str, text: &str) -> Vec<&'static str> {
+    let typed = text.trim().to_lowercase();
+    let listed = SUGGESTIONS.iter().find(|(field, _)| *field == name).map(|(_, values)| *values).unwrap_or_default();
+    listed.iter().copied().filter(|value| value.to_lowercase().contains(&typed) && *value != text).collect()
+}
 
 /// The profiles as the page shows them: those stored, else the default one.
 pub fn profiles(binding: &Binding, cx: &App) -> Vec<CMakeProfile> {
@@ -85,6 +99,9 @@ pub struct CMakeProfilesView {
     selected: Rc<Cell<usize>>,
     fields: Vec<(&'static str, Entity<TextField>)>,
     env: Entity<RecordTable>,
+    /// Redraws the suggestions when a field that has them gains or loses the keyboard; made on the
+    /// first draw, which has the window.
+    focus_watch: Vec<Subscription>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -140,7 +157,7 @@ impl CMakeProfilesView {
         let env = cx.new(|cx| RecordTable::new(&binding, spec, read, write, cx));
         subscriptions.push(cx.subscribe(&env, |_: &mut Self, _, event: &ControlEvent, cx| cx.emit(event.clone())));
         subscriptions.push(cx.observe(&binding.model, |view: &mut Self, _, cx| view.sync(cx)));
-        let mut view = Self { binding, selected, fields, env, _subscriptions: subscriptions };
+        let mut view = Self { binding, selected, fields, env, focus_watch: Vec::new(), _subscriptions: subscriptions };
         view.update_placeholders(&current, cx);
         view
     }
@@ -207,6 +224,23 @@ impl CMakeProfilesView {
                 field.update(cx, |field, cx| field.set_placeholder(placeholder, cx));
             }
         }
+    }
+
+    /// The suggestions field `name` shows now: while it has the keyboard, those its text matches.
+    pub fn shown_suggestions(&self, name: &str, window: &Window, cx: &App) -> Vec<&'static str> {
+        let Some(field) = self.field(name) else { return Vec::new() };
+        if !field.focus_handle(cx).is_focused(window) {
+            return Vec::new();
+        }
+        suggestions(name, field.read(cx).text())
+    }
+
+    /// A suggestion chosen: the field shows it and the profile takes it.
+    fn suggest(&mut self, name: &'static str, value: &str, cx: &mut Context<Self>) {
+        if let Some(field) = self.field(name).cloned() {
+            field.update(cx, |field, cx| field.set_text(value, cx));
+        }
+        self.edit(name, value, cx);
     }
 
     /// Shows profile `index`.
@@ -279,7 +313,14 @@ fn section_title(cx: &App, title: &str) -> gpui_kit::Div {
 }
 
 impl Render for CMakeProfilesView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.focus_watch.is_empty() {
+            for (name, _) in SUGGESTIONS {
+                let Some(handle) = self.field(name).map(|field| field.focus_handle(cx)) else { continue };
+                self.focus_watch.push(cx.on_focus(&handle, window, |_, _, cx| cx.notify()));
+                self.focus_watch.push(cx.on_blur(&handle, window, |_, _, cx| cx.notify()));
+            }
+        }
         let query = self.binding.query(cx);
         let all = self.profiles(cx);
         let at = self.selected(cx);
@@ -297,9 +338,12 @@ impl Render for CMakeProfilesView {
                 .when(enabled, |el| el.hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover"))))
                 .child(theme::icon(cx, icon, 16.0, color))
         };
-        let add = tool(cx, "plus", "add", true).on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.add(cx)));
+        let add = tool(cx, "plus", "add", true)
+            .tooltip(crate::ui::tooltip::tooltip("Add"))
+            .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.add(cx)));
         let has_current = !all.is_empty();
         let remove = tool(cx, "minus", "remove", has_current)
+            .tooltip(crate::ui::tooltip::tooltip("Remove"))
             .when(has_current, |el| el.on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.remove(cx))));
         let selected_bg = theme::color(cx, "bg-selected");
         let rows: Vec<AnyElement> = all
@@ -348,13 +392,27 @@ impl Render for CMakeProfilesView {
                 let Some(field) = self.field(name).cloned() else { continue };
                 let selector = format!("settings-text-cmake.{name}");
                 let text = tx(cx, label);
+                let offered = self.shown_suggestions(name, window, cx);
+                let list = (!offered.is_empty()).then(|| {
+                    let rows: Vec<AnyElement> = offered
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, value)| {
+                            drop_down_row(cx, format!("settings-cmake-{name}-suggestion-{index}"), value, false)
+                                .on_click(cx.listener(move |view, _: &ClickEvent, _, cx| view.suggest(name, value, cx)))
+                                .into_any_element()
+                        })
+                        .collect();
+                    drop_down(cx, rows)
+                });
+                let boxed = frame(cx, WIDE_FIELD, false)
+                    .id(SharedString::from(selector.clone()))
+                    .debug_selector(move || selector)
+                    .child(field);
                 column = column.child(
-                    row(cx, self.binding.matches(label, cx)).child(row_label(cx, &text, &query)).child(
-                        frame(cx, WIDE_FIELD, false)
-                            .id(SharedString::from(selector.clone()))
-                            .debug_selector(move || selector)
-                            .child(field),
-                    ),
+                    row(cx, self.binding.matches(label, cx))
+                        .child(row_label(cx, &text, &query))
+                        .child(div().relative().child(boxed).children(list)),
                 );
             }
             let env_label = tx(cx, "Environment variables");
@@ -417,6 +475,29 @@ mod tests {
         assert_eq!(profiles[0]["cmakeArgs"], json!(["-DFOO=a b", "-GNinja"]));
         assert_eq!(profiles[0]["name"], json!("Debug"));
         assert_eq!(args.read_with(cx, |field, _| field.text().to_owned()), "-DFOO=\"a b\" -GNinja", "the draft stays");
+    }
+
+    // Not from a spec: the build type and the generator suggest the values CMake knows while they
+    // have the keyboard, those the text typed matches; one chosen is stored.
+    #[gpui_kit::test]
+    async fn the_build_type_and_generator_suggest_known_values(cx: &mut TestAppContext) {
+        assert_eq!(suggestions("buildType", "rel"), ["Release", "RelWithDebInfo", "MinSizeRel"]);
+        assert_eq!(suggestions("generator", "Ninja"), ["Ninja Multi-Config"]);
+        assert!(suggestions("name", "").is_empty());
+        let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
+        let binding = Binding::fixed(model.clone(), PAGE, Scope::Project);
+        let (view, _, cx) = open(cx, move |_, cx| CMakeProfilesView::new(binding, cx));
+        let shown = |view: &Entity<CMakeProfilesView>, cx: &mut gpui_kit::VisualTestContext| {
+            view.update_in(cx, |view, window, cx| view.shown_suggestions("generator", window, cx))
+        };
+        assert!(shown(&view, cx).is_empty(), "nothing is suggested without the keyboard");
+        let generator = view.read_with(cx, |view, _| view.field("generator").cloned()).expect("the field");
+        type_over(&generator, "nin", cx);
+        assert_eq!(shown(&view, cx), ["Ninja", "Ninja Multi-Config"]);
+        click(cx, "settings-cmake-generator-suggestion-1");
+        assert_eq!(stored(&model, cx)[0]["generator"], json!("Ninja Multi-Config"));
+        assert_eq!(generator.read_with(cx, |field, _| field.text().to_owned()), "Ninja Multi-Config");
+        assert!(shown(&view, cx).is_empty(), "the value chosen is the text");
     }
 
     // Not from a spec: + adds a profile named after its place and selects it; its environment is

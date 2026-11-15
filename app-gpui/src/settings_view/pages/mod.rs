@@ -14,22 +14,35 @@
 //! modules, with the string list editor and the font picker shared.
 
 pub mod appearance;
+pub mod build_cmake;
+pub mod build_gradle;
+pub mod build_maven;
+pub mod build_sdk_field;
 pub mod code_style;
 pub mod console;
 pub mod data_views;
 pub mod deployment_options;
+pub mod editor_files;
 pub mod editor_font;
 pub mod font_picker;
 pub mod general;
+pub mod general_date_formats;
+pub mod general_http_proxy;
+pub mod general_updates;
 pub mod list_editor;
 pub mod notifications;
 pub mod terminal;
+pub mod tools_actions_on_save;
+pub mod tools_external_tools;
+pub mod tools_record_table;
 pub mod vcs_commit;
 pub mod vcs_confirmation;
 pub mod vcs_git;
+pub mod vcs_issue_navigation;
+pub mod vcs_mappings;
 
 use super::controls::{
-    button, check_box, number_json, number_text, parse_number_input, radio_dot, search_label, tx, with_range_tooltip,
+    check_box, number_json, number_text, parse_number_input, radio_dot, search_label, tx, with_range_tooltip,
 };
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::input;
@@ -348,6 +361,8 @@ impl Gate {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FieldKind {
     Text,
+    /// Text stored without the blanks around it (paths, a thread count).
+    Trimmed,
     Number {
         min: f64,
         max: f64,
@@ -367,7 +382,7 @@ impl FieldKind {
     /// The text that shows `value`.
     fn text(self, value: Option<&Value>) -> String {
         match self {
-            Self::Text => value.and_then(Value::as_str).unwrap_or_default().to_owned(),
+            Self::Text | Self::Trimmed => value.and_then(Value::as_str).unwrap_or_default().to_owned(),
             Self::Number { .. } => value.and_then(Value::as_f64).map(number_text).unwrap_or_default(),
             Self::Excludes => format_excludes(&strings_of(value)),
             Self::NumberList { .. } => {
@@ -381,6 +396,7 @@ impl FieldKind {
     fn parse(self, text: &str) -> Option<Value> {
         match self {
             Self::Text => Some(Value::String(text.to_owned())),
+            Self::Trimmed => Some(Value::String(text.trim().to_owned())),
             Self::Number { min, max, integer, .. } => parse_number_input(text, min, max, integer).map(number_json),
             Self::Excludes => Some(Value::from(parse_excludes(text))),
             Self::NumberList { min, max } => {
@@ -542,10 +558,11 @@ pub enum Part {
     },
     /// Two columns of parts (IDEA's checkbox grids).
     Columns(Vec<Part>, Vec<Part>),
-    /// `before` and a link to another settings page.
+    /// `before`, a link to another settings page, and `after` right after the link (its full stop).
     Link {
         before: Option<&'static str>,
         text: &'static str,
+        after: Option<&'static str>,
         page: &'static str,
         query: Option<&'static str>,
     },
@@ -853,9 +870,10 @@ impl FormView {
                 out.extend(hint.as_ref().map(|hint| format!("    {}", tx(cx, hint))));
             }
             Part::Columns(..) => {}
-            Part::Link { before, text, .. } => {
+            Part::Link { before, text, after, .. } => {
                 let before = before.map(|before| format!("{} ", tx(cx, before))).unwrap_or_default();
-                out.push(format!("{before}{} →", tx(cx, text)));
+                let after = after.map(|after| tx(cx, after)).unwrap_or_default();
+                out.push(format!("{before}{} →{after}", tx(cx, text)));
             }
         }
     }
@@ -1003,9 +1021,12 @@ impl FormView {
                     .child(div().flex_1().min_w_0().flex().flex_col().children(right))
                     .into_any_element()
             }
-            Part::Link { before, text, page, query: search } => {
+            Part::Link { before, text, after, page, query: search } => {
                 let (page, search) = (*page, *search);
-                let before = before.map(|before| muted(cx, &tx(cx, before)));
+                // Word by word, so a long sentence wraps before the link as running text does.
+                let before = before.map(|before| tx(cx, before)).unwrap_or_default();
+                let words: Vec<Div> = before.split_whitespace().map(|word| muted(cx, word)).collect();
+                let after = after.map(|after| muted(cx, &tx(cx, after)));
                 let text = tx(cx, text);
                 let link = div()
                     .id(SharedString::from(format!("settings-link-own-{page}")))
@@ -1016,7 +1037,16 @@ impl FormView {
                     .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
                         cx.emit(ControlEvent::OpenPage { page, query: search });
                     }));
-                div().flex().items_center().gap(px(4.0)).px(px(4.0)).children(before).child(link).into_any_element()
+                let link = div().flex().items_center().child(link).children(after);
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .gap_x(px(4.0))
+                    .px(px(4.0))
+                    .children(words)
+                    .child(link)
+                    .into_any_element()
             }
         }
     }
@@ -1068,11 +1098,17 @@ impl FormView {
             spec.note_off.filter(|(key, _)| !self.binding.bool(key, cx)).map(|(_, note)| muted(cx, &tx(cx, note)));
         let browse = spec.browse.map(|directories| {
             let binding = self.binding.clone();
-            let title = tx(cx, "Browse…");
             div()
                 .id(SharedString::from(format!("settings-browse-{key}")))
                 .debug_selector(move || format!("settings-browse-{key}"))
-                .child(button(cx, &title, false, open))
+                .size(px(22.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(theme::length(cx, "radius-small"))
+                .hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover")))
+                .tooltip(crate::ui::tooltip::tooltip("Browse…"))
+                .child(theme::icon(cx, "folder-open", 16.0, theme::color(cx, "fg-icon")))
                 .when(open, |el| {
                     el.on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
                         let binding = binding.clone();

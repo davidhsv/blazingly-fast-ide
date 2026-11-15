@@ -136,6 +136,28 @@ fn type_over(cx: &mut VisualTestContext, field: &Entity<crate::ui::text_field::T
     cx.run_until_parked();
 }
 
+/// Scrolls the page shown until the control drawn as `at` is above the dialog's buttons; the
+/// wheel turns over the page just above OK, clear of the lists that scroll on their own.
+fn bring_into_view(cx: &mut VisualTestContext, at: &'static str) {
+    use gpui_kit::{Modifiers, ScrollDelta, ScrollEvent, ScrollSource, TouchPhase, point, px};
+    for _ in 0..40 {
+        cx.run_until_parked();
+        let target = cx.debug_bounds(at).unwrap_or_else(|| panic!("{at} is drawn"));
+        let ok = cx.debug_bounds("settings-ok").expect("the dialog's OK is drawn");
+        if target.bottom() < ok.top() - px(8.0) {
+            return;
+        }
+        cx.simulate_event(ScrollEvent {
+            position: point(ok.center().x, ok.top() - px(40.0)),
+            delta: ScrollDelta::Pixels(point(px(0.0), px(-60.0))),
+            modifiers: Modifiers::default(),
+            touch_phase: TouchPhase::Moved,
+            source: ScrollSource::Pointer,
+        });
+    }
+    panic!("{at} cannot be scrolled into view");
+}
+
 fn is_modified(dialog: &Entity<SettingsDialogView>, cx: &mut VisualTestContext) -> bool {
     dialog.read_with(cx, |view, cx| view.is_modified(cx))
 }
@@ -295,6 +317,8 @@ async fn http_proxy_manual_configuration_applies_and_the_password_stays_secret(c
     assert!(lines.iter().all(|line| !line.contains(SECRET)), "{lines:?}");
     let staged = dialog.read_with(cx, |view, cx| format!("{:?}", view.model().read(cx).staged().collect::<Vec<_>>()));
     assert!(!staged.contains(SECRET), "a staged change's Debug output names the password");
+    let form = view.read_with(cx, |view, cx| view.form(cx));
+    assert!(!format!("{form:?} {:?}", form.settings()).contains(SECRET), "the proxy form's Debug output names it");
     click_on(cx, "settings-proxy-check");
     let url = view.read_with(cx, |view, _| view.url_field().clone());
     type_over(cx, &url, "http://example.test/");
@@ -306,6 +330,10 @@ async fn http_proxy_manual_configuration_applies_and_the_password_stays_secret(c
     assert_eq!(global_value(cx, "proxy.port"), Some(json!(3128)));
     assert_eq!(global_value(cx, "proxy.login"), Some(json!("me")));
     assert_eq!(effective_value(cx, "proxy.password"), Some(json!(SECRET)), "the backend keeps the password");
+    let base = dialog.read_with(cx, |view, cx| view.model().read(cx).base.clone());
+    assert_eq!(base["proxy"]["password"], json!(SECRET), "the dialog's settings hold the saved password");
+    let model = dialog.read_with(cx, |view, cx| format!("{:?}", view.model().read(cx)));
+    assert!(model.contains("proxy.example.test") && !model.contains(SECRET), "the dialog's Debug output names it");
     let file = global_settings_file(&home);
     assert!(file.contains("proxy.example.test") && !file.contains(SECRET), "{file}");
     let logged = String::from_utf8_lossy(&log.0.lock()).into_owned();
@@ -314,7 +342,9 @@ async fn http_proxy_manual_configuration_applies_and_the_password_stays_secret(c
         .into_iter()
         .filter(|file| std::fs::read(file).is_ok_and(|bytes| String::from_utf8_lossy(&bytes).contains(SECRET)))
         .collect();
-    assert!(kept.iter().all(|file| file.file_name().is_some_and(|name| name == "proxy-password.json")), "{kept:?}");
+    // Test builds keep saved passwords in a vault file beside the index, in place of the system's store.
+    let vault = |file: &PathBuf| file.file_name().is_some_and(|name| name == "proxy-password.json.vault");
+    assert!(!kept.is_empty() && kept.iter().all(vault), "{kept:?}");
 }
 
 // Updates: listed once Check for Updates is registered; the version, Last checked as the backend
@@ -366,6 +396,8 @@ async fn file_types_patterns_and_ignored_names_are_written_to_the_project(cx: &m
         custom(&dialog, editor_files::PAGE, "File name patterns", cx);
     let lines = types.read_with(cx, |view, cx| view.lines(cx));
     assert!(lines.contains(&"  Python".to_owned()), "{lines:?}");
+    // The list scrolls: the filter brings Python up before it is clicked.
+    type_into(cx, "settings-file-types-filter", "Python");
     click_on(cx, "settings-file-type-python");
     let lines = types.read_with(cx, |view, cx| view.lines(cx));
     assert!(lines.contains(&"> Python".to_owned()), "{lines:?}");
@@ -376,12 +408,15 @@ async fn file_types_patterns_and_ignored_names_are_written_to_the_project(cx: &m
     let listed: Vec<String> = rows.into_iter().flatten().collect();
     assert_eq!(Some(Value::from(listed)), defaults, "the ignored names in effect are listed");
     let exclude: Entity<ListEditor> = custom(&dialog, editor_files::PAGE, "Exclude patterns", cx);
-    assert_eq!(exclude.read_with(cx, |view, cx| view.lines(cx)), ["Exclude patterns:", "  No patterns"]);
+    let excluded = effective_value(cx, "files.exclude");
+    let rows: Vec<String> = exclude.read_with(cx, |view, cx| view.rows(cx)).into_iter().flatten().collect();
+    assert_eq!(Some(Value::from(rows)), excluded, "the exclude patterns in effect are listed");
 
     click_on(cx, "settings-table-file-type-patterns-add");
     cx.simulate_input("*.snake");
     cx.simulate_keystrokes("enter");
     cx.run_until_parked();
+    bring_into_view(cx, "settings-list-files.ignoredNames-add");
     click_on(cx, "settings-list-files.ignoredNames-add");
     cx.simulate_input("*.tmp");
     cx.simulate_keystrokes("enter");
@@ -506,6 +541,8 @@ async fn maven_home_and_thread_count_are_written_to_the_project(cx: &mut TestApp
     );
     click_on(cx, "settings-sdk-languages.java.maven.home");
     click_on(cx, "settings-sdk-languages.java.maven.home-choice-1");
+    // The page is taller than the dialog: it scrolls to its last control.
+    bring_into_view(cx, "settings-text-languages.java.maven.mvndHome");
     let threads = tool_page_field(&page, "languages.java.maven.threads", cx);
     type_over(cx, &threads, "2C");
     click_on(cx, "settings-apply");
@@ -530,7 +567,7 @@ async fn actions_on_save_are_written_to_the_project(cx: &mut TestAppContext) {
     assert_eq!(labels, ["[ ] Reformat code", "[ ] Optimize imports", "[ ] Run code cleanup"]);
     let note: Entity<FormView> = custom(&dialog, tools_actions_on_save::PAGE, "Save", cx);
     let note = note.read_with(cx, |form, cx| form.lines(cx));
-    assert!(note[0].ends_with("Editor › General →"), "{note:?}");
+    assert!(note[0].ends_with("Editor › General →."), "{note:?}");
     click_on(cx, "settings-toggle-actionsOnSave.optimizeImports");
     click_on(cx, "settings-apply");
     assert_eq!(effective_value(cx, "actionsOnSave.optimizeImports"), Some(json!(true)));
@@ -600,6 +637,28 @@ async fn directory_mappings_show_the_project_root(cx: &mut TestAppContext) {
     assert!(!dialog.read_with(cx, |view, cx| view.can_apply(cx)));
 }
 
+// Directory Mappings: a project whose root is a Git repository is mapped to Git.
+#[gpui_kit::test]
+async fn directory_mappings_map_a_repository_root_to_git(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let folder = tempfile::tempdir().expect("a temporary folder");
+    let root = folder.path().canonicalize().expect("the folder exists");
+    init_repo(&root);
+    std::fs::write(root.join("a.txt"), "a\n").expect("the file is written");
+    cx.update(|cx| cx.global::<Backend>().host.trust.decide(&root, true, false)).expect("the project is trusted");
+    let (workbench, cx) = window(cx);
+    workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
+    settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+    // The repositories of a project are found after it opens; the table is read when Settings opens.
+    let found = |cx: &mut VisualTestContext| {
+        cx.update(|_, cx| cx.global::<Backend>().host.project("w1").is_ok_and(|p| !p.repos.read().is_empty()))
+    };
+    settle(cx, found);
+    let dialog = open_page(&workbench, vcs_mappings::PAGE, cx);
+    let view: Entity<vcs_mappings::MappingsView> = custom(&dialog, vcs_mappings::PAGE, vcs_mappings::SLOT, cx);
+    assert_eq!(view.read_with(cx, |view, cx| view.lines(cx))[1], format!("<Project> {} | Git", root.display()));
+}
+
 // Issue Navigation: the table, its hint and the preset buttons; in This project, the JIRA pattern
 // added with its button and a link typed into the table are written to the project.
 #[gpui_kit::test]
@@ -631,37 +690,61 @@ async fn issue_navigation_links_are_written_to_the_project(cx: &mut TestAppConte
     assert!(file.contains("jira.example.com") && file.contains("ops.example.test"), "{file}");
 }
 
-/// What a test does to a control: a click, or text typed over a field.
+/// What a test does to a control: clicks, text typed over a field, or a row added to a table.
 enum Act {
-    Click(&'static str),
+    Click(&'static [&'static str]),
     Type(&'static str, &'static str),
+    Add(&'static str, &'static str),
 }
 
-// Reset discards an edit, and Cancel after the same edit writes nothing, on a page of standard
-// controls (Updates), of controls of their own (Date Formats, Actions on Save, Issue Navigation)
-// and drawn by a view of its own (CMake).
+// Reset discards an edit, and Cancel after the same edit writes nothing, on every page that has a
+// control to change: standard controls (Updates), controls of their own (Date Formats, HTTP Proxy,
+// File Types, Actions on Save, External Tools, Issue Navigation) and pages drawn by a view of their
+// own (CMake, Gradle, Maven).
 #[gpui_kit::test]
 async fn reset_and_cancel_discard_an_edit_on_each_kind_of_page(cx: &mut TestAppContext) {
     let _home = start(cx);
     cx.update(|cx| cx.global_mut::<ActionRegistry>().handle(general_updates::CHECK_ACTION, |_, _, _| Ok(())));
     let (_folder, _root, workbench, cx) = project(cx);
-    let cases: [(&str, Act, &str); 5] = [
-        (general_updates::PAGE, Act::Click("settings-toggle-general.autoCheckUpdates"), "general.autoCheckUpdates"),
+    let cases: [(&str, Act, &str); 10] = [
+        (general_updates::PAGE, Act::Click(&["settings-toggle-general.autoCheckUpdates"]), "general.autoCheckUpdates"),
         (
             general_date_formats::PAGE,
-            Act::Click("settings-toggle-general.dateFormat.pretty"),
+            Act::Click(&["settings-toggle-general.dateFormat.pretty"]),
             "general.dateFormat.pretty",
         ),
-        (tools_actions_on_save::PAGE, Act::Click("settings-toggle-actionsOnSave.cleanup"), "actionsOnSave.cleanup"),
-        (vcs_issue_navigation::PAGE, Act::Click("settings-issue-preset-github"), "vcs.issueNavigation"),
+        (general_http_proxy::PAGE, Act::Click(&["settings-radio-proxy.mode-none"]), "proxy.mode"),
+        (editor_files::PAGE, Act::Add("settings-table-file-type-patterns-add", "*.smoke"), "files.fileTypes"),
+        (tools_actions_on_save::PAGE, Act::Click(&["settings-toggle-actionsOnSave.cleanup"]), "actionsOnSave.cleanup"),
+        (tools_external_tools::PAGE, Act::Click(&["settings-tools-add"]), "externalTools"),
+        (vcs_issue_navigation::PAGE, Act::Click(&["settings-issue-preset-github"]), "vcs.issueNavigation"),
         (build_cmake::PAGE, Act::Type("settings-text-cmake.generator", "Ninja"), "cmake.profiles"),
+        (
+            build_gradle::PAGE,
+            Act::Click(&[
+                "settings-select-languages.java.gradle.distribution",
+                "settings-choice-languages.java.gradle.distribution-local",
+            ]),
+            "languages.java.gradle.distribution",
+        ),
+        (
+            build_maven::PAGE,
+            Act::Click(&["settings-toggle-languages.java.maven.daemon"]),
+            "languages.java.maven.daemon",
+        ),
     ];
     for (page, act, key) in cases {
         let before = effective_value(cx, key);
         let dialog = open_page(&workbench, page, cx);
         let run = |cx: &mut VisualTestContext| match &act {
-            Act::Click(at) => click_on(cx, at),
+            Act::Click(at) => at.iter().for_each(|at| click_on(cx, at)),
             Act::Type(at, text) => type_into(cx, at, text),
+            Act::Add(at, text) => {
+                click_on(cx, at);
+                cx.simulate_input(text);
+                cx.simulate_keystrokes("enter");
+                cx.run_until_parked();
+            }
         };
         run(cx);
         assert!(is_modified(&dialog, cx), "{page}: the edit is staged");

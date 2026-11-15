@@ -477,16 +477,18 @@ mod tests {
         cx.simulate_input("https://t.example/$0");
         cx.simulate_keystrokes("enter");
         cx.run_until_parked();
-        let staged = staged(&model, cx);
-        assert_eq!(staged.len(), 1, "{staged:?}");
-        assert_eq!(staged[0].0, format!("global:{KEY}"));
-        let stored: Value = serde_json::from_str(&staged[0].1).expect("JSON");
+        let changes = staged(&model, cx);
+        assert_eq!(changes.len(), 1, "{changes:?}");
+        assert_eq!(changes[0].0, format!("global:{KEY}"));
+        let stored: Value = serde_json::from_str(&changes[0].1).expect("JSON");
         assert_eq!(stored, json!([{ "pattern": "ABC-\\d+", "link": "https://t.example/$0" }]));
         assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["> ABC-\\d+ | https://t.example/$0"]);
         view.update_in(cx, |view, window, cx| view.start_edit(0, window, cx));
         cx.simulate_keystrokes("cmd-a backspace enter");
         cx.run_until_parked();
-        assert_eq!(staged(&model, cx), [(format!("global:{KEY}"), "[]".to_owned())]);
+        // The row emptied is dropped: the table is back to the stored empty list, nothing to write.
+        assert!(staged(&model, cx).is_empty());
+        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["  No issue navigation links"]);
     }
 
     // Not from a spec: Escape gives up an edit; − removes the selected row and a table of records

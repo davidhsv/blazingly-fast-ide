@@ -33,8 +33,8 @@ pub fn stage_key(scope: Scope, key: &str) -> String {
     format!("{}|{key}", scope_name(scope))
 }
 
-/// An edit waiting for Apply.
-#[derive(Debug, Clone, PartialEq)]
+/// An edit waiting for Apply. Its `Debug` output hides a password it holds.
+#[derive(Clone, PartialEq)]
 pub struct StagedChange {
     pub scope: Scope,
     pub key: String,
@@ -44,6 +44,48 @@ pub struct StagedChange {
     pub value: Value,
     /// The page that made the change (Reset discards per page).
     pub page: String,
+}
+
+/// Settings that hold a password: the backend keeps them in the saved passwords, and no `Debug`
+/// output of the dialog shows them.
+const SECRET_KEYS: [&str; 1] = ["proxy.password"];
+
+/// `value`, the value of `key`, with every password it holds replaced by a mark (`key` empty:
+/// `value` is the whole settings tree).
+fn redacted(key: &str, value: &Value) -> Value {
+    SECRET_KEYS.iter().fold(value.clone(), |value, secret| {
+        let below = if key.is_empty() {
+            Some(*secret)
+        } else if key == *secret {
+            Some("")
+        } else {
+            secret.strip_prefix(key).and_then(|rest| rest.strip_prefix('.'))
+        };
+        match below {
+            Some("") if value.as_str().is_some_and(|text| !text.is_empty()) => Value::from("…"),
+            Some(below)
+                if !below.is_empty()
+                    && get_at(&value, below).and_then(Value::as_str).is_some_and(|text| !text.is_empty()) =>
+            {
+                set_at(&value, below, Value::from("…"))
+            }
+            _ => value,
+        }
+    })
+}
+
+impl fmt::Debug for StagedChange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // A value below `path` belongs to a map of literal keys, never to a password setting.
+        let value = if self.path.is_some() { self.value.clone() } else { redacted(&self.key, &self.value) };
+        f.debug_struct("StagedChange")
+            .field("scope", &self.scope)
+            .field("key", &self.key)
+            .field("path", &self.path)
+            .field("value", &value)
+            .field("page", &self.page)
+            .finish()
+    }
 }
 
 impl StagedChange {
@@ -162,7 +204,7 @@ fn some(value: Option<&Value>) -> Option<Value> {
 }
 
 /// The state of the Settings dialog (and of Project Structure, which shares its staging).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct SettingsDialog {
     pub open: bool,
     pub project_structure_open: bool,
@@ -189,6 +231,32 @@ pub struct SettingsDialog {
     pub saving: bool,
     pub error: Option<String>,
     pub pages_loading: bool,
+}
+
+/// The saved proxy password is filled into the effective settings the dialog opens over: the
+/// output shows the trees with it hidden.
+impl fmt::Debug for SettingsDialog {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SettingsDialog")
+            .field("open", &self.open)
+            .field("project_structure_open", &self.project_structure_open)
+            .field("project_structure_section", &self.project_structure_section)
+            .field("page_id", &self.page_id)
+            .field("focus", &self.focus)
+            .field("query", &self.query)
+            .field("base", &redacted("", &self.base))
+            .field("global_base", &redacted("", &self.global_base))
+            .field("new_projects", &self.new_projects)
+            .field("staged", &self.staged)
+            .field("staged_secrets", &self.staged_secrets)
+            .field("staged_external", &self.staged_external)
+            .field("external_applied", &self.external_applied)
+            .field("scopes", &self.scopes)
+            .field("saving", &self.saving)
+            .field("error", &self.error)
+            .field("pages_loading", &self.pages_loading)
+            .finish()
+    }
 }
 
 impl Default for SettingsDialog {

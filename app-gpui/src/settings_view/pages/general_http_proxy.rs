@@ -9,16 +9,19 @@
 //! it in the saved passwords rather than in the settings file.
 
 use super::{
-    Binding, ControlEvent, INDENT, NUMBER_FIELD, Then, WIDE_FIELD, frame, hint_line, new_field, row, row_label,
+    Binding, ControlEvent, INDENT, NUMBER_FIELD, Then, WIDE_FIELD, claim_field_keys, frame, hint_line, new_field, row,
+    row_label,
 };
+use crate::backend::Backend;
 use crate::platform::i18n::{Localization, Param};
+use crate::platform::input;
 use crate::settings_view::controls::{button, check_box, number_json, parse_number_input, radio_dot, search_label, tx};
 use crate::theme;
 use crate::ui::secret_field::{BULLET, SecretField, SecretFieldEvent};
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
-    AnyElement, App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, Render, SharedString,
-    Subscription, Window, div, prelude::*, px,
+    AnyElement, App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, Keystroke, Render,
+    SharedString, Subscription, Window, div, prelude::*, px,
 };
 use ide_core::settings::ProxySettings;
 use serde_json::{Value, json};
@@ -52,9 +55,37 @@ pub struct ConnectionCheck(pub Checker);
 
 impl gpui_kit::Global for ConnectionCheck {}
 
-/// The checker set as [`ConnectionCheck`], if any.
+/// The checker set as [`ConnectionCheck`], else the backend's. Test builds never reach the network:
+/// without a checker of their own Check connection… is unavailable.
 pub fn checker(cx: &App) -> Option<Checker> {
-    cx.try_global::<ConnectionCheck>().map(|check| check.0.clone())
+    match cx.try_global::<ConnectionCheck>() {
+        Some(check) => Some(check.0.clone()),
+        None if cfg!(test) => None,
+        None => Some(backend_checker()),
+    }
+}
+
+/// Requests the URL on the backend's runtime with the settings given, as the command of Check
+/// connection… does; the answer is the response's status line or why there was none.
+pub fn backend_checker() -> Checker {
+    Rc::new(|proxy: ProxySettings, url: String, then: Then<Result<String, String>>, cx: &mut App| {
+        let Some(backend) = cx.try_global::<Backend>() else {
+            then(Err("The backend is not running".to_owned()), cx);
+            return;
+        };
+        let work = backend.call(async move {
+            ide_http::client::check_connection(&proxy, &url, &ide_core::CancellationToken::new()).await
+        });
+        cx.spawn(async move |cx| {
+            let shown = match work.await {
+                Ok(Ok(status)) => Ok(status),
+                Ok(Err(error)) => Err(error.message),
+                Err(error) => Err(error.to_string()),
+            };
+            cx.update(|cx| then(shown, cx));
+        })
+        .detach();
+    })
 }
 
 /// The port a kind of proxy listens on unless told otherwise.
@@ -73,6 +104,21 @@ pub struct ProxyForm {
     pub authenticate: bool,
     pub login: String,
     password: String,
+}
+
+impl std::fmt::Debug for ProxyForm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProxyForm")
+            .field("mode", &self.mode)
+            .field("kind", &self.kind)
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("no_proxy", &self.no_proxy)
+            .field("authenticate", &self.authenticate)
+            .field("login", &self.login)
+            .field("password", &if self.password.is_empty() { "" } else { "…" })
+            .finish()
+    }
 }
 
 impl ProxyForm {
@@ -163,6 +209,8 @@ pub struct HttpProxyView {
     check_open: bool,
     url: Entity<TextField>,
     check: CheckState,
+    /// Up and Down in the port's field step it.
+    port_keys: u64,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -216,6 +264,8 @@ impl HttpProxyView {
             }
         }));
         subscriptions.push(cx.observe(&binding.model, |view: &mut Self, _, cx| view.sync(cx)));
+        let port_keys = claim_field_keys(&port, |view: &mut Self, keystroke, cx| view.port_key(keystroke, cx), cx);
+        cx.on_release(|view: &mut Self, cx: &mut App| input::release_keys(view.port_keys, cx)).detach();
         let mut view = Self {
             binding,
             host,
@@ -228,6 +278,7 @@ impl HttpProxyView {
             check_open: false,
             url,
             check: CheckState::Idle,
+            port_keys,
             _subscriptions: subscriptions,
         };
         view.sync(cx);
@@ -276,6 +327,23 @@ impl HttpProxyView {
             return;
         }
         self.binding.stage(&format!("proxy.{name}"), Value::String(text), cx);
+    }
+
+    /// Up / Down step the port by one within its range while the configuration is manual.
+    fn port_key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
+        let up = match keystroke.key.as_str() {
+            "up" => true,
+            "down" => false,
+            _ => return false,
+        };
+        let form = self.form(cx);
+        if keystroke.modifiers.modified() || !form.manual() {
+            return false;
+        }
+        let port = (form.port + if up { 1.0 } else { -1.0 }).clamp(PORT_RANGE.0, PORT_RANGE.1);
+        self.port_invalid = false;
+        self.binding.stage("proxy.port", number_json(port), cx);
+        true
     }
 
     /// Follows Reset and the other controls: each field shows its value (a port being typed that is
@@ -362,7 +430,8 @@ impl HttpProxyView {
             .ok();
         });
         let settings = self.form(cx).settings();
-        checker(settings, url, then, cx);
+        // After this turn: a checker that answers at once finds the view free to update.
+        cx.defer(move |cx| checker(settings, url, then, cx));
         cx.notify();
     }
 
@@ -602,7 +671,7 @@ impl Render for HttpProxyView {
                     .child(div().ml(px(INDENT)).flex().gap(px(16.0)).child(login).child(password))
                     .children(problem),
             )
-            .child(div().mt(px(8.0)).child(check))
+            .child(div().mt(px(8.0)).flex().child(check))
             .children(popup)
     }
 }
@@ -612,7 +681,7 @@ mod tests {
     use super::super::test_support::*;
     use super::*;
     use crate::settings_model::staging::Scope;
-    use gpui_kit::TestAppContext;
+    use gpui_kit::{Focusable, TestAppContext};
     use std::cell::RefCell;
 
     const SECRET: &str = "pr0xyS3cretX";
@@ -668,7 +737,9 @@ mod tests {
     async fn the_password_is_shown_as_bullets_and_check_uses_the_settings_as_edited(cx: &mut TestAppContext) {
         let model = cx.update(|cx| dialog_model(PAGE, &manual(), cx));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Global);
-        let asked: Rc<RefCell<Vec<(String, String, u16, bool)>>> = Rc::default();
+        /// What the checker was asked: the URL, the host, the port and whether the password came along.
+        type Asked = Rc<RefCell<Vec<(String, String, u16, bool)>>>;
+        let asked: Asked = Rc::default();
         let log = asked.clone();
         let checker: Checker =
             Rc::new(move |proxy: ProxySettings, url: String, then: Then<Result<String, String>>, cx: &mut App| {
@@ -707,7 +778,8 @@ mod tests {
         let (view, _, cx) = open(cx, move |_, cx| HttpProxyView::new(binding, None, cx));
         let port = view.read_with(cx, |view, _| view.field("port").cloned()).expect("the port field");
         type_over(&port, "70000", cx);
-        assert!(staged(&model, cx).is_empty());
+        // Each text typed that is a port is staged as it is typed; the last one stays.
+        assert_eq!(staged(&model, cx), [("global:proxy.port".to_owned(), "7000".to_owned())]);
         let lines = view.read_with(cx, |view, cx| view.lines(cx));
         assert!(lines.contains(&"Port number: 70000 (invalid)".to_owned()), "{lines:?}");
         assert!(lines.contains(&"Login: me (disabled)".to_owned()), "{lines:?}");
@@ -715,5 +787,18 @@ mod tests {
         let lines = view.read_with(cx, |view, cx| view.lines(cx));
         assert!(lines.contains(&"Login: me".to_owned()), "{lines:?}");
         assert_eq!(lines.last().map(String::as_str), Some("[Check connection…] (disabled)"), "no checker");
+        cx.update(|window, cx| window.focus(&port.focus_handle(cx), cx));
+        cx.simulate_keystrokes("up");
+        cx.run_until_parked();
+        let port_staged = staged(&model, cx).into_iter().find(|(key, _)| key == "global:proxy.port");
+        assert_eq!(port_staged.map(|(_, value)| value).as_deref(), Some("7001"), "Up steps the port last staged");
+        assert_eq!(port.read_with(cx, |field, _| field.text().to_owned()), "7001");
+    }
+
+    // Not from a spec: a test build gets no checker of its own making, so Check connection… never
+    // reaches the network there unless a test gives one.
+    #[gpui_kit::test]
+    async fn without_a_checker_given_the_test_build_has_none(cx: &mut TestAppContext) {
+        assert!(cx.update(|cx| checker(cx)).is_none());
     }
 }

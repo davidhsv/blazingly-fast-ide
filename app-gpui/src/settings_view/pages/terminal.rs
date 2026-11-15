@@ -27,7 +27,13 @@ pub const SHELL_KEY: &str = "terminal.shellPath";
 pub fn forms() -> Vec<(&'static str, Vec<Part>)> {
     let mut right: Vec<Part> = vec![
         toggle("terminal.overrideIdeShortcuts", "Override IDE shortcuts").into(),
-        Part::Link { before: None, text: "Configure terminal keybindings", page: "keymap", query: Some("Terminal") },
+        Part::Link {
+            before: None,
+            text: "Configure terminal keybindings",
+            after: None,
+            page: "keymap",
+            query: Some("Terminal"),
+        },
         toggle("terminal.shellIntegration", "Shell integration").into(),
         toggle("terminal.highlightHyperlinks", "Highlight hyperlinks").into(),
     ];
@@ -101,7 +107,13 @@ pub fn font_slot() -> Vec<FontPiece> {
     vec![
         FontPiece::Form(vec![
             toggle("terminal.useEditorFont", "Use editor font").into(),
-            Part::Link { before: Some("configured in"), text: "Editor › Font", page: "editor.font", query: None },
+            Part::Link {
+                before: Some("configured in"),
+                text: "Editor › Font",
+                after: None,
+                page: "editor.font",
+                query: None,
+            },
         ]),
         FontPiece::Picker(PickerSpec {
             key: "terminal.fontFamily",

@@ -8624,6 +8624,7 @@ dependencies = [
  "ide-extension",
  "ide-github",
  "ide-host",
+ "ide-http",
  "ide-index",
  "ide-language",
  "ide-lsp",

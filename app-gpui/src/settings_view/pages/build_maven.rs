@@ -41,7 +41,7 @@ pub fn home() -> SdkSpec {
 /// The controls under the two choices.
 pub fn rest() -> Vec<Part> {
     let path = |key: &'static str, label: &'static str, placeholder: &'static str, hint: &'static str, dirs: bool| {
-        Part::from(field(key, label, FieldKind::Text).placeholder(placeholder).hint(hint).browse(dirs))
+        Part::from(field(key, label, FieldKind::Trimmed).placeholder(placeholder).hint(hint).browse(dirs))
     };
     vec![
         path(
@@ -72,7 +72,7 @@ pub fn rest() -> Vec<Part> {
                  run configuration’s own -P replaces these profiles.",
             )
             .into(),
-        field("languages.java.maven.threads", "Thread count", FieldKind::Text)
+        field("languages.java.maven.threads", "Thread count", FieldKind::Trimmed)
             .placeholder("4, 2C")
             .hint(
                 "Passed as -T to Maven builds and run configurations: a thread count (4) or a core multiplier (2C, \

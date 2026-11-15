@@ -30,6 +30,7 @@ ide-db = { path = "../crates/ide-db" }
 ide-docker = { path = "../crates/ide-docker" }
 ide-extension = { path = "../crates/ide-extension" }
 ide-github = { path = "../crates/ide-github" }
+ide-http = { path = "../crates/ide-http" }
 ide-host = { path = "../crates/ide-host" }
 ide-index = { path = "../crates/ide-index" }
 ide-lsp = { path = "../crates/ide-lsp" }

@@ -6,6 +6,9 @@ use crate::settings_model::builtin_pages::settings_registry;
 use crate::settings_model::page_spec::OptionSpec;
 use crate::settings_view::controls::UNAVAILABLE;
 
+/// How the dialog's lines show a slot filled by a control of its own.
+const OWN_CONTROL: &str = ": <custom>";
+
 /// A selector built at run time, for the test helpers that take a `'static` one.
 fn selector(text: String) -> &'static str {
     Box::leak(text.into_boxed_str())
@@ -68,7 +71,8 @@ fn clicked_change(option: &OptionSpec, cx: &mut VisualTestContext) -> Option<Cha
 /// Each built-in page opens through File › Settings… on its id. A page made of settings controls has one
 /// of them changed with the mouse (a checkbox, a radio button, a drop-down; a text field typed into when
 /// it has none of those), and Apply puts the new value in effect. Every other page is drawn by a view of
-/// its own (Keymap) or says, control by control, that it is not available.
+/// its own (Keymap, CMake), is made only of controls of its own, each drawn, or says, control by control,
+/// that it is not available.
 #[gpui_kit::test]
 async fn every_settings_page_opens_and_applies_a_change_made_with_the_mouse(cx: &mut TestAppContext) {
     let _home = start(cx);
@@ -107,7 +111,11 @@ async fn every_settings_page_opens_and_applies_a_change_made_with_the_mouse(cx: 
             None => {
                 let drawn_elsewhere = lines == ["<page view>"];
                 let unavailable = lines.iter().all(|line| line.starts_with('—') || line.ends_with(UNAVAILABLE));
-                if !drawn_elsewhere && !unavailable {
+                // A page made only of controls of its own is changed and applied by its own tests;
+                // here each of its controls must be drawn.
+                let own_controls = lines.iter().any(|line| line.ends_with(OWN_CONTROL))
+                    && lines.iter().all(|line| line.starts_with('—') || line.ends_with(OWN_CONTROL));
+                if !drawn_elsewhere && !unavailable && !own_controls {
                     failed.push(format!("{}: nothing to change in {lines:?}", spec.id));
                 }
             }

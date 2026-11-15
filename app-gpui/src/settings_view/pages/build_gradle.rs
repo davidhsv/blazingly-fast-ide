@@ -56,7 +56,7 @@ fn distribution() -> Vec<Part> {
 
 fn home() -> Vec<Part> {
     vec![
-        field("languages.java.gradle.home", "Gradle home", FieldKind::Text)
+        field("languages.java.gradle.home", "Gradle home", FieldKind::Trimmed)
             .placeholder("Gradle installation directory")
             .hint("Uses bin/gradle (bin/gradle.bat on Windows) instead of the wrapper or pinned toolchain.")
             .browse(true)
@@ -66,7 +66,7 @@ fn home() -> Vec<Part> {
 
 fn user_home() -> Vec<Part> {
     vec![
-        field("languages.java.gradle.userHome", "Gradle user home", FieldKind::Text)
+        field("languages.java.gradle.userHome", "Gradle user home", FieldKind::Trimmed)
             .placeholder("~/.gradle")
             .hint("Sets GRADLE_USER_HOME. Empty uses Gradle's default.")
             .browse(true)
@@ -134,6 +134,7 @@ mod tests {
 
     impl gpui_kit::Render for PageHost {
         fn render(&mut self, _: &mut gpui_kit::Window, _: &mut gpui_kit::Context<Self>) -> impl gpui_kit::IntoElement {
+            use gpui_kit::prelude::*;
             gpui_kit::div().size_full().child(self.0.clone())
         }
     }

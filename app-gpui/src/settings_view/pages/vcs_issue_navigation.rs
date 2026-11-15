@@ -217,6 +217,19 @@ mod tests {
         assert_eq!(stored(&staged), expected);
     }
 
+    // Not from a spec: the patterns are checked by the engine the commit messages are linked with,
+    // which has no look-around and no backreferences: such patterns are named as invalid.
+    #[test]
+    fn look_around_and_backreferences_are_invalid_patterns() {
+        let links = |patterns: &[&str]| -> Vec<(String, String)> {
+            patterns.iter().map(|pattern| ((*pattern).to_owned(), "x/$0".to_owned())).collect()
+        };
+        let refused = ["[A-Z]+-(?=\\d)", "(?<=#)\\d+", "(?!WIP)[A-Z]+-\\d+", "(a)\\1"];
+        assert_eq!(invalid_patterns(&links(&refused)), refused);
+        let accepted = ["[A-Z][A-Z0-9]+-\\d+", "#(\\d+)", "(?<key>[A-Z]+)-\\d+"];
+        assert!(invalid_patterns(&links(&accepted)).is_empty());
+    }
+
     // Not from a spec: a pattern that is not a regular expression is named under the table.
     #[gpui_kit::test]
     async fn an_invalid_pattern_is_named_under_the_table(cx: &mut TestAppContext) {

@@ -33,7 +33,7 @@ pub struct Install<'a> {
     pub has_project: bool,
 }
 
-/// Puts a view in every slot this module has a view for, on the 13 pages it covers, and
+/// Puts a view in every slot this module has a view for, and a view on each page drawn by one, and
 /// returns the subscriptions that answer their requests; the caller keeps them as long as the
 /// dialog is open.
 pub fn install(
@@ -176,6 +176,54 @@ pub fn install(
     let scheme = cx.new(|cx| pages::code_style::SchemeView::new(code_style, can_project, cx));
     slots.put(pages::code_style::PAGE, "Scheme", &scheme, cx);
 
+    // Appearance & Behavior › System Settings › Date Formats, HTTP Proxy and Updates.
+    let date_formats = binding(pages::general_date_formats::PAGE);
+    let view = cx.new(|cx| pages::general_date_formats::DateFormatsView::new(date_formats, cx));
+    slots.put(pages::general_date_formats::PAGE, pages::general_date_formats::SLOT, &view, cx);
+    let proxy = binding(pages::general_http_proxy::PAGE);
+    let checker = pages::general_http_proxy::checker(cx);
+    let view = cx.new(|cx| pages::general_http_proxy::HttpProxyView::new(proxy, checker, cx));
+    slots.put(pages::general_http_proxy::PAGE, pages::general_http_proxy::SLOT, &view, cx);
+    let updates = binding(pages::general_updates::PAGE);
+    let view = cx.new(|cx| {
+        let mut view = pages::general_updates::UpdateStatusView::new(updates, env!("CARGO_PKG_VERSION"), cx);
+        view.follow_backend(cx);
+        view
+    });
+    slots.put(pages::general_updates::PAGE, pages::general_updates::SLOT, &view, cx);
+
+    // Editor › File Types.
+    let files = binding(pages::editor_files::PAGE);
+    slots.lists(files.clone(), pages::editor_files::lists(), cx);
+    let view = pages::editor_files::recognized_file_types(files, cx);
+    slots.put(pages::editor_files::PAGE, "File name patterns", &view, cx);
+
+    // Tools › Actions on Save and External Tools.
+    slots.forms(binding(pages::tools_actions_on_save::PAGE), pages::tools_actions_on_save::forms(), cx);
+    let tools = binding(pages::tools_external_tools::PAGE);
+    let view = cx.new(|cx| pages::tools_external_tools::ExternalToolsView::new(tools, cx));
+    slots.put(pages::tools_external_tools::PAGE, pages::tools_external_tools::SLOT, &view, cx);
+
+    // Version Control › Directory Mappings and Issue Navigation.
+    let mapping = pages::vcs_mappings::project_mapping(install.window_label, cx);
+    let mappings = binding(pages::vcs_mappings::PAGE);
+    let view = cx.new(|_| pages::vcs_mappings::MappingsView::new(mappings, mapping));
+    slots.put(pages::vcs_mappings::PAGE, pages::vcs_mappings::SLOT, &view, cx);
+    let issues = binding(pages::vcs_issue_navigation::PAGE);
+    let view = cx.new(|cx| pages::vcs_issue_navigation::IssueNavigationView::new(issues.clone(), cx));
+    slots.put(pages::vcs_issue_navigation::PAGE, pages::vcs_issue_navigation::TABLE_SLOT, &view, cx);
+    let view = cx.new(|_| pages::vcs_issue_navigation::IssuePresetsView::new(issues));
+    slots.put(pages::vcs_issue_navigation::PAGE, pages::vcs_issue_navigation::PRESETS_SLOT, &view, cx);
+
+    // Build, Execution, Deployment › CMake, Gradle and Maven: pages drawn by views of their own.
+    let detector = pages::build_sdk_field::detector(install.window_label, cx);
+    let view = cx.new(|cx| pages::build_cmake::CMakeProfilesView::new(binding(pages::build_cmake::PAGE), cx));
+    slots.page_view(pages::build_cmake::PAGE, &view, cx);
+    let view = pages::build_gradle::page(binding(pages::build_gradle::PAGE), detector.clone(), cx);
+    slots.page_view(pages::build_gradle::PAGE, &view, cx);
+    let view = pages::build_maven::page(binding(pages::build_maven::PAGE), detector, cx);
+    slots.page_view(pages::build_maven::PAGE, &view, cx);
+
     slots.subscriptions
 }
 
@@ -206,6 +254,17 @@ impl Slots {
 
     fn fill(&mut self, page: &'static str, slot: &'static str, view: AnyView, cx: &mut App) {
         self.dialog.update(cx, |dialog, cx| dialog.set_custom_control(page, slot, view, cx));
+    }
+
+    /// `view` drawn for the whole of `page` (a page without sections), its requests answered.
+    fn page_view<V: Render + EventEmitter<ControlEvent>>(
+        &mut self,
+        page: &'static str,
+        view: &Entity<V>,
+        cx: &mut App,
+    ) {
+        self.listen(view, cx);
+        self.dialog.update(cx, |dialog, cx| dialog.set_page_view(page, view.clone().into(), cx));
     }
 
     fn put<V: Render + EventEmitter<ControlEvent>>(

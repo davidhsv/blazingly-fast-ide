@@ -7,7 +7,6 @@ use crate::platform::date_format::{DateFormatOptions, date_format_options, forma
 use crate::platform::i18n::Localization;
 use crate::platform::local_time::{now_ms, utc_offset_minutes};
 use crate::settings_view::controls::{check_box, search_label, tx};
-use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
     AnyElement, App, ClickEvent, Context, Entity, EventEmitter, IntoElement, Render, SharedString, Subscription,
@@ -38,8 +37,6 @@ const TOGGLES: [(&str, &str, Option<&str>, bool); 3] = [
 pub struct DateFormatsView {
     binding: Binding,
     pattern: Entity<TextField>,
-    /// The pattern typed is blank: it is flagged and not staged.
-    invalid: bool,
     /// When the page was opened: the preview shows two dates before it.
     now: f64,
     _subscriptions: Vec<Subscription>,
@@ -60,8 +57,11 @@ impl DateFormatsView {
         let events = cx.subscribe(&pattern, |view: &mut Self, field, event: &TextFieldEvent, cx| match event {
             TextFieldEvent::Changed => {
                 let text = field.read(cx).text().to_owned();
-                view.invalid = text.trim().is_empty();
-                if !view.invalid {
+                if text.trim().is_empty() {
+                    // A blank pattern is not one: the field goes back to the pattern in effect.
+                    let pattern = view.options(cx).pattern;
+                    field.update(cx, |field, cx| field.set_text(&pattern, cx));
+                } else {
                     view.binding.stage(PATTERN, Value::String(text), cx);
                 }
                 cx.notify();
@@ -70,7 +70,7 @@ impl DateFormatsView {
             TextFieldEvent::Cancelled => cx.emit(ControlEvent::Cancel),
         });
         let observe = cx.observe(&binding.model, |view: &mut Self, _, cx| view.sync(cx));
-        Self { binding, pattern, invalid: false, now, _subscriptions: vec![events, observe] }
+        Self { binding, pattern, now, _subscriptions: vec![events, observe] }
     }
 
     pub fn options(&self, cx: &App) -> DateFormatOptions {
@@ -81,13 +81,12 @@ impl DateFormatsView {
         &self.pattern
     }
 
-    /// Follows Reset, a scope change or another control: the field shows the pattern in effect
-    /// (a blank draft stays until it is typed over) and is editable only while the system format
-    /// is overridden.
+    /// Follows Reset, a scope change or another control: the field shows the pattern in effect and
+    /// is editable only while the system format is overridden.
     fn sync(&mut self, cx: &mut Context<Self>) {
         let options = self.options(cx);
         let shown = self.pattern.read(cx).text().to_owned();
-        if !self.invalid && shown != options.pattern {
+        if shown != options.pattern {
             self.pattern.update(cx, |field, cx| field.set_text(&options.pattern, cx));
         }
         if self.pattern.read(cx).is_read_only() == options.override_system {
@@ -114,9 +113,8 @@ impl DateFormatsView {
         let options = self.options(cx);
         let disabled = if options.override_system { "" } else { " (disabled)" };
         let mark = |on: bool| if on { "x" } else { " " };
-        let invalid = if self.invalid { " (invalid)" } else { "" };
         let mut out = vec![format!("[{}] {}", mark(options.override_system), tx(cx, SLOT))];
-        out.push(format!("  {}: {}{invalid}{disabled}", tx(cx, "Date format"), self.pattern.read(cx).text()));
+        out.push(format!("  {}: {}{disabled}", tx(cx, "Date format"), self.pattern.read(cx).text()));
         out.push(format!("    {}", tx(cx, "Placeholders: yyyy, yy, MMMM, MMM, MM, M, dd, d")));
         out.push(format!("  [{}] {}{disabled}", mark(options.use_24_hour), tx(cx, "Use 24-hour time format")));
         out.push(format!("[{}] {}", mark(options.pretty), tx(cx, "Use pretty formatting")));
@@ -167,7 +165,7 @@ impl Render for DateFormatsView {
                     .when(!open, |el| el.opacity(0.5))
                     .child(row_label(cx, &label, &query))
                     .child(
-                        frame(cx, 200.0, self.invalid)
+                        frame(cx, 200.0, false)
                             .id("settings-text-general.dateFormat.pattern")
                             .debug_selector(|| "settings-text-general.dateFormat.pattern".to_owned())
                             .font_family("monospace")
@@ -234,9 +232,9 @@ mod tests {
         assert!(preview.starts_with("Preview: 2026-11-0"), "{preview}");
     }
 
-    // Not from a spec: a blank pattern is flagged and not staged.
+    // Not from a spec: a blank pattern is not staged and the field shows the pattern in effect again.
     #[gpui_kit::test]
-    async fn a_blank_pattern_is_flagged_and_not_staged(cx: &mut TestAppContext) {
+    async fn a_blank_pattern_is_not_staged_and_the_pattern_in_effect_comes_back(cx: &mut TestAppContext) {
         let stored = [("general.dateFormat.overrideSystem", json!(true))];
         let model = cx.update(|cx| dialog_model(PAGE, &stored, cx));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Global);
@@ -244,6 +242,8 @@ mod tests {
         let field = view.read_with(cx, |view, _| view.pattern_field().clone());
         type_over(&field, " ", cx);
         assert!(staged(&model, cx).is_empty());
-        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx))[1], "  Date format:   (invalid)");
+        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx))[1], "  Date format: dd.MM.yyyy");
+        type_over(&field, "d/M/yy", cx);
+        assert_eq!(staged(&model, cx), [("global:general.dateFormat.pattern".to_owned(), "\"d/M/yy\"".to_owned())]);
     }
 }

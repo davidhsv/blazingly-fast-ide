@@ -4356,6 +4356,7 @@ mod tests {
     mod proofs18_e2e_run;
     mod proofs18_e2e_search;
     mod proofs18_e2e_toolwindows;
+    mod proofs19_settings_misc;
     mod proofs20_database;
     mod proofs20_run_widget;
     mod proofs20_shell;
