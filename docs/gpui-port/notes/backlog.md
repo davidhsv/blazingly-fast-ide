@@ -645,3 +645,10 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - 9 actions in `workbench/vcs_text_actions.rs` (11 e2e tests), model `vcs_more/caret_conflicts.rs`, views `vcs/{selection_history_view,external_log_view}.rs`. Hunks: `pub mod` lines (vcs, vcs_more), workbench `mod` + register call, two TabKind entries in tab_views.rs after Local History.
 - Expected: 8 done; vcs.log.openExternal partial (commit list only: no graph, paging, filters, details, context menu, restore; the log toolbar's "External Repository…" entry has no handler).
 - Risks: focused-diff test (diffEditorFocus), rebase swap test, `git log -L` rows, plain-folder half of the external log test, the ON/OFF test relying on the Project view taking the keyboard.
+
+## Refactor actions DRAFTED (2026-11-15): notes/integration/refactor_actions_integration.md
+
+- 11 of 13 actions in `workbench/refactor_actions.rs` (13 tests); pullMembersUp / pushMembersDown NOT registered (no native model or dialog: member table, destination picker, Problems Detected; Java-only executeCommand). Hunks: mod line, field `refactorings` + initialiser, register call, `editor_language.rs` `pub(super) async fn apply_code_action` wrapping the private apply_action.
+- Expected: done = inline, move, changeSignature; partial = extract* (no in-place naming of the introduced name: models InplaceRename / introduced_rename exist, nothing in the editor drives them; no syntax-only Introduce Variable/Constant), thisMenu, safeDelete (preview as a confirm dialog, untested), superMethod (plain chooser).
+- FOLLOW-UP SLICE worth a writer: in-place rename in the editor (also wanted by a pending proofs18 test: `EditorIntelligence::inplace_rename_hint`) → would finish extract* rows and e2e rename flows.
+- CARGO QUEUE now: [running] d112 proofs18 → build tools → Settings pages (27) → agents views → refactor actions + Git text actions (one integration) → diff gaps → shared button + accessibility → vcs_stage_hunks → zoom px.
