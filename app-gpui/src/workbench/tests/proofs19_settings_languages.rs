@@ -1,0 +1,635 @@
+//! Languages & Frameworks and Python Interpreter, visited through File › Settings… as a user opens
+//! them: every control of the page with its label and first value, one control changed with the
+//! mouse or the keyboard, applied, and read back from the settings in effect (and from the
+//! project's settings file for the pages a project's values show on first). The installations
+//! offered are the ones the test gives: no toolchain is probed, no tool looked up on the PATH.
+
+use super::*;
+use crate::settings_view::pages::languages_controls::LanguagePageView;
+use crate::settings_view::pages::languages_sdk::{TestToolchains, Toolchain, ToolchainKind};
+use gpui_kit::Focusable;
+use serde_json::{Value, json};
+
+/// An installation found at `path`.
+fn toolchain(path: &std::path::Path, name: &str, version: Option<&str>) -> Toolchain {
+    Toolchain {
+        path: path.to_string_lossy().into_owned(),
+        name: name.to_owned(),
+        version: version.map(str::to_owned),
+        source: "path".to_owned(),
+        home: None,
+        extra: None,
+    }
+}
+
+/// The answers the test build gives in place of the backend's toolchain probes.
+fn give_toolchains(cx: &mut VisualTestContext, test: TestToolchains) {
+    cx.update(|_, cx| cx.set_global(test));
+}
+
+/// Opens Settings on `page` through the registry, as File › Settings… does, and returns the page's
+/// own view.
+fn open_page(cx: &mut VisualTestContext, workbench: &Entity<Workbench>, page: &str) -> Entity<LanguagePageView> {
+    run_action(cx, "file.settings", Some(Value::from(page)));
+    let dialog = settings_dialog_of(workbench, cx).expect("Settings opens");
+    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some(page));
+    assert_eq!(dialog.read_with(cx, |view, cx| view.control_lines(cx)), ["<page view>"], "{page} draws its own view");
+    let view = dialog.read_with(cx, |view, _| view.page_view(page).cloned());
+    let view = view.and_then(|view| view.downcast::<LanguagePageView>().ok()).expect("the page's view");
+    cx.run_until_parked();
+    view
+}
+
+/// The page as text.
+fn lines(view: &Entity<LanguagePageView>, cx: &mut VisualTestContext) -> Vec<String> {
+    view.read_with(cx, |view, cx| view.lines(cx))
+}
+
+/// The page as text without its help lines.
+fn labels(view: &Entity<LanguagePageView>, cx: &mut VisualTestContext) -> Vec<String> {
+    lines(view, cx).into_iter().filter(|line| !line.starts_with("    ")).collect()
+}
+
+fn effective(cx: &mut VisualTestContext, key: &str) -> Option<Value> {
+    cx.update(|_, cx| setting_of(&crate::platform::settings::effective("w1", cx), key))
+}
+
+fn modified(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> bool {
+    let dialog = settings_dialog_of(workbench, cx).expect("Settings is open");
+    dialog.read_with(cx, |view, cx| view.is_modified(cx))
+}
+
+/// Clicks the field and types `text` over its text.
+fn type_into(cx: &mut VisualTestContext, field: &'static str, text: &str) {
+    click_on(cx, field);
+    cx.simulate_keystrokes("cmd-a");
+    cx.simulate_input(text);
+    cx.run_until_parked();
+}
+
+/// Opens the drop-down `list` and clicks its choice `choice`.
+fn choose(cx: &mut VisualTestContext, list: &'static str, choice: &'static str) {
+    click_on(cx, list);
+    click_on(cx, choice);
+}
+
+/// The project's settings file.
+fn project_file(root: &std::path::Path) -> String {
+    std::fs::read_to_string(root.join(".openidea/settings.toml")).unwrap_or_default()
+}
+
+/// A window without a project.
+fn window(cx: &mut TestAppContext) -> (Entity<Workbench>, &mut VisualTestContext) {
+    let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+    cx.update(|window, _| window.activate_window());
+    (workbench, cx)
+}
+
+/// Answers the folder chooser the last Browse… opened with `path`.
+fn answer_browse(cx: &mut VisualTestContext, path: &std::path::Path) {
+    wait_long(cx, "the folder chooser opens", |cx| cx.did_prompt_for_paths());
+    let chosen = path.to_path_buf();
+    cx.simulate_path_prompt_response(move |_| Some(vec![chosen]));
+    cx.run_until_parked();
+}
+
+// Go: GOROOT offers the Go found, Detect again looks again, and the GOPATH chosen with Browse… is
+// written to the project with the GOROOT chosen.
+#[gpui_kit::test]
+async fn go_goroot_and_gopath_are_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("main.go", "package main\n")]);
+    let goroot = root.join("sdk/go");
+    let gopath = root.join("gopath");
+    std::fs::create_dir_all(&gopath).expect("the folder is made");
+    let mut go = toolchain(&goroot, "go1.22.5", Some("1.22.5"));
+    go.extra = Some(root.join("default-gopath").to_string_lossy().into_owned());
+    let test = TestToolchains { found: vec![(ToolchainKind::Go, vec![go])], ..TestToolchains::default() };
+    let detections = test.detections.clone();
+    give_toolchains(cx, test);
+    let view = open_page(cx, &workbench, "languages.go");
+    assert_eq!(
+        lines(&view, cx),
+        [
+            "— GOROOT —".to_owned(),
+            "GOROOT: Default ▾".to_owned(),
+            "    Go SDK used by gopls and the go run / test configurations.".to_owned(),
+            "— GOPATH —".to_owned(),
+            format!("Project GOPATH: ({})", root.join("default-gopath").display()),
+        ]
+    );
+    assert_eq!(detections.get(), 1, "showing the page detects the Go installations once");
+    click_on(cx, "settings-sdk-languages.go.goroot-detect");
+    assert_eq!(detections.get(), 2, "Detect again looks again");
+    choose(cx, "settings-sdk-languages.go.goroot", "settings-sdk-languages.go.goroot-1");
+    click_on(cx, "settings-browse-languages.go.gopath");
+    answer_browse(cx, &gopath);
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.go.goroot"), Some(json!(goroot.to_string_lossy())));
+    assert_eq!(effective(cx, "languages.go.gopath"), Some(json!(gopath.to_string_lossy())));
+    let file = project_file(&root);
+    assert!(file.contains("goroot") && file.contains(gopath.to_string_lossy().as_ref()), "{file}");
+}
+
+// Go › Build Tags and Go Modules: without a project each page says one is needed.
+#[gpui_kit::test]
+async fn go_build_tags_and_modules_say_a_project_is_needed_without_one(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (workbench, cx) = window(cx);
+    let view = open_page(cx, &workbench, "languages.go.buildTags");
+    assert_eq!(lines(&view, cx), ["Open a project to configure Go build tags."]);
+    assert!(cx.debug_bounds("settings-project-only").is_some(), "the message is drawn");
+    let view = open_page(cx, &workbench, "languages.go.modules");
+    assert_eq!(lines(&view, cx), ["Open a project to configure Go modules."]);
+}
+
+// Go › Build Tags: in a project the OS chosen and the custom tags typed are written to it.
+#[gpui_kit::test]
+async fn go_build_tags_are_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("main.go", "package main\n")]);
+    let view = open_page(cx, &workbench, "languages.go.buildTags");
+    assert_eq!(
+        lines(&view, cx),
+        [
+            "Operating System: Automatic ▾",
+            "Architecture: Automatic ▾",
+            "Go Version: ",
+            "Compiler: Automatic ▾",
+            "CGO: Automatic ▾",
+            "Custom Tags: ",
+            "Experiments: ",
+        ]
+    );
+    type_into(cx, "settings-text-languages.go.buildTags.experiments", "loopvar");
+    click_on(cx, "settings-reset");
+    assert!(!modified(&workbench, cx), "Reset discards the experiments");
+    assert_eq!(lines(&view, cx)[6], "Experiments: ");
+    choose(cx, "settings-select-languages.go.buildTags.os", "settings-choice-languages.go.buildTags.os-linux");
+    type_into(cx, "settings-text-languages.go.buildTags.custom", "integration debug");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.go.buildTags.os"), Some(json!("linux")));
+    assert_eq!(effective(cx, "languages.go.buildTags.custom"), Some(json!("integration debug")));
+    assert!(project_file(&root).contains("integration debug"));
+}
+
+// Go › Go Modules: a variable typed is written to the project; Cancel after turning vendoring off
+// writes nothing.
+#[gpui_kit::test]
+async fn go_modules_variables_are_written_to_the_project_and_cancel_discards(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("go.mod", "module example.test\n")]);
+    let view = open_page(cx, &workbench, "languages.go.modules");
+    let mut expected = vec!["[x] Enable vendoring support automatically".to_owned()];
+    expected.extend(
+        ["GOPROXY", "GOPRIVATE", "GOFLAGS", "GONOPROXY", "GONOSUMDB", "GOSUMDB", "GOMODCACHE", "GOTOOLCHAIN", "GOWORK"]
+            .map(|name| format!("{name}: ")),
+    );
+    assert_eq!(lines(&view, cx), expected);
+    type_into(cx, "settings-text-languages.go.modules.env.GOPROXY", "https://proxy.example.test");
+    click_on(cx, "settings-ok");
+    assert_eq!(effective(cx, "languages.go.modules.env.GOPROXY"), Some(json!("https://proxy.example.test")));
+    assert!(project_file(&root).contains("https://proxy.example.test"));
+
+    open_page(cx, &workbench, "languages.go.modules");
+    click_on(cx, "settings-toggle-languages.go.modules.autoVendor");
+    assert!(modified(&workbench, cx));
+    click_on(cx, "settings-cancel");
+    assert!(settings_dialog_of(&workbench, cx).is_none(), "Cancel closes Settings");
+    assert_eq!(effective(cx, "languages.go.modules.autoVendor"), Some(json!(true)), "Cancel writes nothing");
+}
+
+// Java: the project JDK, its language level, shared JDT LS, the server's JDK and its JVM options;
+// the level and sharing chosen are written to the project; Reset discards typed JVM options.
+#[gpui_kit::test]
+async fn java_level_and_shared_jdt_ls_apply_and_reset_discards_jvm_options(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("A.java", "class A {}\n")]);
+    let jdk = toolchain(&root.join("jdks/21"), "21 (Temurin)", Some("21.0.4"));
+    give_toolchains(cx, TestToolchains { found: vec![(ToolchainKind::Jdk, vec![jdk])], ..TestToolchains::default() });
+    let view = open_page(cx, &workbench, "languages.java");
+    assert_eq!(
+        labels(&view, cx),
+        [
+            "— Project JDK —",
+            "SDK: Auto ▾",
+            "Language level: SDK default ▾",
+            "— Language Server —",
+            "[ ] Share JDT LS across builds",
+            "JDK: Auto ▾",
+            "JVM options: ",
+        ]
+    );
+    let shown = lines(&view, cx);
+    let hint = "    Uses one JDT LS process for linked builds in each local ordinary project window. Other project \
+                windows use separate processes.";
+    assert!(shown.iter().any(|line| line == hint), "{shown:?}");
+    type_into(cx, "settings-text-languages.java.jdtlsVmArgs", "-Xmx4g");
+    assert!(modified(&workbench, cx));
+    click_on(cx, "settings-reset");
+    assert!(!modified(&workbench, cx), "Reset discards the JVM options");
+    choose(cx, "settings-select-languages.java.languageLevel", "settings-choice-languages.java.languageLevel-21");
+    click_on(cx, "settings-toggle-languages.java.jdtlsShared");
+    choose(cx, "settings-sdk-languages.java.jdtlsJdk", "settings-sdk-languages.java.jdtlsJdk-1");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.java.languageLevel"), Some(json!("21")));
+    assert_eq!(effective(cx, "languages.java.jdtlsShared"), Some(json!(true)));
+    assert_eq!(effective(cx, "languages.java.jdtlsJdk"), Some(json!(root.join("jdks/21").to_string_lossy())));
+    assert_eq!(effective(cx, "languages.java.jdtlsVmArgs"), Some(json!("")));
+    assert!(project_file(&root).contains("jdtlsShared"));
+}
+
+// Markdown: the preview size shows the editor's until one is set; one typed and stepped with Up
+// applies globally; Reset and Cancel discard an edit.
+#[gpui_kit::test]
+async fn markdown_preview_size_follows_the_editor_until_set_and_applies(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (workbench, cx) = window(cx);
+    let view = open_page(cx, &workbench, "languages.markdown");
+    assert_eq!(
+        lines(&view, cx),
+        [
+            "— Preview —",
+            "Preview font size: 13 px",
+            "    Also used by Markdown cells in Jupyter notebooks. Defaults to the editor font size, independent of \
+             the UI font size.",
+        ]
+    );
+    const FIELD: &str = "settings-number-languages.markdown.previewFontSize";
+    type_into(cx, FIELD, "20");
+    click_on(cx, "settings-reset");
+    assert!(!modified(&workbench, cx), "Reset discards the size");
+    assert_eq!(labels(&view, cx)[1], "Preview font size: 13 px");
+    type_into(cx, FIELD, "16");
+    cx.simulate_keystrokes("up");
+    cx.run_until_parked();
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.markdown.previewFontSize"), Some(json!(17)));
+    type_into(cx, FIELD, "30");
+    click_on(cx, "settings-cancel");
+    assert_eq!(effective(cx, "languages.markdown.previewFontSize"), Some(json!(17)), "Cancel writes nothing");
+}
+
+// Node.js: the interpreter, the run target, where the servers run (the project's choice) and the
+// package managers found; the manager chosen is written to the project.
+#[gpui_kit::test]
+async fn node_package_manager_is_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("package.json", "{}\n")]);
+    let pnpm = toolchain(&root.join("bin/pnpm"), "pnpm", Some("9.1.0"));
+    let test = TestToolchains { found: vec![(ToolchainKind::PackageManager, vec![pnpm])], ..TestToolchains::default() };
+    give_toolchains(cx, test);
+    let view = open_page(cx, &workbench, "languages.node");
+    let shown = labels(&view, cx);
+    assert_eq!(shown[0], "Node interpreter: Default ▾");
+    assert_eq!(shown[1], "Run in target: Default run target ▾");
+    assert_eq!(shown[2], "— Language server targets —");
+    assert!(shown[3].starts_with("Language: "), "{shown:?}");
+    assert_eq!(shown[4], "Language server runs on: Local machine ▾");
+    assert_eq!(shown[5], "Package manager: Auto — from packageManager / lock file ▾");
+    assert_eq!(shown.len(), 6, "{shown:?}");
+    choose(cx, "settings-select-languages.node.packageManager", "settings-choice-languages.node.packageManager-pnpm");
+    assert!(labels(&view, cx)[5].starts_with("Package manager: pnpm — 9.1.0 "), "{:?}", labels(&view, cx));
+    choose(cx, "settings-select-languages.node.runTarget", "settings-choice-languages.node.runTarget-local");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.node.packageManager"), Some(json!("pnpm")));
+    assert_eq!(effective(cx, "languages.node.runTarget"), Some(json!("local")));
+    assert!(project_file(&root).contains("pnpm"));
+}
+
+// Python Interpreter: the project's virtualenv is the empty choice, named with its path; the
+// interpreter chosen and the virtualenv activation are written to the project.
+#[gpui_kit::test]
+async fn python_interpreter_and_activation_are_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("main.py", "print(1)\n")]);
+    let venv = root.join(".venv/bin/python");
+    let other = root.join("pythons/3.13/bin/python3");
+    let found = vec![toolchain(&venv, "Python 3.12 (.venv)", Some("3.12.4")), toolchain(&other, "Python 3.13", None)];
+    let python = Some(venv.to_string_lossy().into_owned());
+    give_toolchains(
+        cx,
+        TestToolchains { found: vec![(ToolchainKind::Python, found)], python, ..TestToolchains::default() },
+    );
+    let view = open_page(cx, &workbench, "python.interpreter");
+    assert_eq!(
+        lines(&view, cx),
+        [
+            "Python Interpreter: Project virtualenv (auto-detect) ▾".to_owned(),
+            format!("  Python 3.12 (.venv) — {}", venv.display()),
+            "— Terminal —".to_owned(),
+            "[x] Activate virtualenv".to_owned(),
+            "    New terminal sessions run the interpreter's virtualenv activate script.".to_owned(),
+        ]
+    );
+    choose(cx, "settings-sdk-languages.python.interpreter", "settings-sdk-languages.python.interpreter-2");
+    click_on(cx, "settings-toggle-languages.python.activateVirtualenv");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.python.interpreter"), Some(json!(other.to_string_lossy())));
+    assert_eq!(effective(cx, "languages.python.activateVirtualenv"), Some(json!(false)));
+    assert!(project_file(&root).contains("activateVirtualenv"));
+}
+
+// PHP: the language level, include paths, stubs, PHPStan, the CLI interpreter on the PATH with
+// its version and Xdebug; an include path added and a level chosen are written to the project.
+#[gpui_kit::test]
+async fn php_include_path_and_level_are_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("index.php", "<?php\n")]);
+    let php = root.join("bin/php");
+    let php_text = php.to_string_lossy().into_owned();
+    give_toolchains(
+        cx,
+        TestToolchains {
+            found: vec![(ToolchainKind::Php, vec![toolchain(&php, "PHP 8.3.1", Some("8.3.1"))])],
+            located: vec![("php", php_text.clone())],
+            xdebug: vec![(php_text, Some("3.3.0".to_owned()))],
+            ..TestToolchains::default()
+        },
+    );
+    let view = open_page(cx, &workbench, "languages.php");
+    assert_eq!(
+        labels(&view, cx),
+        [
+            "PHP language level: Auto — from composer.json ▾",
+            "Include paths:",
+            "  No include paths",
+            "Additional stubs:",
+            "  No additional stubs",
+            "— PHPStan —",
+            "Configuration file: (phpstan.neon, phpstan.neon.dist or phpstan.dist.neon)",
+            "— CLI Interpreter —",
+            "Run in target: Default run target ▾",
+            "Language server runs on: Local machine ▾",
+            "PHP interpreter: Default ▾",
+            "Version: 8.3.1",
+            "Xdebug: 3.3.0",
+        ]
+    );
+    click_on(cx, "settings-list-languages.php.includePaths-add");
+    cx.simulate_input("../platform");
+    cx.simulate_keystrokes("enter");
+    cx.run_until_parked();
+    choose(cx, "settings-select-languages.php.languageLevel", "settings-choice-languages.php.languageLevel-8.2");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.php.includePaths"), Some(json!(["../platform"])));
+    assert_eq!(effective(cx, "languages.php.languageLevel"), Some(json!("8.2")));
+    assert!(project_file(&root).contains("../platform"));
+}
+
+// Prettier: the path, the provider, run on save and every language it formats; Prettier chosen
+// as the provider and YAML turned off are written to the project.
+#[gpui_kit::test]
+async fn prettier_provider_and_languages_are_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "# A\n")]);
+    let view = open_page(cx, &workbench, "languages.prettier");
+    let mut expected: Vec<String> = [
+        "— Prettier —",
+        "Prettier path: ",
+        "Formatting provider: Automatic (language server first) ▾",
+        "[ ] Run on save",
+        "— Enabled languages —",
+    ]
+    .map(str::to_owned)
+    .to_vec();
+    let names = [
+        "Markdown",
+        "YAML",
+        "CSS",
+        "SCSS",
+        "Less",
+        "HTML",
+        "GraphQL",
+        "JavaScript",
+        "JavaScript JSX",
+        "TypeScript",
+        "TypeScript JSX",
+        "JSON",
+        "JSON with Comments",
+        "Vue",
+    ];
+    expected.extend(names.map(|name| format!("[x] {name}")));
+    assert_eq!(labels(&view, cx), expected);
+    choose(cx, "settings-select-languages.prettier.prefer", "settings-choice-languages.prettier.prefer-1");
+    click_on(cx, "settings-toggle-languages.prettier.languages-yaml");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.prettier.prefer"), Some(json!(true)));
+    let enabled = effective(cx, "languages.prettier.languages").and_then(|value| value.as_array().cloned());
+    let enabled = enabled.unwrap_or_default();
+    assert!(!enabled.contains(&json!("yaml")) && enabled.contains(&json!("markdown")), "{enabled:?}");
+    assert!(project_file(&root).contains("prefer"));
+}
+
+// oxfmt: its own settings, apart from Prettier's; Run on save is written to the project.
+#[gpui_kit::test]
+async fn oxfmt_run_on_save_is_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("a.ts", "export {}\n")]);
+    let view = open_page(cx, &workbench, "languages.oxfmt");
+    let shown = labels(&view, cx);
+    assert_eq!(
+        shown[..4],
+        ["— oxfmt —", "oxfmt path: ", "Formatting provider: Automatic (language server first) ▾", "[ ] Run on save"]
+    );
+    click_on(cx, "settings-toggle-languages.oxfmt.runOnSave");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.oxfmt.runOnSave"), Some(json!(true)));
+    assert_eq!(effective(cx, "languages.prettier.runOnSave"), Some(json!(false)));
+    assert!(project_file(&root).contains("oxfmt"));
+}
+
+// Ruff: the path, the configuration directory chosen with Browse…, the provider, run on save and
+// Python; the directory is written to the project.
+#[gpui_kit::test]
+async fn ruff_configuration_directory_is_chosen_with_browse_and_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("config/ruff/ruff.toml", "line-length = 100\n")]);
+    let view = open_page(cx, &workbench, "languages.ruff");
+    assert_eq!(
+        labels(&view, cx),
+        [
+            "— Ruff —",
+            "Ruff path: ",
+            "Configuration directory: ",
+            "Formatting provider: Automatic (language server first) ▾",
+            "[ ] Run on save",
+            "— Enabled languages —",
+            "[x] Python",
+        ]
+    );
+    click_on(cx, "settings-browse-languages.ruff.configurationDirectory");
+    answer_browse(cx, &root.join("config/ruff"));
+    click_on(cx, "settings-apply");
+    let expected = root.join("config/ruff").to_string_lossy().into_owned();
+    assert_eq!(effective(cx, "languages.ruff.configurationDirectory"), Some(json!(expected)));
+    assert!(project_file(&root).contains("configurationDirectory"));
+}
+
+// Ruby: the interpreters found are offered after Auto; the one chosen is written to the project.
+#[gpui_kit::test]
+async fn ruby_interpreter_is_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("app.rb", "puts 1\n")]);
+    let ruby = root.join("rubies/3.3.0/bin/ruby");
+    let found = vec![(ToolchainKind::Ruby, vec![toolchain(&ruby, "ruby 3.3.0", Some("3.3.0"))])];
+    give_toolchains(cx, TestToolchains { found, ..TestToolchains::default() });
+    let view = open_page(cx, &workbench, "languages.ruby");
+    assert_eq!(labels(&view, cx), ["Ruby interpreter: Auto ▾"]);
+    choose(cx, "settings-sdk-languages.ruby.interpreter", "settings-sdk-languages.ruby.interpreter-1");
+    assert_eq!(labels(&view, cx), ["Ruby interpreter: ruby 3.3.0 ▾"]);
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.ruby.interpreter"), Some(json!(ruby.to_string_lossy())));
+    assert!(project_file(&root).contains("rubies"));
+}
+
+// Rust: the toolchain chosen names its standard library in the empty field; Clippy and the rustfmt
+// arguments are written to the project; Reset and Cancel discard a checkbox edit.
+#[gpui_kit::test]
+async fn rust_linter_and_rustfmt_arguments_apply_and_reset_and_cancel_discard(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/main.rs", "fn main() {}\n")]);
+    let bin = root.join("toolchains/stable/bin");
+    let mut stable = toolchain(&bin, "stable-aarch64-apple-darwin", Some("1.85.0"));
+    stable.extra = Some(root.join("toolchains/stable/lib/rustlib/src/rust/library").to_string_lossy().into_owned());
+    give_toolchains(
+        cx,
+        TestToolchains { found: vec![(ToolchainKind::Rust, vec![stable])], ..TestToolchains::default() },
+    );
+    let view = open_page(cx, &workbench, "languages.rust");
+    assert_eq!(
+        labels(&view, cx),
+        [
+            "— Toolchain —",
+            "Toolchain location: Default ▾",
+            "Standard library: (Detected from the toolchain)",
+            "— External Linters —",
+            "External tool: Cargo Check ▾",
+            "[x] Run external linter on save",
+            "— Rustfmt —",
+            "Additional arguments: ",
+        ]
+    );
+    click_on(cx, "settings-toggle-languages.rust.checkOnSave");
+    click_on(cx, "settings-reset");
+    assert!(!modified(&workbench, cx), "Reset discards the checkbox");
+    choose(cx, "settings-sdk-languages.rust.toolchain", "settings-sdk-languages.rust.toolchain-1");
+    let library = root.join("toolchains/stable/lib/rustlib/src/rust/library");
+    assert_eq!(labels(&view, cx)[2], format!("Standard library: ({})", library.display()));
+    choose(cx, "settings-select-languages.rust.checkCommand", "settings-choice-languages.rust.checkCommand-clippy");
+    type_into(cx, "settings-text-languages.rust.rustfmtArgs", "--edition 2024");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.rust.checkCommand"), Some(json!("clippy")));
+    assert_eq!(effective(cx, "languages.rust.rustfmtArgs"), Some(json!("--edition 2024")));
+    assert_eq!(effective(cx, "languages.rust.toolchain"), Some(json!(bin.to_string_lossy())));
+    let file = project_file(&root);
+    assert!(file.contains("clippy"), "{file}");
+
+    click_on(cx, "settings-toggle-languages.rust.checkOnSave");
+    click_on(cx, "settings-cancel");
+    assert!(settings_dialog_of(&workbench, cx).is_none());
+    assert_eq!(effective(cx, "languages.rust.checkOnSave"), Some(json!(true)), "Cancel writes nothing");
+    assert_eq!(project_file(&root), file, "Cancel leaves the project's file as it was");
+}
+
+// TypeScript: Bundled, the project's node_modules TypeScript, and a lib folder chosen with Browse…,
+// which is written to the project and offered as a custom choice.
+#[gpui_kit::test]
+async fn typescript_version_is_chosen_with_browse_and_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("a.ts", "export {}\n")]);
+    let lib = root.join("node_modules/typescript/lib");
+    let mut workspace = toolchain(&lib, "TypeScript 5.4.5", Some("5.4.5"));
+    workspace.source = "workspace".to_owned();
+    let custom = root.join("tsdk/lib");
+    std::fs::create_dir_all(&custom).expect("the folder is made");
+    give_toolchains(
+        cx,
+        TestToolchains { found: vec![(ToolchainKind::TypeScript, vec![workspace])], ..TestToolchains::default() },
+    );
+    let view = open_page(cx, &workbench, "languages.typescript");
+    assert_eq!(labels(&view, cx), ["TypeScript: Bundled ▾"]);
+    choose(cx, "settings-sdk-languages.typescript.version", "settings-sdk-languages.typescript.version-1");
+    assert_eq!(labels(&view, cx), ["TypeScript: TypeScript 5.4.5 ▾"]);
+    click_on(cx, "settings-browse-languages.typescript.version");
+    answer_browse(cx, &custom);
+    assert_eq!(labels(&view, cx), [format!("TypeScript: {} ▾", custom.display())]);
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.typescript.version"), Some(json!(custom.to_string_lossy())));
+    assert!(project_file(&root).contains("tsdk"));
+}
+
+// Plugin Formatters: without a plugin formatter only Format on save is shown; it applies globally.
+#[gpui_kit::test]
+async fn plugin_formatters_format_on_save_applies(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (workbench, cx) = window(cx);
+    let view = open_page(cx, &workbench, "languages.pluginFormatters");
+    assert_eq!(lines(&view, cx), ["— Plugin Formatters —", "[ ] Format on save"]);
+    click_on(cx, "settings-toggle-editor.formatOnSave");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "editor.formatOnSave"), Some(json!(true)));
+}
+
+// Language server targets: without a project the choice is shown but not editable.
+#[gpui_kit::test]
+async fn language_server_targets_are_not_editable_without_a_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (workbench, cx) = window(cx);
+    let view = open_page(cx, &workbench, "languages.serverTargets");
+    let shown = labels(&view, cx);
+    assert_eq!(shown[1], "Language: PHP ▾");
+    assert_eq!(shown[2], "Language server runs on: Local machine ▾ (disabled)");
+    click_on(cx, "settings-target-runs-on");
+    assert!(cx.debug_bounds("settings-target-runs-on-0").is_none(), "the list does not open");
+}
+
+// Language server targets: a target stored for PHP that no plugin offers shows as unavailable;
+// Local machine chosen is written to the project.
+#[gpui_kit::test]
+async fn language_server_targets_local_machine_is_written_to_the_project(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("index.php", "<?php\n")]);
+    cx.update(|_, cx| {
+        let stored = json!({ "php": { "target": "ddev", "server": "" } });
+        crate::platform::settings::set(
+            "w1",
+            ide_workspace::settings::SettingsScope::Project,
+            "languageServerTargets",
+            &stored,
+            cx,
+        )
+        .expect("the target is stored");
+    });
+    let view = open_page(cx, &workbench, "languages.serverTargets");
+    assert_eq!(
+        labels(&view, cx),
+        [
+            "— Language server targets —",
+            "Language: PHP ▾",
+            "Language server runs on: ddev ▾",
+            "Language server: First configured server ▾",
+        ]
+    );
+    choose(cx, "settings-target-runs-on", "settings-target-runs-on-0");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languageServerTargets.php.target"), Some(json!("")));
+    assert_eq!(labels(&view, cx).len(), 3, "no server choice on the host");
+    let file = project_file(&root);
+    assert!(!file.contains("ddev"), "{file}");
+}
+
+// The search finds a language page by a label of its own controls.
+#[gpui_kit::test]
+async fn the_search_finds_a_language_page_by_a_label_of_its_controls(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (workbench, cx) = window(cx);
+    open_page(cx, &workbench, "languages.markdown");
+    let dialog = settings_dialog_of(&workbench, cx).expect("Settings is open");
+    let search = dialog.read_with(cx, |view, _| view.search_field().clone());
+    cx.update(|window, cx| window.focus(&search.focus_handle(cx), cx));
+    cx.simulate_input("Run external linter");
+    cx.run_until_parked();
+    let pages = dialog.read_with(cx, |view, cx| view.pages(cx));
+    assert!(pages.iter().any(|page| page.trim() == "Rust"), "{pages:?}");
+}
