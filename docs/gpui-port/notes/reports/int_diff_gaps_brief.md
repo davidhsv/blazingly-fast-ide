@@ -21,6 +21,12 @@ After each part: its tests pass and the whole suite passes once, before the next
 
 In your own binary's window (temp `OPENIDEA_GPUI_HOME`, `HOME`, `ZDOTDIR`; a temp Git project with a committed file that has long lines changed and a block of lines moved; launcher `$S/insp8/run.sh`, steps `$S/insp/USAGE.md`): the diff with soft wraps on (wrapped lines stay aligned between the two sides, line numbers on the first visual row only); moved-code marks and their links; the diff as a tab, maximized and restored; the diff window under the modal interface. Look at each: nothing cut or overlapping, both sides aligned.
 
+## Changed since the notes were written
+
+The notes' anchors were re-checked against the tree after the refactor and Git text actions landed (two new tab kinds in `workbench/tab_views.rs`, new rows in the editor's context menu): `python3 -I $S/dfg/anchors.py` printed `81 hunks, 0 problem(s)` (measured). The scripts read the scratch copy of the notes, `$S/drafts/diff_gaps_reconciled.md`, which is their default: the copy under `docs/` was reformatted by the commit hook and the scripts cannot parse it. Read the scratch copy for the hunks. Still read each place before you edit it.
+
+Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
+
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
 The whole suite twice to files, nothing else running beside the first; during the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&` inside a script. A test that is unstable under the loop is not done: find the cause and fix the wait, not the assertion.
@@ -31,4 +37,6 @@ Besides the format of `$S/int_rules.md`: per part, what landed; one table of eve
 
 ## Do not touch
 
-Every undeclared draft of other agents under `app-gpui/src` (`platform/error_log_sink.rs`, any draft another integration left undeclared) and every undeclared `proofs*` test file this brief does not hand you.
+Every undeclared draft of other agents under `app-gpui/src`: `platform/error_log_sink.rs`, `terminal/panel/groups.rs`, `terminal/view/clipboard.rs`, `workbench/terminal_groups.rs`, `editor/view/{column_gestures,right_margin,string_literals,doc_tags,caret_glide,token_style}.rs`, `editor/paste_history_view/preview.rs`, `theme/scheme_runtime.rs`, every `*_pending.rs` this brief does not hand you, and every undeclared `proofs*` test file this brief does not hand you. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`.
+
+The real binary is launched only through `$S/insp8/run.sh`, which gives it a short `PATH` and a temp `HOME`. Do not open the Agents tool window or the Services window in it.

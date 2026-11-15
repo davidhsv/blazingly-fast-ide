@@ -1,0 +1,17 @@
+wait	3000
+open	/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/drv/shotproj/main.rs
+wait	2000
+keys	down shift-down shift-down shift-down
+wait	500
+action	vcs.showHistoryForSelection
+wait	3000
+mark	selection-history
+wait	1500
+action	toolwindow.project
+wait	1000
+action	refactor.thisMenu
+wait	1200
+mark	refactor-this-nothing-here
+wait	1500
+keys	escape
+wait	500

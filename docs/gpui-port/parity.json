@@ -3084,16 +3084,16 @@
     "proof": "`editor_refactor::occurrences::tests`"
   },
   "unit:src/editor/refactor/refactor.test.ts": {
-    "status": "done",
-    "proof": "`editor_refactor::names::tests`, `editor_refactor::templates::tests`, `editor_refactor::project_level::tests`, `editor_refactor::occurrences::tests`"
+    "status": "partial",
+    "proof": "`editor_refactor::names::tests`, `editor_refactor::templates::tests`, `editor_refactor::project_level::tests`, `editor_refactor::occurrences::tests`; 18 of 18 cases pass on the models. Missing: the app uses the name rules and the occurrence search only (through Introduce by the server); the templates and the project-level refactorings are code nothing in the app calls"
   },
   "unit:src/editor/refactor/refactorThis.test.ts": {
     "status": "done",
     "proof": "`editor_refactor::catalog::tests`, `editor_refactor::refactor_this::tests`"
   },
   "unit:src/editor/refactor/runKind.test.ts": {
-    "status": "done",
-    "proof": "`editor_refactor::run_kind::tests`"
+    "status": "partial",
+    "proof": "`editor_refactor::run_kind::tests`; 3 of 3 cases pass on the model. Missing: the app uses only its reason type; the choice between the server's refactoring and the syntax-only one is never made, because the syntax-only refactorings are not built"
   },
   "unit:src/editor/refactor/safeDelete.test.ts": {
     "status": "done",
@@ -5369,7 +5369,7 @@
   },
   "ipc:vcs_line_hunks": {
     "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`; Rollback Lines reads the hunks and restores only the lines under the caret; the editor gutter's change markers do not read it"
+    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_text_actions::tests::next_and_previous_change_move_through_the_editors_changed_ranges_and_wrap`; Rollback Lines reads the hunks and restores only the lines under the caret, and Next / Previous Change move through them. Missing: the editor gutter's change markers do not read it"
   },
   "ipc:vcs_shelve": {
     "status": "done",
@@ -5557,7 +5557,7 @@
   },
   "ipc:lsp_type_hierarchy": {
     "status": "done",
-    "proof": "`editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`; the subtype row comes from prepareTypeHierarchy and typeHierarchy/subtypes (no supertypes asked), through ide_host::ops::lsp::lsp_type_hierarchy as the adapter"
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`, `workbench::refactor_actions::tests::looks_for_the_method_in_supertypes_level_by_level`, `workbench::refactor_actions::tests::opens_the_super_method_in_another_file_or_says_there_is_none`; the subtype row comes from prepareTypeHierarchy and typeHierarchy/subtypes, and Go to Super Method asks for the supertypes, through ide_host::ops::lsp::lsp_type_hierarchy as the adapter"
   },
   "ipc:lsp_servers": {
     "status": "done",
@@ -5625,7 +5625,7 @@
   },
   "module:src/editor/refactor/safeDelete.ts": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs_editor_search_safe_delete::find_usages_on_a_file_lists_the_usages_of_its_symbols_from_other_files`, `workbench::tests::proofs_editor_search_safe_delete::a_safe_delete_of_a_used_file_asks_with_the_usages_detected_question`; the Project view's file flow: Find Usages on a file lists its symbols' usages from other files, and a safe delete of a used file asks Usages Detected (View Usages, Delete Anyway); the editor's Safe Delete of a symbol has no handler"
+    "proof": "`workbench::tests::proofs_editor_search_safe_delete::find_usages_on_a_file_lists_the_usages_of_its_symbols_from_other_files`, `workbench::tests::proofs_editor_search_safe_delete::a_safe_delete_of_a_used_file_asks_with_the_usages_detected_question`, `workbench::refactor_actions::tests::confirms_first_delete_function_and_searches_nothing_when_cancelled`, `workbench::refactor_actions::tests::deletes_an_unused_declaration_as_one_undo_step_ignoring_recursive_calls`, `workbench::refactor_actions::tests::asks_when_usages_exist_view_usages_delete_anyway_cancel`; Find Usages on a file lists usages from other files, a safe delete of a used file asks Usages Detected, and Safe Delete of a symbol in the editor asks, deletes or lists usages. Missing: the preview, the paths without a server"
   },
   "unit:src/editor/core/cm/multiCaret.test.ts": {
     "status": "partial",
@@ -6321,7 +6321,7 @@
   },
   "module:src/editor/navigation/structureNav.ts": {
     "status": "partial",
-    "proof": "`workbench::editor_language::tests::moves_by_line`, `editor_refactor::structure_nav::tests`; methodStop drives Next / Previous Method. Missing: Go to Super Method (memberAt, superMethods) is not registered"
+    "proof": "`workbench::editor_language::tests::moves_by_line`, `editor_refactor::structure_nav::tests`, `workbench::refactor_actions::tests::looks_for_the_method_in_supertypes_level_by_level`, `workbench::refactor_actions::tests::opens_the_super_method_in_another_file_or_says_there_is_none`; methodStop drives Next / Previous Method, and Go to Super Method finds the member and its super methods one level up. Missing: several levels, overloads, the chooser for several targets"
   },
   "event:WorkspaceEditApplied": {
     "status": "done",
@@ -7870,5 +7870,121 @@
   "unit:src/features/settings/__tests__/mainMenuStyle.test.tsx": {
     "status": "partial",
     "proof": "`workbench::tests::proofs22_settings_units::hides_the_main_menu_setting_without_the_frameless_menu`; 1 of 3 cases on a macOS build: no Main menu choice is drawn without the frameless title bar (the run-time platform switch has no native counterpart; the title bar is frameless by compile-time OS). On Windows/Linux builds workbench::tests::proofs22_settings_units::offers_both_main_menu_styles_on_a_frameless_title_bar (cfg-gated, absent from this host's test list) shows Hamburger button, offers Merged with main toolbar and stages merged. The {} default is the ide-core test settings::tests::main_menu_style_defaults_and_round_trips. Missing: an invalid stored value ('unknown') is not replaced by hamburger (behaviorSchema.ts:166)"
+  },
+  "action:refactor.extractVariable": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::give_idea_s_caret_reason_the_server_s_disabled_reason_or_the_missing_server`, `workbench::refactor_actions::tests::offer_idea_s_occurrences_choice_when_the_server_has_both_variants`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; the server's single matching code action is applied, several are offered in a list, and the caret's reason, the server's disabled reason or the missing server is shown as a hint; nothing runs while a tool window has the keyboard; one occurrence or all are offered when the server has both. Missing: the introduced name is not renamed in place after the extract, the expression is not chosen first, and there is no syntax-only fallback without a server"
+  },
+  "action:refactor.extractConstant": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::give_idea_s_caret_reason_the_server_s_disabled_reason_or_the_missing_server`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; the server's single matching code action is applied, several are offered in a list, and the caret's reason, the server's disabled reason or the missing server is shown as a hint; nothing runs while a tool window has the keyboard. Missing: the introduced name is not renamed in place after the extract, and there is no syntax-only fallback without a server"
+  },
+  "action:refactor.extractMethod": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::give_idea_s_caret_reason_the_server_s_disabled_reason_or_the_missing_server`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; the server's single matching code action is applied, several are offered in a list, and the caret's reason, the server's disabled reason or the missing server is shown as a hint; nothing runs while a tool window has the keyboard. Missing: the introduced name is not renamed in place after the extract"
+  },
+  "action:refactor.extractField": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::give_idea_s_caret_reason_the_server_s_disabled_reason_or_the_missing_server`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; the server's single matching code action is applied, several are offered in a list, and the caret's reason, the server's disabled reason or the missing server is shown as a hint; nothing runs while a tool window has the keyboard. Missing: the introduced name is not renamed in place after the extract"
+  },
+  "action:refactor.extractParameter": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::give_idea_s_caret_reason_the_server_s_disabled_reason_or_the_missing_server`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; the server's single matching code action is applied, several are offered in a list, and the caret's reason, the server's disabled reason or the missing server is shown as a hint; nothing runs while a tool window has the keyboard. Missing: the introduced name is not renamed in place after the extract"
+  },
+  "action:refactor.move": {
+    "status": "done",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::give_idea_s_caret_reason_the_server_s_disabled_reason_or_the_missing_server`, `workbench::refactor_actions::tests::say_the_server_doesn_t_support_it_when_its_advertised_kinds_can_t_produce_it`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; the server's single matching code action is applied, several are offered in a list, and the caret's reason, the server's disabled reason or the missing server is shown as a hint; nothing runs while a tool window has the keyboard; a server whose advertised kinds cannot produce a move is named as not supporting it"
+  },
+  "action:refactor.changeSignature": {
+    "status": "done",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::give_idea_s_caret_reason_the_server_s_disabled_reason_or_the_missing_server`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; the server's single matching code action is applied, several are offered in a list, and the caret's reason, the server's disabled reason or the missing server is shown as a hint; nothing runs while a tool window has the keyboard"
+  },
+  "action:refactor.inline": {
+    "status": "done",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::give_idea_s_caret_reason_the_server_s_disabled_reason_or_the_missing_server`, `workbench::refactor_actions::tests::offer_idea_s_occurrences_choice_when_the_server_has_both_variants`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; the server's single matching code action is applied, several are offered in a list, and the caret's reason, the server's disabled reason or the missing server is shown as a hint; nothing runs while a tool window has the keyboard; this occurrence or all are offered when the server has both"
+  },
+  "action:refactor.thisMenu": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::lists_only_the_refactorings_applicable_at_the_caret_in_idea_order`, `workbench::refactor_actions::tests::says_so_when_nothing_applies`, `workbench::refactor_actions::tests::refactor_this_is_not_available_once_the_project_is_closed`; the popup lists only the refactorings applicable at the caret, in order, says Nothing here when none applies, and is off without an open project. Missing: Pull Members Up and Push Members Down have no native handler, the syntax-only rows are hidden, and the Rename and Safe Delete rows are not run from the popup by a test"
+  },
+  "action:refactor.safeDelete": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::confirms_first_delete_function_and_searches_nothing_when_cancelled`, `workbench::refactor_actions::tests::deletes_an_unused_declaration_as_one_undo_step_ignoring_recursive_calls`, `workbench::refactor_actions::tests::asks_when_usages_exist_view_usages_delete_anyway_cancel`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; asks first, deletes an unused declaration as one undo step ignoring its own recursive calls, and with usages asks View Usages, Delete Anyway or Cancel. Missing: the preview is a confirmation, not the webview's preview; the paths without a server and a declaration in another file have no test"
+  },
+  "action:navigate.superMethod": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::looks_for_the_method_in_supertypes_level_by_level`, `workbench::refactor_actions::tests::opens_the_super_method_in_another_file_or_says_there_is_none`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; asks the server for the supertypes level by level, opens the super method in the same or another file, or says there is none. Missing: several levels and overloads have no test, and the chooser for several targets is a plain list without a test"
+  },
+  "action:vcs.acceptYours": {
+    "status": "done",
+    "proof": "`workbench::vcs_text_actions::tests::accept_yours_theirs_and_both_at_the_caret_replace_that_conflicts_block_and_leave_the_others`, `workbench::vcs_text_actions::tests::with_the_caret_outside_a_conflict_accept_changes_nothing_and_says_so`, `workbench::vcs_text_actions::tests::accept_yours_during_a_rebase_takes_the_commit_being_replayed`, `workbench::vcs_text_actions::tests::the_conflict_actions_are_enabled_only_while_an_editor_has_the_keyboard`; at the caret the conflict's block is replaced by that side and the other conflicts are left; outside a conflict nothing changes and a notice says so; on only while an editor has the keyboard; during a rebase Yours is the commit being replayed"
+  },
+  "action:vcs.acceptTheirs": {
+    "status": "done",
+    "proof": "`workbench::vcs_text_actions::tests::accept_yours_theirs_and_both_at_the_caret_replace_that_conflicts_block_and_leave_the_others`, `workbench::vcs_text_actions::tests::accept_yours_during_a_rebase_takes_the_commit_being_replayed`, `workbench::vcs_text_actions::tests::the_conflict_actions_are_enabled_only_while_an_editor_has_the_keyboard`; at the caret the conflict's block is replaced by that side and the other conflicts are left; outside a conflict nothing changes and a notice says so; on only while an editor has the keyboard"
+  },
+  "action:vcs.acceptBoth": {
+    "status": "done",
+    "proof": "`workbench::vcs_text_actions::tests::accept_yours_theirs_and_both_at_the_caret_replace_that_conflicts_block_and_leave_the_others`, `workbench::vcs_text_actions::tests::the_conflict_actions_are_enabled_only_while_an_editor_has_the_keyboard`; at the caret the conflict's block is replaced by that side and the other conflicts are left; outside a conflict nothing changes and a notice says so; on only while an editor has the keyboard"
+  },
+  "action:vcs.nextConflict": {
+    "status": "done",
+    "proof": "`workbench::vcs_text_actions::tests::next_and_previous_conflict_marker_move_the_caret_and_wrap`, `workbench::vcs_text_actions::tests::the_conflict_actions_are_enabled_only_while_an_editor_has_the_keyboard`; the caret moves to the next or previous conflict of the file and wraps; on only while an editor has the keyboard"
+  },
+  "action:vcs.prevConflict": {
+    "status": "done",
+    "proof": "`workbench::vcs_text_actions::tests::next_and_previous_conflict_marker_move_the_caret_and_wrap`, `workbench::vcs_text_actions::tests::the_conflict_actions_are_enabled_only_while_an_editor_has_the_keyboard`; the caret moves to the next or previous conflict of the file and wraps; on only while an editor has the keyboard"
+  },
+  "action:vcs.nextChange": {
+    "status": "done",
+    "proof": "`workbench::vcs_text_actions::tests::next_and_previous_change_move_through_the_editors_changed_ranges_and_wrap`, `workbench::vcs_text_actions::tests::next_change_moves_between_the_differences_of_the_focused_diff_viewer`, `workbench::vcs_text_actions::tests::the_change_actions_are_enabled_only_in_a_project_under_version_control`; the caret moves through the editor's changed ranges and wraps, a focused diff viewer moves between its differences, and the action is on only in a project under version control"
+  },
+  "action:vcs.prevChange": {
+    "status": "done",
+    "proof": "`workbench::vcs_text_actions::tests::next_and_previous_change_move_through_the_editors_changed_ranges_and_wrap`, `workbench::vcs_text_actions::tests::next_change_moves_between_the_differences_of_the_focused_diff_viewer`, `workbench::vcs_text_actions::tests::the_change_actions_are_enabled_only_in_a_project_under_version_control`; the caret moves through the editor's changed ranges and wraps, a focused diff viewer moves between its differences, and the action is on only in a project under version control"
+  },
+  "action:vcs.showHistoryForSelection": {
+    "status": "partial",
+    "proof": "`workbench::vcs_text_actions::tests::show_history_for_selection_lists_the_commits_that_changed_the_selected_lines`, `workbench::vcs_text_actions::tests::show_history_for_selection_is_enabled_only_with_a_text_editor_active`, `workbench::vcs_text_actions::tests::the_change_actions_are_enabled_only_in_a_project_under_version_control`; opens a tab listing the commits that changed the selected lines, with Local Changes first and each commit's block against the one before; on only with a text editor active in a project under version control. Missing: asking again for the same lines, the notice for a document that is not a file, and cancelling the read when the tab closes have no test"
+  },
+  "action:vcs.log.openExternal": {
+    "status": "partial",
+    "proof": "`workbench::vcs_text_actions::tests::open_external_git_log_shows_the_log_of_the_picked_repository`; the picked folder's repository opens as a log tab, and a folder that is not a repository gives the error notice. Missing: the tab is a plain commit list (no graph, paging, filters, details or restore), the folder prompt has no title, and the Log toolbar has no entry for it"
+  },
+  "point.registerEditorKind:selectionHistory": {
+    "status": "partial",
+    "proof": "`workbench::vcs_text_actions::tests::show_history_for_selection_lists_the_commits_that_changed_the_selected_lines`; the History for Selection tab: the commit list and the block's two sides. Missing: cancel on close has no test, and the code has no syntax colours"
+  },
+  "point.registerEditorKind:git-log": {
+    "status": "partial",
+    "proof": "`workbench::vcs_text_actions::tests::open_external_git_log_shows_the_log_of_the_picked_repository`; a log tab for a repository outside the project. Missing: a plain commit list only"
+  },
+  "unit:src/features/vcs/__tests__/selectionHistory.test.tsx": {
+    "status": "partial",
+    "proof": "`vcs::selection_history_view::tests::selected_lines_of_a_text`, `vcs::selection_history_view::tests::cuts_the_block_out_of_the_text_as_git_prints_it`, `vcs::selection_history_view::tests::lists_local_changes_only_when_the_block_differs_from_head`, `vcs::selection_history_view::tests::asks_for_the_selected_lines_of_the_editors_text_and_diffs_each_commits_block`, `vcs::selection_history_view::tests::says_why_there_is_nothing_to_show`, `vcs::selection_history_view::tests::shows_gits_error_and_cancels_a_request_still_running_when_closed`; 5 of 6 cases on the tab's view. Missing: the request still running is cancelled by the view's own method; that closing the tab calls it has no test"
+  },
+  "ipc:vcs_block_history": {
+    "status": "done",
+    "proof": "`workbench::vcs_text_actions::tests::show_history_for_selection_lists_the_commits_that_changed_the_selected_lines`; the commits listed for the selected lines can only come from ide_host::ops::vcs::vcs_block_history, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:vcs_open_external_log": {
+    "status": "done",
+    "proof": "`workbench::vcs_text_actions::tests::open_external_git_log_shows_the_log_of_the_picked_repository`; the log of a repository outside the project can only come from ide_host::ops::vcs::vcs_open_external_log, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:lsp_code_action_query": {
+    "status": "done",
+    "proof": "`workbench::refactor_actions::tests::say_the_server_doesn_t_support_it_when_its_advertised_kinds_can_t_produce_it`; the hint naming a server that cannot move can only come from the advertised kinds of ide_host::ops::lsp::lsp_code_action_query, the function the Tauri adapter calls with the same arguments"
+  },
+  "module:src/editor/refactor/refactorThis.ts": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::lists_only_the_refactorings_applicable_at_the_caret_in_idea_order`, `workbench::refactor_actions::tests::says_so_when_nothing_applies`, `workbench::refactor_actions::tests::refactor_this_is_not_available_once_the_project_is_closed`; Refactor This and the eight refactorings run through a project window. Missing: as for the Refactor This action"
+  },
+  "module:src/editor/refactor/catalog.ts": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::give_idea_s_caret_reason_the_server_s_disabled_reason_or_the_missing_server`, `workbench::refactor_actions::tests::say_the_server_doesn_t_support_it_when_its_advertised_kinds_can_t_produce_it`; Refactor This and the eight refactorings run through a project window. Missing: Pull Members Up and Push Members Down"
+  },
+  "module:src/editor/refactor/serverIntroduce.ts": {
+    "status": "partial",
+    "proof": "`workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice`, `workbench::refactor_actions::tests::offer_idea_s_occurrences_choice_when_the_server_has_both_variants`; Refactor This and the eight refactorings run through a project window. Missing: the in-place naming after an extract"
   }
 }
