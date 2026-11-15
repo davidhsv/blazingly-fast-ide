@@ -227,6 +227,9 @@ pub fn register_actions(cx: &mut App) {
         super::app_shell::request_close_project(window, cx);
         Ok(())
     });
+    registry.handle(super::status_items::LIGHT_EDIT_OPEN_PROJECT, |_, window, cx| {
+        super::app_shell::open_light_edit_folder(window, cx)
+    });
     for (id, forward) in [("window.next", true), ("window.previous", false)] {
         registry.handle(id, move |_, window, cx| {
             let open = windows(cx);

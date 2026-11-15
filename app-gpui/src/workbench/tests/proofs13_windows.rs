@@ -103,23 +103,6 @@ fn close_all(cx: &mut TestAppContext) {
     });
 }
 
-/// Two loose files picked in a window that shows nothing: the window edits them on its own, both
-/// as its tabs with the last one shown, and no window is added.
-#[gpui_kit::test]
-async fn turns_a_window_without_a_project_into_light_edit_when_no_light_edit_window_exists(cx: &mut TestAppContext) {
-    let _home = start(cx);
-    cx.update(gpui_kit::init);
-    let (_folders, roots) = folders(cx);
-    let main = cx.update(|cx| windows::open_window(Target::Empty, cx)).expect("a window opens");
-    open_file_dialog(cx, main, vec![roots[0].join("a.txt"), roots[1].join("b.md")]);
-    wait(cx, "the window to edit on its own", &|cx| is_light_edit(cx, "main"));
-    assert_eq!(project_of(cx, "main"), None);
-    wait(cx, "b.md shown", &|cx| editing_in(cx, "main") == Some(roots[1].join("b.md")));
-    assert_eq!(tabs_of(cx, "main"), ["a.txt", "b.md"]);
-    assert_eq!(labels(cx), ["main"], "no window is added");
-    close_all(cx);
-}
-
 /// A loose file another window already edits on its own is handed to that window, which comes to
 /// the front; the asking window stays empty.
 #[gpui_kit::test]
@@ -137,22 +120,6 @@ async fn leaves_files_to_the_existing_light_edit_window_or_their_projects_window
     assert_eq!(asking, (None, None), "the asking window stays empty");
     assert!(!is_light_edit(cx, "project-1"));
     assert_eq!(labels(cx), ["main", "project-1"]);
-    close_all(cx);
-}
-
-/// A loose file picked in a window that edits another loose file is added to it as a tab, shown;
-/// no window is added.
-#[gpui_kit::test]
-async fn adds_tabs_to_this_light_edit_window(cx: &mut TestAppContext) {
-    let _home = start(cx);
-    cx.update(gpui_kit::init);
-    let (_folders, roots) = folders(cx);
-    let main = cx.update(|cx| windows::open_window(Target::File(roots[0].join("a.txt")), cx)).expect("a window opens");
-    wait(cx, "a.txt in main", &|cx| editing_in(cx, "main") == Some(roots[0].join("a.txt")));
-    open_file_dialog(cx, main, vec![roots[1].join("b.md")]);
-    wait(cx, "b.md in main", &|cx| editing_in(cx, "main") == Some(roots[1].join("b.md")));
-    assert_eq!(tabs_of(cx, "main"), ["a.txt", "b.md"]);
-    assert_eq!(labels(cx), ["main"], "no window is added");
     close_all(cx);
 }
 

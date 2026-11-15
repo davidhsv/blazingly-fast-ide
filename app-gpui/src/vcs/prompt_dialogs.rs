@@ -402,6 +402,12 @@ impl PromptDialog {
         &self.title
     }
 
+    /// The message under the title, when the dialog has one.
+    #[cfg(test)]
+    pub fn message_text(&self) -> Option<&str> {
+        self.message.as_deref()
+    }
+
     pub fn buttons(&self) -> &[DialogButton] {
         &self.buttons
     }

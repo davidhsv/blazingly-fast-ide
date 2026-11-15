@@ -111,7 +111,7 @@ async fn knows_the_depth_at_a_viewport_far_into_the_document_and_after_edits(cx:
     editor.update(cx, |e, cx| e.scroll_to_line(4990, cx));
     settle(cx, |cx| painted(&editor, opener, 0, cx) == Some(second));
     assert_eq!(painted(&editor, opener, 2, cx), Some(second), "]");
-    assert_eq!(painted(&editor, closer, 0, cx), Some(first), "}");
+    assert_eq!(painted(&editor, closer, 0, cx), Some(first), "}}");
 
     // An opener at the start of line 20 (its auto-inserted closer, if any, is deleted again).
     editor.update(cx, |e, cx| {
@@ -126,7 +126,7 @@ async fn knows_the_depth_at_a_viewport_far_into_the_document_and_after_edits(cx:
     editor.update(cx, |e, cx| e.scroll_to_line(4990, cx));
     settle(cx, |cx| painted(&editor, opener, 0, cx) == Some(third));
     assert_eq!(painted(&editor, opener, 2, cx), Some(third), "]");
-    assert_eq!(painted(&editor, closer, 0, cx), Some(invalid), "} is unmatched");
+    assert_eq!(painted(&editor, closer, 0, cx), Some(invalid), "}} is unmatched");
     f.close(cx);
 }
 

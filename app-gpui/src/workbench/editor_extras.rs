@@ -561,6 +561,7 @@ mod tests {
     use std::rc::Rc;
 
     mod levels_and_choosers;
+    mod proofs13_editor;
 
     /// A trusted project of `files` in a window, `open` open in the editor with the keyboard. With
     /// `answers` the IDE is in Full mode, `*.mock` files have the fake language server answering

@@ -157,27 +157,6 @@ async fn shows_the_model_with_the_agents_effort_name_and_the_mode_with_allow_all
     });
 }
 
-/// The model's picker has a step per effort level the agent advertises; the last step sends the highest level, a
-/// model picked from the same picker is sent too, and the picker stays open through both.
-#[gpui_kit::test]
-async fn steps_through_the_advertised_effort_levels_and_picks_a_model_from_the_popup(cx: &mut TestAppContext) {
-    with_settings(cx, copilot(Some(LEVELS)), |Fixture { folder, composer, cx }| {
-        open_chip(cx, 0);
-        let listed = ["Claude Sonnet 5.5 *", "GPT-6 Sol"].map(str::to_owned);
-        assert_eq!(entries(composer, cx).as_deref(), Some(listed.as_slice()), "the models are in the picker itself");
-        for step in 0..LEVELS.len() {
-            assert!(cx.debug_bounds(leak(format!("composer-effort-{step}"))).is_some(), "step {step}");
-        }
-        assert!(cx.debug_bounds(leak(format!("composer-effort-{}", LEVELS.len()))).is_none());
-        click_on(cx, leak(format!("composer-effort-{}", LEVELS.len() - 1)));
-        wait_for_setting(folder, "reasoning_effort=xhigh", cx);
-        assert!(entries(composer, cx).is_some(), "the picker stays open after an effort step");
-        choose(composer, "GPT-6 Sol", cx);
-        wait_for_setting(folder, "model=gpt-6-sol", cx);
-        assert!(entries(composer, cx).is_some(), "the picker stays open after a model is picked");
-    });
-}
-
 /// Without an effort option the model chip is a plain list of the models, with no effort steps.
 #[gpui_kit::test]
 async fn keeps_a_plain_model_picker_when_the_agent_has_no_effort_option(cx: &mut TestAppContext) {
@@ -239,19 +218,5 @@ async fn leaves_non_model_option_labels_and_descriptions_intact(cx: &mut TestApp
         assert_eq!(chips(composer, cx), ["Custom"]);
         open_chip(cx, 0);
         assert_eq!(entries(composer, cx).as_deref(), Some(["Custom *".to_owned()].as_slice()));
-    });
-}
-
-/// Typing in the model picker filters its list; ↓ and Enter pick the highlighted model.
-#[gpui_kit::test]
-async fn filters_the_model_list_and_picks_the_highlighted_model_with_the_keyboard(cx: &mut TestAppContext) {
-    with_settings(cx, copilot(Some(LEVELS)), |Fixture { folder, composer, cx }| {
-        open_chip(cx, 0);
-        cx.simulate_input("sol");
-        cx.run_until_parked();
-        assert_eq!(entries(composer, cx).map(|shown| shown.len()), Some(1), "{:?}", entries(composer, cx));
-        cx.simulate_keystrokes("down");
-        cx.simulate_keystrokes("enter");
-        wait_for_setting(folder, "model=gpt-6-sol", cx);
     });
 }

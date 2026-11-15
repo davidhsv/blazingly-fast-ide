@@ -43,11 +43,11 @@ fn jump_shown(view: &Entity<SessionView>, cx: &mut VisualTestContext) -> bool {
 }
 
 /// The conversation of `task` in `store`, in a window of its own.
-fn open_store(
-    cx: &mut TestAppContext,
+fn open_store<'a>(
+    cx: &'a mut TestAppContext,
     store: AgentsStore,
     task: &str,
-) -> (Entity<SessionView>, Entity<AgentsStore>, Events, &mut VisualTestContext) {
+) -> (Entity<SessionView>, Entity<AgentsStore>, Events, &'a mut VisualTestContext) {
     cx.update(|cx| {
         cx.set_global(theme::ActiveTheme::default());
         if !cx.has_global::<input::Keymap>() {

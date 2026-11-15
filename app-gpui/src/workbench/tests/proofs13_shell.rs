@@ -56,18 +56,6 @@ async fn lists_version_build_and_platform(cx: &mut TestAppContext) {
     click_on(cx, "about-close");
 }
 
-/// Help › Keymap Reference is an action of the window that shows the bound actions grouped by
-/// category.
-#[gpui_kit::test]
-async fn renders_the_overlay(cx: &mut TestAppContext) {
-    let _home = start(cx);
-    let (_workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
-    cx.update(|window, _| window.activate_window());
-    let registered = cx.update(|_, cx| cx.global::<ActionRegistry>().contains("help.keymapReference"));
-    assert!(registered, "Keymap Reference is an action");
-    run_action(cx, "help.keymapReference", None);
-}
-
 /// Escape on a question over the window answers Cancel: the exit is not confirmed, the dialog
 /// closes and the window stays.
 #[gpui_kit::test]

@@ -78,6 +78,7 @@ async fn pairs_quotes_and_brackets_without_opening_completion(cx: &mut TestAppCo
     let (_folder, _root, _workbench, editor, cx) = users_editor(cx);
     for (typed, paired) in [("'", "''"), ("\"", "\"\""), ("(", "()")] {
         focus_filter(&editor, FilterKind::Where, cx);
+        cx.simulate_keystrokes("end");
         for _ in 0..filter_text(&editor, FilterKind::Where, cx).0.chars().count() {
             cx.simulate_keystrokes("backspace");
         }
@@ -97,6 +98,7 @@ async fn does_not_automatically_complete_after_a_space_a_quote_or_a_bracket(cx: 
     let (_folder, _root, _workbench, editor, cx) = users_editor(cx);
     for typed in [" ", "'", "\"", "("] {
         focus_filter(&editor, FilterKind::Where, cx);
+        cx.simulate_keystrokes("end");
         for _ in 0..filter_text(&editor, FilterKind::Where, cx).0.chars().count() {
             cx.simulate_keystrokes("backspace");
         }
@@ -123,6 +125,12 @@ async fn bounds_preview_values_while_exporting_every_row_in_full(cx: &mut TestAp
     });
     let full = format!("{}complete", "中 text ".repeat(200_000));
 
+    // The docked Database window is narrower than the table editor's toolbar: maximized, it shows
+    // the whole toolbar.
+    let tree = db_tree(&workbench, cx);
+    cx.update(|window, cx| window.focus(&tree.focus_handle(cx), cx));
+    cx.run_until_parked();
+    run_action(cx, "toolwindow.maximize", None);
     click_on(cx, "table-export");
     let form = editor.read_with(cx, |e, _| e.export_form().cloned()).expect("Export Data opens");
     let json = EXPORT_FORMATS.iter().position(|f| f.id == ExportFormat::Json).expect("JSON is offered");

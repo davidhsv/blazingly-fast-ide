@@ -179,6 +179,13 @@ pub(super) mod spawn_guard {
 
     pub(in crate::workbench) const REFUSED: &str = "refused to start agent";
 
+    /// Set by a test: while it holds an error, every message sent to an agent fails with it before reaching the
+    /// backend, as a send the backend refused; `None` lets messages through again.
+    #[derive(Clone, Default)]
+    pub(in crate::workbench) struct FailingPrompts(pub(in crate::workbench) Option<String>);
+
+    impl gpui_kit::Global for FailingPrompts {}
+
     /// Fails unless agent `provider` is defined by an agent file of the test's own config folder, a
     /// temporary folder.
     pub(super) fn check(host: &ide_host::Host, label: &str, provider: &str) -> Result<(), String> {
@@ -792,9 +799,17 @@ impl Workbench {
                 .map(|task| store.and_then(|store| store.task(task)).map(|task| task.provider.clone()));
             (provider, cx.try_global::<spawn_guard::AgentSpawnSeam>().cloned())
         };
+        #[cfg(test)]
+        let failing = matches!(call, AgentCall::Prompt { .. })
+            .then(|| cx.try_global::<spawn_guard::FailingPrompts>().and_then(|failing| failing.0.clone()))
+            .flatten();
         self.agents_backend(
             cx,
             move |host, label| async move {
+                #[cfg(test)]
+                if let Some(error) = failing {
+                    return Err(error);
+                }
                 #[cfg(test)]
                 if let (Some(provider), seam) = guarded {
                     // A task the window does not know has no agent the guard can vouch for.

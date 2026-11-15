@@ -4,7 +4,7 @@ use ide_workspace::settings::SettingsScope;
 
 /// The message under the title of the close question shown over the workbench's window, while one is.
 fn dialog_body(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<String> {
-    workbench.read_with(cx, |w, cx| w.app_dialog().and_then(|dialog| dialog.read(cx).body().map(str::to_owned)))
+    workbench.read_with(cx, |w, cx| w.app_dialog().and_then(|dialog| dialog.read(cx).message_text().map(str::to_owned)))
 }
 
 /// Writes the global setting `key` as `value`.

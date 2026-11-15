@@ -267,6 +267,16 @@ impl TableEditorView {
         &self.order_field
     }
 
+    /// The completions the WHERE or ORDER BY field's popup lists, while it is open.
+    #[cfg(test)]
+    pub fn filter_options(&self, kind: FilterKind) -> Vec<String> {
+        let input = if kind == FilterKind::Where { &self.where_input } else { &self.order_input };
+        if !input.open {
+            return Vec::new();
+        }
+        input.options().into_iter().map(|option| option.label).collect()
+    }
+
     pub fn export_form(&self) -> Option<&Entity<ExportForm>> {
         self.export.as_ref()
     }

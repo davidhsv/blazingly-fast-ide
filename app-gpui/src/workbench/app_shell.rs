@@ -459,6 +459,35 @@ pub(super) fn request_close_project(window: &mut Window, cx: &mut App) {
     });
 }
 
+/// Close Tab in a window that edits a loose file on its own: the file is the window's only tab, so
+/// closing it closes the window through its close guard (the last window shows the Welcome screen
+/// instead). Returns whether the window is such a window.
+pub(super) fn close_light_edit_tab(window: &mut Window, cx: &mut App) -> bool {
+    let Some(workbench) = for_window(window, cx) else { return false };
+    if !crate::app_models::windows::light_edit_should_close(false, workbench.read(cx).is_light_edit(), 0) {
+        return false;
+    }
+    if window_should_close(&workbench.downgrade(), window, cx) {
+        window.remove_window();
+    }
+    true
+}
+
+/// LightEdit › Open Containing Folder as Project: the folder of the file the window edits, opened
+/// where "Open project in" says, with the file open in it.
+pub(super) fn open_light_edit_folder(window: &mut Window, cx: &mut App) -> anyhow::Result<()> {
+    let Some(workbench) = for_window(window, cx) else { return Ok(()) };
+    let (state, file) = {
+        let workbench = workbench.read(cx);
+        (workbench.window_state(cx), workbench.light_edit_file(cx))
+    };
+    let active = file.map(|file| file.to_string_lossy().into_owned());
+    match crate::app_models::windows::light_edit_file_as_project(&state, active.as_deref()) {
+        Some((folder, files)) => open_project_with_policy(Path::new(&folder), files, window, cx),
+        None => Ok(()),
+    }
+}
+
 /// Calls `then` with the decision once it is settled: now, or when its task ends.
 fn after(
     workbench: &Entity<Workbench>,

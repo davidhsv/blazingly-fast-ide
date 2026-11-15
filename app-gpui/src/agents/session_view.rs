@@ -765,13 +765,17 @@ impl SessionView {
     }
 
     /// The edited message was sent ([`MessageAction::EditSend`]): on success the editor closes; a failure
-    /// keeps the edit with its message beside it.
+    /// keeps the edit with its message beside it. A failure after the rollback removed the edited message
+    /// closes the editor too: its text went back to the composer, and the editor would otherwise stand for
+    /// whatever message lands at that place next.
     pub fn edit_sent(&mut self, result: Result<(), String>, cx: &mut Context<Self>) {
+        let len = self.store.read(cx).entries(self.nav.task(), self.nav.subagent()).map_or(0, <[AgentEntry]>::len);
+        let gone = self.editing.as_ref().is_some_and(|edit| edit.index >= len);
         let ok = result.is_ok();
         if let Some(edit) = &mut self.editing {
             edit.editor.sent(result);
         }
-        if ok {
+        if ok || gone {
             self.close_editor(cx);
         }
         cx.notify();
@@ -891,8 +895,7 @@ impl SessionView {
     fn leave_conversation(&mut self, cx: &mut Context<Self>) {
         let top = f64::from(-f32::from(self.scroll.offset().y));
         if let Some(position) = self.follow.close(top) {
-            let key = self.nav.entries_key();
-            self.store.update(cx, |store, _| store.set_scroll_position(&key, position));
+            self.save_position(position, cx);
         }
         self.close_editor(cx);
     }
@@ -926,11 +929,22 @@ impl SessionView {
         self.enter_conversation(cx);
     }
 
+    /// Keeps `position` for the conversation shown. A task the store no longer knows keeps nothing: once the project
+    /// disconnected, the positions it kept are forgotten and this view's later scrolling must not bring one back.
+    fn save_position(&self, position: crate::agents::store::ScrollPosition, cx: &mut App) {
+        let key = self.nav.entries_key();
+        let task = self.nav.task().to_owned();
+        self.store.update(cx, |store, _| {
+            if store.task(&task).is_some() {
+                store.set_scroll_position(&key, position);
+            }
+        });
+    }
+
     fn closed(&mut self, cx: &mut App) {
         let top = f64::from(-f32::from(self.scroll.offset().y));
         if let Some(position) = self.follow.close(top) {
-            let key = self.nav.entries_key();
-            self.store.update(cx, |store, _| store.set_scroll_position(&key, position));
+            self.save_position(position, cx);
         }
         if let Some(edit) = self.editing.take() {
             input::release_keys(edit.claim, cx);
@@ -981,7 +995,8 @@ impl SessionView {
             };
             self.seen_top = Some(g.top);
             let store = self.store.read(cx);
-            let entries = store.entries(self.nav.task(), self.nav.subagent()).unwrap_or_default();
+            // `None` while the conversation is still loading: a kept position waits for its entries.
+            let loaded = store.entries(self.nav.task(), self.nav.subagent());
             if moved {
                 if !ours {
                     effects.extend(self.follow.scrolled(g, now));
@@ -989,7 +1004,9 @@ impl SessionView {
                 self.expected = Expected::Nothing;
             }
             // The layout of the rows the last frame drew: only once they stopped changing.
-            if self.drawn == Some(signature) {
+            if self.drawn == Some(signature)
+                && let Some(entries) = loaded
+            {
                 let anchor = self.anchor_row.take();
                 let first = self.row_top(anchor);
                 effects.extend(self.follow.laid_out(g, entries, self.finding, true, first));
@@ -1028,10 +1045,7 @@ impl SessionView {
                         self.expected = Expected::Top(top);
                     }
                 }
-                ScrollEffect::Save(position) => {
-                    let key = self.nav.entries_key();
-                    self.store.update(cx, |store, _| store.set_scroll_position(&key, position));
-                }
+                ScrollEffect::Save(position) => self.save_position(position, cx),
                 ScrollEffect::WakeAt(at) => {
                     let delay = Duration::from_millis((at - (self.clock)()).max(0.0) as u64);
                     self._wake = Some(cx.spawn(async move |view, cx| {
@@ -2198,6 +2212,7 @@ mod tests {
     use gpui_kit::{Bounds, Modifiers, Pixels, ScrollDelta, ScrollEvent, TestAppContext, VisualTestContext};
     use std::cell::RefCell;
     mod proofs11_session;
+    mod proofs13_agents_session;
     mod proofs8_agent_reply;
 
     type Events = Rc<RefCell<Vec<SessionEvent>>>;

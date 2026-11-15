@@ -880,6 +880,9 @@ pub fn register_actions(cx: &mut App) {
         },
     );
     registry.handle("editor.closeTab", |_, window, cx| {
+        if app_shell::close_light_edit_tab(window, cx) {
+            return Ok(());
+        }
         on_tabs(window, cx, |tabs, pane| active(tabs, pane).is_some_and(|tab| tabs.close_tab(pane, &tab)))
     });
     registry.handle("editor.closeOtherTabs", |_, window, cx| {
@@ -2042,8 +2045,9 @@ impl Workbench {
         // other tabs.
         self.publish_view_context(window, cx);
         set_context(window, cx, "editorSplit", self.tabs().is_some_and(|tabs| tabs.panes.len() > 1));
-        let tabs_open =
-            self.tabs().and_then(|tabs| tabs.pane(&tabs.active_pane)).is_some_and(|pane| !pane.tabs.is_empty());
+        // A window that edits a loose file on its own shows it as its one tab.
+        let tabs_open = matches!(self.content, Content::Editor(_) | Content::Viewer(_))
+            || self.tabs().and_then(|tabs| tabs.pane(&tabs.active_pane)).is_some_and(|pane| !pane.tabs.is_empty());
         set_context(window, cx, "editorTabsOpen", tabs_open);
         for key in ["editorFocus", "editorTextFocus", "editorAreaFocus"] {
             set_context(window, cx, key, focused);
@@ -4129,6 +4133,21 @@ mod tests {
     mod proofs11_vcs_windows;
     mod proofs12_diff_window;
     mod proofs12_find_popup;
+    mod proofs13_agents_config;
+    mod proofs13_agents_delete_failure;
+    mod proofs13_agents_failed_send;
+    mod proofs13_agents_fixtures;
+    mod proofs13_agents_images;
+    mod proofs13_agents_new_task;
+    mod proofs13_agents_stale_editor;
+    mod proofs13_close_guard;
+    mod proofs13_database;
+    mod proofs13_focus;
+    mod proofs13_ide_mode;
+    mod proofs13_light_edit_close;
+    mod proofs13_shell;
+    mod proofs13_tasks;
+    mod proofs13_windows;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;
