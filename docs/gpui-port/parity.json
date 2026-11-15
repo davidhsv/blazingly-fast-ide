@@ -7562,5 +7562,97 @@
   "ipc:vcs_stage_patch": {
     "status": "none",
     "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "action:maven.reload": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::reload_reads_the_dependency_trees_with_maven_and_refreshes_the_tree`; reads the dependency trees with the project's Maven and refreshes the tree. Missing: its condition read off (a project with no Maven build)"
+  },
+  "action:maven.cancelReload": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::stop_cancels_a_running_sync_without_an_error`; stops a running sync without an error. Missing: its condition read off (a project with no Maven build)"
+  },
+  "action:maven.executeGoal": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::execute_maven_goal_runs_the_typed_line_and_offers_it_again_as_recent`, `workbench::build_tools::tests::the_execute_list_scrolls_to_the_completion_the_keyboard_selects`; opens Execute Maven Goal, runs the typed line through the run feature and offers it again as recent; the list scrolls to the row the keyboard selects. Missing: the project chooser as a select (it is a row of names), and its condition read off"
+  },
+  "action:maven.toggleOffline": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::execute_maven_goal_runs_the_typed_line_and_offers_it_again_as_recent`; a goal run afterwards carries the offline option. Missing: its condition read off (a project with no Maven build)"
+  },
+  "action:maven.toggleSkipTests": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`; a phase run afterwards skips the tests. Missing: its condition read off (a project with no Maven build)"
+  },
+  "action:maven.expandAll": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`; opens every row of the Maven tree. Missing: its condition read off (a project with no Maven build)"
+  },
+  "action:maven.collapseAll": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`; closes the rows of the Maven tree. Missing: its condition read off (a project with no Maven build)"
+  },
+  "action:maven.settings": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`; asks Settings for its Maven page. Missing: that page is not in the native Settings yet, and the condition read off"
+  },
+  "action:gradle.reload": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; lists the tasks the build reports, and a failed sync is told. Missing: its condition read off (a project with no Gradle build)"
+  },
+  "action:gradle.cancelReload": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; stops a running sync. Missing: its condition read off (a project with no Gradle build)"
+  },
+  "action:gradle.expandAll": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; opens every row of the Gradle tree. Missing: its condition read off (a project with no Gradle build)"
+  },
+  "action:gradle.collapseAll": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; closes the rows of the Gradle tree. Missing: its condition read off (a project with no Gradle build)"
+  },
+  "action:gradle.executeTask": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::a_task_runs_by_its_path_with_the_builds_wrapper_and_offline`; runs the typed task by its path with the build's wrapper. Missing: the project chooser as a select, and its condition read off"
+  },
+  "action:gradle.toggleOffline": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::a_task_runs_by_its_path_with_the_builds_wrapper_and_offline`; a task run afterwards carries --offline. Missing: its condition read off (a project with no Gradle build)"
+  },
+  "action:gradle.linkProjects": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`, `workbench::build_tools::tests::does_not_link_or_start_gradle_imports_in_an_untrusted_project`; links a picked Gradle build from the toolbar and lists it; an untrusted project links nothing and starts no import, with the reason told. Missing: its condition read off (no project open)"
+  },
+  "action:gradle.unlinkProjects": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`; asks, unlinks the build, and Link stays offered after the last one. Missing: its condition read off (a project with no Gradle build)"
+  },
+  "point.registerToolWindow:maven": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`, `workbench::build_tools::tests::reload_reads_the_dependency_trees_with_maven_and_refreshes_the_tree`, `workbench::build_tools::tests::stop_cancels_a_running_sync_without_an_error`, `workbench::build_tools::tests::execute_maven_goal_runs_the_typed_line_and_offers_it_again_as_recent`; the Maven tool window with its toolbar, the tree of projects, lifecycle phases, plugins and run configurations, a phase run through the run feature, Reload and its Stop. Missing: Add and Unlink Maven Projects, the Dependency Analyzer, automatic syncs, the buttons a sync error offers"
+  },
+  "point.registerToolWindow:gradle": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`, `workbench::build_tools::tests::a_task_runs_by_its_path_with_the_builds_wrapper_and_offline`, `workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`; the Gradle tool window with its toolbar, the tasks a sync reports, a task run with the build's wrapper, Link and Unlink. Missing: the Dependency Analyzer, automatic syncs, the buttons a sync error offers"
+  },
+  "point.registerOverlay:build-tools.execute": {
+    "status": "partial",
+    "proof": "`workbench::build_tools::tests::execute_maven_goal_runs_the_typed_line_and_offers_it_again_as_recent`, `workbench::build_tools::tests::the_execute_list_scrolls_to_the_completion_the_keyboard_selects`, `workbench::build_tools::tests::a_task_runs_by_its_path_with_the_builds_wrapper_and_offline`; the Execute popup for Maven goals and Gradle tasks: completion rows with their plugins, recent lines, Tab completing and Enter running. Missing: the project chooser as a select"
+  },
+  "ipc:build_model": {
+    "status": "done",
+    "proof": "`workbench::build_tools::tests::reload_reads_the_dependency_trees_with_maven_and_refreshes_the_tree`, `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; the tool windows draw what ide_host::ops::build::model returns for the project (modules, phases, plugins, tasks), the adapter's function"
+  },
+  "ipc:build_sync": {
+    "status": "done",
+    "proof": "`workbench::build_tools::tests::reload_reads_the_dependency_trees_with_maven_and_refreshes_the_tree`, `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; Reload calls ide_host::ops::build::sync, the adapter's function; the dependency trees and the task list shown afterwards come only from that sync"
+  },
+  "ipc:gradle_link_projects": {
+    "status": "done",
+    "proof": "`workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`; Link Gradle Project calls the adapter's function; the linked build is then listed and stored in the project"
+  },
+  "ipc:gradle_unlink_projects": {
+    "status": "done",
+    "proof": "`workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`; Unlink calls the adapter's function; the build leaves the list and the project's stored links"
   }
 }

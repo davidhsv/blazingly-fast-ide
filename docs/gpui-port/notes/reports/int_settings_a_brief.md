@@ -1,4 +1,4 @@
-# Integrator brief A: Quick Evaluate and the keymap flows, an inspection step for modifiers, then 11 Settings pages (general, build, tools, vcs, file types)
+# Integrator brief A: 11 Settings pages (general, build, tools, vcs, file types)
 
 Scratch subfolder for this integration: `$S/dseta/` (not `$S/dset/`).
 
@@ -7,14 +7,6 @@ Read first: `$S/int_rules.md` (hard rules and report format), `$S/tests_brief.md
 Format only files you edited, taken from `git diff --name-only` plus the draft files this brief hands you by name. Never build a file list from `git status`.
 
 Do not stop on your own estimate of elapsed time. Work one page at a time (declare, compile, run that page's tests by filter, fix, next). Stop early only if blocked, and say what blocks it.
-
-## Part 0 (first, small): Quick Evaluate in the window, then the two keymap flow tests
-
-`debug.quickEvaluate` is handled by the debugger's action model (`app-gpui/src/debugger/actions.rs`, with model tests) but the window never registers it (`DEBUG_ACTIONS` in `app-gpui/src/workbench/debug.rs` does not list it), so nothing is bound to Alt+Button1 in a project window. Read the webview's action (`src/features/debugger/actions.ts:863`: its `when`, its mouse shortcut, what it does on a click in the editor and on a selection) and register it the way the other debug actions are, with a window test that drives it by its mouse shortcut during a paused fake session and asserts what the window shows, and one that reads its `when` OFF. Then move the two tests of `app-gpui/src/workbench/tests/proofs18_e2e_keymap_pending.rs` into a declared `proofs18_e2e_keymap.rs` (they wait only for an action bound to Alt+Button1; spec `e2e/keymap.spec.ts`) and make them pass without weakening an assertion. Rows this earns if it passes: `action:debug.quickEvaluate`, `e2e:e2e/keymap.spec.ts`.
-
-## Part 0b (small): a modifiers step for the inspection script, and double Shift seen in a window
-
-Modifier-only and mouse-button shortcuts were moved to plain window listeners in the last integration (`app-gpui/src/workbench/mod.rs`); a test proves double Shift in a test window, nobody has seen it in a real one. Add a step to the debug-only inspection script (`app-gpui/src/inspect.rs`, usage `$S/insp/USAGE.md`, documented copy `docs/gpui-port/notes/inspections/INSPECT_SCRIPT.md` is not yours to edit: report the new step's syntax instead) that sends a modifiers-changed event through the window's own input dispatch (for example `mods⇥shift` then `mods⇥` for press and release), with a test in `workbench/tests/inspect_script.rs`. Then, in your own binary's window (temp `OPENIDEA_GPUI_HOME`, `HOME`, `ZDOTDIR`, temp project): Shift pressed and released twice opens Search Everywhere; take the shot. Also look at a text field after the clip-and-scroll change: type a query wider than the Search Everywhere field or a narrow field, take a shot, click inside the text and take another (the caret lands where clicked), select with shift-left a few times and take a third.
 
 ## The draft of this integration
 

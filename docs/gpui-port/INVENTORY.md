@@ -5,11 +5,11 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1274/3145 rows at parity, 122 model only, 480 partial, 15 with nothing to port.**
+**Overall: 1279/3145 rows at parity, 121 model only, 499 partial, 15 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
-| Actions | 439 | 0 | 147 | 0 | 836 |
+| Actions | 439 | 0 | 163 | 0 | 836 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 46 |
 | Keymap presets | 6 | 0 | 0 | 0 | 6 |
 | Context keys | 47 | 0 | 5 | 0 | 83 |
@@ -32,7 +32,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerMenuSlotItem` | 1 | 0 | 1 | 0 | 2 |
 | Extension point `registerNavigationProvider` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerOccurrenceNavigator` | 0 | 0 | 1 | 0 | 1 |
-| Overlays | 11 | 0 | 18 | 0 | 56 |
+| Overlays | 11 | 0 | 19 | 0 | 56 |
 | Extension point `registerProjectViewRoot` | 0 | 0 | 0 | 0 | 4 |
 | Extension point `registerRunAnythingProvider` | 0 | 0 | 0 | 0 | 2 |
 | Extension point `registerRunConfigType` | 11 | 0 | 0 | 0 | 27 |
@@ -45,7 +45,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Status bar items | 7 | 0 | 3 | 0 | 19 |
 | Extension point `registerTextEditorWrapper` | 1 | 0 | 0 | 0 | 3 |
 | Title bar items | 2 | 0 | 3 | 0 | 5 |
-| Tool windows | 1 | 0 | 18 | 0 | 32 |
+| Tool windows | 1 | 0 | 20 | 0 | 32 |
 | Extension point `registerUndoHandler` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerWorkbenchBanner` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerShellActions` | 0 | 0 | 0 | 0 | 1 |
@@ -55,13 +55,13 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Editor, platform, workbench and design-system modules | 28 | 1 | 65 | 0 | 253 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 21 |
-| IPC commands | 270 | 0 | 23 | 15 | 599 |
+| IPC commands | 274 | 0 | 23 | 15 | 599 |
 | Backend events (IdeEvent) | 15 | 0 | 3 | 0 | 31 |
 | Plugin API interfaces (wit/) | 8 | 0 | 12 | 0 | 49 |
-| Behaviour specification: unit tests (vitest) | 343 | 121 | 132 | 0 | 753 |
+| Behaviour specification: unit tests (vitest) | 344 | 120 | 132 | 0 | 753 |
 | Behaviour specification: end-to-end specs (Playwright) | 7 | 0 | 10 | 0 | 70 |
 
-## Actions (439/836 at parity, 147 partial)
+## Actions (439/836 at parity, 163 partial)
 
 `(dynamic)` rows are actions whose id is built at run time (one per plugin command, tool, run configuration…).
 
@@ -444,14 +444,14 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | [ ] | `go.generate.file` |  | src/features/run/goActions.ts:86 |  |
 | [ ] | `go.generate.package` |  | src/features/run/goActions.ts:86 |  |
 | [ ] | `gradle.analyzeDependencies` |  | src/features/build-tools/index.ts:409 |  |
-| [ ] | `gradle.cancelReload` |  | src/features/build-tools/index.ts:420 |  |
-| [ ] | `gradle.collapseAll` |  | src/features/build-tools/index.ts:462 |  |
-| [ ] | `gradle.executeTask` |  | src/features/build-tools/index.ts:429 |  |
-| [ ] | `gradle.expandAll` |  | src/features/build-tools/index.ts:453 |  |
-| [ ] | `gradle.linkProjects` |  | src/features/build-tools/index.ts:268 |  |
-| [ ] | `gradle.reload` |  | src/features/build-tools/index.ts:396 |  |
-| [ ] | `gradle.toggleOffline` |  | src/features/build-tools/index.ts:442 |  |
-| [ ] | `gradle.unlinkProjects` |  | src/features/build-tools/index.ts:279 |  |
+| [~] | `gradle.cancelReload` |  | src/features/build-tools/index.ts:420 | `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; stops a running sync. Missing: its condition read off (a project with no Gradle build) |
+| [~] | `gradle.collapseAll` |  | src/features/build-tools/index.ts:462 | `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; closes the rows of the Gradle tree. Missing: its condition read off (a project with no Gradle build) |
+| [~] | `gradle.executeTask` |  | src/features/build-tools/index.ts:429 | `workbench::build_tools::tests::a_task_runs_by_its_path_with_the_builds_wrapper_and_offline`; runs the typed task by its path with the build's wrapper. Missing: the project chooser as a select, and its condition read off |
+| [~] | `gradle.expandAll` |  | src/features/build-tools/index.ts:453 | `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; opens every row of the Gradle tree. Missing: its condition read off (a project with no Gradle build) |
+| [~] | `gradle.linkProjects` |  | src/features/build-tools/index.ts:268 | `workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`, `workbench::build_tools::tests::does_not_link_or_start_gradle_imports_in_an_untrusted_project`; links a picked Gradle build from the toolbar and lists it; an untrusted project links nothing and starts no import, with the reason told. Missing: its condition read off (no project open) |
+| [~] | `gradle.reload` |  | src/features/build-tools/index.ts:396 | `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; lists the tasks the build reports, and a failed sync is told. Missing: its condition read off (a project with no Gradle build) |
+| [~] | `gradle.toggleOffline` |  | src/features/build-tools/index.ts:442 | `workbench::build_tools::tests::a_task_runs_by_its_path_with_the_builds_wrapper_and_offline`; a task run afterwards carries --offline. Missing: its condition read off (a project with no Gradle build) |
+| [~] | `gradle.unlinkProjects` |  | src/features/build-tools/index.ts:279 | `workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`; asks, unlinks the build, and Link stays offered after the last one. Missing: its condition read off (a project with no Gradle build) |
 | [ ] | `graphql.addConfiguration` |  | src/features/graphql/index.ts:66 |  |
 | [ ] | `graphql.editConfiguration` |  | src/features/graphql/index.ts:76 |  |
 | [ ] | `graphql.introspect` |  | src/features/graphql/index.ts:86 |  |
@@ -493,14 +493,14 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | [x] | `markdown.previewOnly` |  | src/features/viewers/index.ts:63 | `workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests` |
 | [ ] | `maven.addProjects` |  | src/features/build-tools/index.ts:292 |  |
 | [ ] | `maven.analyzeDependencies` |  | src/features/build-tools/index.ts:336 |  |
-| [ ] | `maven.cancelReload` |  | src/features/build-tools/index.ts:318 |  |
-| [ ] | `maven.collapseAll` |  | src/features/build-tools/index.ts:377 |  |
-| [ ] | `maven.executeGoal` |  | src/features/build-tools/index.ts:327 |  |
-| [ ] | `maven.expandAll` |  | src/features/build-tools/index.ts:368 |  |
-| [ ] | `maven.reload` |  | src/features/build-tools/index.ts:308 |  |
-| [ ] | `maven.settings` |  | src/features/build-tools/index.ts:386 |  |
-| [ ] | `maven.toggleOffline` |  | src/features/build-tools/index.ts:346 |  |
-| [ ] | `maven.toggleSkipTests` |  | src/features/build-tools/index.ts:357 |  |
+| [~] | `maven.cancelReload` |  | src/features/build-tools/index.ts:318 | `workbench::build_tools::tests::stop_cancels_a_running_sync_without_an_error`; stops a running sync without an error. Missing: its condition read off (a project with no Maven build) |
+| [~] | `maven.collapseAll` |  | src/features/build-tools/index.ts:377 | `workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`; closes the rows of the Maven tree. Missing: its condition read off (a project with no Maven build) |
+| [~] | `maven.executeGoal` |  | src/features/build-tools/index.ts:327 | `workbench::build_tools::tests::execute_maven_goal_runs_the_typed_line_and_offers_it_again_as_recent`, `workbench::build_tools::tests::the_execute_list_scrolls_to_the_completion_the_keyboard_selects`; opens Execute Maven Goal, runs the typed line through the run feature and offers it again as recent; the list scrolls to the row the keyboard selects. Missing: the project chooser as a select (it is a row of names), and its condition read off |
+| [~] | `maven.expandAll` |  | src/features/build-tools/index.ts:368 | `workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`; opens every row of the Maven tree. Missing: its condition read off (a project with no Maven build) |
+| [~] | `maven.reload` |  | src/features/build-tools/index.ts:308 | `workbench::build_tools::tests::reload_reads_the_dependency_trees_with_maven_and_refreshes_the_tree`; reads the dependency trees with the project's Maven and refreshes the tree. Missing: its condition read off (a project with no Maven build) |
+| [~] | `maven.settings` |  | src/features/build-tools/index.ts:386 | `workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`; asks Settings for its Maven page. Missing: that page is not in the native Settings yet, and the condition read off |
+| [~] | `maven.toggleOffline` |  | src/features/build-tools/index.ts:346 | `workbench::build_tools::tests::execute_maven_goal_runs_the_typed_line_and_offers_it_again_as_recent`; a goal run afterwards carries the offline option. Missing: its condition read off (a project with no Maven build) |
+| [~] | `maven.toggleSkipTests` |  | src/features/build-tools/index.ts:357 | `workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`; a phase run afterwards skips the tests. Missing: its condition read off (a project with no Maven build) |
 | [ ] | `maven.unlinkProjects` |  | src/features/build-tools/index.ts:300 |  |
 | [x] | `merge.accept` |  | src/features/vcs/mergeActions.ts:64 | `workbench::tests::proofs_merge_change::settles_one_side_of_a_conflict_and_leaves_the_text_the_other_side_then_replaces_it`, `workbench::tests::proofs_merge_change::takes_the_text_and_leaves_a_conflict_open_for_the_other_side` |
 | [x] | `merge.acceptTheirs` |  | src/features/vcs/mergeActions.ts:64 | `workbench::tests::proofs_merge_apply::accept_theirs_asks_once_the_result_was_changed_and_writes_their_version` |
@@ -1265,7 +1265,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [~] | `(at) src/workbench/contributions.ts:1362` | src/workbench/contributions.ts:1362 | `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`; Next / Previous Occurrence step the Problems, TODO and Find Usages tool windows, in the order focused, last active, last used, visible, and Find Usages says which of how many. Missing: the navigators are a fixed list (Usages, Problems, TODO), not registered by the views; Find, Inspection and Hierarchy have none, and the TODO window's step gives no index and total |
 
-## Overlays (11/56 at parity, 18 partial)
+## Overlays (11/56 at parity, 19 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
@@ -1276,7 +1276,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `app.newProject` | src/features/app/index.ts:40 | `app_views::new_project_dialog::tests`, `workbench::app_actions::tests::new_project_creates_the_folder_and_opens_it`; name and location fields, validation, the Git checkbox, Create and Cancel, the error kept in the dialog. Missing: Browse… does not start in the typed folder, and the Git initialization is not exercised |
 | [~] | `app.termination` | src/features/app/index.ts:41 | `workbench::tests::closing_with_a_running_process_asks_to_terminate_it_before_the_unsaved_question`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`; the exit, running-process and unsaved-changes questions; no Terminating panel with Kill |
 | [ ] | `app.workspace` | src/features/app/index.ts:58 |  |
-| [ ] | `build-tools.execute` | src/features/build-tools/index.ts:199 |  |
+| [~] | `build-tools.execute` | src/features/build-tools/index.ts:199 | `workbench::build_tools::tests::execute_maven_goal_runs_the_typed_line_and_offers_it_again_as_recent`, `workbench::build_tools::tests::the_execute_list_scrolls_to_the_completion_the_keyboard_selects`, `workbench::build_tools::tests::a_task_runs_by_its_path_with_the_builds_wrapper_and_offline`; the Execute popup for Maven goals and Gradle tasks: completion rows with their plugins, recent lines, Tab completing and Enter running. Missing: the project chooser as a select |
 | [x] | `code-insight.usagesPopup` | src/features/code-insight/index.ts:91 | `workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `code_insight::usages_popup::tests`, `workbench::popup_placement::tests::show_usages_opens_under_the_caret`; see find.showUsages |
 | [ ] | `coverage.manageReports` | src/features/coverage/index.ts:32 |  |
 | [~] | `database.dialogs` | src/features/database/index.ts:80 | `workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`, `workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`, `workbench::tests::the_password_a_connection_asks_for_is_masked_and_answers_the_store`, `workbench::database_extras::tests::modify_table_new_column_and_new_table_change_the_file_and_the_tree`, `workbench::database_extras::tests::truncate_asks_and_deletes_every_row_of_the_table`, `workbench::database_extras::tests::import_data_inserts_the_rows_of_a_csv_file_into_the_table`, `workbench::database_extras::tests::the_table_editors_import_and_export_browse_open_their_dialogs`, `workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`; the Data Source dialog, the rename and drop questions, the masked password question, Modify Table and Create Table, the truncate question, Import Data and Query History. Missing: the index and key dialogs, the export dialog's own options and SSH configurations |
@@ -1458,7 +1458,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `vcs.branch` | src/features/vcs/index.ts:84 | `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`; no tooltip on the widget |
 | [x] | `vcs.mergeRebase` | src/features/vcs/index.ts:60 | `workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`, `workbench::tests::proofs15_merge_resolve::resolve_conflicts_on_the_title_bar_opens_the_conflicts_dialog_again`; Abort, Continue and Skip of a stopped operation, and Resolve on the widget opens the conflicts dialog again |
 
-## Tool windows (1/32 at parity, 18 partial)
+## Tool windows (1/32 at parity, 20 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
@@ -1475,12 +1475,12 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `duplicates` | src/features/analysis/index.ts:41 |  |
 | [~] | `find` | src/features/search/index.ts:175 | `workbench::tests::find_in_files_searches_the_project_and_opens_a_match`, `find::window_store::tests`, `workbench::editor_extras::tests::rerun_search_finds_what_was_written_since_the_search`; one search with its results by file, and ⌘R runs it again while the window is active. Not yet: result tabs, grouping options, replace, preview, the header menu, Next / Previous Occurrence through its results |
 | [~] | `git` | src/features/vcs/index.ts:245 | `workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`, `workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`, `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `workbench::tests::proofs_vcs::the_log_user_filter_lists_the_authors_and_keeps_the_chosen_ones_commits`, `workbench::log_actions::tests::the_commit_context_menu_offers_the_commit_actions_and_runs_the_chosen_one`, `workbench::log_actions::tests::cherry_pick_applies_a_commit_of_another_branch_and_a_conflicting_one_opens_the_conflicts`, `workbench::log_actions::tests::revert_commit_adds_a_commit_that_undoes_it`, `workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`, `workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`, `workbench::vcs_operations::tests::show_log_shows_the_git_window_and_show_commit_selects_the_commit`; the commit list with its graph, the text, branch and user filters, the branches pane and its actions, commit details and changed files with their actions and diff, and the commit context menu with cherry-pick, revert and the history-rewriting actions. Not yet: the Select dialogs of the user, date and path filters, the log toolbar, selecting several commits, the Console and Worktrees tabs |
-| [ ] | `gradle` | src/features/build-tools/index.ts:146 |  |
+| [~] | `gradle` | src/features/build-tools/index.ts:146 | `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`, `workbench::build_tools::tests::a_task_runs_by_its_path_with_the_builds_wrapper_and_offline`, `workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`; the Gradle tool window with its toolbar, the tasks a sync reports, a task run with the build's wrapper, Link and Unlink. Missing: the Dependency Analyzer, automatic syncs, the buttons a sync error offers |
 | [ ] | `graphql` | src/features/graphql/index.ts:34 |  |
 | [x] | `hierarchy` | src/features/code-insight/index.ts:74 | `editor::intelligence::tests::proofs_editor_lsp::call_hierarchy_lists_the_callers_the_server_reports`, `editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`, `workbench::tests::type_hierarchy_without_a_server_says_no_language_server_is_available`, `code_insight::hierarchy_view::tests`; the Hierarchy window opens titled by mode and root (Callers of target, Subtypes of Base), lists what the server reports, expands lazily, opens a caller at its call site, switches direction, refreshes and autoscrolls from its toolbar, says how to show a hierarchy when empty and that no server is available |
 | [ ] | `inspection` | src/features/analysis/index.ts:30 |  |
 | [ ] | `logcat` | src/features/logcat/index.ts:10 |  |
-| [ ] | `maven` | src/features/build-tools/index.ts:138 |  |
+| [~] | `maven` | src/features/build-tools/index.ts:138 | `workbench::build_tools::tests::runs_a_lifecycle_phase_through_the_run_feature_with_the_toolbar_options`, `workbench::build_tools::tests::reload_reads_the_dependency_trees_with_maven_and_refreshes_the_tree`, `workbench::build_tools::tests::stop_cancels_a_running_sync_without_an_error`, `workbench::build_tools::tests::execute_maven_goal_runs_the_typed_line_and_offers_it_again_as_recent`; the Maven tool window with its toolbar, the tree of projects, lifecycle phases, plugins and run configurations, a phase run through the run feature, Reload and its Stop. Missing: Add and Unlink Maven Projects, the Dependency Analyzer, automatic syncs, the buttons a sync error offers |
 | [~] | `notifications` | src/workbench/activate.ts:85 | `workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`, `workbench::notifications_view::tests`, `workbench::notifications::tests`; the history newest first with times, the entries' links, close and Clear All, everything marked read while it shows. Not yet: the unread badge on its stripe button, Clear All in the tool window's header (it is a row of the view), tooltips, selectable text |
 | [~] | `problems` | src/features/code-insight/index.ts:51 | `workbench::tests::the_problems_window_lists_published_problems_and_opens_the_chosen_one`, `code_insight::problems_view::tests`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`; published problems by file with counts, opening one, and Next / Previous Occurrence stepping through them with i of n in the status bar; the stripe badge, file decorations in the Project view and the IDE's own inspections are missing |
 | [ ] | `profiler` | src/features/profiler/index.ts:15 |  |
@@ -1942,7 +1942,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [ ] | `src-tauri/src/window_work_area.rs` | 209 |  |
 | [~] | `src-tauri/src/windows.rs` | 2281 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 
-## IPC commands (270/599 at parity, 23 partial, 15 with nothing to port)
+## IPC commands (274/599 at parity, 23 partial, 15 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -1992,9 +1992,9 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `app_update_status` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [ ] | `app_update_window_ready` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [x] | `apply_workspace_edit` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes | `workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; the rename's edit changes the open file and the unopened b.mock, which only the backend's apply reaches; the window calls ide_host::ops::lsp::apply_workspace_edit with the edit, as the adapter does |
-| [ ] | `build_model` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [x] | `build_model` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes | `workbench::build_tools::tests::reload_reads_the_dependency_trees_with_maven_and_refreshes_the_tree`, `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; the tool windows draw what ide_host::ops::build::model returns for the project (modules, phases, plugins, tasks), the adapter's function |
 | [x] | `build_run` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes | `workbench::tests::building_a_project_without_a_build_system_ends_in_a_failed_build`, `workbench::tests::a_cargo_build_lists_its_error_succeeds_once_fixed_and_ends_cancelled_when_stopped` |
-| [ ] | `build_sync` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [x] | `build_sync` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes | `workbench::build_tools::tests::reload_reads_the_dependency_trees_with_maven_and_refreshes_the_tree`, `workbench::build_tools::tests::gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told`; Reload calls ide_host::ops::build::sync, the adapter's function; the dependency trees and the task list shown afterwards come only from that sync |
 | [x] | `caches_schedule_invalidation` | src-tauri/src/commands/caches.rs | desktop shell | yes | `workbench::app_actions::tests::invalidate_and_restart_schedules_the_chosen_caches_and_restarts`, `workbench::app_actions::tests::just_restart_cancels_a_pending_invalidation_cancel_does_nothing`, `workbench::app_actions::tests::invalidating_every_cache_removes_only_the_apps_cache_folders`; the pending invalidation in the data folder is the one chosen, and none after Just Restart; the window calls ide_workspace::caches::schedule and caches::cancel, as the adapter does |
 | [~] | `cancel_request` | src-tauri/src/commands/app.rs | desktop shell | yes | `workbench::debug::tests::proofs6_debug::cancel_on_the_listening_notice_stops_listening_for_the_remote_jvm`; only the debugger's use of it |
 | [x] | `cancel_task` | src-tauri/src/commands/app.rs | desktop shell | yes | `editor::intelligence::tests::proofs9_cancel_task` |
@@ -2145,9 +2145,9 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `git_credential_forget` | src-tauri/src/commands/ssh.rs | desktop shell | yes | `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`; Forget on the Git page calls GitCredentials::forget on the git_creds store and the store no longer holds the credential |
 | [x] | `git_credentials` | src-tauri/src/commands/ssh.rs | desktop shell | yes | `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`; the Git page Passwords list shows the host GitCredentials::list returns from the git_creds store |
 | [ ] | `gradle_dependencies` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
-| [ ] | `gradle_link_projects` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [x] | `gradle_link_projects` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes | `workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`; Link Gradle Project calls the adapter's function; the linked build is then listed and stored in the project |
 | [ ] | `gradle_published_catalog` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
-| [ ] | `gradle_unlink_projects` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes |  |
+| [x] | `gradle_unlink_projects` | src-tauri/src/commands/build.rs | `ide_host::ops` | yes | `workbench::build_tools::tests::links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build`; Unlink calls the adapter's function; the build leaves the list and the project's stored links |
 | [x] | `history_content` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes | `workbench::diff_tools::tests::show_history_diffs_a_saved_revision_and_revert_writes_it_back_once_confirmed` |
 | [–] | `history_list` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
 | [x] | `history_list_dir` | src-tauri/src/commands/history.rs | `ide_host::ops` | yes | `workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; Undo in the Project view after a delete brings the file back with its text, restored from the snapshot ide_host::ops::history::history_list_dir lists for its folder; the window calls it with its label and the folder, as the adapter does |
@@ -2638,7 +2638,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `invocation` | wit/workspace.wit | `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`; a command run from the window gets its project and focused editor (the word count of notes.txt), and selected-paths carries the Project view menu's file |
 | [~] | `vcs` | wit/workspace.wit | `workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_reads_the_projects_log_blame_and_diff`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; log, blame and diff answer the commit, its author and the changed line, and status shows as the plugin's branch item. Missing: remotes, and fetch's effect is not asserted |
 
-## Behaviour specification: unit tests (vitest) (343/753 at parity, 121 model only, 132 partial)
+## Behaviour specification: unit tests (vitest) (344/753 at parity, 120 model only, 132 partial)
 
 753 files, 6287 cases. A row is at parity when the behaviour its cases assert is covered by Rust tests of the GPUI app.
 
@@ -3382,7 +3382,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `src/platform/platformInfo.test.ts` | 2 | `platform::misc::platform_info::tests` |
 | [ ] | `src/platform/pointerFocus.test.ts` | 3 |  |
 | [~] | `src/platform/project.test.ts` | 6 | `platform::virtual_docs::tests::proofs7_relative_dir`, `platform_more::project::tests`; the three relativeDir cases assert relative_dir, a function that renders nothing and is reached from the Problems and Usages views. Missing: the three opening cases (actions blocked while a project opens, reconciling a failed open, a cancelled trust question) are proven only on ProjectSession, which nothing in the application uses |
-| [m] | `src/platform/projectPresentation.test.ts` | 7 | `platform::project_presentation::tests` |
+| [x] | `src/platform/projectPresentation.test.ts` | 7 | `platform::project_presentation::tests` |
 | [x] | `src/platform/projectRoots.test.ts` | 8 | `platform::project_roots::tests` |
 | [~] | `src/platform/proxySettings.test.ts` | 6 | `platform_more::proxy_settings::tests`; the two cases about a manual proxy's problems are the backend's (`ProxySettings::problem`), whose message and whitespace rules differ slightly from the webview's |
 | [x] | `src/platform/remote.test.ts` | 6 | `platform_more::remote::tests`; 4 of 6 cases: served-command routing and the three cases about when routing ends; the remaining cases test the Tauri bridge (channels replaced with ids in call arguments, no arguments encoded as an empty object) of the webview, which has no native counterpart: the GPUI app calls the host directly |
