@@ -14,6 +14,14 @@ fn record_actions(cx: &mut VisualTestContext) -> (Rc<RefCell<Vec<String>>>, u64)
     (ran, listener)
 }
 
+/// Waits for the Project view to select `path` on its own, as it does with the file a move, a rename or their undo
+/// leaves: selecting another row before that lands would be taken over by it.
+fn wait_selected_by_the_view(workbench: &Entity<Workbench>, path: &Path, what: &str, cx: &mut VisualTestContext) {
+    let tree = project_tree_of(workbench, cx);
+    let at = text_of(path);
+    wait_long(cx, what, |cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(at.as_str())));
+}
+
 /// Compare With… on two files hands them to the diff's Compare Files, which shows them side by side; on one file
 /// it hands the file to the diff's Compare With…, which asks for the other. It is the Project view's action: with
 /// the editor's keyboard it is not available.
@@ -74,11 +82,13 @@ async fn undo_in_the_project_view_takes_back_its_last_move_and_rename(cx: &mut T
     cx.simulate_keystrokes("enter");
     wait_long(cx, "the move", |_| moved.is_file() && !data.exists());
     wait_long(cx, "the Move dialog to close", dialog_closed);
+    wait_selected_by_the_view(&workbench, &moved, "the moved file to be selected", cx);
 
     select_in_tree(&workbench, &root.join("lib"), cx);
     assert!(context_is_on(cx, "projectViewFocus"));
     run_action(cx, "edit.undo", None);
     wait_long(cx, "the file to move back", |_| data.is_file() && !moved.exists());
+    wait_selected_by_the_view(&workbench, &data, "the file moved back to be selected", cx);
     assert_eq!(std::fs::read_to_string(&data).expect("the file is back"), "{}\n");
     select_in_tree(&workbench, &data, cx);
 
@@ -91,10 +101,12 @@ async fn undo_in_the_project_view_takes_back_its_last_move_and_rename(cx: &mut T
     let renamed = root.join("src/info.json");
     wait_long(cx, "the rename", |_| renamed.is_file() && !data.exists());
     wait_long(cx, "the Rename dialog to close", dialog_closed);
+    wait_selected_by_the_view(&workbench, &renamed, "the renamed file to be selected", cx);
 
     select_in_tree(&workbench, &root.join("src"), cx);
     run_action(cx, "edit.undo", None);
     wait_long(cx, "the old name to come back", |_| data.is_file() && !renamed.exists());
+    wait_selected_by_the_view(&workbench, &data, "the file of the old name to be selected", cx);
     select_in_tree(&workbench, &data, cx);
     let tree = project_tree_of(&workbench, cx);
     wait_long(cx, "the tree to show the old name only", |cx| !tree_labels(&tree, cx).contains(&"info.json".to_owned()));

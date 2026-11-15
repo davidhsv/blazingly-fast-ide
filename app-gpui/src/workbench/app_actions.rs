@@ -1152,6 +1152,7 @@ mod tests {
     use crate::workbench::{RUN_TOOL_WINDOW, Workbenches};
     use gpui_kit::{AnyWindowHandle, TestAppContext, VisualTestContext};
     use std::cell::Cell;
+    mod proofs20_layouts;
 
     /// A project of `files` (path, text) in an active window, trusted when `trusted` says so.
     fn project<'a>(

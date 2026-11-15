@@ -1057,6 +1057,7 @@ mod tests {
     use crate::run::view::RunView;
     use gpui_kit::{TestAppContext, VisualTestContext, px};
     use std::os::unix::fs::PermissionsExt;
+    mod proofs20_build_title;
     use std::path::Path;
 
     /// A stand-in for Maven: it leaves `ran` beside it and says what it was started with (`cwd`,

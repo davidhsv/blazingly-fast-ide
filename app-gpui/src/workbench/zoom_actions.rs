@@ -145,6 +145,7 @@ mod tests {
     use crate::theme::{self, ActiveTheme};
     use crate::ui::popup_menu::PopupMenu;
     use gpui_kit::{Entity, TestAppContext, VisualTestContext};
+    mod proofs20_quick_switch;
 
     fn zoom(cx: &mut VisualTestContext) -> u32 {
         cx.update(|_, cx| settings::global(cx).appearance.zoom)

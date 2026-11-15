@@ -492,6 +492,7 @@ mod tests {
     use super::*;
     use serde_json::json;
     mod proofs11_host_modifier;
+    mod proofs20_new_element;
     mod proofs7_vscode_preset;
     mod proofs_presets;
 

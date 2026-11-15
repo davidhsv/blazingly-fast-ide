@@ -263,7 +263,7 @@ async fn ask_remote_branch_name(
             checkbox: None,
         };
         let build = move |window: &mut Window, cx: &mut Context<PromptDialog>| {
-            PromptDialog::prompt(request, FieldRule::NonEmpty(label), window, cx)
+            PromptDialog::prompt(request, FieldRule::BranchName(label), window, cx)
         };
         workbench.show_prompt_dialog(build, window, cx)
     })?;

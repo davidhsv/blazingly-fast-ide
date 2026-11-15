@@ -8627,6 +8627,7 @@ dependencies = [
  "ide-index",
  "ide-language",
  "ide-lsp",
+ "ide-mcp",
  "ide-notebook",
  "ide-plugin",
  "ide-run",

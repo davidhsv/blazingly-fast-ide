@@ -1572,6 +1572,7 @@ mod tests {
     mod proofs11_github;
     mod proofs14_github_window;
     mod proofs15_github_refresh;
+    mod proofs20_remote_branch;
     mod proofs7_github_urls;
     mod proofs9_github;
 

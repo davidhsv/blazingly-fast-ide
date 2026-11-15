@@ -1037,6 +1037,7 @@ pub(super) mod tests {
     use gpui_kit::{Modifiers, MouseButton, MouseDownEvent, TestAppContext, VisualTestContext, point};
     use std::time::Duration;
     mod proofs11_hotswap;
+    mod proofs20_debug;
     mod proofs3_debug;
     mod proofs6_debug;
     mod proofs8_recent;

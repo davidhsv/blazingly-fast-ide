@@ -13,6 +13,7 @@
 //! Neither runs anything: the answer goes to the workbench, which carries on with the operation
 //! that asked.
 
+use crate::platform::git_ref_name::clean_up_branch_name_on_typing;
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::input;
 use crate::theme;
@@ -44,6 +45,9 @@ const FIELD_HEIGHT: f32 = 28.0;
 pub enum FieldRule {
     /// Anything but blank; `message` says what is missing.
     NonEmpty(String),
+    /// A name for a branch that may not exist yet (a remote one): anything but blank, cleaned up as it is
+    /// typed as a branch name is, without the checks against the repository's branches.
+    BranchName(String),
     /// A branch name: cleaned up as it is typed and checked by its prompt, which may offer to
     /// overwrite an existing branch.
     Branch(Box<BranchPrompt>),
@@ -442,7 +446,9 @@ impl PromptDialog {
     fn problem(&self, i18n: &mut I18n) -> Option<String> {
         let field = self.field.as_ref()?;
         match &field.rule {
-            FieldRule::NonEmpty(message) => field.value.trim().is_empty().then(|| message.clone()),
+            FieldRule::NonEmpty(message) | FieldRule::BranchName(message) => {
+                field.value.trim().is_empty().then(|| message.clone())
+            }
             FieldRule::Branch(prompt) => prompt.validate(&field.value, self.offers_overwrite() && self.overwrite, i18n),
             FieldRule::Any => None,
         }
@@ -468,14 +474,16 @@ impl PromptDialog {
     fn field_changed(&mut self, entity: &Entity<TextField>, window: &mut Window, cx: &mut Context<Self>) {
         let text = entity.read(cx).text().to_owned();
         let Some(field) = &mut self.field else { return };
-        if let FieldRule::Branch(prompt) = &field.rule {
-            let clean = prompt.sanitize(&text);
-            if clean != text {
-                let (range, inserted) = minimal_edit(&text, &clean);
-                // The field reports the cleaned text in turn.
-                entity.update(cx, |field, cx| field.replace_text_in_range(Some(range), &inserted, window, cx));
-                return;
-            }
+        let clean = match &field.rule {
+            FieldRule::Branch(prompt) => Some(prompt.sanitize(&text)),
+            FieldRule::BranchName(_) => Some(clean_up_branch_name_on_typing(&text)),
+            FieldRule::NonEmpty(_) | FieldRule::Any => None,
+        };
+        if let Some(clean) = clean.filter(|clean| *clean != text) {
+            let (range, inserted) = minimal_edit(&text, &clean);
+            // The field reports the cleaned text in turn.
+            entity.update(cx, |field, cx| field.replace_text_in_range(Some(range), &inserted, window, cx));
+            return;
         }
         if text.trim() != field.value.trim() {
             self.overwrite = false;

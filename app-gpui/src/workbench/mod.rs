@@ -4356,6 +4356,9 @@ mod tests {
     mod proofs18_e2e_run;
     mod proofs18_e2e_search;
     mod proofs18_e2e_toolwindows;
+    mod proofs20_database;
+    mod proofs20_run_widget;
+    mod proofs20_shell;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

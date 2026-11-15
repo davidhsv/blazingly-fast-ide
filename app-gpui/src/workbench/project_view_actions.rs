@@ -579,6 +579,7 @@ mod tests {
     use std::cell::RefCell;
     use std::sync::Mutex;
     mod proofs11_import;
+    mod proofs20_tree;
     mod proofs7_project_menu;
     mod proofs7_tree_options;
 

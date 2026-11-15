@@ -94,6 +94,11 @@ fn clickhouse_server() -> (u16, Seen) {
 /// tree lists the database the server answers with, the source connected.
 #[gpui_kit::test]
 async fn the_password_a_connection_asks_for_reaches_the_backend_and_the_retry_connects(cx: &mut TestAppContext) {
+    // The source's proxy mode is the default, the environment's proxy, which does not exempt loopback:
+    // with one set, the request and its password would go to that proxy instead of the stand-in server.
+    for name in ["http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"] {
+        assert!(std::env::var_os(name).is_none(), "{name} is set: the password must not reach a proxy");
+    }
     let _home = start(cx);
     let (_folder, _root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
     cx.update(|window, _| window.activate_window());

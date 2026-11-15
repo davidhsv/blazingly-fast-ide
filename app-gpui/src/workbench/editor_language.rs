@@ -1664,6 +1664,8 @@ mod tests {
     use std::path::Path;
 
     mod proofs15_implement;
+    mod proofs20_generate;
+    mod proofs20_mcp_problems;
     mod proofs3_editor_keys;
     mod proofs5_editor;
     mod proofs7_hint;

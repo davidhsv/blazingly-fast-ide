@@ -415,6 +415,12 @@ impl TitleBar {
         }
     }
 
+    /// The colours the project widget's avatar is drawn on (gradient start and end), while a project is shown.
+    pub fn project_avatar_fill(&self, cx: &App) -> Option<(gpui_kit::Hsla, gpui_kit::Hsla)> {
+        let project = self.project.as_ref()?;
+        Some(super::project_color::avatar_fill(&project.color_name, cx))
+    }
+
     pub fn set_project(&mut self, project: Option<ProjectWidget>, cx: &mut Context<Self>) {
         if self.project != project {
             self.project = project;
