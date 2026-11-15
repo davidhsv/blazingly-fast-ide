@@ -723,3 +723,10 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - RUNNING (cargo): proofs20 integrator (`$S/int_proofs20_brief.md`).
 - CARGO QUEUE after it: Settings A (`$S/int_settings_a_brief.md`) → Settings B → agents views (reconciled; `$S/agv/anchors.py`) → refactor + Git text actions → diff gaps (reconciled; `$S/dfg/anchors.py`; next/prev file + settings must work in the tab before the default flips) → shared button + accessibility → vcs_stage_hunks → zoom px.
 - NO-CARGO candidates that do not rot: test-only leftovers of build tools (7 cases), plumbing test-only rows (user_font_data, app_info, window_start_drag), small batches of the triage (editor paint models 14, git log 14, terminal 13, app shell 11+11) need writers → only when the draft queue is below three integrations.
+
+## State after proofs20 (2026-11-15, 2f281ec4). D120. Inventory 1,325/3,145 (121 model only, 472 partial, 15 nothing to port). Suite 7,418.
+
+- Rows by `$S/parity_dp20.py`. No change under crates/ (Tauri suite not owed beyond the note of D119).
+- RUNNING (cargo): Settings A integrator (`$S/int_settings_a_brief.md`, scratch `$S/dseta/`).
+- CARGO QUEUE after it: Settings B (`$S/int_settings_b_brief.md`) → agents views (reconciled) → refactor + Git text actions → diff gaps (reconciled) → shared button + accessibility → vcs_stage_hunks → zoom px.
+- The draft queue is at four integrations after Settings A. Writers may start again when it is below three: small batches from the triage (editor paint models 14, git log 14, terminal 13, app shell 11+11), build tools leftovers (7 test-only cases), plumbing test-only rows (3).

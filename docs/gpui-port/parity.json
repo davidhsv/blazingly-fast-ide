@@ -80,12 +80,12 @@
     "proof": "`platform::i18n::tests::catalogs_are_complete_and_well_formed`"
   },
   "unit:src/platform/actions.test.ts": {
-    "status": "partial",
-    "proof": "`platform::actions::tests`; error propagation of `execute_action_or_throw` has no window test yet"
+    "status": "done",
+    "proof": "`platform::actions::tests`, `workbench::tests::proofs20_shell::propagates_host_launch_errors_while_retaining_ordinary_action_error_handling`; 1 of 1 case through a window: a handler's error reaches the caller of execute_action_or_throw while execute_action only reports it"
   },
   "module:src/platform/actions.ts": {
-    "status": "partial",
-    "proof": "`platform::actions::tests`, `platform::input::tests`, `workbench::tests::smoke_registered_actions::every_action_registered_in_a_project_window_is_known_to_the_manifest`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`; the registry runs every feature action of a project window, enablement follows `when`, `keyWhen` and projectOpening, and an action-performed listener hears a menu run with its source. Missing: no test makes a handler fail and reads its error from execute_action_or_throw while execute_action only logs it, and none checks that an action run from inside another action is not reported to listeners"
+    "status": "done",
+    "proof": "`platform::actions::tests`, `platform::input::tests`, `workbench::tests::smoke_registered_actions::every_action_registered_in_a_project_window_is_known_to_the_manifest`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::tests::proofs20_shell::propagates_host_launch_errors_while_retaining_ordinary_action_error_handling`, `workbench::tests::proofs20_shell::listeners_hear_the_action_the_user_runs_and_not_the_ones_it_runs_itself`; the registry runs every feature action of a project window, enablement follows `when`, `keyWhen` and projectOpening, and an action-performed listener hears a menu run with its source. A failing handler's error is returned by execute_action_or_throw and only reported by execute_action, and listeners hear the action the user runs but not the ones it runs itself"
   },
   "design:icons": {
     "status": "done",
@@ -168,8 +168,8 @@
     "proof": "`workbench::status_bar::tests`, `workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::tests::proofs5_layout::background_tasks_opens_the_popup_and_running_it_again_keeps_it_open`, `workbench::background_tasks_view::tests`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::status_items::tests::the_status_message_is_shown_while_there_is_one`; items ordered by priority on each side, light-edit items only, hidden widgets and the context menu that toggles them, the status message, the task item naming the working task with the count of the others, and the Background Tasks popup with its working, Cancelling… and disabled Cancel buttons"
   },
   "module:src/workbench/TitleBar.tsx": {
-    "status": "partial",
-    "proof": "`workbench::title_bar::tests`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::main_toolbar::tests`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`; the bar draws the project widget (initials, name, root tooltip, Open…/Close Project menu), the branch widget or Version Control fallback, the gear menu, the context menu and Customize Main Toolbar dialog, the compact, light-edit and bare headers, the main menu button where there is no native menu bar, and a plugin's mainToolbar button, whose click runs its command. Missing: no test reads the title bar avatar's colours (drawn on the project's colours, seen in the real window on 2026-11-14)"
+    "status": "done",
+    "proof": "`workbench::title_bar::tests`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::main_toolbar::tests`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`, `workbench::tests::proofs20_shell::the_title_bars_avatar_is_drawn_on_the_colours_of_the_projects_slot`; the bar draws the project widget (initials, name, root tooltip, Open…/Close Project menu), the branch widget or Version Control fallback, the gear menu, the context menu and Customize Main Toolbar dialog, the compact, light-edit and bare headers, the main menu button where there is no native menu bar, and a plugin's mainToolbar button, whose click runs its command. The avatar is drawn on the colours of the project's slot (read from what the title bar hands its renderer)"
   },
   "context:projectOpen": {
     "status": "done",
@@ -236,12 +236,12 @@
     "proof": "`platform::project_roots::tests`, `workbench::project_view_actions::tests::the_copy_path_forms_copy_the_selection_and_the_source_root_path_follows_mark_directory_as`, `workbench::project_view_actions::tests::an_excluded_folder_shows_as_excluded_and_the_search_skips_it`; the project's roots and detected roots are read from the backend when an action needs them (Copy Path From Source Root, Mark Directory as). Missing: no store of them is kept and reloaded on projectRootsChanged"
   },
   "unit:src/workbench/toolwindows/store.test.ts": {
-    "status": "partial",
-    "proof": "`workbench::tool_windows::tests`, `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; `toolwindow.<id>` exists for the Project view and the Terminal only"
+    "status": "done",
+    "proof": "`workbench::tool_windows::tests`, `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`, `workbench::tests::proofs20_shell::registers_toolwindow_id_and_generic_actions`; 26 of 26 cases; every tool window registers its `toolwindow.<id>` action beside the generic ones, each run through the registry in a project window"
   },
   "unit:src/workbench/toolwindows/layouts.test.ts": {
-    "status": "partial",
-    "proof": "`workbench::tool_windows::tests`, `workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::restores_by_name_through_the_action_window_tool_window_layouts_items`; 5 of 5 cases on the layout store, 2 of 5 also through the window (the default layout, restoring by name through the action with toolWindowLayoutsSaved). Through the window the saved sizes, replacing a layout of the same name and the reload that drops malformed entries are not asserted"
+    "status": "done",
+    "proof": "`workbench::tool_windows::tests`, `workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::restores_by_name_through_the_action_window_tool_window_layouts_items`, `workbench::app_actions::tests::proofs20_layouts::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::app_actions::tests::proofs20_layouts::replaces_a_layout_of_the_same_name_renames_and_deletes`, `workbench::app_actions::tests::proofs20_layouts::persists_across_reloads_and_ignores_malformed_entries`; 5 of 5 cases on the layout store, 2 of 5 also through the window (the default layout, restoring by name through the action with toolWindowLayoutsSaved). 5 of 5 cases through the window: a layout saved by name restores the visible windows and their sizes, a layout of the same name is replaced, renamed and deleted, and layouts persist across a reload that drops malformed entries"
   },
   "unit:src/workbench/toolwindows/content.test.ts": {
     "status": "done",
@@ -429,15 +429,15 @@
   },
   "module:src/workbench/quickSwitch.ts": {
     "status": "partial",
-    "proof": "`workbench::quick_switch::tests`; the model only: no window uses it yet"
+    "proof": "`workbench::quick_switch::tests`, `workbench::zoom_actions::tests::proofs20_quick_switch::quick_switch_marks_what_is_in_effect_offers_the_view_modes_and_switches_the_keymap`; the Quick Switch popup of a window marks the theme, keymap and view mode in effect, offers the view modes and switches the keymap. Missing: the preview of a theme while its row is hovered"
   },
   "unit:src/workbench/tasks.test.tsx": {
     "status": "partial",
     "proof": "`workbench::background_tasks_view::tests::the_popups_cancel_buttons_working_cancelling_and_disabled_with_the_reason`, `workbench::background_tasks_view::tests::shows_progress_and_uncancellable_tasks`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::tests::proofs13_tasks::backend_tasks_cancellable_ones_cancel_through_cancel_task_the_others_say_they_cant`, `workbench::tests::proofs13_tasks::indexing_says_why_it_cant_be_stopped`, `workbench::tests::proofs13_tasks::keeps_a_replacement_task_when_the_old_completion_arrives`, `workbench::tests::proofs13_tasks::shows_progress_and_uncancellable_tasks_through_an_action_without_the_status_bar`; 6 of 9 cases through the window. Missing: the queue cases are only on the model (nothing in the app queues tasks)"
   },
   "module:src/workbench/tasks.ts": {
-    "status": "partial",
-    "proof": "`workbench::tasks::tests`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; tasks fed from backend and plugin events, shown in the status bar and in Background Tasks with their Cancel. Missing: a backend task's Cancel through cancel_task is proven on the model only"
+    "status": "done",
+    "proof": "`workbench::tasks::tests`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::tests::proofs13_tasks::backend_tasks_cancellable_ones_cancel_through_cancel_task_the_others_say_they_cant`; tasks fed from backend and plugin events, shown in the status bar and in Background Tasks with their Cancel. A backend task's Cancel in the window goes through the backend's cancel, and a task that cannot be cancelled says so"
   },
   "unit:src/workbench/projectNotifications.test.ts": {
     "status": "done",
@@ -1052,8 +1052,8 @@
     "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`, `workbench::tests::search_everywhere_starts_with_the_editor_selection`, `workbench::tests::search_everywhere_moves_its_selection_shows_more_and_answers_the_mouse`, `workbench::tests::search_everywhere_gives_the_keyboard_back_and_runs_actions_where_it_was_opened`, `everywhere::controller::tests`, `everywhere::model::tests`, `workbench::tests::proofs18_e2e_search::search_everywhere_lists_a_settings_page_and_enter_opens_settings_on_it`; the popup with its six tabs, results from the file and symbol index, the actions and the text search, the 60 ms rest, a selection that stays on the top result until moved, Enter waiting for the final top result, `name:line`, `/` scope commands, Show more, row, group and page navigation, a click opening a row and a click beside the popup closing it, the keyboard going back to what had it, a chosen action running in that context, a toggle leaving the popup open, Settings pages listed among the actions with Enter opening Settings on the page. Not yet: the preview pane, the funnel filters and the file-set scope, include non-project items and the retry everywhere, the search history (⌥↑/⌥↓ and its menu), several rows selected at once, Open to the Side (⇧↵), ⌘↵ to Find in Files, the ⌥↵ menu (copy path, Find in Directory, assign shortcut), language server symbols and endpoints as sources, recent actions, shortcuts shown beside actions, highlighted match characters, the empty-result text"
   },
   "context:popupOpen": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::search_everywhere_gives_the_keyboard_back_and_runs_actions_where_it_was_opened`; set while a popup is open over the window and cleared, with the focus keys, as it closes. Search Everywhere is the only popup so far"
+    "status": "done",
+    "proof": "`workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::search_everywhere_gives_the_keyboard_back_and_runs_actions_where_it_was_opened`, `workbench::tests::proofs20_shell::a_menu_over_the_window_sets_popup_open_until_escape_closes_it`; set while a popup is open over the window and cleared, with the focus keys, as it closes. A menu opened over the window sets it too, until Escape closes the menu"
   },
   "ipc:find_files": {
     "status": "done",
@@ -1656,8 +1656,8 @@
     "proof": "`platform::keymap::tests::lets_scoped_actions_win_shared_keys`; 1 of 2 cases; the remaining case checks seventy bindings of the webview's preset files against IDEA's, data of the webview the GPUI app loads from those same files: it has no copy of its own to check"
   },
   "unit:src/platform/keymaps/newElement.test.ts": {
-    "status": "partial",
-    "proof": "`platform::keymap::tests::lets_generate_win_the_new_key_only_where_it_applies`; Generate declared after New File on the same key. The languages in which Generate applies are a `when` of the action, checked where it is registered, which it is not yet"
+    "status": "done",
+    "proof": "`platform::keymap::tests::lets_generate_win_the_new_key_only_where_it_applies`, `platform::keymap::tests::proofs20_new_element::binds_new_in_this_directory_like_idea`, `workbench::editor_language::tests::proofs20_generate::lets_generate_win_the_new_key_only_where_it_applies`; Generate declared after New File on the same key. 2 of 2 cases: the New key is bound as in IDEA, and in a window Generate takes it only in a file of a language where Generate applies"
   },
   "unit:src/platform/boot.test.ts": {
     "status": "partial",
@@ -2192,8 +2192,8 @@
     "proof": "`run::driver::tests`, `run::sessions::tests`, `run::view::tests`; 6 of 17 cases (console input, the Tomcat session cases, Stop in the focused window). Open: the rerun questions and parallel instances at this level, the port from a started line, the configuration numbers of the chooser, tree test runs, plugin test filters, Go settings"
   },
   "action:run.run": {
-    "status": "partial",
-    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::run_context::tests::run_with_current_file_selected_runs_the_file_and_keeps_current_file_selected`; runs the selection, and opens the chooser when nothing is selected. With Current File selected it runs the file as a temporary configuration and keeps Current File selected. Missing: its condition read off (no project open)"
+    "status": "done",
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::run_context::tests::run_with_current_file_selected_runs_the_file_and_keeps_current_file_selected`, `workbench::tests::proofs20_run_widget::run_runs_the_selection_with_a_project_open_and_is_unavailable_without_one`; runs the selection, and opens the chooser when nothing is selected. With Current File selected it runs the file as a temporary configuration and keeps Current File selected. It is unavailable on the Welcome window and runs the selection in a project"
   },
   "action:run.rerun": {
     "status": "done",
@@ -2620,8 +2620,8 @@
     "proof": "`github::clone::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built"
   },
   "unit:src/features/github/create/RemoteBranchDialog.test.tsx": {
-    "status": "partial",
-    "proof": "`github::create::tests`; the state and logic of 1 of 1 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`github::create::tests`, `workbench::github::tests::proofs20_remote_branch::turns_spaces_typed_in_the_remote_branch_name_into_separators`; 1 of 1 case through the window: a space typed into the Remote Branch field becomes a separator as it is typed, and the branch is pushed and the pull request created under the cleaned name"
   },
   "unit:src/features/github/create/create.test.ts": {
     "status": "done",
@@ -3897,7 +3897,7 @@
   },
   "point.registerTitleItem:run.widget": {
     "status": "partial",
-    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::debug::tests::the_run_widgets_debug_button_debugs_the_selection`; the widget names the selection, its chooser selects, runs and closes, and its Debug button starts the selection under the debugger, shows Starting… until the session is up and is offered again once it ended. Missing: Rerun, Stop and More Actions of the widget are not clicked in a window test"
+    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::debug::tests::the_run_widgets_debug_button_debugs_the_selection`, `workbench::tests::proofs20_run_widget::the_run_widgets_rerun_stop_and_more_actions_restart_stop_and_offer_the_run_actions`; the widget names the selection, its chooser selects, runs and closes, and its Debug button starts the selection under the debugger, shows Starting… until the session is up and is offered again once it ended. Its Rerun restarts the running process, Stop ends it and More Actions offers the run actions. Missing: the run executors of the selection in the More menu, and Resume Program for a paused debug target"
   },
   "point.registerTitleItem:vcs.branch": {
     "status": "partial",
@@ -4152,8 +4152,8 @@
     "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `code_insight::server_status::tests`, `editor::intelligence::tests::proofs_editor_lsp::the_server_status_item_lists_the_projects_server_and_restart_starts_it_again`; drawn in the bar with its popup, which lists a running server and restarts it; the popup's other commands are not exercised"
   },
   "point.registerTitleItem:build.project": {
-    "status": "partial",
-    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`; registered in the bar; it shows only for a CMake target, because nothing publishes the Maven and Gradle keys"
+    "status": "done",
+    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::build_tools::tests::proofs20_build_title::the_build_hammer_shows_for_a_maven_project_and_builds_it_with_the_projects_maven`; registered in the bar; it shows for a Maven project and for a CMake target and a click builds the project with the project's Maven"
   },
   "unit:src/features/vcs/__tests__/conflictBanner.test.tsx": {
     "status": "done",
@@ -5569,7 +5569,7 @@
   },
   "module:src/editor/lsp/workspaceEdit.ts": {
     "status": "partial",
-    "proof": "`editor::intelligence::tests::proofs_editor_lsp::a_context_action_that_edits_two_files_changes_both`; an edit of two files is previewed with Also changes 1 other file and applied to the open file and to the unopened one; the edit summary used by the rename preview is tested on the model only (editor_lsp::workspace_edit)"
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::a_context_action_that_edits_two_files_changes_both`, `workbench::editor_language::tests::proofs20_generate::the_rename_preview_says_how_many_occurrences_in_how_many_files_it_changes`; an edit of two files is previewed with Also changes 1 other file and applied to the open file and to the unopened one. the rename preview of a window says how many occurrences in how many files it changes. Missing: the diff an intention's preview shows is not asserted through a window"
   },
   "unit:src/editor/lsp/Popups.test.tsx": {
     "status": "partial",
@@ -6184,20 +6184,20 @@
     "proof": "`workbench::editor_language::tests::optimize_imports_and_code_cleanup_apply_the_servers_source_actions`, `workbench::editor_language::tests::proofs5_editor::code_cleanup_in_file_leaves_out_the_steps_its_argument_turns_off`; with { path } it opens the file, applies the server's fix-all and organize-imports actions and reformats it; optimizeImports: false and reformat: false leave the imports in their order and the file unformatted. Missing: its reformat step never uses a plugin-contributed formatter"
   },
   "action:code.generate": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::cmd_n_in_a_markdown_file_opens_the_new_popup`; run through the registry it lists only the server's generate actions at the caret and applies the chosen one; ⌘N in a Markdown file opens the New popup instead. Missing: the applied action's inserted lines now go through the same reformatting Implement's tests prove (apply_action, reformat_generated), but no test asserts it for a Generate action"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::cmd_n_in_a_markdown_file_opens_the_new_popup`, `workbench::editor_language::tests::proofs20_generate::generate_indents_the_inserted_members_under_the_brace`; run through the registry it lists only the server's generate actions at the caret and applies the chosen one; ⌘N in a Markdown file opens the New popup instead. The lines a Generate action inserts are indented to the file's style under the brace"
   },
   "action:code.implementMethods": {
     "status": "done",
     "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::proofs15_implement::implement_methods_indents_the_inserted_members_under_the_brace`, `workbench::editor_language::tests::proofs15_implement::implement_methods_offers_every_implement_action_and_applies_the_chosen_one`, `workbench::editor_language::tests::proofs15_implement::implement_methods_range_formats_inserted_lines_that_are_not_under_a_brace`; run through the registry it applies the only implement action at once. The lines the action inserts are indented under their brace or range-formatted. Not asserted: a choice between several implement actions"
   },
   "action:code.overrideMethods": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::proofs3_editor_keys::ctrl_o_in_the_editor_overrides_the_offered_method`; with no override action it says Nothing to override; Ctrl-O in the editor applies the only override action the server offers, leaving the implement action. Missing: the inserted lines go through the reformatting Implement's tests prove (apply_action, reformat_generated), but no test asserts it for an override"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::proofs3_editor_keys::ctrl_o_in_the_editor_overrides_the_offered_method`, `workbench::editor_language::tests::proofs20_generate::override_methods_indents_the_inserted_method_under_the_brace`; with no override action it says Nothing to override; Ctrl-O in the editor applies the only override action the server offers, leaving the implement action. The method an override inserts is indented to the file's style under the brace"
   },
   "action:code.applyQuickFix": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::apply_quick_fix_applies_the_fix_of_the_problem_at_the_caret`; run through the registry it asks for quick fixes only and applies the preferred fix of the problem at the caret, or says No quick fixes available. Missing: the lines the applied action inserts are not reformatted to the file's style afterwards, as the webview does"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::apply_quick_fix_applies_the_fix_of_the_problem_at_the_caret`, `workbench::editor_language::tests::proofs20_generate::apply_quick_fix_indents_the_inserted_lines_under_the_brace`; run through the registry it asks for quick fixes only and applies the preferred fix of the problem at the caret, or says No quick fixes available. The lines the applied fix inserts are indented to the file's style"
   },
   "action:navigate.nextError": {
     "status": "done",
@@ -6616,8 +6616,8 @@
     "proof": "`workbench::project_view_actions::tests::the_copy_path_forms_copy_the_selection_and_the_source_root_path_follows_mark_directory_as`; once src is marked Sources Root from the context menu, run through the registry on src/app/a.txt it copies app/a.txt, the path below the source root the backend's project roots name"
   },
   "action:project.compareWith": {
-    "status": "partial",
-    "proof": "`workbench::project_view_actions::tests::compare_with_shows_two_files_side_by_side_and_asks_for_the_second_of_one`; on two files it shows them side by side in the diff window, on one ⌘D in the tree runs it and asks for the other file, and with the editor's keyboard neither the action nor ⌘D runs. Missing: the webview hands over to diff.compareFiles and diff.compareWith, which are not registered; here the diff opens directly and the second file comes from the OS file picker"
+    "status": "done",
+    "proof": "`workbench::project_view_actions::tests::compare_with_shows_two_files_side_by_side_and_asks_for_the_second_of_one`, `workbench::project_view_actions::tests::proofs20_tree::compare_with_hands_two_files_to_compare_files_and_one_to_compare_with`; on two files it shows them side by side in the diff window, on one ⌘D in the tree runs it and asks for the other file, and with the editor's keyboard neither the action nor ⌘D runs. Two selected files go to the comparison of two files and one selected file to Compare With, as the webview hands them over"
   },
   "action:project.open": {
     "status": "done",
@@ -6713,7 +6713,7 @@
   },
   "point.registerUndoHandler:(at) src/features/project-tree/index.ts:209": {
     "status": "partial",
-    "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; Edit › Undo (edit.undo) while the Project view has the keyboard brings its last deleted file back from Local History and selects it. Missing: Undo of the view's last move or rename through it, and ⌘Z pressed in the tree"
+    "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`, `workbench::project_view_actions::tests::proofs20_tree::undo_in_the_project_view_takes_back_its_last_move_and_rename`; Edit › Undo (edit.undo) while the Project view has the keyboard brings its last deleted file back from Local History and selects it. Undo also takes back the view's last move and its last rename. Missing: ⌘Z pressed in the tree (the tests run edit.undo through the registry)"
   },
   "module:src/editor/lsp/hint.ts": {
     "status": "done",
@@ -7272,8 +7272,8 @@
     "proof": "`workbench::run_context::tests::run_context_runs_the_file_as_the_selected_temporary_configuration`, `workbench::run_context::tests::run_context_says_so_when_the_file_has_nothing_to_run`, `workbench::run_context::tests::run_with_current_file_selected_runs_the_file_and_keeps_current_file_selected`, `workbench::run_context::tests::the_editors_menu_offers_run_for_the_file_and_runs_it`, `workbench::run_context::tests::the_project_views_menu_offers_run_for_the_file_and_runs_it`; the context's configuration becomes the selected temporary one and runs, from the registry and from the Run rows of the editor's and the Project view's menus; a file with nothing to run says so; with Current File selected it runs the file and Current File stays selected"
   },
   "action:run.debugContext": {
-    "status": "partial",
-    "proof": "`workbench::run_context::tests::debug_context_hands_the_files_configuration_to_the_debugger`; the file's configuration is handed to the debugger. Missing: no test starts a debug session from a context"
+    "status": "done",
+    "proof": "`workbench::run_context::tests::debug_context_hands_the_files_configuration_to_the_debugger`, `workbench::run_context::tests::proofs20_run::debug_context_debugs_a_python_file_with_the_projects_virtual_environment`; the file's configuration is handed to the debugger. A Python file is debugged from its context with the project's virtual environment, and the action is unavailable where its condition is off"
   },
   "action:run.modifyContext": {
     "status": "done",
@@ -7344,8 +7344,8 @@
     "proof": "`workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`, `workbench::tests::the_theme_toggle_action_switches_and_stores_the_theme`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::proofs5_layout::background_tasks_opens_the_popup_and_running_it_again_keeps_it_open`, `workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`, `workbench::zoom_actions::tests::quick_switch_scheme_switches_the_theme_and_the_editor_color_scheme`, `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; of the 11 actions the file registers, 6 are done through the application (file.closeProject, view.toggleTheme, toolbar.customize, view.toggleStatusBarWidget, view.backgroundTasks, view.notifications) and 2 are partial (file.openProject, view.quickSwitchScheme: see their rows). Missing: workbench.stopBackgroundProcesses, find.field.newLine and find.field.recentSearches have no proof"
   },
   "event:Debug": {
-    "status": "partial",
-    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug_extras::tests::evaluate_expression_evaluates_the_selection_in_the_paused_frame_and_adds_it_to_the_watches`; the window passes IdeEvent::Debug to its debugger driver, whose state follows the adapter's events: the stop at the breakpoint (frame and execution line shown), the step, the end of the session. Missing: the cited tests do not assert the output, breakpoint-changed or hot-code-replace events"
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug_extras::tests::evaluate_expression_evaluates_the_selection_in_the_paused_frame_and_adds_it_to_the_watches`, `workbench::debug::tests::proofs20_debug::the_adapters_output_breakpoint_and_hot_code_replace_events_show_in_the_window`; the window passes IdeEvent::Debug to its debugger driver, whose state follows the adapter's events: the stop at the breakpoint (frame and execution line shown), the step, the end of the session. The adapter's output, a breakpoint it changes and its hot-code-replace event show in the window too (the console's line, the breakpoint's new state, the Classes changed notice with Reload)"
   },
   "e2e:e2e/codeInsight.spec.ts": {
     "status": "partial",
@@ -7710,5 +7710,25 @@
   "e2e:e2e/keymap.spec.ts": {
     "status": "done",
     "proof": "`workbench::tests::proofs18_e2e_keymap::keymap_double_click_offers_mouse_and_keyboard_shortcuts`, `workbench::tests::proofs18_e2e_keymap::keymap_enter_offers_mouse_and_keyboard_shortcuts`; 2 of 2 flows, each driven whole in the Keymap page of Settings: a double click and Enter on an action offer the keyboard and the mouse shortcut dialogs, and a mouse shortcut already bound elsewhere asks to remove the conflicts"
+  },
+  "ipc:debug_redefine_classes": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::proofs11_hotswap::reload_changed_classes_compiles_then_reloads_the_classes_into_the_java_session`; Reload Changed Classes calls ide_host::ops::debug::redefine_classes, the adapter's function, after the compile; the session's answer to it is what the window reports"
+  },
+  "ipc:db_set_password": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs20_database::the_password_a_connection_asks_for_reaches_the_backend_and_the_retry_connects`; the password typed into the masked question reaches the backend through ide_host::ops::db::set_password, the adapter's function, and the retried request connects to a stand-in server on a loopback port that refuses requests without it; Save password stays off"
+  },
+  "ipc:sdk_python_effective": {
+    "status": "done",
+    "proof": "`workbench::run_context::tests::proofs20_run::run_context_runs_a_python_file_with_the_projects_virtual_environment`; Run from context on a Python file runs it with the interpreter ide_host::ops::sdk::python_effective, the adapter's function, names: the project's virtual environment, a stand-in whose line shows in the Run window"
+  },
+  "ipc:sdk_locate_tools": {
+    "status": "done",
+    "proof": "`workbench::run_context::tests::proofs20_run::run_context_runs_a_script_with_the_tool_found_beside_the_project`; Run from context on a script runs it with the tool ide_host::ops::sdk::locate_tools, the adapter's function, finds beside the project (a stand-in in node_modules/.bin)"
+  },
+  "ipc:mcp_report_problems": {
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::proofs20_mcp_problems::the_problems_of_an_open_file_reach_the_mcp_hosts_file_problems`; the problems a language server publishes for an open file are reported through the same function the adapter calls, and the MCP host's file problems then list them"
   }
 }
