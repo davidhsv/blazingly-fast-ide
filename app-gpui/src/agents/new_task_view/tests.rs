@@ -157,7 +157,7 @@ fn choose_model(view: &Entity<NewTaskView>, model: &str, cx: &mut VisualTestCont
     click(cx, Box::leak(format!("composer-picker-{index}").into_boxed_str()));
 }
 
-// ----- the settings (HomeEditor) -----
+// ----- the agent's settings -----
 
 #[gpui_kit::test]
 async fn switches_model_specific_levels_and_restores_each_draft_effort_before_starting(cx: &mut TestAppContext) {
@@ -221,7 +221,7 @@ async fn ignores_old_provider_wide_effort_choices_and_refreshes_unsupported_per_
     assert!(config_of(&request).contains(&("effort".to_owned(), "high".to_owned())), "{request:?}");
 }
 
-// ----- the commands (composerCommands) -----
+// ----- the `/` commands -----
 
 #[gpui_kit::test]
 async fn reaches_commands_after_the_first_twelve_with_the_keyboard(cx: &mut TestAppContext) {
@@ -421,7 +421,7 @@ fn encodes_images_in_padded_base64() {
     assert_eq!(base64(b"foobar"), "Zm9vYmFy");
 }
 
-// ----- the project (composerCommands, workspace task project) -----
+// ----- the workspace member the task runs in -----
 
 #[gpui_kit::test]
 async fn sends_the_selected_project_with_local_and_worktree_isolation(cx: &mut TestAppContext) {

@@ -812,6 +812,7 @@ pub fn picker_element<V: PickerHost>(view: &V, cx: &mut Context<V>) -> Option<An
         .border_1()
         .border_color(border)
         .bg(theme::color(cx, "bg-popup"))
+        .shadow(theme::shadow(cx, "shadow-popup"))
         .occlude()
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .children(top)
@@ -880,6 +881,7 @@ pub fn settings_element<V: PickerHost>(view: &V, cx: &mut Context<V>) -> Option<
         .border_1()
         .border_color(theme::color(cx, "border"))
         .bg(theme::color(cx, "bg-popup"))
+        .shadow(theme::shadow(cx, "shadow-popup"))
         .occlude()
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .children(children);

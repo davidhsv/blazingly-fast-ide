@@ -22,16 +22,19 @@ use crate::find::utf16;
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::input;
 use crate::theme;
+use crate::ui::popup_anchor;
 use crate::ui::text_field::{TextField, TextFieldEvent, TextTag};
 use crate::ui::tooltip::tooltip;
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use gpui_kit::{
-    AnyElement, App, ClipboardEntry, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke,
-    MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollHandle, SharedString, Subscription, Window, deferred,
-    div, prelude::*, px, relative,
+    AnyElement, App, Bounds, ClipboardEntry, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement,
+    Keystroke, MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollHandle, SharedString, Subscription, Window,
+    canvas, deferred, div, prelude::*, px, relative,
 };
 use ide_agent::{AgentCommand, AgentCommandSource, AgentConfigOption, AgentImage};
+use std::cell::Cell;
 use std::path::Path;
+use std::rc::Rc;
 
 /// UI text in the active language.
 fn tx(cx: &App, text: &str) -> String {
@@ -72,7 +75,7 @@ pub enum NewTaskEvent {
     /// Start the task with the page's description and settings ([`AgentsStore::start_task`]), in the workspace
     /// member `project_root` (`None` outside a workspace).
     Start { project_root: Option<String> },
-    /// Show the agents to choose from at `position`.
+    /// Show the agents to choose from at `position`, under the agent chooser.
     ChooseAgent(Point<Pixels>),
     /// Carry out these effects: a setting saved, a warning shown.
     Effects(Vec<AgentEffect>),
@@ -108,6 +111,8 @@ pub struct NewTaskView {
     projects: Vec<String>,
     project: Option<String>,
     projects_open: bool,
+    /// Where the agent chooser was last drawn: its menu opens under it.
+    agent_button: Rc<Cell<Option<Bounds<Pixels>>>>,
     claim: u64,
     _subscriptions: Vec<Subscription>,
 }
@@ -198,6 +203,7 @@ impl NewTaskView {
             projects: Vec::new(),
             project: None,
             projects_open: false,
+            agent_button: Rc::default(),
             claim,
             _subscriptions: subscriptions,
         };
@@ -574,6 +580,7 @@ impl NewTaskView {
             .border_1()
             .border_color(theme::color(cx, "border"))
             .bg(theme::color(cx, "bg-popup"))
+            .shadow(theme::shadow(cx, "shadow-popup"))
             .occlude()
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .children(rows);
@@ -645,6 +652,7 @@ impl NewTaskView {
                 .border_1()
                 .border_color(theme::color(cx, "border"))
                 .bg(theme::color(cx, "bg-popup"))
+                .shadow(theme::shadow(cx, "shadow-popup"))
                 .occlude()
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                 .children(rows);
@@ -740,9 +748,12 @@ impl Render for NewTaskView {
         let enabled = self.can_start(cx);
         let label = self.start_label(cx);
         let muted = theme::color(cx, "fg-muted");
+        let measured = Rc::clone(&self.agent_button);
+        let measure = canvas(move |bounds, _, _| measured.set(Some(bounds)), |_, _, _, _| {}).absolute().size_full();
         let chooser = div()
             .id("agents-home-agent")
             .debug_selector(|| "agents-home-agent".to_owned())
+            .relative()
             .h(px(24.0))
             .px(px(6.0))
             .flex()
@@ -753,9 +764,13 @@ impl Render for NewTaskView {
             .hover(|el| el.bg(theme::color(cx, "bg-hover")))
             .child(SharedString::from(agent))
             .child(theme::icon(cx, "chevron-down", 12.0, muted))
+            .child(measure)
             .on_mouse_down(
                 MouseButton::Left,
-                cx.listener(|_, event: &MouseDownEvent, _, cx| cx.emit(NewTaskEvent::ChooseAgent(event.position))),
+                cx.listener(|page, _: &MouseDownEvent, _, cx| {
+                    let at = popup_anchor::button_menu(page.agent_button.get());
+                    cx.emit(NewTaskEvent::ChooseAgent(at));
+                }),
             );
         let start = div()
             .id("agents-home-start")

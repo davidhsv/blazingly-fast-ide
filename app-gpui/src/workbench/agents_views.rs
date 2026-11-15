@@ -10,6 +10,7 @@ use crate::agents::model::provider_icon;
 use crate::agents::new_task_view::{NewTaskEvent, NewTaskView};
 use crate::agents::registry::{ADD_AGENT, provider_options};
 use crate::agents::store::{TaskProjects, default_task_project};
+use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{Pixels, Point};
 
 impl Workbench {
@@ -90,8 +91,9 @@ impl Workbench {
         }
     }
 
-    /// The agent menu of the New Task page: the installed agents (a registry agent with its version, or the
-    /// update on offer), the others under "Not installed" with the command they need, then More agents….
+    /// The agent menu of the New Task page, under its agent chooser: the installed agents (a registry agent with
+    /// its version, or the update on offer), the others under "Not installed" with the command they need, then
+    /// More agents….
     fn choose_home_agent(&mut self, position: Point<Pixels>, cx: &mut Context<Self>) {
         let Some(store) = self.agents_store_entity() else { return };
         let providers = store.read(cx).providers.clone();
@@ -112,19 +114,21 @@ impl Workbench {
                 Some(detail) => format!("{} · {detail}", option.label),
                 None => option.label.clone(),
             };
-            let installed = option.value == ADD_AGENT
-                || providers.iter().any(|provider| provider.id == option.value && provider.installed);
-            if option.value == ADD_AGENT {
+            if option.value == ADD_AGENT && !items.is_empty() {
                 items.push(MenuItem::Separator);
             }
-            items.push(MenuItem::item(label, option.value).disabled(!installed));
+            // An agent that is not installed can still be chosen: the page then says what it needs.
+            items.push(MenuItem::item(label, option.value));
         }
         self.in_agents_window(cx, move |workbench, window, cx| {
             let choose = |workbench: &mut Self, id: String, window: &mut Window, cx: &mut Context<Self>| {
                 if id == ADD_AGENT {
-                    if !execute_action_from(ActionSource::Other, "agents.addAgent", None, window, cx) {
-                        tracing::info!("agents.addAgent is not available in this window");
-                    }
+                    // Once this update is over: the action reaches for the workbench.
+                    window.defer(cx, |window, cx| {
+                        if !execute_action_from(ActionSource::Other, "agents.addAgent", None, window, cx) {
+                            tracing::info!("agents.addAgent is not available in this window");
+                        }
+                    });
                     return;
                 }
                 workbench.choose_task_agent(id, cx);

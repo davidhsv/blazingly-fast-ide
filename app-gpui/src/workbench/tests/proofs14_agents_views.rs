@@ -86,8 +86,8 @@ async fn starts_the_next_task_with_the_model_picked_on_the_new_task_page(cx: &mu
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }
 
-/// The agent menu lists the installed agent first and ends with More agents…, which opens Settings on the
-/// Agents page.
+/// The agent menu lists the installed agents before the ones that are not installed and ends with More agents…,
+/// which opens Settings on the Agents page.
 #[gpui_kit::test]
 async fn lists_the_agents_and_more_agents_in_the_new_task_agent_menu(cx: &mut TestAppContext) {
     let home = start(cx);
@@ -100,7 +100,10 @@ async fn lists_the_agents_and_more_agents_in_the_new_task_agent_menu(cx: &mut Te
     let menu = workbench.read_with(cx, |w, _| w.open_menu::<String>()).expect("the agent menu is open");
     let lines = menu.read_with(cx, |menu, _| menu.lines()).remove(0);
     let plain: Vec<&str> = lines.iter().map(|line| line.trim_start_matches("> ")).collect();
-    assert_eq!(plain.first().copied(), Some("Fake Agent"), "{plain:?}");
+    // A built-in agent found on the machine's PATH is installed too, so the fake one is not always first.
+    let fake = plain.iter().position(|line| *line == "Fake Agent").expect("the installed fake agent is listed");
+    let missing = plain.iter().position(|line| *line == "Not installed").unwrap_or(plain.len());
+    assert!(fake < missing, "the installed agents come first: {plain:?}");
     let more = plain.iter().position(|line| *line == "More agents…").expect("More agents… is listed");
     assert_eq!(more, plain.len() - 1, "{plain:?}");
     click_on(cx, leak(format!("menu-row-0-{more}")));
