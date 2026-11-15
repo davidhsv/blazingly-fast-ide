@@ -1,0 +1,248 @@
+{
+  "context:githubPrTab": {
+    "status": "done",
+    "proof": "`workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`, `workbench::github::tests::proofs14_github_window::opens_the_new_pull_request_tab_once_and_closes_back_to_the_previous_tab`, `workbench::github::part2::tests::create_pull_request_before_the_window_connects_opens_the_tab_once_connected`; read as list with the list tab active, pr with a #N tab active, create with the New Pull Request tab active, and list again on going back: the three values the webview publishes",
+    "evidence": "app-gpui/src/workbench/github.rs:726 (set_context githubPrTab); webview src/features/github/toolwindow/store.ts:74; reads: app-gpui/src/workbench/github.rs:1949,2006,2061,2072, app-gpui/src/workbench/github/tests/proofs14_github_window.rs:134, app-gpui/src/workbench/github_part2.rs:892",
+    "was": "partial"
+  },
+  "point.registerKeyClaim:(at) src/features/vcs/diffDialog.tsx:85": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs12_diff_window::owns_the_close_shortcut_with_body_or_titlebar_focus`; with the diff window's viewer or the window itself holding the keyboard, the shortcut bound to toolwindow.closeContent (⌘W / Ctrl-F4) closes the diff window and the editor tab behind it stays open",
+    "evidence": "app-gpui/src/vcs_diff/dialog_view.rs:29 (CLOSE_CONTENT), :94 (is_close_shortcut reads the keymap's bindings), :238; test app-gpui/src/workbench/tests/proofs12_diff_window.rs:216-236",
+    "was": "blank"
+  },
+  "point.registerOverlay:debugger": {
+    "status": "partial",
+    "proof": "`workbench::debug_extras::tests::evaluate_expression_evaluates_the_selection_in_the_paused_frame_and_adds_it_to_the_watches`, `workbench::debug_extras::tests::smart_step_into_lists_the_calls_of_the_line_and_steps_into_the_chosen_one`, `workbench::run_context::tests::debug_opens_the_chooser_in_debug_mode_and_enter_debugs_the_configuration`, `workbench::debug::tests::toggling_a_breakpoint_at_a_line_marks_it_persists_it_and_lists_it_in_the_breakpoints_dialog`, `workbench::debug::tests::proofs6_debug::the_breakpoints_dialog_lists_the_adapters_exception_filters_and_a_ticked_one_reaches_it`; 4 of the 6 overlays DebuggerOverlays mounts are shown in a project window and read: Evaluate (prefilled from the selection, value, history menu, Add to Watches), the Smart Step Into chooser (the line's calls, the chosen one stepped into), the configuration chooser in Debug mode, the Breakpoints dialog (the line breakpoint, the adapter's exception filters). Smart Step Into shows its calls as a popup menu, not as the debugger's overlay state (the test asserts the overlay stays closed). Missing: the breakpoint properties popover and the Attach to Process popup (their state exists in debugger/overlays.rs, no window test reads them); Evaluate's multi-line field, completion and expandable result (see debug.evaluate); Smart Step's dialog form, inline picking in the editor and the direct step for exactly one call (see debug.smartStepInto)",
+    "evidence": "app-gpui/src/debugger/overlays.rs:1-2,19,37; app-gpui/src/workbench/debug_extras.rs:70,79,430,503; app-gpui/src/workbench/run_context.rs:940; app-gpui/src/workbench/debug.rs:1324; webview src/features/debugger/ui/Overlays.tsx:40-51",
+    "was": "blank"
+  },
+  "point.registerMenuGroup:vcs.gutter": {
+    "status": "partial",
+    "proof": "`workbench::annotate::tests::the_gutters_menu_closes_the_annotations`; with the annotations shown, a right click on the line numbers opens the gutter's menu whose first row is Close Annotations, and choosing it closes the column. Missing: the Annotate with Git Blame label of the row while no annotations are shown is not read in a window test",
+    "evidence": "app-gpui/src/workbench/context_menus.rs:160 (GroupDecl vcs.gutter on EditorGutter), :316-324 (annotate rows); test app-gpui/src/workbench/annotate.rs:642-657; webview src/features/vcs/index.ts:309-322",
+    "was": "blank"
+  },
+  "point.registerToolWindow:pullRequests": {
+    "status": "partial",
+    "proof": "`github::window_view::tests::registers_the_window_and_offers_its_header_actions`, `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`, `workbench::github::tests::the_refresh_keys_work_only_in_the_pull_requests_window_on_their_tab`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::proofs14_github_window::opens_the_new_pull_request_tab_once_and_closes_back_to_the_previous_tab`, `workbench::github::part2::tests::create_pull_request_creates_the_current_branchs_pull_request_and_opens_its_tab`; the Pull Requests window is declared with its title and icon, mounts on first use, shows gh's state, the list tab, #N tabs and the New Pull Request tab (opened once from the header's + button, its form creating the pull request and giving way to its #N tab), the tab strip scrolls the active tab into view beside the header's buttons, and it takes the keyboard. Missing: the header's Select Opened Pull Request (github.selectOpenedPullRequest is emitted but not registered) and the progress line with Cancel",
+    "evidence": "app-gpui/src/github/window_view.rs:685 (gh-create-pull-request button), :691; app-gpui/src/workbench/github_part2.rs:529 (open_create_tab), :840; app-gpui/src/workbench/github/tests/proofs14_github_window.rs (Create tab test)",
+    "was": "partial"
+  },
+  "point.registerToolWindow:project": {
+    "status": "partial",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`, `workbench::context_menus::tests::move_to_in_a_tool_windows_options_moves_it`, `workbench::context_menus::tests::the_stripe_buttons_menu_hides_the_button`, `workbench::project_view_options::tests::the_options_menu_lists_the_view_options_and_they_survive_reopening_the_project`, `workbench::project_view_options::tests::switches_panes_and_remembers_the_choice`; a tool window with a stripe button, a title, the header's Options menu (the Appearance and Behavior view options, the sort orders, Move To, Maximize, Hide; a row toggles its option and the options survive reopening the project), the four panes switched through their actions, and the stripe button's menu. Missing: no test reads the header's Select Opened File, Expand All and Collapse All buttons or the title menu that picks the pane (none was found in the Project view's header code)",
+    "evidence": "app-gpui/src/workbench/project_view_options.rs:618-660, 679-718; webview src/features/project-tree/HeaderActions.tsx:7-55",
+    "was": "partial"
+  },
+  "point.registerOverlay:editor.pasteHistory": {
+    "status": "partial",
+    "proof": "`workbench::editor_core::tests::paste_from_history_pastes_the_entry_chosen_in_the_dialog`, `editor::paste_history_view::tests`, `workbench::editor_extras::tests::proofs15_paste_history::paste_from_history_answers_clicks_and_a_double_click_pastes_the_row`, `workbench::editor_extras::tests::proofs15_paste_history::paste_from_history_opens_afresh_and_gives_the_keyboard_back`, `workbench::editor_extras::tests::proofs15_paste_history::the_paste_history_keys_are_the_ones_the_keymap_binds`; ⇧⌘V's dialog lists the copies newest first with a preview, filters as you type, extends the selection with ⇧↑ / ⇧↓ and with ⌘-click and ⇧-click, pastes the double-clicked row, deletes entries, pastes with the keys the keymap binds, gives the keyboard back to the editor on Escape and after pasting, and opens afresh each time. Missing: the preview is plain text without the target's grammar and editor font",
+    "evidence": "app-gpui/src/editor/paste_history_view.rs:121,297-308 (plain-text preview); tests app-gpui/src/workbench/editor_extras/tests/proofs15_paste_history.rs",
+    "was": "partial"
+  },
+  "point.registerOverlay:search.bookmarks": {
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`, `everywhere::bookmarks_window::tests::new_list_from_the_toolbar_is_named_in_place`, `everywhere::bookmarks_window::tests::f2_renames_a_list_and_a_name_another_list_has_is_refused`, `workbench::popup_placement::tests::the_mnemonic_chooser_opens_under_the_caret`; the overlay's Bookmarks popup, mnemonic chooser (opened just under the caret's line) and description editor; new and renamed lists are named in place in the Bookmarks tool window instead of a dialog. Missing: the popup's preview is the file's plain text, not an editor on the document",
+    "evidence": "app-gpui/src/workbench/popup_placement.rs:353-367; app-gpui/src/everywhere/bookmarks_popup.rs:197",
+    "was": "partial"
+  },
+  "point.registerTitleItem:run.widget": {
+    "status": "partial",
+    "proof": "`workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::debug::tests::the_run_widgets_debug_button_debugs_the_selection`; the widget names the selection, its chooser selects, runs and closes, and its Debug button starts the selection under the debugger, shows Starting… until the session is up and is offered again once it ended. Missing: Rerun, Stop and More Actions of the widget are not clicked in a window test",
+    "evidence": "app-gpui/src/run/widget_view.rs:186-222 (run, rerun, debug, stop, more buttons), :259-264; test app-gpui/src/workbench/debug.rs:1831-1846",
+    "was": "partial"
+  },
+  "action:code.reformatDialog": {
+    "status": "partial",
+    "proof": "`workbench::editor_extras::tests::reformat_file_reformats_the_scope_chosen_in_the_dialog`, `editor_lsp::reformat_dialog::tests::runs_with_the_scope_and_options_chosen`, `editor_lsp::reformat_dialog::tests::without_a_selection_only_the_whole_file_is_offered`, `editor_lsp::reformat_dialog::tests::remembers_the_scope_only_from_a_run_with_a_selection`, `workbench::editor_extras::tests::proofs15_reformat::reformat_file_with_optimize_imports_organizes_the_imports_before_formatting`; ⌥⇧⌘L in the editor opens Reformat File: name with Selected text offered and chosen when there is a selection, and Run sends one rangeFormatting request; without a selection only the whole file is offered and Run formats it; with Optimize imports ticked the server's source.organizeImports action is applied before the formatting and the choice is remembered; Escape closes it without formatting; nothing while the Project view has the keyboard. Missing: Optimize imports is always offered, where the webview leaves it out when a plugin's formatter formats the file",
+    "evidence": "app-gpui/src/workbench/editor_extras.rs:481 (ReformatDialog::new(.., true, ..): can_optimize_imports always true); app-gpui/src/editor_lsp/reformat_dialog.rs:114",
+    "was": "partial"
+  },
+  "action:code.generate": {
+    "status": "partial",
+    "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::cmd_n_in_a_markdown_file_opens_the_new_popup`; run through the registry it lists only the server's generate actions at the caret and applies the chosen one; ⌘N in a Markdown file opens the New popup instead. Missing: the applied action's inserted lines now go through the same reformatting Implement's tests prove (apply_action, reformat_generated), but no test asserts it for a Generate action",
+    "evidence": "app-gpui/src/workbench/editor_language.rs:493-519 (apply_action calls reformat_generated for every kind but organizeImports/fixAll), :527, :565",
+    "was": "partial"
+  },
+  "action:code.overrideMethods": {
+    "status": "partial",
+    "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::proofs3_editor_keys::ctrl_o_in_the_editor_overrides_the_offered_method`; with no override action it says Nothing to override; Ctrl-O in the editor applies the only override action the server offers, leaving the implement action. Missing: the inserted lines go through the reformatting Implement's tests prove (apply_action, reformat_generated), but no test asserts it for an override",
+    "evidence": "app-gpui/src/workbench/editor_language.rs:493-519, :527",
+    "was": "partial"
+  },
+  "action:app.about": {
+    "status": "partial",
+    "proof": "`workbench::app_actions::tests::about_shows_the_version_of_the_build`, `app_views::about_dialog::tests`; run through the registry it shows About with the version, the build, the facts with the configuration folder, Copy Info, the links and Close. Missing: the logo; the Keymap Reference link is now drawn (help.keymapReference is registered) but no test reads or clicks it; Show Log (help.showLog) is not registered",
+    "evidence": "app-gpui/src/app_views/about_dialog.rs:21-24,166-169; app-gpui/src/workbench/app_actions.rs:697",
+    "was": "partial"
+  },
+  "point.registerOverlay:app.about": {
+    "status": "partial",
+    "proof": "`app_views::about_dialog::tests`, `workbench::app_actions::tests::about_shows_the_version_of_the_build`; the product and build lines, the facts, Copy Info, Show Config, Report an Issue, Close and Escape. Missing: the logo; the Keymap Reference link (drawn now that its action is registered) is not read by a test; Show Log is not registered",
+    "evidence": "app-gpui/src/app_views/about_dialog.rs:21-24,166-169",
+    "was": "partial"
+  },
+  "module:src/editor/lsp/format.ts": {
+    "status": "partial",
+    "proof": "`workbench::editor_language::tests::reformat_code_applies_the_servers_edits_and_reports_the_formatted_lines`, `workbench::editor_language::tests::reformat_with_a_named_formatter_runs_that_formatter`, `editor_lsp::format::tests`, `workbench::editor_extras::tests::reformat_file_reformats_the_scope_chosen_in_the_dialog`, `workbench::editor_extras::tests::proofs15_reformat::reformat_file_with_optimize_imports_organizes_the_imports_before_formatting`, `workbench::editor_language::tests::proofs15_implement::implement_methods_range_formats_inserted_lines_that_are_not_under_a_brace`; formatDocument through the server and the named formatters, with the formatted-lines hint, the Reformat File… dialog's scope and its Optimize imports run before the formatting, and formatLines of generated code (inserted lines not under a brace are range-formatted). Missing: plugin-contributed formatters (so Optimize imports is always offered)",
+    "evidence": "app-gpui/src/workbench/editor_language.rs:565 (format_lines), :588 (lsp_format with a range); webview src/editor/lsp/format.ts:201-229",
+    "was": "partial"
+  },
+  "module:src/editor/lsp/intentions.ts": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::apply_quick_fix_applies_the_fix_of_the_problem_at_the_caret`, `editor::intelligence::tests::proofs_editor_lsp::a_quick_fixs_arrow_menu_opens_with_the_right_arrow_and_runs_its_controls`, `workbench::editor_language::tests::proofs15_implement::implement_methods_indents_the_inserted_members_under_the_brace`, `workbench::editor_language::tests::proofs15_implement::implement_methods_range_formats_inserted_lines_that_are_not_under_a_brace`; showIntentions lists the code actions and applies the chosen one, applyQuickFix applies the problem's fix at the caret, an inspection's controls open from a fix's → menu, and applyCodeAction indents the inserted block under its brace (indentUnderBrace, changedLines) or range-formats it. Missing: no application test reads the light bulb (quickFixIcon, bulbLine), the intention preview, or the quick fixes of a line error away from the caret",
+    "evidence": "app-gpui/src/workbench/editor_language.rs:493-519, :527 (reformat_generated with indent_under_brace); app-gpui/src/editor_lsp/intentions.rs (changed_lines); webview src/editor/lsp/intentions.ts:182-219,227,256",
+    "was": "blank"
+  },
+  "module:src/workbench/shellActions.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`, `workbench::tests::the_theme_toggle_action_switches_and_stores_the_theme`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::proofs5_layout::background_tasks_opens_the_popup_and_running_it_again_keeps_it_open`, `workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`, `workbench::zoom_actions::tests::quick_switch_scheme_switches_the_theme_and_the_editor_color_scheme`, `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; of the 11 actions the file registers, 6 are done through the application (file.closeProject, view.toggleTheme, toolbar.customize, view.toggleStatusBarWidget, view.backgroundTasks, view.notifications) and 2 are partial (file.openProject, view.quickSwitchScheme: see their rows). Missing: workbench.stopBackgroundProcesses, find.field.newLine and find.field.recentSearches have no proof",
+    "evidence": "src/workbench/shellActions.ts:59-142 (the ids); the action rows in parity.json",
+    "was": "blank"
+  },
+  "event:Debug": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug_extras::tests::evaluate_expression_evaluates_the_selection_in_the_paused_frame_and_adds_it_to_the_watches`; the window passes IdeEvent::Debug to its debugger driver, whose state follows the adapter's events: the stop at the breakpoint (frame and execution line shown), the step, the end of the session. Missing: the cited tests do not assert the output, breakpoint-changed or hot-code-replace events",
+    "evidence": "app-gpui/src/workbench/mod.rs:1896-1899; app-gpui/src/debugger/driver.rs:326-340; backend emit crates/ide-host/src/ops/debug/output.rs:19",
+    "was": "blank"
+  },
+  "feature:github": {
+    "status": "partial",
+    "proof": "`workbench::github::tests`, `github::window_view::tests`, `github::list_panel::tests`, `github::details_panel::tests`, `workbench::github::part2::tests::create_pull_request_creates_the_current_branchs_pull_request_and_opens_its_tab`, `workbench::github::part2::tests::toggle_viewed_marks_the_selected_file_viewed_then_not_viewed`, `workbench::github::part2::tests::open_in_worktree_adds_the_pull_requests_head_as_a_worktree_and_opens_it`; the Pull Requests window connects through gh, lists, filters and opens pull requests, refreshes, checks out their branches, opens and copies their pages, changes repository, offers gh auth login and Install gh, runs no gh in Restricted Mode, creates a pull request from the New Pull Request tab, toggles a file viewed and opens a pull request in a worktree. Missing: the timeline editor, review mode, review in the diff and comments, Submit Review, Select Opened Pull Request, Delete Branch, the GitHub clone source, the Git log's checks and the dialogs overlay",
+    "evidence": "app-gpui/src/workbench/github_part2.rs:172,206,380,712,758",
+    "was": "partial"
+  },
+  "feature:vcs": {
+    "status": "partial",
+    "proof": "`vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`, `workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`, `workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`, `workbench::tests::a_merge_stopped_on_conflicts_opens_the_conflicts_dialog_and_accept_yours_resolves_the_file`, `workbench::tests::merge_opens_the_three_way_editor_and_apply_writes_and_stages_the_resolved_file`, `workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file`, `workbench::tests::show_diff_on_a_change_of_the_commit_window_shows_and_walks_its_diff`, `workbench::vcs_operations::tests::update_project_pulls_with_the_method_chosen_and_resets_to_the_remote_branch`, `workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`, `workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`, `workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`, `workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::create_patch_from_selected_changes_writes_a_file_that_applies_in_a_clean_clone`, `workbench::shelf::tests::reported_errors_stop_the_commit_and_review_shows_the_problems`, `workbench::log_actions::tests::interactive_rebase_lists_the_commits_oldest_first_and_applies_the_plan`, `workbench::log_actions::tests::cherry_pick_applies_a_commit_of_another_branch_and_a_conflicting_one_opens_the_conflicts`, `workbench::annotate::tests::annotate_shows_the_date_and_author_of_each_line_and_closes_again`, `workbench::diff_tools::tests::show_history_for_file_filters_the_git_log_to_the_file`, `workbench::diff_tools::tests::show_history_diffs_a_saved_revision_and_revert_writes_it_back_once_confirmed`, `workbench::diff_tools::tests::compare_with_branch_diffs_the_file_against_the_branch_chosen`; the Git log with its graph, filters, details and commit actions, the branches popup, the Commit window with change lists, before-commit checks and the shelf, push, pull, fetch and update, merge, rebase, cherry-pick and revert with their stopped states, the conflicts dialog and merge editor, stash, rollback, patches, tags, remotes and worktrees, Annotate with Git Blame, Show History of a file, Local History and Compare with Branch for one file. Not yet: Clone (not registered), Show History for Selection, the Stash tab, the modal Commit dialog, partial commits of a file, the log toolbar, inline blame and Annotate in the diff and merge viewers",
+    "evidence": "app-gpui/src/workbench/annotate.rs:152; app-gpui/src/workbench/context_menus.rs:316; INVENTORY.md rows vcs.annotate [x], vcs.localHistory [x], vcs.showHistory [~], vcs.compareWithBranch [~], vcs.clone [ ]",
+    "was": "partial"
+  },
+  "feature:run": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`, `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::tests::a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize`, `run::view::tests`, `workbench::run_context::tests::run_context_runs_the_file_as_the_selected_temporary_configuration`, `workbench::run_context::tests::the_editors_menu_offers_run_for_the_file_and_runs_it`, `workbench::run_context::tests::debug_context_hands_the_files_configuration_to_the_debugger`, `workbench::debug::tests::the_run_widgets_debug_button_debugs_the_selection`; the Run tool window with a plain or terminal console, the run widget in the title bar with Debug, the configuration chooser and Edit Configurations, on real processes; Run / Debug of a file from its context (a temporary configuration) and from the editor's, Project view's and tab's menus. Not yet: gutter run markers, the test tree, importing configurations, templates",
+    "evidence": "app-gpui/src/workbench/run_context.rs:255 (register_actions), tests at :45, :802; app-gpui/src/workbench/debug.rs:1831",
+    "was": "partial"
+  },
+  "feature:project-tree": {
+    "status": "partial",
+    "proof": "`project_tree::tests`, `project_tree_model::tests`, `project_tree_paths::tests`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`, `workbench::tests::the_tree_context_menu_offers_the_model_rows_and_creates_from_new`, `workbench::tests::move_and_copy_go_through_their_dialogs`, `workbench::project_view_actions::tests`, `workbench::project_view_options::tests::switches_panes_and_remembers_the_choice`, `workbench::project_view_options::tests::the_options_menu_lists_the_view_options_and_they_survive_reopening_the_project`, `workbench::project_view_options::tests::reformat_and_optimize_imports_in_the_tree_change_the_selected_file`; the tree lists, compacts, filters by option, follows the disk, remembers its expansion and reveals a path; its context menu, New, Move, Copy, Cut and Paste, Delete with Undo from Local History, Select In, File Path, Reveal in Finder, the Copy Path forms, Mark Directory as, Expand / Collapse All, Show Hidden Files, the sort orders, the Behavior options, the four view modes (panes), and Find Usages, Reformat, Optimize Imports and Reload from Disk on the selected file run in the window. Not yet: multi-selection, inline new/rename, files on the system clipboard, drag and drop, the header's buttons and pane title menu, contributed roots, Show Members, ⌘Z in the tree",
+    "evidence": "app-gpui/src/workbench/project_view_options.rs:121 and tests at :618, :679, :731",
+    "was": "partial"
+  },
+  "feature:plugins": {
+    "status": "partial",
+    "proof": "`plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `plugins::tests::a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project`, `workbench::plugin_contributions::tests::untrusted_windows`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_commit_message_entry_is_a_button_of_the_commit_message_toolbar`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::plugins_window::tests::a_trusted_projects_own_plugins_load_when_it_opens_and_their_command_runs`, `workbench::plugins_window::tests::trusting_an_open_project_loads_its_own_plugins`, `workbench::plugins_window::tests::revoking_trust_unloads_the_projects_own_plugins_and_their_contributions`; the plugin host runs in the app: themes, commands as actions, the Plugins page (list, enable, uninstall, install with consent, secrets), status items, tasks, notifications, questions, context keys, log tabs, Tools, Project view, editor and Find results menus, the editor tab strip's, title bar's and commit message's toolbar slots, gutter actions, settings pages, runs and DAP debug requests, workbench events, and a trusted project's own plugins, loaded when it opens or is trusted and unloaded on Revoke Trust; in Restricted Mode or a single-file window an installed plugin's commands, menu entries, status items, views, view events, settings actions, gutter actions, saved-file events and answers are refused, with the guard's reason where the webview shows one. Also proven: plugin tree views as tool windows (`workbench::plugin_tool_windows::tests::a_plugins_view_is_a_tool_window_with_its_title_and_icon_that_shows_the_rendered_rows`), the editor tab's menu entries (`workbench::context_menus::tests::proofs16_menus::a_plugins_editor_tab_entry_is_offered_in_the_tabs_menu_and_runs_its_command`), the marketplace (`workbench::plugins_window::tests::proofs6_plugins_market::the_marketplace_lists_the_indexs_plugins_and_install_downloads_and_installs_one`) and Update All from the updates announcement (`workbench::plugin_runtime::tests::proofs14_plugins::update_all_on_the_announcement_installs_the_updates`). Missing: web views, content tabs, OpenTerminal and terminal sessions, run targets, Run Anything, decorations, the JDWP debug branch, the Problems menu entries, the plugin's own icon on a slot button, IntelliJ theme imports, and one plugin listing for the whole app where the webview lists per window",
+    "evidence": "app-gpui/src/workbench/plugins_window.rs (plugins.updateAll handler); app-gpui/src/plugin_models/plugins_page.rs:996",
+    "was": "partial"
+  },
+  "e2e:e2e/codeInsight.spec.ts": {
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`, `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`, `editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`, `workbench::editor_language::tests::apply_quick_fix_applies_the_fix_of_the_problem_at_the_caret`; 3 of 7 flows in a project window with a mock language server: the server's completion items are listed, narrowed and Enter inserts the chosen one (opened by typing `.`, not Ctrl+Space), Go to Declaration opens the other file at the declaration, a diagnostic is underlined and the quick fix the server prefers is applied. Missing: opening a usage from the server's Find Usages results (listing by file is proven by `editor::intelligence::tests::proofs_editor_lsp::find_usages_lists_the_references_the_server_reports`), ⇧F6 renaming in place (the native ⇧F6 opens a Rename dialog: `workbench::editor_language::tests::proofs3_editor_keys::shift_f6_in_the_editor_renames_the_element_at_the_caret`), the indexed rename preview with Do Refactor / Cancel, lazy plugin actions left unresolved by the intention preview",
+    "evidence": "app-gpui/src/editor/intelligence.rs:1825, :1950, :2030; app-gpui/src/workbench/editor_language.rs:2148; app-gpui/src/editor/intelligence/tests/proofs_editor_lsp.rs:194; app-gpui/src/workbench/editor_language/tests/proofs3_editor_keys.rs:109",
+    "was": "blank"
+  },
+  "e2e:e2e/commit.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`; 0 of 1 flows whole (the spec's single flow is not driven to its end by one test); proven parts: the 1 flow without one assertion: vcs.commit shows the Commit window with the keyboard in the message, a commit without a message is refused with the field's error and nothing committed, then the typed message commits exactly the included file (git log, git show), the notice names it and the tree drops it. Missing: the Unversioned Files group left unchecked by default",
+    "evidence": "app-gpui/src/workbench/commit.rs:45 (vcs.commit); test app-gpui/src/workbench/mod.rs:10871",
+    "was": "blank"
+  },
+  "e2e:e2e/commitInclusion.spec.ts": {
+    "status": "done",
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`; a change left out with its checkbox is not committed (git show HEAD names only the included file) and stays left out of the next commit until it is ticked again (#1539)",
+    "evidence": "app-gpui/src/workbench/commit.rs:45; test app-gpui/src/workbench/mod.rs:10871 (the 'left out stays left out' block after the first commit)",
+    "was": "blank"
+  },
+  "e2e:e2e/compareWith.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::diff_tools::tests::compare_with_asks_for_the_other_file_and_shows_both`; 2 of 4 flows: the Project view's menu offers Compare With… for a file (not for a folder), and Compare With… asks for the other file in the system dialog and shows both side by side. Missing: Compare With… in the editor tab's menu, and Compare With… with Compare with Clipboard in the editor's menu",
+    "evidence": "app-gpui/src/project_view/context_menu.rs:511 (the row); app-gpui/src/workbench/diff_tools.rs:943 (test)",
+    "was": "blank"
+  },
+  "e2e:e2e/debug.spec.ts": {
+    "status": "done",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`; a breakpoint toggled at the caret's line is marked, Debug stops at it with the Debug window showing the frame, the execution line and the local's value, Step Over moves the execution line and the frame, Resume runs to the end and clears the execution line (one test drives the whole flow: debug.toggleBreakpoint, run.debug, debug.stepOver, debug.resume; the spec presses Control+D, F8 and F9, and its fake adapter reports two frames where the native fake reports one)",
+    "evidence": "app-gpui/src/workbench/debug.rs:1386, :1324",
+    "was": "blank"
+  },
+  "e2e:e2e/diff-navigation.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_vcs::compare_previous_file_walks_back_and_the_diff_settings_menu_opens`; 1 of 3 flows: from the Commit window's diff, diff.nextFile shows the next changed file's diff in the same window and diff.prevFile walks back. Missing: maximizing a diff preview and restoring the layout (the native diff is a window, not an editor tab), skipping binary and unchanged siblings in the window (only `vcs_diff::diff_navigation::tests::skips_binary_oversized_and_unreadable_working_files_before_loading_their_text`, a model test)",
+    "evidence": "app-gpui/src/workbench/diff_window.rs:298 (show_diff); test app-gpui/src/workbench/tests/proofs_vcs.rs:24",
+    "was": "blank"
+  },
+  "e2e:e2e/editor.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`, `workbench::tests::opens_a_loose_file_in_an_editor_and_types_into_it`, `workbench::tests::find_opens_a_bar_over_the_tabs_editor_that_searches_replaces_and_closes`, `workbench::tests::the_find_bar_marks_its_occurrences_replaces_in_one_step_and_closes_on_escape`, `workbench::tests::files_open_in_tabs_that_the_keymap_cycles_closes_and_reopens`; 5 of 8 flows: a file opened from the tree shows its text and typing edits it, Find opens a bar that marks the occurrences and Escape gives the editor the keyboard back, another tab has no bar and coming back finds the first one as it was, files open in tabs and the keymap closes the active one, Replace All replaces every match in one undo step. Missing: Delete after the Project tree is remounted, breadcrumbs following the caret, the modified mark on an edited tab and ⌘S saving it through the window",
+    "evidence": "app-gpui/src/workbench/mod.rs:4466, :4409, :7151, :7243, :4596",
+    "was": "blank"
+  },
+  "e2e:e2e/gitIgnore.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs11_vcs_windows::add_to_gitignore_reloads_the_project_tree_with_the_file_ignored`, `workbench::tests::proofs11_vcs_windows::add_to_local_exclude_refreshes_the_status_and_the_project_tree`; 0 of 1 flows whole (the spec's single flow is not driven to its end by one test); proven parts: for both destinations the rule is written to .gitignore or .git/info/exclude and the status and the Project tree are read again at once. Missing: the Project view's context menu rows (.gitignore, .git/info/exclude) driven in the window; the tests run vcs.ignoreShared and vcs.ignoreLocal by id",
+    "evidence": "app-gpui/src/project_view/context_menu.rs:326-327 (the rows); tests app-gpui/src/workbench/tests/proofs11_vcs_windows.rs:32, :47",
+    "was": "blank"
+  },
+  "e2e:e2e/keymap.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::settings_keymap_assigns_a_recorded_shortcut_that_the_keymap_then_resolves`, `settings_view::keymap::tests::opens_the_shortcut_menu_on_double_click_and_clears_mouse_recording_mode`, `settings_view::keymap::tests::opens_the_shortcut_menu_on_enter_and_clears_mouse_recording_mode`; 0 of 1 flows whole (the spec's single flow is not driven to its end by one test); proven parts: on the Keymap page a double-click or Enter on a row opens the menu with Add Keyboard Shortcut first, Down then Enter records an Alt+click mouse shortcut that is staged, the keyboard dialog opens on its first stroke and the right-click menu offers both; through the window, Settings › Keymap records a keyboard shortcut, Leave keeps it and Apply writes it. Missing: the mouse-shortcut half driven in the Settings dialog of a window rather than on the page mounted alone",
+    "evidence": "app-gpui/src/settings_view/keymap.rs:1822 (shared body of the two page tests); app-gpui/src/workbench/mod.rs:11507",
+    "was": "blank"
+  },
+  "e2e:e2e/kotlinHighlight.spec.ts": {
+    "status": "partial",
+    "proof": "`editor::view::tests::proofs_editor_highlight_backend::lets_kotlin_declaration_roles_override_the_stream_lexers_generic_definition_style`; 1 of 2 flows: in a Kotlin file the backend's function and parameter roles paint `greet` and `prefix` over the lexer's generic style, each as one run. Missing: the semantic declaration/mutable roles staying inside one mark with the scheme's colours, background and weight",
+    "evidence": "app-gpui/src/editor/view/tests/proofs_editor_highlight_backend.rs:34",
+    "was": "blank"
+  },
+  "e2e:e2e/mergeEditor.spec.ts": {
+    "status": "partial",
+    "proof": "`vcs::merge_view::tests::starts_from_the_base_and_counts_the_changes_left`, `vcs::merge_view::tests::accepts_both_sides_of_a_conflict_from_the_arrows_and_undoes_them`, `vcs::merge_view::tests::takes_a_whole_side_and_asks_before_discarding_changes`, `vcs::merge_view::tests::compares_two_versions`, `vcs::merge_view::tests::refuses_binary_versions_and_offers_to_retry`, `vcs::merge_view::tests::starts_with_the_non_conflicting_changes_applied_when_asked_to`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`, `workbench::tests::proofs_merge_focus::diff_settings_and_jump_to_source_act_on_the_merge_editor_that_has_the_keyboard`, `workbench::tests::proofs_merge_focus::keeps_merge_commands_registered_and_disabled_outside_a_merge_editor`; 8 of 16 flows: the result starts as the base with its count, both sides of a conflict accepted and undone, the footer's Accept Yours/Theirs/Cancel and their questions, the Compare menu's pairs, the binary error with Retry, the auto-apply option in the settings menu and applied on opening without an undo step, merge commands run by id only while the merge editor has the keyboard. Missing: Apply writing and staging the file (CRLF kept, after the unresolved question; the views only emit the Resolve event), accepting a deleted version deleting then staging, keyboard Enter/Space on per-change controls, Resolve Simple Conflicts and Revert Conflict Resolution, one side's non-conflicting changes from the toolbar, the result and side context menus (Ignore, Resolve Using Theirs), two merge editors each following its own focus",
+    "evidence": "app-gpui/src/vcs/merge_view.rs:2438,2473,2612,2640,2671,2690 (view tests in a window); app-gpui/src/workbench/mod.rs:9784 (banner -> merge editor, merge.compare/settings/autoApply/cancel/acceptYours via run_action, rebase continued on disk); app-gpui/src/workbench/tests/proofs_merge_focus.rs:17,80",
+    "was": "blank"
+  },
+  "e2e:e2e/newBranch.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::new_branch_rename_and_delete_change_the_repositorys_branches`; 1 of 4 flows through the application: in the Create New Branch dialog a typed space becomes a separator (my next reads my-next) and Create makes that branch; the dialog refuses a taken name and offers Overwrite. Missing: the mid-text caret and the pasted text are proven only on the prompt dialog mounted alone (`vcs::prompt_dialogs::tests::keeps_the_caret_after_the_rewritten_character_when_editing_mid_text`, `vcs::prompt_dialogs::tests::converts_spaces_in_pasted_text`), and no test ticks Overwrite and creates over an existing branch through the application",
+    "evidence": "app-gpui/src/workbench/mod.rs:9302-9332 (vcs.newBranch, retype \"my next\" -> my-next, git_head); app-gpui/src/vcs/prompt_dialogs.rs:1276,1291,1307,1318",
+    "was": "blank"
+  },
+  "e2e:e2e/run.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::tests::proofs3_run::run_configuration_runs_the_named_or_given_configuration_and_stop_process_ends_the_process`; 2 of 4 flows: run.run on the selected configuration opens the Run tool window with its tab and output and exit code 0, and stop ends a running process. Missing: Rerun Failed Tests of a Go run (only the model `run_testing::rerun`), CMake building the target in Build before starting only the application",
+    "evidence": "app-gpui/src/workbench/mod.rs (a_run_configuration_runs_into... : execute_action_or_throw(\"run.run\"), SessionStatus::Finished, exit 0, view.lines contains hello)",
+    "was": "blank"
+  },
+  "e2e:e2e/search.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs`, `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it`, `workbench::tests::find_in_files_searches_the_project_and_opens_a_match`, `workbench::tests::search_everywhere_gives_the_keyboard_back_and_runs_actions_where_it_was_opened`; 3 of 4 flows: an action found in Search Everywhere runs (the theme toggles), a file found by name opens, Find in Files lists matches by file and opens the chosen one; Escape closes Search Everywhere. Missing: double Shift opening Search Everywhere in the application (`platform::input::tests::double_shift_runs_its_action` proves the gesture with a test action only)",
+    "evidence": "app-gpui/src/workbench/mod.rs:5473,5588,5648",
+    "was": "blank"
+  },
+  "e2e:e2e/toolwindows.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom`; 3 of 10 flows: cmd-1 focuses, hides and re-shows the Project view; toolwindow.terminal opens the Terminal and toggles it closed; a typed command reaches the shell and its output shows. Missing: a maximized Terminal on each side and Restore Size (`workbench::tests::proofs5_layout::maximize_tool_window_draws_the_focused_side_across_the_window` maximizes the Project view only), cmd-4 toggling Run with Shift+Escape (`workbench::tests::proofs_tool_windows::hide_active_tool_window_hides_the_focused_project_view` hides the Project view), cmd-shift-F12 restoring with a second press (the test restores with F12), the terminal input focused on first and later opening, a late view not taking focus, Split Right giving the group its own header (`workbench::terminal_actions::tests::the_splits_lay_their_shells_side_by_side_or_stacked_and_unsplit_joins_them` has no own header), closing a group's last tab focusing its neighbour",
+    "evidence": "app-gpui/src/workbench/mod.rs (tool_window_actions_show_focus_and_hide_the_project_view: cmd-1 x3, cmd-shift-f12, f12; the_terminal_tool_window_runs_a_shell_at_the_bottom: toolwindow.terminal, simulate_input echo)",
+    "was": "blank"
+  },
+  "e2e:e2e/openProject.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`; 0 of 1 flows (no single test drives the whole flow); proven parts: closing a project shows the Welcome screen with it as the recent project and Enter reopens it (a trusted folder), and opening an undecided folder asks the trust question before opening. Missing: an untrusted recent project opened from the Welcome screen asking first, Trust Project recording the decision and the tree then listing its files, Close Project run from Search Everywhere",
+    "evidence": "app-gpui/src/workbench/mod.rs:7453-7493; app-gpui/src/workbench/app_actions.rs:1247,1264-1300 (file.openProjectPath, trust-button-*, file.closeProject)",
+    "was": "blank"
+  },
+  "e2e:e2e/plugin-settings.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `plugin_views::settings_page::tests::stages_table_edits_and_discards_them_on_cancel`, `plugin_views::settings_page::tests::a_page_action_asks_to_run_its_command_once_and_shows_its_error_inline`; 0 of 1 flows (no single test drives the whole flow); proven parts: a plugin page's value is saved and heard by the plugin, table edits are staged and Cancel discards them, a page action's error shows inline. Missing: the flow across pages in one dialog (search to the page, Add a profile, Test applies staged edits first and disables Apply on failure, reopen keeps the applied value, Reset of one page only)",
+    "evidence": "app-gpui/src/plugin_views/settings_page.rs (view tests); workbench plugin_contributions test drives the real Settings dialog",
+    "was": "blank"
+  },
+  "e2e:e2e/pluginNotifications.spec.ts": {
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`; 0 of 1 flows (no single test drives the whole flow); proven parts: a real plugin's notification shows its three action labels and pressing one runs that plugin's command with the action's argument (the plugin sets a context key to it). Missing: the balloon being dismissed after the press",
+    "evidence": "app-gpui/src/workbench/plugin_runtime.rs:1764-1789",
+    "was": "blank"
+  }
+}

@@ -568,3 +568,25 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - NEXT INTEGRATOR: $S/int_d110_brief.md = Part A the app's own SIGINT handler (tokio `signal` feature) so its children get the default disposition; Part B tabs in a single-file window, alone.
 - THEN: agents views (d111: notes agents_views_integration.md, pending tests) → diff gaps alone (d112) → database extras (+ proofs6_database_console.rs) → build tools (seam first) → shared button + accessibility → vcs_stage_hunks → zoom's literal px.
 - NOT DRAFTED YET: GitHub timeline editor + Submit Review + review mode + diff comments + settings page; Settings → Tools → Agents (Registry, Built-in); image dialog, docked changes panel, unread status item + badge, Markdown images of the agents; push-rejected flow; Show Members / rename in place / Scratches + Unity panes; run gutter; editable TODO preview; Evaluate's multi-line field and Smart Step dialog; Workspace dialog; remote/WSL windows; Docker operations; deployment; HTTP client; etc.
+
+## Advisor's review (2026-11-15) and the reordered queue
+
+- DONE: inventory.mjs ignores line comments in the reachability check (D111) → 1,246/3,145.
+- RUNNING (no cargo): a mapper for rows the last thirteen code commits earned and nobody recorded (ipc, context, point, module, event) + the split of the 70 e2e rows → $S/parity_map_d111.json (VALIDATE BY SCRIPT: every key exists, every test is in rust_tests.txt; spot-check ten) ; a reconciler for the database extras notes → drafts/database_extras_reconciled.md.
+- CARGO QUEUE, by rows: [running] d110 (SIGINT handler + light-edit tabs) → DATABASE EXTRAS (reconciled notes; ~17 blank db actions + their ipc rows) → BUILD TOOLS (seam in crates/ide-build for ~/.m2 and the JDK scan FIRST, then the Tauri workspace suite; ~20 blank maven/gradle actions) → agents views → diff gaps alone → shared button + accessibility → vcs_stage_hunks → zoom's literal px.
+- WHEN d110 REPORTS: (1) verify Part A myself from my background shell (SIGINT ignored there): launch the binary with temp homes, run a shell-script configuration, Stop once, the process is gone; check Cargo.lock gained no package. (2) BROAD TOUR at 100 %: rerun c-tools, d-dark, f-menus (coordinates ×1.024) + five or six Settings pages + a launch with a file argument (tabs) + a running program's console.
+- GATES: the ×20 filter loop of new tests runs DURING the integrator's second suite run (both real races showed only beside a suite).
+- MEASUREMENT: the inspection runner is not in release builds. Decide the driver before measuring (keys by osascript to the PID as in inspection 2, or the runner behind a cargo feature used only for the measurement of the native side; the Tauri side needs its own driver anyway). At a cargo gap: `cargo build --release` once to learn that it links, how long it takes, and that the binary launches.
+
+## Database extras RECONCILED (2026-11-15): drafts/database_extras_reconciled.md (copy to docs/.../integration/ at the next commit)
+
+- 37 hunk sites in 4 files, every anchor unique at a9da8e9f ($S/dbx/anchors.py re-checks; mod.rs and tab_views.rs are being changed by d110). 34 kept, 1 re-anchored, 1 rewritten, 1 new, none dropped. Draft files edited to the shared dialog helpers / tooltip / wait_long; one test added (table editor Import and Browse).
+- 13 action ids, labels/when/shortcuts match the manifest; none in the application menu. Differences: Browse Query History falls back to the tree's selection; Run SQL Script's dialog has no .sql filter.
+- Brief ready: $S/int_d111_brief.md (database extras alone, with real-window shots).
+
+## Rows mapped (2026-11-15): inventory 1,250/3,145 (123 model only, 476 partial). D112.
+
+- E2E SPLIT (notes/sweep/e2e_partA.md, e2e_partB.md): 53 of 70 specs have their feature natively → each needs ONE native test that drives the spec's whole flow (test-only work, a writer per ten specs); 9 need the feature; 3 webview-only (record-only → D102 rule after reading them); 5 layout specs undetermined.
+- ipc rows that only lack a test reading the result: sdk_locate_tools, project_current, agent_commands. Not called natively: gh_pr_create (the New PR tab goes through gh_api), doc_sync_from_disk, debug_evaluate (Evaluate uses debug_evaluate_in).
+- proofs10_locale.rs is still undeclared (plugin_set_ui_locale has no running test).
+- NEXT TEST-ONLY WRITERS (no cargo): e2e flows, ten specs each, starting with the ones whose parts are already proven separately (commit, gitIgnore, keymap, openProject, plugin-settings, pluginNotifications), then mergeEditor (8/16), codeInsight (3/7), toolwindows (3/10), newBranch (1/4), run, search, editor.
