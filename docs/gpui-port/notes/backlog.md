@@ -617,3 +617,18 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - CARGO QUEUE after d112: build tools (`$S/int_d113_brief.md`; seam in crates first; then MY Tauri workspace suite) → Settings pages (both drafts in one integration) → agents views → diff gaps alone (+ the diff_tab proofs18 file) → shared button + accessibility → vcs_stage_hunks → zoom's literal px.
 - Remaining blank Settings pages after the two drafts: iconThemePages:18, registry.tsx:62/69/82, build.deployment, build.runTargets, editor.fileTemplates, editor.general.postfixCompletion, editor.liveTemplates, editor.todo, editor.vim, languages.servers, projectTrust, tools.agents, tools.sshConfigurations, vcs.github, vcs.log.
 - `app-gpui/target` is at 90 GB: `cargo clean -p openidea-gpui` at the next cargo gap (not while an integrator runs).
+
+## Language Settings pages DRAFTED (2026-11-15): notes/integration/settings_languages_integration.md
+
+- 16 pages (not projectStructure: 2,023-line page, nothing mounted), mounted with set_page_view + set_page_labels as Keymap is. Files settings_view/pages/languages_{sdk,controls,pages}.rs, tests workbench/tests/proofs19_settings_languages.rs (19 tests). Hunks: 3 `pub mod` lines, dialog.rs `page_view` getter (the SAME getter proofs18 adds: d112 may already have it), a 7-line block in custom_controls.rs install, one test `mod` line.
+- New seam `TestToolchains` (test build never probes or runs a tool). Production callers are `#[cfg(not(test))]`: the integrator must also run `cargo build`.
+- Expected: done = go.buildTags, go.modules, markdown, oxfmt, prettier; partial = the rest (Browse… without title/start folder; no Download JDK…; no plugin run targets; no Add Interpreter…/packages table; pluginFormatters select untested).
+- Risks: exact-line assertions, Node's row count, clicks below the fold (scroll first as custom_controls::tests::scroll_page), catalog emptied per Settings open (two windows).
+
+## Misc Settings pages DRAFTED (2026-11-15, caa8b779): notes/integration/settings_misc_integration.md. BRIEF FOR BOTH SETTINGS DRAFTS: $S/int_settings_brief.md
+
+- 11 pages, 13 new files + proofs19_settings_misc.rs (12 tests). Hunks to 6–7 existing files (pages/mod.rs, workbench/mod.rs test mod, dialog.rs page_view, custom_controls.rs Slots::page_view + install block, staging.rs Debug hiding proxy.password, smoke_settings_pages.rs accepting `<custom>`).
+- DUPLICATE to unify at integration: two SdkFieldView + two seams (languages_sdk.rs TestToolchains, build_sdk_field.rs SdkDetection).
+- SECRET: the writer reports the Settings dialog model's Debug already prints the saved proxy password in its base settings (existing code). Hypothesis until a test formats it: the settings brief makes the integrator test and fix it.
+- Expected: done = dateFormats, editor.files, actionsOnSave, externalTools, vcs.mappings, vcs.issueNavigation; partial = httpProxy (Check connection needs ide-http), updates (hidden: no native app.checkForUpdates / status source), cmake (no suggestion lists), gradle/maven (no Download JDK…, no trimming).
+- CARGO QUEUE now: [running] d112 proofs18 → build tools ($S/int_d113_brief.md) → Settings pages ($S/int_settings_brief.md) → agents views → diff gaps → shared button + accessibility → vcs_stage_hunks → zoom px.
