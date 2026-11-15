@@ -55,3 +55,7 @@
 - Integrated on 2026-11-14 (D107): Annotate in the editor's gutter (not in the diff or merge viewers, no inline blame, the failure message untested), the plugin update notification's Update All. Annotate is no longer a draft.
 - One test was unstable under load once: `workbench::tests::proofs13_agents_failed_send::recovers_images_after_failed_regeneration_with_a_new_draft` (a dialog not shown within thirty seconds while the suite took 207 s instead of 149 s). Cause not found.
 - Not checked in the real window: that a printable key typed on a real keyboard reaches the terminal once (the tests drive the input handler, not the OS key path).
+- Integrated on 2026-11-14 (D108): the Project view's options and panes (not Show Members, rename in place, Scratches, Unity, the header's pane switcher), fold by default on open, re-indent after Implement / Generate / Override, Paste from History on the keymap. The Project view options are no longer a draft.
+- Zoom is partial and looks out of proportion at any value but 100 %: interface text and the theme's sizes scale; the editor's text, icons and sizes written in pixels (about 3,000 places) do not. The webview zooms the whole document.
+- Two tests failed once each under load and passed alone: `workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition` and the agents dialog test named above. Causes not established yet.
+- The backend offers no fold for a run of Rust `///` lines (shared with the Tauri app; not fixed).
