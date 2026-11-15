@@ -1,0 +1,11 @@
+wait	3000
+action	agents.newTask
+wait	2500
+click	1259	181
+wait	1200
+mark	chooser
+wait	1200
+click	1185	214
+wait	2000
+mark	fake
+wait	1200

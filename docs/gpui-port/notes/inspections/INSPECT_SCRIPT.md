@@ -37,12 +37,15 @@ The active window is the focused one, else the frontmost, else the last opened. 
 
 ```sh
 S=<scratch folder>; P=$(cd "$S/project" && pwd -P)
+PATH=/usr/bin:/bin:/usr/sbin:/sbin HOME="$S/fakehome" ZDOTDIR="$S/fakehome" \
 OPENIDEA_GPUI_HOME="$S/home" OPENIDEA_GPUI_INSPECT="$S/tour.script" OPENIDEA_GPUI_INSPECT_LOG="$S/tour.log" \
   target/debug/openidea-gpui "$P" > "$S/tour.stdout" 2>&1 &
 echo $! > "$S/tour.pid"
 # poll $S/tour.log for each mark, screenshot, and at the end:
 kill "$(cat "$S/tour.pid")"
 ```
+
+Always launch with the short `PATH` above. Showing the New Task page of the Agents tool window asks the chosen agent for its settings, which starts that agent's program when it is found on `PATH` (read in the code, not run); with the short `PATH` the page shows "claude was not found on PATH" and nothing of the machine is started. To see the setting chips, seed the temp home with an agent whose command is never run and the settings it would have reported (`config/agents/<id>.toml`, `data/agents/models.json`).
 
 ## Example: a tour of the main screens
 

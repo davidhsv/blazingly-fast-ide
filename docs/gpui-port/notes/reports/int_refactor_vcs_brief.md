@@ -22,6 +22,12 @@ The webview source wins (`src/features/vcs/actions.tsx`, `historyActions.tsx`, `
 
 After both parts pass, screenshots in your own binary's window (temp `OPENIDEA_GPUI_HOME`, `HOME`, `ZDOTDIR`, a temp Git project with one committed file changed in two places; launcher `$S/insp8/run.sh`, steps `$S/insp/USAGE.md`): Show History for Selection's tab; the Refactor This popup outside an editor ("Nothing here"). Look at each: nothing cut, popups inside the window.
 
+## Changed since the notes were written
+
+The notes were anchored on the tree at commit 80f7ebca. Of the files their hunks anchor on, `app-gpui/src/workbench/editor_language.rs` and `app-gpui/src/workbench/mod.rs` changed since (measured with `git diff --name-only 80f7ebca`); `workbench/tab_views.rs` did not. Re-anchor every hunk from its quoted text, and read the place before you edit it. The agents' conversation reads go through `AgentsStore::reading_entries` / `entries_read` now; this slice does not touch them.
+
+Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
+
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
 The whole suite twice to files, nothing else running beside the first; during the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&` inside a script. A test that is unstable under the loop is not done: find the cause and fix the wait, not the assertion.
@@ -32,4 +38,6 @@ Besides the format of `$S/int_rules.md`: one table of every `parity.json` key th
 
 ## Do not touch
 
-Every undeclared draft of other agents under `app-gpui/src` (`workbench/diff_tab.rs`, `vcs_diff/{wrap,tab_view}.rs`, `vcs_diff/view/moved.rs`, `platform/error_log_sink.rs`, any agents draft still undeclared) and every undeclared `proofs*` test file this brief does not hand you.
+Every undeclared draft of other agents under `app-gpui/src`: `workbench/diff_tab.rs`, `vcs_diff/{wrap,tab_view}.rs`, `vcs_diff/view/moved.rs`, `platform/error_log_sink.rs`, `terminal/panel/groups.rs`, `terminal/view/clipboard.rs`, `workbench/terminal_groups.rs`, `editor/view/{column_gestures,right_margin,string_literals,doc_tags,caret_glide,token_style}.rs`, `editor/paste_history_view/preview.rs`, `theme/scheme_runtime.rs`, every `*_pending.rs`, and every undeclared `proofs*` test file this brief does not hand you. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`.
+
+The real binary is launched only through `$S/insp8/run.sh`, which gives it a short `PATH`: with the machine's `PATH`, showing the Agents tool window's New Task page would start the agent program found there. Do not open the Agents tool window in the real binary.

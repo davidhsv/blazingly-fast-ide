@@ -1,0 +1,13 @@
+wait	3000
+action	agents.newTask
+wait	2500
+click	1259	181
+wait	1200
+click	1185	214
+wait	2000
+click	1300	204
+wait	1500
+mark	model-effort
+wait	1200
+keys	escape
+wait	500
