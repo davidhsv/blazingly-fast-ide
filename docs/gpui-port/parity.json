@@ -720,8 +720,8 @@
     "proof": "`workbench::tests::proofs4_shell::closing_a_terminal_session_ends_its_shell`; the shell of a new terminal tab runs while the tab is open and is gone once Close Terminal Session releases the view, which calls ide_host::ops::term::kill, the same Terminals::kill the adapter calls"
   },
   "ipc:plugin_list": {
-    "status": "partial",
-    "proof": "`workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed`, `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`, `workbench::plugins_window::tests::a_trusted_projects_own_plugins_load_when_it_opens_and_their_command_runs`, `workbench::plugins_window::tests::trusting_an_open_project_loads_its_own_plugins`, `workbench::plugins_window::tests::an_undecided_projects_own_plugins_do_not_load_and_the_listing_does_not_repeat`; the Plugins page lists through wait_initial_load, sync_links, sync_project and list with the window's project root, as the adapter does, and the app's listing syncs and lists every open trusted project's own plugins, whose command, menu entry, status item, tool window and settings page appear. Missing: the app's listing is one merge over every open trusted project, where the adapter lists per window, and an untrusted project's folder is not synced as the adapter does; no test opens two windows"
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::reload_plugins_lists_a_plugin_whose_manifest_no_longer_parses_as_failed`, `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`, `workbench::plugins_window::tests::a_trusted_projects_own_plugins_load_when_it_opens_and_their_command_runs`, `workbench::plugins_window::tests::trusting_an_open_project_loads_its_own_plugins`, `workbench::plugins_window::tests::an_undecided_projects_own_plugins_do_not_load_and_the_listing_does_not_repeat`, `workbench::plugins_window::tests::project_plugins_per_window::a_trusted_projects_own_plugins_contribute_nothing_to_a_restricted_window`, `workbench::plugins_window::tests::project_plugins_per_window::a_trusted_projects_own_plugins_contribute_nothing_to_another_trusted_projects_window`, `workbench::plugins_window::tests::project_plugins_per_window::closing_a_window_unloads_only_its_own_projects_plugins`; the Plugins page lists through wait_initial_load, sync_links, sync_project and list with the window's project root, as the adapter does, and the app's listing syncs and lists every open trusted project's own plugins, whose command, menu entry, status item, tool window and settings page appear. Each window lists the plugins of its own project (two windows opened), as the adapter lists per window"
   },
   "ipc:plugin_set_theme": {
     "status": "done",
@@ -2217,7 +2217,7 @@
   },
   "point.registerToolWindow:run": {
     "status": "partial",
-    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::tests::a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize`, `run::view::tests`; tabs drawn in the body rather than the header, no stripe badge with the running count, no test tree or stack-trace tabs"
+    "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::tests::a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize`, `run::view::tests`, `workbench::tests::proofs16_run_badge::the_run_stripe_button_shows_the_number_of_running_processes`; the stripe button shows the number of running processes. Missing: tabs are drawn in the body rather than the header, and there are no test tree or stack-trace tabs"
   },
   "ipc:run_start": {
     "status": "done",
@@ -2817,7 +2817,7 @@
   },
   "unit:src/features/plugins/__tests__/plugins.test.tsx": {
     "status": "partial",
-    "proof": "`workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::closes_a_question_the_plugin_gave_up_on_without_answering`, `plugin_views::prompt_dialog::tests::shows_a_plugins_question_and_reports_the_answer_or_the_dismissal`, `plugin_views::prompt_dialog::tests::asks_multi_line_text_and_confirms_on_ctrl_enter`, `plugin_views::prompt_dialog::tests::returns_the_typed_text_untrimmed`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`, `plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `workbench::plugin_runtime::tests::proofs14_plugins::announces_updates_with_actions_to_install_them_or_show_the_plugins`, `workbench::plugin_runtime::tests::proofs14_plugins::reports_command_failures_but_not_twice_for_plugins_that_trapped`, `workbench::plugin_runtime::tests::proofs14_plugins::update_all_on_the_announcement_installs_the_updates`, `plugin_models::plugins_page::tests::proofs14_page::filters_by_name_id_author_and_contribution`; command failures are reported once and not for a plugin the host disabled, updates are announced with buttons that install them or show the Plugins page, the page's search filters by name, id, author and contribution. The count of the 61 cases proven through the application is not established yet (a writer's unchecked estimate is 44)"
+    "proof": "`workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::runs_notification_buttons_as_commands_of_the_publishing_plugin_with_their_arguments`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::closes_a_question_the_plugin_gave_up_on_without_answering`, `plugin_views::prompt_dialog::tests::shows_a_plugins_question_and_reports_the_answer_or_the_dismissal`, `plugin_views::prompt_dialog::tests::asks_multi_line_text_and_confirms_on_ctrl_enter`, `plugin_views::prompt_dialog::tests::returns_the_typed_text_untrimmed`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::uninstall_asks_and_removes_the_plugin`, `plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `workbench::plugin_runtime::tests::proofs14_plugins::announces_updates_with_actions_to_install_them_or_show_the_plugins`, `workbench::plugin_runtime::tests::proofs14_plugins::reports_command_failures_but_not_twice_for_plugins_that_trapped`, `workbench::plugin_runtime::tests::proofs14_plugins::update_all_on_the_announcement_installs_the_updates`, `plugin_models::plugins_page::tests::proofs14_page::filters_by_name_id_author_and_contribution`, `workbench::plugins_window::tests::proofs16_plugins::a_running_plugins_permission_request_shows_the_permission_page_and_ok_grants_it`, `workbench::plugins_window::tests::proofs16_plugins::disables_and_re_enables_all_downloaded_plugins_leaving_dev_plugins_alone`, `workbench::plugins_window::tests::proofs16_plugins::projects_command_contributions_to_plugin_actions_and_follows_a_changed_declaration`, `workbench::plugins_window::tests::proofs16_plugins::selects_and_clears_a_plugin_theme`, `workbench::plugins_window::tests::proofs16_plugins::turning_a_plugin_off_takes_its_commands_out_of_the_actions_and_on_brings_them_back`, `workbench::plugin_runtime::tests::proofs16_runtime::executes_host_command_requests_through_actions_and_answers_an_unknown_id_as_not_found`, `workbench::plugin_runtime::tests::proofs16_runtime::keeps_a_plugin_log_tab_and_its_program_while_another_tab_is_shown`, `workbench::plugin_runtime::tests::proofs16_runtime::runs_commands_with_the_focused_editors_utf16_selections`, `plugin_models::plugins_page::tests::proofs16_page::adopts_the_first_icon_theme_of_a_plugin_when_none_is_selected`, `plugin_models::plugins_page::tests::proofs16_page::derives_install_update_installed_and_dev_states`; of 61 cases, 22 run through the application in full and 10 in part, 18 are proven on the Plugins page mounted alone (no host running), 9 are on the model only or missing (endpoints, the icon-theme resolver, the theme preview among them) and 2 have no native counterpart"
   },
   "unit:src/features/plugins/__tests__/ptyBackend.test.ts": {
     "status": "done",
@@ -5857,7 +5857,7 @@
   },
   "point.registerMenuGroup:plugins": {
     "status": "partial",
-    "proof": "`workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`; the Project view's menu offers the plugin's entry after Delete… once its when holds and runs it; the editor's menu shows the plugin's entries after Send to Agent, two entries naming one submenu under it with the one whose command cannot run greyed out, and runs the chosen one; the Find results' menu shows its entry only while its when holds and runs it with the match's path, line and column. Missing: the editor tab and Problems menus build the group but no test opens them, and Open With › for the plugins' custom editors is not built"
+    "proof": "`workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::proofs16_menus::a_plugins_editor_tab_entry_is_offered_in_the_tabs_menu_and_runs_its_command`; the Project view's menu offers the plugin's entry after Delete… once its when holds and runs it; the editor's menu shows the plugin's entries after Send to Agent, two entries naming one submenu under it with the one whose command cannot run greyed out, and runs the chosen one; the Find results' menu shows its entry only while its when holds and runs it with the match's path, line and column. The editor tab menu offers a plugin's entry and runs its command. Missing: no test opens the Problems menu, and Open With › for the plugins' custom editors is not built"
   },
   "point.registerStatusItem:(at) src/features/plugins/runtimeUi.tsx:159": {
     "status": "done",
@@ -5868,12 +5868,12 @@
     "proof": "`workbench::background_tasks_view::tests::the_popups_cancel_buttons_working_cancelling_and_disabled_with_the_reason`, `workbench::background_tasks_view::tests::shows_progress_and_uncancellable_tasks`, `workbench::background_tasks_view::tests::escape_does_nothing_while_the_popup_has_no_keyboard`, `workbench::background_tasks_view::tests::an_empty_list_says_there_are_no_background_tasks`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; the popup lists the tasks with progress, a working, Cancelling… or disabled-with-reason Cancel, says when there are none, and Escape closes it only while it has the keyboard"
   },
   "point.registerOverlay:plugins.consent": {
-    "status": "partial",
-    "proof": "`workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`; the install page over the window, capabilities from the highest risk down, Cancel and OK answered. Missing: the dialog a running plugin's permission request opens, and the grant of a listed plugin, have no test"
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::proofs16_plugins::a_running_plugins_permission_request_shows_the_permission_page_and_ok_grants_it`; the install page over the window, capabilities from the highest risk down, Cancel and OK answered. A running plugin's permission request shows the permission page; Cancel grants nothing and OK grants it"
   },
   "point.registerEditorKind:pluginLog": {
     "status": "partial",
-    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `plugin_views::log_tab::tests`; a log tab opened by plugin code shows its program's output, its toggles restart the program, Clear and Soft-wrap work. Missing: Find in Logs, and no test checks the tab stays mounted across tab switches"
+    "proof": "`workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `plugin_views::log_tab::tests`, `workbench::plugin_runtime::tests::proofs16_runtime::keeps_a_plugin_log_tab_and_its_program_while_another_tab_is_shown`; a log tab opened by plugin code shows its program's output, its toggles restart the program, Clear and Soft-wrap work. The tab and its program stay while another tab is shown. Missing: Find in Logs"
   },
   "settings:(at) src/features/plugins/settings.tsx:327": {
     "status": "partial",
@@ -5969,11 +5969,11 @@
   },
   "point.registerMenuGroup:agents.send": {
     "status": "partial",
-    "proof": "`workbench::context_menus::tests::proofs7_send_to_agent::send_to_agent_chosen_in_the_editors_menu_mentions_the_selected_lines_in_the_new_tasks_prompt`, `workbench::project_view_actions::tests::proofs7_project_menu::send_to_agent_in_a_folders_project_view_menu_mentions_the_folder_in_the_new_tasks_prompt`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`; chosen in the editor's menu inside a two-line selection it puts @a.txt:1-2 and the file in the New Task prompt, chosen in a folder's Project view menu it puts @src there, and the menu closes. Missing: no test shows the row left out for a virtual document, and the Project view sends one selected path where the webview sends every selected one"
+    "proof": "`workbench::context_menus::tests::proofs7_send_to_agent::send_to_agent_chosen_in_the_editors_menu_mentions_the_selected_lines_in_the_new_tasks_prompt`, `workbench::project_view_actions::tests::proofs7_project_menu::send_to_agent_in_a_folders_project_view_menu_mentions_the_folder_in_the_new_tasks_prompt`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`, `workbench::context_menus::tests::proofs16_menus::the_send_to_agent_row_is_left_out_for_a_virtual_document`; chosen in the editor's menu inside a two-line selection it puts @a.txt:1-2 and the file in the New Task prompt, chosen in a folder's Project view menu it puts @src there, and the menu closes. The row is left out for a virtual document (checked on the menu's rows, not in a window). Missing: the Project view sends one selected path where the webview sends every selected one"
   },
   "point.registerMenuGroup:search.bookmarks": {
     "status": "partial",
-    "proof": "`workbench::context_menus::tests::the_gutters_menu_adds_a_bookmark_on_the_clicked_line`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`; a right click in the gutter opens its menu with Add Bookmark first, choosing it bookmarks the clicked line, and the menu then offers Remove Bookmark. Missing: without a project the row is greyed out where the webview's row looks enabled and runs nothing (its action's when fails), and no test opens the gutter menu without a project"
+    "proof": "`workbench::context_menus::tests::the_gutters_menu_adds_a_bookmark_on_the_clicked_line`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`, `workbench::context_menus::tests::proofs16_menus::the_gutters_menu_without_a_project_offers_add_bookmark_and_bookmarks_nothing`; a right click in the gutter opens its menu with Add Bookmark first, choosing it bookmarks the clicked line, and the menu then offers Remove Bookmark. Missing: without a project the row is greyed out where the webview's row looks enabled and runs nothing (a test waits undeclared)"
   },
   "point.registerMenuGroup:search.bookmarks.files": {
     "status": "partial",
@@ -6968,8 +6968,8 @@
     "proof": "`workbench::plugins_window::tests::proofs6_plugins::a_permissions_row_revokes_and_allows_the_permission_on_the_host`"
   },
   "ipc:plugin_grant": {
-    "status": "partial",
-    "proof": "`workbench::plugins_window::tests::proofs6_plugins::review_permissions_grants_a_plugin_waiting_for_consent`; granted from the Plugins page only: a running plugin asking for consent is not driven"
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins::review_permissions_grants_a_plugin_waiting_for_consent`, `workbench::plugins_window::tests::proofs16_plugins::a_running_plugins_permission_request_shows_the_permission_page_and_ok_grants_it`; and from a running plugin's request: OK grants the permission on the host through the function the adapter calls"
   },
   "ipc:plugin_market": {
     "status": "done",
@@ -7253,18 +7253,54 @@
   },
   "action:view.zoomIn": {
     "status": "partial",
-    "proof": "`workbench::zoom_actions::tests::the_zoom_actions_step_the_ide_zoom_and_the_window_draws_at_it`; steps the stored zoom and the window draws the theme's sizes at it (interface text, rows, headers, the stripe, the gutter). Missing: the editor's text, every icon and the sizes views write in pixels do not scale, where the webview zooms the whole document"
+    "proof": "`workbench::zoom_actions::tests::the_zoom_actions_step_the_ide_zoom_and_the_window_draws_at_it`, `workbench::zoom_actions::tests::the_ide_zoom_scales_the_editors_code_and_the_icons`; steps the stored zoom and the window draws at it: the theme's sizes, interface text, the editor's and the terminal's text, the diff viewers and every icon. Missing: gaps, paddings and sizes views write in pixels (about 2,600 places) do not scale, where the webview zooms the whole document"
   },
   "action:view.zoomOut": {
     "status": "partial",
-    "proof": "`workbench::zoom_actions::tests::the_zoom_actions_step_the_ide_zoom_and_the_window_draws_at_it`; steps the stored zoom and the window draws the theme's sizes at it (interface text, rows, headers, the stripe, the gutter). Missing: the editor's text, every icon and the sizes views write in pixels do not scale, where the webview zooms the whole document"
+    "proof": "`workbench::zoom_actions::tests::the_zoom_actions_step_the_ide_zoom_and_the_window_draws_at_it`, `workbench::zoom_actions::tests::the_ide_zoom_scales_the_editors_code_and_the_icons`; steps the stored zoom and the window draws at it: the theme's sizes, interface text, the editor's and the terminal's text, the diff viewers and every icon. Missing: gaps, paddings and sizes views write in pixels (about 2,600 places) do not scale, where the webview zooms the whole document"
   },
   "action:view.resetZoom": {
     "status": "partial",
-    "proof": "`workbench::zoom_actions::tests::the_zoom_actions_step_the_ide_zoom_and_the_window_draws_at_it`; steps the stored zoom and the window draws the theme's sizes at it (interface text, rows, headers, the stripe, the gutter). Missing: the editor's text, every icon and the sizes views write in pixels do not scale, where the webview zooms the whole document"
+    "proof": "`workbench::zoom_actions::tests::the_zoom_actions_step_the_ide_zoom_and_the_window_draws_at_it`, `workbench::zoom_actions::tests::the_ide_zoom_scales_the_editors_code_and_the_icons`; steps the stored zoom and the window draws at it: the theme's sizes, interface text, the editor's and the terminal's text, the diff viewers and every icon. Missing: gaps, paddings and sizes views write in pixels (about 2,600 places) do not scale, where the webview zooms the whole document"
   },
   "action:view.quickSwitchScheme": {
     "status": "partial",
     "proof": "`workbench::zoom_actions::tests::quick_switch_scheme_switches_the_theme_and_the_editor_color_scheme`; the chooser switches the theme, the editor colour scheme and the keymap. Missing: the theme's preview while a row is hovered"
+  },
+  "action:run.runContext": {
+    "status": "done",
+    "proof": "`workbench::run_context::tests::run_context_runs_the_file_as_the_selected_temporary_configuration`, `workbench::run_context::tests::run_context_says_so_when_the_file_has_nothing_to_run`, `workbench::run_context::tests::run_with_current_file_selected_runs_the_file_and_keeps_current_file_selected`, `workbench::run_context::tests::the_editors_menu_offers_run_for_the_file_and_runs_it`, `workbench::run_context::tests::the_project_views_menu_offers_run_for_the_file_and_runs_it`; the context's configuration becomes the selected temporary one and runs, from the registry and from the Run rows of the editor's and the Project view's menus; a file with nothing to run says so; with Current File selected it runs the file and Current File stays selected"
+  },
+  "action:run.debugContext": {
+    "status": "partial",
+    "proof": "`workbench::run_context::tests::debug_context_hands_the_files_configuration_to_the_debugger`; the file's configuration is handed to the debugger. Missing: no test starts a debug session from a context"
+  },
+  "action:run.modifyContext": {
+    "status": "done",
+    "proof": "`workbench::run_context::tests::modify_run_configuration_opens_the_contexts_configuration_in_edit_configurations`, `workbench::run_context::tests::the_tabs_menu_offers_modify_run_configuration_for_its_file`; opens Edit Configurations on the context's temporary configuration, from the registry and from the tab's menu"
+  },
+  "action:run.chooseDebugConfig": {
+    "status": "done",
+    "proof": "`workbench::run_context::tests::debug_opens_the_chooser_in_debug_mode_and_enter_debugs_the_configuration`; opens the configuration chooser in Debug mode and Enter debugs the chosen configuration"
+  },
+  "action:debug.evaluate": {
+    "status": "partial",
+    "proof": "`workbench::debug_extras::tests::evaluate_expression_evaluates_the_selection_in_the_paused_frame_and_adds_it_to_the_watches`, `debugger::evaluate_dialog::tests::a_result_reads_as_a_row_of_the_variables_view`, `debugger::evaluate_dialog::tests::add_to_watches_and_escape`, `debugger::evaluate_dialog::tests::enter_evaluates_the_expression_and_shows_its_value`, `debugger::evaluate_dialog::tests::nothing_is_evaluated_while_the_program_runs`, `debugger::evaluate_dialog::tests::the_history_button_offers_the_newest_expressions_and_recalls_one`, `debugger::evaluate_dialog::tests::the_history_keeps_the_newest_expression_first_and_at_most_fifty`, `debugger::evaluate_dialog::tests::up_and_down_walk_the_history`; opens Evaluate on the selection, evaluates in the paused frame, keeps a history and adds the expression to the watches. Missing: a multi-line field, completion and an expandable result"
+  },
+  "action:debug.smartStepInto": {
+    "status": "partial",
+    "proof": "`workbench::debug_extras::tests::smart_step_into_lists_the_calls_of_the_line_and_steps_into_the_chosen_one`, `workbench::debug_extras::tests::smart_step_into_steps_straight_in_when_the_debugger_lists_no_calls`; steps straight in when the debugger lists no calls, or lists the calls of the line and steps into the chosen one. Missing: the dialog form and inline picking in the editor, and the direct step for exactly one call"
+  },
+  "ipc:debug_step_in_targets": {
+    "status": "done",
+    "proof": "`workbench::debug_extras::tests::smart_step_into_lists_the_calls_of_the_line_and_steps_into_the_chosen_one`; the listed calls can only come from the adapter's step-in targets"
+  },
+  "ipc:debug_step_in_target": {
+    "status": "done",
+    "proof": "`workbench::debug_extras::tests::smart_step_into_lists_the_calls_of_the_line_and_steps_into_the_chosen_one`; the chosen call is stepped into through the same backend function"
+  },
+  "point.registerMenuGroup:run.context": {
+    "status": "partial",
+    "proof": "`workbench::run_context::tests::the_editors_menu_offers_run_for_the_file_and_runs_it`, `workbench::run_context::tests::the_project_views_menu_offers_run_for_the_file_and_runs_it`, `workbench::run_context::tests::the_tabs_menu_offers_modify_run_configuration_for_its_file`; the Run rows of the editor's, the Project view's and the tab's menus. Missing: executor rows (no executor exists natively)"
   }
 }
