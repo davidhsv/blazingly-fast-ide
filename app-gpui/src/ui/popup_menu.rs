@@ -417,7 +417,8 @@ impl<C: Clone + 'static> Render for PopupMenu<C> {
                                 (false, None) => None,
                             },
                         ))
-                        .child(div().flex_1().min_w_0().child(SharedString::from(row.label.clone())))
+                        // A label wider than the menu ends in an ellipsis instead of running past its frame.
+                        .child(div().flex_1().min_w_0().truncate().child(SharedString::from(row.label.clone())))
                         .children(
                             row.shortcut.clone().map(|shortcut| {
                                 div().ml(px(24.0)).text_color(muted).child(SharedString::from(shortcut))

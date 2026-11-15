@@ -1958,6 +1958,7 @@ impl SessionView {
             for choice in choices {
                 let selector = format!("session-question-{position}-{}", choice.key);
                 let (value, checked) = (choice.choice.clone(), choice.checked);
+                let hovered_choice = choice.choice.clone();
                 let mark = if q.multi_select {
                     if checked { "check" } else { "minus" }
                 } else if checked {
@@ -2000,6 +2001,19 @@ impl SessionView {
                                     el.child(div().text_color(muted).child(description))
                                 }),
                         )
+                        .on_hover(cx.listener(move |view: &mut Self, hovered: &bool, _, cx| {
+                            // Moving from one answer straight to another can report the new one first: a leave
+                            // clears the preview only while it is still this answer's.
+                            let Some(question) = &mut view.question else { return };
+                            if *hovered {
+                                question.form.hover(position, Some(hovered_choice.clone()));
+                            } else if question.form.hovered() == Some((position, &hovered_choice)) {
+                                question.form.hover(position, None);
+                            } else {
+                                return;
+                            }
+                            cx.notify();
+                        }))
                         .when(!busy, |el| {
                             el.on_click(cx.listener(move |view, _, window, cx| {
                                 view.choice_clicked(position, value.clone(), checked, window, cx);

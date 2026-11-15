@@ -136,6 +136,17 @@ fn search(dialog: &Entity<SettingsDialogView>, text: &str, cx: &mut VisualTestCo
     cx.run_until_parked();
 }
 
+/// Pastes `text` into the Settings search, so the query changes once to the whole text: typed key by
+/// key, each prefix would pick its own first page.
+fn paste_search(dialog: &Entity<SettingsDialogView>, text: &str, cx: &mut VisualTestContext) {
+    let field = dialog.read_with(cx, |view, _| view.search_field().clone());
+    cx.update(|window, cx| window.focus(&field.focus_handle(cx), cx));
+    cx.write_to_clipboard(gpui_kit::ClipboardItem::new_string(text.to_owned()));
+    cx.simulate_keystrokes("cmd-v");
+    cx.run_until_parked();
+    assert_eq!(field.read_with(cx, |field, _| field.text().to_owned()), text);
+}
+
 /// Stores `value` for `key` in the project's settings.
 fn store_in_project(key: &str, value: Value, cx: &mut VisualTestContext) {
     cx.update(|_, cx| set("w1", Scope::Project, key, &value, cx)).expect("the setting is stored");
@@ -378,7 +389,7 @@ async fn finds_the_maven_active_profiles_setting(cx: &mut TestAppContext) {
     let _home = start(cx);
     let (_folder, _root, workbench, cx) = project(cx, &[("pom.xml", "<project/>\n")]);
     let dialog = open_page(&workbench, build_maven::PAGE, cx);
-    search(&dialog, "Active profiles", cx);
+    paste_search(&dialog, "Active profiles", cx);
     assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some(build_maven::PAGE));
     assert!(cx.debug_bounds("settings-text-languages.java.maven.activeProfiles").is_some(), "Active profiles");
 }
@@ -389,7 +400,7 @@ async fn finds_the_maven_toolchains_setting(cx: &mut TestAppContext) {
     let _home = start(cx);
     let (_folder, _root, workbench, cx) = project(cx, &[("pom.xml", "<project/>\n")]);
     let dialog = open_page(&workbench, build_maven::PAGE, cx);
-    search(&dialog, "Toolchains", cx);
+    paste_search(&dialog, "Toolchains", cx);
     assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some(build_maven::PAGE));
     assert!(cx.debug_bounds("settings-text-languages.java.maven.toolchains").is_some(), "Toolchains file");
 }

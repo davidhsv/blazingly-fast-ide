@@ -9,11 +9,7 @@
 //! [`ComposerView::call_answered`].
 
 use crate::agents::composer::ComposerDraft;
-use crate::agents::config_bar::{
-    Chip, ListKey, OptionList, Picker, Values, config_bar, effort_slider, effort_step, mode_chip, model_chip,
-    select_icon, switch_choice, value_of,
-};
-use crate::agents::config_pickers::switch_values;
+use crate::agents::config_pickers_view::{self, Pickers};
 use crate::agents::message_editor::submit_buttons;
 use crate::agents::store::{AgentCall, AgentEffect, AgentsStore, Ticket};
 use crate::platform::i18n::{I18n, Localization};
@@ -22,10 +18,11 @@ use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
     AnyElement, App, Context, Div, Entity, EntityInputHandler, EventEmitter, FocusHandle, Focusable, IntoElement,
-    KeyDownEvent, Keystroke, MouseButton, Render, SharedString, Stateful, Subscription, Window, deferred, div,
-    prelude::*, px,
+    Keystroke, Render, SharedString, Stateful, Subscription, Window, div, prelude::*, px,
 };
-use ide_agent::{AgentConfigOption, AgentTask};
+use ide_agent::AgentTask;
+
+mod pickers;
 
 /// How a line break of the message is shown, and typed, in the one-line field.
 const LINE_BREAK_MARK: &str = "⏎";
@@ -51,88 +48,14 @@ pub enum ComposerEvent {
     Effects(Vec<AgentEffect>),
 }
 
-/// A chip of the settings row.
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct ConfigChip {
-    /// The option the chip opens (the model for the model and effort chip, the mode for the mode chip).
-    option: String,
-    label: String,
-    detail: Option<String>,
-    icon: Option<&'static str>,
-    /// A switch flips on a click instead of opening a list.
-    switch: Option<bool>,
-}
-
-impl ConfigChip {
-    fn of(option: &str, chip: Chip) -> Self {
-        Self { option: option.to_owned(), label: chip.value, detail: chip.detail, icon: chip.icon, switch: None }
-    }
-}
-
-/// The open picker: the list of its option, and the extra row of a combined chip.
-struct OpenPicker {
-    chip: usize,
-    list: OptionList,
-    /// The effort option shown as level steps under the model list.
-    effort: Option<String>,
-    /// The Allow All switch under the mode list.
-    allow_all: Option<String>,
-}
-
-fn find<'a>(config: &'a [AgentConfigOption], id: &str) -> Option<&'a AgentConfigOption> {
-    config.iter().find(|o| o.id == id)
-}
-
-fn chips(config: &[AgentConfigOption], values: &Values, i18n: &I18n) -> Vec<ConfigChip> {
-    let name_of = |option: &AgentConfigOption| {
-        let value = value_of(option, values);
-        option
-            .values
-            .iter()
-            .find(|v| Some(v.value.as_str()) == value)
-            .map_or_else(|| i18n.tx("Default"), |v| v.name.clone())
-    };
-    config_bar(config)
-        .inline
-        .into_iter()
-        .map(|picker| match picker {
-            Picker::ModelEffort { model, effort } => {
-                let chip = model_chip(model, effort, values, i18n);
-                ConfigChip::of(&model.id, chip)
-            }
-            Picker::ModeAllowAll { mode, allow_all } => {
-                let chip = mode_chip(mode, allow_all, values, i18n);
-                ConfigChip::of(&mode.id, chip)
-            }
-            Picker::Switch(option) => {
-                let on = switch_values(option).is_some_and(|(on, _)| value_of(option, values) == Some(on));
-                ConfigChip {
-                    option: option.id.clone(),
-                    label: i18n.tx(&option.name),
-                    detail: None,
-                    icon: None,
-                    switch: Some(on),
-                }
-            }
-            Picker::Select(option) => ConfigChip {
-                option: option.id.clone(),
-                label: name_of(option),
-                detail: None,
-                icon: value_of(option, values).and_then(|v| select_icon(option, v)),
-                switch: None,
-            },
-        })
-        .collect()
-}
-
 pub struct ComposerView {
     store: Entity<AgentsStore>,
     task: String,
     field: Entity<TextField>,
     /// The send on its way, by the ticket of its call.
     sending: Option<Ticket>,
-    picker: Option<OpenPicker>,
-    picker_focus: FocusHandle,
+    /// The settings chips' pickers and the Agent settings popup.
+    pickers: Pickers,
     claim: u64,
     _subscriptions: Vec<Subscription>,
 }
@@ -158,6 +81,7 @@ impl ComposerView {
         let subscriptions = vec![
             cx.observe(&store, |view, _, cx| {
                 view.sync_field(cx);
+                config_pickers_view::refresh(view, cx);
                 cx.notify();
             }),
             cx.subscribe(&field, |view, field, event: &TextFieldEvent, cx| {
@@ -179,14 +103,17 @@ impl ComposerView {
             },
             cx,
         );
-        cx.on_release(|view: &mut Self, cx| input::release_keys(view.claim, cx)).detach();
+        cx.on_release(|view: &mut Self, cx| {
+            input::release_keys(view.claim, cx);
+            view.pickers.release(cx);
+        })
+        .detach();
         Self {
             store,
             task: task.to_owned(),
             field,
             sending: None,
-            picker: None,
-            picker_focus: cx.focus_handle(),
+            pickers: Pickers::new(cx),
             claim,
             _subscriptions: subscriptions,
         }
@@ -240,46 +167,6 @@ impl ComposerView {
         out
     }
 
-    /// The settings chips, as `<label>` with ` · <detail>`, ` [on]` / ` [off]` for a switch.
-    pub fn chips(&self, cx: &App) -> Vec<String> {
-        self.config_chips(cx)
-            .into_iter()
-            .map(|chip| {
-                let mut text = chip.label;
-                if let Some(detail) = chip.detail {
-                    text.push_str(&format!(" · {detail}"));
-                }
-                if let Some(on) = chip.switch {
-                    text.push_str(if on { " [on]" } else { " [off]" });
-                }
-                text
-            })
-            .collect()
-    }
-
-    /// The entries of the open picker, as `<label>` with ` *` on the highlighted one.
-    pub fn picker_entries(&self) -> Option<Vec<String>> {
-        let picker = self.picker.as_ref()?;
-        let active = picker.list.active();
-        Some(
-            picker
-                .list
-                .filtered()
-                .iter()
-                .enumerate()
-                .map(|(i, entry)| if active == Some(i) { format!("{} *", entry.label) } else { entry.label.clone() })
-                .collect(),
-        )
-    }
-
-    fn config_chips(&self, cx: &App) -> Vec<ConfigChip> {
-        let store = self.store.read(cx);
-        let Some(task) = self.task_of(store) else { return Vec::new() };
-        let english = I18n::default();
-        let i18n = cx.try_global::<Localization>().map_or(&english, |localization| &localization.0);
-        chips(&task.config, &Values::new(), i18n)
-    }
-
     // ----- what keys and clicks do -----
 
     /// The keys of the message field, ahead of the field: ⇧Enter types a line break, Enter sends (⌘/Ctrl+Enter
@@ -292,7 +179,7 @@ impl ComposerView {
                 self.field.update(cx, |field, cx| field.replace_text_in_range(None, LINE_BREAK_MARK, window, cx));
             }
             "enter" => self.send(command, cx),
-            "escape" if self.picker.is_some() => self.close_picker(cx),
+            "escape" if self.pickers.is_open() => config_pickers_view::close_popups(self, window, cx),
             _ => return false,
         }
         true
@@ -349,71 +236,6 @@ impl ComposerView {
     fn set_config(&mut self, option: String, value: String, cx: &mut Context<Self>) {
         let call = AgentCall::SetConfig { task: self.task.clone(), option, value };
         cx.emit(ComposerEvent::Effects(vec![AgentEffect::Call { ticket: None, call }]));
-    }
-
-    fn chip_clicked(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
-        if self.picker.as_ref().is_some_and(|p| p.chip == index) {
-            self.close_picker(cx);
-            return;
-        }
-        let Some(chip) = self.config_chips(cx).into_iter().nth(index) else { return };
-        let store = self.store.read(cx);
-        let Some(task) = self.task_of(store) else { return };
-        let values = Values::new();
-        let Some(option) = find(&task.config, &chip.option) else { return };
-        if let Some(on) = chip.switch {
-            let choice = switch_choice(option, !on);
-            if let Some((option, value)) = choice {
-                self.set_config(option, value, cx);
-            }
-            return;
-        }
-        let (mut effort, mut allow_all) = (None, None);
-        for picker in config_bar(&task.config).inline {
-            match picker {
-                Picker::ModelEffort { model, effort: e } if model.id == option.id => effort = Some(e.id.clone()),
-                Picker::ModeAllowAll { mode, allow_all: a } if mode.id == option.id => allow_all = Some(a.id.clone()),
-                _ => {}
-            }
-        }
-        self.picker = Some(OpenPicker { chip: index, list: OptionList::new(option, &values), effort, allow_all });
-        window.focus(&self.picker_focus, cx);
-        cx.notify();
-    }
-
-    fn close_picker(&mut self, cx: &mut Context<Self>) {
-        self.picker = None;
-        cx.notify();
-    }
-
-    fn entry_clicked(&mut self, value: String, cx: &mut Context<Self>) {
-        let choice = self.picker.as_ref().and_then(|p| p.list.click(&value));
-        if let Some((option, value)) = choice {
-            self.picker = None;
-            self.set_config(option, value, cx);
-        }
-        cx.notify();
-    }
-
-    fn picker_key(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
-        let Some(picker) = &mut self.picker else { return };
-        let key = match event.keystroke.key.as_str() {
-            "up" => ListKey::Up,
-            "down" => ListKey::Down,
-            "enter" => ListKey::Enter,
-            "escape" => {
-                self.close_picker(cx);
-                cx.stop_propagation();
-                return;
-            }
-            _ => return,
-        };
-        if let Some((option, value)) = picker.list.key(key) {
-            self.picker = None;
-            self.set_config(option, value, cx);
-        }
-        cx.stop_propagation();
-        cx.notify();
     }
 
     // ----- drawing -----
@@ -487,106 +309,6 @@ impl ComposerView {
         }
         Some(div().flex().flex_wrap().gap(px(4.0)).px(px(8.0)).pt(px(6.0)).children(chips))
     }
-
-    fn picker_element(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let picker = self.picker.as_ref()?;
-        let store = self.store.read(cx);
-        let task = self.task_of(store)?;
-        let values = Values::new();
-        let effort = picker.effort.as_deref().and_then(|id| find(&task.config, id)).cloned();
-        let allow_all = picker.allow_all.as_deref().and_then(|id| find(&task.config, id)).cloned();
-        let active = picker.list.active();
-        let entries: Vec<(String, String, bool, bool)> = picker
-            .list
-            .filtered()
-            .iter()
-            .enumerate()
-            .map(|(i, entry)| (entry.value.clone(), entry.label.clone(), entry.section, active == Some(i)))
-            .collect();
-        let muted = theme::color(cx, "fg-muted");
-        let mut rows: Vec<AnyElement> = Vec::with_capacity(entries.len());
-        for (index, (value, label, section, highlighted)) in entries.into_iter().enumerate() {
-            if section {
-                let title = div().px(px(8.0)).pt(px(4.0)).text_color(muted).child(SharedString::from(label));
-                rows.push(title.into_any_element());
-                continue;
-            }
-            let selector = format!("composer-picker-{index}");
-            let id = selector.clone();
-            rows.push(
-                div()
-                    .id(SharedString::from(id))
-                    .debug_selector(move || selector)
-                    .px(px(8.0))
-                    .h(theme::length(cx, "h-row"))
-                    .flex()
-                    .items_center()
-                    .rounded(theme::length(cx, "radius-small"))
-                    .when(highlighted, |el| el.bg(theme::color(cx, "bg-list-selected")))
-                    .hover(|el| el.bg(theme::color(cx, "bg-hover")))
-                    .child(SharedString::from(label))
-                    .on_click(cx.listener(move |view, _, _, cx| view.entry_clicked(value.clone(), cx)))
-                    .into_any_element(),
-            );
-        }
-        if let Some(effort) = effort {
-            let slider = effort_slider(&effort, &values);
-            let mut steps = Vec::with_capacity(effort.values.len());
-            for (index, level) in effort.values.iter().enumerate() {
-                let choice = effort_step(&effort, &values, index);
-                let selector = format!("composer-effort-{index}");
-                let pressed = index == slider.index;
-                steps.push(
-                    self.chip_button(selector, cx, move |view, _, cx| {
-                        if let Some((option, value)) = choice.clone() {
-                            view.picker = None;
-                            view.set_config(option, value, cx);
-                        }
-                    })
-                    .when(pressed, |el| el.bg(theme::color(cx, "bg-selected")))
-                    .child(SharedString::from(level.name.clone())),
-                );
-            }
-            let border = theme::color(cx, "border");
-            let levels = div().flex().gap(px(2.0)).px(px(4.0)).pt(px(4.0)).border_t_1().border_color(border);
-            rows.push(levels.children(steps).into_any_element());
-        }
-        if let Some(allow_all) = allow_all {
-            let on = switch_values(&allow_all).is_some_and(|(on, _)| value_of(&allow_all, &values) == Some(on));
-            let choice = switch_choice(&allow_all, !on);
-            let label = format!("{}: {}", tx(cx, &allow_all.name), tx(cx, if on { "On" } else { "Off" }));
-            rows.push(
-                self.chip_button("composer-allow-all".to_owned(), cx, move |view, _, cx| {
-                    if let Some((option, value)) = choice.clone() {
-                        view.picker = None;
-                        view.set_config(option, value, cx);
-                    }
-                })
-                .child(SharedString::from(label))
-                .into_any_element(),
-            );
-        }
-        let popup = div()
-            .debug_selector(|| "composer-picker".to_owned())
-            .track_focus(&self.picker_focus)
-            .on_key_down(cx.listener(Self::picker_key))
-            .absolute()
-            .bottom(px(40.0))
-            .left(px(8.0))
-            .w(px(280.0))
-            .max_h(px(320.0))
-            .p(px(4.0))
-            .flex()
-            .flex_col()
-            .rounded(theme::length(cx, "radius-popup"))
-            .border_1()
-            .border_color(theme::color(cx, "border"))
-            .bg(theme::color(cx, "bg-popup"))
-            .occlude()
-            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-            .children(rows);
-        Some(deferred(popup).with_priority(1).into_any_element())
-    }
 }
 
 impl Focusable for ComposerView {
@@ -605,26 +327,7 @@ impl Render for ComposerView {
             let i18n = cx.try_global::<Localization>().map_or(&english, |localization| &localization.0);
             submit_buttons(task, &draft, self.sending.is_some(), i18n)
         });
-        let muted = theme::color(cx, "fg-muted");
-        let mut chips: Vec<AnyElement> = Vec::new();
-        for (index, chip) in self.config_chips(cx).into_iter().enumerate() {
-            let selector = format!("composer-config-{index}");
-            let mut button =
-                self.chip_button(selector, cx, move |view, window, cx| view.chip_clicked(index, window, cx));
-            if let Some(icon) = chip.icon {
-                button = button.child(theme::icon(cx, icon, 13.0, muted));
-            }
-            button = button.child(SharedString::from(chip.label));
-            if let Some(detail) = chip.detail {
-                let faint = theme::color(cx, "fg-faint");
-                button = button.child(div().text_color(faint).child(SharedString::from(detail)));
-            }
-            match chip.switch {
-                Some(on) => button = button.child(theme::icon(cx, if on { "check" } else { "minus" }, 12.0, muted)),
-                None => button = button.child(theme::icon(cx, "chevron-down", 12.0, muted)),
-            }
-            chips.push(button.into_any_element());
-        }
+        let chips = config_pickers_view::chip_elements(self, cx);
         let mut submit: Vec<AnyElement> = Vec::new();
         if let Some(buttons) = buttons {
             if buttons.stop {
@@ -678,7 +381,8 @@ impl Render for ComposerView {
                     .child(div().flex().flex_wrap().gap(px(2.0)).children(chips))
                     .child(div().flex().items_center().gap(px(4.0)).children(submit)),
             )
-            .children(self.picker_element(cx))
+            .children(config_pickers_view::picker_element(self, cx))
+            .children(config_pickers_view::settings_element(self, cx))
     }
 }
 

@@ -27,6 +27,15 @@ pub enum TextFieldEvent {
     Cancelled,
 }
 
+/// A run of a text field's text drawn in its own colours, such as an owner's tag for a file reference.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TextTag {
+    /// Bytes of the text.
+    pub range: Range<usize>,
+    pub color: Hsla,
+    pub background: Option<Hsla>,
+}
+
 pub struct TextField {
     focus: FocusHandle,
     text: String,
@@ -47,6 +56,8 @@ pub struct TextField {
     read_only: bool,
     /// The steps Undo and Redo walk.
     history: TextHistory,
+    /// Runs drawn in their own colours, in order and apart; the owner keeps them up to date with the text.
+    tags: Vec<TextTag>,
 }
 
 impl EventEmitter<TextFieldEvent> for TextField {}
@@ -83,6 +94,7 @@ impl TextField {
             text_area: None,
             read_only: false,
             history: TextHistory::default(),
+            tags: Vec::new(),
         }
     }
 
@@ -231,6 +243,18 @@ impl TextField {
 
     pub fn is_read_only(&self) -> bool {
         self.read_only
+    }
+
+    /// Draws `tags` in their own colours; one out of date with the text is left out.
+    pub fn set_tags(&mut self, tags: Vec<TextTag>, cx: &mut Context<Self>) {
+        if self.tags != tags {
+            self.tags = tags;
+            cx.notify();
+        }
+    }
+
+    pub fn tags(&self) -> &[TextTag] {
+        &self.tags
     }
 
     /// Replaces `range` (the selection when none is given) with `new_text`.
@@ -522,15 +546,34 @@ impl Element for TextFieldElement {
             (SharedString::from(field.text.clone()), theme::color(cx, "fg-strong"))
         };
         let family = crate::theme::installed_fonts::theme_family(cx, "font-ui", ".SystemUIFont").to_string();
-        let run = TextRun {
-            len: text.len(),
+        let base = TextRun {
+            len: 0,
             font: font(SharedString::from(family)),
             color,
             background_color: None,
             underline: None,
             strikethrough: None,
         };
-        window.text_system().shape_line(text, theme::length(cx, "fs-ui"), &[run], None)
+        let mut runs = Vec::new();
+        let mut at = 0;
+        if !field.text.is_empty() {
+            for tag in &field.tags {
+                let (start, end) = (tag.range.start, tag.range.end.min(text.len()));
+                if start < at || start >= end || !text.is_char_boundary(start) || !text.is_char_boundary(end) {
+                    continue;
+                }
+                if start > at {
+                    runs.push(TextRun { len: start - at, ..base.clone() });
+                }
+                let (color, background_color) = (tag.color, tag.background);
+                runs.push(TextRun { len: end - start, color, background_color, ..base.clone() });
+                at = end;
+            }
+        }
+        if at < text.len() || runs.is_empty() {
+            runs.push(TextRun { len: text.len() - at, ..base });
+        }
+        window.text_system().shape_line(text, theme::length(cx, "fs-ui"), &runs, None)
     }
 
     fn paint(

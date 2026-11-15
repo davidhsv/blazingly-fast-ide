@@ -13,10 +13,11 @@
 use super::notifications::{NotificationLevel, NotificationRequest};
 use super::services_window::on_workbench;
 use super::{Panel, Workbench};
-use crate::agents::composer::{LineRange, can_send, mention_of};
+use crate::agents::composer::{LineRange, mention_of};
 use crate::agents::composer_view::{ComposerEvent, ComposerView};
 use crate::agents::markdown::LinkAction;
 use crate::agents::model::{HOME_KEY, REGISTRY_PAGE, TOOL_WINDOW};
+use crate::agents::new_task_view::NewTaskView;
 use crate::agents::reply_actions::{ReplyActions, ReplyTarget};
 use crate::agents::session_view::{MessageAction, SessionEvent, SessionView};
 use crate::agents::store::{
@@ -31,17 +32,13 @@ use crate::platform::context::set_context;
 use crate::platform::i18n::{I18n, Localization};
 use crate::platform::local_time::now_ms;
 use crate::platform::storage::UiStorage;
-use crate::theme;
-use crate::ui::text_field::{TextField, TextFieldEvent};
 use crate::vcs::prompt_dialogs::{CANCEL, DialogAnswer, FieldRule, OK, PromptDialog};
 use crate::vcs_ops::dialogs::{AskButton, AskRequest, PromptRequest};
-use crate::vcs_ops::menu::MenuItem;
 use futures::StreamExt as _;
 use futures::channel::mpsc::unbounded;
 use gpui_kit::{
-    AnyView, AnyWindowHandle, App, BorrowAppContext, ClipboardItem, Context, Entity, EntityId, EventEmitter,
-    FocusHandle, Focusable, IntoElement, MouseButton, MouseDownEvent, Pixels, Point, Render, SharedString,
-    Subscription, Task, Window, div, prelude::*, px,
+    AnyView, AnyWindowHandle, App, BorrowAppContext, ClipboardItem, Context, Entity, EntityId, Focusable, Subscription,
+    Task, Window, prelude::*,
 };
 use ide_agent::{AgentEvent, AgentPrompt, AgentTask};
 use serde_json::Value;
@@ -91,7 +88,7 @@ pub(super) struct AgentsSlot {
     /// The tool window's view, once it was shown.
     list: Option<Entity<TaskListView>>,
     docked: Option<DockedSession>,
-    home: Option<(Entity<NewTaskPage>, Subscription)>,
+    home: Option<(Entity<NewTaskView>, Subscription)>,
     /// The view last handed to the tool window's docked slot.
     shown_view: Option<EntityId>,
     /// The last composer focus request of the store that was carried out.
@@ -104,11 +101,6 @@ pub(super) struct AgentsSlot {
 
 fn turn_number(turn: usize) -> u32 {
     u32::try_from(turn).unwrap_or(u32::MAX)
-}
-
-/// UI text in the active language.
-fn tx(cx: &App, text: &str) -> String {
-    cx.try_global::<Localization>().map_or_else(|| text.to_owned(), |localization| localization.0.tx(text))
 }
 
 /// The string argument of an action.
@@ -746,6 +738,7 @@ impl Workbench {
 
     fn load_agent_entries(&mut self, task: String, subagent: Option<String>, cx: &mut Context<Self>) {
         let (key, sub) = (task.clone(), subagent.clone());
+        self.agents_step(cx, |store, _, _| store.reading_entries(&task, subagent.as_deref()));
         self.agents_backend(
             cx,
             move |host, label| async move {
@@ -753,9 +746,15 @@ impl Workbench {
             },
             move |workbench, answer, cx| match answer {
                 Ok(entries) => {
-                    workbench.agents_step(cx, |store, _, _| store.entries_loaded(&key, sub.as_deref(), entries));
+                    let again = workbench
+                        .agents_step(cx, |store, _, _| store.entries_read(&key, sub.as_deref(), entries))
+                        .flatten();
+                    workbench.carry_out_agents(again.into_iter().collect(), cx);
                 }
-                Err(error) => tracing::warn!(task = %key, "cannot read the agent task's conversation: {error}"),
+                Err(error) => {
+                    workbench.agents_step(cx, |store, _, _| store.entries_unreadable(&key, sub.as_deref()));
+                    tracing::warn!(task = %key, "cannot read the agent task's conversation: {error}");
+                }
             },
         );
     }
@@ -1189,9 +1188,17 @@ impl Workbench {
         }
         let home = home && slot.docked.is_none();
         if home && slot.home.is_none() {
-            let page = cx.new(|cx| NewTaskPage::new(store.clone(), cx));
+            let page = cx.new(|cx| NewTaskView::new(store.clone(), cx));
             let events = cx.subscribe(&page, Self::agents_home_event);
-            slot.home = Some((page, events));
+            slot.home = Some((page.clone(), events));
+            // Once this update is over (the slot is borrowed here): the page learns the workspace's members,
+            // the agents are listed again and the agent's commands are read.
+            cx.spawn(async move |this, cx| {
+                if this.update(cx, |workbench, cx| workbench.agents_home_opened(&page, cx)).is_err() {
+                    tracing::debug!("the window closed before the New Task page opened");
+                }
+            })
+            .detach();
         } else if !home {
             slot.home = None;
         }
@@ -1302,39 +1309,6 @@ impl Workbench {
         self.carry_out_agents(effects, cx);
     }
 
-    /// Carries out what the New Task page asks for.
-    fn agents_home_event(&mut self, page: Entity<NewTaskPage>, event: &NewTaskEvent, cx: &mut Context<Self>) {
-        match event.clone() {
-            NewTaskEvent::Start => {
-                let effect = self.agents_step(cx, |store, _, _| store.start_task(None, None)).flatten();
-                match effect {
-                    Some(effect) => self.carry_out_agents(vec![effect], cx),
-                    None => page.update(cx, |page, cx| page.finished(None, cx)),
-                }
-            }
-            NewTaskEvent::ChooseAgent(position) => {
-                let Some(store) = self.agents.as_ref().map(|slot| slot.store.clone()) else { return };
-                let items: Vec<MenuItem<String>> = store
-                    .read(cx)
-                    .providers
-                    .iter()
-                    .map(|provider| {
-                        MenuItem::item(provider.name.clone(), provider.id.clone()).disabled(!provider.installed)
-                    })
-                    .collect();
-                if items.is_empty() {
-                    return;
-                }
-                self.in_agents_window(cx, move |workbench, window, cx| {
-                    let choose = |workbench: &mut Self, id: String, _: &mut Window, cx: &mut Context<Self>| {
-                        workbench.choose_task_agent(id, cx);
-                    };
-                    workbench.show_menu(&items, position, choose, window, cx);
-                });
-            }
-        }
-    }
-
     /// The New Task page's agent: its settings start over.
     fn choose_task_agent(&mut self, provider: String, cx: &mut Context<Self>) {
         let effect = self.agents_step(cx, |store, _, _| {
@@ -1365,7 +1339,7 @@ impl Workbench {
         Some((docked.session.clone(), docked.composer.clone()))
     }
 
-    pub(super) fn agents_home_page(&self) -> Option<Entity<NewTaskPage>> {
+    pub(super) fn agents_home_page(&self) -> Option<Entity<NewTaskView>> {
         self.agents.as_ref()?.home.as_ref().map(|(page, _)| page.clone())
     }
 
@@ -1374,178 +1348,6 @@ impl Workbench {
     }
 }
 
-// -------------------------------------------------------------------------------------------------
-// The New Task page
-
-/// What the New Task page asks of its window.
-#[derive(Clone, Debug, PartialEq)]
-pub(super) enum NewTaskEvent {
-    /// Start the task with the page's description and settings ([`AgentsStore::start_task`]).
-    Start,
-    /// Show the agents to choose from at `position`.
-    ChooseAgent(Point<Pixels>),
-}
-
-/// The New Task page docked in the Agents tool window: the task's description (the store's New Task
-/// composer), the agent it runs with, and Start, which needs a description and an agent that is listed
-/// and installed.
-pub(super) struct NewTaskPage {
-    store: Entity<AgentsStore>,
-    field: Entity<TextField>,
-    starting: bool,
-    error: Option<String>,
-    _subscriptions: Vec<Subscription>,
-}
-
-impl EventEmitter<NewTaskEvent> for NewTaskPage {}
-
-impl NewTaskPage {
-    fn new(store: Entity<AgentsStore>, cx: &mut Context<Self>) -> Self {
-        let text = store.read(cx).composer(HOME).text;
-        let placeholder = tx(cx, "Describe a task…");
-        let field = cx.new(|cx| {
-            let mut field = TextField::new(cx).with_placeholder(placeholder);
-            field.set_text(&text, cx);
-            field
-        });
-        let subscriptions = vec![
-            cx.observe(&store, |page, _, cx| {
-                page.sync_field(cx);
-                cx.notify();
-            }),
-            cx.subscribe(&field, |page, field, event: &TextFieldEvent, cx| match event {
-                TextFieldEvent::Changed => {
-                    let text = field.read(cx).text().to_owned();
-                    page.store.update(cx, |store, cx| {
-                        store.update_composer(HOME, |draft| draft.text = text);
-                        cx.notify();
-                    });
-                }
-                TextFieldEvent::Submitted => page.start(cx),
-                TextFieldEvent::Cancelled => {}
-            }),
-        ];
-        Self { store, field, starting: false, error: None, _subscriptions: subscriptions }
-    }
-
-    /// The store's description changed elsewhere (a prompt the action passed, a reference sent): the
-    /// field shows it.
-    fn sync_field(&mut self, cx: &mut Context<Self>) {
-        let text = self.store.read(cx).composer(HOME).text;
-        if self.field.read(cx).text() != text {
-            self.field.update(cx, |field, cx| field.set_text(&text, cx));
-        }
-    }
-
-    #[cfg(test)]
-    pub(super) fn field(&self) -> &Entity<TextField> {
-        &self.field
-    }
-
-    /// Why the last Start failed.
-    #[cfg(test)]
-    pub(super) fn error(&self) -> Option<&str> {
-        self.error.as_deref()
-    }
-
-    /// Start can be pressed: a description, an agent that is listed and installed, nothing starting.
-    pub(super) fn can_start(&self, cx: &App) -> bool {
-        let store = self.store.read(cx);
-        let installed = store.provider(&store.draft.provider).is_some_and(|provider| provider.installed);
-        !self.starting && installed && can_send(&store.composer(HOME))
-    }
-
-    fn start(&mut self, cx: &mut Context<Self>) {
-        if !self.can_start(cx) {
-            return;
-        }
-        self.starting = true;
-        self.error = None;
-        cx.emit(NewTaskEvent::Start);
-        cx.notify();
-    }
-
-    /// The Start ended: `error` says why it failed.
-    fn finished(&mut self, error: Option<String>, cx: &mut Context<Self>) {
-        self.starting = false;
-        self.error = error;
-        cx.notify();
-    }
-}
-
-impl Focusable for NewTaskPage {
-    fn focus_handle(&self, cx: &App) -> FocusHandle {
-        self.field.focus_handle(cx)
-    }
-}
-
-impl Render for NewTaskPage {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let agent = {
-            let store = self.store.read(cx);
-            let id = &store.draft.provider;
-            store.provider(id).map_or_else(|| id.clone(), |provider| provider.name.clone())
-        };
-        let enabled = self.can_start(cx);
-        let label = tx(cx, if self.starting { "Starting…" } else { "Start" });
-        let muted = theme::color(cx, "fg-muted");
-        let field = div()
-            .px(px(8.0))
-            .h(theme::length(cx, "h-control"))
-            .flex()
-            .items_center()
-            .border_1()
-            .border_color(theme::color(cx, "border"))
-            .rounded(theme::length(cx, "radius-control"))
-            .bg(theme::color(cx, "bg-field"))
-            .child(self.field.clone());
-        let chooser = div()
-            .id("agents-home-agent")
-            .debug_selector(|| "agents-home-agent".to_owned())
-            .h(px(24.0))
-            .px(px(6.0))
-            .flex()
-            .items_center()
-            .gap(px(4.0))
-            .rounded(theme::length(cx, "radius-small"))
-            .hover(|el| el.bg(theme::color(cx, "bg-hover")))
-            .child(SharedString::from(agent))
-            .child(theme::icon(cx, "chevron-down", 12.0, muted))
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|_, event: &MouseDownEvent, _, cx| cx.emit(NewTaskEvent::ChooseAgent(event.position))),
-            );
-        let start = div()
-            .id("agents-home-start")
-            .debug_selector(|| "agents-home-start".to_owned())
-            .h(px(24.0))
-            .px(px(10.0))
-            .flex()
-            .items_center()
-            .rounded(theme::length(cx, "radius-control"))
-            .when(enabled, |el| {
-                el.bg(theme::color(cx, "accent"))
-                    .text_color(theme::color(cx, "fg-on-accent"))
-                    .on_click(cx.listener(|page, _, _, cx| page.start(cx)))
-            })
-            .when(!enabled, |el| el.opacity(0.5))
-            .child(SharedString::from(label));
-        let error = self.error.clone().map(|error| {
-            div()
-                .debug_selector(|| "agents-home-error".to_owned())
-                .text_color(theme::color(cx, "danger"))
-                .child(SharedString::from(error))
-        });
-        div()
-            .size_full()
-            .flex()
-            .flex_col()
-            .gap(px(8.0))
-            .p(px(8.0))
-            .text_size(theme::length(cx, "fs-ui"))
-            .text_color(theme::color(cx, "fg"))
-            .child(field)
-            .child(div().flex().items_center().justify_between().child(chooser).child(start))
-            .children(error)
-    }
-}
+/// The window's side of the New Task page.
+#[path = "agents_views.rs"]
+mod views;

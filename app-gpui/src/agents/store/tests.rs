@@ -400,6 +400,58 @@ fn fetches_a_conversation_once_and_shows_it_again_from_the_store_when_its_tab_re
     assert_eq!(h.store.entries("one", None), Some([agent("Answer A")].as_slice()));
 }
 
+/// Deleting a running task stops its agent, whose exit is reported after the removal: the task stays deleted
+/// and nobody is told it failed.
+#[test]
+fn keeps_a_deleted_task_deleted_when_its_agents_exit_is_reported_after_the_removal() {
+    let mut h = unread_harness();
+    h.emit(AgentEvent::Removed { id: "one".into() });
+    let mut failed = with_status("one", AgentStatus::Failed);
+    failed.error = Some("The agent process exited.".into());
+    let effects = h.task(failed).to_vec();
+    assert!(h.store.task("one").is_none(), "the task stays deleted");
+    assert_eq!(notifications(&effects), 0);
+    assert!(h.store.task("two").is_some());
+}
+
+/// A reply that arrives while the conversation is being read is not lost: the read may have been made before it,
+/// so the conversation is read again and the second answer shows the reply.
+#[test]
+fn reads_the_conversation_again_when_a_reply_arrives_while_it_is_read() {
+    let mut h = unread_harness();
+    fn reread(effect: Option<AgentEffect>) -> bool {
+        matches!(effect, Some(AgentEffect::LoadEntries { task, subagent: None }) if task == "one")
+    }
+    h.store.reading_entries("one", None);
+    h.reply("one", "Answer A");
+    let stale = vec![user("Question", false)];
+    assert!(reread(h.store.entries_read("one", None, stale.clone())), "the reply came while it was read");
+    assert_eq!(h.store.entries("one", None), Some(stale.as_slice()));
+    h.store.reading_entries("one", None);
+    let whole = vec![user("Question", false), agent("Answer A")];
+    assert!(h.store.entries_read("one", None, whole.clone()).is_none(), "nothing came during the second read");
+    assert_eq!(h.store.entries("one", None), Some(whole.as_slice()));
+
+    // Shown already: a reply kept while a read is on its way is lost to an answer read before it.
+    h.store.reading_entries("one", None);
+    h.emit(AgentEvent::Entry { task: "one".into(), subagent: None, index: 2, entry: agent("Answer B") });
+    assert!(reread(h.store.entries_read("one", None, whole)));
+
+    // Two reads on their way: the first answer waits for the second, which is read again.
+    h.store.reading_entries("one", None);
+    h.store.reading_entries("one", None);
+    h.reply("one", "Answer C");
+    assert!(h.store.entries_read("one", None, vec![agent("Answer A")]).is_none(), "the second read may have it");
+    assert!(reread(h.store.entries_read("one", None, vec![agent("Answer A")])));
+
+    // A read that failed leaves nothing waiting.
+    h.store.reading_entries("one", None);
+    h.reply("one", "Answer D");
+    h.store.entries_unreadable("one", None);
+    h.store.reading_entries("one", None);
+    assert!(h.store.entries_read("one", None, vec![agent("Answer D")]).is_none());
+}
+
 #[test]
 fn restores_after_entries_load_and_clears_positions_on_project_disconnect() {
     let mut h = unread_harness();

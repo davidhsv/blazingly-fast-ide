@@ -9,11 +9,20 @@ use ide_agent::AgentImage;
 /// `{"text", "images": [base64 data], "files": [file names]}` to `agent-prompts.log`, and each setting it is
 /// given as `<id>=<value>` to `agent-settings.log`, answering with its settings as they now are. Prompts are
 /// numbered from 1: one ending with "wait" says "Working" and works until it is cancelled; any other is answered
-/// with "Answer <n>". It ends with its input.
+/// with "Answer <n>". It ends with its input. Every line it reads and sends is written to `agent-transcript.log`
+/// beside the script, for the report of a wait that runs out.
 pub(super) const IMAGE_AGENT: &str = r#"import json, os, sys
 
+transcript = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent-transcript.log")
+
+def note(direction, line):
+    with open(transcript, "a") as out:
+        out.write("%s %s\n" % (direction, line))
+
 def send(message):
-    sys.stdout.write(json.dumps(message) + "\n")
+    line = json.dumps(message)
+    note("sent", line)
+    sys.stdout.write(line + "\n")
     sys.stdout.flush()
 
 def answer(request, result):
@@ -39,6 +48,7 @@ for line in sys.stdin:
     line = line.strip()
     if not line:
         continue
+    note("read", line)
     message = json.loads(line)
     method = message.get("method")
     params = message.get("params") or {}

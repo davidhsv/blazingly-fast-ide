@@ -359,3 +359,55 @@ async fn restores_after_entries_load_and_clears_positions_on_project_disconnect(
     cx.run_until_parked();
     assert_eq!(store.read_with(cx, |store, _| store.scroll_positions()), 0);
 }
+
+/// In a question card, a number key picks that answer and its preview shows (a choice without one says so);
+/// hovering another answer previews it instead; picking Other previews nothing; Escape skips the request.
+#[gpui_kit::test]
+async fn picks_options_with_number_keys_previews_the_picked_or_hovered_one_and_skips_with_escape(
+    cx: &mut TestAppContext,
+) {
+    let ask = AgentEntry::Permission {
+        id: 10,
+        title: "Which layout?".to_owned(),
+        options: vec![permission_option("reject", "Skip", "reject_once")],
+        questions: vec![question("", "Which layout?", false, &[("Table", "", Some("| a | b |")), ("List", "", None)])],
+        chosen: None,
+    };
+    let (view, _, events, cx) = open(cx, vec![local_task("A")], vec![ask]);
+    let focus = view.read_with(cx, |view, _| view.question.as_ref().map(|q| q.focus.clone())).expect("a card");
+    cx.update(|window, cx| window.focus(&focus, cx));
+    cx.run_until_parked();
+    let preview = |view: &Entity<SessionView>, cx: &mut VisualTestContext| {
+        view.read_with(cx, |view, _| {
+            let question = view.question.as_ref()?;
+            let preview = question.form.preview(0, &I18n::default())?;
+            Some((preview.caption, preview.body))
+        })
+    };
+    cx.simulate_keystrokes("2");
+    cx.run_until_parked();
+    let card = view.read_with(cx, |view, cx| view.card(cx)).expect("a card");
+    assert!(card.contains(&"(x) List".to_owned()), "{card:?}");
+    assert!(card.contains(&"preview: List".to_owned()), "{card:?}");
+    assert_eq!(preview(&view, cx), Some(("List".to_owned(), None)), "drawn as No preview");
+
+    let table = bounds_of(cx, "session-question-0-1").center();
+    cx.simulate_mouse_move(table, None, Modifiers::default());
+    cx.run_until_parked();
+    assert_eq!(preview(&view, cx), Some(("Table".to_owned(), Some("| a | b |".to_owned()))), "the hovered one");
+    let away = bounds_of(cx, "session-question-skip").center();
+    cx.simulate_mouse_move(away, None, Modifiers::default());
+    cx.run_until_parked();
+
+    cx.update(|window, cx| window.focus(&focus, cx));
+    cx.simulate_keystrokes("3");
+    cx.run_until_parked();
+    assert_eq!(preview(&view, cx), Some(("Other".to_owned(), None)));
+    cx.update(|window, cx| window.focus(&focus, cx));
+    cx.simulate_keystrokes("escape");
+    cx.run_until_parked();
+    assert_eq!(
+        effect_calls(&events),
+        [AgentCall::Respond { task: "A".to_owned(), permission: 10, option: Some("reject".to_owned()) }]
+    );
+}

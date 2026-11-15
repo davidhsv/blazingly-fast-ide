@@ -24,8 +24,8 @@ use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use crate::ui::tooltip::tooltip;
 use gpui_kit::{
-    AnyElement, App, Context, Div, Entity, FocusHandle, Focusable, Keystroke, MouseButton, SharedString, Stateful,
-    Subscription, Window, deferred, div, prelude::*, px, relative,
+    AnyElement, App, Context, Div, Entity, FocusHandle, Focusable, Keystroke, MouseButton, Pixels, SharedString,
+    Stateful, Subscription, Window, anchored, deferred, div, prelude::*, px, relative,
 };
 use ide_agent::AgentConfigOption;
 
@@ -800,9 +800,6 @@ pub fn picker_element<V: PickerHost>(view: &V, cx: &mut Context<V>) -> Option<An
     let popup = div()
         .debug_selector(|| "composer-picker".to_owned())
         .when(!searchable, |el| el.track_focus(&view.pickers().list_focus))
-        .absolute()
-        .map(|el| if view.picker_opens_down() { el.top(relative(1.0)) } else { el.bottom(px(40.0)) })
-        .left(px(8.0))
         .w(px(300.0))
         .max_h(px(360.0))
         .p(px(4.0))
@@ -818,7 +815,24 @@ pub fn picker_element<V: PickerHost>(view: &V, cx: &mut Context<V>) -> Option<An
         .children(top)
         .child(list)
         .children(footer);
-    Some(deferred(popup).with_priority(1).into_any_element())
+    Some(place_popup(view, popup))
+}
+
+/// Puts a picker's popup above the owner's bottom edge, or, for an owner whose popups open downwards, under its
+/// row and moved up as far as it takes to stay inside the window.
+fn place_popup<V: PickerHost>(view: &V, popup: Div) -> AnyElement {
+    if view.picker_opens_down() {
+        below_inside_window(popup, px(8.0))
+    } else {
+        deferred(popup.absolute().bottom(px(40.0)).left(px(8.0))).with_priority(1).into_any_element()
+    }
+}
+
+/// A popup under the bottom edge of the element it is a child of, `left` from its left edge, kept inside the
+/// window: near the window's bottom it is moved up until it fits.
+pub fn below_inside_window(popup: impl IntoElement, left: Pixels) -> AnyElement {
+    let kept_inside = anchored().snap_to_window_with_margin(px(4.0)).child(popup);
+    div().absolute().top(relative(1.0)).left(left).child(deferred(kept_inside).with_priority(1)).into_any_element()
 }
 
 /// The open Agent settings popup, drawn above the owner's bottom edge.
@@ -869,9 +883,6 @@ pub fn settings_element<V: PickerHost>(view: &V, cx: &mut Context<V>) -> Option<
     let popup = div()
         .debug_selector(|| "composer-settings-popup".to_owned())
         .track_focus(&view.pickers().settings_popup_focus)
-        .absolute()
-        .map(|el| if view.picker_opens_down() { el.top(relative(1.0)) } else { el.bottom(px(40.0)) })
-        .left(px(8.0))
         .w(px(280.0))
         .p(px(4.0))
         .flex()
@@ -885,5 +896,5 @@ pub fn settings_element<V: PickerHost>(view: &V, cx: &mut Context<V>) -> Option<
         .occlude()
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .children(children);
-    Some(deferred(popup).with_priority(1).into_any_element())
+    Some(place_popup(view, popup))
 }

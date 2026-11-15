@@ -495,8 +495,10 @@ async fn rolls_back_before_sending_the_edited_text_when_send_is_clicked(cx: &mut
     start_fresh(&workbench, cx);
     wait_long(cx, "the edited turn", |cx| {
         let lines = agent_conversation(&workbench, cx);
+        // A line ends with " | <time the turn took>" once its turn's end is recorded.
+        let text = |line: &String| line.split(" | ").next().unwrap_or_default().to_owned();
         !agent_working(&store, &task, cx)
-            && lines.iter().filter(|line| line.starts_with("you: ")).collect::<Vec<_>>()
+            && lines.iter().filter(|line| line.starts_with("you: ")).map(text).collect::<Vec<_>>()
                 == ["you: Original message edited"]
             && lines.iter().filter(|line| line.starts_with("agent: ")).count() == 1
     });

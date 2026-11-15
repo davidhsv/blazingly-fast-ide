@@ -59,10 +59,10 @@ fn commands(list: &[(&str, &str)]) -> Vec<AgentCommand> {
     list.iter().map(|(name, description)| command(name, description, AgentCommandSource::Command)).collect()
 }
 
-fn open(
-    cx: &mut TestAppContext,
+fn open<'a>(
+    cx: &'a mut TestAppContext,
     text: &str,
-) -> (Entity<NewTaskView>, Entity<AgentsStore>, Events, &mut VisualTestContext) {
+) -> (Entity<NewTaskView>, Entity<AgentsStore>, Events, &'a mut VisualTestContext) {
     cx.update(|cx| {
         cx.set_global(theme::ActiveTheme::default());
         if !cx.has_global::<input::Keymap>() {
@@ -236,6 +236,30 @@ async fn reaches_commands_after_the_first_twelve_with_the_keyboard(cx: &mut Test
     cx.simulate_keystrokes("enter");
     cx.run_until_parked();
     assert_eq!(text(&store, cx), "/command-29 ");
+}
+
+/// In a window too short for them below the description, the model popup and the command list are moved up to
+/// end inside the window.
+#[gpui_kit::test]
+async fn keeps_its_popups_inside_a_short_window(cx: &mut TestAppContext) {
+    let (view, _, _, cx) = open(cx, "");
+    cx.simulate_resize(gpui_kit::size(px(640.0), px(320.0)));
+    cx.run_until_parked();
+    let bottom = cx.update(|window, _| window.viewport_size().height);
+    click(cx, "composer-config-0");
+    let picker = cx.debug_bounds("composer-picker").expect("the model popup is drawn");
+    assert!(picker.top() >= px(0.0) && picker.bottom() <= bottom, "{picker:?} in a window {bottom:?} high");
+    cx.simulate_keystrokes("escape");
+    cx.run_until_parked();
+    assert!(view.read_with(cx, |view, _| view.picker_entries()).is_none());
+
+    let names: Vec<String> = (0..30).map(|i| format!("command-{i}")).collect();
+    let list: Vec<(&str, &str)> = names.iter().map(|name| (name.as_str(), "")).collect();
+    set_commands(&view, commands(&list), cx);
+    cx.simulate_input("/");
+    cx.run_until_parked();
+    let commands = cx.debug_bounds("agents-home-commands").expect("the command list is drawn");
+    assert!(commands.top() >= px(0.0) && commands.bottom() <= bottom, "{commands:?} in a window {bottom:?} high");
 }
 
 #[gpui_kit::test]

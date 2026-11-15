@@ -29,7 +29,7 @@ use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use gpui_kit::{
     AnyElement, App, Bounds, ClipboardEntry, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement,
     Keystroke, MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollHandle, SharedString, Subscription, Window,
-    canvas, deferred, div, prelude::*, px, relative,
+    canvas, div, prelude::*, px,
 };
 use ide_agent::{AgentCommand, AgentCommandSource, AgentConfigOption, AgentImage};
 use std::cell::Cell;
@@ -568,9 +568,6 @@ impl NewTaskView {
             .debug_selector(|| "agents-home-commands".to_owned())
             .track_scroll(&self.command_scroll)
             .overflow_y_scroll()
-            .absolute()
-            .top(relative(1.0))
-            .left(px(0.0))
             .w(px(360.0))
             .max_h(px(280.0))
             .p(px(4.0))
@@ -584,7 +581,7 @@ impl NewTaskView {
             .occlude()
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .children(rows);
-        Some(deferred(list).with_priority(1).into_any_element())
+        Some(pickers::below_inside_window(list, px(0.0)))
     }
 
     fn project_selector(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -641,9 +638,6 @@ impl NewTaskView {
                 .collect();
             let popup = div()
                 .debug_selector(|| "agents-home-projects".to_owned())
-                .absolute()
-                .top(relative(1.0))
-                .left(px(0.0))
                 .w(px(320.0))
                 .p(px(4.0))
                 .flex()
@@ -656,7 +650,7 @@ impl NewTaskView {
                 .occlude()
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                 .children(rows);
-            deferred(popup).with_priority(1)
+            pickers::below_inside_window(popup, px(0.0))
         });
         Some(div().relative().child(button).children(list).into_any_element())
     }

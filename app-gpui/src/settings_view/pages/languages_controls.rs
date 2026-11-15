@@ -1085,6 +1085,8 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use serde_json::json;
 
+    mod proofs22_language_controls;
+
     fn open<V, F>(cx: &mut TestAppContext, build: F) -> (Entity<V>, &mut VisualTestContext)
     where
         V: Render + EventEmitter<LanguageEvent>,

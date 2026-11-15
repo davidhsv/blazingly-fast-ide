@@ -170,7 +170,7 @@ pub enum AgentEffect {
         id: &'static str,
     },
     Notify(Box<NotificationRequest>),
-    /// Read a conversation, then call [`AgentsStore::entries_loaded`].
+    /// Read a conversation ([`AgentsStore::reading_entries`]), then call [`AgentsStore::entries_read`].
     LoadEntries {
         task: String,
         subagent: Option<String>,
@@ -300,6 +300,14 @@ enum Pending {
     Edit(Ticket),
 }
 
+/// The reads of one conversation on their way.
+#[derive(Clone, Copy, Debug, Default)]
+struct Reading {
+    pending: u32,
+    /// An entry arrived since the oldest of them was asked for.
+    stale: bool,
+}
+
 /// The Agents feature's state for one window. Its `Debug` leaves out the agents' environment, which
 /// holds their API keys.
 pub struct AgentsStore {
@@ -308,10 +316,19 @@ pub struct AgentsStore {
     pub error: Option<String>,
     /// In the order the backend first reported them.
     tasks: Vec<AgentTask>,
+    /// Tasks the backend removed: a report of one that its agent's exit sends after the removal does not
+    /// bring it back.
+    removed: HashSet<String>,
     /// Tasks with unseen replies or status changes, in the order they became unread.
     unread: Vec<String>,
     /// Conversations of the tasks (and subagents) opened in this window, by [`entries_key`].
     entries: HashMap<String, Vec<AgentEntry>>,
+    /// Conversations being read, by [`entries_key`]: how many reads are on their way, and whether an entry
+    /// arrived meanwhile. A read answered after such an entry may predate it, so it is read again.
+    reading: HashMap<String, Reading>,
+    /// What happened to the reads of conversations, for the report of a test's wait that runs out.
+    #[cfg(test)]
+    read_trace: Vec<String>,
     changes: HashMap<String, Vec<AgentChange>>,
     /// Scroll position and follow-output preference by conversation, shared by both hosts.
     scroll_positions: HashMap<String, ScrollPosition>,
@@ -412,8 +429,12 @@ impl AgentsStore {
             loaded: false,
             error: None,
             tasks: Vec::new(),
+            removed: HashSet::new(),
             unread: Vec::new(),
             entries: HashMap::new(),
+            reading: HashMap::new(),
+            #[cfg(test)]
+            read_trace: Vec::new(),
             changes: HashMap::new(),
             scroll_positions: HashMap::new(),
             providers: Vec::new(),
@@ -566,7 +587,9 @@ impl AgentsStore {
         };
         self.error = None;
         self.tasks = tasks;
+        self.removed.clear();
         self.entries.clear();
+        self.reading.clear();
         self.changes.clear();
         self.providers = providers;
         let mut effects = vec![AgentEffect::TabTitlesChanged];
@@ -584,8 +607,10 @@ impl AgentsStore {
         self.loaded = false;
         self.error = None;
         self.tasks.clear();
+        self.removed.clear();
         self.unread.clear();
         self.entries.clear();
+        self.reading.clear();
         self.changes.clear();
         self.docked = None;
         self.last_task = None;
@@ -659,6 +684,9 @@ impl AgentsStore {
         let mut effects = Vec::new();
         match event {
             AgentEvent::Task { task } => {
+                if self.removed.contains(&task.id) {
+                    return effects;
+                }
                 let id = task.id.clone();
                 let prev = self.task(&id).map(|t| (t.status, t.title.clone()));
                 if prev.as_ref().is_some_and(|(_, title)| *title != task.title) {
@@ -689,6 +717,7 @@ impl AgentsStore {
                 effects.extend(self.advance_stopping(&id));
             }
             AgentEvent::Removed { id } => {
+                self.removed.insert(id.clone());
                 self.tasks.retain(|t| t.id != id);
                 self.composers.remove(&id);
                 self.set_unread(&id, false);
@@ -698,6 +727,10 @@ impl AgentsStore {
                 effects.push(AgentEffect::CloseTab { key: session_key(&id) });
             }
             AgentEvent::Truncated { task, length } => {
+                // A read on its way may bring back what was cut.
+                if let Some(reading) = self.reading.get_mut(&task) {
+                    reading.stale = true;
+                }
                 if let Some(entries) = self.entries.get_mut(&task) {
                     entries.truncate(length as usize);
                 }
@@ -724,6 +757,14 @@ impl AgentsStore {
                     _ => false,
                 };
                 let key = entries_key(&task, subagent.as_deref());
+                if let Some(reading) = self.reading.get_mut(&key) {
+                    reading.stale = true;
+                    #[cfg(test)]
+                    {
+                        let held = self.entries.get(&key).map(Vec::len);
+                        self.read_trace.push(format!("{key}: entry {index} arrived while read (held {held:?})"));
+                    }
+                }
                 let Some(current) = self.entries.get_mut(&key) else { return effects };
                 if !upsert_entry(current, index as usize, entry) {
                     effects.push(AgentEffect::LoadEntries { task: task.clone(), subagent });
@@ -759,8 +800,65 @@ impl AgentsStore {
         (!loaded).then(|| AgentEffect::LoadEntries { task: task.to_owned(), subagent: subagent.map(str::to_owned) })
     }
 
+    /// A read of the conversation ([`AgentEffect::LoadEntries`]) is on its way: entries that arrive before it
+    /// is answered make it read again.
+    pub fn reading_entries(&mut self, task: &str, subagent: Option<&str>) {
+        let key = entries_key(task, subagent);
+        let reading = self.reading.entry(key.clone()).or_default();
+        reading.pending += 1;
+        #[cfg(test)]
+        {
+            let pending = reading.pending;
+            self.read_trace.push(format!("{key}: read asked ({pending} on their way)"));
+        }
+    }
+
+    /// A conversation, whole.
     pub fn entries_loaded(&mut self, task: &str, subagent: Option<&str>, entries: Vec<AgentEntry>) {
         self.entries.insert(entries_key(task, subagent), entries);
+    }
+
+    /// The answer of [`AgentEffect::LoadEntries`]. When entries arrived while it was read, the conversation is
+    /// read again (the returned effect): the answer may have been read before them, and they were not kept.
+    pub fn entries_read(
+        &mut self,
+        task: &str,
+        subagent: Option<&str>,
+        entries: Vec<AgentEntry>,
+    ) -> Option<AgentEffect> {
+        let key = entries_key(task, subagent);
+        #[cfg(test)]
+        let (held, answered) = (self.entries.get(&key).map(Vec::len), entries.len());
+        self.entries_loaded(task, subagent, entries);
+        let again = self.read_done(&key);
+        #[cfg(test)]
+        self.read_trace
+            .push(format!("{key}: read answered with {answered} entries (held {held:?}), read again: {again}"));
+        again.then(|| AgentEffect::LoadEntries { task: task.to_owned(), subagent: subagent.map(str::to_owned) })
+    }
+
+    /// The last lines of what happened to the reads of conversations.
+    #[cfg(test)]
+    pub fn read_trace(&self) -> &[String] {
+        &self.read_trace[self.read_trace.len().saturating_sub(16)..]
+    }
+
+    /// A read of the conversation failed: what it was waiting for is dropped.
+    pub fn entries_unreadable(&mut self, task: &str, subagent: Option<&str>) {
+        self.read_done(&entries_key(task, subagent));
+    }
+
+    /// One read of `key` ended; whether it must be read again: entries arrived while it was read and no
+    /// other read is still on its way to bring them.
+    fn read_done(&mut self, key: &str) -> bool {
+        let Some(reading) = self.reading.get_mut(key) else { return false };
+        reading.pending = reading.pending.saturating_sub(1);
+        if reading.pending > 0 {
+            return false;
+        }
+        let stale = reading.stale;
+        self.reading.remove(key);
+        stale
     }
 
     /// The answer of [`AgentEffect::RefreshProviders`]; a failed read keeps the list.

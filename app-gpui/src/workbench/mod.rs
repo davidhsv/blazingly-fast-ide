@@ -4339,6 +4339,7 @@ mod tests {
     mod proofs13_shell;
     mod proofs13_tasks;
     mod proofs13_windows;
+    mod proofs14_agents_views;
     mod proofs15_full_screen;
     mod proofs15_merge_resolve;
     mod proofs16_run_badge;
@@ -4362,6 +4363,7 @@ mod tests {
     mod proofs20_run_widget;
     mod proofs20_shell;
     mod proofs21_shell;
+    mod proofs22_settings_units;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;
@@ -7972,13 +7974,95 @@ mod tests {
         }
         // The state when the wait runs out, and whether more time would have been enough.
         let report = window_vcs_report(cx);
+        let agents = window_agents_report(cx);
         let ran_out = started.elapsed();
         let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
         panic!(
             "{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})\n\
-             state when it ran out: {report}\nstate now: {}",
-            window_vcs_report(cx)
+             state when it ran out: {report}\n{agents}\nstate now: {}\n{}",
+            window_vcs_report(cx),
+            window_agents_report(cx)
         );
+    }
+
+    /// The agents side of the window's project, when it has agents: each task as the store has it and
+    /// as the backend has it, the fake agent's processes and the last lines it read and sent. Only
+    /// the agent's script path is printed of its provider: its environment holds a key.
+    fn window_agents_report(cx: &mut VisualTestContext) -> String {
+        fn summary(entry: &ide_agent::AgentEntry) -> String {
+            let text = serde_json::to_string(entry).unwrap_or_else(|error| error.to_string());
+            let mut short: String = text.chars().take(140).collect();
+            if short.len() < text.len() {
+                short.push('…');
+            }
+            short
+        }
+        fn summaries(entries: &[ide_agent::AgentEntry]) -> String {
+            let skip = entries.len().saturating_sub(4);
+            let last: Vec<String> = entries[skip..].iter().map(summary).collect();
+            format!("{} entries, last {last:?}", entries.len())
+        }
+        let Some(workbench) = cx.update(|window, _| window.root::<Workbench>().flatten()) else {
+            return "agents: the window shows no workbench".to_owned();
+        };
+        let label = workbench.read_with(cx, |w, _| w.label.clone());
+        let Some(store) = workbench.read_with(cx, |w, _| w.agents_store()) else {
+            return "agents: the window has no agents".to_owned();
+        };
+        let host = cx.update(|_, cx| cx.try_global::<Backend>().map(|backend| backend.host.clone()));
+        let conversation = agent_conversation(&workbench, cx);
+        let shown: Vec<&String> = conversation.iter().rev().take(6).rev().collect();
+        store.read_with(cx, |store, _| {
+            let mut out = format!(
+                "agents: loaded={} error={:?} docked={:?} home_open={} conversation shown (last lines): {shown:?}\n  \
+                 reads of conversations: {:#?}\n",
+                store.loaded,
+                store.error,
+                store.docked,
+                store.home_open,
+                store.read_trace()
+            );
+            for task in store.tasks() {
+                let ui = store.entries(&task.id, None).map_or_else(|| "not loaded".to_owned(), summaries);
+                let backend = host.as_ref().map_or_else(
+                    || "no backend".to_owned(),
+                    |host| match ide_host::ops::agent::entries(host, &label, task.id.clone(), None) {
+                        Ok(entries) => summaries(&entries),
+                        Err(error) => format!("unreadable: {}", error.message),
+                    },
+                );
+                out.push_str(&format!(
+                    "  task {} provider={} status={:?} error={:?} queue={}\n    store: {ui}\n    backend: {backend}\n",
+                    task.id,
+                    task.provider,
+                    task.status,
+                    task.error,
+                    task.queue.len()
+                ));
+            }
+            for provider in store.providers.iter().filter(|provider| provider.id == "fake") {
+                let Some(script) = provider.args.first() else { continue };
+                let listing = std::process::Command::new("ps")
+                    .args(["-A", "-o", "pid=,ppid=,stat=,etime=,command="])
+                    .output()
+                    .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
+                    .unwrap_or_else(|error| format!("ps failed: {error}"));
+                let processes: Vec<&str> = listing.lines().filter(|line| line.contains(script.as_str())).collect();
+                out.push_str(&format!(
+                    "  fake agent {script} (this test process is {}): {processes:?}\n",
+                    std::process::id()
+                ));
+                let transcript = std::path::Path::new(script).with_file_name("agent-transcript.log");
+                let lines = std::fs::read_to_string(&transcript).unwrap_or_default();
+                let lines: Vec<&str> = lines.lines().collect();
+                let last: Vec<String> = lines[lines.len().saturating_sub(12)..]
+                    .iter()
+                    .map(|line| line.chars().take(200).collect())
+                    .collect();
+                out.push_str(&format!("  its transcript ({} lines), last: {last:#?}\n", lines.len()));
+            }
+            out
+        })
     }
 
     /// The repository state of the window's workbench, when its root is one.
@@ -8049,11 +8133,20 @@ mod tests {
     /// is answered with "Hello from the fake agent" in two chunks; one mentioning "tool" reports the
     /// finished tool call "Run cargo test" and says "The tests pass"; one mentioning "permission" first
     /// asks to run `cargo test` and then says which option it was given; one mentioning "wait" says
-    /// hello and works until it is cancelled. It ends with its input.
-    const FAKE_AGENT: &str = r#"import json, sys
+    /// hello and works until it is cancelled. It ends with its input. Every line it reads and sends is
+    /// written to `agent-transcript.log` beside the script, for the report of a wait that runs out.
+    const FAKE_AGENT: &str = r#"import json, os, sys
+
+transcript = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent-transcript.log")
+
+def note(direction, line):
+    with open(transcript, "a") as out:
+        out.write("%s %s\n" % (direction, line))
 
 def send(message):
-    sys.stdout.write(json.dumps(message) + "\n")
+    line = json.dumps(message)
+    note("sent", line)
+    sys.stdout.write(line + "\n")
     sys.stdout.flush()
 
 def answer(request, result):
@@ -8070,6 +8163,7 @@ for line in sys.stdin:
     line = line.strip()
     if not line:
         continue
+    note("read", line)
     message = json.loads(line)
     method = message.get("method")
     params = message.get("params") or {}
@@ -8215,8 +8309,8 @@ for line in sys.stdin:
     /// and reaches the seam.
     #[gpui_kit::test]
     async fn a_task_with_the_default_agent_is_refused_in_a_test_build_and_starts_no_process(cx: &mut TestAppContext) {
-        use super::agents::NewTaskEvent;
         use super::agents::spawn_guard::{AgentSpawnSeam, REFUSED};
+        use crate::agents::new_task_view::NewTaskEvent;
         let home = start(cx);
         let (_folder, workbench, store, cx) = agents_project(cx, home.path());
         let seam = AgentSpawnSeam::default();
@@ -8229,7 +8323,7 @@ for line in sys.stdin:
         let default = crate::agents::store::Draft::default().provider;
         assert_eq!(default, "claude");
         store.update(cx, |store, _| store.draft.provider.clone_from(&default));
-        page.update(cx, |_, cx| cx.emit(NewTaskEvent::Start));
+        page.update(cx, |_, cx| cx.emit(NewTaskEvent::Start { project_root: None }));
         wait_long(cx, "the refusal", |cx| page.read_with(cx, |page, _| page.error().is_some()));
         let error = page.read_with(cx, |page, _| page.error().map(str::to_owned)).unwrap_or_default();
         assert!(error.starts_with(&format!("{REFUSED} `claude`")), "{error}");
@@ -8240,7 +8334,7 @@ for line in sys.stdin:
         assert_eq!(tasks.map(|tasks| tasks.len()).ok(), Some(0), "the backend started no task");
 
         store.update(cx, |store, _| store.draft.provider = "fake".to_owned());
-        page.update(cx, |_, cx| cx.emit(NewTaskEvent::Start));
+        page.update(cx, |_, cx| cx.emit(NewTaskEvent::Start { project_root: None }));
         wait_long(cx, "the fake agent reaches the seam", |_| !started(&seam).is_empty());
         assert_eq!(started(&seam), ["fake"]);
         assert!(store.read_with(cx, |store, _| store.tasks().is_empty()), "the seam started nothing");

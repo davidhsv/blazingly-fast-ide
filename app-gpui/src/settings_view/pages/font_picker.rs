@@ -375,6 +375,8 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext};
     use serde_json::json;
 
+    mod proofs22_font_picker;
+
     const PAGE: &str = "editor.font";
 
     fn catalog(status: FontStatus) -> FontCatalog {

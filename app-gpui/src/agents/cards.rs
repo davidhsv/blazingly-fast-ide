@@ -329,6 +329,11 @@ impl QuestionForm {
         self.hovered = choice.map(|c| (position, c));
     }
 
+    /// The choice the pointer is over, and its question's position.
+    pub fn hovered(&self) -> Option<(usize, &Choice)> {
+        self.hovered.as_ref().map(|(position, choice)| (*position, choice))
+    }
+
     /// A number key outside the typed answer: toggles that option of the focused question; the one after
     /// the options toggles "Other".
     pub fn press_number(&mut self, number: usize) {
