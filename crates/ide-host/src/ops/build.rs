@@ -19,11 +19,13 @@ fn join_err(e: tokio::task::JoinError) -> IdeError {
 }
 
 /// Keeps the build tools of this process off the user's home. Maven's user folder (`~/.m2`) is
-/// `m2`, and JDK discovery finds only `jdks` and the IDE's download folders. The IDE never calls it;
-/// a process that must not read the user's home (a test binary) calls it before it reads a build.
+/// `m2`, JDK discovery finds only `jdks` and the IDE's download folders, and no global mise config
+/// pins a tool version (only the config files of the project's folder and the folders above it do). The IDE never calls it; a process
+/// that must not read the user's home (a test binary) calls it before it reads a build.
 pub fn isolate_from_user_home(m2: std::path::PathBuf, jdks: Vec<std::path::PathBuf>) {
     ide_build::maven::set_maven_user_home(Some(m2));
     ide_sdk::java::set_jdk_candidates(Some(jdks));
+    ide_sdk::pinned::set_global_configs(Some(Vec::new()));
 }
 
 /// The build model with the launch settings applied: the JDK (`JAVA_HOME`), and

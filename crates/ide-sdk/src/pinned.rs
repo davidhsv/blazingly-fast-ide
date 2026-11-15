@@ -3,6 +3,7 @@
 
 use ide_core::version_managers::{self, Manager, Tool};
 use std::path::{Path, PathBuf};
+use std::sync::RwLock;
 
 /// mise's config files in a directory, the one that wins first; `.tool-versions` (asdf's,
 /// read by mise too) last.
@@ -36,7 +37,21 @@ fn pinned_version_in(root: &Path, global: &[PathBuf], tool: Tool) -> Option<Stri
     })
 }
 
+/// The global config files once [`set_global_configs`] names them.
+static GLOBAL_CONFIGS: RwLock<Option<Vec<PathBuf>>> = RwLock::new(None);
+
+/// Points the lookup of the global mise config (`~/.config/mise/config.toml`, or the file
+/// `MISE_GLOBAL_CONFIG_FILE`, `MISE_CONFIG_DIR` or `XDG_CONFIG_HOME` names) at `files`, read in
+/// order; an empty list reads none. `None` goes back to the user's. For a process that must not
+/// read the user's home, such as a test binary; the IDE never calls it.
+pub fn set_global_configs(files: Option<Vec<PathBuf>>) {
+    *GLOBAL_CONFIGS.write().unwrap_or_else(|e| e.into_inner()) = files;
+}
+
 fn global_configs() -> Vec<PathBuf> {
+    if let Some(named) = GLOBAL_CONFIGS.read().unwrap_or_else(|e| e.into_inner()).clone() {
+        return named;
+    }
     let var = |k: &str| ide_core::process::host_var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
     if let Some(file) = var("MISE_GLOBAL_CONFIG_FILE") {
         return vec![file];

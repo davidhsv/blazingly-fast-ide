@@ -608,11 +608,10 @@ async fn api14_stage3_remote_terminal_pins_and_exit_events_stay_on_the_execution
     assert_eq!(settings["run"]["defaultTarget"], "");
     let config = json!({"id":"wrapped-php", "name":"Wrapped PHP", "kind":"php", "command":"php", "args":["x.php", "literal ; $(touch bad)"], "env":{}, "detected":false, "isTest":false, "target":id});
     invoke(&peer, "run_start", json!({"config":config, "onOutput":{"$channel":38}})).await.unwrap();
-    until("remote wrapped run", 5, || project.join("wrapped.txt").exists()).await;
-    assert_eq!(
-        std::fs::read_to_string(project.join("wrapped.txt")).unwrap(),
-        "<wrapped>\n<--cwd=/container>\n<php>\n<x.php>\n<literal ; $(touch bad)>\n"
-    );
+    // The script creates the file before it writes it: wait for the last line, not for the file.
+    let wrapped = || std::fs::read_to_string(project.join("wrapped.txt")).unwrap_or_default();
+    until("remote wrapped run", 5, || wrapped().ends_with("<literal ; $(touch bad)>\n")).await;
+    assert_eq!(wrapped(), "<wrapped>\n<--cwd=/container>\n<php>\n<x.php>\n<literal ; $(touch bad)>\n");
     assert!(!project.join("bad").exists());
     invoke(
         &peer,
