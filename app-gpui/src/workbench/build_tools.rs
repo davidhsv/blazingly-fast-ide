@@ -822,7 +822,11 @@ impl Workbench {
             if paths.is_empty() {
                 return;
             }
-            let linking = this.update(cx, |_, cx| {
+            let linking = this.update(cx, |workbench, cx| {
+                // The window may have moved on to another project while the build file was picked.
+                if workbench.build_tools.epoch != epoch {
+                    return None;
+                }
                 cx.try_global::<Backend>().map(|backend| {
                     backend.with_host(move |host| async move {
                         ide_host::ops::build::gradle_link_projects(&host, &label, paths).await
@@ -1058,6 +1062,8 @@ mod tests {
     use gpui_kit::{TestAppContext, VisualTestContext, px};
     use std::os::unix::fs::PermissionsExt;
     mod proofs20_build_title;
+    mod proofs21_build_windows;
+    mod proofs21_execute_popup;
     use std::path::Path;
 
     /// A stand-in for Maven: it leaves `ran` beside it and says what it was started with (`cwd`,

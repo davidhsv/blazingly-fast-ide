@@ -1104,7 +1104,18 @@ mod tests {
 
         f.run(cx, "toolwindow.todo");
         let view = f.workbench.read_with(cx, |w, _| w.todo_window_view()).expect("the TODO tool window is shown");
-        settle(cx, "the tool window's lines", |cx| view.update(cx, |view, cx| !view.lines(cx).is_empty()));
+        // The scan lists the files as it reaches them: stepping waits for all three items, or the step past the
+        // last one listed would find nothing after it.
+        settle(cx, "the tool window's three items", |cx| {
+            view.update(cx, |view, cx| view.lines(cx))
+                == [
+                    "a.rs  src  2 items",
+                    "  (1, 4) TODO first",
+                    "  (3, 4) FIXME second",
+                    "b.rs  src  1 item",
+                    "  (1, 14) TODO third",
+                ]
+        });
         f.run(cx, "navigate.nextOccurrence");
         settle(cx, "the caret in a at 0:3", |cx| f.at(cx) == Some((a.clone(), (0, 3))));
         // ⌥⌘↓ from the tool window.

@@ -4361,6 +4361,7 @@ mod tests {
     mod proofs20_database;
     mod proofs20_run_widget;
     mod proofs20_shell;
+    mod proofs21_shell;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

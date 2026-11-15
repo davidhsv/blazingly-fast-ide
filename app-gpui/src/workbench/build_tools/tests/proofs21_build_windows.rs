@@ -139,9 +139,20 @@ async fn a_build_picked_after_the_window_changed_projects_is_linked_nowhere(cx: 
             .read_with(cx, |w, cx| w.project_root(cx).as_deref() == Some(second.as_path()) && w.build_model_answered())
     });
 
+    let first_text = first.to_string_lossy().into_owned();
+    let second_settings = second.join(".openidea/settings.toml");
     let stale = first.join("libs/other/settings.gradle");
     cx.simulate_path_prompt_response(move |_| Some(vec![stale.clone()]));
-    cx.run_until_parked();
+    // A pick that links nothing leaves no trace to wait for, and a link made from it writes the settings within
+    // milliseconds: two seconds of settings without the first project's build are the proof that it was dropped.
+    // The check comes before the second link, whose own write could otherwise cover the stale one.
+    for _ in 0..100 {
+        cx.executor().advance_clock(Duration::from_millis(20));
+        cx.run_until_parked();
+        let settings = std::fs::read_to_string(&second_settings).unwrap_or_default();
+        assert!(!settings.contains(&first_text), "the stale pick linked the first project's build: {settings}");
+        std::thread::sleep(Duration::from_millis(20));
+    }
 
     // The user links a build in the second project: its answer is the end of every link asked for so far.
     run_action(cx, "gradle.linkProjects", None);
@@ -153,12 +164,11 @@ async fn a_build_picked_after_the_window_changed_projects_is_linked_nowhere(cx: 
             w.build_model().is_some_and(|m| m.gradle.iter().any(|g| Path::new(&g.dir) == external))
         })
     });
-    let first_text = first.to_string_lossy().into_owned();
     let dirs: Vec<String> = workbench
         .read_with(cx, |w, _| w.build_model().map(|m| m.gradle.iter().map(|g| g.dir.clone()).collect()))
         .unwrap_or_default();
     assert!(!dirs.iter().any(|dir| dir.contains(&first_text)), "the first project's build is not linked: {dirs:?}");
-    let settings = std::fs::read_to_string(second.join(".openidea/settings.toml")).unwrap_or_default();
+    let settings = std::fs::read_to_string(&second_settings).unwrap_or_default();
     assert!(!settings.contains(&first_text), "the second project's settings name no build of the first: {settings}");
     let titles = notification_titles(&workbench, cx);
     assert!(!titles.iter().any(|t| t.contains("Cannot link")), "{titles:?}");

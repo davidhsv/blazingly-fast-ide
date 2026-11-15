@@ -7,7 +7,7 @@
 use super::proofs19_settings_misc::bring_into_view;
 use super::*;
 use crate::settings_view::pages::languages_controls::LanguagePageView;
-use crate::settings_view::pages::languages_sdk::{SdkDetection, Toolchain, ToolchainKind};
+use crate::settings_view::pages::languages_sdk::{PluginFormatter, SdkDetection, Toolchain, ToolchainKind};
 use gpui_kit::Focusable;
 use serde_json::{Value, json};
 
@@ -570,14 +570,57 @@ async fn plugin_formatters_format_on_save_applies(cx: &mut TestAppContext) {
     let _home = start(cx);
     let (workbench, cx) = window(cx);
     let view = open_page(cx, &workbench, "languages.pluginFormatters");
-    let shown = lines(&view, cx);
-    // The plugins of the process decide which languages are listed: only the frame is fixed.
-    assert_eq!(shown.first().map(String::as_str), Some("— Plugin Formatters —"), "{shown:?}");
-    assert_eq!(shown.last().map(String::as_str), Some("[ ] Format on save"), "{shown:?}");
-    assert!(shown[1..shown.len() - 1].iter().all(|line| line.ends_with(" ▾")), "{shown:?}");
+    assert_eq!(lines(&view, cx), ["— Plugin Formatters —", "[ ] Format on save"]);
     click_on(cx, "settings-toggle-editor.formatOnSave");
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "editor.formatOnSave"), Some(json!(true)));
+}
+
+// Plugin Formatters: each language a plugin formatter covers gets Automatic and the formatters
+// covering it, in the registry's order; the formatter picked for one language is stored under it,
+// and Reset discards a second pick.
+#[gpui_kit::test]
+async fn plugin_formatters_offer_a_choice_per_covered_language_and_store_the_pick(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = trusted_project(cx, &[("query.sql", "select 1;\n")]);
+    let formatter = |id: &str, name: &str, languages: &[&str]| PluginFormatter {
+        id: id.to_owned(),
+        name: name.to_owned(),
+        languages: languages.iter().map(|language| (*language).to_owned()).collect(),
+    };
+    let formatters =
+        vec![formatter("p.stylua", "StyLua", &["lua"]), formatter("p.taplo", "Taplo and SQL", &["toml", "sql"])];
+    give_toolchains(cx, SdkDetection { formatters, ..SdkDetection::default() });
+    let view = open_page(cx, &workbench, "languages.pluginFormatters");
+    assert_eq!(
+        lines(&view, cx),
+        [
+            "— Plugin Formatters —",
+            "lua: Automatic (language server first) ▾",
+            "sql: Automatic (language server first) ▾",
+            "toml: Automatic (language server first) ▾",
+            "[ ] Format on save",
+        ]
+    );
+    choose(cx, "settings-formatter-1", "settings-formatter-1-1");
+    assert_eq!(lines(&view, cx)[2], "sql: Taplo and SQL ▾");
+    click_on(cx, "settings-apply");
+    assert_eq!(effective(cx, "languages.pluginFormatters"), Some(json!({ "sql": "p.taplo" })));
+
+    choose(cx, "settings-formatter-0", "settings-formatter-0-1");
+    assert_eq!(lines(&view, cx)[1], "lua: StyLua ▾");
+    assert!(modified(&workbench, cx));
+    click_on(cx, "settings-reset");
+    assert!(!modified(&workbench, cx), "Reset discards the second pick");
+    assert_eq!(
+        lines(&view, cx)[1..4],
+        [
+            "lua: Automatic (language server first) ▾",
+            "sql: Taplo and SQL ▾",
+            "toml: Automatic (language server first) ▾"
+        ]
+    );
+    assert_eq!(effective(cx, "languages.pluginFormatters"), Some(json!({ "sql": "p.taplo" })));
 }
 
 // Language server targets: without a project the choice is shown but not editable.

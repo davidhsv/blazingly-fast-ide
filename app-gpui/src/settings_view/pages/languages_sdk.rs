@@ -10,7 +10,8 @@
 //!
 //! The backend's detection reads the PATH, the system's and the version managers' folders and asks
 //! the tools found for their versions, so a test answers in its place with an [`SdkDetection`] of
-//! its own; a test build without one finds nothing, looks nothing up and runs nothing.
+//! its own; a test build without one finds nothing, looks nothing up and runs nothing. The same
+//! holds for the formatters plugins contribute, which the plugin host of the whole process lists.
 
 use super::{
     Binding, ControlEvent, Then, WIDE_FIELD, claim_field_keys, drop_down, drop_down_row, frame, hint_line, icon_button,
@@ -90,14 +91,15 @@ pub enum Detection {
 }
 
 /// What a test answers in place of the backend for every toolchain question: the installations
-/// per kind, the tools on the PATH, the Xdebug of a PHP and the project's virtualenv interpreter.
-/// The kinds asked for are logged, in order.
+/// per kind, the tools on the PATH, the Xdebug of a PHP, the project's virtualenv interpreter and
+/// the formatters plugins contribute. The kinds asked for are logged, in order.
 #[derive(Clone, Default)]
 pub struct SdkDetection {
     pub found: Vec<(ToolchainKind, Vec<Toolchain>)>,
     pub located: Vec<(&'static str, String)>,
     pub xdebug: Vec<(String, Option<String>)>,
     pub python: Option<String>,
+    pub formatters: Vec<PluginFormatter>,
     pub asked: Rc<RefCell<Vec<ToolchainKind>>>,
 }
 
@@ -307,6 +309,31 @@ pub fn python_effective(window: &str, then: Then<Option<String>>, cx: &mut App) 
     .detach();
 }
 
+/// The formatters the plugins loaded in this process contribute. The plugin host is the whole
+/// process's, so a test build answers with its [`SdkDetection`]'s, or none.
+pub fn plugin_formatters(then: Then<Vec<PluginFormatter>>, cx: &mut App) {
+    let given = cx.try_global::<SdkDetection>().map(|test| test.formatters.clone());
+    match given {
+        Some(formatters) => return then(formatters, cx),
+        None if cfg!(test) => return then(Vec::new(), cx),
+        None => {}
+    }
+    let reading = cx.background_executor().spawn(async {
+        let choices = ide_host::ops::lsp::plugin_formatters();
+        let formatters = choices.into_iter().map(|choice| PluginFormatter {
+            id: choice.id,
+            name: choice.name,
+            languages: choice.languages,
+        });
+        formatters.collect::<Vec<_>>()
+    });
+    cx.spawn(async move |cx| {
+        let formatters = reading.await;
+        cx.update(|cx| then(formatters, cx));
+    })
+    .detach();
+}
+
 /// A language the registry knows, with the names of its configured language servers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KnownLanguage {
@@ -365,22 +392,7 @@ pub fn answer(ask: LanguageAsk, window_label: &str, cx: &mut App) {
             });
             then(languages.unwrap_or_default(), cx);
         }
-        LanguageAsk::PluginFormatters { then } => {
-            let reading = cx.background_executor().spawn(async {
-                let choices = ide_host::ops::lsp::plugin_formatters();
-                let formatters = choices.into_iter().map(|choice| PluginFormatter {
-                    id: choice.id,
-                    name: choice.name,
-                    languages: choice.languages,
-                });
-                formatters.collect::<Vec<_>>()
-            });
-            cx.spawn(async move |cx| {
-                let formatters = reading.await;
-                cx.update(|cx| then(formatters, cx));
-            })
-            .detach();
-        }
+        LanguageAsk::PluginFormatters { then } => plugin_formatters(then, cx),
         LanguageAsk::Workspace { then } => {
             let backend = cx.try_global::<crate::backend::Backend>();
             let root = backend.and_then(|backend| backend.host.project(window_label).ok()).map(|p| p.root.clone());
@@ -956,7 +968,7 @@ mod tests {
     }
 
     // Not from a spec: without a detection of its own a test build finds nothing and runs
-    // nothing: no installation, no tool on the PATH, no Xdebug, no virtualenv.
+    // nothing: no installation, no tool on the PATH, no Xdebug, no virtualenv, no plugin formatter.
     #[gpui_kit::test]
     async fn a_test_build_without_a_detection_of_its_own_finds_nothing(cx: &mut TestAppContext) {
         type Answers = Rc<RefCell<Vec<String>>>;
@@ -976,8 +988,14 @@ mod tests {
             php_xdebug("/usr/bin/php".to_owned(), "w1", xdebug, cx);
             let log = answers.clone();
             python_effective("w1", Rc::new(move |python, _| log.borrow_mut().push(format!("python {python:?}"))), cx);
+            let log = answers.clone();
+            plugin_formatters(Rc::new(move |found, _| log.borrow_mut().push(format!("formatters {found:?}"))), cx);
         });
-        assert_eq!(answers.borrow().as_slice(), ["php None", "xdebug None", "python None"], "answered at once");
+        assert_eq!(
+            answers.borrow().as_slice(),
+            ["php None", "xdebug None", "python None", "formatters []"],
+            "answered at once"
+        );
     }
 
     // Not from a spec: Browse… asks for a directory and the one chosen is staged and shown.
