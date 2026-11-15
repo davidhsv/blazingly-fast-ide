@@ -13,6 +13,7 @@
 use super::Workbench;
 use super::services_window::on_workbench;
 use crate::backend::Backend;
+use crate::everywhere::model::SettingsSearchEntry;
 use crate::platform::actions::ActionRegistry;
 use crate::platform::input;
 use crate::platform::keymap::Keymap as Bindings;
@@ -20,6 +21,8 @@ use crate::platform::settings::{effective, global, set};
 use crate::plugin_models::plugins_page::PluginsPage;
 use crate::plugin_models::store::SETTINGS_PAGE_ID;
 use crate::settings_model::builtin_pages::{code_style_language_pages, settings_registry};
+use crate::settings_model::page_spec::option_labels;
+use crate::settings_model::pages::{SettingsPage, breadcrumb, build_page_tree, flatten};
 use crate::settings_model::schema::settings_value;
 use crate::settings_model::staging::{SecretWrite, SettingsDialog, StagedChange};
 use crate::settings_view::dialog::{SettingsDialogEvent, SettingsDialogView, SettingsPageSet};
@@ -29,6 +32,7 @@ use gpui_kit::{
     prelude::*,
 };
 use serde_json::Value;
+use std::collections::BTreeSet;
 
 /// The page Settings for New Projects opens on: the JDK, Maven and the language server are what
 /// new projects most often need.
@@ -111,6 +115,48 @@ fn code_style_languages(cx: &App) -> Vec<(String, String)> {
     backend.host.languages.all().into_iter().map(|language| (language.id.0, language.name)).collect()
 }
 
+/// The pages the window's Settings lists: the built-in ones, a Code Style page per language and the
+/// plugins' pages.
+fn settings_page_set(window: &Window, cx: &App) -> SettingsPageSet {
+    let updates = cx.try_global::<ActionRegistry>().is_some_and(|registry| registry.contains(UPDATES_ACTION));
+    let languages = code_style_languages(cx);
+    let languages: Vec<(&str, &str)> = languages.iter().map(|(id, name)| (id.as_str(), name.as_str())).collect();
+    let mut pages = code_style_language_pages(&languages);
+    pages.extend(super::plugin_contributions::plugin_settings_pages(window, cx));
+    SettingsPageSet { specs: settings_registry(updates), pages }
+}
+
+/// What Search Everywhere finds of the window's Settings: every page, under the titles of the pages
+/// and groups above it, then the labels of a page's options, under the page itself.
+pub(super) fn settings_search_entries(window: &Window, cx: &App) -> Vec<SettingsSearchEntry> {
+    let SettingsPageSet { specs, pages } = settings_page_set(window, cx);
+    let mut all: Vec<SettingsPage> = specs.iter().map(SettingsPage::from).collect();
+    all.extend(pages.into_iter().filter(|page| !specs.iter().any(|spec| spec.id == page.id)));
+    let tree = build_page_tree(&all);
+    let mut entries = Vec::new();
+    for page in flatten(&tree).into_iter().filter_map(|node| node.page.as_ref()) {
+        let path = breadcrumb(&tree, &page.id);
+        let above = path[..path.len().saturating_sub(1)].to_vec();
+        entries.push(SettingsSearchEntry {
+            page_id: page.id.clone(),
+            title: page.title.clone(),
+            path: above,
+            keywords: page.keywords.clone(),
+        });
+        let mut seen = BTreeSet::new();
+        let labels = specs.iter().filter(|spec| spec.id == page.id).flat_map(option_labels);
+        for label in labels.filter(|label| seen.insert(*label)) {
+            entries.push(SettingsSearchEntry {
+                page_id: page.id.clone(),
+                title: label.to_owned(),
+                path: path.clone(),
+                keywords: Vec::new(),
+            });
+        }
+    }
+    entries
+}
+
 /// Stores the credential of an SSH configuration, in the keychain when `write.save`.
 fn store_ssh_secret(write: &SecretWrite, cx: &App) -> Result<(), String> {
     let Some(backend) = cx.try_global::<Backend>() else { return Err("The backend is not running".to_owned()) };
@@ -163,20 +209,16 @@ impl Workbench {
         let has_project = self.project_root(cx).is_some();
         let settings = settings_value(&effective(&self.label, cx));
         let global_layer = has_project.then(|| settings_value(&global(cx)));
+        let page = page.map(str::to_owned).or_else(|| self.last_settings_page.clone());
         let model = cx.new(|_| {
             let mut dialog = SettingsDialog::default();
-            dialog.open(page, new_projects, settings);
+            dialog.open(page.as_deref(), new_projects, settings);
             if let Some(global_layer) = global_layer {
                 dialog.set_global_base(global_layer);
             }
             dialog
         });
-        let updates = cx.try_global::<ActionRegistry>().is_some_and(|registry| registry.contains(UPDATES_ACTION));
-        let languages = code_style_languages(cx);
-        let languages: Vec<(&str, &str)> = languages.iter().map(|(id, name)| (id.as_str(), name.as_str())).collect();
-        let mut pages = code_style_language_pages(&languages);
-        pages.extend(super::plugin_contributions::plugin_settings_pages(window, cx));
-        let set = SettingsPageSet { specs: settings_registry(updates), pages };
+        let set = settings_page_set(window, cx);
         let dialog = cx.new(|cx| SettingsDialogView::new(model.clone(), set, has_project, cx));
         // No plugin registers default shortcuts with the keymap: there are none to list.
         let keymap = cx.new(|cx| KeymapView::new(model.clone(), registered_actions(cx), Bindings::new(), window, cx));
@@ -211,13 +253,21 @@ impl Workbench {
     }
 
     /// The project goes, or another opens: the dialog goes with the settings it was opened over.
-    pub(super) fn drop_settings(&mut self) {
-        self.settings = None;
+    pub(super) fn drop_settings(&mut self, cx: &App) {
+        if let Some(open) = self.settings.take() {
+            self.remember_settings_page(&open, cx);
+        }
+    }
+
+    /// Keeps the page `open` shows, for Settings opened next without a page.
+    fn remember_settings_page(&mut self, open: &SettingsWindow, cx: &App) {
+        self.last_settings_page = Some(open.dialog.read(cx).model().read(cx).page_id.clone());
     }
 
     /// Closes the dialog; the keyboard goes back to what had it before, else to the editor.
     fn close_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(open) = self.settings.take() else { return };
+        self.remember_settings_page(&open, cx);
         if let Some(target) = open.restore.or_else(|| self.editor().map(|editor| editor.focus_handle(cx))) {
             window.focus(&target, cx);
         }

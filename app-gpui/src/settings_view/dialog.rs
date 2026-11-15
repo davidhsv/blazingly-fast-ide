@@ -237,6 +237,11 @@ impl SettingsDialogView {
         self.custom_views.get(&(page.to_owned(), label.to_owned()))
     }
 
+    /// The view drawn for page `page` when it is not a built-in page (a plugin's page).
+    pub fn page_view(&self, page: &str) -> Option<&AnyView> {
+        self.page_views.get(page)
+    }
+
     /// More texts the search finds `page` by (the action names of the Keymap).
     pub fn set_page_labels(&mut self, page: &str, labels: Vec<String>, cx: &mut Context<Self>) {
         self.extra_labels.insert(page.to_owned(), labels);

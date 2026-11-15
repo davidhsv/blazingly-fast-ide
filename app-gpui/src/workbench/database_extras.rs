@@ -1301,6 +1301,45 @@ mod tests {
         cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
     }
 
+    /// In the Database tool window docked at its default width, the toolbar's Filter objects field
+    /// shrinks to fit inside the window, and a Query Plan's params too wide for their cell end with an
+    /// ellipsis inside the window.
+    #[gpui_kit::test]
+    async fn the_docked_database_window_fits_its_filter_field_and_cuts_long_plan_params(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) =
+            trusted_project(cx, &[("plan.sql", "select name from users where id = 1")]);
+        cx.update(|window, _| window.activate_window());
+        sqlite_source(&root, cx);
+        run_action(cx, "db.showToolWindow", None);
+        let (_editor, console) = open_console_file(&workbench, &root, "plan.sql", cx);
+        wait_long(cx, "the binding", |cx| console.read_with(cx, |c, _| c.bar().bound.as_deref() == Some("s1")));
+        let hide = cx.debug_bounds("hide:database").expect("the Database window's header is drawn");
+        let filter = cx.debug_bounds("db-tree-filter").expect("the filter field is drawn");
+        assert!(filter.right() <= hide.right(), "{filter:?} ends inside the window, whose header ends at {hide:?}");
+        assert!(filter.size.width >= gpui_kit::px(80.0), "{filter:?}");
+        let field = db_tree(&workbench, cx).read_with(cx, |tree, _| tree.filter_field().clone());
+        let (placeholder, text_area) = field.read_with(cx, |f, _| (f.placeholder().to_owned(), f.text_area()));
+        assert_eq!(placeholder, "Filter objects");
+        let text_area = text_area.expect("the field is painted");
+        assert!(
+            text_area.left() > filter.left() && text_area.right() < filter.right(),
+            "the placeholder is painted inside the field's frame: {text_area:?} in {filter:?}"
+        );
+
+        click_on(cx, "console-explain");
+        wait_long(cx, "the plan", |cx| workbench.read_with(cx, |w, _| w.database_plan().is_some()));
+        let plan = workbench.read_with(cx, |w, _| w.database_plan()).expect("the plan tab");
+        wait_long(cx, "the plan drawn", |cx| plan.read_with(cx, |p, _| p.drawn_params().len() >= 2));
+        let rows = plan.read_with(cx, |p, _| p.rows());
+        let drawn = plan.read_with(cx, |p, _| p.drawn_params());
+        let (index, row) =
+            rows.iter().enumerate().find(|(_, row)| row.params.contains("USING")).expect("an index scan");
+        let cut = &drawn[index];
+        assert!(cut.ends_with('…') && cut.len() < row.params.len(), "{cut:?} cuts {:?}", row.params);
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
     /// Browse Query History lists what the data source ran, newest first; Paste puts the chosen
     /// statement into the console and closes the dialog; Delete takes one out of the history.
     #[gpui_kit::test]

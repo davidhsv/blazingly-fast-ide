@@ -1595,6 +1595,7 @@ mod tests {
     mod proofs10_host_ui;
     mod proofs14_plugins;
     mod proofs16_runtime;
+    mod proofs18_e2e_plugin_notifications;
     mod proofs6_plugin_runtime;
     mod proofs9_status_snapshot;
 

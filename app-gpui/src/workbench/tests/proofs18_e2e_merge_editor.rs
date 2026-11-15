@@ -54,7 +54,8 @@ async fn crlf_resolutions_use_utf16_editor_positions_and_preserve_line_endings_o
     wait_long(cx, "the merge editor closes", |cx| workbench.read_with(cx, |w, _| w.merge_view().is_none()));
     assert_eq!(std::fs::read_to_string(root.join("a.txt")).expect("the file is read"), ours, "CRLF is kept");
     assert_eq!(git_in(&root, &["ls-files", "-u"]), "", "nothing is left unmerged");
-    assert_eq!(git_in(&root, &["status", "--porcelain"]), "M  a.txt", "the file is staged");
+    // Yours is the text HEAD has: staged, the resolved file differs from HEAD in nothing.
+    assert_eq!(git_in(&root, &["status", "--porcelain"]), "", "the file is staged");
 }
 
 /// Theirs deleted the file Yours changed: Accept Theirs deletes it and stages the deletion.

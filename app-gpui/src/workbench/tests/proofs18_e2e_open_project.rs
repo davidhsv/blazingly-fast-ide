@@ -51,7 +51,7 @@ async fn close_project_shows_the_welcome_screen_a_recent_project_opens_from_it_o
     cx.simulate_keystrokes("enter");
     settle(cx, |cx| welcome_names(&workbench, cx).is_some());
     assert!(workbench.read_with(cx, |w, _| w.project_tree().is_none()), "the Project view is gone");
-    assert!(cx.update(|_, cx| cx.global::<Backend>().host.project("w1").is_none()), "the backend closed it");
+    assert!(cx.update(|_, cx| cx.global::<Backend>().host.project("w1").is_err()), "the backend closed it");
     let names = welcome_names(&workbench, cx).expect("the Welcome screen shows");
     assert!(names.contains(&"billing".to_owned()) && names.contains(&"acme-api".to_owned()), "{names:?}");
 
@@ -61,7 +61,7 @@ async fn close_project_shows_the_welcome_screen_a_recent_project_opens_from_it_o
     wait_long(cx, "the question is shown", |cx| asked_about(&workbench, cx).is_some());
     assert_eq!(asked_about(&workbench, cx).as_deref(), Some(&*billing.to_string_lossy()));
     assert!(workbench.read_with(cx, |w, cx| w.project_root(cx)).is_none(), "nothing opens before the answer");
-    assert!(cx.update(|_, cx| cx.global::<Backend>().host.project("w1").is_none()));
+    assert!(cx.update(|_, cx| cx.global::<Backend>().host.project("w1").is_err()));
 
     click_on(cx, "trust-button-project.trust");
     wait_long(cx, "billing opens", |cx| {

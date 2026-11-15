@@ -2,6 +2,10 @@
 //! `find/popup_view.rs`); the flow below needs it to be an editor of the selected match's file (`FindPopup::
 //! preview_editor() -> Option<Entity<Editor>>`) that takes typing, Select All, ⌘⌫ and undo, and is a separate
 //! document from the file's open editor until saved.
+//!
+//! The Language Servers page of Settings is not drawn (it reads "This page is not available yet"): the test of
+//! "Search Everywhere finds and runs an action" waits for that page and its list of servers. It uses
+//! `orders_project` of `proofs18_e2e_search` and `double_shift` of `proofs18_e2e_fixtures`.
 
 use super::*;
 use crate::find::popup_view::{PREVIEW_DEBOUNCE, SEARCH_DEBOUNCE};
@@ -58,4 +62,24 @@ async fn find_in_files_streams_matches_by_file_and_opens_the_chosen_one_at_its_l
     settle(cx, |cx| workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == file)));
     let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
     assert_eq!(editor.read_with(cx, |e, _| e.caret_position()).0, 3);
+}
+
+/// "Language Servers" typed after double Shift lists it; Enter opens Settings on the Language Servers page.
+#[gpui_kit::test]
+async fn search_everywhere_finds_and_runs_an_action(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = orders_project(cx);
+    double_shift(cx);
+    let everywhere = workbench.read_with(cx, |w, _| w.search_everywhere()).expect("double Shift opens it");
+    type_query(cx, "Language Servers");
+    settle(cx, |cx| {
+        everywhere.read_with(cx, |popup, _| popup.selected().is_some_and(|line| line.contains("Language Servers")))
+    });
+    cx.simulate_keystrokes("enter");
+    settle(cx, |cx| workbench.read_with(cx, |w, _| w.settings_dialog().is_some()));
+    let dialog = workbench.read_with(cx, |w, _| w.settings_dialog().cloned()).expect("Settings opens");
+    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("languages.servers"));
+    // The page lists the language servers: a view of its own draws it.
+    assert_eq!(dialog.read_with(cx, |view, cx| view.control_lines(cx)), ["<page view>"], "the servers are listed");
+    close_backend_project(cx);
 }

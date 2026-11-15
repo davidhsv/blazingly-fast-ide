@@ -118,10 +118,8 @@ async fn a_terminal_view_that_loads_late_does_not_take_focus_moved_elsewhere_mea
     assert!(shown(&workbench, TERMINAL_TOOL_WINDOW, cx));
     click_at(cx, format!("project-row:{}", text_of(&root.join("README.md"))));
     wait_long(cx, "the terminal's shell", |cx| {
-        terminal_view(&workbench, cx).is_some_and(|terminal| {
-            terminal.read_with(cx, |terminal, _| terminal.id().is_some())
-                && screen(&terminal, cx).iter().any(|line| !line.trim().is_empty())
-        })
+        terminal_view(&workbench, cx)
+            .is_some_and(|terminal| terminal.read_with(cx, |terminal, _| terminal.id().is_some()))
     });
     assert!(cx.update(|window, cx| tree.focus_handle(cx).is_focused(window)), "the Project tree keeps the keyboard");
     close_backend_project(cx);
@@ -144,7 +142,7 @@ async fn cmd_shift_f12_hides_all_tool_windows_and_restores_them(cx: &mut TestApp
     close_backend_project(cx);
 }
 
-/// ⌥F12 starts a shell whose prompt shows; a click on the terminal gives it the keyboard, and `echo hello
+/// ⌥F12 starts a shell; a click on the terminal gives it the keyboard, and `echo hello
 /// from e2e` typed with Enter reaches the shell, whose answer shows on one line of its own.
 #[gpui_kit::test]
 async fn the_terminal_sends_typed_commands_to_the_shell_and_shows_its_output(cx: &mut TestAppContext) {
@@ -152,8 +150,10 @@ async fn the_terminal_sends_typed_commands_to_the_shell_and_shows_its_output(cx:
     let (_folder, _root, workbench, cx) = trusted_project(cx, &[("README.md", "# acme\n")]);
     cx.update(|window, _| window.activate_window());
     press(cx, "alt-f12");
-    wait_long(cx, "the shell's prompt", |cx| {
-        terminal_view(&workbench, cx).is_some_and(|t| screen(&t, cx).iter().any(|line| !line.trim().is_empty()))
+    // The tests' plain shell prints no prompt: its start is the terminal's session id.
+    wait_long(cx, "the shell", |cx| {
+        terminal_view(&workbench, cx)
+            .is_some_and(|terminal| terminal.read_with(cx, |terminal, _| terminal.id().is_some()))
     });
     let terminal = terminal_view(&workbench, cx).expect("a tab");
     let panel = workbench

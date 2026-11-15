@@ -19,17 +19,6 @@ pub(super) fn click_at(cx: &mut VisualTestContext, selector: String) {
     cx.run_until_parked();
 }
 
-/// A double click on the drawn element `selector`: one press with a click count of two.
-pub(super) fn double_click_at(cx: &mut VisualTestContext, selector: String) {
-    cx.run_until_parked();
-    let selector = leaked(selector);
-    let position = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn")).center();
-    let (button, modifiers) = (gpui_kit::MouseButton::Left, gpui_kit::Modifiers::default());
-    cx.simulate_event(gpui_kit::MouseDownEvent { position, modifiers, button, click_count: 2, first_mouse: false });
-    cx.simulate_event(gpui_kit::MouseUpEvent { position, modifiers, button, click_count: 2 });
-    cx.run_until_parked();
-}
-
 /// A right click on the drawn element `selector`.
 pub(super) fn right_click_at(cx: &mut VisualTestContext, selector: String) {
     cx.run_until_parked();

@@ -2,7 +2,6 @@ use super::*;
 use crate::plugin_views::settings_page::{FieldKey, PluginSettingsPage, declared_page_id};
 use crate::settings_view::dialog::SettingsDialogView;
 use crate::ui::text_field::TextField;
-use gpui_kit::Focusable as _;
 
 const PLUGIN: &str = "settings-pages";
 

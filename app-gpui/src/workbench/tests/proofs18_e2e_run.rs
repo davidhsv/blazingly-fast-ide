@@ -52,7 +52,7 @@ async fn ctrl_r_runs_the_selected_configuration_and_shows_its_output_and_exit(cx
 }
 
 /// ⌃R runs a `dev` that keeps running: its output shows and Stop is on; ⌘F2 stops it, Stop is off and the
-/// tab says it ended with exit code 143.
+/// tab says it ended with the exit code of an interrupted process, 130.
 #[gpui_kit::test]
 async fn cmd_f2_stops_a_running_process(cx: &mut TestAppContext) {
     let (workbench, cx, _folders, _root, store) =
@@ -77,5 +77,6 @@ async fn cmd_f2_stops_a_running_process(cx: &mut TestAppContext) {
     assert!(session(cx).is_some_and(|s| s.stopped), "the process was stopped");
     assert!(!view.read_with(cx, |view, cx| view.can_stop(cx)), "Stop is off");
     let tooltip = tooltips(&view, cx).into_iter().next().flatten().unwrap_or_default();
-    assert!(tooltip.ends_with("exit code 143"), "{tooltip}");
+    // Stop interrupts the process group first (SIGINT): the shell's `sleep` ends with 128 + 2.
+    assert!(tooltip.ends_with("exit code 130"), "{tooltip}");
 }

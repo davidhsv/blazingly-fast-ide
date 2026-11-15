@@ -18,6 +18,11 @@ fn location_of(path: &Path, line: u32, from: u32, to: u32) -> Value {
     json!({ "uri": format!("file://{}", path.display()), "range": range(line, from, to) })
 }
 
+/// The labels of the lookup's rows, each drawn as `label — detail`.
+fn labels(f: &Fixture, cx: &mut VisualTestContext) -> Vec<String> {
+    f.rows(cx).iter().map(|row| row.split(" — ").next().unwrap_or_default().to_owned()).collect()
+}
+
 /// The text of the line the active editor's caret is on.
 fn caret_line(f: &Fixture, cx: &mut VisualTestContext) -> String {
     let editor = f.editor(cx).expect("an editor");
@@ -44,11 +49,11 @@ async fn completion_lists_the_servers_items_and_inserts_the_chosen_one(cx: &mut 
     cx.simulate_input("order.");
     cx.simulate_keystrokes("ctrl-space");
     settle(cx, "the lookup's rows", |cx| f.rows(cx).len() == 2);
-    let rows = f.rows(cx);
+    let rows = labels(&f, cx);
     assert!(rows.contains(&"total".to_owned()) && rows.contains(&"toDto".to_owned()), "{rows:?}");
     cx.simulate_input("toD");
     cx.run_until_parked();
-    assert_eq!(f.rows(cx), ["toDto"], "total is hidden");
+    assert_eq!(labels(&f, cx), ["toDto"], "total is hidden");
     cx.simulate_keystrokes("enter");
     cx.run_until_parked();
     assert!(f.rows(cx).is_empty(), "the lookup closed");

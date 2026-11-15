@@ -1,8 +1,23 @@
-use super::proofs18_e2e_fixtures::{click_at, double_click_at, primary, right_click_at};
+//! Not declared: the Warning on OK needs another action bound to `Alt+Button1`, Quick Evaluate Expression
+//! (`debug.quickEvaluate`, `Alt+Button1` in the IntelliJ keymaps). This window registers no such action
+//! (`workbench/debug.rs`, `DEBUG_ACTIONS`), so the recorded click has no conflict and OK adds it at once.
+
+use super::proofs18_e2e_fixtures::{click_at, leaked, primary, right_click_at};
 use super::*;
 use crate::settings_view::keymap::KeymapView;
 
 const FIND_ACTION: &str = "navigate.findAction";
+
+/// A double click on the drawn element `selector`: one press with a click count of two.
+fn double_click_at(cx: &mut VisualTestContext, selector: String) {
+    cx.run_until_parked();
+    let selector = leaked(selector);
+    let position = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn")).center();
+    let (button, modifiers) = (gpui_kit::MouseButton::Left, gpui_kit::Modifiers::default());
+    cx.simulate_event(gpui_kit::MouseDownEvent { position, modifiers, button, click_count: 2, first_mouse: false });
+    cx.simulate_event(gpui_kit::MouseUpEvent { position, modifiers, button, click_count: 2 });
+    cx.run_until_parked();
+}
 
 fn menu(keymap: &Entity<KeymapView>, cx: &mut VisualTestContext) -> Vec<String> {
     keymap.read_with(cx, |view, cx| view.menu_lines(cx)).unwrap_or_default()
@@ -27,7 +42,7 @@ fn row_bindings(keymap: &Entity<KeymapView>, cx: &mut VisualTestContext) -> Vec<
 /// without a change, and a right click on the row offers both kinds of shortcut.
 fn keymap_offers_mouse_and_keyboard_shortcuts(cx: &mut TestAppContext, double: bool) {
     let _home = start(cx);
-    let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+    let (_folder, _root, workbench, cx) = trusted_project(cx, &[("build.gradle.kts", "plugins {}\n")]);
     cx.update(|window, _| window.activate_window());
     cx.simulate_keystrokes(&primary(","));
     cx.run_until_parked();

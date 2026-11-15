@@ -4,8 +4,8 @@
 
 use super::controller::{SeAnswer, SeController, SeEffect, SeEnv, SeFetch, SeRequest, Sources, Ticket};
 use super::model::{
-    GroupDirection, MORE_STEP_ALL, MORE_STEP_TAB, ParsedCommand, SeItem, SeRow, SeTab, SectionId, SymbolMatch, TABS,
-    build_rows, group_jump, parse_command, stable_index, top_result_settled,
+    GroupDirection, MORE_STEP_ALL, MORE_STEP_TAB, ParsedCommand, SeItem, SeRow, SeTab, SectionId, SettingsSearchEntry,
+    SymbolMatch, TABS, build_rows, group_jump, parse_command, stable_index, top_result_settled,
 };
 use crate::backend::Backend;
 use crate::find::backend::{file_matches, to_backend};
@@ -47,6 +47,8 @@ pub enum SearchEverywhereEvent {
         position: Option<(u32, u32)>,
     },
     RunAction(String),
+    /// Open Settings on page `0`.
+    OpenSettings(String),
 }
 
 pub struct SearchEverywhere {
@@ -73,6 +75,8 @@ pub struct SearchEverywhere {
     /// What the window's actions are enabled against: its context when the popup opened.
     context: Rc<ContextKeys>,
     root: Option<String>,
+    /// The window's Settings pages and options, listed among the actions; empty lists none.
+    settings: Rc<Vec<SettingsSearchEntry>>,
     /// The questions still out with the backend; a new query drops the old ones.
     fetches: Vec<Task<()>>,
     scroll: UniformListScrollHandle,
@@ -92,6 +96,7 @@ impl SearchEverywhere {
         query: Option<&str>,
         root: Option<String>,
         context: Rc<ContextKeys>,
+        settings: Vec<SettingsSearchEntry>,
         cx: &mut Context<Self>,
     ) -> Self {
         let placeholder = cx.default_global::<Localization>().0.tx("Type to search");
@@ -141,6 +146,7 @@ impl SearchEverywhere {
             pending_enter: false,
             context,
             root,
+            settings: Rc::new(settings),
             fetches: Vec::new(),
             scroll: UniformListScrollHandle::new(),
             key_claim,
@@ -207,7 +213,7 @@ impl SearchEverywhere {
             in_file_set: None,
             languages: None,
             i18n: &cx.try_global::<Localization>()?.0,
-            sources: Sources::default(),
+            sources: Sources { settings: !self.settings.is_empty(), ..Sources::default() },
         };
         Some(with(&mut self.controller, &env))
     }
@@ -346,9 +352,13 @@ impl SearchEverywhere {
                     }));
                 }
                 // No language server is asked from here yet, and the app has no endpoint
-                // providers or settings pages to list.
+                // providers to list.
                 SeFetch::WorkspaceSymbols { .. } => self.answered(ticket, SeAnswer::WorkspaceSymbols(None), cx),
-                SeFetch::Routes | SeFetch::Settings => self.answered(ticket, SeAnswer::Failed, cx),
+                SeFetch::Settings => {
+                    let entries = self.settings.as_ref().clone();
+                    self.answered(ticket, SeAnswer::Settings(entries), cx);
+                }
+                SeFetch::Routes => self.answered(ticket, SeAnswer::Failed, cx),
                 SeFetch::Text { request, query } => {
                     let (sender, mut events) = unbounded::<SearchEvent>();
                     let on_event: ide_host::ops::Emit<SearchEvent> = Arc::new(move |event| {
@@ -475,7 +485,7 @@ impl SearchEverywhere {
                 // An action that cannot run here is listed but does nothing.
                 SeItem::Action(action) if !action.enabled => return,
                 SeItem::Action(action) => SearchEverywhereEvent::RunAction(action.id),
-                SeItem::Setting(_) => return,
+                SeItem::Setting(setting) => SearchEverywhereEvent::OpenSettings(setting.page_id),
             },
         };
         cx.emit(event);

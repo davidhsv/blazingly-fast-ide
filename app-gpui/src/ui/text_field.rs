@@ -6,10 +6,10 @@
 use crate::platform::edit_target::{TextHistory, TextState};
 use crate::theme;
 use gpui_kit::{
-    App, Bounds, ClipboardItem, Context, Element, ElementId, ElementInputHandler, Entity, EntityInputHandler,
-    EventEmitter, FocusHandle, Focusable, GlobalElementId, Hsla, InspectorElementId, IntoElement, KeyDownEvent,
-    LayoutId, MouseButton, MouseDownEvent, Pixels, Point, Render, ShapedLine, SharedString, Style, TextAlign, TextRun,
-    UTF16Selection, Window, div, fill, font, point, prelude::*, px, relative, size,
+    App, Bounds, ClipboardItem, ContentMask, Context, Element, ElementId, ElementInputHandler, Entity,
+    EntityInputHandler, EventEmitter, FocusHandle, Focusable, GlobalElementId, Hsla, InspectorElementId, IntoElement,
+    KeyDownEvent, LayoutId, MouseButton, MouseDownEvent, Pixels, Point, Render, ShapedLine, SharedString, Style,
+    TextAlign, TextRun, UTF16Selection, Window, div, fill, font, point, prelude::*, px, relative, size,
 };
 use std::ops::Range;
 
@@ -36,8 +36,13 @@ pub struct TextField {
     placeholder: SharedString,
     /// The text being composed by an input method.
     marked: Option<Range<usize>>,
-    /// Where the text was last painted, for the input method's candidate window and for clicks.
+    /// Where the text was last painted, for the input method's candidate window and for clicks: the
+    /// box's origin is the start of the text, left of the field when the text is scrolled.
     painted: Option<(Bounds<Pixels>, ShapedLine)>,
+    /// How far text wider than the field is scrolled left to keep the caret in view.
+    scroll_x: Pixels,
+    /// The window area the text, placeholder, selection and caret were last painted in.
+    text_area: Option<Bounds<Pixels>>,
     /// Typing, pasting and deleting change nothing; the text can still be selected and copied.
     read_only: bool,
     /// The steps Undo and Redo walk.
@@ -74,6 +79,8 @@ impl TextField {
             placeholder: SharedString::default(),
             marked: None,
             painted: None,
+            scroll_x: px(0.0),
+            text_area: None,
             read_only: false,
             history: TextHistory::default(),
         }
@@ -93,6 +100,12 @@ impl TextField {
 
     pub fn placeholder(&self) -> &str {
         &self.placeholder
+    }
+
+    /// The window area the last frame painted the field's text or placeholder in: the field's own box,
+    /// cut by every clipping box around it.
+    pub fn text_area(&self) -> Option<Bounds<Pixels>> {
+        self.text_area
     }
 
     pub fn text(&self) -> &str {
@@ -530,28 +543,55 @@ impl Element for TextFieldElement {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let (focus, selection, head, empty) = {
+        let (focus, selection, head, empty, scrolled) = {
             let field = self.field.read(cx);
-            (field.focus.clone(), field.selection(), field.head, field.text.is_empty())
+            (field.focus.clone(), field.selection(), field.head, field.text.is_empty(), field.scroll_x)
         };
         window.handle_input(&focus, ElementInputHandler::new(bounds, self.field.clone()), cx);
         let focused = focus.is_focused(window);
-        let x = |at: usize| bounds.left() + if empty { px(0.0) } else { line.x_for_index(at) };
-        if !selection.is_empty() {
-            let area = Bounds::new(
-                point(x(selection.start), bounds.top()),
-                size(x(selection.end) - x(selection.start), bounds.size.height),
-            );
-            let color: Hsla = theme::color(cx, if focused { "bg-editor-selection" } else { "bg-selected" });
-            window.paint_quad(fill(area, color));
-        }
-        let _ = line.paint(bounds.origin, bounds.size.height, TextAlign::Left, None, window, cx);
-        if focused {
-            let caret = Bounds::new(point(x(head), bounds.top()), size(px(1.5), bounds.size.height));
-            window.paint_quad(fill(caret, theme::color(cx, "caret")));
-        }
-        let painted = (bounds, line.clone());
-        self.field.update(cx, |field, _| field.painted = (!empty).then_some(painted));
+        const CARET_WIDTH: Pixels = px(1.5);
+        // Text wider than the field scrolls as little as keeps the caret inside it, and no further
+        // than its end needs.
+        let scroll = if empty {
+            px(0.0)
+        } else {
+            let caret = line.x_for_index(head);
+            let room = bounds.size.width - CARET_WIDTH;
+            let kept = scrolled.min((line.width - room).max(px(0.0)));
+            if caret < kept {
+                caret
+            } else if caret > kept + room {
+                caret - room
+            } else {
+                kept
+            }
+        };
+        let origin = point(bounds.left() - scroll, bounds.top());
+        let x = |at: usize| origin.x + if empty { px(0.0) } else { line.x_for_index(at) };
+        // Text wider than the field (a long placeholder in a shrunk field) is cut at the field's box
+        // instead of running over what is beside it.
+        let text_area = window.with_content_mask(Some(ContentMask { bounds }), |window| {
+            if !selection.is_empty() {
+                let area = Bounds::new(
+                    point(x(selection.start), bounds.top()),
+                    size(x(selection.end) - x(selection.start), bounds.size.height),
+                );
+                let color: Hsla = theme::color(cx, if focused { "bg-editor-selection" } else { "bg-selected" });
+                window.paint_quad(fill(area, color));
+            }
+            let _ = line.paint(origin, bounds.size.height, TextAlign::Left, None, window, cx);
+            if focused {
+                let caret = Bounds::new(point(x(head), bounds.top()), size(CARET_WIDTH, bounds.size.height));
+                window.paint_quad(fill(caret, theme::color(cx, "caret")));
+            }
+            window.content_mask().bounds
+        });
+        let painted = (Bounds::new(origin, bounds.size), line.clone());
+        self.field.update(cx, |field, _| {
+            field.painted = (!empty).then_some(painted);
+            field.scroll_x = scroll;
+            field.text_area = Some(text_area);
+        });
     }
 }
 
@@ -609,6 +649,54 @@ mod tests {
         field.update(cx, |field, cx| field.set_read_only(false, cx));
         cx.simulate_input("s");
         assert_eq!(text(&field, cx), "names");
+    }
+
+    /// The field in a box narrower than its text.
+    struct Narrow(Entity<TextField>);
+
+    impl Render for Narrow {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(80.0)).child(self.0.clone())
+        }
+    }
+
+    // Not from a spec: text wider than the field is painted inside the field's box only, and scrolls so
+    // the caret stays in it, at the end after typing and at the start after Home.
+    #[gpui_kit::test]
+    async fn text_wider_than_the_field_scrolls_to_keep_the_caret_inside_it(cx: &mut TestAppContext) {
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            crate::platform::input::init(cx);
+        });
+        let (host, cx) = cx.add_window_view(|_, cx| Narrow(cx.new(TextField::new)));
+        let field = host.read_with(cx, |host, _| host.0.clone());
+        cx.update(|window, cx| {
+            window.activate_window();
+            let focus = field.read(cx).focus.clone();
+            window.focus(&focus, cx);
+        });
+        let long = "a long query typed into a narrow field";
+        cx.simulate_input(long);
+        cx.run_until_parked();
+        let caret_in_view = |cx: &mut VisualTestContext| {
+            field.update_in(cx, |field, window, cx| {
+                let area = field.text_area().expect("the field is painted");
+                let at = utf16_len(&field.text[..field.head]);
+                let caret = field.bounds_for_range(at..at, area, window, cx).expect("the caret has a place");
+                (area, caret)
+            })
+        };
+        let (area, caret) = caret_in_view(cx);
+        assert!(area.size.width <= px(80.0), "the text is painted inside the field's box: {area:?}");
+        assert!(
+            caret.left() >= area.left() && caret.left() <= area.right(),
+            "the caret at the end: {caret:?} in {area:?}"
+        );
+        cx.simulate_keystrokes("home");
+        cx.run_until_parked();
+        let (area, caret) = caret_in_view(cx);
+        assert_eq!(field.read_with(cx, |field, _| field.head), 0);
+        assert_eq!(caret.left(), area.left(), "the caret back at the start: {caret:?} in {area:?}");
     }
 
     #[gpui_kit::test]

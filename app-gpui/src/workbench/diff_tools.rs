@@ -757,6 +757,8 @@ mod tests {
     use std::path::Path;
     use std::rc::Rc;
 
+    mod proofs18_e2e_compare_with;
+
     fn text_of(path: &Path) -> String {
         path.to_string_lossy().into_owned()
     }

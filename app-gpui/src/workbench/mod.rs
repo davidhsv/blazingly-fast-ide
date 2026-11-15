@@ -343,6 +343,8 @@ pub struct Workbench {
     edit_configs: Option<run_configs::EditConfigsWindow>,
     /// The Settings dialog, while it is open.
     settings: Option<settings_window::SettingsWindow>,
+    /// The page the Settings dialog showed when it last closed: where it opens next without a page.
+    last_settings_page: Option<String>,
     /// The window's plugin host, the Welcome screen's Plugins page, the page of the Plugins actions
     /// and the dialog they show.
     plugin_ui: plugins_window::PluginsSlot,
@@ -1144,6 +1146,7 @@ impl Workbench {
             run_widget: None,
             edit_configs: None,
             settings: None,
+            last_settings_page: None,
             plugin_ui: Default::default(),
             vcs: None,
             commit: None,
@@ -2983,7 +2986,7 @@ impl Workbench {
         }
         self.save_session(cx);
         self.popup = None;
-        self.drop_settings();
+        self.drop_settings(cx);
     }
 
     /// Closes the window's project; the window stays, showing the Welcome screen.
@@ -3568,7 +3571,8 @@ impl Workbench {
         let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned());
         let context = crate::platform::context::window_context(window, cx);
         let label = self.label.clone();
-        let popup = cx.new(|cx| SearchEverywhere::new(&label, tab, query.as_deref(), root, context, cx));
+        let settings = settings_window::settings_search_entries(window, cx);
+        let popup = cx.new(|cx| SearchEverywhere::new(&label, tab, query.as_deref(), root, context, settings, cx));
         let events = cx.subscribe_in(&popup, window, |workbench, _, event: &SearchEverywhereEvent, window, cx| {
             match event {
                 SearchEverywhereEvent::Dismissed => workbench.close_popup(window, cx),
@@ -3593,6 +3597,14 @@ impl Workbench {
                             let _ = workbench.update(cx, |workbench, cx| workbench.close_popup(window, cx));
                         }
                         execute_action_from(ActionSource::Search, &id, None, window, cx);
+                    });
+                }
+                SearchEverywhereEvent::OpenSettings(page) => {
+                    workbench.close_popup(window, cx);
+                    let page = serde_json::Value::String(page.clone());
+                    // Once this update is over: Settings opens over the workbench.
+                    window.defer(cx, move |window, cx| {
+                        execute_action_from(ActionSource::Search, "file.settings", Some(&page), window, cx);
                     });
                 }
             }
@@ -4183,23 +4195,28 @@ impl Render for Workbench {
             }
         };
         let framed = self.project_tree().is_some();
+        let this = cx.entity().downgrade();
         div()
             .size_full()
             .bg(theme::color(cx, if framed { "bg-frame" } else { "bg-app" }))
             .text_color(theme::color(cx, "fg"))
             .font_family(theme::installed_fonts::ui_family(cx))
             .text_size(theme::length(cx, "fs-ui"))
-            // Modifier taps and mouse buttons have no application-level hook: forward them.
-            .on_modifiers_changed(cx.listener(|workbench, event: &ModifiersChangedEvent, window, cx| {
+            // Modifier taps and mouse buttons have no application-level hook: forward them. The
+            // listeners are not the workbench's own, since the action a gesture runs may update it.
+            .on_modifiers_changed(move |event: &ModifiersChangedEvent, window, cx| {
                 input::modifiers_changed(&event.modifiers, window, cx);
                 let modifiers = event.modifiers;
-                workbench.for_each_intelligence(cx, |intelligence, cx| intelligence.modifiers_changed(modifiers, cx));
-            }))
-            .capture_any_mouse_down(cx.listener(|_, event: &MouseDownEvent, window, cx| {
+                let _ = this.update(cx, |workbench, cx| {
+                    workbench
+                        .for_each_intelligence(cx, |intelligence, cx| intelligence.modifiers_changed(modifiers, cx));
+                });
+            })
+            .capture_any_mouse_down(|event: &MouseDownEvent, window, cx| {
                 if input::mouse_down(event.button, &event.modifiers, false, window, cx).consumed() {
                     cx.stop_propagation();
                 }
-            }))
+            })
             .flex()
             .flex_col()
             .child(crate::ui::tooltip::press_watcher())
@@ -4295,6 +4312,17 @@ mod tests {
     mod proofs16_run_badge;
     #[cfg(unix)]
     mod proofs17_interrupt;
+    mod proofs18_e2e_commit;
+    mod proofs18_e2e_diff_navigation;
+    mod proofs18_e2e_editor;
+    mod proofs18_e2e_fixtures;
+    mod proofs18_e2e_git_ignore;
+    mod proofs18_e2e_merge_editor;
+    mod proofs18_e2e_new_branch;
+    mod proofs18_e2e_open_project;
+    mod proofs18_e2e_run;
+    mod proofs18_e2e_search;
+    mod proofs18_e2e_toolwindows;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

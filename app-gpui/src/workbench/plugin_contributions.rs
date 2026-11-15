@@ -1019,6 +1019,7 @@ mod tests {
 
     mod proofs10_menus_settings;
     mod proofs11_plugin_debug;
+    mod proofs18_e2e_plugin_settings;
     mod untrusted_windows;
 
     const LABEL: &str = "w1";

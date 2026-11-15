@@ -6,8 +6,8 @@ use super::dialog_parts::tx;
 use crate::theme;
 use crate::ui::tooltip::WithTooltip;
 use gpui_kit::{
-    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, Render, SharedString, Window, div,
-    prelude::*, px,
+    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, Render, SharedString, StyledText,
+    TextLayout, Window, div, prelude::*, px,
 };
 use ide_db::{PlanNode, PlanProperty};
 use std::collections::BTreeSet;
@@ -45,6 +45,8 @@ pub struct PlanView {
     /// Collapsed rows (`None`: the statement row); everything starts expanded.
     collapsed: BTreeSet<Option<usize>>,
     focus: FocusHandle,
+    /// The params cells of the last frame, row by row, as they were laid out.
+    params_drawn: Vec<TextLayout>,
 }
 
 impl EventEmitter<PlanEvent> for PlanView {}
@@ -85,6 +87,7 @@ impl PlanView {
             selected: None,
             collapsed: BTreeSet::new(),
             focus: cx.focus_handle(),
+            params_drawn: Vec::new(),
         }
     }
 
@@ -185,6 +188,11 @@ impl PlanView {
     }
 
     /// The selected operation's properties; the statement's is its operation.
+    /// Each row's params as the last frame drew them: a value wider than its cell ends with an ellipsis.
+    pub fn drawn_params(&self) -> Vec<String> {
+        self.params_drawn.iter().map(TextLayout::text).collect()
+    }
+
     pub fn properties(&self) -> Vec<PlanProperty> {
         match self.selected.and_then(|index| self.plan.get(index)) {
             Some(node) => node.properties.clone(),
@@ -262,6 +270,7 @@ impl Render for PlanView {
                     .child(SharedString::from(operation_label)),
             )
             .child(div().flex_1().min_w_0().overflow_hidden().child(SharedString::from(params_label)));
+        let mut params_drawn = Vec::new();
         let rows: Vec<_> = self
             .rows()
             .into_iter()
@@ -303,21 +312,25 @@ impl Render for PlanView {
                             .items_center()
                             .gap(px(4.0))
                             .pl(px(16.0 * row.depth as f32))
-                            .child(div().w(px(16.0)).children(chevron))
+                            .child(div().w(px(16.0)).flex_none().children(chevron))
                             .children(icon)
-                            .child(SharedString::from(row.operation)),
+                            .child(div().min_w_0().truncate().child(SharedString::from(row.operation))),
                     )
-                    .child(
+                    .child({
+                        let params = StyledText::new(row.params);
+                        params_drawn.push(params.layout().clone());
                         div()
+                            .debug_selector(move || format!("db-plan-params-{index}"))
                             .flex_1()
                             .min_w_0()
-                            .overflow_hidden()
+                            .truncate()
                             .text_color(muted)
-                            .child(SharedString::from(row.params)),
-                    )
+                            .child(params)
+                    })
                     .on_click(cx.listener(move |view, _: &ClickEvent, _, cx| view.select(node, cx)))
             })
             .collect();
+        self.params_drawn = params_drawn;
         let empty = rows.is_empty().then(|| {
             let text = tx(cx, "Empty plan");
             div().p(px(12.0)).text_color(muted).child(SharedString::from(text))
@@ -524,6 +537,31 @@ mod tests {
             properties.left() >= tree.right() && properties.top() == tree.top(),
             "wide: {properties:?} beside {tree:?}"
         );
+    }
+
+    /// In a pane as narrow as the docked Database window, params wider than their cell end with an
+    /// ellipsis inside the tree's pane; params that fit are drawn whole.
+    #[gpui_kit::test]
+    async fn params_too_wide_for_a_narrow_pane_end_with_an_ellipsis(cx: &mut TestAppContext) {
+        const LONG: &str = "table: users; USING INTEGER PRIMARY KEY (rowid=?)";
+        cx.update(|cx| cx.set_global(theme::ActiveTheme::default()));
+        let (host, cx) = cx.add_window_view(|_, cx| {
+            let plan = vec![node(None, "Index Scan", LONG), node(None, "Full Scan", "o")];
+            let view = cx.new(|cx| PlanView::new(7, "app", "select name from users where id = 1", plan, cx));
+            Narrow(view, 300.0)
+        });
+        cx.run_until_parked();
+        let view = host.read_with(cx, |host, _| host.0.clone());
+        let drawn = view.read_with(cx, |v, _| v.drawn_params());
+        assert_eq!(drawn.len(), 3, "{drawn:?}");
+        assert_eq!(drawn[0], "", "the statement row has no params");
+        let cut = &drawn[1];
+        assert!(cut.ends_with('…') && cut.len() < LONG.len(), "the long params are cut with an ellipsis: {cut:?}");
+        assert!(LONG.starts_with(cut.trim_end_matches('…')), "{cut:?} is the start of the params");
+        assert_eq!(drawn[2], "o", "params that fit are drawn whole");
+        let pane = cx.debug_bounds("db-plan-tree-pane").expect("the tree's pane is drawn");
+        let cell = cx.debug_bounds("db-plan-params-1").expect("the params cell is drawn");
+        assert!(cell.right() <= pane.right(), "{cell:?} ends inside {pane:?}");
     }
 
     #[gpui_kit::test]
