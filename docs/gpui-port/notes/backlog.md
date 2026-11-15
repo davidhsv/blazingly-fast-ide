@@ -661,3 +661,15 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - RUNNING (cargo): build tools integrator (`$S/int_d113_brief.md`). WHEN IT REPORTS: verify (suite ×2 etc.), then MY Tauri workspace suite from the worktree root in background (`cargo test --workspace --no-fail-fast > $S/tauri_suite3.log; echo "EXIT $?"; git status --short src/ src-tauri/ e2e/ package.json`), `git diff --stat cfe32bcc HEAD -- crates src src-tauri e2e package.json Cargo.toml Cargo.lock` must show only the seam files; look at its Maven window shots; commit crates/ changes in their own commit.
 - CARGO QUEUE after it: Settings pages (`$S/int_settings_brief.md`: Part 0 Quick Evaluate + keymap flows, then 27 pages) → agents views → refactor actions + Git text actions → diff gaps (+ diff_tab proofs18 file) → shared button + accessibility → vcs_stage_hunks → zoom px.
 - NO-CARGO candidates when the queue shortens: in-place rename in the editor (finishes extract* rows, 2 codeInsight e2e cases), tool window title double click + terminal group headers (5 toolwindows e2e cases), breadcrumbs / Navigation Bar + tab modified mark (2 editor e2e cases + navigate.navigationBar), templates, inline completion, analysis, window.* tabs.
+
+## Advisor's review (2026-11-15, after D115) and what changed
+
+- NO MORE FEATURE WRITERS while the draft queue is five integrations deep (drafts rot: database and build tools both needed reconcilers). No-cargo lane does work that does not rot:
+  - RUNNING: mapper of unrecorded rows earned by 767e28d2 + cfe32bcc → `$S/parity_map_d115.json` (+ `$S/reports/parity_map_d115.md`); VALIDATE BY SCRIPT (keys exist, tests in rust_tests.txt), spot-check ten, then record.
+  - RUNNING: reconciler of the agents views drafts → `$S/drafts/agents_views_reconciled.md`, `$S/agv/anchors.py`.
+  - RUNNING: reconciler of the diff gaps drafts → `$S/drafts/diff_gaps_reconciled.md`, `$S/dfg/anchors.py` (three parts: soft wraps, moved code, diff tab; states when the webview shows a diff in a tab vs a dialog).
+  - RUNNING: triage of the 479 partial + 122 model-only rows and the blank ipc rows → `$S/triage/rows.json`, `$S/triage/batches.md` (test-only / small / feature / blocked / record-only; densest batches).
+- SETTINGS BRIEF SPLIT: `$S/int_settings_a_brief.md` (Part 0 Quick Evaluate + keymap flows; Part 0b inspection `mods` step + double Shift and TextField seen in a window; 11 misc pages) then `$S/int_settings_b_brief.md` (16 language pages; unifies the two SDK fields). `$S/int_settings_brief.md` is superseded.
+- AFTER BUILD TOOLS REPORTS: my app-gpui verification, THEN the Tauri workspace suite at the root (one heavy build at a time: do NOT launch the next integrator until it finishes), THEN the next integrator.
+- The refactor integration must report `unit:` rows (it wires `editor_refactor` models: model-only rows should flip).
+- Seam check done early (crates diff read at 4 files): default-preserving, fingerprint.rs is named in the notes §1.2.
