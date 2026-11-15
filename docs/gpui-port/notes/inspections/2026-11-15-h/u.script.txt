@@ -1,0 +1,58 @@
+# The language pages not yet looked at, with no toolchain looked for on the machine.
+no-toolchains
+wait	3000
+action	file.settings	"languages.go.buildTags"
+wait	2000
+mark	languages.go.buildTags
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.go.modules"
+wait	2000
+mark	languages.go.modules
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.markdown"
+wait	2000
+mark	languages.markdown
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.ruby"
+wait	2000
+mark	languages.ruby
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.ruff"
+wait	2000
+mark	languages.ruff
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.pluginFormatters"
+wait	2000
+mark	languages.pluginFormatters
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.serverTargets"
+wait	2000
+mark	languages.serverTargets
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"projectStructure"
+wait	2000
+mark	projectStructure
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.servers"
+wait	2000
+mark	languages.servers
+wait	1000
+keys	escape
+wait	800
+quit

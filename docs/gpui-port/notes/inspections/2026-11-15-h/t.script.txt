@@ -1,0 +1,58 @@
+# The language pages, with no toolchain looked for on the machine.
+no-toolchains
+wait	3000
+action	file.settings	"languages.java"
+wait	2000
+mark	java
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.node"
+wait	2000
+mark	node
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"python.interpreter"
+wait	2000
+mark	python
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.go"
+wait	2000
+mark	go
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.rust"
+wait	2000
+mark	rust
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.typescript"
+wait	2000
+mark	typescript
+wait	1000
+keys	escape
+wait	500
+action	file.settings	"languages.php"
+wait	2000
+mark	php
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.prettier"
+wait	2000
+mark	prettier
+wait	1000
+keys	escape
+wait	800
+action	file.settings	"languages.oxfmt"
+wait	2000
+mark	oxfmt
+wait	1000
+keys	escape
+wait	800
+quit

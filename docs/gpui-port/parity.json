@@ -7774,5 +7774,69 @@
   "settings:vcs.issueNavigation": {
     "status": "partial",
     "proof": "`workbench::tests::proofs19_settings_misc::issue_navigation_links_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::vcs_issue_navigation::tests::an_invalid_pattern_is_named_under_the_table`, `settings_view::pages::vcs_issue_navigation::tests::look_around_and_backreferences_are_invalid_patterns`, `settings_view::pages::vcs_issue_navigation::tests::the_presets_add_their_pattern_after_the_links_there`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; links are written to the project. Missing: a pattern with look-around or a backreference is refused as invalid, where the webview's regular expressions accept it"
+  },
+  "settings:languages.go": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::go_goroot_and_gopath_are_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_sdk::tests::the_combo_offers_the_detected_installations_and_stages_a_choice`, `settings_view::pages::languages_sdk::tests::browse_asks_for_a_folder_and_stages_it`; the page's GOROOT drop-down (installations found, a custom folder) and project GOPATH are drawn, stored in the project after Apply; Reset and Cancel discard an edit. Missing: Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+  },
+  "settings:languages.go.buildTags": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_languages::go_build_tags_are_written_to_the_project`, `workbench::tests::proofs19_settings_languages::go_build_tags_and_modules_say_a_project_is_needed_without_one`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the build tags are stored in the project after Apply, the page says a project is needed without one; Reset and Cancel discard an edit"
+  },
+  "settings:languages.go.modules": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_languages::go_modules_variables_are_written_to_the_project_and_cancel_discards`, `workbench::tests::proofs19_settings_languages::go_build_tags_and_modules_say_a_project_is_needed_without_one`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the modules' environment variables are stored in the project after Apply, the page says a project is needed without one; Reset and Cancel discard an edit"
+  },
+  "settings:languages.java": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::java_level_and_shared_jdt_ls_apply_and_reset_discards_jvm_options`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::shared_jdt_ls_is_not_editable_for_a_workspace_project`; the project JDK, the language level, Share JDT LS across builds (not editable for a workspace project), the server's JDK and JVM options are drawn and stored after Apply; Reset and Cancel discard an edit. Missing: Download JDK…; Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+  },
+  "settings:languages.markdown": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_languages::markdown_preview_size_follows_the_editor_until_set_and_applies`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::the_preview_size_follows_the_editor_until_set_and_keeps_its_range`; the preview's font size follows the editor's until set, keeps its range and is stored after Apply; Reset and Cancel discard an edit"
+  },
+  "settings:languages.node": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::node_package_manager_is_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the Node interpreter and the package manager (with the version and place found, in the open list) are drawn and stored in the project after Apply; Reset and Cancel discard an edit. Missing: the run targets a plugin contributes (Run in target, Language server runs on); Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+  },
+  "settings:languages.oxfmt": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_languages::oxfmt_run_on_save_is_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the page's controls are drawn and Run on save is stored in the project after Apply; Reset and Cancel discard an edit"
+  },
+  "settings:languages.php": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::php_include_path_and_level_are_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::the_selected_php_shows_its_version_and_xdebug`, `settings_view::pages::languages_controls::tests::a_stored_target_shows_as_unavailable_and_local_machine_is_staged`; the language level, include paths, stubs, PHPStan file and the interpreter with its version and Xdebug are drawn and stored in the project after Apply; a stored run target that is gone shows as unavailable; Reset and Cancel discard an edit. Missing: the run targets a plugin contributes; Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+  },
+  "settings:languages.pluginFormatters": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::plugin_formatters_format_on_save_applies`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::a_plugin_formatter_is_offered_for_the_languages_it_covers`; Format on save is stored after Apply and a plugin's formatter is offered for the languages it covers; Reset and Cancel discard an edit. Missing: the per-language choice is proven with formatters handed to the view, not with a loaded plugin's"
+  },
+  "settings:languages.prettier": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_languages::prettier_provider_and_languages_are_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`, `settings_view::pages::languages_controls::tests::a_language_checkbox_removes_and_adds_the_language`; the provider and the languages' checkboxes are drawn and stored in the project after Apply; Reset and Cancel discard an edit"
+  },
+  "settings:languages.ruby": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::ruby_interpreter_is_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the interpreter is chosen and stored in the project after Apply; Reset and Cancel discard an edit. Missing: Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+  },
+  "settings:languages.ruff": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::ruff_configuration_directory_is_chosen_with_browse_and_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the configuration directory is chosen with Browse… and stored in the project after Apply; Reset and Cancel discard an edit. Missing: Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+  },
+  "settings:languages.rust": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::rust_linter_and_rustfmt_arguments_apply_and_reset_and_cancel_discard`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the toolchain, the linter and the rustfmt arguments are drawn and stored after Apply; Reset and Cancel discard an edit. Missing: Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+  },
+  "settings:languages.serverTargets": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::language_server_targets_local_machine_is_written_to_the_project`, `workbench::tests::proofs19_settings_languages::language_server_targets_are_not_editable_without_a_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; Local machine is stored in the project after Apply and the page is not editable without a project; Reset and Cancel discard an edit. Missing: the run targets a plugin contributes"
+  },
+  "settings:languages.typescript": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::typescript_version_is_chosen_with_browse_and_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the TypeScript version (Bundled, the workspace's, a custom folder) is chosen with Browse… and stored in the project after Apply; Reset and Cancel discard an edit. Missing: Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
+  },
+  "settings:python.interpreter": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::python_interpreter_and_activation_are_written_to_the_project`, `workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page`; the interpreter and the terminal activation are stored in the project after Apply; Reset and Cancel discard an edit. Missing: Add Interpreter…, the packages table; Browse… opens the folder prompt without the webview's title and start folder (the platform's prompt takes neither)"
   }
 }
