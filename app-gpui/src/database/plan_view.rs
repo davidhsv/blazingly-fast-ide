@@ -241,17 +241,27 @@ impl Render for PlanView {
             .child(div().flex_1())
             .child(div().text_color(muted).child(SharedString::from(self.source.clone())));
         let (operation_label, params_label) = (tx(cx, "Operation"), tx(cx, "Params"));
+        // Two columns as the tree's rows have them: the operation at least 160 wide, then the params.
         let header = div()
             .flex_none()
             .h(px(24.0))
             .px(px(8.0))
             .flex()
             .items_center()
+            .gap(px(12.0))
+            .whitespace_nowrap()
             .text_color(muted)
             .border_b_1()
             .border_color(border)
-            .child(div().w(px(260.0)).child(SharedString::from(operation_label)))
-            .child(SharedString::from(params_label));
+            .child(
+                div()
+                    .debug_selector(|| "db-plan-header-operation".to_owned())
+                    .flex_1()
+                    .min_w(px(160.0))
+                    .overflow_hidden()
+                    .child(SharedString::from(operation_label)),
+            )
+            .child(div().flex_1().min_w_0().overflow_hidden().child(SharedString::from(params_label)));
         let rows: Vec<_> = self
             .rows()
             .into_iter()
@@ -281,12 +291,14 @@ impl Render for PlanView {
                     .px(px(8.0))
                     .flex()
                     .items_center()
+                    .gap(px(12.0))
                     .whitespace_nowrap()
                     .when(self.selected == node, |el| el.bg(selected_bg))
                     .child(
                         div()
-                            .w(px(260.0))
-                            .flex_none()
+                            .flex_1()
+                            .min_w(px(160.0))
+                            .overflow_hidden()
                             .flex()
                             .items_center()
                             .gap(px(4.0))
@@ -314,14 +326,21 @@ impl Render for PlanView {
         let properties: Vec<_> = self
             .properties()
             .into_iter()
-            .map(|property| {
-                div()
-                    .min_h(px(22.0))
-                    .px(px(8.0))
-                    .flex()
-                    .items_center()
-                    .child(div().w(px(140.0)).flex_none().text_color(muted).child(SharedString::from(property.name)))
-                    .child(div().flex_1().min_w_0().child(SharedString::from(property.value)))
+            .enumerate()
+            .map(|(index, property)| {
+                let name = div()
+                    .debug_selector(move || format!("db-plan-property-name-{index}"))
+                    .w(px(140.0))
+                    .flex_none()
+                    .text_color(muted)
+                    .child(SharedString::from(property.name));
+                div().min_h(px(22.0)).px(px(8.0)).flex().items_center().child(name).child(
+                    div()
+                        .debug_selector(move || format!("db-plan-property-value-{index}"))
+                        .flex_1()
+                        .min_w(px(64.0))
+                        .child(SharedString::from(property.value)),
+                )
             })
             .collect();
         div()
@@ -333,17 +352,41 @@ impl Render for PlanView {
             .text_color(theme::color(cx, "fg"))
             .child(toolbar)
             .child(
+                // The properties sit beside the tree; a pane too narrow for both (the docked Database
+                // window) puts them under it, so neither is drawn over the other or cut.
                 div()
                     .flex_1()
                     .min_h_0()
                     .flex()
-                    .child(div().flex_1().min_w_0().flex().flex_col().child(header).child(
-                        div().id("db-plan-tree").flex_1().min_h_0().overflow_y_scroll().children(rows).children(empty),
-                    ))
+                    .flex_wrap()
+                    .content_stretch()
                     .child(
                         div()
-                            .w(px(320.0))
+                            .debug_selector(|| "db-plan-tree-pane".to_owned())
+                            .flex_grow(1.0)
+                            .flex_basis(px(0.0))
+                            .min_w(px(176.0))
+                            .overflow_hidden()
+                            .flex()
+                            .flex_col()
+                            .child(header)
+                            .child(
+                                div()
+                                    .id("db-plan-tree")
+                                    .flex_1()
+                                    .min_h_0()
+                                    .overflow_y_scroll()
+                                    .children(rows)
+                                    .children(empty),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .debug_selector(|| "db-plan-properties".to_owned())
                             .flex_none()
+                            .w(px(320.0))
+                            .max_w(gpui_kit::relative(1.0))
+                            .overflow_hidden()
                             .flex()
                             .flex_col()
                             .border_l_1()
@@ -357,7 +400,7 @@ impl Render for PlanView {
                                     .text_color(muted)
                                     .border_b_1()
                                     .border_color(border)
-                                    .child(div().w(px(140.0)).child(SharedString::from(property_label)))
+                                    .child(div().w(px(140.0)).flex_none().child(SharedString::from(property_label)))
                                     .child(SharedString::from(value_label)),
                             )
                             .children(properties),
@@ -431,6 +474,56 @@ mod tests {
         assert_eq!(view.read_with(cx, |v, _| v.selected()), Some(1));
         let properties = view.read_with(cx, |v, _| v.properties());
         assert_eq!(properties[0].value, "Full Scan table: users;");
+    }
+
+    /// The view in a pane of the given width.
+    struct Narrow(Entity<PlanView>, f32);
+
+    impl Render for Narrow {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div().w(px(self.1)).h(px(300.0)).flex().child(self.0.clone())
+        }
+    }
+
+    /// In a pane as narrow as the docked Database window the properties go under the tree; in a wide
+    /// one they sit beside it. Neither is drawn over the other, and no column is cut.
+    #[gpui_kit::test]
+    async fn a_narrow_plan_puts_the_properties_under_the_tree_and_a_wide_one_beside_it(cx: &mut TestAppContext) {
+        cx.update(|cx| cx.set_global(theme::ActiveTheme::default()));
+        let (host, cx) = cx.add_window_view(|_, cx| {
+            let view = cx.new(|cx| PlanView::new(7, "app", "select * from users", plan(), cx));
+            Narrow(view, 300.0)
+        });
+        let bounds = |cx: &mut VisualTestContext, selector: &'static str| {
+            cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"))
+        };
+        let (tree, properties) = (bounds(cx, "db-plan-tree-pane"), bounds(cx, "db-plan-properties"));
+        let (operation, name, value) = (
+            bounds(cx, "db-plan-header-operation"),
+            bounds(cx, "db-plan-property-name-0"),
+            bounds(cx, "db-plan-property-value-0"),
+        );
+        assert!(operation.size.width >= px(160.0), "the operation column keeps its width: {operation:?}");
+        assert!(properties.top() >= tree.bottom(), "narrow: {properties:?} under {tree:?}");
+        assert!(
+            properties.right() <= px(300.0) && tree.right() <= px(300.0),
+            "inside the pane: {tree:?} {properties:?}"
+        );
+        assert_eq!(name.size.width, px(140.0), "the property's name is not cut");
+        assert!(value.left() >= name.right() && value.right() <= properties.right(), "{value:?} in {properties:?}");
+        assert!(value.size.height <= px(22.0), "the value reads on one line: {value:?}");
+
+        host.update(cx, |host, cx| {
+            host.1 = 900.0;
+            cx.notify();
+        });
+        cx.run_until_parked();
+        let (tree, properties) = (bounds(cx, "db-plan-tree-pane"), bounds(cx, "db-plan-properties"));
+        assert_eq!(properties.size.width, px(320.0), "wide: the properties keep their width");
+        assert!(
+            properties.left() >= tree.right() && properties.top() == tree.top(),
+            "wide: {properties:?} beside {tree:?}"
+        );
     }
 
     #[gpui_kit::test]

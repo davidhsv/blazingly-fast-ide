@@ -323,8 +323,18 @@ impl Render for FontPicker {
             .flex_col()
             .when(!enabled, |el| el.opacity(0.5))
             .child(
+                // The label sits on the field's line, not in the middle of the field and the status
+                // line under it: that line is as tall as the taller of the field and Refresh.
                 row(cx, matched)
-                    .child(row_label(cx, &label, &query))
+                    .items_start()
+                    .child(
+                        div()
+                            .debug_selector(move || format!("settings-font-{name}-label"))
+                            .h(theme::length(cx, "h-control").max(theme::length(cx, "h-button")))
+                            .flex()
+                            .items_center()
+                            .child(row_label(cx, &label, &query)),
+                    )
                     .child(
                         // The picker: its field and Refresh, the status of the font list under them,
                         // wrapped within the picker's widest.

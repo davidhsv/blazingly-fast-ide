@@ -27,7 +27,7 @@ use crate::database::truncate_dialog::{TruncateDialog, TruncateEvent};
 use crate::editor::view::Editor;
 use crate::platform::actions::{Action, ActionRegistry, manifest};
 use gpui_kit::{
-    AnyView, App, AsyncWindowContext, ClipboardItem, Context, Entity, EntityId, FocusHandle, Focusable,
+    AnyView, App, AppContext, AsyncWindowContext, ClipboardItem, Context, Entity, EntityId, FocusHandle, Focusable,
     PathPromptOptions, Subscription, Window,
 };
 use ide_core::{IdeError, IdeResult};
@@ -285,7 +285,7 @@ impl Workbench {
             .map(|console| {
                 let bar = store.console_bar(&console.path);
                 let driver = bar.bound.as_deref().and_then(|bound| store.source_of(bound)).map(|source| source.driver);
-                (console.view.clone(), bar, driver)
+                (console.path.clone(), console.view.clone(), bar, driver)
             })
             .collect();
         let history = store.history().cloned();
@@ -294,8 +294,15 @@ impl Workbench {
             _ => None,
         };
         let wanted = if store.loaded() { slot.extras.history_wanted.take() } else { None };
-        for (view, bar, driver) in bars {
+        // A console that is bound to a data source anew (the only one, once the sources are read, or
+        // one chosen in its toolbar) loads what its toolbar shows of it: the completion model with the
+        // default schema, and the schemas.
+        let mut rebound = Vec::new();
+        for (path, view, bar, driver) in bars {
             if view.read(cx).bar() != &bar {
+                if bar.bound.is_some() && view.read(cx).bar().bound != bar.bound {
+                    rebound.push(path);
+                }
                 view.update(cx, |view, cx| view.set_state(bar, driver, cx));
             }
         }
@@ -307,6 +314,10 @@ impl Workbench {
         }
         if let Some(path) = wanted {
             self.open_query_history(path, window, cx);
+        }
+        for path in rebound {
+            let commands = self.db_step(cx, |store, _| store.ensure_console(&path));
+            self.carry_out_db(commands, window, cx);
         }
     }
 
@@ -1590,8 +1601,8 @@ mod tests {
         cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
     }
 
-    /// The table editor's Import Data from File… opens the import dialog on its table; Export Data ›
-    /// Browse… asks where to save and puts the chosen file into the export form.
+    /// The table editor's Import Data from File… opens the import dialog on its table, which Cancel and
+    /// Escape close; Export Data › Browse… asks where to save and puts the chosen file into the export form.
     #[gpui_kit::test]
     async fn the_table_editors_import_and_export_browse_open_their_dialogs(cx: &mut TestAppContext) {
         let _home = start(cx);
@@ -1614,6 +1625,11 @@ mod tests {
         assert_eq!(dialog.read_with(cx, |d, _| d.title()), "Import Data into main.users");
         click_on(cx, "db-import-cancel");
         assert!(workbench.read_with(cx, |w, _| w.database_import_dialog()).is_none(), "Cancel closes it");
+        click_on(cx, "table-import");
+        assert!(workbench.read_with(cx, |w, _| w.database_import_dialog()).is_some(), "Import Data opens again");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.database_import_dialog()).is_none(), "Escape closes it");
 
         click_on(cx, "table-export");
         let form = editor.read_with(cx, |e, _| e.export_form().cloned()).expect("Export Data opens");

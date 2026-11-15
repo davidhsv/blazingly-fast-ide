@@ -5,17 +5,19 @@
 //! pointer leaves, a button is pressed or the wheel turns; a bubble shown through [`Tooltip::shown`]
 //! also hides on a key press and when its window stops being the active one, until the pointer
 //! comes back to the element. A press during the delay cancels the bubble too (GPUI would show it
-//! after the press, over the popup the press opened): the window's root reports its presses
-//! through [`note_press`]. A view adds one in a line: `.with_tooltip("Close Tab")` on an
-//! element with an id, or `.tooltip(tooltip("…"))` with GPUI's own method.
+//! after the press, over the popup the press opened), and so does a press made where the pointer
+//! still rests: a window's root draws a [`press_watcher`] for that. A view adds one in a line:
+//! `.with_tooltip("Close Tab")` on an element with an id, or `.tooltip(tooltip("…"))` with GPUI's
+//! own method.
 
 use crate::platform::i18n::Localization;
 use crate::platform::input::Keymap;
 use crate::platform::keymap::is_mac_host;
 use crate::theme;
 use gpui_kit::{
-    AnyView, App, BoxShadow, Context, Global, IntoElement, Render, SharedString, StatefulInteractiveElement,
-    Subscription, Window, WindowId, div, prelude::*, px,
+    AnyView, App, BoxShadow, Context, DispatchPhase, Global, IntoElement, MouseDownEvent, MouseMoveEvent, Pixels,
+    Point, Render, SharedString, StatefulInteractiveElement, Subscription, Window, WindowId, canvas, div, prelude::*,
+    px,
 };
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -27,26 +29,71 @@ pub const TOOLTIP_DELAY: Duration = Duration::from_millis(600);
 /// The widest a tooltip grows before its text wraps.
 const MAX_WIDTH: f32 = 720.0;
 
-/// When a mouse button was last pressed in each window, by the executor's clock.
+/// The last press of a mouse button in a window: when, by the executor's clock, and whether the
+/// pointer still rests where it was made.
+#[derive(Clone, Copy)]
+struct Press {
+    at: Instant,
+    position: Point<Pixels>,
+    resting: bool,
+}
+
+/// The last press in each window.
 #[derive(Default)]
-struct LastPress(HashMap<WindowId, Instant>);
+struct LastPress(HashMap<WindowId, Press>);
 
 impl Global for LastPress {}
 
 /// Notes a mouse button pressed in `window`: a tooltip whose delay is running then shows nothing,
 /// since the press went to the element the pointer rests on.
-pub fn note_press(window: &Window, cx: &mut App) {
-    let now = cx.background_executor().now();
-    cx.default_global::<LastPress>().0.insert(window.window_handle().window_id(), now);
+fn note_press(position: Point<Pixels>, window: &Window, cx: &mut App) {
+    let press = Press { at: cx.background_executor().now(), position, resting: true };
+    cx.default_global::<LastPress>().0.insert(window.window_handle().window_id(), press);
 }
 
-/// Whether a button was pressed in `window` while the delay of a tooltip due now was running: the
-/// delay started at the latest [`TOOLTIP_DELAY`] ago, when the pointer came to rest.
+/// Notes the pointer moved in `window`: away from where the last press was made, that press no longer
+/// keeps tooltips hidden once their delay has run.
+fn note_move(position: Point<Pixels>, window: &Window, cx: &mut App) {
+    let id = window.window_handle().window_id();
+    if let Some(press) = cx.try_global::<LastPress>().and_then(|presses| presses.0.get(&id))
+        && press.resting
+        && press.position != position
+    {
+        cx.global_mut::<LastPress>().0.entry(id).and_modify(|press| press.resting = false);
+    }
+}
+
+/// An empty element a window's root draws so that the tooltips of the window learn of its presses
+/// and of the pointer's moves, whatever element (a popup, a menu's backdrop) is under the pointer.
+pub fn press_watcher() -> impl IntoElement {
+    canvas(
+        |_, _, _| {},
+        |_, _, window, _| {
+            window.on_mouse_event(|event: &MouseDownEvent, phase, window, cx| {
+                if phase == DispatchPhase::Capture {
+                    note_press(event.position, window, cx);
+                }
+            });
+            window.on_mouse_event(|event: &MouseMoveEvent, phase, window, cx| {
+                if phase == DispatchPhase::Capture {
+                    note_move(event.position, window, cx);
+                }
+            });
+        },
+    )
+    .absolute()
+    .size_full()
+}
+
+/// Whether a press keeps a tooltip due now from showing in `window`: the pointer has not moved since
+/// the press (the press went to the element the tooltip belongs to, and the popup it opened lies
+/// under the bubble), or the press came while the delay ran, which started at the latest
+/// [`TOOLTIP_DELAY`] ago, when the pointer came to rest.
 fn pressed_during_delay(window: &Window, cx: &App) -> bool {
     let now = cx.background_executor().now();
     cx.try_global::<LastPress>()
         .and_then(|presses| presses.0.get(&window.window_handle().window_id()).copied())
-        .is_some_and(|at| now.saturating_duration_since(at) < TOOLTIP_DELAY)
+        .is_some_and(|press| press.resting || now.saturating_duration_since(press.at) < TOOLTIP_DELAY)
 }
 
 /// The bubble: a title, the shortcut that runs the same action, a line of detail.
@@ -68,7 +115,7 @@ impl Tooltip {
 
     /// The bubble as GPUI's `.tooltip(…)` builders return it, hidden by a key pressed in `window`
     /// and by `window` stopping being the active one, and empty when a button was pressed while its
-    /// delay ran (it stays empty until the pointer leaves the element).
+    /// delay ran or where the pointer still rests (it stays empty until the pointer leaves the element).
     pub fn shown(self, window: &mut Window, cx: &mut App) -> AnyView {
         let here = window.window_handle().window_id();
         let dismissed = pressed_during_delay(window, cx);
@@ -349,7 +396,7 @@ mod tests {
             } else {
                 button.with_tooltip(self.text)
             };
-            div().size_full().p(px(40.0)).capture_any_mouse_down(|_, window, cx| note_press(window, cx)).child(button)
+            div().size_full().p(px(40.0)).child(press_watcher()).child(button)
         }
     }
 

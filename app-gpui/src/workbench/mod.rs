@@ -17,6 +17,7 @@ mod code_insight;
 use crate::code_insight::{HIERARCHY_TOOL_WINDOW, PROBLEMS_TOOL_WINDOW, USAGES_TOOL_WINDOW};
 mod commit;
 mod database;
+mod database_extras;
 mod debug;
 mod debug_extras;
 use crate::database::tree_view::DATABASE_TOOL_WINDOW;
@@ -599,6 +600,7 @@ pub fn register_actions(cx: &mut App) {
     terminal_actions::register_actions(registry);
     build_window::register_actions(registry);
     database::register_actions(registry);
+    database_extras::register_actions(registry);
     code_insight::register_actions(registry);
     editor_language::register_actions(registry);
     editor_extras::register_actions(registry);
@@ -1453,7 +1455,11 @@ impl Workbench {
         let body: Option<gpui_kit::AnyElement> = match (view, host, editor) {
             (Some((view, _)), _, _) => Some(view.into_any_element()),
             (None, Some(host), _) => Some(host.into_any_element()),
-            (None, None, Some(editor)) => Some(editor.into_any_element()),
+            // An SQL editor is drawn inside its query console, under the console's toolbar.
+            (None, None, Some(editor)) => Some(match self.sql_console_of(&editor) {
+                Some(console) => console.into_any_element(),
+                None => editor.into_any_element(),
+            }),
             // A pane without a tab shows the navigation hints.
             (None, None, None) if shown_tab.is_none() => {
                 // A window that edits loose files has no project to navigate: it offers Open File.
@@ -4190,13 +4196,13 @@ impl Render for Workbench {
                 workbench.for_each_intelligence(cx, |intelligence, cx| intelligence.modifiers_changed(modifiers, cx));
             }))
             .capture_any_mouse_down(cx.listener(|_, event: &MouseDownEvent, window, cx| {
-                crate::ui::tooltip::note_press(window, cx);
                 if input::mouse_down(event.button, &event.modifiers, false, window, cx).consumed() {
                     cx.stop_propagation();
                 }
             }))
             .flex()
             .flex_col()
+            .child(crate::ui::tooltip::press_watcher())
             .child(self.title_bar().clone())
             .children(self.restricted_banner(cx))
             .child(div().flex_1().min_h_0().w_full().child(body))
@@ -4302,6 +4308,7 @@ mod tests {
     mod proofs5_run;
     mod proofs6_agents;
     mod proofs6_database;
+    mod proofs6_database_console;
     mod proofs6_workbench;
     mod proofs7_bookmark_digits;
     mod proofs7_quit;
@@ -6422,7 +6429,7 @@ mod tests {
     }
 
     /// A trusted project of `files` (path, text), open in a window.
-    fn trusted_project<'a>(
+    pub(super) fn trusted_project<'a>(
         cx: &'a mut TestAppContext,
         files: &[(&str, &str)],
     ) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, &'a mut VisualTestContext) {
@@ -10307,6 +10314,81 @@ for line in sys.stdin:
         menu_shown_uncovered(cx);
     }
 
+    /// A click on the project widget or on the gear, with the pointer then resting on it for longer
+    /// than the tooltip's delay or moving a little on it, shows the menu it opened with no tooltip over
+    /// its first row.
+    #[gpui_kit::test]
+    async fn a_clicked_widgets_tooltip_stays_off_its_menu_while_the_pointer_rests_on_it(cx: &mut TestAppContext) {
+        use crate::ui::tooltip::TOOLTIP_DELAY;
+        use gpui_kit::{Modifiers, MouseButton};
+        let _home = start(cx);
+        let (_folder, _root, workbench, cx) = search_project(cx);
+        cx.run_until_parked();
+        let away = cx.debug_bounds("title-bar").expect("the bar is drawn").bottom_right();
+        for target in ["title:project", "title:gear"] {
+            let at = cx.debug_bounds(target).unwrap_or_else(|| panic!("{target} is drawn")).center();
+            // The pointer arrives and presses at once, as a click does: the tooltip's delay then ends
+            // a whole delay after the press, with the menu open and the pointer still on the target.
+            cx.simulate_mouse_move(at, None, Modifiers::default());
+            cx.simulate_mouse_down(at, MouseButton::Left, Modifiers::default());
+            cx.simulate_mouse_up(at, MouseButton::Left, Modifiers::default());
+            cx.run_until_parked();
+            cx.executor().advance_clock(TOOLTIP_DELAY * 2);
+            cx.run_until_parked();
+            assert!(workbench.read_with(cx, |w, _| w.popup.is_some()), "{target} opened its menu");
+            assert!(cx.debug_bounds("menu-row-0-0").is_some(), "the menu of {target} draws its first row");
+            assert!(cx.debug_bounds("tooltip").is_none(), "no tooltip of {target} covers its menu");
+            // Nor once the pointer moves a little on the target while the menu is open.
+            cx.simulate_mouse_move(
+                at + gpui_kit::point(gpui_kit::px(2.0), gpui_kit::px(1.0)),
+                None,
+                Modifiers::default(),
+            );
+            cx.executor().advance_clock(TOOLTIP_DELAY * 2);
+            cx.run_until_parked();
+            assert!(cx.debug_bounds("menu-row-0-0").is_some(), "the menu of {target} stays open");
+            assert!(cx.debug_bounds("tooltip").is_none(), "no tooltip of {target} after the pointer moved on it");
+            cx.simulate_keystrokes("escape");
+            cx.simulate_mouse_move(away, None, Modifiers::default());
+            cx.executor().advance_clock(TOOLTIP_DELAY * 2);
+            cx.run_until_parked();
+            assert!(workbench.read_with(cx, |w, _| w.popup.is_none()), "Escape closes the menu of {target}");
+        }
+        // The press does not silence the target for good: once the pointer has left and comes back,
+        // its tooltip shows again.
+        let gear = cx.debug_bounds("title:gear").expect("the gear is drawn").center();
+        cx.simulate_mouse_move(gear, None, Modifiers::default());
+        cx.executor().advance_clock(TOOLTIP_DELAY * 2);
+        cx.run_until_parked();
+        assert!(cx.debug_bounds("tooltip").is_some(), "the gear's tooltip shows when the pointer comes back");
+    }
+
+    /// Appearance's custom font rows read "Fallback font:" and "Size:" with one colon each, and the
+    /// UI font's label sits on its field's line as the fallback's does.
+    #[gpui_kit::test]
+    async fn the_appearance_pages_font_labels_end_in_one_colon_on_their_fields_line(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, _root, _workbench, cx) = search_project(cx);
+        run_action(cx, "file.settings", Some(serde_json::Value::from("appearance")));
+        wait_long(cx, "the Appearance page shows its font rows", |cx| {
+            cx.debug_bounds("settings-font-ui").is_some() && cx.debug_bounds("form-label:Size:").is_some()
+        });
+        for drawn in ["form-label:UI font:", "form-label:Fallback font:", "form-label:Size:"] {
+            assert!(cx.debug_bounds(drawn).is_some(), "{drawn} is drawn");
+        }
+        for doubled in ["form-label:Fallback font::", "form-label:Size::"] {
+            assert!(cx.debug_bounds(doubled).is_none(), "{doubled} is not drawn");
+        }
+        for name in ["ui", "ui-fallback"] {
+            let label: &'static str = Box::leak(format!("settings-font-{name}-label").into_boxed_str());
+            let field: &'static str = Box::leak(format!("settings-font-{name}").into_boxed_str());
+            let label = cx.debug_bounds(label).unwrap_or_else(|| panic!("{label} is drawn"));
+            let field = cx.debug_bounds(field).unwrap_or_else(|| panic!("{field} is drawn"));
+            let off = (label.center().y - field.center().y).abs();
+            assert!(off <= gpui_kit::px(1.0), "the {name} label at {label:?} sits on its field's line at {field:?}");
+        }
+    }
+
     /// Settings at its default size cuts nothing of the Font page: its controls lie inside the dialog.
     #[gpui_kit::test]
     async fn the_font_page_fits_inside_the_settings_dialog_at_its_default_size(cx: &mut TestAppContext) {
@@ -11703,7 +11785,7 @@ for line in sys.stdin:
         0x60, 0x82,
     ];
 
-    fn context_is_on(cx: &mut VisualTestContext, key: &str) -> bool {
+    pub(super) fn context_is_on(cx: &mut VisualTestContext, key: &str) -> bool {
         cx.update(|window, cx| crate::platform::context::window_context(window, cx).is_truthy(key))
     }
 
@@ -12195,7 +12277,7 @@ for line in sys.stdin:
 
     /// The project's SQLite data source `app` (id `s1`) on `app.db` in the project root, saved
     /// through the backend, with a `users` table of two rows (`1 ann`, `2 bob`).
-    fn sqlite_source(root: &std::path::Path, cx: &mut VisualTestContext) {
+    pub(super) fn sqlite_source(root: &std::path::Path, cx: &mut VisualTestContext) {
         std::fs::File::create(root.join("app.db")).expect("the database file is made");
         let source = ide_db::DataSource {
             id: "s1".into(),
@@ -12220,7 +12302,7 @@ for line in sys.stdin:
     }
 
     /// Runs `text` on data source `s1` through the backend: the rows of its result, or its error.
-    fn db_query(cx: &mut VisualTestContext, text: &str) -> Result<Vec<Vec<Option<String>>>, String> {
+    pub(super) fn db_query(cx: &mut VisualTestContext, text: &str) -> Result<Vec<Vec<Option<String>>>, String> {
         let to = u32::try_from(text.encode_utf16().count()).expect("a short statement");
         let statement = ide_db::split::SqlStatement { from: 0, to, text: text.to_owned() };
         cx.update(|_, cx| {
@@ -12241,7 +12323,7 @@ for line in sys.stdin:
         })
     }
 
-    fn db_tree(
+    pub(super) fn db_tree(
         workbench: &Entity<Workbench>,
         cx: &mut VisualTestContext,
     ) -> Entity<crate::database::tree_view::DatabaseTree> {
@@ -12249,7 +12331,7 @@ for line in sys.stdin:
     }
 
     /// The key of the tree's first row labelled `label`, once it shows.
-    fn db_row_key(
+    pub(super) fn db_row_key(
         tree: &Entity<crate::database::tree_view::DatabaseTree>,
         label: &str,
         cx: &mut VisualTestContext,
@@ -12264,7 +12346,11 @@ for line in sys.stdin:
     }
 
     /// Expands the tree's row labelled `label`.
-    fn db_expand(tree: &Entity<crate::database::tree_view::DatabaseTree>, label: &str, cx: &mut VisualTestContext) {
+    pub(super) fn db_expand(
+        tree: &Entity<crate::database::tree_view::DatabaseTree>,
+        label: &str,
+        cx: &mut VisualTestContext,
+    ) {
         let key = db_row_key(tree, label, cx);
         tree.update(cx, |tree, cx| tree.set_expanded(&key, true, cx));
         cx.run_until_parked();

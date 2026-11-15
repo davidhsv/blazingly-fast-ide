@@ -4,13 +4,18 @@
 //! models the views drive, with no GPUI types in them.
 
 pub mod console_view;
+pub mod dialog_parts;
 pub mod dialogs;
 pub mod export;
 pub mod grid;
 pub mod grid_view;
+pub mod history_view;
+pub mod import_dialog;
 pub mod model;
+pub mod modify_table_dialog;
 pub mod nodes;
 pub mod objects;
+pub mod plan_view;
 pub mod result_editing;
 pub mod result_session;
 pub mod result_view;
@@ -23,4 +28,5 @@ pub mod table_editor;
 pub mod table_editor_view;
 pub mod tree;
 pub mod tree_view;
+pub mod truncate_dialog;
 pub mod vendors;

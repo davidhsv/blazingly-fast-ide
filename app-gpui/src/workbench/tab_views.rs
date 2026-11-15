@@ -750,6 +750,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let path = editor.read(cx).path().to_string_lossy().into_owned();
+        self.wrap_sql_console(editor, window, cx);
         if !is_markdown_path(&path) {
             return;
         }

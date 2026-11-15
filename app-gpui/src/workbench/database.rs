@@ -250,6 +250,8 @@ pub(super) enum Lower {
     Hidden,
     Results,
     Table(u64),
+    /// The Query Plan tab.
+    Plan,
 }
 
 /// What the tool window's view tells the window.
@@ -266,6 +268,8 @@ pub(super) struct DatabasePanel {
     tree: Entity<DatabaseTree>,
     results: Entity<ResultsView>,
     editors: Vec<Entity<TableEditorView>>,
+    /// The Query Plan tab, once a statement was explained.
+    plan: Option<AnyView>,
     lower: Lower,
 }
 
@@ -273,7 +277,7 @@ impl EventEmitter<DatabasePanelEvent> for DatabasePanel {}
 
 impl DatabasePanel {
     fn new(tree: Entity<DatabaseTree>, results: Entity<ResultsView>) -> Self {
-        Self { tree, results, editors: Vec::new(), lower: Lower::Hidden }
+        Self { tree, results, editors: Vec::new(), plan: None, lower: Lower::Hidden }
     }
 
     #[cfg(test)]
@@ -290,7 +294,7 @@ impl DatabasePanel {
     pub(super) fn active_editor(&self, cx: &App) -> Option<&Entity<TableEditorView>> {
         match self.lower {
             Lower::Table(id) => self.editor(id, cx),
-            Lower::Hidden | Lower::Results => None,
+            Lower::Hidden | Lower::Results | Lower::Plan => None,
         }
     }
 
@@ -310,6 +314,16 @@ impl DatabasePanel {
         let id = editor.read(cx).id();
         self.editors.push(editor);
         self.select(Lower::Table(id), cx);
+    }
+
+    /// The Query Plan tab's view; `None` removes the tab, and the result pane shows instead.
+    pub(super) fn set_plan(&mut self, plan: Option<AnyView>, cx: &mut Context<Self>) {
+        let gone = plan.is_none();
+        self.plan = plan;
+        if gone && self.lower == Lower::Plan {
+            self.select(Lower::Results, cx);
+        }
+        cx.notify();
     }
 
     fn close_editor(&mut self, id: u64, cx: &mut Context<Self>) {
@@ -353,6 +367,14 @@ impl DatabasePanel {
             .border_color(theme::color(cx, "border"))
             .text_size(theme::length(cx, "fs-small"))
             .child(results);
+        if self.plan.is_some() {
+            let label = tx(cx, "Query Plan");
+            let plan = Self::strip_tab(label, self.lower == Lower::Plan, cx)
+                .id("db-lower-plan")
+                .debug_selector(|| "db-lower-plan".to_owned())
+                .on_click(cx.listener(|panel: &mut Self, _: &ClickEvent, _, cx| panel.select(Lower::Plan, cx)));
+            strip = strip.child(plan);
+        }
         let muted = theme::color(cx, "fg-muted");
         for editor in &self.editors {
             let (id, name) = {
@@ -391,6 +413,7 @@ impl Render for DatabasePanel {
         let lower: Option<AnyView> = match self.lower {
             Lower::Hidden => None,
             Lower::Results => Some(self.results.clone().into()),
+            Lower::Plan => self.plan.clone(),
             Lower::Table(id) => self.editor(id, cx).cloned().map(AnyView::from),
         };
         let strip = lower.is_some().then(|| self.strip(cx));
@@ -684,10 +707,10 @@ struct PendingRun {
 pub(super) struct DatabaseSlot {
     epoch: u64,
     window: AnyWindowHandle,
-    store: DbStore,
+    pub(super) store: DbStore,
     tree: Entity<DatabaseTree>,
     results: Entity<ResultsView>,
-    panel: Entity<DatabasePanel>,
+    pub(super) panel: Entity<DatabasePanel>,
     /// The `RequestId` of each cancellable request under way, by ticket.
     requests: HashMap<Ticket, RequestId>,
     next_editor: u64,
@@ -697,6 +720,8 @@ pub(super) struct DatabaseSlot {
     prompt: Option<Layer>,
     questions: VecDeque<Question>,
     pending_run: Option<PendingRun>,
+    /// The consoles, the Query History, object and import dialogs, and the Query Plan tab.
+    pub(super) extras: super::database_extras::ExtrasSlot,
     _tick: Task<()>,
     _subscriptions: Vec<Subscription>,
 }
@@ -823,6 +848,7 @@ impl Workbench {
             prompt: None,
             questions: VecDeque::new(),
             pending_run: None,
+            extras: Default::default(),
             _tick: tick,
             _subscriptions: subscriptions,
         });
@@ -870,7 +896,7 @@ impl Workbench {
     }
 
     /// Runs a step of the store with the clock and the UI language.
-    fn db_step(
+    pub(super) fn db_step(
         &mut self,
         cx: &mut Context<Self>,
         step: impl FnOnce(&mut DbStore, &Env<'_>) -> Vec<Command>,
@@ -922,7 +948,10 @@ impl Workbench {
 
     /// The Data Source dialog over the window, while one is open.
     pub(super) fn database_dialog_layer(&self, cx: &App) -> Option<AnyElement> {
-        let dialog = self.database.as_ref()?.source_dialog.as_ref()?.dialog.clone();
+        let dialog: AnyView = match self.database.as_ref()?.source_dialog.as_ref() {
+            Some(slot) => slot.dialog.clone().into(),
+            None => self.database_extras_dialog()?,
+        };
         let layer = div()
             .id("db-dialog-layer")
             .absolute()
@@ -953,7 +982,7 @@ impl Workbench {
     // ---- the driver -------------------------------------------------------------------------------
 
     /// Carries out what the store asks for, in order.
-    fn carry_out_db(&mut self, commands: Vec<Command>, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn carry_out_db(&mut self, commands: Vec<Command>, window: &mut Window, cx: &mut Context<Self>) {
         let Some((tree, results, panel)) =
             self.database.as_ref().map(|slot| (slot.tree.clone(), slot.results.clone(), slot.panel.clone()))
         else {
@@ -979,6 +1008,25 @@ impl Workbench {
                     tree.update(cx, |tree, cx| apply_tree_update(tree, update, cx));
                     if sources_read && let Some(run) = self.database.as_mut().and_then(|slot| slot.pending_run.take()) {
                         self.run_console(run, window, cx);
+                    }
+                }
+                Command::Results(ResultsUpdate::Plan { id, statement, plan, .. }) => {
+                    self.show_query_plan(id, statement, plan, window, cx);
+                }
+                Command::Results(ResultsUpdate::Running { id, running }) if self.is_query_plan(id, cx) => {
+                    self.query_plan_running(running, cx);
+                }
+                Command::Results(ResultsUpdate::Close(id)) if self.is_query_plan(id, cx) => {
+                    self.close_query_plan(cx);
+                }
+                Command::Results(ResultsUpdate::Select(selected)) => {
+                    if selected.is_some_and(|id| self.is_query_plan(id, cx)) {
+                        panel.update(cx, |panel, cx| panel.select(Lower::Plan, cx));
+                    } else {
+                        if panel.read(cx).lower == Lower::Plan {
+                            panel.update(cx, |panel, cx| panel.select(Lower::Results, cx));
+                        }
+                        results.update(cx, |results, cx| results.select_tab(selected, cx));
                     }
                 }
                 Command::Results(update) => {
@@ -1028,20 +1076,20 @@ impl Workbench {
                         }
                     }
                 }
-                Command::MarkOutcomes { path, marks, .. } => {
-                    let marks = marks.len();
-                    tracing::debug!(%path, marks, "Database: the console's statement marks are not drawn");
-                }
+                Command::MarkOutcomes { path, banner, .. } => self.mark_sql_console(&path, banner, cx),
                 Command::ShowResults => {
                     self.with_layout(window, cx, |layout| layout.show(DATABASE_TOOL_WINDOW, false));
-                    panel.update(cx, |panel, cx| panel.select(Lower::Results, cx));
+                    panel.update(cx, |panel, cx| {
+                        // Explain Plan shows the Query Plan tab; anything else the result pane.
+                        if panel.lower != Lower::Plan {
+                            panel.select(Lower::Results, cx);
+                        }
+                    });
                 }
                 Command::ShowToolWindow => {
                     self.with_layout(window, cx, |layout| layout.show(DATABASE_TOOL_WINDOW, true));
                 }
-                Command::ShowHistory => {
-                    tracing::info!("Database: the Query History dialog is not available in this window");
-                }
+                Command::ShowHistory => self.show_query_history(window, cx),
                 Command::SourceSaved { id } => {
                     let open = self.database.as_ref().and_then(|slot| slot.source_dialog.as_ref());
                     if open.is_some_and(|slot| slot.dialog.read(cx).form().source.id == id) {
@@ -1056,7 +1104,7 @@ impl Workbench {
                         dialog.update(cx, |dialog, cx| dialog.save_failed(&message, cx));
                     }
                 }
-                Command::SqlDone { job, ok } => tracing::debug!(job, ok, "Database: statements ran"),
+                Command::SqlDone { job, ok } => self.database_sql_done(job, ok, cx),
                 Command::TablePage { editor, request, result } => {
                     if let Some(view) = panel.read(cx).editor(editor, cx).cloned() {
                         view.update(cx, |view, cx| view.page_loaded(request, result, cx));
@@ -1070,6 +1118,7 @@ impl Workbench {
                 }
             }
         }
+        self.sync_database_extras(window, cx);
         cx.notify();
     }
 
@@ -1110,7 +1159,7 @@ impl Workbench {
     }
 
     /// Runs `work` on the backend with the host and the window's label, then `then` with its result.
-    fn db_call<T, F, W>(
+    pub(super) fn db_call<T, F, W>(
         &mut self,
         command: &'static str,
         work: W,
@@ -1514,7 +1563,7 @@ impl Workbench {
     // ---- the tree ---------------------------------------------------------------------------------
 
     /// A tree action from the action registry: on the node `key`, else on the selection.
-    fn run_tree_action(
+    pub(super) fn run_tree_action(
         &mut self,
         action: TreeAction,
         key: Option<String>,
@@ -1673,10 +1722,7 @@ impl Workbench {
                 self.open_source_dialog(None, vendor, window, cx);
                 Vec::new()
             }
-            other => {
-                tracing::info!(action = other.title(), "Database: not available in this window");
-                Vec::new()
-            }
+            other => self.run_extra_tree_action(other, node, window, cx),
         };
         self.carry_out_db(commands, window, cx);
     }
@@ -1895,12 +1941,12 @@ impl Workbench {
                 cx.write_to_clipboard(ClipboardItem::new_string(text));
                 Vec::new()
             }
-            TableEditorEvent::Import(_) => {
-                tracing::info!("Database: Import Data is not available in this window");
+            TableEditorEvent::Import(table) => {
+                self.open_import_dialog(table.target, table.schema, table.table, window, cx);
                 Vec::new()
             }
-            TableEditorEvent::BrowseExport { .. } => {
-                tracing::info!("Database: the export's save dialog is not available in this window");
+            TableEditorEvent::BrowseExport { path, extension } => {
+                self.browse_table_export(id, path, extension, window, cx);
                 Vec::new()
             }
         };

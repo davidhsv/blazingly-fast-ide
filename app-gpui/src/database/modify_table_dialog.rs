@@ -673,14 +673,18 @@ mod tests {
 
     #[gpui_kit::test]
     async fn new_column_adds_one_and_selects_it(cx: &mut TestAppContext) {
-        let request = ModifyTableRequest { add_column: true, ..request(Some("users"), DbDriver::Postgres) };
+        let request = ModifyTableRequest {
+            add_column: true,
+            schema: "public".into(),
+            ..request(Some("users"), DbDriver::Postgres)
+        };
         let (view, _, cx) = open(cx, request);
         view.update(cx, |v, cx| v.set_columns(Ok(vec![column("id", "integer", true)]), cx));
         let rows = view.read_with(cx, |v, _| v.rows());
         assert_eq!(rows.len(), 2);
         assert!(rows[1].selected && rows[1].name == "column_2");
         let sql = view.read_with(cx, |v, cx| v.statements(cx));
-        assert_eq!(sql, ["alter table users add column column_2 integer;".to_owned()]);
+        assert_eq!(sql, ["alter table public.users add column column_2 integer;".to_owned()]);
     }
 
     #[gpui_kit::test]

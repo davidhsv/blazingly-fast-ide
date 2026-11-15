@@ -1630,8 +1630,15 @@ while True:
         /// call, the last repeating), or `{"by_column": {column: result}, "delay": {column: seconds}}`
         /// (by the request's position); `delays`: method → seconds per call; `diagnostics`: published
         /// on every change; `capabilities`: added to the server's own when it starts.
+        ///
+        /// The server reads the file on every message, the publish of a `didOpen` included, which can
+        /// come while a test rewrites it: the answers are written beside it and renamed over it, so the
+        /// server reads either the old answers or the new ones, never an emptied file (which it would
+        /// take for no answers, and publish no problems).
         pub(crate) fn answer(&self, answers: serde_json::Value) {
-            std::fs::write(&self.answers, answers.to_string()).expect("the answers are written");
+            let staged = self.answers.with_extension("json.next");
+            std::fs::write(&staged, answers.to_string()).expect("the answers are written");
+            std::fs::rename(&staged, &self.answers).expect("the answers replace the old ones");
         }
 
         /// The methods of the messages the server received, in order.

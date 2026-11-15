@@ -5,11 +5,12 @@
 
 use super::dialog_parts::{button, checkbox, dialog_body, dialog_footer, dialog_frame, field_frame, label, tx};
 use super::model::{guess_separator, import_edits, parse_delimited};
+use crate::platform::input;
 use crate::theme;
 use crate::ui::tooltip::WithTooltip;
 use gpui_kit::{
-    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, Render, SharedString, Window, div,
-    prelude::*, px,
+    App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke, Render, SharedString,
+    Window, div, prelude::*, px,
 };
 use ide_db::DbRowEdit;
 
@@ -40,12 +41,21 @@ pub struct ImportDialog {
     empty_as_null: bool,
     busy: bool,
     focus: FocusHandle,
+    key_claim: u64,
 }
 
 impl EventEmitter<ImportEvent> for ImportDialog {}
 
 impl ImportDialog {
     pub fn new(schema: &str, table: &str, cx: &mut Context<Self>) -> Self {
+        let focus = cx.focus_handle();
+        let claimant = cx.weak_entity();
+        let key_claim = input::claim_keys(
+            focus.clone(),
+            move |keystroke, _, cx| claimant.update(cx, |dialog, cx| dialog.claim_key(keystroke, cx)).unwrap_or(false),
+            cx,
+        );
+        cx.on_release(|dialog, cx| input::release_keys(dialog.key_claim, cx)).detach();
         Self {
             schema: schema.to_owned(),
             table: table.to_owned(),
@@ -56,7 +66,8 @@ impl ImportDialog {
             header: true,
             empty_as_null: true,
             busy: false,
-            focus: cx.focus_handle(),
+            focus,
+            key_claim,
         }
     }
 
@@ -150,6 +161,21 @@ impl ImportDialog {
             cx.emit(ImportEvent::Cancelled);
         }
         cx.notify();
+    }
+}
+
+impl ImportDialog {
+    /// Escape cancels and Enter imports, as the dialog's Cancel and Import buttons do.
+    fn claim_key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
+        if keystroke.modifiers.modified() {
+            return false;
+        }
+        match keystroke.key.as_str() {
+            "enter" => self.press_import(cx),
+            "escape" => cx.emit(ImportEvent::Cancelled),
+            _ => return false,
+        }
+        true
     }
 }
 
@@ -315,12 +341,17 @@ mod tests {
     type Events = Rc<RefCell<Vec<ImportEvent>>>;
 
     fn open(cx: &mut TestAppContext) -> (Entity<ImportDialog>, Events, &mut VisualTestContext) {
-        cx.update(|cx| cx.set_global(theme::ActiveTheme::default()));
+        cx.update(|cx| {
+            cx.set_global(theme::ActiveTheme::default());
+            input::init(cx);
+        });
         let (view, cx) = cx.add_window_view(|_, cx| ImportDialog::new("main", "users", cx));
         let events: Events = Rc::default();
         let log = Rc::clone(&events);
-        cx.update(|_, cx| {
+        cx.update(|window, cx| {
             cx.subscribe(&view, move |_, event: &ImportEvent, _| log.borrow_mut().push(event.clone())).detach();
+            window.activate_window();
+            window.focus(&view.focus_handle(cx), cx);
         });
         let columns = vec!["id".to_owned(), "name".to_owned()];
         view.update(cx, |v, cx| v.set_columns(Ok(columns), cx));
@@ -369,6 +400,22 @@ mod tests {
         assert_eq!(edits, [insert(&[("id", Some("7")), ("name", Some("zoe"))])]);
         click(cx, "db-import-separator-0");
         assert_eq!(view.read_with(cx, |v, _| v.separator()), ',');
+    }
+
+    /// Enter imports the rows once while the import runs; Escape cancels.
+    #[gpui_kit::test]
+    async fn enter_imports_and_escape_cancels(cx: &mut TestAppContext) {
+        let (view, events, cx) = open(cx);
+        cx.simulate_keystrokes("enter");
+        assert!(events.borrow().is_empty(), "Enter imports nothing before a file is chosen");
+        view.update(cx, |v, cx| v.file_read("/data/users.csv", "name\ncyd\n".into(), cx));
+        cx.simulate_keystrokes("enter");
+        cx.simulate_keystrokes("enter");
+        let (edits, _) = view.read_with(cx, |v, _| v.plan());
+        assert_eq!(*events.borrow(), [ImportEvent::Apply(edits)], "one import at a time");
+        view.update(cx, |v, cx| v.finished(false, cx));
+        cx.simulate_keystrokes("escape");
+        assert_eq!(events.borrow().last(), Some(&ImportEvent::Cancelled));
     }
 
     #[gpui_kit::test]

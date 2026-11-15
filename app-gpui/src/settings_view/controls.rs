@@ -557,11 +557,31 @@ fn row_label(cx: &App, label: &str, query: &str) -> Div {
 
 /// A row's label as wide as its text, followed by the colon the active language writes after a
 /// label (French puts a no-break space before it): each row's control starts right after its own
-/// label, so a long label never pushes a control out of the page.
+/// label, so a long label never pushes a control out of the page. A label whose text already ends
+/// in a colon (its catalog entry carries one) gets no second one.
 pub fn form_label(cx: &App, label: &str, query: &str) -> Div {
     let french = cx.try_global::<Localization>().is_some_and(|localization| localization.0.locale() == "fr");
-    let colon = if french { "\u{a0}:" } else { ":" };
-    div().flex_none().flex().whitespace_nowrap().child(search_label(cx, label, query)).child(colon)
+    let colon = label_colon(label, french);
+    let drawn = format!("{label}{colon}");
+    div()
+        .debug_selector(move || format!("form-label:{drawn}"))
+        .flex_none()
+        .flex()
+        .whitespace_nowrap()
+        .child(search_label(cx, label, query))
+        .child(colon)
+}
+
+/// The colon written after `label`: none when it already ends in one (an ASCII or a full-width
+/// colon), else the active language's.
+fn label_colon(label: &str, french: bool) -> &'static str {
+    if label.trim_end().ends_with([':', '\u{ff1a}']) {
+        ""
+    } else if french {
+        "\u{a0}:"
+    } else {
+        ":"
+    }
 }
 
 /// The frame a text field is drawn in.
@@ -1084,6 +1104,35 @@ mod tests {
         assert_eq!(number_json(15.0), json!(15));
         assert_eq!(number_json(1.25), json!(1.25));
         assert_eq!((number_text(13.0), number_text(1.5)), ("13".to_owned(), "1.5".to_owned()));
+    }
+
+    /// A label gets the colon its language writes after it, and none when its text already ends in
+    /// one, as the catalog's "Size:" and its translations do.
+    #[test]
+    fn a_label_ending_in_a_colon_gets_no_second_one() {
+        assert_eq!(label_colon("Tab size", false), ":");
+        assert_eq!(label_colon("Tab size", true), "\u{a0}:");
+        for label in ["Size:", "Fallback font:", "Taille :", "大小：", "Size: "] {
+            assert_eq!(label_colon(label, false), "", "{label:?}");
+            assert_eq!(label_colon(label, true), "", "{label:?}");
+        }
+    }
+
+    /// The drawn label reads its text with one colon after it, whether or not the text has one.
+    #[gpui_kit::test]
+    async fn a_drawn_label_ends_in_one_colon(cx: &mut TestAppContext) {
+        struct Labels;
+        impl Render for Labels {
+            fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+                div().flex().flex_col().child(form_label(cx, "Tab size", "")).child(form_label(cx, "Size:", ""))
+            }
+        }
+        init(cx);
+        let (_, cx) = cx.add_window_view(|_, _| Labels);
+        for drawn in ["form-label:Tab size:", "form-label:Size:"] {
+            assert!(cx.debug_bounds(drawn).is_some(), "{drawn} is drawn");
+        }
+        assert!(cx.debug_bounds("form-label:Size::").is_none(), "no label ends in two colons");
     }
 
     #[test]
