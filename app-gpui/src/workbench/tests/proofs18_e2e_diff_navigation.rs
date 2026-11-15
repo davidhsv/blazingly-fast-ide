@@ -34,6 +34,7 @@ async fn continues_between_changed_files_from_toolbar_buttons_and_the_keymap(cx:
         git_in(root, &["add", "."]);
         git_in(root, &["commit", "-q", "-m", "second"]);
     });
+    modal_commit(&workbench, cx);
     for name in ["a.ts", "b.ts"] {
         std::fs::write(root.join(name), "same\nafter\ntail\n").expect("the file is written");
     }

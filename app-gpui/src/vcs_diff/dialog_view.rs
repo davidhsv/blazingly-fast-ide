@@ -115,7 +115,11 @@ impl DiffDialog {
     /// asks for, which is not stored).
     pub fn new(data: DiffData, options: DiffViewOptions, cx: &mut Context<Self>) -> Self {
         let options = DiffViewOptions { mode: data.mode.unwrap_or(options.mode), ..options };
-        let viewer = cx.new(|cx| DiffView::new("", "", options, cx));
+        let viewer = cx.new(|cx| {
+            let mut viewer = DiffView::new("", "", options, cx);
+            viewer.set_path(&data.path, cx);
+            viewer
+        });
         let shown = viewer.clone();
         let toolbar = cx.new(|cx| DiffToolbar::new(shown, cx));
         let subscriptions = vec![
@@ -180,6 +184,8 @@ impl DiffDialog {
     pub fn show(&mut self, data: DiffData, cx: &mut Context<Self>) {
         self.files = file_rows(&data);
         self.data = data;
+        let path = self.data.path.clone();
+        self.viewer.update(cx, |viewer, cx| viewer.set_path(&path, cx));
         self.set_neighbours(cx);
         cx.emit(DiffDialogEvent::Load(Box::new(self.data.clone())));
         cx.notify();

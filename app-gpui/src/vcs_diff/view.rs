@@ -31,6 +31,7 @@ use super::diff_scroll::{
 };
 use super::doc::{Direction, Doc};
 use super::toolbar_view::{DiffCommand, DiffSummary, ToolbarItem, ToolbarState, counter_text, toolbar_items};
+use super::wrap::{LineBreaks, RowLines, editor_wraps, pane_lines, piece_starts, pieces, spans_on_lines, x_at};
 use crate::backend::Backend;
 use crate::editor::buffer::{byte_of_col, col_of_byte};
 use crate::editor::view::{HighlightSpan, code_font_of, syntax_token};
@@ -53,6 +54,8 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::time::{Duration, Instant};
 
+mod moved;
+
 /// Unchanged lines kept in view above and below a collapsed run.
 const MARGIN: usize = 3;
 /// The fewest unchanged lines that collapse.
@@ -65,6 +68,8 @@ const DEFAULT_HEIGHT: f32 = 600.0;
 const HINT_DURATION: Duration = Duration::from_millis(2500);
 /// Points along each edge of a divider band.
 const BAND_STEPS: usize = 16;
+/// Room kept free at the right of a wrapped pane's text.
+const WRAP_MARGIN: f32 = 8.0;
 
 fn ix(side: Side) -> usize {
     match side {
@@ -293,12 +298,15 @@ pub enum DiffViewEvent {
     OptionsChanged(DiffViewOptions),
     /// Show the context menu of a pane here, for the line under the pointer.
     ShowMenu { side: Side, line: Option<u32>, position: Point<Pixels> },
+    /// Hide every tool window, or bring back the ones hidden (Maximize Editor, Restore Size).
+    Maximize,
 }
 
-/// A drawn row's text and its shaping; `None` for a placeholder or a filler.
-type PaintedLine = Option<(String, ShapedLine)>;
-/// A row's text, shaped, and where it is painted.
-type ShapedRow = Option<(String, ShapedLine, Point<Pixels>)>;
+/// A drawn row's text and its visual lines, each with its first byte and its shaping; `None` for a
+/// placeholder or a filler.
+type PaintedLine = Option<(String, Vec<(usize, ShapedLine)>)>;
+/// A row's text and its visual lines, each with its first byte, its shaping and where it is painted.
+type ShapedRow = Option<(String, Vec<(usize, ShapedLine, Point<Pixels>)>)>;
 /// By side, the gaps at the start of a line: the type of the lines the other side has there, and
 /// whether the gap lies below the line (past the end of a document without a final line break).
 type GapMarks = [HashMap<usize, (DiffKind, bool)>; 2];
@@ -335,6 +343,8 @@ struct Layout {
     index: [Vec<usize>; 2],
     /// The first unified row of each chunk.
     unified_chunk_rows: Vec<usize>,
+    /// The visual lines each row of the left, right and unified pane takes.
+    lines: [RowLines; 3],
 }
 
 /// The row of each line of `side` among `rows`, a placeholder's for the lines it hides; a line that
@@ -364,11 +374,12 @@ fn row_index(rows: &[Row], side: Side, lines: usize) -> Vec<usize> {
     index
 }
 
-/// A side-by-side pane as [`diff_scroll`](super::diff_scroll) measures it: rows of one height.
+/// A side-by-side pane as [`diff_scroll`](super::diff_scroll) measures it: rows as tall as the
+/// visual lines they take.
 struct Geometry<'a> {
     doc: &'a Doc,
     index: &'a [usize],
-    rows: usize,
+    lines: &'a RowLines,
     line_height: f64,
 }
 
@@ -379,7 +390,7 @@ impl Geometry<'_> {
     }
 
     fn height(&self) -> f64 {
-        self.rows as f64 * self.line_height
+        self.lines.total() as f64 * self.line_height
     }
 }
 
@@ -389,11 +400,11 @@ impl PaneLayout for Geometry<'_> {
     }
 
     fn line_top(&self, pos: usize) -> f64 {
-        self.row(pos) as f64 * self.line_height
+        self.lines.start(self.row(pos)) as f64 * self.line_height
     }
 
     fn line_bottom(&self, pos: usize) -> f64 {
-        (self.row(pos) + 1) as f64 * self.line_height
+        self.lines.start(self.row(pos) + 1) as f64 * self.line_height
     }
 }
 
@@ -402,7 +413,7 @@ fn geometry<'a>(docs: &'a [Doc; 2], layout: &'a Layout, side: Side, line_height:
     Geometry {
         doc: &docs[ix(side)],
         index: &layout.index[ix(side)],
-        rows: layout.rows[Pane::of(side).index()].len(),
+        lines: &layout.lines[Pane::of(side).index()],
         line_height,
     }
 }
@@ -414,7 +425,6 @@ fn band_between(chunks: &[Chunk], a: &Geometry<'_>, b: &Geometry<'_>, y: f64, fr
 
 /// What a line row paints, read from the viewer before drawing.
 struct RowPaint {
-    row: usize,
     text: String,
     /// Syntax colours as UTF-16 columns of the line.
     spans: Vec<(u32, u32, SyntaxHighlightKind)>,
@@ -429,6 +439,11 @@ struct RowPaint {
     gap_below: Option<DiffKind>,
     /// The old and the new line number (the side-by-side panes show the first only).
     numbers: [Option<usize>; 2],
+    /// Where the row starts below the top of the pane's content, and how tall it is.
+    top: Pixels,
+    height: Pixels,
+    /// The byte offsets of the text at which a new visual line starts.
+    breaks: Vec<usize>,
 }
 
 struct PaneSnapshot {
@@ -481,6 +496,18 @@ pub struct DiffView {
     look: ViewerLook,
     /// Keeps `look` in step with the settings, once a window's settings are followed.
     settings_listener: Option<u64>,
+    /// The editor's Soft-wrap files and its file patterns, and the file the diff shows: the panes
+    /// wrap as the editor would wrap the file while the viewer has no choice of its own.
+    editor_soft_wrap: bool,
+    soft_wrap_files: String,
+    path: String,
+    /// The text width of the side-by-side panes and of the unified pane, as last drawn.
+    wrap_widths: [Option<Pixels>; 2],
+    /// Where the lines break while the panes wrap.
+    wraps: Option<LineBreaks>,
+    /// Maximize Editor in the toolbar: `Some(true)` while the tool windows are hidden; `None`
+    /// where the viewer is not an editor tab.
+    maximized: Option<bool>,
 }
 
 impl EventEmitter<DiffViewEvent> for DiffView {}
@@ -501,6 +528,7 @@ impl DiffView {
             stop_listening(view.settings_listener, cx);
         })
         .detach();
+        let defaults = EditorSettings::default();
         let mut view = Self {
             focus,
             raw: [left.to_owned(), right.to_owned()],
@@ -534,6 +562,12 @@ impl DiffView {
             key_claim,
             look: default_look(),
             settings_listener: None,
+            editor_soft_wrap: defaults.soft_wrap,
+            soft_wrap_files: defaults.general.soft_wrap_files,
+            path: String::new(),
+            wrap_widths: [None, None],
+            wraps: None,
+            maximized: None,
         };
         view.rebuild(cx);
         view
@@ -548,8 +582,46 @@ impl DiffView {
     }
 
     fn editor_settings_changed(&mut self, editor: &EditorSettings, cx: &mut Context<Self>) {
-        if let Some(look) = self.look.follow(editor) {
-            self.look = look;
+        let wrapped = self.soft_wraps();
+        self.editor_soft_wrap = editor.soft_wrap;
+        self.soft_wrap_files.clone_from(&editor.general.soft_wrap_files);
+        let restyled = match self.look.follow(editor) {
+            Some(look) => {
+                self.look = look;
+                true
+            }
+            None => false,
+        };
+        if restyled || wrapped != self.soft_wraps() {
+            self.rewrap(cx);
+            cx.notify();
+        }
+    }
+
+    /// The file the diff shows: whether the editor soft-wraps it decides whether the panes wrap,
+    /// until Use Soft Wraps is chosen in the viewer.
+    pub fn set_path(&mut self, path: &str, cx: &mut Context<Self>) {
+        if self.path == path {
+            return;
+        }
+        let wrapped = self.soft_wraps();
+        path.clone_into(&mut self.path);
+        if wrapped != self.soft_wraps() {
+            self.rewrap(cx);
+        }
+        cx.notify();
+    }
+
+    /// Whether the panes wrap long lines: as Use Soft Wraps says once chosen, else as the editor
+    /// would wrap the file.
+    pub fn soft_wraps(&self) -> bool {
+        self.options.soft_wrap.unwrap_or_else(|| editor_wraps(self.editor_soft_wrap, &self.soft_wrap_files, &self.path))
+    }
+
+    /// Offers Maximize Editor in the toolbar (`Some`), showing Restore Size while `Some(true)`.
+    pub fn set_maximized(&mut self, maximized: Option<bool>, cx: &mut Context<Self>) {
+        if self.maximized != maximized {
+            self.maximized = maximized;
             cx.notify();
         }
     }
@@ -758,6 +830,7 @@ impl DiffView {
             difference_count: self.diff.chunks.len(),
             editable_right: self.editable.to_b && !self.binary,
             has_source: self.has_source,
+            maximized: self.maximized,
             counter: counter_text(&self.summary(), cx),
         })
     }
@@ -817,6 +890,8 @@ impl DiffView {
         self.hover.chunks_changed(count);
         self.current = self.current.filter(|current| *current < count);
         self.caret = self.caret.map(|(side, pos)| (side, pos.min(self.docs[ix(side)].len())));
+        // Breaks of the old texts would fall on other lines.
+        self.wraps = None;
         self.relayout(cx);
     }
 
@@ -890,7 +965,9 @@ impl DiffView {
             index: [row_index(&left, Side::A, lines[0]), row_index(&right, Side::B, lines[1])],
             rows: [left, right, unified],
             unified_chunk_rows,
+            lines: Default::default(),
         };
+        self.measure(cx);
         self.selection = None;
         for pane in [Pane::Left, Pane::Right, Pane::Unified] {
             let top = self.panes[pane.index()].scroll_top;
@@ -914,11 +991,17 @@ impl DiffView {
             return false;
         }
         let compare = options.ignore != self.options.ignore || options.highlight != self.options.highlight;
+        // The rows stay what they are when only the scrolling or the wrapping changes.
+        let rows = options.mode != self.options.mode
+            || options.collapse != self.options.collapse
+            || options.align_changes != self.options.align_changes;
         self.options = options;
         if compare {
             self.rebuild(cx);
-        } else {
+        } else if rows {
             self.relayout(cx);
+        } else {
+            self.rewrap(cx);
         }
         if self.sync.set_sync(options.sync_scroll).is_some() && options.sync_scroll {
             self.resync(cx);
@@ -948,6 +1031,11 @@ impl DiffView {
             DiffCommand::ToggleCollapse => self.change_options(|o| o.collapse = !o.collapse, cx),
             DiffCommand::ToggleSyncScroll => self.change_options(|o| o.sync_scroll = !o.sync_scroll, cx),
             DiffCommand::ToggleAlignChanges => self.change_options(|o| o.align_changes = !o.align_changes, cx),
+            DiffCommand::ToggleSoftWrap => {
+                let wraps = self.soft_wraps();
+                self.change_options(|o| o.soft_wrap = Some(!wraps), cx);
+            }
+            DiffCommand::ToggleMaximize => cx.emit(DiffViewEvent::Maximize),
             DiffCommand::RevertChange => self.revert_current(cx),
             DiffCommand::Refresh => cx.emit(DiffViewEvent::Refresh),
         }
@@ -1018,7 +1106,7 @@ impl DiffView {
         } else {
             (Pane::of(side), self.layout.index[ix(side)].get(line).copied().unwrap_or(0))
         };
-        let top = self.line_height(cx) * row as f32 - self.height(pane) * (1.0 / 3.0);
+        let top = self.row_top(pane, row, self.line_height(cx)) - self.height(pane) * (1.0 / 3.0);
         let now = self.now_ms();
         self.sync.scroll_to(side, false, now);
         self.scrolled(pane, top, cx);
@@ -1067,7 +1155,7 @@ impl DiffView {
         if pane != Pane::Unified {
             self.focused = side;
         }
-        let top = self.line_height(cx) * row as f32 - self.height(pane) * 0.5;
+        let top = self.row_top(pane, row, self.line_height(cx)) - self.height(pane) * 0.5;
         self.scrolled(pane, top, cx);
     }
 
@@ -1128,7 +1216,7 @@ impl DiffView {
     }
 
     fn max_scroll(&self, pane: Pane, cx: &App) -> Pixels {
-        let content = self.line_height(cx) * self.layout.rows[pane.index()].len() as f32;
+        let content = self.line_height(cx) * self.layout.lines[pane.index()].total() as f32;
         (content - self.height(pane)).max(px(0.0))
     }
 
@@ -1137,13 +1225,79 @@ impl DiffView {
         self.panes[pane.index()].scroll_top = top.clamp(px(0.0), max);
     }
 
+    /// Where row `row` of `pane` starts below the top of the pane's content; past the last row,
+    /// the height of the content.
+    fn row_top(&self, pane: Pane, row: usize, line_height: Pixels) -> Pixels {
+        line_height * self.layout.lines[pane.index()].start(row) as f32
+    }
+
+    /// Measures the rows: a line takes as many visual lines as it wraps into at the width its pane
+    /// was drawn at (one while the panes do not wrap, or before they are drawn), and a row as many
+    /// as its counterpart in the other pane.
+    fn measure(&mut self, cx: &App) {
+        let slot = usize::from(self.unified());
+        let width = self.wrap_widths[slot].filter(|width| *width > px(0.0) && self.soft_wraps());
+        match width {
+            None => self.wraps = None,
+            Some(width) => {
+                let style = self.code_style(cx);
+                if self.wraps.as_ref().is_none_or(|wraps| wraps.width != width || wraps.style != style) {
+                    self.wraps = Some(LineBreaks::measure([&self.docs[0], &self.docs[1]], width, &style, cx));
+                }
+            }
+        }
+        let layout = &self.layout;
+        let rows = [&layout.rows[0][..], &layout.rows[1][..], &layout.rows[2][..]];
+        let index = [&layout.index[0][..], &layout.index[1][..]];
+        self.layout.lines = pane_lines(rows, index, self.options.align_changes, self.wraps.as_ref());
+    }
+
+    /// Measures the rows again after the wrapping, the font or the panes' width changed, keeping
+    /// the row at the top of each pane where it is.
+    fn rewrap(&mut self, cx: &App) {
+        let line_height = self.line_height(cx);
+        let panes = [Pane::Left, Pane::Right, Pane::Unified];
+        let anchors = panes.map(|pane| {
+            let top = self.panes[pane.index()].scroll_top;
+            let row = self.layout.lines[pane.index()].row_at((top / line_height).floor().max(0.0) as usize);
+            (row, top - self.row_top(pane, row, line_height))
+        });
+        self.measure(cx);
+        for (pane, (row, offset)) in panes.into_iter().zip(anchors) {
+            let height = line_height * self.layout.lines[pane.index()].count(row) as f32;
+            let top = self.row_top(pane, row, line_height) + offset.min(height);
+            self.set_scroll(pane, top, cx);
+        }
+    }
+
+    /// The text of `pane` is drawn `width` wide: the panes wrap their lines to it (the left pane's
+    /// width stands for both side-by-side panes). A zoom changes the code style without a settings
+    /// change, so breaks measured in another style are measured again. Whether the rows were
+    /// measured again.
+    fn wrap_to(&mut self, pane: Pane, width: Pixels, cx: &App) -> bool {
+        if pane == Pane::Right {
+            return false;
+        }
+        let slot = usize::from(pane == Pane::Unified);
+        let restyled = self.wraps.as_ref().is_some_and(|wraps| wraps.style != self.code_style(cx));
+        if self.wrap_widths[slot] == Some(width) && !restyled {
+            return false;
+        }
+        self.wrap_widths[slot] = Some(width);
+        if !self.soft_wraps() || (pane == Pane::Unified) != self.unified() {
+            return false;
+        }
+        self.rewrap(cx);
+        true
+    }
+
     fn pane_scroll(&self, pane: Pane, cx: &App) -> PaneScroll {
         let line_height = f64::from(self.line_height(cx));
         PaneScroll {
             top: f64::from(self.panes[pane.index()].scroll_top),
             left: 0.0,
             client_height: f64::from(self.height(pane)),
-            scroll_height: self.layout.rows[pane.index()].len() as f64 * line_height,
+            scroll_height: self.layout.lines[pane.index()].total() as f64 * line_height,
             max_left: 0.0,
             doc_offset: 0.0,
         }
@@ -1240,16 +1394,22 @@ impl DiffView {
     /// The row and column under `position` in `pane`, as it was drawn last.
     fn position_at(&self, pane: Pane, position: Point<Pixels>) -> Option<(usize, u32)> {
         let painted = self.panes[pane.index()].painted.as_ref()?;
-        let rows = &self.layout.rows[pane.index()];
-        let last = rows.len().checked_sub(1)?;
+        if self.layout.rows[pane.index()].is_empty() {
+            return None;
+        }
+        let lines = &self.layout.lines[pane.index()];
         let y = position.y - painted.bounds.top() + self.panes[pane.index()].scroll_top;
-        let row = ((y / painted.line_height).floor().max(0.0) as usize).min(last);
+        let visual = (y / painted.line_height).floor().max(0.0) as usize;
+        let row = lines.row_at(visual);
         let x = position.x - painted.bounds.left() - painted.text_left;
         let col = row
             .checked_sub(painted.first_row)
             .and_then(|i| painted.lines.get(i))
             .and_then(Option::as_ref)
-            .map_or(0, |(text, shaped)| col_of_byte(text, shaped.closest_index_for_x(x)));
+            .map_or(0, |(text, pieces)| {
+                let at = visual.saturating_sub(lines.start(row)).min(pieces.len().saturating_sub(1));
+                pieces.get(at).map_or(0, |(start, shaped)| col_of_byte(text, start + shaped.closest_index_for_x(x)))
+            });
         Some((row, col))
     }
 
@@ -1401,20 +1561,27 @@ impl DiffView {
 
     /// The rows of `pane` in view.
     fn visible_rows(&self, pane: Pane, cx: &App) -> Range<usize> {
-        let line_height = self.line_height(cx);
+        self.rows_in_view(pane, self.height(pane), self.line_height(cx))
+    }
+
+    /// The rows of `pane` in view of a pane `height` tall at its scroll position: those that start
+    /// above its bottom and end below its top.
+    fn rows_in_view(&self, pane: Pane, height: Pixels, line_height: Pixels) -> Range<usize> {
+        let lines = &self.layout.lines[pane.index()];
         let rows = self.layout.rows[pane.index()].len();
-        let first = ((self.panes[pane.index()].scroll_top / line_height).floor().max(0.0) as usize).min(rows);
-        let count = (self.height(pane) / line_height).ceil().max(0.0) as usize + 1;
-        first..(first + count).min(rows)
+        let first_line = (self.panes[pane.index()].scroll_top / line_height).floor().max(0.0) as usize;
+        let count = (height / line_height).ceil().max(0.0) as usize + 1;
+        let first = if first_line >= lines.total() { rows } else { lines.row_at(first_line) };
+        let last = if first_line + count > lines.total() { rows } else { lines.row_at(first_line + count - 1) + 1 };
+        first..last.clamp(first, rows)
     }
 
     /// What `pane` paints in a pane `height` tall.
     fn snapshot(&self, pane: Pane, height: Pixels, line_height: Pixels) -> PaneSnapshot {
         let state = &self.panes[pane.index()];
         let rows = &self.layout.rows[pane.index()];
-        let first = ((state.scroll_top / line_height).floor().max(0.0) as usize).min(rows.len());
-        let count = (height / line_height).ceil().max(0.0) as usize + 1;
-        let last = (first + count).min(rows.len());
+        let lines = &self.layout.lines[pane.index()];
+        let Range { start: first, end: last } = self.rows_in_view(pane, height, line_height);
         let unified = pane == Pane::Unified;
         let marks_gaps = !unified && !self.options.align_changes && self.options.highlight != HighlightPolicy::None;
         let gaps: GapMarks = [Side::A, Side::B].map(|side| {
@@ -1430,7 +1597,8 @@ impl DiffView {
         let selection = self.selection.filter(|selection| selection.pane == pane).map(|s| s.ordered());
         let paint_row = |row: usize| match rows[row] {
             Row::Line { side, line, other } => {
-                Some(self.row_paint(row, (side, line, other), unified, selection, &gaps))
+                let at = (line_height * lines.start(row) as f32, line_height * lines.count(row) as f32);
+                Some(self.row_paint(row, (side, line, other), unified, selection, &gaps, at))
             }
             Row::Collapsed { .. } | Row::Filler => None,
         };
@@ -1445,6 +1613,7 @@ impl DiffView {
         unified: bool,
         selection: Option<RowSpan>,
         gaps: &GapMarks,
+        (top, height): (Pixels, Pixels),
     ) -> RowPaint {
         let i = ix(side);
         let doc = &self.docs[i];
@@ -1464,12 +1633,13 @@ impl DiffView {
         let col = |pos: usize| (pos.clamp(at.from, at.to + 1) - at.from) as u32;
         let marks = &self.words[i];
         let start = marks.partition_point(|mark| mark.to < at.from);
-        let words = marks[start..]
+        let mut words: Vec<(u32, u32, DiffKind)> = marks[start..]
             .iter()
             .take_while(|mark| mark.from <= at.to)
             .filter(|mark| mark.is_empty() || mark.to > at.from)
             .map(|mark| (col(mark.from), col(mark.to), mark.kind))
             .collect();
+        words.extend(self.move_edits(side, line));
         let spans_of = &self.highlights[i];
         let first_span = spans_of.partition_point(|span| span.to as usize <= at.from);
         let spans = spans_of[first_span..]
@@ -1492,7 +1662,6 @@ impl DiffView {
             _ => [Some(line + 1), None],
         };
         RowPaint {
-            row,
             text,
             spans,
             change,
@@ -1502,6 +1671,9 @@ impl DiffView {
             gap_above: gap.filter(|(_, end)| !end).map(|(kind, _)| kind),
             gap_below: gap.filter(|(_, end)| *end).map(|(kind, _)| kind),
             numbers,
+            top,
+            height,
+            breaks: self.wraps.as_ref().map(|wraps| wraps.of(side, line).to_vec()).unwrap_or_default(),
         }
     }
 
@@ -1609,11 +1781,11 @@ impl DiffView {
             .on_click(cx.listener(move |view, _, _, cx| press(view, cx)))
     }
 
-    fn render_pane(&self, pane: Pane, cx: &mut Context<Self>) -> Div {
+    fn render_pane(&self, pane: Pane, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let line_height = self.line_height(cx);
         let scroll_top = self.panes[pane.index()].scroll_top;
         let visible = self.visible_rows(pane, cx);
-        let top_of = |row: usize| line_height * row as f32 - scroll_top;
+        let top_of = |row: usize| self.row_top(pane, row, line_height) - scroll_top;
         let mut overlays: Vec<AnyElement> = Vec::new();
         let rows: Vec<(usize, Row)> = visible.clone().map(|row| (row, self.layout.rows[pane.index()][row])).collect();
         for (row, entry) in rows {
@@ -1669,6 +1841,7 @@ impl DiffView {
                 overlays.push(button.into_any_element());
             }
         }
+        overlays.extend(self.moved_overlays(pane, window, cx));
         let selector = format!("diff-pane-{}", pane.name());
         div()
             .debug_selector(move || selector.clone())
@@ -1742,7 +1915,7 @@ impl Focusable for DiffView {
 }
 
 impl Render for DiffView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let root = div()
             .debug_selector(|| "diff-view".to_owned())
             .size_full()
@@ -1769,11 +1942,10 @@ impl Render for DiffView {
         let style = self.code_style(cx);
         let body = div().flex_1().min_h_0().flex().font_family(style.font.family).text_size(style.size);
         let body = if self.unified() {
-            body.child(self.render_pane(Pane::Unified, cx))
+            body.child(self.render_pane(Pane::Unified, window, cx))
         } else {
-            body.child(self.render_pane(Pane::Left, cx))
-                .child(self.render_divider(cx))
-                .child(self.render_pane(Pane::Right, cx))
+            let (left, right) = (self.render_pane(Pane::Left, window, cx), self.render_pane(Pane::Right, window, cx));
+            body.child(left).child(self.render_divider(cx)).child(right)
         };
         let hint = self.nav_hint().map(|hint| {
             div()
@@ -1880,10 +2052,17 @@ impl Element for PaneElement {
         let number_color = theme::color(cx, "fg-gutter");
         let selection_color = theme::color(cx, "bg-editor-selection");
         let accent = theme::color(cx, "accent");
-        let unified = self.pane == Pane::Unified;
+        let pane = self.pane;
+        let unified = pane == Pane::Unified;
         let gutter = theme::length(cx, "w-gutter") * if unified { 2.0 } else { 1.0 };
         let text_left = gutter + px(6.0);
-        let snapshot = self.view.read(cx).snapshot(self.pane, bounds.size.height, line_height);
+        let wrap_width = bounds.size.width - text_left - px(WRAP_MARGIN);
+        if self.view.update(cx, |view, cx| view.wrap_to(pane, wrap_width, cx)) {
+            // The placeholders, buttons and links over the rows were placed for the old heights.
+            let view = self.view.clone();
+            window.on_next_frame(move |_, cx| view.update(cx, |_, cx| cx.notify()));
+        }
+        let snapshot = self.view.read(cx).snapshot(pane, bounds.size.height, line_height);
         let run = |len: usize, color: Hsla| TextRun {
             len,
             font: code_font.clone(),
@@ -1907,13 +2086,13 @@ impl Element for PaneElement {
                 paint.lines.push(None);
                 continue;
             };
-            let top = bounds.top() + line_height * row.row as f32 - snapshot.scroll_top;
+            let top = bounds.top() + row.top - snapshot.scroll_top;
             if let Some(changed) = row.change {
                 let (line_color, gutter_color) = change_colors(cx, changed);
                 let width = bounds.size.width - gutter;
-                let line = Bounds::new(point(bounds.left() + gutter, top), size(width, line_height));
+                let line = Bounds::new(point(bounds.left() + gutter, top), size(width, row.height));
                 paint.fills.push((line, line_color));
-                paint.fills.push((Bounds::new(point(bounds.left(), top), size(gutter, line_height)), gutter_color));
+                paint.fills.push((Bounds::new(point(bounds.left(), top), size(gutter, row.height)), gutter_color));
             }
             let mut runs = Vec::new();
             let mut at = 0usize;
@@ -1932,31 +2111,43 @@ impl Element for PaneElement {
                 runs.push(run(row.text.len() - at, plain));
             }
             let shaped = window.text_system().shape_line(row.text.clone().into(), font_size, &runs, None);
-            let origin = point(bounds.left() + text_left, top);
+            let cut = pieces(&shaped, &row.breaks);
+            let starts = piece_starts(&row.text, &cut);
             let length = utf16::len(&row.text);
-            let x = |col: u32| shaped.x_for_index(byte_of_col(&row.text, col.min(length)));
-            let span = |from: u32, to: u32| {
-                let left = x(from);
-                let right = if to > length { x(length) + px(6.0) } else { x(to) };
-                Bounds::new(point(origin.x + left, top), size((right - left).max(px(0.0)), line_height))
+            let left = bounds.left() + text_left;
+            let line_top = |line: usize| top + line_height * line as f32;
+            let x = |line: usize, col: u32| x_at(&row.text, &cut, line, col.min(length));
+            // A span over the visual lines it crosses; an end past the text runs over the line break.
+            let span = |from: u32, to: u32| -> Vec<Bounds<Pixels>> {
+                spans_on_lines(&starts, from, to)
+                    .into_iter()
+                    .map(|(line, from, to)| {
+                        let start = x(line, from);
+                        let end = if to > length { x(line, length) + px(6.0) } else { x(line, to) };
+                        let width = (end - start).max(px(0.0));
+                        Bounds::new(point(left + start, line_top(line)), size(width, line_height))
+                    })
+                    .collect()
             };
             for (from, to, kind) in &row.words {
                 let color = theme::color(cx, kind.color_token()).opacity(f32::from(WORD_TINT) / 100.0);
-                let area = if from == to {
-                    Bounds::new(point(origin.x + x(*from) - px(1.0), top), size(px(2.0), line_height))
+                if from == to {
+                    for (line, col, _) in spans_on_lines(&starts, *from, *to) {
+                        let origin = point(left + x(line, col) - px(1.0), line_top(line));
+                        paint.fills.push((Bounds::new(origin, size(px(2.0), line_height)), color));
+                    }
                 } else {
-                    span(*from, *to)
-                };
-                paint.fills.push((area, color));
+                    paint.fills.extend(span(*from, *to).into_iter().map(|area| (area, color)));
+                }
             }
             if let Some((from, to)) = row.selected {
-                paint.fills.push((span(from, to), selection_color));
+                paint.fills.extend(span(from, to).into_iter().map(|area| (area, selection_color)));
             }
             if row.current {
-                let mark = Bounds::new(point(bounds.left() + gutter - px(3.0), top), size(px(2.0), line_height));
+                let mark = Bounds::new(point(bounds.left() + gutter - px(3.0), top), size(px(2.0), row.height));
                 paint.overs.push((mark, accent));
             }
-            for (kind, y) in [(row.gap_above, top - px(1.0)), (row.gap_below, top + line_height - px(1.0))] {
+            for (kind, y) in [(row.gap_above, top - px(1.0)), (row.gap_below, top + row.height - px(1.0))] {
                 if let Some(kind) = kind {
                     let mark = Bounds::new(point(bounds.left() + gutter, y), size(bounds.size.width - gutter, px(2.0)));
                     paint.overs.push((mark, theme::color(cx, kind.stripe_token())));
@@ -1975,7 +2166,9 @@ impl Element for PaneElement {
                 let x = (column_right(column) - shaped_number.width).max(bounds.left());
                 paint.numbers.push((point(x, top), shaped_number));
             }
-            paint.lines.push(Some((row.text, shaped, origin)));
+            let placed =
+                cut.into_iter().enumerate().map(|(line, (start, piece))| (start, piece, point(left, line_top(line))));
+            paint.lines.push(Some((row.text, placed.collect())));
         }
         paint
     }
@@ -2005,8 +2198,10 @@ impl Element for PaneElement {
             for (area, color) in &prepared.fills {
                 window.paint_quad(fill(*area, *color));
             }
-            for (_, shaped, origin) in prepared.lines.iter().flatten() {
-                let _ = shaped.paint(*origin, line_height, TextAlign::Left, None, window, cx);
+            for (_, pieces) in prepared.lines.iter().flatten() {
+                for (_, piece, origin) in pieces {
+                    let _ = piece.paint(*origin, line_height, TextAlign::Left, None, window, cx);
+                }
             }
             for (origin, number) in &prepared.numbers {
                 let _ = number.paint(*origin, line_height, TextAlign::Left, None, window, cx);
@@ -2023,7 +2218,11 @@ impl Element for PaneElement {
             first_row: prepared.first_row,
             lines: std::mem::take(&mut prepared.lines)
                 .into_iter()
-                .map(|line| line.map(|(text, shaped, _)| (text, shaped)))
+                .map(|line| {
+                    line.map(|(text, pieces)| {
+                        (text, pieces.into_iter().map(|(start, piece, _)| (start, piece)).collect())
+                    })
+                })
                 .collect(),
         };
         self.view.update(cx, |view, _| view.painted(pane, painted));
@@ -2150,6 +2349,8 @@ mod tests {
     use gpui_kit::{Modifiers, ScrollDelta, TestAppContext, VisualTestContext};
     use std::cell::RefCell;
     use std::rc::Rc;
+
+    mod proofs12_moved_code_view;
 
     type Events = Rc<RefCell<Vec<DiffViewEvent>>>;
 
@@ -2313,26 +2514,6 @@ mod tests {
         let options = DiffViewOptions { ignore: IgnorePolicy::Whitespace, ..split() };
         let (view, _, cx) = open(cx, "let a = 1;\n", "  let a = 1;\n", options);
         assert_eq!(counter(&view, cx), "Whitespace-only changes");
-    }
-
-    // src/features/vcs/__tests__/movedCode.test.tsx › moved code in the diff viewer › omits inner edits in Highlight
-    // lines mode
-    #[gpui_kit::test]
-    async fn omits_inner_edits_in_highlight_lines_mode(cx: &mut TestAppContext) {
-        let options = DiffViewOptions { highlight: HighlightPolicy::Lines, ..split() };
-        let (view, _, cx) = open(cx, "let a = 'first';\n", "let a = 'changed';\n", options);
-        assert!(view.read_with(cx, |view, _| view.inner_highlights(Side::B).is_empty()));
-        assert_eq!(kinds(&view.read_with(cx, |view, _| view.right_lines()))[0], Some(DiffKind::Modified));
-    }
-
-    // src/features/vcs/__tests__/movedCode.test.tsx › moved code in the diff viewer › respects Do not highlight
-    #[gpui_kit::test]
-    async fn respects_do_not_highlight(cx: &mut TestAppContext) {
-        let options = DiffViewOptions { highlight: HighlightPolicy::None, ..split() };
-        let (view, _, cx) = open(cx, "a\nb\n", "a\nc\n", options);
-        assert_eq!(view.read_with(cx, |view, _| view.difference_count()), 1);
-        assert!(kinds(&view.read_with(cx, |view, _| view.right_lines())).iter().all(Option::is_none));
-        assert!(view.read_with(cx, |view, _| view.inner_highlights(Side::A).is_empty()));
     }
 
     // Next and Previous Difference move the caret from change to change, the counter following it, in the

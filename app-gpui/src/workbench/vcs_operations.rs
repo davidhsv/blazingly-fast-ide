@@ -1988,6 +1988,7 @@ mod tests {
         let (workbench, cx, _folders, root) = git_project(cx, init_repo);
         let path = root.join("a.txt");
         std::fs::write(&path, "one -> two\nx += 1\n").expect("the file is written");
+        super::super::tests::modal_commit(&workbench, cx);
         run_action(cx, "vcs.showDiff", Some(json!(path.to_string_lossy())));
         let dialog = workbench.read_with(cx, |w, _| w.diff_dialog().cloned()).expect("the diff is shown");
         let viewer = dialog.read_with(cx, |dialog, _| dialog.viewer().clone());

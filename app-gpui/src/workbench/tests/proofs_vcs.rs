@@ -32,6 +32,7 @@ async fn compare_previous_file_walks_back_and_the_diff_settings_menu_opens(cx: &
     });
     std::fs::write(root.join("a.txt"), "one\nTWO\nthree\n").expect("the file is written");
     std::fs::write(root.join("b.txt"), "x\nY\nz\n").expect("the file is written");
+    modal_commit(&workbench, cx);
     run_action(cx, "toolwindow.commit", None);
     let changes = workbench
         .read_with(cx, |w, _| w.tool_window_view(COMMIT_TOOL_WINDOW))

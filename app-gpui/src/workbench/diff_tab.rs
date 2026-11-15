@@ -20,7 +20,7 @@ use crate::vcs_diff::diff_navigation::ChainSearch;
 use crate::vcs_diff::diff_options::{DIFF_OPTIONS_KEY, Side, load_diff_options, save_diff_options};
 use crate::vcs_diff::doc::Direction;
 use crate::vcs_diff::tab_view::{DiffTabEvent, DiffTabView};
-use crate::vcs_diff::toolbar_view::DiffToolbarEvent;
+use crate::vcs_diff::toolbar_view::{DiffToolbarEvent, viewer_settings_menu};
 use crate::vcs_diff::view::{DiffView, DiffViewEvent};
 use crate::vcs_more::show_diff::DiffTab;
 use crate::vcs_ops::ops::vcs_notice;
@@ -88,9 +88,45 @@ impl Workbench {
         }
     }
 
+    /// The active tab, when it shows a diff.
+    fn active_diff_tab(&self) -> Option<Entity<DiffTabView>> {
+        self.active_tab_view().and_then(TabView::downcast::<DiffTabView>)
+    }
+
     /// The viewer of the active tab, when it shows a diff.
     pub(super) fn diff_tab_viewer(&self, cx: &App) -> Option<Entity<DiffView>> {
-        self.active_tab_view().and_then(TabView::downcast::<DiffTabView>).map(|tab| tab.read(cx).viewer().clone())
+        self.active_diff_tab().map(|tab| tab.read(cx).viewer().clone())
+    }
+
+    /// Compare Next / Previous File in the active diff tab: the next file of its chain in
+    /// `direction` with changes to show opens in the preview tab.
+    pub(super) fn step_diff_tab_file(&mut self, direction: Direction, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(tab) = self.active_diff_tab() {
+            self.find_diff_tab_file(&tab, direction, window, cx);
+        }
+    }
+
+    /// Diff Settings in the active diff tab: the viewer's settings menu under the start of the
+    /// tab's toolbar.
+    pub(super) fn show_diff_tab_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(tab) = self.active_diff_tab() else { return };
+        let (viewer, position) = {
+            let tab = tab.read(cx);
+            (tab.viewer().clone(), tab.settings_menu_position())
+        };
+        // A tab not drawn yet has no toolbar to open the menu under.
+        let Some(position) = position else { return };
+        let items = {
+            let viewer = viewer.read(cx);
+            viewer_settings_menu(&viewer.options(), viewer.soft_wraps())
+        };
+        self.show_menu(
+            &items,
+            position,
+            move |_, command, _, cx| viewer.update(cx, |viewer, cx| viewer.run_command(command, cx)),
+            window,
+            cx,
+        );
     }
 
     /// Whether the active tab shows a diff that has the keyboard.
@@ -287,13 +323,14 @@ impl Workbench {
 
 #[cfg(test)]
 mod tests {
-    use super::super::tests::{git_project, init_repo, run_action, wait_long};
+    use super::super::tests::{context_is_on, git_in, git_project, init_repo, run_action, wait_long};
     use super::super::tool_windows::Anchor;
-    use super::super::{GIT_TOOL_WINDOW, PROJECT_TOOL_WINDOW};
+    use super::super::{COMMIT_TOOL_WINDOW, GIT_TOOL_WINDOW, PROJECT_TOOL_WINDOW};
     use super::*;
     use crate::platform::settings;
+    use crate::vcs::commit_view::CommitPanel;
     use crate::vcs_diff::toolbar_view::{DiffCommand, ToolbarItem, counter_text};
-    use gpui_kit::{TestAppContext, VisualTestContext};
+    use gpui_kit::{Focusable, Modifiers, TestAppContext, VisualTestContext};
     use ide_workspace::settings::SettingsScope;
     use serde_json::json;
 
@@ -304,10 +341,18 @@ mod tests {
     fn non_modal_project(
         cx: &mut TestAppContext,
     ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf) {
-        let (workbench, cx, folders, root) = git_project(cx, |root| {
+        non_modal_repository(cx, |root| {
             init_repo(root);
             std::fs::write(root.join("a.txt"), "two\n").expect("the file is written");
-        });
+        })
+    }
+
+    /// A project on the repository `prepare` makes, under the non-modal commit interface.
+    fn non_modal_repository(
+        cx: &mut TestAppContext,
+        prepare: impl FnOnce(&std::path::Path),
+    ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf) {
+        let (workbench, cx, folders, root) = git_project(cx, prepare);
         let label = workbench.read_with(cx, |w, _| w.label.clone());
         cx.update(|_, cx| settings::set(&label, SettingsScope::Global, "vcs.commit.nonModal", &json!(true), cx))
             .expect("the setting is written");
@@ -315,6 +360,51 @@ mod tests {
             cx.update(|_, cx| settings::effective(&label, cx).vcs.commit.non_modal)
         });
         (workbench, cx, folders, root)
+    }
+
+    /// A repository whose `a.txt` and `b.txt` were both changed after their commit, under the
+    /// non-modal commit interface, with the Commit window listing them: one group of changes, the
+    /// chain of a diff tab Show Diff opens on either.
+    fn two_files_project(
+        cx: &mut TestAppContext,
+    ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf) {
+        let (workbench, cx, folders, root) = non_modal_repository(cx, |root| {
+            init_repo(root);
+            std::fs::write(root.join("b.txt"), "x\ny\nz\n").expect("the file is written");
+            git_in(root, &["add", "b.txt"]);
+            git_in(root, &["commit", "-q", "-m", "b.txt"]);
+            std::fs::write(root.join("a.txt"), "one\ntwo\nthree\n").expect("the file is written");
+            std::fs::write(root.join("b.txt"), "x\nY\nz\n").expect("the file is written");
+        });
+        run_action(cx, "toolwindow.commit", None);
+        let changes = workbench
+            .read_with(cx, |w, _| w.tool_window_view(COMMIT_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<CommitPanel>().ok())
+            .expect("the Commit window holds the changes");
+        wait_long(cx, "both changes to be listed", |cx| {
+            changes.read_with(cx, |changes, _| changes.lines()) == ["Changes (2)", "  a.txt", "  b.txt"]
+        });
+        (workbench, cx, folders, root)
+    }
+
+    /// Gives the keyboard to the viewer of the active diff tab.
+    fn focus_viewer(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) {
+        let viewer = workbench.read_with(cx, |w, cx| w.diff_tab_viewer(cx)).expect("a diff tab is active");
+        cx.update(|window, cx| {
+            window.activate_window();
+            window.focus(&viewer.focus_handle(cx), cx);
+        });
+        cx.run_until_parked();
+    }
+
+    /// The file the active editor shows and the 0-based line of its caret.
+    fn edited_at(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<(PathBuf, u32)> {
+        workbench.read_with(cx, |w, cx| {
+            w.editor().map(|editor| {
+                let editor = editor.read(cx);
+                (editor.path().to_path_buf(), editor.caret_position().0)
+            })
+        })
     }
 
     /// The keys of the diff tabs, in every pane.
@@ -454,5 +544,100 @@ mod tests {
         run_action(cx, "toolwindow.hideAll", None);
         assert_eq!(maximize_button(&viewer, cx), Some(("Maximize Editor", false)));
         assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(PROJECT_TOOL_WINDOW)));
+    }
+
+    // Compare Next File and Compare Previous File from the keymap, while a diff tab has the keyboard: the next
+    // and the previous changed file of its group take the preview tab.
+    #[gpui_kit::test]
+    async fn compares_the_next_and_previous_file_in_a_diff_tab_from_the_keymap(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = two_files_project(cx);
+        open_diff_tab(&workbench, &root, cx);
+        assert_eq!(selected_tab(&workbench, cx).as_deref(), Some("a.txt (HEAD ↔ Your version)"));
+        focus_viewer(&workbench, cx);
+        assert!(context_is_on(cx, "diffEditorFocus"), "the diff tab has the keyboard");
+        cx.simulate_keystrokes(if cfg!(target_os = "macos") { "ctrl-shift-right" } else { "alt-shift-right" });
+        // The file found opens at its first difference.
+        wait_long(cx, "b.txt's diff", |cx| {
+            selected_tab(&workbench, cx).is_some_and(|tab| tab.starts_with("b.txt"))
+                && counter(&workbench, cx).as_deref() == Some("1 of 1 differences")
+        });
+        assert_eq!(diff_tabs(&workbench, cx).len(), 1, "b.txt took the preview tab");
+        focus_viewer(&workbench, cx);
+        cx.simulate_keystrokes(if cfg!(target_os = "macos") { "ctrl-shift-left" } else { "alt-shift-left" });
+        wait_long(cx, "a.txt's diff again", |cx| {
+            selected_tab(&workbench, cx).is_some_and(|tab| tab.starts_with("a.txt"))
+        });
+        assert_eq!(diff_tabs(&workbench, cx).len(), 1, "a.txt took the preview tab");
+        cx.update(|window, cx| window.blur(cx));
+        cx.run_until_parked();
+        assert!(!context_is_on(cx, "diffEditorFocus"), "nothing has the keyboard");
+    }
+
+    // Diff Settings from the keymap opens the viewer's settings menu under the start of the diff tab's toolbar, and
+    // a row chosen there changes that tab's viewer.
+    #[gpui_kit::test]
+    async fn diff_settings_opens_the_settings_menu_under_the_diff_tabs_toolbar(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = non_modal_project(cx);
+        let viewer = open_diff_tab(&workbench, &root, cx);
+        focus_viewer(&workbench, cx);
+        assert!(workbench.read_with(cx, |w, _| w.open_menu::<DiffCommand>().is_none()));
+        cx.simulate_keystrokes(if cfg!(target_os = "macos") { "cmd-shift-d" } else { "ctrl-shift-d" });
+        cx.run_until_parked();
+        let menu = workbench.read_with(cx, |w, _| w.open_menu::<DiffCommand>()).expect("the settings menu is open");
+        let rows: Vec<String> = menu.read_with(cx, |menu, _| menu.lines())[0]
+            .iter()
+            .map(|line| line.trim_start_matches("> ").to_owned())
+            .collect();
+        let soft_wraps = rows.iter().position(|row| row == "Use Soft Wraps").expect("the menu offers Use Soft Wraps");
+        assert!(rows.iter().any(|row| row.starts_with("Side-by-side Viewer")), "{rows:?}");
+        let toolbar = cx.debug_bounds("diff-toolbar").expect("the toolbar is drawn");
+        let first = cx.debug_bounds("menu-row-0-0").expect("the menu is drawn");
+        assert!(first.top() >= toolbar.bottom() - gpui_kit::px(1.0), "the menu opens under the toolbar");
+        assert!((first.left() - toolbar.left()) < gpui_kit::px(40.0), "the menu opens at the toolbar's start");
+        let wrapped = viewer.read_with(cx, |viewer, _| viewer.soft_wraps());
+        let selector: &'static str = Box::leak(format!("menu-row-0-{soft_wraps}").into_boxed_str());
+        let row = cx.debug_bounds(selector).expect("the row is drawn");
+        cx.simulate_click(row.center(), Modifiers::default());
+        cx.run_until_parked();
+        assert_ne!(
+            viewer.read_with(cx, |viewer, _| viewer.soft_wraps()),
+            wrapped,
+            "Use Soft Wraps reached the tab's viewer"
+        );
+        assert_eq!(diff_tabs(&workbench, cx).len(), 1, "the tab stays");
+    }
+
+    // Jump to Source from the keymap in a diff tab opens the working file at the caret's line and column; the diff
+    // tabs stay open (Show Diff of two files opens regular tabs, which a new editor does not replace).
+    #[gpui_kit::test]
+    async fn jump_to_source_opens_the_file_at_the_caret_and_keeps_the_diff_tab(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = two_files_project(cx);
+        let paths = ["a.txt", "b.txt"].map(|name| root.join(name).to_string_lossy().into_owned());
+        run_action(cx, "vcs.showDiff", Some(json!(paths)));
+        wait_long(cx, "b.txt's diff tab to be loaded", |cx| {
+            selected_tab(&workbench, cx).is_some_and(|tab| tab.starts_with("b.txt"))
+                && counter(&workbench, cx).as_deref() == Some("1 difference")
+        });
+        assert_eq!(diff_tabs(&workbench, cx).len(), 2);
+        let viewer = workbench.read_with(cx, |w, cx| w.diff_tab_viewer(cx)).expect("a diff tab is active");
+        viewer.update(cx, |viewer, cx| viewer.reveal_line(Side::B, 1, cx));
+        focus_viewer(&workbench, cx);
+        cx.simulate_keystrokes("f4");
+        let file = root.join("b.txt");
+        wait_long(cx, "b.txt in the editor", |cx| edited_at(&workbench, cx) == Some((file.clone(), 1)));
+        assert_eq!(diff_tabs(&workbench, cx).len(), 2, "the diff tabs stay open");
+        assert!(workbench.read_with(cx, |w, cx| w.diff_tab_viewer(cx)).is_none(), "the editor is the active tab");
+    }
+
+    // The close shortcut pressed while a diff tab has the keyboard closes that tab, as it closes any editor tab.
+    #[gpui_kit::test]
+    async fn the_close_shortcut_closes_a_diff_tab_that_has_the_keyboard(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = non_modal_project(cx);
+        open_diff_tab(&workbench, &root, cx);
+        focus_viewer(&workbench, cx);
+        cx.simulate_keystrokes(if cfg!(target_os = "macos") { "cmd-w" } else { "ctrl-f4" });
+        cx.run_until_parked();
+        assert!(diff_tabs(&workbench, cx).is_empty(), "the diff tab is closed");
+        assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()));
     }
 }

@@ -184,6 +184,15 @@ pub const TAB_KINDS: &[TabKind] = &[
         build: super::diff_tools::build_local_history_tab,
     },
     TabKind {
+        id: crate::vcs_diff::diff_input::DIFF_KIND,
+        restorable: false,
+        active_key: None,
+        focus_key: None,
+        title: super::diff_tab::diff_tab_title,
+        icon: super::diff_tab::diff_tab_icon,
+        build: super::diff_tab::build_diff_tab,
+    },
+    TabKind {
         id: crate::vcs::selection_history_view::SELECTION_HISTORY_KIND,
         restorable: false,
         active_key: None,
@@ -973,6 +982,6 @@ mod tests {
         assert_eq!(ids.len(), TAB_KINDS.len());
         assert!(!ids.contains(FILE_KIND));
         assert!(kind(IMAGE_KIND).is_some_and(|kind| kind.active_key == Some("imageViewerActive")));
-        assert!(kind("diff").is_none());
+        assert!(kind("diff").is_some_and(|kind| !kind.restorable && kind.focus_key.is_none()));
     }
 }

@@ -27,6 +27,7 @@ pub mod context_menus;
 use crate::build_tools::model::{GRADLE_TOOL_WINDOW, MAVEN_TOOL_WINDOW};
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 use crate::debugger::effects::DEBUG_TOOL_WINDOW;
+mod diff_tab;
 mod diff_tools;
 mod diff_window;
 mod edit_actions;
@@ -2284,6 +2285,7 @@ impl Workbench {
         // The Notifications window may have opened or closed, or just got its view.
         self.sync_notifications(cx);
         self.sync_run_window(cx);
+        self.sync_diff_tabs_maximized(cx);
     }
 
     /// Creates the view of every visible tool window that has none yet.
@@ -4330,6 +4332,8 @@ mod tests {
     mod project_threads;
     mod proofs11_agents;
     mod proofs11_vcs_windows;
+    mod proofs12_diff_soft_wraps;
+    mod proofs12_diff_tabs;
     mod proofs12_diff_window;
     mod proofs12_find_popup;
     mod proofs13_agents_config;
@@ -5554,6 +5558,7 @@ mod tests {
         cx.update(|window, _| window.activate_window());
         workbench.update_in(cx, |workbench, window, cx| workbench.open_project(root.clone(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+        modal_commit(&workbench, cx);
         cx.update(|window, cx| execute_action_or_throw("toolwindow.commit", None, window, cx)).expect("it runs");
         let changes = workbench
             .read_with(cx, |w, _| w.tool_window_view(COMMIT_TOOL_WINDOW))
@@ -8129,6 +8134,21 @@ mod tests {
         let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
         cx.simulate_click(bounds.center(), gpui_kit::Modifiers::default());
         cx.run_until_parked();
+    }
+
+    /// Settings › Version Control › Commit › Use non-modal commit interface off: Show Diff opens the
+    /// diff window in front, not an editor tab.
+    pub(super) fn modal_commit(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) {
+        use ide_workspace::settings::SettingsScope;
+        let label = workbench.read_with(cx, |w, _| w.label.clone());
+        let off = serde_json::json!(false);
+        cx.update(|_, cx| {
+            crate::platform::settings::set(&label, SettingsScope::Global, "vcs.commit.nonModal", &off, cx)
+        })
+        .expect("the setting is written");
+        wait_long(cx, "the modal commit interface", |cx| {
+            cx.update(|_, cx| !crate::platform::settings::effective(&label, cx).vcs.commit.non_modal)
+        });
     }
 
     pub(super) fn run_action(cx: &mut VisualTestContext, id: &str, arg: Option<serde_json::Value>) {

@@ -21,5 +21,7 @@ pub mod inline_blame;
 pub mod marks;
 pub mod merge_gutters;
 pub mod model;
+pub mod tab_view;
 pub mod toolbar_view;
 pub mod view;
+pub mod wrap;

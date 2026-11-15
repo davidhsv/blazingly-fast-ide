@@ -13,9 +13,11 @@ use super::toolbar_view::{DiffToolbar, DiffToolbarEvent};
 use super::view::{DiffView, DiffViewEvent};
 use crate::theme;
 use gpui_kit::{
-    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Render, Subscription, Window, div,
-    prelude::*,
+    App, Bounds, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Pixels, Point, Render,
+    Subscription, Window, canvas, div, point, prelude::*, px,
 };
+use std::cell::Cell;
+use std::rc::Rc;
 
 /// What a diff tab asks of its window.
 #[derive(Clone, Debug, PartialEq)]
@@ -33,6 +35,8 @@ pub struct DiffTabView {
     data: DiffData,
     viewer: Entity<DiffView>,
     toolbar: Entity<DiffToolbar>,
+    /// Where the toolbar was drawn last: Diff Settings run from the keyboard opens its menu under it.
+    toolbar_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -66,7 +70,7 @@ impl DiffTabView {
             cx.subscribe(&viewer, |_, _, event: &DiffViewEvent, cx| cx.emit(DiffTabEvent::Viewer(event.clone()))),
             cx.subscribe(&toolbar, |_, _, event: &DiffToolbarEvent, cx| cx.emit(DiffTabEvent::Menu(event.clone()))),
         ];
-        Self { data, viewer, toolbar, _subscriptions: subscriptions }
+        Self { data, viewer, toolbar, toolbar_bounds: Rc::default(), _subscriptions: subscriptions }
     }
 
     /// The diff shown.
@@ -76,6 +80,12 @@ impl DiffTabView {
 
     pub fn viewer(&self) -> &Entity<DiffView> {
         &self.viewer
+    }
+
+    /// Where Diff Settings opens the viewer's settings menu when it is not opened from the toolbar's
+    /// button: under the start of the toolbar, once the tab has been drawn.
+    pub fn settings_menu_position(&self) -> Option<Point<Pixels>> {
+        self.toolbar_bounds.get().map(|bounds| point(bounds.left() + px(8.0), bounds.bottom()))
     }
 
     /// The tab's title: the file and the revisions compared.
@@ -123,6 +133,8 @@ impl Focusable for DiffTabView {
 
 impl Render for DiffTabView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let measured = Rc::clone(&self.toolbar_bounds);
+        let measure = canvas(move |bounds, _, _| measured.set(Some(bounds)), |_, _, _, _| {}).absolute().size_full();
         div()
             .debug_selector(|| "diff-tab".to_owned())
             .size_full()
@@ -130,7 +142,7 @@ impl Render for DiffTabView {
             .flex_col()
             .bg(theme::color(cx, "bg-app"))
             .text_size(theme::length(cx, "fs-ui"))
-            .child(self.toolbar.clone())
+            .child(div().relative().flex_none().child(self.toolbar.clone()).child(measure))
             .child(div().flex_1().min_h_0().child(self.viewer.clone()))
     }
 }

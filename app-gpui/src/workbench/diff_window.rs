@@ -25,7 +25,7 @@ use crate::vcs_diff::diff_options::{
     DIFF_OPTIONS_KEY, HighlightPolicy, IgnorePolicy, Side, idea_chunks, load_diff_options, save_diff_options,
 };
 use crate::vcs_diff::doc::{Direction, Doc};
-use crate::vcs_diff::toolbar_view::{DiffCommand, DiffToolbarEvent, settings_menu};
+use crate::vcs_diff::toolbar_view::{DiffCommand, DiffToolbarEvent, viewer_settings_menu};
 use crate::vcs_diff::view::{DiffView, DiffViewEvent, map_line};
 use crate::vcs_more::show_diff::{ChangesView, SHOW_DIFF, ShowDiffStart, ShownDiffs, show_diff_files, show_diff_start};
 use crate::vcs_ops::actions::{PathContext, commit_window_focused};
@@ -99,13 +99,13 @@ fn dragged_size(from: Size<Pixels>, start: Point<Pixels>, at: Point<Pixels>, vie
 }
 
 /// What the load of a diff brings back.
-struct LoadedSides {
-    left: String,
-    right: String,
+pub(super) struct LoadedSides {
+    pub(super) left: String,
+    pub(super) right: String,
     /// A side on disk is not text.
-    binary: bool,
+    pub(super) binary: bool,
     /// Neither side is a file, and the diff's path is one in the working tree.
-    working_copy: bool,
+    pub(super) working_copy: bool,
 }
 
 /// The text `load` stands for. `open` holds the texts of the open editors by path: a working file
@@ -143,7 +143,7 @@ fn disk_paths(data: &DiffData) -> Vec<String> {
 }
 
 /// Loads both sides of `data`, and probes its files on disk for binary content.
-async fn load_sides(
+pub(super) async fn load_sides(
     host: &Host,
     window: &str,
     data: &DiffData,
@@ -184,7 +184,7 @@ pub(super) fn side_colours(host: &Host, path: &str, left: &str, right: &str) -> 
 }
 
 /// The neighbour of `from` along its chain, in `direction`, that has changes to show.
-async fn find_file(
+pub(super) async fn find_file(
     host: &Host,
     window: &str,
     mut search: ChainSearch,
@@ -251,7 +251,7 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
     }
     for (id, direction) in [(action::NEXT_FILE, Direction::Next), (action::PREV_FILE, Direction::Previous)] {
         registry.handle(id, move |_, window, cx| {
-            on_workbench(window, cx, |workbench, _, cx| workbench.step_diff_file(direction, cx))
+            on_workbench(window, cx, |workbench, window, cx| workbench.step_diff_file(direction, window, cx))
         });
     }
     registry.handle(action::SHOW_SETTINGS, |_, window, cx| {
@@ -270,8 +270,9 @@ impl Workbench {
         self.diff_window.as_ref().map(|open| &open.dialog)
     }
 
+    /// The viewer of the diff window, else of the active diff tab.
     fn diff_viewer(&self, cx: &App) -> Option<Entity<DiffView>> {
-        self.diff_dialog().map(|dialog| dialog.read(cx).viewer().clone())
+        self.diff_dialog().map(|dialog| dialog.read(cx).viewer().clone()).or_else(|| self.diff_tab_viewer(cx))
     }
 
     /// What the changes of the Commit tool window ask for.
@@ -293,8 +294,9 @@ impl Workbench {
     }
 
     /// Show Diff: the argument's paths, else the selected change while the Commit window is the active
-    /// tool window, else the Project view's selection, else the active file. The diff opens in front of
-    /// the window with the other files of the change's group as its chain.
+    /// tool window, else the Project view's selection, else the active file. Under the modal commit
+    /// interface the diff opens in front of the window with the other files of the change's group as its
+    /// chain; under the non-modal one each file opens in an editor tab, the preview tab for a single one.
     pub fn show_diff(&mut self, arg: Option<&Value>, window: &mut Window, cx: &mut Context<Self>) {
         let panel = self.commit_panel();
         let active_tool_window = self.tool_windows().and_then(|layout| layout.focused()).map(str::to_owned);
@@ -336,13 +338,11 @@ impl Workbench {
             group_by_staging: false,
             selection_keys: &keys,
         };
+        let non_modal = crate::platform::settings::effective(&self.label, cx).vcs.commit.non_modal;
         let i18n = &mut cx.default_global::<Localization>().0;
-        let data = match show_diff_files(arg, &paths, view, context, false, i18n) {
+        let data = match show_diff_files(arg, &paths, view, context, non_modal, i18n) {
             Some(ShownDiffs::FrontWindow(data)) => *data,
-            Some(ShownDiffs::Tabs(tabs)) => match tabs.into_iter().next() {
-                Some(tab) => tab.data,
-                None => return,
-            },
+            Some(ShownDiffs::Tabs(tabs)) => return self.open_diff_tabs(tabs, window, cx),
             None => return,
         };
         self.open_diff(data, window, cx);
@@ -504,10 +504,11 @@ impl Workbench {
         }
     }
 
-    /// Compare Next / Previous File in the diff window.
-    fn step_diff_file(&mut self, direction: Direction, cx: &mut Context<Self>) {
-        if let Some(data) = self.diff_dialog().map(|dialog| dialog.read(cx).data().clone()) {
-            self.find_diff_file(data, direction, cx);
+    /// Compare Next / Previous File in the diff window, else in the active diff tab.
+    fn step_diff_file(&mut self, direction: Direction, window: &mut Window, cx: &mut Context<Self>) {
+        match self.diff_dialog().map(|dialog| dialog.read(cx).data().clone()) {
+            Some(data) => self.find_diff_file(data, direction, cx),
+            None => self.step_diff_tab_file(direction, window, cx),
         }
     }
 
@@ -518,10 +519,18 @@ impl Workbench {
         }
     }
 
-    /// Diff Settings: the viewer's settings menu, at the top right of the diff window.
+    /// Diff Settings: the viewer's settings menu, at the top right of the diff window, else under the
+    /// toolbar of the active diff tab.
     fn show_diff_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.diff_dialog().is_none() {
+            self.show_diff_tab_settings(window, cx);
+            return;
+        }
         let Some(viewer) = self.diff_viewer(cx) else { return };
-        let items = settings_menu(&viewer.read(cx).options());
+        let items = {
+            let viewer = viewer.read(cx);
+            viewer_settings_menu(&viewer.options(), viewer.soft_wraps())
+        };
         let Some(bounds) = self.diff_window.as_ref().map(|open| open.bounds) else { return };
         let position = gpui_kit::point((bounds.right() - px(260.0)).max(px(0.0)), bounds.top() + px(72.0));
         self.show_menu(
@@ -573,8 +582,8 @@ impl Workbench {
                 }
                 // An arrow, a hover Revert or Accept Left / Right Side on an editable side.
                 DiffViewEvent::Apply { target, change } => self.apply_diff_edit(*target, change, cx),
-                // The panes have no menu of their own.
-                DiffViewEvent::ShowMenu { .. } => {}
+                // The panes have no menu of their own, and the diff window offers no Maximize Editor.
+                DiffViewEvent::ShowMenu { .. } | DiffViewEvent::Maximize => {}
             },
             DiffDialogEvent::Close => self.close_diff(true, window, cx),
         }
@@ -615,7 +624,7 @@ impl Workbench {
     /// Opens the working copy of `path` at the line that `line` of `shown`, another version of the file,
     /// has become there: through a diff of the two, once the working text is loaded off the window's
     /// thread. The column is kept when the line reads the same in both.
-    fn jump_to_working_copy(
+    pub(super) fn jump_to_working_copy(
         &mut self,
         path: String,
         shown: String,
@@ -662,7 +671,8 @@ impl Workbench {
     pub(super) fn publish_diff_context(&self, window: &mut Window, cx: &mut App) {
         let focused =
             self.diff_dialog().is_some_and(|dialog| dialog.read(cx).focus_handle(cx).contains_focused(window, cx))
-                || self.merge_editor_focused(window, cx);
+                || self.merge_editor_focused(window, cx)
+                || self.diff_tab_focused(window, cx);
         set_context(window, cx, "diffEditorFocus", focused);
         let versioned = self.project_tree().is_some()
             && cx

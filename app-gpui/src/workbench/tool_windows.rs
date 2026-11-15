@@ -892,6 +892,12 @@ impl ToolWindowLayout {
         }
     }
 
+    /// Hide All Tool Windows hid every window and brings them back when run again: the editor is
+    /// maximized.
+    pub fn all_hidden(&self) -> bool {
+        self.stashed.is_some() && self.visible.is_empty()
+    }
+
     /// Entering Distraction Free Mode: remembers the visible windows and hides them. Windows can
     /// still be opened meanwhile (by shortcut); exiting restores the remembered layout. No-op
     /// without a project layout loaded.

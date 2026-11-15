@@ -32,6 +32,10 @@ pub enum DiffCommand {
     ToggleCollapse,
     ToggleSyncScroll,
     ToggleAlignChanges,
+    /// Use Soft Wraps: the viewer's own choice, stored, in place of the editor's setting.
+    ToggleSoftWrap,
+    /// Maximize Editor / Restore Size of a diff tab: hides every tool window, or brings them back.
+    ToggleMaximize,
     /// Reverts the current change of the right side to the left side's text.
     RevertChange,
     /// Loads both sides again.
@@ -101,6 +105,8 @@ pub struct ToolbarState {
     pub editable_right: bool,
     /// The diff has a file to jump to.
     pub has_source: bool,
+    /// Maximize Editor is offered (an editor tab), checked while the tool windows are hidden.
+    pub maximized: Option<bool>,
     pub counter: String,
 }
 
@@ -166,7 +172,8 @@ fn button(id: &'static str, icon: &'static str, label: &'static str, command: Di
 
 /// The toolbar's entries, in order: navigation (with Jump to Source when there is a file to jump
 /// to), the viewers, the comparison settings (Synchronize Scrolling for side-by-side panes only),
-/// Revert Change when the right side is editable, Refresh, the counter and the settings menu.
+/// Revert Change when the right side is editable, Refresh, the counter, Maximize Editor in an editor tab and the
+/// settings menu.
 pub fn toolbar_items(state: &ToolbarState) -> Vec<ToolbarItem> {
     let options = &state.options;
     let toggle = |mut button: ToolbarButton, checked: bool| {
@@ -221,15 +228,19 @@ pub fn toolbar_items(state: &ToolbarState) -> Vec<ToolbarItem> {
         ToolbarItem::Separator,
         ToolbarItem::Button(button("diff-refresh", "refresh", "Refresh", DiffCommand::Refresh)),
         ToolbarItem::Counter(state.counter.clone()),
-        ToolbarItem::Button(ToolbarButton {
-            id: "diff-settings",
-            icon: "settings",
-            label: "Settings",
-            enabled: true,
-            checked: false,
-            action: ToolbarAction::Open(DiffMenu::Settings),
-        }),
     ]);
+    if let Some(maximized) = state.maximized {
+        let (icon, label) = if maximized { ("minimize", "Restore Size") } else { ("maximize", "Maximize Editor") };
+        items.push(toggle(button("diff-maximize", icon, label, DiffCommand::ToggleMaximize), maximized));
+    }
+    items.push(ToolbarItem::Button(ToolbarButton {
+        id: "diff-settings",
+        icon: "settings",
+        label: "Settings",
+        enabled: true,
+        checked: false,
+        action: ToolbarAction::Open(DiffMenu::Settings),
+    }));
     items
 }
 
@@ -239,6 +250,7 @@ fn shortcut_action(action: ToolbarAction) -> Option<&'static str> {
         ToolbarAction::Run(DiffCommand::PreviousDifference) => Some("diff.prevDifference"),
         ToolbarAction::Run(DiffCommand::NextDifference) => Some("diff.nextDifference"),
         ToolbarAction::Run(DiffCommand::JumpToSource) => Some("diff.jumpToSource"),
+        ToolbarAction::Run(DiffCommand::ToggleMaximize) => Some("toolwindow.hideAll"),
         ToolbarAction::Open(DiffMenu::Settings) => Some("diff.showSettings"),
         _ => None,
     }
@@ -269,9 +281,16 @@ pub fn highlight_menu(options: &DiffViewOptions) -> Vec<MenuItem<DiffCommand>> {
         .collect()
 }
 
-/// The viewer settings: the viewer kind, the comparison submenus, collapsing, and the scrolling and
-/// alignment of side-by-side panes (disabled in the unified viewer).
+/// The viewer settings as `options` alone tell them: Use Soft Wraps is checked when the viewer's
+/// own choice turned it on.
 pub fn settings_menu(options: &DiffViewOptions) -> Vec<MenuItem<DiffCommand>> {
+    viewer_settings_menu(options, options.soft_wrap == Some(true))
+}
+
+/// The viewer settings: the viewer kind, the comparison submenus, collapsing, Use Soft Wraps
+/// (checked while the panes wrap, `soft_wraps`), and the scrolling and alignment of side-by-side
+/// panes (disabled in the unified viewer).
+pub fn viewer_settings_menu(options: &DiffViewOptions, soft_wraps: bool) -> Vec<MenuItem<DiffCommand>> {
     let split = options.mode == DiffMode::Split;
     vec![
         checked(MenuItem::item("Side-by-side Viewer", DiffCommand::SetMode(DiffMode::Split)), split),
@@ -281,6 +300,7 @@ pub fn settings_menu(options: &DiffViewOptions) -> Vec<MenuItem<DiffCommand>> {
         MenuItem::submenu("Highlighting", highlight_menu(options)),
         MenuItem::Separator,
         checked(MenuItem::item("Collapse Unchanged Fragments", DiffCommand::ToggleCollapse), options.collapse),
+        checked(MenuItem::item("Use Soft Wraps", DiffCommand::ToggleSoftWrap), soft_wraps),
         checked(MenuItem::item("Synchronize Scrolling", DiffCommand::ToggleSyncScroll), options.sync_scroll)
             .disabled(!split),
         checked(MenuItem::item("Align Changes", DiffCommand::ToggleAlignChanges), options.align_changes)
@@ -326,7 +346,11 @@ impl DiffToolbar {
         match action {
             ToolbarAction::Run(command) => self.viewer.update(cx, |viewer, cx| viewer.run_command(command, cx)),
             ToolbarAction::Open(kind) => {
-                let items = menu(kind, &self.viewer.read(cx).options());
+                let viewer = self.viewer.read(cx);
+                let items = match kind {
+                    DiffMenu::Settings => viewer_settings_menu(&viewer.options(), viewer.soft_wraps()),
+                    DiffMenu::Ignore | DiffMenu::Highlight => menu(kind, &viewer.options()),
+                };
                 cx.emit(DiffToolbarEvent::ShowMenu { menu: kind, items, position });
             }
         }
@@ -594,6 +618,7 @@ mod tests {
                 "Highlighting",
                 "-",
                 "Collapse Unchanged Fragments ✓",
+                "Use Soft Wraps",
                 "Synchronize Scrolling",
                 "Align Changes",
             ]

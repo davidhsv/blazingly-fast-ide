@@ -62,14 +62,17 @@ fn edited_at(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Optio
     })
 }
 
-/// A repository whose `a.txt` was changed after its first commit.
+/// A repository whose `a.txt` was changed after its first commit, under the modal commit interface: Show
+/// Diff opens the diff window.
 fn changed_project(
     cx: &mut TestAppContext,
 ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf) {
-    git_project(cx, |root| {
+    let (workbench, cx, folders, root) = git_project(cx, |root| {
         init_repo(root);
         std::fs::write(root.join("a.txt"), "two\n").expect("the file is written");
-    })
+    });
+    modal_commit(&workbench, cx);
+    (workbench, cx, folders, root)
 }
 
 /// A repository whose `a.txt` gains lines above the old ones at each step: in the parent commit, in the last
