@@ -1,0 +1,37 @@
+wait	3000
+open	/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/insp6/project/src/main.rs
+wait	1500
+action	file.settings	"appearance"
+wait	1500
+mark	settings-appearance
+wait	2200
+action	file.settings	"keymap"
+wait	1500
+mark	settings-keymap
+wait	2200
+action	file.settings	"editor.general"
+wait	1500
+mark	settings-editor-general
+wait	2200
+action	file.settings	"editor.font"
+wait	1500
+mark	settings-editor-font
+wait	2200
+action	file.settings	"editor.colorScheme"
+wait	1500
+mark	settings-editor-colorScheme
+wait	2200
+action	file.settings	"vcs.git"
+wait	1500
+mark	settings-vcs-git
+wait	2200
+action	file.settings	"tools.terminal"
+wait	1500
+mark	settings-tools-terminal
+wait	2200
+action	file.settings	"plugins"
+wait	1500
+mark	settings-plugins
+wait	2200
+keys	escape
+wait	500

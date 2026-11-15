@@ -590,3 +590,11 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - ipc rows that only lack a test reading the result: sdk_locate_tools, project_current, agent_commands. Not called natively: gh_pr_create (the New PR tab goes through gh_api), doc_sync_from_disk, debug_evaluate (Evaluate uses debug_evaluate_in).
 - proofs10_locale.rs is still undeclared (plugin_set_ui_locale has no running test).
 - NEXT TEST-ONLY WRITERS (no cargo): e2e flows, ten specs each, starting with the ones whose parts are already proven separately (commit, gitIgnore, keymap, openProject, plugin-settings, pluginNotifications), then mergeEditor (8/16), codeInsight (3/7), toolwindows (3/10), newBranch (1/4), run, search, editor.
+
+## State after the D110 slice (2026-11-15, code e8b1a9e0, proofs18 drafts 1e969169)
+
+- Suite 7,253; my two runs alone passed; the integration had one failure in its first run (a quick-fix menu test whose "problems" never came). D113 written. Inventory 1,250/3,145.
+- VERIFIED IN THE REAL BINARY: Stop with SIGINT ignored (insp5/stopcheck.sh). BROAD TOUR DONE: notes/inspections/2026-11-15-b/. DEFECTS: tooltip over its popup when the pointer rests after the click (project widget, gear); "::" on two Appearance labels.
+- NEXT INTEGRATOR: $S/int_d111_brief.md = Part A (tooltip real flow, double colon, the quick-fix test's cause), Part B database extras (reconciled notes).
+- THEN: proofs18 (42 e2e flow tests; 7 e2e rows done if they pass; one hunk: SettingsDialogView::page_view; pending files list missing steps: rename in place, double-click a tool window title to maximize, breadcrumbs / navigate.navigationBar, modified mark on a tab) → build tools (seam first) → agents views → diff gaps alone → shared button + accessibility → vcs_stage_hunks → zoom's literal px.
+- RUNNING (no cargo): build tools reconciler + the seam design for crates/ide-build.

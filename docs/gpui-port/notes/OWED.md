@@ -67,3 +67,7 @@
 - A click that starts just before a conversation's reply gets its end time can land nowhere (the row grows and the button moves); seen in a test, not changed in the app.
 - Integrated on 2026-11-15 (D110): the New Pull Request tab with Create Pull Request, Toggle Viewed, Open in Worktree; the Keymap Reference dialog. Not seen in the real window: the New Pull Request tab (it needs a signed-in `gh`; nothing was signed in).
 - Drafts committed and not compiled: tabs in a single-file window, the agents' setting pickers and New Task page, the diff's soft wraps, moved code and diff tab, database extras, build tools.
+- Integrated on 2026-11-15 (D113): the app's own interrupt handler (Stop works when the IDE was started with interrupts ignored: measured in the real binary; the Tauri app keeps the defect) and tabs in a single-file window (not for a window whose first file is an image; no file drop).
+- Open from the broad look at the window on 2026-11-15 (`notes/inspections/2026-11-15-b/`): a tooltip covers the popup its target opened when the pointer rests there after the click; two labels of Settings → Appearance end in "::".
+- One more test failed once with a state that never came (a quick-fix menu test); the cause is not found yet.
+- The end-to-end specs: 2 of 70 at parity, 10 partial; 42 native flow tests are written and not compiled (`proofs18`), 16 more wait for behaviour that is missing (rename in place, double click on a tool window's title to maximize it, breadcrumbs and the navigation bar, the modified mark on a tab, among others).

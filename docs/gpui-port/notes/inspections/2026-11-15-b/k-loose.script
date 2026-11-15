@@ -1,0 +1,24 @@
+wait	3000
+wait	500
+mark	one-file
+wait	2200
+open	/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/insp6/loose/b.md
+wait	1500
+mark	two-tabs
+wait	2200
+rclick	342	59
+wait	1200
+mark	tab-menu
+wait	2200
+keys	escape
+wait	500
+action	editor.closeTab
+wait	1200
+mark	after-close
+wait	2200
+action	help.keymapReference
+wait	1200
+mark	keymap-reference
+wait	2200
+keys	escape
+wait	500

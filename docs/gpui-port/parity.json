@@ -2777,7 +2777,7 @@
   },
   "unit:src/features/app/__tests__/lightEditClose.test.ts": {
     "status": "done",
-    "proof": "`app_models::windows::tests`, `workbench::tests::proofs13_light_edit_close::closes_when_its_last_editor_tab_closes`, `workbench::tests::proofs13_light_edit_close::stays_open_in_a_project_window_or_while_leaving_light_edit`; 2 of 2 cases: a single-file window closes when its last tab closes, and stays open in a project window or while it turns into a project"
+    "proof": "`app_models::windows::tests`, `workbench::tests::proofs13_light_edit_close::closes_when_its_last_editor_tab_closes`, `workbench::tests::proofs13_light_edit_close::stays_open_in_a_project_window_or_while_leaving_light_edit`, `workbench::light_edit_tabs::tests::closes_when_its_last_editor_tab_closes`, `workbench::light_edit_tabs::tests::closing_the_last_tab_leaves_no_tabs_to_reopen`, `workbench::light_edit_tabs::tests::closing_the_last_tab_saves_its_changes_before_the_window_closes`; 2 of 2 cases: a single-file window closes when its last tab closes, and stays open in a project window or while it turns into a project"
   },
   "unit:src/features/app/__tests__/newProject.test.ts": {
     "status": "done",
@@ -2797,7 +2797,7 @@
   },
   "unit:src/features/app/__tests__/windows.test.ts": {
     "status": "partial",
-    "proof": "`app_models::windows::tests`, `workbench::tests::proofs13_windows::honours_current_window_requests_even_when_a_project_is_already_open`, `workbench::tests::proofs13_windows::keeps_the_ordinary_unsaved_change_guard_for_current_window_opens`, `workbench::tests::proofs13_windows::leaves_files_to_the_existing_light_edit_window_or_their_projects_window`, `workbench::tests::proofs13_windows::opens_a_new_window_without_replacing_the_current_project`, `workbench::tests::proofs13_windows::opens_files_in_the_projects_editor_in_a_project_window`, `workbench::tests::proofs13_windows::opens_the_folder_in_a_new_window_with_the_file_per_open_project_in`, `workbench::tests::proofs13_windows::or_turns_this_window_into_the_project_and_reopens_the_file_there`; 11 of 48 cases through the window, two of them in part. Missing: tabs in a single-file window (two tests wait undeclared), file drops, launches beyond the first argument, remote, WSL and Attach windows"
+    "proof": "`app_models::windows::tests`, `workbench::tests::proofs13_windows::honours_current_window_requests_even_when_a_project_is_already_open`, `workbench::tests::proofs13_windows::keeps_the_ordinary_unsaved_change_guard_for_current_window_opens`, `workbench::tests::proofs13_windows::leaves_files_to_the_existing_light_edit_window_or_their_projects_window`, `workbench::tests::proofs13_windows::opens_a_new_window_without_replacing_the_current_project`, `workbench::tests::proofs13_windows::opens_files_in_the_projects_editor_in_a_project_window`, `workbench::tests::proofs13_windows::opens_the_folder_in_a_new_window_with_the_file_per_open_project_in`, `workbench::tests::proofs13_windows::or_turns_this_window_into_the_project_and_reopens_the_file_there`, `workbench::tests::proofs13_windows::a_loose_file_that_cannot_be_opened_as_a_tab_is_reported`, `workbench::tests::proofs13_windows::adds_tabs_to_this_light_edit_window`, `workbench::tests::proofs13_windows::turns_a_window_without_a_project_into_light_edit_when_no_light_edit_window_exists`, `workbench::light_edit_tabs::tests::leaves_files_to_the_existing_light_edit_window`; 13 of 48 cases through the window, two of them in part: a second loose file opens as a tab of the single-file window, and a file that cannot be opened is reported. Missing: file drops, launches beyond the first argument, remote, WSL and Attach windows"
   },
   "unit:src/features/plugins/__tests__/decorations.test.ts": {
     "status": "done",
@@ -7173,7 +7173,7 @@
   },
   "module:src/workbench/EditorArea.tsx": {
     "status": "partial",
-    "proof": "`workbench::tests::empty_project_window::a_project_window_with_nothing_open_shows_the_status_bar_and_the_navigation_hints`; a pane with no tab shows the four navigation hints with the keymap's shortcuts and the drop remark, a click on a hint runs its action, and an open file takes their place. Missing: the two hints of a single-file window"
+    "proof": "`workbench::tests::empty_project_window::a_project_window_with_nothing_open_shows_the_status_bar_and_the_navigation_hints`, `workbench::light_edit_tabs::tests::an_empty_light_edit_pane_offers_open_file_and_dropping`; a pane with no tab shows the four navigation hints with the keymap's shortcuts and the drop remark, a click on a hint runs its action, and an open file takes their place; a single-file window whose last tab is closing offers Open File and the drop remark (its rows are asserted, not a click on them)"
   },
   "context:debugCanHotSwap": {
     "status": "done",

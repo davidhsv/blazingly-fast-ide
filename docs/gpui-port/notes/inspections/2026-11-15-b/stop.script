@@ -1,0 +1,11 @@
+wait	3000
+open	/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/insp5/project/serve.sh
+wait	1500
+action	run.runContext
+wait	3500
+mark	running
+wait	2500
+action	run.stop
+wait	3500
+mark	stopped
+wait	2500

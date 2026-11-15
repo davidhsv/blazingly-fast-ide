@@ -1,0 +1,81 @@
+wait	3000
+open	/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad/insp6/project/src/main.rs
+wait	1500
+rclick	614	307
+wait	1200
+mark	editor-context-menu
+wait	2200
+keys	escape
+wait	500
+rclick	342	59
+wait	1200
+mark	tab-context-menu
+wait	2200
+keys	escape
+wait	500
+click	136	19
+wait	1200
+mark	project-widget
+wait	2200
+keys	escape
+wait	500
+click	231	19
+wait	1200
+mark	branch-popup
+wait	2200
+keys	escape
+wait	500
+click	1145	19
+wait	1200
+mark	run-chooser
+wait	2200
+keys	escape
+wait	500
+click	1308	19
+wait	1200
+mark	run-more-menu
+wait	2200
+keys	escape
+wait	500
+click	1512	19
+wait	1200
+mark	gear-menu
+wait	2200
+keys	escape
+wait	500
+click	242	59
+wait	1200
+mark	project-view-options
+wait	2200
+keys	escape
+wait	500
+rclick	137	164
+wait	1200
+mark	project-row-menu
+wait	2200
+keys	escape
+wait	500
+action	navigate.searchEverywhere
+wait	800
+type	main
+wait	1500
+mark	search-everywhere
+wait	2200
+keys	escape
+wait	500
+action	find.inPath
+wait	1000
+type	answer
+wait	1500
+mark	find-in-files
+wait	2200
+keys	escape
+wait	500
+action	vcs.annotate
+wait	2000
+mark	annotate
+wait	2200
+action	view.toggleTheme
+wait	1500
+mark	dark-annotate
+wait	2200
