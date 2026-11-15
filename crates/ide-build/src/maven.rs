@@ -14,7 +14,7 @@ use specta::Type;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock, RwLock};
 
 /// Phases shown under "Lifecycle" (IDEA's default list).
 pub const LIFECYCLE: &[&str] =
@@ -473,10 +473,31 @@ struct Resolver {
     contexts: HashMap<PathBuf, Inherited>,
 }
 
+/// The folder that stands for the user's `~/.m2` once [`set_maven_user_home`] names one.
+static USER_HOME: RwLock<Option<PathBuf>> = RwLock::new(None);
+
+/// Points every lookup of the Maven user folder (`~/.m2`: its `settings.xml`, `toolchains.xml` and
+/// default `repository`) at `m2`; `None` goes back to the user's. For a process that must not read
+/// the user's home, such as a test binary; the IDE never calls it.
+pub fn set_maven_user_home(m2: Option<PathBuf>) {
+    *USER_HOME.write().unwrap_or_else(|e| e.into_inner()) = m2;
+}
+
+/// The Maven user folder: the one [`set_maven_user_home`] names, else `~/.m2`.
+pub fn maven_user_home() -> Option<PathBuf> {
+    let named = USER_HOME.read().unwrap_or_else(|e| e.into_inner()).clone();
+    named.or_else(|| Some(dirs::home_dir()?.join(".m2")))
+}
+
+/// The repository of the Maven user folder `m2`: `<localRepository>` of its `settings.xml`, else
+/// its `repository` folder.
+pub fn local_repo_in(m2: &Path) -> PathBuf {
+    local_repository_of(&m2.join("settings.xml")).unwrap_or_else(|| m2.join("repository"))
+}
+
 /// `~/.m2/repository`, or `<localRepository>` from `~/.m2/settings.xml`.
 pub fn default_local_repo() -> Option<PathBuf> {
-    let m2 = dirs::home_dir()?.join(".m2");
-    local_repository_of(&m2.join("settings.xml")).or(Some(m2.join("repository")))
+    maven_user_home().map(|m2| local_repo_in(&m2))
 }
 
 /// The user `settings.xml` a build reads: the configured one (`~/` and project-relative
@@ -484,7 +505,7 @@ pub fn default_local_repo() -> Option<PathBuf> {
 pub fn user_settings_file(root: &Path, settings: &ide_core::settings::MavenSettings) -> Option<PathBuf> {
     let configured = settings.user_settings.trim();
     if configured.is_empty() {
-        return Some(dirs::home_dir()?.join(".m2").join("settings.xml"));
+        return maven_user_home().map(|m2| m2.join("settings.xml"));
     }
     let path = match configured.strip_prefix("~/") {
         Some(rest) => dirs::home_dir()?.join(rest),
@@ -1909,6 +1930,17 @@ mod tests {
         assert_eq!(user_settings_file(tmp.path(), &s), Some(tmp.path().join("conf/settings.xml")));
         s.user_settings = "~/work/settings.xml".into();
         assert_eq!(user_settings_file(tmp.path(), &s), Some(home.join("work/settings.xml")));
+    }
+
+    #[test]
+    fn a_maven_user_folder_holds_its_repository_unless_its_settings_name_another() {
+        let tmp = tempfile::tempdir().unwrap();
+        let m2 = tmp.path().join("m2");
+        assert_eq!(local_repo_in(&m2), m2.join("repository"));
+        std::fs::create_dir_all(&m2).unwrap();
+        std::fs::write(m2.join("settings.xml"), "<settings><localRepository>/repo</localRepository></settings>")
+            .unwrap();
+        assert_eq!(local_repo_in(&m2), PathBuf::from("/repo"));
     }
 
     #[test]

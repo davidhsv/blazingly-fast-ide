@@ -127,6 +127,9 @@ const WINDOWS_VENDORS: &[&str] =
 /// Folders the IDE downloads JDKs into ([`add_jdk_root`]).
 static EXTRA_ROOTS: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 
+/// The JDK homes discovery is limited to once [`set_jdk_candidates`] names them.
+static CANDIDATES: Mutex<Option<Vec<PathBuf>>> = Mutex::new(None);
+
 /// Scans the JDKs in `dir` (one per subfolder) too, e.g. where Download JDK puts them.
 pub fn add_jdk_root(dir: &Path) {
     let mut roots = EXTRA_ROOTS.lock().unwrap_or_else(|e| e.into_inner());
@@ -145,6 +148,14 @@ pub fn is_downloaded(home: &Path) -> bool {
 /// `/usr/lib/jvm`, SDKMAN, mise, asdf, IDEA's `~/.jdks`, Homebrew, Windows vendor
 /// directories, the IDE's downloads), `JAVA_HOME` first, then the `java` on `PATH`.
 fn scan() -> Vec<Jdk> {
+    let named = CANDIDATES.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    if let Some(mut homes) = named {
+        let roots = EXTRA_ROOTS.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        for root in &roots {
+            homes.extend(jdk_homes(root));
+        }
+        return distinct_jdks(homes);
+    }
     let mut homes: Vec<PathBuf> = Vec::new();
     if let Some(h) = std::env::var_os("JAVA_HOME") {
         homes.push(PathBuf::from(h));
@@ -187,6 +198,11 @@ fn scan() -> Vec<Jdk> {
     for (dir, _) in ide_core::version_managers::installs(ide_core::version_managers::Tool::Java) {
         homes.extend([dir.join("Contents/Home"), dir]);
     }
+    distinct_jdks(homes)
+}
+
+/// The JDKs at `homes`, each once, in their order.
+fn distinct_jdks(homes: Vec<PathBuf>) -> Vec<Jdk> {
     let mut out: Vec<Jdk> = Vec::new();
     for h in homes {
         if let Some(jdk) = jdk_at(&h)
@@ -208,6 +224,20 @@ struct Scan {
 }
 
 static JDKS: Mutex<Option<Scan>> = Mutex::new(None);
+
+/// Limits JDK discovery to `homes` and the folders of [`add_jdk_root`]. `JAVA_HOME`, the `java` on
+/// `PATH`, the usual install locations and the version managers' installs are not looked at;
+/// `None` looks at them again. The JDKs found before are forgotten. For a process that must not
+/// read the machine's JDKs, such as a test binary; the IDE never calls it.
+pub fn set_jdk_candidates(homes: Option<Vec<PathBuf>>) {
+    let mut named = CANDIDATES.lock().unwrap_or_else(|e| e.into_inner());
+    if *named == homes {
+        return;
+    }
+    *named = homes;
+    drop(named);
+    *JDKS.lock().unwrap_or_else(|e| e.into_inner()) = None;
+}
 
 fn rescan(slot: &mut Option<Scan>) -> Arc<[Jdk]> {
     slot.insert(Scan { at: Instant::now(), jdks: scan().into() }).jdks.clone()

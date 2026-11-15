@@ -149,8 +149,8 @@ pub fn launch_fingerprint(
             }
         }
     }
-    if let Some(home) = dirs::home_dir() {
-        inputs.extend([home.join(".m2/settings.xml"), home.join(".m2/toolchains.xml")]);
+    if let Some(m2) = crate::maven::maven_user_home() {
+        inputs.extend([m2.join("settings.xml"), m2.join("toolchains.xml")]);
     }
     for key in ["MAVEN_HOME", "M2_HOME"] {
         if let Some(home) = environment.get(key) {
