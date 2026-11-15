@@ -730,3 +730,9 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - RUNNING (cargo): Settings A integrator (`$S/int_settings_a_brief.md`, scratch `$S/dseta/`).
 - CARGO QUEUE after it: Settings B (`$S/int_settings_b_brief.md`) → agents views (reconciled) → refactor + Git text actions → diff gaps (reconciled) → shared button + accessibility → vcs_stage_hunks → zoom px.
 - The draft queue is at four integrations after Settings A. Writers may start again when it is below three: small batches from the triage (editor paint models 14, git log 14, terminal 13, app shell 11+11), build tools leftovers (7 test-only cases), plumbing test-only rows (3).
+
+## proofs21 DRAFTED (2026-11-15): 15 tests, notes docs/.../integration/proofs21.md
+
+- ExecutePopup.test.tsx through the drawn popup (9 tests → done expected); actions.test.tsx 3/4; linkage.test.tsx 5/16; ipc app_info and window_start_drag stay partial; user_font_data needs a real-window check with a font that exists only in the user's font folder (not possible without touching the home: leave).
+- APP DEFECT found by reading (hypothesis until the test runs): a Gradle build picked after the window changed projects is linked into the NEW project's settings; the test `a_build_picked_after_the_window_changed_projects_is_linked_nowhere` fails by design until the 4-line hunk of the notes is applied.
+- Integrate WITH the next integration that touches build tools or as a Part 0 of Settings B (3 mod lines, no accessor).
