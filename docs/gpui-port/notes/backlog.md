@@ -699,3 +699,9 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - RUNNING (cargo): d117 = `$S/int_d117_brief.md` (0c pinned-config switch in crates/ide-sdk → Tauri suite owed again afterwards; 0d build tools conditions; 0 Quick Evaluate + keymap flows; 0b inspection `mods` step, double Shift and TextField in a real window).
 - proofs20 DRAFTED (809b3552, a08c37aa): 27 tests, brief `$S/int_proofs20_brief.md`. Triage's "test-only" was wrong for 14 of 43 rows (agents queue/background views, Attach to Process popup, debug console input, db connect on expand, workspace attach unreachable, run.updatableRunning needs jdtls).
 - CARGO QUEUE after d117: (Tauri suite again) → proofs20 → Settings A (`$S/int_settings_a_brief.md`, pages only) → Settings B → agents views (reconciled) → refactor + Git text actions → diff gaps (reconciled; brief must require next/prev file + settings in the tab before the default flips) → shared button + accessibility → vcs_stage_hunks → zoom px.
+
+## Build-tools specs mapped (2026-11-15): 29 of 81 cases proven, 52 missing, none webview-only (`docs/.../reports/parity_map_bt.md`, cases in parity_map_bt.json)
+
+- Recorded partial: model.test.ts 14/15, ExecutePopup.test.tsx (9/9 on state; Tab, Page keys, section click, build change not driven through the drawn popup), actions.test.tsx 2/4, linkage.test.tsx 4/16, feature:build-tools.
+- MISSING FEATURES by cases: Dependency Analyzer 14; automatic syncs 9 (stale build, first import, profile toggle, applied scripts: `is_build_file` ignores applied scripts); Add/Unlink Maven Projects 8; POM navigation 7; version catalog 5; workspace 4.
+- TEST-ONLY leftovers (3 cases): the Maven window leaving when the POM goes; dropping a late link result; reloading one chosen build. + ExecutePopup through the drawn popup (4 cases) → a small test batch finishes ExecutePopup.test.tsx and moves actions/linkage.
