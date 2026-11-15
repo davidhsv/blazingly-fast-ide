@@ -1,0 +1,110 @@
+{
+  "unit:src/features/settings/__tests__/cmakeEditor.test.tsx": {
+    "status": "done",
+    "tests": [
+      "workbench::tests::proofs22_settings_units::round_trips_spaces_quotes_and_empty_values_in_the_cmake_and_build_arguments",
+      "workbench::tests::proofs22_settings_units::displays_each_profiles_arguments_when_switching_profiles"
+    ],
+    "text": "2 of 2 cases through Settings in a project: the stored CMake and build arguments (spaces, quotes, an empty word, a backslash path) are shown as a command line that reads back as the same words, text typed stays as typed and is staged as its words, and Settings reopened shows the words applied; switching profiles after an unfinished quote shows the other profile's arguments"
+  },
+  "unit:src/features/settings/__tests__/languageServerTargets.test.tsx": {
+    "status": "partial",
+    "tests": [
+      "workbench::tests::proofs19_settings_languages::language_server_targets_are_not_editable_without_a_project"
+    ],
+    "text": "1 of 2 cases: without a project the choice is shown but not editable. Missing: plugin run targets are not offered (ServerTargetView::target_choices lists the host and a stored target only), so an unmapped target cannot be shown disabled with 'Requires a container root for path mapping' and a mapped one cannot be chosen with its server (LanguageServerTarget.tsx:33,44-45)"
+  },
+  "unit:src/features/settings/__tests__/mavenRunner.test.tsx": {
+    "status": "done",
+    "tests": [
+      "workbench::tests::proofs22_settings_units::chooses_an_installed_maven_runner_jre_in_project_scope_and_returns_to_project_jdk"
+    ],
+    "text": "1 of 1 case: Maven is a project-first page found by JRE, runner, JDK and JAVA_HOME; JRE shows Use Project JDK, the detected JDK chosen is staged in the project with the global layer left empty, and Use Project JDK chosen again stages the empty value"
+  },
+  "unit:src/features/settings/__tests__/phpXdebug.test.tsx": {
+    "status": "partial",
+    "tests": [
+      "settings_view::pages::languages_controls::tests::proofs22_language_controls::shows_the_xdebug_version_of_the_selected_php_rechecked_when_the_interpreter_changes",
+      "settings_view::pages::languages_controls::tests::proofs22_language_controls::checks_the_php_on_the_search_path_for_the_default_interpreter",
+      "settings_view::pages::languages_controls::tests::proofs22_language_controls::hides_the_row_while_checking_and_when_the_check_fails"
+    ],
+    "text": "3 of 4 cases: the selected PHP's version and Xdebug, the row hidden while a new interpreter is checked and then Not installed; the Default interpreter checks the php found on the PATH; the row stays hidden while checking and after a failed check. Missing: Xdebug is not checked again when the installations are detected again (PhpInterpreterView asks only when the selected path changes; LanguagePages.tsx:161-176 re-checks per detection)"
+  },
+  "unit:src/features/settings/__tests__/javaFormatter.test.tsx": {
+    "status": "partial",
+    "tests": ["settings_model::builtin_pages::tests::keeps_the_profile_controls_specific_to_java"],
+    "text": "1 of 2 cases, by the search keywords only: Formatting profile belongs to the Java code style page, not Rust's. Missing: the Code Style language pages draw no controls natively (the dialog shows 'not available'), so the Formatting profile, Eclipse formatter XML with Browse… and Reset to Language Defaults are absent (codeStyle.tsx:230,245,266-275)"
+  },
+  "unit:src/features/settings/__tests__/mainMenuStyle.test.tsx": {
+    "status": "partial",
+    "tests": ["workbench::tests::proofs22_settings_units::hides_the_main_menu_setting_without_the_frameless_menu"],
+    "text": "1 of 3 cases on a macOS build: no Main menu choice is drawn without the frameless title bar (the run-time platform switch has no native counterpart; the title bar is frameless by compile-time OS). On Windows/Linux builds workbench::tests::proofs22_settings_units::offers_both_main_menu_styles_on_a_frameless_title_bar (cfg-gated, absent from this host's test list) shows Hamburger button, offers Merged with main toolbar and stages merged. The {} default is the ide-core test settings::tests::main_menu_style_defaults_and_round_trips. Missing: an invalid stored value ('unknown') is not replaced by hamburger (behaviorSchema.ts:166)"
+  },
+  "unit:src/features/settings/__tests__/mouseShortcut.test.tsx": {
+    "status": "partial",
+    "tests": [
+      "settings_view::keymap::tests::records_and_submits_option_command_left_click",
+      "settings_view::keymap::tests::records_a_side_button_click_with_modifiers_and_submits_it"
+    ],
+    "text": "2 of 3 cases: Option+Command+left click and a side button with Alt are recorded and submitted. Missing: the shortcut recorder takes no trackpad page swipe, so SwipeLeft/SwipeRight cannot be recorded (StrokeRecorder.tsx:51)"
+  },
+  "unit:src/features/settings/__tests__/dialog.test.tsx": {
+    "status": "partial",
+    "tests": [
+      "settings_view::custom_controls::tests::a_stored_attach_for_open_project_in_shows_ask",
+      "settings_model::builtin_pages::tests::offers_only_new_window_current_window_and_ask_including_old_attach_settings",
+      "workbench::tests::proofs22_settings_units::stages_properties_conversion_and_applies_the_checkbox",
+      "workbench::tests::proofs22_settings_units::edits_cmake_profiles_in_project_settings_and_persists_them_on_apply",
+      "workbench::tests::proofs22_settings_units::finds_gradle_jvm_and_applies_project_gradle_settings",
+      "workbench::tests::proofs22_settings_units::persists_maven_toolchains_and_profiles_in_project_settings",
+      "workbench::tests::proofs22_settings_units::finds_the_maven_active_profiles_setting",
+      "workbench::tests::proofs22_settings_units::finds_the_maven_toolchains_setting",
+      "settings_view::dialog::tests::searches_pages_and_highlights_matching_option_labels",
+      "settings_view::dialog::tests::esc_in_the_search_field_clears_the_filter_first_and_down_selects_the_next_page",
+      "settings_view::dialog::tests::stages_edits_and_writes_them_on_apply",
+      "settings_view::custom_controls::tests::editor_font_family_and_weight_apply_and_cancel_discards",
+      "settings_view::dialog::tests::keeps_global_and_project_font_edits_separate_when_switching_scope",
+      "workbench::tests::proofs22_settings_units::enables_saves_and_clears_the_custom_ui_fallback_font",
+      "settings_view::dialog::tests::enables_apply_and_reset_for_a_secret_only_edit_and_reset_discards_it",
+      "settings_view::dialog::tests::cancel_discards_staged_edits",
+      "settings_view::keymap::tests::records_a_shortcut_shows_conflicts_and_applies_it_to_the_keymap_on_ok",
+      "settings_view::keymap::tests::opens_the_shortcut_menu_on_double_click_and_clears_mouse_recording_mode",
+      "settings_view::keymap::tests::opens_the_shortcut_menu_on_enter_and_clears_mouse_recording_mode",
+      "settings_view::keymap::tests::duplicates_the_keymap_from_the_gear_menu_and_edits_the_copy",
+      "settings_view::dialog::tests::edit_the_project_first_global_shows_and_writes_the_global_layer",
+      "workbench::tests::proofs19_settings_languages::java_level_and_shared_jdt_ls_apply_and_reset_discards_jvm_options",
+      "workbench::tests::proofs22_settings_units::keeps_the_global_shared_jdt_ls_preference_separate_from_the_projects_override",
+      "workbench::tests::proofs19_settings_languages::reset_and_cancel_discard_an_edit_on_each_language_page",
+      "settings_view::pages::languages_controls::tests::proofs22_language_controls::disables_shared_jdt_ls_only_in_a_native_workspaces_project_scope",
+      "workbench::tests::proofs22_settings_units::disables_sharing_for_a_java_language_server_target_only_in_project_scope",
+      "workbench::tests::proofs22_settings_units::keeps_sharing_available_when_java_runs_locally",
+      "workbench::tests::proofs22_settings_units::uses_a_staged_project_java_language_server_target_before_apply",
+      "settings_view::dialog::tests::settings_for_new_projects_edits_the_global_layer_on_every_page",
+      "workbench::tests::proofs22_settings_units::keeps_object_settings_stable_when_child_keys_are_staged",
+      "settings_view::dialog::tests::survives_invalid_settings_values"
+    ],
+    "text": "29 of 41 cases (16 by earlier tests, 13 new), 2 plumbing (the separate Settings window's Linux edge class and the hex colour sent to windowOpenSettings). Missing (10): the editor.encodings.toggleNativeToAscii action is not registered (nativeToAscii.ts:6-10); Editor › Font has no preview, so the CJK fallback, Typography weights and custom weights cases lack their preview assertions (font.tsx:155-175); no Project Structure dialog (ProjectStructurePage.tsx: own dialog, pending edits, disabled controls, module source tree, module labels and artifact defaults); Build › Run Targets has no view (runTargets.tsx:471)"
+  },
+  "unit:src/features/settings/__tests__/pages.test.ts": {
+    "status": "done",
+    "tests": [
+      "settings_model::pages::tests::nests_by_dotted_id_then_by_group_sorted_by_order",
+      "settings_model::pages::tests::filters_by_title_keywords_group_path_and_option_labels",
+      "settings_model::pages::tests::highlights_every_term_occurrence_in_labels",
+      "settings_model::builtin_pages::tests::indexes_built_in_option_labels_for_search",
+      "settings_model::builtin_pages::tests::indexes_toolbar_and_status_bar_visibility_in_appearance_settings"
+    ],
+    "text": "5 of 5 cases: the page tree nests and orders, filters by title, keywords, group path and option labels, highlights every term; the built-in Editor General, Code Completion and Appearance option labels, including Show main toolbar and Show status bar, are indexed for the search"
+  },
+  "unit:src/features/settings/components/FontPicker.test.tsx": {
+    "status": "done",
+    "tests": [
+      "settings_view::pages::font_picker::tests::keeps_missing_saved_names_searches_outside_the_old_list_and_accepts_manual_names",
+      "settings_view::pages::font_picker::tests::filters_only_suggestions_permits_cjk_proportional_fallback_and_empty_fallback",
+      "settings_view::pages::font_picker::tests::reflects_external_saved_value_changes_and_disables_an_inherited_selection",
+      "settings_view::pages::font_picker::tests::proofs22_font_picker::explains_each_font_list_state_without_declaring_saved_fonts_missing",
+      "settings_view::pages::font_picker::tests::proofs22_font_picker::quietly_keeps_selections_and_manual_input_through_fallback_and_native_retry"
+    ],
+    "text": "5 of 5 cases through the picker: a missing saved name kept and searched past, a manual name accepted, mono-only suggestions with a CJK and an empty fallback, an inherited selection following outside changes disabled; the status line while the fonts load, failed, came back empty or cannot be asked, without calling the saved name missing; a manual name kept through a limited list, Refresh, a reload and the native list, whose new family is then suggested"
+  }
+}
