@@ -74,3 +74,25 @@ async fn an_inspection_script_right_click_on_a_project_row_opens_its_context_men
     assert!(lines[0].iter().any(|line| line.trim_start_matches("> ") == "Copy Path/Reference…"), "{lines:?}");
     close_backend_project(cx);
 }
+
+/// Shift pressed and released twice by the script's `mods` steps reaches the window as the keyboard's
+/// modifier changes do and opens Search Everywhere.
+#[gpui_kit::test]
+async fn an_inspection_script_double_shift_opens_search_everywhere(cx: &mut TestAppContext) {
+    let home = start(cx);
+    let (_folder, _root, workbench, cx) = trusted_project(cx, &[("src/lib.rs", "pub fn a() {}\n")]);
+    cx.update(|window, _| window.activate_window());
+    assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_none()));
+    let log = home.path().join("inspect.log");
+    let script = "mods\tshift\nmods\t\nmods\tshift\nmods\nmark\tshifted\n";
+    let _script = cx.update(|_, cx| crate::inspect::start(script, Some(log.clone()), cx));
+    let read_log = || std::fs::read_to_string(&log).unwrap_or_default();
+    settle(cx, |cx| {
+        // Test windows have no frame loop: each step waits for the frame this delivers.
+        cx.update(|window, cx| window.simulate_next_frame(cx));
+        read_log().contains("done\t")
+    });
+    assert!(!read_log().contains("fail\t"), "{}", read_log());
+    assert!(workbench.read_with(cx, |w, _| w.search_everywhere().is_some()), "double Shift opens Search Everywhere");
+    close_backend_project(cx);
+}

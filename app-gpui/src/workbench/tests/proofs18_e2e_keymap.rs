@@ -1,6 +1,6 @@
-//! Not declared: the Warning on OK needs another action bound to `Alt+Button1`, Quick Evaluate Expression
-//! (`debug.quickEvaluate`, `Alt+Button1` in the IntelliJ keymaps). This window registers no such action
-//! (`workbench/debug.rs`, `DEBUG_ACTIONS`), so the recorded click has no conflict and OK adds it at once.
+//! The keymap settings page as `e2e/keymap.spec.ts` drives it: a mouse shortcut and a keyboard shortcut
+//! added to an action from its row. The recorded Option-click is also Quick Evaluate Expression's
+//! (`debug.quickEvaluate`, `Alt+Button1` in the IntelliJ keymaps), so OK first warns about it.
 
 use super::proofs18_e2e_fixtures::{click_at, leaked, primary, right_click_at};
 use super::*;

@@ -11,6 +11,7 @@ use super::buffer;
 use super::marks::{Mark, MarkKind, MarkLayer};
 use super::view::{EditOrigin, Editor, EditorEvent, PointerHandler};
 use crate::backend::Backend;
+use crate::debugger::editor::quick_evaluate::{QUICK_EVALUATE_ACTION, selection_after_click};
 use crate::editor_lsp::completion::{
     AUTO_INSERT_DELAY_MS, Answered, ApplyMode, ApplyOptions, Ask, CompletionRequest, CompletionSource, FollowUp,
     LookupEvent, MatchCase, NO_SUGGESTIONS, NO_SUGGESTIONS_TIMEOUT_MS, apply_contributed, apply_lsp_completion,
@@ -868,21 +869,30 @@ impl EditorIntelligence {
     }
 
     /// A press the pointer handler took: the caret goes where it was pressed, then the navigation
-    /// runs.
+    /// runs. Quick Evaluate keeps a selection the press lands in (it is what gets evaluated) and is
+    /// told where the press was.
     fn navigate_from_pointer(&mut self, navigation: PointerNavigation, window: &mut Window, cx: &mut Context<Self>) {
         let Some(editor) = self.editor.upgrade() else { return };
         let caret = match &navigation {
             PointerNavigation::Pass => return,
             PointerNavigation::Run { caret, .. } | PointerNavigation::Declaration { caret } => *caret,
         };
-        editor.update(cx, |editor, cx| editor.select(caret, caret, cx));
+        let quick_evaluate =
+            matches!(&navigation, PointerNavigation::Run { action, .. } if action == QUICK_EVALUATE_ACTION);
+        editor.update(cx, |editor, cx| {
+            let selection = editor.selection();
+            let kept = selection_after_click((selection.start, selection.end), caret);
+            let (from, to) = if quick_evaluate { kept } else { (caret, caret) };
+            editor.select(from, to, cx);
+        });
         match navigation {
             PointerNavigation::Run { action, .. } => {
+                let arg = quick_evaluate.then(|| serde_json::json!({ "pos": caret }));
                 window.defer(cx, move |window, cx| {
                     crate::platform::actions::execute_action_from(
                         crate::platform::actions::ActionSource::Other,
                         &action,
-                        None,
+                        arg.as_ref(),
                         window,
                         cx,
                     );

@@ -229,7 +229,7 @@ fn finished(result: anyhow::Result<()>) {
 /// Shows `text` (English source text) as the hint of `editor`, at `pos` (the caret when `None`).
 /// It is shown once the current effects are delivered: a caret move or an edit made just before
 /// would hide it again.
-fn hint(
+pub(super) fn hint(
     editor: &Entity<Editor>,
     text: impl Into<String>,
     pos: Option<u32>,

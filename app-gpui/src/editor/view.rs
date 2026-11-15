@@ -33,9 +33,9 @@ use gpui_kit::MouseMoveEvent;
 use gpui_kit::{
     AnyView, App, Bounds, ClipboardItem, Context, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, FocusHandle, Focusable, Font, FontFallbacks, FontFeatures, FontStyle, FontWeight,
-    GlobalElementId, Hsla, InspectorElementId, IntoElement, KeyDownEvent, LayoutId, Modifiers, MouseButton,
-    MouseDownEvent, Pixels, Point, Render, ScrollEvent, ShapedLine, SharedString, Style, TextAlign, TextRun,
-    UTF16Selection, WeakEntity, Window, div, fill, point, prelude::*, px, quad, relative, size,
+    GlobalElementId, Hitbox, HitboxBehavior, Hsla, InspectorElementId, IntoElement, KeyDownEvent, LayoutId, Modifiers,
+    MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollEvent, ShapedLine, SharedString, Style, TextAlign,
+    TextRun, UTF16Selection, WeakEntity, Window, div, fill, point, prelude::*, px, quad, relative, size,
 };
 use ide_core::error::ErrorKind;
 use ide_core::{ChangeSet, DocId, IdeEvent, IdeResult, LanguageId, TextChange};
@@ -180,6 +180,8 @@ struct Layout {
     annotation_column: Pixels,
     /// Left edge of the text: right of the gutter, or of the margin that centres it.
     text_left: Pixels,
+    /// The text's area (right of `text_left`) in the hit test of the frame that drew it.
+    text_hitbox: Option<Hitbox>,
     line_height: Pixels,
     /// The first painted row (a row is a line no fold hides).
     first_line: u32,
@@ -1489,6 +1491,13 @@ impl Editor {
         Some(point(layout.bounds.left() + layout.text_left + x, layout.bounds.top() + y))
     }
 
+    /// Whether a press at `position` (in the window) lands on the text this editor drew last, with
+    /// nothing drawn over it there: not on its gutter, a popup or another view.
+    pub fn text_under(&self, position: Point<Pixels>, window: &Window) -> bool {
+        let hitbox = self.layout.as_ref().and_then(|layout| layout.text_hitbox.as_ref());
+        hitbox.is_some_and(|hitbox| hitbox.is_hovered_at(position, window))
+    }
+
     /// The offset nearest to a point of the window.
     pub fn offset_at(&self, position: Point<Pixels>) -> Option<u32> {
         let layout = self.layout.as_ref()?;
@@ -2254,6 +2263,8 @@ impl Element for EditorElement {
         } else {
             gutter
         };
+        let text_area = Bounds::from_corners(point(bounds.left() + text_left, bounds.top()), bounds.bottom_right());
+        let text_hitbox = Some(window.insert_hitbox(text_area, HitboxBehavior::Normal));
         Prepared {
             layout: Layout {
                 bounds,
@@ -2261,6 +2272,7 @@ impl Element for EditorElement {
                 fold_column,
                 annotation_column,
                 text_left,
+                text_hitbox,
                 line_height,
                 first_line: first_row,
                 lines,
@@ -2493,6 +2505,7 @@ impl Element for EditorElement {
                 fold_column,
                 annotation_column,
                 text_left,
+                text_hitbox: None,
                 line_height,
                 first_line: 0,
                 lines: Vec::new(),

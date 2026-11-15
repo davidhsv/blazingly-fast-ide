@@ -1,16 +1,21 @@
 //! The debugger actions that need a view of their own: Evaluate Expression (`debug.evaluate`) opens
-//! the Evaluate dialog over the window, and Smart Step Into (`debug.smartStepInto`) steps into a call
-//! of the paused line, the call chosen in a menu when the debugger lists several.
+//! the Evaluate dialog over the window, Quick Evaluate Expression (`debug.quickEvaluate`) shows the
+//! value as a hint in the editor, and Smart Step Into (`debug.smartStepInto`) steps into a call of
+//! the paused line, the call chosen in a menu when the debugger lists several.
 //!
 //! The debugger's model decides what each action does (the dialog's expression, whether to step
 //! straight in or ask); this module shows what it asks for and hands the answers back.
 
 use super::Workbench;
+use super::editor_language::hint;
 use super::services_window::on_workbench;
-use crate::debugger::effects::EvaluateContext;
+use crate::debugger::actions::QuickEvaluation;
+use crate::debugger::editor::quick_evaluate::{EvaluateHint, evaluated};
+use crate::debugger::effects::{BackendCall, EvaluateContext};
 use crate::debugger::evaluate_dialog::{
     EvaluateDialog, EvaluateDialogEvent, history_key, pushed_history, read_history,
 };
+use crate::editor_lsp::hint::Tone;
 use crate::platform::actions::ActionRegistry;
 use crate::platform::storage::UiStorage;
 use crate::vcs_ops::menu::MenuItem;
@@ -66,6 +71,38 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
 }
 
 impl Workbench {
+    /// Quick Evaluate's answer in the active editor: why nothing is evaluated as a hint at the caret,
+    /// else the value (or why the session could not evaluate it) as a hint at the evaluated position.
+    pub(super) fn show_quick_evaluation(&mut self, evaluation: QuickEvaluation, cx: &mut Context<Self>) {
+        let Some(editor) = self.editor().cloned() else { return };
+        match evaluation {
+            QuickEvaluation::Hint { message } => hint(&editor, message, None, Tone::Info, None, cx),
+            QuickEvaluation::Failed { message, pos } => hint(&editor, message, Some(pos), Tone::Error, None, cx),
+            QuickEvaluation::Evaluate { call, expression, pos } => {
+                let Some(driver) = self.debug_driver() else { return };
+                let BackendCall::DebugEvaluateIn { session, .. } = call else {
+                    return hint(&editor, "No active debug session", Some(pos), Tone::Error, None, cx);
+                };
+                let evaluating = driver.read(cx).evaluate(session, &expression, EvaluateContext::Hover, cx);
+                let editor = editor.downgrade();
+                cx.spawn(async move |_, cx| {
+                    let answer = evaluating.await;
+                    // The editor was closed meanwhile: there is nowhere to show the value.
+                    let Some(editor) = editor.upgrade() else { return };
+                    cx.update(|cx| match evaluated(&expression, answer.as_ref().map_err(String::as_str), pos) {
+                        EvaluateHint::Value { hint: value, pos, timeout_ms } => {
+                            hint(&editor, value.text(), Some(pos), Tone::Info, Some(timeout_ms.into()), cx);
+                        }
+                        EvaluateHint::Error { message, pos } => {
+                            hint(&editor, message, Some(pos), Tone::Error, None, cx)
+                        }
+                    });
+                })
+                .detach();
+            }
+        }
+    }
+
     /// The Evaluate dialog, while it is open.
     pub fn evaluate_dialog(&self) -> Option<&Entity<EvaluateDialog>> {
         self.debug_extras.evaluate.as_ref().map(|open| &open.dialog)

@@ -46,9 +46,9 @@ macro_rules! ctx {
 }
 
 /// The `debug.*` actions this window carries out on its debugger. Evaluate Expression and Smart Step
-/// Into are registered by `debug_extras`; Attach to Process, Quick Evaluate and the console history
-/// have no view here yet.
-const DEBUG_ACTIONS: [&str; 28] = [
+/// Into are registered by `debug_extras`; Attach to Process and the console history have no view
+/// here yet.
+const DEBUG_ACTIONS: [&str; 29] = [
     "debug.startConfig",
     "debug.stop",
     "debug.reloadChangedClasses",
@@ -77,6 +77,7 @@ const DEBUG_ACTIONS: [&str; 28] = [
     "debug.removeAllBreakpoints",
     "debug.showToolWindow",
     "debug.muteBreakpoints",
+    "debug.quickEvaluate",
 ];
 
 /// The debugger of the open project.
@@ -375,7 +376,8 @@ impl Workbench {
                     _ => {}
                 }
             }
-            Dispatch::View(ViewCommand::BrowseConsoleHistory) | Dispatch::QuickEvaluate(_) => {
+            Dispatch::QuickEvaluate(evaluation) => self.show_quick_evaluation(evaluation, cx),
+            Dispatch::View(ViewCommand::BrowseConsoleHistory) => {
                 tracing::debug!("{id} has no view in this window");
             }
             Dispatch::Done | Dispatch::Unknown => {}
@@ -1025,6 +1027,7 @@ pub(super) mod tests {
     use crate::debugger::breakpoints_view::DialogRow;
     use crate::debugger::state::SessionStatus;
     use crate::debugger::variables_view::VariableCommand;
+    use crate::editor::intelligence::EditorIntelligence;
     use crate::editor::view::FOLD_GUTTER;
     use crate::platform::actions::execute_action_or_throw;
     use crate::platform::context::window_context;
@@ -1866,6 +1869,126 @@ while True:
         let shown =
             fixture.workbench.read_with(cx, |w, _| w.tool_window_view(DEBUG_TOOL_WINDOW)).map(|v| v.entity_id());
         assert_eq!(shown, view, "the Debug tool window shows the new debugger's view");
+        close_project(&fixture, cx);
+    }
+
+    /// The hint the editor shows, in English source text.
+    fn editor_hint(fixture: &Fixture, cx: &mut VisualTestContext) -> Option<String> {
+        let editor = fixture.editor(cx);
+        let intelligence = cx.update(|_, cx| EditorIntelligence::of(&editor, cx)).expect("the editor's intelligence");
+        intelligence.read_with(cx, |this, _| this.hint().map(str::to_owned))
+    }
+
+    /// Quick Evaluate's mouse shortcut, ⌥-click (`Alt+Button1`), on the text at `line`, `column`.
+    fn alt_click(fixture: &Fixture, line: u32, column: u32, cx: &mut VisualTestContext) {
+        let editor = fixture.editor(cx);
+        let at = editor.read_with(cx, |editor, _| editor.position_of(editor.offset_of(line, column)));
+        let at = at.expect("the line is painted");
+        let position = point(at.x + gpui_kit::px(2.0), at.y + gpui_kit::px(4.0));
+        let alt = Modifiers { alt: true, ..Modifiers::default() };
+        cx.simulate_mouse_down(position, MouseButton::Left, alt);
+        cx.simulate_mouse_up(position, MouseButton::Left, alt);
+        cx.run_until_parked();
+    }
+
+    fn quick_evaluate_available(cx: &mut VisualTestContext) -> bool {
+        cx.update(|window, cx| {
+            let context = window_context(window, cx);
+            let action =
+                cx.global::<ActionRegistry>().get("debug.quickEvaluate").expect("Quick Evaluate is registered");
+            crate::platform::actions::is_action_enabled(&action.meta, &context)
+        })
+    }
+
+    fn selection(fixture: &Fixture, cx: &mut VisualTestContext) -> (u32, u32) {
+        let editor = fixture.editor(cx);
+        editor.read_with(cx, |editor, _| {
+            let selection = editor.selection();
+            (selection.start, selection.end)
+        })
+    }
+
+    // Not from a spec: while the program is paused, ⌥-click on a word evaluates it and shows its value
+    // as a hint in the editor, the caret at the click; a click inside a selection keeps the selection
+    // and evaluates it; ⌥⌘F8 evaluates the expression at the caret.
+    #[gpui_kit::test]
+    async fn alt_click_quick_evaluates_the_word_or_the_selection_while_paused(cx: &mut TestAppContext) {
+        let (fixture, cx) = open(cx, PROGRAM);
+        let bindings = cx.update(|_, cx| cx.global::<input::Keymap>().0.bindings_for("debug.quickEvaluate").to_vec());
+        assert!(bindings.iter().any(|binding| binding == "Alt+Button1"), "{bindings:?}");
+        fixture.caret_to(1, cx);
+        run(cx, "debug.toggleBreakpoint");
+        fixture.caret_to(0, cx);
+        fixture.select_main(cx);
+        run(cx, "run.debug");
+        long(cx, "the stop at the breakpoint", &|cx| context(cx, "debugSessionPaused"));
+        // The stop opens the frame's line, caret and all: the clicks come after it.
+        wait_execution_at(&fixture, 1, "the execution line", cx);
+        long(cx, "the frame", &|cx| fixture.frame_lines(cx) == ["main, main.fake:2"]);
+        long(cx, "the caret on the execution line", &|cx| caret_line(&fixture, cx) == 1);
+        assert!(quick_evaluate_available(cx));
+        let offset = |line: u32, column: u32, cx: &mut VisualTestContext| {
+            let editor = fixture.editor(cx);
+            editor.read_with(cx, |editor, _| editor.offset_of(line, column))
+        };
+
+        fixture.caret_to(0, cx);
+        alt_click(&fixture, 1, 2, cx);
+        long(cx, "the value of the word", &|cx| {
+            editor_hint(&fixture, cx).as_deref() == Some("middle = value of middle")
+        });
+        let (from, to) = selection(&fixture, cx);
+        assert_eq!(from, to, "the caret, no selection");
+        let clicked = offset(1, 2, cx)..=offset(1, 3, cx);
+        assert!(clicked.contains(&from), "the caret is at the click: {from} in {clicked:?}");
+
+        // A selection the click lands in is what gets evaluated, and it stays selected.
+        let (start, end) = (offset(1, 0, cx), offset(1, 3, cx));
+        fixture.editor(cx).update(cx, |editor, cx| editor.select(start, end, cx));
+        alt_click(&fixture, 1, 1, cx);
+        long(cx, "the value of the selection", &|cx| {
+            editor_hint(&fixture, cx).as_deref() == Some("mid = value of mid")
+        });
+        assert_eq!(selection(&fixture, cx), (start, end), "the selection is kept");
+
+        // The keyboard shortcut evaluates at the caret.
+        fixture.caret_to(2, cx);
+        run(cx, "debug.quickEvaluate");
+        long(cx, "the value at the caret", &|cx| editor_hint(&fixture, cx).as_deref() == Some("end = value of end"));
+        close_project(&fixture, cx);
+    }
+
+    // Not from a spec: Quick Evaluate (`debugSessionPaused && textEditorActive`) is off without a
+    // paused session: the registry refuses it, ⌥-click is the editor's own click and shows no value,
+    // and once the program runs to its end it is off again.
+    #[gpui_kit::test]
+    async fn quick_evaluate_is_not_available_unless_a_session_is_paused(cx: &mut TestAppContext) {
+        let (fixture, cx) = open(cx, PROGRAM);
+        assert!(context(cx, "textEditorActive"));
+        assert!(!context(cx, "debugSessionPaused"));
+        assert!(!quick_evaluate_available(cx));
+        let refused = cx.update(|window, cx| execute_action_or_throw("debug.quickEvaluate", None, window, cx));
+        assert!(refused.is_err(), "the registry refuses it");
+        alt_click(&fixture, 1, 2, cx);
+        let (from, to) = selection(&fixture, cx);
+        let editor = fixture.editor(cx);
+        let line_of = |offset: u32, cx: &mut VisualTestContext| {
+            editor.read_with(cx, |editor, _| buffer::line_col(editor.rope(), offset).0)
+        };
+        assert_eq!((line_of(from, cx), line_of(to, cx)), (1, 1), "the editor took the click");
+        assert_eq!(editor_hint(&fixture, cx), None, "no value is shown");
+
+        fixture.caret_to(1, cx);
+        run(cx, "debug.toggleBreakpoint");
+        fixture.select_main(cx);
+        run(cx, "run.debug");
+        long(cx, "the stop at the breakpoint", &|cx| context(cx, "debugSessionPaused"));
+        assert!(quick_evaluate_available(cx), "on while paused");
+        run(cx, "debug.resume");
+        long(cx, "the end of the program", &|cx| fixture.status(cx) == Some(SessionStatus::Terminated));
+        assert!(!quick_evaluate_available(cx), "off once the program ended");
+        alt_click(&fixture, 2, 1, cx);
+        assert_eq!(editor_hint(&fixture, cx), None, "no value is shown");
         close_project(&fixture, cx);
     }
 }

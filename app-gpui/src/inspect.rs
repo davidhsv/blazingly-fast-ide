@@ -14,6 +14,10 @@
 //!   top-left of the window's content) and the left or right button is pressed and released
 //!   there, through the window's own input dispatch;
 //! - `hover <x> <y>`: the pointer moves to the point;
+//! - `mods <modifiers>`: the modifier keys held from now on, `-`-separated (`shift`, `cmd-shift`; `ctrl`,
+//!   `alt`, `fn` too), none when empty: a modifiers-changed event through the window's own input
+//!   dispatch, as the keyboard reports a modifier pressed or released (`mods shift` then `mods` is a
+//!   tap of Shift);
 //! - `wait <milliseconds>`;
 //! - `mark <name>`: appends `mark <name> <unix milliseconds>` to the log;
 //! - `quit`.
@@ -30,8 +34,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use futures::FutureExt as _;
 use gpui_kit::{
-    AnyWindowHandle, App, AsyncApp, Keystroke, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    Pixels, PlatformInput, Point, Task, Window, point, px,
+    AnyWindowHandle, App, AsyncApp, Capslock, Keystroke, Modifiers, ModifiersChangedEvent, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, Pixels, PlatformInput, Point, Task, Window, point, px,
 };
 
 use crate::platform::actions::execute_action_or_throw;
@@ -57,6 +61,8 @@ pub enum Step {
     },
     /// The pointer moves to a point of the window's content.
     Hover(Point<Pixels>),
+    /// The modifier keys held from now on.
+    Modifiers(Modifiers),
     Wait(Duration),
     Mark(String),
     Quit,
@@ -121,10 +127,28 @@ fn parse_step(text: &str) -> Result<Step, String> {
         "click" => Ok(Step::Click { at: parse_point(name, rest)?, button: MouseButton::Left }),
         "rclick" => Ok(Step::Click { at: parse_point(name, rest)?, button: MouseButton::Right }),
         "hover" => Ok(Step::Hover(parse_point(name, rest)?)),
+        "mods" => parse_modifiers(rest).map(Step::Modifiers),
         "mark" => Ok(Step::Mark(required("a name")?.to_owned())),
         "quit" => Ok(Step::Quit),
         other => Err(format!("there is no step called {other:?}")),
     }
+}
+
+/// The modifier keys `shift`, `ctrl`, `alt`, `cmd`, `fn` joined by `-` (none when empty).
+fn parse_modifiers(rest: &str) -> Result<Modifiers, String> {
+    let mut modifiers = Modifiers::default();
+    for name in rest.trim().split('-').filter(|name| !name.is_empty()) {
+        let held = match name.to_ascii_lowercase().as_str() {
+            "shift" => &mut modifiers.shift,
+            "ctrl" | "control" => &mut modifiers.control,
+            "alt" | "option" => &mut modifiers.alt,
+            "cmd" | "command" | "meta" | "platform" | "super" | "win" => &mut modifiers.platform,
+            "fn" | "function" => &mut modifiers.function,
+            _ => return Err(format!("{name} is not a modifier key")),
+        };
+        *held = true;
+    }
+    Ok(modifiers)
 }
 
 /// The point `<x> <y>` (tab-separated, in pixels) a pointer step names.
@@ -263,7 +287,8 @@ fn perform(step: &Step, window: &mut Window, cx: &mut App) -> Result<(), String>
         Step::Click { at, button } => {
             let (position, button) = (*at, *button);
             move_pointer(position, window, cx);
-            let modifiers = Modifiers::default();
+            // A press carries the modifier keys held at that moment, as the platform's does.
+            let modifiers = window.modifiers();
             let down = MouseDownEvent { button, position, modifiers, click_count: 1, first_mouse: false };
             window.dispatch_event(PlatformInput::MouseDown(down), cx);
             let up = MouseUpEvent { button, position, modifiers, click_count: 1 };
@@ -274,13 +299,18 @@ fn perform(step: &Step, window: &mut Window, cx: &mut App) -> Result<(), String>
             move_pointer(*position, window, cx);
             Ok(())
         }
+        Step::Modifiers(modifiers) => {
+            let changed = ModifiersChangedEvent { modifiers: *modifiers, capslock: Capslock::default() };
+            window.dispatch_event(PlatformInput::ModifiersChanged(changed), cx);
+            Ok(())
+        }
         Step::Wait(_) | Step::Mark(_) | Step::Quit => Ok(()),
     }
 }
 
 /// Moves the pointer to `position`, as the platform reports a move: hover states and tooltips follow.
 fn move_pointer(position: Point<Pixels>, window: &mut Window, cx: &mut App) {
-    let moved = MouseMoveEvent { position, pressed_button: None, modifiers: Modifiers::default() };
+    let moved = MouseMoveEvent { position, pressed_button: None, modifiers: window.modifiers() };
     window.dispatch_event(PlatformInput::MouseMove(moved), cx);
 }
 
@@ -316,6 +346,8 @@ mod tests {
                       click\t10\t20.5\n\
                       rclick\t0\t7\n\
                       hover\t3\t4\n\
+                      mods\tcmd-shift\n\
+                      mods\t\n\
                       quit";
         assert_eq!(
             steps(script),
@@ -330,6 +362,8 @@ mod tests {
                 Ok(Step::Click { at: point(px(10.0), px(20.5)), button: MouseButton::Left }),
                 Ok(Step::Click { at: point(px(0.0), px(7.0)), button: MouseButton::Right }),
                 Ok(Step::Hover(point(px(3.0), px(4.0)))),
+                Ok(Step::Modifiers(Modifiers { platform: true, shift: true, ..Modifiers::default() })),
+                Ok(Step::Modifiers(Modifiers::default())),
                 Ok(Step::Quit),
             ]
         );
@@ -346,7 +380,7 @@ mod tests {
     #[test]
     fn says_why_a_line_is_not_a_step() {
         let reasons: Vec<String> =
-            steps("tap\tbutton\naction\naction\tx\t{not json\nopen\trelative/path\nwait\tsoon\nmark\ntype\nkeys\t \nclick\t1\nhover\tleft\t2")
+            steps("tap\tbutton\naction\naction\tx\t{not json\nopen\trelative/path\nwait\tsoon\nmark\ntype\nkeys\t \nclick\t1\nhover\tleft\t2\nmods\tshift-hyper")
                 .into_iter()
                 .map(|step| step.expect_err("each line is wrong"))
                 .collect();
@@ -360,6 +394,7 @@ mod tests {
         assert_eq!(reasons[7], "keys needs keystrokes");
         assert_eq!(reasons[8], "click needs an x and a y");
         assert_eq!(reasons[9], "left is not a coordinate");
+        assert_eq!(reasons[10], "hyper is not a modifier key");
     }
 
     #[test]

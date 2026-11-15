@@ -1386,6 +1386,17 @@ impl Workbench {
         }
     }
 
+    /// Whether a press at `position` lands on the text of one of the window's editors, which then
+    /// handle a mouse shortcut there themselves (at the pressed position).
+    fn editor_text_under(&self, position: gpui_kit::Point<gpui_kit::Pixels>, window: &Window, cx: &App) -> bool {
+        match &self.content {
+            Content::Project { editors, .. } | Content::Editor { editors, .. } => {
+                editors.values().any(|editor| editor.read(cx).text_under(position, window))
+            }
+            _ => false,
+        }
+    }
+
     pub fn editor(&self) -> Option<&Entity<Editor>> {
         match &self.content {
             Content::Project { tabs, editors, .. } | Content::Editor { tabs, editors, .. } => {
@@ -4211,6 +4222,7 @@ impl Render for Workbench {
         };
         let framed = self.project_tree().is_some();
         let this = cx.entity().downgrade();
+        let pressed_in = this.clone();
         div()
             .size_full()
             .bg(theme::color(cx, if framed { "bg-frame" } else { "bg-app" }))
@@ -4227,8 +4239,13 @@ impl Render for Workbench {
                         .for_each_intelligence(cx, |intelligence, cx| intelligence.modifiers_changed(modifiers, cx));
                 });
             })
-            .capture_any_mouse_down(|event: &MouseDownEvent, window, cx| {
-                if input::mouse_down(event.button, &event.modifiers, false, window, cx).consumed() {
+            // A left press on an editor's text is the editor's: it places the caret, then runs the mouse
+            // shortcut at the pressed position itself.
+            .capture_any_mouse_down(move |event: &MouseDownEvent, window, cx| {
+                let on_text = pressed_in
+                    .upgrade()
+                    .is_some_and(|workbench| workbench.read(cx).editor_text_under(event.position, window, cx));
+                if input::mouse_down(event.button, &event.modifiers, on_text, window, cx).consumed() {
                     cx.stop_propagation();
                 }
             })
@@ -4332,6 +4349,7 @@ mod tests {
     mod proofs18_e2e_editor;
     mod proofs18_e2e_fixtures;
     mod proofs18_e2e_git_ignore;
+    mod proofs18_e2e_keymap;
     mod proofs18_e2e_merge_editor;
     mod proofs18_e2e_new_branch;
     mod proofs18_e2e_open_project;

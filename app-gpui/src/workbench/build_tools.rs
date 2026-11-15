@@ -1053,6 +1053,7 @@ mod tests {
     use crate::build_tools::execute::ExecuteRow;
     use crate::build_tools::model::{BuildRow, NodeKind};
     use crate::build_tools::view::Banner;
+    use crate::platform::actions::{execute_action_or_throw, is_action_enabled};
     use crate::run::view::RunView;
     use gpui_kit::{TestAppContext, VisualTestContext, px};
     use std::os::unix::fs::PermissionsExt;
@@ -1163,6 +1164,12 @@ EOF
             &root.join("app/pom.xml"),
             &pom("app", &format!("{parent}<packaging>jar</packaging><name>Demo App</name>")),
         );
+        maven_settings(root, tools);
+    }
+
+    /// The project settings naming the stand-in Maven of `tools`, with the user settings, the local
+    /// repository and the JDK there too: nothing is read from the user's home.
+    fn maven_settings(root: &Path, tools: &Path) {
         executable(&tools.join("mvn"), FAKE_MVN);
         write(&tools.join("settings.xml"), "<settings/>");
         std::fs::create_dir_all(tools.join("m2")).expect("the repository folder is made");
@@ -1644,7 +1651,6 @@ EOF
     /// Maven tool window, Reload is not available, Link asks for nothing, and Maven never runs.
     #[gpui_kit::test]
     async fn does_not_link_or_start_gradle_imports_in_an_untrusted_project(cx: &mut TestAppContext) {
-        use crate::platform::actions::execute_action_or_throw;
         let (workbench, cx, _folders, _root, tools) = build_project(cx, false, maven_project);
         assert!(workbench.read_with(cx, |w, cx| w.project_restricted(cx)));
         assert_eq!(workbench.read_with(cx, |w, _| w.build_model().cloned()), None);
@@ -1812,5 +1818,181 @@ EOF
         let body = notice_body(&workbench, "Error running 'bare gradle'", cx).unwrap_or_default();
         assert!(body.contains(&refusal), "{body}");
         close(cx);
+    }
+
+    /// The registry's actions whose condition reads one of `keys`, with whether the window makes
+    /// each available.
+    fn conditioned(cx: &mut VisualTestContext, keys: &[&str]) -> Vec<(String, bool)> {
+        cx.update(|window, cx| {
+            let context = window_context(window, cx);
+            let reads = |when: &str| {
+                when.split(|c: char| !(c.is_alphanumeric() || c == '.' || c == '_')).any(|word| keys.contains(&word))
+            };
+            let registry = cx.global::<ActionRegistry>();
+            let mut actions: Vec<(String, bool)> = registry
+                .all()
+                .filter(|action| action.meta.when.as_deref().is_some_and(reads))
+                .map(|action| (action.meta.id.clone(), is_action_enabled(&action.meta, &context)))
+                .collect();
+            actions.sort();
+            actions
+        })
+    }
+
+    fn key_on(cx: &mut VisualTestContext, key: &str) -> bool {
+        cx.update(|window, cx| window_context(window, cx).is_truthy(key))
+    }
+
+    fn tool_window_offered(workbench: &Entity<Workbench>, id: &str, cx: &mut VisualTestContext) -> bool {
+        workbench.read_with(cx, |w, _| w.tool_windows().is_some_and(|layout| layout.window(id).is_some()))
+    }
+
+    /// The Maven half (`keys` = `build.maven`) or the Gradle half (`build.gradle`, `build.gradleWindow`)
+    /// is off: its key is off, none of its actions is available and running one through the registry
+    /// is refused, and its tool window is not offered.
+    fn assert_half_off(
+        workbench: &Entity<Workbench>,
+        keys: &[&str],
+        tool_window: &str,
+        expected: &[&str],
+        cx: &mut VisualTestContext,
+    ) {
+        for key in keys {
+            assert!(!key_on(cx, key), "{key} is off");
+        }
+        let actions = conditioned(cx, keys);
+        for id in expected {
+            assert!(actions.iter().any(|(listed, _)| listed == id), "{id} reads {keys:?}: {actions:?}");
+        }
+        for (id, available) in &actions {
+            assert!(!available, "{id} is not available");
+            let ran = cx.update(|window, cx| execute_action_or_throw(id, None, window, cx));
+            assert!(ran.is_err(), "{id} does not run");
+        }
+        cx.run_until_parked();
+        assert!(!tool_window_offered(workbench, tool_window, cx), "no {tool_window} tool window");
+        assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(tool_window)));
+    }
+
+    fn assert_half_on(workbench: &Entity<Workbench>, keys: &[&str], tool_window: &str, cx: &mut VisualTestContext) {
+        assert!(key_on(cx, keys[0]), "{} is on", keys[0]);
+        let actions = conditioned(cx, keys);
+        assert!(!actions.is_empty());
+        for (id, available) in &actions {
+            assert!(available, "{id} is available");
+        }
+        assert!(tool_window_offered(workbench, tool_window, cx), "the {tool_window} tool window is offered");
+    }
+
+    /// What a project with no build offers: neither half, while Link Gradle Projects stays available;
+    /// nothing the refused actions would have done happened.
+    fn assert_no_build(workbench: &Entity<Workbench>, tools: &Path, cx: &mut VisualTestContext) {
+        assert_half_off(workbench, &[MAVEN_KEY], MAVEN_TOOL_WINDOW, &MAVEN_ACTIONS, cx);
+        assert_half_off(workbench, &[GRADLE_KEY, GRADLE_WINDOW_KEY], GRADLE_TOOL_WINDOW, &GRADLE_ACTIONS, cx);
+        let available = |id: &str, cx: &mut VisualTestContext| {
+            cx.update(|window, cx| {
+                let context = window_context(window, cx);
+                let action = cx.global::<ActionRegistry>().get(id);
+                action.is_some_and(|action| is_action_enabled(&action.meta, &context))
+            })
+        };
+        assert!(available("gradle.linkProjects", cx), "Link Gradle Projects needs no build");
+        assert!(workbench.read_with(cx, |w, _| w.execute_popup().is_none()), "no Execute popup");
+        assert!(workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()), "no Unlink question");
+        assert!(!cx.did_prompt_for_paths(), "nothing asks for a build file");
+        assert!(!tools.join("ran").exists(), "Maven never ran");
+    }
+
+    /// The Maven actions the window registers with `projectOpen && build.maven`, and its tool window.
+    const MAVEN_ACTIONS: [&str; 9] = [
+        "maven.reload",
+        "maven.cancelReload",
+        "maven.expandAll",
+        "maven.collapseAll",
+        "maven.toggleOffline",
+        "maven.toggleSkipTests",
+        "maven.executeGoal",
+        "maven.settings",
+        "toolwindow.maven",
+    ];
+
+    /// The Gradle actions the window registers with `projectOpen && build.gradle`, and its tool window.
+    const GRADLE_ACTIONS: [&str; 8] = [
+        "gradle.reload",
+        "gradle.cancelReload",
+        "gradle.expandAll",
+        "gradle.collapseAll",
+        "gradle.toggleOffline",
+        "gradle.executeTask",
+        "gradle.unlinkProjects",
+        "toolwindow.gradle",
+    ];
+
+    /// Tells the window that `paths` of its project were made, as the file watcher does.
+    fn created(paths: Vec<PathBuf>, cx: &mut VisualTestContext) {
+        cx.update(|_, cx| {
+            let created = paths.into_iter().map(Into::into).collect();
+            let event = IdeEvent::FsChanged { created, modified: Vec::new(), removed: Vec::new() };
+            cx.global::<Backend>().emit(Some("w1"), event);
+        });
+    }
+
+    /// A trusted project with no `pom.xml` and no Gradle build has `build.maven` and `build.gradle`
+    /// off: no Maven or Gradle action is available or runs, and neither tool window is offered. A
+    /// `pom.xml` written then turns the Maven half on once the model is read again; the Gradle half
+    /// stays off.
+    #[gpui_kit::test]
+    async fn the_build_conditions_are_off_without_a_build_and_a_new_pom_turns_on_only_maven(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root, tools) = build_project(cx, true, maven_settings);
+        assert_no_build(&workbench, &tools, cx);
+
+        write(&root.join("pom.xml"), &pom("solo", "<packaging>jar</packaging><name>Solo</name>"));
+        created(vec![root.join("pom.xml")], cx);
+        wait_long(cx, "the Maven model", |cx| key_on(cx, MAVEN_KEY));
+        assert_half_on(&workbench, &[MAVEN_KEY], MAVEN_TOOL_WINDOW, cx);
+        assert_half_off(&workbench, &[GRADLE_KEY, GRADLE_WINDOW_KEY], GRADLE_TOOL_WINDOW, &GRADLE_ACTIONS, cx);
+        assert!(!tools.join("ran").exists(), "reading the model runs no Maven");
+        close(cx);
+    }
+
+    /// The same for a Gradle build: written into a project with no build, it turns the Gradle half
+    /// (its actions and its tool window) on once the model is read again, and the Maven half stays
+    /// off.
+    #[gpui_kit::test]
+    async fn a_new_gradle_build_turns_on_only_the_gradle_conditions(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root, tools) = build_project(cx, true, maven_settings);
+        assert_no_build(&workbench, &tools, cx);
+
+        // The wrapper first: a build without its own is looked up in the user's settings.
+        executable(&root.join("gradlew"), FAKE_GRADLEW);
+        write(&root.join("settings.gradle"), "rootProject.name = 'demo'\n");
+        write(&root.join("build.gradle"), "plugins { id 'java' }\n");
+        created(vec![root.join("gradlew"), root.join("settings.gradle"), root.join("build.gradle")], cx);
+        wait_long(cx, "the Gradle model", |cx| key_on(cx, GRADLE_KEY));
+        assert_half_on(&workbench, &[GRADLE_KEY, GRADLE_WINDOW_KEY], GRADLE_TOOL_WINDOW, cx);
+        assert_half_off(&workbench, &[MAVEN_KEY], MAVEN_TOOL_WINDOW, &MAVEN_ACTIONS, cx);
+        close(cx);
+    }
+
+    /// Link Gradle Projects (`projectOpen && !workspaceOpen`) is not available on the Welcome
+    /// window, which has no project: the registry refuses it and nothing asks for a build file.
+    #[gpui_kit::test]
+    async fn link_gradle_projects_is_not_available_without_a_project(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
+        cx.update(|window, _| window.activate_window());
+        cx.run_until_parked();
+        assert!(workbench.read_with(cx, |w, _| w.project_tree().is_none()), "the Welcome window");
+        assert!(!key_on(cx, "projectOpen"));
+        let enabled = cx.update(|window, cx| {
+            let context = window_context(window, cx);
+            let action = cx.global::<ActionRegistry>().get("gradle.linkProjects").expect("the action is registered");
+            is_action_enabled(&action.meta, &context)
+        });
+        assert!(!enabled, "Link Gradle Projects is not available");
+        let ran = cx.update(|window, cx| execute_action_or_throw("gradle.linkProjects", None, window, cx));
+        assert!(ran.is_err(), "the registry refuses it");
+        cx.run_until_parked();
+        assert!(!cx.did_prompt_for_paths(), "nothing asks for a build file");
     }
 }
