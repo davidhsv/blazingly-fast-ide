@@ -642,6 +642,8 @@ impl Workbench {
         });
         let label = self.label.clone();
         let syncing = backend.with_host(move |host| async move {
+            #[cfg(test)]
+            crate::build_tools::guard::check_sync(&host, &label, tool, build_dir.as_deref()).await?;
             ide_host::ops::build::build_sync(&host, &label, tool, request, offline, profiles, build_dir, channel).await
         });
         let epoch = slot.epoch;
@@ -1049,10 +1051,10 @@ mod tests {
     use super::super::tests::{click_on, notification_titles, run_action, start, wait_long};
     use super::*;
     use crate::build_tools::execute::ExecuteRow;
-    use crate::build_tools::model::NodeKind;
-    use crate::build_tools::view::{Banner, BuildRow};
+    use crate::build_tools::model::{BuildRow, NodeKind};
+    use crate::build_tools::view::Banner;
     use crate::run::view::RunView;
-    use gpui_kit::{TestAppContext, VisualTestContext};
+    use gpui_kit::{TestAppContext, VisualTestContext, px};
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
 
@@ -1371,7 +1373,12 @@ EOF
         let dependency = dependency.expect("core's resolved dependency is shown");
         assert_eq!(dependency.label, "org.junit.jupiter:junit-jupiter:5.10.2");
         assert_eq!(dependency.detail.as_deref(), Some("(test)"));
-        assert!(!notification_titles(&workbench, cx).iter().any(|t| t.contains("Maven")), "nothing went wrong");
+        let titles = notification_titles(&workbench, cx);
+        assert!(!titles.iter().any(|t| t.contains("Maven")), "nothing went wrong: {titles:?}");
+        assert!(
+            !titles.iter().any(|t| t.contains("JDK") || t.contains("Java")),
+            "the stand-in JDK is taken: {titles:?}"
+        );
 
         // Maven failing: its errors are told, and the first one stays above the tree.
         write(&tools.join("sync-fails"), "");
@@ -1395,7 +1402,9 @@ EOF
         let view = show(&workbench, BuildTool::Maven, cx);
         write(&tools.join("hold"), "");
         run_action(cx, "maven.reload", None);
-        let building = |banners: &[Banner]| matches!(banners, [Banner::Syncing { message, .. }] if message.starts_with("Building"));
+        fn building(banners: &[Banner]) -> bool {
+            matches!(banners, [Banner::Syncing { message, .. }] if message.starts_with("Building"))
+        }
         wait_long(cx, "the sync's progress", |cx| view.read_with(cx, |view, _| building(&view.banners())));
         run_action(cx, "maven.cancelReload", None);
         wait_long(cx, "the end of the sync", |cx| {
@@ -1550,6 +1559,26 @@ EOF
         close(cx);
     }
 
+    /// The keyboard reaches every completion of Execute Maven Goal: the list scrolls to the selected
+    /// one, past the rows it has room for, and back.
+    #[gpui_kit::test]
+    async fn the_execute_list_scrolls_to_the_completion_the_keyboard_selects(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, _root, _tools) = build_project(cx, true, maven_project);
+        run_action(cx, "maven.executeGoal", None);
+        let popup = workbench.read_with(cx, |w, _| w.execute_popup()).expect("the popup is open");
+        let rows = popup.read_with(cx, |popup, _| popup.rows());
+        assert!(rows.len() > 20, "more completions than the list shows at once: {}", rows.len());
+        assert_eq!(popup.read_with(cx, |popup, _| popup.list_scroll()), px(0.0));
+        // Up from no selection wraps to the last completion.
+        cx.simulate_keystrokes("up");
+        assert_eq!(popup.read_with(cx, |popup, _| popup.state().active()), Some(rows.len() - 1));
+        wait_long(cx, "the list to scroll down", |cx| popup.read_with(cx, |popup, _| popup.list_scroll() > px(0.0)));
+        cx.simulate_keystrokes("down");
+        wait_long(cx, "the list to scroll back", |cx| popup.read_with(cx, |popup, _| popup.list_scroll() == px(0.0)));
+        cx.simulate_keystrokes("escape");
+        close(cx);
+    }
+
     /// Link Gradle Projects links the picked build next to the project's, Unlink on its root asks
     /// first and removes it (cancelled, or on a module, nothing changes), and Link stays offered.
     #[gpui_kit::test]
@@ -1558,6 +1587,8 @@ EOF
             gradle_project(root, tools);
             write(&root.join("libs/other/settings.gradle"), "rootProject.name = 'other'\n");
             write(&root.join("libs/other/build.gradle"), "plugins { id 'java' }\n");
+            // Its own wrapper: without one, its launcher would be looked for in the user's settings.
+            executable(&root.join("libs/other/gradlew"), FAKE_GRADLEW);
         });
         let view = show(&workbench, BuildTool::Gradle, cx);
         assert!(!labels(&view, cx).contains(&"other".to_owned()), "an independent build is not linked by itself");
@@ -1676,6 +1707,110 @@ EOF
         });
         assert!(cx.update(|window, cx| window_context(window, cx).is_truthy(MAVEN_KEY)));
         assert!(!tools.join("ran").exists(), "reading the model runs no Maven");
+        close(cx);
+    }
+
+    /// A Maven home with no Maven in it leaves the backend with the `mvn` of `PATH`: a test build
+    /// refuses the sync and a goal before the backend is asked to start them, and says why.
+    #[gpui_kit::test]
+    async fn a_test_build_refuses_a_maven_that_is_not_a_stand_in_of_its_own_folders(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, _root, _tools) = build_project(cx, true, |root, tools| {
+            write(&root.join("pom.xml"), &pom("solo", "<packaging>jar</packaging><name>Solo</name>"));
+            let maven = format!(
+                concat!(
+                    "[languages.java.maven]\nhome = \"{home}\"\n",
+                    "userSettings = \"{settings}\"\nlocalRepository = \"{repo}\"\n"
+                ),
+                home = tools.join("no-maven-here").display(),
+                settings = tools.join("settings.xml").display(),
+                repo = tools.join("m2").display(),
+            );
+            project_settings(root, tools, &maven);
+        });
+        let reported = workbench.read_with(cx, |w, _| {
+            w.build_model().and_then(|m| m.maven.as_ref()).map(|m| m.projects[0].command.clone())
+        });
+        let reported = reported.expect("the project is a Maven project");
+        assert!(!reported.starts_with(&*std::env::temp_dir().to_string_lossy()), "{reported}");
+
+        run_action(cx, "maven.reload", None);
+        wait_long(cx, "the refused sync", |cx| notice_body(&workbench, "Cannot reload Maven projects", cx).is_some());
+        let body = notice_body(&workbench, "Cannot reload Maven projects", cx).unwrap_or_default();
+        let refusal = format!("a test starts no build tool or JVM outside its temporary folders: {reported}");
+        assert!(body.contains(&refusal), "{body}");
+        assert!(workbench.read_with(cx, |w, _| !w.build_sync_running(BuildTool::Maven)));
+        let synced =
+            workbench.read_with(cx, |w, _| w.build_model().and_then(|m| m.maven.as_ref()).and_then(|m| m.synced_at));
+        assert_eq!(synced, None, "Maven never ran");
+
+        run_action(cx, "maven.executeGoal", None);
+        cx.simulate_input("clean");
+        cx.simulate_keystrokes("enter");
+        wait_long(cx, "the refused goal", |cx| notice_body(&workbench, "Error running 'Solo [clean]'", cx).is_some());
+        let body = notice_body(&workbench, "Error running 'Solo [clean]'", cx).unwrap_or_default();
+        assert!(body.contains(&refusal), "{body}");
+
+        // A JVM by its name, as any other configuration would start it.
+        let java = RunConfig {
+            command: "java".to_owned(),
+            args: vec!["-version".to_owned()],
+            ..crate::run::configs::blank_config("shell:java", "a JVM", "shell")
+        };
+        let java = serde_json::to_value(&java).expect("a configuration is JSON");
+        run_action(cx, "run.runConfig", Some(json!({ "config": java, "temporary": true })));
+        wait_long(cx, "the refused JVM", |cx| notice_body(&workbench, "Error running 'a JVM'", cx).is_some());
+        let body = notice_body(&workbench, "Error running 'a JVM'", cx).unwrap_or_default();
+        assert!(body.contains("outside its temporary folders: java"), "{body}");
+        close(cx);
+    }
+
+    /// A local Gradle distribution whose home has no Gradle: a test build refuses the sync and a task.
+    #[gpui_kit::test]
+    async fn a_test_build_refuses_a_gradle_that_is_not_a_stand_in_of_its_own_folders(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, _root, _tools) = build_project(cx, true, |root, tools| {
+            write(&root.join("settings.gradle"), "rootProject.name = 'demo'\n");
+            write(&root.join("build.gradle"), "plugins { id 'java' }\n");
+            let gradle = format!(
+                "[languages.java.gradle]\ndistribution = \"local\"\nhome = \"{}\"\n",
+                tools.join("no-gradle-here").display()
+            );
+            project_settings(root, tools, &gradle);
+        });
+        let reported = workbench.read_with(cx, |w, _| w.build_model().map(|m| m.gradle[0].command.clone()));
+        let reported = reported.expect("the project is a Gradle build");
+        assert!(!Path::new(&reported).is_file(), "{reported}");
+
+        run_action(cx, "gradle.reload", None);
+        wait_long(cx, "the refused sync", |cx| notice_body(&workbench, "Cannot reload Gradle projects", cx).is_some());
+        let body = notice_body(&workbench, "Cannot reload Gradle projects", cx).unwrap_or_default();
+        let refusal = format!("a test starts no build tool or JVM outside its temporary folders: {reported}");
+        assert!(body.contains(&refusal), "{body}");
+        let synced = workbench.read_with(cx, |w, _| w.build_model().and_then(|m| m.gradle[0].synced_at));
+        assert_eq!(synced, None, "Gradle never ran");
+
+        run_action(cx, "gradle.executeTask", None);
+        cx.simulate_input("assemble");
+        cx.simulate_keystrokes("enter");
+        let refused = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| {
+                w.notifications().items().iter().any(|n| {
+                    n.title.starts_with("Error running") && n.body.as_deref().is_some_and(|b| b.contains(&refusal))
+                })
+            })
+        };
+        wait_long(cx, "the refused task", refused);
+
+        // A bare `gradle` is resolved to the local distribution, which has none either.
+        let bare = RunConfig {
+            command: "gradle".to_owned(),
+            args: vec!["tasks".to_owned()],
+            ..crate::run::configs::blank_config("gradle:bare", "bare gradle", "gradle")
+        };
+        let bare = serde_json::to_value(&bare).expect("a configuration is JSON");
+        run_action(cx, "run.runConfig", Some(json!({ "config": bare, "temporary": true })));
+        wait_long(cx, "the refused gradle", |cx| notice_body(&workbench, "Error running 'bare gradle'", cx).is_some());
+        let body = notice_body(&workbench, "Error running 'bare gradle'", cx).unwrap_or_default();
+        assert!(body.contains(&refusal), "{body}");
         close(cx);
     }
 }

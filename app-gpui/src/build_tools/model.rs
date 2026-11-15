@@ -153,6 +153,7 @@ pub fn pushed_history(history: &[String], line: &str) -> Vec<String> {
 
 /// What a node of the tree stands for.
 #[derive(Clone, Debug, PartialEq)]
+#[expect(clippy::large_enum_variant, reason = "one per row of a build's tree, which holds a few hundred at most")]
 pub enum NodeKind {
     Profiles { project_root: Option<String> },
     Profile(MavenProfile),
@@ -356,7 +357,7 @@ pub fn gradle_run_configs(
                         .any(|d| contains(&absolute(d)))
                 })
                 .collect();
-            owners.sort_by_key(|build| std::cmp::Reverse(owner_depth(*build)));
+            owners.sort_by_key(|build| std::cmp::Reverse(owner_depth(build)));
             owners.first().is_some_and(|owner| owner.dir == model.dir)
         })
         .cloned()

@@ -3,5 +3,7 @@
 //! the Execute Maven Goal / Execute Gradle Task popup.
 
 pub mod execute;
+#[cfg(test)]
+pub mod guard;
 pub mod model;
 pub mod view;

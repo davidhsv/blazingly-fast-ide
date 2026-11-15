@@ -152,6 +152,8 @@ impl Workbench {
             let Ok(built) = workbench.update(cx, |_, cx| {
                 cx.global::<Backend>().with_host(move |host| async move {
                     let file = file.map(PathBuf::from);
+                    #[cfg(test)]
+                    crate::build_tools::guard::check_build(&host, &label).await?;
                     ide_host::ops::build::build_run(&host, &label, kind, file, cmake, request, clear, channel).await
                 })
             }) else {

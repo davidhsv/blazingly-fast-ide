@@ -4,6 +4,7 @@ pub mod agents;
 pub mod app_models;
 pub mod app_views;
 pub mod backend;
+pub mod build_tools;
 pub mod build_window;
 pub mod code_insight;
 pub mod database;

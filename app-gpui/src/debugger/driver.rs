@@ -617,7 +617,11 @@ impl DebugDriver {
         match call {
             BackendCall::DebugStart(launch) => self.ask(
                 cx,
-                move |host, label| async move { debug::debug_start(&host, &label, *launch).await },
+                move |host, label| async move {
+                    #[cfg(test)]
+                    crate::build_tools::guard::check_debug(&launch)?;
+                    debug::debug_start(&host, &label, *launch).await
+                },
                 Self::on_debugger(move |debugger, result, host| debugger.started(ticket, result, host)),
             ),
             BackendCall::DebugStop(session) => self.ask(

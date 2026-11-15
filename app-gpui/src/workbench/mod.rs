@@ -11,6 +11,7 @@ pub mod background_tasks_view;
 mod bookmarks_window;
 use bookmarks_window::BOOKMARKS_TOOL_WINDOW;
 mod branches;
+mod build_tools;
 mod build_window;
 mod chrome;
 mod code_insight;
@@ -23,6 +24,7 @@ mod debug_extras;
 use crate::database::tree_view::DATABASE_TOOL_WINDOW;
 mod conflicts;
 pub mod context_menus;
+use crate::build_tools::model::{GRADLE_TOOL_WINDOW, MAVEN_TOOL_WINDOW};
 use crate::build_window::model::BUILD_TOOL_WINDOW;
 use crate::debugger::effects::DEBUG_TOOL_WINDOW;
 mod diff_tools;
@@ -382,6 +384,8 @@ pub struct Workbench {
     todo: Option<todo_window::TodoFeed>,
     /// The project's build.
     build: Option<build_window::BuildSlot>,
+    /// The Maven and Gradle tool windows: the project's build model, its syncs and toggles.
+    build_tools: build_tools::BuildToolsSlot,
     /// The Project view's file operations.
     files: project_files::ProjectFiles,
     /// What the Project view's behaviour options need of the window.
@@ -601,6 +605,7 @@ pub fn register_actions(cx: &mut App) {
     zoom_actions::register_actions(registry);
     terminal_actions::register_actions(registry);
     build_window::register_actions(registry);
+    build_tools::register_actions(registry);
     database::register_actions(registry);
     database_extras::register_actions(registry);
     code_insight::register_actions(registry);
@@ -1163,6 +1168,7 @@ impl Workbench {
             structure: None,
             todo: None,
             build: None,
+            build_tools: Default::default(),
             files: Default::default(),
             tree_options: Default::default(),
             database: None,
@@ -1893,6 +1899,8 @@ impl Workbench {
         if event.window.as_deref().is_some_and(|window| window != self.label) {
             return;
         }
+        // Build files, project folders, Java settings and trust: the build model is read again.
+        self.build_tools_backend_event(&event.event, cx);
         let now = now_ms();
         match &event.event {
             IdeEvent::Task { id, title, message, fraction, done, cancellable } => self.tasks.on_task_event(
@@ -2335,6 +2343,10 @@ impl Workbench {
                 PROBLEMS_TOOL_WINDOW => self.mount_problems(window, cx),
                 USAGES_TOOL_WINDOW => self.mount_usages(window, cx),
                 HIERARCHY_TOOL_WINDOW => self.mount_hierarchy(window, cx),
+                MAVEN_TOOL_WINDOW | GRADLE_TOOL_WINDOW => match self.mount_build_tool(&id, window, cx) {
+                    Some(panel) => panel,
+                    None => continue,
+                },
                 BUILD_TOOL_WINDOW => match self.mount_build(window, cx) {
                     Some(panel) => panel,
                     None => continue,
@@ -2997,6 +3009,7 @@ impl Workbench {
         self.leave(cx);
         self.reset_runs(cx);
         self.reset_build(window, cx);
+        self.reset_build_tools(window, cx);
         self.reset_database(window, cx);
         self.drop_vcs();
         self.drop_commit();
@@ -3166,6 +3179,7 @@ impl Workbench {
         self.leave(cx);
         self.reset_runs(cx);
         self.reset_build(window, cx);
+        self.reset_build_tools(window, cx);
         self.reset_database(window, cx);
         self.drop_vcs();
         self.drop_commit();
@@ -3257,6 +3271,7 @@ impl Workbench {
                 };
                 workbench.mount_vcs(window, cx);
                 workbench.mount_agents(window, cx);
+                workbench.mount_build_tools(window, cx);
                 if workbench.project_root(cx).is_some() {
                     workbench.code_insight_project_opened(cx);
                 }

@@ -1094,8 +1094,12 @@ impl RunDriver {
                 driver.label.clone()
             })
             .map_err(|error| IdeError::internal(error.to_string()))?;
-        Self::on_host(cx, move |host| async move { ide_host::ops::run::start(&host, &label, launch, on_output).await })
-            .await
+        Self::on_host(cx, move |host| async move {
+            #[cfg(test)]
+            crate::build_tools::guard::check_run(&host, &label, &launch).await?;
+            ide_host::ops::run::start(&host, &label, launch, on_output).await
+        })
+        .await
     }
 
     /// Feeds what arrives on `chunks` into the console of the session's start `generation`.

@@ -214,6 +214,13 @@ impl Backend {
                 syntax.get_or_init(|| Arc::new(Syntax::new()));
             })?;
         }
+        // A test reads no Maven user folder and none of the machine's JDKs: the folder named here
+        // is one nothing creates, and a test's project names the JDK it builds with.
+        #[cfg(test)]
+        ide_host::ops::build::isolate_from_user_home(
+            std::env::temp_dir().join(format!("openidea-gpui-tests-m2-{}", std::process::id())),
+            Vec::new(),
+        );
         let mut runtime = tokio::runtime::Builder::new_multi_thread();
         // A test app keeps its backend until the test binary exits, and a process may run only so many
         // threads: the tests' runtimes keep two workers each instead of one per core.

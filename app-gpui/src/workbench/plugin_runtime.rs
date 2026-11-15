@@ -820,6 +820,11 @@ impl Workbench {
                     (_, None) => tracing::warn!("plugin task {task}: the plugin host is not running"),
                 }
             }
+            Some(CancelEffect::Producer(TaskId::Name(name)))
+                if name.starts_with(super::build_tools::SYNC_TASK_PREFIX) =>
+            {
+                self.cancel_build_sync_task(&name, cx);
+            }
             Some(CancelEffect::Producer(other)) => tracing::warn!("task {other:?} has no producer to stop it"),
             Some(CancelEffect::Dequeued(_)) | None => {}
         }

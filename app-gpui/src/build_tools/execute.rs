@@ -15,8 +15,8 @@ use crate::platform::input;
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
-    App, ClickEvent, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke, Render,
-    SharedString, Subscription, Window, div, prelude::*, px,
+    App, ClickEvent, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke, Pixels, Render,
+    ScrollHandle, SharedString, Subscription, Window, div, prelude::*, px,
 };
 use ide_build::{BuildModel, BuildTool};
 use ide_run::RunConfig;
@@ -306,6 +306,8 @@ pub struct ExecutePopup {
     state: ExecuteState,
     model: BuildModel,
     field: Entity<TextField>,
+    /// The completion list, which scrolls to the row the keyboard selects.
+    scroll: ScrollHandle,
     key_claim: u64,
     _field_events: Subscription,
 }
@@ -346,11 +348,16 @@ impl ExecutePopup {
         );
         cx.on_release(|popup, cx| input::release_keys(popup.key_claim, cx)).detach();
         let state = ExecuteState::new(tool, &model, history, current);
-        Self { state, model, field, key_claim, _field_events: events }
+        Self { state, model, field, scroll: ScrollHandle::new(), key_claim, _field_events: events }
     }
 
     pub fn state(&self) -> &ExecuteState {
         &self.state
+    }
+
+    /// How far the completion list is scrolled down.
+    pub fn list_scroll(&self) -> Pixels {
+        -self.scroll.offset().y
     }
 
     pub fn field(&self) -> &Entity<TextField> {
@@ -407,6 +414,12 @@ impl ExecutePopup {
         };
         if let Some(key) = key {
             self.state.move_selection(key, &self.model);
+            if let Some(active) = self.state.active() {
+                // The heading of a section's first completion comes into view with it.
+                let heading =
+                    active.checked_sub(1).filter(|above| self.rows().get(*above).is_some_and(|r| r.is_section()));
+                self.scroll.scroll_to_item(heading.unwrap_or(active));
+            }
             cx.notify();
             return true;
         }
@@ -451,8 +464,14 @@ impl Render for ExecutePopup {
         let selected_bg = theme::color(cx, "bg-tree-selected");
         let row_height = theme::length(cx, "h-row");
         let empty = if self.state.line().trim().is_empty() { "Type a goal" } else { "No completions" };
-        let list = div().flex().flex_col().max_h(px(320.0)).overflow_hidden().children(rows.iter().enumerate().map(
-            |(index, row)| {
+        let list = div()
+            .id("execute-list")
+            .flex()
+            .flex_col()
+            .max_h(px(380.0))
+            .overflow_y_scroll()
+            .track_scroll(&self.scroll)
+            .children(rows.iter().enumerate().map(|(index, row)| {
                 match row {
                     ExecuteRow::Section { label, .. } => div()
                         .id(SharedString::from(format!("execute-row-{index}")))
@@ -488,8 +507,7 @@ impl Render for ExecutePopup {
                             .children(detail.map(|d| div().text_color(subtle).child(SharedString::from(d))))
                     }
                 }
-            },
-        ));
+            }));
         let current = self.state.project().map(str::to_owned);
         let projects = self.projects();
         // The corners of the popup slot's shadowed frame, which draws it.
@@ -527,9 +545,14 @@ impl Render for ExecutePopup {
                     .child(div().flex_1().child(self.field.clone())),
             )
             .child(if rows.is_empty() {
-                div().px(px(10.0)).py(px(8.0)).text_color(muted).child(SharedString::from(tx(cx, empty)))
+                div()
+                    .px(px(10.0))
+                    .py(px(8.0))
+                    .text_color(muted)
+                    .child(SharedString::from(tx(cx, empty)))
+                    .into_any_element()
             } else {
-                list
+                list.into_any_element()
             })
             .child(
                 div()

@@ -94,6 +94,7 @@ pub enum BuildMenuCommand {
 
 /// What the view asks of the workbench.
 #[derive(Clone, Debug, PartialEq)]
+#[expect(clippy::large_enum_variant, reason = "one per user request, consumed at once")]
 pub enum BuildToolEvent {
     /// Run action `id` with `arg`.
     RunAction { id: &'static str, arg: Option<Value> },
