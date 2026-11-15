@@ -2193,7 +2193,7 @@
   },
   "action:run.run": {
     "status": "partial",
-    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; runs the selection, and opens the chooser when nothing is selected. With Current File selected it hands over to run.runContext, which is not built"
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::run_context::tests::run_with_current_file_selected_runs_the_file_and_keeps_current_file_selected`; runs the selection, and opens the chooser when nothing is selected. With Current File selected it runs the file as a temporary configuration and keeps Current File selected. Missing: its condition read off (no project open)"
   },
   "action:run.rerun": {
     "status": "done",
@@ -2588,8 +2588,8 @@
     "proof": "`database::result_view::tests`, `database::objects::tests`"
   },
   "unit:src/features/database/results-view.test.tsx": {
-    "status": "partial",
-    "proof": "`database::results_view::tests`, `database::store::tests`, `database::result_session::tests`, `database::results_view::tests::proofs11_results::explains_why_a_result_is_read_only`, `database::results_view::tests::proofs11_results::keeps_a_read_only_data_source_read_only`, `database::results_view::tests::proofs11_results::keeps_a_table_without_a_primary_key_read_only`, `database::results_view::tests::proofs11_results::keeps_an_unresolved_sql_server_table_schema_read_only`, `database::results_view::tests::proofs11_results::keeps_clickhouse_read_only`, `database::results_view::tests::proofs11_results::keeps_every_cell_of_a_pasted_row_in_the_submitted_edits`, `database::results_view::tests::proofs11_results::makes_a_single_table_select_with_its_primary_key_editable_and_submits_in_one_transaction`, `database::results_view::tests::proofs11_results::matches_case_sensitive_key_columns_exactly`, `database::results_view::tests::proofs11_results::uses_the_execution_schema_even_after_the_console_selection_changes`; 13 of 14 cases on the views and the store. Missing: \"records the selected schema or connection default\", which belongs to the console's execution"
+    "status": "done",
+    "proof": "`database::results_view::tests`, `database::store::tests`, `database::result_session::tests`, `database::results_view::tests::proofs11_results::explains_why_a_result_is_read_only`, `database::results_view::tests::proofs11_results::keeps_a_read_only_data_source_read_only`, `database::results_view::tests::proofs11_results::keeps_a_table_without_a_primary_key_read_only`, `database::results_view::tests::proofs11_results::keeps_an_unresolved_sql_server_table_schema_read_only`, `database::results_view::tests::proofs11_results::keeps_clickhouse_read_only`, `database::results_view::tests::proofs11_results::keeps_every_cell_of_a_pasted_row_in_the_submitted_edits`, `database::results_view::tests::proofs11_results::makes_a_single_table_select_with_its_primary_key_editable_and_submits_in_one_transaction`, `database::results_view::tests::proofs11_results::matches_case_sensitive_key_columns_exactly`, `database::results_view::tests::proofs11_results::uses_the_execution_schema_even_after_the_console_selection_changes`, `database::store::tests::records_the_selected_schema_or_connection_default`; 14 of 14 cases on the views and the store; the schema a console runs in (the selected one, else the connection's default) is recorded with the result"
   },
   "unit:src/features/database/sql/format.test.ts": {
     "status": "done",
@@ -6932,8 +6932,8 @@
     "proof": "`workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`; Unwrap/Remove calls ide_host::ops::syntax::syntax_node_at with the window's label, the document and the caret's empty range, as the adapter does; the if is replaced by its body, an edit built only from the node and ancestors it returns, and on the function's first line it says Nothing to unwrap here"
   },
   "unit:src/editor/core/cm/rainbowBrackets.test.ts": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::rainbow_brackets_colour_the_brackets_by_their_depth`, `editor::extras::tests::brackets_are_coloured_by_depth_and_unmatched_ones_are_marked`, `editor::extras::tests::strings_and_comments_are_skipped_lexically`, `workbench::editor_extras::tests::proofs13_editor::colours_brackets_by_nesting_depth_cycling_through_the_palette`, `workbench::editor_extras::tests::proofs13_editor::knows_the_depth_at_a_viewport_far_into_the_document_and_after_edits`, `workbench::editor_extras::tests::proofs13_editor::marks_unmatched_and_mismatched_brackets`, `workbench::editor_extras::tests::proofs13_editor::skips_strings_comments_and_regexps_with_the_syntax_tree`; 5 of 6 cases. Missing: the lexical skip without a grammar"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::rainbow_brackets_colour_the_brackets_by_their_depth`, `editor::extras::tests::brackets_are_coloured_by_depth_and_unmatched_ones_are_marked`, `editor::extras::tests::strings_and_comments_are_skipped_lexically`, `workbench::editor_extras::tests::proofs13_editor::colours_brackets_by_nesting_depth_cycling_through_the_palette`, `workbench::editor_extras::tests::proofs13_editor::knows_the_depth_at_a_viewport_far_into_the_document_and_after_edits`, `workbench::editor_extras::tests::proofs13_editor::marks_unmatched_and_mismatched_brackets`, `workbench::editor_extras::tests::proofs13_editor::skips_strings_comments_and_regexps_with_the_syntax_tree`; 6 of 6 cases; the lexical skip of strings and comments is what the editor uses for a file without a grammar"
   },
   "unit:src/editor/core/cm/distractionFree.test.ts": {
     "status": "partial",
@@ -7502,5 +7502,65 @@
   "module:src/workbench/toolwindows/actions.ts": {
     "status": "partial",
     "proof": "`workbench::tests::proofs18_e2e_toolwindows::cmd_1_focuses_hides_and_re_shows_the_project_tool_window`, `workbench::tests::proofs18_e2e_toolwindows::cmd_4_toggles_run_shift_escape_hides_the_active_tool_window`, `workbench::tests::proofs18_e2e_toolwindows::cmd_shift_f12_hides_all_tool_windows_and_restores_them`, `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::proofs_tool_windows::resize_up_and_down_move_a_bottom_tool_windows_edge`, `workbench::tests::proofs5_layout::maximize_tool_window_draws_the_focused_side_across_the_window`, `workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`, `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`; the per-window toolwindow.<id> actions by their keys (show, focus, hide), Hide All Tool Windows and its second press restoring them, Hide Active Tool Window by Shift+Escape, Jump to Last by F12, Focus Editor by Escape, Maximize, Stretch to Top and Bottom, saving, restoring, renaming and deleting a layout, Restore Default Layout, and Next / Previous Occurrence through the TODO window. Missing: toolwindow.closeContent (⌘W, Ctrl+Shift+F4 in a tool window) is not registered, and layout.restore, layout.rename, layout.delete and the occurrence actions keep the gaps listed on their own rows."
+  },
+  "ipc:debug_evaluate": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:debug_sessions": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:doc_save_all": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:gh_pr_create": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:history_list": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:index_status": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:plugin_link": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:plugin_unlink": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:refactor_can_undo_file_move": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:remote_of": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:run_list": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:ssh_connected": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:ssh_disconnect": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:vcs_diff_text": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
+  },
+  "ipc:vcs_stage_patch": {
+    "status": "none",
+    "proof": "no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it"
   }
 }
