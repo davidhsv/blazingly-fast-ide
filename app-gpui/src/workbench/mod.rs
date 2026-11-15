@@ -5,6 +5,8 @@ mod agents;
 mod annotate;
 mod app_actions;
 mod app_shell;
+#[cfg(unix)]
+pub use app_shell::quit_on_interrupt;
 pub mod background_tasks_view;
 mod bookmarks_window;
 use bookmarks_window::BOOKMARKS_TOOL_WINDOW;
@@ -33,6 +35,7 @@ mod editor_language;
 pub mod empty_editor;
 mod github;
 mod keymap_reference;
+mod light_edit_tabs;
 mod log_actions;
 mod log_window;
 pub mod main_toolbar;
@@ -147,7 +150,18 @@ enum Content {
     /// Nothing is open.
     Empty,
     Opening(PathBuf),
-    Editor(Entity<Editor>),
+    /// A window that edits loose files on its own (LightEdit): editor tabs without a project, kept
+    /// with the same parts as a project's tabs.
+    Editor {
+        tabs: Box<TabsState>,
+        editors: HashMap<String, Entity<Editor>>,
+        loading: std::collections::HashSet<String>,
+        restored_views: std::collections::BTreeMap<String, FileViewState>,
+        reveals: HashMap<String, (u32, u32)>,
+        editor_focus: HashMap<String, Subscription>,
+        find_bars: HashMap<String, TabFindBar>,
+        view_tabs: tab_views::ViewTabs,
+    },
     /// A project: its file tree and the file being edited.
     Project {
         name: String,
@@ -314,8 +328,8 @@ pub struct Workbench {
     _balloon_events: Subscription,
     /// The Welcome screen, while the window shows nothing, and what the window listens to it for.
     welcome: Option<(Entity<Welcome>, Subscription)>,
-    /// The Find / Replace bar of a single-file window's editor.
-    light_find_bar: Option<TabFindBar>,
+    /// The loose files waiting for the window's first one to open, while it turns into LightEdit.
+    light_pending: Option<Vec<crate::app_models::windows::FileOpen>>,
     /// Where the caret has been in the window's editors: Back / Forward and the edit locations.
     editor_core: editor_core::EditorCore,
     /// The Services tool window of the open project, once it was shown or used.
@@ -1063,8 +1077,17 @@ impl Workbench {
         cx.on_release(move |workbench, cx| {
             // The window is going: the session is written as it stands.
             workbench.save_session(cx);
-            // Its project closes with it, and the project's own plugins unless another window has it.
-            let root = cx.try_global::<Backend>().and_then(|backend| {
+            // Its project closes with it, and the project's own plugins unless another window has it. A
+            // window's label is free once the window is gone, which can be before its workbench goes:
+            // when a new window already has the label, the project under it is the new window's.
+            let reused = cx.try_global::<Workbenches>().is_some_and(|known| {
+                known
+                    .0
+                    .iter()
+                    .filter(|(other, _)| **other != id)
+                    .any(|(_, other)| other.upgrade().is_some_and(|other| other.read(cx).label == workbench.label))
+            });
+            let root = cx.try_global::<Backend>().filter(|_| !reused).and_then(|backend| {
                 let root = backend.host.project(&workbench.label).ok().map(|project| project.root.clone());
                 backend.host.close_project_detached(&workbench.label);
                 root
@@ -1111,7 +1134,7 @@ impl Workbench {
             app_dialog: None,
             session_save: None,
             popup: None,
-            light_find_bar: None,
+            light_pending: None,
             editor_core: Default::default(),
             services: None,
             github: None,
@@ -1342,8 +1365,7 @@ impl Workbench {
         mut update: impl FnMut(&mut EditorIntelligence, &mut Context<EditorIntelligence>),
     ) {
         let editors: Vec<Entity<Editor>> = match &self.content {
-            Content::Editor(editor) => vec![editor.clone()],
-            Content::Project { editors, .. } => editors.values().cloned().collect(),
+            Content::Project { editors, .. } | Content::Editor { editors, .. } => editors.values().cloned().collect(),
             _ => Vec::new(),
         };
         for editor in editors {
@@ -1355,18 +1377,17 @@ impl Workbench {
 
     pub fn editor(&self) -> Option<&Entity<Editor>> {
         match &self.content {
-            Content::Editor(editor) => Some(editor),
-            Content::Project { tabs, editors, .. } => {
+            Content::Project { tabs, editors, .. } | Content::Editor { tabs, editors, .. } => {
                 tabs.pane(&tabs.active_pane).and_then(|pane| pane.active.as_ref()).and_then(|id| editors.get(id))
             }
             _ => None,
         }
     }
 
-    /// The editor tabs, when a project is open.
+    /// The editor tabs, of a project or of a window that edits loose files.
     pub fn tabs(&self) -> Option<&TabsState> {
         match &self.content {
-            Content::Project { tabs, .. } => Some(tabs.as_ref()),
+            Content::Project { tabs, .. } | Content::Editor { tabs, .. } => Some(tabs.as_ref()),
             _ => None,
         }
     }
@@ -1416,7 +1437,7 @@ impl Workbench {
         // banner only go over a text editor.
         let host = shown_tab.as_deref().and_then(|id| self.markdown_host(id)).filter(|_| editor.is_some());
         let find_bar = match &self.content {
-            Content::Project { find_bars, .. } if editor.is_some() => {
+            Content::Project { find_bars, .. } | Content::Editor { find_bars, .. } if editor.is_some() => {
                 shown_tab.as_deref().and_then(|id| find_bars.get(id)).map(|bar| bar.bar.clone())
             }
             _ => None,
@@ -1434,7 +1455,15 @@ impl Workbench {
             (None, Some(host), _) => Some(host.into_any_element()),
             (None, None, Some(editor)) => Some(editor.into_any_element()),
             // A pane without a tab shows the navigation hints.
-            (None, None, None) if shown_tab.is_none() => Some(empty_editor::empty_editor(cx).into_any_element()),
+            (None, None, None) if shown_tab.is_none() => {
+                // A window that edits loose files has no project to navigate: it offers Open File.
+                let hints = if matches!(self.content, Content::Editor { .. }) {
+                    empty_editor::light_edit_empty_editor(cx)
+                } else {
+                    empty_editor::empty_editor(cx)
+                };
+                Some(hints.into_any_element())
+            }
             (None, None, None) => None,
         };
         let titles = self.tab_titles_of(pane_id);
@@ -1610,7 +1639,7 @@ impl Workbench {
         cx: &mut Context<Self>,
         change: impl FnOnce(&mut TabsState, &str) -> bool,
     ) {
-        let Content::Project { tabs, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, .. } | Content::Editor { tabs, .. }) = &mut self.content else { return };
         let pane = tabs.active_pane.clone();
         if change(tabs, &pane) {
             self.tabs_changed(true, window, cx);
@@ -1619,7 +1648,11 @@ impl Workbench {
 
     fn tabs_changed(&mut self, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
         let auto_save = self.auto_save(cx);
-        let Content::Project { tabs, editors, editor_focus, find_bars, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, editors, editor_focus, find_bars, .. }
+        | Content::Editor { tabs, editors, editor_focus, find_bars, .. }) = &mut self.content
+        else {
+            return;
+        };
         let open: std::collections::HashSet<&str> =
             tabs.panes.iter().flat_map(|pane| pane.tabs.iter().map(|tab| tab.id.as_str())).collect();
         find_bars.retain(|id, _| open.contains(id.as_str()));
@@ -1657,13 +1690,13 @@ impl Workbench {
                     Some(0) => {
                         let saving = editor.read_with(cx, |editor, cx| editor.save(cx));
                         match saving.await {
-                            Ok(Ok(())) => return,
+                            Ok(Ok(())) => return light_edit_tabs::closed_tab_settled(&workbench, cx),
                             Ok(Err(error)) => Some(error.message),
                             Err(error) => Some(error.to_string()),
                         }
                     }
                     // Don't Save.
-                    Some(1) => return,
+                    Some(1) => return light_edit_tabs::closed_tab_settled(&workbench, cx),
                     // Cancel, or the question went away unanswered: the tab stays.
                     _ => None,
                 };
@@ -1710,6 +1743,8 @@ impl Workbench {
                 }
             }
         }
+        // A window that edits loose files closes with its last tab, once no closed tab waits on a save.
+        self.close_emptied_light_edit(closing.is_empty(), window, cx);
         cx.notify();
     }
 
@@ -1726,7 +1761,11 @@ impl Workbench {
         if let Some(failure) = failure {
             self.report_save_failure(failure, cx);
         }
-        let Content::Project { tabs, editors, find_bars, view_tabs, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, editors, find_bars, view_tabs, .. }
+        | Content::Editor { tabs, editors, find_bars, view_tabs, .. }) = &mut self.content
+        else {
+            return;
+        };
         let pane = tabs.active_pane.clone();
         let input = EditorInput { kind: "file".to_owned(), key: path.clone(), path: Some(path), data: None };
         let reopened = tabs.open_tab(&pane, input, OpenTabOptions::default());
@@ -1754,8 +1793,7 @@ impl Workbench {
     /// Every open editor, of every tab.
     fn editors(&self) -> Vec<Entity<Editor>> {
         match &self.content {
-            Content::Editor(editor) => vec![editor.clone()],
-            Content::Project { editors, .. } => editors.values().cloned().collect(),
+            Content::Project { editors, .. } | Content::Editor { editors, .. } => editors.values().cloned().collect(),
             _ => Vec::new(),
         }
     }
@@ -2088,14 +2126,14 @@ impl Workbench {
             self.paste_history_dialog().is_some_and(|dialog| dialog.focus_handle(cx).contains_focused(window, cx));
         set_context(window, cx, "pasteHistoryListFocus", paste_list_focused);
         set_context(window, cx, "projectOpen", self.project_tree().is_some());
-        set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor(_) | Content::Viewer(_)));
+        set_context(window, cx, "lightEdit", matches!(self.content, Content::Editor { .. } | Content::Viewer(_)));
         set_context(window, cx, "textEditorActive", editor.is_some());
         // `imageViewerActive` / `imageViewerFocus` for an image tab; every kind's keys are off on
         // other tabs.
         self.publish_view_context(window, cx);
         set_context(window, cx, "editorSplit", self.tabs().is_some_and(|tabs| tabs.panes.len() > 1));
-        // A window that edits a loose file on its own shows it as its one tab.
-        let tabs_open = matches!(self.content, Content::Editor(_) | Content::Viewer(_))
+        // A loose file shown in a viewer is the window's one tab.
+        let tabs_open = matches!(self.content, Content::Viewer(_))
             || self.tabs().and_then(|tabs| tabs.pane(&tabs.active_pane)).is_some_and(|pane| !pane.tabs.is_empty());
         set_context(window, cx, "editorTabsOpen", tabs_open);
         for key in ["editorFocus", "editorTextFocus", "editorAreaFocus"] {
@@ -2895,7 +2933,7 @@ impl Workbench {
                     window.focus(&popup.focus_handle(cx), cx);
                 }
                 RecentFilesEvent::ClosePath(key) | RecentFilesEvent::CloseInput(key) => {
-                    if let Content::Project { tabs, .. } = &mut workbench.content {
+                    if let Content::Project { tabs, .. } | Content::Editor { tabs, .. } = &mut workbench.content {
                         tabs.close_key(&key);
                     }
                     // Without taking the keyboard: the popup stays open.
@@ -2966,7 +3004,7 @@ impl Workbench {
             crate::plugins::Plugins::release_project(root, cx);
         }
         self.content = Content::Empty;
-        self.light_find_bar = None;
+        self.light_pending = None;
         self.sync_welcome(window, cx);
         cx.notify();
     }
@@ -3129,7 +3167,7 @@ impl Workbench {
         self.drop_github();
         self.files = Default::default();
         self.content = Content::Opening(root.clone());
-        self.light_find_bar = None;
+        self.light_pending = None;
         self.sync_welcome(window, cx);
         cx.notify();
         let label = self.label.clone();
@@ -3251,7 +3289,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let key = path.to_string_lossy().into_owned();
-        if let Content::Project { reveals, .. } = &mut self.content {
+        if let Content::Project { reveals, .. } | Content::Editor { reveals, .. } = &mut self.content {
             reveals.insert(key, (line, col));
         }
         self.open_project_file(path, window, cx);
@@ -3403,7 +3441,9 @@ impl Workbench {
                 );
             }
             let text = match &self.content {
-                Content::Project { editors, .. } => editors.get(tab).map(|editor| editor.read(cx).text()),
+                Content::Project { editors, .. } | Content::Editor { editors, .. } => {
+                    editors.get(tab).map(|editor| editor.read(cx).text())
+                }
                 _ => None,
             };
             items.extend(self.tab_file_rows(&path, in_project, text.as_deref(), window, cx));
@@ -3427,7 +3467,7 @@ impl Workbench {
     /// The ids of the tabs whose editor shows a read-only document.
     fn read_only_tabs(&self, cx: &App) -> std::collections::HashSet<String> {
         match &self.content {
-            Content::Project { editors, .. } => {
+            Content::Project { editors, .. } | Content::Editor { editors, .. } => {
                 editors.iter().filter(|(_, editor)| editor.read(cx).is_read_only()).map(|(id, _)| id.clone()).collect()
             }
             _ => Default::default(),
@@ -3465,7 +3505,7 @@ impl Workbench {
             _ => {}
         }
         let dirty: std::collections::HashSet<String> = match &self.content {
-            Content::Project { editors, view_tabs, .. } => editors
+            Content::Project { editors, view_tabs, .. } | Content::Editor { editors, view_tabs, .. } => editors
                 .iter()
                 .filter(|(_, editor)| editor.read(cx).is_dirty())
                 .map(|(id, _)| id.clone())
@@ -3591,7 +3631,7 @@ impl Workbench {
     fn serve_reveal(&mut self, cx: &mut Context<Self>) {
         let Some(editor) = self.editor().cloned() else { return };
         let path = editor.read(cx).path().to_string_lossy().into_owned();
-        let Content::Project { reveals, .. } = &mut self.content else { return };
+        let (Content::Project { reveals, .. } | Content::Editor { reveals, .. }) = &mut self.content else { return };
         if let Some((line, col)) = reveals.remove(&path) {
             editor.update(cx, |editor, cx| {
                 let at = editor.offset_of(line, col);
@@ -3603,7 +3643,7 @@ impl Workbench {
 
     /// Brings back the tab that was closed last, where it was.
     pub fn reopen_closed_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Content::Project { tabs, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, .. } | Content::Editor { tabs, .. }) = &mut self.content else { return };
         let Some(reopened) = tabs.reopen_closed() else { return };
         let path = tabs
             .pane(&reopened.pane_id)
@@ -3619,7 +3659,11 @@ impl Workbench {
     /// Opens the document of the active tab if it has none yet: a tab restored with the project
     /// is only a title until it is shown.
     fn load_active_tab(&mut self, focus: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let Content::Project { tabs, editors, loading, .. } = &self.content else { return };
+        let (Content::Project { tabs, editors, loading, .. } | Content::Editor { tabs, editors, loading, .. }) =
+            &self.content
+        else {
+            return;
+        };
         // Every pane shows its selected tab; only the active pane's takes the keyboard.
         let mut documents: Vec<(String, PathBuf, bool)> = Vec::new();
         let mut views: Vec<(String, EditorInput)> = Vec::new();
@@ -3648,7 +3692,7 @@ impl Workbench {
 
     /// The editor of `tab` took the keyboard: its pane is the active one.
     fn editor_took_focus(&mut self, tab: &str, window: &mut Window, cx: &mut Context<Self>) {
-        let Content::Project { tabs, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, .. } | Content::Editor { tabs, .. }) = &mut self.content else { return };
         let Some(pane) = tabs.panes.iter().find(|pane| pane.tab(tab).is_some()).map(|pane| pane.id.clone()) else {
             return;
         };
@@ -3666,7 +3710,9 @@ impl Workbench {
             let editor = editor.read(cx);
             (editor.path().to_string_lossy().into_owned(), editor.caret_position())
         });
-        let Content::Project { tabs, reveals, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, reveals, .. } | Content::Editor { tabs, reveals, .. }) = &mut self.content else {
+            return;
+        };
         let pane = tabs.active_pane.clone();
         if tabs.split_pane(&pane, dir).is_none() {
             return;
@@ -3722,10 +3768,14 @@ impl Workbench {
         });
     }
 
-    /// Stores the project's editor session now: its tabs and splits, and where each file's
-    /// editor is; a file not opened since the session was restored keeps what was saved for it.
+    /// Stores the window's editor session now (a project's, or the LightEdit one): its tabs and
+    /// splits, and where each file's editor is; a file not opened since the session was restored
+    /// keeps what was saved for it.
     pub fn save_session(&mut self, cx: &mut App) {
         self.session_save = None;
+        if matches!(self.content, Content::Editor { .. }) {
+            return self.save_light_session(cx);
+        }
         let Content::Project { tabs, editors, restored_views, layout, .. } = &self.content else { return };
         let mut files = restored_views.clone();
         for editor in editors.values() {
@@ -3761,11 +3811,15 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         // One document per tab: a tab that has its editor, or is getting it, is left alone.
-        let Content::Project { loading, editors, .. } = &mut self.content else { return };
+        let (Content::Project { loading, editors, .. } | Content::Editor { loading, editors, .. }) = &mut self.content
+        else {
+            return;
+        };
         if editors.contains_key(&tab_id) || !loading.insert(tab_id.clone()) {
             return;
         }
         let label = self.label.clone();
+        let file = path.to_string_lossy().into_owned();
         let opened = cx
             .global::<Backend>()
             .with_host(move |host| async move { tab_views::open_tab_file(&host, &label, path, probe).await });
@@ -3777,7 +3831,9 @@ impl Workbench {
                 let opened = result.map_err(|error| error.to_string()).and_then(|opened| opened.map_err(|e| e.message));
                 let info = match opened {
                     Ok(tab_views::TabFile::Viewer(input)) => {
-                        if let Content::Project { loading, .. } = &mut workbench.content {
+                        if let Content::Project { loading, .. } | Content::Editor { loading, .. } =
+                            &mut workbench.content
+                        {
                             loading.remove(&tab_id);
                         }
                         workbench.tab_shows_viewer(&tab_id, input);
@@ -3794,7 +3850,7 @@ impl Workbench {
                 });
                 let still_open =
                     workbench.tabs().is_some_and(|tabs| tabs.panes.iter().any(|pane| pane.tab(&tab_id).is_some()));
-                if let Content::Project { loading, .. } = &mut workbench.content {
+                if let Content::Project { loading, .. } | Content::Editor { loading, .. } = &mut workbench.content {
                     loading.remove(&tab_id);
                 }
                 match text {
@@ -3805,8 +3861,11 @@ impl Workbench {
                         }
                         // A tab closed while its file was opening has no use for the editor;
                         // dropping it releases the document.
-                        if let (true, Content::Project { editors, restored_views, .. }) =
-                            (still_open, &mut workbench.content)
+                        if let (
+                            true,
+                            Content::Project { editors, restored_views, .. }
+                            | Content::Editor { editors, restored_views, .. },
+                        ) = (still_open, &mut workbench.content)
                         {
                             // The file is where it was left when the project was last open.
                             let path = editor.read(cx).path().to_string_lossy().into_owned();
@@ -3824,7 +3883,9 @@ impl Workbench {
                                     workbench.editor_took_focus(&focused, window, cx);
                                 });
                             editors.insert(tab_id.clone(), editor.clone());
-                            if let Content::Project { editor_focus, .. } = &mut workbench.content {
+                            if let Content::Project { editor_focus, .. } | Content::Editor { editor_focus, .. } =
+                                &mut workbench.content
+                            {
                                 editor_focus.insert(tab_id.clone(), took_focus);
                             }
                             workbench.wrap_markdown(&tab_id, &editor, window, cx);
@@ -3837,8 +3898,9 @@ impl Workbench {
                     }
                     Err(message) => {
                         tracing::error!("cannot open the file: {message}");
+                        workbench.report_light_tab_failure(&file, &message, cx);
                         // A tab without a document would be a dead end: it goes away again.
-                        if let Content::Project { tabs, .. } = &mut workbench.content {
+                        if let Content::Project { tabs, .. } | Content::Editor { tabs, .. } = &mut workbench.content {
                             let pane =
                                 tabs.panes.iter().find(|pane| pane.tab(&tab_id).is_some()).map(|pane| pane.id.clone());
                             if let Some(pane) = pane {
@@ -3890,7 +3952,7 @@ impl Render for Workbench {
             },
             Content::Opening(path) => message(format!("Opening {}…", path.display()).into()).into_any_element(),
             Content::Failed(error) => message(error.clone()).into_any_element(),
-            Content::Editor(editor) => self.light_editor_element(editor, cx),
+            Content::Editor { tabs, .. } => self.editor_area(&tabs.layout, window, cx),
             Content::Viewer(view) => view.view.clone().into_any_element(),
             Content::Project { layout, panels, .. } => {
                 let area = self.tabs().map(|tabs| self.editor_area(&tabs.layout, window, cx));
@@ -4225,6 +4287,8 @@ mod tests {
     mod proofs15_full_screen;
     mod proofs15_merge_resolve;
     mod proofs16_run_badge;
+    #[cfg(unix)]
+    mod proofs17_interrupt;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;
@@ -11994,7 +12058,7 @@ for line in sys.stdin:
         // Open as Text from the viewer turns the window into a text editor of the file.
         loose.update_in(cx1, |w, window, cx| w.open_as_text(root.join("logo.png"), window, cx));
         settle(cx1, |cx| loose.read_with(cx, |w, _| w.editor().is_some() || w.failure().is_some()));
-        assert!(loose.read_with(cx1, |w, _| matches!(w.content, Content::Editor(_))));
+        assert!(loose.read_with(cx1, |w, _| matches!(w.content, Content::Editor { .. })));
         cx1.run_until_parked();
         assert!(!context_is_on(cx1, "imageViewerActive"));
         cx1.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));

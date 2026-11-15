@@ -1,18 +1,16 @@
-//! The Find / Replace bar over an editor: one per editor tab of a project, and one over the
-//! editor of a single-file window. Escape in the editor closes its bar.
+//! The Find / Replace bar over an editor: one per editor tab, of a project or of a window that edits
+//! loose files. Escape in the editor closes its bar.
 
 use super::{Content, FIND_TOOL_WINDOW, Workbench};
 use crate::editor::find_bar::{FindBar, FindBarEvent, FindResults, find_again_in};
-use crate::editor::view::{Editor, EscapeHandler};
+use crate::editor::view::EscapeHandler;
 use crate::platform::actions::{ActionSource, execute_action_from};
-use gpui_kit::{AnyElement, App, Context, Entity, Focusable, IntoElement, Subscription, Window, div, prelude::*};
+use gpui_kit::{App, Context, Entity, Focusable, Subscription, Window, prelude::*};
 use std::rc::Rc;
 
 /// An editor's Find / Replace bar, with what the window listens to it for.
 pub(super) struct TabFindBar {
     pub(super) bar: Entity<FindBar>,
-    /// The editor the bar searches.
-    editor: Entity<Editor>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -23,18 +21,13 @@ impl Workbench {
         tabs.pane(&tabs.active_pane)?.active.as_deref()
     }
 
-    /// The bar of the single-file window's editor, when it has one open.
-    fn light_find_bar(&self) -> Option<&TabFindBar> {
-        let Content::Editor(editor) = &self.content else { return None };
-        self.light_find_bar.as_ref().filter(|bar| &bar.editor == editor)
-    }
-
     /// The Find / Replace bar of the active tab (of the single-file window's editor), when it has one
     /// open.
     pub fn find_bar(&self) -> Option<Entity<FindBar>> {
         match &self.content {
-            Content::Project { find_bars, .. } => find_bars.get(self.active_tab_id()?).map(|bar| bar.bar.clone()),
-            Content::Editor(_) => self.light_find_bar().map(|bar| bar.bar.clone()),
+            Content::Project { find_bars, .. } | Content::Editor { find_bars, .. } => {
+                find_bars.get(self.active_tab_id()?).map(|bar| bar.bar.clone())
+            }
             _ => None,
         }
     }
@@ -42,13 +35,12 @@ impl Workbench {
     /// The bars drawn: those of each pane's selected tab, or the single-file window's.
     pub(super) fn shown_find_bars(&self) -> Vec<Entity<FindBar>> {
         match &self.content {
-            Content::Project { tabs, find_bars, .. } => tabs
+            Content::Project { tabs, find_bars, .. } | Content::Editor { tabs, find_bars, .. } => tabs
                 .panes
                 .iter()
                 .filter_map(|pane| pane.active.as_ref().and_then(|id| find_bars.get(id)))
                 .map(|bar| bar.bar.clone())
                 .collect(),
-            Content::Editor(_) => self.light_find_bar().map(|bar| bar.bar.clone()).into_iter().collect(),
             _ => Vec::new(),
         }
     }
@@ -66,9 +58,9 @@ impl Workbench {
             bar.update(cx, |bar, cx| bar.show(replace, window, cx));
             return;
         }
-        // A project's bars are kept by tab; a single-file window has one editor.
+        // The bars are kept by tab.
         let tab = match &self.content {
-            Content::Project { .. } => match self.active_tab_id() {
+            Content::Project { .. } | Content::Editor { .. } => match self.active_tab_id() {
                 Some(tab) => Some(tab.to_owned()),
                 None => return,
             },
@@ -98,12 +90,11 @@ impl Workbench {
             }
         }
         editor.update(cx, |editor, _| editor.set_escape_handler(Some(closes_on_escape(&bar))));
-        let open = TabFindBar { bar, editor, _subscriptions: subscriptions };
-        match (&mut self.content, tab) {
-            (Content::Project { find_bars, .. }, Some(tab)) => {
-                find_bars.insert(tab, open);
-            }
-            _ => self.light_find_bar = Some(open),
+        let open = TabFindBar { bar, _subscriptions: subscriptions };
+        if let (Content::Project { find_bars, .. } | Content::Editor { find_bars, .. }, Some(tab)) =
+            (&mut self.content, tab)
+        {
+            find_bars.insert(tab, open);
         }
         cx.notify();
     }
@@ -134,13 +125,10 @@ impl Workbench {
         match event {
             FindBarEvent::Closed => {
                 let closed = match (&mut self.content, tab) {
-                    (Content::Project { find_bars, .. }, Some(tab)) => {
+                    (Content::Project { find_bars, .. } | Content::Editor { find_bars, .. }, Some(tab)) => {
                         find_bars.get(tab).is_some_and(|open| &open.bar == bar) && find_bars.remove(tab).is_some()
                     }
-                    _ => {
-                        self.light_find_bar.as_ref().is_some_and(|open| &open.bar == bar)
-                            && self.light_find_bar.take().is_some()
-                    }
+                    _ => false,
                 };
                 if closed {
                     let editor = bar.read(cx).editor().clone();
@@ -167,32 +155,6 @@ impl Workbench {
             let query = results.query.clone();
             panel.update(cx, |panel, cx| panel.run_query(query, cx));
         }
-    }
-
-    /// The single-file window's editor, under its bar when one is open. A right click opens the editor's
-    /// menus as in a project's editor: they belong to the editor, not to the project.
-    pub(super) fn light_editor_element(&self, editor: &Entity<Editor>, cx: &mut Context<Self>) -> AnyElement {
-        let bar = self.light_find_bar().map(|bar| bar.bar.clone());
-        let menu_editor = editor.clone();
-        div()
-            .size_full()
-            .flex()
-            .flex_col()
-            .children(bar.map(|bar| div().flex_none().child(bar)))
-            .child(
-                div()
-                    .flex_1()
-                    .min_h_0()
-                    .on_mouse_down(
-                        gpui_kit::MouseButton::Right,
-                        cx.listener(move |workbench, event: &gpui_kit::MouseDownEvent, window, cx| {
-                            workbench.open_editor_context_menu(&menu_editor, event.position, window, cx);
-                            cx.stop_propagation();
-                        }),
-                    )
-                    .child(editor.clone()),
-            )
-            .into_any_element()
     }
 }
 

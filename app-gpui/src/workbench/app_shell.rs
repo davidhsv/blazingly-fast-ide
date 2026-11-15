@@ -109,8 +109,7 @@ fn window_showing(file: &Path, except: AnyWindowHandle, cx: &App) -> Option<AnyW
     others.filter(|handle| handle.window_id() != except.window_id()).find(|handle| {
         workbench_of(*handle, cx).is_some_and(|workbench| {
             let workbench = workbench.read(cx);
-            workbench.project_root(cx).is_some_and(|root| file.starts_with(root))
-                || workbench.light_edit_file(cx).as_deref() == Some(file)
+            workbench.project_root(cx).is_some_and(|root| file.starts_with(root)) || workbench.light_edit_shows(file)
         })
     })
 }
@@ -191,13 +190,17 @@ impl Workbench {
 
     /// Whether the window shows a loose file on its own (LightEdit): in an editor or a viewer.
     fn is_light_edit(&self) -> bool {
-        matches!(self.content, Content::Editor(_) | Content::Viewer(_))
+        matches!(self.content, Content::Editor { .. } | Content::Viewer(_))
     }
 
     /// The file the window edits on its own (LightEdit), or is opening to edit.
     fn light_edit_file(&self, cx: &App) -> Option<PathBuf> {
         match &self.content {
-            Content::Editor(editor) => Some(editor.read(cx).path().to_path_buf()),
+            // The active tab's file, known before its document has opened.
+            Content::Editor { .. } => self
+                .editor()
+                .map(|editor| editor.read(cx).path().to_path_buf())
+                .or_else(|| self.light_edit_active_path().map(PathBuf::from)),
             Content::Viewer(view) => view.input.path.as_ref().map(PathBuf::from),
             Content::Opening(path) => Some(path.clone()),
             _ => None,
@@ -212,7 +215,7 @@ impl Workbench {
             Content::Failed(message) => Some(Err(IdeError::new(ErrorKind::Io, message.to_string()))),
             // The trust question of a project opening in this window is still waiting.
             Content::Empty if self.trust_dialog().is_some() => None,
-            Content::Empty | Content::Editor(_) | Content::Viewer(_) => {
+            Content::Empty | Content::Editor { .. } | Content::Viewer(_) => {
                 Some(Err(IdeError::new(ErrorKind::Cancelled, "Project opening cancelled")))
             }
         }
@@ -251,7 +254,7 @@ impl Workbench {
         }
         self.content = Content::Empty;
         self.editor_observer = None;
-        self.light_find_bar = None;
+        self.light_pending = None;
         self.sync_welcome(window, cx);
         cx.notify();
     }
@@ -459,12 +462,13 @@ pub(super) fn request_close_project(window: &mut Window, cx: &mut App) {
     });
 }
 
-/// Close Tab in a window that edits a loose file on its own: the file is the window's only tab, so
-/// closing it closes the window through its close guard (the last window shows the Welcome screen
-/// instead). Returns whether the window is such a window.
+/// Close Tab in a window that edits loose files on its own and has no tab left (a viewer's file, or
+/// the tabs are all closed): the window closes through its close guard (the last window shows the
+/// Welcome screen instead). Returns whether it was such a window.
 pub(super) fn close_light_edit_tab(window: &mut Window, cx: &mut App) -> bool {
     let Some(workbench) = for_window(window, cx) else { return false };
-    if !crate::app_models::windows::light_edit_should_close(false, workbench.read(cx).is_light_edit(), 0) {
+    let open_tabs = workbench.read(cx).tabs().map_or(0, |tabs| tabs.open_keys().len());
+    if !crate::app_models::windows::light_edit_should_close(false, workbench.read(cx).is_light_edit(), open_tabs) {
         return false;
     }
     if window_should_close(&workbench.downgrade(), window, cx) {
@@ -684,6 +688,49 @@ async fn stopped(store: &Entity<RunStore>, cx: &mut AsyncWindowContext) -> anyho
 /// them agreed. A window that keeps open calls the quit off.
 pub(super) fn quit(window: &mut Window, cx: &mut App) {
     quit_then(window, cx, |cx| cx.quit());
+}
+
+/// Quits as File › Exit does when the process gets SIGINT (Ctrl+C in the terminal that started it,
+/// `kill -INT`): the exit is confirmed and every window decides its own close.
+///
+/// The handler matters even when no signal ever comes. A process started with SIGINT ignored (by a
+/// script's `cmd &`, by `nohup`, by some launchers) passes "ignored" on to every program it starts,
+/// and a program cannot undo that, so Stop, which interrupts a run first, would never stop one. A
+/// handled signal is reset to its default in a program the process starts.
+#[cfg(unix)]
+pub fn quit_on_interrupt(cx: &mut App) -> anyhow::Result<()> {
+    use futures::StreamExt;
+    use tokio::signal::unix::{SignalKind, signal};
+    let backend = cx.global::<Backend>();
+    // Registered before this returns, so a program started right after already gets the default.
+    let mut interrupts = backend.block_on(async { signal(SignalKind::interrupt()) })?;
+    let (sender, mut received) = futures::channel::mpsc::unbounded::<()>();
+    // The returned future only reports the loop's end; the loop itself runs on the backend's runtime.
+    drop(backend.call(async move {
+        while interrupts.recv().await.is_some() {
+            if sender.unbounded_send(()).is_err() {
+                break;
+            }
+        }
+    }));
+    cx.spawn(async move |cx: &mut AsyncApp| {
+        while received.next().await.is_some() {
+            cx.update(quit_on_signal);
+        }
+    })
+    .detach();
+    Ok(())
+}
+
+/// Quit, asked from the active window (else the first one); with no window left the app just quits.
+#[cfg(unix)]
+fn quit_on_signal(cx: &mut App) {
+    let open: Vec<AnyWindowHandle> = windows::windows(cx).into_iter().map(|(_, handle)| handle).collect();
+    let asking = cx.active_window().filter(|active| open.contains(active)).or_else(|| open.first().copied());
+    let asked = asking.is_some_and(|handle| handle.update(cx, |_, window, cx| quit(window, cx)).is_ok());
+    if !asked {
+        cx.quit();
+    }
 }
 
 /// [`quit`], ending with `end` once every window agreed to close: quitting, or quitting and
@@ -983,9 +1030,9 @@ async fn project_opened(this: &This, cx: &mut AsyncWindowContext) -> anyhow::Res
 // Opening loose files
 
 /// Opens loose `files` (File › Open File…): in this window's project as tabs; otherwise a file of a
-/// project open in another window opens there, and the rest open for editing on their own. A
-/// window edits one file on its own: the first takes this window when it shows nothing, every other
-/// file gets a window of its own.
+/// project open in another window opens there, the rest open as tabs of the window that edits loose
+/// files: this one, the one that already does when this one shows nothing, or this one turning into
+/// one.
 pub(super) fn open_files(files: Vec<PathBuf>, window: &mut Window, cx: &mut App) -> anyhow::Result<()> {
     let Some(workbench) = for_window(window, cx) else { return Ok(()) };
     let files: Vec<String> = files.iter().map(|file| canonical(file)).collect();
@@ -999,7 +1046,11 @@ pub(super) fn open_files(files: Vec<PathBuf>, window: &mut Window, cx: &mut App)
                 flow.routed(Ok(here), &first, i18n(cx))
             }
             LooseStep::OpenLightEdit { path } => {
-                workbench.update(cx, |workbench, cx| workbench.open_file(PathBuf::from(path), window, cx));
+                workbench.update(cx, |workbench, cx| {
+                    workbench.open_file(PathBuf::from(path), window, cx);
+                    // The files that follow open as its tabs once it has opened.
+                    workbench.queue_light_tabs();
+                });
                 // A file that cannot be opened says so in the window.
                 flow.light_edit_opened(Ok(()), i18n(cx))
             }
@@ -1008,8 +1059,9 @@ pub(super) fn open_files(files: Vec<PathBuf>, window: &mut Window, cx: &mut App)
                     workbench.update(cx, |workbench, cx| workbench.open_tabs(opens, window, cx));
                     return Ok(());
                 }
-                let shown = workbench.read(cx).light_edit_file(cx);
-                for open in opens.into_iter().filter(|open| shown.as_deref() != Some(Path::new(&open.path))) {
+                // A window that edits loose files takes them as tabs; one showing a viewer cannot.
+                let separate = workbench.update(cx, |workbench, cx| workbench.take_loose_files(opens, window, cx));
+                for open in separate {
                     windows::open_window(Target::File(PathBuf::from(open.path)), cx)?;
                 }
                 return Ok(());
@@ -1041,10 +1093,31 @@ fn route_files(files: Vec<String>, window: &mut Window, cx: &mut App) -> Vec<Str
                 workbench.update(cx, |workbench, cx| {
                     if workbench.project_tree().is_some() {
                         workbench.open_project_file(path, window, cx);
+                    } else {
+                        // A window that edits loose files brings the file's tab to the front.
+                        workbench.open_light_tab(path, None, window, cx);
                     }
                 });
             }
         });
+    }
+    // From a window that shows nothing, the rest go to the window that edits loose files.
+    let asking_is_empty = for_window(window, cx).is_some_and(|workbench| workbench.read(cx).is_empty());
+    if !left.is_empty()
+        && asking_is_empty
+        && let Some(light) = super::light_edit_tabs::light_edit_window(here, cx)
+    {
+        let _ = light.update(cx, |_, window, cx| {
+            window.activate_window();
+            if let Some(workbench) = for_window(window, cx) {
+                workbench.update(cx, |workbench, cx| {
+                    for file in left {
+                        workbench.open_light_tab(PathBuf::from(file), None, window, cx);
+                    }
+                });
+            }
+        });
+        return Vec::new();
     }
     left
 }

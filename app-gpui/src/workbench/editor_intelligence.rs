@@ -5,7 +5,6 @@ use super::{Content, Workbench};
 use crate::editor::intelligence::{EditorIntelligence, IntelligenceEvent};
 use crate::editor::view::Editor;
 use crate::editor_lsp::intentions_view::{ListPopup, ListPopupEvent};
-use crate::editor_lsp::positions::pos_to_offset;
 use crate::editor_lsp::targets_view::{TargetsChooser, TargetsEvent};
 use crate::platform::actions::{ActionSource, execute_action_from};
 use gpui_kit::{Context, Entity, Focusable, Window};
@@ -59,13 +58,8 @@ impl Workbench {
         let path = location.path.0.clone();
         let start = location.range.start;
         match &self.content {
-            Content::Project { .. } => self.open_project_file_at(path, start.line, start.col, window, cx),
-            Content::Editor(editor) if editor.read(cx).path() == path.as_path() => {
-                let editor = editor.clone();
-                editor.update(cx, |editor, cx| {
-                    let offset = pos_to_offset(editor.rope(), start);
-                    editor.select(offset, offset, cx);
-                });
+            Content::Project { .. } | Content::Editor { .. } => {
+                self.open_project_file_at(path, start.line, start.col, window, cx);
             }
             _ => self.open_file(path, window, cx),
         }

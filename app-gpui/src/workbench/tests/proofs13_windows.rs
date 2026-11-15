@@ -253,3 +253,61 @@ async fn keeps_the_ordinary_unsaved_change_guard_for_current_window_opens(cx: &m
     assert_eq!(text.as_deref(), Some("my a\n"));
     close_all(cx);
 }
+
+/// Two loose files picked in a window that shows nothing: the window edits them on its own, both
+/// as its tabs with the last one shown, and no window is added.
+#[gpui_kit::test]
+async fn turns_a_window_without_a_project_into_light_edit_when_no_light_edit_window_exists(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    cx.update(gpui_kit::init);
+    let (_folders, roots) = folders(cx);
+    let main = cx.update(|cx| windows::open_window(Target::Empty, cx)).expect("a window opens");
+    open_file_dialog(cx, main, vec![roots[0].join("a.txt"), roots[1].join("b.md")]);
+    wait(cx, "the window to edit on its own", &|cx| is_light_edit(cx, "main"));
+    assert_eq!(project_of(cx, "main"), None);
+    wait(cx, "b.md shown", &|cx| editing_in(cx, "main") == Some(roots[1].join("b.md")));
+    assert_eq!(tabs_of(cx, "main"), ["a.txt", "b.md"]);
+    assert_eq!(labels(cx), ["main"], "no window is added");
+    close_all(cx);
+}
+
+/// A loose file picked in a window that edits another loose file is added to it as a tab, shown;
+/// no window is added.
+#[gpui_kit::test]
+async fn adds_tabs_to_this_light_edit_window(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    cx.update(gpui_kit::init);
+    let (_folders, roots) = folders(cx);
+    let main = cx.update(|cx| windows::open_window(Target::File(roots[0].join("a.txt")), cx)).expect("a window opens");
+    wait(cx, "a.txt in main", &|cx| editing_in(cx, "main") == Some(roots[0].join("a.txt")));
+    open_file_dialog(cx, main, vec![roots[1].join("b.md")]);
+    wait(cx, "b.md in main", &|cx| editing_in(cx, "main") == Some(roots[1].join("b.md")));
+    assert_eq!(tabs_of(cx, "main"), ["a.txt", "b.md"]);
+    assert_eq!(labels(cx), ["main"], "no window is added");
+    close_all(cx);
+}
+
+/// A loose file picked for a window that edits loose files, which cannot be opened, is reported in that window; its
+/// tabs stay as they were.
+#[cfg(unix)]
+#[gpui_kit::test]
+async fn a_loose_file_that_cannot_be_opened_as_a_tab_is_reported(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    cx.update(gpui_kit::init);
+    let (_folders, roots) = folders(cx);
+    let main = cx.update(|cx| windows::open_window(Target::File(roots[0].join("a.txt")), cx)).expect("a window opens");
+    wait(cx, "a.txt in main", &|cx| editing_in(cx, "main") == Some(roots[0].join("a.txt")));
+    use std::os::unix::fs::PermissionsExt;
+    let locked = roots[1].join("locked.txt");
+    std::fs::write(&locked, "locked\n").expect("the file is written");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).expect("the file is locked");
+    open_file_dialog(cx, main, vec![locked]);
+    let workbench = workbench_in(cx, main);
+    let titles = |cx: &mut TestAppContext| {
+        workbench.read_with(cx, |w, _| w.notifications().items().iter().map(|n| n.title.clone()).collect::<Vec<_>>())
+    };
+    wait(cx, "the failure to be reported", &|cx| titles(cx).iter().any(|title| title == "Cannot open locked.txt"));
+    assert_eq!(tabs_of(cx, "main"), ["a.txt"]);
+    assert_eq!(labels(cx), ["main"], "no window is added");
+    close_all(cx);
+}

@@ -874,7 +874,9 @@ impl Workbench {
     /// Closes the tabs of files that are gone (`removed` and what is inside them); a tab with
     /// unsaved changes stays, since a deletion never discards edits.
     fn close_removed_tabs(&mut self, removed: &[String], window: &mut Window, cx: &mut Context<Self>) {
-        let Content::Project { tabs, editors, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, editors, .. } | Content::Editor { tabs, editors, .. }) = &mut self.content else {
+            return;
+        };
         let dirty = |id: &str| editors.get(id).is_some_and(|editor: &Entity<Editor>| editor.read(cx).is_dirty());
         let mut gone: Vec<String> = Vec::new();
         for pane in &tabs.panes {

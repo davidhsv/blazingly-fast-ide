@@ -213,7 +213,7 @@ impl Workbench {
     pub(super) fn sync_chrome(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let appearance = settings::global(cx).appearance;
         let texts = self.status_texts(cx);
-        let light_edit = matches!(self.content, Content::Editor(_) | Content::Viewer(_));
+        let light_edit = matches!(self.content, Content::Editor { .. } | Content::Viewer(_));
         let overrides = appearance.status_bar_widgets;
         let servers = AnyView::from(self.server_status_item().clone());
         self.chrome.status_bar.update(cx, |bar, cx| {
@@ -286,8 +286,9 @@ impl Workbench {
                 let mode = title_bar_mode(self.distraction_free(cx), show_main_toolbar);
                 (TitleBarKind::Project, mode, None, Some(project))
             }
-            Content::Editor(editor) => {
-                let name = editor.read(cx).path().file_name().map(|name| name.to_string_lossy().into_owned());
+            Content::Editor { .. } => {
+                // The active tab's file name.
+                let name = self.light_edit_title();
                 let title = name.unwrap_or_else(|| LIGHT_EDIT_TITLE.to_owned());
                 (TitleBarKind::LightEdit, TitleBarMode::Full, Some(title), None)
             }

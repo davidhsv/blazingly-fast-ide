@@ -193,6 +193,19 @@ impl Workbench {
         rest
     }
 
+    /// A loose file picked for a tab of this window could not be opened: the window says so. A tab
+    /// of the restored session whose file is gone goes away quietly instead.
+    pub(super) fn report_light_tab_failure(&mut self, file: &str, message: &str, cx: &mut Context<Self>) {
+        let Content::Editor { restored_views, .. } = &self.content else { return };
+        if restored_views.contains_key(file) {
+            return;
+        }
+        let error = ide_core::IdeError::internal(message.to_owned());
+        if let Some(notice) = open_failed_notice(file, &error, &cx.default_global::<Localization>().0) {
+            self.notify(notice, cx);
+        }
+    }
+
     /// Whether the window shows `file` on its own: as one of its tabs, in its viewer, or opening it.
     pub(super) fn light_edit_shows(&self, file: &Path) -> bool {
         match &self.content {

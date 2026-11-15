@@ -32,11 +32,26 @@ pub struct HintRow {
     pub runs: Option<&'static str>,
 }
 
+/// A window that edits loose files has no project to navigate: only opening files works there.
+const LIGHT_EDIT_HINTS: [Hint; 2] = [
+    Hint { label: "Open File", action: Some("file.openFile"), fallback: None },
+    Hint { label: "Drop files here to open them", action: None, fallback: None },
+];
+
 /// The hints with their shortcuts as the keymap labels them, in order.
 pub fn hint_rows(cx: &App) -> Vec<HintRow> {
+    rows_of(&HINTS, cx)
+}
+
+/// The hints of an empty pane of a window that edits loose files.
+pub fn light_edit_hint_rows(cx: &App) -> Vec<HintRow> {
+    rows_of(&LIGHT_EDIT_HINTS, cx)
+}
+
+fn rows_of(hints: &[Hint], cx: &App) -> Vec<HintRow> {
     let keymap = cx.try_global::<Keymap>();
     let registry = cx.try_global::<ActionRegistry>();
-    HINTS
+    hints
         .iter()
         .map(|hint| {
             let label = cx
@@ -55,7 +70,15 @@ pub fn hint_rows(cx: &App) -> Vec<HintRow> {
 
 /// The empty editor, filling its pane, the hints in the middle.
 pub fn empty_editor(cx: &App) -> Stateful<Div> {
-    let mut rows = hint_rows(cx);
+    hints_element(hint_rows(cx), cx)
+}
+
+/// The empty pane of a window that edits loose files: Open File, and the remark on dropping files.
+pub fn light_edit_empty_editor(cx: &App) -> Stateful<Div> {
+    hints_element(light_edit_hint_rows(cx), cx)
+}
+
+fn hints_element(mut rows: Vec<HintRow>, cx: &App) -> Stateful<Div> {
     // The last hint is a remark under the others, across both columns.
     let remark = rows.pop();
     let (labels, keys): (Vec<_>, Vec<_>) = rows

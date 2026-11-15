@@ -179,8 +179,7 @@ impl Workbench {
     /// The editors of this window: every tab's, or the single-file window's.
     pub(super) fn window_editors(&self) -> Vec<Entity<Editor>> {
         match &self.content {
-            Content::Project { editors, .. } => editors.values().cloned().collect(),
-            Content::Editor(editor) => vec![editor.clone()],
+            Content::Project { editors, .. } | Content::Editor { editors, .. } => editors.values().cloned().collect(),
             _ => Vec::new(),
         }
     }
@@ -192,16 +191,8 @@ impl Workbench {
     /// Opens `place`: its file's tab in a project, the caret on its line and column.
     fn go_to_place(&mut self, place: Place, window: &mut Window, cx: &mut Context<Self>) {
         match &self.content {
-            Content::Project { .. } => {
+            Content::Project { .. } | Content::Editor { .. } => {
                 self.open_project_file_at(PathBuf::from(place.path), place.line, place.col, window, cx);
-            }
-            Content::Editor(editor) if editor.read(cx).path().to_string_lossy() == place.path => {
-                let editor = editor.clone();
-                editor.update(cx, |editor, cx| {
-                    let offset = editor.offset_of(place.line, place.col);
-                    editor.select(offset, offset, cx);
-                });
-                window.focus(&editor.focus_handle(cx), cx);
             }
             _ => {}
         }

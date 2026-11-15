@@ -69,6 +69,12 @@ pub fn init(cx: &mut App) -> anyhow::Result<()> {
     cx.set_global(platform::storage::UiStorage::load(&dirs.config));
     theme::appearance::init(cx);
     workbench::apply_keymap_settings(cx);
+    // Before anything starts a process: see `quit_on_interrupt` for why the handler is needed even
+    // when no interrupt ever comes.
+    #[cfg(unix)]
+    if let Err(error) = workbench::quit_on_interrupt(cx) {
+        tracing::error!("the interrupt handler cannot be installed: {error:#}");
+    }
     plugins::Plugins::init(cx)?;
     workbench::register_actions(cx);
     workbench::menu::init(cx);

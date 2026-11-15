@@ -487,7 +487,10 @@ fn run_view_action(id: &str, window: &mut Window, cx: &mut App) -> anyhow::Resul
 impl Workbench {
     /// What the tab `tab_id` holds, once it has been shown.
     pub(super) fn tab_content(&self, tab_id: &str) -> Option<TabContent<'_>> {
-        let Content::Project { editors, view_tabs, .. } = &self.content else { return None };
+        let (Content::Project { editors, view_tabs, .. } | Content::Editor { editors, view_tabs, .. }) = &self.content
+        else {
+            return None;
+        };
         match view_tabs.views.get(tab_id) {
             Some(view) => Some(TabContent::View(view)),
             None => editors.get(tab_id).map(TabContent::Editor),
@@ -505,7 +508,7 @@ impl Workbench {
     /// The view of the active tab, or of the single-file window.
     pub(super) fn active_tab_view(&self) -> Option<&TabView> {
         match &self.content {
-            Content::Project { tabs, .. } => {
+            Content::Project { tabs, .. } | Content::Editor { tabs, .. } => {
                 let id = tabs.pane(&tabs.active_pane)?.active.as_deref()?;
                 self.tab_view(id)
             }
@@ -516,7 +519,9 @@ impl Workbench {
 
     /// The Markdown layouts around the editor of the tab `tab_id`, when it has them.
     pub(super) fn markdown_host(&self, tab_id: &str) -> Option<Entity<PreviewHost>> {
-        let Content::Project { view_tabs, .. } = &self.content else { return None };
+        let (Content::Project { view_tabs, .. } | Content::Editor { view_tabs, .. }) = &self.content else {
+            return None;
+        };
         view_tabs.markdown.get(tab_id).map(|tab| tab.host.clone())
     }
 
@@ -582,7 +587,7 @@ impl Workbench {
 
     /// Open as Text from a viewer, in a project or in a single-file window.
     pub(super) fn open_as_text(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
-        if matches!(self.content, Content::Project { .. }) {
+        if matches!(self.content, Content::Project { .. } | Content::Editor { .. }) {
             self.open_project_file_as_text(path, window, cx);
         } else if matches!(self.content, Content::Viewer(_)) {
             self.open_loose_file(path, true, window, cx);
@@ -599,7 +604,9 @@ impl Workbench {
     /// document only once the probe tells that the file is text; binary content turns it into
     /// the hex view.
     fn open_text_tab(&mut self, path: PathBuf, probe: bool, window: &mut Window, cx: &mut Context<Self>) {
-        let Content::Project { tabs, editors, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, editors, .. } | Content::Editor { tabs, editors, .. }) = &mut self.content else {
+            return;
+        };
         let key = path.to_string_lossy().into_owned();
         let pane = tabs.active_pane.clone();
         let existing = tabs.find_tab(&key, Some(&pane)).map(|(_, tab)| tab.id.clone());
@@ -625,7 +632,7 @@ impl Workbench {
     /// The probe of the text tab `tab_id` found content for a viewer: the tab becomes that viewer,
     /// or goes when its pane has a tab of that viewer already, which comes to the front.
     pub(super) fn tab_shows_viewer(&mut self, tab_id: &str, input: EditorInput) {
-        let Content::Project { tabs, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, .. } | Content::Editor { tabs, .. }) = &mut self.content else { return };
         let Some(pane) = pane_of(tabs, tab_id) else { return };
         let shown = tabs
             .pane(&pane)
@@ -658,7 +665,7 @@ impl Workbench {
             Some(view) => self.install_view(tab_id, view, window, cx),
             None => {
                 tracing::error!("cannot show the {} tab {}", input.kind, input.key);
-                if let Content::Project { tabs, .. } = &mut self.content
+                if let Content::Project { tabs, .. } | Content::Editor { tabs, .. } = &mut self.content
                     && let Some(pane) = pane_of(tabs, &tab_id)
                 {
                     tabs.close_tab(&pane, &tab_id);
@@ -674,7 +681,9 @@ impl Workbench {
         let took_focus = cx.on_focus_in(&view.focus, window, move |workbench, window, cx| {
             workbench.editor_took_focus(&focused, window, cx);
         });
-        if let Content::Project { view_tabs, editor_focus, .. } = &mut self.content {
+        if let Content::Project { view_tabs, editor_focus, .. } | Content::Editor { view_tabs, editor_focus, .. } =
+            &mut self.content
+        {
             view_tabs.views.insert(tab_id.clone(), view);
             editor_focus.insert(tab_id, took_focus);
         }
@@ -683,7 +692,11 @@ impl Workbench {
     /// Releases the views and Markdown hosts of closed tabs. A view with unsaved changes asks its
     /// close guard first, and its tab comes back when the guard says no.
     pub(super) fn release_closed_views(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Content::Project { tabs, view_tabs, editor_focus, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, view_tabs, editor_focus, .. }
+        | Content::Editor { tabs, view_tabs, editor_focus, .. }) = &mut self.content
+        else {
+            return;
+        };
         let open: HashSet<&str> =
             tabs.panes.iter().flat_map(|pane| pane.tabs.iter().map(|tab| tab.id.as_str())).collect();
         let closed = |ids: Vec<&String>| -> Vec<String> {
@@ -720,7 +733,7 @@ impl Workbench {
 
     /// A view tab whose close was refused comes back with its view.
     fn restore_view(&mut self, view: TabView, window: &mut Window, cx: &mut Context<Self>) {
-        let Content::Project { tabs, .. } = &mut self.content else { return };
+        let (Content::Project { tabs, .. } | Content::Editor { tabs, .. }) = &mut self.content else { return };
         let pane = tabs.active_pane.clone();
         let Some(id) = tabs.open_tab(&pane, view.input.clone(), OpenTabOptions::default()) else { return };
         self.install_view(id, view, window, cx);
@@ -770,7 +783,7 @@ impl Workbench {
             workbench.markdown_event(event.clone(), &images, window, cx);
         });
         host.update(cx, |host, cx| host.load(cx));
-        if let Content::Project { view_tabs, .. } = &mut self.content {
+        if let Content::Project { view_tabs, .. } | Content::Editor { view_tabs, .. } = &mut self.content {
             view_tabs.markdown.insert(tab_id.to_owned(), MarkdownTab { host, feed, _events: events });
         }
     }
@@ -840,15 +853,19 @@ impl Workbench {
         .detach();
     }
 
-    /// Opens a loose file for editing (LightEdit: no project, no tool windows): a text editor, or
-    /// its viewer unless `as_text`.
+    /// Opens a loose file for editing (LightEdit: no project, no tool windows): as a tab when the
+    /// window edits loose files already, else a text editor, or its viewer unless `as_text`.
     pub fn open_file(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        // A window that edits loose files takes another one as a tab.
+        if self.open_light_tab(path.clone(), None, window, cx) {
+            return;
+        }
         self.open_loose_file(path, false, window, cx);
     }
 
     fn open_loose_file(&mut self, path: PathBuf, as_text: bool, window: &mut Window, cx: &mut Context<Self>) {
         self.content = Content::Opening(path.clone());
-        self.light_find_bar = None;
+        self.light_pending = None;
         self.sync_welcome(window, cx);
         cx.notify();
         let label = self.label.clone();
@@ -882,7 +899,7 @@ impl Workbench {
                                 let focus = editor.focus_handle(cx);
                                 window.focus(&focus, cx);
                                 workbench.observe_editor(&editor, cx);
-                                Content::Editor(editor)
+                                workbench.light_edit_content(editor, window, cx)
                             }
                             Err(message) => Content::Failed(message.into()),
                         }
@@ -900,6 +917,7 @@ impl Workbench {
                     Err(message) => Content::Failed(message.into()),
                 };
                 workbench.sync_welcome(window, cx);
+                workbench.light_edit_opened(window, cx);
                 cx.notify();
             });
         })
