@@ -45,8 +45,9 @@ macro_rules! ctx {
     };
 }
 
-/// The `debug.*` actions this window carries out on its debugger. Evaluate Expression, Attach to
-/// Process, Smart Step Into, Quick Evaluate and the console history have no view here yet.
+/// The `debug.*` actions this window carries out on its debugger. Evaluate Expression and Smart Step
+/// Into are registered by `debug_extras`; Attach to Process, Quick Evaluate and the console history
+/// have no view here yet.
 const DEBUG_ACTIONS: [&str; 28] = [
     "debug.startConfig",
     "debug.stop",
@@ -242,6 +243,7 @@ impl Workbench {
 
     /// The project goes: its debug sessions stop and the debugger goes with it.
     pub(super) fn reset_debugger(&mut self, cx: &mut Context<Self>) {
+        self.debug_extras = Default::default();
         if let Some(slot) = self.debug.take() {
             slot.driver.update(cx, |driver, cx| driver.reset(cx));
         }
@@ -324,6 +326,7 @@ impl Workbench {
     fn debugger_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.sync_debug_marks(window, cx);
         self.sync_breakpoints_dialog(window, cx);
+        self.sync_smart_step_chooser(window, cx);
         cx.notify();
     }
 
@@ -426,7 +429,8 @@ impl Workbench {
                 };
                 if current_file {
                     return window.defer(cx, |window, cx| {
-                        if !execute_action_from(ActionSource::Other, "run.debugContext", None, window, cx) {
+                        let arg = crate::run::store::current_file_arg();
+                        if !execute_action_from(ActionSource::Other, "run.debugContext", Some(&arg), window, cx) {
                             tracing::info!("run.debugContext is not available in this window");
                         }
                     });

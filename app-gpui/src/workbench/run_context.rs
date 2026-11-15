@@ -19,10 +19,10 @@ use crate::platform::local_time::now_ms;
 use crate::platform::virtual_docs::is_virtual_uri;
 use crate::run::context::RunEnv;
 use crate::run::driver::{RunDriver, run_settings};
-use crate::run::store::{ChooserMode, SessionStatus, StartOptions};
+use crate::run::store::{CURRENT_FILE, ChooserMode, SessionStatus, StartOptions, is_current_file_arg};
 use crate::run_producers::context_run::{
-    DEBUG_CONTEXT, Launch, MODIFY_CONTEXT, MenuRow, RUN_CONTEXT, Resolved, RunCommand, choice_items, launch_produced,
-    resolve,
+    ActionArg, ContextArg, ContextMenu, DEBUG_CONTEXT, Launch, MODIFY_CONTEXT, MenuGroupContext, MenuRow, RUN_CONTEXT,
+    Resolved, RunCommand, choice_items, context_menu_items, launch_produced, needs_content, resolve,
 };
 use crate::run_producers::producers::{
     ContextInput, LocatedTool, Produced, ToolEnv, produce_context, produce_context_choices,
@@ -30,7 +30,8 @@ use crate::run_producers::producers::{
 use crate::run_producers::runtimes::{
     Located, MarkerSearch, MarkerStep, PhpSource, ToolAnswers, ToolCache, ToolQuery, tool_query,
 };
-use crate::vcs_ops::menu::{MenuEntry, MenuItem};
+use crate::vcs_ops::menu::{ActionItem, MenuEntry, MenuItem};
+use crate::workbench::context_menus::GroupRow;
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use futures::channel::oneshot;
 use gpui_kit::{App, Context, Entity, Pixels, Point, Subscription, Window, point, px};
@@ -120,6 +121,60 @@ fn choice_menu(rows: Vec<MenuRow>) -> Vec<MenuItem<Produced>> {
             MenuRow::Separator | MenuRow::Action { .. } => None,
         })
         .collect()
+}
+
+/// The start of a file the menu opens on and no editor shows, when what runs it depends on its text
+/// (`#!`, `package main`, `fn main`): at most the producers' share of it is read. A file that cannot be
+/// read is produced from its name alone.
+fn peek(path: &str) -> Option<String> {
+    use std::io::Read;
+    if !needs_content(path) || is_virtual_uri(path) {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    let read =
+        std::fs::File::open(path).and_then(|file| file.take(u64::from(CONTENT_LIMIT) * 4).read_to_end(&mut bytes));
+    if let Err(error) = read {
+        tracing::debug!("cannot read {path} for its Run rows: {error}");
+        return None;
+    }
+    Some(limited(&String::from_utf8_lossy(&bytes)))
+}
+
+/// The argument a context menu's Run row runs its action with: `{ path, line?, dir, content? }`, with
+/// `executor` for a contributed executor's row.
+fn context_value(context: &ContextArg, executor: Option<&str>) -> Value {
+    let mut value = json!({ "path": context.path, "dir": context.dir });
+    if let Some(line) = context.line {
+        value["line"] = json!(line);
+    }
+    if let Some(content) = &context.content {
+        value["content"] = json!(content);
+    }
+    if let Some(executor) = executor {
+        value["executor"] = json!(executor);
+    }
+    value
+}
+
+/// A row of the Run group as a context menu row: its actions keep their argument and label; a header
+/// has no place in a context menu.
+fn group_row(row: MenuRow) -> Option<GroupRow> {
+    match row {
+        MenuRow::Separator => Some(MenuItem::Separator),
+        MenuRow::Header(_) => None,
+        MenuRow::Action { action, arg, label, .. } => {
+            let arg = match &arg {
+                ActionArg::Context(context) => context_value(context, None),
+                ActionArg::Executor { executor, context } => context_value(context, Some(executor)),
+            };
+            Some(MenuItem::Action(ActionItem { action, arg: Some(arg), label: Some(label), disabled: false }))
+        }
+        MenuRow::Item(entry) => {
+            let submenu: Vec<GroupRow> = entry.submenu.into_iter().filter_map(group_row).collect();
+            (!submenu.is_empty()).then(|| MenuItem::submenu(entry.label, submenu))
+        }
+    }
 }
 
 /// How a session that a debug waits for ended: `Some(true)` once it finished with exit code 0,
@@ -217,14 +272,45 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
 }
 
 impl Workbench {
+    /// The Run group of the editor's, the Project view's and the tab's menus: Run / Debug '<name>' and
+    /// More Run/Debug › Modify Run Configuration… for what the producers make of the menu's one path. A
+    /// file the menu has no text of is read from an editor that shows it.
+    pub(super) fn run_menu_rows(&self, menu: ContextMenu, ctx: &MenuGroupContext<'_>, cx: &mut App) -> Vec<GroupRow> {
+        if !matches!(menu, ContextMenu::Editor | ContextMenu::ProjectView | ContextMenu::EditorTab) {
+            return Vec::new();
+        }
+        let ([path], Some(driver)) = (ctx.paths, self.run_driver()) else { return Vec::new() };
+        let (configs, types): (Vec<RunConfig>, _) = {
+            let driver = driver.read(cx);
+            (driver.store().read(cx).configs().to_vec(), driver.types())
+        };
+        let root = self.project_root(cx).map(|root| root.to_string_lossy().into_owned());
+        let peeked = if ctx.text.is_none() && !ctx.dirs.first().copied().unwrap_or(false) {
+            let shown = self.editors().into_iter().find(|editor| editor.read(cx).path().to_string_lossy() == *path);
+            shown.map(|editor| limited(&editor.read(cx).text())).or_else(|| peek(path))
+        } else {
+            None
+        };
+        let env = RunEnv { windows: cfg!(windows), types: Some(&*types), ..RunEnv::default() };
+        let project = ContextInput { root: root.as_deref(), configs: &configs, env, ..ContextInput::default() };
+        let i18n = &mut cx.default_global::<Localization>().0;
+        let rows = context_menu_items(menu, ctx, project, peeked.as_deref(), &[], i18n);
+        rows.into_iter().filter_map(group_row).collect()
+    }
+
     /// Run / Debug Context Configuration: the context of `arg` (else of the active editor) is run or
     /// debugged once the configurations are listed; several equally good test configurations are
     /// offered in a menu, and a context with nothing to run says so.
+    /// Run or Debug of a selected "Current File" (`{ currentFile: true }`) selects "Current File" again once
+    /// the context's configuration is adopted.
     pub fn run_context(&mut self, debug: bool, arg: Option<Value>, window: &mut Window, cx: &mut Context<Self>) {
+        let reselect = is_current_file_arg(arg.as_ref());
         self.with_context(
             arg,
             move |workbench, target, window, cx| match target {
-                Some((target, from_editor)) => workbench.launch_context(debug, target, from_editor, window, cx),
+                Some((target, from_editor)) => {
+                    workbench.launch_context(debug, reselect, target, from_editor, window, cx)
+                }
                 None => workbench.notify(nothing_to_run(), cx),
             },
             window,
@@ -371,6 +457,7 @@ impl Workbench {
     fn launch_context(
         &mut self,
         debug: bool,
+        reselect: bool,
         target: ContextTarget,
         from_editor: bool,
         window: &mut Window,
@@ -389,7 +476,7 @@ impl Workbench {
             let position = self.chooser_point(from_editor, window, cx);
             let launch =
                 move |workbench: &mut Self, produced: Produced, window: &mut Window, cx: &mut Context<Self>| {
-                    workbench.launch_production(produced, debug, window, cx);
+                    workbench.launch_production(produced, debug, reselect, window, cx);
                 };
             self.show_menu(&choice_menu(rows), position, launch, window, cx);
             return;
@@ -397,7 +484,7 @@ impl Workbench {
         self.produce_resolved(
             target,
             move |workbench, produced, window, cx| match produced {
-                Some(produced) => workbench.launch_production(produced, debug, window, cx),
+                Some(produced) => workbench.launch_production(produced, debug, reselect, window, cx),
                 None => workbench.notify(nothing_to_run(), cx),
             },
             window,
@@ -469,16 +556,27 @@ impl Workbench {
         .detach();
     }
 
-    /// Runs or debugs a production, adopting its configuration as the selected temporary one. A
-    /// compiled file is built in the Run tool window first and its binary debugged once the build
-    /// succeeded.
-    fn launch_production(&mut self, produced: Produced, debug: bool, window: &mut Window, cx: &mut Context<Self>) {
+    /// Runs or debugs a production, adopting its configuration as the selected temporary one ("Current
+    /// File" is selected again after it when `reselect`). A compiled file is built in the Run tool window
+    /// first and its binary debugged once the build succeeded.
+    fn launch_production(
+        &mut self,
+        produced: Produced,
+        debug: bool,
+        reselect: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let debugger = registered(DEBUG_START, cx);
         let Some(launch) = launch_produced(&produced, debug, debugger) else { return };
         let Some(driver) = self.run_driver().cloned() else { return };
         let adopt = |config: &RunConfig, cx: &mut Context<Self>| {
             let arg = json!({ "config": config, "temporary": true });
-            driver.update(cx, |driver, cx| driver.config_from_arg(Some(&arg), cx))
+            let adopted = driver.update(cx, |driver, cx| driver.config_from_arg(Some(&arg), cx));
+            if reselect {
+                driver.update(cx, |driver, cx| driver.select_config(Some(CURRENT_FILE), cx));
+            }
+            adopted
         };
         match launch {
             Launch::Report(request) => self.notify(request, cx),
@@ -565,6 +663,7 @@ impl Workbench {
 mod tests {
     use super::*;
     use crate::run::view::RunView;
+    use crate::ui::popup_menu::PopupMenu;
     use crate::workbench::RUN_TOOL_WINDOW;
     use crate::workbench::debug::tests::FAKE_ADAPTER;
     use crate::workbench::debug_extras::tests::{Fixture, context, long, open_project, run};
@@ -629,6 +728,146 @@ mod tests {
         assert_eq!(view.read_with(cx, |view, cx| view.tab_titles(cx)), ["tool"]);
         let lines = view.read_with(cx, |view, cx| view.lines(cx));
         assert!(lines.iter().any(|line| line.starts_with("hello ") && line.ends_with("tool")), "{lines:?}");
+        fixture.close_project(cx);
+    }
+
+    // Not from a spec: Run with "Current File" selected runs the active file's context as a temporary
+    // configuration, and "Current File" is selected again afterwards.
+    #[gpui_kit::test]
+    async fn run_with_current_file_selected_runs_the_file_and_keeps_current_file_selected(cx: &mut TestAppContext) {
+        let (fixture, cx) = open_project(cx, FAKE_ADAPTER, &[("tool", TOOL)], Some("tool"));
+        let store = fixture.run_store(cx);
+        long(cx, "listing the configurations", &|cx| store.read_with(cx, |store, _| store.loaded));
+        let run_driver = fixture.workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("runs");
+        run_driver.update(cx, |driver, cx| driver.select_config(Some(CURRENT_FILE), cx));
+        run(cx, "run.run", None);
+        let ended = |cx: &mut VisualTestContext| {
+            store.read_with(cx, |store, _| store.sessions.iter().find(|s| s.config.name == "tool").map(|s| s.is_live()))
+        };
+        long(cx, "the exit of the file's run", &|cx| ended(cx) == Some(false));
+        let selected = |cx: &mut VisualTestContext| store.read_with(cx, |store, _| store.selected_id.clone());
+        long(cx, "Current File selected again", &|cx| selected(cx).as_deref() == Some(CURRENT_FILE));
+        let session = store.read_with(cx, |store, _| store.sessions.iter().find(|s| s.config.name == "tool").cloned());
+        let session = session.expect("the file's tab");
+        assert!(session.config.id.starts_with("context:file:"), "{}", session.config.id);
+        assert!(is_temporary(&fixture, &session.config.id, cx), "the file ran as a temporary configuration");
+        assert!(store.read_with(cx, |store, _| store.current_file_selected()));
+        fixture.close_project(cx);
+    }
+
+    fn right_click(cx: &mut VisualTestContext, at: Point<Pixels>) {
+        cx.simulate_mouse_down(at, gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+        cx.simulate_mouse_up(at, gpui_kit::MouseButton::Right, gpui_kit::Modifiers::default());
+        cx.run_until_parked();
+    }
+
+    /// The rows of each open level of `menu`, without the selection mark.
+    fn shown<C: Clone + 'static>(menu: &Entity<PopupMenu<C>>, cx: &mut VisualTestContext) -> Vec<Vec<String>> {
+        let lines = menu.read_with(cx, |menu, _| menu.lines());
+        let unmarked = |level: Vec<String>| level.into_iter().map(|line| line.trim_start_matches("> ").to_owned());
+        lines.into_iter().map(|level| unmarked(level).collect()).collect()
+    }
+
+    /// Clicks the rows `path` names, one level after the other (a submenu row opens its submenu).
+    fn choose<C: Clone + 'static>(menu: &Entity<PopupMenu<C>>, path: &[&str], cx: &mut VisualTestContext) {
+        for (depth, label) in path.iter().enumerate() {
+            let levels = shown(menu, cx);
+            let index =
+                levels[depth].iter().position(|line| line == label).unwrap_or_else(|| panic!("{label} in {levels:?}"));
+            let selector: &'static str = Box::leak(format!("menu-row-{depth}-{index}").into_boxed_str());
+            let bounds = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
+            cx.simulate_click(bounds.center(), gpui_kit::Modifiers::default());
+            cx.run_until_parked();
+        }
+    }
+
+    /// Waits for the run of `tool` to end, and returns the lines its tab shows.
+    fn finished_run_lines(fixture: &Fixture, cx: &mut VisualTestContext) -> Vec<String> {
+        let store = fixture.run_store(cx);
+        let ended = |cx: &mut VisualTestContext| {
+            store.read_with(cx, |store, _| store.sessions.iter().find(|s| s.config.name == "tool").map(|s| s.is_live()))
+        };
+        long(cx, "the exit of the script", &|cx| ended(cx) == Some(false));
+        let view = fixture
+            .workbench
+            .read_with(cx, |w, _| w.tool_window_view(RUN_TOOL_WINDOW))
+            .and_then(|view| view.downcast::<RunView>().ok())
+            .expect("the Run tool window holds its view");
+        view.read_with(cx, |view, cx| view.lines(cx))
+    }
+
+    // Not from a spec: the editor's menu offers the Run group for the file it shows (Run '<name>' and
+    // More Run/Debug › Modify Run Configuration…); its Run row runs the file at the caret.
+    #[gpui_kit::test]
+    async fn the_editors_menu_offers_run_for_the_file_and_runs_it(cx: &mut TestAppContext) {
+        use crate::workbench::context_menus::EditorMenuCommand;
+        let (fixture, cx) = open_project(cx, FAKE_ADAPTER, &[("tool", TOOL)], Some("tool"));
+        long(cx, "listing the configurations", &|cx| fixture.run_store(cx).read_with(cx, |s, _| s.loaded));
+        let editor = fixture.editor(cx);
+        let at = editor.read_with(cx, |editor, cx| {
+            let at = editor.position_of(4).expect("the line is painted");
+            point(at.x + px(2.0), at.y + editor.line_height(cx) / 2.0)
+        });
+        right_click(cx, at);
+        let menu = fixture.workbench.read_with(cx, |w, _| w.open_menu::<EditorMenuCommand>()).expect("the menu");
+        assert!(shown(&menu, cx)[0].contains(&"Run 'tool'".to_owned()), "{:?}", shown(&menu, cx));
+        choose(&menu, &["More Run/Debug"], cx);
+        assert_eq!(shown(&menu, cx)[1], ["Modify Run Configuration…"]);
+        choose(&menu, &["Run 'tool'"], cx);
+        let lines = finished_run_lines(&fixture, cx);
+        assert!(lines.iter().any(|line| line.starts_with("hello ") && line.ends_with("tool")), "{lines:?}");
+        let (id, _) = selected(&fixture, cx).expect("the run is selected");
+        assert!(is_temporary(&fixture, &id, cx), "the file ran as a temporary configuration");
+        fixture.close_project(cx);
+    }
+
+    // Not from a spec: the Project view's menu on a file no editor shows offers the Run group (its text
+    // is read for its `#!` line), and its Run row runs the file.
+    #[gpui_kit::test]
+    async fn the_project_views_menu_offers_run_for_the_file_and_runs_it(cx: &mut TestAppContext) {
+        use crate::project_view::context_menu::ProjectCommand;
+        let (fixture, cx) = open_project(cx, FAKE_ADAPTER, &[("tool", TOOL)], None);
+        long(cx, "listing the configurations", &|cx| fixture.run_store(cx).read_with(cx, |s, _| s.loaded));
+        let path = path_of(&fixture, "tool");
+        let tree = fixture.workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("a tree");
+        long(cx, "the project to be listed", &|cx| tree.read_with(cx, |tree, _| tree.is_loaded(tree.root())));
+        assert!(tree.update(cx, |tree, cx| tree.reveal_path(&path, cx)), "the file is in the project");
+        long(cx, "the row to be selected", &|cx| tree.read_with(cx, |tree, _| tree.selected_path() == Some(&*path)));
+        cx.run_until_parked();
+        let selector: &'static str = Box::leak(format!("project-row:{path}").into_boxed_str());
+        let row = cx.debug_bounds(selector).expect("the row is drawn");
+        right_click(cx, row.center());
+        let menu = fixture.workbench.read_with(cx, |w, _| w.open_menu::<ProjectCommand>()).expect("the menu");
+        assert!(shown(&menu, cx)[0].contains(&"Run 'tool'".to_owned()), "{:?}", shown(&menu, cx));
+        choose(&menu, &["Run 'tool'"], cx);
+        let lines = finished_run_lines(&fixture, cx);
+        assert!(lines.iter().any(|line| line.starts_with("hello ") && line.ends_with("tool")), "{lines:?}");
+        fixture.close_project(cx);
+    }
+
+    // Not from a spec: the tab's menu offers the Run group of its file; More Run/Debug › Modify Run
+    // Configuration… opens the file's configuration in Edit Configurations.
+    #[gpui_kit::test]
+    async fn the_tabs_menu_offers_modify_run_configuration_for_its_file(cx: &mut TestAppContext) {
+        use crate::workbench::TabCommand;
+        let (fixture, cx) = open_project(cx, FAKE_ADAPTER, &[("tool", TOOL)], Some("tool"));
+        long(cx, "listing the configurations", &|cx| fixture.run_store(cx).read_with(cx, |s, _| s.loaded));
+        let tab = fixture.workbench.read_with(cx, |w, _| {
+            let tabs = w.tabs().expect("a project is open");
+            tabs.pane(&tabs.active_pane).expect("the active pane").tabs[0].id.clone()
+        });
+        cx.run_until_parked();
+        let bounds = cx.debug_bounds(Box::leak(format!("tab:{tab}").into_boxed_str())).expect("the tab is drawn");
+        right_click(cx, bounds.center());
+        let menu = fixture.workbench.read_with(cx, |w, _| w.open_menu::<TabCommand>()).expect("the tab's menu");
+        assert!(shown(&menu, cx)[0].contains(&"Run 'tool'".to_owned()), "{:?}", shown(&menu, cx));
+        choose(&menu, &["More Run/Debug", "Modify Run Configuration…"], cx);
+        let dialog =
+            |cx: &mut VisualTestContext| fixture.workbench.read_with(cx, |w, _| w.edit_configs_dialog().cloned());
+        long(cx, "Edit Configurations", &|cx| dialog(cx).is_some());
+        let dialog = dialog(cx).expect("the dialog is open");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.selected()).as_deref(), Some("tool"));
+        assert!(fixture.run_store(cx).read_with(cx, |store, _| store.sessions.is_empty()), "nothing runs");
         fixture.close_project(cx);
     }
 

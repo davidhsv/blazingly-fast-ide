@@ -125,7 +125,7 @@ pub const MENU_GROUPS: [GroupDecl; 25] = [
         id: "run.context",
         menus: &[ContextMenu::Editor, ContextMenu::ProjectView, ContextMenu::EditorTab],
         order: 0,
-        rows: None,
+        rows: Some(run_context),
     },
     GroupDecl { id: "scratch.new", menus: &[ContextMenu::New], order: 0, rows: Some(scratch_new) },
     GroupDecl { id: "search.bookmarks", menus: &[ContextMenu::EditorGutter], order: 20, rows: Some(line_bookmark) },
@@ -185,6 +185,8 @@ pub struct GroupFacts {
     pub annotations_shown: bool,
     /// The plugins' rows for the menu being built.
     pub plugins: Vec<GroupRow>,
+    /// The Run group's rows for the menu being built: Run / Debug '<name>', More Run/Debug.
+    pub run: Vec<GroupRow>,
 }
 
 /// The groups that make rows in this window, each reading `facts`.
@@ -252,6 +254,10 @@ fn http_new(_: ContextMenu, ctx: &MenuGroupContext<'_>, _: &GroupFacts) -> Vec<G
 
 fn plugins(_: ContextMenu, _: &MenuGroupContext<'_>, facts: &GroupFacts) -> Vec<GroupRow> {
     facts.plugins.clone()
+}
+
+fn run_context(_: ContextMenu, _: &MenuGroupContext<'_>, facts: &GroupFacts) -> Vec<GroupRow> {
+    facts.run.clone()
 }
 
 fn scratch_new(_: ContextMenu, _: &MenuGroupContext<'_>, _: &GroupFacts) -> Vec<GroupRow> {
@@ -700,7 +706,7 @@ impl Workbench {
         ctx: &MenuGroupContext<'_>,
         column: Option<u32>,
         window: &Window,
-        cx: &App,
+        cx: &mut App,
     ) -> GroupFacts {
         let keys = window_context(window, cx);
         let data = self.bookmarks().data();
@@ -727,6 +733,7 @@ impl Workbench {
                 && targets.iter().all(|(path, _)| path_bookmark_at(&data.paths, path).is_some()),
             annotations_shown: ctx.paths.first().is_some_and(|path| self.annotations_shown_for(path, cx)),
             plugins,
+            run: self.run_menu_rows(menu, ctx, cx),
         }
     }
 
@@ -737,7 +744,7 @@ impl Workbench {
         ctx: &MenuGroupContext<'_>,
         column: Option<u32>,
         window: &Window,
-        cx: &App,
+        cx: &mut App,
     ) -> Vec<GroupRow> {
         let facts = Rc::new(self.group_facts(menu, ctx, column, window, cx));
         let (rows, failed) = native_groups(&facts).items(menu, ctx, || MenuItem::Separator);
@@ -748,7 +755,7 @@ impl Workbench {
     }
 
     /// The `openIn` groups' rows for `path`.
-    fn open_in_rows(&self, path: &str, window: &Window, cx: &App) -> Vec<GroupRow> {
+    fn open_in_rows(&self, path: &str, window: &Window, cx: &mut App) -> Vec<GroupRow> {
         let paths = [path.to_owned()];
         let ctx = MenuGroupContext { paths: &paths, ..MenuGroupContext::default() };
         self.group_rows(ContextMenu::OpenIn, &ctx, None, window, cx)
@@ -814,7 +821,7 @@ impl Workbench {
         &self,
         editor: &Entity<Editor>,
         window: &Window,
-        cx: &App,
+        cx: &mut App,
     ) -> Vec<MenuItem<EditorMenuCommand>> {
         let shown = editor.read(cx);
         let path = shown.path().to_string_lossy().into_owned();
@@ -911,7 +918,7 @@ impl Workbench {
         in_project: bool,
         text: Option<&str>,
         window: &Window,
-        cx: &App,
+        cx: &mut App,
     ) -> Vec<MenuItem<C>> {
         let paths = [path.to_owned()];
         let ctx = MenuGroupContext { paths: &paths, dirs: &[], text, line: None };
@@ -934,7 +941,7 @@ impl Workbench {
         &self,
         mut items: Vec<MenuItem<ProblemCommand>>,
         window: &Window,
-        cx: &App,
+        cx: &mut App,
     ) -> Vec<MenuItem<ProblemCommand>> {
         let target: Option<ProblemTarget> = items.iter().find_map(|item| match item.command() {
             Some(ProblemCommand::JumpToSource(target)) => Some(target.clone()),
@@ -973,10 +980,10 @@ impl Workbench {
         selected: &ProjectSelection,
         new_in: Option<&str>,
         window: &Window,
-        cx: &App,
+        cx: &mut App,
     ) -> Contributed {
         let ctx = MenuGroupContext { paths: &selected.paths, dirs: &selected.dirs, text: None, line: None };
-        let rows = |menu: ContextMenu, ctx: &MenuGroupContext<'_>| -> Vec<ProjectItem> {
+        let mut rows = |menu: ContextMenu, ctx: &MenuGroupContext<'_>| -> Vec<ProjectItem> {
             into_menu(self.group_rows(menu, ctx, None, window, cx))
         };
         let folder: Vec<String> = new_in.map(str::to_owned).into_iter().collect();
@@ -1127,6 +1134,7 @@ mod tests {
     use gpui_kit::{Modifiers, MouseButton, TestAppContext, VisualTestContext, point};
     use std::collections::HashSet;
     use std::path::PathBuf;
+    mod proofs16_menus;
     mod proofs7_send_to_agent;
     mod proofs7_toolbar_slots;
 
@@ -1340,7 +1348,6 @@ mod tests {
                 "gradle.analyzeDependencies",
                 "http.spring",
                 "maven.analyzeDependencies",
-                "run.context",
                 "settings.fileType",
                 "templates.new",
                 "web.openIn",
@@ -1835,7 +1842,7 @@ mod tests {
     async fn the_editor_menu_leaves_out_the_actions_the_window_does_not_register(cx: &mut TestAppContext) {
         let (f, cx) = open(cx, &[("a.txt", "a\n")], Setup::default());
         let editor = f.open_file("a.txt", cx);
-        let items = cx.update(|window, cx| f.workbench.read(cx).editor_menu_items(&editor, window, cx));
+        let items = cx.update(|window, cx| f.workbench.update(cx, |w, cx| w.editor_menu_items(&editor, window, cx)));
         fn ids(items: &[MenuItem<EditorMenuCommand>], out: &mut Vec<&'static str>) {
             for item in items {
                 match item {

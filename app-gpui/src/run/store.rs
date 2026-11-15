@@ -31,6 +31,17 @@ use std::sync::LazyLock;
 
 /// The permanent "Current File" pseudo-configuration of the chooser (runs the active file's context).
 pub const CURRENT_FILE: &str = "current-file";
+
+/// The argument with which Run and Debug of a selected "Current File" ask for the active file's context:
+/// the context's temporary configuration runs, and "Current File" is selected again afterwards.
+pub fn current_file_arg() -> serde_json::Value {
+    serde_json::json!({ "currentFile": true })
+}
+
+/// Whether a context action's argument comes from Run or Debug of a selected "Current File".
+pub fn is_current_file_arg(arg: Option<&serde_json::Value>) -> bool {
+    arg.and_then(|arg| arg.get("currentFile")).and_then(serde_json::Value::as_bool).unwrap_or(false)
+}
 /// Storage key prefixes; the project root follows.
 pub const SELECTED_KEY: &str = "openidea.run.selected:";
 pub const PINNED_KEY: &str = "openidea.run.pinned:";

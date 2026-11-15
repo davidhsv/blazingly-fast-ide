@@ -1052,6 +1052,7 @@ pub(crate) mod test_support {
 mod tests {
     mod project_plugins_per_window;
     mod proofs15_plugins;
+    mod proofs16_plugins;
     mod proofs6_plugins;
     mod proofs6_plugins_market;
     mod proofs9_settings_plugins;

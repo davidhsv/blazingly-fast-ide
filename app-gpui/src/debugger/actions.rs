@@ -426,6 +426,15 @@ impl Debugger {
         }
     }
 
+    /// Smart Step Into's chooser picked the call `target`: `thread` of `session` steps into it; a
+    /// failure is reported as Smart Step Into's.
+    pub fn step_into_target(&mut self, session: DebugSessionId, thread: i64, target: i64, host: &mut Host) {
+        let call = BackendCall::DebugStepInTarget { session, thread, target };
+        if let Some(ticket) = self.state.resume_execution(session, call) {
+            self.resume_titles.insert(ticket, host.i18n.tx("Smart Step Into failed"));
+        }
+    }
+
     /// Opens the Attach to Process popup and loads the process list.
     pub fn open_attach_popup(&mut self, host: &mut Host) {
         if !host.env.desktop {

@@ -3395,6 +3395,7 @@ mod tests {
     use std::rc::Rc;
 
     mod proofs14_page;
+    mod proofs16_page;
 
     type Events = Rc<RefCell<Vec<PluginsPageEvent>>>;
 

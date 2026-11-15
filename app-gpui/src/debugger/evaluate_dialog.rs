@@ -9,6 +9,7 @@
 //! told the answer with [`EvaluateDialog::evaluated`]. The field is one line: an expression seeded
 //! from a selection over several lines is joined with spaces.
 
+use crate::app_views;
 use crate::debugger::actions::Debugger;
 use crate::debugger::state::SessionStatus;
 use crate::platform::i18n::Localization;
@@ -16,10 +17,11 @@ use crate::platform::input;
 use crate::platform::storage::UiStorage;
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
+use crate::ui::tooltip::WithTooltip as _;
 use crate::vcs::prompt_dialogs::button;
 use gpui_kit::{
-    App, ClickEvent, Context, Entity, EventEmitter, FocusHandle, Focusable, FontWeight, IntoElement, Keystroke,
-    MouseButton, Render, SharedString, Subscription, Window, div, prelude::*, px,
+    App, ClickEvent, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke, Pixels, Point,
+    Render, SharedString, Subscription, Window, div, prelude::*,
 };
 use ide_dap::Variable;
 
@@ -28,7 +30,8 @@ const HISTORY_PREFIX: &str = "openidea.debugger.history.";
 /// How many expressions a history keeps.
 const HISTORY_MAX: usize = 50;
 const WIDTH: f32 = 620.0;
-const FIELD_HEIGHT: f32 = 28.0;
+/// How many of the history's expressions the History button's menu lists.
+const HISTORY_MENU_MAX: usize = 20;
 
 /// The ids of the dialog's buttons, for [`EvaluateDialog::press`].
 pub const EVALUATE: &str = "evaluate";
@@ -100,6 +103,9 @@ pub enum EvaluateDialogEvent {
     Evaluate { request: u64, expression: String },
     /// Add `expression` to the watches; `close`: and close the dialog.
     AddWatch { expression: String, close: bool },
+    /// The History button was pressed at `position`: offer [`EvaluateDialog::history_menu`] there and
+    /// answer the choice with [`EvaluateDialog::recall`].
+    ShowHistory { position: Point<Pixels> },
     /// Close the dialog.
     Closed,
 }
@@ -245,6 +251,22 @@ impl EvaluateDialog {
         }
     }
 
+    /// The History button's menu: the newest expressions, each on one line.
+    pub fn history_menu(&self) -> Vec<(String, String)> {
+        let row = |known: &String| (known.split_whitespace().collect::<Vec<_>>().join(" "), known.clone());
+        self.history.iter().take(HISTORY_MENU_MAX).map(row).collect()
+    }
+
+    /// An expression chosen from the history goes into the field, in place of what was typed.
+    pub fn recall(&mut self, expression: &str, cx: &mut Context<Self>) {
+        self.history_pos = None;
+        self.field.update(cx, |field, cx| {
+            field.set_text(&one_line(expression), cx);
+            field.select_all(cx);
+        });
+        cx.notify();
+    }
+
     /// The answer to the evaluation `request`; an answer to an older one is dropped.
     pub fn evaluated(&mut self, request: u64, answer: Result<Variable, String>, cx: &mut Context<Self>) {
         let Some((_, expression)) = self.pending.take_if(|(pending, _)| *pending == request) else { return };
@@ -332,7 +354,7 @@ impl Focusable for EvaluateDialog {
 
 impl Render for EvaluateDialog {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let (fg, strong, muted) = (theme::color(cx, "fg"), theme::color(cx, "fg-strong"), theme::color(cx, "fg-muted"));
+        let (fg, muted) = (theme::color(cx, "fg"), theme::color(cx, "fg-muted"));
         let title = tx(cx, "Evaluate");
         let label = tx(cx, "Expression");
         let result = match (&self.result, self.note(cx)) {
@@ -363,52 +385,53 @@ impl Render for EvaluateDialog {
             .collect();
         let mut buttons = buttons.into_iter();
         let watches = buttons.next();
-        div()
-            .w(px(WIDTH))
+        let has_history = !self.history.is_empty();
+        let history = div()
+            .id("evaluate-history")
+            .debug_selector(|| "evaluate-history".to_owned())
+            .flex_none()
+            .size(theme::zoomed(cx, 22.0))
             .flex()
-            .flex_col()
-            .bg(theme::color(cx, "bg-popup"))
-            .border_1()
-            .border_color(theme::color(cx, "border-popup"))
-            .rounded(theme::length(cx, "radius-popup"))
-            .text_size(theme::length(cx, "fs-ui"))
-            .text_color(fg)
-            // A click on the dialog is not a click beside it.
-            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .items_center()
+            .justify_center()
+            .rounded(theme::length(cx, "radius-small"))
+            .when(has_history, |el| el.hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover"))))
+            .when(!has_history, |el| el.opacity(0.5))
+            .child(theme::icon(cx, "history", 16.0, muted))
+            .with_tooltip("History")
+            .when(has_history, |el| {
+                el.on_click(cx.listener(|_, event: &ClickEvent, _, cx| {
+                    cx.emit(EvaluateDialogEvent::ShowHistory { position: event.position() });
+                }))
+            });
+        app_views::frame(cx, WIDTH)
+            .child(app_views::title_row(cx, title))
             .child(
                 div()
-                    .px(px(16.0))
-                    .pt(px(14.0))
-                    .pb(px(8.0))
-                    .text_color(strong)
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(SharedString::from(title)),
-            )
-            .child(
-                div()
-                    .px(px(16.0))
-                    .py(px(4.0))
+                    .px(theme::zoomed(cx, 16.0))
+                    .py(theme::zoomed(cx, 4.0))
                     .flex()
                     .flex_col()
-                    .gap(px(6.0))
+                    .gap(theme::zoomed(cx, 6.0))
                     .child(div().text_color(muted).child(SharedString::from(label)))
                     .child(
                         div()
-                            .h(px(FIELD_HEIGHT))
                             .flex()
                             .items_center()
-                            .px(px(8.0))
-                            .rounded(theme::length(cx, "radius-small"))
-                            .border_1()
-                            .border_color(theme::color(cx, "border"))
-                            .bg(theme::color(cx, "bg-input"))
-                            .font_family(self.code_font.clone())
-                            .child(div().flex_1().min_w_0().child(self.field.clone())),
+                            .gap(theme::zoomed(cx, 4.0))
+                            .child(
+                                app_views::field_frame(cx, false)
+                                    .flex_1()
+                                    .min_w_0()
+                                    .font_family(self.code_font.clone())
+                                    .child(div().flex_1().min_w_0().child(self.field.clone())),
+                            )
+                            .child(history),
                     )
                     .child(
                         div()
-                            .min_h(px(120.0))
-                            .p(px(8.0))
+                            .min_h(theme::zoomed(cx, 120.0))
+                            .p(theme::zoomed(cx, 8.0))
                             .rounded(theme::length(cx, "radius-small"))
                             .border_1()
                             .border_color(theme::color(cx, "border"))
@@ -419,12 +442,12 @@ impl Render for EvaluateDialog {
             )
             .child(
                 div()
-                    .px(px(16.0))
-                    .pt(px(10.0))
-                    .pb(px(14.0))
+                    .px(theme::zoomed(cx, 16.0))
+                    .pt(theme::zoomed(cx, 10.0))
+                    .pb(theme::zoomed(cx, 14.0))
                     .flex()
                     .items_center()
-                    .gap(px(8.0))
+                    .gap(theme::zoomed(cx, 8.0))
                     .children(watches)
                     .child(div().flex_1())
                     .children(buttons),
@@ -452,12 +475,12 @@ mod tests {
 
     /// The dialog on a debugger whose only session is suspended when `paused`, with the keyboard in
     /// its field, and the events it sends.
-    fn open(
-        cx: &mut TestAppContext,
+    fn open<'a>(
+        cx: &'a mut TestAppContext,
         paused: bool,
         expression: &'static str,
         history: &[&str],
-    ) -> (Entity<EvaluateDialog>, Events, &mut VisualTestContext) {
+    ) -> (Entity<EvaluateDialog>, Events, &'a mut VisualTestContext) {
         init(cx);
         let history: Vec<String> = history.iter().map(|known| (*known).to_owned()).collect();
         let mut model = Debugger::default();
@@ -590,5 +613,25 @@ mod tests {
         let watch = |close| EvaluateDialogEvent::AddWatch { expression: "total".to_owned(), close };
         assert_eq!(*events.borrow(), [watch(false), watch(true), EvaluateDialogEvent::Closed]);
         drop(dialog);
+    }
+
+    // Not from a spec: the History button is greyed out without a history and asks for its menu
+    // otherwise; the menu's rows are the newest expressions on one line each, and a chosen one replaces
+    // what was typed.
+    #[gpui_kit::test]
+    async fn the_history_button_offers_the_newest_expressions_and_recalls_one(cx: &mut TestAppContext) {
+        let (_, events, cx) = open(cx, true, "x", &[]);
+        let button = cx.debug_bounds("evaluate-history").expect("the History button is drawn");
+        cx.simulate_click(button.center(), Modifiers::default());
+        assert!(events.borrow().is_empty(), "nothing to recall");
+
+        let (dialog, events, cx) = open(cx, true, "x", &["a  +\n b", "c"]);
+        let button = cx.debug_bounds("evaluate-history").expect("the History button is drawn");
+        cx.simulate_click(button.center(), Modifiers::default());
+        assert!(matches!(events.borrow().as_slice(), [EvaluateDialogEvent::ShowHistory { .. }]));
+        let menu = dialog.read_with(cx, |dialog, _| dialog.history_menu());
+        assert_eq!(menu, [("a + b".to_owned(), "a  +\n b".to_owned()), ("c".to_owned(), "c".to_owned())]);
+        dialog.update(cx, |dialog, cx| dialog.recall("c", cx));
+        assert_eq!(text(&dialog, cx), "c");
     }
 }

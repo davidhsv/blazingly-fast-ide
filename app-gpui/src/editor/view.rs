@@ -576,6 +576,13 @@ impl Editor {
         self.layout.as_ref().map(|layout| layout.bounds)
     }
 
+    /// The font size the last frame shaped the first painted row in, and its row height.
+    #[cfg(test)]
+    pub fn painted_text_metrics(&self) -> Option<(Pixels, Pixels)> {
+        let layout = self.layout.as_ref()?;
+        Some((layout.lines.first()?.1.font_size, layout.line_height))
+    }
+
     /// Where the last frame drew marks of `kind`: a tinted row, a breakpoint dot, a problem's underline.
     #[cfg(test)]
     pub fn painted_marks(&self, kind: super::marks::MarkKind) -> Vec<Bounds<Pixels>> {
@@ -668,13 +675,15 @@ impl Editor {
         &self.rope
     }
 
-    /// The font size, line height and gutter width the editor paints with: the theme's, the font
-    /// and the line height scaled by the editor's font zoom. Distraction Free Mode has no gutter.
+    /// The font size, line height and gutter width the editor paints with: the settings' or the
+    /// theme's at the IDE zoom, the font and the line height scaled by the editor's font zoom.
+    /// Distraction Free Mode has no gutter.
     fn metrics(&self, cx: &App) -> (Pixels, Pixels, Pixels) {
         let font = &self.facts.font;
-        let size = if font.size > 0.0 { px(font.size) } else { theme::length(cx, "fs-code") };
-        let line = if font.line_height > 0.0 { px(font.line_height) } else { theme::length(cx, "lh-code") };
-        let zoomed = (size + px(self.core.font_zoom as f32)).max(px(1.0));
+        let size = if font.size > 0.0 { theme::zoomed(cx, font.size) } else { theme::length(cx, "fs-code") };
+        let line =
+            if font.line_height > 0.0 { theme::zoomed(cx, font.line_height) } else { theme::length(cx, "lh-code") };
+        let zoomed = (size + theme::zoomed(cx, self.core.font_zoom as f32)).max(px(1.0));
         let gutter =
             if distraction_free(cx) { px(0.0) } else { theme::length(cx, "w-gutter") + self.fold_column_width(cx) };
         (zoomed, line * (zoomed / size), gutter)
@@ -683,7 +692,7 @@ impl Editor {
     /// The width of the fold chevrons' column: none while Code Folding › Show code folding outline
     /// is off, or in Distraction Free Mode.
     pub fn fold_column_width(&self, cx: &App) -> Pixels {
-        if self.facts.fold_outline && !distraction_free(cx) { px(FOLD_GUTTER) } else { px(0.0) }
+        if self.facts.fold_outline && !distraction_free(cx) { theme::zoomed(cx, FOLD_GUTTER) } else { px(0.0) }
     }
 
     /// The font size the editor paints with.

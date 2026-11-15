@@ -16,6 +16,7 @@ use crate::code_insight::{HIERARCHY_TOOL_WINDOW, PROBLEMS_TOOL_WINDOW, USAGES_TO
 mod commit;
 mod database;
 mod debug;
+mod debug_extras;
 use crate::database::tree_view::DATABASE_TOOL_WINDOW;
 mod conflicts;
 pub mod context_menus;
@@ -53,6 +54,7 @@ pub(crate) use app_actions::zen_active as distraction_free_active;
 pub use project_view_actions::undo_in_project_view;
 pub mod quick_switch;
 mod run_configs;
+mod run_context;
 mod services_actions;
 mod services_window;
 mod settings_window;
@@ -375,6 +377,10 @@ pub struct Workbench {
     agents: Option<agents::AgentsSlot>,
     /// The debugger of the open project: its driver, the Debug tool window and the Breakpoints dialog.
     debug: Option<debug::DebugSlot>,
+    /// The Evaluate dialog, while it is open.
+    debug_extras: debug_extras::DebugExtrasSlot,
+    /// The tools located for context runs, and the builds a debug of a compiled file waits for.
+    run_context: run_context::RunContextSlot,
     /// The title bar and the status bar, and what the window keeps for them.
     chrome: chrome::Chrome,
     /// What running plugin code shows in the window, and what the window tells the plugins.
@@ -459,6 +465,29 @@ pub const NOTIFICATIONS_TOOL_WINDOW: &str = "notifications";
 /// The Run tool window's id.
 pub const RUN_TOOL_WINDOW: &str = "run";
 
+/// The count over a stripe button's icon, at its top right; more than 99 is "99+".
+fn stripe_badge(count: usize, cx: &App) -> gpui_kit::AnyElement {
+    let text = if count > 99 { "99+".to_owned() } else { count.to_string() };
+    div()
+        .debug_selector(|| "stripe-badge".to_owned())
+        .absolute()
+        .top(theme::zoomed(cx, -5.0))
+        .left(theme::zoomed(cx, 10.0))
+        .min_w(theme::zoomed(cx, 13.0))
+        .h(theme::zoomed(cx, 13.0))
+        .px(theme::zoomed(cx, 3.0))
+        .rounded(theme::zoomed(cx, 7.0))
+        .bg(theme::color(cx, "bg-active"))
+        .text_color(theme::color(cx, "fg-emphasis"))
+        .text_size(theme::zoomed(cx, 9.0))
+        .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+        .line_height(theme::zoomed(cx, 13.0))
+        .flex()
+        .justify_center()
+        .child(SharedString::from(text))
+        .into_any_element()
+}
+
 pub use crate::services::model::SERVICES_TOOL_WINDOW;
 
 /// The tool windows this app has a view for.
@@ -534,6 +563,8 @@ pub fn register_actions(cx: &mut App) {
     diff_tools::register_actions(registry);
     run_configs::register_actions(registry);
     debug::register_actions(registry);
+    debug_extras::register_actions(registry);
+    run_context::register_actions(registry);
     branches::register_actions(registry);
     conflicts::register_actions(registry);
     vcs_operations::register_actions(registry);
@@ -1108,6 +1139,8 @@ impl Workbench {
             code_insight,
             agents: None,
             debug: None,
+            debug_extras: Default::default(),
+            run_context: Default::default(),
             chrome,
             activations: HashMap::new(),
             active_key: None,
@@ -2336,6 +2369,23 @@ impl Workbench {
         matches!(&self.content, Content::Project { layout, .. } if layout.is_visible(id))
     }
 
+    /// The number the stripe button of tool window `id` draws: the Run window's running processes. None
+    /// with nothing to count, for a window without a badge, or while Settings › Appearance › Show tool
+    /// window badges is off.
+    pub fn stripe_badge(&self, id: &str, cx: &App) -> Option<usize> {
+        if !crate::platform::settings::global(cx).appearance.show_tool_window_badges {
+            return None;
+        }
+        let count = match id {
+            RUN_TOOL_WINDOW => {
+                let store = self.run_driver()?.read(cx).store().read(cx);
+                store.sessions.iter().filter(|session| session.is_live()).count()
+            }
+            _ => return None,
+        };
+        (count > 0).then_some(count)
+    }
+
     /// The run driver of the window's project, which starts and stops its processes.
     pub fn run_driver(&self) -> Option<&Entity<RunDriver>> {
         match &self.content {
@@ -3284,7 +3334,7 @@ impl Workbench {
 
     /// The menu of the tab `tab` of `pane`: closing it and its neighbours, pinning, splitting,
     /// and what can be done with its file.
-    pub fn tab_menu(&self, pane: &str, tab: &str, window: &Window, cx: &App) -> Vec<MenuItem<TabCommand>> {
+    pub fn tab_menu(&self, pane: &str, tab: &str, window: &Window, cx: &mut App) -> Vec<MenuItem<TabCommand>> {
         let Some(tabs) = self.tabs() else { return Vec::new() };
         let Some(open) = tabs.pane(pane) else { return Vec::new() };
         let Some(index) = open.tabs.iter().position(|other| other.id == tab) else { return Vec::new() };
@@ -3838,7 +3888,7 @@ impl Render for Workbench {
             },
             Content::Opening(path) => message(format!("Opening {}…", path.display()).into()).into_any_element(),
             Content::Failed(error) => message(error.clone()).into_any_element(),
-            Content::Editor(editor) => self.light_editor_element(editor),
+            Content::Editor(editor) => self.light_editor_element(editor, cx),
             Content::Viewer(view) => view.view.clone().into_any_element(),
             Content::Project { layout, panels, .. } => {
                 let area = self.tabs().map(|tabs| self.editor_area(&tabs.layout, window, cx));
@@ -3867,7 +3917,13 @@ impl Render for Workbench {
                         .rounded(theme::length(cx, "radius-toolbar-button"))
                         .when(shown, |el| el.bg(theme::color(cx, "bg-stripe-selected")))
                         .hover(|el| el.bg(theme::color(cx, "bg-stripe-hover")))
-                        .child(theme::icon(cx, &declared.icon, 20.0, color))
+                        .child(
+                            div()
+                                .relative()
+                                .flex_none()
+                                .child(theme::icon(cx, &declared.icon, 20.0, color))
+                                .children(self.stripe_badge(&declared.id, cx).map(|count| stripe_badge(count, cx))),
+                        )
                         .with_tooltip_shortcut(declared.title.clone(), action.clone())
                         .on_click(cx.listener(move |_, _, window, cx| {
                             execute_action_from(ActionSource::Toolbar, &action, None, window, cx);
@@ -4086,6 +4142,7 @@ impl Render for Workbench {
             .children(self.diff_window_layer(cx))
             .children(self.edit_configs_layer(cx))
             .children(self.debug_breakpoints_layer(cx))
+            .children(self.debug_evaluate_layer(cx))
             .children(self.customize_toolbar_layer(cx))
             .children(self.vcs_dialog_layer(cx))
             .children(self.app_dialog_layer(cx))
@@ -4165,6 +4222,7 @@ mod tests {
     mod proofs13_windows;
     mod proofs15_full_screen;
     mod proofs15_merge_resolve;
+    mod proofs16_run_badge;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

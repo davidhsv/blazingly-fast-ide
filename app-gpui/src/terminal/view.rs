@@ -486,7 +486,7 @@ impl TerminalView {
             ..font(SharedString::from(family))
         };
         let terminal = settings.terminal;
-        (font, px(terminal.font_size.clamp(6.0, 72.0)), terminal.line_height.clamp(0.8, 3.0))
+        (font, theme::zoomed(cx, terminal.font_size.clamp(6.0, 72.0)), terminal.line_height.clamp(0.8, 3.0))
     }
 }
 

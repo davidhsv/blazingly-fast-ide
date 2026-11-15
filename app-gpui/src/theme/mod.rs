@@ -17,6 +17,9 @@ use tokens::{Theme, ThemeAttributes, Tokens};
 /// The theme every window draws with.
 pub struct ActiveTheme {
     pub theme: Theme,
+    /// The IDE zoom the theme's lengths are scaled by (1 at 100 %): sizes that come from the settings
+    /// or are written in code (the code font, icons) are scaled by it where they are drawn.
+    pub zoom: f32,
 }
 
 impl Global for ActiveTheme {}
@@ -24,7 +27,7 @@ impl Global for ActiveTheme {}
 impl Default for ActiveTheme {
     /// Islands Light, the default theme.
     fn default() -> Self {
-        Self { theme: Tokens::builtin().theme(&ThemeAttributes::light()) }
+        Self { theme: Tokens::builtin().theme(&ThemeAttributes::light()), zoom: 1.0 }
     }
 }
 
@@ -36,8 +39,18 @@ impl ActiveTheme {
 
 /// Switches every window to the theme with `attributes`.
 pub fn set_theme(attributes: &ThemeAttributes, cx: &mut App) {
-    cx.set_global(ActiveTheme { theme: Tokens::builtin().theme(attributes) });
+    cx.set_global(ActiveTheme { theme: Tokens::builtin().theme(attributes), zoom: 1.0 });
     cx.refresh_windows();
+}
+
+/// The IDE zoom every window draws at, as a factor (1.5 at 150 %).
+pub fn zoom(cx: &App) -> f32 {
+    cx.try_global::<ActiveTheme>().map_or(1.0, |active| active.zoom)
+}
+
+/// `pixels` at the IDE zoom: a size the theme does not give, scaled as the theme's lengths are.
+pub fn zoomed(cx: &App, pixels: f32) -> Pixels {
+    px(pixels * zoom(cx))
 }
 
 /// The colour of token `name` (without `--`). A token the stylesheet does not define is a bug
@@ -111,12 +124,20 @@ pub fn parse_shadow(value: &str) -> Option<Vec<BoxShadow>> {
 /// variant of the active theme.
 pub fn icon(cx: &App, name: &str, size: f32, color: Hsla) -> AnyElement {
     let dark = cx.try_global::<ActiveTheme>().is_some_and(ActiveTheme::is_dark);
+    // The variant is the one of the unzoomed size: a zoom enlarges the icon, it does not swap it.
     let asset = icons::icon_asset(name, size, dark);
+    let size = size * zoom(cx);
     if asset.mono {
         // A mask is painted only in an explicit colour.
-        svg().path(asset.asset).size(px(size)).flex_none().text_color(color).into_any_element()
+        svg()
+            .path(asset.asset)
+            .size(px(size))
+            .flex_none()
+            .text_color(color)
+            .debug_selector(|| format!("icon:{name}"))
+            .into_any_element()
     } else {
-        img(asset.asset).size(px(size)).flex_none().into_any_element()
+        img(asset.asset).size(px(size)).flex_none().debug_selector(|| format!("icon:{name}")).into_any_element()
     }
 }
 

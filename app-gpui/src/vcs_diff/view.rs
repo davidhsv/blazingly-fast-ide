@@ -98,7 +98,7 @@ impl CodeStyle {
         let families: Vec<&str> = font.families.iter().flatten().map(String::as_str).collect();
         Self {
             font: code_font_of(&families, font.ligatures, font.weight, cx),
-            size: font.size.map_or_else(|| theme::length(cx, "fs-code"), px),
+            size: font.size.map_or_else(|| theme::length(cx, "fs-code"), |size| theme::zoomed(cx, size)),
             line_height: viewer_line_height(font, cx),
         }
     }
@@ -107,7 +107,7 @@ impl CodeStyle {
 /// The height of a line of a viewer pane drawn in `font`.
 pub fn viewer_line_height(font: &ViewerFont, cx: &App) -> Pixels {
     if let Some(height) = font.line_height {
-        return px(height);
+        return theme::zoomed(cx, height);
     }
     let height = theme::length(cx, "lh-code");
     if height > px(0.0) { height } else { px(20.0) }

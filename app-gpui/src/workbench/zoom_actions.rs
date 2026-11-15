@@ -220,6 +220,54 @@ mod tests {
         close_project(cx);
     }
 
+    /// The size the last frame drew icon `selector` at.
+    fn icon_size(selector: &'static str, cx: &mut VisualTestContext) -> f32 {
+        cx.run_until_parked();
+        f32::from(cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn")).size.width)
+    }
+
+    /// The font size and the row height the editor's last frame painted its text with.
+    fn painted_code(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> (f32, f32) {
+        cx.run_until_parked();
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor is open");
+        let (size, line) = editor.read_with(cx, |editor, _| editor.painted_text_metrics()).expect("the editor painted");
+        (f32::from(size), f32::from(line))
+    }
+
+    /// Zooms in from 100% to 150%.
+    fn zoom_to_150(cx: &mut VisualTestContext) {
+        for _ in 0..3 {
+            run_action(cx, "view.zoomIn", None);
+        }
+        assert_eq!(zoom(cx), 150);
+    }
+
+    /// Zoom In up to 150% draws the icons (the Project view's chevron) and the editor's code (its text and its
+    /// rows) half as large again, as it draws the interface text, and Reset IDE Zoom draws them as they were.
+    #[gpui_kit::test]
+    async fn the_ide_zoom_scales_the_editors_code_and_the_icons(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        cx.update(theme_appearance::init);
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &[("main.rs", "fn main() {}\n")]);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("main.rs"), window, cx));
+        wait_long(cx, "the editor paints", |cx| {
+            workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).painted_text_metrics().is_some()))
+        });
+        let (size, line) = painted_code(&workbench, cx);
+        let chevron = icon_size("icon:chevron-down", cx);
+        assert_eq!(chevron, 16.0, "the expanded root's chevron at its own size");
+
+        zoom_to_150(cx);
+        wait_long(cx, "the code at 150%", |cx| (painted_code(&workbench, cx).0 - size * 1.5).abs() < 0.01);
+        assert!((painted_code(&workbench, cx).1 - line * 1.5).abs() < 0.01, "the rows of code are taller");
+        assert!((icon_size("icon:chevron-down", cx) - chevron * 1.5).abs() < 0.01, "the icons are larger");
+
+        run_action(cx, "view.resetZoom", None);
+        wait_long(cx, "the code as it was", |cx| painted_code(&workbench, cx) == (size, line));
+        assert_eq!(icon_size("icon:chevron-down", cx), chevron, "the icons as they were");
+        close_project(cx);
+    }
+
     /// Quick Switch Scheme… lists the editor colour scheme, the keymap, the view modes and the theme;
     /// choosing a theme selects it for every window and saves it, and choosing a colour scheme
     /// saves it as the editor's.

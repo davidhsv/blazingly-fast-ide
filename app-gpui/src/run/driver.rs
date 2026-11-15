@@ -420,7 +420,7 @@ impl RunDriver {
     pub fn run_selected(&mut self, cx: &mut Context<Self>) -> Task<Option<String>> {
         let store = self.store.read(cx);
         if store.current_file_selected() {
-            cx.emit(RunDriverEvent::RunAction { id: "run.runContext", arg: None });
+            cx.emit(RunDriverEvent::RunAction { id: "run.runContext", arg: Some(super::store::current_file_arg()) });
             return Task::ready(None);
         }
         let Some(config) = store.selected_config().cloned() else {
@@ -530,6 +530,18 @@ impl RunDriver {
         });
         self.carry_out_persist(persist, cx);
         self.save_configs(user, removed_detected_ids, cx)
+    }
+
+    /// "Modify Run Configuration…": `config` becomes the selected temporary configuration, marked to
+    /// open in Edit Configurations with pending changes (OK saves it). Returns its id.
+    pub fn modify_temporary(&mut self, config: RunConfig, cx: &mut Context<Self>) -> String {
+        let (persist, id) = self.store.update(cx, |store, cx| {
+            let persist = store.modify_temporary(config, &[]);
+            cx.notify();
+            (persist, store.edit_target.clone().unwrap_or_default())
+        });
+        self.carry_out_persist(persist, cx);
+        id
     }
 
     /// The edit dialog closed: a configuration it was opened to modify and that was not saved goes back

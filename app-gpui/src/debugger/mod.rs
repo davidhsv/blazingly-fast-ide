@@ -12,6 +12,7 @@ pub mod breakpoints_view;
 pub mod driver;
 pub mod editor;
 pub mod effects;
+pub mod evaluate_dialog;
 pub mod focused_view;
 pub mod frames;
 pub mod frames_view;

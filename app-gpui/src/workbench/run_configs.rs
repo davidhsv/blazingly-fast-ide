@@ -16,7 +16,7 @@ use crate::run::cmake::cmake_build_id;
 use crate::run::config_types::BrowseKind;
 use crate::run::driver::RunDriver;
 use crate::run::edit_configs_view::{AfterSave, EditConfigs, EditConfigsEvent};
-use crate::run::store::{CURRENT_FILE, ChooserMode, RunStore};
+use crate::run::store::{CURRENT_FILE, ChooserMode, RunStore, current_file_arg};
 use crate::run::widget_view::{RunWidget, RunWidgetEvent};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use futures::channel::oneshot;
@@ -55,6 +55,8 @@ struct RunContext {
     cmake_build: Option<String>,
     /// A running process can be updated (Update application).
     updatable_running: bool,
+    /// How many processes run: the Run stripe button's badge.
+    running: usize,
 }
 
 impl RunContext {
@@ -68,6 +70,7 @@ impl RunContext {
             cmake_build: cmake_build_id(cmake, store.configs()),
             // There is no debugger in this window: only run sessions can be updated.
             updatable_running: !updatable_sessions(&store.sessions, &[]).is_empty(),
+            running: store.sessions.iter().filter(|session| session.is_live()).count(),
         }
     }
 }
@@ -144,6 +147,7 @@ impl Workbench {
     pub(super) fn drop_run_configs(&mut self) {
         self.run_widget = None;
         self.edit_configs = None;
+        self.run_context = Default::default();
     }
 
     /// Publishes the context keys of the run configurations.
@@ -316,7 +320,7 @@ impl Workbench {
                 let current_file = id == CURRENT_FILE;
                 let (action, arg) = match how {
                     ChooserAction::Select => return,
-                    ChooserAction::Run if current_file => ("run.runContext", None),
+                    ChooserAction::Run if current_file => ("run.runContext", Some(current_file_arg())),
                     ChooserAction::Run => {
                         return driver.update(cx, |driver, cx| {
                             if let Some(config) = driver.store().read(cx).config(&id).cloned() {
@@ -324,7 +328,7 @@ impl Workbench {
                             }
                         });
                     }
-                    ChooserAction::Debug if current_file => ("run.debugContext", None),
+                    ChooserAction::Debug if current_file => ("run.debugContext", Some(current_file_arg())),
                     ChooserAction::Debug => ("run.debugConfig", Some(Value::from(id))),
                     ChooserAction::Edit => ("run.editConfigs", Some(Value::from(id))),
                 };

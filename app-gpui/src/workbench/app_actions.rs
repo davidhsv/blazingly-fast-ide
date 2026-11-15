@@ -1212,7 +1212,7 @@ mod tests {
         let _home = start(cx);
         let (_folder, root, workbench, cx) = project(cx, false, &[("main.rs", "fn main() {}\n")]);
         assert!(restricted(&workbench, cx), "an undecided project opens in Restricted Mode");
-        assert!(cx.debug_bounds("restricted-banner").is_some(), "the banner is drawn");
+        wait_long(cx, "the banner is drawn", |cx| cx.debug_bounds("restricted-banner").is_some());
         let execution = |cx: &mut VisualTestContext| {
             cx.update(|_, cx| cx.global::<Backend>().host.project("w1").map(|p| p.require_trust().is_ok()))
                 .unwrap_or(false)
@@ -1220,8 +1220,8 @@ mod tests {
         assert!(!execution(cx), "project commands and tools are off");
         click_on(cx, "restricted-banner-trust");
         wait_long(cx, "the project is trusted", |cx| !restricted(&workbench, cx));
-        cx.run_until_parked();
-        assert!(cx.debug_bounds("restricted-banner").is_none(), "the banner is gone");
+        // The trust store changes before the window is told to draw again: wait for the frame without the banner.
+        wait_long(cx, "the banner is gone", |cx| cx.debug_bounds("restricted-banner").is_none());
         assert!(execution(cx), "language servers and tools may run now");
         assert_eq!(trust_of(&root, cx), (true, true));
         close(cx);
@@ -1292,8 +1292,7 @@ mod tests {
         click_on(cx, "trust-button-project.previewRestricted");
         wait_long(cx, "the project opens", |cx| shown_root(&workbench, cx).as_deref() == Some(&*root));
         assert!(restricted(&workbench, cx), "it opens in Restricted Mode");
-        cx.run_until_parked();
-        assert!(cx.debug_bounds("restricted-banner").is_some(), "the banner is drawn");
+        wait_long(cx, "the banner is drawn", |cx| cx.debug_bounds("restricted-banner").is_some());
         assert_eq!(trust_of(&root, cx), (true, false));
 
         // Decided: the next opening asks nothing.

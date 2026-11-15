@@ -146,6 +146,21 @@ impl Workbench {
                     self.close_evaluate_dialog(window, cx);
                 }
             }
+            EvaluateDialogEvent::ShowHistory { position } => {
+                let items: Vec<MenuItem<String>> = dialog
+                    .read(cx)
+                    .history_menu()
+                    .into_iter()
+                    .map(|(label, expression)| MenuItem::item(label, expression))
+                    .collect();
+                let dialog = dialog.downgrade();
+                let recall = move |_: &mut Self, expression: String, window: &mut Window, cx: &mut Context<Self>| {
+                    let Some(dialog) = dialog.upgrade() else { return };
+                    dialog.update(cx, |dialog, cx| dialog.recall(&expression, cx));
+                    window.focus(&dialog.focus_handle(cx), cx);
+                };
+                self.show_menu(&items, position, recall, window, cx);
+            }
             EvaluateDialogEvent::Closed => self.close_evaluate_dialog(window, cx),
         }
     }
@@ -235,7 +250,6 @@ pub(in crate::workbench) mod tests {
     use crate::workbench::debug::tests::FAKE_ADAPTER;
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::path::PathBuf;
-    use std::time::Duration;
 
     /// A three-line program: the breakpoint goes on `middle`.
     pub(in crate::workbench) const PROGRAM: &str = "start\nmiddle\nend\n";
@@ -364,15 +378,7 @@ pub(in crate::workbench) mod tests {
         what: &str,
         done: &dyn Fn(&mut VisualTestContext) -> bool,
     ) {
-        for _ in 0..3000 {
-            cx.executor().advance_clock(Duration::from_millis(20));
-            cx.run_until_parked();
-            if done(cx) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        panic!("{what} did not happen within thirty seconds");
+        crate::workbench::tests::wait_long(cx, what, done);
     }
 
     /// Runs the action `id` through the registry, as a shortcut or a menu does.
@@ -442,6 +448,22 @@ pub(in crate::workbench) mod tests {
         let key = history_key(EVALUATE_HISTORY, &fixture.root.to_string_lossy());
         let stored = cx.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned));
         assert_eq!(stored.as_deref(), Some("[\"middle\"]"));
+
+        // History: its menu lists the evaluated expression, and choosing it puts it back in the field.
+        cx.simulate_keystrokes("backspace");
+        cx.simulate_input("other");
+        cx.run_until_parked();
+        assert_eq!(dialog.read_with(cx, |dialog, cx| dialog.expression(cx)), "other");
+        let history = cx.debug_bounds("evaluate-history").expect("the History button is drawn");
+        cx.simulate_click(history.center(), gpui_kit::Modifiers::default());
+        cx.run_until_parked();
+        let menu = fixture.workbench.read_with(cx, |w, _| w.open_menu::<String>()).expect("the history menu");
+        assert_eq!(menu.read_with(cx, |menu, _| menu.lines())[0], ["> middle"], "the newest is selected");
+        let row = cx.debug_bounds("menu-row-0-0").expect("the row is drawn");
+        cx.simulate_click(row.center(), gpui_kit::Modifiers::default());
+        cx.run_until_parked();
+        assert_eq!(dialog.read_with(cx, |dialog, cx| dialog.expression(cx)), "middle");
+        assert!(fixture.workbench.read_with(cx, |w, _| w.open_menu::<String>()).is_none(), "the choice closes it");
 
         dialog.update(cx, |dialog, cx| dialog.press(ADD_TO_WATCHES, cx));
         cx.run_until_parked();

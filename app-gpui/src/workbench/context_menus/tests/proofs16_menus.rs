@@ -88,3 +88,30 @@ async fn the_gutters_menu_without_a_project_offers_add_bookmark_and_bookmarks_no
     let path = file.to_string_lossy().into_owned();
     assert!(!workbench.read_with(cx, |w, _| has_bookmark(&w.bookmarks().data().items, &path, 1)));
 }
+
+/// A window editing a file of its own, with no project: a right click in the text opens the editor's
+/// menu, and its Copy puts the selected text on the clipboard.
+#[gpui_kit::test]
+async fn the_editors_menu_without_a_project_opens_on_the_text_and_copies(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let folder = tempfile::tempdir().expect("a folder");
+    let file = folder.path().canonicalize().expect("the folder exists").join("a.txt");
+    std::fs::write(&file, "hello world\n").expect("the file is written");
+    let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new(LABEL, window, cx));
+    cx.update(|window, _| window.activate_window());
+    workbench.update_in(cx, |w, window, cx| w.open_file(file.clone(), window, cx));
+    wait_long(cx, "the file opens", |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+    cx.run_until_parked();
+    let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+    editor.update(cx, |editor, cx| editor.select(0, 5, cx));
+    let at = at_offset(&editor, 2, cx);
+    right_click(cx, at);
+    let menu = workbench.read_with(cx, |w, _| w.open_menu::<EditorMenuCommand>()).expect("the editor's menu is open");
+    let rows = root_rows(&menu, cx);
+    assert!(rows.contains(&"Copy".to_owned()) && rows.contains(&"Paste".to_owned()), "{rows:?}");
+    choose(&menu, &["Copy"], cx);
+    wait_long(cx, "the text is copied", |cx| {
+        cx.update(|_, cx| cx.read_from_clipboard().and_then(|item| item.text())).as_deref() == Some("hello")
+    });
+    assert!(workbench.read_with(cx, |w, _| w.open_menu::<EditorMenuCommand>()).is_none(), "the menu closes");
+}

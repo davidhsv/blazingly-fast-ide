@@ -169,15 +169,29 @@ impl Workbench {
         }
     }
 
-    /// The single-file window's editor, under its bar when one is open.
-    pub(super) fn light_editor_element(&self, editor: &Entity<Editor>) -> AnyElement {
+    /// The single-file window's editor, under its bar when one is open. A right click opens the editor's
+    /// menus as in a project's editor: they belong to the editor, not to the project.
+    pub(super) fn light_editor_element(&self, editor: &Entity<Editor>, cx: &mut Context<Self>) -> AnyElement {
         let bar = self.light_find_bar().map(|bar| bar.bar.clone());
+        let menu_editor = editor.clone();
         div()
             .size_full()
             .flex()
             .flex_col()
             .children(bar.map(|bar| div().flex_none().child(bar)))
-            .child(div().flex_1().min_h_0().child(editor.clone()))
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .on_mouse_down(
+                        gpui_kit::MouseButton::Right,
+                        cx.listener(move |workbench, event: &gpui_kit::MouseDownEvent, window, cx| {
+                            workbench.open_editor_context_menu(&menu_editor, event.position, window, cx);
+                            cx.stop_propagation();
+                        }),
+                    )
+                    .child(editor.clone()),
+            )
             .into_any_element()
     }
 }

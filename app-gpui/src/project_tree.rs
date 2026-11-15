@@ -770,7 +770,7 @@ impl Render for ProjectTree {
                             let toggled = node.key.clone();
                             div()
                                 .id(SharedString::from(format!("toggle:{}", node.key)))
-                                .size(px(16.0))
+                                .size(theme::zoomed(cx, 16.0))
                                 .flex_none()
                                 .child(theme::icon(cx, name, 16.0, chevron_color))
                                 .on_click(cx.listener(move |tree, _: &ClickEvent, _, cx| {
@@ -779,7 +779,7 @@ impl Render for ProjectTree {
                                 }))
                                 .into_any_element()
                         } else {
-                            div().size(px(16.0)).flex_none().into_any_element()
+                            div().size(theme::zoomed(cx, 16.0)).flex_none().into_any_element()
                         };
                         let color = if node.ignored || node.excluded { dimmed } else { fg };
                         let icon = match &node.icon {

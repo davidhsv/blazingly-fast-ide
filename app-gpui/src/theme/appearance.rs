@@ -148,7 +148,7 @@ pub fn apply(cx: &mut App) {
         }
         // The IDE zoom scales every length of the theme: text sizes, row heights, paddings.
         super::zoom::apply_zoom(&mut theme, options.zoom);
-        cx.set_global(ActiveTheme { theme });
+        cx.set_global(ActiveTheme { theme, zoom: super::zoom::zoom_factor(options.zoom) });
         cx.refresh_windows();
     }
     let followers = cx.default_global::<ThemeState>().after_apply.clone();
