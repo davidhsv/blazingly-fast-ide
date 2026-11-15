@@ -91,3 +91,5 @@
 - Integrated on 2026-11-15 (D120): 27 tests for rows that only lacked one; the Remote Branch field cleans its name as typed.
 - The debugger's tests need a `python3` on the search path to run their stand-in debug adapter (the machine's interpreter, a script in the test's temp folder).
 - Not in the native app, found while writing tests on 2026-11-15: the agents' message queue and background tasks views, Attach to Process, input sent to a debugged program from the console, a connect issued when a data source is expanded, Attach Folder reachable from the open-project question, the run widget's executors and Resume Program, the theme preview of Quick Switch.
+- Integrated on 2026-11-15 (D121): eleven Settings pages. Not built there: Download JDK on the Gradle and Maven pages; the Updates page is hidden (no native updater); Check connection of HTTP Proxy never ran against a real address; Issue Navigation refuses patterns with look-around or backreferences that the webview accepts.
+- Fixed on 2026-11-15: the Settings dialog's model printed the saved proxy password in its debug output.

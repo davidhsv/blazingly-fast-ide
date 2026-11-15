@@ -7730,5 +7730,49 @@
   "ipc:mcp_report_problems": {
     "status": "done",
     "proof": "`workbench::editor_language::tests::proofs20_mcp_problems::the_problems_of_an_open_file_reach_the_mcp_hosts_file_problems`; the problems a language server publishes for an open file are reported through the same function the adapter calls, and the MCP host's file problems then list them"
+  },
+  "settings:general.dateFormats": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_misc::date_formats_override_and_pattern_apply`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::general_date_formats::tests::a_blank_pattern_is_not_staged_and_the_pattern_in_effect_comes_back`, `settings_view::pages::general_date_formats::tests::the_pattern_is_editable_once_the_system_format_is_overridden`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; a blank pattern goes back to the stored one and the preview follows the pattern"
+  },
+  "settings:general.httpProxy": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_misc::http_proxy_manual_configuration_applies_and_the_password_stays_secret`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::general_http_proxy::tests::a_port_out_of_range_is_flagged_and_credentials_follow_authentication`, `settings_view::pages::general_http_proxy::tests::manual_configuration_enables_the_controls_and_names_what_is_missing`, `settings_view::pages::general_http_proxy::tests::the_password_is_shown_as_bullets_and_check_uses_the_settings_as_edited`, `settings_view::pages::general_http_proxy::tests::without_a_checker_given_the_test_build_has_none`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; the password is drawn as bullets, kept out of the settings file, the log and every debug output, and stored only in the saved-passwords file. Missing: Check connection has run only against a stand-in checker (the real one is wired to the backend's function and never ran), and its address is asked in a panel on the page where the webview opens a popup"
+  },
+  "settings:general.updates": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_misc::updates_status_check_now_and_the_automatic_check_apply`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`; the page's controls, the automatic check stored after Apply, and Check Now running the update action a test registers. Missing: the page is not shown in the app, because nothing native checks for updates or reports their status"
+  },
+  "settings:editor.files": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_misc::file_types_patterns_and_ignored_names_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::editor_files::tests::patterns_added_and_removed_are_stored_as_additions_and_removals`, `settings_view::pages::editor_files::tests::the_filter_matches_names_and_patterns_and_hashbangs_are_stored`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; the recognized file types come from the backend's languages, and patterns and ignored names are written to the project"
+  },
+  "settings:build.cmake": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_misc::cmake_profile_settings_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::build_cmake::tests::add_and_remove_profiles_with_their_own_environment`, `settings_view::pages::build_cmake::tests::arguments_typed_are_stored_as_words`, `settings_view::pages::build_cmake::tests::the_build_type_and_generator_suggest_known_values`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; profiles with their build type and generator suggestions and their environment are written to the project"
+  },
+  "settings:build.gradle": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_misc::gradle_jvm_distribution_and_home_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::build_gradle::tests::gradle_home_is_shown_only_for_a_local_installation`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it (paths stored trimmed). Missing: Download JDK…"
+  },
+  "settings:build.maven": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_misc::maven_home_and_thread_count_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::build_maven::tests::the_maven_paths_profiles_threads_and_daemon_stage`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it (paths and the thread count stored trimmed). Missing: Download JDK…"
+  },
+  "settings:tools.actionsOnSave": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_misc::actions_on_save_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::tools_actions_on_save::tests::the_note_opens_editor_general`, `settings_view::pages::tools_actions_on_save::tests::the_save_actions_are_off_by_default_and_stage_into_the_project`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it"
+  },
+  "settings:tools.externalTools": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_misc::external_tools_a_tool_added_applies`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::tools_external_tools::tests::a_macro_is_added_after_a_space`, `settings_view::pages::tools_external_tools::tests::a_tool_added_is_edited_with_a_macro`, `settings_view::pages::tools_external_tools::tests::copy_move_and_remove_tools`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; a tool added in the table is stored with its program, arguments and working directory"
+  },
+  "settings:vcs.mappings": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs19_settings_misc::directory_mappings_map_a_repository_root_to_git`, `workbench::tests::proofs19_settings_misc::directory_mappings_show_the_project_root`; the page lists the project's roots with their version control (a repository's root maps to Git); the page has nothing to edit, as in the webview"
+  },
+  "settings:vcs.issueNavigation": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_misc::issue_navigation_links_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::vcs_issue_navigation::tests::an_invalid_pattern_is_named_under_the_table`, `settings_view::pages::vcs_issue_navigation::tests::look_around_and_backreferences_are_invalid_patterns`, `settings_view::pages::vcs_issue_navigation::tests::the_presets_add_their_pattern_after_the_links_there`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; links are written to the project. Missing: a pattern with look-around or a backreference is refused as invalid, where the webview's regular expressions accept it"
   }
 }

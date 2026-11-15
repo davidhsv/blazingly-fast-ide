@@ -736,3 +736,10 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - ExecutePopup.test.tsx through the drawn popup (9 tests → done expected); actions.test.tsx 3/4; linkage.test.tsx 5/16; ipc app_info and window_start_drag stay partial; user_font_data needs a real-window check with a font that exists only in the user's font folder (not possible without touching the home: leave).
 - APP DEFECT found by reading (hypothesis until the test runs): a Gradle build picked after the window changed projects is linked into the NEW project's settings; the test `a_build_picked_after_the_window_changed_projects_is_linked_nowhere` fails by design until the 4-line hunk of the notes is applied.
 - Integrate WITH the next integration that touches build tools or as a Part 0 of Settings B (3 mod lines, no accessor).
+
+## State after Settings A (2026-11-15, a8e1f480). D121. Suite 7,459. `app-gpui/target` cleaned to 23 GB.
+
+- Rows by `$S/parity_dseta.py` (6 done, 5 partial).
+- RUNNING (cargo): Settings B = `$S/int_settings_b_brief.md` (16 language pages; unify the SDK field).
+- NEXT (cargo): `$S/int_d122_brief.md` (proofs21: 15 tests + the Gradle link defect; the unstable `next_occurrence…` test) → agents views (reconciled) → refactor + Git text actions → diff gaps (reconciled) → shared button + accessibility → vcs_stage_hunks → zoom px.
+- Remaining blank Settings pages after B: iconThemePages:18, registry.tsx:62/69/82, build.deployment, build.runTargets, editor.fileTemplates, editor.general.postfixCompletion, editor.liveTemplates, editor.todo, editor.vim, languages.servers, projectTrust, tools.agents, tools.sshConfigurations, vcs.github, vcs.log, projectStructure.

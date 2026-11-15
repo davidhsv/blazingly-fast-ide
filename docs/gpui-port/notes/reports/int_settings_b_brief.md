@@ -10,6 +10,10 @@ Do not stop on your own estimate of elapsed time. Work one page at a time (decla
 
 The misc Settings pages (general, build, tools, vcs, file types) were integrated just before this one: their toolchain drop-down is `app-gpui/src/settings_view/pages/build_sdk_field.rs` with its seam `SdkDetection`, the `page_view` getter and the smoke test's change exist already. Read what that integration left (`git log -3 --stat`, its report under `$S/reports/`) before starting. This integration declares ONLY the language draft (item 1 below) and unifies the two toolchain drop-downs and seams into one.
 
+## What the last Settings integration changed that this one meets
+
+`settings_view::controls`: `Part::Link` has an `after` field; `FieldKind::Trimmed` stores a field's text trimmed (the webview trims paths: use it where `languages.tsx` trims); a field's `.browse(true)` now draws a folder icon with a "Browse…" tooltip. The smoke test (`workbench/tests/smoke_settings_pages.rs`) accepts a page made only of custom lines. The proxy integration added `bring_into_view`, a scroll helper for controls below the visible part of a page (`workbench/tests/proofs19_settings_misc.rs`): long language pages (Java, Rust, Node, PHP) need it before a click. `ide-http` is a dependency of `app-gpui`. The Build pages' toolchain drop-down and seam are `settings_view/pages/build_sdk_field.rs` (`SdkFieldView`, `SdkDetection`); this integration ends with ONE drop-down and ONE seam for all pages.
+
 ## The drafts (item 1 is this integration's; item 2 is already integrated)
 
 1. Languages: notes `docs/gpui-port/notes/integration/settings_languages_integration.md`, report `docs/gpui-port/notes/reports/draft_settings_languages.md`. Files: `app-gpui/src/settings_view/pages/languages_{sdk,controls,pages}.rs`, `app-gpui/src/workbench/tests/proofs19_settings_languages.rs` (19 tests). 16 pages: `languages.go`, `.go.buildTags`, `.go.modules`, `.java`, `.markdown`, `.node`, `.oxfmt`, `.php`, `.pluginFormatters`, `.prettier`, `.ruby`, `.ruff`, `.rust`, `.serverTargets`, `.typescript`, `python.interpreter`.
