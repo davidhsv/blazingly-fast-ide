@@ -632,3 +632,16 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - SECRET: the writer reports the Settings dialog model's Debug already prints the saved proxy password in its base settings (existing code). Hypothesis until a test formats it: the settings brief makes the integrator test and fix it.
 - Expected: done = dateFormats, editor.files, actionsOnSave, externalTools, vcs.mappings, vcs.issueNavigation; partial = httpProxy (Check connection needs ide-http), updates (hidden: no native app.checkForUpdates / status source), cmake (no suggestion lists), gradle/maven (no Download JDK…, no trimming).
 - CARGO QUEUE now: [running] d112 proofs18 → build tools ($S/int_d113_brief.md) → Settings pages ($S/int_settings_brief.md) → agents views → diff gaps → shared button + accessibility → vcs_stage_hunks → zoom px.
+
+## Writers launched 2026-11-15 after the Settings drafts (no cargo)
+
+- Refactor actions through the language server: 13 rows (refactor.changeSignature/extract*/inline/move/pull/push/safeDelete, refactor.thisMenu, navigate.superMethod) → `workbench/refactor_actions.rs`, notes `$S/drafts/refactor_actions_integration.md`. Models exist in `editor_refactor/`.
+- Git actions on the editor's text: 9 rows (vcs.acceptYours/Theirs/Both, next/prevConflict, next/prevChange, showHistoryForSelection, log.openExternal) → `workbench/vcs_text_actions.rs`, notes `$S/drafts/vcs_text_actions_integration.md`.
+- WHEN THEY REPORT: save report (`save_final.py`), `rustfmt --edition 2024 --check < file` on every new file, copy notes to docs/.../integration/, commit the named files only (the integrator's edits are in the tree: never `git add -u`), push.
+- NEXT WRITER CANDIDATES (blank actions): templates (code.insertLiveTemplate, surroundWith, surroundWithLiveTemplate + settings pages editor.liveTemplates / fileTemplates / postfixCompletion), inline completion (6), analysis (inspectCode, inspectFile, locateDuplicates, code.cleanup, structural find ×2), window.* tabs (10) + project.attach/detach, dotnet (13), docker (13), deployment (11), http (7), graphql (6).
+
+## Git text actions DRAFTED (2026-11-15): notes/integration/vcs_text_actions_integration.md
+
+- 9 actions in `workbench/vcs_text_actions.rs` (11 e2e tests), model `vcs_more/caret_conflicts.rs`, views `vcs/{selection_history_view,external_log_view}.rs`. Hunks: `pub mod` lines (vcs, vcs_more), workbench `mod` + register call, two TabKind entries in tab_views.rs after Local History.
+- Expected: 8 done; vcs.log.openExternal partial (commit list only: no graph, paging, filters, details, context menu, restore; the log toolbar's "External Repository…" entry has no handler).
+- Risks: focused-diff test (diffEditorFocus), rebase swap test, `git log -L` rows, plain-folder half of the external log test, the ON/OFF test relying on the Project view taking the keyboard.
