@@ -492,11 +492,13 @@ impl Render for ExecutePopup {
         ));
         let current = self.state.project().map(str::to_owned);
         let projects = self.projects();
+        // The corners of the popup slot's shadowed frame, which draws it.
         div()
             .w(px(WIDTH))
             .flex()
             .flex_col()
-            .rounded(theme::length(cx, "radius-small"))
+            .rounded(theme::length(cx, "radius-popup-large"))
+            .overflow_hidden()
             .border_1()
             .border_color(theme::color(cx, "border"))
             .bg(theme::color(cx, "bg-popup"))

@@ -10,6 +10,7 @@ use super::model::{
     BuildRow, BuildSettings, NodeKind, TreeSource, children, expandable_keys, gradle_project_key, initial_expanded,
     is_runnable, node_config, node_project, roots, visible_rows,
 };
+use crate::app_views::checkbox;
 use crate::find::row_selection::selection_mode;
 use crate::platform::actions::ActionRegistry;
 use crate::platform::i18n::Localization;
@@ -749,18 +750,12 @@ impl BuildToolView {
                             Some(checked) => {
                                 let flipped = key.clone();
                                 let check = format!("build-tool-check:{key}");
+                                // The app's check box without a label: the row's label follows it.
                                 div()
                                     .id(SharedString::from(check.clone()))
                                     .debug_selector(move || check.clone())
-                                    .size(px(14.0))
                                     .flex_none()
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded(px(2.0))
-                                    .border_1()
-                                    .border_color(theme::color(cx, "border"))
-                                    .when(checked, |el| el.child(theme::icon(cx, "check", 12.0, strong)))
+                                    .child(checkbox(cx, String::new(), checked))
                                     .on_click(cx.listener(move |view, _: &ClickEvent, _, cx| {
                                         view.activate(&flipped, cx);
                                         cx.stop_propagation();

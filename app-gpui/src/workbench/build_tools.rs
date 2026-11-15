@@ -48,6 +48,9 @@ use std::time::Duration;
 pub(super) const MAVEN_KEY: &str = "build.maven";
 /// The context key of a project with a linked Gradle build.
 pub(super) const GRADLE_KEY: &str = "build.gradle";
+/// The context key that is true while the window has the Gradle tool window: with a linked build,
+/// and after the last one is unlinked, to link one again. `toolwindow.gradle` exists while it does.
+const GRADLE_WINDOW_KEY: &str = "build.gradleWindow";
 /// The context keys the toolbar toggles' state is read from (toggle actions cannot read the
 /// workbench while a menu is built inside its update).
 const MAVEN_OFFLINE_KEY: &str = "build.maven.offline";
@@ -261,16 +264,18 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         let dir = build_dir_arg(call.arg);
         on_tool(window, cx, move |w, window, cx| w.unlink_gradle_project(dir, window, cx))
     });
-    // The tool windows exist only while the project has such builds, so their show actions are
-    // registered here rather than with the windows every project has.
-    for (id, when) in
-        [(MAVEN_TOOL_WINDOW, "projectOpen && build.maven"), (GRADLE_TOOL_WINDOW, "projectOpen && build.gradle")]
-    {
+    // The tool windows exist only in the windows whose project has such builds. The registry is the
+    // app's, so each show action is registered once and is available while its window's key says
+    // the window has that tool window.
+    let windows =
+        [(MAVEN_TOOL_WINDOW, "projectOpen && build.maven"), (GRADLE_TOOL_WINDOW, "projectOpen && build.gradleWindow")];
+    for (id, when) in windows {
         let Some(declared) = tool_window_declaration(id) else { continue };
         let meta = ActionMeta {
             category: Some("Tool Windows".to_owned()),
             icon: Some(declared.icon.clone()),
             keywords: ["tool window", "show", "hide"].map(str::to_owned).to_vec(),
+            verbatim: declared.verbatim,
             ..ActionMeta::new(&format!("toolwindow.{id}"), &declared.title).when(when)
         };
         registry.register(Action::new(meta, move |_, window, cx| {
@@ -357,7 +362,9 @@ impl Workbench {
             }
             self.tasks.remove_task(&TaskId::Name(format!("{SYNC_TASK_PREFIX}{}", tool_id(tool))));
         }
-        for key in [MAVEN_KEY, GRADLE_KEY, MAVEN_OFFLINE_KEY, MAVEN_SKIP_TESTS_KEY, GRADLE_OFFLINE_KEY] {
+        let keys =
+            [MAVEN_KEY, GRADLE_KEY, GRADLE_WINDOW_KEY, MAVEN_OFFLINE_KEY, MAVEN_SKIP_TESTS_KEY, GRADLE_OFFLINE_KEY];
+        for key in keys {
             set_context(window, cx, key, false);
         }
         self.schedule_tasks(cx);
@@ -511,6 +518,8 @@ impl Workbench {
         for (tool, registration) in registered {
             self.build_tools.tool(tool).registration = Some(registration);
         }
+        let gradle_window = self.build_tools.gradle.registration.is_some();
+        set_context(window, cx, GRADLE_WINDOW_KEY, gradle_window);
     }
 
     fn ensure_build_tool_view(&mut self, tool: BuildTool, window: &mut Window, cx: &mut Context<Self>) {
@@ -1116,16 +1125,35 @@ EOF
 
     fn pom(artifact: &str, body: &str) -> String {
         format!(
-            "<project><modelVersion>4.0.0</modelVersion>{body}<groupId>demo</groupId><artifactId>{artifact}</artifactId>\
-             <version>1.0</version></project>"
+            "<project><modelVersion>4.0.0</modelVersion>{body}<groupId>demo</groupId>\
+             <artifactId>{artifact}</artifactId><version>1.0</version></project>"
         )
     }
 
+    /// A JDK home in `tools` for the project to name as its own: a `release` file and a `bin/java`
+    /// that only fails. With it the build's `JAVA_HOME` is chosen without looking for the machine's
+    /// JDKs or the user's version manager settings; nothing starts it.
+    fn fake_jdk(tools: &Path) -> PathBuf {
+        let home = tools.join("jdk");
+        write(&home.join("release"), "JAVA_VERSION=\"21.0.2\"\n");
+        executable(&home.join("bin/java"), "#!/bin/sh\nexit 1\n");
+        home
+    }
+
+    /// The project settings naming the stand-in JDK, followed by `more`.
+    fn project_settings(root: &Path, tools: &Path, more: &str) {
+        let jdk = fake_jdk(tools);
+        write(&root.join(".openidea/settings.toml"), &format!("[languages.java]\njdk = \"{}\"\n{more}", jdk.display()));
+    }
+
     /// A Maven reactor `Multi Demo` with the modules `core` and `Demo App`, whose Maven is the
-    /// stand-in in `tools`, with the user settings and the local repository there too: nothing is
-    /// read from the user's home.
+    /// stand-in in `tools`, with the user settings, the local repository and the JDK there too:
+    /// nothing is read from the user's home.
     fn maven_project(root: &Path, tools: &Path) {
-        let modules = "<packaging>pom</packaging><name>Multi Demo</name><modules><module>core</module><module>app</module></modules>";
+        let modules = concat!(
+            "<packaging>pom</packaging><name>Multi Demo</name>",
+            "<modules><module>core</module><module>app</module></modules>"
+        );
         write(&root.join("pom.xml"), &pom("parent", modules));
         let parent = "<parent><groupId>demo</groupId><artifactId>parent</artifactId><version>1.0</version></parent>";
         write(&root.join("core/pom.xml"), &pom("core", &format!("{parent}<packaging>jar</packaging>")));
@@ -1136,21 +1164,23 @@ EOF
         executable(&tools.join("mvn"), FAKE_MVN);
         write(&tools.join("settings.xml"), "<settings/>");
         std::fs::create_dir_all(tools.join("m2")).expect("the repository folder is made");
-        let settings = format!(
+        let maven = format!(
             "[languages.java.maven]\nhome = \"{mvn}\"\nuserSettings = \"{settings}\"\nlocalRepository = \"{repo}\"\n",
             mvn = tools.join("mvn").display(),
             settings = tools.join("settings.xml").display(),
             repo = tools.join("m2").display(),
         );
-        write(&root.join(".openidea/settings.toml"), &settings);
+        project_settings(root, tools, &maven);
     }
 
-    /// A Gradle build `demo` including `app` (a Java project), whose wrapper is the stand-in.
-    fn gradle_project(root: &Path) {
+    /// A Gradle build `demo` including `app` (a Java project), whose wrapper is the stand-in, with
+    /// the stand-in JDK of `tools`.
+    fn gradle_project(root: &Path, tools: &Path) {
         write(&root.join("settings.gradle"), "rootProject.name = 'demo'\ninclude 'app'\n");
         write(&root.join("build.gradle"), "// the root build\n");
         write(&root.join("app/build.gradle"), "plugins { id 'java' }\n");
         executable(&root.join("gradlew"), FAKE_GRADLEW);
+        project_settings(root, tools, "");
     }
 
     /// The project `fill` writes, open in a window (trusted unless `trusted` is false), once its
@@ -1365,9 +1395,8 @@ EOF
         let view = show(&workbench, BuildTool::Maven, cx);
         write(&tools.join("hold"), "");
         run_action(cx, "maven.reload", None);
-        wait_long(cx, "the sync's progress", |cx| {
-            view.read_with(cx, |view, _| matches!(view.banners().as_slice(), [Banner::Syncing { message, .. }] if message.starts_with("Building")))
-        });
+        let building = |banners: &[Banner]| matches!(banners, [Banner::Syncing { message, .. }] if message.starts_with("Building"));
+        wait_long(cx, "the sync's progress", |cx| view.read_with(cx, |view, _| building(&view.banners())));
         run_action(cx, "maven.cancelReload", None);
         wait_long(cx, "the end of the sync", |cx| {
             workbench.read_with(cx, |w, _| !w.build_sync_running(BuildTool::Maven))
@@ -1387,7 +1416,7 @@ EOF
     /// told with Gradle's error, and its first line stays above the tree.
     #[gpui_kit::test]
     async fn gradle_reload_lists_the_reported_tasks_and_a_failed_sync_is_told(cx: &mut TestAppContext) {
-        let (workbench, cx, _folders, root, _tools) = build_project(cx, true, |root, _| gradle_project(root));
+        let (workbench, cx, _folders, root, _tools) = build_project(cx, true, gradle_project);
         assert!(cx.update(|window, cx| window_context(window, cx).is_truthy(GRADLE_KEY)));
         let view = show(&workbench, BuildTool::Gradle, cx);
         // Detected run configurations of the build, if any, come between Tasks and the subprojects.
@@ -1443,10 +1472,8 @@ EOF
         assert!(body.starts_with("FAILURE: Build failed with an exception."), "{body}");
         assert!(body.contains("> the stand-in refuses"), "{body}");
         let banners = view.read_with(cx, |view, _| view.banners());
-        assert!(
-            matches!(banners.as_slice(), [Banner::Failed { line, .. }] if line == "FAILURE: Build failed with an exception."),
-            "{banners:?}"
-        );
+        let first_line = "FAILURE: Build failed with an exception.";
+        assert!(matches!(banners.as_slice(), [Banner::Failed { line, .. }] if line == first_line), "{banners:?}");
         close(cx);
     }
 
@@ -1454,7 +1481,7 @@ EOF
     /// Offline applied. (A test task would also get the IDE's test reporting init script.)
     #[gpui_kit::test]
     async fn a_task_runs_by_its_path_with_the_builds_wrapper_and_offline(cx: &mut TestAppContext) {
-        let (workbench, cx, _folders, root, _tools) = build_project(cx, true, |root, _| gradle_project(root));
+        let (workbench, cx, _folders, root, _tools) = build_project(cx, true, gradle_project);
         let view = show(&workbench, BuildTool::Gradle, cx);
         run_action(cx, "gradle.toggleOffline", None);
         assert!(cx.update(|window, cx| window_context(window, cx).is_truthy(GRADLE_OFFLINE_KEY)));
@@ -1527,8 +1554,8 @@ EOF
     /// first and removes it (cancelled, or on a module, nothing changes), and Link stays offered.
     #[gpui_kit::test]
     async fn links_from_the_toolbar_and_keeps_link_available_after_unlinking_the_final_build(cx: &mut TestAppContext) {
-        let (workbench, cx, _folders, root, _tools) = build_project(cx, true, |root, _| {
-            gradle_project(root);
+        let (workbench, cx, _folders, root, _tools) = build_project(cx, true, |root, tools| {
+            gradle_project(root, tools);
             write(&root.join("libs/other/settings.gradle"), "rootProject.name = 'other'\n");
             write(&root.join("libs/other/build.gradle"), "plugins { id 'java' }\n");
         });
@@ -1574,6 +1601,9 @@ EOF
         let registered =
             workbench.read_with(cx, |w, _| w.tool_windows().is_some_and(|l| l.window(GRADLE_TOOL_WINDOW).is_some()));
         assert!(registered, "the Gradle window stays to link a build again");
+        assert!(cx.update(|window, cx| window_context(window, cx).is_truthy(GRADLE_WINDOW_KEY)));
+        // Its show action stays with it.
+        run_action(cx, "toolwindow.gradle", None);
         let buttons = view.read_with(cx, |view, cx| view.toolbar(cx));
         assert!(buttons.iter().any(|b| b.action == Some("gradle.linkProjects")), "Link stays offered");
         close(cx);
