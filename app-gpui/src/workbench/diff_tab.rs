@@ -2,12 +2,13 @@
 //! in an editor tab of its own instead of the diff window, the preview tab when it is the only one.
 //! A diff tab is titled by its file and the revisions compared; it loads both sides off the
 //! window's thread as the diff window does, loads them again on Refresh, stores the viewer
-//! settings the user changes, and jumps to the source as the diff window does, staying open. Its
-//! Maximize Editor hides every tool window, and Restore Size brings them back. Closing the tab
-//! drops its view.
+//! settings the user changes, and jumps to the source as the diff window does, staying open.
+//! Past the first or last difference it moves along its chain: the next file with changes to show
+//! opens in the preview tab. Its Maximize Editor hides every tool window, and Restore Size brings
+//! them back; the button follows the layout however it changes. Closing the tab drops its view.
 
 use super::Workbench;
-use super::diff_window::{LoadedSides, load_sides, side_colours};
+use super::diff_window::{LoadedSides, find_file, load_sides, side_colours};
 use super::tab_views::TabView;
 use super::tool_windows::ToolWindowLayout;
 use crate::backend::Backend;
@@ -15,14 +16,16 @@ use crate::editor::tabs::{EditorInput, OpenTabOptions};
 use crate::editor::view::HighlightSpan;
 use crate::platform::storage::UiStorage;
 use crate::vcs_diff::diff_input::{DIFF_KIND, DiffData, diff_input, diff_key, diff_title, side_file};
+use crate::vcs_diff::diff_navigation::ChainSearch;
 use crate::vcs_diff::diff_options::{DIFF_OPTIONS_KEY, Side, load_diff_options, save_diff_options};
+use crate::vcs_diff::doc::Direction;
 use crate::vcs_diff::tab_view::{DiffTabEvent, DiffTabView};
 use crate::vcs_diff::toolbar_view::DiffToolbarEvent;
 use crate::vcs_diff::view::{DiffView, DiffViewEvent};
 use crate::vcs_more::show_diff::DiffTab;
 use crate::vcs_ops::ops::vcs_notice;
 use crate::workbench::notifications::NotificationLevel;
-use gpui_kit::{App, Context, Entity, WeakEntity, Window};
+use gpui_kit::{App, Context, Entity, WeakEntity, Window, prelude::*};
 use std::path::PathBuf;
 
 /// The diff a tab's input holds; `None` for an input without one.
@@ -59,11 +62,11 @@ pub(super) fn build_diff_tab(input: &EditorInput, window: &mut Window, cx: &mut 
         let label = workbench.label.clone();
         let maximized = workbench.tool_windows().is_some_and(ToolWindowLayout::all_hidden);
         let viewer = shown.read(cx).viewer().clone();
-        viewer.update(cx, |viewer, cx| {
-            viewer.follow_editor_settings(&label, cx);
-            viewer.set_maximized(Some(maximized), cx);
+        viewer.update(cx, |viewer, cx| viewer.follow_editor_settings(&label, cx));
+        shown.update(cx, |tab, cx| {
+            tab.set_maximized(maximized, cx);
+            tab.load(cx);
         });
-        shown.update(cx, |tab, cx| tab.load(cx));
     });
     Some(TabView::new(DIFF_KIND, input.clone(), &view, cx).with_subscription(events))
 }
@@ -96,6 +99,23 @@ impl Workbench {
         view.is_some_and(|view| view.kind == DIFF_KIND && view.focus.contains_focused(window, cx))
     }
 
+    /// Every diff tab shows Restore Size while all the tool windows are hidden, Maximize Editor
+    /// otherwise; called whenever the layout changes.
+    pub(super) fn sync_diff_tabs_maximized(&mut self, cx: &mut Context<Self>) {
+        let maximized = self.tool_windows().is_some_and(ToolWindowLayout::all_hidden);
+        let Some(tabs) = self.tabs() else { return };
+        let views: Vec<Entity<DiffTabView>> = tabs
+            .panes
+            .iter()
+            .flat_map(|pane| &pane.tabs)
+            .filter(|tab| tab.input.kind == DIFF_KIND)
+            .filter_map(|tab| self.tab_view(&tab.id).and_then(TabView::downcast::<DiffTabView>))
+            .collect();
+        for view in views {
+            view.update(cx, |view, cx| view.set_maximized(maximized, cx));
+        }
+    }
+
     fn diff_tab_event(
         &mut self,
         tab: &Entity<DiffTabView>,
@@ -124,10 +144,10 @@ impl Workbench {
                     Ok(json) => cx.default_global::<UiStorage>().set(DIFF_OPTIONS_KEY, json),
                     Err(error) => tracing::error!("cannot store the diff viewer settings: {error}"),
                 },
-                DiffViewEvent::Maximize => self.maximize_from_diff_tab(window, cx),
-                // A diff tab has no chain to move along, its sides are not edited, and its panes have
-                // no menu of their own.
-                DiffViewEvent::OpenFile(_) | DiffViewEvent::Apply { .. } | DiffViewEvent::ShowMenu { .. } => {}
+                &DiffViewEvent::OpenFile(direction) => self.find_diff_tab_file(tab, direction, window, cx),
+                DiffViewEvent::Maximize => self.with_layout(window, cx, ToolWindowLayout::hide_all),
+                // The sides of a diff tab are not edited, and its panes have no menu of their own.
+                DiffViewEvent::Apply { .. } | DiffViewEvent::ShowMenu { .. } => {}
             },
         }
     }
@@ -195,6 +215,46 @@ impl Workbench {
         }
     }
 
+    /// Looks along the chain of the diff `tab` shows for the next file in `direction` with changes
+    /// to show, passing over binary, unreadable and unchanged ones, off the window's thread. The file
+    /// found opens in the preview tab while `tab` still shows the diff the search started from.
+    fn find_diff_tab_file(
+        &mut self,
+        tab: &Entity<DiffTabView>,
+        direction: Direction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let (from, ignore) = {
+            let tab = tab.read(cx);
+            (tab.data().clone(), tab.viewer().read(cx).options().ignore)
+        };
+        let open = self.open_texts(cx);
+        let Some(backend) = cx.try_global::<Backend>() else { return };
+        let search = ChainSearch::new(&from, direction, ignore);
+        let label = self.label.clone();
+        let (shown, key) = (tab.downgrade(), diff_key(&from));
+        let work = backend.with_host(move |host| async move { find_file(&host, &label, search, &open).await });
+        cx.spawn_in(window, async move |workbench, cx| {
+            let found = work.await;
+            let _ = workbench.update_in(cx, |workbench, window, cx| match found {
+                Ok(Some(data)) => {
+                    if shown.upgrade().is_some_and(|tab| diff_key(tab.read(cx).data()) == key) {
+                        workbench.open_diff_tabs(vec![DiffTab { data: *data, preview: true }], window, cx);
+                    }
+                }
+                // No file further along has changes to show.
+                Ok(None) => {}
+                Err(error) => {
+                    let mut notice = vcs_notice(NotificationLevel::Error, "Cannot load the diff");
+                    notice.body = Some(error.to_string());
+                    workbench.notify(notice, cx);
+                }
+            });
+        })
+        .detach();
+    }
+
     /// Jump to Source from a diff tab: the file of `side` at `line`; on a revision side, the
     /// working file of the other side at the line it shows there; for a diff of two revisions, the
     /// working copy of its file at the line the shown one has become there.
@@ -223,26 +283,21 @@ impl Workbench {
         let shown = viewer.read(cx).side_text(side);
         self.jump_to_working_copy(data.path.clone(), shown, line, col, window, cx);
     }
-
-    /// Maximize Editor in a diff tab: hides every tool window, or brings back the ones it hid.
-    fn maximize_from_diff_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.with_layout(window, cx, ToolWindowLayout::hide_all);
-        let maximized = self.tool_windows().is_some_and(ToolWindowLayout::all_hidden);
-        if let Some(viewer) = self.diff_tab_viewer(cx) {
-            viewer.update(cx, |viewer, cx| viewer.set_maximized(Some(maximized), cx));
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::tests::{git_project, init_repo, run_action, wait_long};
+    use super::super::tool_windows::Anchor;
+    use super::super::{GIT_TOOL_WINDOW, PROJECT_TOOL_WINDOW};
     use super::*;
     use crate::platform::settings;
-    use crate::vcs_diff::toolbar_view::{DiffCommand, ToolbarItem};
+    use crate::vcs_diff::toolbar_view::{DiffCommand, ToolbarItem, counter_text};
     use gpui_kit::{TestAppContext, VisualTestContext};
     use ide_workspace::settings::SettingsScope;
     use serde_json::json;
+
+    mod proofs18_e2e_diff_navigation;
 
     /// A repository whose `a.txt` was changed after its first commit, under the non-modal commit
     /// interface.
@@ -301,6 +356,21 @@ mod tests {
         })
     }
 
+    fn maximized_side(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<Anchor> {
+        workbench.read_with(cx, |w, _| w.tool_windows().and_then(ToolWindowLayout::maximized))
+    }
+
+    /// The counter of the active diff tab's toolbar.
+    fn counter(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<String> {
+        workbench
+            .read_with(cx, |w, cx| w.diff_tab_viewer(cx).map(|viewer| counter_text(&viewer.read(cx).summary(), cx)))
+    }
+
+    /// The name of the active editor tab.
+    fn selected_tab(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Option<String> {
+        workbench.read_with(cx, |w, _| w.tab_titles().into_iter().find(|title| title.active).map(|title| title.name))
+    }
+
     // Show Diff opens the diff in an editor tab titled by the file and the revisions, not in the diff window;
     // closing the tab drops it.
     #[gpui_kit::test]
@@ -309,9 +379,7 @@ mod tests {
         let viewer = open_diff_tab(&workbench, &root, cx);
         assert!(workbench.read_with(cx, |w, _| w.diff_dialog().is_none()), "no diff window is shown");
         assert_eq!(diff_tabs(&workbench, cx).len(), 1);
-        let titles: Vec<String> =
-            workbench.read_with(cx, |w, _| w.tab_titles().into_iter().map(|title| title.name).collect());
-        assert!(titles.contains(&"a.txt (HEAD ↔ Your version)".to_owned()), "{titles:?}");
+        assert_eq!(selected_tab(&workbench, cx).as_deref(), Some("a.txt (HEAD ↔ Your version)"));
         assert_eq!(viewer.read_with(cx, |viewer, _| viewer.side_text(Side::B)), "two\n");
         run_action(cx, "editor.closeTab", None);
         assert!(diff_tabs(&workbench, cx).is_empty());
@@ -320,25 +388,37 @@ mod tests {
 
     // src/features/vcs/__tests__/diffToolbar.test.tsx › maximizes a diff tab and restores the %s layout without
     // rebuilding its editor
+    /// With no side maximized, and with the bottom side maximized: Maximize Editor hides every tool window and
+    /// Restore Size brings back the same windows and the same maximized side, the viewer and its caret kept.
     #[gpui_kit::test]
     async fn maximizes_a_diff_tab_and_restores_the_layout_without_rebuilding_its_editor(cx: &mut TestAppContext) {
         let (workbench, cx, _folders, root) = non_modal_project(cx);
         let viewer = open_diff_tab(&workbench, &root, cx);
-        let shown = visible_tool_windows(&workbench, cx);
-        assert!(!shown.is_empty(), "a tool window is open");
-        assert_eq!(maximize_button(&viewer, cx), Some(("Maximize Editor", false)));
-        viewer.update(cx, |viewer, cx| viewer.reveal_line(Side::B, 0, cx));
-        viewer.update(cx, |viewer, cx| viewer.run_command(DiffCommand::ToggleMaximize, cx));
-        cx.run_until_parked();
-        assert!(visible_tool_windows(&workbench, cx).is_empty());
-        assert_eq!(maximize_button(&viewer, cx), Some(("Restore Size", true)));
-        viewer.update(cx, |viewer, cx| viewer.run_command(DiffCommand::ToggleMaximize, cx));
-        cx.run_until_parked();
-        assert_eq!(visible_tool_windows(&workbench, cx), shown);
-        assert_eq!(maximize_button(&viewer, cx), Some(("Maximize Editor", false)));
-        let still = workbench.read_with(cx, |w, cx| w.diff_tab_viewer(cx));
-        assert_eq!(still.as_ref(), Some(&viewer), "the viewer is not rebuilt");
-        assert_eq!(viewer.read_with(cx, |viewer, _| viewer.current_difference()), Some(0));
+        for maximized in [None, Some(Anchor::Bottom)] {
+            if maximized.is_some() {
+                workbench.update_in(cx, |w, window, cx| {
+                    w.with_layout(window, cx, |layout| layout.toggle_maximize(GIT_TOOL_WINDOW));
+                });
+                cx.run_until_parked();
+            }
+            assert_eq!(maximized_side(&workbench, cx), maximized);
+            let shown = visible_tool_windows(&workbench, cx);
+            assert!(!shown.is_empty(), "a tool window is open");
+            assert_eq!(maximize_button(&viewer, cx), Some(("Maximize Editor", false)));
+            viewer.update(cx, |viewer, cx| viewer.reveal_line(Side::B, 0, cx));
+            viewer.update(cx, |viewer, cx| viewer.run_command(DiffCommand::ToggleMaximize, cx));
+            cx.run_until_parked();
+            assert!(visible_tool_windows(&workbench, cx).is_empty());
+            assert_eq!(maximize_button(&viewer, cx), Some(("Restore Size", true)));
+            viewer.update(cx, |viewer, cx| viewer.run_command(DiffCommand::ToggleMaximize, cx));
+            cx.run_until_parked();
+            assert_eq!(visible_tool_windows(&workbench, cx), shown);
+            assert_eq!(maximized_side(&workbench, cx), maximized);
+            assert_eq!(maximize_button(&viewer, cx), Some(("Maximize Editor", false)));
+            let still = workbench.read_with(cx, |w, cx| w.diff_tab_viewer(cx));
+            assert_eq!(still.as_ref(), Some(&viewer), "the viewer is not rebuilt");
+            assert_eq!(viewer.read_with(cx, |viewer, _| viewer.current_difference()), Some(0));
+        }
     }
 
     // src/features/vcs/__tests__/diffToolbar.test.tsx › restores the shared layout after the diff tab is
@@ -347,6 +427,10 @@ mod tests {
     async fn restores_the_shared_layout_after_the_diff_tab_is_remounted(cx: &mut TestAppContext) {
         let (workbench, cx, _folders, root) = non_modal_project(cx);
         let viewer = open_diff_tab(&workbench, &root, cx);
+        workbench.update_in(cx, |w, window, cx| {
+            w.with_layout(window, cx, |layout| layout.toggle_maximize(GIT_TOOL_WINDOW));
+        });
+        cx.run_until_parked();
         let shown = visible_tool_windows(&workbench, cx);
         viewer.update(cx, |viewer, cx| viewer.run_command(DiffCommand::ToggleMaximize, cx));
         cx.run_until_parked();
@@ -356,5 +440,19 @@ mod tests {
         again.update(cx, |viewer, cx| viewer.run_command(DiffCommand::ToggleMaximize, cx));
         cx.run_until_parked();
         assert_eq!(visible_tool_windows(&workbench, cx), shown);
+        assert_eq!(maximized_side(&workbench, cx), Some(Anchor::Bottom));
+    }
+
+    // Hide All Tool Windows run from anywhere turns the tab's Maximize Editor into Restore Size, and back.
+    #[gpui_kit::test]
+    async fn the_maximize_button_follows_hide_all_tool_windows(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = non_modal_project(cx);
+        let viewer = open_diff_tab(&workbench, &root, cx);
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(PROJECT_TOOL_WINDOW)));
+        run_action(cx, "toolwindow.hideAll", None);
+        assert_eq!(maximize_button(&viewer, cx), Some(("Restore Size", true)));
+        run_action(cx, "toolwindow.hideAll", None);
+        assert_eq!(maximize_button(&viewer, cx), Some(("Maximize Editor", false)));
+        assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(PROJECT_TOOL_WINDOW)));
     }
 }

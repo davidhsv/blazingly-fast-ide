@@ -12,17 +12,24 @@ use std::path::Path;
 /// The editor's own Soft-wrap files patterns.
 const DEFAULT_SOFT_WRAP_FILES: &str = "*.md; *.txt; *.rst; *.adoc";
 
-/// A repository whose `a.ts` gained a line after its commit.
+/// A repository whose `a.ts` gained a line after its commit, under the modal commit interface: Show Diff
+/// opens the diff window.
 fn wraps_project(
     cx: &mut TestAppContext,
 ) -> (Entity<Workbench>, &mut VisualTestContext, [tempfile::TempDir; 2], PathBuf) {
-    git_project(cx, |root| {
+    let (workbench, cx, folders, root) = git_project(cx, |root| {
         init_repo(root);
         std::fs::write(root.join("a.ts"), "a\nb\n").expect("the file is written");
         git_in(root, &["add", "a.ts"]);
         git_in(root, &["commit", "-q", "-m", "a.ts"]);
         std::fs::write(root.join("a.ts"), "a\nnew\nb\n").expect("the file is written");
-    })
+    });
+    set_setting(&workbench, "vcs.commit.nonModal", json!(false), cx);
+    let label = workbench.read_with(cx, |w, _| w.label.clone());
+    wait_long(cx, "the modal commit interface", |cx| {
+        cx.update(|_, cx| !settings::effective(&label, cx).vcs.commit.non_modal)
+    });
+    (workbench, cx, folders, root)
 }
 
 fn set_setting(workbench: &Entity<Workbench>, key: &str, value: serde_json::Value, cx: &mut VisualTestContext) {
@@ -31,10 +38,20 @@ fn set_setting(workbench: &Entity<Workbench>, key: &str, value: serde_json::Valu
     cx.run_until_parked();
 }
 
+/// Whether the editor's Soft-wrap files setting reached the window: both of its keys read back as written.
+fn editor_wraps_set(workbench: &Entity<Workbench>, on: bool, files: &str, cx: &mut VisualTestContext) -> bool {
+    let label = workbench.read_with(cx, |w, _| w.label.clone());
+    cx.update(|_, cx| {
+        let editor = settings::effective(&label, cx).editor;
+        editor.soft_wrap == on && editor.general.soft_wrap_files == files
+    })
+}
+
 /// Settings › Editor › Soft Wraps: Soft-wrap files, and its file patterns.
 fn editor_soft_wraps(workbench: &Entity<Workbench>, on: bool, files: &str, cx: &mut VisualTestContext) {
     set_setting(workbench, "editor.softWrap", json!(on), cx);
     set_setting(workbench, "editor.general.softWrapFiles", json!(files), cx);
+    wait_long(cx, "the editor's soft wraps setting", |cx| editor_wraps_set(workbench, on, files, cx));
 }
 
 fn store_diff_options(stored: &str, cx: &mut VisualTestContext) {
