@@ -5,8 +5,8 @@
 //! only a project has.
 
 use super::languages_sdk::{
-    KnownLanguage, LanguageAsk, LanguageEvent, PathFieldView, PluginFormatter, SdkFieldView, ToolchainCatalog,
-    ToolchainKind, enter_escape, found,
+    KnownLanguage, LanguageAsk, LanguageEvent, PathFieldView, PluginFormatter, SdkFieldView, Toolchain,
+    ToolchainCatalog, ToolchainKind, Toolchains, enter_escape,
 };
 use super::list_editor::ListEditor;
 use super::{
@@ -89,6 +89,7 @@ pub struct LanguagePageView {
     page: &'static str,
     binding: Binding,
     sections: Vec<Section>,
+    toolchains: Toolchains,
     detect: Vec<ToolchainKind>,
     asked: bool,
     _subscriptions: Vec<Subscription>,
@@ -102,6 +103,7 @@ impl LanguagePageView {
         page: &'static str,
         binding: Binding,
         sections: Vec<Section>,
+        toolchains: Toolchains,
         detect: Vec<ToolchainKind>,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -109,7 +111,7 @@ impl LanguagePageView {
         for control in sections.iter().flat_map(|(_, controls)| controls) {
             subscriptions.push(Self::listen(control, cx));
         }
-        Self { page, binding, sections, detect, asked: false, _subscriptions: subscriptions }
+        Self { page, binding, sections, toolchains, detect, asked: false, _subscriptions: subscriptions }
     }
 
     fn listen(control: &Control, cx: &mut Context<Self>) -> Subscription {
@@ -117,7 +119,7 @@ impl LanguagePageView {
         match control {
             Control::Form(view) => cx.subscribe(view, move |page, _, event, cx| control_event(page, event, cx)),
             Control::List(view) => cx.subscribe(view, move |page, _, event, cx| control_event(page, event, cx)),
-            Control::Sdk(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
+            Control::Sdk(view) => cx.subscribe(view, move |page, _, event, cx| control_event(page, event, cx)),
             Control::Path(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::Languages(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::FontSize(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
@@ -151,12 +153,16 @@ impl LanguagePageView {
 
 impl Render for LanguagePageView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The installations are detected when the page is first shown, not when Settings opens.
+        // The installations are detected when the page is first shown, not when Settings opens,
+        // after the frame.
         if !self.asked {
             self.asked = true;
-            for kind in self.detect.clone() {
-                cx.emit(LanguageAsk::Detect { kind, again: false });
-            }
+            let (toolchains, kinds) = (self.toolchains.clone(), self.detect.clone());
+            cx.defer(move |cx| {
+                for kind in kinds {
+                    toolchains.detect(kind, false, cx);
+                }
+            });
         }
         let query = self.binding.query(cx);
         let drawn: Vec<Div> = self
@@ -168,8 +174,11 @@ impl Render for LanguagePageView {
                 section(cx, title.as_deref(), &query, rows)
             })
             .collect();
+        // The page scrolls inside the dialog: Prettier's languages and PHP's sections run past it.
         div()
             .id(SharedString::from(format!("settings-language-page-{}", self.page)))
+            .size_full()
+            .overflow_y_scroll()
             .flex()
             .flex_col()
             .gap(px(8.0))
@@ -920,6 +929,7 @@ pub const PHP_INTERPRETER: &str = "languages.php.interpreter";
 /// `php` on the PATH, looked up while no interpreter is set.
 pub struct PhpInterpreterView {
     binding: Binding,
+    toolchains: Toolchains,
     path_php: Option<String>,
     asked_path: bool,
     /// The interpreter Xdebug was asked for, and the answer once it came (`None` inside: failed).
@@ -930,10 +940,11 @@ pub struct PhpInterpreterView {
 impl EventEmitter<LanguageEvent> for PhpInterpreterView {}
 
 impl PhpInterpreterView {
-    pub fn new(binding: Binding, cx: &mut Context<Self>) -> Self {
+    pub fn new(binding: Binding, toolchains: Toolchains, cx: &mut Context<Self>) -> Self {
         let observe = cx.observe(&binding.model, |_: &mut Self, _, cx| cx.notify());
         let catalog = cx.observe_global::<ToolchainCatalog>(|_: &mut Self, cx| cx.notify());
-        Self { binding, path_php: None, asked_path: false, xdebug: None, _subscriptions: vec![observe, catalog] }
+        let subscriptions = vec![observe, catalog];
+        Self { binding, toolchains, path_php: None, asked_path: false, xdebug: None, _subscriptions: subscriptions }
     }
 
     fn set_path_php(&mut self, path: Option<String>, cx: &mut Context<Self>) {
@@ -949,10 +960,10 @@ impl PhpInterpreterView {
     }
 
     /// The detected PHP the page selects: the one set, else the one on the PATH.
-    fn selected(&self, cx: &App) -> Option<super::languages_sdk::Toolchain> {
+    fn selected(&self, cx: &App) -> Option<Toolchain> {
         let interpreter = self.binding.text(PHP_INTERPRETER, cx);
         let wanted = if interpreter.is_empty() { self.path_php.clone()? } else { interpreter };
-        found(ToolchainKind::Php, cx).into_iter().find(|sdk| sdk.path == wanted)
+        self.toolchains.found(ToolchainKind::Php, cx).into_iter().find(|sdk| sdk.path == wanted)
     }
 
     /// `Some(xdebug)` once the selected PHP was checked; `None` while it is or when the check failed.
@@ -1068,7 +1079,7 @@ impl Render for ProjectOnlyView {
 
 #[cfg(test)]
 mod tests {
-    use super::super::languages_sdk::Toolchain;
+    use super::super::languages_sdk::SdkDetection;
     use super::super::test_support::{click, dialog_model, init, staged, type_over};
     use super::*;
     use gpui_kit::{TestAppContext, VisualTestContext};
@@ -1174,33 +1185,55 @@ mod tests {
         assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)).len(), 2, "no server row on the host");
     }
 
+    // Not from a spec: a language a plugin formatter covers gets a choice of Automatic and the
+    // formatters covering it; the one chosen is staged, and a language none covers is not listed.
+    #[gpui_kit::test]
+    async fn a_plugin_formatter_is_offered_for_the_languages_it_covers(cx: &mut TestAppContext) {
+        let model = cx.update(|cx| dialog_model(PLUGIN_FORMATTERS, &[], cx));
+        let binding = Binding::fixed(model.clone(), PLUGIN_FORMATTERS, Scope::Global);
+        let (view, cx) = open(cx, move |_, cx| PluginFormattersView::new(binding, cx));
+        view.update(cx, |view, cx| {
+            let known = |id: &str| KnownLanguage { id: id.to_owned(), name: id.to_owned(), servers: Vec::new() };
+            view.set_known(vec![known("lua"), known("python")], cx);
+            let stylua =
+                PluginFormatter { id: "p.stylua".into(), name: "StyLua".into(), languages: vec!["lua".into()] };
+            view.set_formatters(vec![stylua], cx);
+        });
+        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["lua: Automatic (language server first) ▾"]);
+        click(cx, "settings-formatter-0");
+        click(cx, "settings-formatter-0-1");
+        assert_eq!(
+            staged(&model, cx),
+            [("global:languages.pluginFormatters".to_owned(), "{\"lua\":\"p.stylua\"}".to_owned())]
+        );
+        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["lua: StyLua ▾"]);
+    }
+
     // Not from a spec: the Xdebug of the selected PHP is shown once the check answers.
     #[gpui_kit::test]
     async fn the_selected_php_shows_its_version_and_xdebug(cx: &mut TestAppContext) {
         const PAGE: &str = "languages.php";
         let stored = [(PHP_INTERPRETER, json!("/opt/php/bin/php"))];
         let model = cx.update(|cx| dialog_model(PAGE, &stored, cx));
-        cx.update(|cx| {
+        let toolchains = cx.update(|cx| {
             let php = Toolchain {
                 path: "/opt/php/bin/php".into(),
                 name: "PHP 8.3".into(),
                 version: Some("8.3.1".into()),
                 ..Toolchain::default()
             };
-            let test = super::super::languages_sdk::TestToolchains {
+            let test = SdkDetection {
                 found: vec![(ToolchainKind::Php, vec![php])],
                 xdebug: vec![("/opt/php/bin/php".into(), Some("3.3.0".into()))],
                 ..Default::default()
             };
             cx.set_global(test);
-            super::super::languages_sdk::answer(
-                LanguageAsk::Detect { kind: ToolchainKind::Php, again: false },
-                "w1",
-                cx,
-            );
+            let toolchains = Toolchains::new(&model, "w1", cx);
+            toolchains.detect(ToolchainKind::Php, false, cx);
+            toolchains
         });
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Project);
-        let (view, cx) = open(cx, move |_, cx| PhpInterpreterView::new(binding, cx));
+        let (view, cx) = open(cx, move |_, cx| PhpInterpreterView::new(binding, toolchains, cx));
         // The view asks for Xdebug when drawn; the test answers it as the dialog's caller does.
         let asked: Rc<std::cell::RefCell<Vec<LanguageAsk>>> = Rc::default();
         let keep = asked.clone();

@@ -10,11 +10,11 @@ use super::languages_controls::{
     PreviewFontSizeView, ProjectOnlyView, Section, ServerTargetView, TargetLanguages,
 };
 use super::languages_sdk::{
-    LanguageAsk, PathFieldView, PathPlaceholder, PathSpec, SdkChoices, SdkFieldView, SdkSpec, ToolchainCatalog,
-    ToolchainKind, answer, found, sdk,
+    LanguageAsk, PathFieldView, PathPlaceholder, PathSpec, SdkChoices, SdkFieldView, SdkSpec, Toolchain, ToolchainKind,
+    Toolchains, answer, sdk,
 };
 use super::list_editor::{ListEditor, ListShape, ListSpec};
-use super::{Binding, ChoicesFn, FieldKind, FormView, Part, ScopeOf, field, fixed_choices, toggle};
+use super::{Binding, ChoicesFn, DetailFn, FieldKind, FormView, Part, ScopeOf, field, fixed_choices, toggle};
 use crate::settings_model::language_pages::{JAVA_LANGUAGE_LEVELS, PHP_LANGUAGE_LEVELS, tildify};
 use crate::settings_model::staging::{Scope, SettingsDialog};
 use crate::settings_view::controls::tx;
@@ -64,6 +64,7 @@ pub const PAGES: [&str; 16] = [
 struct Build {
     model: Entity<SettingsDialog>,
     scope: ScopeOf,
+    toolchains: Toolchains,
     /// A project is open and the dialog does not edit the settings for new projects.
     project_open: bool,
 }
@@ -84,12 +85,24 @@ fn form(binding: Binding, parts: Vec<Part>, cx: &mut App) -> Control {
     Control::Form(cx.new(|cx| FormView::new(binding, parts, cx)))
 }
 
-fn sdk_field(binding: Binding, spec: SdkSpec, cx: &mut App) -> Control {
-    Control::Sdk(cx.new(|cx| SdkFieldView::new(binding, spec, cx)))
+/// A form whose drop-down `key` names a detail after some of its choices.
+fn form_with_details(binding: Binding, parts: Vec<Part>, key: &'static str, detail: DetailFn, cx: &mut App) -> Control {
+    Control::Form(cx.new(|cx| FormView::new(binding, parts, cx).with_details(key, detail)))
 }
 
-fn path_field(binding: Binding, spec: PathSpec, cx: &mut App) -> Control {
-    Control::Path(cx.new(|cx| PathFieldView::new(binding, spec, cx)))
+/// The detail of a drop-down's empty choice (`from composer.json`).
+fn empty_detail(detail: &'static str) -> DetailFn {
+    Rc::new(move |value: &Value, cx: &App| (value.as_str() == Some("")).then(|| tx(cx, detail)))
+}
+
+fn sdk_field(build: &Build, binding: Binding, spec: SdkSpec, cx: &mut App) -> Control {
+    let toolchains = build.toolchains.clone();
+    Control::Sdk(cx.new(|cx| SdkFieldView::new(binding, spec, toolchains, cx)))
+}
+
+fn path_field(build: &Build, binding: Binding, spec: PathSpec, cx: &mut App) -> Control {
+    let toolchains = build.toolchains.clone();
+    Control::Path(cx.new(|cx| PathFieldView::new(binding, spec, toolchains, cx)))
 }
 
 fn list(binding: Binding, spec: ListSpec, cx: &mut App) -> Control {
@@ -154,8 +167,8 @@ fn go(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
         hint: None,
     };
     let sections = vec![
-        (Some("GOROOT"), vec![sdk_field(binding.clone(), goroot, cx)]),
-        (Some("GOPATH"), vec![path_field(binding, gopath, cx)]),
+        (Some("GOROOT"), vec![sdk_field(build, binding.clone(), goroot, cx)]),
+        (Some("GOPATH"), vec![path_field(build, binding, gopath, cx)]),
     ];
     (sections, vec![ToolchainKind::Go])
 }
@@ -281,12 +294,8 @@ fn java(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
         .empty("Auto", "per module, the JDK of its Java version")
         .directory()
         .hint(JDK_HINT);
-    let level = select_with_hint(
-        "languages.java.languageLevel",
-        "Language level",
-        levels(&JAVA_LANGUAGE_LEVELS, "SDK default"),
-        LEVEL_HINT,
-    );
+    const LEVEL: &str = "languages.java.languageLevel";
+    let level = select_with_hint(LEVEL, "Language level", levels(&JAVA_LANGUAGE_LEVELS, "SDK default"), LEVEL_HINT);
     let jdtls_jdk = sdk("languages.java.jdtlsJdk", "JDK", ToolchainKind::Jdk)
         .empty("Auto", "auto-managed; uses an installed JDK or downloads a runtime when needed")
         .directory()
@@ -296,10 +305,16 @@ fn java(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
     let (shared_binding, project) = (binding.clone(), build.project(JAVA));
     let shared = Control::Shared(cx.new(|cx| JdtlsSharedView::new(shared_binding, project, cx)));
     let sections = vec![
-        (Some("Project JDK"), vec![sdk_field(binding.clone(), jdk, cx), form(binding.clone(), vec![level], cx)]),
+        (
+            Some("Project JDK"),
+            vec![
+                sdk_field(build, binding.clone(), jdk, cx),
+                form_with_details(binding.clone(), vec![level], LEVEL, empty_detail("from build / JDK"), cx),
+            ],
+        ),
         (
             Some("Language Server"),
-            vec![shared, sdk_field(binding.clone(), jdtls_jdk, cx), form(binding, vec![vm_args.into()], cx)],
+            vec![shared, sdk_field(build, binding.clone(), jdtls_jdk, cx), form(binding, vec![vm_args.into()], cx)],
         ),
     ];
     (sections, vec![ToolchainKind::Jdk])
@@ -321,23 +336,29 @@ const NODE_HINT: &str = "Runs npm scripts and Node-based language servers (vtsls
 const PACKAGE_MANAGER_HINT: &str = "Used by the npm run configurations detected from package.json scripts.";
 const NODE_SERVER_LANGUAGES: &[&str] = &["javascript", "javascriptreact", "typescript", "typescriptreact"];
 
-/// Package manager: Auto, then each manager with the version and place found, or "not found".
+const PACKAGE_MANAGER: &str = "languages.node.packageManager";
+const PACKAGE_MANAGERS: [&str; 4] = ["npm", "pnpm", "yarn", "bun"];
+
+/// Package manager: Auto, then each manager.
 fn package_managers() -> ChoicesFn {
     Rc::new(|_: &Binding, cx: &App| {
-        let detected = found(ToolchainKind::PackageManager, cx);
-        let auto = format!("{} — {}", tx(cx, "Auto"), tx(cx, "from packageManager / lock file"));
-        let mut list = vec![(Value::from(""), auto)];
-        for name in ["npm", "pnpm", "yarn", "bun"] {
-            let detail = match detected.iter().find(|sdk| sdk.name == name) {
-                Some(sdk) => {
-                    format!("{} {}", sdk.version.clone().unwrap_or_default(), tildify(&sdk.path)).trim().to_owned()
-                }
-                None => tx(cx, "not found"),
-            };
-            list.push((Value::from(name), format!("{name} — {detail}")));
-        }
+        let mut list = vec![(Value::from(""), tx(cx, "Auto"))];
+        list.extend(PACKAGE_MANAGERS.map(|name| (Value::from(name), name.to_owned())));
         list
     })
+}
+
+/// What a package manager's choice says after its name: where Auto looks, or the version and
+/// place of the manager found, else that it is not found.
+fn package_manager_detail(value: &str, found: &[Toolchain]) -> Option<String> {
+    if value.is_empty() {
+        return Some("from packageManager / lock file".to_owned());
+    }
+    let detail = match found.iter().find(|sdk| sdk.name == value) {
+        Some(sdk) => format!("{} {}", sdk.version.clone().unwrap_or_default(), tildify(&sdk.path)).trim().to_owned(),
+        None => "not found".to_owned(),
+    };
+    Some(detail)
 }
 
 fn node(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
@@ -345,13 +366,17 @@ fn node(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
     let interpreter = sdk("languages.node.interpreter", "Node interpreter", ToolchainKind::Node)
         .empty("Default", "node on PATH")
         .hint(NODE_HINT);
-    let manager =
-        select_with_hint("languages.node.packageManager", "Package manager", package_managers(), PACKAGE_MANAGER_HINT);
+    let manager = select_with_hint(PACKAGE_MANAGER, "Package manager", package_managers(), PACKAGE_MANAGER_HINT);
+    let toolchains = build.toolchains.clone();
+    let detail: DetailFn = Rc::new(move |value: &Value, cx: &App| {
+        let found = toolchains.found(ToolchainKind::PackageManager, cx);
+        package_manager_detail(value.as_str()?, &found).map(|detail| tx(cx, &detail))
+    });
     let controls = vec![
-        sdk_field(binding.clone(), interpreter, cx),
+        sdk_field(build, binding.clone(), interpreter, cx),
         form(binding.clone(), vec![run_target("languages.node.runTarget")], cx),
         targets(build, NODE, TargetLanguages::Picker(Some(NODE_SERVER_LANGUAGES)), cx),
-        form(binding, vec![manager], cx),
+        form_with_details(binding, vec![manager], PACKAGE_MANAGER, detail, cx),
     ];
     (vec![(None, controls)], vec![ToolchainKind::Node, ToolchainKind::PackageManager])
 }
@@ -367,7 +392,7 @@ fn python(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
         sdk("languages.python.interpreter", "Python Interpreter", ToolchainKind::Python).choices(SdkChoices::Python);
     let activate = toggle("languages.python.activateVirtualenv", "Activate virtualenv").hint(ACTIVATE_HINT);
     let sections = vec![
-        (None, vec![sdk_field(binding.clone(), interpreter, cx)]),
+        (None, vec![sdk_field(build, binding.clone(), interpreter, cx)]),
         (Some("Terminal"), vec![form(binding, vec![activate.into()], cx)]),
     ];
     (sections, vec![ToolchainKind::Python])
@@ -392,12 +417,8 @@ const PHP_HINT: &str = "Runs PHP scripts, PHPUnit, Composer and artisan, and the
 
 fn php(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
     let binding = build.binding(PHP);
-    let level = select_with_hint(
-        "languages.php.languageLevel",
-        "PHP language level",
-        levels(&PHP_LANGUAGE_LEVELS, "Auto — from composer.json"),
-        PHP_LEVEL_HINT,
-    );
+    const LEVEL: &str = "languages.php.languageLevel";
+    let level = select_with_hint(LEVEL, "PHP language level", levels(&PHP_LANGUAGE_LEVELS, "Auto"), PHP_LEVEL_HINT);
     let include_paths = ListSpec {
         label: "Include paths",
         key: "languages.php.includePaths",
@@ -422,24 +443,24 @@ fn php(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
     let interpreter = sdk("languages.php.interpreter", "PHP interpreter", ToolchainKind::Php)
         .empty("Default", "php on PATH")
         .hint(PHP_HINT);
-    let info_binding = binding.clone();
-    let info = Control::Php(cx.new(|cx| PhpInterpreterView::new(info_binding, cx)));
+    let (info_binding, toolchains) = (binding.clone(), build.toolchains.clone());
+    let info = Control::Php(cx.new(|cx| PhpInterpreterView::new(info_binding, toolchains, cx)));
     let sections = vec![
         (
             None,
             vec![
-                form(binding.clone(), vec![level], cx),
+                form_with_details(binding.clone(), vec![level], LEVEL, empty_detail("from composer.json"), cx),
                 list(binding.clone(), include_paths, cx),
                 list(binding.clone(), stubs, cx),
             ],
         ),
-        (Some("PHPStan"), vec![path_field(binding.clone(), phpstan, cx)]),
+        (Some("PHPStan"), vec![path_field(build, binding.clone(), phpstan, cx)]),
         (
             Some("CLI Interpreter"),
             vec![
                 form(binding.clone(), vec![run_target("languages.php.runTarget")], cx),
                 targets(build, PHP, TargetLanguages::Fixed("php"), cx),
-                sdk_field(binding, interpreter, cx),
+                sdk_field(build, binding, interpreter, cx),
                 info,
             ],
         ),
@@ -596,7 +617,7 @@ fn ruby(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
     let spec = sdk("languages.ruby.interpreter", "Ruby interpreter", ToolchainKind::Ruby)
         .empty("Auto", ".ruby-version / mise / asdf, else ruby on PATH")
         .hint(RUBY_HINT);
-    (vec![(None, vec![sdk_field(build.binding(RUBY), spec, cx)])], vec![ToolchainKind::Ruby])
+    (vec![(None, vec![sdk_field(build, build.binding(RUBY), spec, cx)])], vec![ToolchainKind::Ruby])
 }
 
 const TOOLCHAIN_HINT: &str = "cargo run configurations and rust-analyzer use this toolchain (PATH, RUSTUP_TOOLCHAIN).";
@@ -627,7 +648,10 @@ fn rust(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
     ];
     let rustfmt = field("languages.rust.rustfmtArgs", "Additional arguments", FieldKind::Text).hint(RUSTFMT_HINT);
     let sections = vec![
-        (Some("Toolchain"), vec![sdk_field(binding.clone(), toolchain, cx), path_field(binding.clone(), stdlib, cx)]),
+        (
+            Some("Toolchain"),
+            vec![sdk_field(build, binding.clone(), toolchain, cx), path_field(build, binding.clone(), stdlib, cx)],
+        ),
         (Some("External Linters"), vec![form(binding.clone(), linter, cx)]),
         (Some("Rustfmt"), vec![form(binding, vec![rustfmt.into()], cx)]),
     ];
@@ -641,7 +665,7 @@ fn typescript(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>)
         .directory()
         .hint(TYPESCRIPT_HINT)
         .choices(SdkChoices::TypeScript);
-    (vec![(None, vec![sdk_field(build.binding(TYPESCRIPT), spec, cx)])], vec![ToolchainKind::TypeScript])
+    (vec![(None, vec![sdk_field(build, build.binding(TYPESCRIPT), spec, cx)])], vec![ToolchainKind::TypeScript])
 }
 
 // ---------------------------------------------------------------------------
@@ -763,41 +787,45 @@ fn page_sections(page: &str, build: &Build, cx: &mut App) -> Option<(Vec<Section
     })
 }
 
+/// What the pages are mounted with: the scope the dialog shows, the dialog's toolchains, and
+/// whether its window has a project.
+pub struct Mount {
+    pub scope: ScopeOf,
+    pub toolchains: Toolchains,
+    pub has_project: bool,
+}
+
 /// Builds the view of `page` over the dialog's model.
 pub fn page_view(
     page: &'static str,
     model: &Entity<SettingsDialog>,
-    scope: ScopeOf,
-    has_project: bool,
+    mount: &Mount,
     cx: &mut App,
 ) -> Option<Entity<LanguagePageView>> {
-    let project_open = has_project && !model.read(cx).new_projects;
-    let build = Build { model: model.clone(), scope, project_open };
+    let project_open = mount.has_project && !model.read(cx).new_projects;
+    let toolchains = mount.toolchains.clone();
+    let build =
+        Build { model: model.clone(), scope: mount.scope.clone(), toolchains: toolchains.clone(), project_open };
     let (sections, detect) = page_sections(page, &build, cx)?;
     let binding = build.binding(page);
-    Some(cx.new(|cx| LanguagePageView::new(page, binding, sections, detect, cx)))
+    Some(cx.new(|cx| LanguagePageView::new(page, binding, sections, toolchains, detect, cx)))
 }
 
 /// Puts the view of every page this module draws in `dialog`, with the texts the search finds it
-/// by, and answers what the pages ask the backend for the window `window_label`. Returns the views,
+/// by, and answers what the pages ask the backend for the dialog's window. Returns the views,
 /// whose dialog events the caller answers, and the subscriptions answering the backend questions;
 /// the caller keeps both as long as the dialog is open.
 pub fn install(
     dialog: &Entity<SettingsDialogView>,
     model: &Entity<SettingsDialog>,
-    scope: ScopeOf,
-    window_label: &str,
-    has_project: bool,
+    mount: Mount,
     cx: &mut App,
 ) -> (Vec<Entity<LanguagePageView>>, Vec<Subscription>) {
-    // What is installed depends on the window's project (its virtualenvs, its node_modules): the
-    // installations are detected again for each Settings opened, and kept while it is open.
-    cx.set_global(ToolchainCatalog::default());
-    let label: Rc<str> = Rc::from(window_label);
+    let label: Rc<str> = Rc::from(mount.toolchains.window());
     let mut views = Vec::new();
     let mut subscriptions = Vec::new();
     for page in PAGES {
-        let Some(view) = page_view(page, model, scope.clone(), has_project, cx) else { continue };
+        let Some(view) = page_view(page, model, &mount, cx) else { continue };
         let label = label.clone();
         subscriptions.push(cx.subscribe(&view, move |_, ask: &LanguageAsk, cx| answer(ask.clone(), &label, cx)));
         let labels: Vec<String> = search_labels(page).into_iter().map(str::to_owned).collect();
@@ -859,6 +887,22 @@ mod tests {
             assert!(get_at(&defaults, key).is_some(), "{key} is not a setting");
         }
         assert_eq!(GO_MODULE_KEYS.map(|key| key.rsplit('.').next().unwrap_or_default()), GO_MODULE_ENV);
+    }
+
+    // Not from a spec: Auto says where it looks; a manager found names its version and place, one
+    // not found says so.
+    #[test]
+    fn a_package_manager_names_the_version_and_place_found() {
+        let pnpm = Toolchain {
+            path: "/Users/ann/.local/bin/pnpm".to_owned(),
+            name: "pnpm".to_owned(),
+            version: Some("9.1.0".to_owned()),
+            ..Toolchain::default()
+        };
+        let found = [pnpm];
+        assert_eq!(package_manager_detail("", &found).as_deref(), Some("from packageManager / lock file"));
+        assert_eq!(package_manager_detail("pnpm", &found).as_deref(), Some("9.1.0 ~/.local/bin/pnpm"));
+        assert_eq!(package_manager_detail("bun", &found).as_deref(), Some("not found"));
     }
 
     fn part_key(part: &Part) -> Option<&'static str> {

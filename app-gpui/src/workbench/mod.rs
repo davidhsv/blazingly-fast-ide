@@ -4356,6 +4356,7 @@ mod tests {
     mod proofs18_e2e_run;
     mod proofs18_e2e_search;
     mod proofs18_e2e_toolwindows;
+    mod proofs19_settings_languages;
     mod proofs19_settings_misc;
     mod proofs20_database;
     mod proofs20_run_widget;
@@ -12792,11 +12793,17 @@ for line in sys.stdin:
             })
         });
 
-        // The console opens; Explain Plan runs its statement.
+        // The console opens; Explain Plan runs its statement. The definition is a SQL file too, so
+        // the console is the SQL file that is not the definition's.
+        let definition = workbench.read_with(cx, |w, cx| w.editor().map(|e| e.read(cx).path().to_path_buf()));
+        let definition = definition.expect("the definition's editor");
         run_action(cx, "db.openConsole", Some(serde_json::Value::from(source)));
         wait_long(cx, "the console", |cx| {
             workbench.read_with(cx, |w, cx| {
-                w.editor().is_some_and(|e| e.read(cx).path().extension().is_some_and(|x| x == "sql"))
+                w.editor().is_some_and(|e| {
+                    let path = e.read(cx).path();
+                    path != definition && path.extension().is_some_and(|x| x == "sql")
+                })
             })
         });
         let console = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("the console");

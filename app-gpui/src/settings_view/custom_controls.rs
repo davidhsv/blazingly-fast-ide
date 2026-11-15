@@ -216,13 +216,22 @@ pub fn install(
     slots.put(pages::vcs_issue_navigation::PAGE, pages::vcs_issue_navigation::PRESETS_SLOT, &view, cx);
 
     // Build, Execution, Deployment › CMake, Gradle and Maven: pages drawn by views of their own.
-    let detector = pages::build_sdk_field::detector(install.window_label, cx);
+    let toolchains = pages::languages_sdk::Toolchains::new(&model, install.window_label, cx);
     let view = cx.new(|cx| pages::build_cmake::CMakeProfilesView::new(binding(pages::build_cmake::PAGE), cx));
     slots.page_view(pages::build_cmake::PAGE, &view, cx);
-    let view = pages::build_gradle::page(binding(pages::build_gradle::PAGE), detector.clone(), cx);
+    let view = pages::build_gradle::page(binding(pages::build_gradle::PAGE), toolchains.clone(), cx);
     slots.page_view(pages::build_gradle::PAGE, &view, cx);
-    let view = pages::build_maven::page(binding(pages::build_maven::PAGE), detector, cx);
+    let view = pages::build_maven::page(binding(pages::build_maven::PAGE), toolchains.clone(), cx);
     slots.page_view(pages::build_maven::PAGE, &view, cx);
+
+    // Languages & Frameworks and Python Interpreter: pages drawn by views of their own.
+    let languages =
+        pages::languages_pages::Mount { scope: scope.clone(), toolchains, has_project: install.has_project };
+    let (language_pages, asks) = pages::languages_pages::install(dialog, &model, languages, cx);
+    for page in &language_pages {
+        slots.listen(page, cx);
+    }
+    slots.subscriptions.extend(asks);
 
     slots.subscriptions
 }

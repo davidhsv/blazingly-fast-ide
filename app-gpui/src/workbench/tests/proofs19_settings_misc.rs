@@ -17,7 +17,8 @@ use crate::platform::settings::{effective, global};
 use crate::settings_view::controls::UNAVAILABLE;
 use crate::settings_view::dialog::SettingsDialogView;
 use crate::settings_view::pages::Then;
-use crate::settings_view::pages::build_sdk_field::{Detector, SdkChoice, SdkDetection, SdkFieldView, ToolPage};
+use crate::settings_view::pages::build_tool_page::ToolPage;
+use crate::settings_view::pages::languages_sdk::{SdkDetection, SdkFieldView, Toolchain, ToolchainKind};
 use crate::settings_view::pages::list_editor::ListEditor;
 use crate::settings_view::pages::{
     FormView, build_cmake, build_gradle, build_maven, editor_files, general_date_formats, general_http_proxy,
@@ -138,7 +139,7 @@ fn type_over(cx: &mut VisualTestContext, field: &Entity<crate::ui::text_field::T
 
 /// Scrolls the page shown until the control drawn as `at` is above the dialog's buttons; the
 /// wheel turns over the page just above OK, clear of the lists that scroll on their own.
-fn bring_into_view(cx: &mut VisualTestContext, at: &'static str) {
+pub(super) fn bring_into_view(cx: &mut VisualTestContext, at: &'static str) {
     use gpui_kit::{Modifiers, ScrollDelta, ScrollEvent, ScrollSource, TouchPhase, point, px};
     for _ in 0..40 {
         cx.run_until_parked();
@@ -162,25 +163,23 @@ fn is_modified(dialog: &Entity<SettingsDialogView>, cx: &mut VisualTestContext) 
     dialog.read_with(cx, |view, cx| view.is_modified(cx))
 }
 
-/// Detection that finds one JDK and one Maven home inside `folder`, and counts its runs.
-fn fake_installations(folder: &Path, cx: &mut VisualTestContext) -> Rc<Cell<usize>> {
-    let runs = Rc::new(Cell::new(0));
-    let (count, jdk, maven) = (
-        runs.clone(),
-        folder.join("jdks/temurin-21").display().to_string(),
-        folder.join("maven-3.9").display().to_string(),
-    );
-    let detector: Detector = Rc::new(move |kind: &'static str, then: Then<Vec<SdkChoice>>, cx: &mut App| {
-        count.set(count.get() + 1);
-        let found = match kind {
-            "jdk" => vec![SdkChoice { path: jdk.clone(), name: "Temurin 21".to_owned() }],
-            "maven" => vec![SdkChoice { path: maven.clone(), name: "Maven 3.9".to_owned() }],
-            _ => Vec::new(),
-        };
-        then(found, cx);
-    });
-    cx.update(|_, cx| cx.set_global(SdkDetection(detector)));
-    runs
+/// Detection that finds one JDK and one Maven home inside `folder`, and logs the kinds it is asked for.
+fn fake_installations(folder: &Path, cx: &mut VisualTestContext) -> Rc<RefCell<Vec<ToolchainKind>>> {
+    let installation = |path: PathBuf, name: &str| Toolchain {
+        path: path.display().to_string(),
+        name: name.to_owned(),
+        ..Toolchain::default()
+    };
+    let test = SdkDetection {
+        found: vec![
+            (ToolchainKind::Jdk, vec![installation(folder.join("jdks/temurin-21"), "Temurin 21")]),
+            (ToolchainKind::Maven, vec![installation(folder.join("maven-3.9"), "Maven 3.9")]),
+        ],
+        ..SdkDetection::default()
+    };
+    let asked = test.asked.clone();
+    cx.update(|_, cx| cx.set_global(test));
+    asked
 }
 
 // Date Formats: the override, the pattern, the clock, the pretty forms and the preview; the
@@ -485,7 +484,7 @@ async fn gradle_jvm_distribution_and_home_are_written_to_the_project(cx: &mut Te
     let dialog = open_page(&workbench, build_gradle::PAGE, cx);
     assert_eq!(dialog.read_with(cx, |view, cx| view.scope(cx)), crate::settings_model::staging::Scope::Project);
     let page: Entity<ToolPage> = page_view(&dialog, build_gradle::PAGE, cx);
-    settle(cx, |_| runs.get() > 0);
+    settle(cx, |_| !runs.borrow().is_empty());
     let lines = tool_page_lines(&page, cx);
     let labels: Vec<&str> = lines.iter().filter(|line| !line.starts_with("    ")).map(String::as_str).collect();
     assert_eq!(
@@ -522,7 +521,7 @@ async fn maven_home_and_thread_count_are_written_to_the_project(cx: &mut TestApp
     let runs = fake_installations(folder.path(), cx);
     let dialog = open_page(&workbench, build_maven::PAGE, cx);
     let page: Entity<ToolPage> = page_view(&dialog, build_maven::PAGE, cx);
-    settle(cx, |_| runs.get() >= 2);
+    settle(cx, |_| runs.borrow().len() >= 2);
     let lines = tool_page_lines(&page, cx);
     let labels: Vec<&str> = lines.iter().filter(|line| !line.starts_with("    ")).map(String::as_str).collect();
     assert_eq!(

@@ -17,7 +17,7 @@ pub mod appearance;
 pub mod build_cmake;
 pub mod build_gradle;
 pub mod build_maven;
-pub mod build_sdk_field;
+pub mod build_tool_page;
 pub mod code_style;
 pub mod console;
 pub mod data_views;
@@ -29,6 +29,9 @@ pub mod general;
 pub mod general_date_formats;
 pub mod general_http_proxy;
 pub mod general_updates;
+pub mod languages_controls;
+pub mod languages_pages;
+pub mod languages_sdk;
 pub mod list_editor;
 pub mod notifications;
 pub mod terminal;
@@ -246,6 +249,22 @@ pub fn select_box(cx: &App, label: &str) -> Div {
         .child(theme::icon(cx, "chevron-down", 12.0, theme::color(cx, "fg-muted")))
 }
 
+/// A small icon button with its tooltip, drawn as `selector` (Browse…, Detect again).
+pub fn icon_button(cx: &App, selector: String, icon: &str, title: &'static str) -> gpui_kit::Stateful<Div> {
+    let id = selector.clone();
+    div()
+        .id(SharedString::from(id))
+        .debug_selector(move || selector)
+        .size(px(22.0))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded(theme::length(cx, "radius-small"))
+        .hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover")))
+        .tooltip(crate::ui::tooltip::tooltip(title))
+        .child(theme::icon(cx, icon, 16.0, theme::color(cx, "fg-icon")))
+}
+
 /// A help line under a control.
 pub fn hint_line(cx: &App, text: &str, indent: f32) -> Div {
     div()
@@ -412,6 +431,9 @@ impl FieldKind {
 /// Choices of a drop-down, as (value, label): read when it is drawn, so they can follow the
 /// settings (the custom color schemes) or keep a stored value that is not among them.
 pub type ChoicesFn = Rc<dyn Fn(&Binding, &App) -> Vec<(Value, String)>>;
+
+/// The detail of a drop-down's choice (`from composer.json`), shown after its label in the list.
+pub type DetailFn = Rc<dyn Fn(&Value, &App) -> Option<String>>;
 
 /// Fixed choices of string values.
 pub fn fixed_choices(list: &[(&'static str, &'static str)]) -> ChoicesFn {
@@ -623,6 +645,8 @@ pub struct FormView {
     parts: Vec<Part>,
     fields: Vec<BoundField>,
     open_select: Option<&'static str>,
+    /// The muted detail a drop-down's choice shows after its label in the open list, by setting.
+    details: Vec<(&'static str, DetailFn)>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -683,7 +707,8 @@ impl FormView {
             }
         })
         .detach();
-        let mut view = Self { binding, parts, fields, open_select: None, _subscriptions: vec![observe] };
+        let mut view =
+            Self { binding, parts, fields, open_select: None, details: Vec::new(), _subscriptions: vec![observe] };
         view.sync(cx);
         view
     }
@@ -878,6 +903,17 @@ impl FormView {
         }
     }
 
+    /// Gives the choices of the drop-down of `key` the details `detail` names.
+    pub fn with_details(mut self, key: &'static str, detail: DetailFn) -> Self {
+        self.details.push((key, detail));
+        self
+    }
+
+    fn detail(&self, key: &str, value: &Value, cx: &App) -> Option<String> {
+        let (_, detail) = self.details.iter().find(|(own, _)| *own == key)?;
+        detail(value, cx)
+    }
+
     /// The label of the choice `key` holds; the value itself when no choice has it.
     fn current_choice(&self, key: &str, choices: &ChoicesFn, cx: &App) -> String {
         let current = self.binding.value(key, cx);
@@ -976,7 +1012,9 @@ impl FormView {
                             let chosen = same_value(Some(&value), current.as_ref());
                             let suffix = choice_suffix(&value, index);
                             let text = tx(cx, &text);
+                            let detail = self.detail(key, &value, cx).map(|detail| muted(cx, &detail));
                             drop_down_row(cx, format!("settings-choice-{key}-{suffix}"), &text, chosen)
+                                .children(detail)
                                 .on_click(cx.listener(move |view, _: &ClickEvent, _, cx| {
                                     view.choose(key, value.clone(), cx);
                                 }))
@@ -1098,26 +1136,15 @@ impl FormView {
             spec.note_off.filter(|(key, _)| !self.binding.bool(key, cx)).map(|(_, note)| muted(cx, &tx(cx, note)));
         let browse = spec.browse.map(|directories| {
             let binding = self.binding.clone();
-            div()
-                .id(SharedString::from(format!("settings-browse-{key}")))
-                .debug_selector(move || format!("settings-browse-{key}"))
-                .size(px(22.0))
-                .flex()
-                .items_center()
-                .justify_center()
-                .rounded(theme::length(cx, "radius-small"))
-                .hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover")))
-                .tooltip(crate::ui::tooltip::tooltip("Browse…"))
-                .child(theme::icon(cx, "folder-open", 16.0, theme::color(cx, "fg-icon")))
-                .when(open, |el| {
-                    el.on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
-                        let binding = binding.clone();
-                        let then: Then<PathBuf> = Rc::new(move |path: PathBuf, cx: &mut App| {
-                            binding.stage(key, Value::String(path.to_string_lossy().into_owned()), cx);
-                        });
-                        cx.emit(ControlEvent::Browse { directories, then });
-                    }))
-                })
+            icon_button(cx, format!("settings-browse-{key}"), "folder-open", "Browse…").when(open, |el| {
+                el.on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
+                    let binding = binding.clone();
+                    let then: Then<PathBuf> = Rc::new(move |path: PathBuf, cx: &mut App| {
+                        binding.stage(key, Value::String(path.to_string_lossy().into_owned()), cx);
+                    });
+                    cx.emit(ControlEvent::Browse { directories, then });
+                }))
+            })
         });
         let drawn = row(cx, matched)
             .when(spec.indent, |el| el.pl(px(INDENT)))

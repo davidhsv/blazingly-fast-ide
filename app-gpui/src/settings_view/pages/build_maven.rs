@@ -2,7 +2,8 @@
 //! user settings and toolchains files, the local repository, the active profiles, the thread count
 //! and the Maven Daemon.
 
-use super::build_sdk_field::{Detector, SdkFieldView, SdkSpec, ToolPage};
+use super::build_tool_page::ToolPage;
+use super::languages_sdk::{SdkFieldView, SdkSpec, ToolchainKind, Toolchains, sdk};
 use super::{Binding, FieldKind, FormView, Part, field, toggle};
 use gpui_kit::{App, AppContext, Entity};
 
@@ -10,32 +11,21 @@ pub const PAGE: &str = "build.maven";
 
 /// The JRE choice.
 pub fn jre() -> SdkSpec {
-    SdkSpec {
-        key: "languages.java.maven.runnerJre",
-        label: "JRE",
-        hint: Some(
-            "JDK used for Maven sync, builds, goals and tests. An explicit JAVA_HOME in a run configuration takes \
-             precedence.",
-        ),
-        kind: "jdk",
-        empty: Some(("Use Project JDK", None)),
-        directory: true,
-    }
+    sdk("languages.java.maven.runnerJre", "JRE", ToolchainKind::Jdk).empty_label("Use Project JDK").directory().hint(
+        "JDK used for Maven sync, builds, goals and tests. An explicit JAVA_HOME in a run configuration takes \
+         precedence.",
+    )
 }
 
 /// The Maven home choice.
 pub fn home() -> SdkSpec {
-    SdkSpec {
-        key: "languages.java.maven.home",
-        label: "Maven home path",
-        hint: Some(
+    sdk("languages.java.maven.home", "Maven home path", ToolchainKind::Maven)
+        .empty("Auto", "Maven wrapper, else mvn on PATH")
+        .directory()
+        .hint(
             "Runs sync, builds and Maven run configurations. A chosen home is used instead of the project's mvnw. \
              Bypassed while the Maven daemon is enabled.",
-        ),
-        kind: "maven",
-        empty: Some(("Auto", Some("Maven wrapper, else mvn on PATH"))),
-        directory: true,
-    }
+        )
 }
 
 /// The controls under the two choices.
@@ -97,12 +87,12 @@ pub fn rest() -> Vec<Part> {
 }
 
 /// The page: the JRE and Maven home choices, then the other controls.
-pub fn page(binding: Binding, detector: Detector, cx: &mut App) -> Entity<ToolPage> {
+pub fn page(binding: Binding, toolchains: Toolchains, cx: &mut App) -> Entity<ToolPage> {
     cx.new(|cx| {
         let mut page = ToolPage::new(PAGE, &binding, cx);
         for spec in [jre(), home()] {
-            let (binding, detector) = (binding.clone(), detector.clone());
-            let view = cx.new(|cx| SdkFieldView::new(binding, spec, detector, cx));
+            let (binding, toolchains) = (binding.clone(), toolchains.clone());
+            let view = cx.new(|cx| SdkFieldView::new(binding, spec, toolchains, cx));
             page.add(view, None, cx);
         }
         let form_binding = binding.clone();

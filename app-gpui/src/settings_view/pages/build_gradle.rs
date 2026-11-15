@@ -2,7 +2,8 @@
 //! Gradle runs on, the distribution (the wrapper or a local installation, with its home) and the
 //! Gradle user home.
 
-use super::build_sdk_field::{Detector, SdkFieldView, SdkSpec, Shown, ToolPage};
+use super::build_tool_page::{Shown, ToolPage};
+use super::languages_sdk::{SdkFieldView, SdkSpec, ToolchainKind, Toolchains, sdk};
 use super::{Binding, FieldKind, FormView, Part, field, fixed_choices};
 use gpui_kit::{App, AppContext, Entity};
 use std::rc::Rc;
@@ -27,17 +28,10 @@ fn run_using() -> Vec<Part> {
 
 /// The Gradle JVM choice.
 pub fn jvm() -> SdkSpec {
-    SdkSpec {
-        key: "languages.java.gradle.jvm",
-        label: "Gradle JVM",
-        hint: Some(
-            "JDK used for Gradle sync, tasks, run configurations and tests. An explicit JAVA_HOME in a run \
-             configuration takes precedence.",
-        ),
-        kind: "jdk",
-        empty: Some(("Project JDK", None)),
-        directory: true,
-    }
+    sdk("languages.java.gradle.jvm", "Gradle JVM", ToolchainKind::Jdk).empty_label("Project JDK").directory().hint(
+        "JDK used for Gradle sync, tasks, run configurations and tests. An explicit JAVA_HOME in a run configuration \
+         takes precedence.",
+    )
 }
 
 fn distribution() -> Vec<Part> {
@@ -75,7 +69,7 @@ fn user_home() -> Vec<Part> {
 }
 
 /// The page: its controls in the order shown, Gradle home only with a local installation.
-pub fn page(binding: Binding, detector: Detector, cx: &mut App) -> Entity<ToolPage> {
+pub fn page(binding: Binding, toolchains: Toolchains, cx: &mut App) -> Entity<ToolPage> {
     cx.new(|cx| {
         let mut page = ToolPage::new(PAGE, &binding, cx);
         let form = |parts: Vec<Part>, cx: &mut gpui_kit::Context<ToolPage>| {
@@ -85,7 +79,7 @@ pub fn page(binding: Binding, detector: Detector, cx: &mut App) -> Entity<ToolPa
         let run = form(run_using(), cx);
         page.add(run, None, cx);
         let jvm_binding = binding.clone();
-        let jvm = cx.new(|cx| SdkFieldView::new(jvm_binding, jvm(), detector, cx));
+        let jvm = cx.new(|cx| SdkFieldView::new(jvm_binding, jvm(), toolchains, cx));
         page.add(jvm, None, cx);
         let distribution = form(distribution(), cx);
         page.add(distribution, None, cx);
@@ -101,8 +95,6 @@ pub fn page(binding: Binding, detector: Detector, cx: &mut App) -> Entity<ToolPa
 
 #[cfg(test)]
 mod tests {
-    use super::super::Then;
-    use super::super::build_sdk_field::SdkChoice;
     use super::super::test_support::*;
     use super::*;
     use crate::settings_model::staging::Scope;
@@ -114,10 +106,9 @@ mod tests {
     async fn gradle_home_is_shown_only_for_a_local_installation(cx: &mut TestAppContext) {
         let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Project);
-        let detector: Detector =
-            Rc::new(|_: &'static str, then: Then<Vec<SdkChoice>>, cx: &mut App| then(Vec::new(), cx));
+        let toolchains = cx.update(|cx| Toolchains::new(&model, "w1", cx));
         init(cx);
-        let page = cx.update(|cx| page(binding, detector, cx));
+        let page = cx.update(|cx| page(binding, toolchains, cx));
         let (_, cx) = cx.add_window_view(move |_, _| PageHost(page.clone()));
         let count = |cx: &mut gpui_kit::VisualTestContext| cx.debug_bounds("settings-text-languages.java.gradle.home");
         assert!(count(cx).is_none(), "the wrapper is the default");

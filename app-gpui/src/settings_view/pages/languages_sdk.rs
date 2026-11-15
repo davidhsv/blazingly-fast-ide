@@ -1,36 +1,38 @@
-//! The toolchains the language pages offer and the questions those pages ask the backend.
+//! The toolchains the Settings pages offer (Languages & Frameworks, Build Tools) and the questions
+//! those pages ask the backend about them.
 //!
-//! The installations of each kind are detected once a page that offers them is first shown, not
-//! when Settings opens, and kept while the dialog is open ([`ToolchainCatalog`], emptied for each
-//! Settings opened), so switching pages does not probe the toolchains again; Detect again asks
-//! anew. The SDK combo
-//! ([`SdkFieldView`]) lists the empty choice, the detected installations and a value set by hand,
-//! with Detect again and Browse…; the path field ([`PathFieldView`]) trims what is typed and
-//! offers Browse…. Views own no backend: they ask through [`LanguageEvent`], and [`answer`] asks
-//! the backend off the window's thread.
+//! The installations of each kind are detected once a control that offers them is first shown, not
+//! when Settings opens, and kept while that dialog is open ([`Toolchains`]): switching pages does
+//! not look for them again, and every combo of a kind lists the same installations; Detect again
+//! looks anew. The SDK combo ([`SdkFieldView`]) lists the empty choice, the installations found and
+//! a value set by hand, with Detect again and Browse…; the path field ([`PathFieldView`]) trims
+//! what is typed and offers Browse….
 //!
-//! Test builds never probe a toolchain, look a tool up on the PATH or run an interpreter: the
-//! answers come from the [`TestToolchains`] a test sets, and are empty without one.
+//! The backend's detection reads the PATH, the system's and the version managers' folders and asks
+//! the tools found for their versions, so a test answers in its place with an [`SdkDetection`] of
+//! its own; a test build without one finds nothing, looks nothing up and runs nothing.
 
 use super::{
-    Binding, ControlEvent, Then, WIDE_FIELD, claim_field_keys, drop_down, drop_down_row, frame, hint_line, muted,
-    new_field, row, row_label, select_box,
+    Binding, ControlEvent, Then, WIDE_FIELD, claim_field_keys, drop_down, drop_down_row, frame, hint_line, icon_button,
+    muted, new_field, row, row_label, select_box,
 };
 use crate::platform::input;
 use crate::settings_model::language_pages::tildify;
-use crate::settings_view::controls::{button, tx};
+use crate::settings_model::staging::SettingsDialog;
+use crate::settings_view::controls::tx;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
-    AnyElement, App, ClickEvent, Context, Entity, EventEmitter, Global, IntoElement, Keystroke, MouseButton, Render,
-    SharedString, Subscription, Window, div, prelude::*,
+    AnyElement, App, ClickEvent, Context, Entity, EntityId, EventEmitter, Global, IntoElement, Keystroke, MouseButton,
+    Render, SharedString, Subscription, Window, div, prelude::*,
 };
-use serde::Deserialize;
 use serde_json::Value;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 
 /// What the backend detects (its `SdkKind`, named as on the wire).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ToolchainKind {
     Python,
     Node,
@@ -62,24 +64,18 @@ impl ToolchainKind {
     }
 }
 
-/// One installation the backend found: the shape of its `Sdk` on the wire (the crate that defines
-/// it is not a dependency of this one).
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "camelCase")]
+/// One installation the backend found, as the pages show it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Toolchain {
     /// The executable or directory the setting stores.
     pub path: String,
     /// Display name, e.g. `Python 3.12 (.venv)`.
     pub name: String,
-    #[serde(default)]
     pub version: Option<String>,
     /// Where it was found: `venv`, `system`, `workspace`, `path`…
-    #[serde(default)]
     pub source: String,
-    #[serde(default)]
     pub home: Option<String>,
     /// Rust standard library sources, Go default GOPATH.
-    #[serde(default)]
     pub extra: Option<String>,
 }
 
@@ -93,57 +89,222 @@ pub enum Detection {
     Ready,
 }
 
-#[derive(Debug, Clone)]
-struct CatalogEntry {
-    kind: ToolchainKind,
-    detection: Detection,
-    found: Vec<Toolchain>,
+/// What a test answers in place of the backend for every toolchain question: the installations
+/// per kind, the tools on the PATH, the Xdebug of a PHP and the project's virtualenv interpreter.
+/// The kinds asked for are logged, in order.
+#[derive(Clone, Default)]
+pub struct SdkDetection {
+    pub found: Vec<(ToolchainKind, Vec<Toolchain>)>,
+    pub located: Vec<(&'static str, String)>,
+    pub xdebug: Vec<(String, Option<String>)>,
+    pub python: Option<String>,
+    pub asked: Rc<RefCell<Vec<ToolchainKind>>>,
 }
 
-/// The installations found so far, per kind.
-#[derive(Debug, Clone, Default)]
+impl Global for SdkDetection {}
+
+/// The installations found so far, per Settings dialog and kind; the views that show them observe
+/// it.
+#[derive(Default)]
 pub struct ToolchainCatalog {
-    entries: Vec<CatalogEntry>,
+    dialogs: HashMap<EntityId, HashMap<ToolchainKind, (Detection, Vec<Toolchain>)>>,
 }
 
 impl Global for ToolchainCatalog {}
 
-impl ToolchainCatalog {
-    fn entry(&self, kind: ToolchainKind) -> Option<&CatalogEntry> {
-        self.entries.iter().find(|entry| entry.kind == kind)
-    }
+/// The toolchains of one Settings dialog, asked of the backend for its window.
+#[derive(Clone)]
+pub struct Toolchains {
+    dialog: EntityId,
+    window: Rc<str>,
+}
 
-    fn entry_mut(&mut self, kind: ToolchainKind) -> &mut CatalogEntry {
-        let at = match self.entries.iter().position(|entry| entry.kind == kind) {
-            Some(at) => at,
-            None => {
-                let entry = CatalogEntry { kind, detection: Detection::Idle, found: Vec::new() };
-                self.entries.push(entry);
-                self.entries.len() - 1
+impl Toolchains {
+    /// The toolchains of the dialog `model` belongs to; what was found goes with the dialog.
+    pub fn new(model: &Entity<SettingsDialog>, window: &str, cx: &App) -> Self {
+        let dialog = model.entity_id();
+        cx.observe_release(model, move |_, cx| {
+            if cx.has_global::<ToolchainCatalog>() {
+                cx.update_global::<ToolchainCatalog, _>(|catalog, _| catalog.dialogs.remove(&dialog));
             }
-        };
-        &mut self.entries[at]
+        })
+        .detach();
+        Self { dialog, window: Rc::from(window) }
     }
 
-    pub fn detection(&self, kind: ToolchainKind) -> Detection {
-        self.entry(kind).map_or(Detection::Idle, |entry| entry.detection)
+    pub fn window(&self) -> &str {
+        &self.window
     }
 
-    pub fn found(&self, kind: ToolchainKind) -> &[Toolchain] {
-        match self.entry(kind) {
-            Some(entry) => &entry.found,
-            None => &[],
+    fn entry(&self, kind: ToolchainKind, cx: &App) -> Option<(Detection, Vec<Toolchain>)> {
+        let catalog = cx.try_global::<ToolchainCatalog>()?;
+        catalog.dialogs.get(&self.dialog)?.get(&kind).cloned()
+    }
+
+    /// The installations of `kind` found so far; none before the first detection.
+    pub fn found(&self, kind: ToolchainKind, cx: &App) -> Vec<Toolchain> {
+        self.entry(kind, cx).map(|(_, found)| found).unwrap_or_default()
+    }
+
+    pub fn detection(&self, kind: ToolchainKind, cx: &App) -> Detection {
+        self.entry(kind, cx).map_or(Detection::Idle, |(detection, _)| detection)
+    }
+
+    /// Records where the detection of `kind` stands and what it found; the views observing the
+    /// catalog repaint, and so do the forms that read it.
+    fn set(&self, kind: ToolchainKind, detection: Detection, found: Option<Vec<Toolchain>>, cx: &mut App) {
+        cx.default_global::<ToolchainCatalog>();
+        cx.update_global::<ToolchainCatalog, _>(|catalog, _| {
+            let entry = catalog.dialogs.entry(self.dialog).or_default().entry(kind).or_default();
+            entry.0 = detection;
+            if let Some(found) = found {
+                entry.1 = found;
+            }
+        });
+        cx.refresh_windows();
+    }
+
+    /// Detects the installations of `kind`, unless they are known or being looked for; `again`:
+    /// anew.
+    pub fn detect(&self, kind: ToolchainKind, again: bool, cx: &mut App) {
+        let now = self.detection(kind, cx);
+        if now == Detection::Loading || (now == Detection::Ready && !again) {
+            return;
+        }
+        self.set(kind, Detection::Loading, None, cx);
+        let toolchains = self.clone();
+        let finish = move |found: Vec<Toolchain>, cx: &mut App| toolchains.set(kind, Detection::Ready, Some(found), cx);
+        let given = cx.try_global::<SdkDetection>().map(|test| {
+            test.asked.borrow_mut().push(kind);
+            test.found.iter().find(|(own, _)| *own == kind).map(|(_, found)| found.clone()).unwrap_or_default()
+        });
+        match given {
+            Some(found) => finish(found, cx),
+            None if cfg!(test) => finish(Vec::new(), cx),
+            None => backend_detection(kind, &self.window, finish, cx),
         }
     }
 }
 
-/// The installations of `kind` found so far; none before the first detection.
-pub fn found(kind: ToolchainKind, cx: &App) -> Vec<Toolchain> {
-    cx.try_global::<ToolchainCatalog>().map(|catalog| catalog.found(kind).to_vec()).unwrap_or_default()
+/// The backend's detection of `kind` for `window`, on the backend's runtime. A failure is logged
+/// and lists nothing, as the combo then offers only its other choices.
+fn backend_detection(
+    kind: ToolchainKind,
+    window: &str,
+    finish: impl FnOnce(Vec<Toolchain>, &mut App) + 'static,
+    cx: &mut App,
+) {
+    let Some(backend) = cx.try_global::<crate::backend::Backend>() else {
+        finish(Vec::new(), cx);
+        return;
+    };
+    let label = window.to_owned();
+    let work = backend.with_host(move |host| async move {
+        let wire = serde_json::from_value(Value::from(kind.wire())).map_err(|error| error.to_string())?;
+        let found = ide_host::ops::sdk::sdk_detect(&host, &label, wire).await.map_err(|error| error.message)?;
+        let text = |path: &std::path::Path| path.to_string_lossy().into_owned();
+        let toolchains = found.into_iter().map(|sdk| Toolchain {
+            path: text(&sdk.path),
+            name: sdk.name,
+            version: sdk.version,
+            source: sdk.source,
+            home: sdk.home.as_deref().map(text),
+            extra: sdk.extra.as_deref().map(text),
+        });
+        Ok::<_, String>(toolchains.collect::<Vec<_>>())
+    });
+    cx.spawn(async move |cx| {
+        let found = match work.await {
+            Ok(Ok(found)) => found,
+            Ok(Err(error)) => {
+                tracing::warn!("Settings: detecting the {} installations failed: {error}", kind.wire());
+                Vec::new()
+            }
+            Err(error) => {
+                tracing::warn!("Settings: detecting the {} installations failed: {error}", kind.wire());
+                Vec::new()
+            }
+        };
+        cx.update(|cx| finish(found, cx));
+    })
+    .detach();
 }
 
-pub fn detection(kind: ToolchainKind, cx: &App) -> Detection {
-    cx.try_global::<ToolchainCatalog>().map_or(Detection::Idle, |catalog| catalog.detection(kind))
+/// The tool `name` found on the PATH of `window`'s project.
+pub fn locate_tool(name: &'static str, window: &str, then: Then<Option<String>>, cx: &mut App) {
+    let given = cx
+        .try_global::<SdkDetection>()
+        .map(|test| test.located.iter().find(|(own, _)| *own == name).map(|(_, path)| path.clone()));
+    match given {
+        Some(path) => return then(path, cx),
+        None if cfg!(test) => return then(None, cx),
+        None => {}
+    }
+    let Some(backend) = cx.try_global::<crate::backend::Backend>() else { return then(None, cx) };
+    let label = window.to_owned();
+    let work = backend.with_host(move |host| async move {
+        let located = ide_host::ops::sdk::sdk_locate_tools(&host, &label, vec![name.to_owned()], None).await;
+        located.ok().and_then(|located| located.tools.into_iter().next()).and_then(|tool| tool.path)
+    });
+    cx.spawn(async move |cx| {
+        let path = work.await.ok().flatten().map(|path| path.to_string_lossy().into_owned());
+        cx.update(|cx| then(path, cx));
+    })
+    .detach();
+}
+
+/// The Xdebug version the PHP at `php` loads (`Some(None)`: none); `None` when the check failed.
+pub fn php_xdebug(php: String, window: &str, then: Then<Option<Option<String>>>, cx: &mut App) {
+    let given = cx
+        .try_global::<SdkDetection>()
+        .map(|test| test.xdebug.iter().find(|(own, _)| *own == php).map(|(_, xdebug)| xdebug.clone()));
+    match given {
+        Some(xdebug) => return then(xdebug, cx),
+        None if cfg!(test) => return then(None, cx),
+        None => {}
+    }
+    let Some(backend) = cx.try_global::<crate::backend::Backend>() else { return then(None, cx) };
+    let label = window.to_owned();
+    let work = backend.with_host(move |host| async move {
+        ide_host::ops::sdk::sdk_php_xdebug(&host, &label, PathBuf::from(php), None).await
+    });
+    cx.spawn(async move |cx| {
+        let xdebug = match work.await {
+            Ok(Ok(found)) => Some(found.xdebug),
+            // The row stays hidden when the check fails, as a failed check shows nothing.
+            Ok(Err(error)) => {
+                tracing::warn!("Settings: checking Xdebug failed: {}", error.message);
+                None
+            }
+            Err(error) => {
+                tracing::warn!("Settings: checking Xdebug failed: {error}");
+                None
+            }
+        };
+        cx.update(|cx| then(xdebug, cx));
+    })
+    .detach();
+}
+
+/// The interpreter `window`'s project uses when none is set: its virtualenv.
+pub fn python_effective(window: &str, then: Then<Option<String>>, cx: &mut App) {
+    let given = cx.try_global::<SdkDetection>().map(|test| test.python.clone());
+    match given {
+        Some(python) => return then(python, cx),
+        None if cfg!(test) => return then(None, cx),
+        None => {}
+    }
+    let Some(backend) = cx.try_global::<crate::backend::Backend>() else { return then(None, cx) };
+    let label = window.to_owned();
+    let work = backend.with_host(move |host| async move {
+        let python = ide_host::ops::sdk::sdk_python_effective(&host, &label, None).ok().flatten();
+        python.map(|path| path.to_string_lossy().into_owned())
+    });
+    cx.spawn(async move |cx| {
+        let python = work.await.ok().flatten();
+        cx.update(|cx| then(python, cx));
+    })
+    .detach();
 }
 
 /// A language the registry knows, with the names of its configured language servers.
@@ -165,14 +326,10 @@ pub struct PluginFormatter {
 /// What a language page asks the backend.
 #[derive(Clone)]
 pub enum LanguageAsk {
-    /// Detect the installations of `kind`, unless known or under way; `again`: anew.
-    Detect { kind: ToolchainKind, again: bool },
     /// The tool `name` found on the PATH.
     LocateTool { name: &'static str, then: Then<Option<String>> },
     /// The Xdebug version the PHP at `php` loads (`Some(None)`: none); `None` when the check failed.
     PhpXdebug { php: String, then: Then<Option<Option<String>>> },
-    /// The interpreter the project uses when none is set: its virtualenv.
-    PythonEffective { then: Then<Option<String>> },
     /// The languages of the registry, plugin languages included.
     Languages { then: Then<Vec<KnownLanguage>> },
     /// The formatters plugins contribute.
@@ -193,10 +350,8 @@ pub enum LanguageEvent {
 /// Answers `ask` for the window `window_label`.
 pub fn answer(ask: LanguageAsk, window_label: &str, cx: &mut App) {
     match ask {
-        LanguageAsk::Detect { kind, again } => detect(kind, again, window_label, cx),
         LanguageAsk::LocateTool { name, then } => locate_tool(name, window_label, then, cx),
         LanguageAsk::PhpXdebug { php, then } => php_xdebug(php, window_label, then, cx),
-        LanguageAsk::PythonEffective { then } => python_effective(window_label, then, cx),
         LanguageAsk::Languages { then } => {
             // The registry is read in memory; no file or program is touched.
             let languages = cx.try_global::<crate::backend::Backend>().map(|backend| {
@@ -241,170 +396,6 @@ pub fn answer(ask: LanguageAsk, window_label: &str, cx: &mut App) {
     }
 }
 
-fn detect(kind: ToolchainKind, again: bool, window_label: &str, cx: &mut App) {
-    let now = detection(kind, cx);
-    if now == Detection::Loading || (now == Detection::Ready && !again) {
-        return;
-    }
-    // `update_global` tells the views observing the catalog; the forms that read it repaint with
-    // the windows.
-    cx.default_global::<ToolchainCatalog>();
-    cx.update_global::<ToolchainCatalog, _>(|catalog, _| catalog.entry_mut(kind).detection = Detection::Loading);
-    cx.refresh_windows();
-    let finish = move |result: Result<Vec<Toolchain>, String>, cx: &mut App| {
-        cx.update_global::<ToolchainCatalog, _>(|catalog, _| {
-            let entry = catalog.entry_mut(kind);
-            entry.detection = Detection::Ready;
-            // A failed detection offers nothing found, as the combo shows only the other choices.
-            match result {
-                Ok(found) => entry.found = found,
-                Err(error) => {
-                    tracing::warn!("Settings: detecting the {} installations failed: {error}", kind.wire());
-                    entry.found.clear();
-                }
-            }
-        });
-        cx.refresh_windows();
-    };
-    run_detection(kind, window_label, finish, cx);
-}
-
-/// The installations of `kind`, as the backend detects them for the window.
-#[cfg(not(test))]
-async fn detect_on(host: &ide_host::Host, window: &str, kind: ToolchainKind) -> Result<Vec<Toolchain>, String> {
-    let kind = serde_json::from_value(Value::from(kind.wire())).map_err(|error| error.to_string())?;
-    let found = ide_host::ops::sdk::sdk_detect(host, window, kind).await.map_err(|error| error.message)?;
-    serde_json::to_value(found).and_then(serde_json::from_value).map_err(|error| error.to_string())
-}
-
-#[cfg(not(test))]
-fn run_detection(
-    kind: ToolchainKind,
-    window_label: &str,
-    finish: impl FnOnce(Result<Vec<Toolchain>, String>, &mut App) + 'static,
-    cx: &mut App,
-) {
-    let Some(backend) = cx.try_global::<crate::backend::Backend>() else {
-        finish(Err("The backend is not running".to_owned()), cx);
-        return;
-    };
-    let label = window_label.to_owned();
-    let work = backend.with_host(move |host| async move { detect_on(&host, &label, kind).await });
-    cx.spawn(async move |cx| {
-        let result = work.await.unwrap_or_else(|error| Err(error.to_string()));
-        cx.update(|cx| finish(result, cx));
-    })
-    .detach();
-}
-
-#[cfg(not(test))]
-fn locate_tool(name: &'static str, window_label: &str, then: Then<Option<String>>, cx: &mut App) {
-    let Some(backend) = cx.try_global::<crate::backend::Backend>() else { return then(None, cx) };
-    let label = window_label.to_owned();
-    let work = backend.with_host(move |host| async move {
-        let located = ide_host::ops::sdk::sdk_locate_tools(&host, &label, vec![name.to_owned()], None).await;
-        located.ok().and_then(|located| located.tools.into_iter().next()).and_then(|tool| tool.path)
-    });
-    cx.spawn(async move |cx| {
-        let path = work.await.ok().flatten().map(|path| path.to_string_lossy().into_owned());
-        cx.update(|cx| then(path, cx));
-    })
-    .detach();
-}
-
-#[cfg(not(test))]
-fn php_xdebug(php: String, window_label: &str, then: Then<Option<Option<String>>>, cx: &mut App) {
-    let Some(backend) = cx.try_global::<crate::backend::Backend>() else { return then(None, cx) };
-    let label = window_label.to_owned();
-    let work = backend.with_host(move |host| async move {
-        ide_host::ops::sdk::sdk_php_xdebug(&host, &label, PathBuf::from(php), None).await
-    });
-    cx.spawn(async move |cx| {
-        let xdebug = match work.await {
-            Ok(Ok(found)) => Some(found.xdebug),
-            // The row stays hidden when the check fails, as a failed check shows nothing.
-            Ok(Err(error)) => {
-                tracing::warn!("Settings: checking Xdebug failed: {}", error.message);
-                None
-            }
-            Err(error) => {
-                tracing::warn!("Settings: checking Xdebug failed: {error}");
-                None
-            }
-        };
-        cx.update(|cx| then(xdebug, cx));
-    })
-    .detach();
-}
-
-#[cfg(not(test))]
-fn python_effective(window_label: &str, then: Then<Option<String>>, cx: &mut App) {
-    let Some(backend) = cx.try_global::<crate::backend::Backend>() else { return then(None, cx) };
-    let label = window_label.to_owned();
-    let work = backend.with_host(move |host| async move {
-        ide_host::ops::sdk::sdk_python_effective(&host, &label, None)
-            .ok()
-            .flatten()
-            .map(|path| path.to_string_lossy().into_owned())
-    });
-    cx.spawn(async move |cx| {
-        let python = work.await.ok().flatten();
-        cx.update(|cx| then(python, cx));
-    })
-    .detach();
-}
-
-/// What a test answers for the toolchains: the installations per kind, the tools on the PATH, the
-/// Xdebug of a PHP and the project's virtualenv interpreter. Detections are counted.
-#[cfg(test)]
-#[derive(Clone, Default)]
-pub struct TestToolchains {
-    pub found: Vec<(ToolchainKind, Vec<Toolchain>)>,
-    pub located: Vec<(&'static str, String)>,
-    pub xdebug: Vec<(String, Option<String>)>,
-    pub python: Option<String>,
-    pub detections: Rc<std::cell::Cell<usize>>,
-}
-
-#[cfg(test)]
-impl Global for TestToolchains {}
-
-#[cfg(test)]
-fn run_detection(
-    kind: ToolchainKind,
-    _: &str,
-    finish: impl FnOnce(Result<Vec<Toolchain>, String>, &mut App) + 'static,
-    cx: &mut App,
-) {
-    let found = cx.try_global::<TestToolchains>().map(|test| {
-        test.detections.set(test.detections.get() + 1);
-        test.found.iter().find(|(own, _)| *own == kind).map(|(_, found)| found.clone()).unwrap_or_default()
-    });
-    finish(Ok(found.unwrap_or_default()), cx);
-}
-
-#[cfg(test)]
-fn locate_tool(name: &'static str, _: &str, then: Then<Option<String>>, cx: &mut App) {
-    let path = cx
-        .try_global::<TestToolchains>()
-        .and_then(|test| test.located.iter().find(|(own, _)| *own == name).map(|(_, path)| path.clone()));
-    then(path, cx);
-}
-
-#[cfg(test)]
-fn php_xdebug(php: String, _: &str, then: Then<Option<Option<String>>>, cx: &mut App) {
-    let xdebug = cx
-        .try_global::<TestToolchains>()
-        .and_then(|test| test.xdebug.iter().find(|(own, _)| *own == php).map(|(_, xdebug)| xdebug.clone()));
-    then(xdebug, cx);
-}
-
-#[cfg(test)]
-fn python_effective(_: &str, then: Then<Option<String>>, cx: &mut App) {
-    let python = cx.try_global::<TestToolchains>().and_then(|test| test.python.clone());
-    then(python, cx);
-}
-
 /// Enter is the dialog's OK and Escape its Cancel.
 pub fn enter_escape<V: EventEmitter<LanguageEvent>>(keystroke: &Keystroke, cx: &mut Context<V>) -> bool {
     if keystroke.modifiers.modified() {
@@ -419,12 +410,12 @@ pub fn enter_escape<V: EventEmitter<LanguageEvent>>(keystroke: &Keystroke, cx: &
 }
 
 /// A Browse… request that stages the path chosen for `key`.
-pub fn browse_into(binding: &Binding, key: &'static str, directories: bool) -> LanguageEvent {
+pub fn browse_into(binding: &Binding, key: &'static str, directories: bool) -> ControlEvent {
     let binding = binding.clone();
     let then: Then<PathBuf> = Rc::new(move |path: PathBuf, cx: &mut App| {
         binding.stage(key, Value::String(path.to_string_lossy().into_owned()), cx);
     });
-    LanguageEvent::Control(ControlEvent::Browse { directories, then })
+    ControlEvent::Browse { directories, then }
 }
 
 // ---------------------------------------------------------------------------
@@ -462,6 +453,10 @@ impl SdkSpec {
     pub fn empty(self, label: &'static str, detail: &'static str) -> Self {
         Self { empty: Some((label, Some(detail))), ..self }
     }
+    /// An empty choice without a detail.
+    pub fn empty_label(self, label: &'static str) -> Self {
+        Self { empty: Some((label, None)), ..self }
+    }
     pub fn directory(self) -> Self {
         Self { directory: true, ..self }
     }
@@ -490,6 +485,7 @@ fn choice(value: &str, label: String, detail: Option<String>) -> SdkChoice {
 pub struct SdkFieldView {
     binding: Binding,
     spec: SdkSpec,
+    toolchains: Toolchains,
     open: bool,
     /// The project's virtualenv for a Python combo: `None` until the backend answers.
     auto: Option<Option<String>>,
@@ -497,13 +493,21 @@ pub struct SdkFieldView {
     _subscriptions: Vec<Subscription>,
 }
 
-impl EventEmitter<LanguageEvent> for SdkFieldView {}
+impl EventEmitter<ControlEvent> for SdkFieldView {}
 
 impl SdkFieldView {
-    pub fn new(binding: Binding, spec: SdkSpec, cx: &mut Context<Self>) -> Self {
+    pub fn new(binding: Binding, spec: SdkSpec, toolchains: Toolchains, cx: &mut Context<Self>) -> Self {
         let observe = cx.observe(&binding.model, |_: &mut Self, _, cx| cx.notify());
         let catalog = cx.observe_global::<ToolchainCatalog>(|_: &mut Self, cx| cx.notify());
-        Self { binding, spec, open: false, auto: None, asked: false, _subscriptions: vec![observe, catalog] }
+        Self {
+            binding,
+            spec,
+            toolchains,
+            open: false,
+            auto: None,
+            asked: false,
+            _subscriptions: vec![observe, catalog],
+        }
     }
 
     pub fn spec(&self) -> &SdkSpec {
@@ -512,6 +516,10 @@ impl SdkFieldView {
 
     pub fn is_open(&self) -> bool {
         self.open
+    }
+
+    pub fn detection(&self, cx: &App) -> Detection {
+        self.toolchains.detection(self.spec.kind, cx)
     }
 
     /// The project's virtualenv, as the backend tells it.
@@ -523,10 +531,11 @@ impl SdkFieldView {
     /// What the combo offers, in order.
     pub fn choices(&self, cx: &App) -> Vec<SdkChoice> {
         let value = self.binding.text(self.spec.key, cx);
+        let found = self.toolchains.found(self.spec.kind, cx);
         let mut out = Vec::new();
         match self.spec.choices {
             SdkChoices::TypeScript => {
-                let workspace = found(ToolchainKind::TypeScript, cx).into_iter().find(|sdk| sdk.source == "workspace");
+                let workspace = found.into_iter().find(|sdk| sdk.source == "workspace");
                 let bundled = tx(cx, "the language server's own TypeScript");
                 out.push(choice("bundled", tx(cx, "Bundled"), Some(bundled)));
                 out.push(match workspace {
@@ -555,7 +564,7 @@ impl SdkFieldView {
                 }
             }
         }
-        for sdk in found(self.spec.kind, cx) {
+        for sdk in found {
             let detail = tildify(&sdk.path);
             out.push(choice(&sdk.path, sdk.name, Some(detail)));
         }
@@ -571,7 +580,7 @@ impl SdkFieldView {
         let choices = self.choices(cx);
         match choices.into_iter().find(|choice| choice.value == value) {
             Some(choice) => choice.label,
-            None if detection(self.spec.kind, cx) == Detection::Loading => tx(cx, "Detecting…"),
+            None if self.detection(cx) == Detection::Loading => tx(cx, "Detecting…"),
             None => tx(cx, "<No interpreter>"),
         }
     }
@@ -585,12 +594,19 @@ impl SdkFieldView {
         self.auto.clone().flatten()
     }
 
-    /// The control as text: `Label: current ▾` and its help line.
+    /// The control as text: `Label: current ▾`, the choices while the list is open, a Python
+    /// combo's interpreter, and the help line.
     pub fn lines(&self, cx: &App) -> Vec<String> {
         let mut out = vec![format!("{}: {} ▾", tx(cx, self.spec.label), self.current(cx))];
-        if self.spec.choices == SdkChoices::Python
-            && let Some(line) = self.python_line(cx)
-        {
+        if self.open {
+            for offered in self.choices(cx) {
+                out.push(match offered.detail {
+                    Some(detail) => format!("  {} — {detail}", offered.label),
+                    None => format!("  {}", offered.label),
+                });
+            }
+        }
+        if let Some(line) = self.python_line(cx) {
             out.push(format!("  {line}"));
         }
         out.extend(self.spec.hint.map(|hint| format!("    {}", tx(cx, hint))));
@@ -599,8 +615,12 @@ impl SdkFieldView {
 
     /// `Python 3.12 (.venv) — ~/p/.venv/bin/python` under a Python combo.
     fn python_line(&self, cx: &App) -> Option<String> {
+        if self.spec.choices != SdkChoices::Python {
+            return None;
+        }
         let python = self.python(cx)?;
-        let name = found(ToolchainKind::Python, cx).into_iter().find(|sdk| sdk.path == python).map(|sdk| sdk.name);
+        let found = self.toolchains.found(ToolchainKind::Python, cx);
+        let name = found.into_iter().find(|sdk| sdk.path == python).map(|sdk| sdk.name);
         Some(match name {
             Some(name) => format!("{name} — {}", tildify(&python)),
             None => tildify(&python),
@@ -618,78 +638,84 @@ impl SdkFieldView {
         cx.notify();
     }
 
+    /// Looks for the installations again, after this turn: a detection that answers at once then
+    /// finds the views free to update.
     fn detect_again(&mut self, cx: &mut Context<Self>) {
-        cx.emit(LanguageEvent::Ask(LanguageAsk::Detect { kind: self.spec.kind, again: true }));
+        let (toolchains, kind) = (self.toolchains.clone(), self.spec.kind);
+        cx.defer(move |cx| toolchains.detect(kind, true, cx));
     }
 
-    fn browse(&mut self, cx: &mut Context<Self>) {
-        cx.emit(browse_into(&self.binding, self.spec.key, self.spec.directory));
+    /// The installations, and a Python combo's virtualenv, are asked for once the combo is first
+    /// drawn, after the frame.
+    fn ask_once(&mut self, cx: &mut Context<Self>) {
+        if self.asked {
+            return;
+        }
+        self.asked = true;
+        let (toolchains, kind) = (self.toolchains.clone(), self.spec.kind);
+        let python = self.spec.choices == SdkChoices::Python;
+        let view = cx.weak_entity();
+        cx.defer(move |cx| {
+            toolchains.detect(kind, false, cx);
+            if python {
+                let then: Then<Option<String>> = Rc::new(move |auto, cx: &mut App| {
+                    view.update(cx, |view, cx| view.set_auto(auto, cx)).ok();
+                });
+                python_effective(toolchains.window(), then, cx);
+            }
+        });
     }
 }
 
 impl Render for SdkFieldView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // The project's virtualenv is asked for the first time the combo is shown.
-        if self.spec.choices == SdkChoices::Python && !self.asked {
-            self.asked = true;
-            let view = cx.weak_entity();
-            let then: Then<Option<String>> = Rc::new(move |auto, cx: &mut App| {
-                view.update(cx, |view, cx| view.set_auto(auto, cx)).ok();
-            });
-            cx.emit(LanguageEvent::Ask(LanguageAsk::PythonEffective { then }));
-        }
+        self.ask_once(cx);
         let key = self.spec.key;
         let query = self.binding.query(cx);
         let matched = self.binding.matches(self.spec.label, cx);
         let label = tx(cx, self.spec.label);
         let value = self.binding.text(key, cx);
-        let choices = self.choices(cx);
         let current = self.current(cx);
         let boxed = select_box(cx, &current)
             .id(SharedString::from(format!("settings-sdk-{key}")))
             .debug_selector(move || format!("settings-sdk-{key}"))
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.toggle_open(cx)));
-        let list = if self.open {
-            let mut rows: Vec<AnyElement> = Vec::new();
-            for (index, offered) in choices.iter().enumerate() {
-                let picked = offered.value.clone();
-                let detail = offered.detail.as_ref().map(|detail| muted(cx, detail));
-                let drawn =
-                    drop_down_row(cx, format!("settings-sdk-{key}-{index}"), &offered.label, offered.value == value)
+        let list = self.open.then(|| {
+            let rows: Vec<AnyElement> = self
+                .choices(cx)
+                .into_iter()
+                .enumerate()
+                .map(|(index, offered)| {
+                    let chosen = offered.value == value;
+                    let detail = offered.detail.as_ref().map(|detail| muted(cx, detail));
+                    let picked = offered.value;
+                    drop_down_row(cx, format!("settings-sdk-{key}-choice-{index}"), &offered.label, chosen)
                         .children(detail)
-                        .on_click(cx.listener(move |view, _: &ClickEvent, _, cx| view.choose(picked.clone(), cx)));
-                rows.push(drawn.into_any_element());
-            }
-            Some(drop_down(cx, rows))
-        } else {
-            None
-        };
+                        .on_click(cx.listener(move |view, _: &ClickEvent, _, cx| view.choose(picked.clone(), cx)))
+                        .into_any_element()
+                })
+                .collect();
+            drop_down(cx, rows)
+        });
         let detect = match self.spec.choices {
             SdkChoices::TypeScript => None,
-            SdkChoices::Detected | SdkChoices::Python => Some(if detection(self.spec.kind, cx) == Detection::Loading {
-                muted(cx, &tx(cx, "Detecting…")).into_any_element()
+            SdkChoices::Detected | SdkChoices::Python => Some(if self.detection(cx) == Detection::Loading {
+                muted(cx, &tx(cx, "Detecting installations")).into_any_element()
             } else {
-                let text = tx(cx, "Detect again");
-                div()
-                    .id(SharedString::from(format!("settings-sdk-{key}-detect")))
-                    .debug_selector(move || format!("settings-sdk-{key}-detect"))
-                    .child(button(cx, &text, false, true))
+                icon_button(cx, format!("settings-sdk-{key}-refresh"), "refresh", "Detect again")
                     .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.detect_again(cx)))
                     .into_any_element()
             }),
         };
-        let browse_label = tx(cx, "Browse…");
-        let browse = div()
-            .id(SharedString::from(format!("settings-browse-{key}")))
-            .debug_selector(move || format!("settings-browse-{key}"))
-            .child(button(cx, &browse_label, false, true))
-            .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.browse(cx)));
-        let path = (self.spec.choices == SdkChoices::Python)
-            .then(|| self.python_line(cx))
-            .flatten()
-            .map(|line| hint_line(cx, &line, 0.0).debug_selector(move || format!("settings-sdk-{key}-path")));
-        let hint = self.spec.hint.map(|hint| hint_line(cx, &tx(cx, hint), 0.0));
+        let directories = self.spec.directory;
+        let browse = icon_button(cx, format!("settings-sdk-{key}-browse"), "folder-open", "Browse…").on_click(
+            cx.listener(move |view, _: &ClickEvent, _, cx| cx.emit(browse_into(&view.binding, key, directories))),
+        );
+        let path = self
+            .python_line(cx)
+            .map(|line| hint_line(cx, &line, 4.0).debug_selector(move || format!("settings-sdk-{key}-path")));
+        let hint = self.spec.hint.map(|hint| hint_line(cx, &tx(cx, hint), 4.0));
         div()
             .flex()
             .flex_col()
@@ -733,6 +759,7 @@ pub struct PathSpec {
 pub struct PathFieldView {
     binding: Binding,
     spec: PathSpec,
+    toolchains: Toolchains,
     field: Entity<TextField>,
     claim: u64,
     _subscriptions: Vec<Subscription>,
@@ -741,9 +768,9 @@ pub struct PathFieldView {
 impl EventEmitter<LanguageEvent> for PathFieldView {}
 
 impl PathFieldView {
-    pub fn new(binding: Binding, spec: PathSpec, cx: &mut Context<Self>) -> Self {
+    pub fn new(binding: Binding, spec: PathSpec, toolchains: Toolchains, cx: &mut Context<Self>) -> Self {
         let text = binding.text(spec.key, cx);
-        let placeholder = placeholder_of(spec.placeholder, &binding, cx);
+        let placeholder = placeholder_of(spec.placeholder, &binding, &toolchains, cx);
         let field = new_field(&text, Some(placeholder), cx);
         let key = spec.key;
         let events = cx.subscribe(&field, move |view: &mut Self, field, event: &TextFieldEvent, cx| match event {
@@ -765,7 +792,7 @@ impl PathFieldView {
             cx.notify();
         });
         cx.on_release(|view: &mut Self, cx: &mut App| input::release_keys(view.claim, cx)).detach();
-        Self { binding, spec, field, claim, _subscriptions: vec![events, observe, catalog] }
+        Self { binding, spec, toolchains, field, claim, _subscriptions: vec![events, observe, catalog] }
     }
 
     pub fn field(&self) -> &Entity<TextField> {
@@ -779,7 +806,7 @@ impl PathFieldView {
         if self.field.read(cx).text().trim() != wanted {
             self.field.update(cx, |field, cx| field.set_text(&wanted, cx));
         }
-        let placeholder = placeholder_of(self.spec.placeholder, &self.binding, cx);
+        let placeholder = placeholder_of(self.spec.placeholder, &self.binding, &self.toolchains, cx);
         if self.field.read(cx).placeholder() != placeholder {
             self.field.update(cx, |field, cx| field.set_placeholder(placeholder, cx));
         }
@@ -797,16 +824,16 @@ impl PathFieldView {
 }
 
 /// The empty text of a path field now.
-fn placeholder_of(placeholder: PathPlaceholder, binding: &Binding, cx: &App) -> String {
+fn placeholder_of(placeholder: PathPlaceholder, binding: &Binding, toolchains: &Toolchains, cx: &App) -> String {
     match placeholder {
         PathPlaceholder::Fixed(text) => tx(cx, text),
         PathPlaceholder::GoPath => {
-            let gopath = found(ToolchainKind::Go, cx).into_iter().find_map(|sdk| sdk.extra);
+            let gopath = toolchains.found(ToolchainKind::Go, cx).into_iter().find_map(|sdk| sdk.extra);
             gopath.map_or_else(|| tx(cx, "go env GOPATH"), |gopath| tildify(&gopath))
         }
         PathPlaceholder::RustStdlib => {
             let toolchain = binding.text("languages.rust.toolchain", cx);
-            let selected = found(ToolchainKind::Rust, cx).into_iter().find(|sdk| sdk.path == toolchain);
+            let selected = toolchains.found(ToolchainKind::Rust, cx).into_iter().find(|sdk| sdk.path == toolchain);
             let stdlib = selected.and_then(|sdk| sdk.extra);
             stdlib.map_or_else(|| tx(cx, "Detected from the toolchain"), |stdlib| tildify(&stdlib))
         }
@@ -819,15 +846,12 @@ impl Render for PathFieldView {
         let query = self.binding.query(cx);
         let matched = self.binding.matches(self.spec.label, cx);
         let label = tx(cx, self.spec.label);
-        let browse_label = tx(cx, "Browse…");
         let directories = self.spec.directory;
-        let browse = div()
-            .id(SharedString::from(format!("settings-browse-{key}")))
-            .debug_selector(move || format!("settings-browse-{key}"))
-            .child(button(cx, &browse_label, false, true))
-            .on_click(cx.listener(move |view, _: &ClickEvent, _, cx| {
-                cx.emit(browse_into(&view.binding, key, directories));
-            }));
+        let browse = icon_button(cx, format!("settings-browse-{key}"), "folder-open", "Browse…").on_click(cx.listener(
+            move |view, _: &ClickEvent, _, cx| {
+                cx.emit(LanguageEvent::Control(browse_into(&view.binding, key, directories)));
+            },
+        ));
         let hint = self.spec.hint.map(|hint| hint_line(cx, &tx(cx, hint), 0.0));
         div()
             .flex()
@@ -849,11 +873,10 @@ impl Render for PathFieldView {
 
 #[cfg(test)]
 mod tests {
-    use super::super::test_support::{click, dialog_model, init, staged, type_over};
+    use super::super::test_support::{click, dialog_model, init, open, staged, type_over};
     use super::*;
     use crate::settings_model::staging::Scope;
     use gpui_kit::TestAppContext;
-    use std::cell::RefCell;
 
     const PAGE: &str = "languages.go";
 
@@ -868,41 +891,26 @@ mod tests {
         }
     }
 
-    type Events = Rc<RefCell<Vec<LanguageEvent>>>;
-
-    fn open_view<V, F>(cx: &mut TestAppContext, build: F) -> (Entity<V>, Events, &mut gpui_kit::VisualTestContext)
-    where
-        V: Render + EventEmitter<LanguageEvent>,
-        F: FnOnce(&mut Window, &mut Context<V>) -> V + 'static,
-    {
-        init(cx);
-        let (view, cx) = cx.add_window_view(build);
-        cx.update(|window, _| window.activate_window());
-        let events: Events = Rc::default();
-        let log = events.clone();
-        cx.update(|_, cx| {
-            cx.subscribe(&view, move |_, event: &LanguageEvent, _| log.borrow_mut().push(event.clone())).detach();
-        });
-        cx.run_until_parked();
-        (view, events, cx)
+    fn goroot() -> SdkSpec {
+        sdk("languages.go.goroot", "GOROOT", ToolchainKind::Go).empty("Default", "go on PATH").directory()
     }
 
-    // Not from a spec: the combo offers the empty choice, the detected installations and the value
-    // set by hand, and a choice is staged.
+    // Not from a spec: the installations are looked for once the combo is drawn; it offers the
+    // empty choice, those found and the value set by hand, and a choice is staged.
     #[gpui_kit::test]
     async fn the_combo_offers_the_detected_installations_and_stages_a_choice(cx: &mut TestAppContext) {
         let stored = [("languages.go.goroot", Value::from("/opt/custom-go"))];
         let model = cx.update(|cx| dialog_model(PAGE, &stored, cx));
-        cx.update(|cx| {
-            let mut catalog = ToolchainCatalog::default();
-            let entry = catalog.entry_mut(ToolchainKind::Go);
-            entry.detection = Detection::Ready;
-            entry.found = vec![go("/usr/local/go", "/home/ann/go")];
-            cx.set_global(catalog);
-        });
+        let test = SdkDetection {
+            found: vec![(ToolchainKind::Go, vec![go("/usr/local/go", "/home/ann/go")])],
+            ..SdkDetection::default()
+        };
+        let asked = test.asked.clone();
+        cx.update(|cx| cx.set_global(test));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Project);
-        let spec = sdk("languages.go.goroot", "GOROOT", ToolchainKind::Go).empty("Default", "go on PATH").directory();
-        let (view, _, cx) = open_view(cx, move |_, cx| SdkFieldView::new(binding, spec, cx));
+        let toolchains = cx.update(|cx| Toolchains::new(&model, "w1", cx));
+        let (view, _, cx) = open(cx, move |_, cx| SdkFieldView::new(binding, goroot(), toolchains, cx));
+        assert_eq!(asked.borrow().as_slice(), [ToolchainKind::Go], "drawing the combo looks once");
         let choices = view.read_with(cx, |view, cx| view.choices(cx));
         let shown: Vec<(&str, &str, Option<&str>)> =
             choices.iter().map(|c| (c.value.as_str(), c.label.as_str(), c.detail.as_deref())).collect();
@@ -916,32 +924,86 @@ mod tests {
         );
         assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["GOROOT: /opt/custom-go ▾"]);
         click(cx, "settings-sdk-languages.go.goroot");
-        click(cx, "settings-sdk-languages.go.goroot-1");
+        let lines = view.read_with(cx, |view, cx| view.lines(cx));
+        assert_eq!(lines[1..], ["  Default — go on PATH", "  go1.22.5 — /usr/local/go", "  /opt/custom-go — custom"]);
+        click(cx, "settings-sdk-languages.go.goroot-choice-1");
         assert_eq!(staged(&model, cx), [("project:languages.go.goroot".to_owned(), "\"/usr/local/go\"".to_owned())]);
         assert!(!view.read_with(cx, |view, _| view.is_open()), "a choice closes the list");
+        click(cx, "settings-sdk-languages.go.goroot-refresh");
+        assert_eq!(asked.borrow().len(), 2, "Detect again looks again");
     }
 
-    // Not from a spec: Detect again asks the backend anew for the kind; Browse… asks for a
-    // directory and stages the one chosen.
+    // Not from a spec: two combos of one kind in a dialog share what one detection found.
     #[gpui_kit::test]
-    async fn detect_again_asks_anew_and_browse_stages_the_directory_chosen(cx: &mut TestAppContext) {
+    async fn the_combos_of_a_kind_share_one_detection(cx: &mut TestAppContext) {
+        let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
+        let test = SdkDetection {
+            found: vec![(ToolchainKind::Go, vec![go("/usr/local/go", "/g")])],
+            ..SdkDetection::default()
+        };
+        let asked = test.asked.clone();
+        cx.update(|cx| cx.set_global(test));
+        let toolchains = cx.update(|cx| Toolchains::new(&model, "w1", cx));
+        let (first_binding, second_binding) =
+            (Binding::fixed(model.clone(), PAGE, Scope::Project), Binding::fixed(model.clone(), PAGE, Scope::Global));
+        let other = toolchains.clone();
+        let (_, _, cx) = open(cx, move |_, cx| SdkFieldView::new(first_binding, goroot(), toolchains, cx));
+        // Not drawn: it only reads what the first one's detection found.
+        let second = cx.update(|_, cx| cx.new(|cx| SdkFieldView::new(second_binding, goroot(), other, cx)));
+        cx.run_until_parked();
+        assert_eq!(second.read_with(cx, |view, cx| view.choices(cx)).len(), 2, "the Go found is offered");
+        assert_eq!(asked.borrow().as_slice(), [ToolchainKind::Go]);
+    }
+
+    // Not from a spec: without a detection of its own a test build finds nothing and runs
+    // nothing: no installation, no tool on the PATH, no Xdebug, no virtualenv.
+    #[gpui_kit::test]
+    async fn a_test_build_without_a_detection_of_its_own_finds_nothing(cx: &mut TestAppContext) {
+        type Answers = Rc<RefCell<Vec<String>>>;
+        let answers: Answers = Rc::default();
+        let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
+        cx.update(|cx| {
+            assert!(!cx.has_global::<SdkDetection>());
+            let toolchains = Toolchains::new(&model, "w1", cx);
+            toolchains.detect(ToolchainKind::Jdk, false, cx);
+            assert_eq!(toolchains.detection(ToolchainKind::Jdk, cx), Detection::Ready, "answered at once");
+            assert_eq!(toolchains.found(ToolchainKind::Jdk, cx), []);
+            let log = answers.clone();
+            locate_tool("php", "w1", Rc::new(move |path, _| log.borrow_mut().push(format!("php {path:?}"))), cx);
+            let log = answers.clone();
+            let xdebug: Then<Option<Option<String>>> =
+                Rc::new(move |xdebug, _| log.borrow_mut().push(format!("xdebug {xdebug:?}")));
+            php_xdebug("/usr/bin/php".to_owned(), "w1", xdebug, cx);
+            let log = answers.clone();
+            python_effective("w1", Rc::new(move |python, _| log.borrow_mut().push(format!("python {python:?}"))), cx);
+        });
+        assert_eq!(answers.borrow().as_slice(), ["php None", "xdebug None", "python None"], "answered at once");
+    }
+
+    // Not from a spec: Browse… asks for a directory and the one chosen is staged and shown.
+    #[gpui_kit::test]
+    async fn browse_asks_for_a_folder_and_stages_it(cx: &mut TestAppContext) {
         let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Global);
-        let spec = sdk("languages.go.goroot", "GOROOT", ToolchainKind::Go).empty("Default", "go on PATH").directory();
-        let (_, events, cx) = open_view(cx, move |_, cx| SdkFieldView::new(binding, spec, cx));
-        click(cx, "settings-sdk-languages.go.goroot-detect");
-        click(cx, "settings-browse-languages.go.goroot");
-        let events = events.borrow().clone();
-        assert!(matches!(
-            events.first(),
-            Some(LanguageEvent::Ask(LanguageAsk::Detect { kind: ToolchainKind::Go, again: true }))
-        ));
-        let Some(LanguageEvent::Control(ControlEvent::Browse { directories: true, then })) = events.get(1) else {
-            panic!("a directory is asked for");
-        };
+        let toolchains = cx.update(|cx| Toolchains::new(&model, "w1", cx));
+        let (view, seen, cx) = open(cx, move |_, cx| SdkFieldView::new(binding, goroot(), toolchains, cx));
+        let asked: Rc<RefCell<Option<Then<PathBuf>>>> = Rc::default();
+        let keep = asked.clone();
+        cx.update(|_, cx| {
+            cx.subscribe(&view, move |_, event: &ControlEvent, _| {
+                if let ControlEvent::Browse { directories: true, then } = event {
+                    *keep.borrow_mut() = Some(then.clone());
+                }
+            })
+            .detach();
+        });
+        click(cx, "settings-sdk-languages.go.goroot-browse");
+        assert_eq!(seen.borrow().as_slice(), ["browse"]);
+        let then = asked.borrow_mut().take().expect("a folder is asked for");
         cx.update(|_, cx| then(PathBuf::from("/opt/go"), cx));
         cx.run_until_parked();
         assert_eq!(staged(&model, cx), [("global:languages.go.goroot".to_owned(), "\"/opt/go\"".to_owned())]);
+        assert_eq!(view.read_with(cx, |view, cx| view.current(cx)), "/opt/go");
     }
 
     // Not from a spec: a path is staged trimmed, and the empty field names the default GOPATH of
@@ -950,6 +1012,7 @@ mod tests {
     async fn a_path_is_staged_trimmed_and_the_placeholder_follows_the_detected_go(cx: &mut TestAppContext) {
         let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Global);
+        let toolchains = cx.update(|cx| Toolchains::new(&model, "w1", cx));
         let spec = PathSpec {
             key: "languages.go.gopath",
             label: "Project GOPATH",
@@ -957,18 +1020,42 @@ mod tests {
             directory: true,
             hint: None,
         };
-        let (view, _, cx) = open_view(cx, move |_, cx| PathFieldView::new(binding, spec, cx));
+        init(cx);
+        let detecting = toolchains.clone();
+        let (view, cx) = cx.add_window_view(move |_, cx| PathFieldView::new(binding, spec, toolchains, cx));
+        cx.run_until_parked();
         assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["Project GOPATH: (go env GOPATH)"]);
+        let test = SdkDetection {
+            found: vec![(ToolchainKind::Go, vec![go("/g", "/Users/ann/go")])],
+            ..SdkDetection::default()
+        };
         cx.update(|_, cx| {
-            cx.default_global::<ToolchainCatalog>();
-            cx.update_global::<ToolchainCatalog, _>(|catalog, _| {
-                catalog.entry_mut(ToolchainKind::Go).found = vec![go("/g", "/Users/ann/go")];
-            });
+            cx.set_global(test);
+            detecting.detect(ToolchainKind::Go, false, cx);
         });
         cx.run_until_parked();
         assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["Project GOPATH: (~/go)"]);
         let field = view.read_with(cx, |view, _| view.field().clone());
         type_over(&field, "  /work/go ", cx);
         assert_eq!(staged(&model, cx), [("global:languages.go.gopath".to_owned(), "\"/work/go\"".to_owned())]);
+    }
+
+    // Not from a spec: what a dialog found goes with it; another dialog looks again.
+    #[gpui_kit::test]
+    async fn a_dialog_closed_takes_what_it_found_with_it(cx: &mut TestAppContext) {
+        let test = SdkDetection { found: vec![(ToolchainKind::Go, vec![go("/g", "/p")])], ..SdkDetection::default() };
+        cx.update(|cx| cx.set_global(test));
+        let first = cx.update(|cx| dialog_model(PAGE, &[], cx));
+        let second = cx.update(|cx| dialog_model(PAGE, &[], cx));
+        let (one, two) = cx.update(|cx| (Toolchains::new(&first, "w1", cx), Toolchains::new(&second, "w2", cx)));
+        cx.update(|cx| one.detect(ToolchainKind::Go, false, cx));
+        cx.read(|cx| {
+            assert_eq!(one.found(ToolchainKind::Go, cx).len(), 1);
+            assert_eq!(two.detection(ToolchainKind::Go, cx), Detection::Idle, "the other dialog has not looked");
+        });
+        drop(first);
+        // Entities dropped are released when the app next flushes its effects.
+        cx.update(|_| {});
+        cx.read(|cx| assert_eq!(one.detection(ToolchainKind::Go, cx), Detection::Idle, "released with its dialog"));
     }
 }

@@ -4,9 +4,10 @@
 //! project's settings file for the pages a project's values show on first). The installations
 //! offered are the ones the test gives: no toolchain is probed, no tool looked up on the PATH.
 
+use super::proofs19_settings_misc::bring_into_view;
 use super::*;
 use crate::settings_view::pages::languages_controls::LanguagePageView;
-use crate::settings_view::pages::languages_sdk::{TestToolchains, Toolchain, ToolchainKind};
+use crate::settings_view::pages::languages_sdk::{SdkDetection, Toolchain, ToolchainKind};
 use gpui_kit::Focusable;
 use serde_json::{Value, json};
 
@@ -23,7 +24,7 @@ fn toolchain(path: &std::path::Path, name: &str, version: Option<&str>) -> Toolc
 }
 
 /// The answers the test build gives in place of the backend's toolchain probes.
-fn give_toolchains(cx: &mut VisualTestContext, test: TestToolchains) {
+fn give_toolchains(cx: &mut VisualTestContext, test: SdkDetection) {
     cx.update(|_, cx| cx.set_global(test));
 }
 
@@ -104,8 +105,8 @@ async fn go_goroot_and_gopath_are_written_to_the_project(cx: &mut TestAppContext
     std::fs::create_dir_all(&gopath).expect("the folder is made");
     let mut go = toolchain(&goroot, "go1.22.5", Some("1.22.5"));
     go.extra = Some(root.join("default-gopath").to_string_lossy().into_owned());
-    let test = TestToolchains { found: vec![(ToolchainKind::Go, vec![go])], ..TestToolchains::default() };
-    let detections = test.detections.clone();
+    let test = SdkDetection { found: vec![(ToolchainKind::Go, vec![go])], ..SdkDetection::default() };
+    let asked = test.asked.clone();
     give_toolchains(cx, test);
     let view = open_page(cx, &workbench, "languages.go");
     assert_eq!(
@@ -118,10 +119,10 @@ async fn go_goroot_and_gopath_are_written_to_the_project(cx: &mut TestAppContext
             format!("Project GOPATH: ({})", root.join("default-gopath").display()),
         ]
     );
-    assert_eq!(detections.get(), 1, "showing the page detects the Go installations once");
-    click_on(cx, "settings-sdk-languages.go.goroot-detect");
-    assert_eq!(detections.get(), 2, "Detect again looks again");
-    choose(cx, "settings-sdk-languages.go.goroot", "settings-sdk-languages.go.goroot-1");
+    assert_eq!(asked.borrow().as_slice(), [ToolchainKind::Go], "showing the page detects the Go installations once");
+    click_on(cx, "settings-sdk-languages.go.goroot-refresh");
+    assert_eq!(asked.borrow().len(), 2, "Detect again looks again");
+    choose(cx, "settings-sdk-languages.go.goroot", "settings-sdk-languages.go.goroot-choice-1");
     click_on(cx, "settings-browse-languages.go.gopath");
     answer_browse(cx, &gopath);
     click_on(cx, "settings-apply");
@@ -206,7 +207,7 @@ async fn java_level_and_shared_jdt_ls_apply_and_reset_discards_jvm_options(cx: &
     let _home = start(cx);
     let (_folder, root, workbench, cx) = trusted_project(cx, &[("A.java", "class A {}\n")]);
     let jdk = toolchain(&root.join("jdks/21"), "21 (Temurin)", Some("21.0.4"));
-    give_toolchains(cx, TestToolchains { found: vec![(ToolchainKind::Jdk, vec![jdk])], ..TestToolchains::default() });
+    give_toolchains(cx, SdkDetection { found: vec![(ToolchainKind::Jdk, vec![jdk])], ..SdkDetection::default() });
     let view = open_page(cx, &workbench, "languages.java");
     assert_eq!(
         labels(&view, cx),
@@ -230,7 +231,7 @@ async fn java_level_and_shared_jdt_ls_apply_and_reset_discards_jvm_options(cx: &
     assert!(!modified(&workbench, cx), "Reset discards the JVM options");
     choose(cx, "settings-select-languages.java.languageLevel", "settings-choice-languages.java.languageLevel-21");
     click_on(cx, "settings-toggle-languages.java.jdtlsShared");
-    choose(cx, "settings-sdk-languages.java.jdtlsJdk", "settings-sdk-languages.java.jdtlsJdk-1");
+    choose(cx, "settings-sdk-languages.java.jdtlsJdk", "settings-sdk-languages.java.jdtlsJdk-choice-1");
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "languages.java.languageLevel"), Some(json!("21")));
     assert_eq!(effective(cx, "languages.java.jdtlsShared"), Some(json!(true)));
@@ -277,7 +278,7 @@ async fn node_package_manager_is_written_to_the_project(cx: &mut TestAppContext)
     let _home = start(cx);
     let (_folder, root, workbench, cx) = trusted_project(cx, &[("package.json", "{}\n")]);
     let pnpm = toolchain(&root.join("bin/pnpm"), "pnpm", Some("9.1.0"));
-    let test = TestToolchains { found: vec![(ToolchainKind::PackageManager, vec![pnpm])], ..TestToolchains::default() };
+    let test = SdkDetection { found: vec![(ToolchainKind::PackageManager, vec![pnpm])], ..SdkDetection::default() };
     give_toolchains(cx, test);
     let view = open_page(cx, &workbench, "languages.node");
     let shown = labels(&view, cx);
@@ -286,10 +287,10 @@ async fn node_package_manager_is_written_to_the_project(cx: &mut TestAppContext)
     assert_eq!(shown[2], "— Language server targets —");
     assert!(shown[3].starts_with("Language: "), "{shown:?}");
     assert_eq!(shown[4], "Language server runs on: Local machine ▾");
-    assert_eq!(shown[5], "Package manager: Auto — from packageManager / lock file ▾");
+    assert_eq!(shown[5], "Package manager: Auto ▾");
     assert_eq!(shown.len(), 6, "{shown:?}");
     choose(cx, "settings-select-languages.node.packageManager", "settings-choice-languages.node.packageManager-pnpm");
-    assert!(labels(&view, cx)[5].starts_with("Package manager: pnpm — 9.1.0 "), "{:?}", labels(&view, cx));
+    assert_eq!(labels(&view, cx)[5], "Package manager: pnpm ▾");
     choose(cx, "settings-select-languages.node.runTarget", "settings-choice-languages.node.runTarget-local");
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "languages.node.packageManager"), Some(json!("pnpm")));
@@ -309,7 +310,7 @@ async fn python_interpreter_and_activation_are_written_to_the_project(cx: &mut T
     let python = Some(venv.to_string_lossy().into_owned());
     give_toolchains(
         cx,
-        TestToolchains { found: vec![(ToolchainKind::Python, found)], python, ..TestToolchains::default() },
+        SdkDetection { found: vec![(ToolchainKind::Python, found)], python, ..SdkDetection::default() },
     );
     let view = open_page(cx, &workbench, "python.interpreter");
     assert_eq!(
@@ -322,7 +323,7 @@ async fn python_interpreter_and_activation_are_written_to_the_project(cx: &mut T
             "    New terminal sessions run the interpreter's virtualenv activate script.".to_owned(),
         ]
     );
-    choose(cx, "settings-sdk-languages.python.interpreter", "settings-sdk-languages.python.interpreter-2");
+    choose(cx, "settings-sdk-languages.python.interpreter", "settings-sdk-languages.python.interpreter-choice-2");
     click_on(cx, "settings-toggle-languages.python.activateVirtualenv");
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "languages.python.interpreter"), Some(json!(other.to_string_lossy())));
@@ -340,18 +341,18 @@ async fn php_include_path_and_level_are_written_to_the_project(cx: &mut TestAppC
     let php_text = php.to_string_lossy().into_owned();
     give_toolchains(
         cx,
-        TestToolchains {
+        SdkDetection {
             found: vec![(ToolchainKind::Php, vec![toolchain(&php, "PHP 8.3.1", Some("8.3.1"))])],
             located: vec![("php", php_text.clone())],
             xdebug: vec![(php_text, Some("3.3.0".to_owned()))],
-            ..TestToolchains::default()
+            ..SdkDetection::default()
         },
     );
     let view = open_page(cx, &workbench, "languages.php");
     assert_eq!(
         labels(&view, cx),
         [
-            "PHP language level: Auto — from composer.json ▾",
+            "PHP language level: Auto ▾",
             "Include paths:",
             "  No include paths",
             "Additional stubs:",
@@ -371,6 +372,8 @@ async fn php_include_path_and_level_are_written_to_the_project(cx: &mut TestAppC
     cx.simulate_keystrokes("enter");
     cx.run_until_parked();
     choose(cx, "settings-select-languages.php.languageLevel", "settings-choice-languages.php.languageLevel-8.2");
+    // The interpreter's Xdebug, last on the page, is reached by scrolling it.
+    bring_into_view(cx, "settings-php-xdebug");
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "languages.php.includePaths"), Some(json!(["../platform"])));
     assert_eq!(effective(cx, "languages.php.languageLevel"), Some(json!("8.2")));
@@ -413,11 +416,15 @@ async fn prettier_provider_and_languages_are_written_to_the_project(cx: &mut Tes
     assert_eq!(labels(&view, cx), expected);
     choose(cx, "settings-select-languages.prettier.prefer", "settings-choice-languages.prettier.prefer-1");
     click_on(cx, "settings-toggle-languages.prettier.languages-yaml");
+    // The last language is below the dialog's buttons until the page is scrolled.
+    bring_into_view(cx, "settings-toggle-languages.prettier.languages-vue");
+    click_on(cx, "settings-toggle-languages.prettier.languages-vue");
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "languages.prettier.prefer"), Some(json!(true)));
     let enabled = effective(cx, "languages.prettier.languages").and_then(|value| value.as_array().cloned());
     let enabled = enabled.unwrap_or_default();
     assert!(!enabled.contains(&json!("yaml")) && enabled.contains(&json!("markdown")), "{enabled:?}");
+    assert!(!enabled.contains(&json!("vue")), "{enabled:?}");
     assert!(project_file(&root).contains("prefer"));
 }
 
@@ -473,10 +480,10 @@ async fn ruby_interpreter_is_written_to_the_project(cx: &mut TestAppContext) {
     let (_folder, root, workbench, cx) = trusted_project(cx, &[("app.rb", "puts 1\n")]);
     let ruby = root.join("rubies/3.3.0/bin/ruby");
     let found = vec![(ToolchainKind::Ruby, vec![toolchain(&ruby, "ruby 3.3.0", Some("3.3.0"))])];
-    give_toolchains(cx, TestToolchains { found, ..TestToolchains::default() });
+    give_toolchains(cx, SdkDetection { found, ..SdkDetection::default() });
     let view = open_page(cx, &workbench, "languages.ruby");
     assert_eq!(labels(&view, cx), ["Ruby interpreter: Auto ▾"]);
-    choose(cx, "settings-sdk-languages.ruby.interpreter", "settings-sdk-languages.ruby.interpreter-1");
+    choose(cx, "settings-sdk-languages.ruby.interpreter", "settings-sdk-languages.ruby.interpreter-choice-1");
     assert_eq!(labels(&view, cx), ["Ruby interpreter: ruby 3.3.0 ▾"]);
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "languages.ruby.interpreter"), Some(json!(ruby.to_string_lossy())));
@@ -492,10 +499,7 @@ async fn rust_linter_and_rustfmt_arguments_apply_and_reset_and_cancel_discard(cx
     let bin = root.join("toolchains/stable/bin");
     let mut stable = toolchain(&bin, "stable-aarch64-apple-darwin", Some("1.85.0"));
     stable.extra = Some(root.join("toolchains/stable/lib/rustlib/src/rust/library").to_string_lossy().into_owned());
-    give_toolchains(
-        cx,
-        TestToolchains { found: vec![(ToolchainKind::Rust, vec![stable])], ..TestToolchains::default() },
-    );
+    give_toolchains(cx, SdkDetection { found: vec![(ToolchainKind::Rust, vec![stable])], ..SdkDetection::default() });
     let view = open_page(cx, &workbench, "languages.rust");
     assert_eq!(
         labels(&view, cx),
@@ -513,7 +517,7 @@ async fn rust_linter_and_rustfmt_arguments_apply_and_reset_and_cancel_discard(cx
     click_on(cx, "settings-toggle-languages.rust.checkOnSave");
     click_on(cx, "settings-reset");
     assert!(!modified(&workbench, cx), "Reset discards the checkbox");
-    choose(cx, "settings-sdk-languages.rust.toolchain", "settings-sdk-languages.rust.toolchain-1");
+    choose(cx, "settings-sdk-languages.rust.toolchain", "settings-sdk-languages.rust.toolchain-choice-1");
     let library = root.join("toolchains/stable/lib/rustlib/src/rust/library");
     assert_eq!(labels(&view, cx)[2], format!("Standard library: ({})", library.display()));
     choose(cx, "settings-select-languages.rust.checkCommand", "settings-choice-languages.rust.checkCommand-clippy");
@@ -545,13 +549,13 @@ async fn typescript_version_is_chosen_with_browse_and_written_to_the_project(cx:
     std::fs::create_dir_all(&custom).expect("the folder is made");
     give_toolchains(
         cx,
-        TestToolchains { found: vec![(ToolchainKind::TypeScript, vec![workspace])], ..TestToolchains::default() },
+        SdkDetection { found: vec![(ToolchainKind::TypeScript, vec![workspace])], ..SdkDetection::default() },
     );
     let view = open_page(cx, &workbench, "languages.typescript");
     assert_eq!(labels(&view, cx), ["TypeScript: Bundled ▾"]);
-    choose(cx, "settings-sdk-languages.typescript.version", "settings-sdk-languages.typescript.version-1");
+    choose(cx, "settings-sdk-languages.typescript.version", "settings-sdk-languages.typescript.version-choice-1");
     assert_eq!(labels(&view, cx), ["TypeScript: TypeScript 5.4.5 ▾"]);
-    click_on(cx, "settings-browse-languages.typescript.version");
+    click_on(cx, "settings-sdk-languages.typescript.version-browse");
     answer_browse(cx, &custom);
     assert_eq!(labels(&view, cx), [format!("TypeScript: {} ▾", custom.display())]);
     click_on(cx, "settings-apply");
@@ -559,13 +563,18 @@ async fn typescript_version_is_chosen_with_browse_and_written_to_the_project(cx:
     assert!(project_file(&root).contains("tsdk"));
 }
 
-// Plugin Formatters: without a plugin formatter only Format on save is shown; it applies globally.
+// Plugin Formatters: a choice per language a plugin formatter covers, then Format on save, which
+// applies globally.
 #[gpui_kit::test]
 async fn plugin_formatters_format_on_save_applies(cx: &mut TestAppContext) {
     let _home = start(cx);
     let (workbench, cx) = window(cx);
     let view = open_page(cx, &workbench, "languages.pluginFormatters");
-    assert_eq!(lines(&view, cx), ["— Plugin Formatters —", "[ ] Format on save"]);
+    let shown = lines(&view, cx);
+    // The plugins of the process decide which languages are listed: only the frame is fixed.
+    assert_eq!(shown.first().map(String::as_str), Some("— Plugin Formatters —"), "{shown:?}");
+    assert_eq!(shown.last().map(String::as_str), Some("[ ] Format on save"), "{shown:?}");
+    assert!(shown[1..shown.len() - 1].iter().all(|line| line.ends_with(" ▾")), "{shown:?}");
     click_on(cx, "settings-toggle-editor.formatOnSave");
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "editor.formatOnSave"), Some(json!(true)));
@@ -632,4 +641,110 @@ async fn the_search_finds_a_language_page_by_a_label_of_its_controls(cx: &mut Te
     cx.run_until_parked();
     let pages = dialog.read_with(cx, |view, cx| view.pages(cx));
     assert!(pages.iter().any(|page| page.trim() == "Rust"), "{pages:?}");
+}
+
+/// How a page's control is changed.
+enum Act {
+    /// Clicks each selector in turn (a drop-down and its choice).
+    Click(&'static [&'static str]),
+    /// Types the text over the field drawn as the selector.
+    Type(&'static str, &'static str),
+}
+
+// Reset discards an edit, and Cancel after the same edit writes nothing, on every language page.
+#[gpui_kit::test]
+async fn reset_and_cancel_discard_an_edit_on_each_language_page(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("main.go", "package main\n")]);
+    let ruby = toolchain(&root.join("rubies/3.3.0/bin/ruby"), "ruby 3.3.0", Some("3.3.0"));
+    give_toolchains(cx, SdkDetection { found: vec![(ToolchainKind::Ruby, vec![ruby])], ..SdkDetection::default() });
+    cx.update(|_, cx| {
+        let stored = json!({ "php": { "target": "ddev", "server": "" } });
+        let scope = ide_workspace::settings::SettingsScope::Project;
+        crate::platform::settings::set("w1", scope, "languageServerTargets", &stored, cx)
+            .expect("the target is stored");
+    });
+    let cases: [(&str, Act, &str); 16] = [
+        ("languages.go", Act::Type("settings-text-languages.go.gopath", "/work/go"), "languages.go.gopath"),
+        (
+            "languages.go.buildTags",
+            Act::Type("settings-text-languages.go.buildTags.custom", "integration"),
+            "languages.go.buildTags.custom",
+        ),
+        (
+            "languages.go.modules",
+            Act::Click(&["settings-toggle-languages.go.modules.autoVendor"]),
+            "languages.go.modules.autoVendor",
+        ),
+        ("languages.java", Act::Click(&["settings-toggle-languages.java.jdtlsShared"]), "languages.java.jdtlsShared"),
+        (
+            "languages.markdown",
+            Act::Type("settings-number-languages.markdown.previewFontSize", "20"),
+            "languages.markdown.previewFontSize",
+        ),
+        (
+            "languages.node",
+            Act::Click(&["settings-select-languages.node.runTarget", "settings-choice-languages.node.runTarget-local"]),
+            "languages.node.runTarget",
+        ),
+        (
+            "python.interpreter",
+            Act::Click(&["settings-toggle-languages.python.activateVirtualenv"]),
+            "languages.python.activateVirtualenv",
+        ),
+        (
+            "languages.php",
+            Act::Click(&[
+                "settings-select-languages.php.languageLevel",
+                "settings-choice-languages.php.languageLevel-8.2",
+            ]),
+            "languages.php.languageLevel",
+        ),
+        (
+            "languages.prettier",
+            Act::Click(&["settings-toggle-languages.prettier.runOnSave"]),
+            "languages.prettier.runOnSave",
+        ),
+        ("languages.oxfmt", Act::Click(&["settings-toggle-languages.oxfmt.runOnSave"]), "languages.oxfmt.runOnSave"),
+        ("languages.ruff", Act::Click(&["settings-toggle-languages.ruff.runOnSave"]), "languages.ruff.runOnSave"),
+        (
+            "languages.ruby",
+            Act::Click(&[
+                "settings-sdk-languages.ruby.interpreter",
+                "settings-sdk-languages.ruby.interpreter-choice-1",
+            ]),
+            "languages.ruby.interpreter",
+        ),
+        ("languages.rust", Act::Click(&["settings-toggle-languages.rust.checkOnSave"]), "languages.rust.checkOnSave"),
+        (
+            "languages.typescript",
+            Act::Click(&[
+                "settings-sdk-languages.typescript.version",
+                "settings-sdk-languages.typescript.version-choice-1",
+            ]),
+            "languages.typescript.version",
+        ),
+        ("languages.pluginFormatters", Act::Click(&["settings-toggle-editor.formatOnSave"]), "editor.formatOnSave"),
+        (
+            "languages.serverTargets",
+            Act::Click(&["settings-target-runs-on", "settings-target-runs-on-0"]),
+            "languageServerTargets",
+        ),
+    ];
+    for (page, act, key) in cases {
+        let before = effective(cx, key);
+        open_page(cx, &workbench, page);
+        let run = |cx: &mut VisualTestContext| match &act {
+            Act::Click(at) => at.iter().for_each(|at| click_on(cx, at)),
+            Act::Type(at, text) => type_into(cx, at, text),
+        };
+        run(cx);
+        assert!(modified(&workbench, cx), "{page}: the edit is staged");
+        click_on(cx, "settings-reset");
+        assert!(!modified(&workbench, cx), "{page}: Reset discards it");
+        run(cx);
+        click_on(cx, "settings-cancel");
+        assert!(settings_dialog_of(&workbench, cx).is_none(), "{page}: Cancel closes the dialog");
+        assert_eq!(effective(cx, key), before, "{page}: Cancel writes nothing");
+    }
 }

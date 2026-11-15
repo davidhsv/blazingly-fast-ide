@@ -20,6 +20,8 @@
 //!   tap of Shift);
 //! - `wait <milliseconds>`;
 //! - `mark <name>`: appends `mark <name> <unix milliseconds>` to the log;
+//! - `no-toolchains`: from now on the Settings pages find no toolchain, so showing them looks
+//!   nothing up and runs no tool of the machine;
 //! - `quit`.
 //!
 //! Each step runs from this module's own task, never from inside an update of the window it
@@ -65,6 +67,8 @@ pub enum Step {
     Modifiers(Modifiers),
     Wait(Duration),
     Mark(String),
+    /// The Settings pages find no toolchain from now on.
+    NoToolchains,
     Quit,
 }
 
@@ -129,6 +133,7 @@ fn parse_step(text: &str) -> Result<Step, String> {
         "hover" => Ok(Step::Hover(parse_point(name, rest)?)),
         "mods" => parse_modifiers(rest).map(Step::Modifiers),
         "mark" => Ok(Step::Mark(required("a name")?.to_owned())),
+        "no-toolchains" => Ok(Step::NoToolchains),
         "quit" => Ok(Step::Quit),
         other => Err(format!("there is no step called {other:?}")),
     }
@@ -226,6 +231,10 @@ async fn run(step: Step, log: &Log, cx: &mut AsyncApp) -> Result<(), String> {
             log.write(&["mark", &name, &unix_millis()]);
             Ok(())
         }
+        Step::NoToolchains => {
+            cx.update(|cx| cx.set_global(crate::settings_view::pages::languages_sdk::SdkDetection::default()));
+            Ok(())
+        }
         Step::Quit => {
             cx.update(|cx| cx.quit());
             Ok(())
@@ -304,7 +313,7 @@ fn perform(step: &Step, window: &mut Window, cx: &mut App) -> Result<(), String>
             window.dispatch_event(PlatformInput::ModifiersChanged(changed), cx);
             Ok(())
         }
-        Step::Wait(_) | Step::Mark(_) | Step::Quit => Ok(()),
+        Step::Wait(_) | Step::Mark(_) | Step::NoToolchains | Step::Quit => Ok(()),
     }
 }
 
@@ -348,6 +357,7 @@ mod tests {
                       hover\t3\t4\n\
                       mods\tcmd-shift\n\
                       mods\t\n\
+                      no-toolchains\n\
                       quit";
         assert_eq!(
             steps(script),
@@ -364,6 +374,7 @@ mod tests {
                 Ok(Step::Hover(point(px(3.0), px(4.0)))),
                 Ok(Step::Modifiers(Modifiers { platform: true, shift: true, ..Modifiers::default() })),
                 Ok(Step::Modifiers(Modifiers::default())),
+                Ok(Step::NoToolchains),
                 Ok(Step::Quit),
             ]
         );
