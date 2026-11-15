@@ -922,14 +922,14 @@ impl Workbench {
                 ide_host::ops::db::apply_edits(&host, &label, &target, &schema, &table, edits).await
             },
             move |workbench, result, _, cx| {
-                let (request, ok) = match result {
+                let (mut request, ok) = match result {
                     Ok(rows) => {
                         let title = format!("{name}: {} row(s) imported", js_number_string(rows));
                         (NotificationRequest::new(NotificationLevel::Info, title), true)
                     }
                     Err(error) => (error_notice("Nothing was imported", &error), false),
                 };
-                let mut request = request;
+                request.group = Some("tools".to_owned());
                 request.key = Some(IMPORT_KEY.to_owned());
                 workbench.notify(request, cx);
                 let _ = weak.update(cx, |view, cx| view.finished(ok, cx));
@@ -1276,8 +1276,8 @@ mod tests {
         assert_eq!(rows.first().map(|row| row.operation.as_str()), Some("Select"));
         assert!(rows.len() >= 2, "{rows:?}");
         let panel = workbench.read_with(cx, |w, _| w.database_panel()).expect("the panel");
-        assert_eq!(panel.read_with(cx, |p, _| p.lower()), Lower::Plan);
-        assert!(console.read_with(cx, |c, _| c.banner().is_none()), "a new run clears the banner");
+        wait_long(cx, "the Query Plan tab shown", |cx| panel.read_with(cx, |p, _| p.lower()) == Lower::Plan);
+        wait_long(cx, "the banner cleared by the new run", |cx| banner(cx).is_none());
 
         click_on(cx, "db-plan-rerun");
         wait_long(cx, "the plan again", |cx| plan.read_with(cx, |p, _| !p.is_busy()));
@@ -1300,9 +1300,6 @@ mod tests {
         sqlite_source(&root, cx);
         let (editor, console) = open_console_file(&workbench, &root, "history.sql", cx);
         wait_long(cx, "the binding", |cx| console.read_with(cx, |c, _| c.bar().bound.is_some()));
-        click_on(cx, "console-execute");
-        set_text(&editor, "select id from users", cx);
-        click_on(cx, "console-execute");
         let recorded = |cx: &mut VisualTestContext| {
             let history = cx.update(|_, cx| {
                 let backend = cx.global::<Backend>();
@@ -1311,6 +1308,14 @@ mod tests {
             });
             history.map(|entries| entries.into_iter().map(|entry| entry.text).collect::<Vec<_>>()).unwrap_or_default()
         };
+        click_on(cx, "console-execute");
+        // Execute is off while a run is under way: the second one waits for the first to end.
+        wait_long(cx, "the first run", |cx| {
+            let idle = !console.read_with(cx, |c, _| c.bar().running);
+            idle && recorded(cx).contains(&"select name from users".to_owned())
+        });
+        set_text(&editor, "select id from users", cx);
+        click_on(cx, "console-execute");
         wait_long(cx, "the history", |cx| recorded(cx).contains(&"select id from users".to_owned()));
         set_text(&editor, "", cx);
 
@@ -1321,7 +1326,8 @@ mod tests {
         assert_eq!(dialog.read_with(cx, |d, _| d.rows()[0].clone()), "select id from users", "newest first");
 
         click_on(cx, "db-history-delete");
-        wait_long(cx, "the deletion", |cx| dialog.read_with(cx, |d, _| d.rows()[0] == "select name from users"));
+        let first = |cx: &mut VisualTestContext| dialog.read_with(cx, |d, _| d.rows().first().cloned());
+        wait_long(cx, "the deletion", |cx| first(cx).as_deref() == Some("select name from users"));
         assert!(!dialog.read_with(cx, |d, _| d.rows().contains(&"select id from users".to_owned())));
         click_on(cx, "db-history-paste");
         assert!(workbench.read_with(cx, |w, _| w.database_history_dialog()).is_none(), "Paste closes it");
@@ -1581,6 +1587,42 @@ mod tests {
             workbench
                 .read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).text().contains("select *\nfrom users;")))
         });
+        cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// The table editor's Import Data from File… opens the import dialog on its table; Export Data ›
+    /// Browse… asks where to save and puts the chosen file into the export form.
+    #[gpui_kit::test]
+    async fn the_table_editors_import_and_export_browse_open_their_dialogs(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "notes\n")]);
+        cx.update(|window, _| window.activate_window());
+        sqlite_source(&root, cx);
+        let users = users_row(&workbench, cx);
+        run_action(cx, "db.editData", Some(serde_json::json!(users)));
+        let editor = workbench.read_with(cx, |w, cx| w.database_table_editor(cx)).expect("the table editor");
+        wait_long(cx, "the rows", |cx| editor.read_with(cx, |e, _| e.state().page.is_some()));
+        // The docked Database window is narrower than the table editor's toolbar: maximized, it shows
+        // the whole toolbar.
+        let tree = db_tree(&workbench, cx);
+        cx.update(|window, cx| window.focus(&tree.focus_handle(cx), cx));
+        cx.run_until_parked();
+        run_action(cx, "toolwindow.maximize", None);
+
+        click_on(cx, "table-import");
+        let dialog = workbench.read_with(cx, |w, _| w.database_import_dialog()).expect("Import Data opens");
+        assert_eq!(dialog.read_with(cx, |d, _| d.title()), "Import Data into main.users");
+        click_on(cx, "db-import-cancel");
+        assert!(workbench.read_with(cx, |w, _| w.database_import_dialog()).is_none(), "Cancel closes it");
+
+        click_on(cx, "table-export");
+        let form = editor.read_with(cx, |e, _| e.export_form().cloned()).expect("Export Data opens");
+        click_on(cx, "export-browse");
+        let target = root.join("chosen.csv");
+        let chosen = target.clone();
+        cx.simulate_new_path_selection(move |_| Some(chosen));
+        let expected = Some(target.to_string_lossy().into_owned());
+        wait_long(cx, "the chosen file", |cx| form.read_with(cx, |f, _| f.target_path()) == expected);
         cx.update(|_, cx| cx.global::<Backend>().host.close_project("w1"));
     }
 

@@ -1,16 +1,16 @@
-//! The parts the Database dialogs are drawn from: the frame with its title, buttons, check boxes,
-//! the frame of a text field, and the read-only SQL preview a dialog shows of what it runs.
+//! The parts the Database dialogs are drawn from: the application's shared dialog frame, title,
+//! buttons, check boxes and field frame (`crate::app_views`, which follow the IDE zoom), plus what
+//! only these dialogs have: a label column, the body and footer rows, and the read-only SQL preview
+//! a dialog shows of what it runs.
 
+use crate::app_views;
 use crate::platform::i18n::Localization;
 use crate::theme;
-use gpui_kit::{App, Div, FontWeight, MouseButton, SharedString, div, prelude::*, px};
-
-const BUTTON_HEIGHT: f32 = 28.0;
-const FIELD_HEIGHT: f32 = 28.0;
+use gpui_kit::{App, Div, SharedString, div, prelude::*, px};
 
 /// `text` in the UI language.
 pub fn tx(cx: &mut App, text: &str) -> String {
-    cx.default_global::<Localization>().0.tx(text)
+    app_views::tx(cx, text)
 }
 
 /// `text` in the UI language, with the values of a template (`Import {n} Rows`) kept.
@@ -27,28 +27,7 @@ pub fn code_font(cx: &App) -> SharedString {
 /// beside it.
 pub fn dialog_frame(cx: &mut App, title: &str, width: f32) -> Div {
     let title = tx(cx, title);
-    div()
-        .w(px(width))
-        .max_h(px(720.0))
-        .flex()
-        .flex_col()
-        .bg(theme::color(cx, "bg-popup"))
-        .border_1()
-        .border_color(theme::color(cx, "border-popup"))
-        .rounded(theme::length(cx, "radius-popup"))
-        .text_size(theme::length(cx, "fs-ui"))
-        .text_color(theme::color(cx, "fg"))
-        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .child(
-            div()
-                .flex_none()
-                .px(px(16.0))
-                .pt(px(14.0))
-                .pb(px(8.0))
-                .text_color(theme::color(cx, "fg-strong"))
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(SharedString::from(title)),
-        )
+    app_views::frame(cx, width).max_h(theme::zoomed(cx, 720.0)).child(app_views::title_row(cx, title).flex_none())
 }
 
 /// The dialog's body: its rows one under the other.
@@ -63,67 +42,18 @@ pub fn dialog_footer() -> Div {
 
 /// A button: filled when `primary`, outlined otherwise, greyed out when it cannot be pressed.
 pub fn button(cx: &App, label: String, primary: bool, enabled: bool) -> Div {
-    let face = div()
-        .flex_none()
-        .h(px(BUTTON_HEIGHT))
-        .min_w(px(72.0))
-        .px(px(12.0))
-        .flex()
-        .items_center()
-        .justify_center()
-        .rounded(theme::length(cx, "radius-small"))
-        .border_1()
-        .whitespace_nowrap()
-        .child(SharedString::from(label));
-    let face = if primary {
-        let fill = theme::color(cx, "bg-button-primary");
-        face.bg(fill).border_color(fill).text_color(theme::color(cx, "fg-button-primary"))
-    } else {
-        face.bg(theme::color(cx, "bg-button"))
-            .border_color(theme::color(cx, "border-button"))
-            .text_color(theme::color(cx, "fg-strong"))
-    };
-    if enabled { face } else { face.opacity(0.5) }
+    app_views::button(cx, label, primary, enabled)
 }
 
 /// A check box with its label, greyed out when it cannot be changed.
 pub fn checkbox(cx: &App, label: String, on: bool, enabled: bool) -> Div {
-    let mark = on.then(|| theme::icon(cx, "check", 12.0, theme::color(cx, "fg-button-primary")));
-    let face = div()
-        .flex_none()
-        .flex()
-        .items_center()
-        .gap(px(8.0))
-        .text_color(theme::color(cx, "fg-strong"))
-        .whitespace_nowrap()
-        .child(
-            div()
-                .flex_none()
-                .size(px(16.0))
-                .flex()
-                .items_center()
-                .justify_center()
-                .rounded(px(3.0))
-                .border_1()
-                .border_color(theme::color(cx, if on { "bg-button-primary" } else { "border-checkbox" }))
-                .bg(theme::color(cx, if on { "bg-button-primary" } else { "bg-checkbox" }))
-                .children(mark),
-        )
-        .child(SharedString::from(label));
+    let face = app_views::checkbox(cx, label, on).whitespace_nowrap();
     if enabled { face } else { face.opacity(0.5) }
 }
 
 /// The frame a text field is drawn in.
 pub fn field_frame(cx: &App) -> Div {
-    div()
-        .h(px(FIELD_HEIGHT))
-        .flex()
-        .items_center()
-        .px(px(8.0))
-        .rounded(theme::length(cx, "radius-small"))
-        .border_1()
-        .border_color(theme::color(cx, "border"))
-        .bg(theme::color(cx, "bg-input"))
+    app_views::field_frame(cx, false)
 }
 
 /// A label in front of a field.

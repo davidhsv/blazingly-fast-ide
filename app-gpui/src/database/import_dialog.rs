@@ -6,6 +6,7 @@
 use super::dialog_parts::{button, checkbox, dialog_body, dialog_footer, dialog_frame, field_frame, label, tx};
 use super::model::{guess_separator, import_edits, parse_delimited};
 use crate::theme;
+use crate::ui::tooltip::WithTooltip;
 use gpui_kit::{
     App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, Render, SharedString, Window, div,
     prelude::*, px,
@@ -167,7 +168,6 @@ impl Render for ImportDialog {
             Some(file) => (file.clone(), theme::color(cx, "fg")),
             None => (placeholder, muted),
         };
-        let choose_title = tx(cx, "Choose File…");
         let choose = div()
             .id("db-import-choose")
             .debug_selector(|| "db-import-choose".to_owned())
@@ -177,7 +177,7 @@ impl Render for ImportDialog {
             .justify_center()
             .rounded(px(4.0))
             .hover(|el| el.bg(theme::color(cx, "bg-hover")))
-            .tooltip(crate::ui::tooltip::tooltip(choose_title))
+            .with_tooltip("Choose File…")
             .child(theme::icon(cx, "folder", 14.0, theme::color(cx, "fg")))
             .on_click(cx.listener(|_, _: &ClickEvent, _, cx| cx.emit(ImportEvent::ChooseFile)));
         let file_label = label(cx, "File:");

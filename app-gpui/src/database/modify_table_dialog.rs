@@ -8,6 +8,7 @@ use super::dialog_parts::{
 use super::objects::{ColumnDraft, alter_table_sql, can_alter_column, create_table_sql, draft_of};
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
+use crate::ui::tooltip::WithTooltip;
 use gpui_kit::{
     App, ClickEvent, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Render, SharedString,
     Subscription, Window, div, prelude::*, px,
@@ -385,14 +386,14 @@ impl ModifyTableDialog {
         self.busy
     }
 
+    /// An icon button; `title` is the English text of its tooltip, translated when it shows.
     fn icon_button(
         id: &'static str,
         icon: &str,
-        title: &str,
+        title: &'static str,
         enabled: bool,
         cx: &mut Context<Self>,
     ) -> gpui_kit::Stateful<gpui_kit::Div> {
-        let title = tx(cx, title);
         div()
             .id(id)
             .debug_selector(move || id.to_owned())
@@ -402,7 +403,7 @@ impl ModifyTableDialog {
             .justify_center()
             .rounded(px(4.0))
             .when(enabled, |el| el.hover(|el| el.bg(theme::color(cx, "bg-hover"))))
-            .tooltip(crate::ui::tooltip::tooltip(title))
+            .with_tooltip(title)
             .child(theme::icon(cx, icon, 14.0, theme::color(cx, if enabled { "fg" } else { "fg-faint" })))
     }
 

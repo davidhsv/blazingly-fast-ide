@@ -4,11 +4,12 @@
 //! The store owns the history ([`HistoryState`]); the dialog shows what it is handed and reports
 //! what the user does through [`HistoryEvent`]s.
 
-use super::dialog_parts::{button, code_font, dialog_body, dialog_footer, dialog_frame, tx, tx_template};
+use super::dialog_parts::{button, code_font, dialog_body, dialog_footer, dialog_frame, field_frame, tx, tx_template};
 use super::store::HistoryState;
 use crate::platform::input;
 use crate::theme;
 use crate::ui::text_field::{TextField, TextFieldEvent};
+use crate::ui::tooltip::WithTooltip;
 use gpui_kit::{
     App, ClickEvent, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke, Render,
     SharedString, Subscription, Window, div, prelude::*, px,
@@ -153,8 +154,14 @@ impl HistoryDialog {
         true
     }
 
-    fn icon_button(id: &'static str, icon: &str, title: &str, enabled: bool, cx: &mut Context<Self>) -> Clickable {
-        let title = tx(cx, title);
+    /// An icon button; `title` is the English text of its tooltip, translated when it shows.
+    fn icon_button(
+        id: &'static str,
+        icon: &str,
+        title: &'static str,
+        enabled: bool,
+        cx: &mut Context<Self>,
+    ) -> Clickable {
         let color = theme::color(cx, if enabled { "fg" } else { "fg-faint" });
         div()
             .id(id)
@@ -166,7 +173,7 @@ impl HistoryDialog {
             .justify_center()
             .rounded(px(4.0))
             .when(enabled, |el| el.hover(|el| el.bg(theme::color(cx, "bg-hover"))))
-            .tooltip(crate::ui::tooltip::tooltip(title))
+            .with_tooltip(title)
             .child(theme::icon(cx, icon, 14.0, color))
     }
 }
@@ -236,17 +243,7 @@ impl Render for HistoryDialog {
             .debug_selector(|| "db-history-paste".to_owned())
             .on_click(cx.listener(|dialog, _: &ClickEvent, _, cx| dialog.paste(cx)));
         let border = theme::color(cx, "border");
-        let search = div()
-            .flex_1()
-            .h(px(28.0))
-            .px(px(8.0))
-            .flex()
-            .items_center()
-            .rounded(theme::length(cx, "radius-small"))
-            .border_1()
-            .border_color(border)
-            .bg(theme::color(cx, "bg-input"))
-            .child(div().flex_1().min_w_0().child(self.search.clone()));
+        let search = field_frame(cx).flex_1().child(div().flex_1().min_w_0().child(self.search.clone()));
         let font = code_font(cx);
         dialog_frame(cx, &title, 820.0)
             .child(

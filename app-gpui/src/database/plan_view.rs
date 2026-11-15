@@ -4,6 +4,7 @@
 
 use super::dialog_parts::tx;
 use crate::theme;
+use crate::ui::tooltip::WithTooltip;
 use gpui_kit::{
     App, ClickEvent, Context, EventEmitter, FocusHandle, Focusable, IntoElement, Render, SharedString, Window, div,
     prelude::*, px,
@@ -214,7 +215,6 @@ impl Render for PlanView {
         let border = theme::color(cx, "border");
         let muted = theme::color(cx, "fg-muted");
         let selected_bg = theme::color(cx, "bg-tree-selected");
-        let explain = tx(cx, "Explain Again");
         let enabled = !self.busy;
         let rerun = div()
             .id("db-plan-rerun")
@@ -225,7 +225,7 @@ impl Render for PlanView {
             .justify_center()
             .rounded(px(4.0))
             .when(enabled, |el| el.hover(|el| el.bg(theme::color(cx, "bg-hover"))))
-            .tooltip(crate::ui::tooltip::tooltip(explain))
+            .with_tooltip("Explain Again")
             .child(theme::icon(cx, "refresh", 14.0, theme::color(cx, if enabled { "fg" } else { "fg-faint" })))
             .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.rerun(cx)));
         let toolbar = div()
