@@ -6,6 +6,10 @@ Format only files you edited, taken from `git diff --name-only` plus the draft f
 
 Do not stop on your own estimate of elapsed time. Work one page at a time (declare, compile, run that page's tests by filter, fix, next). Stop early only if blocked, and say what blocks it.
 
+## Part 0 (first, small): Quick Evaluate in the window, then the two keymap flow tests
+
+`debug.quickEvaluate` is handled by the debugger's action model (`app-gpui/src/debugger/actions.rs`, with model tests) but the window never registers it (`DEBUG_ACTIONS` in `app-gpui/src/workbench/debug.rs` does not list it), so nothing is bound to Alt+Button1 in a project window. Read the webview's action (`src/features/debugger/actions.ts:863`: its `when`, its mouse shortcut, what it does on a click in the editor and on a selection) and register it the way the other debug actions are, with a window test that drives it by its mouse shortcut during a paused fake session and asserts what the window shows, and one that reads its `when` OFF. Then move the two tests of `app-gpui/src/workbench/tests/proofs18_e2e_keymap_pending.rs` into a declared `proofs18_e2e_keymap.rs` (they wait only for an action bound to Alt+Button1; spec `e2e/keymap.spec.ts`) and make them pass without weakening an assertion. Rows this earns if it passes: `action:debug.quickEvaluate`, `e2e:e2e/keymap.spec.ts`.
+
 ## The two drafts
 
 1. Languages: notes `docs/gpui-port/notes/integration/settings_languages_integration.md`, report `docs/gpui-port/notes/reports/draft_settings_languages.md`. Files: `app-gpui/src/settings_view/pages/languages_{sdk,controls,pages}.rs`, `app-gpui/src/workbench/tests/proofs19_settings_languages.rs` (19 tests). 16 pages: `languages.go`, `.go.buildTags`, `.go.modules`, `.java`, `.markdown`, `.node`, `.oxfmt`, `.php`, `.pluginFormatters`, `.prettier`, `.ruby`, `.ruff`, `.rust`, `.serverTargets`, `.typescript`, `python.interpreter`.
