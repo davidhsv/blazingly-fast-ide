@@ -195,6 +195,18 @@ impl Cleanup {
 
 pub(super) type This = WeakEntity<Workbench>;
 
+/// Applies a chosen code action as the code-action chooser does (reformatting the lines it
+/// inserted), for the Refactor menu's server refactorings.
+pub(super) async fn apply_code_action(
+    this: &This,
+    editor: &Entity<Editor>,
+    doc: DocId,
+    action: CodeAction,
+    cx: &mut AsyncWindowContext,
+) -> anyhow::Result<()> {
+    apply_action(this, editor, doc, action, cx).await
+}
+
 /// The file an action is given: `"path"` or `{ path }`.
 fn path_arg(arg: Option<&Value>) -> Option<PathBuf> {
     let arg = arg?;

@@ -57,6 +57,7 @@ pub mod project_color;
 mod project_files;
 mod project_view_actions;
 mod project_view_options;
+mod refactor_actions;
 pub(crate) use app_actions::zen_active as distraction_free_active;
 pub use project_view_actions::undo_in_project_view;
 pub mod quick_switch;
@@ -74,6 +75,7 @@ use structure_window::STRUCTURE_TOOL_WINDOW;
 mod terminal_actions;
 mod todo_window;
 mod vcs_operations;
+mod vcs_text_actions;
 mod zoom_actions;
 use todo_window::TODO_TOOL_WINDOW;
 pub mod status_bar;
@@ -365,6 +367,9 @@ pub struct Workbench {
     /// The editor language actions: the refactorings undoable as one step, the highlighted usages,
     /// the rename waiting for its edit.
     language: editor_language::EditorLanguage,
+    /// The Refactor menu's server refactorings, Refactor This and Safe Delete while they run, and
+    /// Safe Delete's "Search in comments and strings" as last confirmed.
+    refactorings: refactor_actions::RefactorActions,
     /// The status bar's transient message (Next Occurrence's "2 of 5").
     extras: editor_extras::EditorExtras,
     /// Resolving the project's merge conflicts: the merge editor, the conflict banners and what the
@@ -590,6 +595,7 @@ pub fn register_actions(cx: &mut App) {
     branches::register_actions(registry);
     conflicts::register_actions(registry);
     vcs_operations::register_actions(registry);
+    vcs_text_actions::register_actions(registry);
     annotate::register_actions(registry);
     shelf::register_actions(registry);
     edit_actions::register_actions(registry);
@@ -610,6 +616,7 @@ pub fn register_actions(cx: &mut App) {
     database_extras::register_actions(registry);
     code_insight::register_actions(registry);
     editor_language::register_actions(registry);
+    refactor_actions::register_actions(registry);
     editor_extras::register_actions(registry);
     agents::register_actions(registry);
     tab_views::register_actions(registry);
@@ -1159,6 +1166,7 @@ impl Workbench {
             vcs_dialog: None,
             goto_line: None,
             language: Default::default(),
+            refactorings: Default::default(),
             extras: Default::default(),
             conflicts: Default::default(),
             vcs_operations: Default::default(),

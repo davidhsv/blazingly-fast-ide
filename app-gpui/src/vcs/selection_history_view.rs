@@ -517,10 +517,10 @@ mod tests {
             .collect()
     }
 
-    fn open<'a>(
-        cx: &'a mut TestAppContext,
+    fn open(
+        cx: &mut TestAppContext,
         data: SelectionHistoryData,
-    ) -> (Entity<SelectionHistoryView>, Events, &'a mut VisualTestContext) {
+    ) -> (Entity<SelectionHistoryView>, Events, &mut VisualTestContext) {
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);

@@ -1143,8 +1143,8 @@ mod tests {
     const HELLO: &str = "hello";
 
     /// The root of the editor's menu in a project, without a selection, with the actions this window
-    /// registers: Refactor has none of its actions registered, so it is not offered.
-    const ROOT: [&str; 14] = [
+    /// registers.
+    const ROOT: [&str; 15] = [
         "Show Context Actions",
         "Paste",
         "Copy / Paste Special",
@@ -1152,6 +1152,7 @@ mod tests {
         "Go To",
         "Folding",
         "Rename…",
+        "Refactor",
         "Generate…",
         "Send to Agent",
         "Open In",
@@ -1161,11 +1162,12 @@ mod tests {
         "Compare with Clipboard",
     ];
 
-    /// Go To › without Super Method, whose action this window does not register.
-    const GO_TO: [&str; 8] = [
+    /// Go To ›.
+    const GO_TO: [&str; 9] = [
         "Declaration or Usages",
         "Implementation(s)",
         "Type Declaration",
+        "Super Method",
         "Test",
         "-",
         "Find Usages",
@@ -1173,8 +1175,23 @@ mod tests {
         "Type Hierarchy",
     ];
 
+    /// Refactor › without Pull Members Up and Push Members Down, whose actions this window does not
+    /// register.
+    const REFACTOR: [&str; 10] = [
+        "Refactor This…",
+        "-",
+        "Move…",
+        "Change Signature…",
+        "Introduce Variable…",
+        "Introduce Constant…",
+        "Extract Method…",
+        "Inline…",
+        "-",
+        "Safe Delete…",
+    ];
+
     /// Git › for one file, with the rows whose actions this window registers.
-    const GIT: [&str; 14] = [
+    const GIT: [&str; 15] = [
         "Commit File…",
         "Add",
         "-",
@@ -1182,6 +1199,7 @@ mod tests {
         "Show Diff",
         "Compare with Branch…",
         "Show History",
+        "Show History for Selection",
         "Rollback…",
         "-",
         "Push…",
@@ -1564,6 +1582,8 @@ mod tests {
         );
         choose(&menu, &["Go To"], cx);
         assert_eq!(shown(&menu, cx)[1], GO_TO);
+        choose(&menu, &["Refactor"], cx);
+        assert_eq!(shown(&menu, cx)[1], REFACTOR);
         choose(&menu, &["Git"], cx);
         assert!(disabled(&menu, "Commit File…", cx), "no repository: Git's rows cannot run");
 
@@ -1772,6 +1792,7 @@ mod tests {
                 "Go To",
                 "Folding",
                 "Rename…",
+                "Refactor",
                 "Generate…",
                 "Send to Agent",
                 "Hello: Word Count of Active File",

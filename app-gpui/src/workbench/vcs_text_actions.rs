@@ -463,7 +463,9 @@ mod tests {
         editor.read_with(cx, |editor, _| editor.text())
     }
 
-    /// Lets a backend call that should change nothing come back.
+    /// Lets a backend call that should change nothing come back. A short fixed wait is the only way:
+    /// an answer that changes nothing (no changed range, a cancelled folder question, a move the diff
+    /// viewer took) leaves no state behind for a test to wait for.
     fn let_settle(cx: &mut VisualTestContext) {
         for _ in 0..30 {
             cx.run_until_parked();
@@ -788,7 +790,7 @@ mod tests {
         });
         let view = workbench.read_with(cx, |w, _| w.external_log_view()).expect("the log tab is shown");
         let root = to_ipc(&external);
-        assert_eq!(view.read_with(cx, |view, _| view.roots().to_vec()), [root.clone()]);
+        assert_eq!(view.read_with(cx, |view, _| view.roots().to_vec()), std::slice::from_ref(&root));
         let summaries: Vec<String> =
             view.read_with(cx, |view, _| view.rows().into_iter().map(|row| row.summary).collect());
         assert_eq!(summaries, ["second", "first"]);

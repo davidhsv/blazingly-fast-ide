@@ -9,7 +9,7 @@
 
 use super::Workbench;
 use super::branches::run_action_later;
-use super::editor_language::{This, apply_code_action};
+use super::editor_language::{self, This, apply_code_action};
 use super::services_window::on_workbench;
 use crate::backend::Backend;
 use crate::editor::buffer;
@@ -140,16 +140,9 @@ fn finished(result: anyhow::Result<()>) {
     }
 }
 
-/// Shows `text` (English source text) as the hint at the caret of `editor`, once the current
-/// effects are delivered (a caret move or an edit made just before would hide it again).
+/// Shows `text` (English source text) as the hint at the caret of `editor`.
 fn hint(editor: &Entity<Editor>, text: impl Into<String>, tone: Tone, cx: &mut App) {
-    let (editor, text) = (editor.downgrade(), text.into());
-    cx.defer(move |cx| {
-        let Some(editor) = editor.upgrade() else { return };
-        if let Some(intelligence) = EditorIntelligence::of(&editor, cx) {
-            intelligence.update(cx, |this, cx| this.show_hint_at(&text, None, tone, None, cx));
-        }
-    });
+    editor_language::hint(editor, text, None, tone, None, cx);
 }
 
 /// The hint of a failed request the user asked for; nothing for a cancelled one.
@@ -1050,6 +1043,7 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
 
 #[cfg(test)]
 mod tests {
+    use super::super::tests::context_is_on;
     use super::*;
     use crate::backend::AppDirs;
     use crate::editor::intelligence::fake_server::FakeServer;
@@ -1433,6 +1427,24 @@ mod tests {
         assert_eq!(list.read_with(cx, |l, _| l.lines()), ["Nothing here"]);
         assert_eq!(f.asked_only(&["refactor"]), asked, "outside the editor the server is not asked");
         f.close(cx);
+    }
+
+    /// Refactor This (`projectOpen`) runs while a project is open, and once the window has closed its
+    /// project the registry refuses it and no popup opens.
+    #[gpui_kit::test]
+    async fn refactor_this_is_not_available_once_the_project_is_closed(cx: &mut TestAppContext) {
+        let (f, cx) = open(cx, &[("a.mock", "let total = price\n")], "a.mock", refactor_this_capabilities());
+        f.answer(json!({ "textDocument/prepareRename": null, "textDocument/codeAction": [] }));
+        assert!(context_is_on(cx, "projectOpen"));
+        assert!(f.ran(cx, "refactor.thisMenu"));
+        f.list(cx);
+        cx.simulate_keystrokes("escape");
+        settle(cx, "the popup closes", |cx| f.no_list(cx));
+
+        f.workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+        settle(cx, "the project closes", |cx| !context_is_on(cx, "projectOpen"));
+        assert!(!f.ran(cx, "refactor.thisMenu"), "Refactor This needs an open project");
+        assert!(f.no_list(cx));
     }
 
     /// The editor refactorings need the editor (`textEditorActive && (editorFocus || popupOpen ||

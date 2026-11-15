@@ -6,6 +6,7 @@
 //! needs the backend, the editor or a dialog, it is split into steps that say what to ask and take
 //! the answer.
 
+pub mod caret_conflicts;
 pub mod diff_blame;
 pub mod issue_links;
 pub mod log_branch_memory;
