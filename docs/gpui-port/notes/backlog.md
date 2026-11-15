@@ -465,3 +465,20 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - CARGO QUEUE after it: Annotate → project view options + zoom → run/debug actions (+ Run group of the context menus, run gutter) → database extras (+ proofs6_database_console.rs) → build tools (seam first) → shared button + accessibility slices → vcs_stage_hunks → diff viewer gaps (soft wraps, moved code, diff tab) → agents views (settings page, New Task chips, slash commands, changes panel).
 - TO COMPARE with the webview: usage rows in the interface font show `->` as an arrow (Inter's contextual alternates); does the webview draw those rows in the mono font or with the same substitution?
 - The Services window of an inspection lists the machine's real Docker containers even with a temp HOME: never commit such shots.
+
+## Draft proofs14 (GitHub, plugins, terminal) DONE (2026-11-14, NOT committed: after the running integrator)
+
+- 20 declared tests + 3 pending in 7 files: workbench/github/tests/proofs14_github_window{,_pending}.rs, github/list_panel/tests/proofs14_ui.rs, workbench/plugin_runtime/tests/proofs14_plugins{,_pending}.rs, plugin_models/plugins_page/tests/proofs14_page.rs, terminal/view/tests/proofs14_ime.rs. Notes drafts/proofs14_github_plugins.md (5 mod lines; no hunks), report reports/draft_proofs14_github_plugins.md.
+- If they pass: done = pluginIcon.test.tsx (7/7); partial forward: toolwindow 6/8, ui 5/10, imeInput 9/20 (the other 11 test xterm's DOM: record-only → done with reason?), plugins.test.tsx (~44/61 already proven by tests the row does not name: the notes list them, a few unverified → a mapper pass can turn that into a recorded count).
+- One test waits ~0.6 s of real time (the trap test): the integrator must replace the wait.
+- REAL GAPS (feature work): 7 GitHub actions unregistered incl. github.createPullRequest (New Pull Request tab cannot open); `plugins.updateAll` unregistered (Update All button does nothing; fix: register it → PluginsPage::update_all); Settings → Version Control → GitHub has no page view; no views for: review mode, review diff, Remote Branch dialog, GitHub clone source, avatar images, label chips, multi-choice reviewer chooser, Markdown links, timeline editor, plugin web panels, plugin file templates and file icons, a terminal inside Run consoles.
+- Not reached: PreviewEditor.test.tsx, ServicesTree.debug.test.tsx, selectableText.test.ts.
+
+## State after the proofs13 integration (2026-11-14, code 14816381, proofs14 drafts 2ef536db)
+
+- Suite 7,106. D106 written. Inventory 1,193/3,145 (128 model only, 476 partial).
+- PENDING test files (undeclared specs of later slices): proofs12_{diff_soft_wraps,diff_tabs,find_popup}_pending.rs, proofs12_moved_code_view_pending.rs, proofs13_{shell,windows,agents_config,agents}_pending.rs, proofs13_agents_session_pending.rs, proofs14_{github_window,plugins}_pending.rs.
+- NEXT INTEGRATOR: $S/int_d106_brief.md = proofs14 (20 tests; register plugins.updateAll; replace a 0.6 s wait) then Annotate.
+- RUNNING (no cargo): proofs15 writer on the 33 partial action/ipc/point rows whose gap is a missing test ($S/partial_missing_test.txt).
+- CARGO QUEUE after d106: project view options + zoom → run/debug actions (+ Run group of the context menus, run gutter) → database extras (+ proofs6_database_console.rs) → build tools (seam first) → shared button + accessibility slices → vcs_stage_hunks → diff viewer gaps → single-file window tabs → Keymap Reference dialog → agents views.
+- FOUND: `vcs_more::push_rejected` (AutoUpdatePush) is called by nothing: the push-rejected flow (update and push again) is unbuilt; `toolWindowFocus` may be off with the Database table editor focused (hypothesis).

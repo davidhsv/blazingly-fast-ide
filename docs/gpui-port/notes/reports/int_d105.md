@@ -1,0 +1,116 @@
+## proofs13 integration report (D105): both batches are integrated and every gate passes
+
+Both batches are done and nothing blocked. 68 tests are declared and pass. Seven tests are left in undeclared `_pending` files; four of those were already in the tree and I did not touch them. The suite went from 7038 to 7106 tests, which is the 68 new ones.
+
+### 1. Gates (all measured, all on the final code)
+
+| Gate                                        | Result                                                                                               |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `cargo test --lib`, run 1                   | `test result: ok. 7106 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 144.99s` |
+| `cargo test --lib`, run 2                   | `test result: ok. 7106 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 145.53s` |
+| `cargo test --lib -- proofs13`, twenty runs | 20 of 20 passed, each `68 passed; 0 failed; 0 ignored; 7038 filtered out` (11.1 to 11.7 s)           |
+| `cargo test --test web_view`                | `1 passed; 0 failed`                                                                                 |
+| `cargo clippy --all-targets -- -D warnings` | exit 0                                                                                               |
+| `cargo build`                               | exit 0, 0 warnings                                                                                   |
+
+`git status --short src/ src-tauri/ docs/ crates/ e2e/` printed nothing. I formatted only the `git diff --name-only` files and the proofs13 files the brief named (with `$S/fmt.sh`); I ran no `cargo fmt` and no git command that changes anything.
+
+**One flaky test, now fixed.** Before its last fix, `proofs13_light_edit_close::stays_open_in_a_project_window_or_while_leaving_light_edit` failed in parallel runs, never when run alone:
+
+- 2 of 20, then 11 of 40 after a first attempt at a fix, both times with `editor.closeTab runs: Action unavailable`.
+- On the 40-run batch the test had already confirmed `editorTabsOpen` was on. With that on, the only clause of `(editorTabsOpen || editorSplit) && !toolWindowFocus` that can refuse is `!toolWindowFocus`. So once the folder opens as a project in that window, a tool window holds the keyboard.
+- The fix is in the test: it gives the editor the keyboard (as a click would) and waits until the window offers Close Tab. After that it passed 31 of 31 alone and 20 of 20 in the final gate.
+
+### 2. What changed, per part of the brief
+
+**Accessors and seam (all `#[cfg(test)]`)**
+
+- `PromptDialog::message_text()` in `app-gpui/src/vcs/prompt_dialogs.rs` is the one accessor both batches use. I changed `proofs13_close_guard.rs` from `.body()` to `message_text()`.
+- `TableEditorView::filter_options(kind)` in `app-gpui/src/database/table_editor_view.rs`.
+- Hunk A, `spawn_guard::FailingPrompts`, in `app-gpui/src/workbench/agents.rs`, applied as the notes wrote it.
+
+**`mod` lines**
+
+- `workbench/mod.rs`: 15 `proofs13_*` lines.
+- `editor_extras.rs`: `proofs13_editor`.
+- `agents/session_view.rs`: `proofs13_agents_session`.
+
+**App fixes**
+
+| Fix                                                                                                                           | Files                                                                                                                                                     | Webview source it follows                                                                                                     | Proving test                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Close Tab in a single-file window closes the window through its close guard; the last window shows the Welcome screen instead | `workbench/app_shell.rs` (`close_light_edit_tab`), `workbench/mod.rs` (`editor.closeTab` handler)                                                         | `src/features/app/windows.ts:567-584`                                                                                         | `workbench::tests::proofs13_light_edit_close::closes_when_its_last_editor_tab_closes`                                                                                           |
+| `editorTabsOpen` is on in a single-file window (its file is its tab)                                                          | `workbench/mod.rs`                                                                                                                                        | `src/editor/core/controller.ts:907-910`                                                                                       | same test                                                                                                                                                                       |
+| `lightEdit.openProject` is registered (Open Containing Folder as Project)                                                     | `workbench/windows.rs`, `workbench/app_shell.rs` (`open_light_edit_folder`), using the existing `light_edit_file_as_project` / `open_project_with_policy` | `windows.ts:199-203` and `493-500`                                                                                            | `workbench::tests::proofs13_windows::or_turns_this_window_into_the_project_and_reopens_the_file_there`, `…::opens_the_folder_in_a_new_window_with_the_file_per_open_project_in` |
+| A failed send after the rollback removed the edited message closes the inline editor                                          | `agents/session_view.rs` (`edit_sent`)                                                                                                                    | `src/features/agents/messageEditing.test.tsx:310` ("The backend emits Truncated before replying, removing the inline editor") | `workbench::tests::proofs13_agents_stale_editor::shows_a_message_sent_again_after_a_failed_edit_as_sent_not_in_an_editor`                                                       |
+| The scroll layout is followed only once the conversation's entries have loaded, so a kept offset waits for them               | `agents/session_view.rs`                                                                                                                                  | `src/features/agents/SessionEditor.tsx:622-639` (`entries === null` returns)                                                  | `agents::session_view::tests::proofs13_agents_session::restores_after_entries_load_and_clears_positions_on_project_disconnect`                                                  |
+| A view saves no scroll position for a task the store no longer knows, so a disconnect's clearing holds                        | `agents/session_view.rs` (`save_position`, used at all three save sites)                                                                                  | `SessionEditor.tsx:543`, `src/features/agents/store.ts:274-286` (the view writes to the captured map; disconnect replaces it) | same test                                                                                                                                                                       |
+
+**Test fixes (the test was wrong; nothing it checks was weakened)**
+
+- **`proofs13_light_edit_close` second test:** the draft's second half ran `file.closeProject` in a single-file window. In the webview that action needs `projectOpen` (`src/workbench/shellActions.ts:70`), and a single-file window has no project (`src/platform/project.ts:79`, `src/workbench/activate.ts:55`).
+  - The test now asserts Close Project is refused there.
+  - It then leaves single-file mode through `lightEdit.openProject` with "Open project in" set to this window.
+  - It asserts no window closes, and that Close Tab then closes only the tab.
+  - It also has the Close Tab wait described in the gates section.
+- **`proofs13_database` export test:**
+  - In the docked Database window the table editor's toolbar runs past the window's edge: Export sat at x=1936 in a 1920 px window.
+  - The test now focuses the Database tree and runs `toolwindow.maximize` before clicking Export.
+- **`proofs13_database` filter tests:** they press `end` before backspacing; the caret sat between a pair, so the old clearing left one quote behind.
+- **`proofs13_editor`:** escaped `"}"` in two assert messages, which did not compile.
+- **`proofs13_agents_session`:** added a missing lifetime on `open_store`.
+
+**Behaviours the brief asked about**
+
+- **Keymap Reference:** the webview opens an in-app dialog, not a URL or a bundled file (`src/features/app/KeymapReference.tsx:79-137`: a filter field, the preset and count, the grouped list). That is a view to build, not a small fix, so its test is pending.
+- **Tabs in a single-file window:** not built; those tests are pending.
+
+### 3. Inventory rows that changed state
+
+| Key                                                      | State now      | Proving tests (full names under `workbench::tests::` unless noted)                                                                                                                                                       | Cases                                                 | What is missing                                                                                                                                   |
+| -------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unit:src/features/app/__tests__/lightEditClose.test.ts` | done           | `proofs13_light_edit_close::closes_when_its_last_editor_tab_closes`, `…::stays_open_in_a_project_window_or_while_leaving_light_edit`                                                                                     | 2 of 2                                                | –                                                                                                                                                 |
+| `unit:src/features/app/__tests__/ideMode.test.tsx`       | done           | `proofs13_ide_mode::defaults_to_blaze_mode_and_switches_the_global_value_from_the_title_bar`, `…::is_hidden_without_a_project_and_in_light_edit_windows`, existing `the_ide_mode_toggle_switches_between_blaze_and_deep` | 3 of 3                                                | –                                                                                                                                                 |
+| `unit:src/features/database/ExportDialog.test.tsx`       | done           | `proofs13_database::bounds_preview_values_while_exporting_every_row_in_full`                                                                                                                                             | 1 of 1                                                | –                                                                                                                                                 |
+| `unit:src/features/database/SqlFilterInput.test.tsx`     | done           | `proofs13_database::suggests_the_current_table_columns`, `…::pairs_quotes_and_brackets_without_opening_completion`, `…::does_not_automatically_complete_after_a_space_a_quote_or_a_bracket`                              | 3 of 3                                                | –                                                                                                                                                 |
+| `unit:src/features/agents/AgentsView.test.tsx`           | done           | `proofs13_agents_delete_failure::continues_after_an_error_and_reports_the_failed_task`, plus the existing tests the notes list                                                                                           | 19 of 19                                              | –                                                                                                                                                 |
+| `action:lightEdit.openProject`                           | done (new row) | `proofs13_windows::or_turns_this_window_into_the_project_and_reopens_the_file_there`, `…::opens_the_folder_in_a_new_window_with_the_file_per_open_project_in`                                                            | –                                                     | –                                                                                                                                                 |
+| `unit:src/features/app/__tests__/closeGuard.test.ts`     | partial        | the 11 tests of `proofs13_close_guard`                                                                                                                                                                                   | 18 of 22 (case 21 partly)                             | cases 17–20 model only; no Terminating panel with Kill                                                                                            |
+| `unit:src/features/app/__tests__/shell.test.tsx`         | partial        | `proofs13_shell::{is_project_file_like_idea, lists_version_build_and_platform, escape_cancels, orders_buttons_like_macos_idea_adds_one_cancel_and_enter_picks_the_default}`                                              | 5 of 9                                                | 2 has no counterpart; 3 and 4 model only; 5 Keymap Reference pending                                                                              |
+| `unit:src/features/app/__tests__/windows.test.ts`        | partial        | the 7 declared tests of `proofs13_windows`                                                                                                                                                                               | 11 of 48 (3 and 10 partly)                            | 8 and 11 need tabs in a single-file window; drops, launches, remote, WSL and Attach have no counterpart or are model only; case 19 is not written |
+| `unit:src/workbench/tasks.test.tsx`                      | partial        | the 4 tests of `proofs13_tasks`                                                                                                                                                                                          | 6 of 9                                                | queue cases are model only                                                                                                                        |
+| `unit:src/workbench/focus.test.ts`                       | partial        | `proofs13_focus::returns_focus_to_the_editor_when_the_last_popup_closes_and_focus_was_left_nowhere`                                                                                                                      | 1 of 6                                                | 4 browser-only cases; case 6 not written                                                                                                          |
+| `unit:src/editor/core/cm/distractionFree.test.ts`        | partial        | `editor_extras::tests::proofs13_editor::defaults_the_text_width_to_80_columns_and_centres_at_the_configured_width`                                                                                                       | 2 of 3                                                | the right margin is not painted                                                                                                                   |
+| `unit:src/editor/core/cm/rainbowBrackets.test.ts`        | partial        | the other 4 tests of `proofs13_editor`                                                                                                                                                                                   | 5 of 6                                                | case 3 (lexical skip without a grammar)                                                                                                           |
+| `unit:src/features/agents/messageEditing.test.tsx`       | partial        | `proofs13_agents_images::*`, `proofs13_agents_failed_send::*` (4)                                                                                                                                                        | 17 of 18                                              | the image dialog (pending); tiles show the name, not the picture                                                                                  |
+| `unit:src/features/agents/sessionState.test.tsx`         | partial        | the 10 tests of `agents::session_view::tests::proofs13_agents_session`                                                                                                                                                   | 29 of 31                                              | 10 and 27 pending; the hover half of 19                                                                                                           |
+| `unit:src/features/agents/ConfigPickers.test.tsx`        | partial        | the 9 declared tests of `proofs13_agents_config`                                                                                                                                                                         | 7 of 13 fully, 2 and 4 without their description text | 1 partly; 9, 11, 12 missing                                                                                                                       |
+| `unit:src/features/agents/composerCommands.test.tsx`     | partial        | `proofs13_agents_new_task::disables_start_without_a_description_and_while_starting`                                                                                                                                      | 1 of 12                                               | command popup, tags, paste and project selector are missing                                                                                       |
+
+New proofs for rows that were already done: `ipc:cancel_task` (`proofs13_tasks::backend_tasks_cancellable_ones_cancel_through_cancel_task_the_others_say_they_cant`), `context:editorFocus` (`proofs13_focus::…`), `action:editor.closeTab` and `context:editorTabsOpen` (`proofs13_light_edit_close::closes_when_its_last_editor_tab_closes`).
+
+**Tests in `_pending` files (none declared, none with `#[ignore]`)**
+
+- **`app-gpui/src/workbench/tests/proofs13_shell_pending.rs`:** `renders_the_overlay`. Waits for the Keymap Reference dialog; its model already exists in `app_models::shell`.
+- **`app-gpui/src/workbench/tests/proofs13_windows_pending.rs`:** `turns_a_window_without_a_project_into_light_edit_when_no_light_edit_window_exists` and `adds_tabs_to_this_light_edit_window`. They wait for a tab model in single-file windows. That needs:
+  - `Content::Editor` holding tabs (a `TabsState` like project windows have) instead of one editor;
+  - `LooseStep::OpenFiles` opening the files into those tabs rather than `open_window(Target::File)`;
+  - Close Tab and the auto-close counting real tabs;
+  - the session saving those tabs.
+- **`app-gpui/src/workbench/tests/proofs13_agents_config_pending.rs`:** `steps_through_the_advertised_effort_levels_and_picks_a_model_from_the_popup` and `filters_the_model_list_and_picks_the_highlighted_model_with_the_keyboard`. They wait for the Model & effort popup to stay open after an effort step and after a model pick, and for its model search field (`src/features/agents/ConfigPickers.tsx:236-257`: `onChange` without `setOpen`, `SelectListbox searchable`). The native picker sets `picker = None` on every choice in `composer_view.rs`, and keeping it open would also need its list rebuilt so the current-value mark stays right.
+- **Untouched, already in the tree:** `proofs13_agents_pending.rs` (2 tests) and `proofs13_agents_session_pending.rs` (2 tests).
+
+### 4. Hypotheses (not measured)
+
+- **Hypothesis:** the agents `_pending` files and my three new `_pending` files compile once declared. Confirm by adding each `mod` line and running `cargo test --lib --no-run`.
+- **Hypothesis:** focus inside the Database tool window's table editor should turn `toolWindowFocus` on, as the webview does for any element inside a tool window. Measured: with the table editor focused, `toolwindow.maximize` was refused as unavailable; it ran only with the Database tree focused. Confirm with `grep -n toolWindowFocus src/workbench/toolwindows/*.ts` and a test that focuses the table editor and reads `context_is_on(cx, "toolWindowFocus")`.
+- **Hypothesis:** in the webview, the table editor toolbar also overflows when the Database window is narrow. Its `.toolbar` in `src/features/database/Database.module.css:131` has no overflow rule. Confirm in the running webview.
+
+### 5. False or stale items in the notes and briefs
+
+- **"Quit with Don't Save may still autosave":** false. `proofs13_close_guard::discards_without_saving` passes, and `on_release` saves only the session; autosave is skipped while a close is being decided (`workbench/mod.rs` `autosave`).
+- **"A large database value may arrive cut short in an export":** false. The export test writes the full 1.6M-character value to the file.
+- **The app notes' second `lightEditClose` test:** wrong, as described in section 2 (Close Project is not offered in the webview's single-file window).
+- **The app notes say `lightEdit.openProject` has no handler** and that those windows tests "expected to fail": now registered, and both tests pass.
+- **The app notes' expected failures for `closes_when_its_last_editor_tab_closes`:** the real cause was that the action was unavailable (`editorTabsOpen` off in single-file windows), not only a handler that does nothing.
+- **The agents notes' fix for the restore test:** they proposed changing `Follow::laid_out` in `follow.rs`. The fix went in its caller instead, and a second defect (saves after a disconnect) also had to be fixed for the test to pass.

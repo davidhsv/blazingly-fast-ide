@@ -433,7 +433,7 @@
   },
   "unit:src/workbench/tasks.test.tsx": {
     "status": "partial",
-    "proof": "`workbench::background_tasks_view::tests::the_popups_cancel_buttons_working_cancelling_and_disabled_with_the_reason`, `workbench::background_tasks_view::tests::shows_progress_and_uncancellable_tasks`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; 3 of 9 cases through the popup and the application: Cancelling… until the task ends then removed, the popup's cancel buttons, and progress in the popup the action opens. Missing: the queue cases, the replacement task, indexing and backend tasks' cancel_task, proven on the model only"
+    "proof": "`workbench::background_tasks_view::tests::the_popups_cancel_buttons_working_cancelling_and_disabled_with_the_reason`, `workbench::background_tasks_view::tests::shows_progress_and_uncancellable_tasks`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::tests::proofs13_tasks::backend_tasks_cancellable_ones_cancel_through_cancel_task_the_others_say_they_cant`, `workbench::tests::proofs13_tasks::indexing_says_why_it_cant_be_stopped`, `workbench::tests::proofs13_tasks::keeps_a_replacement_task_when_the_old_completion_arrives`, `workbench::tests::proofs13_tasks::shows_progress_and_uncancellable_tasks_through_an_action_without_the_status_bar`; 6 of 9 cases through the window. Missing: the queue cases are only on the model (nothing in the app queues tasks)"
   },
   "module:src/workbench/tasks.ts": {
     "status": "partial",
@@ -1725,7 +1725,7 @@
   },
   "unit:src/workbench/focus.test.ts": {
     "status": "partial",
-    "proof": "`platform_more::focus::tests`; 3 of 6 cases on the model; the remaining cases test the DOM caret and selection of the webview when focus moves (to the next editor, to a menu, out of an editable or read-only preview), which has no native counterpart. The unit is called by nothing the application reaches"
+    "proof": "`platform_more::focus::tests`, `workbench::tests::proofs13_focus::returns_focus_to_the_editor_when_the_last_popup_closes_and_focus_was_left_nowhere`; 1 of 6 cases through the window; four depend on the browser's caret, selection or element visibility. Missing: one case is not written"
   },
   "unit:src/workbench/toolwindows/occurrences.test.ts": {
     "status": "done",
@@ -2552,8 +2552,8 @@
     "proof": "`database::tree_view::tests`, `workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`"
   },
   "unit:src/features/database/ExportDialog.test.tsx": {
-    "status": "partial",
-    "proof": "`database::dialogs::tests`; the state and logic of 1 of 1 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`database::dialogs::tests`, `workbench::tests::proofs13_database::bounds_preview_values_while_exporting_every_row_in_full`; 1 of 1 case: the preview is bounded while every row is exported in full"
   },
   "unit:src/features/database/Grid.test.tsx": {
     "status": "done",
@@ -2564,8 +2564,8 @@
     "proof": "`database::source_dialog::tests`, `workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
   },
   "unit:src/features/database/SqlFilterInput.test.tsx": {
-    "status": "partial",
-    "proof": "`database::sql_filter::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`database::sql_filter::tests`, `workbench::tests::proofs13_database::does_not_automatically_complete_after_a_space_a_quote_or_a_bracket`, `workbench::tests::proofs13_database::pairs_quotes_and_brackets_without_opening_completion`, `workbench::tests::proofs13_database::suggests_the_current_table_columns`; 3 of 3 cases through the table editor's filter fields"
   },
   "unit:src/features/database/database.test.ts": {
     "status": "done",
@@ -2680,12 +2680,12 @@
     "proof": "`agents::session_view::tests`, `agents::reply_actions::tests`; 3 of 3 cases with a native counterpart on the conversation view; \"reports a clipboard failure\" has none: a native clipboard write cannot be refused"
   },
   "unit:src/features/agents/AgentsView.test.tsx": {
-    "status": "partial",
-    "proof": "`agents::task_list_view::tests`, `agents::task_list::tests`, `agents::task_actions::tests`, `workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`, `workbench::tests::proofs11_agents::applies_worktree_cleanup_only_to_worktree_tasks`, `workbench::tests::proofs11_agents::archives_only_eligible_tasks_in_a_mixed_selection`, `workbench::tests::proofs11_agents::cancels_the_whole_batch`, `workbench::tests::proofs11_agents::deletes_the_right_clicked_selection_after_one_confirmation_excluding_group_headers`, `workbench::tests::proofs11_agents::unarchives_only_archived_tasks_in_a_mixed_selection`, `agents::task_list_view::tests::proofs11_task_list::gives_the_whole_tool_window_to_the_conversation_when_the_docked_task_is_the_only_one`, `agents::task_list_view::tests::proofs11_task_list::includes_the_current_session_in_history_and_keeps_the_conversation_mounted`, `agents::task_list_view::tests::proofs11_task_list::keeps_placement_out_of_session_menus`, `agents::task_list_view::tests::proofs11_task_list::offers_to_archive_only_the_eligible_tasks_of_a_mixed_selection`, `agents::task_list_view::tests::proofs11_task_list::offers_to_unarchive_only_the_archived_tasks_of_a_mixed_selection`, `agents::task_list_view::tests::proofs11_task_list::opens_tabs_as_usual_without_a_docked_conversation`; 18 of 19 cases on the views shown in the Agents window. Missing: \"continues after an error and reports the failed task\" (no way to make one task's delete fail in a test)"
+    "status": "done",
+    "proof": "`agents::task_list_view::tests`, `agents::task_list::tests`, `agents::task_actions::tests`, `workbench::tests::an_unseen_reply_marks_its_task_unread_and_archive_and_delete_remove_it`, `workbench::tests::proofs11_agents::applies_worktree_cleanup_only_to_worktree_tasks`, `workbench::tests::proofs11_agents::archives_only_eligible_tasks_in_a_mixed_selection`, `workbench::tests::proofs11_agents::cancels_the_whole_batch`, `workbench::tests::proofs11_agents::deletes_the_right_clicked_selection_after_one_confirmation_excluding_group_headers`, `workbench::tests::proofs11_agents::unarchives_only_archived_tasks_in_a_mixed_selection`, `agents::task_list_view::tests::proofs11_task_list::gives_the_whole_tool_window_to_the_conversation_when_the_docked_task_is_the_only_one`, `agents::task_list_view::tests::proofs11_task_list::includes_the_current_session_in_history_and_keeps_the_conversation_mounted`, `agents::task_list_view::tests::proofs11_task_list::keeps_placement_out_of_session_menus`, `agents::task_list_view::tests::proofs11_task_list::offers_to_archive_only_the_eligible_tasks_of_a_mixed_selection`, `agents::task_list_view::tests::proofs11_task_list::offers_to_unarchive_only_the_archived_tasks_of_a_mixed_selection`, `agents::task_list_view::tests::proofs11_task_list::opens_tabs_as_usual_without_a_docked_conversation`, `workbench::tests::proofs13_agents_delete_failure::continues_after_an_error_and_reports_the_failed_task`; 19 of 19 cases on the views shown in the Agents window"
   },
   "unit:src/features/agents/ConfigPickers.test.tsx": {
     "status": "partial",
-    "proof": "`agents::config_pickers::tests`, `agents::config_bar::tests`; the state and logic of 13 of 13 cases, on the model; the view is not built"
+    "proof": "`agents::config_pickers::tests`, `agents::config_bar::tests`, `workbench::tests::proofs13_agents_config::collects_several_providers_in_encounter_order_and_preserves_order_inside_each_group`, `workbench::tests::proofs13_agents_config::keeps_a_plain_model_picker_when_the_agent_has_no_effort_option`, `workbench::tests::proofs13_agents_config::keeps_plain_ids_ungrouped_even_when_the_display_name_contains_a_slash`, `workbench::tests::proofs13_agents_config::leaves_non_model_option_labels_and_descriptions_intact`, `workbench::tests::proofs13_agents_config::sends_the_complete_nested_model_id_through_config_pickers`, `workbench::tests::proofs13_agents_config::shows_allow_all_as_a_switch_and_sends_on_off_values`, `workbench::tests::proofs13_agents_config::shows_allow_all_inside_the_mode_popup_when_both_options_exist`, `workbench::tests::proofs13_agents_config::shows_approvals_separately_from_the_execution_mode_and_sends_the_choice`, `workbench::tests::proofs13_agents_config::shows_the_model_with_the_agents_effort_name_and_the_mode_with_allow_all`; 7 of 13 cases through the composer's pickers, two more without their description text. Missing: the picker staying open after a choice, the model search field, the compact settings popup"
   },
   "unit:src/features/agents/HomeEditor.test.tsx": {
     "status": "partial",
@@ -2705,7 +2705,7 @@
   },
   "unit:src/features/agents/composerCommands.test.tsx": {
     "status": "partial",
-    "proof": "`agents::store::tests`; the state and logic of 2 of 12 cases, on the model; the view is not built"
+    "proof": "`agents::store::tests`, `workbench::tests::proofs13_agents_new_task::disables_start_without_a_description_and_while_starting`; 1 of 12 cases on the New Task page. Missing: the slash-command popup, tags, image paste and the project selector (their logic is in models no view uses)"
   },
   "unit:src/features/agents/conversation.test.ts": {
     "status": "done",
@@ -2725,7 +2725,7 @@
   },
   "unit:src/features/agents/messageEditing.test.tsx": {
     "status": "partial",
-    "proof": "`agents::session_view::tests`, `agents::composer_view::tests`, `agents::message_editor::tests`, `agents::store::tests`, `workbench::tests::proofs11_agents::confirms_before_retracting_a_turn_with_later_messages_and_guards_repeated_clicks`, `workbench::tests::proofs11_agents::keeps_the_draft_and_avoids_rollback_when_the_agent_does_not_stop_in_time`, `workbench::tests::proofs11_agents::keeps_the_transcript_and_running_session_when_a_fresh_session_rerun_is_cancelled`, `workbench::tests::proofs11_agents::recovers_the_original_prompt_when_rollback_fails`, `workbench::tests::proofs11_agents::rolls_back_before_sending_the_edited_text_when_send_is_clicked`, `workbench::tests::proofs11_agents::stops_before_rollback_and_restores_text_without_sending_turn_0`, `workbench::tests::proofs11_agents::stops_before_rollback_and_restores_text_without_sending_turn_1`, `workbench::tests::proofs11_agents::waits_for_a_running_turn_to_stop_before_rolling_it_back`; 14 of 18 cases on the views. Missing: the four cases about images or a failed send"
+    "proof": "`agents::session_view::tests`, `agents::composer_view::tests`, `agents::message_editor::tests`, `agents::store::tests`, `workbench::tests::proofs11_agents::confirms_before_retracting_a_turn_with_later_messages_and_guards_repeated_clicks`, `workbench::tests::proofs11_agents::keeps_the_draft_and_avoids_rollback_when_the_agent_does_not_stop_in_time`, `workbench::tests::proofs11_agents::keeps_the_transcript_and_running_session_when_a_fresh_session_rerun_is_cancelled`, `workbench::tests::proofs11_agents::recovers_the_original_prompt_when_rollback_fails`, `workbench::tests::proofs11_agents::rolls_back_before_sending_the_edited_text_when_send_is_clicked`, `workbench::tests::proofs11_agents::stops_before_rollback_and_restores_text_without_sending_turn_0`, `workbench::tests::proofs11_agents::stops_before_rollback_and_restores_text_without_sending_turn_1`, `workbench::tests::proofs11_agents::waits_for_a_running_turn_to_stop_before_rolling_it_back`, `workbench::tests::proofs13_agents_images::keeps_the_images_when_editing_minus_the_removed_ones`, `workbench::tests::proofs13_agents_images::shows_the_images_and_lists_only_the_files_as_chips`, `workbench::tests::proofs13_agents_failed_send::recovers_images_after_failed_regeneration_with_a_new_draft`, `workbench::tests::proofs13_agents_failed_send::recovers_images_after_failed_regeneration_without_a_new_draft`, `workbench::tests::proofs13_agents_failed_send::recovers_the_edit_after_rollback_if_sending_fails_with_another_draft`, `workbench::tests::proofs13_agents_failed_send::recovers_the_edit_after_rollback_if_sending_fails_without_a_draft`, `workbench::tests::proofs13_agents_stale_editor::shows_a_message_sent_again_after_a_failed_edit_as_sent_not_in_an_editor`; 17 of 18 cases on the views. Missing: the image dialog (a sent image is a name tile that does not open)"
   },
   "unit:src/features/agents/permission.test.ts": {
     "status": "done",
@@ -2737,7 +2737,7 @@
   },
   "unit:src/features/agents/sessionState.test.tsx": {
     "status": "partial",
-    "proof": "`agents::session_view::tests`, `agents::session::tests`, `agents::follow::tests`, `agents::cards::tests`, `workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`, `agents::session_view::tests::proofs11_session::fetches_a_conversation_once_and_shows_it_again_from_the_store_when_its_tab_reopens`, `agents::session_view::tests::proofs11_session::keeps_the_latest_usage_limits_per_provider_without_marking_anything_unread`, `agents::session_view::tests::proofs11_session::keeps_tool_reasoning_plan_and_approval_rows_in_one_author_run`, `agents::session_view::tests::proofs11_session::sends_the_original_option_id_then_collapses_the_resolved_card`, `agents::session_view::tests::proofs11_session::shows_the_providers_usage_limits_by_default_and_each_meter_as_settings_tools_agents_chat_allows`; 19 of 31 cases on the conversation view. Missing: scroll and follow geometry, tag kinds, question cards, docked changes"
+    "proof": "`agents::session_view::tests`, `agents::session::tests`, `agents::follow::tests`, `agents::cards::tests`, `workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`, `agents::session_view::tests::proofs11_session::fetches_a_conversation_once_and_shows_it_again_from_the_store_when_its_tab_reopens`, `agents::session_view::tests::proofs11_session::keeps_the_latest_usage_limits_per_provider_without_marking_anything_unread`, `agents::session_view::tests::proofs11_session::keeps_tool_reasoning_plan_and_approval_rows_in_one_author_run`, `agents::session_view::tests::proofs11_session::sends_the_original_option_id_then_collapses_the_resolved_card`, `agents::session_view::tests::proofs11_session::shows_the_providers_usage_limits_by_default_and_each_meter_as_settings_tools_agents_chat_allows`, `agents::session_view::tests::proofs13_agents_session::builds_only_the_requested_tail_with_absolute_indexes`, `agents::session_view::tests::proofs13_agents_session::keeps_following_the_end_when_the_offset_moves_back_without_the_user_scrolling`, `agents::session_view::tests::proofs13_agents_session::keeps_separate_answers_for_codex_question_ids_with_identical_wording`, `agents::session_view::tests::proofs13_agents_session::keeps_task_and_subagent_scroll_positions_separate`, `agents::session_view::tests::proofs13_agents_session::leaves_the_end_for_a_scroll_that_no_layout_caused_as_dragging_the_scrollbar_thumb`, `agents::session_view::tests::proofs13_agents_session::restores_after_entries_load_and_clears_positions_on_project_disconnect`, `agents::session_view::tests::proofs13_agents_session::retains_scrolling_and_follow_output_when_moving_in_both_directions`, `agents::session_view::tests::proofs13_agents_session::shows_file_references_and_skills_as_distinct_tags`, `agents::session_view::tests::proofs13_agents_session::shows_the_requested_command_while_another_read_tool_is_pending_with_one_card_and_short_buttons`, `agents::session_view::tests::proofs13_agents_session::shows_the_whole_question_once_inline_with_every_answer_and_sends_the_chosen_one`; 29 of 31 cases on the conversation view. Missing: the docked changes panel, the question card's preview on hover, and keeping the first row in place when earlier rows are prepended after a drag"
   },
   "unit:src/features/agents/unread.test.tsx": {
     "status": "partial",
@@ -2753,7 +2753,7 @@
   },
   "unit:src/features/app/__tests__/closeGuard.test.ts": {
     "status": "partial",
-    "proof": "`app_models::close_guard::tests`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`, `workbench::tests::closing_with_a_running_process_asks_to_terminate_it_before_the_unsaved_question`, `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`, `workbench::debug::tests::proofs3_debug::quit_with_a_running_debug_session_asks_to_terminate_it`; every case on the model, and the order of the questions through the window: exit confirmation, running processes (a program under the debugger included, named and stopped on Terminate), unsaved changes; there is no Terminating panel with Kill"
+    "proof": "`app_models::close_guard::tests`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`, `workbench::tests::closing_the_last_window_confirms_the_exit_and_dont_ask_again_turns_it_off`, `workbench::tests::closing_with_a_running_process_asks_to_terminate_it_before_the_unsaved_question`, `workbench::tests::quit_from_a_window_asks_about_its_unsaved_changes_and_cancel_keeps_it`, `workbench::debug::tests::proofs3_debug::quit_with_a_running_debug_session_asks_to_terminate_it`, `workbench::tests::proofs13_close_guard::asks_about_processes_before_discarding_unsaved_changes`, `workbench::tests::proofs13_close_guard::asks_before_terminating_a_running_process`, `workbench::tests::proofs13_close_guard::confirm_leave_asks_about_running_processes_before_closing`, `workbench::tests::proofs13_close_guard::confirms_exit_for_the_last_window_when_enabled`, `workbench::tests::proofs13_close_guard::discards_without_saving`, `workbench::tests::proofs13_close_guard::does_not_ask_about_processes_when_the_setting_is_off`, `workbench::tests::proofs13_close_guard::does_not_confirm_exit_for_one_of_several_windows_or_during_quit`, `workbench::tests::proofs13_close_guard::dont_ask_again_turns_process_confirmation_off`, `workbench::tests::proofs13_close_guard::includes_pending_local_edits_and_restored_dirty_buffers_before_backend_dirty_events`, `workbench::tests::proofs13_close_guard::keeps_the_window_when_saving_fails_or_the_user_cancels`, `workbench::tests::proofs13_close_guard::names_every_running_process_in_the_prompt`; 18 of 22 cases through the window (one of them in part). Missing: four cases are only on the model, and there is no Terminating panel with Kill"
   },
   "unit:src/features/app/__tests__/consoleCopy.test.ts": {
     "status": "partial",
@@ -2764,8 +2764,8 @@
     "proof": "`app_models::edit_command::tests`, `workbench::edit_actions::tests::use_the_focused_editors_history_including_programmatic_edits`; 2 of 2 cases: undo and redo go through the focused editor's own history, programmatic edits included"
   },
   "unit:src/features/app/__tests__/ideMode.test.tsx": {
-    "status": "partial",
-    "proof": "`app_models::project_actions::tests`; the state and logic of 1 of 3 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`app_models::project_actions::tests`, `workbench::tests::proofs13_ide_mode::defaults_to_blaze_mode_and_switches_the_global_value_from_the_title_bar`, `workbench::tests::proofs13_ide_mode::is_hidden_without_a_project_and_in_light_edit_windows`; 3 of 3 cases"
   },
   "unit:src/features/app/__tests__/invalidateCaches.test.tsx": {
     "status": "done",
@@ -2776,8 +2776,8 @@
     "proof": "`app_models::jetbrains_settings::tests`"
   },
   "unit:src/features/app/__tests__/lightEditClose.test.ts": {
-    "status": "partial",
-    "proof": "`app_models::windows::tests`; the decision on the model; nothing closes a single-file window on it yet"
+    "status": "done",
+    "proof": "`app_models::windows::tests`, `workbench::tests::proofs13_light_edit_close::closes_when_its_last_editor_tab_closes`, `workbench::tests::proofs13_light_edit_close::stays_open_in_a_project_window_or_while_leaving_light_edit`; 2 of 2 cases: a single-file window closes when its last tab closes, and stays open in a project window or while it turns into a project"
   },
   "unit:src/features/app/__tests__/newProject.test.ts": {
     "status": "done",
@@ -2789,7 +2789,7 @@
   },
   "unit:src/features/app/__tests__/shell.test.tsx": {
     "status": "partial",
-    "proof": "`app_models::shell::tests`; the state and logic of 3 of 9 cases, on the model; the view is not built"
+    "proof": "`app_models::shell::tests`, `workbench::tests::proofs13_shell::escape_cancels`, `workbench::tests::proofs13_shell::is_project_file_like_idea`, `workbench::tests::proofs13_shell::lists_version_build_and_platform`, `workbench::tests::proofs13_shell::orders_buttons_like_macos_idea_adds_one_cancel_and_enter_picks_the_default`; 5 of 9 cases through the window. Missing: the Keymap Reference dialog is not built (its test waits undeclared), two cases are only on the model, one has no native counterpart"
   },
   "unit:src/features/app/__tests__/updates.test.ts": {
     "status": "done",
@@ -2797,7 +2797,7 @@
   },
   "unit:src/features/app/__tests__/windows.test.ts": {
     "status": "partial",
-    "proof": "`app_models::windows::tests`; every case on the model; the workbench still opens projects and files with its older, simpler code, which differs (no Attach, no leave guard, one file per empty window)"
+    "proof": "`app_models::windows::tests`, `workbench::tests::proofs13_windows::honours_current_window_requests_even_when_a_project_is_already_open`, `workbench::tests::proofs13_windows::keeps_the_ordinary_unsaved_change_guard_for_current_window_opens`, `workbench::tests::proofs13_windows::leaves_files_to_the_existing_light_edit_window_or_their_projects_window`, `workbench::tests::proofs13_windows::opens_a_new_window_without_replacing_the_current_project`, `workbench::tests::proofs13_windows::opens_files_in_the_projects_editor_in_a_project_window`, `workbench::tests::proofs13_windows::opens_the_folder_in_a_new_window_with_the_file_per_open_project_in`, `workbench::tests::proofs13_windows::or_turns_this_window_into_the_project_and_reopens_the_file_there`; 11 of 48 cases through the window, two of them in part. Missing: tabs in a single-file window (two tests wait undeclared), file drops, launches beyond the first argument, remote, WSL and Attach windows"
   },
   "unit:src/features/plugins/__tests__/decorations.test.ts": {
     "status": "done",
@@ -6933,11 +6933,11 @@
   },
   "unit:src/editor/core/cm/rainbowBrackets.test.ts": {
     "status": "partial",
-    "proof": "`workbench::editor_extras::tests::rainbow_brackets_colour_the_brackets_by_their_depth`, `editor::extras::tests::brackets_are_coloured_by_depth_and_unmatched_ones_are_marked`, `editor::extras::tests::strings_and_comments_are_skipped_lexically`; 1 of 6 cases through the application (the setting turns the colours on and off), with parts of three more: depths 0 to 2 painted in the three colours, an unmatched closer, a bracket in a string skipped with the highlights. Missing through a view: the palette cycling from depth 3, mismatched and unclosed openers, comments and the lexical skipping without highlights, and the depth far into a long document after an edit (on the model only, or not at all)"
+    "proof": "`workbench::editor_extras::tests::rainbow_brackets_colour_the_brackets_by_their_depth`, `editor::extras::tests::brackets_are_coloured_by_depth_and_unmatched_ones_are_marked`, `editor::extras::tests::strings_and_comments_are_skipped_lexically`, `workbench::editor_extras::tests::proofs13_editor::colours_brackets_by_nesting_depth_cycling_through_the_palette`, `workbench::editor_extras::tests::proofs13_editor::knows_the_depth_at_a_viewport_far_into_the_document_and_after_edits`, `workbench::editor_extras::tests::proofs13_editor::marks_unmatched_and_mismatched_brackets`, `workbench::editor_extras::tests::proofs13_editor::skips_strings_comments_and_regexps_with_the_syntax_tree`; 5 of 6 cases. Missing: the lexical skip without a grammar"
   },
   "unit:src/editor/core/cm/distractionFree.test.ts": {
     "status": "partial",
-    "proof": "`workbench::editor_extras::tests::distraction_free_mode_hides_the_tabs_and_the_gutter_and_centres_the_text`, `platform_more::distraction_free::tests::clamps_the_text_width_setting`; 1 of 3 cases through the editor: in the mode the gutter goes and the text is centred at the configured width (the editor draws no margin guides or sticky lines to hide); normally the gutter is drawn. Missing: the 80-column default is asserted on the model only, and no right margin is drawn to show"
+    "proof": "`workbench::editor_extras::tests::distraction_free_mode_hides_the_tabs_and_the_gutter_and_centres_the_text`, `platform_more::distraction_free::tests::clamps_the_text_width_setting`, `workbench::editor_extras::tests::proofs13_editor::defaults_the_text_width_to_80_columns_and_centres_at_the_configured_width`; 2 of 3 cases. Missing: the right margin is not painted"
   },
   "unit:src/features/settings/components/FontPicker.test.tsx": {
     "status": "partial",
@@ -7182,5 +7182,9 @@
   "context:debugHotSwapBuilding": {
     "status": "done",
     "proof": "`workbench::debug::tests::proofs11_hotswap::cancel_hot_swap_build_aborts_the_reload_before_any_class_is_redefined`, `workbench::debug::tests::proofs11_hotswap::reload_changed_classes_compiles_then_reloads_the_classes_into_the_java_session`; on while the changed classes compile, off before and after"
+  },
+  "action:lightEdit.openProject": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs13_windows::opens_the_folder_in_a_new_window_with_the_file_per_open_project_in`, `workbench::tests::proofs13_windows::or_turns_this_window_into_the_project_and_reopens_the_file_there`; Open Containing Folder as Project turns the single-file window into the project and reopens the file there, or opens the folder in a new window, as \"Open project in\" says"
   }
 }
