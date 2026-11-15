@@ -712,3 +712,14 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - TEST-ONLY (3 ipc rows): user_font_data (a font of the user's folder draws), app_info, window_start_drag → see docs/.../triage/plumbing_rows.json `asserts`.
 - HELD until a test proves the user-visible part: module fonts.ts, fonts.test.ts, keptTabs.test.tsx, selectableText.test.ts. Rows with a user-visible open case (8): see plumbing_rows.json group 2.
 - MISSING window features (23 rows): tab groups 9; title bar chrome 3 (full-screen inset never released; window buttons under zoom = HYPOTHESIS to check in the real window; other windows' projects in the project widget); remote 2; comparison window for folders; deployment window; WSL; dock bounce; Settings as its own window.
+
+## State after the d117 slice (2026-11-15, backend b8dfccb1, native 65d5e6da). D119. Inventory 1,303/3,145 (121 model only, 489 partial, 15 nothing to port).
+
+- Suite 7,391 (my two runs), web_view, clippy, build clean; after my inspect.rs edit only the inspect tests (60), clippy and build were rerun.
+- TAURI SUITE at the pinned-config switch: 185/186 binaries passed; the one failure was a pre-existing flaky test (exists-then-read race in crates/ide-host/tests/remote_plugins.rs), measured on old and new code, fixed in the test (40/40). The whole workspace suite was NOT rerun after that test-only fix: rerun it at the next change under crates/ (`cargo test --workspace --no-fail-fast > $S/tauri_suite7.log`). `git diff --stat b8dfccb1 HEAD -- crates src src-tauri e2e package.json Cargo.toml Cargo.lock` must stay empty.
+- Inspection script: `mods⇥<names>` step; clicks and moves carry held modifiers (`$S/insp/USAGE.md`, docs INSPECT_SCRIPT.md updated). Launcher with a small Rust project: `$S/insp8/run.sh`.
+- Rows: `$S/parity_d117b.py` (12 build-tools actions + link done; build.maven/gradle contexts; debug.quickEvaluate partial: one-line hint, no expandable tree; e2e keymap done → e2e 8/70).
+- NOT TESTED: Cmd+Alt+click (Go to Implementation) through the editor's own mouse-shortcut path.
+- RUNNING (cargo): proofs20 integrator (`$S/int_proofs20_brief.md`).
+- CARGO QUEUE after it: Settings A (`$S/int_settings_a_brief.md`) → Settings B → agents views (reconciled; `$S/agv/anchors.py`) → refactor + Git text actions → diff gaps (reconciled; `$S/dfg/anchors.py`; next/prev file + settings must work in the tab before the default flips) → shared button + accessibility → vcs_stage_hunks → zoom px.
+- NO-CARGO candidates that do not rot: test-only leftovers of build tools (7 cases), plumbing test-only rows (user_font_data, app_info, window_start_drag), small batches of the triage (editor paint models 14, git log 14, terminal 13, app shell 11+11) need writers → only when the draft queue is below three integrations.
