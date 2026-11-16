@@ -46,6 +46,8 @@ pub enum MarkKind {
     InactiveBreakpoint,
     /// The line where the debugger is suspended: its row is tinted.
     ExecutionLine,
+    /// The line a code preview is on: its row is tinted in the current line's colour, focused or not.
+    CurrentLine,
 }
 
 impl MarkKind {
@@ -66,7 +68,7 @@ impl MarkKind {
 
     /// Tints the whole row of its line instead of the text.
     pub fn is_line(self) -> bool {
-        matches!(self, Self::BreakpointLine | Self::UnverifiedBreakpoint | Self::ExecutionLine)
+        matches!(self, Self::BreakpointLine | Self::UnverifiedBreakpoint | Self::ExecutionLine | Self::CurrentLine)
     }
 
     /// Draws a breakpoint dot in the gutter of its line.

@@ -450,6 +450,44 @@ async fn save_all_writes_the_unsaved_notebook(cx: &mut TestAppContext) {
     wait_long(cx, "the saved state", |cx| !model.read_with(cx, |model, _| model.is_dirty()));
 }
 
+/// File › Save All with a notebook tab in front also writes the unsaved text tabs behind it.
+#[gpui_kit::test]
+async fn save_all_with_a_notebook_in_front_also_writes_the_unsaved_text_tabs(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, file, workbench, _bin, cx) = open_notebook(cx, false);
+    cx.update(|_, cx| {
+        crate::platform::settings::set(
+            "w1",
+            ide_workspace::settings::SettingsScope::Global,
+            "files.autoSave",
+            &false.into(),
+            cx,
+        )
+    })
+    .expect("the setting is stored");
+    let notes = file.with_file_name("notes.txt");
+    std::fs::write(&notes, "notes\n").expect("the file is written");
+    workbench.update_in(cx, |w, window, cx| w.open_project_file(notes.clone(), window, cx));
+    settle(cx, |cx| workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == notes)));
+    cx.update(|window, cx| {
+        let editor = workbench.read(cx).editor().cloned().expect("an editor");
+        editor.update(cx, |editor, cx| editor.select(0, 0, cx));
+        window.focus(&editor.focus_handle(cx), cx);
+    });
+    cx.simulate_input("my ");
+    workbench.update_in(cx, |w, window, cx| w.open_project_file(file.clone(), window, cx));
+    wait_long(cx, "the notebook tab in front", |cx| notebook(&workbench, cx).is_some());
+    type_into_cell(&workbench, "c1", "print(9)", cx);
+    wait_committed(&workbench, cx);
+
+    run_action(cx, "file.save", None);
+    wait_long(cx, "the notebook to be written", |_| saved_source(&file, 0).as_deref() == Some("print(9)"));
+    wait_long(cx, "the text tab to be written", |cx| {
+        workbench.read_with(cx, |w, cx| w.unsaved_count(cx)) == 0
+            && std::fs::read_to_string(&notes).is_ok_and(|text| text == "my notes\n")
+    });
+}
+
 /// Edit › Undo and Redo while a cell has the keyboard go through the notebook's history in the
 /// backend, not the cell editor's own: the typed source goes and comes back in the document.
 #[gpui_kit::test]

@@ -58,17 +58,12 @@ pub fn register(cx: &mut App) {
         })
     });
     registry.handle("edit.selectAll", |_, window, cx| on_editor(window, cx, |editor, cx| editor.select_all(cx)));
+    // Save All: every unsaved document of the window, whichever tab is in front; the writes run on
+    // the backend and a failure is told to the user once it is known.
     registry.handle("file.save", |_, window, cx| {
-        let editor =
-            workbench::active_editor(window, cx).ok_or_else(|| anyhow::anyhow!("no editor is open in this window"))?;
-        let (saving, path) = editor.read_with(cx, |editor, cx| (editor.save(cx), editor.path().to_path_buf()));
-        // The write runs on the backend; a failure is reported once it is known.
-        cx.spawn(async move |_| match saving.await {
-            Ok(Ok(())) => {}
-            Ok(Err(error)) => tracing::error!("cannot save {}: {}", path.display(), error.message),
-            Err(error) => tracing::error!("cannot save {}: {error:#}", path.display()),
-        })
-        .detach();
+        let workbench =
+            workbench::for_window(window, cx).ok_or_else(|| anyhow::anyhow!("this window has no documents"))?;
+        workbench.update(cx, |workbench, cx| workbench.save_all_documents(cx));
         Ok(())
     });
     super::command_actions::register(cx);

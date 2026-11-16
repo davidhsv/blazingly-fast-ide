@@ -431,18 +431,15 @@ pub(super) fn document_history(command: EditCommand, window: &mut Window, cx: &m
     true
 }
 
-/// Puts Save All (`file.save`) in front of the editors' handler: the window's unsaved notebooks are
-/// saved too, a failure showing in the notebook's error bar; with a notebook tab in front and no text
-/// editor, the notebooks alone are saved.
+/// Puts Save All (`file.save`) in front of the text documents' handler: the window's unsaved
+/// notebooks are saved too, a failure showing in the notebook's error bar, and then the text
+/// documents, whichever tab is in front.
 pub(super) fn register_actions(registry: &mut ActionRegistry) {
     let Some(previous) = registry.get("file.save") else { return };
     let meta = previous.meta.clone();
     registry.register(Action::new(meta, move |call, window, cx| {
         let Some(workbench) = for_window(window, cx) else { return previous.run_handler(call, window, cx) };
-        let (label, notebook_in_front) = {
-            let workbench = workbench.read(cx);
-            (workbench.label.clone(), workbench.notebook_view().is_some())
-        };
+        let label = workbench.read(cx).label.clone();
         let models: Vec<Entity<NotebookModel>> = cx
             .default_global::<OpenNotebooks>()
             .0
@@ -457,7 +454,7 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
                 }
             });
         }
-        if notebook_in_front { Ok(()) } else { previous.run_handler(call, window, cx) }
+        previous.run_handler(call, window, cx)
     }));
 }
 

@@ -17,13 +17,13 @@ use super::usages::{
     supports_usage_access, tab_title, toggle_excluded_usages, trim_preview, usage_count, usage_key,
 };
 use crate::find::store::StorageWrite;
-use crate::find::utf16;
 use crate::find::window_store::HeaderMenuItem;
 use crate::platform::i18n::{I18n, Localization, Param, format_message};
 use crate::platform::input;
 use crate::platform::virtual_docs::{basename, relative_dir};
 use crate::platform_more::occurrences::{Direction, OccurrenceStep};
 use crate::theme;
+use crate::ui::code_preview::line_tokens::{LineTokens, usage_runs};
 use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
     AnyElement, AnyView, App, ClickEvent, Context, Div, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke,
@@ -198,6 +198,8 @@ impl UsagesView {
             cx,
         );
         cx.on_release(|view, cx| input::release_keys(view.key_claim, cx)).detach();
+        // The rows are drawn again once their files' colours are known.
+        cx.observe_global::<LineTokens>(|_, cx| cx.notify()).detach();
         Self {
             tabs: Vec::new(),
             active: None,
@@ -856,21 +858,15 @@ fn icon_button(cx: &App, selector: &'static str, icon: &str, enabled: bool, pres
         .child(theme::icon(cx, icon, 16.0, color))
 }
 
-/// A usage's line, trimmed, with the usage on the search-match colour.
+/// A usage's line, trimmed, in its file's colours, with the usage on the search-match colours.
 fn marked_line(cx: &App, usage: &Usage) -> Div {
-    let preview = trim_preview(usage);
-    let parts = [
-        (utf16::slice(&preview.text, 0, preview.from).to_owned(), false),
-        (utf16::slice(&preview.text, preview.from, preview.to).to_owned(), true),
-        (utf16::slice_from(&preview.text, preview.to).to_owned(), false),
-    ];
     let match_bg = theme::color(cx, "bg-search-match");
-    div().flex().min_w_0().overflow_hidden().whitespace_nowrap().children(
-        parts.into_iter().filter(|(text, _)| !text.is_empty()).map(|(text, marked)| {
-            let part = div().child(SharedString::from(text));
+    div().flex().min_w_0().overflow_hidden().whitespace_nowrap().children(usage_runs(usage, cx).into_iter().map(
+        |(text, color, marked)| {
+            let part = div().text_color(color).child(SharedString::from(text));
             if marked { part.bg(match_bg).rounded(px(2.0)) } else { part }
-        }),
-    )
+        },
+    ))
 }
 
 /// The strings a frame draws, translated once.
@@ -1230,6 +1226,8 @@ mod tests {
     use ide_lsp::types::References;
     use std::cell::RefCell;
     use std::path::PathBuf;
+
+    mod proofs26_usage_preview;
 
     type Events = Rc<RefCell<Vec<UsagesViewEvent>>>;
 

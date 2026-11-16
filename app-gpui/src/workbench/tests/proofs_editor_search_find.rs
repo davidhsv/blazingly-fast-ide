@@ -45,10 +45,10 @@ async fn streams_results_and_highlights_the_matches_while_replacing(cx: &mut Tes
     assert!(lines.len() == 1 && lines[0].contains("a needle here"), "{lines:?}");
     let notes = text_of(&root.join("notes.txt"));
     wait_long(cx, "the preview of notes.txt", |cx| {
-        popup.read_with(cx, |popup, _| popup.preview_path() == Some(notes.as_str()))
+        popup.read_with(cx, |popup, cx| popup.preview_path(cx).as_deref() == Some(notes.as_str()))
     });
-    popup.read_with(cx, |popup, _| {
-        assert_eq!(popup.preview_line(), Some((1, "  a needle here".to_owned())));
+    popup.read_with(cx, |popup, cx| {
+        assert_eq!(popup.preview_line(cx), Some((1, "  a needle here".to_owned())));
         assert_eq!(popup.preview_marks(1), vec![(4, 10)]);
         assert!(!popup.preview_mode());
         assert!(popup.diff_lines().is_empty(), "the matches are marked, not shown as a diff");
@@ -74,17 +74,19 @@ async fn marks_the_matches_of_the_previewed_file_and_its_current_line(cx: &mut T
     assert_eq!(lines.len(), 2, "{lines:?}");
     let path = text_of(&root.join("two.txt"));
     wait_long(cx, "the preview of two.txt", |cx| {
-        popup.read_with(cx, |popup, _| popup.preview_path() == Some(path.as_str()) && popup.preview_line().is_some())
+        popup.read_with(cx, |popup, cx| {
+            popup.preview_path(cx).as_deref() == Some(path.as_str()) && popup.preview_line(cx).is_some()
+        })
     });
-    popup.read_with(cx, |popup, _| {
-        assert_eq!(popup.preview_line(), Some((0, "needle one".to_owned())));
+    popup.read_with(cx, |popup, cx| {
+        assert_eq!(popup.preview_line(cx), Some((0, "needle one".to_owned())));
         assert_eq!(popup.preview_marks(0), vec![(0, 6)]);
         assert_eq!(popup.preview_marks(1), Vec::<(u32, u32)>::new());
         assert_eq!(popup.preview_marks(2), vec![(0, 6), (11, 17)]);
     });
     cx.simulate_keystrokes("down");
     wait_long(cx, "the preview to follow the selection", |cx| {
-        popup.read_with(cx, |popup, _| popup.preview_line() == Some((2, "needle two needle".to_owned())))
+        popup.read_with(cx, |popup, cx| popup.preview_line(cx) == Some((2, "needle two needle".to_owned())))
     });
     cx.simulate_keystrokes("escape");
     close_backend_project(cx);

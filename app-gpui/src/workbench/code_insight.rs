@@ -46,6 +46,8 @@ use crate::platform_more::inspection_controls::{
     InspectionChange, InspectionCommand, SETTINGS_ACTION, inspection_settings_page, update_inspection,
 };
 use crate::platform_more::inspections::active_profile;
+use crate::ui::code_preview::line_tokens::{self, LineTokens};
+use crate::ui::code_preview::{CodePreview, PREVIEW_DEBOUNCE, PreviewHighlight, PreviewMode, PreviewTarget};
 use futures::StreamExt as _;
 use futures::channel::mpsc::unbounded;
 use gpui_kit::{AnyView, App, AppContext, Context, Entity, Focusable, Subscription, Task, Window};
@@ -86,7 +88,8 @@ pub(super) struct CodeInsight {
     _server_status_events: Subscription,
     problems_preview: Option<Task<()>>,
     popup_preview: Option<Task<()>>,
-    usages_preview: Option<Task<()>>,
+    /// The Find Usages window's preview pane, once a usage was previewed.
+    usages_preview: Option<Entity<CodePreview>>,
     /// The last hint a search or hierarchy gave.
     last_hint: Option<UsageHint>,
 }
@@ -421,6 +424,8 @@ impl Workbench {
         insight.problems_preview = None;
         insight.popup_preview = None;
         insight.usages_preview = None;
+        // The rows of another project are coloured from its own files.
+        LineTokens::clear(cx);
         let servers = insight.servers.project_changed(false);
         let ticket = insight.reporter.project_changed();
         for request in cancels {
@@ -735,6 +740,9 @@ impl Workbench {
         if let Some(view) = self.usages_view() {
             view.update(cx, |view, cx| view.set_tabs(&self.code_insight.tabs, cx));
         }
+        // The rows of the selected search are coloured once their files are parsed.
+        let lines = self.code_insight.tabs.active().map(|search| line_tokens::group_sources(&search.groups));
+        line_tokens::request(&self.label, lines.unwrap_or_default(), cx);
     }
 
     /// Carries out what the tool window's searches ask for, then shows the tabs as they are.
@@ -787,6 +795,7 @@ impl Workbench {
         }
         if let Some(view) = self.usages_popup() {
             let content = self.code_insight.popup.content().clone();
+            line_tokens::request(&self.label, line_tokens::group_sources(&content.groups), cx);
             view.update(cx, |view, cx| view.set_content(content, cx));
         }
     }
@@ -983,48 +992,27 @@ impl Workbench {
         store(write, cx);
     }
 
-    /// Shows the file of `usage` in the tool window's preview pane: a read-only editor with the
-    /// caret on the usage.
+    /// Shows the file of `usage` in the tool window's preview pane: a read-only editor on its document, on
+    /// the usage's line, with every usage of the file marked.
     fn preview_usage(&mut self, usage: Usage, cx: &mut Context<Self>) {
-        let (Some(view), Some(backend)) = (self.usages_view(), cx.try_global::<Backend>()) else { return };
+        let Some(view) = self.usages_view() else { return };
         let label = self.label.clone();
-        let path = PathBuf::from(&usage.path);
-        let opened = {
-            let label = label.clone();
-            backend.with_host(move |host| async move { ide_host::ops::doc::open(&host, &label, path).await })
-        };
-        let task = cx.spawn(async move |workbench, cx| {
-            let info = match opened.await {
-                Ok(Ok(info)) => info,
-                Ok(Err(error)) => return tracing::warn!("usages: cannot preview {}: {}", usage.path, error.message),
-                Err(error) => return tracing::warn!("usages: cannot preview {}: {error}", usage.path),
-            };
-            // The window is gone when it was closed meanwhile.
-            let _ = workbench.update(cx, |_, cx| {
-                let host = cx.global::<Backend>().host.clone();
-                let info = ide_workspace::DocumentInfo { read_only: true, ..info };
-                let snapshot = host.project(&label).and_then(|project| project.documents.rope_snapshot(info.id));
-                let (version, rope) = match snapshot {
-                    Ok(snapshot) => snapshot,
-                    Err(error) => {
-                        tracing::warn!("usages: cannot preview {}: {}", usage.path, error.message);
-                        if let Err(error) = ide_host::ops::doc::close(&host, &label, info.id) {
-                            tracing::debug!("usages: cannot close {}: {}", usage.path, error.message);
-                        }
-                        return;
-                    }
-                };
-                // The editor holds the document it was opened for and closes it when it goes.
-                let editor = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
-                editor.update(cx, |editor, cx| {
-                    let at = editor.offset_of(usage.line, usage.col);
-                    editor.select(at, at, cx);
-                    editor.scroll_to_line(usage.line.saturating_sub(5), cx);
-                });
-                view.update(cx, |view, cx| view.set_preview(&usage, editor.into(), cx));
-            });
+        let preview = self.code_insight.usages_preview.get_or_insert_with(|| {
+            let empty = "Select an item to preview";
+            cx.new(|cx| CodePreview::new(&label, PreviewMode::ReadOnly, empty, PREVIEW_DEBOUNCE, cx))
         });
-        self.code_insight.usages_preview = Some(task);
+        let preview = preview.clone();
+        let search = self.code_insight.tabs.active();
+        let group = search.and_then(|search| search.groups.iter().find(|group| group.path == usage.path));
+        let highlights = group
+            .map(|group| {
+                let marks = group.usages.iter();
+                marks.map(|u| PreviewHighlight { line: u.line, ranges: vec![(u.col, u.end_col)] }).collect()
+            })
+            .unwrap_or_default();
+        let target = PreviewTarget { path: usage.path.clone(), line: usage.line, highlights, version: 0 };
+        preview.update(cx, |preview, cx| preview.show(Some(target), cx));
+        view.update(cx, |view, cx| view.set_preview(&usage, preview.into(), cx));
     }
 
     /// Carries out what the Find Usages tool window asks for.

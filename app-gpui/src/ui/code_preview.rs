@@ -8,8 +8,9 @@
 //! the selection rests; an answer for a result the selection has left closes its document again. Only
 //! the lines in view are shaped and painted, as in any editor.
 //!
-//! While the preview has the keyboard it edits, undoes, copies and saves its own text, so the IDE's
-//! shortcuts are kept out; Escape is handed to the owner, which closes the popup. A preview with unsaved
+//! While the preview has the keyboard it edits, undoes, copies and saves its own text, so the shortcuts
+//! of editing actions are kept out (the IDE's other shortcuts still run); Escape is handed to the owner,
+//! which closes the popup. A preview with unsaved
 //! edits that goes away keeps its editor until the document is saved or the preview shows the file
 //! again, so the edits and their undo stay.
 
@@ -23,11 +24,11 @@ use crate::platform::i18n::Localization;
 use crate::platform::input;
 use crate::theme;
 use gpui_kit::{
-    App, Context, Entity, EventEmitter, Focusable, Global, IntoElement, KeyDownEvent, Render, SharedString, Window,
-    div, prelude::*,
+    App, Context, Entity, EntityId, EventEmitter, Focusable, Global, IntoElement, KeyDownEvent, Render, SharedString,
+    Subscription, WeakEntity, Window, div, prelude::*,
 };
 use ropey::Rope;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -129,69 +130,137 @@ struct Shown {
     path: String,
     version: u64,
     editor: Entity<Editor>,
-    /// The claim that keeps the IDE's shortcuts out while the editor has the keyboard.
+    /// The claim that keeps the shortcuts of editing actions out while the editor has the keyboard.
     shield: u64,
 }
 
-/// Previews with unsaved edits that went away, by window and path: shown again when their file is.
+/// The editors of the previews: the ones shown now, by preview, and the ones with unsaved edits whose
+/// preview went away, by window and path (shown again when their file is).
 #[derive(Default)]
-struct HeldPreviews(HashMap<(String, String), Entity<Editor>>);
+struct PreviewEditors {
+    shown: HashMap<EntityId, (String, WeakEntity<Editor>)>,
+    /// With the watch that lets a held editor go once its document is saved, by Save All, autosave or a
+    /// tab of the same document.
+    held: HashMap<(String, String), (Entity<Editor>, Subscription)>,
+    /// Windows whose project is being left: their previews go without being held or saved, since the
+    /// question asked before leaving decided about their edits (and autosave ran before it).
+    leaving: HashSet<String>,
+}
 
-impl Global for HeldPreviews {}
+impl Global for PreviewEditors {}
 
 /// Keeps `editor` when its document has unsaved edits, so they survive the preview going away; drops it
-/// otherwise, which lets its document go.
-/// With Files › Autosave on, the edits are saved now, as when the last tab of a document closes; the editor
-/// stays held until they are.
+/// otherwise, which lets its document go. With Files › Autosave on, the edits are saved now, as when the
+/// last tab of a document closes, a failure told to the user; the editor stays held until they are. A
+/// document the window's project no longer has open (the project closed, or another one opened in the
+/// window) is not held: the question asked before the project went decided about it.
 fn hold_or_release(label: &str, path: &str, editor: Entity<Editor>, cx: &mut App) {
-    if !editor.read(cx).is_dirty() {
+    let leaving = cx.try_global::<PreviewEditors>().is_some_and(|editors| editors.leaving.contains(label));
+    let Some(project) = cx.try_global::<Backend>().and_then(|backend| backend.host.project(label).ok()) else {
+        return;
+    };
+    let doc = editor.read(cx).doc();
+    // Dropping an editor whose document the backend knows to be changed would drop the change with it.
+    let dirty = unsaved(&editor, label, cx);
+    let open = project.documents.by_path(editor.read(cx).path()) == Some(doc);
+    if !dirty || leaving || !open {
         return;
     }
     if crate::platform::settings::effective(label, cx).files.auto_save {
         let saving = editor.read(cx).save(cx);
-        let file = path.to_owned();
-        cx.spawn(async move |_| match saving.await {
-            Ok(Ok(())) => {}
-            Ok(Err(error)) => tracing::warn!("autosave of {file} failed: {}", error.message),
-            Err(error) => tracing::warn!("autosave of {file} failed: {error:#}"),
+        let window = label.to_owned();
+        cx.spawn(async move |cx| {
+            let failure = match saving.await {
+                Ok(Ok(())) => return,
+                Ok(Err(error)) => error.message,
+                Err(error) => error.to_string(),
+            };
+            cx.update(|cx| crate::workbench::report_save_failure_in(&window, failure, cx));
         })
         .detach();
     }
-    cx.default_global::<HeldPreviews>().0.insert((label.to_owned(), path.to_owned()), editor);
+    let key = (label.to_owned(), path.to_owned());
+    let watched = key.clone();
+    let window = label.to_owned();
+    let saved = cx.observe(&editor, move |editor, cx| {
+        if !unsaved(&editor, &window, cx) {
+            let key = watched.clone();
+            cx.defer(move |cx| release_saved(&key, cx));
+        }
+    });
+    cx.default_global::<PreviewEditors>().held.insert(key, (editor, saved));
+}
+
+/// Whether the document of `editor` (of the window `label`) has changes that are not on disk, as the editor
+/// knows it or, sooner, as the backend does: an edit the backend made itself (a Replace) reaches the
+/// editor's own flag only with the backend's next event.
+fn unsaved(editor: &Entity<Editor>, label: &str, cx: &App) -> bool {
+    let editor = editor.read(cx);
+    editor.is_dirty()
+        || cx
+            .try_global::<Backend>()
+            .and_then(|backend| backend.host.project(label).ok())
+            .is_some_and(|project| project.documents.is_dirty(editor.doc()).unwrap_or(false))
+}
+
+/// Lets the held editor of `key` go when its document has no unsaved edits any more: nothing is left to
+/// keep, and its document closes unless something else holds it.
+fn release_saved(key: &(String, String), cx: &mut App) {
+    let saved = cx
+        .try_global::<PreviewEditors>()
+        .and_then(|editors| editors.held.get(key))
+        .is_some_and(|(editor, _)| !unsaved(editor, &key.0, cx));
+    if saved {
+        cx.default_global::<PreviewEditors>().held.remove(key);
+    }
 }
 
 /// The held preview of `path`, taken out of the held ones. The held previews of the window whose documents
 /// were saved meanwhile, or that the window's project no longer has open (another project was opened in
 /// it), are dropped first.
 fn take_held(label: &str, path: &str, cx: &mut App) -> Option<Entity<Editor>> {
-    let held = cx.try_global::<HeldPreviews>()?;
+    let held = cx.try_global::<PreviewEditors>()?;
     let project = cx.try_global::<Backend>().and_then(|backend| backend.host.project(label).ok());
     let gone: Vec<(String, String)> = held
-        .0
+        .held
         .iter()
-        .filter(|((window, _), editor)| {
+        .filter(|((window, _), (editor, _))| {
+            let dirty = unsaved(editor, window, cx);
             let editor = editor.read(cx);
             let open_doc = project.as_ref().and_then(|project| project.documents.by_path(editor.path()));
             let open = open_doc == Some(editor.doc());
-            window == label && (!editor.is_dirty() || !open)
+            window == label && (!dirty || !open)
         })
         .map(|(key, _)| key.clone())
         .collect();
-    let held = &mut cx.default_global::<HeldPreviews>().0;
+    let held = &mut cx.default_global::<PreviewEditors>().held;
     for key in gone {
         held.remove(&key);
     }
-    held.remove(&(label.to_owned(), path.to_owned()))
+    held.remove(&(label.to_owned(), path.to_owned())).map(|(editor, _)| editor)
 }
 
-/// The previews of the window `label` held with unsaved edits: saving every document, autosave and the
-/// question on closing the window count them with the editors of the tabs.
-pub fn held_editors(label: &str, cx: &App) -> Vec<Entity<Editor>> {
-    let Some(held) = cx.try_global::<HeldPreviews>() else { return Vec::new() };
-    held.0.iter().filter(|((window, _), _)| window == label).map(|(_, editor)| editor.clone()).collect()
+/// The editors of the window `label`'s previews, shown or held with unsaved edits: saving every document,
+/// autosave and the question on closing the window or the project count them with the editors of the tabs.
+pub fn preview_editors(label: &str, cx: &App) -> Vec<Entity<Editor>> {
+    let Some(editors) = cx.try_global::<PreviewEditors>() else { return Vec::new() };
+    let shown = editors.shown.values().filter(|(window, _)| window == label).filter_map(|(_, editor)| editor.upgrade());
+    let held = editors.held.iter().filter(|((window, _), _)| window == label).map(|(_, (editor, _))| editor.clone());
+    shown.chain(held).collect()
+}
+
+/// The window `label` leaves its project: the held previews go, closing their documents, and the previews
+/// that go with the popups are neither held nor saved. The question asked before leaving decided what
+/// happens to their edits. The next preview shown in the window ends this.
+pub fn leave(label: &str, cx: &mut App) {
+    let editors = cx.default_global::<PreviewEditors>();
+    editors.held.retain(|(window, _), _| window != label);
+    editors.leaving.insert(label.to_owned());
 }
 
 pub struct CodePreview {
+    /// This preview, as [`PreviewEditors`] knows its editor.
+    id: EntityId,
     /// The window, as the backend knows it.
     window_label: String,
     mode: PreviewMode,
@@ -226,6 +295,7 @@ impl CodePreview {
         // The editor shown goes with the preview, held while its document has unsaved edits.
         cx.on_release(|preview, cx| preview.release_shown(cx)).detach();
         Self {
+            id: cx.entity_id(),
             window_label: window_label.to_owned(),
             mode,
             empty_text,
@@ -361,30 +431,33 @@ impl CodePreview {
                 true
             });
             if !shown.unwrap_or(false) {
-                // Nobody shows the document this answer opened: its reference goes again.
-                let host = cx.update(|cx| cx.try_global::<Backend>().map(|backend| backend.host.clone()));
-                if let Some(host) = host
-                    && let Err(error) = ide_host::ops::doc::close(&host, &label, info.id)
-                {
-                    tracing::debug!("preview: cannot close {path}: {}", error.message);
-                }
+                // Nobody shows the document this answer opened: its reference goes again, as a preview's
+                // does when it goes.
+                cx.update(|cx| let_go(&label, &path, &info, cx));
             }
         })
         .detach();
     }
 
     /// Makes `editor` (on `path`) the one shown: the previous one goes, or is held when it has unsaved
-    /// edits; the new one takes Escape and keeps the IDE's shortcuts out while it has the keyboard.
+    /// edits; the new one takes Escape and keeps the editing shortcuts out while it has the keyboard.
     fn install(&mut self, path: String, editor: Entity<Editor>, cx: &mut Context<Self>) {
         self.release_shown(cx);
         let version = self.target.as_ref().map_or(0, |target| target.version);
         let weak = cx.weak_entity();
-        editor.update(cx, |editor, _| {
+        editor.update(cx, |editor, cx| {
             editor.set_escape_handler(Some(Rc::new(move |_: &mut Window, cx: &mut App| {
                 weak.update(cx, |_, cx| cx.emit(CodePreviewEvent::Escape)).is_ok()
             })));
+            // Beside a list of results the gutter has the line numbers alone: no folding, no icons.
+            editor.set_numbers_only_gutter(true, cx);
         });
-        let shield = input::keep_keymap_out(editor.focus_handle(cx), cx);
+        // The shortcuts of editing actions would act on the tab behind the popup: the preview keeps them.
+        let shield = input::keep_keys_out(editor.focus_handle(cx), input::is_editor_text_key, cx);
+        let entry = (self.window_label.clone(), editor.downgrade());
+        let editors = cx.default_global::<PreviewEditors>();
+        editors.leaving.remove(&self.window_label);
+        editors.shown.insert(self.id, entry);
         self.shown = Some(Shown { path, version, editor, shield });
         self.wanted = None;
         self.error = None;
@@ -396,6 +469,7 @@ impl CodePreview {
     /// Lets the editor shown go, holding it while its document has unsaved edits.
     fn release_shown(&mut self, cx: &mut App) {
         let Some(shown) = self.shown.take() else { return };
+        cx.default_global::<PreviewEditors>().shown.remove(&self.id);
         input::release_keys(shown.shield, cx);
         shown.editor.update(cx, |editor, _| editor.set_escape_handler(None));
         hold_or_release(&self.window_label, &shown.path, shown.editor, cx);
@@ -457,6 +531,27 @@ impl CodePreview {
     }
 }
 
+/// Lets go of the reference to the document `info` that an answer nobody shows opened (the selection left
+/// the file, or the preview went, while it was on its way). The document may have been changed meanwhile (a
+/// Replace edits an open document in place): then it goes as a preview with unsaved edits does, held or
+/// saved; otherwise it is closed.
+fn let_go(label: &str, path: &str, info: &ide_workspace::DocumentInfo, cx: &mut App) {
+    let Some(host) = cx.try_global::<Backend>().map(|backend| backend.host.clone()) else { return };
+    let project = host.project(label).ok();
+    let changed = project.as_ref().is_some_and(|project| project.documents.is_dirty(info.id).unwrap_or(false));
+    let snapshot =
+        project.as_ref().filter(|_| changed).and_then(|project| project.documents.rope_snapshot(info.id).ok());
+    if let Some((version, rope)) = snapshot {
+        // The editor takes over the reference and closes the document when it goes.
+        let editor = cx.new(|cx| Editor::with_text(host, label, info, version, rope, cx));
+        hold_or_release(label, path, editor, cx);
+        return;
+    }
+    if let Err(error) = ide_host::ops::doc::close(&host, label, info.id) {
+        tracing::debug!("preview: cannot close {path}: {}", error.message);
+    }
+}
+
 /// The answer to request `request` is an error: it is shown when the request is still the one asked for.
 fn failed(preview: &gpui_kit::WeakEntity<CodePreview>, request: u64, message: String, cx: &mut gpui_kit::AsyncApp) {
     let _ = preview.update(cx, |preview, cx| {
@@ -485,8 +580,11 @@ impl Render for CodePreview {
         }
         let Some(editor) = self.current().map(|shown| shown.editor.clone()) else { return pane };
         if std::mem::take(&mut self.center_pending) {
-            let centred = editor.clone();
-            window.on_next_frame(move |_, cx| centred.update(cx, |editor, cx| editor.scroll_caret_to_center(cx)));
+            // Weak: an editor let go before that frame closes its document at once.
+            let centred = editor.downgrade();
+            window.on_next_frame(move |_, cx| {
+                let _ = centred.update(cx, |editor, cx| editor.scroll_caret_to_center(cx));
+            });
         }
         pane.child(div().size_full().min_w_0().child(editor))
     }

@@ -1055,6 +1055,18 @@ pub fn for_window(window: &Window, cx: &App) -> Option<Entity<Workbench>> {
     cx.try_global::<Workbenches>()?.0.get(&window.window_handle().window_id())?.upgrade()
 }
 
+/// Tells the user of the window the backend knows as `label` that saving failed, as autosave does;
+/// without that window the failure is logged.
+pub fn report_save_failure_in(label: &str, failure: String, cx: &mut App) {
+    let workbench = cx.try_global::<Workbenches>().and_then(|workbenches| {
+        workbenches.0.values().filter_map(WeakEntity::upgrade).find(|workbench| workbench.read(cx).label == label)
+    });
+    match workbench {
+        Some(workbench) => workbench.update(cx, |workbench, cx| workbench.report_save_failure(failure, cx)),
+        None => tracing::warn!("cannot save in {label}: {failure}"),
+    }
+}
+
 /// The editor an action invoked in `window` acts on.
 pub fn active_editor(window: &Window, cx: &App) -> Option<Entity<Editor>> {
     for_window(window, cx)?.read(cx).editor().cloned()
@@ -1851,9 +1863,23 @@ impl Workbench {
         }
     }
 
+    /// One editor of each document the window holds: the tabs', then the previews' (shown, or held
+    /// with unsaved edits after their popup went) of documents no tab shows. Saving, autosave and the
+    /// close question go through these, so an edit made in a preview is never left out.
+    fn document_editors(&self, cx: &App) -> Vec<Entity<Editor>> {
+        let mut editors = self.editors();
+        let mut docs: std::collections::HashSet<_> = editors.iter().map(|editor| editor.read(cx).doc()).collect();
+        for editor in crate::ui::code_preview::preview_editors(&self.label, cx) {
+            if docs.insert(editor.read(cx).doc()) {
+                editors.push(editor);
+            }
+        }
+        editors
+    }
+
     /// How many open documents have changes that are not on disk.
     pub fn unsaved_count(&self, cx: &App) -> usize {
-        self.editors().iter().filter(|editor| editor.read(cx).is_dirty()).count()
+        self.document_editors(cx).iter().filter(|editor| editor.read(cx).is_dirty()).count()
     }
 
     /// Files › Autosave (`files.autoSave`): save when a tab is left or closed and when the
@@ -1871,7 +1897,7 @@ impl Workbench {
         }
         let editors = match editor {
             Some(editor) => vec![editor.clone()],
-            None => self.editors(),
+            None => self.document_editors(cx),
         };
         for editor in editors.into_iter().filter(|editor| editor.read(cx).is_dirty()) {
             let saving = editor.read(cx).save(cx);
@@ -1887,26 +1913,52 @@ impl Workbench {
         }
     }
 
-    /// Saves every unsaved editor and notebook; the first failure's message, if any.
-    fn save_all(&self, cx: &App) -> impl Future<Output = Result<(), String>> + 'static + use<> {
+    /// Saves every unsaved text document of the window, all at once; the first failure's message,
+    /// if any. A document that fails stays unsaved in its editor.
+    fn save_documents(&self, cx: &App) -> impl Future<Output = Option<String>> + 'static + use<> {
         let saving: Vec<_> = self
-            .editors()
+            .document_editors(cx)
             .iter()
             .filter(|editor| editor.read(cx).is_dirty())
             .map(|editor| editor.read(cx).save(cx))
             .collect();
-        // The notebooks are saved when the future runs, outside the update that asked for it.
-        let app = cx.to_async();
-        let label = self.label.clone();
         async move {
             let mut failure = None;
-            for save in saving {
-                match save.await {
+            for done in futures::future::join_all(saving).await {
+                match done {
                     Ok(Ok(())) => {}
                     Ok(Err(error)) => failure = failure.or(Some(error.message)),
                     Err(error) => failure = failure.or(Some(error.to_string())),
                 }
             }
+            failure
+        }
+    }
+
+    /// File › Save All for the text documents (the notebooks save themselves, see
+    /// `notebook::register_actions`): a failure is told as "Could not save" with its reason.
+    pub(crate) fn save_all_documents(&mut self, cx: &mut Context<Self>) {
+        let saving = self.save_documents(cx);
+        cx.spawn(async move |workbench, cx| {
+            let Some(failure) = saving.await else { return };
+            let _ = workbench.update(cx, |workbench, cx| {
+                let title = cx.default_global::<crate::platform::i18n::Localization>().0.tx("Could not save");
+                let mut request = NotificationRequest::new(NotificationLevel::Error, title);
+                request.body = Some(failure);
+                workbench.notify(request, cx);
+            });
+        })
+        .detach();
+    }
+
+    /// Saves every unsaved editor and notebook; the first failure's message, if any.
+    fn save_all(&self, cx: &App) -> impl Future<Output = Result<(), String>> + 'static + use<> {
+        let saving = self.save_documents(cx);
+        // The notebooks are saved when the future runs, outside the update that asked for it.
+        let app = cx.to_async();
+        let label = self.label.clone();
+        async move {
+            let mut failure = saving.await;
             for save in app.update(|cx| notebook::save_notebooks(&label, cx)) {
                 match save.await {
                     Ok(Ok(())) => {}
@@ -2841,6 +2893,7 @@ impl Workbench {
         let events = cx.subscribe_in(&popup, window, |workbench, popup, event: &BookmarksPopupEvent, window, cx| {
             match event.clone() {
                 BookmarksPopupEvent::Dismissed => workbench.close_popup(window, cx),
+                BookmarksPopupEvent::SaveFailed(failure) => workbench.report_save_failure(failure, cx),
                 BookmarksPopupEvent::Open { path, line } => {
                     workbench.close_popup(window, cx);
                     match line {
@@ -3058,6 +3111,7 @@ impl Workbench {
         }
         self.save_session(cx);
         self.popup = None;
+        crate::ui::code_preview::leave(&self.label, cx);
         self.drop_settings(cx);
     }
 
@@ -4444,6 +4498,8 @@ mod tests {
     mod proofs23_e2e_terminal_groups;
     mod proofs24_e2e_notebook;
     mod proofs25_syntax_tree;
+    mod proofs26_code_preview;
+    mod proofs26_save_all;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;
@@ -4610,10 +4666,10 @@ mod tests {
         let file = folder.path().join("todo.txt");
         std::fs::write(&file, "milk\n").expect("the file is written");
         let (workbench, cx) = cx.add_window_view(|window, cx| Workbench::new("w1", window, cx));
-        // Without an editor the action has nothing to act on, and says so instead of failing silently.
+        // Without an editor Save All has nothing to save, and saving nothing succeeds.
         assert!(
             cx.update(|window, cx| crate::platform::actions::execute_action_or_throw("file.save", None, window, cx))
-                .is_err()
+                .is_ok()
         );
         workbench.update_in(cx, |workbench, window, cx| workbench.open_file(file.clone(), window, cx));
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));

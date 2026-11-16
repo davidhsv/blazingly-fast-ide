@@ -57,6 +57,7 @@ impl Input {
 }
 
 type Claim = Rc<dyn Fn(&Keystroke, &mut Window, &mut App) -> bool>;
+type KeyFilter = Rc<dyn Fn(&Keystroke, &App) -> bool>;
 
 /// Views that take their keys before the keymap while the focus is in them: a terminal's
 /// Ctrl+letter goes to the shell, not to an IDE shortcut.
@@ -64,8 +65,9 @@ type Claim = Rc<dyn Fn(&Keystroke, &mut Window, &mut App) -> bool>;
 pub struct KeyClaims {
     next: u64,
     claims: Vec<(u64, FocusHandle, Claim)>,
-    /// Focuses that keep the keymap out: a key pressed in them goes to the focused view alone.
-    shields: Vec<(u64, FocusHandle)>,
+    /// Focuses that keep the keymap out: a key pressed in them goes to the focused view alone, or only
+    /// the keys the filter picks.
+    shields: Vec<(u64, FocusHandle, Option<KeyFilter>)>,
 }
 
 impl Global for KeyClaims {}
@@ -87,18 +89,44 @@ pub fn claim_keys(
 /// Keeps the keymap out while `focus` is focused: every key goes to the focused view and no IDE
 /// shortcut runs, as in a find field that owns its keys. Returns the id for [`release_keys`].
 pub fn keep_keymap_out(focus: FocusHandle, cx: &mut App) -> u64 {
+    shield(focus, None, cx)
+}
+
+/// Keeps the keymap out of the keys `keys` picks while `focus` is focused: those go to the focused view
+/// alone, every other key reaches the keymap as usual. Returns the id for [`release_keys`].
+pub fn keep_keys_out(focus: FocusHandle, keys: impl Fn(&Keystroke, &App) -> bool + 'static, cx: &mut App) -> u64 {
+    shield(focus, Some(Rc::new(keys)), cx)
+}
+
+fn shield(focus: FocusHandle, keys: Option<KeyFilter>, cx: &mut App) -> u64 {
     let claims = cx.default_global::<KeyClaims>();
     claims.next += 1;
     let id = claims.next;
-    claims.shields.push((id, focus));
+    claims.shields.push((id, focus, keys));
     id
+}
+
+/// Whether `keystroke` is bound in the effective keymap to an action that edits an editor's text (its
+/// condition asks for `editorTextFocus`): a second editor in a popup keeps those for itself, so that they
+/// do not act on the tab behind the popup.
+pub fn is_editor_text_key(keystroke: &Keystroke, cx: &App) -> bool {
+    let (Some(keymap), Some(registry)) = (cx.try_global::<Keymap>(), cx.try_global::<ActionRegistry>()) else {
+        return false;
+    };
+    let stroke = super::dispatcher::stroke(&key_name(&keystroke.key), mods(&keystroke.modifiers));
+    keymap.0.effective_bindings().iter().any(|(binding, id)| {
+        *binding == stroke
+            && registry
+                .get(id)
+                .is_some_and(|action| action.meta.when.as_deref().is_some_and(|when| when.contains("editorTextFocus")))
+    })
 }
 
 pub fn release_keys(id: u64, cx: &mut App) {
     if cx.has_global::<KeyClaims>() {
         let claims = cx.global_mut::<KeyClaims>();
         claims.claims.retain(|(claim, _, _)| *claim != id);
-        claims.shields.retain(|(shield, _)| *shield != id);
+        claims.shields.retain(|(shield, _, _)| *shield != id);
     }
 }
 
@@ -116,7 +144,14 @@ pub fn init(cx: &mut App) {
             .filter(|(_, focus, _)| focus.is_focused(window))
             .map(|(_, _, claim)| claim.clone())
             .collect();
-        let shielded = cx.global::<KeyClaims>().shields.iter().any(|(_, focus)| focus.is_focused(window));
+        let shields: Vec<Option<KeyFilter>> = cx
+            .global::<KeyClaims>()
+            .shields
+            .iter()
+            .filter(|(_, focus, _)| focus.is_focused(window))
+            .map(|(_, _, keys)| keys.clone())
+            .collect();
+        let shielded = shields.iter().any(|keys| keys.as_ref().is_none_or(|keys| keys(&event.keystroke, cx)));
         if claims.iter().any(|claim| claim(&event.keystroke, window, cx))
             || (!shielded && keystroke(event, window, cx).consumed())
         {

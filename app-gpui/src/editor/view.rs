@@ -364,6 +364,9 @@ pub struct Editor {
     gutter_hovered: bool,
     /// The gutter's icon columns, left to right.
     gutter_columns: Vec<GutterColumn>,
+    /// The gutter shows the line numbers alone: no icon columns, change bars or fold chevrons, as a
+    /// code preview beside a list of results has it.
+    numbers_only: bool,
     /// The brackets of the text with their depths, for Rainbow brackets.
     pub(super) brackets: std::cell::RefCell<super::extras::BracketCache>,
     /// A caret-adding press, while the mouse button is down.
@@ -442,6 +445,10 @@ impl Editor {
         })
         .detach();
         let facts = EditorFacts::read(&host, window_label, &info.language, info.editorconfig.as_ref());
+        // The document's state now, not when `info` was read: a change made in between (a Replace of an
+        // open document) was told before this editor listened, and the flag would miss it until the next.
+        let dirty = info.dirty
+            || host.project(window_label).and_then(|project| project.documents.is_dirty(doc)).unwrap_or(false);
         let mut editor = Self {
             focus: cx.focus_handle(),
             host,
@@ -478,10 +485,11 @@ impl Editor {
             drag_anchor: None,
             gutter_hovered: false,
             gutter_columns: Vec::new(),
+            numbers_only: false,
             brackets: Default::default(),
             adding: None,
             column_drag: None,
-            dirty: info.dirty,
+            dirty,
             generation: 0,
             created: std::time::Instant::now(),
             core: Default::default(),
@@ -691,7 +699,8 @@ impl Editor {
     /// Replaces the marks of `layer`; they follow the edits of the document until replaced again.
     pub fn set_marks(&mut self, layer: MarkLayer, mut marks: Vec<Mark>, cx: &mut Context<Self>) {
         let len = buffer::len_utf16(&self.rope);
-        marks.retain(|mark| mark.range.start < mark.range.end && mark.range.end <= len);
+        // A row tint stays on an empty line; any other empty mark would draw nothing.
+        marks.retain(|mark| (mark.range.start < mark.range.end || mark.kind.is_line()) && mark.range.end <= len);
         marks.sort_by_key(|mark| (mark.range.start, mark.range.end));
         if self.marks(layer) == marks.as_slice() {
             return;
@@ -761,7 +770,7 @@ impl Editor {
     /// The width of the gutter right of the line numbers: the icon columns, the change bars and the
     /// fold chevrons. Distraction Free Mode has no gutter.
     fn gutter_right_of_numbers(&self, cx: &App) -> Pixels {
-        if distraction_free(cx) {
+        if distraction_free(cx) || self.numbers_only {
             return px(0.0);
         }
         let icons: f32 = self.gutter_columns.iter().map(|column| column.width).sum();
@@ -785,7 +794,7 @@ impl Editor {
     /// Where the gutter's icon column `id` is: its left edge as an offset from the text's left edge
     /// (negative, the gutter is left of the text), and its width. `None` when it takes no room.
     pub fn gutter_column(&self, id: &str, cx: &App) -> Option<(Pixels, Pixels)> {
-        if distraction_free(cx) {
+        if distraction_free(cx) || self.numbers_only {
             return None;
         }
         let at = self.gutter_columns.iter().position(|column| column.id == id && column.width > 0.0)?;
@@ -795,9 +804,21 @@ impl Editor {
     }
 
     /// The width of the fold chevrons' column: none while Code Folding › Show code folding outline
-    /// is off, or in Distraction Free Mode.
+    /// is off, in Distraction Free Mode, or with the line numbers alone.
     pub fn fold_column_width(&self, cx: &App) -> Pixels {
-        if self.facts.fold_outline && !distraction_free(cx) { theme::zoomed(cx, FOLD_GUTTER) } else { px(0.0) }
+        if self.facts.fold_outline && !self.numbers_only && !distraction_free(cx) {
+            theme::zoomed(cx, FOLD_GUTTER)
+        } else {
+            px(0.0)
+        }
+    }
+
+    /// Shows the line numbers alone in the gutter, or the whole gutter again.
+    pub fn set_numbers_only_gutter(&mut self, numbers_only: bool, cx: &mut Context<Self>) {
+        if self.numbers_only != numbers_only {
+            self.numbers_only = numbers_only;
+            cx.notify();
+        }
     }
 
     /// The font size the editor paints with.
@@ -2479,6 +2500,7 @@ impl Element for EditorElement {
             MarkKind::BreakpointLine | MarkKind::UnverifiedBreakpoint => theme::color(cx, "bg-breakpoint-line"),
             MarkKind::InactiveBreakpoint => theme::color(cx, "fg-gutter"),
             MarkKind::ExecutionLine => theme::color(cx, "bg-debug-line"),
+            MarkKind::CurrentLine => theme::color(cx, "bg-current-line"),
         };
         #[cfg(test)]
         let mut painted_marks = Vec::new();
@@ -2506,9 +2528,20 @@ impl Element for EditorElement {
                     #[cfg(test)]
                     paint_order.push(PaintedLayer::CaretRow);
                 }
-                // The breakpoint row is tinted, and the execution line goes over it.
-                for kind in [MarkKind::BreakpointLine, MarkKind::UnverifiedBreakpoint, MarkKind::ExecutionLine] {
-                    if marks.iter().any(|mark| mark.kind == kind && touches(mark.range.start, mark.range.end)) {
+                // A line mark of an empty line is empty: it tints the row its start is on.
+                let on_row = |mark: &Mark| {
+                    touches(mark.range.start, mark.range.end)
+                        || (mark.range.is_empty() && (range.start..=range.end).contains(&mark.range.start))
+                };
+                // The preview's line is tinted first; the breakpoint row goes over it, the execution line
+                // over both.
+                for kind in [
+                    MarkKind::CurrentLine,
+                    MarkKind::BreakpointLine,
+                    MarkKind::UnverifiedBreakpoint,
+                    MarkKind::ExecutionLine,
+                ] {
+                    if marks.iter().any(|mark| mark.kind == kind && on_row(mark)) {
                         window.paint_quad(fill(row_area, mark_color(cx, kind)));
                         #[cfg(test)]
                         painted_marks.push((kind, row_area));

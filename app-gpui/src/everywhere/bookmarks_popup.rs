@@ -14,7 +14,6 @@ use super::bookmarks_store::{
 };
 use super::bookmarks_view::{BookmarkNode, build_bookmark_tree, group_bookmarks};
 use super::open::StorageWrite;
-use crate::backend::Backend;
 use crate::platform::collate::compare_code_units;
 use crate::platform::i18n::Localization;
 use crate::platform::input;
@@ -22,16 +21,17 @@ use crate::platform::keymap::is_mac_host;
 use crate::platform::local_time::now_ms;
 use crate::platform::virtual_docs::{basename, relative_path};
 use crate::theme;
+use crate::ui::code_preview::{CodePreview, CodePreviewEvent, PREVIEW_DEBOUNCE, PreviewMode, PreviewTarget};
 use crate::ui::text_field::TextField;
 use gpui_kit::{
     App, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, FontWeight, Hsla, IntoElement,
-    Keystroke, Render, ScrollStrategy, SharedString, Task, UniformListScrollHandle, Window, div, prelude::*, px,
-    uniform_list,
+    Keystroke, Render, ScrollStrategy, SharedString, Subscription, UniformListScrollHandle, Window, div, prelude::*,
+    px, uniform_list,
 };
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::ops::Range;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 const WIDTH: f32 = 820.0;
@@ -41,8 +41,6 @@ const BODY_HEIGHT: f32 = 420.0;
 const ROW_HEIGHT: f32 = 22.0;
 /// How many rows Page Up and Page Down move by: one less than the list shows.
 const PAGE_ROWS: usize = 18;
-/// The most that is read of a file that no editor has open, for the text beside the list.
-const PREVIEW_BYTES: usize = 2 * 1024 * 1024;
 /// How many UTF-16 code units of a selection become the description of a bookmark set on it.
 const SELECTION_UNITS: usize = 1000;
 const BUTTON_HEIGHT: f32 = 24.0;
@@ -193,16 +191,6 @@ fn navigate(key: &str, rows: &[Row], active: Option<usize>) -> Option<usize> {
     next.or(active)
 }
 
-/// The lines of `text` as the popup draws them: tabs take four columns.
-fn preview_lines(text: &str) -> Vec<SharedString> {
-    text.lines().map(|line| SharedString::from(line.replace('\t', "    "))).collect()
-}
-
-/// The first font of the theme's `--font-mono` list that is installed.
-fn code_font(cx: &App) -> SharedString {
-    crate::theme::installed_fonts::mono_family(cx)
-}
-
 /// A button of the description editor: filled when `primary`, outlined otherwise.
 fn button(cx: &App, label: String, primary: bool) -> Div {
     let face = div()
@@ -279,6 +267,8 @@ fn file_label(cx: &App, path: &str, dir: bool, root: Option<&str>) -> Div {
 pub enum BookmarksPopupEvent {
     /// Escape.
     Dismissed,
+    /// Saving from the preview failed, for this reason: the window tells it.
+    SaveFailed(String),
     /// Close the popup and open `path`: with the caret at the start of the 0-based `line` for a line
     /// bookmark, as it was last shown for a bookmarked file.
     Open { path: PathBuf, line: Option<u32> },
@@ -289,16 +279,7 @@ pub enum BookmarksPopupEvent {
     Changed(Vec<StorageWrite>),
 }
 
-/// The file whose text is shown beside the list.
-struct Preview {
-    path: String,
-    /// The file's lines; `None` until they are read.
-    lines: Option<Rc<Vec<SharedString>>>,
-}
-
 pub struct BookmarksPopup {
-    /// The window, as the backend knows it.
-    window_label: String,
     store: BookmarkStore,
     rows: Rc<Vec<Row>>,
     /// The row the selection was last put on. The selection is that row, or the last row once fewer
@@ -309,15 +290,13 @@ pub struct BookmarksPopup {
     /// The path and line of the bookmark whose description is being edited.
     editing: Option<(String, u32)>,
     edit_field: Entity<TextField>,
-    preview: Option<Preview>,
-    code_font: SharedString,
+    /// The selected bookmark's file, in an editor on its document.
+    code_preview: Entity<CodePreview>,
     scroll: UniformListScrollHandle,
-    preview_scroll: UniformListScrollHandle,
     /// The claims on the keys the popup handles itself, ahead of the keymap: in the list and in the
     /// description field.
     key_claims: [u64; 2],
-    /// The question to the backend for the text of the file shown; a newer one takes its place.
-    _preview_load: Option<Task<()>>,
+    _preview_events: Subscription,
 }
 
 impl EventEmitter<BookmarksPopupEvent> for BookmarksPopup {}
@@ -350,21 +329,27 @@ impl BookmarksPopup {
             }
         })
         .detach();
+        let code_preview = cx.new(|cx| {
+            CodePreview::new(window_label, PreviewMode::Editable, "Select a result to preview", PREVIEW_DEBOUNCE, cx)
+        });
+        let preview_events = cx.subscribe(&code_preview, |_: &mut BookmarksPopup, _, event: &CodePreviewEvent, cx| {
+            cx.emit(match event {
+                CodePreviewEvent::Escape => BookmarksPopupEvent::Dismissed,
+                CodePreviewEvent::SaveFailed(message) => BookmarksPopupEvent::SaveFailed(message.clone()),
+            });
+        });
         let rows = bookmark_rows(store.data());
         let mut popup = Self {
-            window_label: window_label.to_owned(),
             store,
             index: rows.iter().position(|row| !row.is_section()),
             rows: Rc::new(rows),
             focus,
             editing: None,
             edit_field,
-            preview: None,
-            code_font: code_font(cx),
+            code_preview,
             scroll: UniformListScrollHandle::new(),
-            preview_scroll: UniformListScrollHandle::new(),
             key_claims: [list_claim, edit_claim],
-            _preview_load: None,
+            _preview_events: preview_events,
         };
         popup.sync_preview(cx);
         popup
@@ -436,10 +421,14 @@ impl BookmarksPopup {
         }
     }
 
-    /// The lines shown beside the list; none until the file is read.
-    pub fn preview_text(&self) -> Vec<String> {
-        let lines = self.preview.as_ref().and_then(|preview| preview.lines.as_ref());
-        lines.map(|lines| lines.iter().map(ToString::to_string).collect()).unwrap_or_default()
+    /// The lines shown beside the list, as the preview's editor has them; none until the file is open.
+    pub fn preview_text(&self, cx: &App) -> Vec<String> {
+        self.code_preview.read(cx).lines(cx)
+    }
+
+    /// The preview of the selected bookmark.
+    pub fn code_preview(&self) -> &Entity<CodePreview> {
+        &self.code_preview
     }
 
     /// The folder of the project, which paths are shown relative to.
@@ -467,61 +456,16 @@ impl BookmarksPopup {
         cx.notify();
     }
 
-    /// Shows the text of the selected bookmark's file beside the list, scrolled to its line. The text of
-    /// another file is asked of the backend.
+    /// Shows the selected bookmark's file beside the list in an editor on its document, on the bookmarked line
+    /// (a bookmarked file from its top); a folder shows nothing.
     fn sync_preview(&mut self, cx: &mut Context<Self>) {
-        let Some((path, line)) = self.preview_target().map(|(path, line)| (path.to_owned(), line)) else {
-            (self.preview, self._preview_load) = (None, None);
-            return;
-        };
-        if self.preview.as_ref().is_none_or(|preview| preview.path != path) {
-            self.preview = Some(Preview { path: path.clone(), lines: None });
-            self.load_preview(path, cx);
-        }
-        self.preview_scroll.scroll_to_item(line.unwrap_or(0) as usize, ScrollStrategy::Center);
-    }
-
-    /// Asks the backend for the text of `path`: what an editor of the file shows when one is open, else
-    /// what is on disk. Reading it opens no document and leaves the recent files as they are.
-    fn load_preview(&mut self, path: String, cx: &mut Context<Self>) {
-        self._preview_load = None;
-        let Some(backend) = cx.try_global::<Backend>() else { return };
-        let (window, file) = (self.window_label.clone(), path.clone());
-        let text = backend.with_host(move |host| async move {
-            let project = host.project(&window)?;
-            host.blocking(move || {
-                let file = Path::new(&file);
-                match project.documents.text_of(file) {
-                    Some(text) => Ok(text),
-                    None => project.documents.load_file_bounded(file, PREVIEW_BYTES).map(|loaded| loaded.text),
-                }
-            })
-            .await
+        let target = self.preview_target().map(|(path, line)| PreviewTarget {
+            path: path.to_owned(),
+            line: line.unwrap_or(0),
+            highlights: Vec::new(),
+            version: 0,
         });
-        self._preview_load = Some(cx.spawn(async move |popup, cx| {
-            let text = match text.await {
-                Ok(Ok(text)) => text,
-                Ok(Err(error)) => {
-                    tracing::debug!("bookmarks: cannot read {path}: {}", error.message);
-                    String::new()
-                }
-                Err(error) => {
-                    tracing::debug!("bookmarks: cannot read {path}: {error}");
-                    String::new()
-                }
-            };
-            // The popup is gone when it was closed meanwhile.
-            let _ = popup.update(cx, |popup, cx| popup.preview_loaded(&path, &text, cx));
-        }));
-    }
-
-    /// The text of `path` arrived. It is dropped when the selection has moved to another file since.
-    fn preview_loaded(&mut self, path: &str, text: &str, cx: &mut Context<Self>) {
-        let line = self.preview_target().and_then(|(_, line)| line).unwrap_or(0);
-        let Some(preview) = self.preview.as_mut().filter(|preview| preview.path == path) else { return };
-        preview.lines = Some(Rc::new(preview_lines(text)));
-        self.preview_scroll.scroll_to_item(line as usize, ScrollStrategy::Center);
-        cx.notify();
+        self.code_preview.update(cx, |preview, cx| preview.show(target, cx));
     }
 
     /// Enter and a double click: asks the window to go to the selected bookmark.
@@ -752,46 +696,6 @@ impl Render for BookmarksPopup {
             .into_any_element()
         };
 
-        let marked = self.preview_target().and_then(|(_, line)| line).map(|line| line as usize);
-        let shown = self.preview.as_ref().and_then(|preview| preview.lines.clone()).filter(|lines| !lines.is_empty());
-        let (line_height, number_color) = (theme::length(cx, "lh-code"), theme::color(cx, "fg-line-number"));
-        let marked_bg = theme::color(cx, "bg-current-line");
-        let preview = match shown {
-            Some(lines) => uniform_list(
-                "bookmarks-preview",
-                lines.len(),
-                cx.processor(move |_, range: Range<usize>, _, _| {
-                    range
-                        .map(|index| {
-                            div()
-                                .id(index)
-                                .h(line_height)
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .whitespace_nowrap()
-                                .when(marked == Some(index), |el| el.bg(marked_bg))
-                                .child(
-                                    div()
-                                        .flex_none()
-                                        .w(px(52.0))
-                                        .pr(px(12.0))
-                                        .flex()
-                                        .justify_end()
-                                        .text_color(number_color)
-                                        .child(SharedString::from((index + 1).to_string())),
-                                )
-                                .child(lines[index].clone())
-                        })
-                        .collect::<Vec<_>>()
-                }),
-            )
-            .track_scroll(&self.preview_scroll)
-            .size_full()
-            .into_any_element(),
-            None => div().size_full().into_any_element(),
-        };
-
         let editor = self.editing.is_some().then(|| {
             let ok = button(cx, ok_label, true)
                 .id("ok")
@@ -850,18 +754,7 @@ impl Render for BookmarksPopup {
                     .border_t_1()
                     .border_color(divider)
                     .child(div().flex_none().w(px(LIST_WIDTH)).h_full().border_r_1().border_color(divider).child(list))
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .h_full()
-                            .overflow_hidden()
-                            .bg(theme::color(cx, "bg-editor"))
-                            .font_family(self.code_font.clone())
-                            .text_size(theme::length(cx, "fs-code"))
-                            .text_color(theme::color(cx, "fg-editor"))
-                            .child(preview),
-                    ),
+                    .child(div().flex_1().min_w_0().h_full().overflow_hidden().child(self.code_preview.clone())),
             )
     }
 }
@@ -1538,8 +1431,7 @@ mod tests {
         assert_eq!(*events.borrow(), [BookmarksPopupEvent::Dismissed]);
     }
 
-    /// The text beside the list is the file of the selected bookmark, marked at its line; a folder has
-    /// none, and text that arrives for a file the selection has left is dropped.
+    /// The text beside the list is the file of the selected bookmark, on its line; a folder has none.
     #[gpui_kit::test]
     async fn the_text_beside_the_list_follows_the_selection(cx: &mut TestAppContext) {
         let (popup, _, cx) = open(cx, project());
@@ -1551,18 +1443,13 @@ mod tests {
         assert_eq!(preview(cx), Some(("/p/README.md".to_owned(), None)));
         cx.simulate_keystrokes("down");
         assert_eq!(preview(cx), Some(("/p/src/a.ts".to_owned(), Some(2))));
-        assert!(popup.read_with(cx, |popup, _| popup.preview_text()).is_empty(), "nothing is read without a backend");
-
-        popup.update(cx, |popup, cx| popup.preview_loaded("/p/README.md", "late", cx));
-        assert!(popup.read_with(cx, |popup, _| popup.preview_text()).is_empty());
-        popup.update(cx, |popup, cx| popup.preview_loaded("/p/src/a.ts", "one\n\ttwo\r\nalpha()\n", cx));
-        assert_eq!(popup.read_with(cx, |popup, _| popup.preview_text()), ["one", "    two", "alpha()"]);
+        let text = |cx: &mut VisualTestContext| popup.read_with(cx, |popup, cx| popup.preview_text(cx));
+        assert!(text(cx).is_empty(), "nothing is read without a backend");
         cx.simulate_keystrokes("down");
         assert_eq!(preview(cx), Some(("/p/src/a.ts".to_owned(), Some(9))));
-        assert_eq!(popup.read_with(cx, |popup, _| popup.preview_text()).len(), 3, "the same file stays shown");
         cx.simulate_keystrokes("down");
         assert_eq!(preview(cx), Some(("/p/src/b.ts".to_owned(), Some(4))));
-        assert!(popup.read_with(cx, |popup, _| popup.preview_text()).is_empty());
+        assert!(text(cx).is_empty());
     }
 
     // Not from a spec: every way a key can leave the selection where it is, and the page keys around

@@ -459,7 +459,7 @@ async fn keeps_the_replace_preview_a_diff_in_place_of_the_code_preview(cx: &mut 
     let popup = open_find(&workbench, true, "order", cx);
     popup.update(cx, |popup, cx| popup.set_replacement("item", cx));
     searched(&popup, cx);
-    wait_long(cx, "the code preview", |cx| popup.read_with(cx, |popup, _| popup.preview_line().is_some()));
+    wait_long(cx, "the code preview", |cx| popup.read_with(cx, |popup, cx| popup.preview_line(cx).is_some()));
     assert!(popup.read_with(cx, |popup, _| popup.diff_lines().is_empty()));
     click_with(cx, "find-popup-preview-mode", Modifiers::default());
     wait_long(cx, "the diff preview", |cx| popup.read_with(cx, |popup, _| !popup.diff_lines().is_empty()));
@@ -500,13 +500,15 @@ async fn shows_the_preview_only_once_something_matches(cx: &mut TestAppContext) 
     run_action(cx, "find.inPath", None);
     let popup = find_popup(&workbench, cx);
     assert!(rows(&popup, cx).is_empty());
-    assert!(popup.read_with(cx, |popup, _| popup.preview_path().is_none() && popup.preview_lines().is_empty()));
+    assert!(popup.read_with(cx, |popup, cx| popup.preview_path(cx).is_none() && popup.preview_lines(cx).is_empty()));
     cx.simulate_input("order");
     searched(&popup, cx);
     let first = selected(&popup, cx).expect("a row is selected");
     let file = text_of(&root.join(first.split_once(':').expect("a row names its file").0));
-    wait_long(cx, "the preview", |cx| popup.read_with(cx, |popup, _| popup.preview_path() == Some(file.as_str())));
-    assert!(!popup.read_with(cx, |popup, _| popup.preview_lines()).is_empty());
+    wait_long(cx, "the preview", |cx| {
+        popup.read_with(cx, |popup, cx| popup.preview_path(cx).as_deref() == Some(file.as_str()))
+    });
+    assert!(!popup.read_with(cx, |popup, cx| popup.preview_lines(cx)).is_empty());
     cx.simulate_keystrokes("escape");
     close_backend_project(cx);
 }

@@ -33,6 +33,7 @@ use crate::platform::search::{CustomScope, parse_scopes, scopes_key};
 use crate::platform::storage::UiStorage;
 use crate::platform::virtual_docs::{basename, dirname};
 use crate::theme;
+use crate::ui::code_preview::{CodePreview, CodePreviewEvent, PreviewHighlight, PreviewMode, PreviewTarget};
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use futures::StreamExt as _;
@@ -200,18 +201,6 @@ enum AfterReplace {
     Close,
 }
 
-/// Which text of a file the preview shows: the file as it was after `version` replacements.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct PreviewKey {
-    path: String,
-    version: u64,
-}
-
-struct FilePreview {
-    key: PreviewKey,
-    lines: Rc<Vec<String>>,
-}
-
 /// What a replacement preview shows: the usages of one row replaced as the options say.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct DiffKey {
@@ -285,13 +274,8 @@ pub struct FindPopup {
     menu: Option<Menu>,
     /// Replace: the preview shows the replacement as a diff.
     preview_mode: bool,
-    preview: Option<FilePreview>,
-    /// The text the preview is waiting for, or shows.
-    preview_wanted: Option<PreviewKey>,
-    /// Why the wanted file cannot be shown.
-    preview_error: Option<String>,
-    /// The file and line the preview was last scrolled to.
-    preview_shown: Option<(String, u32)>,
+    /// The selected result's file, in an editor on its document.
+    code_preview: Entity<CodePreview>,
     /// Counts the replacements made: the files they changed are read again.
     preview_version: u64,
     diff: Option<DiffPreview>,
@@ -299,7 +283,6 @@ pub struct FindPopup {
     running: Option<ReplaceRun>,
     progress: Option<ReplaceProgress>,
     list_scroll: UniformListScrollHandle,
-    preview_scroll: UniformListScrollHandle,
     diff_scroll: UniformListScrollHandle,
     /// The claims on the keys the popup handles itself, ahead of the keymap: one per text field.
     key_claims: Vec<u64>,
@@ -314,6 +297,7 @@ pub struct FindPopup {
     _masks_load: Option<Task<()>>,
     _browse: Option<Task<()>>,
     _field_events: Vec<Subscription>,
+    _preview_events: Subscription,
 }
 
 impl EventEmitter<FindPopupEvent> for FindPopup {}
@@ -647,6 +631,12 @@ impl FindPopup {
             }
         })
         .detach();
+        let code_preview = cx.new(|cx| {
+            CodePreview::new(&window_label, PreviewMode::Editable, "Select a result to preview", PREVIEW_DEBOUNCE, cx)
+        });
+        let preview_events = cx.subscribe(&code_preview, |popup: &mut FindPopup, _, event: &CodePreviewEvent, cx| {
+            popup.code_preview_event(event, cx);
+        });
         let mut popup = Self {
             window_label,
             root,
@@ -671,17 +661,13 @@ impl FindPopup {
             project_masks: Vec::new(),
             menu: None,
             preview_mode: false,
-            preview: None,
-            preview_wanted: None,
-            preview_error: None,
-            preview_shown: None,
+            code_preview,
             preview_version: 0,
             diff: None,
             diff_wanted: None,
             running: None,
             progress: None,
             list_scroll: UniformListScrollHandle::new(),
-            preview_scroll: UniformListScrollHandle::new(),
             diff_scroll: UniformListScrollHandle::new(),
             key_claims,
             _debounce: None,
@@ -693,6 +679,7 @@ impl FindPopup {
             _masks_load: None,
             _browse: None,
             _field_events: field_events,
+            _preview_events: preview_events,
         };
         popup.custom_scopes = popup.stored_scopes(cx);
         popup.adopt_module();
@@ -833,20 +820,24 @@ impl FindPopup {
         if self.rows.is_empty() { self.empty_state(cx).lines } else { Vec::new() }
     }
 
-    /// The file the preview shows, once it is read.
-    pub fn preview_path(&self) -> Option<&str> {
-        self.shown_preview().map(|preview| preview.key.path.as_str())
+    /// The file the preview shows, once its editor is there.
+    pub fn preview_path(&self, cx: &App) -> Option<String> {
+        self.code_preview.read(cx).path().map(str::to_owned)
     }
 
     /// The 0-based line the preview is on and its text.
-    pub fn preview_line(&self) -> Option<(u32, String)> {
-        let (preview, row) = (self.shown_preview()?, self.selected_row()?);
-        Some((row.line, preview.lines.get(row.line as usize)?.clone()))
+    pub fn preview_line(&self, cx: &App) -> Option<(u32, String)> {
+        self.code_preview.read(cx).line(cx)
     }
 
-    /// Every line of the previewed file.
-    pub fn preview_lines(&self) -> Vec<String> {
-        self.shown_preview().map(|preview| preview.lines.to_vec()).unwrap_or_default()
+    /// Every line of the previewed file, as its editor has it.
+    pub fn preview_lines(&self, cx: &App) -> Vec<String> {
+        self.code_preview.read(cx).lines(cx)
+    }
+
+    /// The preview of the selected result.
+    pub fn code_preview(&self) -> &Entity<CodePreview> {
+        &self.code_preview
     }
 
     /// The matches the preview marks on the 0-based `line`, as UTF-16 column ranges.
@@ -1742,13 +1733,6 @@ impl FindPopup {
         self.preview_mode && self.state.replace && !self.is_stale()
     }
 
-    /// The file preview, when it is the selected row's file as it is now.
-    fn shown_preview(&self) -> Option<&FilePreview> {
-        let row = self.selected_row()?;
-        let key = PreviewKey { path: row.path.clone(), version: self.preview_version };
-        self.preview.as_ref().filter(|preview| preview.key == key)
-    }
-
     /// The replacement preview, when it is the one of the selected row as the options are now.
     fn shown_diff(&self) -> Option<&DiffPreview> {
         let key = self.diff_key(self.selected_row()?);
@@ -1782,78 +1766,39 @@ impl FindPopup {
         lines.collect()
     }
 
-    /// Brings the preview up to the selected row: its file is read once the selection has rested on it,
-    /// and scrolled to the row's line; in the diff mode of Replace the row's replacement is asked for
-    /// instead.
+    /// Brings the preview up to the selected row: its file, on the row's line with the file's matches marked,
+    /// opened once the selection has rested on it; in the diff mode of Replace the row's replacement is asked
+    /// for instead.
     fn sync_preview(&mut self, cx: &mut Context<Self>) {
         let Some(row) = self.selected_row().cloned() else {
             self._preview_task = None;
-            self.preview_wanted = self.preview.as_ref().map(|preview| preview.key.clone());
             self.diff_wanted = self.diff.as_ref().map(|diff| diff.key.clone());
+            self.code_preview.update(cx, |preview, cx| preview.show(None, cx));
             return;
         };
         if self.shows_diff() {
             self.sync_diff(&row, cx);
             return;
         }
-        let key = PreviewKey { path: row.path.clone(), version: self.preview_version };
-        if self.preview.as_ref().is_some_and(|preview| preview.key == key) {
-            self.reveal_preview_line(&row);
-            return;
-        }
-        if self.preview_wanted.as_ref() == Some(&key) {
-            return;
-        }
-        self.preview_wanted = Some(key.clone());
+        self._preview_task = None;
         self.diff_wanted = self.diff.as_ref().map(|diff| diff.key.clone());
-        self._preview_task = Some(cx.spawn(async move |popup, cx| {
-            cx.background_executor().timer(PREVIEW_DEBOUNCE).await;
-            let read = popup.update(cx, |popup, cx| {
-                let backend = cx.try_global::<Backend>()?;
-                let (window, path) = (popup.window_label.clone(), PathBuf::from(&key.path));
-                Some(
-                    backend
-                        .with_host(move |host| async move { ide_host::ops::fs::read_text(&host, &window, path).await }),
-                )
-            });
-            let Ok(Some(read)) = read else { return };
-            let text = match read.await {
-                Ok(Ok(text)) => Ok(text),
-                Ok(Err(error)) => Err(error.message),
-                Err(error) => Err(error.to_string()),
-            };
-            let _ = popup.update(cx, |popup, cx| popup.preview_loaded(key, text, cx));
-        }));
+        let mut highlights: Vec<PreviewHighlight> =
+            self.file_highlights().into_iter().map(|(line, ranges)| PreviewHighlight { line, ranges }).collect();
+        highlights.sort_by_key(|highlight| highlight.line);
+        let (path, line, version) = (row.path.clone(), row.line, self.preview_version);
+        let target = PreviewTarget { path, line, highlights, version };
+        self.code_preview.update(cx, |preview, cx| preview.show(Some(target), cx));
     }
 
-    fn preview_loaded(&mut self, key: PreviewKey, text: Result<String, String>, cx: &mut Context<Self>) {
-        if self.preview_wanted.as_ref() != Some(&key) {
-            return;
-        }
-        self.preview_shown = None;
-        match text {
-            Ok(text) => {
-                let lines = text.lines().map(str::to_owned).collect();
-                self.preview = Some(FilePreview { key, lines: Rc::new(lines) });
-                self.preview_error = None;
-                if let Some(row) = self.selected_row().cloned() {
-                    self.reveal_preview_line(&row);
-                }
+    /// What the preview asks: Escape closes the popup, a failed save is told.
+    fn code_preview_event(&mut self, event: &CodePreviewEvent, cx: &mut Context<Self>) {
+        match event {
+            CodePreviewEvent::Escape => cx.emit(FindPopupEvent::Dismissed),
+            CodePreviewEvent::SaveFailed(message) => {
+                let title = cx.default_global::<Localization>().0.t("app.unsaved.saveFailed", &[]);
+                let failed = NotificationRequest::new(NotificationLevel::Error, title);
+                cx.emit(FindPopupEvent::Notify(NotificationRequest { body: Some(message.clone()), ..failed }));
             }
-            Err(message) => {
-                self.preview = None;
-                self.preview_error = Some(message);
-            }
-        }
-        cx.notify();
-    }
-
-    /// Scrolls the preview to the row's line, in the middle, when it is not the line it was last put on.
-    fn reveal_preview_line(&mut self, row: &MatchRow) {
-        let at = (row.path.clone(), row.line);
-        if self.preview_shown.as_ref() != Some(&at) {
-            self.preview_scroll.scroll_to_item(row.line as usize, ScrollStrategy::Center);
-            self.preview_shown = Some(at);
         }
     }
 
@@ -1863,7 +1808,6 @@ impl FindPopup {
             return;
         }
         self.diff_wanted = Some(key.clone());
-        self.preview_wanted = self.preview.as_ref().map(|preview| preview.key.clone());
         self._preview_task = Some(cx.spawn(async move |popup, cx| {
             cx.background_executor().timer(PREVIEW_DEBOUNCE).await;
             let asked = key.clone();
@@ -2544,53 +2488,7 @@ impl FindPopup {
                 }
             }
         } else {
-            match (self.shown_preview(), self.selected_row()) {
-                (Some(preview), Some(row)) => {
-                    let (lines, current_line) = (Rc::clone(&preview.lines), row.line);
-                    let highlights = Rc::new(self.file_highlights());
-                    let current = theme::color(cx, "bg-current-line");
-                    let (mark, mark_current) =
-                        (theme::color(cx, "bg-search-match"), theme::color(cx, "bg-search-match-current"));
-                    let mark_fg = theme::color(cx, "fg-search-match");
-                    uniform_list(
-                        "find-popup-preview",
-                        lines.len(),
-                        cx.processor(move |_, range: Range<usize>, _, _| {
-                            range
-                                .map(|index| {
-                                    let number = index as u32;
-                                    let on_line = number == current_line;
-                                    let ranges = highlights.get(&number).map(Vec::as_slice).unwrap_or_default();
-                                    let pieces = segments(&lines[index], ranges);
-                                    line_frame(number, None).when(on_line, |el| el.bg(current)).children(marked(
-                                        pieces,
-                                        if on_line { mark_current } else { mark },
-                                        mark_fg,
-                                    ))
-                                })
-                                .collect::<Vec<_>>()
-                        }),
-                    )
-                    .track_scroll(&self.preview_scroll)
-                    .size_full()
-                    .into_any_element()
-                }
-                _ => {
-                    let note = match (&self.preview_error, self.selected_row()) {
-                        (_, None) => tx(cx, "Select a result to preview"),
-                        (Some(error), Some(_)) => error.clone(),
-                        (None, Some(_)) => String::new(),
-                    };
-                    div()
-                        .size_full()
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .text_color(subtle)
-                        .child(SharedString::from(note))
-                        .into_any_element()
-                }
-            }
+            self.code_preview.clone().into_any_element()
         };
         div()
             .flex_none()
@@ -2856,6 +2754,54 @@ mod tests {
 
         fn read(&self, name: &str) -> String {
             std::fs::read_to_string(self.root.join(name)).expect("the file is read")
+        }
+
+        /// Waits until each file holds its text on disk. A file the preview holds is replaced in its
+        /// document, left unsaved by Replace, and written once the preview lets it go to show the file as
+        /// it is now (Files › Autosave is on by default).
+        fn written(&self, files: &[(&str, &str)], cx: &mut VisualTestContext) {
+            let on_disk = || {
+                files.iter().all(|(name, text)| std::fs::read_to_string(self.root.join(name)).is_ok_and(|t| t == *text))
+            };
+            // The write is the backend's, which a loaded machine can take seconds over: thirty at most.
+            for _ in 0..3000 {
+                cx.executor().advance_clock(SEARCH_DEBOUNCE + PREVIEW_DEBOUNCE);
+                cx.run_until_parked();
+                if on_disk() {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("the files were not written within thirty seconds: {files:?}");
+        }
+
+        /// Waits until each file holds its text: on disk, or, for the file the popup's preview still holds
+        /// (Replace All closes the popup, but here nothing lets the popup go), in its document, unsaved and
+        /// counted with the window's unsaved documents.
+        fn replaced(&self, files: &[(&str, &str)], cx: &mut VisualTestContext) {
+            let held = |name: &str, text: &str, cx: &mut VisualTestContext| {
+                let path = self.root.join(name);
+                cx.update(|_, cx| {
+                    let document =
+                        cx.global::<Backend>().host.project("w1").ok().and_then(|p| p.documents.text_of(&path));
+                    let unsaved = crate::ui::code_preview::preview_editors("w1", cx)
+                        .iter()
+                        .any(|editor| editor.read(cx).path() == path && editor.read(cx).is_dirty());
+                    document.as_deref() == Some(text) && unsaved
+                })
+            };
+            for _ in 0..3000 {
+                cx.executor().advance_clock(SEARCH_DEBOUNCE + PREVIEW_DEBOUNCE);
+                cx.run_until_parked();
+                let done = files.iter().all(|(name, text)| {
+                    std::fs::read_to_string(self.root.join(name)).is_ok_and(|t| t == *text) || held(name, text, cx)
+                });
+                if done {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            panic!("the files were not replaced within thirty seconds: {files:?}");
         }
     }
 
@@ -3239,17 +3185,17 @@ mod tests {
         assert_eq!(selected(&popup, cx), row(0));
 
         // The preview shows the selected match in its file, with the file's matches marked.
-        settle(cx, |cx| popup.read_with(cx, |popup, _| popup.preview_path().is_some()));
-        popup.read_with(cx, |popup, _| {
-            assert_eq!(popup.preview_path(), Some(&*path.to_string_lossy()));
-            assert_eq!(popup.preview_line(), Some((0, "needle 0".to_owned())));
-            assert_eq!(popup.preview_lines().len(), 12);
+        settle(cx, |cx| popup.read_with(cx, |popup, cx| popup.preview_path(cx).is_some()));
+        popup.read_with(cx, |popup, cx| {
+            assert_eq!(popup.preview_path(cx).as_deref(), Some(&*path.to_string_lossy()));
+            assert_eq!(popup.preview_line(cx), Some((0, "needle 0".to_owned())));
+            assert_eq!(popup.preview_lines(cx).len(), 12);
             assert_eq!((popup.preview_marks(0), popup.preview_marks(3)), (vec![(0, 6)], vec![(0, 6)]));
         });
 
         cx.simulate_keystrokes("down");
         assert_eq!(selected(&popup, cx), row(1));
-        assert_eq!(popup.read_with(cx, |popup, _| popup.preview_line()), Some((1, "needle 1".to_owned())));
+        assert_eq!(popup.read_with(cx, |popup, cx| popup.preview_line(cx)), Some((1, "needle 1".to_owned())));
         cx.simulate_keystrokes("pagedown");
         assert_eq!(selected(&popup, cx), row(10));
         cx.simulate_keystrokes("pagedown down");
@@ -3318,10 +3264,10 @@ mod tests {
         click(cx, ROWS[b], Modifiers::default());
         assert_eq!(selected(&popup, cx).as_ref(), Some(&rows[b]));
         let shown = project.root.join("b.txt").to_string_lossy().into_owned();
-        settle(cx, |cx| popup.read_with(cx, |popup, _| popup.preview_path() == Some(shown.as_str())));
-        popup.read_with(cx, |popup, _| {
-            assert_eq!(popup.preview_lines(), ["x", "needle b"]);
-            assert_eq!(popup.preview_line(), Some((1, "needle b".to_owned())));
+        settle(cx, |cx| popup.read_with(cx, |popup, cx| popup.preview_path(cx).as_deref() == Some(shown.as_str())));
+        popup.read_with(cx, |popup, cx| {
+            assert_eq!(popup.preview_lines(cx), ["x", "needle b"]);
+            assert_eq!(popup.preview_line(cx), Some((1, "needle b".to_owned())));
             assert_eq!((popup.preview_marks(0), popup.preview_marks(1)), (Vec::<(u32, u32)>::new(), vec![(0, 6)]));
         });
 
@@ -3487,7 +3433,7 @@ mod tests {
         let replaced = |cx: &mut VisualTestContext| popup.read_with(cx, |popup, _| popup.replaced_lines());
         cx.simulate_keystrokes("enter");
         settle(cx, |cx| popup.read_with(cx, |popup, _| !popup.is_replacing()) && replaced(cx).len() == 1);
-        assert_eq!(project.read("a.txt"), "qux one\nfoo two foo\nbar\n");
+        project.written(&[("a.txt", "qux one\nfoo two foo\nbar\n")], cx);
         assert_eq!(replaced(cx), ["a.txt:1 foo one"]);
         assert_eq!(selected(&popup, cx).as_deref(), Some("a.txt:2 foo two foo"));
         let told = |title: &str| {
@@ -3504,11 +3450,11 @@ mod tests {
         assert_eq!(popup.update(cx, |popup, cx| popup.replace_label(cx)), "Replace 2 Occurrences");
         click(cx, "find-popup-replace", Modifiers::default());
         settle(cx, |cx| popup.read_with(cx, |popup, _| !popup.is_replacing()) && replaced(cx).len() == 2);
-        assert_eq!(project.read("a.txt"), "qux one\nqux two qux\nbar\n");
+        project.written(&[("a.txt", "qux one\nqux two qux\nbar\n")], cx);
         assert_eq!(last(&events), told("Replaced 2 occurrences in 1 file"));
         // The preview shows the file as it is now.
-        settle(cx, |cx| popup.read_with(cx, |popup, _| popup.preview_line().is_some()));
-        assert_eq!(popup.read_with(cx, |popup, _| popup.preview_line()), Some((1, "qux two qux".to_owned())));
+        settle(cx, |cx| popup.read_with(cx, |popup, cx| popup.preview_line(cx).is_some()));
+        assert_eq!(popup.read_with(cx, |popup, cx| popup.preview_line(cx)), Some((1, "qux two qux".to_owned())));
 
         // Nothing is left to replace; ⇧Enter opens the match.
         cx.simulate_keystrokes("enter");
@@ -3541,7 +3487,7 @@ mod tests {
         assert!(cx.has_pending_prompt());
         cx.simulate_prompt_answer("Replace");
         settle(cx, |_| last(&events) == Some(FindPopupEvent::Dismissed));
-        assert_eq!((project.read("a.txt"), project.read("b.txt")), ("bar\n".to_owned(), "bar bar\n".to_owned()));
+        project.replaced(&[("a.txt", "bar\n"), ("b.txt", "bar bar\n")], cx);
         let told = events.borrow().iter().any(|event| {
             matches!(event, FindPopupEvent::Notify(request)
                 if request.title == "Replaced 3 occurrences in 2 files" && request.body.is_none())
@@ -3561,7 +3507,7 @@ mod tests {
         cx.simulate_keystrokes("alt-a");
         assert!(!cx.has_pending_prompt());
         settle(cx, |_| last(&events) == Some(FindPopupEvent::Dismissed));
-        assert_eq!(project.read("a.txt"), "bar\nother\nbar\n");
+        project.replaced(&[("a.txt", "bar\nother\nbar\n")], cx);
         close_project(cx);
     }
 

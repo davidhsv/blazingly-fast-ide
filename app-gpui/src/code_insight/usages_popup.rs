@@ -11,7 +11,7 @@
 use super::usage_search::PopupContent;
 use super::usages::{
     AccessButton, ShowUsageResults, Usage, UsageAccessOptions, UsageScope, filter_usage_access, filter_usages,
-    supports_usage_access, trim_preview, usage_count,
+    supports_usage_access, usage_count,
 };
 use crate::find::store::StorageWrite;
 use crate::find::utf16;
@@ -19,6 +19,7 @@ use crate::platform::i18n::{I18n, Localization, Param};
 use crate::platform::input;
 use crate::platform::virtual_docs::basename;
 use crate::theme;
+use crate::ui::code_preview::line_tokens::{LineTokens, usage_runs};
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
     App, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke, Render,
@@ -105,6 +106,8 @@ impl UsagesPopup {
             cx,
         );
         cx.on_release(|popup, cx| input::release_keys(popup.key_claim, cx)).detach();
+        // The rows are drawn again once their files' colours are known.
+        cx.observe_global::<LineTokens>(|_, cx| cx.notify()).detach();
         let mut popup = Self {
             content: PopupContent::default(),
             all: Vec::new(),
@@ -325,21 +328,15 @@ fn toggle_button(cx: &App, selector: &'static str, icon: &str, on: bool) -> Stat
         .child(theme::icon(cx, icon, 16.0, color))
 }
 
-/// A usage's line, trimmed, with the usage on the search-result colour.
+/// A usage's line, trimmed, in its file's colours, with the usage on the search-result colour.
 fn marked_line(cx: &App, usage: &Usage) -> Div {
-    let preview = trim_preview(usage);
-    let parts = [
-        (utf16::slice(&preview.text, 0, preview.from).to_owned(), false),
-        (utf16::slice(&preview.text, preview.from, preview.to).to_owned(), true),
-        (utf16::slice_from(&preview.text, preview.to).to_owned(), false),
-    ];
     let match_bg = theme::color(cx, "bg-text-search-result");
-    div().flex().min_w_0().overflow_hidden().whitespace_nowrap().children(
-        parts.into_iter().filter(|(text, _)| !text.is_empty()).map(|(text, marked)| {
-            let part = div().child(SharedString::from(text));
+    div().flex().min_w_0().overflow_hidden().whitespace_nowrap().children(usage_runs(usage, cx).into_iter().map(
+        |(text, color, marked)| {
+            let part = div().text_color(color).child(SharedString::from(text));
             if marked { part.bg(match_bg) } else { part }
-        }),
-    )
+        },
+    ))
 }
 
 impl Render for UsagesPopup {

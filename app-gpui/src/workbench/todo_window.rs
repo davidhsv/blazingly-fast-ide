@@ -41,7 +41,8 @@ pub(super) struct TodoFeed {
     scan: Option<(RequestId, Task<()>)>,
     scope_scan: Option<(RequestId, Task<()>)>,
     live_scan: Option<Task<()>>,
-    preview: Option<Task<()>>,
+    /// The number of the preview last asked for: an answer for an older one closes its document.
+    preview: u64,
     _observer: Option<Subscription>,
 }
 
@@ -127,7 +128,7 @@ impl Workbench {
                 scan: None,
                 scope_scan: None,
                 live_scan: None,
-                preview: None,
+                preview: 0,
                 _observer: None,
             });
         }
@@ -327,31 +328,35 @@ impl Workbench {
     /// Shows the file of `item` in the preview pane: a read-only editor with the caret on the item.
     fn preview_todo(&mut self, item: crate::features_a::todo::TodoItem, cx: &mut Context<Self>) {
         let (Some(view), Some(backend)) = (self.todo_window_view(), cx.try_global::<Backend>()) else { return };
+        let Some(feed) = self.todo.as_mut() else { return };
+        feed.preview += 1;
+        let request = feed.preview;
         let label = self.label.clone();
         let path = std::path::PathBuf::from(&item.path);
         let opened = {
             let label = label.clone();
             backend.with_host(move |host| async move { ide_host::ops::doc::open(&host, &label, path).await })
         };
-        let task = cx.spawn(async move |workbench, cx| {
+        // The open runs on the backend whatever happens here, so its answer is always taken: one the
+        // selection has left, or that the window is gone for, closes the document it opened.
+        cx.spawn(async move |workbench, cx| {
             let info = match opened.await {
                 Ok(Ok(info)) => info,
                 Ok(Err(error)) => return tracing::warn!("todo: cannot preview {}: {}", item.path, error.message),
                 Err(error) => return tracing::warn!("todo: cannot preview {}: {error}", item.path),
             };
-            // The window is gone when it was closed meanwhile.
-            let _ = workbench.update(cx, |_, cx| {
+            let shown = workbench.update(cx, |workbench, cx| {
                 let host = cx.global::<Backend>().host.clone();
+                if workbench.todo.as_ref().is_none_or(|feed| feed.preview != request) {
+                    return false;
+                }
                 let info = ide_workspace::DocumentInfo { read_only: true, ..info };
                 let snapshot = host.project(&label).and_then(|project| project.documents.rope_snapshot(info.id));
                 let (version, rope) = match snapshot {
                     Ok(snapshot) => snapshot,
                     Err(error) => {
                         tracing::warn!("todo: cannot preview {}: {}", item.path, error.message);
-                        if let Err(error) = ide_host::ops::doc::close(&host, &label, info.id) {
-                            tracing::debug!("todo: cannot close {}: {}", item.path, error.message);
-                        }
-                        return;
+                        return false;
                     }
                 };
                 // The editor holds the document it was opened for and closes it when it goes.
@@ -362,11 +367,18 @@ impl Workbench {
                     editor.scroll_to_line(item.line.saturating_sub(5), cx);
                 });
                 view.update(cx, |view, cx| view.set_preview(&item, editor.into(), cx));
+                true
             });
-        });
-        if let Some(feed) = self.todo.as_mut() {
-            feed.preview = Some(task);
-        }
+            if !shown.unwrap_or(false) {
+                let host = cx.update(|cx| cx.try_global::<Backend>().map(|backend| backend.host.clone()));
+                if let Some(host) = host
+                    && let Err(error) = ide_host::ops::doc::close(&host, &label, info.id)
+                {
+                    tracing::debug!("todo: cannot close {}: {}", item.path, error.message);
+                }
+            }
+        })
+        .detach();
     }
 
     /// Carries out what the TODO tool window asks for.
@@ -389,7 +401,7 @@ impl Workbench {
             TodoViewEvent::PreviewChanged(Some(item)) => self.preview_todo(item, cx),
             TodoViewEvent::PreviewChanged(None) => {
                 if let Some(feed) = self.todo.as_mut() {
-                    feed.preview = None;
+                    feed.preview += 1;
                 }
             }
             TodoViewEvent::ScanScope(scope) => self.scan_todo_scope(scope, cx),
