@@ -4,6 +4,26 @@ Read first: `$S/int_rules.md` (hard rules and report format), `$S/tests_brief.md
 
 Format only files you edited, taken from `git diff --name-only` plus the draft files this brief hands you by name. Never build a file list from `git status`. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
 
+## Part 0: an action runs and nothing ever happens (do this first; bounded: stop when the report below exists and the two leads are settled)
+
+Five one-off failures in whole-suite runs under load share a shape: the test sets something up, runs an action through the registry (the action is enabled: `run_action` panics otherwise), and what the action should bring never comes, not even in a second thirty seconds ("reached later: None"). Each passes alone and in most suite runs.
+
+- `workbench::popup_placement::tests::show_usages_opens_under_the_caret`, twice (`$S/dterm/sl_anyfail7.log`, `$S/ddepi/suite4.log` line 7732). The second report says `language servers: backend: []; window heard: []  no fake server`: this test has no language server at all, so the earlier idea of a lost language-server answer is wrong for it.
+- `workbench::project_view_options::tests::reformat_and_optimize_imports_in_the_tree_change_the_selected_file` (`$S/verify_dterm_suite2.log` line 7657). Its trace shows a file-watcher event for a file the test had just written and a re-read of the Project tree at the moment of the action.
+- `workbench::refactor_actions::tests::apply_the_single_matching_action_or_offer_a_choice` and `…::confirms_first_delete_function_and_searches_nothing_when_cancelled` (`$S/verify_ddfg_suite2.log`, `$S/dterm/sl_anyfail3.log`).
+
+Two leads, both hypotheses read from the code and the traces, not measured:
+
+1. The action read a state that the test's setup had not finished putting in place, or that a late event took away, and so did nothing, silently or with a hint the test does not look at: `Workbench::show_usages` (`app-gpui/src/workbench/code_insight.rs`) reads `usage_caret`; with no usable caret the popup model may answer with a hint and no popup. The same for a refactoring with the selection not yet where the test put it.
+2. The Project tree's selection is lost or changed when the tree is read again after a file-watcher event, so `project.optimizeImports` acts on nothing. If a re-read drops the selection in the app, that is an app defect against the webview (read `src/features/project-tree/` for what a refresh keeps): fix it with a test that fails without the fix.
+
+Do this:
+
+- Make the report of a wait that runs out (`wait_long` and the fixture `settle`s that already print the Git, agents and language-server state) also print what an action reads: the active tab's path, its caret, selection and the word at the caret; which part of the window has the keyboard (the focused pane or tool window, the context keys the dispatcher would compute); the Project tree's selected rows; the hint or notice last shown and when; the last action run with what it returned.
+- Settle lead 2 by a deterministic test, not a loop: select a row, cause a tree re-read (write a file, wait for the tree's read to finish, a state the tree exposes), assert the selection.
+- Settle lead 1 by reading each of the four tests' setup against what its action reads, and by a deterministic test where the setup is deliberately incomplete (the caret not on a name; the document still loading): say what the app shows then. Where a test's setup returns before the state its action reads is in place, make the setup wait for that state (never a sleep).
+- Do not loop single tests (1,288 runs alone of one of them found nothing). If any test fails in one of your whole-suite runs, keep the log and quote the failure whole: with the new report it should name the cause.
+
 ## The slice
 
 Notes (the `mod` lines, every hunk anchored on quoted text, the rows expected, what is left out, the hypotheses, the tests most likely to fail): `$S/drafts/http_client_integration.md` (read this scratch copy: the copy under `docs/` was reformatted by the commit hook). Writer's report: `docs/gpui-port/notes/reports/http_client_writer.md`. Draft files (committed, undeclared): `app-gpui/src/http_client/{mod,store,marks,request_toolbar,response_view,service_tabs}.rs`, `app-gpui/src/workbench/http_client.rs`, `app-gpui/src/workbench/http_client/tests.rs`.
@@ -23,7 +43,7 @@ After it passes, look at your own binary's window (launcher `$S/insp8/run.sh` on
 
 ## Changed since the notes were written
 
-The notes were written on the tree at about commit 20185bd1. Of the existing files the notes name, these changed since (measured: the notes' file names against `git diff --name-only 20185bd1 5714c388`): `app-gpui/src/lib.rs` (new `mod` lines and the colour scheme's `init` call), `app-gpui/src/workbench/mod.rs` (the diff tab's fields and register calls; the Terminal draws its own header; the waits of its tests print the language servers when they run out) and `app-gpui/src/editor/view.rs` (the right margin guides, the doc-comment tags, the gliding caret, token styles from the colour scheme, the middle-button column drag: the paint and prepaint of the gutter and the rows moved, so read the gutter's paint again before placing the run marks). If the Deployment slice was integrated before you start, `lib.rs`, `workbench/mod.rs`, `workbench/context_menus.rs` and the tool-window registrations changed again: read them as they are. Re-anchor every hunk from its quoted text and read the place before you edit it. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
+The notes were written on the tree at about commit 20185bd1. Of the existing files the notes name, these changed since (measured: the notes' file names against `git diff --name-only 20185bd1 5714c388`): `app-gpui/src/lib.rs` (new `mod` lines and the colour scheme's `init` call), `app-gpui/src/workbench/mod.rs` (the diff tab's fields and register calls; the Terminal draws its own header; the waits of its tests print the language servers when they run out) and `app-gpui/src/editor/view.rs` (the right margin guides, the doc-comment tags, the gliding caret, token styles from the colour scheme, the middle-button column drag: the paint and prepaint of the gutter and the rows moved, so read the gutter's paint again before placing the run marks). The Deployment slice landed after that (measured: it changed `lib.rs` and `workbench/mod.rs` again: new `mod` lines, a field, the `remoteHost` tool window making `TOOL_WINDOWS` twenty, its register, mount and focus hooks; `workbench/context_menus.rs` did not change). Re-anchor every hunk from its quoted text and read the place before you edit it. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 

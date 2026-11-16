@@ -3296,8 +3296,8 @@
     "proof": "`features_b::deployment::remote_host::tests`"
   },
   "unit:src/features/deployment/window.test.ts": {
-    "status": "done",
-    "proof": "`features_b::deployment::window::tests`"
+    "status": "partial",
+    "proof": "`features_b::deployment::window::tests`; 2 of 2 cases on the model. The app uses only the closing steps, for the Sync dialog (keeping unsaved local edits when closing is cancelled or saving fails). Missing: the comparison in a window of its own, which loads the parent project before comparing, is not built"
   },
   "unit:src/features/dotnet/store.test.ts": {
     "status": "done",
@@ -7990,5 +7990,113 @@
   "point.registerEditorKind:diff": {
     "status": "partial",
     "proof": "`workbench::diff_tab::tests::show_diff_opens_a_titled_diff_tab_that_closes_like_any_tab`, `vcs_diff::tab_view::tests::a_diff_tab_offers_maximize_editor_and_restore_size`, `vcs_diff::tab_view::tests::asks_for_the_next_file_of_its_chain_after_the_boundary_hint`, `vcs_diff::tab_view::tests::does_not_offer_editor_maximization_in_an_embedded_diff`; Show Diff opens a titled diff tab that closes like any tab, with its toolbar, Maximize Editor and the settings menu. Missing: the tab is not restored with the session, and the working copy's side is not editable"
+  },
+  "action:deployment.uploadToDefault": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::upload_to_default_server_copies_the_file_to_the_server_and_reports_it`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the file is copied to the default server and a notice says so; on only with a project open"
+  },
+  "action:deployment.uploadTo": {
+    "status": "partial",
+    "proof": "`workbench::deployment::tests::upload_to_explains_the_rejected_paths_and_links_settings`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; with no server covering the file the notice names every server with the path's reason and offers Configure, and nothing is uploaded; on only with a project open. Missing: choosing among several servers and uploading to the chosen one has no test (the chooser and the transfer are the ones Download from uses)"
+  },
+  "action:deployment.downloadFromDefault": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::download_from_default_server_replaces_the_local_file_without_asking`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the default server's copy replaces the local file without a chooser; on only with a project open"
+  },
+  "action:deployment.downloadFrom": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::download_from_chooses_the_server_and_replaces_the_local_file`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the servers that deploy the file are offered, even one, and the chosen one's copy replaces the local file; on only with a project open"
+  },
+  "action:deployment.syncWith": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the server is chosen, the edited file is saved first, and the selected row is synchronized from the dialog; on only with a project open"
+  },
+  "action:deployment.syncWithDefault": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the default server is compared, a row's preview is shown, and Synchronize All applies every chosen operation; on only with a project open"
+  },
+  "action:deployment.deleteFromServer": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::delete_from_server_asks_and_deletes_the_remote_copy`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; asks first; Delete removes the remote copy and a notice says so; on only with a project open"
+  },
+  "action:deployment.toggleAutoUpload": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::automatic_upload_toggles_the_projects_setting`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; toggles the project's automatic upload between always and never, with its checked state; on only with a project open"
+  },
+  "action:deployment.browseRemoteHost": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; shows the Remote Host tool window on the default server's root; on only with a project open"
+  },
+  "action:deployment.openInBrowser": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::open_in_browser_opens_the_deployed_url_of_the_file`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; opens the deployed address of the file; on only with a project open"
+  },
+  "action:deployment.configure": {
+    "status": "partial",
+    "proof": "`workbench::deployment::tests::deployment_configuration_opens_the_deployment_settings_page`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; opens Settings on the Deployment servers page; on only with a project open. Missing: that page is not built natively (it says it is not available yet)"
+  },
+  "ipc:deploy_coverage": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::upload_to_explains_the_rejected_paths_and_links_settings`; the reasons per server in the notice can only come from ide_host::ops::deploy::deploy_coverage, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:deploy_upload": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::upload_to_default_server_copies_the_file_to_the_server_and_reports_it`; the file on the server can only come from ide_host::ops::deploy::deploy_upload, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:deploy_download": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::download_from_chooses_the_server_and_replaces_the_local_file`, `workbench::deployment::tests::download_from_default_server_replaces_the_local_file_without_asking`; the replaced local file can only come from ide_host::ops::deploy::deploy_download, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:deploy_delete_remote": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::delete_from_server_asks_and_deletes_the_remote_copy`; the remote copy removed can only come from ide_host::ops::deploy::deploy_delete_remote, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:deploy_info": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::open_in_browser_opens_the_deployed_url_of_the_file`; the deployed address can only come from ide_host::ops::deploy::deploy_info, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:deploy_compare": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`; the rows of the Sync dialog can only come from ide_host::ops::deploy::deploy_compare, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:deploy_sync": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`; the files changed on both sides can only come from ide_host::ops::deploy::deploy_sync, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:deploy_server_root": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the root shown by the Remote Host window can only come from ide_host::ops::deploy::deploy_server_root, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:remote_list": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`, `workbench::deployment::tests::the_remote_host_server_chooser_shows_the_other_servers_files`; the server's rows can only come from ide_host::ops::deploy::remote_list, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:remote_mkdir": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the folder made on the server can only come from ide_host::ops::deploy::remote_mkdir, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:remote_rename": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the file renamed on the server can only come from ide_host::ops::deploy::remote_rename, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:remote_delete": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the file deleted on the server can only come from ide_host::ops::deploy::remote_delete, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:remote_open": {
+    "status": "done",
+    "proof": "`workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the server file's text in the editor can only come from ide_host::ops::deploy::remote_open, the function the Tauri adapter calls with the same arguments"
+  },
+  "point.registerToolWindow:remoteHost": {
+    "status": "partial",
+    "proof": "`workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`, `workbench::deployment::tests::the_remote_host_server_chooser_shows_the_other_servers_files`, `deployment::remote_host_view::tests::connecting_then_an_error_with_retry`, `deployment::remote_host_view::tests::folders_expand_from_the_chevron_and_the_keyboard_and_files_open`, `deployment::remote_host_view::tests::shows_the_servers_files_with_the_expanded_folders_entries_under_them`, `deployment::remote_host_view::tests::the_context_menu_offers_what_the_selection_allows`, `deployment::remote_host_view::tests::the_toolbar_chooses_the_server_refreshes_collapses_and_configures`, `deployment::remote_host_view::tests::without_servers_the_window_offers_to_configure_them`; the Remote Host tool window on the right stripe once used: the server chooser, refresh, collapse and settings, the root path, the tree with folders expanding from the chevron and the keyboard, and the row menu (Open, Download to Project, New Folder, Rename, Delete, Refresh, Copy Path). Missing: speed search in the tree"
+  },
+  "point.registerOverlay:deployment.dialogs": {
+    "status": "partial",
+    "proof": "`workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`, `deployment::secret_dialog::tests::escape_and_cancel_close_the_prompt_without_an_answer`, `deployment::secret_dialog::tests::the_secret_is_painted_as_bullets_and_ok_answers_it_with_save_password`; the Sync dialog through the app (compare, change an operation, preview, synchronize one or all); the SSH Password dialog on its own view. Missing: the SSH Password and Unknown Host Key dialogs are never reached in a window (no SFTP server in tests)"
+  },
+  "feature:deployment": {
+    "status": "partial",
+    "proof": "`workbench::deployment::tests::upload_to_default_server_copies_the_file_to_the_server_and_reports_it`, `workbench::deployment::tests::download_from_chooses_the_server_and_replaces_the_local_file`, `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`, `workbench::deployment::tests::delete_from_server_asks_and_deletes_the_remote_copy`, `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; uploads, downloads, deleting on the server, Sync with Deployed with its preview, automatic upload, Open in Browser and the Remote Host tool window, on a server that is a local folder. Missing: the Deployment group in the context menus, the comparison in a window of its own, an editable local side in the comparison, speed search, the Deployment servers settings page, and SFTP end to end"
   }
 }

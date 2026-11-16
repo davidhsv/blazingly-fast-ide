@@ -5,11 +5,11 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1370/3145 rows at parity, 116 model only, 497 partial, 15 with nothing to port.**
+**Overall: 1397/3145 rows at parity, 110 model only, 503 partial, 15 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
-| Actions | 473 | 0 | 150 | 0 | 836 |
+| Actions | 482 | 0 | 152 | 0 | 836 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 46 |
 | Keymap presets | 6 | 0 | 0 | 0 | 6 |
 | Context keys | 50 | 0 | 4 | 0 | 83 |
@@ -32,7 +32,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerMenuSlotItem` | 1 | 0 | 1 | 0 | 2 |
 | Extension point `registerNavigationProvider` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerOccurrenceNavigator` | 0 | 0 | 1 | 0 | 1 |
-| Overlays | 11 | 0 | 19 | 0 | 56 |
+| Overlays | 11 | 0 | 20 | 0 | 56 |
 | Extension point `registerProjectViewRoot` | 0 | 0 | 0 | 0 | 4 |
 | Extension point `registerRunAnythingProvider` | 0 | 0 | 0 | 0 | 2 |
 | Extension point `registerRunConfigType` | 11 | 0 | 0 | 0 | 27 |
@@ -45,23 +45,23 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Status bar items | 7 | 0 | 3 | 0 | 19 |
 | Extension point `registerTextEditorWrapper` | 1 | 0 | 0 | 0 | 3 |
 | Title bar items | 3 | 0 | 2 | 0 | 5 |
-| Tool windows | 1 | 0 | 20 | 0 | 32 |
+| Tool windows | 1 | 0 | 21 | 0 | 32 |
 | Extension point `registerUndoHandler` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerWorkbenchBanner` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerShellActions` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerDevSamples` | 0 | 0 | 0 | 0 | 1 |
 | Settings pages | 27 | 0 | 23 | 0 | 68 |
-| Features | 0 | 0 | 16 | 0 | 43 |
+| Features | 0 | 0 | 17 | 0 | 43 |
 | Editor, platform, workbench and design-system modules | 32 | 1 | 64 | 0 | 253 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 21 |
-| IPC commands | 287 | 0 | 25 | 15 | 599 |
+| IPC commands | 300 | 0 | 25 | 15 | 599 |
 | Backend events (IdeEvent) | 16 | 0 | 2 | 0 | 31 |
 | Plugin API interfaces (wit/) | 8 | 0 | 12 | 0 | 49 |
-| Behaviour specification: unit tests (vitest) | 366 | 115 | 126 | 0 | 753 |
+| Behaviour specification: unit tests (vitest) | 371 | 109 | 127 | 0 | 753 |
 | Behaviour specification: end-to-end specs (Playwright) | 9 | 0 | 9 | 0 | 70 |
 
-## Actions (473/836 at parity, 150 partial)
+## Actions (482/836 at parity, 152 partial)
 
 `(dynamic)` rows are actions whose id is built at run time (one per plugin command, tool, run configuration…).
 
@@ -256,17 +256,17 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | [x] | `debug.toggleTemporaryBreakpoint` | `Meta+Alt+Shift+F8` | src/features/debugger/actions.ts:757 | `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`, `workbench::debug::tests::alt_and_shift_in_the_gutter_add_a_temporary_and_a_logging_breakpoint` |
 | [x] | `debug.viewBreakpoints` | `Meta+Shift+F8` | src/features/debugger/actions.ts:818 | `workbench::debug::tests::toggling_a_breakpoint_at_a_line_marks_it_persists_it_and_lists_it_in_the_breakpoints_dialog`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session` |
 | [ ] | `delete` |  | src/features/services/docker.tsx:216 |  |
-| [ ] | `deployment.browseRemoteHost` |  | src/features/deployment/actions.tsx:501 |  |
-| [ ] | `deployment.configure` |  | src/features/deployment/actions.tsx:521 |  |
-| [ ] | `deployment.deleteFromServer` |  | src/features/deployment/actions.tsx:481 |  |
-| [ ] | `deployment.downloadFrom` |  | src/features/deployment/actions.tsx:445 |  |
-| [ ] | `deployment.downloadFromDefault` |  | src/features/deployment/actions.tsx:436 |  |
-| [ ] | `deployment.openInBrowser` |  | src/features/deployment/actions.tsx:511 |  |
-| [ ] | `deployment.syncWith` |  | src/features/deployment/actions.tsx:454 |  |
-| [ ] | `deployment.syncWithDefault` |  | src/features/deployment/actions.tsx:469 |  |
-| [ ] | `deployment.toggleAutoUpload` |  | src/features/deployment/actions.tsx:491 |  |
-| [ ] | `deployment.uploadTo` |  | src/features/deployment/actions.tsx:427 |  |
-| [ ] | `deployment.uploadToDefault` |  | src/features/deployment/actions.tsx:417 |  |
+| [x] | `deployment.browseRemoteHost` |  | src/features/deployment/actions.tsx:501 | `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; shows the Remote Host tool window on the default server's root; on only with a project open |
+| [~] | `deployment.configure` |  | src/features/deployment/actions.tsx:521 | `workbench::deployment::tests::deployment_configuration_opens_the_deployment_settings_page`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; opens Settings on the Deployment servers page; on only with a project open. Missing: that page is not built natively (it says it is not available yet) |
+| [x] | `deployment.deleteFromServer` |  | src/features/deployment/actions.tsx:481 | `workbench::deployment::tests::delete_from_server_asks_and_deletes_the_remote_copy`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; asks first; Delete removes the remote copy and a notice says so; on only with a project open |
+| [x] | `deployment.downloadFrom` |  | src/features/deployment/actions.tsx:445 | `workbench::deployment::tests::download_from_chooses_the_server_and_replaces_the_local_file`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the servers that deploy the file are offered, even one, and the chosen one's copy replaces the local file; on only with a project open |
+| [x] | `deployment.downloadFromDefault` |  | src/features/deployment/actions.tsx:436 | `workbench::deployment::tests::download_from_default_server_replaces_the_local_file_without_asking`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the default server's copy replaces the local file without a chooser; on only with a project open |
+| [x] | `deployment.openInBrowser` |  | src/features/deployment/actions.tsx:511 | `workbench::deployment::tests::open_in_browser_opens_the_deployed_url_of_the_file`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; opens the deployed address of the file; on only with a project open |
+| [x] | `deployment.syncWith` |  | src/features/deployment/actions.tsx:454 | `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the server is chosen, the edited file is saved first, and the selected row is synchronized from the dialog; on only with a project open |
+| [x] | `deployment.syncWithDefault` |  | src/features/deployment/actions.tsx:469 | `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the default server is compared, a row's preview is shown, and Synchronize All applies every chosen operation; on only with a project open |
+| [x] | `deployment.toggleAutoUpload` |  | src/features/deployment/actions.tsx:491 | `workbench::deployment::tests::automatic_upload_toggles_the_projects_setting`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; toggles the project's automatic upload between always and never, with its checked state; on only with a project open |
+| [~] | `deployment.uploadTo` |  | src/features/deployment/actions.tsx:427 | `workbench::deployment::tests::upload_to_explains_the_rejected_paths_and_links_settings`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; with no server covering the file the notice names every server with the path's reason and offers Configure, and nothing is uploaded; on only with a project open. Missing: choosing among several servers and uploading to the chosen one has no test (the chooser and the transfer are the ones Download from uses) |
+| [x] | `deployment.uploadToDefault` |  | src/features/deployment/actions.tsx:417 | `workbench::deployment::tests::upload_to_default_server_copies_the_file_to_the_server_and_reports_it`, `workbench::deployment::tests::the_deployment_actions_are_available_only_with_a_project_open`; the file is copied to the default server and a notice says so; on only with a project open |
 | [~] | `diff.applyLeftSide` | `Ctrl+Meta+Right` | src/features/vcs/compare.tsx:193 | `workbench::diff_tools::tests::compare_files_shows_both_files_and_accept_left_side_writes_the_change_into_the_right_one`; only in a comparison opened by the compare actions, not in Show Diff |
 | [~] | `diff.applyRightSide` | `Ctrl+Meta+Left` | src/features/vcs/compare.tsx:202 | `workbench::diff_tools::tests::compare_files_shows_both_files_and_accept_left_side_writes_the_change_into_the_right_one`; only in a comparison opened by the compare actions, not in Show Diff |
 | [ ] | `diff.compareDirectories` |  | src/features/vcs/compare.tsx:251 |  |
@@ -1265,7 +1265,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [~] | `(at) src/workbench/contributions.ts:1362` | src/workbench/contributions.ts:1362 | `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`, `workbench::editor_extras::tests::next_occurrence_says_which_of_how_many_in_the_status_bar`, `workbench::editor_extras::tests::the_occurrence_keys_do_nothing_without_a_project`, `workbench::editor_extras::tests::levels_and_choosers::next_and_previous_occurrence_step_the_usages_and_say_which_of_how_many`; Next / Previous Occurrence step the Problems, TODO and Find Usages tool windows, in the order focused, last active, last used, visible, and Find Usages says which of how many. Missing: the navigators are a fixed list (Usages, Problems, TODO), not registered by the views; Find, Inspection and Hierarchy have none, and the TODO window's step gives no index and total |
 
-## Overlays (11/56 at parity, 19 partial)
+## Overlays (11/56 at parity, 20 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
@@ -1281,7 +1281,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `coverage.manageReports` | src/features/coverage/index.ts:32 |  |
 | [~] | `database.dialogs` | src/features/database/index.ts:80 | `workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`, `workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`, `workbench::tests::the_password_a_connection_asks_for_is_masked_and_answers_the_store`, `workbench::database_extras::tests::modify_table_new_column_and_new_table_change_the_file_and_the_tree`, `workbench::database_extras::tests::truncate_asks_and_deletes_every_row_of_the_table`, `workbench::database_extras::tests::import_data_inserts_the_rows_of_a_csv_file_into_the_table`, `workbench::database_extras::tests::the_table_editors_import_and_export_browse_open_their_dialogs`, `workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`; the Data Source dialog, the rename and drop questions, the masked password question, Modify Table and Create Table, the truncate question, Import Data and Query History. Missing: the index and key dialogs, the export dialog's own options and SSH configurations |
 | [~] | `debugger` | src/features/debugger/index.ts:69 | `workbench::debug_extras::tests::evaluate_expression_evaluates_the_selection_in_the_paused_frame_and_adds_it_to_the_watches`, `workbench::debug_extras::tests::smart_step_into_lists_the_calls_of_the_line_and_steps_into_the_chosen_one`, `workbench::run_context::tests::debug_opens_the_chooser_in_debug_mode_and_enter_debugs_the_configuration`, `workbench::debug::tests::toggling_a_breakpoint_at_a_line_marks_it_persists_it_and_lists_it_in_the_breakpoints_dialog`, `workbench::debug::tests::proofs6_debug::the_breakpoints_dialog_lists_the_adapters_exception_filters_and_a_ticked_one_reaches_it`; 4 of the 6 overlays DebuggerOverlays mounts are shown in a project window and read: Evaluate (prefilled from the selection, value, history menu, Add to Watches), the Smart Step Into chooser (the line's calls, the chosen one stepped into), the configuration chooser in Debug mode, the Breakpoints dialog (the line breakpoint, the adapter's exception filters). Smart Step Into shows its calls as a popup menu, not as the debugger's overlay state (the test asserts the overlay stays closed). Missing: the breakpoint properties popover and the Attach to Process popup (their state exists in debugger/overlays.rs, no window test reads them); Evaluate's multi-line field, completion and expandable result (see debug.evaluate); Smart Step's dialog form, inline picking in the editor and the direct step for exactly one call (see debug.smartStepInto) |
-| [ ] | `deployment.dialogs` | src/features/deployment/index.ts:87 |  |
+| [~] | `deployment.dialogs` | src/features/deployment/index.ts:87 | `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`, `deployment::secret_dialog::tests::escape_and_cancel_close_the_prompt_without_an_answer`, `deployment::secret_dialog::tests::the_secret_is_painted_as_bullets_and_ok_answers_it_with_save_password`; the Sync dialog through the app (compare, change an operation, preview, synchronize one or all); the SSH Password dialog on its own view. Missing: the SSH Password and Unknown Host Key dialogs are never reached in a window (no SFTP server in tests) |
 | [ ] | `editor-lsp.hierarchyDialog` | src/editor/lsp/index.ts:84 |  |
 | [~] | `editor-lsp.popups` | src/editor/lsp/index.ts:83 | `editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`, `editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`, `editor::intelligence::tests::parameter_info_opens_after_a_parenthesis_and_follows_the_commas`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`, `workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `editor_lsp::definition_view::tests`, `workbench::editor_extras::tests::reformat_file_reformats_the_scope_chosen_in_the_dialog`; the lookup, hover, parameter info, intentions, the target chooser, the quick definition popup and the Reformat File dialog; rename asks in a dialog instead of the popup at the caret, Expression Type Info shows a hint instead of the doc popup, and the imports-on-paste dialog is not built |
 | [x] | `editor.gotoLine` | src/editor/core/index.ts:71 | `workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`, `workbench::popup_placement::tests::escape_closes_go_to_line_and_the_editor_has_the_keyboard_again`, `workbench::popup_placement::tests::go_to_line_is_a_dialog_and_enter_moves_the_caret_to_the_typed_line_and_column`, `workbench::popup_placement::tests::go_to_line_takes_a_line_a_line_and_column_and_a_comma`, `workbench::popup_placement::tests::the_go_to_line_key_runs_nothing_while_a_tool_window_has_the_keyboard`; see the navigate.gotoLine action |
@@ -1458,7 +1458,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `vcs.branch` | src/features/vcs/index.ts:84 | `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`; no tooltip on the widget |
 | [x] | `vcs.mergeRebase` | src/features/vcs/index.ts:60 | `workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`, `workbench::tests::proofs15_merge_resolve::resolve_conflicts_on_the_title_bar_opens_the_conflicts_dialog_again`; Abort, Continue and Skip of a stopped operation, and Resolve on the widget opens the conflicts dialog again |
 
-## Tool windows (1/32 at parity, 20 partial)
+## Tool windows (1/32 at parity, 21 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
@@ -1487,7 +1487,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `project` | src/features/project-tree/index.ts:193 | `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`, `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`, `workbench::context_menus::tests::move_to_in_a_tool_windows_options_moves_it`, `workbench::context_menus::tests::the_stripe_buttons_menu_hides_the_button`, `workbench::project_view_options::tests::the_options_menu_lists_the_view_options_and_they_survive_reopening_the_project`, `workbench::project_view_options::tests::switches_panes_and_remembers_the_choice`; a tool window with a stripe button, a title, the header's Options menu (the Appearance and Behavior view options, the sort orders, Move To, Maximize, Hide; a row toggles its option and the options survive reopening the project), the four panes switched through their actions, and the stripe button's menu. Missing: no test reads the header's Select Opened File, Expand All and Collapse All buttons or the title menu that picks the pane (none was found in the Project view's header code) |
 | [~] | `pullRequests` | src/features/github/index.ts:270 | `github::window_view::tests::registers_the_window_and_offers_its_header_actions`, `workbench::github::tests::the_window_connects_and_lists_two_pull_requests_with_their_state_author_and_labels`, `workbench::github::tests::view_pull_request_opens_its_tab_with_its_title_branches_checks_and_changed_files`, `workbench::github::tests::the_refresh_keys_work_only_in_the_pull_requests_window_on_their_tab`, `workbench::github::tests::without_gh_installed_the_window_offers_to_install_it`, `workbench::github::tests::proofs14_github_window::opens_the_new_pull_request_tab_once_and_closes_back_to_the_previous_tab`, `workbench::github::part2::tests::create_pull_request_creates_the_current_branchs_pull_request_and_opens_its_tab`; the Pull Requests window is declared with its title and icon, mounts on first use, shows gh's state, the list tab, #N tabs and the New Pull Request tab (opened once from the header's + button, its form creating the pull request and giving way to its #N tab), the tab strip scrolls the active tab into view beside the header's buttons, and it takes the keyboard. Missing: the header's Select Opened Pull Request (github.selectOpenedPullRequest is emitted but not registered) and the progress line with Cancel |
 | [ ] | `remote.ports` | src/features/remote-dev/index.ts:31 |  |
-| [ ] | `remoteHost` | src/features/deployment/index.ts:77 |  |
+| [~] | `remoteHost` | src/features/deployment/index.ts:77 | `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`, `workbench::deployment::tests::the_remote_host_server_chooser_shows_the_other_servers_files`, `deployment::remote_host_view::tests::connecting_then_an_error_with_retry`, `deployment::remote_host_view::tests::folders_expand_from_the_chevron_and_the_keyboard_and_files_open`, `deployment::remote_host_view::tests::shows_the_servers_files_with_the_expanded_folders_entries_under_them`, `deployment::remote_host_view::tests::the_context_menu_offers_what_the_selection_allows`, `deployment::remote_host_view::tests::the_toolbar_chooses_the_server_refreshes_collapses_and_configures`, `deployment::remote_host_view::tests::without_servers_the_window_offers_to_configure_them`; the Remote Host tool window on the right stripe once used: the server chooser, refresh, collapse and settings, the root path, the tree with folders expanding from the chevron and the keyboard, and the row menu (Open, Download to Project, New Folder, Rename, Delete, Refresh, Copy Path). Missing: speed search in the tree |
 | [~] | `run` | src/features/run/index.ts:375 | `workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `workbench::tests::a_run_in_a_terminal_console_is_told_the_consoles_size_and_follows_a_resize`, `run::view::tests`, `workbench::tests::proofs16_run_badge::the_run_stripe_button_shows_the_number_of_running_processes`; the stripe button shows the number of running processes. Missing: tabs are drawn in the body rather than the header, and there are no test tree or stack-trace tabs |
 | [~] | `services` | src/features/services/index.ts:54 | `workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`, `services::view::tests`; the tree with run configurations and Docker nodes, toolbar, menus, selection and the detail pane of a run. Not yet: Docker operations, dashboards and dialogs, the picker of Add Service, dragging rows, a resizable split, debug sessions |
 | [~] | `structure` | src/features/search/index.ts:153 | `workbench::tests::the_structure_window_follows_the_editor_and_goes_to_the_chosen_symbol`, `everywhere::structure_window::tests`; the outline of the active editor with its options; the line a preview shows is not followed, and Select In › Structure does not exist |
@@ -1592,7 +1592,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `vcs.mappings` | src/features/settings/pages/vcs.tsx | `workbench::tests::proofs19_settings_misc::directory_mappings_map_a_repository_root_to_git`, `workbench::tests::proofs19_settings_misc::directory_mappings_show_the_project_root`; the page lists the project's roots with their version control (a repository's root maps to Git); the page has nothing to edit, as in the webview |
 | [x] | `vcs.shelf` | src/features/settings/pages/vcs.tsx | `workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's one checkbox: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply |
 
-## Features (0/43 at parity, 16 partial)
+## Features (0/43 at parity, 17 partial)
 
 | | Feature | TS lines | Proof |
 |---|---|---|---|
@@ -1607,7 +1607,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `database` | 13067 |  |
 | [~] | `debugger` | 9287 | `workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`, `workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; see the tool window row; started through a fake adapter declared by a language file |
 | [ ] | `dependencies` | 218 |  |
-| [ ] | `deployment` | 2341 |  |
+| [~] | `deployment` | 2341 | `workbench::deployment::tests::upload_to_default_server_copies_the_file_to_the_server_and_reports_it`, `workbench::deployment::tests::download_from_chooses_the_server_and_replaces_the_local_file`, `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`, `workbench::deployment::tests::delete_from_server_asks_and_deletes_the_remote_copy`, `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; uploads, downloads, deleting on the server, Sync with Deployed with its preview, automatic upload, Open in Browser and the Remote Host tool window, on a server that is a local folder. Missing: the Deployment group in the context menus, the comparison in a window of its own, an editable local side in the comparison, speed search, the Deployment servers settings page, and SFTP end to end |
 | [ ] | `dotnet` | 668 |  |
 | [~] | `github` | 16853 | `workbench::github::tests`, `github::window_view::tests`, `github::list_panel::tests`, `github::details_panel::tests`, `workbench::github::part2::tests::create_pull_request_creates_the_current_branchs_pull_request_and_opens_its_tab`, `workbench::github::part2::tests::toggle_viewed_marks_the_selected_file_viewed_then_not_viewed`, `workbench::github::part2::tests::open_in_worktree_adds_the_pull_requests_head_as_a_worktree_and_opens_it`; the Pull Requests window connects through gh, lists, filters and opens pull requests, refreshes, checks out their branches, opens and copies their pages, changes repository, offers gh auth login and Install gh, runs no gh in Restricted Mode, creates a pull request from the New Pull Request tab, toggles a file viewed and opens a pull request in a worktree. Missing: the timeline editor, review mode, review in the diff and comments, Submit Review, Select Opened Pull Request, Delete Branch, the GitHub clone source, the Git log's checks and the dialogs overlay |
 | [ ] | `graphql` | 2281 |  |
@@ -1942,7 +1942,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [ ] | `src-tauri/src/window_work_area.rs` | 209 |  |
 | [~] | `src-tauri/src/windows.rs` | 2281 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 
-## IPC commands (287/599 at parity, 25 partial, 15 with nothing to port)
+## IPC commands (300/599 at parity, 25 partial, 15 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -2070,15 +2070,15 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `debug_threads` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes | `workbench::debug::tests::proofs6_debug::the_thread_chooser_lists_every_thread_the_adapter_reports` |
 | [x] | `debug_variables` | src-tauri/src/commands/debug.rs | `ide_host::ops` | yes | `workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session` |
 | [ ] | `dependency_versions` | src-tauri/src/commands/dependencies.rs | `ide_host::ops` | yes |  |
-| [ ] | `deploy_compare` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
-| [ ] | `deploy_coverage` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
-| [ ] | `deploy_delete_remote` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
-| [ ] | `deploy_download` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
-| [ ] | `deploy_info` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
-| [ ] | `deploy_server_root` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
-| [ ] | `deploy_sync` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [x] | `deploy_compare` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`; the rows of the Sync dialog can only come from ide_host::ops::deploy::deploy_compare, the function the Tauri adapter calls with the same arguments |
+| [x] | `deploy_coverage` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::upload_to_explains_the_rejected_paths_and_links_settings`; the reasons per server in the notice can only come from ide_host::ops::deploy::deploy_coverage, the function the Tauri adapter calls with the same arguments |
+| [x] | `deploy_delete_remote` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::delete_from_server_asks_and_deletes_the_remote_copy`; the remote copy removed can only come from ide_host::ops::deploy::deploy_delete_remote, the function the Tauri adapter calls with the same arguments |
+| [x] | `deploy_download` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::download_from_chooses_the_server_and_replaces_the_local_file`, `workbench::deployment::tests::download_from_default_server_replaces_the_local_file_without_asking`; the replaced local file can only come from ide_host::ops::deploy::deploy_download, the function the Tauri adapter calls with the same arguments |
+| [x] | `deploy_info` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::open_in_browser_opens_the_deployed_url_of_the_file`; the deployed address can only come from ide_host::ops::deploy::deploy_info, the function the Tauri adapter calls with the same arguments |
+| [x] | `deploy_server_root` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the root shown by the Remote Host window can only come from ide_host::ops::deploy::deploy_server_root, the function the Tauri adapter calls with the same arguments |
+| [x] | `deploy_sync` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`; the files changed on both sides can only come from ide_host::ops::deploy::deploy_sync, the function the Tauri adapter calls with the same arguments |
 | [ ] | `deploy_test_connection` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
-| [ ] | `deploy_upload` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [x] | `deploy_upload` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::upload_to_default_server_copies_the_file_to_the_server_and_reports_it`; the file on the server can only come from ide_host::ops::deploy::deploy_upload, the function the Tauri adapter calls with the same arguments |
 | [x] | `doc_close` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes | `workbench::tests::proofs_editor_actions_tabs::closing_a_tab_releases_its_document_once_no_other_tab_shows_it`; the backend releases a document when the last tab showing it closes, not while another pane shows it; the editor calls documents.close, which ide_host::ops::doc::close only forwards to |
 | [x] | `doc_edit` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes | `workbench::tests::opens_a_loose_file_in_an_editor_and_types_into_it` |
 | [x] | `doc_folding` | src-tauri/src/commands/doc.rs | `ide_host::ops` | yes | `editor::core_actions::tests::the_folding_commands_hide_and_show_the_lines_of_their_regions`; Collapse, Expand, Toggle Fold, Collapse All and the recursive commands act only on the foldable lines the backend's fold ranges give (the test waits for them, and nothing else fills them); the editor calls ide_host::ops::doc::doc_folding with the window and the document, as the adapter does |
@@ -2328,17 +2328,17 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `remote_bootstrap_list` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
 | [ ] | `remote_connect` | src-tauri/src/remote_dev.rs | `ide_host::ops` | yes |  |
 | [ ] | `remote_current` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
-| [ ] | `remote_delete` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [x] | `remote_delete` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the file deleted on the server can only come from ide_host::ops::deploy::remote_delete, the function the Tauri adapter calls with the same arguments |
 | [ ] | `remote_disconnect` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
 | [ ] | `remote_forward_port` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
 | [ ] | `remote_forwarded_ports` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
 | [ ] | `remote_import_local` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
 | [ ] | `remote_invoke` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
-| [ ] | `remote_list` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
-| [ ] | `remote_mkdir` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [x] | `remote_list` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`, `workbench::deployment::tests::the_remote_host_server_chooser_shows_the_other_servers_files`; the server's rows can only come from ide_host::ops::deploy::remote_list, the function the Tauri adapter calls with the same arguments |
+| [x] | `remote_mkdir` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the folder made on the server can only come from ide_host::ops::deploy::remote_mkdir, the function the Tauri adapter calls with the same arguments |
 | [–] | `remote_of` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
-| [ ] | `remote_open` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
-| [ ] | `remote_rename` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes |  |
+| [x] | `remote_open` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the server file's text in the editor can only come from ide_host::ops::deploy::remote_open, the function the Tauri adapter calls with the same arguments |
+| [x] | `remote_rename` | src-tauri/src/commands/deploy.rs | `ide_host::ops` | yes | `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; the file renamed on the server can only come from ide_host::ops::deploy::remote_rename, the function the Tauri adapter calls with the same arguments |
 | [ ] | `remote_stop_forwarding` | src-tauri/src/remote_dev.rs | desktop shell | yes |  |
 | [x] | `remove_recent` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes | `everywhere::recent_view::tests::asks_the_backend_for_the_recent_files_and_forgets_a_closed_one` |
 | [x] | `remove_recent_project` | src-tauri/src/commands/app.rs | desktop shell | yes | `workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects` |
@@ -2638,7 +2638,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `invocation` | wit/workspace.wit | `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`; a command run from the window gets its project and focused editor (the word count of notes.txt), and selected-paths carries the Project view menu's file |
 | [~] | `vcs` | wit/workspace.wit | `workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_reads_the_projects_log_blame_and_diff`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; log, blame and diff answer the commit, its author and the changed line, and status shows as the plugin's branch item. Missing: remotes, and fetch's effect is not asserted |
 
-## Behaviour specification: unit tests (vitest) (366/753 at parity, 115 model only, 126 partial)
+## Behaviour specification: unit tests (vitest) (371/753 at parity, 109 model only, 127 partial)
 
 753 files, 6287 cases. A row is at parity when the behaviour its cases assert is covered by Rust tests of the GPUI app.
 
@@ -2960,12 +2960,12 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `src/features/debugger/editor/runToCursor.test.ts` | 2 | `debugger::editor::run_to_cursor::tests` |
 | [m] | `src/features/dependencies/dependencies.test.ts` | 11 | `features_b::dependencies::tests` |
 | [~] | `src/features/deployment/actions.test.tsx` | 11 | `features_b::deployment::actions::tests`, `features_b::deployment::store::tests`; the state and logic of 11 of 11 cases, on the model; the view is not built |
-| [m] | `src/features/deployment/comparison.test.ts` | 7 | `features_b::deployment::comparison::tests` |
-| [m] | `src/features/deployment/Dialogs.test.tsx` | 7 | `features_b::deployment::sync_view::tests` |
-| [m] | `src/features/deployment/model.test.ts` | 14 | `features_b::deployment::model::tests` |
-| [m] | `src/features/deployment/remoteHost.test.ts` | 3 | `features_b::deployment::remote_host::tests` |
+| [x] | `src/features/deployment/comparison.test.ts` | 7 | `features_b::deployment::comparison::tests` |
+| [x] | `src/features/deployment/Dialogs.test.tsx` | 7 | `features_b::deployment::sync_view::tests` |
+| [x] | `src/features/deployment/model.test.ts` | 14 | `features_b::deployment::model::tests` |
+| [x] | `src/features/deployment/remoteHost.test.ts` | 3 | `features_b::deployment::remote_host::tests` |
 | [~] | `src/features/deployment/SyncPreview.test.tsx` | 3 | `features_b::deployment::preview::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built |
-| [m] | `src/features/deployment/window.test.ts` | 2 | `features_b::deployment::window::tests` |
+| [~] | `src/features/deployment/window.test.ts` | 2 | `features_b::deployment::window::tests`; 2 of 2 cases on the model. The app uses only the closing steps, for the Sync dialog (keeping unsaved local edits when closing is cancelled or saving fails). Missing: the comparison in a window of its own, which loads the parent project before comparing, is not built |
 | [m] | `src/features/dotnet/store.test.ts` | 6 | `features_b::dotnet::tests` |
 | [x] | `src/features/github/api/api.test.ts` | 10 | `github::api::tests` |
 | [~] | `src/features/github/clone/GitHubCloneSource.test.tsx` | 3 | `github::clone::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built |
@@ -3352,7 +3352,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `src/platform/copyPath.test.ts` | 3 | `platform::misc::copy_path::tests` |
 | [x] | `src/platform/cssColor.test.ts` | 2 | `platform::css_color::tests::parses_hex_rgb_and_color_srgb_and_formats_them_back`, `platform::css_color::tests::resolves_tokens_written_as_hsl`; both cases: hex, rgb() and color(srgb) parse and format back, and tokens written as hex or hsl() resolve to the same colours, through the token engine where the webview probes the browser (the probe element it checks is removed is the DOM's, with no native counterpart) |
 | [~] | `src/platform/dateFormat.test.ts` | 2 | `platform::date_format::tests`; system formats are implemented for en-US only (Node prints `09:07 AM` with a plain space; what WebKit prints was not measured) |
-| [m] | `src/platform/deploymentSettings.test.ts` | 3 | `platform_more::remote_settings::tests` |
+| [x] | `src/platform/deploymentSettings.test.ts` | 3 | `platform_more::remote_settings::tests` |
 | [~] | `src/platform/dotnet.test.ts` | 6 | `platform_more::dotnet::tests`; the two cases about the test runner's arguments belong to the run feature's .NET types and test parsers, which are not ported |
 | [m] | `src/platform/dotnetProcess.test.ts` | 4 | `platform_more::dotnet_process::tests` |
 | [ ] | `src/platform/doubleClick.test.ts` | 5 |  |
