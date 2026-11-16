@@ -1572,6 +1572,7 @@ impl Workbench {
         self.vcs_state_changed(cx);
         self.conflicts_changed(conflicts, cx);
         self.changelists_follow_status(cx);
+        self.editor_gutter_vcs_changed(cx);
         for (_, sender) in settled {
             // The waiter may be gone.
             let _ = sender.send(());

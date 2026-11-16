@@ -14,6 +14,7 @@ pub mod external_log_view;
 pub mod git_form_dialog;
 pub mod git_forms;
 pub mod graph;
+pub mod hunk_popup;
 pub mod interactive_rebase_dialog;
 pub mod local_history_view;
 pub mod log_branches;

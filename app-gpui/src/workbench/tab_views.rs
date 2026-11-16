@@ -956,6 +956,9 @@ impl Workbench {
                     }
                     Err(message) => Content::Failed(message.into()),
                 };
+                if let Some(editor) = workbench.editor().cloned() {
+                    workbench.editor_gutter_opened(&editor, window, cx);
+                }
                 workbench.sync_welcome(window, cx);
                 workbench.light_edit_opened(window, cx);
                 cx.notify();

@@ -62,6 +62,19 @@ fn focus(editor: &Entity<Editor>, cx: &mut VisualTestContext) {
     cx.run_until_parked();
 }
 
+/// The preview's gutter is the plain one of a preview: no change bars, no caret row across it, no
+/// bookmarks or run marks columns, and nothing of it is reported to the window.
+#[track_caller]
+fn assert_plain_gutter(editor: &Entity<Editor>, cx: &mut VisualTestContext) {
+    cx.update(|window, _| window.refresh());
+    cx.run_until_parked();
+    editor.read_with(cx, |editor, cx| {
+        assert!(!editor.gutter_marks_enabled(), "the preview draws no gutter marks");
+        assert_eq!((editor.gutter_column("bookmarks", cx), editor.gutter_column("run", cx)), (None, None));
+        assert!(editor.lane_marks().is_empty() && editor.painted_gutter_rows().is_empty());
+    });
+}
+
 /// Find in Files with `query` searched, its preview on the first result of `path`, which it returns
 /// with the popup.
 fn find_previewed(
@@ -87,6 +100,7 @@ async fn shows_the_file_editable_in_an_editor_view_with_the_matches_highlighted(
     let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/a.rs", ORIGINAL)]);
     let path = text_of(&root.join("src/a.rs"));
     let (_, editor) = find_previewed(&workbench, "order", &path, cx);
+    assert_plain_gutter(&editor, cx);
     editor.read_with(cx, |editor, _| {
         assert_eq!(editor.text(), ORIGINAL);
         assert!(!editor.is_read_only(), "the preview edits the document");
@@ -286,6 +300,7 @@ async fn the_bookmarks_popup_previews_the_bookmarked_line_in_an_editor(cx: &mut 
     assert!(on_mark(cx), "the bookmark is selected");
     let preview = popup.read_with(cx, |popup, _| popup.code_preview().clone());
     let editor = previewed(&preview, &path, cx);
+    assert_plain_gutter(&editor, cx);
     assert!(!editor.read_with(cx, |editor, _| editor.is_read_only()));
     assert_eq!(marked(&editor, MarkKind::CurrentLine, cx), [(1, "fn order() {}".to_owned())]);
     assert_eq!(editor.read_with(cx, |editor, _| editor.caret_position()), (1, 0));
@@ -320,6 +335,7 @@ async fn the_usages_preview_marks_every_usage_of_the_file_read_only(cx: &mut Tes
     let pane = view.read_with(cx, |view, _| view.preview().cloned()).expect("the preview pane");
     let Ok(preview) = pane.downcast::<CodePreview>() else { panic!("the pane is a code preview") };
     let editor = previewed(&preview, &b, cx);
+    assert_plain_gutter(&editor, cx);
     assert!(editor.read_with(cx, |editor, _| editor.is_read_only()), "the usages preview does not edit");
     assert_eq!(
         marked(&editor, MarkKind::FindOccurrence, cx),

@@ -43,6 +43,7 @@ impl Workbench {
 
     /// Gives the tool window the bookmarks as they are after a change made elsewhere.
     pub(super) fn sync_bookmarks_window(&mut self, cx: &mut Context<Self>) {
+        self.editor_gutter_bookmarks_changed(cx);
         let Some(view) = self.bookmarks_window_view() else { return };
         let store = self.bookmarks.clone();
         view.update(cx, |view, cx| view.set_store(store, cx));
@@ -74,6 +75,7 @@ impl Workbench {
             BookmarksWindowEvent::Changed(writes) => {
                 self.bookmarks = view.read(cx).store().clone();
                 Self::save_bookmark_writes(writes, cx);
+                self.editor_gutter_bookmarks_changed(cx);
                 cx.notify();
             }
             BookmarksWindowEvent::ShowMenu(position) => {

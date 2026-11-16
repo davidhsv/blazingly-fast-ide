@@ -91,7 +91,7 @@ pub(super) struct GutterRow {
 
 /// `name`'s colour, else `fallback`'s: a theme that lacks the editor's own token falls back as the
 /// stylesheet's `var(--name, var(--fallback))` does.
-fn token_or(cx: &App, name: &str, fallback: &str) -> Hsla {
+pub(super) fn token_or(cx: &App, name: &str, fallback: &str) -> Hsla {
     let theme = cx.try_global::<theme::ActiveTheme>().map(|active| &active.theme);
     match theme.and_then(|theme| theme.color(name)) {
         Some(c) => Rgba { r: c.r, g: c.g, b: c.b, a: c.a }.into(),
@@ -225,7 +225,7 @@ impl Editor {
             return None;
         }
         let width = theme::zoomed(cx, CHANGE_LANE);
-        Some((-(width + self.fold_column_width(cx)), width))
+        Some((-(width + self.fold_column_width(cx) + self.gutter_border(cx)), width))
     }
 
     /// Whether `position` is on the change lane or within its slack on either side.

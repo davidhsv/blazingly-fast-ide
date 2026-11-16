@@ -304,14 +304,27 @@ impl Workbench {
     /// Run or Debug of a selected "Current File" (`{ currentFile: true }`) selects "Current File" again once
     /// the context's configuration is adopted.
     pub fn run_context(&mut self, debug: bool, arg: Option<Value>, window: &mut Window, cx: &mut Context<Self>) {
+        self.run_context_telling(debug, arg, nothing_to_run, window, cx);
+    }
+
+    /// Runs or debugs the context of `arg` as [`Workbench::run_context`] does; a context with nothing
+    /// to run is told with `nothing` (a run mark of the gutter says it in its own words).
+    pub(super) fn run_context_telling(
+        &mut self,
+        debug: bool,
+        arg: Option<Value>,
+        nothing: fn() -> NotificationRequest,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let reselect = is_current_file_arg(arg.as_ref());
         self.with_context(
             arg,
             move |workbench, target, window, cx| match target {
                 Some((target, from_editor)) => {
-                    workbench.launch_context(debug, reselect, target, from_editor, window, cx)
+                    workbench.launch_context(debug, reselect, target, from_editor, nothing, window, cx)
                 }
-                None => workbench.notify(nothing_to_run(), cx),
+                None => workbench.notify(nothing(), cx),
             },
             window,
             cx,
@@ -454,12 +467,14 @@ impl Workbench {
     /// Runs or debugs the context: several matching test configurations are offered in a menu (below
     /// the caret for the editor's context, else near the top of the window); a single production is
     /// resolved with its runtimes and launched.
+    #[expect(clippy::too_many_arguments, reason = "the context, how it was asked for, and what to say without one")]
     fn launch_context(
         &mut self,
         debug: bool,
         reselect: bool,
         target: ContextTarget,
         from_editor: bool,
+        nothing: fn() -> NotificationRequest,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -485,7 +500,7 @@ impl Workbench {
             target,
             move |workbench, produced, window, cx| match produced {
                 Some(produced) => workbench.launch_production(produced, debug, reselect, window, cx),
-                None => workbench.notify(nothing_to_run(), cx),
+                None => workbench.notify(nothing(), cx),
             },
             window,
             cx,
@@ -559,7 +574,7 @@ impl Workbench {
     /// Runs or debugs a production, adopting its configuration as the selected temporary one ("Current
     /// File" is selected again after it when `reselect`). A compiled file is built in the Run tool window
     /// first and its binary debugged once the build succeeded.
-    fn launch_production(
+    pub(super) fn launch_production(
         &mut self,
         produced: Produced,
         debug: bool,

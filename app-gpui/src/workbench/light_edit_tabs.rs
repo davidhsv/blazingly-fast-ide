@@ -430,6 +430,12 @@ mod tests {
             })
             .expect("the window is open");
         wait(cx, "a.txt shown", &|cx| editing(cx, &workbench) == Some(roots[0].join("a.txt")));
+        let a = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("a.txt has its editor");
+        assert!(
+            a.read_with(cx, |editor, _| editor.gutter_marks_enabled()),
+            "the first loose file's gutter has its marks"
+        );
+        assert!(b.read_with(cx, |editor, _| editor.gutter_marks_enabled()));
         assert_eq!(workbench.read_with(cx, |w, cx| w.title(cx)), "a.txt");
         assert_eq!(workbench.read_with(cx, |w, _| w.light_edit_title()).as_deref(), Some("a.txt"));
         assert_eq!(workbench.read_with(cx, |w, cx| w.status_items(cx))[0], "1:1");

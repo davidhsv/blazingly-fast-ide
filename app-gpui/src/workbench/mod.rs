@@ -35,6 +35,7 @@ mod edit_actions;
 mod editor_core;
 mod editor_extras;
 mod editor_find;
+mod editor_gutter;
 mod editor_intelligence;
 mod editor_language;
 mod editor_structure;
@@ -330,6 +331,8 @@ pub struct Workbench {
     active_key: Option<String>,
     /// The bookmarks of the window's project.
     bookmarks: BookmarkStore,
+    /// What feeds the editors' gutters: change bars, bookmarks, run marks ([`editor_gutter`]).
+    editor_gutter: editor_gutter::EditorGutterSlot,
     /// The balloons at the bottom right of the window, and what times their fading.
     balloons: Entity<NotificationBalloons>,
     balloon_clocks: BalloonClocks,
@@ -1218,6 +1221,7 @@ impl Workbench {
             activations: HashMap::new(),
             active_key: None,
             bookmarks: BookmarkStore::default(),
+            editor_gutter: Default::default(),
             balloons,
             balloon_clocks: BalloonClocks::default(),
             balloon_view: BalloonView::default(),
@@ -1808,6 +1812,7 @@ impl Workbench {
                 }
             }
         }
+        self.editor_gutter_shown_changed(cx);
         // A window that edits loose files closes with its last tab, once no closed tab waits on a save.
         self.close_emptied_light_edit(closing.is_empty(), window, cx);
         cx.notify();
@@ -2050,6 +2055,7 @@ impl Workbench {
                 }
                 self.code_insight_settings_changed(cx);
                 self.deployment_settings_changed(cx);
+                self.editor_gutter_settings_changed(cx);
                 return;
             }
             IdeEvent::Notify { level, title, body } => {
@@ -2817,12 +2823,16 @@ impl Workbench {
     pub fn toggle_bookmark(&mut self, place: Option<(String, u32)>, cx: &mut Context<Self>) {
         let now = now_ms() as u64;
         let at = match place {
+            // The line's text is read from an editor of the file, the active one first: a press in
+            // another pane's gutter names a line of that pane's file.
             Some((path, line)) => {
+                let of_path = |editor: &&Entity<Editor>| editor.read(cx).path().to_string_lossy() == path.as_str();
+                let editors = self.editors();
                 let text = self
                     .editor()
-                    .map(|editor| editor.read(cx))
-                    .filter(|editor| editor.path().to_string_lossy() == path.as_str())
-                    .map(|editor| editor.line_text(line))
+                    .filter(of_path)
+                    .or_else(|| editors.iter().find(of_path))
+                    .map(|editor| editor.read(cx).line_text(line))
                     .unwrap_or_default();
                 Some((path, line, text, None))
             }
@@ -4042,6 +4052,7 @@ impl Workbench {
                             workbench.watch_debug_editor(&editor, window, cx);
                             workbench.watch_plugin_gutter(&editor, window, cx);
                             workbench.http_editor_opened(&editor, window, cx);
+                            workbench.editor_gutter_opened(&editor, window, cx);
                         }
                     }
                     Err(message) => {
@@ -4384,6 +4395,7 @@ impl Render for Workbench {
             .child(div().flex_1().min_h_0().w_full().child(body))
             .children(self.plugin_gutter_layer(cx))
             .children(self.http_gutter_layer(cx))
+            .children(self.editor_gutter_layer(cx))
             .child(notification_balloons::layer(&self.balloons, cx))
             .children(self.merge_window_layer(cx))
             .children(self.diff_window_layer(cx))
@@ -4500,6 +4512,7 @@ mod tests {
     mod proofs25_syntax_tree;
     mod proofs26_code_preview;
     mod proofs26_save_all;
+    mod proofs27_gutter;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

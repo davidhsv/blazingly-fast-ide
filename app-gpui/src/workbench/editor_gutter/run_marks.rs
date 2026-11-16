@@ -13,7 +13,7 @@ use crate::run::context::RunEnv;
 use crate::run::targets::{RunTarget, TargetKind};
 use crate::run_producers::context_run::{
     ContextArg, ContextShortcuts, DEBUG_CONTEXT, MenuRow, RUN_CONTEXT, RunCommand, WITH_EXECUTOR, marker_icon,
-    target_label, target_menu_items, target_title,
+    nothing_to_run, target_label, target_menu_items, target_title,
 };
 use crate::run_producers::npm_gutter::{ScriptCommand, ScriptEntry, ScriptMenuFlow, ScriptMenuStep, script_entries};
 use crate::run_producers::producers::{ContextInput, file_targets, jvm_build_owns};
@@ -173,15 +173,28 @@ impl Workbench {
     /// Finds the editor `id`'s run marks once `delay` has passed without another edit, off the
     /// window's thread: the producers' targets of a source, the scripts of a `package.json`.
     pub(super) fn find_run_marks(&mut self, id: EntityId, delay: Duration, cx: &mut Context<Self>) {
-        let Some(followed) = self.editor_gutter.followed.get(&id) else { return };
+        let shown = self.gutter_shown(id);
+        let Some(followed) = self.editor_gutter.followed.get_mut(&id) else { return };
         if matches!(followed.run, RunMarks::None) {
+            return;
+        }
+        // An editor no pane shows searches once one does.
+        if !shown {
+            followed.run_stale = true;
+            followed.run_search = None;
             return;
         }
         let search = cx.spawn(async move |this, cx| {
             if !delay.is_zero() {
                 cx.background_executor().timer(delay).await;
             }
-            let input = this.update(cx, |workbench, cx| workbench.run_marks_input(id, cx));
+            let input = this.update(cx, |workbench, cx| {
+                #[cfg(test)]
+                if let Some(followed) = workbench.editor_gutter.followed.get_mut(&id) {
+                    followed.calls.run_searches += 1;
+                }
+                workbench.run_marks_input(id, cx)
+            });
             let Ok(Some(input)) = input else { return };
             let found = cx.background_executor().spawn(async move { input.find() }).await;
             let _ = this.update(cx, |workbench, cx| workbench.run_marks_found(id, found, cx));
@@ -279,7 +292,7 @@ impl Workbench {
                 self.show_menu(
                     &items,
                     at,
-                    |workbench, command, window, cx| workbench.run_gutter_command(command, window, cx),
+                    |workbench, command, window, cx| workbench.run_mark_command(command, window, cx),
                     window,
                     cx,
                 );
@@ -297,10 +310,16 @@ impl Workbench {
     }
 
     /// Carries out a row of a run mark's menu.
-    fn run_gutter_command(&mut self, command: RunCommand, window: &mut Window, cx: &mut Context<Self>) {
+    pub(in crate::workbench) fn run_mark_command(
+        &mut self,
+        command: RunCommand,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         match command {
+            // A mark with nothing to run says so in the gutter's words, not the action's.
             RunCommand::LaunchContext { context, debug } => {
-                self.run_context(debug, Some(context_value(&context)), window, cx);
+                self.run_context_telling(debug, Some(context_value(&context)), nothing_to_run, window, cx);
             }
             RunCommand::Launch { produced, debug } => self.launch_production(*produced, debug, false, window, cx),
             RunCommand::Modify(context) => self.modify_context(Some(context_value(&context)), window, cx),

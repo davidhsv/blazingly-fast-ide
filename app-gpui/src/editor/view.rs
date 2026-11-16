@@ -55,6 +55,7 @@ pub mod annotations;
 mod caret_glide;
 mod column_gestures;
 mod doc_tags;
+pub mod gutter_marks;
 pub(crate) mod right_margin;
 mod string_literals;
 mod token_style;
@@ -129,6 +130,8 @@ const NUMBER_PADDING_RIGHT: f32 = 8.0;
 
 /// The change bars' column, between the icon columns and the fold chevrons.
 const CHANGE_LANE: f32 = 4.0;
+/// The hairline that closes the gutter on its right, between the fold chevrons and the text.
+const GUTTER_BORDER: f32 = 1.0;
 
 /// A layer of the editor's frame whose order tests read.
 #[cfg(test)]
@@ -382,6 +385,8 @@ pub struct Editor {
     pub(super) core: super::core_actions::CoreState,
     /// Blame annotations shown in the gutter's first column ([`annotations`]).
     annotations: Option<annotations::Annotations>,
+    /// The change bars and the caret's gutter tint the workbench turns on ([`gutter_marks`]).
+    gutter_marks: gutter_marks::GutterMarks,
     /// The main caret's glide to its new place, while Smooth caret movement draws one.
     glide: Option<caret_glide::Glide>,
 }
@@ -494,6 +499,7 @@ impl Editor {
             created: std::time::Instant::now(),
             core: Default::default(),
             annotations: None,
+            gutter_marks: Default::default(),
             glide: None,
         };
         editor.refresh_highlights(cx);
@@ -799,8 +805,14 @@ impl Editor {
         }
         let at = self.gutter_columns.iter().position(|column| column.id == id && column.width > 0.0)?;
         let from_left: f32 = self.gutter_columns[at..].iter().map(|column| column.width).sum();
-        let left = -(theme::zoomed(cx, from_left + CHANGE_LANE) + self.fold_column_width(cx));
+        let left = -(theme::zoomed(cx, from_left + CHANGE_LANE) + self.fold_column_width(cx) + self.gutter_border(cx));
         Some((left, theme::zoomed(cx, self.gutter_columns[at].width)))
+    }
+
+    /// The width of the hairline right of the gutter: none in Distraction Free Mode, which draws no
+    /// gutter.
+    pub fn gutter_border(&self, cx: &App) -> Pixels {
+        if distraction_free(cx) { px(0.0) } else { theme::zoomed(cx, GUTTER_BORDER) }
     }
 
     /// The width of the fold chevrons' column: none while Code Folding › Show code folding outline
@@ -1831,6 +1843,10 @@ impl Editor {
         window.focus(&self.focus, cx);
         if let Some(line) = self.gutter_line_at(event.position) {
             (self.drag_anchor, self.adding) = (None, None);
+            // A press on a change bar opens its change; ⌘-click toggles the line's bookmark.
+            if self.press_gutter_marks(event, line, cx) {
+                return;
+            }
             // The blame annotations' column answers its own presses: no breakpoint toggles there.
             if self.press_annotation(event.position, cx) {
                 return;
@@ -2255,10 +2271,13 @@ impl Element for EditorElement {
         let token_styles = token_style::TokenStyles::new(&code_font, editor.language.as_str(), cx);
         let brackets = editor.facts.rainbow_brackets.then(|| editor.bracket_marks());
         let plain = theme::color(cx, "fg-editor");
-        let number_color = theme::color(cx, "fg-gutter");
+        let number_color = gutter_marks::token_or(cx, "fg-line-number", "fg-gutter");
         let match_color = theme::color(cx, "fg-search-match");
         let placeholder_color = theme::color(cx, "fg-fold-placeholder");
         let marker_color = theme::color(cx, "fg-fold-marker");
+        // The numbers of the lines the ranges' moving ends are on are drawn in the stronger colour.
+        let caret_lines = editor.gutter_caret_lines();
+        let current_number_color = gutter_marks::current_number_color(cx);
         let total = editor.line_count();
         // The frame paints the rows in view; a row is a line no fold hides.
         let folds = &editor.core.folds;
@@ -2371,10 +2390,11 @@ impl Element for EditorElement {
             let shaped = window.text_system().shape_line(text.clone().into(), font_size, &runs, None);
             lines.push((text, shaped));
             let label = (line + 1).to_string();
+            let color = if caret_lines.binary_search(&line).is_ok() { current_number_color } else { number_color };
             numbers.push(window.text_system().shape_line(
                 label.clone().into(),
                 font_size,
-                &[run(label.len(), number_color)],
+                &[run(label.len(), color)],
                 None,
             ));
             // A folded header shows a placeholder (a custom region's name), then what of the fold's
@@ -2415,7 +2435,7 @@ impl Element for EditorElement {
             let column = zero.width * editor.facts.distraction_free_width.clamp(20, 500) as f32 + px(22.0);
             ((bounds.size.width - column) / 2.0).max(px(0.0))
         } else {
-            gutter
+            gutter + editor.gutter_border(cx)
         };
         let text_area = Bounds::from_corners(point(bounds.left() + text_left, bounds.top()), bounds.bottom_right());
         let text_hitbox = Some(window.insert_hitbox(text_area, HitboxBehavior::Normal));
@@ -2489,6 +2509,8 @@ impl Element for EditorElement {
         let (line_height, text_left, fold_column, annotation_column) =
             (layout.line_height, layout.text_left, layout.fold_column, layout.annotation_column);
         let focused = focus.is_focused(window);
+        // The lane mark of each painted row: one lookup per row.
+        let gutter_rows = self.editor.read(cx).gutter_rows(&layout.line_of);
         let mark_color = |cx: &App, kind: MarkKind| match kind {
             MarkKind::FindOccurrence => theme::color(cx, "bg-search-match"),
             MarkKind::CurrentFindOccurrence => theme::color(cx, "bg-search-match-current"),
@@ -2508,8 +2530,19 @@ impl Element for EditorElement {
         let mut painted_numbers = Vec::new();
         #[cfg(test)]
         let mut paint_order = Vec::new();
+        #[cfg(test)]
+        let mut painted_gutter = Vec::new();
         window.with_content_mask(Some(gpui_kit::ContentMask { bounds }), |window| {
             window.paint_quad(fill(bounds, theme::color(cx, "bg-editor")));
+            // The gutter's own background, closed on its right by the hairline.
+            if *gutter > px(0.0) {
+                let left = bounds.left();
+                let area = Bounds::new(point(left, bounds.top()), size(*gutter, bounds.size.height));
+                window.paint_quad(fill(area, gutter_marks::token_or(cx, "bg-editor-gutter", "bg-editor")));
+                let line =
+                    Bounds::new(point(left + *gutter, bounds.top()), size(text_left - *gutter, bounds.size.height));
+                window.paint_quad(fill(line, gutter_marks::token_or(cx, "border-gutter", "border")));
+            }
             let rope = self.editor.read(cx).rope.clone();
             let heads: Vec<(u32, u32)> =
                 selections.iter().map(|range| (buffer::line_col(&rope, range.head()).0, range.head())).collect();
@@ -2546,6 +2579,25 @@ impl Element for EditorElement {
                         #[cfg(test)]
                         painted_marks.push((kind, row_area));
                     }
+                }
+                // The caret's tint across the gutter and the change bar, under the numbers and icons.
+                if gutter_rows.enabled {
+                    let row = gutter_marks::GutterRow {
+                        left: bounds.left(),
+                        gutter: *gutter,
+                        fold_column,
+                        top,
+                        line_height,
+                        caret_row: heads.iter().any(|head| head.0 == line),
+                        lane: gutter_rows.lane.get(index).copied().flatten(),
+                    };
+                    gutter_marks::paint_gutter_row(&row, window, cx);
+                    #[cfg(test)]
+                    painted_gutter.push((
+                        line,
+                        row.caret_row,
+                        row.lane.map(|lane| (lane, gutter_marks::lane_bounds(&row, cx))),
+                    ));
                 }
             }
             right_margin::paint_right_margins(&layout.right_margins, bounds, text_left, window, cx);
@@ -2725,7 +2777,13 @@ impl Element for EditorElement {
                 painted_fonts: Vec::new(),
             },
         );
-        self.editor.update(cx, |editor, _| editor.layout = Some(layout));
+        self.editor.update(cx, |editor, _| {
+            editor.layout = Some(layout);
+            #[cfg(test)]
+            {
+                editor.gutter_marks.painted = painted_gutter;
+            }
+        });
     }
 }
 

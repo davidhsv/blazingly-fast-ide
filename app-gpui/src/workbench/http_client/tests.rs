@@ -569,11 +569,16 @@ async fn a_run_mark_stands_in_its_own_gutter_column_right_of_the_line_number(cx:
         .expect("line 2's number is drawn")
         .1;
     assert!(number.right() <= mark.left(), "the mark {mark:?} is over the number {number:?}");
-    assert_eq!(mark.left() - number.right(), px(8.0), "the numbers' right padding");
+    // The numbers' right padding, then the bookmarks' 15 px column, which stands left of the HTTP marks.
+    assert_eq!(mark.left() - number.right(), px(8.0 + 15.0), "the numbers' right padding and the bookmarks");
     let (text_left, fold) =
         editor.read_with(cx, |e, cx| (e.position_of(e.offset_of(1, 0)).expect("painted").x, e.fold_column_width(cx)));
     assert_eq!(mark.size.width, px(14.0), "the column's width");
-    assert_eq!(text_left - mark.right(), px(4.0) + fold, "the change bars' column and the fold chevrons");
+    assert_eq!(
+        text_left - mark.right(),
+        px(4.0) + fold + px(1.0),
+        "the change bars' column, the fold chevrons and the gutter's hairline"
+    );
 }
 
 /// Whether action `id` may run in the window as it is now (its `when` clause holds).

@@ -34,9 +34,9 @@ use crate::vcs::hunk_popup::{HunkPopup, HunkPopupData, HunkPopupEvent};
 use crate::vcs_diff::doc::{Direction, Doc};
 use crate::vcs_diff::gutter::{EditorHunk, FetchStep, HunkFetcher, HunkState, color_token};
 use gpui_kit::{
-    AnyElement, App, Bounds, Context, Entity, EntityId, Focusable as _, FontWeight, MouseButton, MouseDownEvent,
-    Pixels, Point, SharedString, Subscription, Task, WeakEntity, Window, anchored, deferred, div, point, prelude::*,
-    px, size,
+    AnyElement, App, Bounds, Context, Entity, EntityId, Focusable as _, FontWeight, Hsla, MouseButton, MouseDownEvent,
+    PathBuilder, Pixels, Point, SharedString, Subscription, Task, WeakEntity, Window, anchored, canvas, deferred, div,
+    point, prelude::*, px, size,
 };
 use ide_core::TextChange;
 use ide_host::ops::vcs as git;
@@ -79,6 +79,31 @@ enum RunMarks {
     Scripts(Vec<(ScriptEntry, u32)>),
 }
 
+/// The bookmark's outline (a ribbon with a notch at its foot) in `color`, `size` square: the gutter
+/// draws the outline in the accent colour, not the bookmarks tool window's filled icon.
+fn bookmark_outline(size: Pixels, color: Hsla) -> AnyElement {
+    // The ribbon's corners on a 24 unit square, stroked two units wide.
+    const RIBBON: [(f32, f32); 5] = [(7.0, 4.0), (17.0, 4.0), (17.0, 20.0), (12.0, 16.0), (7.0, 20.0)];
+    let outline = canvas(
+        |_, _, _| {},
+        move |bounds, _, window, _| {
+            let unit = bounds.size.width / 24.0;
+            let at = |(x, y): (f32, f32)| point(bounds.left() + unit * x, bounds.top() + unit * y);
+            let mut path = PathBuilder::stroke(unit * 2.0);
+            path.move_to(at(RIBBON[0]));
+            for corner in &RIBBON[1..] {
+                path.line_to(at(*corner));
+            }
+            path.close();
+            if let Ok(path) = path.build() {
+                window.paint_path(path, color);
+            }
+        },
+    )
+    .size_full();
+    div().size(size).flex_none().debug_selector(|| "icon:bookmark".to_owned()).child(outline).into_any_element()
+}
+
 /// The indexes of `marks` (sorted by line) whose lines are in `lines`.
 fn marks_in<T>(marks: &[T], line: impl Fn(&T) -> u32, lines: &Range<u32>) -> Range<usize> {
     marks.partition_point(|mark| line(mark) < lines.start)..marks.partition_point(|mark| line(mark) < lines.end)
@@ -114,10 +139,16 @@ struct FollowedGutter {
     fetcher: HunkFetcher,
     hunk_timer: Option<Task<()>>,
     hunk_fetch: Option<Task<()>>,
+    /// The hunks were due while no pane showed the editor: they are asked once one does.
+    hunks_stale: bool,
     /// The file's bookmarks, by line, each with the offset of its line's start.
     bookmarks: Vec<(Mark, u32)>,
     run: RunMarks,
     run_search: Option<Task<()>>,
+    /// The run marks were due while no pane showed the editor.
+    run_stale: bool,
+    #[cfg(test)]
+    calls: GutterCalls,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -140,6 +171,17 @@ pub(super) struct EditorGutterSlot {
     /// The run store the run marks follow, and the subscription to it.
     configs_observer: Option<(EntityId, Subscription)>,
     popup: Option<PopupFor>,
+}
+
+/// What an editor's gutter asked for, as tests count it.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct GutterCalls {
+    /// Requests of the file's hunks to the backend, and the ticket of the last one.
+    pub hunk_requests: usize,
+    pub last_ticket: Option<u64>,
+    /// Searches of the file's run marks.
+    pub run_searches: usize,
 }
 
 /// The offset `from` (a line's start) after `changes`, at the start of the line it lands on; `None`
@@ -214,9 +256,13 @@ impl Workbench {
             fetcher: HunkFetcher::default(),
             hunk_timer: None,
             hunk_fetch: None,
+            hunks_stale: false,
             bookmarks: Vec::new(),
             run,
             run_search: None,
+            run_stale: false,
+            #[cfg(test)]
+            calls: GutterCalls::default(),
             _subscriptions: subscriptions,
         };
         self.editor_gutter.followed.insert(id, followed);
@@ -352,12 +398,71 @@ impl Workbench {
         }
     }
 
+    /// The editors a user sees: the active one of each pane.
+    fn shown_editors(&self) -> Vec<Entity<Editor>> {
+        match &self.content {
+            super::Content::Project { tabs, editors, .. } | super::Content::Editor { tabs, editors, .. } => tabs
+                .panes
+                .iter()
+                .filter_map(|pane| pane.active.as_ref().and_then(|tab| editors.get(tab)))
+                .cloned()
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Whether a pane shows the editor `id`: an editor behind another tab asks the backend nothing.
+    fn gutter_shown(&self, id: EntityId) -> bool {
+        self.shown_editors().iter().any(|editor| editor.entity_id() == id)
+    }
+
+    /// The tabs changed: an editor a pane shows again asks for what came due while it was hidden.
+    pub(super) fn editor_gutter_shown_changed(&mut self, cx: &mut Context<Self>) {
+        for editor in self.shown_editors() {
+            let id = editor.entity_id();
+            let Some(followed) = self.editor_gutter.followed.get_mut(&id) else { continue };
+            let (hunks, run) = (followed.hunks_stale, followed.run_stale);
+            (followed.hunks_stale, followed.run_stale) = (false, false);
+            if hunks {
+                self.schedule_hunks(id, HunkFetcher::VCS_DELAY_MS, cx);
+            }
+            if run {
+                self.find_run_marks(id, Duration::ZERO, cx);
+            }
+        }
+    }
+
+    /// What the gutter of `editor` asked for since it opened.
+    #[cfg(test)]
+    pub fn editor_gutter_calls(&self, editor: &Entity<Editor>) -> GutterCalls {
+        self.editor_gutter.followed.get(&editor.entity_id()).map(|followed| followed.calls).unwrap_or_default()
+    }
+
+    /// Hands the gutter of `editor` an answer to its request `ticket`, as the backend's arrives.
+    #[cfg(test)]
+    pub fn editor_gutter_answer(
+        &mut self,
+        editor: &Entity<Editor>,
+        ticket: u64,
+        hunks: Vec<ide_vcs::LineHunk>,
+        cx: &mut Context<Self>,
+    ) {
+        self.hunks_answered(editor.entity_id(), ticket, Ok(hunks), cx);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Change bars
 
-    /// Asks for the editor `id`'s hunks once `delay_ms` has passed without another reason to.
+    /// Asks for the editor `id`'s hunks once `delay_ms` has passed without another reason to; an
+    /// editor no pane shows asks once one does.
     fn schedule_hunks(&mut self, id: EntityId, delay_ms: u64, cx: &mut Context<Self>) {
+        let shown = self.gutter_shown(id);
         let Some(followed) = self.editor_gutter.followed.get_mut(&id).filter(|followed| followed.vcs) else { return };
+        if !shown {
+            followed.hunks_stale = true;
+            followed.hunk_timer = None;
+            return;
+        }
         followed.hunk_timer = Some(cx.spawn(async move |this, cx| {
             cx.background_executor().timer(Duration::from_millis(delay_ms)).await;
             let _ = this.update(cx, |workbench, cx| workbench.hunks_due(id, cx));
@@ -369,8 +474,13 @@ impl Workbench {
     fn hunks_due(&mut self, id: EntityId, cx: &mut Context<Self>) {
         let available = self.vcs_state().is_some_and(|state| state.available);
         let label = self.label.clone();
+        let shown = self.gutter_shown(id);
         let Some(followed) = self.editor_gutter.followed.get_mut(&id) else { return };
         followed.hunk_timer = None;
+        if !shown {
+            followed.hunks_stale = true;
+            return;
+        }
         match followed.fetcher.timer_fired(available, !followed.hunks.hunks().is_empty()) {
             FetchStep::Idle => {}
             FetchStep::Clear => {
@@ -378,6 +488,11 @@ impl Workbench {
                 self.show_lane(id, cx);
             }
             FetchStep::Request { ticket } => {
+                #[cfg(test)]
+                {
+                    followed.calls.hunk_requests += 1;
+                    followed.calls.last_ticket = Some(ticket);
+                }
                 let path = PathBuf::from(&followed.path);
                 let call =
                     host_call(
@@ -563,16 +678,7 @@ impl Workbench {
         let Some(change) = live.map(restore) else { return self.close_hunk_popup(window, cx) };
         self.close_hunk_popup(window, cx);
         editor.update(cx, |editor, cx| {
-            let changes = std::slice::from_ref(&change);
-            let selections = editor
-                .selections()
-                .iter()
-                .map(|&(anchor, head)| {
-                    (map_offset(anchor, changes, Assoc::Before), map_offset(head, changes, Assoc::Before))
-                })
-                .collect();
-            let main = editor.main_index();
-            if !editor.apply_edit(changes, selections, main, cx) {
+            if !super::vcs_operations::roll_back(editor, vec![change], cx) {
                 tracing::info!("the change in {} was not rolled back", editor.path().display());
             }
         });
@@ -638,18 +744,27 @@ impl Workbench {
     // ---------------------------------------------------------------------------------------------
     // Drawing
 
-    /// The bookmarks and the run marks of the active editor, over the window at their lines (only the
-    /// rows the editor painted, inside it). Each looks up the marks of the painted lines only.
+    /// The bookmarks and the run marks of the editor each pane shows, over the window at their lines
+    /// (only the rows the editor painted, inside it). Each looks up the marks of the painted lines
+    /// only.
     pub(super) fn editor_gutter_layer(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
-        let Some(editor) = self.editor().cloned() else { return Vec::new() };
-        let id = editor.entity_id();
-        let Some(followed) = self.editor_gutter.followed.get(&id) else { return Vec::new() };
         if super::distraction_free_active(cx) {
             return Vec::new();
         }
+        let mut elements = Vec::new();
+        for editor in self.shown_editors() {
+            self.editor_gutter_marks(&editor, &mut elements, cx);
+        }
+        elements
+    }
+
+    /// The bookmarks and the run marks of `editor`, added to `elements`.
+    fn editor_gutter_marks(&self, editor: &Entity<Editor>, elements: &mut Vec<AnyElement>, cx: &mut Context<Self>) {
+        let id = editor.entity_id();
+        let Some(followed) = self.editor_gutter.followed.get(&id) else { return };
         let (rows, line_height, bookmarks_column, run_column) = {
             let shown = editor.read(cx);
-            let Some(painted) = shown.painted_lines() else { return Vec::new() };
+            let Some(painted) = shown.painted_lines() else { return };
             let line_height = shown.line_height(cx);
             let first = painted.start;
             let top = shown
@@ -687,12 +802,12 @@ impl Workbench {
             (rows, line_height, shown.gutter_column(BOOKMARKS_COLUMN, cx), run_column)
         };
         let (bookmark_rows, run_rows) = rows;
-        let mut elements = Vec::with_capacity(bookmark_rows.len() + run_rows.len());
+        let key = id.as_u64();
         if let Some((column, width)) = bookmarks_column {
             for (index, line, at) in bookmark_rows {
                 let mark = followed.bookmarks[index].0;
                 let cell = Bounds::new(point(at.x + column, at.y), size(width, line_height));
-                elements.push(self.bookmark_mark(id, line, mark, cell, cx));
+                elements.push(self.bookmark_mark(editor, line, mark, cell, cx));
             }
         }
         if let Some((column, width)) = run_column {
@@ -702,8 +817,8 @@ impl Workbench {
                 let corner =
                     point(at.x + column + (width - px(RUN_WIDTH)) / 2.0, at.y + (line_height - px(RUN_WIDTH)) / 2.0);
                 let mark = div()
-                    .id(SharedString::from(format!("run-gutter-{line}")))
-                    .debug_selector(move || format!("run-gutter-{line}"))
+                    .id(SharedString::from(format!("run-gutter-{key}-{line}")))
+                    .debug_selector(move || format!("run-gutter-{key}-{line}"))
                     .with_tooltip(title)
                     .size(px(RUN_WIDTH))
                     .flex()
@@ -715,19 +830,42 @@ impl Workbench {
                     .child(theme::icon(cx, icon, icon_size, theme::color(cx, "success")))
                     .on_mouse_down(
                         MouseButton::Left,
-                        cx.listener(move |workbench, _: &MouseDownEvent, window, cx| {
+                        cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
                             // The press is the mark's: the editor neither moves its caret nor toggles a
-                            // breakpoint.
+                            // breakpoint. ⌘-click (Ctrl-click) toggles the line's bookmark, as anywhere
+                            // in the gutter.
                             window.prevent_default();
                             cx.stop_propagation();
+                            let held = event.modifiers;
+                            if has_primary_modifier(&held, is_mac_host()) && !held.shift && !held.alt {
+                                workbench.gutter_mark_event(id, GutterMarkEvent::BookmarkToggled { line }, window, cx);
+                                return;
+                            }
                             let below = point(corner.x, corner.y + px(RUN_WIDTH) + px(2.0));
                             workbench.run_mark_pressed(id, line, below, window, cx);
                         }),
-                    );
+                    )
+                    .on_mouse_down(MouseButton::Right, self.gutter_menu_press(editor, cx));
                 elements.push(deferred(anchored().position(corner).child(mark)).into_any_element());
             }
         }
-        elements
+    }
+
+    /// A right press on a mark drawn over `editor`'s gutter opens the gutter's menu there, as a press
+    /// beside the mark does.
+    fn gutter_menu_press(
+        &self,
+        editor: &Entity<Editor>,
+        cx: &mut Context<Self>,
+    ) -> impl Fn(&MouseDownEvent, &mut Window, &mut App) + 'static {
+        let editor = editor.downgrade();
+        cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
+            window.prevent_default();
+            cx.stop_propagation();
+            if let Some(editor) = editor.upgrade() {
+                workbench.open_editor_context_menu(&editor, event.position, window, cx);
+            }
+        })
     }
 
     /// The bookmark of `line` drawn in `cell` (its column on its row): the mnemonic in a small chip,
@@ -735,12 +873,14 @@ impl Workbench {
     /// nothing else.
     fn bookmark_mark(
         &self,
-        id: EntityId,
+        editor: &Entity<Editor>,
         line: u32,
         mark: Mark,
         cell: Bounds<Pixels>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let id = editor.entity_id();
+        let key = id.as_u64();
         let accent = theme::color(cx, "accent");
         let content = match mark.mnemonic {
             Some(mnemonic) => div()
@@ -758,14 +898,14 @@ impl Workbench {
                 .font_family(theme::installed_fonts::ui_family(cx))
                 .text_size(px(9.0))
                 .font_weight(FontWeight::SEMIBOLD)
-                .debug_selector(move || format!("bookmark-mnemonic-{line}"))
+                .debug_selector(move || format!("bookmark-mnemonic-{key}-{line}"))
                 .child(SharedString::from(mnemonic.to_string()))
                 .into_any_element(),
-            None => theme::icon(cx, "bookmark", BOOKMARK_ICON, accent),
+            None => bookmark_outline(theme::zoomed(cx, BOOKMARK_ICON), accent),
         };
         let mark = div()
-            .id(SharedString::from(format!("bookmark-gutter-{line}")))
-            .debug_selector(move || format!("bookmark-gutter-{line}"))
+            .id(SharedString::from(format!("bookmark-gutter-{key}-{line}")))
+            .debug_selector(move || format!("bookmark-gutter-{key}-{line}"))
             .w(cell.size.width)
             .h(cell.size.height)
             .flex()
@@ -783,7 +923,8 @@ impl Workbench {
                         workbench.gutter_mark_event(id, GutterMarkEvent::BookmarkToggled { line }, window, cx);
                     }
                 }),
-            );
+            )
+            .on_mouse_down(MouseButton::Right, self.gutter_menu_press(editor, cx));
         deferred(anchored().position(cell.origin).child(mark)).into_any_element()
     }
 }

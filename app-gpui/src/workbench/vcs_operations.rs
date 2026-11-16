@@ -49,7 +49,7 @@ use crate::workbench::notifications::NotificationLevel;
 use futures::StreamExt;
 use futures::channel::mpsc;
 use gpui_kit::{App, AppContext, AsyncWindowContext, Context, Entity, Focusable, Subscription, Window, px};
-use ide_core::IdeError;
+use ide_core::{IdeError, TextChange};
 use ide_host::Host;
 use ide_host::ops::vcs::{self as git, GitOperation, RemoteOp};
 use ide_vcs::{Branch, IgnoreDestination, LineHunk, LogQuery, RemoteEdit};
@@ -1042,7 +1042,12 @@ fn rollback_lines(editor: &mut Editor, hunks: &[LineHunk], cx: &mut Context<Edit
         .iter()
         .map(|&(anchor, head)| anchor.min(head) as usize..anchor.max(head) as usize)
         .collect();
-    let mut changes = state.rollback_selected_lines(&doc, &ranges);
+    roll_back(editor, state.rollback_selected_lines(&doc, &ranges), cx)
+}
+
+/// Puts the original text of changed lines back (`changes`, each a hunk's extent and its text at
+/// HEAD) as one edit, one undo step, the carets moving with it; whether there were any.
+pub(super) fn roll_back(editor: &mut Editor, mut changes: Vec<TextChange>, cx: &mut Context<Editor>) -> bool {
     if changes.is_empty() {
         return false;
     }
