@@ -1,0 +1,53 @@
+# Integrator brief: New from Template with the New File dialog, its actions and menus, and Emmet's Update Tag (drafts written without a compiler)
+
+Read first: `$S/int_rules.md` (hard rules and report format), `$S/tests_brief.md`, `$S/view_rules.md`, `$S/wiring_brief.md`. Your own scratch subfolder: `$S/dtpl2i/`.
+
+Format only files you edited, taken from `git diff --name-only` plus the draft files this brief hands you by name. Never build a file list from `git status`. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing. Leave no polling loop behind (a loop on `pgrep -f "cargo test"` matches its own command line and never ends).
+
+## The slice
+
+Notes (hunks in three parts with quoted anchors, the rows with every test's full name, behaviours with `file:line`, twelve hypotheses and how to settle each, the tests most likely to fail, what the real window must be checked for, and where the writer's brief was wrong): `$S/drafts/templates_files_integration.md` (read this scratch copy: the copy under `docs/` was reformatted by the commit hook). Report: `docs/gpui-port/notes/reports/templates_files_writer.md`. Draft files (committed, undeclared, never compiled): `app-gpui/src/templates/new_file_dialog.rs`, `proofs34_new_file_dialog.rs`, `update_tag_dialog.rs`, `proofs34_update_tag_dialog.rs`, `app-gpui/src/workbench/template_files.rs`, `template_actions.rs`, `emmet.rs`, `app-gpui/src/workbench/tests/proofs34_template_files.rs`, `proofs34_template_actions.rs`, `proofs34_emmet.rs`, and two files that stay undeclared unless what they wait for exists: `app-gpui/src/templates/proofs34_extension_guard_pending.rs`, `proofs34_chooser_pending.rs`.
+
+The webview: `src/features/templates/index.ts` (lines 60 to 262), `files/` (`NewFileDialog.tsx`, `model.ts`, `create.ts`, `store.ts`, `builtins.ts`), `emmet/`, and the tests `views.test.tsx`, `pluginFiles.test.tsx`, `files.test.ts`, `pluginPackages.test.ts`, `emmet.test.ts`. The notes are hypotheses; where a note and the webview source disagree, the webview source wins. Land Part 1 (the dialog and file creation), then Part 2 (the per-template actions, the New menu's groups, New from Template), then Part 3 (Emmet's Update Tag, independent). If a part does not converge, take its hunks out by editing, leave its files undeclared, say exactly where it stands, and go on.
+
+## A created file never leaves its folder (hard, first)
+
+- The draft has its own check (`stays_in` in `workbench/template_files.rs`) because `app-gpui/src/templates/files_model.rs` `plan_file` appended a template's extension unchecked. BEFORE LAUNCH note for the manager says below whether the model's own guard has landed; if it has, declare `proofs34_extension_guard_pending.rs` and keep both checks; if not, write the failing model test and fix `plan_file` here (an extension is a plain extension: no separator, no `..`, nothing the file-name check refuses).
+- Prove by test, each on the real backend in a temp project, that nothing is created outside the folder New was used in for: a typed name with `../`, an absolute typed name, a name with a backslash, a template's file name with a separator, a template's extension with a separator, a kind's extension with a separator, a plugin package's path (read `pluginPackages.test.ts` for what a package may say), and a folder that is a symlink to somewhere outside the project (do what the webview does: read `create.ts` and the backend's `fs_create_file`; say what it is). After each, assert the whole temp tree holds only the files expected.
+- An existing file is never overwritten: the backend refuses and the dialog shows its message (the writer read that there is no overwrite question): assert the old file's bytes.
+- Creation goes through the backend function the webview uses with the same arguments (`src-tauri/src/commands/` shows the adapter), so Local History, the watcher and VCS see it; a failure (a read-only folder) is told as the webview tells it and leaves nothing behind.
+- Restricted Mode: the writer read that creation needs no trust in the webview. Confirm in `crates/ide-host/src/trust.rs`, and keep it only as far as the webview goes: what runs after creation (the quiet Reformat, opening the file) must not start anything a restricted project may not start (a formatter, a language server): say what runs, and test that in a restricted project no process is started by New.
+
+## Points to settle by measurement, not by the notes
+
+- Registering one action per template changes what Find Action, Search Everywhere, the keymap page and the New popup list. The notes name three existing tests and one group-list test that must be rewritten; run every test that lists actions or menu rows by filter before and after (grep the tests for `registry.actions`, `"new"`, `menu_rows`, `every_menu_group_is_listed_once`) and say for each changed expectation why the webview agrees. No existing assertion is loosened.
+- The actions follow the templates in effect: enabling, disabling, adding or removing a template (through the store's keys, written by a test) adds and removes actions and menu rows without leaking registrations (assert the registry's count returns to what it was). The store of file templates is the draft `app-gpui/src/templates/files_store.rs` if the templates pages integration has landed it (see BEFORE LAUNCH): then per-project schemes are in effect and the writer's hypothesis "one set of actions per process" is wrong for two windows with different projects: settle it by a test with two project windows, or say plainly what a second window sees.
+- The New popup of the Project view and the File › New menu keep every row they have today, in the webview's order with the new groups; the Go To Test "Create New Test" and New HTTP Request flows that relied on the model's templates still work (the notes' rewrites).
+- The dialog: Enter while an input method is composing confirms the composition and creates nothing (hypothesis H1: settle it by reading how other native dialogs treat composition, and by a test if the test platform can compose); arrow keys move through the kinds; the hint line shows the path that would be created; validation messages are the webview's.
+- After creation: the file opens in a tab with the caret where the template says; the quiet Reformat changes nothing without a formatter; the Project view selects the new file if the webview's does. The created-file notice that offers to add the file to Git is not built (nothing native follows created files): list it.
+- Emmet: `emmet.updateTag` is offered only for the languages its `when` names; the edit changes both tags of the pair in one undo step and keeps the caret as the webview does; the three spec cases that need an expansion engine stay out. Drive the editor menu's row with a click, not only its presence.
+
+## Safety
+
+- No test uses the network, a toolchain or formatter of the machine, or anything under the user's home; deletes never reach the system Trash.
+- The real binary: only through `$S/insp8/run.sh` (short `PATH`, temp `HOME`, `ZDOTDIR`, `OPENIDEA_GPUI_HOME`), with a temp project under a neutral path (`/private/tmp/openidea-inspect-<random>/`, removed afterwards). Never open the Agents tool window or the Services window. Shots, light and dark: the New popup with the template rows; the New File dialog with a template that has kinds and a validation message; the New from Template list; the created file open in its tab; the Update Tag dialog on an HTML file.
+
+## Rows
+
+`action:templates.newFromTemplate`, the dynamic actions' row (`(dynamic) src/features/templates/index.ts:79`: find its key's form), the menu groups `templates.new` and `templates.newFromTemplate`, the overlays `templates.newFile` and `templates.emmetUpdateTag`, `action:emmet.updateTag`, the menu group `templates.emmet`, the overlay `templates.chooser` (the live templates' chooser: this slice's only if it landed with the live templates integration), and the unit rows `views.test.tsx`, `pluginFiles.test.tsx`, `files.test.ts`, `pluginPackages.test.ts`, `emmet.test.ts`. Check which keys exist in `docs/gpui-port/parity.json`. An action row is done only when a test drives the action in a project window through the registry and its menu entry and asserts the files on disk, the opened tab and what the window shows.
+
+## Changed since the notes were written
+
+BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on the tree at 011d3094 while the Settings B integration was in flight. Say here: whether the templates pages integration landed (`templates/files_store.rs` compiled, `plan_file` guarded) and whether the live templates integration landed (`templates/chooser_view.rs` compiled: then `proofs34_chooser_pending.rs` may be declared), and which of the existing files the hunks anchor on changed (`workbench/mod.rs`, `workbench/context_menus.rs`, `project_view/new_popup.rs`, `templates/mod.rs`, `workbench/editor_extras.rs`, `workbench/http_client.rs`, `workbench/run_context.rs`).
+
+## Gates (they replace rule 12 of `$S/int_rules.md`)
+
+The whole suite twice to files, nothing else running beside the first (write `uptime` before and after each run into the same file); during the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&` inside a script. A test that is unstable under the loop is not done: find the cause and fix the wait, not the assertion. If any test fails in a whole-suite run, keep that run's log and quote the failure whole.
+
+## Report
+
+Besides the format of `$S/int_rules.md`: the "never leaves its folder" section first, one line per case with its test and whether it failed without the code; the existing tests whose expectations changed, each with the webview's source; the rows table with the proving tests by full name and for partial what is missing; which way each of the twelve hypotheses went; the shots' absolute paths and what you saw in each.
+
+## Do not touch
+
+Every undeclared draft of other agents under `app-gpui/src` and every undeclared `proofs*` or `*_pending.rs` test file this brief does not hand you. No edits under `crates/`, `docs/`, `src/`, `src-tauri/`, `e2e/`. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`.
