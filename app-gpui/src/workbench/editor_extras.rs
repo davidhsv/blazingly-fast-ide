@@ -45,7 +45,7 @@ const STATUS_INFO_TIMEOUT: Duration = Duration::from_millis(8000);
 /// The kind of the code action Reformat File… runs first when it optimizes imports.
 const ORGANIZE_IMPORTS: &str = "source.organizeImports";
 
-const NO_CONTEXT_INFO: &str = "No context information here";
+pub(super) const NO_CONTEXT_INFO: &str = "No context information here";
 const NO_CUSTOM_REGIONS: &str = "No custom folding regions in this file";
 const NO_REGION_NAME: &str = "(no description)";
 const CUSTOM_REGIONS_TITLE: &str = "Custom Folding Regions";
@@ -253,6 +253,10 @@ impl Workbench {
                 .collect();
             lines.join("\n")
         };
+        // Without the backend's fold ranges the blocks come from the syntax tree.
+        if text.is_empty() && !editor.read(cx).has_backend_folds() && self.context_info_from_tree(&editor, max, cx) {
+            return;
+        }
         let text = if text.is_empty() { cx.default_global::<Localization>().0.tx(NO_CONTEXT_INFO) } else { text };
         self.show_hint(text, cx);
     }

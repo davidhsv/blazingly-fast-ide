@@ -38,7 +38,7 @@ use crate::editor_lsp::intentions::{
 };
 use crate::editor_lsp::intentions_view::{ListOptions, ListPopup, ListPopupEvent, ListRow, intention_rows};
 use crate::editor_lsp::lsp::{error_hint, incomplete_note, is_cancelled, is_no_server};
-use crate::editor_lsp::navigation::usages_status_text;
+use crate::editor_lsp::navigation::{SYNTAX_NOTE, SYNTAX_NOTE_TIMEOUT_MS, usages_status_text};
 use crate::editor_lsp::positions::{offset_to_pos, offsets_to_range, pos_to_offset, range_to_offsets};
 use crate::editor_lsp::workspace_edit::{describe_summary, needs_preview, summarize_workspace_edit};
 use crate::editor_refactor::goto_test::{GotoTest, GotoTestStep, TestChoice, TestRun};
@@ -214,7 +214,7 @@ fn path_arg(arg: Option<&Value>) -> Option<PathBuf> {
 }
 
 /// Runs `work` on the backend for the window's project, keeping the backend's error.
-async fn call<T, F>(
+pub(super) async fn call<T, F>(
     this: &This,
     cx: &mut AsyncWindowContext,
     work: impl FnOnce(Arc<Host>, String) -> F + Send + 'static,
@@ -852,6 +852,16 @@ async fn highlight_usages(this: &This, editor: &Entity<Editor>, cx: &mut AsyncWi
         ide_host::ops::lsp::lsp_document_highlights(&host, &label, doc, pos).await
     })
     .await?;
+    // Without a usable server, the occurrences of a certain local in its scope stand in.
+    let (answer, from_syntax) = match answer {
+        Err(error) if !is_cancelled(&error) => {
+            match super::editor_structure::local_usages(this, editor, doc, pos, cx).await? {
+                Some(ranges) => (Ok(ranges), true),
+                None => (Err(error), false),
+            }
+        }
+        answer => (answer.map(|highlights| highlights.into_iter().map(|highlight| highlight.range).collect()), false),
+    };
     this.update(cx, |workbench, cx| {
         let stale = {
             let e = editor.read(cx);
@@ -860,18 +870,21 @@ async fn highlight_usages(this: &This, editor: &Entity<Editor>, cx: &mut AsyncWi
         if stale {
             return;
         }
-        let highlights = match answer {
-            Ok(highlights) => highlights,
+        let ranges: Vec<ide_core::Range> = match answer {
+            Ok(ranges) => ranges,
             Err(error) => {
                 report(editor, &error, cx);
                 return;
             }
         };
+        if from_syntax {
+            hint(editor, SYNTAX_NOTE, None, Tone::Info, Some(SYNTAX_NOTE_TIMEOUT_MS), cx);
+        }
         let (marks, name) = {
             let rope = editor.read(cx).rope();
-            let marks: Vec<Mark> = highlights
+            let marks: Vec<Mark> = ranges
                 .iter()
-                .map(|highlight| range_to_offsets(rope, highlight.range))
+                .map(|range| range_to_offsets(rope, *range))
                 .filter(|range| range.start < range.end)
                 .map(|range| Mark::new(range, MarkKind::FindOccurrence))
                 .collect();
@@ -933,14 +946,7 @@ async fn quick_definition(
     }
     locations.truncate(MAX_TARGETS);
     let read = call(this, cx, move |host, label| async move {
-        let project = host.project(&label)?;
-        Ok(locations
-            .into_iter()
-            .filter_map(|location| {
-                let text = project.text_of(&location.path.0).ok()?;
-                DefinitionTarget::read(location, &text)
-            })
-            .collect::<Vec<_>>())
+        crate::editor_lsp::definition_source::read_definitions(&host, &label, locations).await
     })
     .await?;
     match read {
@@ -1686,6 +1692,7 @@ mod tests {
     mod proofs15_implement;
     mod proofs20_generate;
     mod proofs20_mcp_problems;
+    mod proofs25_quick_definition;
     mod proofs3_editor_keys;
     mod proofs5_editor;
     mod proofs7_hint;

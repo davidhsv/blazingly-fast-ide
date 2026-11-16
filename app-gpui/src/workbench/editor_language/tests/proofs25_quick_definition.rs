@@ -41,3 +41,29 @@ async fn quick_definition_shows_the_whole_declaration_from_the_syntax_tree_in_co
     settle(cx, "the caret at 1:5", |cx| opened.read_with(cx, |e, _| e.caret_position()) == (1, 5));
     f.close(cx);
 }
+
+/// Quick Definition of a definition in the file being edited reads it from the editor's own
+/// document and leaves that document open: what is typed afterwards still reaches the project.
+#[gpui_kit::test]
+async fn quick_definition_in_the_edited_file_leaves_its_document_open(cx: &mut TestAppContext) {
+    let (f, cx) = open(cx, &[("a.mock", "call setup here\nsetup\n")], "a.mock", Some(json!({})), &[]);
+    let file = f.root.join("a.mock");
+    let at = json!({ "line": 1, "character": 0 });
+    f.answer(json!({ "textDocument/definition": [{ "uri": uri(&file), "range": { "start": at, "end": at } }] }));
+    f.put_caret(cx, 7);
+    f.run(cx, "code.quickDefinition");
+    settle(cx, "the definition popup", |cx| {
+        f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_some())
+    });
+    cx.simulate_keystrokes("escape");
+    settle(cx, "the popup closes", |cx| {
+        f.workbench.read_with(cx, |w, _| w.language_popup::<DefinitionPopup>().is_none())
+    });
+    let editor = f.active(cx);
+    cx.update(|window, cx| window.focus(&editor.focus_handle(cx), cx));
+    f.put_caret(cx, 0);
+    cx.simulate_input("x");
+    assert_eq!(f.text(cx), "xcall setup here\nsetup\n");
+    assert_eq!(f.project_text(cx, &file), "xcall setup here\nsetup\n");
+    f.close(cx);
+}

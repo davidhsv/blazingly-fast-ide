@@ -37,6 +37,7 @@ mod editor_extras;
 mod editor_find;
 mod editor_intelligence;
 mod editor_language;
+mod editor_structure;
 pub mod empty_editor;
 mod github;
 mod http_client;
@@ -4442,6 +4443,7 @@ mod tests {
     mod proofs22_settings_units;
     mod proofs23_e2e_terminal_groups;
     mod proofs24_e2e_notebook;
+    mod proofs25_syntax_tree;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

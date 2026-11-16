@@ -71,7 +71,9 @@ impl Grammar {
                 let native = grammars::native_highlights(self.spec.name);
                 #[cfg(not(feature = "native-highlights"))]
                 let native: Option<grammars::Highlights> = None;
-                let h = self.spec.highlights.as_ref().or(native.as_ref())?;
+                // A native query is the whole colouring for a UI without a token lexer, where the
+                // spec's own query may only add to one (Kotlin's).
+                let h = native.as_ref().or(self.spec.highlights.as_ref())?;
                 highlight::HighlightQuery::new(&self.language, h.query, h.first_wins)
                     .inspect_err(|e| tracing::error!("highlights query for {} is invalid: {e}", self.spec.name))
                     .ok()

@@ -16,5 +16,6 @@ pub mod marks;
 pub mod nav_history;
 pub mod paste_history_view;
 pub mod session;
+pub mod structure;
 pub mod tabs;
 pub mod view;

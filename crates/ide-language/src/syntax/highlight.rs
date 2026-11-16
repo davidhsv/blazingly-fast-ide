@@ -382,6 +382,7 @@ mod tests {
             .collect()
     }
 
+    #[cfg(not(feature = "native-highlights"))]
     #[test]
     fn kotlin_supplements_stream_highlighting_with_declaration_roles() {
         use SyntaxHighlightKind as K;
@@ -408,6 +409,49 @@ mod tests {
         }
     }
 
+    /// Kotlin text holding every kind of token, for the shared path's exact output.
+    const KOTLIN_SAMPLE: &str = "@file:JvmName(\"P\")\npackage palette\n// line\n/** Docs */\n\
+        @Deprecated(\"old\")\nclass Greeter(val name: String, count: Int = 0) {\n    var total: Long = 0x1FL\n\
+        fun greet(prefix: String): String {\n        val message = \"hi $name ${count + 1}\\n\"\n\
+        if (message != null && true) return prefix\n        val c = 'c'\n        return \"\"\"raw $name\"\"\"\n    }\n}\n";
+
+    /// The app whose editor colours Kotlin's tokens itself gets the declaration roles alone, exactly
+    /// as listed: keywords, strings, numbers and line comments stay uncoloured.
+    #[cfg(not(feature = "native-highlights"))]
+    #[test]
+    fn kotlin_shared_highlights_are_the_declaration_roles_alone() {
+        use SyntaxHighlightKind as K;
+        let got = spans("kotlin", KOTLIN_SAMPLE);
+        let expected = [
+            ("JvmName", K::Type),
+            ("/** Docs */", K::DocComment),
+            ("Deprecated", K::Attribute),
+            ("Greeter", K::Type),
+            ("name", K::Property),
+            ("String", K::Type),
+            ("count", K::Parameter),
+            ("Int", K::Type),
+            ("total", K::Property),
+            ("Long", K::Type),
+            ("greet", K::Function),
+            ("prefix", K::Parameter),
+            ("String", K::Type),
+            ("String", K::Type),
+            ("message", K::Variable),
+            ("\\n", K::Escape),
+            ("c", K::Variable),
+        ];
+        let expected: Vec<(String, K)> = expected.iter().map(|(text, kind)| ((*text).to_owned(), *kind)).collect();
+        assert_eq!(got, expected);
+        let h = crate::Syntax::new().highlights(&ide_core::LanguageId::new("kotlin"), KOTLIN_SAMPLE).unwrap();
+        let data = [
+            6, 13, 13, 43, 54, 9, 56, 66, 18, 80, 87, 13, 92, 96, 17, 98, 104, 13, 106, 111, 24, 113, 116, 13, 132,
+            137, 17, 139, 143, 13, 156, 161, 10, 162, 168, 24, 170, 176, 13, 179, 185, 13, 200, 207, 15, 232, 234, 3,
+            291, 292, 15,
+        ];
+        assert_eq!(h.data, data);
+    }
+
     #[test]
     fn non_kotlin_parameters_keep_variable_highlighting() {
         for (lang, src) in [
@@ -425,6 +469,56 @@ mod tests {
         }
     }
 
+    /// A UI without a token lexer gets Kotlin's tokens from the grammar, the declaration roles over
+    /// them.
+    #[cfg(feature = "native-highlights")]
+    #[test]
+    fn kotlin_native_highlights_colour_the_tokens_under_the_declaration_roles() {
+        use SyntaxHighlightKind as K;
+        let got = spans("kotlin", KOTLIN_SAMPLE);
+        for (text, expected) in [
+            ("@file", K::Attribute),
+            ("package", K::Keyword),
+            ("// line", K::Comment),
+            ("/** Docs */", K::DocComment),
+            ("@Deprecated", K::Attribute),
+            ("\"old\"", K::String),
+            ("class", K::Keyword),
+            ("Greeter", K::Type),
+            ("val", K::Keyword),
+            ("name", K::Property),
+            ("count", K::Parameter),
+            ("=", K::Operator),
+            ("0", K::Number),
+            ("0x1FL", K::Number),
+            ("fun", K::Keyword),
+            ("greet", K::Function),
+            ("message", K::Variable),
+            ("\"hi ", K::String),
+            ("$", K::Attribute),
+            ("name", K::Variable),
+            ("${", K::Attribute),
+            ("+", K::Operator),
+            ("1", K::Number),
+            ("}", K::Attribute),
+            ("\\n", K::Escape),
+            ("if", K::Keyword),
+            ("!=", K::Operator),
+            ("null", K::Constant),
+            ("true", K::Constant),
+            ("&&", K::Operator),
+            ("return", K::Keyword),
+            ("'c'", K::String),
+            ("\"\"\"raw ", K::String),
+        ] {
+            assert!(
+                got.iter().any(|(word, kind)| word == text && *kind == expected),
+                "{text}: {expected:?} in {got:?}"
+            );
+        }
+    }
+
+    #[cfg(not(feature = "native-highlights"))]
     #[test]
     fn kotlin_constructor_defaults_are_not_declarations() {
         let got = spans("kotlin", "class Example(val name: String = fallback, count: Int = defaultCount)");

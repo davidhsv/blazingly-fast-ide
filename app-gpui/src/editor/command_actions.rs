@@ -2,12 +2,10 @@
 //! the window's editor. Each computes its edit from the editor's text and selection
 //! ([`Editor::edit_state`]) and the language's facts, and the editor applies it as one undo step.
 //!
-//! The backend has no syntax tree of the document. The commands that read one get the tree of
-//! the document's comments and string literals ([`Editor::literal_tree`]) where they only ask
-//! whether a position is code, and the unparsed tree otherwise, which makes them take their
-//! text-only path. The comment commands get the unparsed tree: a block comment holding its own
-//! closing token takes a parser to confirm, and the highlights cannot tell two adjacent comments
-//! from one.
+//! The commands that only ask whether a position is code or an escape read the trees of the
+//! current highlights ([`Editor::literal_tree`], [`Editor::code_tree`], [`Editor::escape_tree`]).
+//! Move Statement, Complete Current Statement and the comment commands over a block comment
+//! holding its own closing token ask the backend's syntax tree ([`super::structure::commands`]).
 
 use super::actions::on_editor;
 use super::history::EditKind;
@@ -18,9 +16,7 @@ use crate::editor_commands::editing::{self, OccurrenceOutcome, OccurrenceSearch}
 use crate::editor_commands::tree::SyntaxTree;
 use crate::editor_commands::vertical_motion::{self, GoalColumns, VerticalMotion};
 use crate::editor_commands::word_completion::{self, ExpandDirection, ExpandOutcome, ExpandSession};
-use crate::editor_commands::{
-    Edit, EditState, IndentContext, Selection, caret_commands, comments, lines, move_element,
-};
+use crate::editor_commands::{Edit, EditState, IndentContext, Selection, caret_commands, lines, move_element};
 use crate::editor_lsp::hint::Tone;
 use crate::platform::actions::ActionRegistry;
 use crate::workbench;
@@ -62,12 +58,12 @@ type CloneCaret = fn(&EditState, &[(u32, u32)]) -> Option<VerticalMotion>;
 
 /// Every editing command, by action id.
 pub(super) const COMMANDS: &[(&str, Command)] = &[
-    ("code.commentLine", comment_line),
-    ("code.commentBlock", comment_block),
+    ("code.commentLine", super::structure::commands::comment_line),
+    ("code.commentBlock", super::structure::commands::comment_block),
     ("code.duplicateLine", duplicate_line),
     ("code.deleteLine", delete_line),
-    ("code.moveStatementUp", |editor, cx| move_statement(editor, true, cx)),
-    ("code.moveStatementDown", |editor, cx| move_statement(editor, false, cx)),
+    ("code.moveStatementUp", |editor, cx| super::structure::commands::move_statement(editor, true, cx)),
+    ("code.moveStatementDown", |editor, cx| super::structure::commands::move_statement(editor, false, cx)),
     ("code.moveLineUp", |editor, cx| move_line(editor, true, cx)),
     ("code.moveLineDown", |editor, cx| move_line(editor, false, cx)),
     ("code.joinLines", |editor, cx| edit(editor, cx, |state, _| Some(editing::join_lines(state)))),
@@ -76,7 +72,7 @@ pub(super) const COMMANDS: &[(&str, Command)] = &[
     ("code.startNewLineBefore", |editor, cx| {
         edit(editor, cx, |state, e| editing::start_new_line_before(state, Some(&indent(e))))
     }),
-    ("code.toggleCase", |editor, cx| edit(editor, cx, |state, _| Some(editing::toggle_case(state, &unparsed())))),
+    ("code.toggleCase", toggle_case),
     ("code.sortLines", |editor, cx| edit(editor, cx, |state, _| lines::sort_lines(state))),
     ("code.reverseLines", |editor, cx| edit(editor, cx, |state, _| lines::reverse_lines(state))),
     ("code.addCaretNextOccurrence", next_occurrence),
@@ -101,20 +97,15 @@ pub(super) const COMMANDS: &[(&str, Command)] = &[
         edit(editor, cx, |state, e| caret_commands::select_code_block_end(state, &e.literal_tree()))
     }),
     ("code.moveElementLeft", |editor, cx| {
-        edit(editor, cx, |state, e| move_element::move_element_left(state, &e.literal_tree()))
+        edit(editor, cx, |state, e| move_element::move_element_left(state, &e.code_tree()))
     }),
     ("code.moveElementRight", |editor, cx| {
-        edit(editor, cx, |state, e| move_element::move_element_right(state, &e.literal_tree()))
+        edit(editor, cx, |state, e| move_element::move_element_right(state, &e.code_tree()))
     }),
     ("code.cyclicExpandWord", |editor, cx| expand_word(editor, ExpandDirection::Backward, cx)),
     ("code.cyclicExpandWordBackward", |editor, cx| expand_word(editor, ExpandDirection::Forward, cx)),
     ("code.pasteAsPlainText", paste_as_plain_text),
-    ("code.completeStatement", |editor, cx| {
-        edit(editor, cx, |state, e| {
-            let facts = &e.facts().language;
-            editing::complete_statement(state, &facts.id, facts.comments.line.as_deref(), Some(&indent(e)))
-        })
-    }),
+    ("code.completeStatement", super::structure::commands::complete_statement),
 ];
 
 /// The toggle commands: their id, their state on an editor and what switches it.
@@ -137,12 +128,20 @@ pub fn register(cx: &mut App) {
     }
 }
 
-/// The tree of a document the backend has not parsed: the commands take their text-only path.
-fn unparsed() -> SyntaxTree {
-    SyntaxTree::default()
+/// The language's indentation, as the commands ask for it.
+/// Toggle Case keeps the case of the escape sequences where the document's editing mode parses
+/// it with a grammar of its own; a mode that colours a token stream marks no escapes.
+fn toggle_case(editor: &mut Editor, cx: &mut Context<Editor>) {
+    let parsed = cx.try_global::<crate::backend::Backend>().is_some_and(|backend| {
+        let mode = backend.host.languages.get(editor.language()).and_then(|config| config.ui_mode);
+        super::structure::parses_itself(mode.as_deref())
+    });
+    edit(editor, cx, |state, e| {
+        let escapes = if parsed { e.escape_tree() } else { SyntaxTree::default() };
+        Some(editing::toggle_case(state, &escapes))
+    });
 }
 
-/// The language's indentation, as the commands ask for it.
 fn indent(editor: &Editor) -> impl Fn(&IndentContext<'_>) -> Option<u32> + '_ {
     |context| editor.facts().indent(context)
 }
@@ -163,25 +162,6 @@ fn apply_once(editor: &mut Editor, edit: Edit, cx: &mut Context<Editor>) -> bool
     editor.apply_edit(&edit.changes, edit.selections, edit.main, cx)
 }
 
-fn comment_line(editor: &mut Editor, cx: &mut Context<Editor>) {
-    let repeated = editor.memory.comment.as_ref() == Some(&editor.stamp());
-    let done = editor.edit_with(EditKind::Other, cx, |editor| {
-        let facts = editor.facts();
-        let comments_at = |pos: u32| facts.comments_at(pos);
-        comments::comment_line(&editor.edit_state(), &comments_at, facts.comment_style, &unparsed(), repeated)
-    });
-    if done {
-        editor.memory.comment = Some(editor.stamp());
-    }
-}
-
-fn comment_block(editor: &mut Editor, cx: &mut Context<Editor>) {
-    edit(editor, cx, |state, editor| {
-        let comments_at = |pos: u32| editor.facts().comments_at(pos);
-        comments::comment_block(state, &comments_at, &unparsed())
-    });
-}
-
 fn duplicate_line(editor: &mut Editor, cx: &mut Context<Editor>) {
     edit(editor, cx, |state, _| Some(editing::duplicate_line_or_selection(state, &[])));
 }
@@ -191,11 +171,6 @@ fn delete_line(editor: &mut Editor, cx: &mut Context<Editor>) {
         let edit = editing::delete_line(state, &[]);
         (!edit.changes.is_empty()).then_some(edit)
     });
-}
-
-/// Move Statement: without a syntax tree, the lines move.
-fn move_statement(editor: &mut Editor, up: bool, cx: &mut Context<Editor>) {
-    edit(editor, cx, |state, editor| editing::move_statement(state, &unparsed(), Some(&indent(editor)), up));
 }
 
 fn move_line(editor: &mut Editor, up: bool, cx: &mut Context<Editor>) {
@@ -373,6 +348,10 @@ mod tests {
         cx.update(|window, cx| execute_action_or_throw(id, None, window, cx))
             .unwrap_or_else(|error| panic!("{id}: {error}"));
         cx.run_until_parked();
+        // Move Statement and Complete Current Statement may wait for the backend's syntax tree.
+        if !cx.update(|_, cx| crate::editor::structure::is_idle(cx)) {
+            settle(cx, |cx| cx.update(|_, cx| crate::editor::structure::is_idle(cx)));
+        }
     }
 
     /// Each case: the actions run in order, the marked text before and after them. The first range

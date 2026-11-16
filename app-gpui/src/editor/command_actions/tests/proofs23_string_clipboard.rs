@@ -2,10 +2,10 @@ use super::*;
 use crate::platform::settings::{SettingsWrite, set_global};
 
 /// A file of each language whose plain string literals copy and paste escaped, and a line of it with
-/// `|` where the caret goes, inside an empty string literal. Kotlin is not among them: its highlights
-/// carry no string spans, so the editor finds no literal to escape for.
-const MODES: [(&str, &str); 8] = [
+/// `|` where the caret goes, inside an empty string literal.
+const MODES: [(&str, &str); 9] = [
     ("A.java", "class A { String value = \"|\"; }"),
+    ("a.kt", "val value = \"|\""),
     ("a.js", "value = \"|\";"),
     ("a.ts", "let value = \"|\";"),
     ("a.py", "value = \"|\""),
@@ -157,6 +157,22 @@ async fn disables_both_escaping_and_unescaping_with_the_setting(cx: &mut TestApp
     assert_eq!(clipboard(cx).as_deref(), Some("a\\nb"));
     paste(cx, "\"\\\n");
     assert_eq!(text_of(&editor, cx), "class A { String value = \"\"\\\n\"; }");
+    close(cx);
+}
+
+/// Kotlin's `$` is escaped on paste and unescaped on copy.
+#[gpui_kit::test]
+async fn escapes_kotlin_dollars_and_unescapes_them_on_copy(cx: &mut TestAppContext) {
+    let (f, cx) = open(cx, "notes.txt", "").await;
+    let editor = open_file(&f, cx, "a.kt");
+    put(&editor, cx, "val s = \"|\"");
+    paste(cx, "$name ${call()}");
+    let text = text_of(&editor, cx);
+    assert_eq!(text, "val s = \"\\$name \\${call()}\"");
+    settle(cx, |cx| editor.read_with(cx, |editor, _| !editor.literal_tree().is_empty()));
+    editor.update(cx, |editor, cx| editor.select(9, utf16(&text) - 1, cx));
+    cx.simulate_keystrokes("cmd-c");
+    assert_eq!(clipboard(cx).as_deref(), Some("$name ${call()}"));
     close(cx);
 }
 

@@ -49,6 +49,9 @@ const NONE: &[&str] = &[];
 /// the webview highlights those languages with CodeMirror. A UI without CodeMirror uses these
 /// through the same `doc_highlights` path. In these queries the later pattern wins for a node
 /// (`(identifier) @variable` comes first, the specific roles after it).
+///
+/// Kotlin's spec query only adds declaration roles to a token lexer's colours; such a UI gets the
+/// tokens from `queries/kotlin/highlights_native.scm` first, with the roles joined after it.
 #[cfg(feature = "native-highlights")]
 pub(crate) fn native_highlights(name: &str) -> Option<Highlights> {
     use std::sync::OnceLock;
@@ -73,6 +76,7 @@ pub(crate) fn native_highlights(name: &str) -> Option<Highlights> {
     static JAVA: OnceLock<String> = OnceLock::new();
     static C: OnceLock<String> = OnceLock::new();
     static CPP: OnceLock<String> = OnceLock::new();
+    static KOTLIN: OnceLock<String> = OnceLock::new();
     let js = tree_sitter_javascript::HIGHLIGHT_QUERY;
     let jsx = tree_sitter_javascript::JSX_HIGHLIGHT_QUERY;
     let ts = tree_sitter_typescript::HIGHLIGHTS_QUERY;
@@ -105,6 +109,9 @@ pub(crate) fn native_highlights(name: &str) -> Option<Highlights> {
         "toml" => tree_sitter_toml_ng::HIGHLIGHTS_QUERY,
         "markdown" => tree_sitter_md::HIGHLIGHT_QUERY_BLOCK,
         "cmake" => tree_sitter_cmake::HIGHLIGHTS_QUERY,
+        "kotlin" => {
+            joined(&KOTLIN, &[include_str!("../../queries/kotlin/highlights_native.scm"), highlights!("kotlin")])
+        }
         _ => return None,
     };
     Some(Highlights { query, first_wins: false })

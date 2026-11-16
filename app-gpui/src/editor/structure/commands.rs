@@ -246,11 +246,13 @@ async fn answer(host: Arc<Host>, label: String, doc: DocId, path: PathBuf, langu
     use ide_host::ops::syntax;
     match need {
         Need::Support => {
-            let support = syntax::syntax_support(&host, &label, language);
-            let mode = ide_host::ops::doc::doc_ui_mode(&host, &label, path).await.unwrap_or_else(|error| {
-                tracing::debug!("no editing mode: {}", error.message);
+            let framework = ide_host::ops::doc::doc_ui_mode(&host, &label, path).await.unwrap_or_else(|error| {
+                tracing::debug!("no framework editing mode: {}", error.message);
                 None
             });
+            // A framework's mode (Angular's) replaces the language's own.
+            let mode = framework.or_else(|| host.languages.get(&language).and_then(|config| config.ui_mode));
+            let support = syntax::syntax_support(&host, &label, language);
             Answer::Support(support, mode)
         }
         Need::Ranges(pos) => {

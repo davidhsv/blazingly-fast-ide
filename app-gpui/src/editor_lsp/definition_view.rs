@@ -2,9 +2,11 @@
 //! a popup, without leaving the editor. With several definitions ← / → switch between them; F4 (or
 //! the Edit Source button) opens the shown one; Escape closes the popup.
 
+use super::definition_source::source_rows;
 use super::files::target_label;
 use super::hover::definition_span;
 use super::hover_view::{code_font, popup_surface, tx};
+use crate::editor::view::HighlightSpan;
 use crate::platform::input;
 use crate::platform::virtual_docs::basename;
 use crate::theme;
@@ -27,6 +29,8 @@ pub struct DefinitionTarget {
     /// The 0-based line of the first line shown.
     pub first_line: u32,
     pub lines: Vec<String>,
+    /// The highlight spans of the lines shown, joined by line breaks (UTF-16 offsets).
+    pub spans: Vec<HighlightSpan>,
 }
 
 impl DefinitionTarget {
@@ -39,7 +43,7 @@ impl DefinitionTarget {
         let (first, last) = definition_span(&location, lines.len() as u32, None);
         let name = target_label(line, start.col).unwrap_or_else(|| basename(&to_ipc(&location.path)).into_owned());
         let shown = lines[first as usize..=last as usize].iter().map(|line| (*line).to_owned()).collect();
-        Some(Self { location, name, first_line: first, lines: shown })
+        Some(Self { location, name, first_line: first, lines: shown, spans: Vec::new() })
     }
 }
 
@@ -174,9 +178,9 @@ impl Render for DefinitionPopup {
             .overflow_y_scroll()
             .px(px(8.0))
             .py(px(4.0))
-            .font_family(mono.family)
+            .font_family(mono.family.clone())
             .text_size(theme::length(cx, "fs-code"))
-            .children(self.lines().into_iter().map(|line| div().whitespace_nowrap().child(SharedString::from(line))));
+            .children(self.targets.get(self.index).map(|target| source_rows(target, &mono, cx)).unwrap_or_default());
         popup_surface(cx)
             .debug_selector(|| "definition-popup".to_owned())
             .track_focus(&self.focus)

@@ -901,7 +901,7 @@ mod tests {
     }
 
     #[test]
-    fn drops_the_edit_when_the_document_changed_meanwhile_and_reports_fallback_without_ranges() {
+    fn plans_a_fallback_without_ranges_and_asks_nothing_on_a_blank_line() {
         let state = s("a|\n");
         assert_eq!(plan_move_statement(&state, &line_slashes, None, true, Some(&errs(vec![]))), MovePlan::Fallback);
         assert_eq!(move_statement_query(&s("a\n  |\n")), None);
