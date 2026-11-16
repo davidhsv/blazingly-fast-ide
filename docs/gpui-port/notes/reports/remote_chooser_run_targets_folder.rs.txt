@@ -1,0 +1,115 @@
+//! Select Folder on Target: the project folder of an SSH target chosen among the folders of its
+//! server, in the settings pages' [`RemoteFolderBrowser`] listed over SFTP with the target's SSH
+//! configuration. The browser opens under the Project folder row on the folder typed (`~`, the
+//! login folder, while it is empty), and OK makes the folder chosen the target's project folder.
+//!
+//! The browser's listing, host key trust and password are the page's [`RemoteFolders`]; a password
+//! typed is handed over for this session only, never saved.
+
+use super::RunTargetsView;
+use super::sources::RemoteFolders;
+pub use crate::settings_view::pages::remote_folder_browser::FolderState;
+#[cfg(test)]
+pub use crate::settings_view::pages::remote_folder_browser::{needs_host_trust, needs_secret};
+use crate::settings_view::pages::Then;
+use crate::settings_view::pages::remote_folder_browser::{
+    Flavour, FolderBackend, FolderBrowserEvent, FolderSetup, ListFolder, RemoteFolderBrowser,
+};
+use crate::ui::secret_field::SecretField;
+use crate::ui::text_field::TextField;
+use gpui_kit::{AnyElement, App, AppContext, Context, Entity, IntoElement, Subscription};
+use ide_core::IdeError;
+use ide_core::settings::SshAuth;
+use ide_ssh::{FsConnection, RemoteEntry};
+use std::rc::Rc;
+
+/// The open browser, with its path and password fields at hand for the page's accessors.
+pub(super) struct FolderBrowser {
+    view: Entity<RemoteFolderBrowser>,
+    path_field: Entity<TextField>,
+    secret: Entity<SecretField>,
+    _events: Subscription,
+}
+
+/// The page's backend as the browser asks for it: a target's folders are always listed over SFTP.
+fn browser_backend(folders: RemoteFolders) -> FolderBackend {
+    type Listed = Then<Result<Vec<RemoteEntry>, IdeError>>;
+    let lister = folders.list;
+    let list: ListFolder =
+        Rc::new(move |connection: FsConnection, path: String, then: Listed, cx: &mut App| match connection {
+            FsConnection::Sftp { ssh } => lister(ssh, path, then, cx),
+            FsConnection::Local => then(Err(IdeError::invalid("A run target's folders are listed over SFTP")), cx),
+        });
+    FolderBackend { list, trust_host: folders.trust_host, set_secret: folders.set_secret }
+}
+
+impl RunTargetsView {
+    pub fn folder_open(&self) -> bool {
+        self.folder.is_some()
+    }
+
+    /// The folder the browser shows.
+    pub fn folder_path(&self, cx: &App) -> Option<String> {
+        self.folder.as_ref().map(|browser| browser.view.read(cx).path().to_owned())
+    }
+
+    pub fn folder_path_field(&self) -> Option<&Entity<TextField>> {
+        self.folder.as_ref().map(|browser| &browser.path_field)
+    }
+
+    pub fn folder_secret_field(&self) -> Option<&Entity<SecretField>> {
+        self.folder.as_ref().map(|browser| &browser.secret)
+    }
+
+    pub fn folder_state(&self, cx: &App) -> Option<FolderState> {
+        self.folder.as_ref().map(|browser| browser.view.read(cx).state(cx))
+    }
+
+    /// Browse…: the browser on the project folder typed, listed with the target's SSH configuration.
+    pub(super) fn open_folder(&mut self, cx: &mut Context<Self>) {
+        let Some(target) = self.current(cx).filter(|_| self.can_browse(cx)) else { return };
+        let Some(folders) = self.folders.clone() else { return };
+        let setup = FolderSetup {
+            flavour: Flavour::Target,
+            connection: FsConnection::Sftp { ssh: target.ssh_config },
+            initial: target.project_root,
+            backend: browser_backend(folders),
+            auth: SshAuth::OpenSsh,
+        };
+        let view = cx.new(|cx| RemoteFolderBrowser::new(setup, cx));
+        let events = cx.subscribe(&view, |page: &mut Self, _, event: &FolderBrowserEvent, cx| match event {
+            FolderBrowserEvent::Chosen(path) => {
+                let chosen = path.clone();
+                page.folder = None;
+                page.update_current(cx, |target| target.project_root = chosen);
+                cx.notify();
+            }
+            FolderBrowserEvent::Closed => page.close_folder(cx),
+            FolderBrowserEvent::Changed => cx.notify(),
+        });
+        let (path_field, secret) = {
+            let shown = view.read(cx);
+            (shown.path_field().clone(), shown.secret_field().clone())
+        };
+        self.open = None;
+        self.folder = Some(FolderBrowser { view: view.clone(), path_field, secret, _events: events });
+        view.update(cx, |browser, cx| browser.start(cx));
+        cx.notify();
+    }
+
+    pub fn close_folder(&mut self, cx: &mut Context<Self>) {
+        if self.folder.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    /// The browser as text ([`RemoteFolderBrowser::lines`]); nothing while it is closed.
+    pub(super) fn folder_lines(&self, cx: &App) -> Vec<String> {
+        self.folder.as_ref().map(|browser| browser.view.read(cx).lines(cx)).unwrap_or_default()
+    }
+
+    /// The browser, drawn under the Project folder row while it is open.
+    pub(super) fn folder_panel(&self, _: &mut Context<Self>) -> Option<AnyElement> {
+        self.folder.as_ref().map(|browser| browser.view.clone().into_any_element())
+    }
+}
