@@ -5,20 +5,16 @@
 
 use super::RunTargetsView;
 use crate::backend::Backend;
-use crate::database::store::SecretText;
 use crate::settings_view::pages::Then;
+pub use crate::settings_view::pages::ssh_backend::{HostTrust, SecretSetter};
+use crate::settings_view::pages::ssh_backend::{backend_set_secret, backend_trust_host, on_backend};
 use gpui_kit::{App, Entity};
 use ide_core::IdeError;
 use ide_ssh::RemoteEntry;
 use std::rc::Rc;
-use std::sync::Arc;
 
 /// Lists the folder `path` of the server an SSH configuration reaches (`~` for the login folder).
 pub type FolderLister = Rc<dyn Fn(String, String, Then<Result<Vec<RemoteEntry>, IdeError>>, &mut App)>;
-/// Trusts the host key that failed the last connection of an SSH configuration.
-pub type HostTrust = Rc<dyn Fn(String, Then<Result<(), IdeError>>, &mut App)>;
-/// Hands an SSH configuration the password or passphrase typed, for this session only.
-pub type SecretSetter = Rc<dyn Fn(String, SecretText, Then<Result<(), IdeError>>, &mut App)>;
 
 /// What the folder browser asks of the backend.
 #[derive(Clone)]
@@ -64,27 +60,8 @@ pub fn docker_source(cx: &App) -> Option<DockerSource> {
     }
 }
 
-/// Runs `work` on the backend's runtime and hands its answer to `then` on the window's thread.
-fn on_backend<T, F, W>(work: W, then: Then<Result<T, IdeError>>, cx: &mut App)
-where
-    T: Send + 'static,
-    F: std::future::Future<Output = Result<T, IdeError>> + Send + 'static,
-    W: FnOnce(Arc<ide_host::Host>) -> F + Send + 'static,
-{
-    let Some(backend) = cx.try_global::<Backend>() else {
-        then(Err(IdeError::internal("The backend is not running")), cx);
-        return;
-    };
-    let work = backend.with_host(work);
-    cx.spawn(async move |cx| {
-        let result = work.await.unwrap_or_else(|error| Err(IdeError::internal(error.to_string())));
-        cx.update(|cx| then(result, cx));
-    })
-    .detach();
-}
-
 /// The backend's folder listing (`remote_list` over SFTP), host key trust (`ssh_trust_host`) and
-/// password (`ssh_set_secret` without saving it), each called as their commands call them.
+/// password (`ssh_set_secret`), each called as their commands call them.
 pub fn backend_folders() -> RemoteFolders {
     type Listed = Then<Result<Vec<RemoteEntry>, IdeError>>;
     let list: FolderLister = Rc::new(|ssh: String, path: String, then: Listed, cx: &mut App| {
@@ -95,21 +72,7 @@ pub fn backend_folders() -> RemoteFolders {
             cx,
         );
     });
-    let trust_host: HostTrust = Rc::new(|id: String, then: Then<Result<(), IdeError>>, cx: &mut App| {
-        on_backend(move |host| async move { host.ssh.trust_host(&id).await }, then, cx);
-    });
-    let set_secret: SecretSetter =
-        Rc::new(|id: String, secret: SecretText, then: Then<Result<(), IdeError>>, cx: &mut App| {
-            on_backend(
-                move |host| async move {
-                    host.ssh.set_secret(&id, Some(secret.into_inner()), false);
-                    Ok(())
-                },
-                then,
-                cx,
-            );
-        });
-    RemoteFolders { list, trust_host, set_secret }
+    RemoteFolders { list, trust_host: backend_trust_host(), set_secret: backend_set_secret() }
 }
 
 /// The backend's Docker connections (`docker_settings`): the app's `docker.json`, read off the

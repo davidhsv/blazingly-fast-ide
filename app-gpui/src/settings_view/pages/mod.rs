@@ -15,8 +15,10 @@
 
 pub mod appearance;
 pub mod build_cmake;
+pub mod build_deployment;
 pub mod build_gradle;
 pub mod build_maven;
+pub mod build_run_targets;
 pub mod build_tool_page;
 pub mod code_style;
 pub mod console;
@@ -34,10 +36,12 @@ pub mod languages_pages;
 pub mod languages_sdk;
 pub mod list_editor;
 pub mod notifications;
+pub mod ssh_backend;
 pub mod terminal;
 pub mod tools_actions_on_save;
 pub mod tools_external_tools;
 pub mod tools_record_table;
+pub mod tools_ssh;
 pub mod vcs_commit;
 pub mod vcs_confirmation;
 pub mod vcs_git;

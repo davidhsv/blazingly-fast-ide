@@ -14,7 +14,8 @@ use crate::settings_view::pages::{
 };
 use crate::theme;
 use gpui_kit::{
-    AnyElement, App, ClickEvent, Context, Entity, IntoElement, MouseButton, SharedString, div, prelude::*, px,
+    AnyElement, App, ClickEvent, Context, Entity, Focusable, IntoElement, MouseButton, SharedString, div, prelude::*,
+    px,
 };
 use ide_core::IdeError;
 use ide_core::settings::{DeploymentServer, DeploymentType, SshAuth, SshConfiguration};
@@ -85,7 +86,7 @@ impl DeploymentServersView {
             DeploymentType::Sftp => !server.ssh_config.is_empty(),
             DeploymentType::Local => !server.root_path.trim().is_empty(),
         };
-        ready && self.test_state(cx) != Some(TestState::Busy)
+        ready && self.connections.test.is_some() && self.test_state(cx) != Some(TestState::Busy)
     }
 
     /// Test Connection: asks the backend whether the root path (`~` while it is empty) of the
@@ -102,22 +103,32 @@ impl DeploymentServersView {
         let root = server.root_path.trim();
         let path = if root.is_empty() { "~".to_owned() } else { root.to_owned() };
         let view = cx.weak_entity();
+        let window = self.window;
         let then: Then<Result<(), IdeError>> = Rc::new(move |result: Result<(), IdeError>, cx: &mut App| {
             let state = match result {
                 Ok(()) => TestState::Connected,
                 Err(error) => TestState::Failed { kind: error.kind, message: error.message },
             };
             let key = key.clone();
-            view.update(cx, |view, cx| {
-                // A test the server or the tab left meanwhile has no one to tell.
-                if view.test.as_ref().is_some_and(|(running, now)| *running == key && *now == TestState::Busy) {
+            let focus = view
+                .update(cx, |view, cx| {
+                    // A test the server or the tab left meanwhile has no one to tell.
+                    if !view.test.as_ref().is_some_and(|(running, now)| *running == key && *now == TestState::Busy) {
+                        return None;
+                    }
                     view.test = Some((key, state));
                     cx.notify();
-                }
-            })
-            .ok();
+                    let asks = view.current(cx).and_then(|server| view.remedy(&server, cx));
+                    (asks == Some(SshTestRemedy::Secret)).then(|| view.problem.secret.focus_handle(cx))
+                })
+                .ok()
+                .flatten();
+            // The password field that appears takes the keyboard, as it does when it is first drawn.
+            if let (Some(focus), Some(window)) = (focus, window) {
+                window.update(cx, |_, window, cx| window.focus(&focus, cx)).ok();
+            }
         });
-        let test = self.connections.test.clone();
+        let Some(test) = self.connections.test.clone() else { return };
         // After this turn: a tester that answers at once finds the view free to update.
         cx.defer(move |cx| test(connection, path, then, cx));
         cx.notify();

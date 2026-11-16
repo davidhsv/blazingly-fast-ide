@@ -266,6 +266,8 @@ pub struct RunTargetsView {
     fields: Vec<(&'static str, Entity<TextField>)>,
     open: Option<Choice>,
     folder: Option<folder::FolderBrowser>,
+    /// Whether the dialog shows this page.
+    page_shown: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -303,6 +305,7 @@ impl RunTargetsView {
             fields,
             open: None,
             folder: None,
+            page_shown: false,
             _subscriptions: subscriptions,
         };
         view.sync(cx);
@@ -382,7 +385,7 @@ impl RunTargetsView {
         self.sync(cx);
     }
 
-    /// + : a new target, or a copy of the selected one, added at the end and selected.
+    /// Add (+): a new target, or a copy of the selected one, added at the end and selected.
     pub fn add(&mut self, copy: bool, cx: &mut Context<Self>) {
         let mut all = self.targets(cx);
         let base = if copy { self.current(cx) } else { None };
@@ -395,7 +398,7 @@ impl RunTargetsView {
         self.select(Some(id), cx);
     }
 
-    /// − : the selected target goes; the one now in its place (else the last) is selected.
+    /// Remove (−): the selected target goes; the one now in its place (else the last) is selected.
     pub fn remove(&mut self, cx: &mut Context<Self>) {
         let Some(at) = self.index(cx) else { return };
         let mut all = self.targets(cx);
@@ -451,6 +454,18 @@ impl RunTargetsView {
     /// list field keeps what is typed while it spells the list staged. Another target closes the
     /// folder browser.
     fn sync(&mut self, cx: &mut Context<Self>) {
+        // The page opens each time the dialog shows it, as a page of its own: the first target
+        // selected, no list or folder browser open; leaving it closes the browser and drops the
+        // password typed there.
+        let shown = self.binding.model.read(cx).page_id == self.binding.page;
+        if shown != self.page_shown {
+            self.page_shown = shown;
+            self.folder = None;
+            self.open = None;
+            if shown {
+                self.selected = self.targets(cx).into_iter().next().map(|target| target.id);
+            }
+        }
         let current = self.current(cx);
         let id = current.as_ref().map(|target| target.id.clone());
         if id != self.shown {

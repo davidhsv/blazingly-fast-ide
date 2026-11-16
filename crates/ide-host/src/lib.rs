@@ -115,6 +115,12 @@ impl Host {
     }
 
     pub fn new(config: HostConfig) -> Self {
+        Self::with_ssh_files(config, ide_ssh::SshFiles::default())
+    }
+
+    /// A host whose SSH connections check and record host keys in `ssh_files` and read the OpenSSH
+    /// configuration it names, instead of the user's `~/.ssh` (a host under a home of its own).
+    pub fn with_ssh_files(config: HostConfig, ssh_files: ide_ssh::SshFiles) -> Self {
         let HostConfig {
             config_dir,
             data_dir,
@@ -127,7 +133,7 @@ impl Host {
             project_environment,
         } = config;
         let global_settings = SettingsStore::load(&config_dir, None);
-        let ssh = Arc::new(ide_ssh::SshManager::new(data_dir.join("ssh-passwords.json")));
+        let ssh = Arc::new(ide_ssh::SshManager::with_files(data_dir.join("ssh-passwords.json"), ssh_files));
         ssh.set_configs(global_settings.effective().ssh.configs);
         let host = Self {
             plugin_host: Arc::default(),

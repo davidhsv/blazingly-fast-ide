@@ -95,6 +95,8 @@ fn run_test(view: &Entity<DeploymentServersView>, cx: &mut VisualTestContext) ->
 #[gpui_kit::test]
 async fn deployment_a_local_server_tested_by_the_backend_is_written_to_the_project(cx: &mut TestAppContext) {
     let home = start(cx);
+    // The backend's own Test Connection, on folders of a temporary directory only.
+    cx.update(|cx| cx.set_global(DeploymentConnections(backend_connections())));
     let target = tempfile::tempdir().expect("a temporary folder");
     let target = target.path().canonicalize().expect("the folder exists");
     std::fs::write(target.join("plain.txt"), "x").expect("the file is written");
@@ -245,12 +247,18 @@ async fn deployment_an_sftp_password_typed_is_kept_by_the_backend_and_never_show
         .finish();
     let _logging = tracing::subscriber::set_default(subscriber);
     let home = start(cx);
+    crate::backend::assert_ssh_files_under(home.path(), cx);
     assert!(ide_ssh::secrets::secrets_in_files(), "saved passwords go to files under the temporary home");
+    // A loopback port nothing listens on: were anything to connect, it would be refused there.
+    let closed = std::net::TcpListener::bind("127.0.0.1:0").expect("a loopback port");
+    let port = closed.local_addr().expect("its address").port();
+    drop(closed);
     assert!(!ide_ssh::secrets::default_store_installed(), "the system's credential store is never set up");
     let config = SshConfiguration {
         id: "box".to_owned(),
         name: "Box".to_owned(),
-        host: "box.example.test".to_owned(),
+        host: "127.0.0.1".to_owned(),
+        port: Some(port),
         user: "me".to_owned(),
         auth: SshAuth::Password,
         save_secret: true,
@@ -266,22 +274,24 @@ async fn deployment_an_sftp_password_typed_is_kept_by_the_backend_and_never_show
             let first = seen.borrow().is_empty();
             seen.borrow_mut().push(connection);
             let answer = if first {
-                Err(IdeError::new(ErrorKind::PermissionDenied, "SSH password required for me@box.example.test:22"))
+                Err(IdeError::new(ErrorKind::PermissionDenied, "SSH password required for me@127.0.0.1"))
             } else {
                 Ok(())
             };
             then(answer, cx);
         });
-    cx.update(|cx| cx.set_global(DeploymentConnections(Connections { test, ..backend_connections() })));
+    cx.update(|cx| cx.set_global(DeploymentConnections(Connections { test: Some(test), ..backend_connections() })));
     let (_folder, _root, workbench, cx) = project(cx);
     cx.update(|_, cx| set_global("w1", &writes, cx)).expect("the SSH configuration is stored");
+    let known = cx.update(|_, cx| cx.global::<Backend>().host.ssh.config("box")).expect("the backend takes it");
+    assert_eq!((known.host.as_str(), known.port), ("127.0.0.1", Some(port)), "only the closed loopback port");
     let (dialog, view) = open_page(&workbench, cx);
     click_on(cx, "settings-deployment-add");
     click_on(cx, "settings-select-deployment.sshConfig");
     click_on(cx, "settings-choice-deployment.sshConfig-0");
     run_test(&view, cx);
     let shown = lines(&view, cx);
-    assert!(shown.contains(&"! SSH password required for me@box.example.test:22".to_owned()), "{shown:?}");
+    assert!(shown.contains(&"! SSH password required for me@127.0.0.1".to_owned()), "{shown:?}");
     let secret = view.read_with(cx, |view, _| view.secret_field().clone());
     cx.update(|window, cx| window.focus(&secret.focus_handle(cx), cx));
     cx.simulate_input(SECRET);
@@ -296,6 +306,17 @@ async fn deployment_an_sftp_password_typed_is_kept_by_the_backend_and_never_show
     let kept = cx.update(|_, cx| cx.global::<Backend>().host.ssh.secret(&config)).is_some_and(|kept| kept == SECRET);
     assert!(kept, "the backend keeps the password for the SSH configuration");
 
+    // Another page and back, with the password asked for again and typed: leaving the page drops
+    // the test result and the password, as the page opens anew.
+    tests.borrow_mut().clear();
+    run_test(&view, cx);
+    cx.update(|window, cx| window.focus(&secret.focus_handle(cx), cx));
+    cx.simulate_input(SECRET);
+    cx.run_until_parked();
+    run_action(cx, "file.settings", Some(Value::from("tools.sshConfigurations")));
+    run_action(cx, "file.settings", Some(Value::from(build_deployment::PAGE)));
+    assert_eq!(view.read_with(cx, |view, cx| view.test_state(cx)), None, "the test result is dropped");
+    assert!(secret.read_with(cx, |field, cx| field.text(cx).is_empty()), "the password typed is dropped");
     let debug = dialog.read_with(cx, |view, cx| format!("{:?}", view.model().read(cx)));
     assert!(!debug.contains(SECRET), "the dialog's Debug output names the password");
     // Cancel: no server over SFTP is left in the settings for anything to connect to.
@@ -310,4 +331,21 @@ async fn deployment_an_sftp_password_typed_is_kept_by_the_backend_and_never_show
     // Test builds keep saved passwords in a vault file beside the index, in place of the system's store.
     let vault = |file: &PathBuf| file.file_name().is_some_and(|name| name == "ssh-passwords.json.vault");
     assert!(!holding.is_empty() && holding.iter().all(vault), "{holding:?}");
+}
+
+// Deployment, shown after another page of the open dialog: the project's first server is selected
+// and its Connection tab shown, as when Settings opens on the page.
+#[gpui_kit::test]
+async fn deployment_shown_after_another_page_selects_the_projects_first_server(cx: &mut TestAppContext) {
+    use ide_workspace::settings::SettingsScope;
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = project(cx);
+    let servers = json!([{ "id": "s1", "name": "Shop", "kind": "local", "rootPath": "/srv/shop" }]);
+    cx.update(|_, cx| crate::platform::settings::set("w1", SettingsScope::Project, "deployment.servers", &servers, cx))
+        .expect("the servers are stored");
+    run_action(cx, "file.settings", Some(Value::from("tools.sshConfigurations")));
+    let (_dialog, view) = open_page(&workbench, cx);
+    let shown = lines(&view, cx);
+    assert_eq!(shown[1..3], ["> Shop (default)".to_owned(), "[Connection] Mappings Excluded Paths".to_owned()]);
+    assert!(shown.contains(&"Root path: /srv/shop".to_owned()), "{shown:?}");
 }

@@ -4513,6 +4513,9 @@ mod tests {
     mod proofs26_code_preview;
     mod proofs26_save_all;
     mod proofs27_gutter;
+    mod proofs28_settings_deployment;
+    mod proofs29_settings_ssh;
+    mod proofs30_settings_run_targets;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

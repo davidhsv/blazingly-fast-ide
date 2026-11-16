@@ -8,18 +8,18 @@
 //! first). Test Connection asks the backend with the server as edited, before Apply. When an SFTP
 //! server's test fails on an unknown host key or a missing password or passphrase, the page offers
 //! to trust the key or takes the secret in a [`SecretField`]; the secret leaves the view only as a
-//! [`SecretText`] for the backend, which keeps it for the session and, with Save, in the saved
-//! passwords. It is never staged, drawn, listed or logged.
+//! [`SecretText`](crate::database::store::SecretText) for the backend, which keeps it for the
+//! session and, with Save, in the saved passwords. It is never staged, drawn, listed or logged.
 
 mod connection;
 mod paths;
 #[cfg(test)]
 mod proofs28_deployment_view;
 
+pub use super::ssh_backend::{HostTrust, SecretSetter};
+use super::ssh_backend::{backend_set_secret, backend_trust_host, on_backend};
 use super::tools_record_table::RecordTable;
 use super::{Binding, ControlEvent, Then, new_field};
-use crate::backend::Backend;
-use crate::database::store::SecretText;
 use crate::platform::i18n::Localization;
 use crate::platform_more::remote_settings::with_unique_ids;
 use crate::settings_model::deployment_model::{RemoteIds, fix_default_server, new_server};
@@ -28,8 +28,8 @@ use crate::theme;
 use crate::ui::secret_field::{SecretField, SecretFieldEvent};
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
-    AnyElement, App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, MouseButton, Render,
-    SharedString, Subscription, Window, div, prelude::*, px,
+    AnyElement, AnyWindowHandle, App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, MouseButton,
+    Render, SharedString, Subscription, Window, div, prelude::*, px,
 };
 use ide_core::IdeError;
 use ide_core::error::ErrorKind;
@@ -47,15 +47,11 @@ const DEFAULT_SERVER: &str = "deployment.defaultServer";
 /// Tests that a server's folder can be reached: the connection, the folder (`~` for the login
 /// folder), and the callback that takes the answer.
 pub type Tester = Rc<dyn Fn(FsConnection, String, Then<Result<(), IdeError>>, &mut App)>;
-/// Trusts the host key that failed the last connection of an SSH configuration.
-pub type HostTrust = Rc<dyn Fn(String, Then<Result<(), IdeError>>, &mut App)>;
-/// Hands an SSH configuration its password or passphrase, kept in the saved passwords with `save`.
-pub type SecretSetter = Rc<dyn Fn(String, SecretText, bool, Then<Result<(), IdeError>>, &mut App)>;
-
 /// What the page asks of the backend.
 #[derive(Clone)]
 pub struct Connections {
-    pub test: Tester,
+    /// None: Test Connection is unavailable.
+    pub test: Option<Tester>,
     pub trust_host: HostTrust,
     pub set_secret: SecretSetter,
 }
@@ -65,57 +61,32 @@ pub struct DeploymentConnections(pub Connections);
 
 impl gpui_kit::Global for DeploymentConnections {}
 
-/// The connections set as [`DeploymentConnections`], else the backend's.
+/// The connections set as [`DeploymentConnections`], else the backend's. A test build gets no
+/// Test Connection of its own making: an SFTP server's would connect to its host, so a test that
+/// wants one sets it.
 pub fn connections(cx: &App) -> Connections {
     match cx.try_global::<DeploymentConnections>() {
         Some(set) => set.0.clone(),
+        None if cfg!(test) => Connections { test: None, ..backend_connections() },
         None => backend_connections(),
     }
-}
-
-/// Runs `work` on the backend's runtime and hands its answer to `then` on the window's thread.
-fn on_backend<F, W>(work: W, then: Then<Result<(), IdeError>>, cx: &mut App)
-where
-    F: std::future::Future<Output = Result<(), IdeError>> + Send + 'static,
-    W: FnOnce(std::sync::Arc<ide_host::Host>) -> F + Send + 'static,
-{
-    let Some(backend) = cx.try_global::<Backend>() else {
-        then(Err(IdeError::internal("The backend is not running")), cx);
-        return;
-    };
-    let work = backend.with_host(work);
-    cx.spawn(async move |cx| {
-        let result = work.await.unwrap_or_else(|error| Err(IdeError::internal(error.to_string())));
-        cx.update(|cx| then(result, cx));
-    })
-    .detach();
 }
 
 /// The backend's Test Connection (`deploy_test_connection`), host key trust (`ssh_trust_host`) and
 /// secret (`ssh_set_secret`), each called as their commands call them.
 pub fn backend_connections() -> Connections {
-    type Answer = Then<Result<(), IdeError>>;
-    let test: Tester = Rc::new(|connection: FsConnection, path: String, then: Answer, cx: &mut App| {
+    Connections { test: Some(backend_tester()), trust_host: backend_trust_host(), set_secret: backend_set_secret() }
+}
+
+/// The backend's Test Connection (`deploy_test_connection`), as its command calls it.
+pub fn backend_tester() -> Tester {
+    Rc::new(|connection: FsConnection, path: String, then: Then<Result<(), IdeError>>, cx: &mut App| {
         on_backend(
             move |host| async move { ide_host::ops::deploy::deploy_test_connection(&host, connection, path).await },
             then,
             cx,
         );
-    });
-    let trust_host: HostTrust = Rc::new(|id: String, then: Answer, cx: &mut App| {
-        on_backend(move |host| async move { host.ssh.trust_host(&id).await }, then, cx);
-    });
-    let set_secret: SecretSetter = Rc::new(|id: String, secret: SecretText, save: bool, then: Answer, cx: &mut App| {
-        on_backend(
-            move |host| async move {
-                host.ssh.set_secret(&id, Some(secret.into_inner()), save);
-                Ok(())
-            },
-            then,
-            cx,
-        );
-    });
-    Connections { test, trust_host, set_secret }
+    })
 }
 
 /// `text` in the UI language; text built from a template (`Folder does not exist: …`) is
@@ -210,6 +181,11 @@ pub struct DeploymentServersView {
     mapping_rows: Vec<MappingRow>,
     /// The selected server's excluded paths.
     excluded: Entity<RecordTable>,
+    /// The window the editor was last drawn in, for the keyboard to go to the password field a
+    /// failed test asks for.
+    window: Option<AnyWindowHandle>,
+    /// Whether the dialog shows this page.
+    page_shown: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -273,6 +249,8 @@ impl DeploymentServersView {
             mapping_server: None,
             mapping_rows: Vec::new(),
             excluded,
+            window: None,
+            page_shown: false,
             _subscriptions: subscriptions,
         };
         view.sync(cx);
@@ -352,7 +330,7 @@ impl DeploymentServersView {
         cx.notify();
     }
 
-    /// + : a new SFTP server with one empty mapping, or a copy of the selected one, added at the
+    /// Add (+): a new SFTP server with one empty mapping, or a copy of the selected one, added at the
     /// end, selected and shown on its Connection tab.
     pub fn add(&mut self, copy: bool, cx: &mut Context<Self>) {
         let mut all = self.servers(cx);
@@ -366,7 +344,7 @@ impl DeploymentServersView {
         self.select(Some(id), cx);
     }
 
-    /// − : the selected server goes; the one now in its place (else the last) is selected.
+    /// Remove (−): the selected server goes; the one now in its place (else the last) is selected.
     pub fn remove(&mut self, cx: &mut Context<Self>) {
         let Some(current) = self.current(cx) else { return };
         let all = self.servers(cx);
@@ -387,6 +365,9 @@ impl DeploymentServersView {
 
     /// The fields show the selected server; a field already showing its value is left alone.
     fn sync(&mut self, cx: &mut Context<Self>) {
+        if self.follow_page(cx) {
+            return;
+        }
         let current = self.current(cx);
         let (name, root, web) = current
             .as_ref()
@@ -405,6 +386,26 @@ impl DeploymentServersView {
         }
         self.sync_mappings(cx);
         cx.notify();
+    }
+
+    /// The page opens each time the dialog shows it, as a page of its own: the first server
+    /// selected on its Connection tab, nothing tested or typed; leaving the page drops the test
+    /// result and the password typed. Whether it selected (and synced).
+    fn follow_page(&mut self, cx: &mut Context<Self>) -> bool {
+        let shown = self.binding.model.read(cx).page_id == self.binding.page;
+        if shown == self.page_shown {
+            return false;
+        }
+        self.page_shown = shown;
+        self.test = None;
+        self.reset_problem(cx);
+        if !shown {
+            return false;
+        }
+        self.tab = ServerTab::Connection;
+        let first = self.servers(cx).into_iter().next().map(|server| server.id);
+        self.select(first, cx);
+        true
     }
 
     /// The server list as text: each server (`>` the selected one) with `(default)` after the
@@ -581,7 +582,8 @@ fn tool(cx: &App, selector: &str, icon: &str, enabled: bool, title: &'static str
 }
 
 impl Render for DeploymentServersView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.window = Some(window.window_handle());
         let list = self.server_list(cx);
         let detail = match self.current(cx) {
             Some(server) => {

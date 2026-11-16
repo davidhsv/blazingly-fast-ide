@@ -204,6 +204,25 @@ pub fn install(
     let view = cx.new(|cx| pages::tools_external_tools::ExternalToolsView::new(tools, cx));
     slots.put(pages::tools_external_tools::PAGE, pages::tools_external_tools::SLOT, &view, cx);
 
+    // Tools › SSH Configurations: the global SSH configurations, with Test Connection and the
+    // saved passwords of the backend.
+    let ssh = binding(pages::tools_ssh::PAGE);
+    let checks = pages::tools_ssh::checks(cx);
+    let view = cx.new(|cx| pages::tools_ssh::SshConfigurationsView::new(ssh, checks, cx));
+    slots.put(pages::tools_ssh::PAGE, pages::tools_ssh::SLOT, &view, cx);
+
+    // Build, Execution, Deployment › Deployment: the servers, with the project's root for the
+    // local folders of the mappings.
+    let deployment = binding(pages::build_deployment::PAGE);
+    let project_root = cx
+        .try_global::<Backend>()
+        .and_then(|backend| backend.host.project(install.window_label).ok())
+        .map(|project| project.root.to_string_lossy().into_owned());
+    let connections = pages::build_deployment::connections(cx);
+    let view =
+        cx.new(|cx| pages::build_deployment::DeploymentServersView::new(deployment, project_root, connections, cx));
+    slots.put(pages::build_deployment::PAGE, pages::build_deployment::SLOT, &view, cx);
+
     // Version Control › Directory Mappings and Issue Navigation.
     let mapping = pages::vcs_mappings::project_mapping(install.window_label, cx);
     let mappings = binding(pages::vcs_mappings::PAGE);
@@ -223,6 +242,14 @@ pub fn install(
     slots.page_view(pages::build_gradle::PAGE, &view, cx);
     let view = pages::build_maven::page(binding(pages::build_maven::PAGE), toolchains.clone(), cx);
     slots.page_view(pages::build_maven::PAGE, &view, cx);
+
+    // Build, Execution, Deployment › Run Targets: the targets of the scope shown, on the global SSH
+    // configurations, the Services tool window's Docker connections and the plugins' targets.
+    let run_targets = binding(pages::build_run_targets::PAGE);
+    let folders = pages::build_run_targets::folders(cx);
+    let view = cx.new(|cx| pages::build_run_targets::RunTargetsView::new(run_targets, folders, cx));
+    pages::build_run_targets::load_sources(&view, install.window_label, cx);
+    slots.put(pages::build_run_targets::PAGE, pages::build_run_targets::SLOT, &view, cx);
 
     // Languages & Frameworks and Python Interpreter: pages drawn by views of their own.
     let languages =

@@ -3,6 +3,7 @@
 //! mappings and the excluded paths. The backend is a stand-in that records what it is asked.
 
 use super::*;
+use crate::database::store::SecretText;
 use crate::settings_model::staging::{Scope, SettingsDialog};
 use crate::settings_view::pages::test_support::*;
 use crate::ui::secret_field::BULLET;
@@ -47,7 +48,7 @@ fn stand_in(answers: Vec<Result<(), IdeError>>) -> (Connections, Rc<RefCell<Aske
             log.borrow_mut().secrets.push((id, secret.expose() == SECRET, save));
             then(Ok(()), cx);
         });
-    (Connections { test, trust_host, set_secret }, asked)
+    (Connections { test: Some(test), trust_host, set_secret }, asked)
 }
 
 fn server(id: &str, name: &str) -> Value {
@@ -57,11 +58,11 @@ fn server(id: &str, name: &str) -> Value {
 
 /// The editor over a dialog whose settings hold `settings`, with the stand-in backend, editing the
 /// project (the page's first scope), with the project at `/work/shop`.
-fn editor(
-    cx: &mut TestAppContext,
+fn editor<'a>(
+    cx: &'a mut TestAppContext,
     settings: Vec<(&'static str, Value)>,
     connections: Connections,
-) -> (Entity<DeploymentServersView>, Entity<SettingsDialog>, Seen, &mut VisualTestContext) {
+) -> (Entity<DeploymentServersView>, Entity<SettingsDialog>, Seen, &'a mut VisualTestContext) {
     let model = cx.update(|cx| dialog_model(PAGE, &settings, cx));
     let binding = Binding::fixed(model.clone(), PAGE, Scope::Project);
     let root = Some("/work/shop".to_owned());
@@ -226,7 +227,7 @@ async fn a_missing_password_is_typed_as_bullets_and_handed_to_the_backend(cx: &m
     assert!(shown.contains(&"! SSH password required for me@box:22".to_owned()), "{shown:?}");
     assert!(shown.contains(&"Password or passphrase:  [ ] Save [Connect] (disabled)".to_owned()), "{shown:?}");
     let secret = view.read_with(cx, |view, _| view.secret_field().clone());
-    cx.update(|window, cx| window.focus(&secret.focus_handle(cx), cx));
+    assert!(cx.update(|window, cx| secret.focus_handle(cx).is_focused(window)), "the field has the keyboard");
     cx.simulate_input(SECRET);
     cx.run_until_parked();
     click(cx, "settings-toggle-deployment.saveSecret");
@@ -324,4 +325,19 @@ async fn excluded_paths_are_added_edited_and_removed(cx: &mut TestAppContext) {
     cx.run_until_parked();
     assert_eq!(excluded(cx), json!(["/var/www/app/tmp"]));
     assert_eq!(lines(&view, cx)[3], "> /var/www/app/tmp");
+}
+
+// Not from a spec: a test build gets no Test Connection of its own making, so a server is never
+// tested against the backend unless a test gives the page a tester.
+#[gpui_kit::test]
+async fn a_test_build_has_no_test_connection_of_its_own(cx: &mut TestAppContext) {
+    let built = cx.update(|cx| connections(cx));
+    assert!(built.test.is_none());
+    let mut stored = server("s1", "Shop");
+    stored["kind"] = json!("local");
+    stored["rootPath"] = json!("/mnt/www");
+    let (view, _, _, cx) = editor(cx, vec![("deployment.servers", json!([stored]))], built);
+    assert!(lines(&view, cx).contains(&"[Test Connection] (disabled)".to_owned()), "{:?}", lines(&view, cx));
+    click(cx, "settings-deployment-test");
+    assert_eq!(view.read_with(cx, |view, cx| view.test_state(cx)), None);
 }

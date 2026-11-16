@@ -130,6 +130,17 @@ impl AppDirs {
             isolated: true,
         }
     }
+
+    /// The known hosts and OpenSSH configuration SSH connections use: under a home of its own, a
+    /// `known_hosts` file there and no OpenSSH configuration, so that nothing reads or records host
+    /// keys in the user's `~/.ssh`; otherwise the user's.
+    pub fn ssh_files(&self) -> ide_ssh::SshFiles {
+        if !self.isolated {
+            return ide_ssh::SshFiles::default();
+        }
+        let home = self.data.parent().unwrap_or(&self.data);
+        ide_ssh::SshFiles { known_hosts: home.join("ssh").join("known_hosts"), config: None }
+    }
 }
 
 /// An event from the backend: for one window (by label), or for every window.
@@ -233,26 +244,30 @@ impl Backend {
         let (sender, events) = unbounded();
         #[cfg(test)]
         let windows: Arc<parking_lot::Mutex<std::collections::BTreeSet<String>>> = Arc::default();
-        let host = Arc::new(Host::new(HostConfig {
-            config_dir: dirs.config.clone(),
-            data_dir: dirs.data.clone(),
-            local_data_dir: dirs.local_data.clone(),
-            languages,
-            syntax,
-            sink_for: Box::new({
-                let sender = sender.clone();
-                #[cfg(test)]
-                let windows = windows.clone();
-                move |window| -> SharedSink {
+        let ssh_files = dirs.ssh_files();
+        let host = Arc::new(Host::with_ssh_files(
+            HostConfig {
+                config_dir: dirs.config.clone(),
+                data_dir: dirs.data.clone(),
+                local_data_dir: dirs.local_data.clone(),
+                languages,
+                syntax,
+                sink_for: Box::new({
+                    let sender = sender.clone();
                     #[cfg(test)]
-                    windows.lock().insert(window.to_owned());
-                    Arc::new(ChannelSink { window: Some(window.to_owned()), events: sender.clone() })
-                }
-            }),
-            owner: owner_window,
-            runtime: runtime.handle().clone(),
-            project_environment: false,
-        }));
+                    let windows = windows.clone();
+                    move |window| -> SharedSink {
+                        #[cfg(test)]
+                        windows.lock().insert(window.to_owned());
+                        Arc::new(ChannelSink { window: Some(window.to_owned()), events: sender.clone() })
+                    }
+                }),
+                owner: owner_window,
+                runtime: runtime.handle().clone(),
+                project_environment: false,
+            },
+            ssh_files,
+        ));
         #[cfg(test)]
         trash_into_test_home(&host, &dirs);
         #[cfg(test)]
@@ -350,6 +365,18 @@ pub fn owner_window(window: &str) -> &str {
     window.split_once("::").map_or(window, |(parent, _)| parent)
 }
 
+/// Asserts that the SSH files of the installed backend are under `home` and that it reads no
+/// OpenSSH configuration. Tests call it before any SSH call.
+#[cfg(test)]
+pub(crate) fn assert_ssh_files_under(home: &Path, cx: &mut gpui_kit::TestAppContext) {
+    let (known_hosts, config) = cx.update(|cx| {
+        let files = cx.global::<Backend>().host.ssh.files();
+        (files.known_hosts.clone(), files.config.clone())
+    });
+    assert!(known_hosts.starts_with(home), "known hosts {} are not under {}", known_hosts.display(), home.display());
+    assert_eq!(config, None, "a test backend reads no OpenSSH configuration");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -420,6 +447,19 @@ mod tests {
 
         assert!(!ide_ssh::secrets::default_store_installed(), "the OS credential store was set up");
         cx.update(|cx| cx.global::<Backend>().host.close_project("w1"));
+    }
+
+    /// A backend under a temporary home checks and records SSH host keys in a `known_hosts` file
+    /// there and reads no OpenSSH configuration, so no SSH call of a test reaches the user's `~/.ssh`.
+    #[gpui_kit::test]
+    async fn the_ssh_files_of_a_backend_under_a_temporary_home_are_under_that_home(cx: &mut TestAppContext) {
+        cx.executor().allow_parking();
+        let home = tempfile::tempdir().expect("a temporary home");
+        cx.update(|cx| Backend::init(AppDirs::under(home.path()), cx)).expect("the backend starts");
+        assert_ssh_files_under(home.path(), cx);
+        let known_hosts = cx.update(|cx| cx.global::<Backend>().host.ssh.files().known_hosts.clone());
+        assert_eq!(known_hosts, home.path().join("ssh/known_hosts"));
+        assert_ne!(AppDirs::under(home.path()).ssh_files().known_hosts, ide_ssh::SshFiles::default().known_hosts);
     }
 
     /// The real backend opens a fixture project and lists it through `ide_host::ops`, and its

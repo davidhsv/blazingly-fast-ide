@@ -72,7 +72,7 @@ fn entry(name: &str, path: &str, is_dir: bool) -> RemoteEntry {
 }
 
 /// What the stand-in backend was asked, in order: `list <ssh> <path>`, `trust <ssh>`,
-/// `secret <ssh> typed` (the secret expected) or `secret <ssh> other`.
+/// `secret <ssh> typed save=<save>` (the secret expected) or `secret <ssh> other save=<save>`.
 type Asked = Rc<RefCell<Vec<String>>>;
 
 /// A backend whose listings answer `answers` in turn (then empty folders), whose trust succeeds and
@@ -94,9 +94,9 @@ fn stand_in(answers: Vec<Result<Vec<RemoteEntry>, IdeError>>) -> (RemoteFolders,
     });
     let log = asked.clone();
     let set_secret: SecretSetter =
-        Rc::new(move |ssh: String, secret: SecretText, then: Then<Result<(), IdeError>>, cx: &mut App| {
+        Rc::new(move |ssh: String, secret: SecretText, save: bool, then: Then<Result<(), IdeError>>, cx: &mut App| {
             let which = if secret.expose() == SECRET { "typed" } else { "other" };
-            log.borrow_mut().push(format!("secret {ssh} {which}"));
+            log.borrow_mut().push(format!("secret {ssh} {which} save={save}"));
             then(Ok(()), cx);
         });
     (RemoteFolders { list, trust_host, set_secret }, asked)
@@ -396,7 +396,7 @@ async fn the_folder_browser_hands_a_typed_password_to_the_backend_and_never_show
     assert!(shown_lines.contains(&format!("Password or passphrase: {bullets} [Connect]")), "{shown_lines:?}");
     assert!(shown_lines.iter().all(|line| !line.contains(SECRET)));
     click(cx, "settings-target-folder-connect");
-    assert_eq!(asked.borrow().as_slice(), ["list s1 ~", "secret s1 typed", "list s1 ~"]);
+    assert_eq!(asked.borrow().as_slice(), ["list s1 ~", "secret s1 typed save=false", "list s1 ~"]);
     assert!(secret.read_with(cx, |field, cx| field.text(cx).is_empty()), "the field is emptied");
     assert!(lines(&view, cx).contains(&"No subfolders".to_owned()));
     let edits = staged(&model, cx);

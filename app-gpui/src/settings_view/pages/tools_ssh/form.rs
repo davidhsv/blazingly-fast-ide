@@ -250,16 +250,20 @@ impl SshConfigurationsView {
                 let trust = div()
                     .id("settings-ssh-trust")
                     .debug_selector(|| "settings-ssh-trust".to_owned())
+                    .flex_none()
                     .child(button(cx, &trust_label, false, true))
                     .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.trust_and_retry(cx)));
+                // Wrapping keeps the button inside the page when the note fills the row.
                 rows.push(
                     div()
                         .px(px(4.0))
                         .flex()
+                        .flex_wrap()
                         .items_center()
                         .gap(px(8.0))
                         .child(
                             div()
+                                .min_w_0()
                                 .text_size(theme::length(cx, "fs-small"))
                                 .text_color(theme::color(cx, "fg-subtle"))
                                 .child(SharedString::from(note)),

@@ -17,8 +17,9 @@ mod form;
 #[cfg(test)]
 mod proofs29_ssh_view;
 
+pub use super::ssh_backend::HostTrust;
+use super::ssh_backend::{backend_trust_host, on_backend};
 use super::{Binding, ControlEvent, Then, new_field};
-use crate::backend::Backend;
 use crate::database::store::SecretText;
 use crate::platform_more::remote_settings::with_unique_ids;
 use crate::settings_model::deployment_model::RemoteIds;
@@ -37,7 +38,6 @@ use ide_core::IdeError;
 use ide_core::settings::{SshAuth, SshConfiguration};
 use serde_json::Value;
 use std::rc::Rc;
-use std::sync::Arc;
 
 pub const PAGE: &str = SSH_SETTINGS_PAGE;
 /// The slot the editor fills.
@@ -57,8 +57,6 @@ pub const AUTHS: [(SshAuth, &str, &str); 3] = [
 /// Connects with a configuration as edited and the secret typed (none: the one the backend knows),
 /// and hands `then` what the host says about itself, or why it could not connect.
 pub type SshTester = Rc<dyn Fn(SshConfiguration, Option<SecretText>, Then<Result<String, IdeError>>, &mut App)>;
-/// Trusts the host key that failed the last connection of a configuration.
-pub type HostTrust = Rc<dyn Fn(String, Then<Result<(), IdeError>>, &mut App)>;
 /// Whether connecting with a saved configuration needs a password the backend does not know.
 pub type SecretCheck = Rc<dyn Fn(String, Then<Result<bool, IdeError>>, &mut App)>;
 
@@ -86,25 +84,6 @@ pub fn checks(cx: &App) -> SshChecks {
     }
 }
 
-/// Runs `work` on the backend's runtime and hands its answer to `then` on the window's thread.
-fn on_backend<T, F, W>(work: W, then: Then<Result<T, IdeError>>, cx: &mut App)
-where
-    T: Send + 'static,
-    F: std::future::Future<Output = Result<T, IdeError>> + Send + 'static,
-    W: FnOnce(Arc<ide_host::Host>) -> F + Send + 'static,
-{
-    let Some(backend) = cx.try_global::<Backend>() else {
-        then(Err(IdeError::internal("The backend is not running")), cx);
-        return;
-    };
-    let work = backend.with_host(work);
-    cx.spawn(async move |cx| {
-        let result = work.await.unwrap_or_else(|error| Err(IdeError::internal(error.to_string())));
-        cx.update(|cx| then(result, cx));
-    })
-    .detach();
-}
-
 /// The backend's Test Connection (`ssh_test`), as its command calls it.
 pub fn backend_tester() -> SshTester {
     type Answer = Then<Result<String, IdeError>>;
@@ -120,9 +99,6 @@ pub fn backend_tester() -> SshTester {
 /// The backend's Test Connection, host key trust (`ssh_trust_host`) and stored-secret check
 /// (`ssh_needs_secret`), each called as their commands call them.
 pub fn backend_checks() -> SshChecks {
-    let trust_host: HostTrust = Rc::new(|id: String, then: Then<Result<(), IdeError>>, cx: &mut App| {
-        on_backend(move |host| async move { host.ssh.trust_host(&id).await }, then, cx);
-    });
     let needs_secret: SecretCheck = Rc::new(|id: String, then: Then<Result<bool, IdeError>>, cx: &mut App| {
         on_backend(
             move |host| async move { host.ssh.config(&id).map(|config| host.ssh.needs_secret(&config)) },
@@ -130,7 +106,7 @@ pub fn backend_checks() -> SshChecks {
             cx,
         );
     });
-    SshChecks { test: Some(backend_tester()), trust_host, needs_secret }
+    SshChecks { test: Some(backend_tester()), trust_host: backend_trust_host(), needs_secret }
 }
 
 /// The configurations as the page shows them (staged, else stored, in the global settings), each
@@ -264,6 +240,8 @@ pub struct SshConfigurationsView {
     /// The window the editor was last drawn in, for the keyboard to go to the secret field when a
     /// test asks for it.
     window: Option<AnyWindowHandle>,
+    /// Whether the dialog shows this page.
+    page_shown: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -328,6 +306,7 @@ impl SshConfigurationsView {
             test: TestState::Idle,
             test_run: 0,
             window: None,
+            page_shown: false,
             _subscriptions: subscriptions,
         };
         view.sync(cx);
@@ -396,7 +375,7 @@ impl SshConfigurationsView {
         self.sync(cx);
     }
 
-    /// + : a new configuration, or a copy of the selected one, added at the end and selected.
+    /// Add (+): a new configuration, or a copy of the selected one, added at the end and selected.
     pub fn add(&mut self, copy: bool, cx: &mut Context<Self>) {
         let mut all = self.configs(cx);
         let base = if copy { self.current(cx) } else { None };
@@ -408,7 +387,7 @@ impl SshConfigurationsView {
         self.select(Some(id), cx);
     }
 
-    /// − : the selected configuration goes with the secret typed for it; the one now in its place
+    /// Remove (−): the selected configuration goes with the secret typed for it; the one now in its place
     /// (else the last) is selected.
     pub fn remove(&mut self, cx: &mut Context<Self>) {
         let Some(current) = self.current(cx) else { return };
@@ -437,6 +416,19 @@ impl SshConfigurationsView {
     /// The form shows the configuration selected; a field already showing its value is left alone,
     /// and the Port text is kept while it spells the port staged (an invalid text stages none).
     fn sync(&mut self, cx: &mut Context<Self>) {
+        // The page opens each time the dialog shows it, as a page of its own: the first
+        // configuration selected, nothing tested. A password typed is staged in the dialog and
+        // stays.
+        let shown = self.binding.model.read(cx).page_id == self.binding.page;
+        if shown != self.page_shown {
+            self.page_shown = shown;
+            self.test = TestState::Idle;
+            self.test_run += 1;
+            if shown {
+                self.selected = self.configs(cx).into_iter().next().map(|config| config.id);
+                self.auth_open = false;
+            }
+        }
         let current = self.current(cx);
         let key = current.as_ref().map(form_key);
         let new_form = key != self.form;

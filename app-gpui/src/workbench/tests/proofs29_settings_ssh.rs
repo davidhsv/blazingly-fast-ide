@@ -9,6 +9,7 @@
 //! password (no `~/.ssh/config`, agent or key file) against the loopback address, and the host key
 //! question comes from a stand-in, because a real one is only met after a handshake.
 
+use super::proofs19_settings_misc::bring_into_view;
 use super::*;
 use crate::backend::Backend;
 use crate::database::store::SecretText;
@@ -33,6 +34,7 @@ const SECRET: &str = "sshS3cretE2E-5d0e";
 /// store is never set up, so no test reads or writes the user's keychain.
 fn start_isolated(cx: &mut TestAppContext) -> tempfile::TempDir {
     let home = start(cx);
+    crate::backend::assert_ssh_files_under(home.path(), cx);
     assert!(ide_ssh::secrets::secrets_in_files(), "saved passwords go to files under the temporary home");
     assert!(!ide_ssh::secrets::default_store_installed(), "the system's credential store is never set up");
     home
@@ -63,6 +65,12 @@ fn open_page(
         dialog.read_with(cx, |view, _| view.custom_control(tools_ssh::PAGE, tools_ssh::SLOT).cloned());
     let view = view.and_then(|view| view.downcast().ok()).expect("the page has its SSH configurations editor");
     (dialog, view)
+}
+
+/// Scrolls the control drawn as `at` into view and clicks it.
+fn press(cx: &mut VisualTestContext, at: &'static str) {
+    bring_into_view(cx, at);
+    click_on(cx, at);
 }
 
 fn lines(view: &Entity<SshConfigurationsView>, cx: &mut VisualTestContext) -> Vec<String> {
@@ -133,7 +141,7 @@ async fn ssh_a_configuration_added_and_edited_is_written_to_the_global_settings(
     click_on(cx, "settings-select-ssh.auth");
     click_on(cx, "settings-choice-ssh.auth-keyPair");
     type_into(cx, "settings-text-ssh.keyFile", "/keys/id_ed25519");
-    click_on(cx, "settings-toggle-ssh.saveSecret");
+    press(cx, "settings-toggle-ssh.saveSecret");
     click_on(cx, "settings-ssh-copy");
     assert_eq!(lines(&view, cx)[1], "> Box (copy) | me@127.0.0.1:2222");
     click_on(cx, "settings-ssh-remove");
@@ -248,7 +256,7 @@ async fn ssh_a_password_typed_is_stored_by_the_backend_on_apply_and_then_shown_a
     let (dialog, view) = open_page(&workbench, cx);
     settle(cx, |cx| lines(&view, cx).contains(&"Password: ".to_owned()));
     // A press on the masked field gives it the keyboard.
-    click_on(cx, "settings-secret-ssh.secret");
+    press(cx, "settings-secret-ssh.secret");
     cx.simulate_input(SECRET);
     cx.run_until_parked();
     let shown = lines(&view, cx);
@@ -312,7 +320,10 @@ async fn ssh_test_connection_shows_the_backends_answer_for_the_configuration_as_
     // The port is edited, not saved: the test uses the configuration as the page shows it.
     type_into(cx, "settings-text-ssh.port", &port.to_string());
     type_secret(&view, SECRET, cx);
-    click_on(cx, "settings-ssh-test");
+    // Before anything connects: the configuration handed over is the loopback listener's.
+    let edited = view.read_with(cx, |view, cx| view.current(cx)).expect("the configuration is selected");
+    assert_eq!((edited.host.as_str(), edited.port, edited.auth), ("127.0.0.1", Some(port), SshAuth::Password));
+    press(cx, "settings-ssh-test");
     settle(cx, |cx| view.read_with(cx, |view, _| *view.test_state() != TestState::Running));
     let state = view.read_with(cx, |view, _| view.test_state().clone());
     let prefix = format!("cannot connect to SSH host 127.0.0.1:{port}");
@@ -338,9 +349,9 @@ async fn ssh_trust_host_asks_the_backend_for_the_configuration_tested(cx: &mut T
     let (workbench, cx) = window(cx);
     store_configs(&[password_config("box", None)], cx);
     let (_dialog, view) = open_page(&workbench, cx);
-    click_on(cx, "settings-ssh-test");
+    press(cx, "settings-ssh-test");
     settle(cx, |cx| view.read_with(cx, |view, _| *view.test_state() != TestState::Running));
-    click_on(cx, "settings-ssh-trust");
+    press(cx, "settings-ssh-trust");
     settle(cx, |cx| view.read_with(cx, |view, _| *view.test_state() != TestState::Running));
     assert!(lines(&view, cx).contains(&"! no host key to trust".to_owned()), "{:?}", lines(&view, cx));
 }

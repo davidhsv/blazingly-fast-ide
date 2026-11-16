@@ -231,7 +231,9 @@ impl RunTargetsView {
             })
             .ok();
         });
-        cx.defer(move |cx| (folders.set_secret)(ssh, secret, then, cx));
+        // Not saved, as Connect in this browser never saves: a password saved before for the
+        // configuration is forgotten by the backend.
+        cx.defer(move |cx| (folders.set_secret)(ssh, secret, false, then, cx));
     }
 
     pub fn folder_select(&mut self, path: String, cx: &mut Context<Self>) {

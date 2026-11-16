@@ -54,9 +54,13 @@ fn project_name(root: &Path) -> String {
     root.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
-/// The global SSH configurations of the temporary home: one password configuration, never reached.
+/// The global SSH configurations of the temporary home: one password configuration, never reached,
+/// on a loopback port nothing listens on, so that a connection would be refused there.
 fn store_ssh_configs(cx: &mut VisualTestContext) {
-    let configs = json!([{ "id": "s1", "name": "Build box", "host": "build.example.test", "auth": "password" }]);
+    let closed = std::net::TcpListener::bind("127.0.0.1:0").expect("a loopback port");
+    let port = closed.local_addr().expect("its address").port();
+    drop(closed);
+    let configs = json!([{ "id": "s1", "name": "Build box", "host": "127.0.0.1", "port": port, "auth": "password" }]);
     cx.update(|_, cx| crate::platform::settings::set("w1", SettingsScope::Global, "ssh.configs", &configs, cx))
         .expect("the SSH configurations are stored");
 }
@@ -117,6 +121,7 @@ fn placeholder(view: &Entity<RunTargetsView>, name: &str, cx: &mut VisualTestCon
 #[gpui_kit::test]
 async fn run_targets_an_ssh_target_added_and_edited_is_written_to_the_project(cx: &mut TestAppContext) {
     let home = start(cx);
+    crate::backend::assert_ssh_files_under(home.path(), cx);
     assert!(!ide_ssh::secrets::default_store_installed(), "the system's credential store is never set up");
     let (_folder, root, workbench, cx) = project(cx);
     store_ssh_configs(cx);
@@ -200,7 +205,8 @@ async fn run_targets_a_docker_target_offers_the_services_connections_and_applies
 // the project.
 #[gpui_kit::test]
 async fn run_targets_the_folder_chosen_in_the_browser_is_the_targets_project_folder(cx: &mut TestAppContext) {
-    let _home = start(cx);
+    let home = start(cx);
+    crate::backend::assert_ssh_files_under(home.path(), cx);
     let asked: Rc<RefCell<Vec<String>>> = Rc::default();
     let log = asked.clone();
     type Listed = Then<Result<Vec<RemoteEntry>, IdeError>>;
@@ -218,10 +224,11 @@ async fn run_targets_the_folder_chosen_in_the_browser_is_the_targets_project_fol
         then(Ok(vec![app]), cx);
     });
     let trust_host: HostTrust = Rc::new(|_: String, then: Then<Result<(), IdeError>>, cx: &mut App| then(Ok(()), cx));
-    let set_secret: SecretSetter =
-        Rc::new(|_: String, _: crate::database::store::SecretText, then: Then<Result<(), IdeError>>, cx: &mut App| {
+    let set_secret: SecretSetter = Rc::new(
+        |_: String, _: crate::database::store::SecretText, _: bool, then: Then<Result<(), IdeError>>, cx: &mut App| {
             then(Ok(()), cx)
-        });
+        },
+    );
     cx.update(|cx| cx.set_global(RunTargetFolders(RemoteFolders { list, trust_host, set_secret })));
     assert!(!ide_ssh::secrets::default_store_installed(), "the system's credential store is never set up");
     let (_folder, root, workbench, cx) = project(cx);
@@ -229,7 +236,14 @@ async fn run_targets_the_folder_chosen_in_the_browser_is_the_targets_project_fol
     let (_dialog, view) = open_run_targets(&workbench, cx);
     press(cx, "settings-targets-add");
     press(cx, "settings-targets-browse");
-    assert_eq!(asked.borrow().as_slice(), ["list s1 ~"]);
+    assert!(view.read_with(cx, |view, _| view.folder_open()));
+    // Another page and back: the page opens again, its browser closed.
+    run_action(cx, "file.settings", Some(Value::from("tools.sshConfigurations")));
+    run_action(cx, "file.settings", Some(Value::from(build_run_targets::PAGE)));
+    assert!(!view.read_with(cx, |view, _| view.folder_open()), "leaving the page closes the browser");
+    press(cx, "settings-target-0");
+    press(cx, "settings-targets-browse");
+    assert_eq!(asked.borrow().as_slice(), ["list s1 ~", "list s1 ~"]);
     let shown = lines(&view, cx);
     assert!(shown.contains(&"[Parent Folder] /srv [Refresh]".to_owned()), "{shown:?}");
     press(cx, "settings-target-folder-row-0");
@@ -258,4 +272,46 @@ async fn run_targets_reset_and_cancel_discard_a_target_added(cx: &mut TestAppCon
     assert!(settings_dialog_of(&workbench, cx).is_none(), "Cancel closes the dialog");
     assert_eq!(effective_value(cx, "runTargets"), before, "Cancel writes nothing");
     assert!(!project_file(&root).contains("Target 1"), "{}", project_file(&root));
+}
+
+// Run Targets: a target stored without `syncBeforeRun` is shown as the backend loads it, without
+// the upload before each run, as the settings the dialog starts from are the backend's.
+#[gpui_kit::test]
+async fn run_targets_a_target_stored_without_its_upload_choice_shows_the_value_the_backend_loads(
+    cx: &mut TestAppContext,
+) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = project(cx);
+    let stored = json!([{ "id": "t1", "name": "Stored", "kind": "ssh", "sshConfig": "s1" }]);
+    cx.update(|_, cx| crate::platform::settings::set("w1", SettingsScope::Project, "runTargets", &stored, cx))
+        .expect("the run targets are stored");
+    assert!(!project_file(&root).contains("syncBeforeRun"), "{}", project_file(&root));
+    let loaded = effective_value(cx, "runTargets").unwrap_or(Value::Null);
+    assert_eq!(loaded[0]["syncBeforeRun"], json!(false), "the backend loads a missing choice as off");
+    let (_dialog, view) = open_run_targets(&workbench, cx);
+    press(cx, "settings-target-0");
+    let current = view.read_with(cx, |view, cx| view.current(cx)).expect("the stored target is selected");
+    assert!(!current.sync_before_run);
+    let shown = lines(&view, cx);
+    assert!(shown.contains(&"[ ] Upload changed project files before each run".to_owned()), "{shown:?}");
+}
+
+// Run Targets, shown after another page of the open dialog: the first target is selected and its
+// settings shown, as when Settings opens on the page.
+#[gpui_kit::test]
+async fn run_targets_shown_after_another_page_select_the_first_target(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = project(cx);
+    let stored = json!([{ "id": "t1", "name": "Stored", "kind": "docker", "image": "python:3.12" }]);
+    cx.update(|_, cx| crate::platform::settings::set("w1", SettingsScope::Global, "runTargets", &stored, cx))
+        .expect("the run targets are stored");
+    run_action(cx, "file.settings", Some(Value::from("tools.sshConfigurations")));
+    run_action(cx, "file.settings", Some(Value::from(build_run_targets::PAGE)));
+    let dialog = settings_dialog_of(&workbench, cx).expect("Settings opens");
+    let view: Option<AnyView> =
+        dialog.read_with(cx, |view, _| view.custom_control(build_run_targets::PAGE, build_run_targets::SLOT).cloned());
+    let view: Entity<RunTargetsView> = view.and_then(|view| view.downcast().ok()).expect("the page has its editor");
+    let shown = lines(&view, cx);
+    assert_eq!(shown[0], "> Stored | python:3.12");
+    assert!(shown.contains(&"Image: python:3.12".to_owned()), "{shown:?}");
 }
