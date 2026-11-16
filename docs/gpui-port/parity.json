@@ -3184,12 +3184,12 @@
     "proof": "`features_a::graphql::tests`"
   },
   "unit:src/features/http-client/endpoints.test.ts": {
-    "status": "done",
-    "proof": "`features_a::http_client::endpoints::tests`"
+    "status": "partial",
+    "proof": "`features_a::http_client::endpoints::tests`; 3 of 3 cases on the model; the app reaches the rendering only. Missing: completion from the endpoints and its disposal are not wired"
   },
   "unit:src/features/http-client/httpClient.test.ts": {
-    "status": "done",
-    "proof": "`features_a::http_client::format::tests`, `features_a::http_client::highlight::tests`; the tables of the spec are loops inside one test each"
+    "status": "partial",
+    "proof": "`features_a::http_client::format::tests`, `features_a::http_client::highlight::tests`; 18 of 18 cases on the model (the tables of the spec are loops inside one test each); the app reaches the 5 format cases through the response view. Missing: the 13 highlighting cases, since request files are not highlighted"
   },
   "unit:src/features/http-client/spring/generate.test.ts": {
     "status": "done",
@@ -3273,15 +3273,15 @@
   },
   "unit:src/features/deployment/Dialogs.test.tsx": {
     "status": "done",
-    "proof": "`features_b::deployment::sync_view::tests`"
+    "proof": "`features_b::deployment::sync_view::tests`, `deployment::sync_dialog::tests::fills_a_secondary_window_without_creating_an_in_page_modal_and_saves_local_edits_before_synchronization`, `deployment::sync_dialog::tests::filters_by_name_and_category_navigates_with_arrows_and_cycles_operations_with_space`, `deployment::sync_dialog::tests::finds_content_hidden_by_identical_metadata_and_skips_byte_identical_files`, `deployment::sync_dialog::tests::preserves_manual_choices_reports_failures_and_ignores_a_cancelled_scan`, `deployment::sync_dialog::tests::shows_mirrored_metadata_and_previews_the_selected_file_with_identical_rows_filtered`, `deployment::sync_dialog::tests::synchronizes_only_the_current_row_from_the_toolbar_or_enter_and_disables_skipped_selections`, `deployment::sync_dialog::tests::the_title_footer_refresh_and_cancel`, `deployment::sync_dialog::tests::updates_a_rows_operation_and_only_applies_explicit_synchronization`; 7 of 7 cases on the model and on the Sync dialog's view"
   },
   "unit:src/features/deployment/SyncPreview.test.tsx": {
-    "status": "partial",
-    "proof": "`features_b::deployment::preview::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`features_b::deployment::preview::tests`, `deployment::sync_preview::tests::ignores_a_late_response_for_a_file_that_is_no_longer_selected`, `deployment::sync_preview::tests::shows_read_errors_and_allows_retrying_without_closing_the_comparison`, `deployment::sync_preview::tests::explains_why_files_have_no_text_preview`; 3 of 3 cases on the model and on the preview's view: a late answer for a file no longer selected is ignored, a read error is shown with a retry that keeps the comparison open, and a file without a text preview says why"
   },
   "unit:src/features/deployment/actions.test.tsx": {
     "status": "partial",
-    "proof": "`features_b::deployment::actions::tests`, `features_b::deployment::store::tests`; the state and logic of 11 of 11 cases, on the model; the view is not built"
+    "proof": "`features_b::deployment::actions::tests`, `features_b::deployment::store::tests`, `workbench::deployment::tests::upload_to_explains_the_rejected_paths_and_links_settings`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`, `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`; 11 of 11 cases on the model; through a project window the rejected paths, saving before a sync, a single file's sync and comparing every covered path. Missing: the cases of the comparison in a window of its own, and the remaining cases through a window"
   },
   "unit:src/features/deployment/comparison.test.ts": {
     "status": "done",
@@ -8098,5 +8098,85 @@
   "feature:deployment": {
     "status": "partial",
     "proof": "`workbench::deployment::tests::upload_to_default_server_copies_the_file_to_the_server_and_reports_it`, `workbench::deployment::tests::download_from_chooses_the_server_and_replaces_the_local_file`, `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`, `workbench::deployment::tests::delete_from_server_asks_and_deletes_the_remote_copy`, `workbench::deployment::tests::the_remote_host_window_lists_the_server_and_its_menu_changes_its_files`; uploads, downloads, deleting on the server, Sync with Deployed with its preview, automatic upload, Open in Browser and the Remote Host tool window, on a server that is a local folder. Missing: the Deployment group in the context menus, the comparison in a window of its own, an editable local side in the comparison, speed search, the Deployment servers settings page, and SFTP end to end"
+  },
+  "action:http.runRequest": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`, `workbench::http_client::tests::run_request_without_a_request_in_the_file_says_so`, `workbench::http_client::tests::a_request_that_cannot_be_prepared_is_told_and_not_sent`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; the request at the caret is sent with the chosen environment and its response shown in the HTTP Client; a file without a request says so, and a request that cannot be prepared is told and not sent; its condition is read on and off"
+  },
+  "action:http.runAll": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; every request of the file is sent in order, and a run mark in the gutter sends its own; its condition is read on and off"
+  },
+  "action:http.showToolWindow": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; shows the HTTP Client tab of the Services tool window with the project's history, which loads an entry and clears; its condition is read on and off"
+  },
+  "action:http.newRequest": {
+    "status": "partial",
+    "proof": "`workbench::http_client::tests::new_http_request_creates_a_request_file_with_the_example_in_the_folder`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; creates a request file with the example in the chosen folder; its condition is read on and off. Missing: the scratch file when there is no folder, and the hand-off to New from Template, have no test"
+  },
+  "action:http.openEndpoint": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch`; appends the endpoint's request to the generated requests scratch file and opens it"
+  },
+  "action:http.generateSpringRequest": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::generate_requests_from_the_spring_mapping_at_the_caret`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; generates the request of the Spring mapping at the caret; its condition is read on and off"
+  },
+  "action:http.generateSpringControllerRequests": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::generate_requests_from_the_spring_mapping_at_the_caret`, `workbench::http_client::tests::the_spring_marks_and_the_editor_menu_offer_the_generate_actions`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; generates the requests of every mapping of the controller, from the action, the gutter mark and the editor's menu; its condition is read on and off"
+  },
+  "ipc:http_requests": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`; the run marks on the request lines can only come from the backend's parse of the file, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:http_environments": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`; the environments offered for the file can only come from the backend's read of the environment files, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:http_execute": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`; the response shown, sent to a listener the test opened on the loopback address, can only come from the backend's execution, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:http_history": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`; the project's history listed, an entry loaded and the history cleared can only come from the backend's history functions, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:http_history_get": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`; the project's history listed, an entry loaded and the history cleared can only come from the backend's history functions, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:http_history_clear": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`; the project's history listed, an entry loaded and the history cleared can only come from the backend's history functions, the function the Tauri adapter calls with the same arguments"
+  },
+  "ipc:spring_route_sources": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::the_spring_provider_lists_the_request_paths_and_rescans_after_a_change`; the request paths the Spring provider lists, and their rescan after a change, can only come from ide_host::ops::nav::spring_route_sources, the function the Tauri adapter calls with the same arguments"
+  },
+  "point.registerEditorContribution:http.requests": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`, `workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`, `http_client::request_toolbar::tests::runs_all_requests_and_stops_only_while_one_is_sent`, `http_client::request_toolbar::tests::chooses_an_environment_of_the_file`, `http_client::request_toolbar::tests::a_buffer_without_a_file_has_no_environments`, `http_client::request_toolbar::tests::the_environment_list_closes_on_escape_a_press_outside_and_the_chooser`; a request file's editor gets the toolbar (Run All, Stop only while a request is sent, the environment chooser, reload) and a run mark on each request line"
+  },
+  "point.registerEditorContribution:http.spring": {
+    "status": "partial",
+    "proof": "`workbench::http_client::tests::the_spring_marks_and_the_editor_menu_offer_the_generate_actions`, `workbench::http_client::tests::a_generate_mark_and_a_plugin_gutter_icon_on_one_line_do_not_overlap`; a Spring controller's editor gets the generate marks and the editor menu's rows, and a mark beside a plugin's gutter icon does not overlap it. Missing: the intentions"
+  },
+  "point.registerEndpointProvider:http.spring": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::the_spring_provider_lists_the_request_paths_and_rescans_after_a_change`; the Spring provider lists the request paths of the project and rescans after a change"
+  },
+  "point.registerMenuGroup:http.spring": {
+    "status": "done",
+    "proof": "`workbench::http_client::tests::the_spring_marks_and_the_editor_menu_offer_the_generate_actions`; the editor's menu offers the generate rows in a Spring controller"
+  },
+  "point.registerServiceView:httpClient": {
+    "status": "partial",
+    "proof": "`workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`, `http_client::service_tabs::tests::switches_between_the_services_and_the_http_client`, `http_client::response_view::tests::describes_binary_bodies_and_failed_requests`, `http_client::response_view::tests::formats_the_body_until_show_raw_is_pressed`, `http_client::response_view::tests::lists_the_history_and_a_click_selects_an_entry`, `http_client::response_view::tests::shows_the_empty_history_and_the_request_being_sent`, `http_client::response_view::tests::shows_the_headers_and_the_request_as_sent`, `http_client::response_view::tests::shows_the_time_as_the_english_clock_does`, `http_client::response_view::tests::the_header_actions_ask_for_their_work`; the HTTP Client beside the Services tree: the history list, the response with its status, headers and formatted body, Stop, Reload, Clear. Missing: the resizable split, selectable response text, a spinner, and its tabs in the tool window's header row (they are on a row of their own)"
+  },
+  "feature:http-client": {
+    "status": "partial",
+    "proof": "`workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`, `workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`, `workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`, `workbench::http_client::tests::new_http_request_creates_a_request_file_with_the_example_in_the_folder`, `workbench::http_client::tests::open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch`, `workbench::http_client::tests::generate_requests_from_the_spring_mapping_at_the_caret`, `workbench::http_client::tests::the_spring_provider_lists_the_request_paths_and_rescans_after_a_change`; request files run from the caret, the toolbar and the gutter with an environment, the HTTP Client view with history, New HTTP Request, Open in HTTP Client, and the Spring request generation. Missing: highlighting of request files, URL completion from the endpoints, the endpoint gutter with a plugin's endpoints, the Spring intentions, the Endpoints tab of Search Everywhere, marks that follow an edit at once, a localized time in the history"
   }
 }

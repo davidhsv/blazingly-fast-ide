@@ -5,11 +5,11 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1397/3145 rows at parity, 110 model only, 503 partial, 15 with nothing to port.**
+**Overall: 1418/3145 rows at parity, 104 model only, 508 partial, 15 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
-| Actions | 482 | 0 | 152 | 0 | 836 |
+| Actions | 488 | 0 | 153 | 0 | 836 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 46 |
 | Keymap presets | 6 | 0 | 0 | 0 | 6 |
 | Context keys | 50 | 0 | 4 | 0 | 83 |
@@ -17,10 +17,10 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerCommitCheckProvider` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerDocumentIndexSync` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerEditorBanner` | 1 | 0 | 0 | 0 | 5 |
-| Extension point `registerEditorContribution` | 0 | 0 | 2 | 0 | 32 |
+| Extension point `registerEditorContribution` | 1 | 0 | 3 | 0 | 32 |
 | Extension point `registerEditorDropHandler` | 0 | 0 | 0 | 0 | 1 |
 | Editor kinds | 0 | 0 | 6 | 0 | 19 |
-| Extension point `registerEndpointProvider` | 0 | 0 | 0 | 0 | 2 |
+| Extension point `registerEndpointProvider` | 1 | 0 | 0 | 0 | 2 |
 | Extension point `registerExtensionBindings` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerFileDropHandler` | 0 | 0 | 0 | 0 | 2 |
 | File editor providers | 2 | 0 | 0 | 0 | 4 |
@@ -28,7 +28,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerGitLogChecks` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerKeyClaim` | 4 | 0 | 1 | 0 | 12 |
 | Extension point `registerLanguageMode` | 0 | 0 | 0 | 0 | 1 |
-| Extension point `registerMenuGroup` | 0 | 0 | 6 | 0 | 25 |
+| Extension point `registerMenuGroup` | 1 | 0 | 6 | 0 | 25 |
 | Extension point `registerMenuSlotItem` | 1 | 0 | 1 | 0 | 2 |
 | Extension point `registerNavigationProvider` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerOccurrenceNavigator` | 0 | 0 | 1 | 0 | 1 |
@@ -40,7 +40,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerRunningProcessesProvider` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerSaveParticipant` | 0 | 0 | 0 | 0 | 2 |
 | Extension point `registerServiceProvider` | 1 | 0 | 0 | 0 | 3 |
-| Extension point `registerServiceView` | 1 | 0 | 1 | 0 | 3 |
+| Extension point `registerServiceView` | 1 | 0 | 2 | 0 | 3 |
 | Extension point `registerSoftWrapSurface` | 0 | 0 | 0 | 0 | 1 |
 | Status bar items | 7 | 0 | 3 | 0 | 19 |
 | Extension point `registerTextEditorWrapper` | 1 | 0 | 0 | 0 | 3 |
@@ -51,17 +51,17 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerShellActions` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerDevSamples` | 0 | 0 | 0 | 0 | 1 |
 | Settings pages | 27 | 0 | 23 | 0 | 68 |
-| Features | 0 | 0 | 17 | 0 | 43 |
+| Features | 0 | 0 | 18 | 0 | 43 |
 | Editor, platform, workbench and design-system modules | 32 | 1 | 64 | 0 | 253 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 21 |
-| IPC commands | 300 | 0 | 25 | 15 | 599 |
+| IPC commands | 307 | 0 | 25 | 15 | 599 |
 | Backend events (IdeEvent) | 16 | 0 | 2 | 0 | 31 |
 | Plugin API interfaces (wit/) | 8 | 0 | 12 | 0 | 49 |
-| Behaviour specification: unit tests (vitest) | 371 | 109 | 127 | 0 | 753 |
+| Behaviour specification: unit tests (vitest) | 376 | 103 | 128 | 0 | 753 |
 | Behaviour specification: end-to-end specs (Playwright) | 9 | 0 | 9 | 0 | 70 |
 
-## Actions (482/836 at parity, 152 partial)
+## Actions (488/836 at parity, 153 partial)
 
 `(dynamic)` rows are actions whose id is built at run time (one per plugin command, tool, run configuration…).
 
@@ -460,13 +460,13 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | [ ] | `graphql.showToolWindow` |  | src/features/graphql/index.ts:57 |  |
 | [x] | `help.keymapReference` |  | src/features/app/appActions.ts:84 | `workbench::keymap_reference::tests::filters_by_title_id_or_shortcut`, `workbench::keymap_reference::tests::opens_in_a_window_that_edits_a_loose_file`, `workbench::keymap_reference::tests::renders_the_overlay`, `workbench::keymap_reference::tests::sits_near_the_top_and_closes_when_the_window_is_left`, `workbench::tests::proofs13_shell::renders_the_overlay`; opens the Keymap Reference dialog near the top of the window (project window, single-file window, Welcome): the preset with its count, the grouped shortcuts, a filter by title, id or shortcut; Escape or leaving the window closes it |
 | [ ] | `help.showLog` |  | src/features/app/appActions.ts:92 |  |
-| [ ] | `http.generateSpringControllerRequests` |  | src/features/http-client/index.ts:196 |  |
-| [ ] | `http.generateSpringRequest` |  | src/features/http-client/index.ts:187 |  |
-| [ ] | `http.newRequest` |  | src/features/http-client/index.ts:172 |  |
-| [ ] | `http.openEndpoint` |  | src/features/http-client/index.ts:144 |  |
-| [ ] | `http.runAll` |  | src/features/http-client/index.ts:161 |  |
-| [ ] | `http.runRequest` | `Meta+Enter` | src/features/http-client/index.ts:153 |  |
-| [ ] | `http.showToolWindow` |  | src/features/http-client/index.ts:205 |  |
+| [x] | `http.generateSpringControllerRequests` |  | src/features/http-client/index.ts:196 | `workbench::http_client::tests::generate_requests_from_the_spring_mapping_at_the_caret`, `workbench::http_client::tests::the_spring_marks_and_the_editor_menu_offer_the_generate_actions`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; generates the requests of every mapping of the controller, from the action, the gutter mark and the editor's menu; its condition is read on and off |
+| [x] | `http.generateSpringRequest` |  | src/features/http-client/index.ts:187 | `workbench::http_client::tests::generate_requests_from_the_spring_mapping_at_the_caret`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; generates the request of the Spring mapping at the caret; its condition is read on and off |
+| [~] | `http.newRequest` |  | src/features/http-client/index.ts:172 | `workbench::http_client::tests::new_http_request_creates_a_request_file_with_the_example_in_the_folder`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; creates a request file with the example in the chosen folder; its condition is read on and off. Missing: the scratch file when there is no folder, and the hand-off to New from Template, have no test |
+| [x] | `http.openEndpoint` |  | src/features/http-client/index.ts:144 | `workbench::http_client::tests::open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch`; appends the endpoint's request to the generated requests scratch file and opens it |
+| [x] | `http.runAll` |  | src/features/http-client/index.ts:161 | `workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; every request of the file is sent in order, and a run mark in the gutter sends its own; its condition is read on and off |
+| [x] | `http.runRequest` | `Meta+Enter` | src/features/http-client/index.ts:153 | `workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`, `workbench::http_client::tests::run_request_without_a_request_in_the_file_says_so`, `workbench::http_client::tests::a_request_that_cannot_be_prepared_is_told_and_not_sent`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; the request at the caret is sent with the chosen environment and its response shown in the HTTP Client; a file without a request says so, and a request that cannot be prepared is told and not sent; its condition is read on and off |
+| [x] | `http.showToolWindow` |  | src/features/http-client/index.ts:205 | `workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; shows the HTTP Client tab of the Services tool window with the project's history, which loads an entry and clears; its condition is read on and off |
 | [x] | `ide.toggleMode` | `Ctrl+Alt+Shift+M` | src/features/app/projectActions.ts:176 | `workbench::tests::the_ide_mode_toggle_switches_between_blaze_and_deep` |
 | [x] | `image.actualSize` | `Meta+/` | src/features/viewers/index.ts:39 | `workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests` |
 | [x] | `image.fitToWindow` |  | src/features/viewers/index.ts:39 | `workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `workbench::tests::view_tabs_run_their_actions_split_reopen_and_route_their_views_requests` |
@@ -1084,7 +1084,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `php.composerInstall` | src/features/run/composerInstall.ts:120 |  |
 | [x] | `vcs.conflict` | src/features/vcs/conflictBanner.ts:13 | `workbench::tests::the_merge_conflicts_notification_appears_with_the_conflict_and_expires_once_it_is_resolved`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`, `vcs::conflict_banner::tests::warns_above_a_file_git_records_as_conflicted_and_offers_to_resolve_it`; a conflicted file gets the banner, its Resolve link over the editor opens the merge editor, and it goes once resolved |
 
-## Extension point `registerEditorContribution` (0/32 at parity, 2 partial)
+## Extension point `registerEditorContribution` (1/32 at parity, 3 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
@@ -1098,8 +1098,8 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `github.reviewMode` | src/features/github/reviewMode/index.ts:123 |  |
 | [ ] | `graphql.toolbar` | src/features/graphql/index.ts:45 |  |
 | [ ] | `http.endpoints` | src/features/http-client/index.ts:124 |  |
-| [ ] | `http.requests` | src/features/http-client/index.ts:123 |  |
-| [ ] | `http.spring` | src/features/http-client/index.ts:125 |  |
+| [x] | `http.requests` | src/features/http-client/index.ts:123 | `workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`, `workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`, `http_client::request_toolbar::tests::runs_all_requests_and_stops_only_while_one_is_sent`, `http_client::request_toolbar::tests::chooses_an_environment_of_the_file`, `http_client::request_toolbar::tests::a_buffer_without_a_file_has_no_environments`, `http_client::request_toolbar::tests::the_environment_list_closes_on_escape_a_press_outside_and_the_chooser`; a request file's editor gets the toolbar (Run All, Stop only while a request is sent, the environment chooser, reload) and a run mark on each request line |
+| [~] | `http.spring` | src/features/http-client/index.ts:125 | `workbench::http_client::tests::the_spring_marks_and_the_editor_menu_offer_the_generate_actions`, `workbench::http_client::tests::a_generate_mark_and_a_plugin_gutter_icon_on_one_line_do_not_overlap`; a Spring controller's editor gets the generate marks and the editor menu's rows, and a mark beside a plugin's gutter icon does not overlap it. Missing: the intentions |
 | [ ] | `lsp` | src/editor/lsp/index.ts:78 |  |
 | [ ] | `lsp.lineMarkers` | src/editor/lsp/index.ts:80 |  |
 | [ ] | `lsp.parameterTab` | src/editor/lsp/index.ts:82 |  |
@@ -1151,12 +1151,12 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `pluginLog` | src/features/plugins/uiPoints.tsx:554 | `workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `plugin_views::log_tab::tests`, `workbench::plugin_runtime::tests::proofs16_runtime::keeps_a_plugin_log_tab_and_its_program_while_another_tab_is_shown`; a log tab opened by plugin code shows its program's output, its toggles restart the program, Clear and Soft-wrap work. The tab and its program stay while another tab is shown. Missing: Find in Logs |
 | [~] | `selectionHistory` | src/features/vcs/index.ts:295 | `workbench::vcs_text_actions::tests::show_history_for_selection_lists_the_commits_that_changed_the_selected_lines`; the History for Selection tab: the commit list and the block's two sides. Missing: cancel on close has no test, and the code has no syntax colours |
 
-## Extension point `registerEndpointProvider` (0/2 at parity)
+## Extension point `registerEndpointProvider` (1/2 at parity)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
 | [ ] | `(at) src/features/plugins/points.tsx:161` | src/features/plugins/points.tsx:161 |  |
-| [ ] | `http.spring` | src/features/http-client/spring/routeIndex.ts:10 |  |
+| [x] | `http.spring` | src/features/http-client/spring/routeIndex.ts:10 | `workbench::http_client::tests::the_spring_provider_lists_the_request_paths_and_rescans_after_a_change`; the Spring provider lists the request paths of the project and rescans after a change |
 
 ## Extension point `registerExtensionBindings` (0/1 at parity)
 
@@ -1216,7 +1216,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `(at) src/features/http-client/index.ts:122` | src/features/http-client/index.ts:122 |  |
 
-## Extension point `registerMenuGroup` (0/25 at parity, 6 partial)
+## Extension point `registerMenuGroup` (1/25 at parity, 6 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
@@ -1230,7 +1230,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `go.modules` | src/features/run/goActions.ts:103 |  |
 | [ ] | `gradle.analyzeDependencies` | src/features/build-tools/index.ts:211 |  |
 | [ ] | `http.new` | src/features/http-client/index.ts:136 |  |
-| [ ] | `http.spring` | src/features/http-client/index.ts:126 |  |
+| [x] | `http.spring` | src/features/http-client/index.ts:126 | `workbench::http_client::tests::the_spring_marks_and_the_editor_menu_offer_the_generate_actions`; the editor's menu offers the generate rows in a Spring controller |
 | [ ] | `maven.analyzeDependencies` | src/features/build-tools/index.ts:224 |  |
 | [~] | `plugins` | src/features/plugins/uiPoints.tsx:569 | `workbench::plugin_contributions::tests::the_context_menus_offer_plugin_entries_where_their_when_holds_and_run_them`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::proofs16_menus::a_plugins_editor_tab_entry_is_offered_in_the_tabs_menu_and_runs_its_command`; the Project view's menu offers the plugin's entry after Delete… once its when holds and runs it; the editor's menu shows the plugin's entries after Send to Agent, two entries naming one submenu under it with the one whose command cannot run greyed out, and runs the chosen one; the Find results' menu shows its entry only while its when holds and runs it with the match's path, line and column. The editor tab menu offers a plugin's entry and runs its command. Missing: no test opens the Problems menu, and Open With › for the plugins' custom editors is not built |
 | [~] | `run.context` | src/features/run/index.ts:440 | `workbench::run_context::tests::the_editors_menu_offers_run_for_the_file_and_runs_it`, `workbench::run_context::tests::the_project_views_menu_offers_run_for_the_file_and_runs_it`, `workbench::run_context::tests::the_tabs_menu_offers_modify_run_configuration_for_its_file`; the Run rows of the editor's, the Project view's and the tab's menus. Missing: executor rows (no executor exists natively) |
@@ -1402,12 +1402,12 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `docker` | src/features/services/index.ts:72 |  |
 | [x] | `runConfigurations` | src/features/run/index.ts:399 | `workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; the run configurations provider fills the Services tree with type and configuration rows that run and stop |
 
-## Extension point `registerServiceView` (1/3 at parity, 1 partial)
+## Extension point `registerServiceView` (1/3 at parity, 2 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
 | [~] | `dbResults` | src/features/database/index.ts:66 | `workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`; results show in the lower half of the Database window, not as a Services view |
-| [ ] | `httpClient` | src/features/http-client/index.ts:127 |  |
+| [~] | `httpClient` | src/features/http-client/index.ts:127 | `workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`, `http_client::service_tabs::tests::switches_between_the_services_and_the_http_client`, `http_client::response_view::tests::describes_binary_bodies_and_failed_requests`, `http_client::response_view::tests::formats_the_body_until_show_raw_is_pressed`, `http_client::response_view::tests::lists_the_history_and_a_click_selects_an_entry`, `http_client::response_view::tests::shows_the_empty_history_and_the_request_being_sent`, `http_client::response_view::tests::shows_the_headers_and_the_request_as_sent`, `http_client::response_view::tests::shows_the_time_as_the_english_clock_does`, `http_client::response_view::tests::the_header_actions_ask_for_their_work`; the HTTP Client beside the Services tree: the history list, the response with its status, headers and formatted body, Stop, Reload, Clear. Missing: the resizable split, selectable response text, a spinner, and its tabs in the tool window's header row (they are on a row of their own) |
 | [x] | `services` | src/features/services/index.ts:65 | `workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; the Services tree view shows in the Services tool window with its rows, selection and toolbar |
 
 ## Extension point `registerSoftWrapSurface` (0/1 at parity)
@@ -1592,7 +1592,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `vcs.mappings` | src/features/settings/pages/vcs.tsx | `workbench::tests::proofs19_settings_misc::directory_mappings_map_a_repository_root_to_git`, `workbench::tests::proofs19_settings_misc::directory_mappings_show_the_project_root`; the page lists the project's roots with their version control (a repository's root maps to Git); the page has nothing to edit, as in the webview |
 | [x] | `vcs.shelf` | src/features/settings/pages/vcs.tsx | `workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's one checkbox: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply |
 
-## Features (0/43 at parity, 17 partial)
+## Features (0/43 at parity, 18 partial)
 
 | | Feature | TS lines | Proof |
 |---|---|---|---|
@@ -1611,7 +1611,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `dotnet` | 668 |  |
 | [~] | `github` | 16853 | `workbench::github::tests`, `github::window_view::tests`, `github::list_panel::tests`, `github::details_panel::tests`, `workbench::github::part2::tests::create_pull_request_creates_the_current_branchs_pull_request_and_opens_its_tab`, `workbench::github::part2::tests::toggle_viewed_marks_the_selected_file_viewed_then_not_viewed`, `workbench::github::part2::tests::open_in_worktree_adds_the_pull_requests_head_as_a_worktree_and_opens_it`; the Pull Requests window connects through gh, lists, filters and opens pull requests, refreshes, checks out their branches, opens and copies their pages, changes repository, offers gh auth login and Install gh, runs no gh in Restricted Mode, creates a pull request from the New Pull Request tab, toggles a file viewed and opens a pull request in a worktree. Missing: the timeline editor, review mode, review in the diff and comments, Submit Review, Select Opened Pull Request, Delete Branch, the GitHub clone source, the Git log's checks and the dialogs overlay |
 | [ ] | `graphql` | 2281 |  |
-| [ ] | `http-client` | 2822 |  |
+| [~] | `http-client` | 2822 | `workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`, `workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`, `workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`, `workbench::http_client::tests::new_http_request_creates_a_request_file_with_the_example_in_the_folder`, `workbench::http_client::tests::open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch`, `workbench::http_client::tests::generate_requests_from_the_spring_mapping_at_the_caret`, `workbench::http_client::tests::the_spring_provider_lists_the_request_paths_and_rescans_after_a_change`; request files run from the caret, the toolbar and the gutter with an environment, the HTTP Client view with history, New HTTP Request, Open in HTTP Client, and the Spring request generation. Missing: highlighting of request files, URL completion from the endpoints, the endpoint gutter with a plugin's endpoints, the Spring intentions, the Endpoints tab of Search Everywhere, marks that follow an edit at once, a localized time in the history |
 | [ ] | `libraries` | 202 |  |
 | [ ] | `logcat` | 776 |  |
 | [ ] | `macros` | 597 |  |
@@ -1942,7 +1942,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [ ] | `src-tauri/src/window_work_area.rs` | 209 |  |
 | [~] | `src-tauri/src/windows.rs` | 2281 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 
-## IPC commands (300/599 at parity, 25 partial, 15 with nothing to port)
+## IPC commands (307/599 at parity, 25 partial, 15 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -2153,12 +2153,12 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `history_list_dir` | src-tauri/src/commands/history.rs | `ide_host::ops` | yes | `workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; Undo in the Project view after a delete brings the file back with its text, restored from the snapshot ide_host::ops::history::history_list_dir lists for its folder; the window calls it with its label and the folder, as the adapter does |
 | [x] | `history_put_label` | src-tauri/src/commands/history.rs | `ide_host::ops` | yes | `workbench::diff_tools::tests::put_label_names_the_projects_state_and_shows_in_the_histories_and_recent_changes` |
 | [x] | `history_restore` | src-tauri/src/commands/history.rs | `ide_host::ops` | yes | `workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; the deleted file is back on disk with its text after Undo in the Project view, which only ide_host::ops::history::history_restore of its Local History snapshot writes; the window calls it with its label, the path and the snapshot id, as the adapter does |
-| [ ] | `http_environments` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
-| [ ] | `http_execute` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
-| [ ] | `http_history` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
-| [ ] | `http_history_clear` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
-| [ ] | `http_history_get` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
-| [ ] | `http_requests` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
+| [x] | `http_environments` | src-tauri/src/commands/http.rs | desktop shell | yes | `workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`; the environments offered for the file can only come from the backend's read of the environment files, the function the Tauri adapter calls with the same arguments |
+| [x] | `http_execute` | src-tauri/src/commands/http.rs | desktop shell | yes | `workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`; the response shown, sent to a listener the test opened on the loopback address, can only come from the backend's execution, the function the Tauri adapter calls with the same arguments |
+| [x] | `http_history` | src-tauri/src/commands/http.rs | desktop shell | yes | `workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`; the project's history listed, an entry loaded and the history cleared can only come from the backend's history functions, the function the Tauri adapter calls with the same arguments |
+| [x] | `http_history_clear` | src-tauri/src/commands/http.rs | desktop shell | yes | `workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`; the project's history listed, an entry loaded and the history cleared can only come from the backend's history functions, the function the Tauri adapter calls with the same arguments |
+| [x] | `http_history_get` | src-tauri/src/commands/http.rs | desktop shell | yes | `workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`; the project's history listed, an entry loaded and the history cleared can only come from the backend's history functions, the function the Tauri adapter calls with the same arguments |
+| [x] | `http_requests` | src-tauri/src/commands/http.rs | desktop shell | yes | `workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`; the run marks on the request lines can only come from the backend's parse of the file, the function the Tauri adapter calls with the same arguments |
 | [x] | `index_file_extensions` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes | `find::popup_view::tests::proofs_editor_project_masks::the_masks_list_offers_the_projects_most_common_language_file_types_after_the_recent_ones`; the masks list orders the project's file types by file count, which only the index's counts give, through ide_host::ops::nav::index_file_extensions as the adapter |
 | [–] | `index_status` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
 | [ ] | `inspect_code` | src-tauri/src/commands/analysis.rs | `ide_host::ops` | yes |  |
@@ -2394,7 +2394,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [~] | `settings_set` | src-tauri/src/commands/app.rs | `ide_host::ops` | yes | `platform::settings::tests::a_write_is_stored_and_announced`; the write and its announcement, without the MCP server re-apply and the update-check wake of the Tauri adapter (their features are not ported) |
 | [ ] | `spell_check` | src-tauri/src/commands/spell.rs | `ide_host::ops` | yes |  |
 | [ ] | `spell_suggest` | src-tauri/src/commands/spell.rs | `ide_host::ops` | yes |  |
-| [ ] | `spring_route_sources` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [x] | `spring_route_sources` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes | `workbench::http_client::tests::the_spring_provider_lists_the_request_paths_and_rescans_after_a_change`; the request paths the Spring provider lists, and their rescan after a change, can only come from ide_host::ops::nav::spring_route_sources, the function the Tauri adapter calls with the same arguments |
 | [ ] | `ssh_askpass_answer` | src-tauri/src/commands/ssh.rs | desktop shell | yes |  |
 | [–] | `ssh_connected` | src-tauri/src/commands/ssh.rs | desktop shell | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
 | [–] | `ssh_disconnect` | src-tauri/src/commands/ssh.rs | desktop shell | yes | no file of the webview calls this command (its name occurs only in the generated bindings), so there is no behaviour of the UI behind it |
@@ -2638,7 +2638,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `invocation` | wit/workspace.wit | `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`; a command run from the window gets its project and focused editor (the word count of notes.txt), and selected-paths carries the Project view menu's file |
 | [~] | `vcs` | wit/workspace.wit | `workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_reads_the_projects_log_blame_and_diff`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; log, blame and diff answer the commit, its author and the changed line, and status shows as the plugin's branch item. Missing: remotes, and fetch's effect is not asserted |
 
-## Behaviour specification: unit tests (vitest) (371/753 at parity, 109 model only, 127 partial)
+## Behaviour specification: unit tests (vitest) (376/753 at parity, 103 model only, 128 partial)
 
 753 files, 6287 cases. A row is at parity when the behaviour its cases assert is covered by Rust tests of the GPUI app.
 
@@ -2959,12 +2959,12 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `src/features/debugger/__tests__/valueText.test.ts` | 5 | `debugger::value_text::tests` |
 | [x] | `src/features/debugger/editor/runToCursor.test.ts` | 2 | `debugger::editor::run_to_cursor::tests` |
 | [m] | `src/features/dependencies/dependencies.test.ts` | 11 | `features_b::dependencies::tests` |
-| [~] | `src/features/deployment/actions.test.tsx` | 11 | `features_b::deployment::actions::tests`, `features_b::deployment::store::tests`; the state and logic of 11 of 11 cases, on the model; the view is not built |
+| [~] | `src/features/deployment/actions.test.tsx` | 11 | `features_b::deployment::actions::tests`, `features_b::deployment::store::tests`, `workbench::deployment::tests::upload_to_explains_the_rejected_paths_and_links_settings`, `workbench::deployment::tests::sync_with_chooses_the_server_saves_the_edited_file_and_synchronizes_the_selected_row`, `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`; 11 of 11 cases on the model; through a project window the rejected paths, saving before a sync, a single file's sync and comparing every covered path. Missing: the cases of the comparison in a window of its own, and the remaining cases through a window |
 | [x] | `src/features/deployment/comparison.test.ts` | 7 | `features_b::deployment::comparison::tests` |
-| [x] | `src/features/deployment/Dialogs.test.tsx` | 7 | `features_b::deployment::sync_view::tests` |
+| [x] | `src/features/deployment/Dialogs.test.tsx` | 7 | `features_b::deployment::sync_view::tests`, `deployment::sync_dialog::tests::fills_a_secondary_window_without_creating_an_in_page_modal_and_saves_local_edits_before_synchronization`, `deployment::sync_dialog::tests::filters_by_name_and_category_navigates_with_arrows_and_cycles_operations_with_space`, `deployment::sync_dialog::tests::finds_content_hidden_by_identical_metadata_and_skips_byte_identical_files`, `deployment::sync_dialog::tests::preserves_manual_choices_reports_failures_and_ignores_a_cancelled_scan`, `deployment::sync_dialog::tests::shows_mirrored_metadata_and_previews_the_selected_file_with_identical_rows_filtered`, `deployment::sync_dialog::tests::synchronizes_only_the_current_row_from_the_toolbar_or_enter_and_disables_skipped_selections`, `deployment::sync_dialog::tests::the_title_footer_refresh_and_cancel`, `deployment::sync_dialog::tests::updates_a_rows_operation_and_only_applies_explicit_synchronization`; 7 of 7 cases on the model and on the Sync dialog's view |
 | [x] | `src/features/deployment/model.test.ts` | 14 | `features_b::deployment::model::tests` |
 | [x] | `src/features/deployment/remoteHost.test.ts` | 3 | `features_b::deployment::remote_host::tests` |
-| [~] | `src/features/deployment/SyncPreview.test.tsx` | 3 | `features_b::deployment::preview::tests`; the state and logic of 3 of 3 cases, on the model; the view is not built |
+| [x] | `src/features/deployment/SyncPreview.test.tsx` | 3 | `features_b::deployment::preview::tests`, `deployment::sync_preview::tests::ignores_a_late_response_for_a_file_that_is_no_longer_selected`, `deployment::sync_preview::tests::shows_read_errors_and_allows_retrying_without_closing_the_comparison`, `deployment::sync_preview::tests::explains_why_files_have_no_text_preview`; 3 of 3 cases on the model and on the preview's view: a late answer for a file no longer selected is ignored, a read error is shown with a retry that keeps the comparison open, and a file without a text preview says why |
 | [~] | `src/features/deployment/window.test.ts` | 2 | `features_b::deployment::window::tests`; 2 of 2 cases on the model. The app uses only the closing steps, for the Sync dialog (keeping unsaved local edits when closing is cancelled or saving fails). Missing: the comparison in a window of its own, which loads the parent project before comparing, is not built |
 | [m] | `src/features/dotnet/store.test.ts` | 6 | `features_b::dotnet::tests` |
 | [x] | `src/features/github/api/api.test.ts` | 10 | `github::api::tests` |
@@ -2985,11 +2985,11 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [~] | `src/features/github/ui/ui.test.tsx` | 10 | `github::ui_model::tests`, `github::list_panel::tests::proofs14_ui::chooses_one_item_and_closes_single`, `github::list_panel::tests::proofs14_ui::formats_relative_dates_like_github`, `github::list_panel::tests::proofs14_ui::lists_the_chosen_items_first_without_duplicates`, `workbench::github::tests::proofs14_github_window::shows_the_plain_date_and_time_with_pretty_formatting_off`; 5 of 10 cases on the list the Pull Requests window shows, one more in part. Missing: avatar images, label chips, the multiple-choice chooser, Markdown links |
 | [m] | `src/features/graphql/graphql.test.ts` | 29 | `features_a::graphql::tests`; the tables of the spec are loops inside one test each |
 | [m] | `src/features/graphql/store.test.ts` | 2 | `features_a::graphql::tests` |
-| [m] | `src/features/http-client/endpoints.test.ts` | 3 | `features_a::http_client::endpoints::tests` |
-| [m] | `src/features/http-client/httpClient.test.ts` | 18 | `features_a::http_client::format::tests`, `features_a::http_client::highlight::tests`; the tables of the spec are loops inside one test each |
-| [m] | `src/features/http-client/spring/generate.test.ts` | 1 | `features_a::http_client::generate::tests` |
-| [m] | `src/features/http-client/spring/routeIndex.test.ts` | 6 | `features_a::http_client::route_index::tests` |
-| [m] | `src/features/http-client/spring/spring.test.ts` | 17 | `features_a::http_client::spring::tests`, `features_a::http_client::request::tests` |
+| [~] | `src/features/http-client/endpoints.test.ts` | 3 | `features_a::http_client::endpoints::tests`; 3 of 3 cases on the model; the app reaches the rendering only. Missing: completion from the endpoints and its disposal are not wired |
+| [~] | `src/features/http-client/httpClient.test.ts` | 18 | `features_a::http_client::format::tests`, `features_a::http_client::highlight::tests`; 18 of 18 cases on the model (the tables of the spec are loops inside one test each); the app reaches the 5 format cases through the response view. Missing: the 13 highlighting cases, since request files are not highlighted |
+| [x] | `src/features/http-client/spring/generate.test.ts` | 1 | `features_a::http_client::generate::tests` |
+| [x] | `src/features/http-client/spring/routeIndex.test.ts` | 6 | `features_a::http_client::route_index::tests` |
+| [x] | `src/features/http-client/spring/spring.test.ts` | 17 | `features_a::http_client::spring::tests`, `features_a::http_client::request::tests` |
 | [m] | `src/features/libraries/libraries.test.ts` | 7 | `features_b::libraries::tests` |
 | [m] | `src/features/logcat/history.test.ts` | 4 | `features_a::logcat::tests` |
 | [m] | `src/features/logcat/model.test.ts` | 15 | `features_a::logcat::tests` |
@@ -3424,7 +3424,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `src/workbench/ContributedToolbar.test.tsx` | 1 | `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`; 1 of 1 case through the window: the slot's button runs its command once, and with its when false the slot has no button |
 | [ ] | `src/workbench/decorations.test.ts` | 1 |  |
 | [x] | `src/workbench/distractionFree.test.tsx` | 14 | `platform_more::distraction_free::tests`, `workbench::notifications::tests` |
-| [m] | `src/workbench/endpointProviders.test.ts` | 2 | `platform_more::endpoint_providers::tests` |
+| [x] | `src/workbench/endpointProviders.test.ts` | 2 | `platform_more::endpoint_providers::tests` |
 | [x] | `src/workbench/fileDrop.test.ts` | 9 | `platform_more::file_drop::tests` |
 | [m] | `src/workbench/fileEditors.test.ts` | 3 | `platform_more::file_editors::tests` |
 | [~] | `src/workbench/focus.test.ts` | 6 | `platform_more::focus::tests`, `workbench::tests::proofs13_focus::returns_focus_to_the_editor_when_the_last_popup_closes_and_focus_was_left_nowhere`; 1 of 6 cases through the window; four depend on the browser's caret, selection or element visibility. Missing: one case is not written |
