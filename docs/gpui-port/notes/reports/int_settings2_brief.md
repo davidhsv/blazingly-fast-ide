@@ -1,0 +1,45 @@
+# Integrator brief: four pages of Settings that apply at once: Project Trust, TODO, Log, GitHub (drafts written without a compiler)
+
+Read first: `$S/int_rules.md` (hard rules and report format), `$S/tests_brief.md`, `$S/view_rules.md`, `$S/wiring_brief.md`. Your own scratch subfolder: `$S/dset4i/`.
+
+Format only files you edited, taken from `git diff --name-only` plus the draft files this brief hands you by name. Never build a file list from `git status`. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing. Leave no polling loop behind (a loop on `pgrep -f "cargo test"` matches its own command line and never ends).
+
+## The slice
+
+Notes (hunks with quoted anchors grouped per page, the rows with every test's full name, behaviours with `file:line`, hypotheses, the tests most likely to fail, what the real window must be checked for): `$S/drafts/settings_pages4_integration.md` (read this scratch copy: the copy under `docs/` was reformatted by the commit hook). Report: `docs/gpui-port/notes/reports/settings_pages4_writer.md`. Draft files (committed, undeclared, never compiled): `app-gpui/src/settings_view/pages/security_project_trust.rs`, `editor_todo.rs`, `vcs_log.rs`, `vcs_github.rs`, `app-gpui/src/workbench/settings_feature_pages.rs`, `app-gpui/src/workbench/tests/proofs31_settings_feature_pages.rs`.
+
+The webview's pages: Project Trust `src/features/project-trust/index.tsx` (`TrustSettings`, registered at `:247`) with `trust.test.tsx`; TODO `src/features/todo/` (registered at `index.ts:12`); Log `src/features/vcs/` (registered at `index.ts:166`, options in `logOptions.ts`) with `__tests__/logPanes.test.tsx`; GitHub `src/features/github/settingsPages.ts` with `settingsPages.test.tsx`. The notes are hypotheses; where a note and the webview source disagree, the webview source wins. Land one page at a time in the notes' order: its hunks, compile, its tests by filter, fix, next. If a page does not converge, take its hunks out by editing, leave its files undeclared, say exactly where it stands, and go on.
+
+## Points to settle by measurement, not by the notes
+
+- These pages apply each change at once, by the writer's reading (`index.tsx:157`, `store.ts:27-34`, `logOptions.ts:178-190`, `GithubSettingsPage.tsx:2-3`). Check it for each page in the webview, and check what the dialog's Cancel, Reset and Apply then do for such a page there (nothing? does Reset show as available?): the native dialog must behave the same, including whether Apply is enabled after a change on one of these pages and whether the page shows the modified mark. Tests assert the effect right after the change and that Cancel keeps it, if that is what the webview does.
+- Project Trust changes what a project may run. Read `crates/ide-host/src/trust.rs` and the native trust code (`app-gpui/src/workbench/app_actions.rs`, the tests of `project.revokeTrust`) and prove by test, each failing without its code: Revoke Trust on the window's own project puts the window in Restricted Mode at once (run configurations stop running: use the existing assertion) and the dialog does what the webview's does (stays open or closes: read it); Add folder… trusts only the chosen folder and what the webview says it covers (subfolders? read it), never a parent; a chosen path that does not exist or is a file shows the webview's error and adds nothing; Remove takes exactly one location out; a symlinked folder is stored as the webview stores it (the spec's symlink case is listed as missing: add it if it is small, with a symlink inside the temp folder). The trust store a test writes is the one under the test's temp data folder: assert its path once; no test reads or writes the user's trust store or recent projects.
+- TODO: the native TODO window ignores the stored settings today, by the writer's reading; the three hunks to `app-gpui/src/workbench/todo_window.rs` make it load them, store a change and rescan, and store its own Match Case. Confirm the defect by a test that fails before the hunks (a stored pattern is honoured when the window is first shown). The writer put the storage functions in the settings page because it could not edit `app-gpui/src/features_a/todo.rs`: move them there, so the window does not import from a settings page. A pattern is a regular expression typed by the user: an invalid one is reported as the webview reports it and never panics, and matching a pattern that could take very long on a long line does not block the window's thread (read where the scan runs and say it). An open TODO window in another window of the app follows the change as the webview's does (the writer says it does not until shown again: fix it if the webview does).
+- Log: each option of the page changes what the Git Log shows; one test is enough for the options that only store a flag, but every option must be read back by the log view from the same storage key (`openidea.vcs.logOptions`): assert for each key that the native log reads it, or list the options nothing native reads yet.
+- GitHub: the one option is stored and nothing native reads it yet. The page row is done only if the webview's page does no more than store it; say so in the row's text.
+- The chooser's title "Add Trusted Location" and other small things the notes leave out: fix what is small, list the rest.
+
+## Safety
+
+- No test runs `gh`, `git` with the user's global config, or anything of the machine, opens the network, or reads anything under the user's home. The folder chooser in tests is the stand-in the existing Settings tests use for Browse….
+- The real binary: only through `$S/insp8/run.sh` (short `PATH`, temp `HOME`, `ZDOTDIR`, `OPENIDEA_GPUI_HOME`), with a temp project under a neutral path (`/private/tmp/openidea-inspect-<random>/`, removed afterwards); the trusted locations it lists must be only that temp path (if anything of the machine shows, close and keep no shot). Never open the Agents tool window or the Services window. Shots, light and dark: each of the four pages; the TODO page with a pattern added and its colour list open; the Project Trust page with one location.
+
+## Rows
+
+`settings:projectTrust`, `settings:editor.todo`, `settings:vcs.log`, `settings:vcs.github` (check the key form against three existing keys of the Settings pages section in `docs/gpui-port/parity.json`), `unit:src/features/github/settingsPages.test.tsx` (3 cases), `unit:src/features/project-trust/trust.test.tsx` (7 cases), `unit:src/features/vcs/__tests__/logPanes.test.tsx` (13 cases), `ipc:project_trust_list`, `ipc:project_trust_add_location`, and any other backend call only these pages make. A page row is done only when tests in a project window open Settings on the page and change each kind of control with the mouse or the keyboard and assert the effect the webview's change has; a unit row only when every case of the spec file has a native test with the case's name in snake case checking the same thing; an `ipc:` row only when a test asserts state that can only come from that backend function called with the arguments the Tauri adapter passes.
+
+## Changed since the notes were written
+
+BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on the tree at ee441bf1 while the code preview integration was in flight; the hunks anchor on `workbench/mod.rs`, `workbench/settings_window.rs`, `settings_view/pages/mod.rs` and `workbench/todo_window.rs`. Say here which changed.
+
+## Gates (they replace rule 12 of `$S/int_rules.md`)
+
+The whole suite twice to files, nothing else running beside the first (write `uptime` before and after each run into the same file); during the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&` inside a script. A test that is unstable under the loop is not done: find the cause and fix the wait, not the assertion. If any test fails in a whole-suite run, keep that run's log and quote the failure whole.
+
+## Report
+
+Besides the format of `$S/int_rules.md`: one section per page: what the webview does on a change and on Cancel, Reset and Apply with `file:line`, what the native page does, the tests and whether each failed without its code; the rows table with the proving tests by full name and for partial what is missing; which way each hypothesis went; the shots' absolute paths and what you saw in each.
+
+## Do not touch
+
+Every undeclared draft of other agents under `app-gpui/src` and every undeclared `proofs*` or `*_pending.rs` test file this brief does not hand you. No edits under `crates/`, `docs/`, `src/`, `src-tauri/`, `e2e/`. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`.
