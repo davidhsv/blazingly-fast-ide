@@ -92,11 +92,14 @@ const SPRING_LANGUAGES: [&str; 2] = ["java", "kotlin"];
 const REQUESTS_DELAY: Duration = Duration::from_millis(300);
 const SPRING_DELAY: Duration = Duration::from_millis(400);
 
-/// The size of a gutter mark's icon, and its distance from the fold chevrons' column.
+/// The size of a gutter mark's icon, as wide as its column.
 const GUTTER_ICON: f32 = 14.0;
-const GUTTER_INSET: f32 = 14.0;
-/// The space between a mark and a plugin's gutter icon on the same line.
-const GUTTER_GAP: f32 = 2.0;
+/// The gutter column of the marks: a request file's run marks stand right of the run
+/// configurations' marks, a source's generate marks right of those and left of the plugins' icons.
+/// The column keeps its width in such a file while it has no mark, so the text does not move.
+const GUTTER_COLUMN: &str = "http";
+const REQUESTS_COLUMN_ORDER: u8 = 56;
+const SPRING_COLUMN_ORDER: u8 = 57;
 
 /// The example a new request file starts with.
 pub(super) const NEW_REQUEST_TEMPLATE: &str = "### Example request
@@ -571,6 +574,8 @@ impl Workbench {
             _subscriptions: subscriptions,
         };
         self.http_client.followed.insert(id, followed);
+        let order = if http { REQUESTS_COLUMN_ORDER } else { SPRING_COLUMN_ORDER };
+        editor.update(cx, |editor, cx| editor.set_gutter_column(GUTTER_COLUMN, order, GUTTER_ICON, cx));
         self.find_http_marks(id, Duration::ZERO, cx);
         if let Some(file) = file.filter(|_| http) {
             cx.spawn_in(window, async move |this, cx| finished(load_environments(&this, cx, file).await)).detach();
@@ -1215,11 +1220,11 @@ impl Workbench {
         if lines.is_empty() || super::distraction_free_active(cx) {
             return Vec::new();
         }
-        let (places, line_height, fold_column) = {
+        let (places, line_height, (column, width)) = {
             let editor = editor.read(cx);
             let Some(painted) = editor.painted_lines() else { return Vec::new() };
+            let Some(column) = editor.gutter_column(GUTTER_COLUMN, cx) else { return Vec::new() };
             let line_height = editor.line_height(cx);
-            let fold_column = editor.fold_column_width(cx);
             let first = painted.start;
             let top = editor
                 .position_of(editor.offset_of(first, 0))
@@ -1236,12 +1241,9 @@ impl Workbench {
                     inside.then_some((index, line, at))
                 })
                 .collect();
-            (places, line_height, fold_column)
+            (places, line_height, column)
         };
         let color = theme::color(cx, "success");
-        // A plugin's gutter icon sits in the same column: on its line the mark moves one icon left.
-        let plugin_lines: Vec<u32> =
-            self.plugin_gutter_markers(&editor).iter().filter_map(|marker| u32::try_from(marker.line).ok()).collect();
         let mut elements = Vec::with_capacity(places.len());
         for (index, line, at) in places {
             let (icon, title) = match &followed.marks {
@@ -1252,9 +1254,8 @@ impl Workbench {
                 }
                 Marks::Spring(marks) => ("file-http", marks[index].title()),
             };
-            let shift = if plugin_lines.contains(&line) { px(GUTTER_ICON + GUTTER_GAP) } else { px(0.0) };
             let corner =
-                point(at.x - fold_column - px(GUTTER_INSET) - shift, at.y + (line_height - px(GUTTER_ICON)) / 2.0);
+                point(at.x + column + (width - px(GUTTER_ICON)) / 2.0, at.y + (line_height - px(GUTTER_ICON)) / 2.0);
             let mark = div()
                 .id(SharedString::from(format!("http-gutter-{line}")))
                 .debug_selector(move || format!("http-gutter-{line}"))

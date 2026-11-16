@@ -68,6 +68,8 @@ use std::sync::LazyLock;
 pub const ROW_HEIGHT: f32 = 28.0;
 /// How far an option that depends on another is indented below it.
 pub const INDENT: f32 = 20.0;
+/// The padding left and right of a row's content.
+const ROW_PADDING: f32 = 4.0;
 pub const WIDE_FIELD: f32 = 360.0;
 pub const MEDIUM_FIELD: f32 = 240.0;
 pub const NUMBER_FIELD: f32 = 80.0;
@@ -202,7 +204,7 @@ pub fn row(cx: &App, matched: bool) -> Div {
         .flex()
         .items_center()
         .gap(px(8.0))
-        .px(px(4.0))
+        .px(px(ROW_PADDING))
         .rounded(theme::length(cx, "radius-small"))
         .text_color(theme::color(cx, "fg"))
         .when(matched, |el| el.bg(theme::color(cx, "warning").opacity(0.08)))
@@ -988,7 +990,7 @@ impl FormView {
                 let drawn = row(cx, matched)
                     .child(row_label(cx, &label, query))
                     .child(div().flex().items_center().gap(px(16.0)).children(radios));
-                with_hint(drawn, hint.map(|hint| tx(cx, hint)), 4.0, cx)
+                with_hint(drawn, key, hint.map(|hint| tx(cx, hint)), ROW_PADDING, cx)
             }
             Part::Select { key, label, choices, hint, beside, indent } => {
                 let key = *key;
@@ -1047,7 +1049,7 @@ impl FormView {
                     .child(row_label(cx, &label, query))
                     .child(control)
                     .children(beside);
-                with_hint(drawn, hint.as_ref().map(|hint| tx(cx, hint)), 4.0, cx)
+                with_hint(drawn, key, hint.as_ref().map(|hint| tx(cx, hint)), label_start(*indent), cx)
             }
             Part::Columns(left, right) => {
                 let left: Vec<AnyElement> = left.iter().map(|part| self.draw_part(part, query, cx)).collect();
@@ -1104,7 +1106,7 @@ impl FormView {
             .child(search_label(cx, &label, query))
             .when(open, |el| el.on_click(cx.listener(move |view, _: &ClickEvent, _, cx| view.flip(key, cx))));
         let indent = if spec.indent { 28.0 + INDENT } else { 28.0 };
-        with_hint(drawn, spec.hint.map(|hint| tx(cx, hint)), indent, cx)
+        with_hint(drawn, key, spec.hint.map(|hint| tx(cx, hint)), indent, cx)
     }
 
     fn draw_field(&self, key: &'static str, width: f32, cx: &App) -> gpui_kit::Stateful<Div> {
@@ -1154,9 +1156,8 @@ impl FormView {
             .children(unit)
             .children(browse)
             .children(note);
-        // A row's help line spans its label and its control.
-        let indent = if spec.indent { INDENT } else { 0.0 };
-        with_hint(drawn, spec.hint.map(|hint| tx(cx, hint)), indent, cx)
+        // A row's help line spans its label and its control, from where the label starts.
+        with_hint(drawn, key, spec.hint.map(|hint| tx(cx, hint)), label_start(spec.indent), cx)
     }
 }
 
@@ -1170,10 +1171,18 @@ pub fn choice_suffix(value: &Value, index: usize) -> String {
     }
 }
 
-/// `drawn` with a help line below it.
-fn with_hint<E: IntoElement>(drawn: E, hint: Option<String>, indent: f32, cx: &App) -> AnyElement {
+/// Where a row's label starts: after the row's padding, or at the indent of a dependent row.
+fn label_start(indent: bool) -> f32 {
+    if indent { INDENT } else { ROW_PADDING }
+}
+
+/// `drawn`, the row of setting `key`, with a help line below it.
+fn with_hint<E: IntoElement>(drawn: E, key: &'static str, hint: Option<String>, indent: f32, cx: &App) -> AnyElement {
     match hint {
-        Some(hint) => div().flex().flex_col().child(drawn).child(hint_line(cx, &hint, indent)).into_any_element(),
+        Some(hint) => {
+            let line = hint_line(cx, &hint, 0.0).debug_selector(move || format!("settings-hint-{key}"));
+            div().flex().flex_col().child(drawn).child(div().pl(px(indent)).child(line)).into_any_element()
+        }
         None => drawn.into_any_element(),
     }
 }
@@ -1355,6 +1364,46 @@ mod tests {
         assert_eq!(guides.parse("80, x"), None);
         assert_eq!(guides.text(Some(&json!([80, 120]))), "80, 120");
         assert!(same_value(Some(&json!(13)), Some(&json!(13.0))));
+    }
+
+    /// The help line under a text field and the one under a drop-down start where their rows'
+    /// labels start, indented rows included.
+    #[gpui_kit::test]
+    async fn a_help_line_starts_where_its_rows_label_starts(cx: &mut TestAppContext) {
+        let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
+        let binding = Binding::fixed(model, PAGE, Scope::Global);
+        let choices = fixed_choices(&[("auto", "Auto"), ("never", "Never")]);
+        let parts = vec![
+            field("deployment.exclude", "Exclude items by name", FieldKind::Excludes)
+                .hint("Names to leave out.")
+                .into(),
+            Part::Select {
+                key: "vcs.git.incomingCheck",
+                label: "Incoming",
+                choices: choices.clone(),
+                hint: Some("How often to look.".into()),
+                beside: None,
+                indent: false,
+            },
+            Part::Select {
+                key: "vcs.git.updateMethod",
+                label: "Update method",
+                choices,
+                hint: Some("How to update.".into()),
+                beside: None,
+                indent: true,
+            },
+        ];
+        let (_view, _, cx) = open(cx, move |_, cx| FormView::new(binding, parts, cx));
+        for (label, hint) in [
+            ("form-label:Exclude items by name:", "settings-hint-deployment.exclude"),
+            ("form-label:Incoming:", "settings-hint-vcs.git.incomingCheck"),
+            ("form-label:Update method:", "settings-hint-vcs.git.updateMethod"),
+        ] {
+            let label = cx.debug_bounds(label).unwrap_or_else(|| panic!("{label} is drawn"));
+            let line = cx.debug_bounds(hint).unwrap_or_else(|| panic!("{hint} is drawn"));
+            assert_eq!(line.left(), label.left(), "{hint} {line:?} starts at its label {label:?}");
+        }
     }
 
     // Not from a spec: a checkbox stages its flip, a radio button and a drop-down choice stage

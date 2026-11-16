@@ -72,9 +72,13 @@ const TOOLS_MENU: &str = "tools";
 const BACKGROUND_TASKS: &str = "view.backgroundTasks";
 /// Debug Plugin Configuration: a plugin's debug request, under the debugger of the window.
 const DEBUG_PLUGIN_START: &str = "debug.pluginStart";
-/// The size of a gutter action's icon, and its distance from the fold chevrons' column.
+/// The size of a gutter action's icon.
 const GUTTER_ICON: f32 = 12.0;
-const GUTTER_INSET: f32 = 13.0;
+/// The gutter column of the actions' icons, right of the run and generate marks; as wide as an
+/// icon's box while the editor has an action, no room otherwise.
+const GUTTER_COLUMN: &str = "plugin-actions";
+const GUTTER_COLUMN_ORDER: u8 = 58;
+const GUTTER_COLUMN_WIDTH: f32 = 14.0;
 /// The popup's corner keeps this far from the window's bottom right (above the status bar).
 const TASKS_POPUP_INSET: (f32, f32) = (16.0, 32.0);
 /// Why a run request is refused: the window has no project to run (or debug) it in, or it did not
@@ -534,7 +538,16 @@ impl Workbench {
         let Some(gutter) = self.plugin_contributions.gutters.get_mut(&id) else { return };
         let effects = change(&mut gutter.visuals);
         self.apply_gutter_effects(id, effects, cx);
+        self.size_plugin_gutter_column(id, cx);
         cx.notify();
+    }
+
+    /// Gives editor `id`'s column of the actions' icons its width: an icon's while it has one.
+    fn size_plugin_gutter_column(&self, id: EntityId, cx: &mut Context<Self>) {
+        let Some(gutter) = self.plugin_contributions.gutters.get(&id) else { return };
+        let Some(editor) = gutter.editor.upgrade() else { return };
+        let width = if gutter.visuals.markers().is_empty() { 0.0 } else { GUTTER_COLUMN_WIDTH };
+        editor.update(cx, |editor, cx| editor.set_gutter_column(GUTTER_COLUMN, GUTTER_COLUMN_ORDER, width, cx));
     }
 
     fn apply_gutter_effects(&mut self, id: EntityId, effects: Vec<VisualsEffect>, cx: &mut Context<Self>) {
@@ -611,6 +624,7 @@ impl Workbench {
             (u64::from(editor.version()), editor.line_count() as usize)
         };
         if gutter.visuals.answered(ticket, version, lines, visible, result, &contributions.icons) {
+            self.size_plugin_gutter_column(id, cx);
             cx.notify();
         }
     }
@@ -631,11 +645,11 @@ impl Workbench {
         if markers.is_empty() || super::distraction_free_active(cx) {
             return Vec::new();
         }
-        let (places, line_height, fold_column) = {
+        let (places, line_height, (column, width)) = {
             let editor = editor.read(cx);
             let Some(painted) = editor.painted_lines() else { return Vec::new() };
+            let Some(column) = editor.gutter_column(GUTTER_COLUMN, cx) else { return Vec::new() };
             let line_height = editor.line_height(cx);
-            let fold_column = editor.fold_column_width(cx);
             let first = painted.start;
             // The editor's top: where its first painted row would start unscrolled.
             let top = editor
@@ -653,7 +667,7 @@ impl Workbench {
                     inside.then_some((index, at))
                 })
                 .collect();
-            (places, line_height, fold_column)
+            (places, line_height, column)
         };
         let color = theme::color(cx, "fg-muted");
         places
@@ -661,8 +675,10 @@ impl Workbench {
             .map(|(index, at)| {
                 let marker = &markers[index];
                 let line = marker.line;
-                // Left of the fold chevrons' column.
-                let corner = point(at.x - fold_column - px(GUTTER_INSET), at.y + (line_height - px(GUTTER_ICON)) / 2.0);
+                let corner = point(
+                    at.x + column + (width - px(GUTTER_ICON)) / 2.0,
+                    at.y + (line_height - px(GUTTER_ICON)) / 2.0,
+                );
                 let icon = div()
                     .id(SharedString::from(format!("plugin-gutter-{line}")))
                     .debug_selector(move || format!("plugin-gutter:{line}"))

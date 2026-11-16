@@ -69,7 +69,7 @@ impl Workbench {
         match popup.at {
             Some(at) => gpui_kit::anchored()
                 .position(at)
-                .snap_to_window()
+                .snap_to_window_with_margin(gpui_kit::px(crate::ui::popup_menu::WINDOW_MARGIN))
                 .child(body.debug_selector(|| "popup-anchored".to_owned()))
                 .into_any_element(),
             None => body.into_any_element(),
@@ -400,6 +400,45 @@ mod tests {
         assert!(chooser.is_some(), "the chooser is open");
         let bounds = anchored_bounds(cx);
         assert_at(bounds, point(caret.x, caret.y + px(6.0)));
+        close_project(cx);
+    }
+
+    /// A menu opened at the window's right edge, and a popup anchored there, are moved left until
+    /// they keep the window margin from its right edge; nearer the middle they stay where they open.
+    #[gpui_kit::test]
+    async fn a_menu_and_a_popup_at_the_right_edge_keep_the_window_margin(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        edit_at(&workbench, &root.join("src/alpha.rs"), 2, 7, cx);
+        let viewport = cx.update(|window, _| window.viewport_size());
+        let margin = px(crate::ui::popup_menu::WINDOW_MARGIN);
+        let items = vec![crate::vcs_ops::menu::MenuItem::item("A row whose label is long enough to need room", ())];
+        let open_at = |x: Pixels, cx: &mut VisualTestContext| {
+            workbench
+                .update_in(cx, |w, window, cx| w.show_menu(&items, point(x, px(60.0)), |_, _, _, _| {}, window, cx));
+            cx.run_until_parked();
+            cx.debug_bounds("menu-level-0").expect("the menu is drawn")
+        };
+        let menu = open_at(viewport.width - px(4.0), cx);
+        let gap = f32::from(viewport.width - menu.right());
+        assert!((gap - f32::from(margin)).abs() < 1.0, "the menu {menu:?} keeps {gap}px from the right edge");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+        let menu = open_at(px(300.0), cx);
+        assert!(f32::from(menu.left() - px(300.0)).abs() < 1.0, "a menu with room opens at its point: {menu:?}");
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+
+        run_action(cx, "navigate.toggleBookmarkWithMnemonic", None);
+        workbench.update(cx, |w, cx| {
+            if let Some(popup) = w.popup.as_mut() {
+                popup.at = Some(point(viewport.width - px(4.0), px(60.0)));
+            }
+            cx.notify();
+        });
+        let popup = anchored_bounds(cx);
+        let gap = f32::from(viewport.width - popup.right());
+        assert!((gap - f32::from(margin)).abs() < 1.0, "the popup {popup:?} keeps {gap}px from the right edge");
         close_project(cx);
     }
 

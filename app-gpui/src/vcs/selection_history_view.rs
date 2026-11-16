@@ -20,7 +20,7 @@ use crate::vcs_diff::model::format_time;
 use crate::vcs_diff::view::DiffView;
 use gpui_kit::{
     App, ClickEvent, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke, Render,
-    SharedString, Window, div, prelude::*, px,
+    SharedString, Window, div, prelude::*, px, relative,
 };
 use ide_core::RequestId;
 use ide_vcs::{BlockHistory, BlockRevision};
@@ -30,6 +30,9 @@ use serde::{Deserialize, Serialize};
 pub const SELECTION_HISTORY_KIND: &str = "selectionHistory";
 
 const SIDEBAR_WIDTH: f32 = 300.0;
+/// A revision row's height, and how far the rows keep from the list's sides.
+const ROW_HEIGHT: f32 = 38.0;
+const LIST_INSET: f32 = 6.0;
 /// The label of HEAD's side of the Local Changes diff.
 const HEAD: &str = "HEAD";
 
@@ -378,27 +381,46 @@ impl SelectionHistoryView {
         true
     }
 
+    /// A revision's row: inset from the list's sides, its summary over its smaller details with a
+    /// small gap, the two centred in the row's height.
     fn render_row(&self, index: usize, row: &RowText, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let selector = format!("selection-history-row-{index}");
-        div()
+        let summary = format!("selection-history-summary-{index}");
+        let meta = format!("selection-history-meta-{index}");
+        let row = div()
             .id(SharedString::from(selector.clone()))
             .debug_selector(move || selector.clone())
-            .flex_none()
-            .h(px(38.0))
-            .px(px(10.0))
+            .h(px(ROW_HEIGHT))
+            .px(px(8.0))
             .flex()
             .flex_col()
             .justify_center()
+            .gap(px(2.0))
+            // The interface's line height, which keeps the two lines inside the row.
+            .line_height(relative(1.4))
             .overflow_hidden()
             .whitespace_nowrap()
+            .rounded(theme::length(cx, "radius-selection"))
             .when(row.active, |el| el.bg(theme::color(cx, "bg-selected")))
             .hover(|el| el.bg(theme::color(cx, "bg-hover")))
-            .child(div().text_color(theme::color(cx, "fg")).child(SharedString::from(row.summary.clone())))
-            .child(div().text_color(theme::color(cx, "fg-muted")).child(SharedString::from(row.meta.clone())))
+            .child(
+                div()
+                    .debug_selector(move || summary.clone())
+                    .text_color(theme::color(cx, "fg"))
+                    .child(SharedString::from(row.summary.clone())),
+            )
+            .child(
+                div()
+                    .debug_selector(move || meta.clone())
+                    .text_size(theme::length(cx, "fs-small"))
+                    .text_color(theme::color(cx, "fg-muted"))
+                    .child(SharedString::from(row.meta.clone())),
+            )
             .on_click(cx.listener(move |view, _: &ClickEvent, window, cx| {
                 window.focus(&view.focus, cx);
                 view.select(index, cx);
-            }))
+            }));
+        div().flex_none().px(px(LIST_INSET)).child(row)
     }
 }
 
@@ -436,6 +458,7 @@ impl Render for SelectionHistoryView {
                         rows.iter().enumerate().map(|(index, row)| self.render_row(index, row, cx)).collect();
                     div()
                         .id("selection-history-list")
+                        .debug_selector(|| "selection-history-list".to_owned())
                         .flex_1()
                         .min_h_0()
                         .flex()
@@ -614,6 +637,36 @@ mod tests {
         let rows = view.read_with(cx, |view, _| view.rows());
         assert!(rows[2].active);
         assert!(rows[2].meta.starts_with("bbbbbbb · Ada · "), "{:?}", rows[2].meta);
+    }
+
+    /// The revision rows stand inside the list's inset, 38 high, each summary over its smaller
+    /// details with a 2 px gap; the text of a row stays inside it, clear of the next row's.
+    #[gpui_kit::test]
+    async fn the_revision_rows_are_inset_and_their_lines_keep_apart(cx: &mut TestAppContext) {
+        let text = "one\nTWO\nTHREE!\nfour\n".to_owned();
+        let data = SelectionHistoryData { path: "/p/src/a.txt".to_owned(), lines: (1, 2), text };
+        let (view, _, cx) = open(cx, data);
+        view.update(cx, |view, cx| view.started(RequestId(7), cx));
+        view.update(cx, |view, cx| view.set_history(RequestId(7), Ok(history()), cx));
+        cx.run_until_parked();
+        let list = cx.debug_bounds("selection-history-list").expect("the list is drawn");
+        let bounds = |cx: &mut VisualTestContext, kind: &str, index: usize| {
+            let selector: &'static str = Box::leak(format!("selection-history-{kind}-{index}").into_boxed_str());
+            cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"))
+        };
+        for index in 0..3 {
+            let row = bounds(cx, "row", index);
+            assert_eq!(row.left() - list.left(), px(6.0), "row {index} {row:?} is inset in {list:?}");
+            assert_eq!(list.right() - row.right(), px(6.0), "row {index} {row:?} is inset in {list:?}");
+            assert_eq!(row.size.height, px(38.0));
+            let (summary, meta) = (bounds(cx, "summary", index), bounds(cx, "meta", index));
+            assert_eq!(meta.top() - summary.bottom(), px(2.0), "row {index}: the gap between its lines");
+        }
+        for index in 0..3 {
+            let (row, summary, meta) =
+                (bounds(cx, "row", index), bounds(cx, "summary", index), bounds(cx, "meta", index));
+            assert!(summary.top() >= row.top() && meta.bottom() <= row.bottom(), "row {index}'s text leaves {row:?}");
+        }
     }
 
     // src/features/vcs/__tests__/selectionHistory.test.tsx › History for Selection tab › says why there is

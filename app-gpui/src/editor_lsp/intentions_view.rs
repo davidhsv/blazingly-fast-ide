@@ -776,11 +776,11 @@ impl Render for ListPopup {
                                     list.open_submenu(at, cx);
                                 }))
                         });
-                        div()
+                        let row = div()
                             .id(at)
                             .debug_selector(move || format!("list-row-{at}"))
+                            .w_full()
                             .h(px(ROW_HEIGHT))
-                            .mx(px(4.0))
                             .px(px(8.0))
                             .flex()
                             .items_center()
@@ -846,7 +846,9 @@ impl Render for ListPopup {
                                 list.submenu = None;
                                 list.select(at, cx);
                                 list.activate(at, cx);
-                            }))
+                            }));
+                        // A row's highlight spans the list inside its inset, however short its label.
+                        div().w_full().px(px(4.0)).child(row)
                     })
                     .collect::<Vec<_>>()
             }),

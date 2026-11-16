@@ -29,7 +29,8 @@ async fn the_fold_column_is_drawn_only_while_show_code_folding_outline_is_on(cx:
     let (f, cx) = open(cx, &[("src/main.rs", NESTED)], "src/main.rs", None);
     f.wait_folds(cx);
     let editor = f.active(cx);
-    let gutter = cx.update(|_, cx| theme::length(cx, "w-gutter"));
+    // The numbers' column (32, its padding included) and the change bars' 4.
+    let gutter = px(32.0 + 4.0);
     let fold = px(crate::editor::view::FOLD_GUTTER);
     assert_eq!(editor.read_with(cx, |e, cx| e.fold_column_width(cx)), fold);
     assert_eq!(text_left(&editor, 0, cx), gutter + fold);

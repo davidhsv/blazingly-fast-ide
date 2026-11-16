@@ -63,3 +63,19 @@ async fn hides_line_numbers_gutter_margin_guides_and_sticky_lines_and_centres_at
     assert!(at_column(drawn[0], column_x(&f, cx, 120)), "{drawn:?}");
     close(cx);
 }
+
+/// The right margin stays drawn on the caret's row: the row's tint is painted under the guide.
+#[gpui_kit::test]
+async fn the_right_margin_is_drawn_over_the_caret_rows_tint(cx: &mut TestAppContext) {
+    use crate::editor::view::PaintedLayer;
+    let (f, cx) = open(cx, "main.rs", &"x".repeat(200)).await;
+    cx.update(|window, cx| {
+        let focus = f.editor.focus_handle(cx);
+        window.focus(&focus, cx);
+    });
+    cx.update(|window, _| window.refresh());
+    assert_eq!(guides(&f, cx).len(), 1);
+    let layers = f.editor.read_with(cx, |e, _| e.painted_layers());
+    assert_eq!(layers, [PaintedLayer::CaretRow, PaintedLayer::Guides], "the guide goes over the caret's row");
+    close(cx);
+}

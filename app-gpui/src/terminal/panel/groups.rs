@@ -169,7 +169,7 @@ impl TerminalPanel {
     /// The tool window's content: its groups as the layout places them. A line being dragged
     /// follows the pointer wherever it goes, over other elements and outside the tool window,
     /// until the button is released.
-    pub(super) fn render_groups(&self, cx: &Context<Self>) -> AnyElement {
+    pub(super) fn render_groups(&self, buttons: bool, cx: &Context<Self>) -> AnyElement {
         let layout = self.terminals.layout().clone();
         let tracking = self.splits.drag.is_some().then(|| {
             let panel = cx.entity();
@@ -202,20 +202,20 @@ impl TerminalPanel {
             .size_full()
             .flex()
             .flex_col()
-            .child(div().flex_1().min_h_0().flex().child(self.layout_node(&layout, cx)))
+            .child(div().flex_1().min_h_0().flex().child(self.layout_node(&layout, buttons, cx)))
             .children(tracking)
             .into_any_element()
     }
 
-    fn layout_node(&self, node: &GroupLayout, cx: &Context<Self>) -> AnyElement {
+    fn layout_node(&self, node: &GroupLayout, buttons: bool, cx: &Context<Self>) -> AnyElement {
         match node {
-            GroupLayout::Group(group) => self.group_column(group, cx),
-            GroupLayout::Split(split) => self.split_element(split, cx),
+            GroupLayout::Group(group) => self.group_column(group, buttons, cx),
+            GroupLayout::Split(split) => self.split_element(split, buttons, cx),
         }
     }
 
     /// A split: its children sharing it by their shares, a one-pixel line between two of them.
-    fn split_element(&self, split: &GroupSplit, cx: &Context<Self>) -> AnyElement {
+    fn split_element(&self, split: &GroupSplit, buttons: bool, cx: &Context<Self>) -> AnyElement {
         let horizontal = split.orientation == SplitOrientation::Horizontal;
         let shares = self.splits.shares(&split.id, split.children.len());
         let mut children: Vec<AnyElement> = Vec::with_capacity(split.children.len() * 2);
@@ -225,7 +225,7 @@ impl TerminalPanel {
             }
             let part = div().flex_basis(px(0.0)).flex_grow(share).flex().min_w_0().min_h_0();
             let part = if horizontal { part.h_full().min_w(px(MIN_GROUP)) } else { part.w_full().min_h(px(MIN_GROUP)) };
-            children.push(part.child(self.layout_node(child, cx)).into_any_element());
+            children.push(part.child(self.layout_node(child, buttons, cx)).into_any_element());
         }
         let (bounds, id) = (self.splits.bounds.clone(), split.id.clone());
         let measure = canvas(
@@ -325,10 +325,10 @@ impl TerminalPanel {
 
     /// A group: its header, then its selected tab's terminal. A press in the terminal makes its tab
     /// the active one.
-    fn group_column(&self, group: &str, cx: &Context<Self>) -> AnyElement {
+    fn group_column(&self, group: &str, buttons: bool, cx: &Context<Self>) -> AnyElement {
         let layout = self.terminals.layout();
         let title = layout.groups().first().is_some_and(|first| *first == group);
-        let actions = layout.top_right() == group;
+        let actions = buttons && layout.top_right() == group;
         let view = self.terminals.selected().get(group).and_then(|id| self.view_of_tab(id)).cloned();
         let selector = format!("terminal-group:{group}");
         let pressed = group.to_owned();

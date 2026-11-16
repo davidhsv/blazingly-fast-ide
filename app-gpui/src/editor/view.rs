@@ -120,6 +120,35 @@ const ADD_CARET_ACTION: &str = "editor.addOrRemoveCaret";
 /// numbers, the breakpoints and the plugins' icons.
 pub const FOLD_GUTTER: f32 = 16.0;
 
+/// The line numbers' column, the gutter's first after the blame annotations: at least this wide,
+/// padding included, and wider when the widest number the document's line count can take needs
+/// more with this padding left and right of it.
+const NUMBER_COLUMN_MIN: f32 = 32.0;
+const NUMBER_PADDING_LEFT: f32 = 10.0;
+const NUMBER_PADDING_RIGHT: f32 = 8.0;
+
+/// The change bars' column, between the icon columns and the fold chevrons.
+const CHANGE_LANE: f32 = 4.0;
+
+/// A layer of the editor's frame whose order tests read.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PaintedLayer {
+    CaretRow,
+    Guides,
+}
+
+/// An icon column of the gutter, right of the line numbers and left of the change bars, that a
+/// contribution (run marks, plugin icons) draws its icons in.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct GutterColumn {
+    id: &'static str,
+    /// The columns stand left to right by order; those of one order as they were first set.
+    order: u8,
+    /// Zero while the column takes no room.
+    width: f32,
+}
+
 /// The colours Rainbow brackets cycle through by depth.
 const BRACKET_COLORS: [&str; 3] = ["syn-bracket-1", "syn-bracket-2", "syn-bracket-3"];
 
@@ -202,6 +231,12 @@ struct Layout {
     /// tests only, so a frame allocates nothing for it.
     #[cfg(test)]
     painted_marks: Vec<(super::marks::MarkKind, Bounds<Pixels>)>,
+    /// Where each line number was drawn, by document line; for tests only.
+    #[cfg(test)]
+    painted_numbers: Vec<(u32, Bounds<Pixels>)>,
+    /// The order the caret's row tint and the guides were painted in; for tests only.
+    #[cfg(test)]
+    paint_order: Vec<PaintedLayer>,
     /// The colour runs (UTF-8 lengths) each painted row was shaped with; for tests only.
     #[cfg(test)]
     painted_colors: Vec<Vec<(usize, Hsla)>>,
@@ -327,6 +362,8 @@ pub struct Editor {
     drag_anchor: Option<u32>,
     /// The pointer is over the gutter: the open folds' chevrons show.
     gutter_hovered: bool,
+    /// The gutter's icon columns, left to right.
+    gutter_columns: Vec<GutterColumn>,
     /// The brackets of the text with their depths, for Rainbow brackets.
     pub(super) brackets: std::cell::RefCell<super::extras::BracketCache>,
     /// A caret-adding press, while the mouse button is down.
@@ -440,6 +477,7 @@ impl Editor {
             history: History::default(),
             drag_anchor: None,
             gutter_hovered: false,
+            gutter_columns: Vec::new(),
             brackets: Default::default(),
             adding: None,
             column_drag: None,
@@ -612,6 +650,18 @@ impl Editor {
         painted.iter().filter(|(painted, _)| *painted == kind).map(|(_, bounds)| *bounds).collect()
     }
 
+    /// The order the last frame painted the caret's row tint and the guides in, first first.
+    #[cfg(test)]
+    pub fn painted_layers(&self) -> Vec<PaintedLayer> {
+        self.layout.as_ref().map(|layout| layout.paint_order.clone()).unwrap_or_default()
+    }
+
+    /// Where the last frame drew the line numbers, by document line, top to bottom.
+    #[cfg(test)]
+    pub fn painted_line_numbers(&self) -> Vec<(u32, Bounds<Pixels>)> {
+        self.layout.as_ref().map(|layout| layout.painted_numbers.clone()).unwrap_or_default()
+    }
+
     /// The fold chevrons the last frame drew in the gutter, by document line, top to bottom.
     #[cfg(test)]
     pub fn painted_fold_markers(&self) -> Vec<(u32, super::extras::FoldMarker)> {
@@ -697,18 +747,51 @@ impl Editor {
         &self.rope
     }
 
-    /// The font size, line height and gutter width the editor paints with: the settings' or the
-    /// theme's at the IDE zoom, the font and the line height scaled by the editor's font zoom.
-    /// Distraction Free Mode has no gutter.
-    fn metrics(&self, cx: &App) -> (Pixels, Pixels, Pixels) {
+    /// The font size and line height the editor paints with: the settings' or the theme's at the
+    /// IDE zoom, scaled by the editor's font zoom.
+    fn metrics(&self, cx: &App) -> (Pixels, Pixels) {
         let font = &self.facts.font;
         let size = if font.size > 0.0 { theme::zoomed(cx, font.size) } else { theme::length(cx, "fs-code") };
         let line =
             if font.line_height > 0.0 { theme::zoomed(cx, font.line_height) } else { theme::length(cx, "lh-code") };
         let zoomed = (size + theme::zoomed(cx, self.core.font_zoom as f32)).max(px(1.0));
-        let gutter =
-            if distraction_free(cx) { px(0.0) } else { theme::length(cx, "w-gutter") + self.fold_column_width(cx) };
-        (zoomed, line * (zoomed / size), gutter)
+        (zoomed, line * (zoomed / size))
+    }
+
+    /// The width of the gutter right of the line numbers: the icon columns, the change bars and the
+    /// fold chevrons. Distraction Free Mode has no gutter.
+    fn gutter_right_of_numbers(&self, cx: &App) -> Pixels {
+        if distraction_free(cx) {
+            return px(0.0);
+        }
+        let icons: f32 = self.gutter_columns.iter().map(|column| column.width).sum();
+        theme::zoomed(cx, icons + CHANGE_LANE) + self.fold_column_width(cx)
+    }
+
+    /// Gives the gutter's icon column `id` its `width` (zero: it takes no room). The columns stand
+    /// left to right by `order`, those of one order in the order they were first set.
+    pub fn set_gutter_column(&mut self, id: &'static str, order: u8, width: f32, cx: &mut Context<Self>) {
+        match self.gutter_columns.iter_mut().find(|column| column.id == id) {
+            Some(column) if column.width == width => return,
+            Some(column) => column.width = width,
+            None => {
+                let at = self.gutter_columns.partition_point(|column| column.order <= order);
+                self.gutter_columns.insert(at, GutterColumn { id, order, width });
+            }
+        }
+        cx.notify();
+    }
+
+    /// Where the gutter's icon column `id` is: its left edge as an offset from the text's left edge
+    /// (negative, the gutter is left of the text), and its width. `None` when it takes no room.
+    pub fn gutter_column(&self, id: &str, cx: &App) -> Option<(Pixels, Pixels)> {
+        if distraction_free(cx) {
+            return None;
+        }
+        let at = self.gutter_columns.iter().position(|column| column.id == id && column.width > 0.0)?;
+        let from_left: f32 = self.gutter_columns[at..].iter().map(|column| column.width).sum();
+        let left = -(theme::zoomed(cx, from_left + CHANGE_LANE) + self.fold_column_width(cx));
+        Some((left, theme::zoomed(cx, self.gutter_columns[at].width)))
     }
 
     /// The width of the fold chevrons' column: none while Code Folding › Show code folding outline
@@ -751,7 +834,7 @@ impl Editor {
 
     /// The font, size and line height the text is drawn with.
     pub fn text_style(&self, cx: &App) -> (Font, Pixels, Pixels) {
-        let (size, line_height, _) = self.metrics(cx);
+        let (size, line_height) = self.metrics(cx);
         (self.code_font(cx), size, line_height)
     }
 
@@ -857,7 +940,7 @@ impl Editor {
     /// Scrolls so that the main caret's line is inside the viewport.
     fn reveal_caret(&mut self, cx: &App) {
         let Some(layout) = &self.layout else { return };
-        let (_, line_height, _) = self.metrics(cx);
+        let (_, line_height) = self.metrics(cx);
         let line_top = line_height * self.core.folds.row_of_line(self.caret_position().0) as f32;
         let height = layout.bounds.size.height;
         if line_top < self.scroll_top {
@@ -869,7 +952,7 @@ impl Editor {
 
     /// Scrolls by `delta` pixels (positive moves the text up), clamped to the document.
     pub fn scroll_by(&mut self, delta: Pixels, cx: &mut Context<Self>) {
-        let (_, line_height, _) = self.metrics(cx);
+        let (_, line_height) = self.metrics(cx);
         let viewport = self.layout.as_ref().map_or(px(0.0), |l| l.bounds.size.height);
         let content = line_height * self.core.folds.row_count(self.line_count()) as f32;
         let max = (content - viewport).max(px(0.0));
@@ -2076,6 +2159,8 @@ impl IntoElement for EditorElement {
 struct Prepared {
     layout: Layout,
     numbers: Vec<ShapedLine>,
+    /// Width of the line numbers' column (a breakpoint is drawn in it, in place of the number).
+    numbers_column: Pixels,
     gutter: Pixels,
     /// The marks that touch the painted lines.
     marks: Vec<Mark>,
@@ -2143,7 +2228,7 @@ impl Element for EditorElement {
         cx: &mut App,
     ) -> Prepared {
         let editor = self.editor.read(cx);
-        let (font_size, line_height, gutter) = editor.metrics(cx);
+        let (font_size, line_height) = editor.metrics(cx);
         let fold_column = editor.fold_column_width(cx);
         let code_font = editor.code_font(cx);
         let token_styles = token_style::TokenStyles::new(&code_font, editor.language.as_str(), cx);
@@ -2175,6 +2260,17 @@ impl Element for EditorElement {
             underline: None,
             strikethrough: None,
         };
+        // The numbers' column is as wide as the widest number this many lines can take.
+        let numbers_column = if distraction_free(cx) {
+            px(0.0)
+        } else {
+            let widest = "9".repeat(total.max(1).to_string().len());
+            let len = widest.len();
+            let digits = window.text_system().shape_line(widest.into(), font_size, &[run(len, number_color)], None);
+            (digits.width + theme::zoomed(cx, NUMBER_PADDING_LEFT + NUMBER_PADDING_RIGHT))
+                .max(theme::zoomed(cx, NUMBER_COLUMN_MIN))
+        };
+        let gutter = numbers_column + editor.gutter_right_of_numbers(cx);
 
         // The marks that can touch the painted lines.
         let first_offset = buffer::line_range(&editor.rope, first_line).start;
@@ -2321,6 +2417,10 @@ impl Element for EditorElement {
                 #[cfg(test)]
                 painted_marks: Vec::new(),
                 #[cfg(test)]
+                painted_numbers: Vec::new(),
+                #[cfg(test)]
+                paint_order: Vec::new(),
+                #[cfg(test)]
                 painted_colors,
                 #[cfg(test)]
                 painted_chevrons,
@@ -2328,6 +2428,7 @@ impl Element for EditorElement {
                 painted_fonts,
             },
             numbers,
+            numbers_column,
             gutter,
             marks,
             placeholders,
@@ -2362,7 +2463,8 @@ impl Element for EditorElement {
             }
         });
 
-        let Prepared { layout, numbers, gutter, marks, placeholders, markers, annotations } = prepared;
+        let Prepared { layout, numbers, numbers_column, gutter, marks, placeholders, markers, annotations } = prepared;
+        let numbers_column = *numbers_column;
         let (line_height, text_left, fold_column, annotation_column) =
             (layout.line_height, layout.text_left, layout.fold_column, layout.annotation_column);
         let focused = focus.is_focused(window);
@@ -2380,12 +2482,44 @@ impl Element for EditorElement {
         };
         #[cfg(test)]
         let mut painted_marks = Vec::new();
+        #[cfg(test)]
+        let mut painted_numbers = Vec::new();
+        #[cfg(test)]
+        let mut paint_order = Vec::new();
         window.with_content_mask(Some(gpui_kit::ContentMask { bounds }), |window| {
             window.paint_quad(fill(bounds, theme::color(cx, "bg-editor")));
-            right_margin::paint_right_margins(&layout.right_margins, bounds, text_left, window, cx);
             let rope = self.editor.read(cx).rope.clone();
             let heads: Vec<(u32, u32)> =
                 selections.iter().map(|range| (buffer::line_col(&rope, range.head()).0, range.head())).collect();
+            // The rows' tints (the caret's row, a breakpoint's, the execution line) lie under the
+            // guides, which lie under everything else.
+            for (index, line) in layout.line_of.iter().copied().enumerate() {
+                let row = layout.first_line + index as u32;
+                let top = bounds.top() + line_height * row as f32 - scroll_top;
+                let range = buffer::line_range(&rope, line);
+                let touches = |from: u32, to: u32| from <= range.end && to >= range.start && from < to;
+                let row_area =
+                    Bounds::new(point(bounds.left() + *gutter, top), size(bounds.size.width - *gutter, line_height));
+                let caret_here = selections.iter().zip(&heads).any(|(range, head)| range.is_caret() && head.0 == line);
+                if focused && caret_here {
+                    window.paint_quad(fill(row_area, theme::color(cx, "bg-current-line")));
+                    #[cfg(test)]
+                    paint_order.push(PaintedLayer::CaretRow);
+                }
+                // The breakpoint row is tinted, and the execution line goes over it.
+                for kind in [MarkKind::BreakpointLine, MarkKind::UnverifiedBreakpoint, MarkKind::ExecutionLine] {
+                    if marks.iter().any(|mark| mark.kind == kind && touches(mark.range.start, mark.range.end)) {
+                        window.paint_quad(fill(row_area, mark_color(cx, kind)));
+                        #[cfg(test)]
+                        painted_marks.push((kind, row_area));
+                    }
+                }
+            }
+            right_margin::paint_right_margins(&layout.right_margins, bounds, text_left, window, cx);
+            #[cfg(test)]
+            if !layout.right_margins.is_empty() {
+                paint_order.push(PaintedLayer::Guides);
+            }
             for (index, (text, shaped)) in layout.lines.iter().enumerate() {
                 let line = layout.line_of[index];
                 let row = layout.first_line + index as u32;
@@ -2403,26 +2537,6 @@ impl Element for EditorElement {
                 };
                 let touches = |from: u32, to: u32| from <= range.end && to >= range.start && from < to;
                 let on_line = |head: &(u32, u32)| head.0 == line;
-                let caret_here = selections.iter().zip(&heads).any(|(range, head)| range.is_caret() && on_line(head));
-                if focused && caret_here {
-                    let row = Bounds::new(
-                        point(bounds.left() + *gutter, top),
-                        size(bounds.size.width - *gutter, line_height),
-                    );
-                    window.paint_quad(fill(row, theme::color(cx, "bg-current-line")));
-                }
-                // The breakpoint row is tinted, and the execution line goes over it.
-                for kind in [MarkKind::BreakpointLine, MarkKind::UnverifiedBreakpoint, MarkKind::ExecutionLine] {
-                    if marks.iter().any(|mark| mark.kind == kind && touches(mark.range.start, mark.range.end)) {
-                        let row = Bounds::new(
-                            point(bounds.left() + *gutter, top),
-                            size(bounds.size.width - *gutter, line_height),
-                        );
-                        window.paint_quad(fill(row, mark_color(cx, kind)));
-                        #[cfg(test)]
-                        painted_marks.push((kind, row));
-                    }
-                }
                 let backgrounds = |below: bool| {
                     marks.iter().filter(move |mark| {
                         mark.kind != MarkKind::ExcludedOccurrence
@@ -2498,20 +2612,25 @@ impl Element for EditorElement {
                         window.paint_quad(fill(struck, mark_color(cx, mark.kind)));
                     }
                 }
-                if let Some(number) = numbers.get(index).filter(|_| *gutter > px(0.0)) {
-                    let x = bounds.left() + *gutter - fold_column - number.width - px(12.0);
-                    let _ =
-                        number.paint(point(x.max(bounds.left()), top), line_height, TextAlign::Left, None, window, cx);
+                let breakpoint =
+                    marks.iter().find(|mark| mark.kind.is_breakpoint() && touches(mark.range.start, mark.range.end));
+                // A breakpoint is drawn in place of its line's number.
+                if let Some(number) = numbers.get(index).filter(|_| *gutter > px(0.0) && breakpoint.is_none()) {
+                    let right = bounds.left() + annotation_column + numbers_column;
+                    let x = right - theme::zoomed(cx, NUMBER_PADDING_RIGHT) - number.width;
+                    let _ = number.paint(point(x, top), line_height, TextAlign::Left, None, window, cx);
+                    #[cfg(test)]
+                    painted_numbers.push((line, Bounds::new(point(x, top), size(number.width, line_height))));
                 }
                 if let Some(column) = annotations.as_ref() {
                     column.paint_row(index, bounds.left(), top, line_height, window, cx);
                 }
-                let breakpoint =
-                    marks.iter().find(|mark| mark.kind.is_breakpoint() && touches(mark.range.start, mark.range.end));
                 if let Some(mark) = breakpoint.filter(|_| *gutter > px(0.0)) {
-                    let diameter = px(10.0);
+                    // One em across, its centre a pixel right of the numbers' column's middle.
+                    let diameter = layout.lines[index].1.font_size;
+                    let centre = bounds.left() + annotation_column + numbers_column / 2.0 + theme::zoomed(cx, 1.0);
                     let dot = Bounds::new(
-                        point(bounds.left() + annotation_column + px(4.0), top + (line_height - diameter) / 2.0),
+                        point(centre - diameter / 2.0, top + (line_height - diameter) / 2.0),
                         size(diameter, diameter),
                     );
                     let solid = gpui_kit::BorderStyle::Solid;
@@ -2541,6 +2660,8 @@ impl Element for EditorElement {
         #[cfg(test)]
         {
             layout.painted_marks = painted_marks;
+            layout.painted_numbers = painted_numbers;
+            layout.paint_order = paint_order;
         }
         let layout = std::mem::replace(
             layout,
@@ -2559,6 +2680,10 @@ impl Element for EditorElement {
                 caret_glide: None,
                 #[cfg(test)]
                 painted_marks: Vec::new(),
+                #[cfg(test)]
+                painted_numbers: Vec::new(),
+                #[cfg(test)]
+                paint_order: Vec::new(),
                 #[cfg(test)]
                 painted_colors: Vec::new(),
                 #[cfg(test)]
@@ -2635,6 +2760,53 @@ mod tests {
         });
         cx.run_until_parked();
         (Fixture { editor, host, path, _home: home, _project: project }, cx)
+    }
+
+    /// The line numbers' column of a short file is 32 wide, its numbers right-aligned 8 before its
+    /// right edge; a breakpoint is drawn in place of its line's number, one em across, its centre a
+    /// pixel right of the column's middle. A file of a hundred lines or more widens the column to
+    /// its widest number with 10 and 8 of padding.
+    #[gpui_kit::test]
+    async fn a_breakpoint_is_drawn_in_place_of_its_line_number_centred_on_the_numbers_column(cx: &mut TestAppContext) {
+        use crate::editor::marks::{Mark, MarkKind, MarkLayer};
+        let (f, cx) = open(cx, &[("a.txt", "one\ntwo\nthree\n")]).await;
+        let line_one = f.editor.read_with(cx, |e, _| e.offset_of(1, 0)..e.offset_of(1, 3));
+        f.editor.update(cx, |e, cx| {
+            e.set_marks(MarkLayer::Breakpoints, vec![Mark { range: line_one, kind: MarkKind::BreakpointLine }], cx)
+        });
+        cx.update(|window, _| window.refresh());
+        cx.run_until_parked();
+        let (numbers, dots, left, size) = f.editor.read_with(cx, |e, _| {
+            let bounds = e.painted_bounds().expect("painted");
+            let size = e.painted_text_metrics().expect("painted").0;
+            (e.painted_line_numbers(), e.painted_marks(MarkKind::BreakpointLine), bounds.left(), size)
+        });
+        let lines: Vec<u32> = numbers.iter().map(|(line, _)| *line).collect();
+        assert!(!lines.contains(&1), "the breakpoint's line shows no number: {lines:?}");
+        assert!(lines.contains(&0) && lines.contains(&2), "the other lines show theirs: {lines:?}");
+        for (_, number) in &numbers {
+            assert_eq!(number.right() - left, px(32.0 - 8.0), "a number ends 8 before the column's right edge");
+        }
+        let dot = dots.iter().find(|dot| dot.size.width == dot.size.height).expect("the breakpoint's dot");
+        assert_eq!(dot.size.width, size, "one em across");
+        assert_eq!(dot.center().x - left, px(32.0 / 2.0 + 1.0), "a pixel right of the column's middle");
+    }
+
+    /// A file of a hundred lines or more widens the line numbers' column to its widest number with
+    /// 10 and 8 of padding.
+    #[gpui_kit::test]
+    async fn the_line_numbers_column_widens_to_the_widest_number_and_its_padding(cx: &mut TestAppContext) {
+        let long: String = (0..120).map(|line| format!("line {line}\n")).collect();
+        let (f, cx) = open(cx, &[("long.txt", long.as_str())]).await;
+        cx.update(|window, _| window.refresh());
+        cx.run_until_parked();
+        let (numbers, left) =
+            f.editor.read_with(cx, |e, _| (e.painted_line_numbers(), e.painted_bounds().expect("painted").left()));
+        let (_, first) = numbers.first().copied().expect("a number is drawn");
+        // The numbers' digits are all as wide: three of them are the widest number's width.
+        let widest = first.size.width * 3.0;
+        assert!(widest + px(18.0) > px(32.0), "three digits and the padding need more than 32: {widest:?}");
+        assert!((first.right() - left - (widest + px(10.0))).abs() < px(0.5), "{first:?} from {left:?}");
     }
 
     /// Waits for work on the backend's own threads to reach the UI.

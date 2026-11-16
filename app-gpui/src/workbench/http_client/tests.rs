@@ -542,8 +542,38 @@ async fn a_generate_mark_and_a_plugin_gutter_icon_on_one_line_do_not_overlap(cx:
     let icon = cx.debug_bounds("plugin-gutter:0").expect("the plugin's icon");
     assert!(!mark.intersects(&icon), "the mark {mark:?} is over the icon {icon:?}");
     assert!((mark.center().y - icon.center().y).abs() < gpui_kit::px(1.0), "both are on the line");
+    // The mark's column comes first, then the icon's: 14 wide, the icon centred in it.
+    assert_eq!(icon.left() - mark.right(), gpui_kit::px(1.0), "the icon {icon:?} right after the mark {mark:?}");
+    let number = editor
+        .read_with(cx, |e, _| e.painted_line_numbers().into_iter().find(|(line, _)| *line == 0))
+        .expect("line 1's number is drawn")
+        .1;
+    assert!(number.right() <= mark.left(), "the mark {mark:?} is over the number {number:?}");
     let view = editor.read_with(cx, |e, _| e.painted_bounds().expect("the editor is painted"));
     assert!(mark.left() >= view.left() && icon.right() <= view.right(), "both are inside the editor {view:?}");
+}
+
+/// A request file's run mark stands in its own gutter column between the line numbers and the fold
+/// chevrons: it covers no digit of its line's number, the numbers keep their right padding before
+/// it, and the change bars' column and the fold chevrons follow it before the text.
+#[gpui_kit::test]
+async fn a_run_mark_stands_in_its_own_gutter_column_right_of_the_line_number(cx: &mut TestAppContext) {
+    let text = "### One\nGET http://127.0.0.1:1/one\n".to_owned();
+    let (f, cx) = open_project(cx, &[("one.http", text)], Some("one.http"));
+    let editor = f.editor(cx);
+    wait_long(cx, "the run mark", |cx| f.workbench.read_with(cx, |w, _| w.http_gutter_lines(&editor)) == [1]);
+    wait_long(cx, "the mark is drawn", |cx| cx.debug_bounds("http-gutter-1").is_some());
+    let mark = cx.debug_bounds("http-gutter-1").expect("the run mark");
+    let number = editor
+        .read_with(cx, |e, _| e.painted_line_numbers().into_iter().find(|(line, _)| *line == 1))
+        .expect("line 2's number is drawn")
+        .1;
+    assert!(number.right() <= mark.left(), "the mark {mark:?} is over the number {number:?}");
+    assert_eq!(mark.left() - number.right(), px(8.0), "the numbers' right padding");
+    let (text_left, fold) =
+        editor.read_with(cx, |e, cx| (e.position_of(e.offset_of(1, 0)).expect("painted").x, e.fold_column_width(cx)));
+    assert_eq!(mark.size.width, px(14.0), "the column's width");
+    assert_eq!(text_left - mark.right(), px(4.0) + fold, "the change bars' column and the fold chevrons");
 }
 
 /// Whether action `id` may run in the window as it is now (its `when` clause holds).

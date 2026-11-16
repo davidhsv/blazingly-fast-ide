@@ -26,6 +26,8 @@ const SUBMENU_CLOSE: Duration = Duration::from_millis(200);
 const SEPARATOR_HEIGHT: f32 = 9.0;
 /// The menu's inset above its first and below its last row.
 const INSET: f32 = 6.0;
+/// The room a menu or a popup moved to fit the window keeps from the window's edges.
+pub const WINDOW_MARGIN: f32 = 6.0;
 
 /// What choosing a row does.
 #[derive(Debug, Clone, PartialEq)]
@@ -435,6 +437,7 @@ impl<C: Clone + 'static> Render for PopupMenu<C> {
                 }
             });
             div()
+                .debug_selector(move || format!("menu-level-{depth}"))
                 .mt(px(tops[depth]))
                 .min_w(px(180.0))
                 .max_w(px(420.0))
@@ -451,7 +454,7 @@ impl<C: Clone + 'static> Render for PopupMenu<C> {
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                 .children(lines)
         });
-        anchored().position(self.position).snap_to_window().child(
+        anchored().position(self.position).snap_to_window_with_margin(px(WINDOW_MARGIN)).child(
             div()
                 .track_focus(&self.focus)
                 .flex()

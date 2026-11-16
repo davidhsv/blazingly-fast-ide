@@ -881,6 +881,23 @@ mod tests {
         assert_eq!(events.borrow().last(), Some(&RemoteHostEvent::Open(entry("/srv/readme.txt", false))));
     }
 
+    /// A right click on a row outside the selection selects that row alone before the menu opens;
+    /// one on a row of a wider selection keeps the selection.
+    #[gpui_kit::test]
+    async fn a_right_click_selects_the_row_before_its_menu_opens(cx: &mut TestAppContext) {
+        let (view, events, cx) = open(cx, state());
+        click(cx, "remote-host-row:/srv/app", Modifiers::default());
+        let at = cx.debug_bounds("remote-host-row:/srv/readme.txt").expect("drawn").center();
+        cx.simulate_mouse_down(at, MouseButton::Right, Modifiers::default());
+        cx.run_until_parked();
+        assert!(matches!(events.borrow().last(), Some(RemoteHostEvent::ShowMenu { .. })));
+        assert_eq!(view.read_with(cx, |view, _| view.selected().to_vec()), ["/srv/readme.txt"]);
+        click(cx, "remote-host-row:/srv/app", Modifiers { platform: true, ..Modifiers::default() });
+        cx.simulate_mouse_down(at, MouseButton::Right, Modifiers::default());
+        cx.run_until_parked();
+        assert_eq!(view.read_with(cx, |view, _| view.selected().to_vec()), ["/srv/readme.txt", "/srv/app"]);
+    }
+
     /// The menu of one file offers every row; of a folder, New Folder… in it and no Open; of two
     /// entries, Download and Delete for both and nothing that needs one entry.
     #[gpui_kit::test]

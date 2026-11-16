@@ -53,6 +53,8 @@ pub struct TerminalPanel {
     fresh: bool,
     /// The sizes the groups were dragged to, and the drag going on.
     splits: groups::Splits,
+    /// The pointer is over the tool window: its Options and Hide buttons show.
+    hovered: bool,
 }
 
 impl EventEmitter<TerminalPanelEvent> for TerminalPanel {}
@@ -68,6 +70,7 @@ impl TerminalPanel {
             views: HashMap::new(),
             fresh: false,
             splits: groups::Splits::default(),
+            hovered: false,
         };
         let root = panel.root.clone();
         let stored = |key: &str| cx.try_global::<UiStorage>().and_then(|storage| storage.get(key)).map(str::to_owned);
@@ -332,13 +335,22 @@ impl Focusable for TerminalPanel {
 
 impl Render for TerminalPanel {
     /// Each tab group with its own header and tab strip; see [`groups`].
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // The window's own buttons show while the pointer is over it or the keyboard is in it.
+        let buttons = self.hovered || self.focus.contains_focused(window, cx);
         div()
+            .id("terminal-window")
             .size_full()
             .flex()
             .track_focus(&self.focus)
             .text_size(theme::length(cx, "fs-ui"))
-            .child(self.render_groups(cx))
+            .on_hover(cx.listener(|panel, hovered: &bool, _, cx| {
+                if panel.hovered != *hovered {
+                    panel.hovered = *hovered;
+                    cx.notify();
+                }
+            }))
+            .child(self.render_groups(buttons, cx))
     }
 }
 

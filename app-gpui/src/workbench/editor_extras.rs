@@ -1245,7 +1245,8 @@ mod tests {
         let (left, _, _, fold) = geometry(cx);
         assert!(cx.debug_bounds(tab).is_some(), "the tab strip is drawn");
         assert_eq!(fold, px(crate::editor::view::FOLD_GUTTER));
-        assert_eq!(left, cx.update(|_, cx| theme::length(cx, "w-gutter")) + fold, "the text starts after the gutter");
+        // The numbers' column (32, its padding included), the change bars' 4, the fold chevrons.
+        assert_eq!(left, px(32.0 + 4.0) + fold, "the text starts after the gutter");
 
         f.run(cx, "editor.toggleZen");
         let (left, eighty, width, fold) = geometry(cx);
@@ -1264,7 +1265,7 @@ mod tests {
         f.run(cx, "editor.toggleZen");
         let (left, _, _, _) = geometry(cx);
         assert!(cx.debug_bounds(tab).is_some(), "the tab strip is back");
-        assert_eq!(left, cx.update(|_, cx| theme::length(cx, "w-gutter")) + px(crate::editor::view::FOLD_GUTTER));
+        assert_eq!(left, px(32.0 + 4.0 + crate::editor::view::FOLD_GUTTER));
         f.close(cx);
     }
 

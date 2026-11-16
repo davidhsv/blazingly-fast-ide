@@ -1097,7 +1097,7 @@ mod tests {
     use crate::platform::storage::UiStorage;
     use crate::theme;
     use crate::workbench;
-    use gpui_kit::{TestAppContext, VisualTestContext};
+    use gpui_kit::{TestAppContext, VisualTestContext, px};
     use serde_json::Value;
     use std::path::Path;
     use std::time::Duration;
@@ -1495,6 +1495,12 @@ mod tests {
         let list = f.list(cx);
         assert_eq!(list.read_with(cx, |l, _| l.title().to_owned()), "Refactor This");
         assert_eq!(list.read_with(cx, |l, _| l.lines()), ["Nothing here"]);
+        // The row's highlight spans the popup inside its inset, not only its short label.
+        cx.run_until_parked();
+        let popup = cx.debug_bounds("list-popup").expect("the popup is drawn");
+        let row = cx.debug_bounds("list-row-0").expect("the row is drawn");
+        let (left, right) = (row.left() - popup.left(), popup.right() - row.right());
+        assert!((left - right).abs() < px(1.0) && left < px(8.0), "the row {row:?} spans the popup {popup:?}");
         cx.simulate_keystrokes("escape");
         settle(cx, "the popup closes", |cx| f.no_list(cx));
 

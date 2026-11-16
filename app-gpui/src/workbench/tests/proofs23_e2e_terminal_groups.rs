@@ -265,3 +265,49 @@ async fn the_terminal_header_s_more_options_and_hide_buttons_act_on_the_window(c
     assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)), "Hide hides the Terminal");
     close_backend_project(cx);
 }
+
+/// The Terminal's Options and Hide buttons show while the pointer is over the tool window or the
+/// keyboard is in it, and not otherwise; the group's New Tab button shows all the time. Split, the
+/// buttons stay in the top right group's header under the same rule.
+#[gpui_kit::test]
+async fn the_terminal_window_buttons_show_on_hover_or_keyboard_focus_only(cx: &mut TestAppContext) {
+    use gpui_kit::{Modifiers, point, px};
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("README.md", "# acme\n")]);
+    let panel = open_terminal(&workbench, cx);
+    let group = panel.read_with(cx, |panel, _| panel.headers()[0].group.clone());
+    let shown = |cx: &mut VisualTestContext| {
+        cx.run_until_parked();
+        (cx.debug_bounds("more:terminal").is_some(), cx.debug_bounds("hide:terminal").is_some())
+    };
+    assert!(focused(&active_view(&panel, cx).expect("a terminal"), cx), "the terminal has the keyboard");
+    assert_eq!(shown(cx), (true, true), "the keyboard is in the tool window");
+
+    // The keyboard in the editor, the pointer away from the tool window: the buttons go.
+    let readme = root.join("README.md");
+    workbench.update_in(cx, |w, window, cx| w.open_project_file(readme, window, cx));
+    wait_long(cx, "the editor has the keyboard", |cx| context_is_on(cx, "editorTextFocus"));
+    let header = bounds_of(format!("terminal-header:{group}"), cx);
+    let away = point(header.left() + px(10.0), header.top() - px(60.0));
+    cx.simulate_mouse_move(away, None, Modifiers::default());
+    assert_eq!(shown(cx), (false, false), "neither hovered nor focused");
+    assert!(cx.debug_bounds(Box::leak(format!("terminal-new-tab:{group}").into_boxed_str())).is_some());
+
+    // The pointer over the tool window brings them back, and leaving takes them away again.
+    cx.simulate_mouse_move(point(header.center().x, header.bottom() + px(40.0)), None, Modifiers::default());
+    assert_eq!(shown(cx), (true, true), "the pointer is over the tool window");
+    cx.simulate_mouse_move(away, None, Modifiers::default());
+    assert_eq!(shown(cx), (false, false), "the pointer left");
+
+    // Split: the buttons are in the top right header and follow the same rule.
+    let local = active_tab(&panel, cx).expect("the tab Local");
+    split_right_from_the_tab_menu(&workbench, &local, cx);
+    cx.simulate_mouse_move(away, None, Modifiers::default());
+    let corner = panel.read_with(cx, |panel, _| panel.headers()[1].group.clone());
+    let corner = bounds_of(format!("terminal-header:{corner}"), cx);
+    let focused_now = focused(&active_view(&panel, cx).expect("a terminal"), cx);
+    assert_eq!(shown(cx), (focused_now, focused_now), "shown only while the keyboard is in a terminal");
+    cx.simulate_mouse_move(point(corner.center().x, corner.bottom() + px(40.0)), None, Modifiers::default());
+    assert_eq!(shown(cx), (true, true), "the pointer is over the split tool window");
+    assert!(corner.contains(&bounds_of("more:terminal".to_owned(), cx).center()), "in the top right header");
+}

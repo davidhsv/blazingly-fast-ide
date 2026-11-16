@@ -39,6 +39,7 @@ use crate::find::utf16;
 use crate::platform::i18n::Localization;
 use crate::platform::{input, keymap, settings};
 use crate::theme;
+use crate::ui::tooltip::WithTooltip;
 use crate::vcs_more::viewer_look::{ViewerFont, ViewerLook, viewer_caret, viewer_font};
 use gpui_kit::{
     AnyElement, App, Bounds, ClipboardItem, Context, DispatchPhase, Div, Element, ElementId, Entity, EventEmitter,
@@ -1716,11 +1717,22 @@ impl DiffView {
                 .bg(theme::color(cx, "accent-soft"))
                 .text_color(theme::color(cx, "accent"))
                 .text_size(theme::length(cx, "fs-tiny"))
+                .font_family(crate::theme::installed_fonts::ui_family(cx))
                 .child(SharedString::from(text))
+        };
+        // A label too long for its place is cut at its end with an ellipsis; its tooltip holds it whole.
+        let text = |selector: &'static str, text: String| {
+            div().debug_selector(move || selector.to_owned()).min_w_0().truncate().child(SharedString::from(text))
         };
         let label = |side: Side| {
             let i = ix(side);
+            let (outer, inner) = match side {
+                Side::A => ("diff-label-a", "diff-label-text-a"),
+                Side::B => ("diff-label-b", "diff-label-text-b"),
+            };
             div()
+                .id(outer)
+                .debug_selector(move || outer.to_owned())
                 .flex_1()
                 .min_w_0()
                 .flex()
@@ -1729,7 +1741,8 @@ impl DiffView {
                 .px(px(12.0))
                 .overflow_hidden()
                 .whitespace_nowrap()
-                .child(SharedString::from(self.labels[i].clone()))
+                .with_tooltip(self.labels[i].clone())
+                .child(text(inner, self.labels[i].clone()))
                 .children(eol_differs.then(|| badge(badges[i].clone())))
                 .children(self.writable(side).then(|| badge(tx(cx, "editable"))))
         };
@@ -1741,11 +1754,20 @@ impl DiffView {
             .border_b_1()
             .border_color(theme::color(cx, "border"))
             .text_color(theme::color(cx, "fg-secondary"))
-            .text_size(theme::length(cx, "fs-small"));
+            .text_size(theme::length(cx, "fs-small"))
+            .font_family(crate::theme::installed_fonts::mono_family(cx));
         if self.unified() {
             let arrow = format!("{} → {}", self.labels[0], self.labels[1]);
-            return row
-                .child(div().flex_1().min_w_0().flex().items_center().px(px(12.0)).child(SharedString::from(arrow)));
+            return row.child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .flex()
+                    .items_center()
+                    .px(px(12.0))
+                    .overflow_hidden()
+                    .child(text("diff-label-text-unified", arrow)),
+            );
         }
         row.child(label(Side::A)).child(div().w(px(1.0)).h_full().bg(theme::color(cx, "border"))).child(label(Side::B))
     }
@@ -2420,6 +2442,33 @@ mod tests {
     /// `count` numbered lines.
     fn numbered(count: usize) -> Vec<String> {
         (0..count).map(|i| format!("line {i}")).collect()
+    }
+
+    /// A side's label longer than its half of the header is cut at its end inside the half's padding,
+    /// in both viewers; a short one keeps its own width.
+    #[gpui_kit::test]
+    async fn a_long_side_label_is_cut_at_its_end_inside_its_half_of_the_header(cx: &mut TestAppContext) {
+        let (view, _, cx) = open(cx, "a\n", "b\n", split());
+        let long = format!("Mounted: /{}", "segment/".repeat(80));
+        view.update(cx, |view, cx| view.set_labels("HEAD".to_owned(), long.clone(), cx));
+        cx.run_until_parked();
+        let header = cx.debug_bounds("diff-labels").expect("the header is drawn");
+        for (outer, inner) in [("diff-label-a", "diff-label-text-a"), ("diff-label-b", "diff-label-text-b")] {
+            let label = cx.debug_bounds(outer).unwrap_or_else(|| panic!("{outer} is drawn"));
+            let text = cx.debug_bounds(inner).unwrap_or_else(|| panic!("{inner} is drawn"));
+            assert!(label.right() <= header.right(), "{outer} {label:?} stays in the header {header:?}");
+            assert!(text.right() <= label.right() - px(12.0), "{inner} {text:?} keeps the padding of {label:?}");
+        }
+        let short = cx.debug_bounds("diff-label-text-a").expect("drawn");
+        let cut = cx.debug_bounds("diff-label-text-b").expect("drawn");
+        assert!(short.size.width < px(60.0), "a short label keeps its width: {short:?}");
+        assert!(cut.size.width > px(100.0), "the long one fills its half: {cut:?}");
+
+        view.update(cx, |view, cx| view.set_options(unified(), cx));
+        cx.run_until_parked();
+        let text = cx.debug_bounds("diff-label-text-unified").expect("the unified label is drawn");
+        let header = cx.debug_bounds("diff-labels").expect("the header is drawn");
+        assert!(text.right() <= header.right() - px(12.0), "{text:?} keeps the padding of {header:?}");
     }
 
     // Both panes number their lines and give each changed line the type of its change, with the changed

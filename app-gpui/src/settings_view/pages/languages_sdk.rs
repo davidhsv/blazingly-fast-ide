@@ -24,7 +24,7 @@ use crate::settings_view::controls::tx;
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
     AnyElement, App, ClickEvent, Context, Entity, EntityId, EventEmitter, Global, IntoElement, Keystroke, MouseButton,
-    Render, SharedString, Subscription, Window, div, prelude::*,
+    Render, SharedString, Subscription, Window, div, prelude::*, px,
 };
 use serde_json::Value;
 use std::cell::RefCell;
@@ -864,7 +864,11 @@ impl Render for PathFieldView {
                 cx.emit(LanguageEvent::Control(browse_into(&view.binding, key, directories)));
             },
         ));
-        let hint = self.spec.hint.map(|hint| hint_line(cx, &tx(cx, hint), 0.0));
+        // The help line starts where the row's label starts.
+        let hint = self.spec.hint.map(|hint| {
+            let line = hint_line(cx, &tx(cx, hint), 0.0).debug_selector(move || format!("settings-hint-{key}"));
+            div().pl(px(super::ROW_PADDING)).child(line)
+        });
         div()
             .flex()
             .flex_col()
@@ -1056,6 +1060,27 @@ mod tests {
         let field = view.read_with(cx, |view, _| view.field().clone());
         type_over(&field, "  /work/go ", cx);
         assert_eq!(staged(&model, cx), [("global:languages.go.gopath".to_owned(), "\"/work/go\"".to_owned())]);
+    }
+
+    /// A path field's help line starts where the field's label starts.
+    #[gpui_kit::test]
+    async fn a_path_fields_help_line_starts_where_its_label_starts(cx: &mut TestAppContext) {
+        let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
+        let binding = Binding::fixed(model.clone(), PAGE, Scope::Global);
+        let toolchains = cx.update(|cx| Toolchains::new(&model, "w1", cx));
+        let spec = PathSpec {
+            key: "languages.go.gopath",
+            label: "Project GOPATH",
+            placeholder: PathPlaceholder::GoPath,
+            directory: true,
+            hint: Some("Where Go keeps its modules."),
+        };
+        init(cx);
+        let (_view, cx) = cx.add_window_view(move |_, cx| PathFieldView::new(binding, spec, toolchains, cx));
+        cx.run_until_parked();
+        let label = cx.debug_bounds("form-label:Project GOPATH:").expect("the label is drawn");
+        let line = cx.debug_bounds("settings-hint-languages.go.gopath").expect("the help line is drawn");
+        assert_eq!(line.left(), label.left(), "the help line {line:?} starts at the label {label:?}");
     }
 
     // Not from a spec: what a dialog found goes with it; another dialog looks again.
