@@ -2276,8 +2276,8 @@
     "proof": "`editor_commands::editing::tests`, `editor_commands::paste::tests`, `editor_commands::smart_keys::tests`, `editor_commands::folding::tests`, `editor_commands::column_mode::tests`, `editor_commands::lanes::tests`, `editor_commands::gutter_drag::tests`, `editor_commands::caret_commands::tests`, `editor_commands::overwrite::tests`, `editor::command_actions::tests::proofs23_smooth_caret::glides_selection_only_moves_and_puts_the_caret_in_place_at_once_when_typing`, `editor::command_actions::tests::proofs23_smooth_caret::a_move_follows_the_chosen_movement_curve`; 26 of 27 cases: a selection-only move glides along the chosen curve and typing puts the caret in place at once. Missing: smooth blinking (the native caret does not blink)"
   },
   "unit:src/editor/core/cm/structural.test.ts": {
-    "status": "partial",
-    "proof": "`editor_commands::structural::tests`; 23 of 27 cases: whether a document has a syntax tree and the cache of structure queries (4 cases) belong to the editor that will call these commands"
+    "status": "done",
+    "proof": "`editor_commands::structural::tests`, `editor::structure::proofs25_structure::is_false_for_stream_modes_and_documents_without_a_language`, `editor::structure::proofs25_structure::is_true_for_a_lezer_grammar`, `editor::structure::proofs25_structure::asks_the_backend_once_per_position_and_document_version`, `editor::structure::proofs25_structure::answers_null_when_the_service_fails`, `workbench::tests::proofs25_syntax_tree::drops_the_edit_when_the_document_changed_meanwhile_and_reports_fallback_without_ranges`; 27 of 27 cases: 22 on the planner, 4 on the editor's structure service, and the stale answer through the service in a window"
   },
   "unit:src/editor/core/cm/clipboard.test.ts": {
     "status": "partial",
@@ -2977,35 +2977,35 @@
   },
   "action:code.moveStatementUp": {
     "status": "partial",
-    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; moves the line: without a syntax tree of the document it cannot move a whole statement or keep it inside its block"
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`, `workbench::tests::proofs25_syntax_tree::move_statement_moves_a_whole_statement_and_stays_inside_its_block`, `workbench::tests::proofs25_syntax_tree::move_statement_on_a_blank_line_moves_the_line`, `workbench::tests::proofs25_syntax_tree::moves_a_multi_line_statement_as_a_whole_never_one_of_its_lines`, `workbench::tests::proofs25_syntax_tree::never_carries_a_statement_out_of_its_function`, `workbench::tests::proofs25_syntax_tree::passes_a_neighbouring_function_as_a_whole`, `workbench::tests::proofs25_syntax_tree::swaps_a_statement_with_the_next_one_whole_lines_caret_following_it`, `workbench::tests::proofs25_syntax_tree::moves_a_multi_line_statement_up_over_its_previous_sibling`, `workbench::tests::proofs25_syntax_tree::does_nothing_at_the_first_last_statement_of_a_block`, `workbench::tests::proofs25_syntax_tree::falls_back_to_moving_the_line_for_broken_or_shared_lines`, `workbench::tests::proofs25_syntax_tree::drops_the_edit_when_the_document_changed_meanwhile_and_reports_fallback_without_ranges`; a whole statement moves and stays inside its block, from the backend's structural ranges; a stale answer is dropped and a keystroke never waits. Missing: in the languages the webview parses itself one case differs: moving a statement towards a block passes the whole block natively where the webview moves it into the block, re-indented"
   },
   "action:code.moveStatementDown": {
     "status": "partial",
-    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; moves the line: without a syntax tree of the document it cannot move a whole statement or keep it inside its block"
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`, `workbench::tests::proofs25_syntax_tree::move_statement_moves_a_whole_statement_and_stays_inside_its_block`, `workbench::tests::proofs25_syntax_tree::move_statement_on_a_blank_line_moves_the_line`, `workbench::tests::proofs25_syntax_tree::moves_a_multi_line_statement_as_a_whole_never_one_of_its_lines`, `workbench::tests::proofs25_syntax_tree::never_carries_a_statement_out_of_its_function`, `workbench::tests::proofs25_syntax_tree::passes_a_neighbouring_function_as_a_whole`, `workbench::tests::proofs25_syntax_tree::swaps_a_statement_with_the_next_one_whole_lines_caret_following_it`, `workbench::tests::proofs25_syntax_tree::moves_a_multi_line_statement_up_over_its_previous_sibling`, `workbench::tests::proofs25_syntax_tree::does_nothing_at_the_first_last_statement_of_a_block`, `workbench::tests::proofs25_syntax_tree::falls_back_to_moving_the_line_for_broken_or_shared_lines`, `workbench::tests::proofs25_syntax_tree::drops_the_edit_when_the_document_changed_meanwhile_and_reports_fallback_without_ranges`; a whole statement moves and stays inside its block, from the backend's structural ranges; a stale answer is dropped and a keystroke never waits. Missing: in the languages the webview parses itself one case differs: moving a statement towards a block passes the whole block natively where the webview moves it into the block, re-indented"
   },
   "action:code.toggleCase": {
-    "status": "partial",
-    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; escapes inside strings are not protected, which needs a syntax tree of the document"
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`, `workbench::tests::proofs25_syntax_tree::toggle_case_keeps_the_escapes_of_a_string`, `workbench::tests::proofs25_syntax_tree::toggle_case_changes_escapes_where_the_editing_mode_colours_a_token_stream`, `editor::structure::proofs25_structure::toggle_case_keeps_the_escapes_the_highlights_mark`; the case of the selection or the word is toggled; escapes inside strings are kept where the webview's editor parses the language and changed where it colours a token stream, as the webview does"
   },
   "action:code.completeStatement": {
     "status": "partial",
-    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; the text rules only; the structural answers of the backend are not asked"
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`, `workbench::tests::proofs25_syntax_tree::complete_statement_closes_what_the_syntax_errors_say_is_left_open`, `workbench::tests::proofs25_syntax_tree::complete_statement_uses_the_text_rules_where_the_editing_mode_parses_the_document`; the backend's structural ranges and syntax errors are asked before the text rules, as the webview does by language. Missing: with the completion lookup open its chosen item is not inserted first"
   },
   "action:code.commentLine": {
-    "status": "partial",
-    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; a block comment that contains its own closing token is refused, since the editor has no syntax tree to confirm its span"
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`, `workbench::tests::proofs25_syntax_tree::line_comment_without_line_comments_takes_out_a_nested_block_comment_the_tree_confirms`; line comments are toggled, and in a language without line comments a nested block comment comes out once the syntax tree confirms it"
   },
   "action:code.commentBlock": {
-    "status": "partial",
-    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`; a block comment that contains its own closing token is refused, since the editor has no syntax tree to confirm its span"
+    "status": "done",
+    "proof": "`editor::command_actions::tests::line_and_comment_commands_run_through_the_registry`, `workbench::tests::proofs25_syntax_tree::a_block_comment_holding_its_closing_token_comes_out_when_the_tree_confirms_it`, `editor::structure::proofs25_structure::a_comment_holding_its_closing_token_comes_out_once_the_tree_confirms_its_span`; block comments are added and removed, and one that holds its own closing token comes out once the syntax tree confirms its span"
   },
   "action:code.moveElementLeft": {
-    "status": "partial",
-    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; elements are found from brackets and from comment and string spans, not from a syntax tree"
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`, `workbench::tests::proofs25_syntax_tree::move_element_skips_a_bracket_inside_a_string`, `editor::structure::proofs25_structure::move_element_skips_the_brackets_of_a_string_the_code_tree_marks`; elements of a list are swapped, the brackets inside strings and comments that the syntax highlights mark are skipped"
   },
   "action:code.moveElementRight": {
-    "status": "partial",
-    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`; elements are found from brackets and from comment and string spans, not from a syntax tree"
+    "status": "done",
+    "proof": "`editor::command_actions::tests::caret_and_occurrence_commands_run_through_the_registry`, `workbench::tests::proofs25_syntax_tree::move_element_right_passes_a_string_holding_a_bracket`; elements of a list are swapped, a string holding a bracket is passed as one element"
   },
   "action:code.cyclicExpandWord": {
     "status": "done",
@@ -6212,8 +6212,8 @@
     "proof": "`workbench::editor_language::tests::next_error_moves_the_caret_to_the_next_problem_and_shows_its_message`; run through the registry it shows the message of the problem at the caret, or that there is none there"
   },
   "action:find.highlightUsages": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`, `workbench::editor_extras::tests::the_status_bar_shows_the_highlighted_usages_count`; run through the registry it marks the occurrences the server reports, the status bar shows 3 usages of 'foo' found (…) until the marks go, it removes the marks when run again on a usage or on Escape, and says No usages found in file. Missing: without a language server the webview's fallback to the local's same-scope occurrences from the syntax tree is not built"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`, `workbench::editor_extras::tests::the_status_bar_shows_the_highlighted_usages_count`, `workbench::tests::proofs25_syntax_tree::highlight_usages_without_a_server_marks_the_locals_occurrences_from_the_syntax_tree`; run through the registry it marks the occurrences the server reports, the status bar shows 3 usages of 'foo' found (…) until the marks go, it removes the marks when run again on a usage or on Escape, and says No usages found in file"
   },
   "action:navigate.nextHighlightedUsage": {
     "status": "done",
@@ -6224,12 +6224,12 @@
     "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`, `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`; run through the registry the caret goes to the previous highlighted usage at the same place in the name, wrapping; with no highlighted usages ⌃⌥↑ in the editor runs Previous Occurrence and steps back through the TODO tool window's items, as the webview's fallback does"
   },
   "action:code.quickDefinition": {
-    "status": "partial",
-    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `editor_lsp::definition_view::tests`; run through the registry it shows the definition's file, line and lines in a popup with the keyboard, ← / → switch between several, and F4 opens it with the caret on it. Missing: the popup shows a window of lines around the name instead of the declaration's whole span from the syntax tree, without syntax highlighting"
+    "status": "done",
+    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `editor_lsp::definition_view::tests`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_shows_the_whole_declaration_from_the_syntax_tree_in_colour`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_in_the_edited_file_leaves_its_document_open`; run through the registry it shows the definition's file, line and lines in a popup with the keyboard, ← / → switch between several, and F4 opens it with the caret on it"
   },
   "action:code.quickTypeDefinition": {
     "status": "partial",
-    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs5_editor::quick_type_definition_shows_the_type_definitions_lines_and_f4_opens_it`; run through the registry it shows the found type definition's file, line and lines in a popup with the keyboard, F4 opens it with the caret on it, and with none it says No type definition found. Missing: the popup shows a window of lines around the name instead of the declaration's whole span from the syntax tree, without syntax highlighting"
+    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs5_editor::quick_type_definition_shows_the_type_definitions_lines_and_f4_opens_it`; run through the registry it shows the found type definition's file, line and lines in a popup with the keyboard, F4 opens it with the caret on it, and with none it says No type definition found. Missing: it shares the declaration's span and colours with Quick Definition, but no test shows a type definition in a file with a grammar"
   },
   "action:navigate.gotoTest": {
     "status": "partial",
@@ -6868,8 +6868,8 @@
     "proof": "`workbench::editor_extras::tests::levels_and_choosers::expand_to_levels_two_to_five_fold_the_regions_nested_deeper`, `workbench::editor_extras::tests::expand_to_level_folds_the_regions_nested_deeper_than_the_level`; ⌘⇧* 5 in a file of seven nested regions leaves the regions nested 5 deep open and folds the deeper ones, the shown lines checked; while the Project view has the keyboard the key folds nothing and the action is not available"
   },
   "action:editor.contextInfo": {
-    "status": "partial",
-    "proof": "`workbench::editor_extras::tests::context_info_shows_the_header_lines_of_the_code_around_the_caret`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`; run through the registry and by ⌃⇧Q the hint shows the header lines of the blocks around the caret, outermost first, from the backend's fold ranges, and No context information here on a line inside none; nothing while the Project view has the keyboard. Missing: without backend fold ranges the webview falls back to the syntax tree's blocks (enclosingHeaders), which is not built"
+    "status": "done",
+    "proof": "`workbench::editor_extras::tests::context_info_shows_the_header_lines_of_the_code_around_the_caret`, `workbench::editor_extras::tests::the_editor_actions_need_an_editor`, `workbench::tests::proofs25_syntax_tree::context_info_without_fold_ranges_shows_the_header_lines_of_the_syntax_trees_blocks`, `editor::structure::proofs25_structure::enclosing_headers_are_the_lines_of_the_blocks_around_the_line`; run through the registry and by ⌃⇧Q the hint shows the header lines of the blocks around the caret, outermost first, from the backend's fold ranges, and No context information here on a line inside none; nothing while the Project view has the keyboard"
   },
   "action:navigate.customRegion": {
     "status": "done",
@@ -8242,5 +8242,13 @@
   "unit:src/features/notebook/security.test.ts": {
     "status": "partial",
     "proof": "`notebook::tests::proofs24_notebook_units::keeps_raw_markdown_markup_from_reaching_the_page`, `notebook::tests::proofs24_notebook_units::retains_table_content_while_removing_executable_navigation_and_external_resource_surfaces`, `notebook::tests::proofs24_notebook_units::resolves_only_embedded_image_attachments_and_makes_markdown_file_links_editor_controlled`, `notebook::tests::proofs24_notebook_units::retains_safe_svg_chart_paint_local_definitions_and_raster_images_but_removes_active_external_svg`; 4 of 4 cases by name, 3 checking the same thing. Missing: the SVG case asserts that SVG is never drawn, where the webview keeps a safe SVG"
+  },
+  "ipc:syntax_structural_ranges": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs25_syntax_tree::move_statement_moves_a_whole_statement_and_stays_inside_its_block`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_shows_the_whole_declaration_from_the_syntax_tree_in_colour`; a three-line statement moves as one and the popup shows exactly the declaration's lines, which only the ranges give, called as the Tauri adapter calls it (the host, the window's label, the document and the position)"
+  },
+  "ipc:syntax_errors": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs25_syntax_tree::complete_statement_closes_what_the_syntax_errors_say_is_left_open`; the statement is closed where the syntax errors say it is left open; the text rules alone give another text, called as the Tauri adapter calls it (the host, the window's label, the document and the position)"
   }
 }
