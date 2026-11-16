@@ -685,7 +685,7 @@ impl SyncDialog {
                 .overflow_hidden()
                 .whitespace_nowrap()
                 .child(theme::icon(cx, icon, 14.0, muted))
-                .child(SharedString::from(text))
+                .child(div().min_w_0().overflow_hidden().text_ellipsis().child(SharedString::from(text)))
         };
         let local = side("folder", local, cx);
         let remote = side("web", format!("{}: {remote_root}", sync.server_name), cx);
@@ -703,7 +703,8 @@ impl SyncDialog {
         let colors: Vec<Hsla> = rows.iter().map(|row| status_color(row.status, cx)).collect();
         let header_cells = self.columns(cx);
         let cell = |text: SharedString, width: Option<f32>, right: bool| {
-            let cell = div().h_full().flex().items_center().px(px(6.0)).overflow_hidden().whitespace_nowrap();
+            let cell =
+                div().h_full().flex().items_center().px(px(6.0)).overflow_hidden().whitespace_nowrap().text_ellipsis();
             let cell = match width {
                 Some(width) => cell.w(px(width)).flex_none(),
                 None => cell.flex_1().min_w_0(),
@@ -1256,7 +1257,7 @@ mod tests {
     /// again and Cancel closes.
     #[gpui_kit::test]
     async fn the_title_footer_refresh_and_cancel(cx: &mut TestAppContext) {
-        let mut o = open(cx, vec![entry("a.php", SyncStatus::LocalOnly), entry("c.php", SyncStatus::Same)]);
+        let o = open(cx, vec![entry("a.php", SyncStatus::LocalOnly), entry("c.php", SyncStatus::Same)]);
         let title = o.dialog.update(o.cx, |dialog, cx| dialog.title(cx));
         assert_eq!(title, "Diff Between 'local files' and 'files on Staging'");
         let footer = o.dialog.update(o.cx, |dialog, cx| dialog.footer(cx));

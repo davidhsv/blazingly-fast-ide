@@ -104,17 +104,37 @@ pub struct SecretPrompt {
 }
 
 /// What the SSH Password dialog answers (`ssh_set_secret(ssh, secret, save)`).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct SecretAnswer {
     pub secret: String,
     pub save: bool,
 }
 
 /// The SSH Password dialog's fields.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct SecretForm {
     pub secret: String,
     pub save: bool,
+}
+
+/// What a `Debug` print shows of a secret: whether one is there, never its text.
+fn redacted_secret(secret: &str) -> Option<&'static str> {
+    (!secret.is_empty()).then_some("<redacted>")
+}
+
+impl std::fmt::Debug for SecretAnswer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecretAnswer")
+            .field("secret", &redacted_secret(&self.secret))
+            .field("save", &self.save)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for SecretForm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SecretForm").field("secret", &redacted_secret(&self.secret)).field("save", &self.save).finish()
+    }
 }
 
 impl SecretForm {
@@ -668,5 +688,21 @@ mod tests {
         let mut form = SecretForm { secret: "pw".to_owned(), save: true };
         assert_eq!(form.submit(), Some(SecretAnswer { secret: "pw".to_owned(), save: true }));
         assert_eq!(form.submit(), None);
+    }
+
+    /// A `Debug` print of the SSH Password dialog's fields and of its answer says whether a secret
+    /// is there and never shows its text.
+    #[test]
+    fn the_debug_print_of_a_secret_shows_its_presence_never_its_text() {
+        let secret = "hunter2-passphrase";
+        let mut form = SecretForm { secret: secret.to_owned(), save: true };
+        let printed = format!("{form:?} {form:#?}");
+        assert!(!printed.contains(secret), "{printed}");
+        assert!(printed.contains("<redacted>"), "{printed}");
+        let answer = form.submit();
+        let printed = format!("{answer:?} {answer:#?} {form:?}");
+        assert!(!printed.contains(secret), "{printed}");
+        assert!(printed.contains("Some(\"<redacted>\")"), "the answer shows that a secret is there: {printed}");
+        assert!(format!("{form:?}").contains("secret: None"), "the emptied form shows none");
     }
 }

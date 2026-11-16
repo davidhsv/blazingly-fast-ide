@@ -9,6 +9,7 @@ pub mod build_window;
 pub mod code_insight;
 pub mod database;
 pub mod debugger;
+pub mod deployment;
 pub mod editor;
 pub mod editor_commands;
 pub mod editor_lsp;

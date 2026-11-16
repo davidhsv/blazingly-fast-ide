@@ -1807,7 +1807,7 @@ mod tests {
         fn notice(&mut self, title: &str) -> super::super::notifications::IdeNotification {
             let title = title.to_owned();
             wait_long(self.cx, &format!("the notice {title}"), |cx| {
-                notification_titles(&self.workbench, cx).iter().any(|shown| *shown == title)
+                notification_titles(&self.workbench, cx).contains(&title)
             });
             self.workbench
                 .read_with(self.cx, |w, _| w.notifications().items().iter().find(|n| n.title == title).cloned())
@@ -1931,7 +1931,7 @@ mod tests {
     /// Open in Browser (Deployed) opens the file's URL under the server's web root.
     #[gpui_kit::test]
     async fn open_in_browser_opens_the_deployed_url_of_the_file(cx: &mut TestAppContext) {
-        let mut f = fixture(cx, false);
+        let f = fixture(cx, false);
         let target = f.path("src/a.php");
         run_action(f.cx, "deployment.openInBrowser", Some(json!([target])));
         wait_long(f.cx, "the URL opens", |cx| cx.opened_url().is_some());
@@ -1942,7 +1942,7 @@ mod tests {
     #[gpui_kit::test]
     async fn automatic_upload_toggles_the_projects_setting(cx: &mut TestAppContext) {
         use ide_core::settings::AutoUpload;
-        let mut f = fixture(cx, false);
+        let f = fixture(cx, false);
         let toggled = |cx: &mut VisualTestContext| {
             cx.update(|window, cx| {
                 cx.default_global::<ActionRegistry>()
@@ -1964,13 +1964,61 @@ mod tests {
     /// Deployment Configuration… opens Settings on the Deployment page.
     #[gpui_kit::test]
     async fn deployment_configuration_opens_the_deployment_settings_page(cx: &mut TestAppContext) {
-        let mut f = fixture(cx, false);
+        let f = fixture(cx, false);
         run_action(f.cx, CONFIGURE_ACTION, None);
         wait_long(f.cx, "the settings", |cx| f.workbench.read_with(cx, |w, _| w.settings_dialog().is_some()));
         let page = f
             .workbench
             .read_with(f.cx, |w, cx| w.settings_dialog().and_then(|dialog| dialog.read(cx).selected_page(cx)));
         assert_eq!(page.as_deref(), Some(SETTINGS_PAGE));
+    }
+
+    const ACTIONS: [&str; 11] = [
+        "deployment.uploadToDefault",
+        "deployment.uploadTo",
+        "deployment.downloadFromDefault",
+        "deployment.downloadFrom",
+        "deployment.syncWith",
+        "deployment.syncWithDefault",
+        "deployment.deleteFromServer",
+        "deployment.toggleAutoUpload",
+        "deployment.browseRemoteHost",
+        "deployment.openInBrowser",
+        CONFIGURE_ACTION,
+    ];
+
+    fn enabled(id: &str, cx: &mut VisualTestContext) -> bool {
+        cx.update(|window, cx| {
+            let context = crate::platform::context::window_context(window, cx);
+            let action = cx.global::<ActionRegistry>().get(id).unwrap_or_else(|| panic!("{id} is registered"));
+            crate::platform::actions::is_action_enabled(&action.meta, &context)
+        })
+    }
+
+    /// Every deployment action waits for a project (`projectOpen`): the Welcome window refuses
+    /// each one, and a project window offers each one.
+    #[gpui_kit::test]
+    async fn the_deployment_actions_are_available_only_with_a_project_open(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (welcome, welcome_cx) = cx.add_window_view(|window, cx| Workbench::new("w0", window, cx));
+        welcome_cx.update(|window, _| window.activate_window());
+        welcome_cx.run_until_parked();
+        assert!(welcome.read_with(welcome_cx, |w, _| w.project_tree().is_none()), "the Welcome window");
+        assert!(!super::super::tests::context_is_on(welcome_cx, "projectOpen"));
+        for id in ACTIONS {
+            assert!(!enabled(id, welcome_cx), "{id} is not available without a project");
+            let ran =
+                welcome_cx.update(|window, cx| crate::platform::actions::execute_action_or_throw(id, None, window, cx));
+            assert!(ran.is_err(), "the registry refuses {id}");
+        }
+        welcome_cx.run_until_parked();
+        assert!(welcome.read_with(welcome_cx, |w, _| w.notifications().items().is_empty()), "nothing ran");
+
+        let (_project, _, _, cx) = trusted_project(cx, &[("src/a.php", "<?php\n")]);
+        assert!(super::super::tests::context_is_on(cx, "projectOpen"));
+        for id in ACTIONS {
+            assert!(enabled(id, cx), "{id} is available with a project");
+        }
     }
 
     /// The comparison of the project's `src` with the server, once listed.
@@ -2173,7 +2221,7 @@ mod tests {
     /// The server chooser of the Remote Host window switches to the other server's files.
     #[gpui_kit::test]
     async fn the_remote_host_server_chooser_shows_the_other_servers_files(cx: &mut TestAppContext) {
-        let mut f = fixture(cx, true);
+        let f = fixture(cx, true);
         let backup = f.backup.clone().expect("a second server");
         std::fs::write(backup.join("backup.txt"), "b\n").expect("the server's file is written");
         run_action(f.cx, "deployment.browseRemoteHost", None);

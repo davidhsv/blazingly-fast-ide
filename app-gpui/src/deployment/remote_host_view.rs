@@ -561,8 +561,10 @@ impl RemoteHostView {
                         let toggle = if row.is_dir {
                             let name = if row.expanded { "chevron-down" } else { "chevron-right" };
                             let key = row.key.clone();
+                            let selector = format!("remote-host-toggle:{}", row.key);
                             div()
-                                .id(SharedString::from(format!("remote-host-toggle:{}", row.key)))
+                                .id(SharedString::from(selector.clone()))
+                                .debug_selector(move || selector.clone())
                                 .size(px(16.0))
                                 .flex_none()
                                 .child(theme::icon(cx, name, 16.0, chevron))
@@ -679,6 +681,7 @@ impl Render for RemoteHostView {
                 .font_family(crate::theme::installed_fonts::mono_family(cx))
                 .overflow_hidden()
                 .whitespace_nowrap()
+                .text_ellipsis()
                 .child(SharedString::from(path))
         });
         let error = self.tree().and_then(|tree| tree.error.clone());

@@ -21,6 +21,7 @@ mod database;
 mod database_extras;
 mod debug;
 mod debug_extras;
+mod deployment;
 use crate::database::tree_view::DATABASE_TOOL_WINDOW;
 mod conflicts;
 pub mod context_menus;
@@ -389,6 +390,9 @@ pub struct Workbench {
     structure: Option<structure_window::StructureFeed>,
     /// What the TODO tool window is fed from.
     todo: Option<todo_window::TodoFeed>,
+    /// Deployment: the part that had the keyboard last, the comparison, the SSH prompt and the
+    /// Remote Host trees of the project open here.
+    deployment: deployment::DeploymentState,
     /// The project's build.
     build: Option<build_window::BuildSlot>,
     /// The Maven and Gradle tool windows: the project's build model, its syncs and toggles.
@@ -520,7 +524,7 @@ fn stripe_badge(count: usize, cx: &App) -> gpui_kit::AnyElement {
 pub use crate::services::model::SERVICES_TOOL_WINDOW;
 
 /// The tool windows this app has a view for.
-const TOOL_WINDOWS: [&str; 19] = [
+const TOOL_WINDOWS: [&str; 20] = [
     PROJECT_TOOL_WINDOW,
     COMMIT_TOOL_WINDOW,
     TERMINAL_TOOL_WINDOW,
@@ -540,6 +544,7 @@ const TOOL_WINDOWS: [&str; 19] = [
     DATABASE_TOOL_WINDOW,
     DEBUG_TOOL_WINDOW,
     PULL_REQUESTS_TOOL_WINDOW,
+    crate::features_b::deployment::REMOTE_HOST_WINDOW,
 ];
 
 /// What the contributions manifest declares for tool window `id` (title, icon, side, order…).
@@ -616,6 +621,7 @@ pub fn register_actions(cx: &mut App) {
     build_tools::register_actions(registry);
     database::register_actions(registry);
     database_extras::register_actions(registry);
+    deployment::register_actions(registry);
     code_insight::register_actions(registry);
     editor_language::register_actions(registry);
     refactor_actions::register_actions(registry);
@@ -1177,6 +1183,7 @@ impl Workbench {
             log_actions: Default::default(),
             structure: None,
             todo: None,
+            deployment: Default::default(),
             build: None,
             build_tools: Default::default(),
             files: Default::default(),
@@ -1961,6 +1968,7 @@ impl Workbench {
                     self.sync_run_window(cx);
                 }
                 self.code_insight_settings_changed(cx);
+                self.deployment_settings_changed(cx);
                 return;
             }
             IdeEvent::Notify { level, title, body } => {
@@ -2186,6 +2194,7 @@ impl Workbench {
         };
         set_context(window, cx, "toolWindowFocus", focused_panel.is_some());
         set_context(window, cx, "projectViewFocus", focused_panel.as_deref() == Some(PROJECT_TOOL_WINDOW));
+        self.track_deployment_focus(focused_panel.as_deref() == Some(PROJECT_TOOL_WINDOW), focused);
         // Only the focused Project view lends its selected folder to the path actions (Find in Path…).
         let focused_directory = (focused_panel.as_deref() == Some(PROJECT_TOOL_WINDOW))
             .then(|| self.project_tree().and_then(|tree| tree.read(cx).selected_directory()))
@@ -2360,6 +2369,7 @@ impl Workbench {
                 BOOKMARKS_TOOL_WINDOW => self.mount_bookmarks(window, cx),
                 STRUCTURE_TOOL_WINDOW => self.mount_structure(window, cx),
                 TODO_TOOL_WINDOW => self.mount_todo(window, cx),
+                crate::features_b::deployment::REMOTE_HOST_WINDOW => self.mount_remote_host(window, cx),
                 PROBLEMS_TOOL_WINDOW => self.mount_problems(window, cx),
                 USAGES_TOOL_WINDOW => self.mount_usages(window, cx),
                 HIERARCHY_TOOL_WINDOW => self.mount_hierarchy(window, cx),
@@ -2431,6 +2441,7 @@ impl Workbench {
         }
         self.sync_services_window(cx);
         self.sync_pull_requests_window(cx);
+        self.sync_remote_host(window, cx);
         self.sync_structure_window(cx);
         self.sync_todo_window(cx);
         self.sync_code_insight(cx);
@@ -4277,6 +4288,7 @@ impl Render for Workbench {
             .children(self.debug_breakpoints_layer(cx))
             .children(self.debug_evaluate_layer(cx))
             .children(self.customize_toolbar_layer(cx))
+            .children(self.deployment_layer(cx))
             .children(self.vcs_dialog_layer(cx))
             .children(self.app_dialog_layer(cx))
             .children(self.file_dialog_layer(cx))
