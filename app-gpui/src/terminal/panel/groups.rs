@@ -13,8 +13,8 @@ use crate::theme;
 use crate::ui::tooltip::WithTooltip;
 use crate::vcs_ops::menu::{ActionItem, MenuItem};
 use gpui_kit::{
-    AnyElement, App, Bounds, ClickEvent, Context, Div, Focusable, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, Pixels, Point, SharedString, Stateful, canvas, deferred, div, prelude::*, px,
+    AnyElement, App, Bounds, ClickEvent, Context, DispatchPhase, Div, Focusable, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, Pixels, Point, SharedString, Stateful, canvas, deferred, div, prelude::*, px,
 };
 use serde_json::json;
 use std::cell::RefCell;
@@ -167,23 +167,43 @@ impl TerminalPanel {
     }
 
     /// The tool window's content: its groups as the layout places them. A line being dragged
-    /// follows the pointer over the whole window.
+    /// follows the pointer wherever it goes, over other elements and outside the tool window,
+    /// until the button is released.
     pub(super) fn render_groups(&self, cx: &Context<Self>) -> AnyElement {
         let layout = self.terminals.layout().clone();
+        let tracking = self.splits.drag.is_some().then(|| {
+            let panel = cx.entity();
+            canvas(
+                |_, _, _| {},
+                move |_, _, window, _| {
+                    let moved = panel.clone();
+                    window.on_mouse_event(move |event: &MouseMoveEvent, phase, _, cx| {
+                        if phase == DispatchPhase::Bubble {
+                            moved.update(cx, |panel, cx| panel.drag_to(event, cx));
+                        }
+                    });
+                    let released = panel.clone();
+                    window.on_mouse_event(move |event: &MouseUpEvent, phase, _, cx| {
+                        if phase == DispatchPhase::Bubble && event.button == MouseButton::Left {
+                            released.update(cx, |panel, cx| {
+                                if panel.splits.drag.take().is_some() {
+                                    cx.notify();
+                                }
+                            });
+                        }
+                    });
+                },
+            )
+            .absolute()
+            .size_full()
+        });
         div()
+            .relative()
             .size_full()
             .flex()
             .flex_col()
-            .on_mouse_move(cx.listener(|panel, event: &MouseMoveEvent, _, cx| panel.drag_to(event, cx)))
-            .on_mouse_up(
-                MouseButton::Left,
-                cx.listener(|panel, _: &MouseUpEvent, _, cx| {
-                    if panel.splits.drag.take().is_some() {
-                        cx.notify();
-                    }
-                }),
-            )
             .child(div().flex_1().min_h_0().flex().child(self.layout_node(&layout, cx)))
+            .children(tracking)
             .into_any_element()
     }
 

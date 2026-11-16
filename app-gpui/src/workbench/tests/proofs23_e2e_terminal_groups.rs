@@ -1,13 +1,14 @@
 //! The Terminal's tab groups driven as a user does: the tabs' menus, Split Right and Unsplit, a
 //! group's tab closed with its button, ⌘W, and Close Other Tabs, with the question asked before a
-//! running command is terminated.
+//! running command is terminated; and the header's More Terminal Options, Options and Hide buttons.
 
-use super::proofs18_e2e_fixtures::{click_at, click_menu_row, right_click_at};
+use super::proofs18_e2e_fixtures::{click_at, click_menu_row, menu_level, right_click_at};
 use super::*;
 use crate::terminal::panel::TerminalPanel;
 use crate::terminal::panel::groups::TerminalTabCommand;
 use crate::terminal::view::TerminalView;
 use crate::vcs::prompt_dialogs::PromptDialog;
+use crate::workbench::context_menus::ToolWindowCommand;
 
 fn press(cx: &mut VisualTestContext, keys: &str) {
     cx.simulate_keystrokes(keys);
@@ -229,5 +230,38 @@ async fn close_other_tabs_asks_about_a_running_program_and_stops_at_cancel(cx: &
     click_on(cx, "prompt-button-ok");
     wait_long(cx, "the other tabs to close", |cx| names(cx) == ["Local"]);
     assert!(!prompt_shows(&workbench, cx), "the idle shell closes without a question");
+    close_backend_project(cx);
+}
+
+/// The Terminal's header buttons: More Terminal Options lists the tab actions and its Split Right
+/// splits the window; the window's Options lists Move To, Maximize and Hide, and its Maximize and
+/// Restore Size act on the Terminal; Hide hides it.
+#[gpui_kit::test]
+async fn the_terminal_header_s_more_options_and_hide_buttons_act_on_the_window(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = trusted_project(cx, &[("README.md", "# acme\n")]);
+    let panel = open_terminal(&workbench, cx);
+    let group = panel.read_with(cx, |panel, _| panel.headers().remove(0).group);
+
+    click_at(cx, format!("terminal-more:{group}"));
+    assert_eq!(
+        menu_level::<TerminalTabCommand>(&workbench, 0, cx),
+        ["New Terminal Tab", "-", "Split Right", "Split Down", "-", "Settings"]
+    );
+    click_menu_row::<TerminalTabCommand>(&workbench, 0, "Split Right", cx);
+    wait_long(cx, "the window splits", |cx| strips(&panel, cx).len() == 2);
+
+    let maximized =
+        |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.tool_windows().and_then(|l| l.maximized()));
+    click_at(cx, "more:terminal".to_owned());
+    assert_eq!(menu_level::<ToolWindowCommand>(&workbench, 0, cx), ["Move To", "Maximize", "-", "Hide"]);
+    click_menu_row::<ToolWindowCommand>(&workbench, 0, "Maximize", cx);
+    assert_eq!(maximized(cx), Some(Anchor::Bottom));
+    click_at(cx, "more:terminal".to_owned());
+    click_menu_row::<ToolWindowCommand>(&workbench, 0, "Restore Size", cx);
+    assert_eq!(maximized(cx), None);
+
+    click_at(cx, "hide:terminal".to_owned());
+    assert!(!workbench.read_with(cx, |w, _| w.is_tool_window_visible(TERMINAL_TOOL_WINDOW)), "Hide hides the Terminal");
     close_backend_project(cx);
 }

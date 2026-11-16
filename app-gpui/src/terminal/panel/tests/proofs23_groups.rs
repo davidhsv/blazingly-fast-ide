@@ -1,10 +1,11 @@
-//! The tool window's groups as they are drawn and used: a header with a tab strip per group, the
-//! line between two groups dragged, files dropped on one group's terminal, and ⌘W in a terminal.
+//! The tool window's groups as they are drawn and used: a header with a tab strip per group, side by
+//! side or stacked, the line between two groups dragged, files dropped on one group's terminal, and
+//! ⌘W in a terminal.
 
 use super::*;
 use crate::terminal::panel::groups::GroupHeader;
 use crate::terminal::store::{GroupLayout, SplitOrientation};
-use gpui_kit::{Bounds, ExternalPaths, FileDropEvent, Modifiers, MouseButton, Pixels, point};
+use gpui_kit::{Bounds, ExternalPaths, FileDropEvent, Modifiers, MouseButton, Pixels, point, px};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -158,6 +159,90 @@ async fn dragging_the_line_between_two_groups_resizes_them_down_to_sixty_pixels(
     cx.simulate_mouse_move(point(at.x - px(300.0), at.y), None, Modifiers::default());
     cx.run_until_parked();
     assert!((width_of(&right, cx) - right_least).abs() <= 0.5);
+
+    // The line can be grabbed a few pixels to either side, over the terminals beside it: a press
+    // there drags the line and selects no text in them.
+    let tabs = panel.read_with(cx, |panel, _| panel.panes().into_iter().filter_map(|(_, tab)| tab).collect::<Vec<_>>());
+    let views: Vec<Entity<TerminalView>> = tabs.iter().map(|tab| view_of(&panel, tab, cx)).collect();
+    // Rows full of text on both sides of the line, so that a press that reached a terminal would
+    // select some.
+    for view in &views {
+        cx.update(|window, cx| {
+            let focus = view.focus_handle(cx);
+            window.focus(&focus, cx);
+        });
+        cx.simulate_input("printf '%01000d\\n' 0");
+        cx.simulate_keystrokes("enter");
+        settle(cx, "the rows fill", |cx| {
+            view.read_with(cx, |view, _| view.emulator().lines().concat().contains(&"0".repeat(40)))
+        });
+    }
+    let row = bounds_of(format!("terminal-group:{right}"), cx).top() + px(40.0);
+    for (offset, by) in [(2.0, -200.0), (-2.0, -100.0)] {
+        let line = bounds_of(format!("terminal-divider:{split}:0"), cx).center();
+        let (start, before) = (point(line.x + px(offset), row), width_of(&right, cx));
+        let end = point(start.x + px(by), start.y);
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        cx.run_until_parked();
+        assert!((width_of(&right, cx) - before + by).abs() <= 1.5, "a press {offset}px off the line drags it");
+        for view in &views {
+            assert_eq!(view.read_with(cx, |view, _| view.emulator().selected_text()), None, "no text is selected");
+        }
+    }
+    // The same press and drag away from the line selects text in the terminal under it.
+    let left_pane = bounds_of(format!("terminal-group:{left}"), cx);
+    let start = point(left_pane.left() + px(40.0), row);
+    cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+    cx.simulate_mouse_move(point(start.x + px(100.0), row), MouseButton::Left, Modifiers::default());
+    cx.simulate_mouse_up(point(start.x + px(100.0), row), MouseButton::Left, Modifiers::default());
+    cx.run_until_parked();
+    let selected = views[0].read_with(cx, |view, _| view.emulator().selected_text());
+    assert!(selected.is_some_and(|text| text.contains('0')), "a drag in a terminal selects its text");
+}
+
+/// Split Down stacks a new group under the first, each with a header of its own, the window's title
+/// and buttons in the top one; the line between them is dragged up and down, each group keeping 60
+/// pixels.
+#[gpui_kit::test]
+async fn split_down_stacks_a_group_with_its_own_header_under_a_line_dragged_up_and_down(cx: &mut TestAppContext) {
+    let (panel, cx, _dirs) = panel_window(cx);
+    let tab = active_tab(&panel, cx);
+    panel.update(cx, |panel, cx| {
+        panel.change(cx, |terminals| terminals.split_tab(&tab, SplitOrientation::Vertical, false, "Local"))
+    });
+    cx.run_until_parked();
+    let GroupLayout::Split(split) = panel.read_with(cx, |panel, _| panel.terminals().layout().clone()) else {
+        panic!("the window is split")
+    };
+    let headers = panel.read_with(cx, |panel, _| panel.headers());
+    assert_eq!(headers.len(), 2, "{headers:?}");
+    assert!(headers[0].title && headers[0].actions && !headers[1].title && !headers[1].actions, "{headers:?}");
+    let (top, bottom) = (headers[0].group.clone(), headers[1].group.clone());
+    let (top_header, bottom_header) =
+        (bounds_of(format!("terminal-header:{top}"), cx), bounds_of(format!("terminal-header:{bottom}"), cx));
+    assert!(bottom_header.origin.y > top_header.origin.y && bottom_header.origin.x == top_header.origin.x);
+    assert!(top_header.contains(&bounds_of("more:terminal".to_owned(), cx).center()));
+
+    let height = |group: &str, cx: &mut VisualTestContext| {
+        f32::from(bounds_of(format!("terminal-header:{group}"), cx).size.height)
+            + f32::from(bounds_of(format!("terminal-group:{group}"), cx).size.height)
+    };
+    let drag = |by: f32, cx: &mut VisualTestContext| {
+        let start = bounds_of(format!("terminal-divider:{}:0", split.id), cx).center();
+        let end = point(start.x, start.y + px(by));
+        cx.simulate_mouse_down(start, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_move(end, MouseButton::Left, Modifiers::default());
+        cx.simulate_mouse_up(end, MouseButton::Left, Modifiers::default());
+        cx.run_until_parked();
+    };
+    let (top_before, bottom_before) = (height(&top, cx), height(&bottom, cx));
+    drag(100.0, cx);
+    assert!((height(&top, cx) - top_before - 100.0).abs() <= 1.5, "the top group grows by 100");
+    assert!((bottom_before - height(&bottom, cx) - 100.0).abs() <= 1.5, "the bottom group gives them up");
+    drag(-5000.0, cx);
+    assert!((height(&top, cx) - 60.0).abs() <= 1.5, "the top group keeps 60 pixels: {}", height(&top, cx));
 }
 
 // src/features/terminal/drop.test.ts › terminal drop › pastes only into the host under the cursor without executing,

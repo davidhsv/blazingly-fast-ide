@@ -74,6 +74,7 @@ pub mod tab_views;
 use crate::github::window_view::PULL_REQUESTS_TOOL_WINDOW;
 use structure_window::STRUCTURE_TOOL_WINDOW;
 mod terminal_actions;
+mod terminal_groups;
 mod todo_window;
 mod vcs_operations;
 mod vcs_text_actions;
@@ -2300,13 +2301,11 @@ impl Workbench {
                     use crate::terminal::panel::{TerminalPanel, TerminalPanelEvent};
                     let (label, root) = (self.label.clone(), root.clone());
                     let terminals = cx.new(|cx| TerminalPanel::new(&label, root, cx));
-                    // The last tab closing leaves nothing to show.
-                    let closes =
+                    let events =
                         cx.subscribe_in(&terminals, window, |workbench, _, event: &TerminalPanelEvent, window, cx| {
-                            let TerminalPanelEvent::Emptied = event;
-                            workbench.with_layout(window, cx, |layout| layout.hide(TERMINAL_TOOL_WINDOW));
+                            workbench.terminal_panel_event(event, window, cx);
                         });
-                    Panel::new(terminals, Some(closes))
+                    Panel::new(terminals, Some(events))
                 }
                 GIT_TOOL_WINDOW => self.mount_git_log(window, cx),
                 NOTIFICATIONS_TOOL_WINDOW => {
@@ -4105,62 +4104,67 @@ impl Render for Workbench {
                             .min_h_0()
                             .flex()
                             .flex_col()
-                            .child(
-                                div()
-                                    .h(theme::length(cx, "h-header"))
-                                    .flex_none()
-                                    .flex()
-                                    .items_center()
-                                    .pl(gpui_kit::px(12.0))
-                                    .pr(gpui_kit::px(6.0))
-                                    .text_color(theme::color(cx, "fg-strong"))
-                                    .child(SharedString::from(declared.title.clone()))
-                                    .child(div().flex_1())
-                                    .child(
-                                        div()
-                                            .id(SharedString::from(format!("more:{id}")))
-                                            .debug_selector(|| format!("more:{id}"))
-                                            .with_tooltip("Options")
-                                            .size(gpui_kit::px(22.0))
-                                            .flex_none()
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(gpui_kit::px(4.0))
-                                            .hover(|el| el.bg(theme::color(cx, "bg-hover")))
-                                            .child(theme::icon(cx, "more", 16.0, theme::color(cx, "fg-muted")))
-                                            .on_mouse_down(
-                                                gpui_kit::MouseButton::Left,
-                                                cx.listener(move |workbench, event: &MouseDownEvent, window, cx| {
-                                                    window.prevent_default();
-                                                    cx.stop_propagation();
-                                                    workbench.show_tool_window_options(
-                                                        &options,
-                                                        event.position,
-                                                        window,
-                                                        cx,
-                                                    );
-                                                }),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .id(SharedString::from(format!("hide:{id}")))
-                                            .debug_selector(|| format!("hide:{id}"))
-                                            .with_tooltip_shortcut("Hide", "toolwindow.hideActive")
-                                            .size(gpui_kit::px(22.0))
-                                            .flex_none()
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(gpui_kit::px(4.0))
-                                            .hover(|el| el.bg(theme::color(cx, "bg-hover")))
-                                            .child(theme::icon(cx, "minus", 16.0, theme::color(cx, "fg-muted")))
-                                            .on_click(cx.listener(move |workbench, _, window, cx| {
-                                                workbench.with_layout(window, cx, |layout| layout.hide(&hidden));
-                                            })),
-                                    ),
-                            )
+                            // The Terminal draws a header for each of its tab groups.
+                            .when(id != TERMINAL_TOOL_WINDOW, |el| {
+                                el.child(
+                                    div()
+                                        .h(theme::length(cx, "h-header"))
+                                        .flex_none()
+                                        .flex()
+                                        .items_center()
+                                        .pl(gpui_kit::px(12.0))
+                                        .pr(gpui_kit::px(6.0))
+                                        .text_color(theme::color(cx, "fg-strong"))
+                                        .child(SharedString::from(declared.title.clone()))
+                                        .child(div().flex_1())
+                                        .child(
+                                            div()
+                                                .id(SharedString::from(format!("more:{id}")))
+                                                .debug_selector(|| format!("more:{id}"))
+                                                .with_tooltip("Options")
+                                                .size(gpui_kit::px(22.0))
+                                                .flex_none()
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded(gpui_kit::px(4.0))
+                                                .hover(|el| el.bg(theme::color(cx, "bg-hover")))
+                                                .child(theme::icon(cx, "more", 16.0, theme::color(cx, "fg-muted")))
+                                                .on_mouse_down(
+                                                    gpui_kit::MouseButton::Left,
+                                                    cx.listener(
+                                                        move |workbench, event: &MouseDownEvent, window, cx| {
+                                                            window.prevent_default();
+                                                            cx.stop_propagation();
+                                                            workbench.show_tool_window_options(
+                                                                &options,
+                                                                event.position,
+                                                                window,
+                                                                cx,
+                                                            );
+                                                        },
+                                                    ),
+                                                ),
+                                        )
+                                        .child(
+                                            div()
+                                                .id(SharedString::from(format!("hide:{id}")))
+                                                .debug_selector(|| format!("hide:{id}"))
+                                                .with_tooltip_shortcut("Hide", "toolwindow.hideActive")
+                                                .size(gpui_kit::px(22.0))
+                                                .flex_none()
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded(gpui_kit::px(4.0))
+                                                .hover(|el| el.bg(theme::color(cx, "bg-hover")))
+                                                .child(theme::icon(cx, "minus", 16.0, theme::color(cx, "fg-muted")))
+                                                .on_click(cx.listener(move |workbench, _, window, cx| {
+                                                    workbench.with_layout(window, cx, |layout| layout.hide(&hidden));
+                                                })),
+                                        ),
+                                )
+                            })
                             .child(div().flex_1().min_h_0().child(panel.view.clone())),
                     )
                 };
@@ -4376,6 +4380,7 @@ mod tests {
     mod proofs20_shell;
     mod proofs21_shell;
     mod proofs22_settings_units;
+    mod proofs23_e2e_terminal_groups;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

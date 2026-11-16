@@ -9,11 +9,14 @@ use gpui_kit::{ClipboardEntry, ExternalPaths, Image, ImageFormat};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// The failed pastes a terminal reported, in order.
+type Failures = Rc<RefCell<Vec<NotificationRequest>>>;
+
 /// A terminal running the plain test shell, focused, with its shell started and its failed pastes
 /// logged; the home and the folder live as long as the returned guards.
 fn pasting_shell(
     cx: &mut TestAppContext,
-) -> (Entity<TerminalView>, &mut VisualTestContext, Rc<RefCell<Vec<NotificationRequest>>>, [tempfile::TempDir; 2]) {
+) -> (Entity<TerminalView>, &mut VisualTestContext, Failures, [tempfile::TempDir; 2]) {
     cx.executor().allow_parking();
     let (home, folder) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a folder"));
     cx.update(|cx| {
@@ -34,7 +37,7 @@ fn pasting_shell(
         shell_integration: false,
     };
     let (view, cx) = cx.add_window_view(|_, cx| TerminalView::new("w1", options, cx));
-    let failures: Rc<RefCell<Vec<NotificationRequest>>> = Rc::default();
+    let failures: Failures = Rc::default();
     let log = failures.clone();
     cx.update(|window, cx| {
         window.activate_window();

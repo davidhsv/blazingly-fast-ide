@@ -5,7 +5,7 @@
 //! and the PTY is told, so full-screen programs lay out to it.
 
 use super::emulator::{Effect, Emulator, Palette, SelectBy};
-use super::encode::{KeyModes, KeyMods, encode_key, encode_paste};
+use super::encode::{KeyModes, KeyMods, encode_key};
 use super::keys::{CLOSE_SESSION_ACTION, FIND_ACTION, KeyContext, KeyEvent, KeyFocus, KeyHandling, route_terminal_key};
 use super::theme::{terminal_font, terminal_theme};
 use crate::backend::{Backend, BackendEvent};
@@ -29,6 +29,8 @@ use ide_terminal::TerminalOptions;
 use std::ops::Range;
 use std::sync::Arc;
 
+mod clipboard;
+
 /// What a terminal tells its owner.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TerminalEvent {
@@ -41,6 +43,8 @@ pub enum TerminalEvent {
     CloseRequested,
     /// The user asked to search its output (⌘F).
     FindRequested,
+    /// A paste could not be done: the notification that says why.
+    PasteFailed(crate::workbench::notifications::NotificationRequest),
 }
 
 /// Where the grid was last painted.
@@ -71,6 +75,10 @@ pub struct TerminalView {
     listener: Option<u64>,
     /// The claim on this terminal's keys, ahead of the keymap.
     key_claim: Option<u64>,
+    /// Pasted media being stored on the backend.
+    storing: usize,
+    /// The files being dragged over the window, from the operating system.
+    dragged: Option<gpui_kit::ExternalPaths>,
     _output: Task<()>,
 }
 
@@ -206,6 +214,8 @@ impl TerminalView {
             selecting: false,
             listener: Some(listener),
             key_claim: Some(key_claim),
+            storing: 0,
+            dragged: None,
             _output: output,
         }
     }
@@ -319,14 +329,10 @@ impl TerminalView {
         true
     }
 
-    /// Types the clipboard's text into the program.
+    /// Pastes the clipboard into the program: its text, the quoted paths of copied files, or the path
+    /// of the file a copied picture is stored in.
     pub fn paste(&mut self, cx: &mut Context<Self>) -> bool {
-        let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()).filter(|text| !text.is_empty()) else {
-            return false;
-        };
-        let pasted = encode_paste(&text, self.emulator.bracketed_paste());
-        self.write(&pasted, cx);
-        true
+        self.paste_clipboard(cx)
     }
 
     fn modes(&self, cx: &App) -> KeyModes {
@@ -571,11 +577,14 @@ impl Render for TerminalView {
             .on_key_down(cx.listener(Self::key_down))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::mouse_down))
             .on_mouse_move(cx.listener(Self::mouse_move))
+            .on_drag_move(cx.listener(Self::files_dragged))
             .on_mouse_up(MouseButton::Left, cx.listener(|view, _, _, _| view.selecting = false))
             // The grid keeps an inset from the panel's top and left edges.
             .pt(px(6.0))
             .pl(px(8.0))
+            .relative()
             .child(TerminalElement { view: cx.entity() })
+            .child(self.drop_target(cx))
     }
 }
 
@@ -779,6 +788,7 @@ mod tests {
     use std::time::Duration;
 
     mod proofs14_ime;
+    mod proofs23_paste;
 
     fn settle(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
         for _ in 0..3000 {

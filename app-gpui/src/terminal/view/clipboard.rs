@@ -14,7 +14,10 @@ use crate::terminal::encode::encode_paste;
 use crate::terminal::paste::{
     ClipboardMedia, PasteError, PastePlan, PastedClipboard, TerminalPasteTarget, paste_event_plan, stored_media_text,
 };
-use gpui_kit::{ClipboardEntry, Context, ExternalPaths, Window};
+use gpui_kit::{
+    ClipboardEntry, Context, DispatchPhase, DragMoveEvent, ExternalPaths, HitboxBehavior, IntoElement, MouseButton,
+    MouseDownEvent, MouseUpEvent, Styled, Window, canvas,
+};
 use ide_core::IdeResult;
 
 /// What a clipboard holds, as a paste reads it.
@@ -157,11 +160,62 @@ impl TerminalView {
         cx.emit(TerminalEvent::PasteFailed(notification));
     }
 
-    /// Files dropped on the terminal: their quoted paths are typed at the prompt, without Enter.
-    pub(super) fn files_dropped(&mut self, paths: &ExternalPaths, _: &mut Window, cx: &mut Context<Self>) {
+    /// Files from the operating system dragged over the window: the ones a release over this terminal
+    /// drops on it, while the pointer is over it.
+    pub(super) fn files_dragged(
+        &mut self,
+        event: &DragMoveEvent<ExternalPaths>,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.dragged = event.bounds.contains(&event.event.position).then(|| event.drag(cx).clone());
+    }
+
+    /// Where files are dropped: the terminal as drawn, when nothing is drawn over it at the pointer.
+    ///
+    /// The drop is taken from the release itself rather than from `on_drop`: files dragged from the
+    /// operating system arrive as file-drop events, which leave the window's last input as it was, so
+    /// after typing at the prompt the window reports no element under the pointer and `on_drop` never
+    /// fires. Any press or release forgets the files, so that they are never dropped by a later drag
+    /// of something else.
+    pub(super) fn drop_target(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
+        let view = cx.entity();
+        canvas(
+            |bounds, window, _| window.insert_hitbox(bounds, HitboxBehavior::Normal),
+            move |_, hitbox, window, _| {
+                let pressed = view.clone();
+                window.on_mouse_event(move |_: &MouseDownEvent, phase, _, cx| {
+                    if phase == DispatchPhase::Capture {
+                        pressed.update(cx, |view, _| view.dragged = None);
+                    }
+                });
+                let released = view.clone();
+                window.on_mouse_event(move |event: &MouseUpEvent, phase, window, cx| {
+                    if phase != DispatchPhase::Bubble || event.button != MouseButton::Left {
+                        return;
+                    }
+                    let over = cx.has_active_drag() && hitbox.is_hovered_at(event.position, window);
+                    if released.update(cx, |view, cx| view.files_dropped(over, cx)) {
+                        cx.stop_active_drag(window);
+                        cx.stop_propagation();
+                    }
+                });
+            },
+        )
+        .absolute()
+        .top_0()
+        .left_0()
+        .size_full()
+    }
+
+    /// The release of a drag: when `over` this terminal with files from the operating system, their
+    /// quoted paths are typed at the prompt, without Enter. Answers whether files were dropped.
+    fn files_dropped(&mut self, over: bool, cx: &mut Context<Self>) -> bool {
+        let Some(paths) = self.dragged.take().filter(|_| over) else { return false };
         let paths: Vec<String> = paths.paths().iter().map(|path| path.to_string_lossy().into_owned()).collect();
         if let Some(text) = terminal_drop_text(&paths, this_os(), false, true) {
             self.paste_text(&text, cx);
         }
+        true
     }
 }

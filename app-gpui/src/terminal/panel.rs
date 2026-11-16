@@ -4,28 +4,41 @@
 //! carries its effects out (a terminal for a new session, an end for a disposed one, the
 //! remembered tabs to storage) and shows the active tab's terminal.
 
-use super::store::{
-    GroupLayout, SessionCommand, SessionSnapshot, SessionStatus, SplitOrientation, TerminalEffect, Terminals,
-    start_directory,
-};
+use super::store::{SessionCommand, SessionSnapshot, SessionStatus, TerminalEffect, Terminals, start_directory};
 use super::view::{TerminalEvent, TerminalView};
 use crate::platform::command_line::parse_shell_command;
 use crate::platform::settings;
 use crate::platform::storage::UiStorage;
 use crate::theme;
+use crate::workbench::notifications::NotificationRequest;
 use gpui_kit::{
-    AnyElement, App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Render, SharedString,
-    Subscription, Window, div, prelude::*, px,
+    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Pixels, Point, Render, Subscription,
+    Window, div, prelude::*,
 };
 use ide_terminal::TerminalOptions;
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+pub mod groups;
 
 /// What the terminal tool window tells its window.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TerminalPanelEvent {
     /// The last tab closed: the tool window has nothing to show.
     Emptied,
+    /// The header's Options button was pressed here: the window's Options menu.
+    ShowOptions(Point<Pixels>),
+    /// The header's Hide button.
+    Hide,
+    /// A right click on tab `tab`: its menu.
+    TabMenu { tab: String, position: Point<Pixels> },
+    /// A group's More Terminal Options button was pressed here; its group is the active one now.
+    MoreMenu(Point<Pixels>),
+    /// Close these tabs as their Close Tab button does (its ✕, the tab menu, ⌘W in its terminal),
+    /// asking first whether to terminate a command that runs.
+    CloseTabs(Vec<String>),
+    /// A paste failed: the notification that says why.
+    Notify(NotificationRequest),
 }
 
 pub struct TerminalPanel {
@@ -38,6 +51,8 @@ pub struct TerminalPanel {
     views: HashMap<String, (Entity<TerminalView>, Subscription)>,
     /// The panel has just started with a tab opened for the occasion, which no one has claimed.
     fresh: bool,
+    /// The sizes the groups were dragged to, and the drag going on.
+    splits: groups::Splits,
 }
 
 impl EventEmitter<TerminalPanelEvent> for TerminalPanel {}
@@ -52,6 +67,7 @@ impl TerminalPanel {
             terminals: Terminals::new(),
             views: HashMap::new(),
             fresh: false,
+            splits: groups::Splits::default(),
         };
         let root = panel.root.clone();
         let stored = |key: &str| cx.try_global::<UiStorage>().and_then(|storage| storage.get(key)).map(str::to_owned);
@@ -250,34 +266,6 @@ impl TerminalPanel {
         self.views.len()
     }
 
-    /// The tab groups as the layout splits them, side by side or stacked, each showing its
-    /// selected tab's terminal, with a one-pixel line between them.
-    fn layout_element(&self, layout: &GroupLayout, cx: &App) -> AnyElement {
-        match layout {
-            GroupLayout::Group(group) => {
-                let view = self.terminals.selected().get(group).and_then(|id| self.view_of_tab(id)).cloned();
-                let selector = format!("terminal-group:{group}");
-                div()
-                    .debug_selector(move || selector.clone())
-                    .flex_1()
-                    .min_w_0()
-                    .min_h_0()
-                    .size_full()
-                    .children(view)
-                    .into_any_element()
-            }
-            GroupLayout::Split(split) => {
-                let pane = div().flex_1().min_w_0().min_h_0().size_full().flex().gap(px(1.0));
-                let pane = pane.bg(theme::color(cx, "border"));
-                let pane = match split.orientation {
-                    SplitOrientation::Horizontal => pane.flex_row(),
-                    SplitOrientation::Vertical => pane.flex_col(),
-                };
-                pane.children(split.children.iter().map(|child| self.layout_element(child, cx))).into_any_element()
-            }
-        }
-    }
-
     /// What the terminal of session `key` reports about itself.
     fn snapshot(&self, key: &str, view: &Entity<TerminalView>, cx: &App) -> SessionSnapshot {
         let terminal = view.read(cx);
@@ -321,11 +309,13 @@ impl TerminalPanel {
                 let close = settings::effective(&self.window_label, cx).terminal.close_on_exit;
                 self.terminals.session_exited(key, close);
             }
+            // The window closes it as the tab's Close Tab button does, asking about a running command.
             TerminalEvent::CloseRequested => {
                 if let Some(id) = self.terminals.tab_of_session(key).map(|tab| tab.id.clone()) {
-                    self.terminals.close_tab(&id);
+                    cx.emit(TerminalPanelEvent::CloseTabs(vec![id]));
                 }
             }
+            TerminalEvent::PasteFailed(notification) => cx.emit(TerminalPanelEvent::Notify(notification.clone())),
             TerminalEvent::Bell | TerminalEvent::FindRequested => {}
         }
         self.carry_out(cx);
@@ -341,84 +331,14 @@ impl Focusable for TerminalPanel {
 }
 
 impl Render for TerminalPanel {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let (fg, muted) = (theme::color(cx, "fg-strong"), theme::color(cx, "fg-muted"));
-        let focused = self.focus_handle(cx).contains_focused(window, cx);
-        let selected = theme::color(cx, if focused { "bg-tab-selected" } else { "bg-tab-selected-inactive" });
-        let active = self.terminals.active_tab().map(str::to_owned);
-        let tabs: Vec<(String, String)> = self
-            .terminals
-            .tabs()
-            .iter()
-            .map(|tab| (tab.id.clone(), self.terminals.title(&tab.id).unwrap_or_else(|| tab.name.clone())))
-            .collect();
-        let strip = div()
-            .h(theme::length(cx, "h-header"))
-            .flex_none()
-            .flex()
-            .items_center()
-            .gap(px(2.0))
-            .px(px(4.0))
-            .children(tabs.into_iter().map(|(id, title)| {
-                let (select, close) = (id.clone(), id.clone());
-                div()
-                    .id(SharedString::from(format!("terminal-tab:{id}")))
-                    .h(theme::length(cx, "h-tab"))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap(px(6.0))
-                    .pl(px(8.0))
-                    .pr(px(4.0))
-                    .rounded(px(6.0))
-                    .text_color(fg)
-                    .when(active.as_deref() == Some(id.as_str()), |el| el.bg(selected))
-                    .hover(|el| el.bg(theme::color(cx, "bg-tab-hover")))
-                    .child(SharedString::from(title))
-                    .child(
-                        div()
-                            .id(SharedString::from(format!("terminal-close:{id}")))
-                            .size(px(16.0))
-                            .flex_none()
-                            .rounded(px(4.0))
-                            .hover(|el| el.bg(theme::color(cx, "bg-tab-hover")))
-                            .child(theme::icon(cx, "close", 16.0, muted))
-                            .on_click(cx.listener(move |panel, _, _, cx| {
-                                panel.close_tab(&close, cx);
-                                cx.stop_propagation();
-                            })),
-                    )
-                    .on_click(cx.listener(move |panel, _, window, cx| {
-                        panel.select_tab(&select, cx);
-                        let terminal = panel.focus_handle(cx);
-                        window.focus(&terminal, cx);
-                    }))
-            }))
-            .child(
-                div()
-                    .id("terminal-new-tab")
-                    .size(px(22.0))
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded(px(4.0))
-                    .hover(|el| el.bg(theme::color(cx, "bg-hover")))
-                    .child(theme::icon(cx, "plus", 16.0, muted))
-                    .on_click(cx.listener(|panel, _, window, cx| {
-                        panel.open_tab(cx);
-                        let terminal = panel.focus_handle(cx);
-                        window.focus(&terminal, cx);
-                    })),
-            );
+    /// Each tab group with its own header and tab strip; see [`groups`].
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .size_full()
             .flex()
-            .flex_col()
             .track_focus(&self.focus)
             .text_size(theme::length(cx, "fs-ui"))
-            .child(strip)
-            .child(div().flex_1().min_h_0().flex().child(self.layout_element(self.terminals.layout(), cx)))
+            .child(self.render_groups(cx))
     }
 }
 
@@ -429,6 +349,8 @@ mod tests {
     use crate::terminal::persist::storage_key;
     use gpui_kit::{TestAppContext, VisualTestContext};
     use std::time::Duration;
+
+    mod proofs23_groups;
 
     fn settle(cx: &mut VisualTestContext, what: &str, done: impl Fn(&mut VisualTestContext) -> bool) {
         for _ in 0..3000 {

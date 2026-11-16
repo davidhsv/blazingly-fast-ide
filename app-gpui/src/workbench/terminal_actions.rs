@@ -7,16 +7,10 @@
 
 use super::services_window::on_workbench;
 use super::{TERMINAL_TOOL_WINDOW, Workbench};
-use crate::backend::Backend;
 use crate::platform::actions::ActionRegistry;
-use crate::platform::i18n::Localization;
 use crate::platform::settings;
 use crate::terminal::panel::TerminalPanel;
-use crate::terminal::store::{
-    SessionCommand, SessionStatus, SplitOrientation, Terminals, start_directory, terminate_confirmation,
-};
-use crate::vcs::prompt_dialogs::PromptDialog;
-use crate::vcs_ops::dialogs::ConfirmRequest;
+use crate::terminal::store::{SessionCommand, SplitOrientation, Terminals, start_directory};
 use gpui_kit::{Context, Entity, Window};
 use ide_core::workflow_settings::TerminalSettings;
 use serde_json::Value;
@@ -186,69 +180,12 @@ impl Workbench {
         self.with_layout(window, cx, |layout| layout.focus(TERMINAL_TOOL_WINDOW));
     }
 
-    /// Close Terminal Session: the active tab closes, after Terminate / Cancel when its session is
-    /// running a command: a program of its own, or a shell whose foreground process is another one
-    /// (the backend tells). A session that is not running closes without a question.
+    /// Close Terminal Session: the active tab closes as its Close Tab button closes it, after
+    /// Terminate / Cancel when its session runs a command.
     fn close_terminal_session(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(panel) = self.terminal_panel() else { return };
-        let panel = panel.read(cx);
-        let terminals = panel.terminals();
-        let Some(tab) = terminals.active_tab().map(str::to_owned) else { return };
-        let title = terminals.title(&tab).unwrap_or_default();
-        let session = terminals.active_session();
-        let running = session.is_some_and(|session| session.state.status == SessionStatus::Running);
-        let program = session.and_then(|session| session.command.as_ref()).is_some_and(|command| !command.shell);
-        let terminal = panel.active_view().and_then(|view| view.read(cx).id()).filter(|_| running);
-        let ask_backend = terminal.filter(|_| !program);
-        let busy_without_asking = terminal.is_some() && program;
-        let call = ask_backend.and_then(|id| {
-            let backend = cx.try_global::<Backend>()?;
-            Some(backend.with_host(move |host| async move { ide_host::ops::term::is_busy(&host, id) }))
-        });
-        cx.spawn_in(window, async move |this, cx| {
-            let busy = match call {
-                // A session the backend no longer knows has ended: nothing to ask about.
-                Some(call) => matches!(call.await, Ok(Ok(true))),
-                None => busy_without_asking,
-            };
-            this.update_in(cx, |workbench, window, cx| {
-                workbench.end_terminal_tab(&tab, &title, busy, window, cx);
-            })
-        })
-        .detach();
-    }
-
-    /// Closes tab `tab`, asking first whether to terminate what it runs when `busy`.
-    fn end_terminal_tab(&mut self, tab: &str, title: &str, busy: bool, window: &mut Window, cx: &mut Context<Self>) {
-        if !busy {
-            return self.close_terminal_tab(tab, window, cx);
-        }
-        let question = terminate_confirmation(title, &cx.default_global::<Localization>().0);
-        let request =
-            ConfirmRequest { title: question.title, message: question.message, ok_label: question.ok, danger: false };
-        let answer = self.show_prompt_dialog(move |window, cx| PromptDialog::confirm(request, window, cx), window, cx);
-        let tab = tab.to_owned();
-        cx.spawn_in(window, async move |this, cx| {
-            // A dialog closed without an answer (the window went) ends nothing.
-            if answer.await.is_ok_and(|answer| answer.confirmed()) {
-                this.update_in(cx, |workbench, window, cx| workbench.close_terminal_tab(&tab, window, cx))?;
-            }
-            anyhow::Ok(())
-        })
-        .detach();
-    }
-
-    /// Closes tab `tab` and ends its session. The last tab closing hides the tool window (the panel
-    /// says so); otherwise the keyboard goes to the tab that shows.
-    fn close_terminal_tab(&mut self, tab: &str, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(panel) = self.terminal_panel() else { return };
-        let left = panel.update(cx, |panel, cx| {
-            panel.close_tab(tab, cx);
-            !panel.terminals().tabs().is_empty()
-        });
-        if left {
-            self.with_layout(window, cx, |layout| layout.focus(TERMINAL_TOOL_WINDOW));
-        }
+        let Some(tab) = panel.read(cx).terminals().active_tab().map(str::to_owned) else { return };
+        self.request_close_terminal_tabs(vec![tab], window, cx);
     }
 }
 
@@ -257,10 +194,12 @@ mod tests {
     use super::super::plugins_window::test_support::trusted_project;
     use super::super::tests::{click_on, run_action, start, wait_long};
     use super::*;
+    use crate::backend::Backend;
     use crate::platform::actions::execute_action_or_throw;
     use crate::project_tree::ProjectTree;
     use crate::terminal::store::GroupLayout;
     use crate::terminal::view::TerminalView;
+    use crate::vcs::prompt_dialogs::PromptDialog;
     use gpui_kit::{Bounds, Focusable, Pixels, TestAppContext, VisualTestContext};
     use serde_json::json;
     use std::path::{Path, PathBuf};

@@ -77,6 +77,10 @@ pub(super) struct RefactorActions {
     safe_delete: Option<SafeDeleteFlow>,
     /// Safe Delete's "Search in comments and strings" as last confirmed (on at first, like IDEA).
     search_in_comments: bool,
+    /// What each Refactor menu run started from, was answered and went on to, so that a test waiting
+    /// for one can say where it stopped.
+    #[cfg(test)]
+    trace: Vec<String>,
 }
 
 impl Default for RefactorActions {
@@ -86,7 +90,32 @@ impl Default for RefactorActions {
             this: RefactorThis::default(),
             safe_delete: None,
             search_in_comments: true,
+            #[cfg(test)]
+            trace: Vec::new(),
         }
+    }
+}
+
+impl RefactorActions {
+    #[cfg(test)]
+    fn note(&mut self, line: impl FnOnce() -> String) {
+        self.trace.push(line());
+    }
+
+    #[cfg(not(test))]
+    fn note(&mut self, _: impl FnOnce() -> String) {}
+}
+
+/// What a step of a Refactor menu run is, for [`RefactorActions::note`].
+fn step_name(step: &MenuStep) -> &'static str {
+    match step {
+        MenuStep::Nothing => "nothing",
+        MenuStep::Hint(_) => "hint",
+        MenuStep::IntroduceFallback { .. } => "introduce fallback",
+        MenuStep::ExpressionAt { .. } => "expression at",
+        MenuStep::ChooseExpression(_) => "choose expression",
+        MenuStep::Query(_) => "query",
+        MenuStep::RunActions(_) => "run actions",
     }
 }
 
@@ -227,6 +256,10 @@ async fn refactor_menu(
         let at = Caret::of(editor.read(cx));
         let (cancel, step) =
             workbench.refactorings.menu.start(id, request, &at.rope, at.version, at.selection, at.read_only, tree);
+        workbench.refactorings.note(|| {
+            let (version, selection, step) = (at.version, at.selection, step_name(&step));
+            format!("{id:?} {request:?} starts at version {version}, selection {selection:?}: {step}")
+        });
         if let Some(cancel) = cancel {
             cancel_request(cancel, cx);
         }
@@ -279,8 +312,12 @@ async fn carry_out_menu(
                     let at = Caret::of(editor.read(cx));
                     let language = language_name(&at.language, cx);
                     let error = line_error(editor, cx);
+                    let answer = match &result {
+                        Ok(answer) => format!("answered with {} actions", answer.actions.len()),
+                        Err(error) => format!("failed ({})", error.message),
+                    };
                     let i18n = &mut cx.default_global::<Localization>().0;
-                    workbench.refactorings.menu.query_answered(
+                    let step = workbench.refactorings.menu.query_answered(
                         request,
                         result,
                         i18n,
@@ -289,7 +326,12 @@ async fn carry_out_menu(
                         at.selection,
                         &language,
                         error.as_deref(),
-                    )
+                    );
+                    workbench.refactorings.note(|| {
+                        let (version, selection, step) = (at.version, at.selection, step_name(&step));
+                        format!("{request:?} {answer} at version {version}, selection {selection:?}: {step}")
+                    });
+                    step
                 })?
             }
             MenuStep::RunActions(actions) => {
@@ -814,7 +856,10 @@ impl Workbench {
         let weak = editor.downgrade();
         let plain = ListOptions::default;
         match step {
-            ActionsStep::Apply { action, .. } => self.apply_refactoring(editor, *action, window, cx),
+            ActionsStep::Apply { action, .. } => {
+                self.refactorings.note(|| format!("applies {:?}", action.title));
+                self.apply_refactoring(editor, *action, window, cx);
+            }
             ActionsStep::Choose { title, actions, .. } => {
                 let rows = actions
                     .iter()
@@ -1274,7 +1319,35 @@ mod tests {
             f.select(cx, 0, 0);
             f.run(cx, action);
             expected = format!("// {action}\n{expected}");
-            settle(cx, action, |cx| f.text(cx) == expected);
+            let landed = (0..3000).any(|_| {
+                cx.executor().advance_clock(Duration::from_millis(50));
+                cx.run_until_parked();
+                let done = f.text(cx) == expected;
+                if !done {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                done
+            });
+            if !landed {
+                let editor = f.active(cx);
+                let (version, selections) = editor.read_with(cx, |e, _| (e.version(), e.selections().to_vec()));
+                let trace = f.workbench.read_with(cx, |w, _| w.refactorings.trace.join("\n  "));
+                let methods: Vec<String> = f
+                    .server
+                    .received()
+                    .iter()
+                    .filter_map(|message| message["method"].as_str().map(str::to_owned))
+                    .collect();
+                panic!(
+                    "{action} did not happen within thirty seconds: text {:?}, version {version}, selections \
+                     {selections:?}, hint {:?}, list open {}, {} asked {only} (before {asked})\nruns:\n  {trace}\n\
+                     the server got: {methods:?}",
+                    f.text(cx),
+                    f.hint(cx),
+                    !f.no_list(cx),
+                    f.asked_only(&[only]),
+                );
+            }
             assert_eq!(f.asked_only(&[only]), asked + 1, "{action} asks the server for {only}");
         }
         f.close(cx);
