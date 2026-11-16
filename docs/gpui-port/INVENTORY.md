@@ -5,7 +5,7 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1459/3145 rows at parity, 100 model only, 509 partial, 15 with nothing to port.**
+**Overall: 1459/3145 rows at parity, 99 model only, 514 partial, 15 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
@@ -50,7 +50,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerWorkbenchBanner` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerShellActions` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerDevSamples` | 0 | 0 | 0 | 0 | 1 |
-| Settings pages | 32 | 0 | 25 | 0 | 68 |
+| Settings pages | 32 | 0 | 28 | 0 | 68 |
 | Features | 0 | 0 | 19 | 0 | 43 |
 | Editor, platform, workbench and design-system modules | 32 | 1 | 64 | 0 | 253 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
@@ -58,7 +58,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | IPC commands | 325 | 0 | 28 | 15 | 599 |
 | Backend events (IdeEvent) | 17 | 0 | 2 | 0 | 31 |
 | Plugin API interfaces (wit/) | 8 | 0 | 12 | 0 | 49 |
-| Behaviour specification: unit tests (vitest) | 383 | 99 | 127 | 0 | 753 |
+| Behaviour specification: unit tests (vitest) | 383 | 98 | 129 | 0 | 753 |
 | Behaviour specification: end-to-end specs (Playwright) | 9 | 0 | 9 | 0 | 70 |
 
 ## Actions (497/836 at parity, 144 partial)
@@ -1519,7 +1519,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | (registered at run time only) | src/workbench/devSamples.tsx |  |
 
-## Settings pages (32/68 at parity, 25 partial)
+## Settings pages (32/68 at parity, 28 partial)
 
 | | Page id | Source | Proof |
 |---|---|---|---|
@@ -1543,9 +1543,9 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `build.run` | src/features/settings/pages/execution.tsx | `workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's three checkboxes and the termination time limit: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply |
 | [x] | `build.runTargets` | src/features/settings/pages/runTargets.tsx | `workbench::tests::proofs30_settings_run_targets::run_targets_an_ssh_target_added_and_edited_is_written_to_the_project`, `workbench::tests::proofs30_settings_run_targets::run_targets_a_docker_target_offers_the_services_connections_and_applies`, `workbench::tests::proofs30_settings_run_targets::run_targets_the_folder_chosen_in_the_browser_is_the_targets_project_folder`, `workbench::tests::proofs30_settings_run_targets::run_targets_reset_and_cancel_discard_a_target_added`, `workbench::tests::proofs30_settings_run_targets::run_targets_a_target_stored_without_its_upload_choice_shows_the_value_the_backend_loads`, `workbench::tests::proofs30_settings_run_targets::run_targets_shown_after_another_page_select_the_first_target`; SSH, Docker and Docker Compose targets are added, copied, moved, removed and edited, the default target chosen, and written to the project or the global settings; the remote folder browser sets the project folder on the target (tested with a stand-in browser); Reset and Cancel discard |
 | [x] | `editor.files` | src/features/settings/pages/builtins.tsx | `workbench::tests::proofs19_settings_misc::file_types_patterns_and_ignored_names_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::editor_files::tests::patterns_added_and_removed_are_stored_as_additions_and_removals`, `settings_view::pages::editor_files::tests::the_filter_matches_names_and_patterns_and_hashbangs_are_stored`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; the recognized file types come from the backend's languages, and patterns and ignored names are written to the project |
-| [ ] | `editor.fileTemplates` | src/features/templates/index.ts:162 |  |
-| [ ] | `editor.general.postfixCompletion` | src/features/templates/index.ts:153 |  |
-| [ ] | `editor.liveTemplates` | src/features/templates/index.ts:145 |  |
+| [~] | `editor.fileTemplates` | src/features/templates/index.ts:162 | `workbench::tests::proofs32_settings_file_templates::the_project_scheme_and_an_include_are_stored_at_once_and_cancel_keeps_them`, `workbench::tests::proofs32_settings_file_templates::a_file_template_added_and_edited_on_the_page_is_stored_at_once`, `settings_view::pages::editor_file_templates::extension_guard::an_extension_typed_with_slashes_creates_nothing_outside_the_folder`, `templates::files_store::tests::a_template_whose_extension_is_not_a_plain_extension_is_not_stored`; file templates with their kinds, includes and code templates are added, edited, enabled, removed and restored in the Default or the Project scheme and stored under the webview's keys; an extension that is not a plain extension is refused with a message and never stored; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: New does not offer the templates yet, and contributed templates have no native source |
+| [~] | `editor.general.postfixCompletion` | src/features/templates/index.ts:153 | `workbench::tests::proofs32_settings_postfix::postfix_completion_options_and_templates_are_stored_at_once_and_cancel_keeps_them`, `workbench::tests::proofs32_settings_postfix::ok_closes_the_postfix_completion_page_and_keeps_what_was_stored`; the three options and each template's checkbox by language are stored under the webview's key with its fields; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: nothing native reads the postfix settings yet (postfix expansion is not wired) |
+| [~] | `editor.liveTemplates` | src/features/templates/index.ts:145 | `workbench::tests::proofs32_settings_live_templates::a_live_template_added_and_typed_on_the_page_is_stored_at_once_and_cancel_keeps_it`, `workbench::tests::proofs32_settings_live_templates::a_built_in_live_template_edited_and_removed_on_the_page_is_stored_at_once`; templates are added, edited (abbreviation, description, group, text, contexts, variables), enabled, removed and restored, with the two options, and stored under the webview's keys; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: nothing native expands a live template yet, and plugin snippets have no native source |
 | [x] | `editor.todo` | src/features/todo/index.ts:12 | `workbench::tests::proofs31_settings_feature_pages::the_todo_window_matches_with_the_stored_patterns_when_first_shown`, `workbench::tests::proofs31_settings_feature_pages::todo_patterns_and_options_are_stored_at_once_and_the_todo_window_matches_with_them`, `workbench::tests::proofs31_settings_feature_pages::match_case_in_the_todo_window_is_the_stored_case_sensitive_option`, `workbench::tests::proofs31_settings_feature_pages::the_todo_window_of_another_window_follows_the_page_at_once`; patterns are added, removed, enabled, renamed and coloured, with Case sensitive and Only in comments; the TODO window of every window matches with the stored settings at once and its Match Case is the same setting; the page applies each change at once as the webview's does: Apply stays off, Reset is not shown and Cancel keeps the change |
 | [ ] | `editor.vim` | src/features/vim/index.ts:22 |  |
 | [~] | `general` | src/features/settings/pages/behavior.tsx | `settings_view::custom_controls::tests::system_settings_open_in_directory_and_idle_save_apply`, `settings_view::custom_controls::tests::a_stored_attach_for_open_project_in_shows_ask`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; every row is drawn. Missing: the directory chooser has no title or start directory |
@@ -2638,7 +2638,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `invocation` | wit/workspace.wit | `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`; a command run from the window gets its project and focused editor (the word count of notes.txt), and selected-paths carries the Project view menu's file |
 | [~] | `vcs` | wit/workspace.wit | `workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_reads_the_projects_log_blame_and_diff`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; log, blame and diff answer the commit, its author and the changed line, and status shows as the plugin's branch item. Missing: remotes, and fetch's effect is not asserted |
 
-## Behaviour specification: unit tests (vitest) (383/753 at parity, 99 model only, 127 partial)
+## Behaviour specification: unit tests (vitest) (383/753 at parity, 98 model only, 129 partial)
 
 753 files, 6287 cases. A row is at parity when the behaviour its cases assert is covered by Rust tests of the GPUI app.
 
@@ -3200,7 +3200,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [m] | `src/features/ssh/ssh.test.ts` | 6 | `features_b::ssh::tests` |
 | [x] | `src/features/templates/__tests__/editor.test.ts` | 14 | `templates::editor::tests`, `templates::editor_context::tests` |
 | [~] | `src/features/templates/__tests__/emmet.test.ts` | 7 | `templates::emmet_model::tests`; four of seven cases: the three expansions need the Emmet engine's tables, which are behind a trait with no implementation yet |
-| [m] | `src/features/templates/__tests__/files.test.ts` | 25 | `templates::files_model::tests`, `templates::files_builtins::tests`, `templates::files_create::tests` |
+| [~] | `src/features/templates/__tests__/files.test.ts` | 25 | `templates::files_model::tests`, `templates::files_builtins::tests`, `templates::files_create::tests`, `templates::files_model::tests::an_extension_that_is_not_a_plain_extension_plans_no_file`; every case on the model; the app reaches only the check of a template's extension (the Settings page and the store): planning and rendering a file are not reached until New from Template is wired |
 | [x] | `src/features/templates/__tests__/live.test.ts` | 18 | `templates::live_model::tests`, `templates::live_builtins::tests`, `templates::live_store::tests` |
 | [ ] | `src/features/templates/__tests__/pluginFiles.test.tsx` | 6 |  |
 | [m] | `src/features/templates/__tests__/pluginPackages.test.ts` | 7 | `templates::files_create::tests` |
@@ -3208,7 +3208,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `src/features/templates/__tests__/snippets.test.ts` | 2 | `templates::live_snippets::tests`, `templates::snippet::tests` |
 | [x] | `src/features/templates/__tests__/surround.test.ts` | 2 | `templates::editor::tests` |
 | [x] | `src/features/templates/__tests__/surrounders.test.ts` | 3 | `templates::live_surrounders::tests` |
-| [ ] | `src/features/templates/__tests__/views.test.tsx` | 12 |  |
+| [~] | `src/features/templates/__tests__/views.test.tsx` | 12 | `settings_view::pages::editor_file_templates::tests::a_template_named_with_dot_dot_slash_creates_nothing_outside_the_folder`, `settings_view::pages::editor_file_templates::tests::each_control_of_the_files_tab_is_stored_with_the_template`, `settings_view::pages::editor_file_templates::tests::edits_includes_and_code_templates_in_their_tabs`, `settings_view::pages::editor_file_templates::tests::includes_are_added_renamed_and_removed`, `settings_view::pages::editor_file_templates::tests::keeps_a_project_scheme_seeded_from_default`, `settings_view::pages::editor_file_templates::tests::renders_file_templates`, `settings_view::pages::editor_file_templates::tests::templates_stored_elsewhere_are_shown_at_once`, `settings_view::pages::editor_live_templates::tests::each_control_of_the_editor_is_stored_with_the_template`, `settings_view::pages::editor_live_templates::tests::edits_a_live_template`, `settings_view::pages::editor_live_templates::tests::enter_and_escape_in_the_fields_answer_the_dialog`, `settings_view::pages::editor_live_templates::tests::groups_and_filters_live_templates`, `settings_view::pages::editor_live_templates::tests::shows_plugin_snippets_as_read_only_live_templates_and_withdraws_them_with_the_plugin`, `settings_view::pages::editor_live_templates::tests::templates_stored_elsewhere_are_shown_at_once`, `settings_view::pages::editor_live_templates::tests::the_contexts_typed_key_by_key_are_kept_and_stored_as_the_words_of_the_final_text`, `settings_view::pages::editor_live_templates::tests::the_list_holds_every_template_and_draws_only_the_rows_in_view`, `settings_view::pages::editor_live_templates::tests::the_options_are_stored_at_once_and_add_follows_the_selected_user_template`, `settings_view::pages::editor_postfix_completion::tests::options_are_stored_at_once_and_off_disables_the_rest`, `settings_view::pages::editor_postfix_completion::tests::settings_stored_elsewhere_are_shown_at_once`, `settings_view::pages::editor_postfix_completion::tests::toggles_postfix_templates`; 7 of 12 cases, each by its name, on the three Settings pages. Missing: the 5 cases of the New File dialog and the chooser, which are not built |
 | [x] | `src/features/terminal/copyKeys.test.ts` | 4 | `terminal::keys::tests`, `terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit` |
 | [ ] | `src/features/terminal/domRowCache.test.ts` | 4 |  |
 | [~] | `src/features/terminal/drop.test.ts` | 5 | `terminal::drop::tests`, `terminal::panel::tests::proofs23_groups::pastes_only_into_the_terminal_under_the_cursor_without_executing`; 4 of 5 cases, the one under the cursor also through the view: dropped files are typed as quoted paths only into the terminal under the pointer and nothing is run. Missing: detached and hidden sessions are ignored (the Run console's terminal) has no test |

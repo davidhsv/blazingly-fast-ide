@@ -1388,8 +1388,8 @@
     "proof": "`templates::emmet_model::tests`; four of seven cases: the three expansions need the Emmet engine's tables, which are behind a trait with no implementation yet"
   },
   "unit:src/features/templates/__tests__/files.test.ts": {
-    "status": "done",
-    "proof": "`templates::files_model::tests`, `templates::files_builtins::tests`, `templates::files_create::tests`"
+    "status": "partial",
+    "proof": "`templates::files_model::tests`, `templates::files_builtins::tests`, `templates::files_create::tests`, `templates::files_model::tests::an_extension_that_is_not_a_plain_extension_plans_no_file`; every case on the model; the app reaches only the check of a template's extension (the Settings page and the store): planning and rendering a file are not reached until New from Template is wired"
   },
   "unit:src/features/templates/__tests__/live.test.ts": {
     "status": "done",
@@ -8330,5 +8330,21 @@
   "ipc:project_trust_add_location": {
     "status": "done",
     "proof": "`workbench::tests::proofs31_settings_feature_pages::add_folder_trusts_the_undecided_project_open_inside_it`, `workbench::tests::proofs31_settings_feature_pages::adds_a_picked_folder_as_a_trusted_location_from_settings`; an undecided project inside the added folder leaves Restricted Mode, which only the store's addition with the trust refresh gives, called as the Tauri adapter calls it"
+  },
+  "settings:editor.general.postfixCompletion": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs32_settings_postfix::postfix_completion_options_and_templates_are_stored_at_once_and_cancel_keeps_them`, `workbench::tests::proofs32_settings_postfix::ok_closes_the_postfix_completion_page_and_keeps_what_was_stored`; the three options and each template's checkbox by language are stored under the webview's key with its fields; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: nothing native reads the postfix settings yet (postfix expansion is not wired)"
+  },
+  "settings:editor.liveTemplates": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs32_settings_live_templates::a_live_template_added_and_typed_on_the_page_is_stored_at_once_and_cancel_keeps_it`, `workbench::tests::proofs32_settings_live_templates::a_built_in_live_template_edited_and_removed_on_the_page_is_stored_at_once`; templates are added, edited (abbreviation, description, group, text, contexts, variables), enabled, removed and restored, with the two options, and stored under the webview's keys; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: nothing native expands a live template yet, and plugin snippets have no native source"
+  },
+  "settings:editor.fileTemplates": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs32_settings_file_templates::the_project_scheme_and_an_include_are_stored_at_once_and_cancel_keeps_them`, `workbench::tests::proofs32_settings_file_templates::a_file_template_added_and_edited_on_the_page_is_stored_at_once`, `settings_view::pages::editor_file_templates::extension_guard::an_extension_typed_with_slashes_creates_nothing_outside_the_folder`, `templates::files_store::tests::a_template_whose_extension_is_not_a_plain_extension_is_not_stored`; file templates with their kinds, includes and code templates are added, edited, enabled, removed and restored in the Default or the Project scheme and stored under the webview's keys; an extension that is not a plain extension is refused with a message and never stored; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: New does not offer the templates yet, and contributed templates have no native source"
+  },
+  "unit:src/features/templates/__tests__/views.test.tsx": {
+    "status": "partial",
+    "proof": "`settings_view::pages::editor_file_templates::tests::a_template_named_with_dot_dot_slash_creates_nothing_outside_the_folder`, `settings_view::pages::editor_file_templates::tests::each_control_of_the_files_tab_is_stored_with_the_template`, `settings_view::pages::editor_file_templates::tests::edits_includes_and_code_templates_in_their_tabs`, `settings_view::pages::editor_file_templates::tests::includes_are_added_renamed_and_removed`, `settings_view::pages::editor_file_templates::tests::keeps_a_project_scheme_seeded_from_default`, `settings_view::pages::editor_file_templates::tests::renders_file_templates`, `settings_view::pages::editor_file_templates::tests::templates_stored_elsewhere_are_shown_at_once`, `settings_view::pages::editor_live_templates::tests::each_control_of_the_editor_is_stored_with_the_template`, `settings_view::pages::editor_live_templates::tests::edits_a_live_template`, `settings_view::pages::editor_live_templates::tests::enter_and_escape_in_the_fields_answer_the_dialog`, `settings_view::pages::editor_live_templates::tests::groups_and_filters_live_templates`, `settings_view::pages::editor_live_templates::tests::shows_plugin_snippets_as_read_only_live_templates_and_withdraws_them_with_the_plugin`, `settings_view::pages::editor_live_templates::tests::templates_stored_elsewhere_are_shown_at_once`, `settings_view::pages::editor_live_templates::tests::the_contexts_typed_key_by_key_are_kept_and_stored_as_the_words_of_the_final_text`, `settings_view::pages::editor_live_templates::tests::the_list_holds_every_template_and_draws_only_the_rows_in_view`, `settings_view::pages::editor_live_templates::tests::the_options_are_stored_at_once_and_add_follows_the_selected_user_template`, `settings_view::pages::editor_postfix_completion::tests::options_are_stored_at_once_and_off_disables_the_rest`, `settings_view::pages::editor_postfix_completion::tests::settings_stored_elsewhere_are_shown_at_once`, `settings_view::pages::editor_postfix_completion::tests::toggles_postfix_templates`; 7 of 12 cases, each by its name, on the three Settings pages. Missing: the 5 cases of the New File dialog and the chooser, which are not built"
   }
 }
