@@ -5,11 +5,11 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1418/3145 rows at parity, 104 model only, 508 partial, 15 with nothing to port.**
+**Overall: 1416/3145 rows at parity, 104 model only, 510 partial, 15 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
-| Actions | 488 | 0 | 153 | 0 | 836 |
+| Actions | 486 | 0 | 155 | 0 | 836 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 46 |
 | Keymap presets | 6 | 0 | 0 | 0 | 6 |
 | Context keys | 50 | 0 | 4 | 0 | 83 |
@@ -61,7 +61,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Behaviour specification: unit tests (vitest) | 376 | 103 | 128 | 0 | 753 |
 | Behaviour specification: end-to-end specs (Playwright) | 9 | 0 | 9 | 0 | 70 |
 
-## Actions (488/836 at parity, 153 partial)
+## Actions (486/836 at parity, 155 partial)
 
 `(dynamic)` rows are actions whose id is built at run time (one per plugin command, tool, run configuration…).
 
@@ -571,8 +571,8 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | [~] | `navigate.superMethod` | `Meta+U` | src/editor/navigation/index.ts:174 | `workbench::refactor_actions::tests::looks_for_the_method_in_supertypes_level_by_level`, `workbench::refactor_actions::tests::opens_the_super_method_in_another_file_or_says_there_is_none`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; asks the server for the supertypes level by level, opens the super method in the same or another file, or says there is none. Missing: several levels and overloads have no test, and the chooser for several targets is a plain list without a test |
 | [~] | `navigate.switcher` | `Ctrl+Tab` | src/features/search/index.ts:308 | `workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `everywhere::recent_view::tests`; opens the Switcher on the previous editor with Ctrl held, moves on each press, opens on release. Not yet: Recent Locations, the files edited in this session (the list is empty, so Show edited only shows nothing), opening to the side, version control colours on names, keeping a row whose tab refused to close |
 | [x] | `navigate.switcherBack` | `Ctrl+Shift+Tab` | src/features/search/index.ts:319 | `workbench::tests::proofs_editor_actions_navigate::the_switcher_opened_backward_starts_on_the_oldest_editor_and_opens_it_when_ctrl_is_released`; with Ctrl held it opens the Switcher on the editor used longest ago, which opens when Ctrl is released |
-| [x] | `navigate.toggleBookmark` | `F3` | src/features/search/index.ts:414 | `workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_store::tests` |
-| [x] | `navigate.toggleBookmarkWithMnemonic` | `Alt+F3` | src/features/search/index.ts:463 | `workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`; ⌥F3 and the registry open the chooser for the caret's line, the digit typed gives the line a bookmark with that mnemonic and closes it, on that line it offers Change Mnemonic; without an editor the action does not run and ⌥F3 opens nothing; the chooser opens under the caret's line (`workbench::popup_placement::tests::the_mnemonic_chooser_opens_under_the_caret`) |
+| [~] | `navigate.toggleBookmark` | `F3` | src/features/search/index.ts:414 | `workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_store::tests`; the bookmark is stored, listed and navigated to; missing: the bookmark's icon and mnemonic are not drawn in the editor's gutter (the native gutter has no bookmarks column), so the line shows no mark after the action |
+| [~] | `navigate.toggleBookmarkWithMnemonic` | `Alt+F3` | src/features/search/index.ts:463 | `workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`; the chooser gives the caret's line a bookmark with the typed mnemonic; missing: the bookmark's icon and mnemonic are not drawn in the editor's gutter (the native gutter has no bookmarks column), so the line shows no mark after the action |
 | [x] | `navigate.typeDeclaration` | `Meta+Shift+B`, `Ctrl+Shift+B` | src/editor/lsp/actions.ts:125 | `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several` |
 | [x] | `navigate.typeHierarchy` | `Ctrl+H` | src/features/code-insight/index.ts:126 | `editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`; the Hierarchy window titled Subtypes of Base lists Derived, the subtype the server reports |
 | [x] | `open-browser` |  | src/features/run/services.tsx:523 | `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`, `workbench::tests::proofs5_run::open_in_browser_opens_the_started_servers_page_and_remove_from_services_hides_a_row`; the toolbar's Open in Browser is enabled while a server with a port runs and disabled after Stop; run through run.services.openBrowser on the group it opens http://localhost:8123, and nothing while no server runs |

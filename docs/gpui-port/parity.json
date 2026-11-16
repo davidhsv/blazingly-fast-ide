@@ -1760,8 +1760,8 @@
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`, `workbench::popup_placement::tests::escape_closes_go_to_line_and_the_editor_has_the_keyboard_again`, `workbench::popup_placement::tests::go_to_line_is_a_dialog_and_enter_moves_the_caret_to_the_typed_line_and_column`, `workbench::popup_placement::tests::go_to_line_takes_a_line_a_line_and_column_and_a_comma`, `workbench::popup_placement::tests::the_go_to_line_key_runs_nothing_while_a_tool_window_has_the_keyboard`; see the navigate.gotoLine action"
   },
   "action:navigate.toggleBookmark": {
-    "status": "done",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_store::tests`"
+    "status": "partial",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_store::tests`; the bookmark is stored, listed and navigated to; missing: the bookmark's icon and mnemonic are not drawn in the editor's gutter (the native gutter has no bookmarks column), so the line shows no mark after the action"
   },
   "action:navigate.nextBookmark": {
     "status": "done",
@@ -1776,8 +1776,8 @@
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_popup::tests`; the popup lists the bookmarks by list and file, opens, removes and describes them. Its preview is the file's plain text, not a second editor on the document"
   },
   "action:navigate.toggleBookmarkWithMnemonic": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`; ⌥F3 and the registry open the chooser for the caret's line, the digit typed gives the line a bookmark with that mnemonic and closes it, on that line it offers Change Mnemonic; without an editor the action does not run and ⌥F3 opens nothing; the chooser opens under the caret's line (`workbench::popup_placement::tests::the_mnemonic_chooser_opens_under_the_caret`)"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`; the chooser gives the caret's line a bookmark with the typed mnemonic; missing: the bookmark's icon and mnemonic are not drawn in the editor's gutter (the native gutter has no bookmarks column), so the line shows no mark after the action"
   },
   "action:bookmarks.toggleFileBookmark": {
     "status": "done",
