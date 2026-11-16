@@ -1240,3 +1240,14 @@ Every slice since the Run tool window was proven in the test harness only. On 20
 - Recorded partial: `ssh_trust_host` (no host key really waiting in a native test), the Deployment page as above. Hypothesis of the integrator: OpenSSH and key-pair authentication would still reach the SSH agent and identity files of the user; no test gets as far as authentication.
 - The inventory is at 1,453 of 3,145 (100 model only, 509 partial).
 - Shots: `notes/inspections/2026-11-16-g` (three kept, all looked at by me).
+
+## D137. Settings: Project Trust, TODO, Log, GitHub: pages that apply at once
+
+- These four pages write each change the moment it is made, as the webview's do (read there: nothing is staged, so Apply stays off, Reset is not shown and Cancel keeps the change); the native dialog behaves the same and the tests assert it after each change (commit bbb49e1c; my two runs of the suite passed, 8,001 tests, with web_view, clippy and the build clean).
+- Project Trust: Revoke Trust puts the window's own project in Restricted Mode at once and the dialog stays open; Add folder… trusts the chosen folder and what is inside it, never the folder above; a folder chosen through a link is stored as the folder it links to; a missing folder or a file is refused with the backend's reason; Remove takes exactly one location out. The trust store a test writes is under its own home.
+- TODO: the native TODO window ignored the stored settings (confirmed by a test that failed before the change). It now loads them when first shown, follows the storage in every window and stores its own Match Case, and the storage functions live with the feature, not with the page. A pattern is matched as written, never as an expression, in both apps, so there is no invalid-pattern case.
+- Log is recorded partial: nothing native draws references on the left or the GitHub commit checks column, and the Git log of another window does not follow a change. GitHub's one option is stored and nothing native reads it yet (the pull request diff view is not built); its page row is done because storing is all the webview's page does.
+- One wait was unstable in the integrator's loop (it looked for a word both error texts contain); the wait was fixed, the assertion kept, and the runs repeated.
+- Hypothesis of the integrator, not measured: every keystroke in a TODO keyword field rescans each open editor on the window's thread (texts up to 2 MB), which could stall the window with several large editors open. Owed with the other performance checks before the measurement.
+- The inventory is at 1,459 of 3,145 (100 model only, 509 partial).
+- Shots: `notes/inspections/2026-11-16-h` (three kept, all looked at by me).

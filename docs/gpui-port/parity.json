@@ -2660,8 +2660,8 @@
     "proof": "`github::review_mode::tests`, `github::review_editor::tests`, `github::review_diff::tests`; the state and logic of 20 of 20 cases, on the model; the view is not built"
   },
   "unit:src/features/github/settingsPages.test.tsx": {
-    "status": "partial",
-    "proof": "`github::diff::tests`; the state and logic of 2 of 3 cases, on the model; the view is not built"
+    "status": "done",
+    "proof": "`github::diff::tests`, `workbench::tests::proofs31_settings_feature_pages::registers_independently_of_the_pull_request_runtime`, `workbench::tests::proofs31_settings_feature_pages::updates_an_open_page_when_another_window_saves_or_clears_review_settings`, `workbench::tests::proofs31_settings_feature_pages::ignores_unrelated_storage_changes_and_recovers_from_invalid_saved_settings`; 3 of 3 cases by name on the page in a project window; the spec's unregistering on dispose has no native counterpart, native pages being a fixed list"
   },
   "unit:src/features/github/timeline/model.test.ts": {
     "status": "done",
@@ -3693,7 +3693,7 @@
   },
   "unit:src/features/vcs/__tests__/logPanes.test.tsx": {
     "status": "partial",
-    "proof": "`vcs::log_details::tests`, `vcs::log_branches::tests`, `vcs::commit_box::tests`; 11 of 13 cases by name: the Graph Options and Settings cases belong to views that are not built"
+    "proof": "`vcs::log_details::tests`, `vcs::log_branches::tests`, `vcs::commit_box::tests`, `workbench::tests::proofs31_settings_feature_pages::edits_the_logs_display_options`; 12 of 13 cases by name: the Graph Options case belongs to a view that is not built"
   },
   "unit:src/features/vcs/__tests__/logUiFeatures.test.tsx": {
     "status": "partial",
@@ -6457,11 +6457,11 @@
   },
   "unit:src/features/project-trust/trust.test.tsx": {
     "status": "partial",
-    "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`; 3 of 7 cases through the window. Not covered: the canonical folder of a symlinked path, Add folder… on the Trust settings page (not built), a local opening's decision kept on the client (no remote windows), and an attached member whose trust is lost"
+    "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::shows_and_trusts_the_canonical_folder_when_opening_through_a_symlink`, `workbench::tests::proofs31_settings_feature_pages::adds_a_picked_folder_as_a_trusted_location_from_settings`; 5 of 7 cases through the window. Not covered: a local opening's decision kept on the client (no remote windows), and an attached member whose trust is lost"
   },
   "feature:project-trust": {
     "status": "partial",
-    "proof": "`app_views::trust_dialog::tests`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`, `workbench::plugins_window::tests::a_projects_own_plugins_load_only_while_the_project_is_trusted`, `workbench::plugin_contributions::tests::untrusted_windows`; the trust question before an undecided project opens, the Restricted Mode banner, the trust actions, and Restricted Mode refusing run configurations, the debugger, language servers, project plugins, installed plugins' commands, menu entries, status items, views, view events, settings actions, gutter actions, saved-file events and question answers, Git hooks and database connections. Missing: the Project Trust settings page (lists, Revoke, Remove, Add folder…), attached workspace members, the local scope of a remote window"
+    "proof": "`app_views::trust_dialog::tests`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`, `workbench::plugins_window::tests::a_projects_own_plugins_load_only_while_the_project_is_trusted`, `workbench::plugin_contributions::tests::untrusted_windows`; the trust question before an undecided project opens, the Restricted Mode banner, the trust actions, and Restricted Mode refusing run configurations, the debugger, language servers, project plugins, installed plugins' commands, menu entries, status items, views, view events, settings actions, gutter actions, saved-file events and question answers, Git hooks and database connections. Missing: attached workspace members, the local scope of a remote window"
   },
   "module:src/platform/projectTrust.ts": {
     "status": "partial",
@@ -8306,5 +8306,29 @@
   "ipc:docker_settings": {
     "status": "done",
     "proof": "`workbench::tests::proofs30_settings_run_targets::run_targets_a_docker_target_offers_the_services_connections_and_applies`; the Docker connections offered come from the backend's read of the connections file under the test's data folder, called as the Tauri adapter calls it"
+  },
+  "settings:projectTrust": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs31_settings_feature_pages::revoke_trust_on_the_project_trust_page_restricts_the_project_at_once`, `workbench::tests::proofs31_settings_feature_pages::adds_a_picked_folder_as_a_trusted_location_from_settings`, `workbench::tests::proofs31_settings_feature_pages::add_folder_trusts_the_undecided_project_open_inside_it`, `workbench::tests::proofs31_settings_feature_pages::remove_on_the_project_trust_page_restricts_the_projects_inside_the_location`, `workbench::tests::proofs31_settings_feature_pages::a_missing_folder_or_a_file_is_not_trusted_and_the_page_says_why`, `workbench::tests::proofs31_settings_feature_pages::a_folder_chosen_through_a_link_is_trusted_as_the_folder_it_links_to`, `workbench::tests::proofs31_settings_feature_pages::the_project_trust_page_reads_the_store_again_when_shown_again`; the trusted projects and locations are listed; Revoke Trust restricts the window's project at once, Add folder… trusts the chosen folder and what is inside it, Remove takes one location out, a missing folder or a file is refused with the backend's reason; the page applies each change at once as the webview's does: Apply stays off, Reset is not shown and Cancel keeps the change. Not built: the folder chooser's title"
+  },
+  "settings:editor.todo": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs31_settings_feature_pages::the_todo_window_matches_with_the_stored_patterns_when_first_shown`, `workbench::tests::proofs31_settings_feature_pages::todo_patterns_and_options_are_stored_at_once_and_the_todo_window_matches_with_them`, `workbench::tests::proofs31_settings_feature_pages::match_case_in_the_todo_window_is_the_stored_case_sensitive_option`, `workbench::tests::proofs31_settings_feature_pages::the_todo_window_of_another_window_follows_the_page_at_once`; patterns are added, removed, enabled, renamed and coloured, with Case sensitive and Only in comments; the TODO window of every window matches with the stored settings at once and its Match Case is the same setting; the page applies each change at once as the webview's does: Apply stays off, Reset is not shown and Cancel keeps the change"
+  },
+  "settings:vcs.log": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs31_settings_feature_pages::edits_the_logs_display_options`, `workbench::tests::proofs31_settings_feature_pages::every_log_page_option_is_stored_under_its_key_and_read_back_by_the_log`; the nine display options are stored under the webview's key and read back by the Git log; the page applies each change at once as the webview's does: Apply stays off, Reset is not shown and Cancel keeps the change. Missing: nothing native draws references on the left or the GitHub commit checks column, and the open Git log of another window does not follow a change"
+  },
+  "settings:vcs.github": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs31_settings_feature_pages::registers_independently_of_the_pull_request_runtime`, `workbench::tests::proofs31_settings_feature_pages::updates_an_open_page_when_another_window_saves_or_clears_review_settings`, `workbench::tests::proofs31_settings_feature_pages::ignores_unrelated_storage_changes_and_recovers_from_invalid_saved_settings`; the page's one option is stored and follows the storage, which is all the webview's page does; the page applies each change at once as the webview's does: Apply stays off, Reset is not shown and Cancel keeps the change; nothing native reads the option yet, since the pull request diff view is not built"
+  },
+  "ipc:project_trust_list": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs31_settings_feature_pages::revoke_trust_on_the_project_trust_page_restricts_the_project_at_once`, `workbench::tests::proofs31_settings_feature_pages::the_project_trust_page_reads_the_store_again_when_shown_again`; the page lists the decisions only the trust store under the test's home holds, called as the Tauri adapter calls it"
+  },
+  "ipc:project_trust_add_location": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs31_settings_feature_pages::add_folder_trusts_the_undecided_project_open_inside_it`, `workbench::tests::proofs31_settings_feature_pages::adds_a_picked_folder_as_a_trusted_location_from_settings`; an undecided project inside the added folder leaves Restricted Mode, which only the store's addition with the trust refresh gives, called as the Tauri adapter calls it"
   }
 }
