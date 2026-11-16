@@ -9,7 +9,7 @@ use crate::notebook::model::{NotebookModel, NotebookModelEvent};
 use crate::notebook::view::{NotebookView, NotebookViewEvent};
 use crate::platform::input;
 use crate::theme;
-use gpui_kit::{Entity, Focusable, Modifiers, TestAppContext, VisualTestContext};
+use gpui_kit::{AppContext, Entity, Focusable, Modifiers, TestAppContext, VisualTestContext};
 use ide_core::IpcPath;
 use ide_notebook::{NotebookCell, NotebookEdit, NotebookSnapshot};
 use serde_json::{Value, json};
@@ -253,7 +253,7 @@ async fn markdown_cells_switch_between_preview_and_source(cx: &mut TestAppContex
 /// the raw cell's type can be changed.
 #[gpui_kit::test]
 async fn raw_and_unknown_cells_are_shown_read_only(cx: &mut TestAppContext) {
-    let mut open =
+    let open =
         open(cx, vec![cell("r", "raw", "raw text", Vec::new()), cell("v", "vendor.future", "opaque", Vec::new())]);
     assert!(
         open.cx.debug_bounds("notebook-cell-0-raw").is_some() && open.cx.debug_bounds("notebook-cell-1-raw").is_some()
@@ -272,7 +272,7 @@ async fn raw_and_unknown_cells_are_shown_read_only(cx: &mut TestAppContext) {
 /// state follows the backend's event.
 #[gpui_kit::test]
 async fn a_kernel_failure_naming_ipykernel_shows_the_install_hint(cx: &mut TestAppContext) {
-    let mut open = open(cx, vec![cell("c1", "code", "", Vec::new())]);
+    let open = open(cx, vec![cell("c1", "code", "", Vec::new())]);
     let message = "No module named ipykernel_launcher";
     open.model.update(open.cx, |model, cx| model.kernel_event("document-a", "/p/a.ipynb", "dead", Some(message), cx));
     let view = open.view.clone();
@@ -334,4 +334,113 @@ async fn does_not_re_sanitize_an_unchanged_svg_when_a_fresh_snapshot_arrives(cx:
     open.model.update(open.cx, |model, cx| model.load_opened(changed, cx));
     open.cx.run_until_parked();
     assert_eq!(view.read_with(open.cx, |view, _| view.image_decodes()), 2);
+}
+
+/// A PNG of `width` × `height` RGBA pixels of noise, its image data stored without compression.
+fn png(width: u32, height: u32) -> Vec<u8> {
+    fn crc(bytes: &[u8]) -> u32 {
+        let mut crc = !0u32;
+        for byte in bytes {
+            crc ^= u32::from(*byte);
+            for _ in 0..8 {
+                crc = if crc & 1 == 1 { (crc >> 1) ^ 0xedb8_8320 } else { crc >> 1 };
+            }
+        }
+        !crc
+    }
+    fn chunk(out: &mut Vec<u8>, kind: &[u8], data: &[u8]) {
+        out.extend((data.len() as u32).to_be_bytes());
+        let start = out.len();
+        out.extend(kind);
+        out.extend(data);
+        let sum = crc(&out[start..]);
+        out.extend(sum.to_be_bytes());
+    }
+    let mut raw = Vec::with_capacity(((width * 4 + 1) * height) as usize);
+    let mut seed = 0x2545_f491_u32;
+    let mut noise = move || {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        seed as u8
+    };
+    for _ in 0..height {
+        // Each row starts with its filter type, 0: none.
+        raw.extend(std::iter::once(0).chain((0..width * 4).map(|_| noise())));
+    }
+    let mut zlib = vec![0x78, 0x01];
+    let blocks: Vec<&[u8]> = raw.chunks(65_535).collect();
+    for (at, block) in blocks.iter().enumerate() {
+        zlib.push(u8::from(at + 1 == blocks.len()));
+        let len = block.len() as u16;
+        zlib.extend(len.to_le_bytes());
+        zlib.extend((!len).to_le_bytes());
+        zlib.extend(*block);
+    }
+    let (mut a, mut b) = (1u32, 0u32);
+    for byte in &raw {
+        a = (a + u32::from(*byte)) % 65_521;
+        b = (b + a) % 65_521;
+    }
+    zlib.extend(((b << 16) | a).to_be_bytes());
+    let mut out = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
+    let mut header = Vec::new();
+    header.extend(width.to_be_bytes());
+    header.extend(height.to_be_bytes());
+    header.extend([8, 6, 0, 0, 0]);
+    chunk(&mut out, b"IHDR", &header);
+    chunk(&mut out, b"IDAT", &zlib);
+    chunk(&mut out, b"IEND", &[]);
+    out
+}
+
+fn base64(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for group in bytes.chunks(3) {
+        let n = group.iter().enumerate().fold(0u32, |n, (at, byte)| n | u32::from(*byte) << (16 - 8 * at));
+        for at in 0..4 {
+            if at <= group.len() {
+                out.push(char::from(ALPHABET[(n >> (18 - 6 * at) & 63) as usize]));
+            } else {
+                out.push('=');
+            }
+        }
+    }
+    out
+}
+
+fn png_output(data: &str, text: &str) -> Value {
+    json!({ "output_type": "display_data", "data": { "image/png": data, "text/plain": text }, "metadata": {} })
+}
+
+/// Image outputs are decoded off the window's thread: a new output is still being decoded when
+/// the notebook changes and drawn once that is done; a truncated PNG and data that is not base64
+/// draw their text and nothing panics.
+#[gpui_kit::test]
+async fn image_outputs_are_decoded_off_the_windows_thread_and_broken_ones_show_their_text(cx: &mut TestAppContext) {
+    let valid = base64(&png(2, 2));
+    let truncated = valid[..valid.len() / 2].to_owned();
+    let open = open(
+        cx,
+        vec![
+            cell("c1", "code", "a", vec![png_output(&valid, "a figure")]),
+            cell("c2", "code", "b", vec![png_output(&truncated, "a cut figure")]),
+            cell("c3", "code", "c", vec![png_output("not base64 at all!", "no figure")]),
+        ],
+    );
+    let view = open.view.clone();
+    open.cx.run_until_parked();
+    assert_eq!(view.read_with(open.cx, |view, _| view.drawn_output_images("c1")), 1);
+    assert_eq!(view.read_with(open.cx, |view, _| view.drawn_output_images("c2")), 1);
+    assert_eq!(view.read_with(open.cx, |view, _| view.drawn_output_images("c3")), 0);
+    let texts = view.read_with(open.cx, |view, cx| view.output_texts("c3", cx));
+    assert_eq!(texts, ["no figure"]);
+    let other = base64(&png(3, 1));
+    let changed = snapshot(vec![cell("c1", "code", "a", vec![png_output(&other, "another figure")])], 2);
+    open.model.update(open.cx, |model, cx| model.load_opened(changed, cx));
+    assert!(view.read_with(open.cx, |view, _| view.decoding_images()), "the decoding was handed off");
+    open.cx.run_until_parked();
+    assert!(!view.read_with(open.cx, |view, _| view.decoding_images()));
+    assert_eq!(view.read_with(open.cx, |view, _| view.drawn_output_images("c1")), 1);
 }

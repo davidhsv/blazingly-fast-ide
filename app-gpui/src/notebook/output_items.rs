@@ -179,8 +179,7 @@ fn bundle_items(bundle: &Map<String, Value>, out: &mut Vec<OutputItem>) {
     }
     if !javascript.is_empty() {
         out.push(OutputItem::InertJavaScript { source: javascript });
-    }
-    if !supported && javascript.is_empty() {
+    } else if !supported {
         let types: Vec<&str> = bundle.keys().map(String::as_str).collect();
         out.push(OutputItem::Notice {
             text: "Unsupported output MIME type; original data is preserved.",

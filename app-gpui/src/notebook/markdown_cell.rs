@@ -152,9 +152,73 @@ pub fn attachment_names(blocks: &[PreviewBlock]) -> Vec<String> {
     names
 }
 
+static DEFINITION: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^ {0,3}\[([^\]]+)\]:[ \t]*<?([^\s<>()]+)>?(?:[ \t]+.*)?$").expect("valid regex"));
+static REFERENCE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(!?)\[([^\[\]]*)\]\[([^\[\]]*)\]").expect("valid regex"));
+
+/// Reference labels match case-insensitively with runs of white space collapsed.
+fn label_key(label: &str) -> String {
+    label.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+}
+
+/// The source with full and collapsed references (`![alt][label]`, `[text][]`) written inline and
+/// their definitions blanked, as the renderer reads only inline destinations. Lines inside code
+/// fences stay as they are; a blanked definition keeps its line, so block lines do not move.
+fn inline_references(source: &str) -> String {
+    enum Line<'a> {
+        Definition,
+        Code(&'a str),
+        Text(&'a str),
+    }
+    let mut definitions: HashMap<String, String> = HashMap::new();
+    let mut fence: Option<&str> = None;
+    let mut lines: Vec<Line> = Vec::new();
+    for line in source.split('\n') {
+        let trimmed = line.trim_start();
+        let marker = ["```", "~~~"].into_iter().find(|marker| trimmed.starts_with(marker));
+        if fence.is_some() || marker.is_some() {
+            match (fence, marker) {
+                (Some(open), Some(marker)) if open == marker => fence = None,
+                (None, Some(marker)) => fence = Some(marker),
+                _ => {}
+            }
+            lines.push(Line::Code(line));
+        } else if let Some(found) = DEFINITION.captures(line) {
+            definitions.entry(label_key(&found[1])).or_insert_with(|| found[2].to_owned());
+            lines.push(Line::Definition);
+        } else {
+            lines.push(Line::Text(line));
+        }
+    }
+    if definitions.is_empty() {
+        return source.to_owned();
+    }
+    let inline = |found: &regex::Captures| {
+        let label = if found[3].is_empty() { &found[2] } else { &found[3] };
+        match definitions.get(&label_key(label)) {
+            Some(destination) => format!("{}[{}]({destination})", &found[1], &found[2]),
+            None => found[0].to_owned(),
+        }
+    };
+    lines
+        .into_iter()
+        .map(|line| match line {
+            Line::Definition => String::new(),
+            Line::Code(line) => line.to_owned(),
+            Line::Text(line) => REFERENCE.replace_all(line, &inline).into_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn rendered(source: &str) -> Vec<PreviewBlock> {
+    render_markdown(&inline_references(source))
+}
+
 /// The cell's preview: the rendered blocks with their images resolved against `attachments`.
 pub fn markdown_blocks(source: &str, attachments: &Value) -> Vec<PreviewBlock> {
-    render_markdown(source)
+    rendered(source)
         .into_iter()
         .map(|block| PreviewBlock { line: block.line, nodes: resolve_nodes(&block.nodes, attachments) })
         .collect()
@@ -177,6 +241,8 @@ fn referenced_images(names: &[String], attachments: &Value) -> String {
 
 struct Cached {
     source: String,
+    /// The attachments the source references, read before they were resolved to `data:` URLs.
+    names: Vec<String>,
     key: String,
     blocks: Rc<Vec<PreviewBlock>>,
 }
@@ -194,8 +260,8 @@ impl MarkdownCache {
     /// attachment's image changed.
     pub fn blocks(&mut self, id: &str, source: &str, attachments: &Value) -> Rc<Vec<PreviewBlock>> {
         let names = match self.cells.get(id) {
-            Some(cached) if cached.source == source => attachment_names(&cached.blocks),
-            _ => attachment_names(&render_markdown(source)),
+            Some(cached) if cached.source == source => cached.names.clone(),
+            _ => attachment_names(&rendered(source)),
         };
         let key = if names.is_empty() { String::new() } else { referenced_images(&names, attachments) };
         if let Some(cached) = self.cells.get(id).filter(|cached| cached.source == source && cached.key == key) {
@@ -203,7 +269,7 @@ impl MarkdownCache {
         }
         let blocks = Rc::new(markdown_blocks(source, attachments));
         self.built += 1;
-        self.cells.insert(id.to_owned(), Cached { source: source.to_owned(), key, blocks: blocks.clone() });
+        self.cells.insert(id.to_owned(), Cached { source: source.to_owned(), names, key, blocks: blocks.clone() });
         blocks
     }
 
@@ -245,5 +311,15 @@ mod tests {
             })
             .collect();
         assert!(text.contains("remote") && text.contains("local"), "{text}");
+    }
+
+    #[test]
+    fn references_are_written_inline_and_code_fences_are_left_alone() {
+        let source = "See [docs][D] and ![chart][].\n\n[d]: https://example.test/docs \"Docs\"\n[chart]: <attachment:c.png>\n\n```\n[x][d]\n[d]: kept\n```";
+        assert_eq!(
+            inline_references(source),
+            "See [docs](https://example.test/docs) and ![chart](attachment:c.png).\n\n\n\n\n```\n[x][d]\n[d]: kept\n```"
+        );
+        assert_eq!(inline_references("[a][missing]"), "[a][missing]");
     }
 }

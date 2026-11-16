@@ -107,6 +107,12 @@ impl NotebookModel {
         self.session.cells()
     }
 
+    /// The cells the backend acknowledged, read in place: drawing a notebook never copies its
+    /// outputs or attachments, which can be tens of megabytes.
+    pub fn acknowledged_cells(&self) -> &[NotebookCell] {
+        self.session.state().snapshot.as_ref().map_or(&[], |snapshot| snapshot.cells.as_slice())
+    }
+
     pub fn pending_sources(&self) -> Vec<(String, String)> {
         self.session.pending_sources()
     }
@@ -285,9 +291,10 @@ impl NotebookModel {
             }
         }
         // The cells of the snapshot may have changed: forget the state of cells that are gone.
-        let live: HashSet<String> = self.session.cells().into_iter().map(|cell| cell.id).collect();
-        self.markdown_editing.retain(|id| live.contains(id));
-        if self.selected.as_ref().is_some_and(|id| !live.contains(id)) {
+        let cells = self.session.state().snapshot.as_ref().map_or(&[][..], |snapshot| snapshot.cells.as_slice());
+        let live: HashSet<&str> = cells.iter().map(|cell| cell.id.as_str()).collect();
+        self.markdown_editing.retain(|id| live.contains(id.as_str()));
+        if self.selected.as_deref().is_some_and(|id| !live.contains(id)) {
             self.selected = None;
         }
         cx.notify();

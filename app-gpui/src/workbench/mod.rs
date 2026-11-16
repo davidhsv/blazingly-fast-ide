@@ -47,6 +47,7 @@ mod log_window;
 pub mod main_toolbar;
 pub mod menu;
 pub mod menu_spec;
+mod notebook;
 pub mod notification_balloons;
 pub mod notifications;
 pub mod notifications_view;
@@ -610,6 +611,7 @@ pub fn register_actions(cx: &mut App) {
     annotate::register_actions(registry);
     shelf::register_actions(registry);
     edit_actions::register_actions(registry);
+    notebook::register_actions(registry);
     commit::register_actions(registry);
     log_window::register_actions(registry);
     log_actions::register_actions(registry);
@@ -1884,7 +1886,7 @@ impl Workbench {
         }
     }
 
-    /// Saves every unsaved editor; the first failure's message, if any.
+    /// Saves every unsaved editor and notebook; the first failure's message, if any.
     fn save_all(&self, cx: &App) -> impl Future<Output = Result<(), String>> + 'static + use<> {
         let saving: Vec<_> = self
             .editors()
@@ -1892,9 +1894,19 @@ impl Workbench {
             .filter(|editor| editor.read(cx).is_dirty())
             .map(|editor| editor.read(cx).save(cx))
             .collect();
+        // The notebooks are saved when the future runs, outside the update that asked for it.
+        let app = cx.to_async();
+        let label = self.label.clone();
         async move {
             let mut failure = None;
             for save in saving {
+                match save.await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => failure = failure.or(Some(error.message)),
+                    Err(error) => failure = failure.or(Some(error.to_string())),
+                }
+            }
+            for save in app.update(|cx| notebook::save_notebooks(&label, cx)) {
                 match save.await {
                     Ok(Ok(())) => {}
                     Ok(Err(error)) => failure = failure.or(Some(error.message)),
@@ -4429,6 +4441,7 @@ mod tests {
     mod proofs21_shell;
     mod proofs22_settings_units;
     mod proofs23_e2e_terminal_groups;
+    mod proofs24_e2e_notebook;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

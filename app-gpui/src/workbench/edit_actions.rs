@@ -52,7 +52,11 @@ fn run(
     window: &mut Window,
     cx: &mut App,
 ) -> anyhow::Result<()> {
-    // Documents keep no history apart from their editor's: the editor's chain answers for them.
+    // A notebook keeps its history in the backend: Undo and Redo while it has the keyboard go there.
+    if super::notebook::document_history(command, window, cx) {
+        return Ok(());
+    }
+    // Other documents keep no history apart from their editor's: the editor's chain answers for them.
     match route_edit_command(command, edit_focus(window, cx), |_| false) {
         EditRoute::DocumentHistory | EditRoute::EditorHistory => previous.run_handler(call, window, cx),
         EditRoute::Focused => match edit_target::edit(command, window, cx) {

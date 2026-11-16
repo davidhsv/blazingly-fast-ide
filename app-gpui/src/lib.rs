@@ -23,6 +23,7 @@ pub mod github;
 pub mod http_client;
 #[cfg(debug_assertions)]
 pub mod inspect;
+pub mod notebook;
 pub mod platform;
 pub mod platform_more;
 pub mod plugin_models;

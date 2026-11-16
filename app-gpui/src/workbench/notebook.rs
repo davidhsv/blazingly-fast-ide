@@ -23,11 +23,13 @@ use crate::features_b::viewers::render::{LinkTarget, resolve_link};
 use crate::notebook::model::{Environment, NotebookModel, NotebookModelEvent, NotebookOp};
 use crate::notebook::view::{NotebookView, NotebookViewEvent};
 use crate::notebook::{NOTEBOOK_KIND, notebook_input};
+use crate::platform::actions::{Action, ActionRegistry};
 use crate::platform::i18n::Localization;
 use crate::settings_view::pages::languages_sdk::{SdkDetection, ToolchainKind};
 use futures::StreamExt;
 use gpui_kit::{
-    App, AsyncApp, Context, Entity, Focusable, Global, PromptLevel, Subscription, WeakEntity, Window, WindowId,
+    App, AppContext, AsyncApp, Context, Entity, Focusable, Global, PromptLevel, Subscription, WeakEntity, Window,
+    WindowId,
 };
 use ide_core::{IdeEvent, IdeResult};
 use ide_host::ops::Channel;
@@ -278,8 +280,9 @@ fn execute(
     answer_with(model, ticket, work, snapshot, cx);
 }
 
-/// The interpreters a notebook can run with and the project's own; a test answers them through
-/// [`SdkDetection`] instead of the backend's detection.
+/// The interpreters a notebook can run with and the project's own. The backend's detection runs
+/// the interpreters it finds, so a test answers in its place with an [`SdkDetection`], and a test
+/// build without one finds none and runs nothing.
 fn environments(label: String, model: WeakEntity<NotebookModel>, ticket: u64, cx: &mut App) {
     if let Some(test) = cx.try_global::<SdkDetection>().cloned() {
         let found: Vec<Environment> = test
@@ -294,6 +297,15 @@ fn environments(label: String, model: WeakEntity<NotebookModel>, ticket: u64, cx
             model.update(cx, |model, cx| {
                 model.set_environments(found);
                 model.answer(ticket, Ok(Answer::Python(test.python.clone())), cx);
+            });
+        }
+        return;
+    }
+    if cfg!(test) {
+        if let Some(model) = model.upgrade() {
+            model.update(cx, |model, cx| {
+                model.set_environments(Vec::new());
+                model.answer(ticket, Ok(Answer::Python(None)), cx);
             });
         }
         return;
@@ -419,8 +431,38 @@ pub(super) fn document_history(command: EditCommand, window: &mut Window, cx: &m
     true
 }
 
-/// Saves every unsaved notebook of the window `label`: what Save All waits for besides the text
-/// editors.
+/// Puts Save All (`file.save`) in front of the editors' handler: the window's unsaved notebooks are
+/// saved too, a failure showing in the notebook's error bar; with a notebook tab in front and no text
+/// editor, the notebooks alone are saved.
+pub(super) fn register_actions(registry: &mut ActionRegistry) {
+    let Some(previous) = registry.get("file.save") else { return };
+    let meta = previous.meta.clone();
+    registry.register(Action::new(meta, move |call, window, cx| {
+        let Some(workbench) = for_window(window, cx) else { return previous.run_handler(call, window, cx) };
+        let (label, notebook_in_front) = {
+            let workbench = workbench.read(cx);
+            (workbench.label.clone(), workbench.notebook_view().is_some())
+        };
+        let models: Vec<Entity<NotebookModel>> = cx
+            .default_global::<OpenNotebooks>()
+            .0
+            .values()
+            .filter(|open| open.label == label && !open.closing)
+            .map(|open| open.model.clone())
+            .collect();
+        for model in models {
+            model.update(cx, |model, cx| {
+                if model.is_dirty() {
+                    model.invoke(NotebookOp::Save, cx);
+                }
+            });
+        }
+        if notebook_in_front { Ok(()) } else { previous.run_handler(call, window, cx) }
+    }));
+}
+
+/// Saves every unsaved notebook of the window `label`: what the operations that save first wait
+/// for besides the text editors.
 pub(super) fn save_notebooks(label: &str, cx: &mut App) -> Vec<crate::notebook::model::Outcome> {
     let models: Vec<Entity<NotebookModel>> = cx
         .default_global::<OpenNotebooks>()

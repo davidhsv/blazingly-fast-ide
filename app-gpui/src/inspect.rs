@@ -20,8 +20,8 @@
 //!   tap of Shift);
 //! - `wait <milliseconds>`;
 //! - `mark <name>`: appends `mark <name> <unix milliseconds>` to the log;
-//! - `no-toolchains`: from now on the Settings pages find no toolchain, so showing them looks
-//!   nothing up and runs no tool of the machine;
+//! - `no-toolchains`: from now on the Settings pages and notebooks find no toolchain, so showing
+//!   them looks nothing up and runs no tool of the machine;
 //! - `quit`.
 //!
 //! Each step runs from this module's own task, never from inside an update of the window it
@@ -67,7 +67,7 @@ pub enum Step {
     Modifiers(Modifiers),
     Wait(Duration),
     Mark(String),
-    /// The Settings pages find no toolchain from now on.
+    /// The Settings pages and notebooks find no toolchain from now on.
     NoToolchains,
     Quit,
 }

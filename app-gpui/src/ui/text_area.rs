@@ -101,6 +101,8 @@ pub struct TextArea {
     redo: Vec<Snapshot>,
     last_edit: Option<EditKind>,
     blur: Option<Subscription>,
+    /// Draws the text in the theme's code font instead of the interface font (source code).
+    code_font: bool,
 }
 
 impl EventEmitter<TextAreaEvent> for TextArea {}
@@ -195,9 +197,13 @@ fn metrics(cx: &App) -> (Pixels, Pixels) {
     (font_size, font_size * 1.5)
 }
 
-fn ui_font(cx: &App) -> Font {
-    let family = crate::theme::installed_fonts::theme_family(cx, "font-ui", ".SystemUIFont").to_string();
-    font(SharedString::from(family))
+fn text_font(code: bool, cx: &App) -> Font {
+    let family = if code {
+        crate::theme::installed_fonts::theme_family(cx, "font-mono", theme::fonts::BUNDLED_MONO_FAMILY)
+    } else {
+        crate::theme::installed_fonts::theme_family(cx, "font-ui", ".SystemUIFont")
+    };
+    font(SharedString::from(family.to_string()))
 }
 
 /// One visual row: a whole line, or the part of a line between two soft wraps.
@@ -302,9 +308,9 @@ impl Laid {
 }
 
 /// Shapes `text` line by line, wrapping at `wrap` when given, and splits it into visual rows.
-fn lay_out(text: &str, wrap: Option<Pixels>, color: Hsla, window: &Window, cx: &App) -> Laid {
+fn lay_out(text: &str, wrap: Option<Pixels>, color: Hsla, code: bool, window: &Window, cx: &App) -> Laid {
     let (font_size, line_height) = metrics(cx);
-    let font = ui_font(cx);
+    let font = text_font(code, cx);
     let wrap = wrap.filter(|width| *width > Pixels::ZERO);
     let (mut lines, mut rows) = (Vec::new(), Vec::new());
     let mut start = 0;
@@ -368,7 +374,14 @@ impl TextArea {
             redo: Vec::new(),
             last_edit: None,
             blur: None,
+            code_font: false,
         }
+    }
+
+    /// Draws the text in the theme's code font (source code) or the interface font.
+    pub fn set_code_font(&mut self, code: bool, cx: &mut Context<Self>) {
+        self.code_font = code;
+        cx.notify();
     }
 
     /// The text shown, muted, while the area is empty.
@@ -610,7 +623,7 @@ impl TextArea {
     /// The text laid out as it was last painted (at the same wrap width).
     fn laid(&self, window: &Window, cx: &App) -> Laid {
         let wrap = self.painted.as_ref().and_then(|painted| painted.wrap);
-        lay_out(&self.text, wrap, theme::color(cx, "fg-strong"), window, cx)
+        lay_out(&self.text, wrap, theme::color(cx, "fg-strong"), self.code_font, window, cx)
     }
 
     /// The start (or the caret's last offset) of the visual row the caret is on.
@@ -1029,9 +1042,9 @@ impl Element for TextAreaElement {
             let area = area.read(cx);
             let wrap = width.filter(|_| area.soft_wrap).map(|width| width - px(CARET_WIDTH));
             let color = theme::color(cx, "fg-strong");
-            let mut rows = lay_out(&area.text, wrap, color, window, cx).rows.len();
+            let mut rows = lay_out(&area.text, wrap, color, area.code_font, window, cx).rows.len();
             if area.text.is_empty() && !area.placeholder.is_empty() {
-                rows = rows.max(lay_out(&area.placeholder, wrap, color, window, cx).rows.len());
+                rows = rows.max(lay_out(&area.placeholder, wrap, color, area.code_font, window, cx).rows.len());
             }
             size(width.unwrap_or(Pixels::ZERO), metrics(cx).1 * rows.clamp(min, max) as f32)
         });
@@ -1051,9 +1064,9 @@ impl Element for TextAreaElement {
         let wrap = area.soft_wrap.then(|| bounds.size.width - px(CARET_WIDTH));
         let (text_color, placeholder_color) =
             if area.disabled { ("fg-faint", "fg-faint") } else { ("fg-strong", "fg-muted") };
-        let laid = lay_out(&area.text, wrap, theme::color(cx, text_color), window, cx);
+        let laid = lay_out(&area.text, wrap, theme::color(cx, text_color), area.code_font, window, cx);
         let placeholder = (area.text.is_empty() && !area.placeholder.is_empty())
-            .then(|| lay_out(&area.placeholder, wrap, theme::color(cx, placeholder_color), window, cx));
+            .then(|| lay_out(&area.placeholder, wrap, theme::color(cx, placeholder_color), area.code_font, window, cx));
         let content = size(laid.width() + px(CARET_WIDTH), laid.height());
         self.area.update(cx, |area, _| {
             area.painted = Some(Painted { bounds, wrap, content });

@@ -210,6 +210,15 @@ pub const TAB_KINDS: &[TabKind] = &[
         icon: crate::vcs::external_log_view::external_log_icon,
         build: super::vcs_text_actions::build_external_log_tab,
     },
+    TabKind {
+        id: crate::notebook::NOTEBOOK_KIND,
+        restorable: true,
+        active_key: None,
+        focus_key: None,
+        title: crate::notebook::notebook_title,
+        icon: crate::notebook::notebook_icon,
+        build: super::notebook::build_notebook_tab,
+    },
 ];
 
 pub fn kind(id: &str) -> Option<&'static TabKind> {
@@ -594,6 +603,9 @@ impl Workbench {
     /// an image in the image viewer, binary or very large content (once the probe says so) in the
     /// hex view.
     pub fn open_project_file(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        if crate::notebook::is_notebook_path(&path.to_string_lossy()) && self.tabs().is_some() {
+            return self.open_notebook(path, window, cx);
+        }
         let Some(tabs) = self.tabs() else { return };
         let key = path.to_string_lossy().into_owned();
         let pane = tabs.active_pane.clone();
