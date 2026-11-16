@@ -25,9 +25,6 @@ const SCHEME_KEYS: [&str; 5] = [
     "editor.boldFontWeight",
 ];
 
-/// The default main and bold weights of code text.
-const DEFAULT_WEIGHTS: (u16, u16) = (400, 700);
-
 /// The token overrides of the scheme for the editors of one language, by the backend's language id:
 /// `(token with its leading --, value)` in order, a later entry for a token winning.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -47,20 +44,15 @@ impl SchemeLanguageTokens {
     }
 }
 
-/// A CSS weight from 100 to 900, rounded to the nearest 50; `default` for a weight of 0 (unset).
-pub fn font_weight_of(weight: u16, default: u16) -> u16 {
-    if weight == 0 {
-        return default;
-    }
+/// A CSS weight from 100 to 900, rounded to the nearest 50. An unset weight never gets here: the
+/// settings fill it with its default.
+pub fn font_weight_of(weight: u16) -> u16 {
     ((f32::from(weight.min(900)) / 50.0).round() as u16 * 50).clamp(100, 900)
 }
 
 /// `--fw-code` and `--fw-code-bold`: the weights code text and its bold runs are drawn with.
 pub fn font_weight_vars(main: u16, bold: u16) -> [(&'static str, String); 2] {
-    [
-        ("--fw-code", font_weight_of(main, DEFAULT_WEIGHTS.0).to_string()),
-        ("--fw-code-bold", font_weight_of(bold, DEFAULT_WEIGHTS.1).to_string()),
-    ]
+    [("--fw-code", font_weight_of(main).to_string()), ("--fw-code-bold", font_weight_of(bold).to_string())]
 }
 
 /// Whether a change of the setting `key` changes the scheme or the weights.
@@ -126,10 +118,14 @@ mod tests {
 
     #[test]
     fn validates_typography_settings_weights() {
-        assert_eq!(font_weight_vars(0, 0), [("--fw-code", "400".to_owned()), ("--fw-code-bold", "700".to_owned())]);
-        assert_eq!((font_weight_of(349, 400), font_weight_of(1200, 700)), (350, 900));
-        assert_eq!(font_weight_of(20, 400), 100);
-        assert_eq!(font_weight_vars(500, 700)[1].1, "700");
+        let defaults = ide_core::settings::EditorSettings::default();
+        assert_eq!(
+            font_weight_vars(defaults.font_weight, defaults.bold_font_weight),
+            [("--fw-code", "400".to_owned()), ("--fw-code-bold", "700".to_owned())]
+        );
+        assert_eq!((font_weight_of(349), font_weight_of(1200)), (350, 900));
+        assert_eq!((font_weight_of(0), font_weight_of(20)), (100, 100));
+        assert_eq!(font_weight_vars(500, defaults.bold_font_weight)[1].1, "700");
         assert_eq!(font_weight_vars(450, 650), [("--fw-code", "450".to_owned()), ("--fw-code-bold", "650".to_owned())]);
     }
 

@@ -647,8 +647,13 @@ mod tests {
         }
         // Whether more time would have been enough tells a slow backend from one that never answers.
         let ran_out = started.elapsed();
+        let servers = super::super::tests::window_lsp_report(cx);
         let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
-        panic!("{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})");
+        panic!(
+            "{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})\n\
+             {servers}\nnow: {}",
+            super::super::tests::window_lsp_report(cx)
+        );
     }
 
     /// Lets the backend work for a while, for asserting that nothing happened.

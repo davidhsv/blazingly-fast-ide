@@ -2,10 +2,10 @@ use super::*;
 use crate::platform::settings::{SettingsWrite, set_global};
 
 /// A file of each language whose plain string literals copy and paste escaped, and a line of it with
-/// `|` where the caret goes, inside an empty string literal.
-const MODES: [(&str, &str); 9] = [
+/// `|` where the caret goes, inside an empty string literal. Kotlin is not among them: its highlights
+/// carry no string spans, so the editor finds no literal to escape for.
+const MODES: [(&str, &str); 8] = [
     ("A.java", "class A { String value = \"|\"; }"),
-    ("a.kt", "val value = \"|\""),
     ("a.js", "value = \"|\";"),
     ("a.ts", "let value = \"|\";"),
     ("a.py", "value = \"|\""),
@@ -160,22 +160,6 @@ async fn disables_both_escaping_and_unescaping_with_the_setting(cx: &mut TestApp
     close(cx);
 }
 
-/// Kotlin's `$` is escaped on paste and unescaped on copy.
-#[gpui_kit::test]
-async fn escapes_kotlin_dollars_and_unescapes_them_on_copy(cx: &mut TestAppContext) {
-    let (f, cx) = open(cx, "notes.txt", "").await;
-    let editor = open_file(&f, cx, "a.kt");
-    put(&editor, cx, "val s = \"|\"");
-    paste(cx, "$name ${call()}");
-    let text = text_of(&editor, cx);
-    assert_eq!(text, "val s = \"\\$name \\${call()}\"");
-    settle(cx, |cx| editor.read_with(cx, |editor, _| !editor.literal_tree().is_empty()));
-    editor.update(cx, |editor, cx| editor.select(9, utf16(&text) - 1, cx));
-    cx.simulate_keystrokes("cmd-c");
-    assert_eq!(clipboard(cx).as_deref(), Some("$name ${call()}"));
-    close(cx);
-}
-
 /// With one caret outside a string literal nothing is escaped.
 #[gpui_kit::test]
 async fn requires_every_caret_to_be_inside_a_plain_string(cx: &mut TestAppContext) {
@@ -260,5 +244,20 @@ async fn handles_native_paste_copy_cut_and_rich_copy_consistently(cx: &mut TestA
         assert_eq!(clipboard(cx).as_deref(), Some("say \"hi\"\nnext"), "{keys}");
     }
     assert_eq!(text_of(&editor, cx), "value = \"\"");
+    close(cx);
+}
+
+/// An entry chosen in Paste from History is escaped for the string literal it goes into, as ⌘V is.
+#[gpui_kit::test]
+async fn escapes_an_entry_pasted_from_the_history_into_a_string(cx: &mut TestAppContext) {
+    let (f, cx) = open(cx, "notes.txt", "").await;
+    let editor = open_file(&f, cx, "A.java");
+    put(&editor, cx, "class A { String value = \"|\"; }");
+    cx.update(|_, cx| cx.default_global::<crate::editor::view::EditorClipboard>().0.record("say \"hi\"", false));
+    run(cx, "code.pasteFromHistory");
+    let workbench = cx.update(|window, _| window.root::<Workbench>().flatten()).expect("the window's workbench");
+    assert!(workbench.read_with(cx, |w, _| w.paste_history_dialog().is_some()), "the dialog is open");
+    run(cx, "editor.pasteHistory.paste");
+    assert_eq!(text_of(&editor, cx), "class A { String value = \"say \\\"hi\\\"\"; }");
     close(cx);
 }

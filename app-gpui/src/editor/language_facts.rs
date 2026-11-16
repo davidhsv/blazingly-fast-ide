@@ -30,14 +30,22 @@ pub struct EditorFacts {
     pub reformat_on_paste: PasteReindent,
     /// Smart Keys › Enter › Insert documentation comment stub.
     pub insert_doc_stub: bool,
+    /// Smart Keys › Escape text on paste: string literals escape what is pasted into them and
+    /// unescape what is copied from them.
+    pub escape_on_paste: bool,
     /// Editor › Font: what the text is drawn with.
     pub font: EditorFont,
     /// Color Scheme › Rainbow brackets: `()`, `[]` and `{}` are coloured by their nesting depth.
     pub rainbow_brackets: bool,
     /// Code Folding › Show code folding outline: the gutter's column of fold chevrons.
     pub fold_outline: bool,
+    /// Appearance › Smooth caret movement: the curve a moved caret glides along; none: it jumps.
+    pub caret_motion: Option<crate::vcs_more::viewer_look::CaretMotion>,
     /// Distraction Free Mode's text width, in characters.
     pub distraction_free_width: u32,
+    /// The columns of the right margin and the visual guides, in order; empty when Appearance › Show
+    /// hard wrap and visual guides is off.
+    pub right_margins: Vec<u32>,
 }
 
 /// The font Editor › Font names for the editor's text.
@@ -122,6 +130,7 @@ impl EditorFacts {
             backspace_unindent: keys.backspace_unindent.clone(),
             reformat_on_paste,
             insert_doc_stub: keys.insert_doc_stub,
+            escape_on_paste: keys.escape_on_paste,
             font: EditorFont {
                 family: editor.font_family.trim().to_owned(),
                 fallback: editor.fallback_font.trim().to_owned(),
@@ -132,7 +141,17 @@ impl EditorFacts {
             },
             rainbow_brackets: editor.rainbow_brackets,
             fold_outline: editor.folding.show_outline,
+            caret_motion: crate::vcs_more::viewer_look::viewer_caret(editor).motion,
             distraction_free_width: editor.appearance.distraction_free_width,
+            right_margins: if editor.appearance.hard_wrap_guides {
+                let hard_wrap = style.and_then(|style| style.hard_wrap_at).filter(|at| *at > 0);
+                super::view::right_margin::margin_columns(
+                    hard_wrap.unwrap_or(editor.code_style.hard_wrap_at),
+                    &editor.code_style.visual_guides,
+                )
+            } else {
+                Vec::new()
+            },
         }
     }
 

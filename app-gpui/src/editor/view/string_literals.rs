@@ -10,7 +10,7 @@ use crate::editor_commands::{Edit, EditState};
 impl Editor {
     /// `paste`, a paste of the clipboard computed on `state`, escaped for the plain string literals its
     /// ranges are in; unchanged where they are not in one.
-    pub(super) fn escaped_paste(&self, state: &EditState, paste: &Edit) -> Edit {
+    pub(crate) fn escaped_paste(&self, state: &EditState, paste: &Edit) -> Edit {
         escape_paste(state, &self.literal_tree(), self.language.as_str(), self.facts.escape_on_paste, paste)
     }
 

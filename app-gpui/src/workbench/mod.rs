@@ -4507,11 +4507,12 @@ mod tests {
         }
         // The state when the wait runs out, and whether more time would have been enough.
         let report = window_vcs_report(cx);
+        let servers = window_lsp_report(cx);
         let ran_out = started.elapsed();
         let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
         panic!(
             "the backend did not deliver within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})\n\
-             state when it ran out: {report}"
+             state when it ran out: {report}\n{servers}"
         );
     }
 
@@ -7993,13 +7994,15 @@ mod tests {
         // The state when the wait runs out, and whether more time would have been enough.
         let report = window_vcs_report(cx);
         let agents = window_agents_report(cx);
+        let servers = window_lsp_report(cx);
         let ran_out = started.elapsed();
         let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
         panic!(
             "{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})\n\
-             state when it ran out: {report}\n{agents}\nstate now: {}\n{}",
+             state when it ran out: {report}\n{agents}\n{servers}\nstate now: {}\n{}\n{}",
             window_vcs_report(cx),
-            window_agents_report(cx)
+            window_agents_report(cx),
+            window_lsp_report(cx)
         );
     }
 
@@ -8132,6 +8135,39 @@ mod tests {
                 })
             },
         )
+    }
+
+    /// The language-server side of the window's project: each server as the backend has it (state,
+    /// process) and as the window last heard of it (its message), and what the fake server of the
+    /// test, if it has one, received and answered.
+    pub(super) fn window_lsp_report(cx: &mut VisualTestContext) -> String {
+        let Some(workbench) = cx.update(|window, _| window.root::<Workbench>().flatten()) else {
+            return "language servers: the window shows no workbench".to_owned();
+        };
+        let (label, heard) = workbench.read_with(cx, |w, _| {
+            let heard: Vec<String> = w
+                .language_server_entries()
+                .iter()
+                .map(|entry| format!("{} {:?} {:?}", entry.name, entry.status, entry.message))
+                .collect();
+            (w.label.clone(), heard)
+        });
+        let Some((host, config)) = cx.update(|_, cx| {
+            cx.try_global::<Backend>().map(|backend| (backend.host.clone(), backend.dirs.config.clone()))
+        }) else {
+            return "language servers: no backend".to_owned();
+        };
+        let servers = match ide_host::ops::lsp::lsp_servers(&host, &label) {
+            Ok(servers) => servers
+                .iter()
+                .map(|s| format!("{} {:?} pid={:?} languages={:?}", s.name, s.status, s.pid, s.languages))
+                .collect::<Vec<_>>()
+                .join("; "),
+            Err(error) => format!("unreadable: {}", error.message),
+        };
+        let fake = crate::editor::intelligence::fake_server::FakeServer::report_for(&config)
+            .unwrap_or_else(|| "no fake server".to_owned());
+        format!("language servers: backend: [{servers}]; window heard: {heard:?}\n  {fake}")
     }
 
     pub(super) fn click_on(cx: &mut VisualTestContext, selector: &'static str) {

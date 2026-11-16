@@ -135,8 +135,13 @@ async fn skips_binary_and_unchanged_siblings_and_restores_after_changing_preview
     cx.simulate_keystrokes("shift-f7 shift-f7");
     wait_long(cx, "a.ts", |cx| at(&workbench, "a.ts", "1 of 1 differences", cx));
     assert_eq!(diff_tabs(&workbench, cx).len(), 1, "each file took the preview tab");
+    assert!(cx.debug_bounds("diff-toolbar").is_some(), "the diff's toolbar is drawn before Restore Size");
 
     click_on(cx, "diff-maximize");
     assert_eq!(maximized_side(&workbench, cx), Some(Anchor::Left));
     assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(PROJECT_TOOL_WINDOW)));
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("diff-toolbar").is_none(), "the maximized Project view covers the diff's toolbar");
+    let root_row: &'static str = Box::leak(format!("project-row:{}", root.to_string_lossy()).into_boxed_str());
+    assert!(cx.debug_bounds(root_row).is_some(), "the Project tree is drawn");
 }

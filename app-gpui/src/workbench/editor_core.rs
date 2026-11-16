@@ -363,6 +363,8 @@ impl Workbench {
         }
         let read_only = editor.read(cx).is_read_only();
         let dialog = cx.new(|cx| PasteHistoryDialog::new(history.entries().to_vec(), read_only, cx));
+        let look = crate::editor::paste_history_view::PreviewLook::of(editor.read(cx), cx);
+        dialog.update(cx, |dialog, cx| dialog.set_preview_look(look, cx));
         let target = editor.downgrade();
         let events = cx.subscribe_in(&dialog, window, move |workbench, _, event: &PasteHistoryEvent, window, cx| {
             match event {
@@ -389,7 +391,8 @@ impl Workbench {
 /// history and on the clipboard, and pastes as a paste of the clipboard does.
 fn paste_into(editor: &Entity<Editor>, text: &str, linewise: bool, cx: &mut App) {
     let state = editor.read(cx).edit_state();
-    let edit = paste_chosen(&state, &mut cx.default_global::<EditorClipboard>().0, text, linewise);
+    let edit = paste_chosen(&state, &mut cx.default_global::<EditorClipboard>().0, text, linewise)
+        .map(|edit| editor.read(cx).escaped_paste(&state, &edit));
     cx.write_to_clipboard(ClipboardItem::new_string(text.to_owned()));
     if let Some(edit) = edit {
         editor.update(cx, |editor, cx| {
@@ -413,6 +416,7 @@ mod tests {
     use std::path::Path;
     use std::time::Duration;
     mod proofs11_read_only;
+    mod proofs23_paste_preview_look;
     mod proofs7_read_only;
 
     fn start(cx: &mut TestAppContext) -> tempfile::TempDir {

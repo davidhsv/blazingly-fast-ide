@@ -69,6 +69,7 @@ pub fn init(cx: &mut App) -> anyhow::Result<()> {
     backend::Backend::init(dirs.clone(), cx)?;
     cx.set_global(platform::storage::UiStorage::load(&dirs.config));
     theme::appearance::init(cx);
+    theme::scheme_runtime::init(cx);
     workbench::apply_keymap_settings(cx);
     // Before anything starts a process: see `quit_on_interrupt` for why the handler is needed even
     // when no interrupt ever comes.

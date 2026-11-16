@@ -1168,7 +1168,14 @@ mod tests {
             }
             std::thread::sleep(Duration::from_millis(10));
         }
-        panic!("{what} did not happen within thirty seconds");
+        let trace = cx.update(|window, cx| {
+            window.root::<Workbench>().flatten().map(|w| w.read(cx).refactorings.trace.join("\n  "))
+        });
+        panic!(
+            "{what} did not happen within thirty seconds\nruns:\n  {}\n{}",
+            trace.unwrap_or_default(),
+            super::super::tests::window_lsp_report(cx)
+        );
     }
 
     fn range(line: u32, from: u32, to: u32) -> Value {
@@ -1341,11 +1348,12 @@ mod tests {
                 panic!(
                     "{action} did not happen within thirty seconds: text {:?}, version {version}, selections \
                      {selections:?}, hint {:?}, list open {}, {} asked {only} (before {asked})\nruns:\n  {trace}\n\
-                     the server got: {methods:?}",
+                     the server got: {methods:?}\n{}",
                     f.text(cx),
                     f.hint(cx),
                     !f.no_list(cx),
                     f.asked_only(&[only]),
+                    super::super::tests::window_lsp_report(cx),
                 );
             }
             assert_eq!(f.asked_only(&[only]), asked + 1, "{action} asks the server for {only}");

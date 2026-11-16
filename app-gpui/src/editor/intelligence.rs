@@ -1537,6 +1537,9 @@ def send(v):
     body = json.dumps(v).encode()
     sys.stdout.buffer.write(('Content-Length: %d\r\n\r\n' % len(body)).encode() + body)
     sys.stdout.buffer.flush()
+    if 'id' in v:
+        with open(log_path + '.answered', 'a') as f:
+            f.write(json.dumps({'id': v['id'], 'empty': v.get('result') is None}) + '\n')
 def script():
     try:
         with open(script_path) as f:
@@ -1608,6 +1611,10 @@ while True:
     send({'jsonrpc': '2.0', 'id': msg['id'], 'result': result})
 "#;
 
+    /// Every fake server installed in this process: the configuration directory it was installed
+    /// under, its log and its answers, so a wait that runs out can find the one of its window.
+    static INSTALLED: std::sync::Mutex<Vec<(PathBuf, PathBuf, PathBuf)>> = std::sync::Mutex::new(Vec::new());
+
     /// Where a test's fake server lives: its script, its answers and its log.
     pub(crate) struct FakeServer {
         pub answers: PathBuf,
@@ -1633,7 +1640,67 @@ while True:
                 log.to_string_lossy(),
             );
             std::fs::write(languages.join("mock.toml"), toml).expect("the language is written");
+            let mut installed = INSTALLED.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            installed.push((config.to_path_buf(), log.clone(), answers.clone()));
             Self { answers, log }
+        }
+
+        /// What the fake server installed under `config` received and answered, for the report of a
+        /// wait that ran out: each request with its id and whether an answer went back, the last
+        /// document syncs with their versions, and the methods its answers file holds now.
+        pub(crate) fn report_for(config: &Path) -> Option<String> {
+            let installed = INSTALLED.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let (_, log, answers) = installed.iter().rev().find(|(at, _, _)| at == config)?.clone();
+            drop(installed);
+            let lines = |path: &Path| -> Vec<serde_json::Value> {
+                std::fs::read_to_string(path)
+                    .unwrap_or_default()
+                    .lines()
+                    .filter_map(|line| serde_json::from_str(line).ok())
+                    .collect()
+            };
+            let received = lines(&log);
+            let answered = lines(&PathBuf::from(format!("{}.answered", log.display())));
+            let requests: Vec<String> = received
+                .iter()
+                .filter(|message| message.get("id").is_some() && message.get("method").is_some())
+                .map(|message| {
+                    let id = &message["id"];
+                    let reply = answered.iter().find(|reply| &reply["id"] == id);
+                    let state = match reply {
+                        None => "no answer",
+                        Some(reply) if reply["empty"] == true => "answered null",
+                        Some(_) => "answered",
+                    };
+                    format!("#{id} {} {state}", message["method"].as_str().unwrap_or("?"))
+                })
+                .collect();
+            let syncs: Vec<String> = received
+                .iter()
+                .filter(|message| {
+                    matches!(message["method"].as_str(), Some("textDocument/didOpen" | "textDocument/didChange"))
+                })
+                .map(|message| {
+                    let document = &message["params"]["textDocument"];
+                    let name = document["uri"].as_str().and_then(|uri| uri.rsplit('/').next()).unwrap_or("?");
+                    format!("{} {name} v{}", message["method"].as_str().unwrap_or("?"), document["version"])
+                })
+                .collect();
+            let keys: Vec<String> = std::fs::read_to_string(&answers)
+                .ok()
+                .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+                .and_then(|value| value.as_object().map(|map| map.keys().cloned().collect()))
+                .unwrap_or_default();
+            let skip = |len: usize| len.saturating_sub(16);
+            Some(format!(
+                "fake server: {} messages received; requests (last 16 of {}): {:?}\n  document syncs (last 16 of \
+                 {}): {:?}\n  answers file holds: {keys:?}",
+                received.len(),
+                requests.len(),
+                &requests[skip(requests.len())..],
+                syncs.len(),
+                &syncs[skip(syncs.len())..],
+            ))
         }
 
         /// Makes the server answer `answers`: method → result, or `{"by_call": [result, …]}` (one per

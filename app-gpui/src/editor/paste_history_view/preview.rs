@@ -157,7 +157,10 @@ impl PasteHistoryDialog {
                     strikethrough: None,
                 })
                 .collect();
-            let row = div().h(look.line_height).text_size(look.font_size).line_height(look.line_height);
+            // A long line runs on past the preview's edge, as in the editor, rather than wrapping
+            // onto the row below it.
+            let row =
+                div().h(look.line_height).whitespace_nowrap().text_size(look.font_size).line_height(look.line_height);
             if text.is_empty() {
                 row.child(SharedString::from(" ")).text_color(plain).into_any_element()
             } else {

@@ -1232,6 +1232,12 @@ impl Workbench {
         self.carry_out_servers(effects, cx);
     }
 
+    /// The language servers as the window last heard of them, with each one's message.
+    #[cfg(test)]
+    pub(super) fn language_server_entries(&self) -> &[crate::code_insight::servers::ServerEntry] {
+        self.code_insight.servers.list()
+    }
+
     /// A `LanguageServerRemoved` event of the backend.
     pub(super) fn language_server_removed(&mut self, server: ServerId, cx: &mut Context<Self>) {
         self.code_insight.servers.removed(server);

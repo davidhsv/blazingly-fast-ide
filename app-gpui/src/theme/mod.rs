@@ -7,6 +7,7 @@ pub mod fonts;
 pub mod icls;
 pub mod icons;
 pub mod installed_fonts;
+pub mod scheme_runtime;
 pub mod themes;
 pub mod tokens;
 pub mod zoom;

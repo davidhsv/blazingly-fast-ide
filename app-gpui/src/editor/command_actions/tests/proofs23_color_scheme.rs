@@ -46,15 +46,19 @@ fn hex(r: u8, g: u8, b: u8) -> Hsla {
     Rgba { r: f32::from(r) / 255.0, g: f32::from(g) / 255.0, b: f32::from(b) / 255.0, a: 1.0 }.into()
 }
 
-/// Typography Settings' weights are on the theme's root, follow a change, and go back to 400 and 700.
+/// Typography Settings' weights are on the theme's root, follow a change, and go back to 400 and 700;
+/// the editor draws its text in the main weight rounded to 50.
 #[gpui_kit::test]
 async fn sets_the_configured_weights_on_the_root_and_follows_settings_changes(cx: &mut TestAppContext) {
-    let (_f, cx) = open(cx, "main.rs", "fn main() {}\n").await;
+    let (f, cx) = open(cx, "main.rs", "fn main() {}\n").await;
     apply_scheme(cx);
     assert_eq!((root(cx, "fw-code"), root(cx, "fw-code-bold")), (Some("400".into()), Some("700".into())));
     write(cx, "editor.fontWeight", serde_json::json!(300));
     write(cx, "editor.boldFontWeight", serde_json::json!(800));
     assert_eq!((root(cx, "fw-code"), root(cx, "fw-code-bold")), (Some("300".into()), Some("800".into())));
+    write(cx, "editor.fontWeight", serde_json::json!(349));
+    assert_eq!(root(cx, "fw-code"), Some("350".into()));
+    settle(cx, |cx| font_of(&f, cx, "main").map(|(weight, _)| weight) == Some(FontWeight(350.0)));
     write(cx, "editor.fontWeight", serde_json::json!(400));
     write(cx, "editor.boldFontWeight", serde_json::json!(700));
     assert_eq!((root(cx, "fw-code"), root(cx, "fw-code-bold")), (Some("400".into()), Some("700".into())));

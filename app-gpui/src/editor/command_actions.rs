@@ -283,6 +283,14 @@ mod tests {
     use std::collections::BTreeSet;
     use std::time::Duration;
 
+    mod proofs23_clipboard_read_only;
+    mod proofs23_color_scheme;
+    mod proofs23_column_mode_drag;
+    mod proofs23_doc_comment_tags;
+    mod proofs23_right_margin;
+    mod proofs23_smooth_caret;
+    mod proofs23_string_clipboard;
+
     /// A single-file window on a file of `name` with `text`, the editor with the keyboard.
     struct Fixture {
         editor: Entity<Editor>,

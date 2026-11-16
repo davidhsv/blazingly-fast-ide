@@ -24,13 +24,15 @@ fn dark(cx: &mut VisualTestContext) {
 }
 
 /// A JavaDoc comment draws its block tag, the name `@param` takes and its HTML markup in the colours of
-/// the doc comment tags, and the rest of the comment in the comment's colour.
+/// the doc comment tags, and the rest of the comment in the colour its opening is drawn in.
 #[gpui_kit::test]
 async fn styles_the_tags_with_the_highlight_styles_classes_inside_the_comments_own(cx: &mut TestAppContext) {
-    let (f, cx) = open(cx, "A.java", "/**\n * See <b>this</b>.\n * @param id the id\n */\nclass A {}\n").await;
+    let (f, cx) =
+        open(cx, "A.java", "package a;\n\n/**\n * See <b>this</b>.\n * @param id the id\n */\nclass A {}\n").await;
     f.highlighted(cx);
     dark(cx);
-    let comment = token(cx, "syn-doc-comment");
+    // The comment's own colour, as its opening is drawn.
+    let comment = colour_of(&f, cx, "/**").expect("the comment is painted");
     assert_eq!(colour_of(&f, cx, "See"), Some(comment));
     assert_eq!(colour_of(&f, cx, "@param"), Some(token(cx, "syn-doc-comment-tag")));
     assert_eq!(colour_of(&f, cx, "id the"), Some(token(cx, "syn-doc-comment-tag-value")));
@@ -53,8 +55,7 @@ async fn rebuilds_decorations_when_the_highlighter_is_reconfigured(cx: &mut Test
     assert_ne!(colour_of(&f, cx, "@return"), light);
     f.editor.update(cx, |editor, cx| assert!(editor.apply_edit(&[change(2, 3, "")], vec![(2, 2)], 0, cx)));
     f.highlighted(cx);
-    settle(cx, |cx| colour_of(&f, cx, "@return") != Some(token(cx, "syn-doc-comment-tag")));
-    assert_eq!(colour_of(&f, cx, "@return"), Some(token(cx, "syn-comment")));
+    settle(cx, |cx| colour_of(&f, cx, "@return") == Some(token(cx, "syn-comment")));
     close(cx);
 }
 
@@ -70,7 +71,9 @@ async fn removes_decorations_when_switching_to_an_unsupported_language(cx: &mut 
     let write = [SettingsWrite { key: "files.fileTypeOverrides", value: serde_json::Value::Object(overrides) }];
     cx.update(|_, cx| set_global("w1", &write, cx)).expect("the override is stored");
     settle(cx, |cx| f.editor.read_with(cx, |editor, _| editor.language().as_str() == "plaintext"));
-    settle(cx, |cx| colour_of(&f, cx, "@param") != Some(token(cx, "syn-doc-comment-tag")));
+    // The tags go with the language at once; the comment's colour goes when the plain text's (empty)
+    // highlights arrive.
+    settle(cx, |cx| colour_of(&f, cx, "@param") == Some(token(cx, "fg-editor")));
     assert_eq!(colour_of(&f, cx, "@param"), Some(token(cx, "fg-editor")));
     close(cx);
 }
@@ -91,7 +94,7 @@ async fn gives_other_languages_nothing(cx: &mut TestAppContext) {
 #[gpui_kit::test]
 async fn keeps_tags_deep_inside_a_long_doc_comment(cx: &mut TestAppContext) {
     let body: String = (0..400).map(|n| format!(" * @param item{n} description\n")).collect();
-    let (f, cx) = open(cx, "A.java", &format!("/**\n{body} */\nclass A {{}}\n")).await;
+    let (f, cx) = open(cx, "A.java", &format!("package a;\n\n/**\n{body} */\nclass A {{}}\n")).await;
     f.highlighted(cx);
     dark(cx);
     f.editor.update(cx, |editor, cx| editor.scroll_to_line(300, cx));

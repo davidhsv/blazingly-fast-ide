@@ -18,6 +18,10 @@ use gpui_kit::{
     SharedString, Subscription, Window, div, prelude::*, px,
 };
 
+mod preview;
+
+pub use preview::PreviewLook;
+
 /// How long a row's label may be, in UTF-16 code units.
 const LABEL_WIDTH: u32 = 80;
 /// The dialog's width.
@@ -70,6 +74,10 @@ pub struct PasteHistoryDialog {
     selection: RowSelection,
     /// The target editor accepts no edits: Paste is disabled.
     read_only: bool,
+    /// How the target editor draws code; the preview is plain text until it is known.
+    preview_look: Option<PreviewLook>,
+    /// The highlights of the preview's text.
+    preview_spans: preview::PreviewHighlights,
     key_claim: u64,
     _field_events: Subscription,
 }
@@ -101,6 +109,8 @@ impl PasteHistoryDialog {
             rows: Vec::new(),
             selection: SINGLE_FIRST,
             read_only,
+            preview_look: None,
+            preview_spans: Default::default(),
             key_claim,
             _field_events: field_events,
         };
@@ -294,8 +304,7 @@ impl Render for PasteHistoryDialog {
             );
         }
         let empty = empty.map(|text| div().p(px(12.0)).text_color(muted).child(SharedString::from(text)));
-        let preview_lines: Vec<SharedString> =
-            self.preview().lines().take(8).map(|text| SharedString::from(text.to_owned())).collect();
+        let preview_text = self.preview_element(cx);
         let preview = div()
             .flex_none()
             .h(px(140.0))
@@ -305,7 +314,7 @@ impl Render for PasteHistoryDialog {
             .bg(theme::color(cx, "bg-editor"))
             .text_color(theme::color(cx, "fg-editor"))
             .overflow_hidden()
-            .children(preview_lines.into_iter().map(|text| div().child(text)));
+            .child(preview_text);
         let button = |id: &'static str, label: String, enabled: bool| {
             div()
                 .id(id)
@@ -359,6 +368,7 @@ impl Render for PasteHistoryDialog {
 mod tests {
     use super::*;
     use gpui_kit::{Entity, TestAppContext, VisualTestContext};
+    mod proofs23_paste_preview;
     use std::cell::RefCell;
     use std::rc::Rc;
 

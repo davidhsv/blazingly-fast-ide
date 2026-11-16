@@ -253,7 +253,8 @@ fn base_attributes() -> Vec<AttributeDef> {
 }
 
 /// Languages with a scheme page of their own: settings id prefix and editor language name.
-const SCHEME_LANGUAGES: [(&str, &str); 4] = [("go", "Go"), ("java", "Java"), ("kotlin", "Kotlin"), ("php", "PHP")];
+pub(crate) const SCHEME_LANGUAGES: [(&str, &str); 4] =
+    [("go", "Go"), ("java", "Java"), ("kotlin", "Kotlin"), ("php", "PHP")];
 
 /// `semantic1`…, `bracket1`…: the numbered colours have no per-language variant.
 fn is_numbered(id: &str) -> bool {

@@ -52,6 +52,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 pub mod annotations;
+mod caret_glide;
+mod column_gestures;
+mod doc_tags;
+pub(crate) mod right_margin;
+mod string_literals;
+mod token_style;
 
 /// The font code is drawn with: the first installed family of `families` (empty names skipped)
 /// followed by the theme's `--font-mono` list, the others after it for characters it lacks;
@@ -73,7 +79,7 @@ pub fn code_font_of(families: &[&str], ligatures: bool, weight: u16, cx: &App) -
         family: SharedString::from(family),
         features: if ligatures { FontFeatures::default() } else { FontFeatures::disable_ligatures() },
         fallbacks: (!candidates.is_empty()).then(|| FontFallbacks::from_fonts(candidates)),
-        weight: FontWeight(f32::from(weight.clamp(100, 900))),
+        weight: FontWeight(f32::from(crate::theme::scheme_runtime::font_weight_of(weight))),
         style: FontStyle::Normal,
     }
 }
@@ -183,11 +189,15 @@ struct Layout {
     /// The text's area (right of `text_left`) in the hit test of the frame that drew it.
     text_hitbox: Option<Hitbox>,
     line_height: Pixels,
+    /// Where the right margin and the visual guides are drawn, right of `text_left`.
+    right_margins: Vec<Pixels>,
     /// The first painted row (a row is a line no fold hides).
     first_line: u32,
     lines: Vec<(String, ShapedLine)>,
     /// The document line of each painted row.
     line_of: Vec<u32>,
+    /// The main caret's glide this frame draws.
+    caret_glide: Option<caret_glide::GlideFrame>,
     /// Where the last frame drew the line tints, breakpoint dots and problem underlines; recorded for
     /// tests only, so a frame allocates nothing for it.
     #[cfg(test)]
@@ -198,6 +208,9 @@ struct Layout {
     /// The fold chevrons the last frame drew, by document line; for tests only.
     #[cfg(test)]
     painted_chevrons: Vec<(u32, super::extras::FoldMarker)>,
+    /// The weights and slants (UTF-8 lengths) each painted row was shaped with; for tests only.
+    #[cfg(test)]
+    painted_fonts: Vec<Vec<(usize, FontWeight, FontStyle)>>,
 }
 
 /// The editors that show each document. The backend reports the edits it makes itself, not the
@@ -329,6 +342,8 @@ pub struct Editor {
     pub(super) core: super::core_actions::CoreState,
     /// Blame annotations shown in the gutter's first column ([`annotations`]).
     annotations: Option<annotations::Annotations>,
+    /// The main caret's glide to its new place, while Smooth caret movement draws one.
+    glide: Option<caret_glide::Glide>,
 }
 
 impl Editor {
@@ -359,6 +374,10 @@ impl Editor {
                     editor.dirty = *dirty;
                     cx.notify();
                 });
+            }
+            IdeEvent::DocLanguage { doc: changed, language, .. } if *changed == doc => {
+                let language = language.clone();
+                let _ = weak.update(cx, |editor, cx| editor.change_language(language, cx));
             }
             IdeEvent::SettingsChanged { .. } => {
                 let _ = weak.update(cx, |editor, cx| {
@@ -429,6 +448,7 @@ impl Editor {
             created: std::time::Instant::now(),
             core: Default::default(),
             annotations: None,
+            glide: None,
         };
         editor.refresh_highlights(cx);
         editor
@@ -802,6 +822,7 @@ impl Editor {
     pub fn set_selections(&mut self, ranges: Vec<(u32, u32)>, main: usize, cx: &mut Context<Self>) {
         let before = (self.selections.clone(), self.main);
         self.put_selections(ranges, main);
+        self.arm_glide(&before, cx);
         // A caret inside a fold opens it: no caret is hidden.
         let heads: Vec<u32> = self.selections.iter().map(|range| range.head()).collect();
         let state = self.edit_state();
@@ -1185,7 +1206,9 @@ impl Editor {
     /// Copies the selected ranges to the clipboard, joined by line breaks; without a selection,
     /// the caret lines (a line-wise copy, which a paste at a caret puts above its line).
     pub fn copy(&self, cx: &mut Context<Self>) -> bool {
-        let copied = crate::editor_commands::clipboard::copy(&self.edit_state());
+        let state = self.edit_state();
+        let mut copied = crate::editor_commands::clipboard::copy(&state);
+        copied.text = self.unescaped_copy(&state, &copied.text);
         cx.write_to_clipboard(ClipboardItem::new_string(copied.text.clone()));
         cx.default_global::<EditorClipboard>().0.record(&copied.text, copied.linewise);
         true
@@ -1220,6 +1243,8 @@ impl Editor {
             if !reformat {
                 return Some(pasted);
             }
+            // An ordinary paste into a string literal is escaped for it, before it is reindented.
+            let pasted = editor.escaped_paste(&state, &pasted);
             let indent = |context: &commands::IndentContext<'_>| editor.facts.indent(context);
             Some(paste::reindent_paste(&state, &pasted, editor.facts.reformat_on_paste, Some(&indent)))
         })
@@ -1731,9 +1756,9 @@ impl Editor {
         }
         self.adding = None;
         self.column_drag = None;
-        // ⌥-drag selects a block of columns (the add-caret gesture, checked above, comes first).
-        let modifiers = &event.modifiers;
-        if event.click_count <= 1 && modifiers.alt && !modifiers.shift && !modifiers.platform && !modifiers.control {
+        // ⌥-drag, or a drag while Column Selection Mode is on, selects a block of columns (the
+        // add-caret gesture, checked above, comes first).
+        if self.press_selects_block(event) {
             self.select(offset, offset, cx);
             self.column_drag = self.block_point_at(event.position);
             self.drag_anchor = None;
@@ -1782,7 +1807,7 @@ impl Editor {
     }
 
     fn mouse_move(&mut self, event: &MouseMoveEvent, _: &mut Window, cx: &mut Context<Self>) {
-        if event.pressed_button != Some(MouseButton::Left) {
+        if !self.drags_with(event.pressed_button) {
             (self.drag_anchor, self.adding, self.column_drag) = (None, None, None);
             let over_gutter = self.gutter_line_at(event.position).is_some();
             if over_gutter != self.gutter_hovered {
@@ -2017,6 +2042,8 @@ impl Render for Editor {
             .track_focus(&self.focus)
             .on_key_down(cx.listener(Self::key_down))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::mouse_down))
+            .on_mouse_down(MouseButton::Middle, cx.listener(Self::middle_mouse_down))
+            .on_mouse_up(MouseButton::Middle, cx.listener(Self::middle_mouse_up))
             .on_mouse_move(cx.listener(Self::mouse_move))
             .on_mouse_up(
                 MouseButton::Left,
@@ -2119,6 +2146,7 @@ impl Element for EditorElement {
         let (font_size, line_height, gutter) = editor.metrics(cx);
         let fold_column = editor.fold_column_width(cx);
         let code_font = editor.code_font(cx);
+        let token_styles = token_style::TokenStyles::new(&code_font, editor.language.as_str(), cx);
         let brackets = editor.facts.rainbow_brackets.then(|| editor.bracket_marks());
         let plain = theme::color(cx, "fg-editor");
         let number_color = theme::color(cx, "fg-gutter");
@@ -2151,6 +2179,7 @@ impl Element for EditorElement {
         // The marks that can touch the painted lines.
         let first_offset = buffer::line_range(&editor.rope, first_line).start;
         let last_offset = buffer::line_range(&editor.rope, last_line.saturating_sub(1)).end;
+        let doc_tags = editor.painted_doc_tags(&painted);
         let marks: Vec<Mark> = editor
             .marks
             .values()
@@ -2166,6 +2195,8 @@ impl Element for EditorElement {
         let mut painted_colors = Vec::with_capacity(painted.len());
         #[cfg(test)]
         let mut painted_chevrons = Vec::new();
+        #[cfg(test)]
+        let mut painted_fonts = Vec::with_capacity(painted.len());
         for &line in &painted {
             let range = buffer::line_range(&editor.rope, line);
             let text = buffer::slice(&editor.rope, range.start, range.end);
@@ -2181,7 +2212,8 @@ impl Element for EditorElement {
                     runs.push(run(from - at, plain));
                 }
                 if to > from {
-                    runs.push(run(to - from, theme::color(cx, syntax_token(s.kind))));
+                    let (colour, font) = token_styles.get(s.kind);
+                    runs.push(TextRun { font: font.clone(), ..run(to - from, colour) });
                     at = to;
                 }
                 if s.to > range.end {
@@ -2205,6 +2237,9 @@ impl Element for EditorElement {
                     runs = recolor(runs, from, from + 1, color);
                 }
             }
+            if !doc_tags.is_empty() {
+                runs = doc_tags::colour_doc_tags(runs, &text, range.start, &doc_tags, &code_font, cx);
+            }
             for mark in marks.iter().filter(|mark| mark.kind.recolors_text()) {
                 if mark.range.end > range.start && mark.range.start < range.end {
                     let from = buffer::byte_of_col(&text, mark.range.start.saturating_sub(range.start));
@@ -2214,6 +2249,8 @@ impl Element for EditorElement {
             }
             #[cfg(test)]
             painted_colors.push(runs.iter().map(|run| (run.len, run.color)).collect());
+            #[cfg(test)]
+            painted_fonts.push(runs.iter().map(|run| (run.len, run.font.weight, run.font.style)).collect());
             let shaped = window.text_system().shape_line(text.clone().into(), font_size, &runs, None);
             lines.push((text, shaped));
             let label = (line + 1).to_string();
@@ -2265,6 +2302,8 @@ impl Element for EditorElement {
         };
         let text_area = Bounds::from_corners(point(bounds.left() + text_left, bounds.top()), bounds.bottom_right());
         let text_hitbox = Some(window.insert_hitbox(text_area, HitboxBehavior::Normal));
+        let right_margins = editor.right_margin_offsets(&code_font, font_size, window, cx);
+        let caret_glide = editor.glide_frame(cx);
         Prepared {
             layout: Layout {
                 bounds,
@@ -2274,15 +2313,19 @@ impl Element for EditorElement {
                 text_left,
                 text_hitbox,
                 line_height,
+                right_margins,
                 first_line: first_row,
                 lines,
                 line_of: painted,
+                caret_glide,
                 #[cfg(test)]
                 painted_marks: Vec::new(),
                 #[cfg(test)]
                 painted_colors,
                 #[cfg(test)]
                 painted_chevrons,
+                #[cfg(test)]
+                painted_fonts,
             },
             numbers,
             gutter,
@@ -2339,6 +2382,7 @@ impl Element for EditorElement {
         let mut painted_marks = Vec::new();
         window.with_content_mask(Some(gpui_kit::ContentMask { bounds }), |window| {
             window.paint_quad(fill(bounds, theme::color(cx, "bg-editor")));
+            right_margin::paint_right_margins(&layout.right_margins, bounds, text_left, window, cx);
             let rope = self.editor.read(cx).rope.clone();
             let heads: Vec<(u32, u32)> =
                 selections.iter().map(|range| (buffer::line_col(&rope, range.head()).0, range.head())).collect();
@@ -2486,8 +2530,9 @@ impl Element for EditorElement {
                 }
                 if focused {
                     for &(_, head) in heads.iter().filter(|head| on_line(head)) {
-                        let caret_bounds =
-                            Bounds::new(point(text_origin.x + x_of(head), top), size(px(2.0), line_height));
+                        let place = point(text_origin.x + x_of(head), top);
+                        let place = layout.caret_glide.map_or(place, |glide| glide.place(head, place));
+                        let caret_bounds = Bounds::new(place, size(px(2.0), line_height));
                         window.paint_quad(fill(caret_bounds, theme::color(cx, "caret")));
                     }
                 }
@@ -2507,15 +2552,19 @@ impl Element for EditorElement {
                 text_left,
                 text_hitbox: None,
                 line_height,
+                right_margins: Vec::new(),
                 first_line: 0,
                 lines: Vec::new(),
                 line_of: Vec::new(),
+                caret_glide: None,
                 #[cfg(test)]
                 painted_marks: Vec::new(),
                 #[cfg(test)]
                 painted_colors: Vec::new(),
                 #[cfg(test)]
                 painted_chevrons: Vec::new(),
+                #[cfg(test)]
+                painted_fonts: Vec::new(),
             },
         );
         self.editor.update(cx, |editor, _| editor.layout = Some(layout));
@@ -2811,6 +2860,7 @@ mod editing_tests {
     use ide_core::{Pos, TextEdit};
     use std::time::Duration;
 
+    mod proofs23_middle_column;
     mod proofs_editor_clipboard_history;
     mod proofs_editor_multi_caret;
 

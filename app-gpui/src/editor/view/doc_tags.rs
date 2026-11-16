@@ -167,16 +167,16 @@ mod tests {
             span(21, 25, K::Keyword),
             span(30, 40, K::Comment),
         ];
-        let tree = comment_tree(&highlights, &[0..12], 50);
+        let tree = comment_tree(&highlights, std::slice::from_ref(&(0..12)), 50);
         assert_eq!((tree.len(), tree.name(1), tree.node(1).to), (2, "DocComment", 20));
         let tree = comment_tree(&highlights, &[22..23, 35..36], 50);
         assert_eq!((tree.len(), tree.name(1)), (2, "Comment"));
-        assert_eq!(comment_tree(&highlights, &[41..45], 50).len(), 1);
+        assert_eq!(comment_tree(&highlights, std::slice::from_ref(&(41..45)), 50).len(), 1);
     }
 
     #[test]
     fn rows_that_follow_each_other_are_one_range() {
         assert_eq!(visible_ranges(&[0..4, 5..9, 20..25]), [0..9, 20..25]);
-        assert_eq!(visible_ranges(&[0..4, 6..9]), [0..9]);
+        assert_eq!(visible_ranges(&[0..4, 6..9]), std::slice::from_ref(&(0..9)));
     }
 }
