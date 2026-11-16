@@ -287,6 +287,10 @@ fn text_arg(arg: Option<&serde_json::Value>) -> Option<String> {
 pub(super) fn register_actions(registry: &mut ActionRegistry) {
     registry.handle("services.show", |_, window, cx| {
         on_workbench(window, cx, |workbench, window, cx| {
+            // A window that shows a tab per view comes to the services tree's.
+            if let Some(tabs) = workbench.http_service_tabs().cloned() {
+                tabs.update(cx, |tabs, cx| tabs.select(crate::http_client::service_tabs::ServiceTab::Services, cx));
+            }
             workbench.with_layout(window, cx, |layout| layout.show(SERVICES_TOOL_WINDOW, true));
         })
     });
@@ -426,6 +430,10 @@ impl Workbench {
     /// The tool window's panel, when the project has a run driver.
     pub(super) fn mount_services(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<Panel> {
         let view = self.services_window(window, cx)?.view.clone();
+        // Once the HTTP Client has been used, the window shows a tab per view.
+        if let Some(panel) = self.http_service_panel(&view, cx) {
+            return Some(panel);
+        }
         Some(Panel::new(view, None))
     }
 

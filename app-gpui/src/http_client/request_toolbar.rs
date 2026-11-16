@@ -9,8 +9,8 @@
 use crate::platform::i18n::Localization;
 use crate::theme;
 use gpui_kit::{
-    AnyView, App, ClickEvent, Context, Div, EventEmitter, FocusHandle, Focusable, IntoElement, MouseButton, Render,
-    SharedString, Stateful, Window, deferred, div, prelude::*, px,
+    AnyView, App, ClickEvent, Context, Div, EventEmitter, FocusHandle, Focusable, IntoElement, KeyDownEvent,
+    MouseButton, MouseDownEvent, Pixels, Point, Render, SharedString, Stateful, Window, deferred, div, prelude::*, px,
 };
 
 /// What the toolbar asks of the window.
@@ -51,6 +51,9 @@ pub struct RequestToolbar {
     chosen: Option<String>,
     running: bool,
     open: bool,
+    /// Where the press that closed the open list from outside it was: that same press on the
+    /// chooser does not open it again.
+    dismissed: Option<Point<Pixels>>,
     focus: FocusHandle,
 }
 
@@ -59,7 +62,16 @@ impl EventEmitter<RequestToolbarEvent> for RequestToolbar {}
 impl RequestToolbar {
     /// The toolbar of request file `path` (`None` for a buffer without a file) over `editor`.
     pub fn new(path: Option<String>, editor: AnyView, cx: &mut Context<Self>) -> Self {
-        Self { path, editor, environments: None, chosen: None, running: false, open: false, focus: cx.focus_handle() }
+        Self {
+            path,
+            editor,
+            environments: None,
+            chosen: None,
+            running: false,
+            open: false,
+            dismissed: None,
+            focus: cx.focus_handle(),
+        }
     }
 
     pub fn path(&self) -> Option<&str> {
@@ -129,6 +141,38 @@ impl RequestToolbar {
         }
     }
 
+    /// Closes the open list without choosing (Escape, a press outside it).
+    pub fn close_chooser(&mut self, cx: &mut Context<Self>) {
+        if self.open {
+            self.open = false;
+            cx.notify();
+        }
+    }
+
+    /// A press outside the open list at `at` closes it.
+    fn dismiss_chooser(&mut self, at: Point<Pixels>, cx: &mut Context<Self>) {
+        if self.open {
+            self.dismissed = Some(at);
+            self.close_chooser(cx);
+        }
+    }
+
+    /// A press on the chooser at `at` opens its list, or closes it when open.
+    fn press_chooser(&mut self, at: Point<Pixels>, cx: &mut Context<Self>) {
+        if self.dismissed.take() == Some(at) {
+            return;
+        }
+        self.press(CHOOSER, cx);
+    }
+
+    /// Escape closes the open list; any other key goes on to the editor.
+    fn key_down(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if self.open && event.keystroke.key == "escape" {
+            self.close_chooser(cx);
+            cx.stop_propagation();
+        }
+    }
+
     /// Picks `value` in the chooser (the empty value is No Environment).
     pub fn choose(&mut self, value: &str, cx: &mut Context<Self>) {
         self.open = false;
@@ -153,6 +197,8 @@ impl RequestToolbar {
             .items_center()
             .justify_center()
             .rounded(theme::length(cx, "radius-small"))
+            // A coloured icon (Stop) keeps its colours: a disabled button is faded instead.
+            .when(!enabled, |el| el.opacity(0.4))
             .when(enabled, |el| el.hover(|el| el.bg(theme::color(cx, "bg-hover"))))
             .tooltip(crate::ui::tooltip::tooltip(title))
             .child(theme::icon(cx, icon, 14.0, color))
@@ -207,6 +253,9 @@ impl RequestToolbar {
                     .rounded(theme::length(cx, "radius-popup"))
                     .occlude()
                     .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .on_mouse_down_out(
+                        cx.listener(|view, event: &MouseDownEvent, _, cx| view.dismiss_chooser(event.position, cx)),
+                    )
                     .children(rows),
             )
             .with_priority(1)
@@ -229,7 +278,14 @@ impl RequestToolbar {
                 .tooltip(crate::ui::tooltip::tooltip(environment))
                 .child(SharedString::from(label))
                 .child(theme::icon(cx, "chevron-down", 12.0, theme::color(cx, "fg-subtle")))
-                .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.press(CHOOSER, cx)))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|view, event: &MouseDownEvent, window, cx| {
+                        window.prevent_default();
+                        cx.stop_propagation();
+                        view.press_chooser(event.position, cx);
+                    }),
+                )
                 .children(list),
         )
     }
@@ -268,6 +324,7 @@ impl Render for RequestToolbar {
             .flex_col()
             .bg(theme::color(cx, "bg-editor"))
             .track_focus(&self.focus)
+            .capture_key_down(cx.listener(Self::key_down))
             .child(bar)
             .child(div().flex_1().min_h_0().child(self.editor.clone()))
     }
@@ -359,6 +416,31 @@ mod tests {
                 RequestToolbarEvent::Reload
             ]
         );
+    }
+
+    /// The open list closes without a choice on Escape, on a press outside it and on a second press
+    /// on the chooser.
+    #[gpui_kit::test]
+    async fn the_environment_list_closes_on_escape_a_press_outside_and_the_chooser(cx: &mut TestAppContext) {
+        let (view, events, cx) = open(cx, Some("/p/a.http"));
+        view.update(cx, |v, cx| v.set_state(Some(vec!["dev".into()]), None, false, cx));
+        let is_open = |cx: &mut VisualTestContext| view.read_with(cx, |v, _| v.is_chooser_open());
+        click(cx, CHOOSER);
+        assert!(is_open(cx));
+        cx.update(|window, cx| window.focus(&view.focus_handle(cx), cx));
+        cx.simulate_keystrokes("escape");
+        assert!(!is_open(cx), "Escape closes it");
+        click(cx, CHOOSER);
+        assert!(is_open(cx));
+        let reload = cx.debug_bounds(RELOAD).expect("Reload is drawn");
+        cx.simulate_click(reload.center() + gpui_kit::point(px(60.0), px(0.0)), Modifiers::default());
+        cx.run_until_parked();
+        assert!(!is_open(cx), "a press outside closes it");
+        click(cx, CHOOSER);
+        assert!(is_open(cx));
+        click(cx, CHOOSER);
+        assert!(!is_open(cx), "a second press on the chooser closes it");
+        assert!(events.borrow().is_empty(), "nothing was chosen");
     }
 
     /// A buffer without a file runs its requests but has no environments to choose or reload.

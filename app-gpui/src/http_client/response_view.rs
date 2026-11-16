@@ -653,7 +653,7 @@ mod tests {
         ex
     }
 
-    fn open<'a>(cx: &'a mut TestAppContext) -> (Entity<HttpClientView>, Events, &'a mut VisualTestContext) {
+    fn open(cx: &mut TestAppContext) -> (Entity<HttpClientView>, Events, &mut VisualTestContext) {
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);
@@ -799,7 +799,8 @@ mod tests {
 
     #[test]
     fn shows_the_time_as_the_english_clock_does() {
-        let ms = 1_700_000_000_000.0 + 5_000.0;
+        // 2023-11-14 22:14:00 UTC, a whole minute, five seconds later.
+        let ms = 1_700_000_040_000.0 + 5_000.0;
         let text = clock_time(ms);
         assert!(text.ends_with(" AM") || text.ends_with(" PM"), "{text}");
         assert_eq!(text.split(':').nth(2).map(|rest| &rest[..2]), Some("05"));

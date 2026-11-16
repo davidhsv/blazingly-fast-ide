@@ -95,6 +95,8 @@ const SPRING_DELAY: Duration = Duration::from_millis(400);
 /// The size of a gutter mark's icon, and its distance from the fold chevrons' column.
 const GUTTER_ICON: f32 = 14.0;
 const GUTTER_INSET: f32 = 14.0;
+/// The space between a mark and a plugin's gutter icon on the same line.
+const GUTTER_GAP: f32 = 2.0;
 
 /// The example a new request file starts with.
 pub(super) const NEW_REQUEST_TEMPLATE: &str = "### Example request
@@ -1015,7 +1017,7 @@ impl Workbench {
     ) {
         let targets_at = spring_targets(&text, at);
         let targets: Vec<Target> = match scope {
-            Scope::Endpoint => targets_at.endpoint.into_iter().map(|endpoint| Target { endpoint, path }).collect(),
+            Scope::Endpoint => targets_at.endpoint.map(|endpoint| Target { endpoint, path }).into_iter().collect(),
             Scope::Controller => targets_at
                 .controller
                 .map(|controller| controller.endpoints)
@@ -1237,6 +1239,9 @@ impl Workbench {
             (places, line_height, fold_column)
         };
         let color = theme::color(cx, "success");
+        // A plugin's gutter icon sits in the same column: on its line the mark moves one icon left.
+        let plugin_lines: Vec<u32> =
+            self.plugin_gutter_markers(&editor).iter().filter_map(|marker| u32::try_from(marker.line).ok()).collect();
         let mut elements = Vec::with_capacity(places.len());
         for (index, line, at) in places {
             let (icon, title) = match &followed.marks {
@@ -1247,7 +1252,9 @@ impl Workbench {
                 }
                 Marks::Spring(marks) => ("file-http", marks[index].title()),
             };
-            let corner = point(at.x - fold_column - px(GUTTER_INSET), at.y + (line_height - px(GUTTER_ICON)) / 2.0);
+            let shift = if plugin_lines.contains(&line) { px(GUTTER_ICON + GUTTER_GAP) } else { px(0.0) };
+            let corner =
+                point(at.x - fold_column - px(GUTTER_INSET) - shift, at.y + (line_height - px(GUTTER_ICON)) / 2.0);
             let mark = div()
                 .id(SharedString::from(format!("http-gutter-{line}")))
                 .debug_selector(move || format!("http-gutter-{line}"))

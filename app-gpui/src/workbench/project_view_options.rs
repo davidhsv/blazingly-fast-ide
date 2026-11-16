@@ -303,7 +303,11 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let nodes = self.nodes_for(arg, cx);
-        let Some(node) = nodes.first().filter(|node| !node.dir).cloned() else { return };
+        let Some(node) = nodes.first().filter(|node| !node.dir).cloned() else {
+            #[cfg(test)]
+            crate::platform::actions::test_trace::note(format!("{action}: no file is selected in the tree"));
+            return;
+        };
         let command = ProjectCommand::Run { action, arg: json!({ "path": node.path }) };
         self.run_project_command(command, vec![node], true, window, cx);
     }
@@ -810,6 +814,50 @@ mod tests {
         wait_long(cx, "c.mock's imports sorted", |cx| {
             editor_text(&workbench, &c, cx).as_deref() == Some("import x\nimport y\n")
         });
+        close_project(cx);
+    }
+
+    /// The tree read again after a file is written beside the selected one keeps that selection, and
+    /// Optimize Imports in the tree still acts on it; the removal of the selected file clears the
+    /// selection.
+    #[gpui_kit::test]
+    async fn a_tree_read_again_after_a_change_on_disk_keeps_the_selected_file(cx: &mut TestAppContext) {
+        let (_home, server) = start_with_mock_server(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &[("c.mock", "import y\nimport x\n")]);
+        let c = root.join("c.mock");
+        let whole = json!({ "start": { "line": 0, "character": 0 }, "end": { "line": 1, "character": 8 } });
+        let organize = json!({
+            "title": "Organize imports",
+            "kind": "source.organizeImports",
+            "edit": {
+                "changes": { format!("file://{}", c.display()): [{ "range": whole, "newText": "import x\nimport y" }] },
+            },
+        });
+        let capabilities = json!({ "documentFormattingProvider": true });
+        server.answer(json!({ "capabilities": capabilities, "textDocument/codeAction": [organize] }));
+        select_in_tree(&workbench, &c, cx);
+        let tree = project_tree_of(&workbench, cx);
+        let reads = tree.read_with(cx, |tree, _| tree.folder_reads());
+
+        std::fs::write(root.join("d.mock"), "new\n").expect("the file is written");
+        wait_long(cx, "the tree to read the project again", |cx| {
+            tree.read_with(cx, |tree, _| tree.folder_reads() > reads)
+                && tree_labels(&tree, cx).contains(&"d.mock".into())
+        });
+        assert_eq!(tree.read_with(cx, |tree, _| tree.selected_path().map(str::to_owned)), Some(text_of(&c)));
+        run_action(cx, "project.optimizeImports", None);
+        wait_long(cx, "c.mock's imports sorted", |cx| {
+            editor_text(&workbench, &c, cx).as_deref() == Some("import x\nimport y\n")
+        });
+
+        // The removal reaches the tree as the watcher's removal event, so the test does not depend on
+        // how the watcher reports a file removed right after it was created.
+        let d = text_of(&root.join("d.mock"));
+        select_in_tree(&workbench, &root.join("d.mock"), cx);
+        std::fs::remove_file(&d).expect("the file is removed");
+        tree.update(cx, |tree, cx| tree.apply_fs_change(&[], &[], std::slice::from_ref(&d), cx));
+        assert_eq!(tree.read_with(cx, |tree, _| tree.selected().map(str::to_owned)), None);
+        wait_long(cx, "the removed file to leave the tree", |cx| !tree_labels(&tree, cx).contains(&"d.mock".into()));
         close_project(cx);
     }
 }

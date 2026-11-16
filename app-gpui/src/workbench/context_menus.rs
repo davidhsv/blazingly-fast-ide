@@ -100,7 +100,12 @@ pub const MENU_GROUPS: [GroupDecl; 25] = [
     },
     GroupDecl { id: "http.new", menus: &[ContextMenu::New], order: 20, rows: Some(http_new) },
     // The Spring endpoints of the editor's file.
-    GroupDecl { id: "http.spring", menus: &[ContextMenu::Editor], order: 40, rows: None },
+    GroupDecl {
+        id: "http.spring",
+        menus: &[ContextMenu::Editor],
+        order: 40,
+        rows: Some(super::http_client::spring_group),
+    },
     // Analyze Dependencies… of a pom.xml the build model knows.
     GroupDecl {
         id: "maven.analyzeDependencies",
@@ -187,6 +192,8 @@ pub struct GroupFacts {
     pub plugins: Vec<GroupRow>,
     /// The Run group's rows for the menu being built: Run / Debug '<name>', More Run/Debug.
     pub run: Vec<GroupRow>,
+    /// The Spring group's rows for the menu being built: the generate actions at the caret.
+    pub http_spring: Vec<GroupRow>,
 }
 
 /// The groups that make rows in this window, each reading `facts`.
@@ -734,6 +741,7 @@ impl Workbench {
             annotations_shown: ctx.paths.first().is_some_and(|path| self.annotations_shown_for(path, cx)),
             plugins,
             run: self.run_menu_rows(menu, ctx, cx),
+            http_spring: if menu == ContextMenu::Editor { self.http_spring_rows(ctx, cx) } else { Vec::new() },
         }
     }
 
@@ -1364,7 +1372,6 @@ mod tests {
                 "github.reviewMode",
                 "go.modules",
                 "gradle.analyzeDependencies",
-                "http.spring",
                 "maven.analyzeDependencies",
                 "settings.fileType",
                 "templates.new",

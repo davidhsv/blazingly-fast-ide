@@ -39,6 +39,7 @@ mod editor_intelligence;
 mod editor_language;
 pub mod empty_editor;
 mod github;
+mod http_client;
 mod keymap_reference;
 mod light_edit_tabs;
 mod log_actions;
@@ -420,6 +421,9 @@ pub struct Workbench {
     plugin_runtime: plugin_runtime::PluginRuntime,
     /// Plugins' gutter actions, activation events and what else they contribute to the window.
     plugin_contributions: plugin_contributions::PluginContributions,
+    /// The HTTP Client: request files, responses, the Spring generate marks and the endpoint
+    /// providers.
+    http_client: http_client::HttpClientSlot,
     /// The tool windows of the views plugins declare, their panels and what they wait on.
     plugin_tool_windows: plugin_tool_windows::PluginToolWindows,
 }
@@ -621,6 +625,7 @@ pub fn register_actions(cx: &mut App) {
     build_tools::register_actions(registry);
     database::register_actions(registry);
     database_extras::register_actions(registry);
+    http_client::register_actions(registry);
     deployment::register_actions(registry);
     code_insight::register_actions(registry);
     editor_language::register_actions(registry);
@@ -1206,6 +1211,7 @@ impl Workbench {
             welcome: None,
             plugin_runtime: Default::default(),
             plugin_contributions: Default::default(),
+            http_client: Default::default(),
             plugin_tool_windows: Default::default(),
         };
         workbench.start_plugin_runtime(window, cx);
@@ -1492,10 +1498,11 @@ impl Workbench {
         let body: Option<gpui_kit::AnyElement> = match (view, host, editor) {
             (Some((view, _)), _, _) => Some(view.into_any_element()),
             (None, Some(host), _) => Some(host.into_any_element()),
-            // An SQL editor is drawn inside its query console, under the console's toolbar.
-            (None, None, Some(editor)) => Some(match self.sql_console_of(&editor) {
-                Some(console) => console.into_any_element(),
-                None => editor.into_any_element(),
+            // An SQL editor is drawn inside its query console, an `.http` editor under its toolbar.
+            (None, None, Some(editor)) => Some(match (self.sql_console_of(&editor), self.http_toolbar_of(&editor)) {
+                (Some(console), _) => console.into_any_element(),
+                (None, Some(toolbar)) => toolbar.into_any_element(),
+                (None, None) => editor.into_any_element(),
             }),
             // A pane without a tab shows the navigation hints.
             (None, None, None) if shown_tab.is_none() => {
@@ -1946,6 +1953,15 @@ impl Workbench {
                 self.tasks.set_indexing(*indexing, u64::from(*files), u64::from(*symbols), now);
             }
             IdeEvent::VcsChanged { .. } | IdeEvent::FsChanged { .. } => {
+                if let IdeEvent::FsChanged { created, modified, removed } = &event.event {
+                    let paths: Vec<String> = created
+                        .iter()
+                        .chain(modified)
+                        .chain(removed)
+                        .map(|path| path.to_string_lossy().into_owned())
+                        .collect();
+                    self.http_files_changed(paths.iter().map(String::as_str));
+                }
                 self.vcs_backend_event(&event.event, cx);
                 return;
             }
@@ -3958,6 +3974,7 @@ impl Workbench {
                         if still_open {
                             workbench.watch_debug_editor(&editor, window, cx);
                             workbench.watch_plugin_gutter(&editor, window, cx);
+                            workbench.http_editor_opened(&editor, window, cx);
                         }
                     }
                     Err(message) => {
@@ -3977,6 +3994,24 @@ impl Workbench {
             });
         })
         .detach();
+    }
+
+    /// The ids of the tabs whose document the backend is still opening.
+    #[cfg(test)]
+    pub(super) fn loading_tabs(&self) -> Vec<String> {
+        match &self.content {
+            Content::Project { loading, .. } | Content::Editor { loading, .. } => loading.iter().cloned().collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Whether a tab of `path` is waiting for its document.
+    pub(super) fn is_opening(&self, path: &std::path::Path) -> bool {
+        let (Content::Project { tabs, loading, .. } | Content::Editor { tabs, loading, .. }) = &self.content else {
+            return false;
+        };
+        let key = path.to_string_lossy();
+        tabs.panes.iter().flat_map(|pane| &pane.tabs).any(|tab| tab.input.key == key && loading.contains(&tab.id))
     }
 
     /// The message shown instead of an editor, when opening failed.
@@ -4281,6 +4316,7 @@ impl Render for Workbench {
             .children(self.restricted_banner(cx))
             .child(div().flex_1().min_h_0().w_full().child(body))
             .children(self.plugin_gutter_layer(cx))
+            .children(self.http_gutter_layer(cx))
             .child(notification_balloons::layer(&self.balloons, cx))
             .children(self.merge_window_layer(cx))
             .children(self.diff_window_layer(cx))
@@ -4520,11 +4556,12 @@ mod tests {
         // The state when the wait runs out, and whether more time would have been enough.
         let report = window_vcs_report(cx);
         let servers = window_lsp_report(cx);
+        let actions = window_action_report(cx);
         let ran_out = started.elapsed();
         let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
         panic!(
             "the backend did not deliver within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})\n\
-             state when it ran out: {report}\n{servers}"
+             state when it ran out: {report}\n{servers}\n{actions}"
         );
     }
 
@@ -8007,14 +8044,16 @@ mod tests {
         let report = window_vcs_report(cx);
         let agents = window_agents_report(cx);
         let servers = window_lsp_report(cx);
+        let actions = window_action_report(cx);
         let ran_out = started.elapsed();
         let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
         panic!(
             "{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})\n\
-             state when it ran out: {report}\n{agents}\n{servers}\nstate now: {}\n{}\n{}",
+             state when it ran out: {report}\n{agents}\n{servers}\n{actions}\nstate now: {}\n{}\n{}\n{}",
             window_vcs_report(cx),
             window_agents_report(cx),
-            window_lsp_report(cx)
+            window_lsp_report(cx),
+            window_action_report(cx)
         );
     }
 
@@ -8180,6 +8219,69 @@ mod tests {
         let fake = crate::editor::intelligence::fake_server::FakeServer::report_for(&config)
             .unwrap_or_else(|| "no fake server".to_owned());
         format!("language servers: backend: [{servers}]; window heard: {heard:?}\n  {fake}")
+    }
+
+    /// What an action reads when it runs: the active editor (path, caret, selections, the word at the
+    /// caret, its hint), the tabs still opening, where the keyboard is (the context keys the
+    /// dispatcher computes), the Project tree's selection, the last hint and notice, and the actions
+    /// run and the places where one ended without doing anything.
+    pub(super) fn window_action_report(cx: &mut VisualTestContext) -> String {
+        fn cut(text: String, max: usize) -> String {
+            if text.chars().count() <= max {
+                text
+            } else {
+                format!("{}…", text.chars().take(max).collect::<String>())
+            }
+        }
+        let Some(workbench) = cx.update(|window, _| window.root::<Workbench>().flatten()) else {
+            return "actions: the window shows no workbench".to_owned();
+        };
+        let keys = cx.update(|window, cx| {
+            let ctx = crate::platform::context::window_context(window, cx);
+            let mut keys: Vec<String> = ctx
+                .iter()
+                .filter(|(_, value)| value.truthy())
+                .map(|(key, value)| match value {
+                    crate::platform::context::ContextValue::Bool(_) => key.to_owned(),
+                    other => format!("{key}={other:?}"),
+                })
+                .collect();
+            keys.sort();
+            keys
+        });
+        workbench.read_with(cx, |w, cx| {
+            let editor = w.editor().map_or_else(
+                || "none".to_owned(),
+                |editor| {
+                    let hint = crate::editor::intelligence::EditorIntelligence::of(editor, cx)
+                        .and_then(|intelligence| intelligence.read(cx).hint().map(str::to_owned));
+                    let e = editor.read(cx);
+                    let (line, col) = e.caret_position();
+                    let word = ide_host::ops::text_usages::word_at(&e.line_text(line), ide_core::Pos::new(0, col));
+                    format!(
+                        "{} version={} caret={line}:{col} selections={:?} word at the caret={word:?} hint={hint:?}",
+                        e.path().display(),
+                        e.version(),
+                        e.selections()
+                    )
+                },
+            );
+            let tree = w.project_tree().map(|tree| {
+                let tree = tree.read(cx);
+                format!("selected={:?} path={:?}", tree.selected(), tree.selected_path())
+            });
+            let notice = w.notifications().items().first().map(|n| format!("{:?} at {:.0}", n.title, n.time));
+            format!(
+                "actions:\n  active editor: {editor}\n  tabs opening: {:?}\n  context keys: {keys:?}\n  \
+                 project tree: {tree:?}\n  last code insight hint: {:?}\n  newest notice: {notice:?}\n  \
+                 show usages: {}\n  trace (now {:.0}):\n{}",
+                w.loading_tabs(),
+                w.code_insight_hint(),
+                cut(w.usages_popup_report(), 1200),
+                crate::platform::local_time::now_ms(),
+                crate::platform::actions::test_trace::report()
+            )
+        })
     }
 
     pub(super) fn click_on(cx: &mut VisualTestContext, selector: &'static str) {

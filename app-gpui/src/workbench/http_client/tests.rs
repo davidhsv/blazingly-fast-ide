@@ -79,17 +79,34 @@ impl Fixture {
     }
 }
 
-/// A project with `files` open in a window, its connections direct (no proxy); `open` is opened.
+/// A loopback port nothing listens on.
+fn dead_port() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("a loopback port");
+    listener.local_addr().expect("the port").port()
+}
+
+/// A project with `files` open in a window; `open` is opened. The home's settings name a manual
+/// proxy on a dead loopback port, which a request to a loopback server never goes through.
+///
+/// The proxy setting is process-wide and every backend of this test process applies its own home's
+/// on start: a request of this test can run under another test's setting. Every mode sends a
+/// loopback request directly when no proxy variable is set: "No proxy" always, the manual proxy
+/// for every host but loopback, and auto-detect only through those variables, which are checked
+/// unset here.
 fn open_project<'a>(
     cx: &'a mut TestAppContext,
     files: &[(&str, String)],
     open: Option<&str>,
 ) -> (Fixture, &'a mut VisualTestContext) {
+    for name in ["http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"] {
+        assert!(std::env::var_os(name).is_none(), "{name} is set: a loopback request could reach that proxy");
+    }
     cx.executor().allow_parking();
     let (home, folder) = (tempfile::tempdir().expect("a home"), tempfile::tempdir().expect("a folder"));
     let dirs = AppDirs::under(&home.path().canonicalize().expect("the home exists"));
     std::fs::create_dir_all(&dirs.config).expect("the configuration folder is made");
-    std::fs::write(dirs.config.join("settings.toml"), "[proxy]\nmode = \"none\"\n").expect("the settings are written");
+    let settings = format!("[proxy]\nmode = \"manual\"\nhost = \"127.0.0.1\"\nport = {}\n", dead_port());
+    std::fs::write(dirs.config.join("settings.toml"), settings).expect("the settings are written");
     let data = dirs.data.clone();
     let root = folder.path().canonicalize().expect("the folder exists");
     for (name, text) in files {
@@ -200,6 +217,8 @@ async fn run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows
         ("api.http", "### Users\nGET http://{{host}}/users\nAuthorization: Bearer {{token}}\n".to_owned()),
     ];
     let (f, cx) = open_project(cx, &files, Some("api.http"));
+    let proxy = cx.update(|_, cx| cx.global::<Backend>().host.global_settings.effective().proxy);
+    assert_eq!((proxy.mode, proxy.host.as_str()), (ide_core::settings::ProxyMode::Manual, "127.0.0.1"));
     let editor = f.editor(cx);
     let path = f.path("api.http");
     wait_long(cx, "the environments", |cx| {
@@ -320,7 +339,30 @@ async fn the_http_client_lists_loads_and_clears_the_projects_history(cx: &mut Te
     let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
     host.project("w1").expect("the project").http_history.add(&seeded).expect("the entry is saved");
 
+    // Until the HTTP Client is used, the Services tool window shows its tree alone, without tabs.
+    run_action(cx, "services.show", None);
+    let services = f.workbench.read_with(cx, |w, _| w.tool_window_view(SERVICES_TOOL_WINDOW)).expect("the panel");
+    let services = services.downcast::<ServicesView>().expect("the bare services view");
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("service-tab-services").is_none(), "no tabs");
+    assert!(f.workbench.read_with(cx, |w, _| w.http_service_tabs().is_none()));
+
     run_action(cx, SHOW_TOOL_WINDOW, None);
+    let tabs = f.workbench.read_with(cx, |w, _| w.http_service_tabs().cloned()).expect("the tabs");
+    let shown = f.workbench.read_with(cx, |w, _| w.tool_window_view(SERVICES_TOOL_WINDOW)).expect("the panel");
+    assert_eq!(shown.entity_id(), tabs.entity_id(), "the window shows the tabs");
+    cx.run_until_parked();
+    assert!(cx.debug_bounds("service-tab-services").is_some() && cx.debug_bounds("service-tab-http").is_some());
+    click(cx, "service-tab-services");
+    assert_eq!(tabs.read_with(cx, |tabs, _| tabs.active()), ServiceTab::Services);
+    let tree = tabs.read_with(cx, |tabs, _| tabs.services().clone());
+    assert_eq!(tree.entity_id(), services.entity_id(), "the same services tree, under its tab");
+    run_action(cx, SHOW_TOOL_WINDOW, None);
+    assert_eq!(tabs.read_with(cx, |tabs, _| tabs.active()), ServiceTab::HttpClient);
+    run_action(cx, "services.show", None);
+    assert_eq!(tabs.read_with(cx, |tabs, _| tabs.active()), ServiceTab::Services, "Services shows the tree's tab");
+    run_action(cx, SHOW_TOOL_WINDOW, None);
+    assert_eq!(tabs.read_with(cx, |tabs, _| tabs.active()), ServiceTab::HttpClient);
     assert!(f.workbench.read_with(cx, |w, _| w.is_tool_window_visible(SERVICES_TOOL_WINDOW)));
     let view = f.workbench.read_with(cx, |w, _| w.http_view().cloned()).expect("the HTTP Client view");
     wait_long(cx, "the history", |cx| view.read_with(cx, |v, _| v.rows().len()) == 1);
@@ -468,4 +510,74 @@ async fn the_spring_provider_lists_the_request_paths_and_rescans_after_a_change(
     std::fs::write(&source, changed).expect("the source is changed");
     f.workbench.update(cx, |w, _| w.http_files_changed([source.as_str()]));
     wait_long(cx, "the rescanned paths", |cx| endpoints(cx).iter().any(|e| e.method == "DELETE" && e.url == "/api/d"));
+}
+
+/// A generate mark and a plugin's gutter icon on the same line are drawn side by side inside the
+/// editor, neither over the other.
+#[gpui_kit::test]
+async fn a_generate_mark_and_a_plugin_gutter_icon_on_one_line_do_not_overlap(cx: &mut TestAppContext) {
+    use super::super::plugins_window::test_support::{link, plugin_copy, start_with_plugins, trusted_project};
+    let home = start_with_plugins(cx);
+    let folder = plugin_copy(home.path(), "language-features", |text| {
+        text.replacen("languages = [\"plaintext\", \"text\", \"sql\"]", "languages = [\"java\"]", 1)
+    });
+    link(cx, &folder, &[], "run");
+    let source = "@RestController public class One { @GetMapping(\"/a\") public String a() { return \"\"; } }\n";
+    let (_folder, root, workbench, cx) = trusted_project(cx, "w1", &[("One.java", source)]);
+    let file = root.join("One.java");
+    workbench.update_in(cx, |w, window, cx| w.open_project_file(file.clone(), window, cx));
+    wait_long(cx, "the editor", |cx| {
+        workbench.read_with(cx, |w, cx| w.editor().is_some_and(|e| e.read(cx).path() == file))
+    });
+    let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+    wait_long(cx, "the generate mark and the plugin's icon", |cx| {
+        workbench
+            .read_with(cx, |w, _| w.http_gutter_lines(&editor) == [0] && !w.plugin_gutter_markers(&editor).is_empty())
+    });
+    assert_eq!(workbench.read_with(cx, |w, _| w.plugin_gutter_markers(&editor)[0].line), 0);
+    wait_long(cx, "both are drawn", |cx| {
+        cx.debug_bounds("http-gutter-0").is_some() && cx.debug_bounds("plugin-gutter:0").is_some()
+    });
+    let mark = cx.debug_bounds("http-gutter-0").expect("the generate mark");
+    let icon = cx.debug_bounds("plugin-gutter:0").expect("the plugin's icon");
+    assert!(!mark.intersects(&icon), "the mark {mark:?} is over the icon {icon:?}");
+    assert!((mark.center().y - icon.center().y).abs() < gpui_kit::px(1.0), "both are on the line");
+    let view = editor.read_with(cx, |e, _| e.painted_bounds().expect("the editor is painted"));
+    assert!(mark.left() >= view.left() && icon.right() <= view.right(), "both are inside the editor {view:?}");
+}
+
+/// Whether action `id` may run in the window as it is now (its `when` clause holds).
+fn enabled(cx: &mut VisualTestContext, id: &str) -> bool {
+    cx.update(|window, cx| {
+        let action = cx.global::<ActionRegistry>().get(id).expect("the action is registered");
+        let ctx = crate::platform::context::window_context(window, cx);
+        crate::platform::actions::is_action_enabled(&action.meta, &ctx)
+    })
+}
+
+/// Each HTTP Client action runs only where its `when` clause holds: Run HTTP Request at Caret in a
+/// request file's editor with the keyboard, Run All in a request file's editor, the Spring
+/// generate actions in a Java or Kotlin editor, New HTTP Request and HTTP Client with a project.
+#[gpui_kit::test]
+async fn the_http_client_actions_run_only_where_their_when_clause_holds(cx: &mut TestAppContext) {
+    let files = [("api.http", "GET http://127.0.0.1:1/\n".to_owned()), (USERS_PATH, USERS.to_owned())];
+    let (f, cx) = open_project(cx, &files, Some("api.http"));
+    let all = [RUN_REQUEST, RUN_ALL, GENERATE_REQUEST, GENERATE_CONTROLLER_REQUESTS, NEW_REQUEST, SHOW_TOOL_WINDOW];
+    let state = |cx: &mut VisualTestContext| all.map(|id| enabled(cx, id));
+    let editor = f.editor(cx);
+    f.caret_at(&editor, 0, cx);
+    assert_eq!(state(cx), [true, true, false, false, true, true], "a request file's editor with the keyboard");
+
+    let tree = f.workbench.read_with(cx, |w, _| w.project_tree().cloned()).expect("the tree");
+    cx.update(|window, cx| window.focus(&tree.focus_handle(cx), cx));
+    wait_long(cx, "the tree has the keyboard", |cx| !context_is_on(cx, "editorTextFocus"));
+    assert_eq!(state(cx), [false, true, false, false, true, true], "the request file's editor without it");
+
+    let editor = f.open(USERS_PATH, cx);
+    f.caret_at(&editor, 0, cx);
+    assert_eq!(state(cx), [false, false, true, true, true, true], "a Java editor");
+
+    f.workbench.update_in(cx, |w, window, cx| w.close_project(window, cx));
+    wait_long(cx, "the project to close", |cx| !context_is_on(cx, "projectOpen"));
+    assert_eq!(state(cx), [false; 6], "no project");
 }

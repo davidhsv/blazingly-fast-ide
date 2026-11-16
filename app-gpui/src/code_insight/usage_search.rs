@@ -780,6 +780,8 @@ impl UsagesPopupFlow {
             FetchStep::Failed(error) => {
                 let Some(search) = self.search.take() else { return Vec::new() };
                 if is_cancelled(&error) {
+                    #[cfg(test)]
+                    crate::platform::actions::test_trace::note(format!("usages popup: search cancelled: {error:?}"));
                     return Vec::new();
                 }
                 if search.early || search.reopened {
@@ -861,7 +863,14 @@ impl UsagesPopupFlow {
         again: Option<&str>,
         step: impl FnOnce(&mut UsageFetch) -> FetchStep,
     ) -> Vec<PopupEffect> {
-        let Some(search) = self.current(request) else { return Vec::new() };
+        let Some(search) = self.current(request) else {
+            #[cfg(test)]
+            crate::platform::actions::test_trace::note(format!(
+                "usages popup: an answer to {request:?} is dropped, the search is {:?}",
+                self.search.as_ref().map(|search| search.request)
+            ));
+            return Vec::new();
+        };
         let step = step(&mut search.fetch);
         self.apply(step, now, again)
     }

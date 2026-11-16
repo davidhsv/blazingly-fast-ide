@@ -362,6 +362,12 @@ impl Workbench {
         self.code_insight.last_hint.as_ref()
     }
 
+    /// The Show Usages popup's search state, for the report of a test's wait that runs out.
+    #[cfg(test)]
+    pub(super) fn usages_popup_report(&self) -> String {
+        format!("request={:?} flow={:?}", self.code_insight.popup_request, self.code_insight.popup)
+    }
+
     /// The hierarchy the Hierarchy tool window shows.
     pub fn hierarchy(&self) -> &Hierarchy {
         &self.code_insight.hierarchy
@@ -689,7 +695,11 @@ impl Workbench {
         let light_mode = self.light_mode(cx);
         let request = Backend::next_request_id();
         self.code_insight.popup.set_light_mode(light_mode);
+        #[cfg(test)]
+        let asked = format!("{caret:?}");
         let effects = self.code_insight.popup.show(caret, now(), request);
+        #[cfg(test)]
+        crate::platform::actions::test_trace::note(format!("show usages at {asked}: {effects:?}"));
         self.carry_out_popup_search(request, effects, window, cx);
     }
 
@@ -750,7 +760,11 @@ impl Workbench {
             match effect {
                 PopupEffect::Open => self.open_usages_popup(window, cx),
                 PopupEffect::Fetch(request) => {
-                    let Some(search) = self.code_insight.popup_request else { continue };
+                    let Some(search) = self.code_insight.popup_request else {
+                        #[cfg(test)]
+                        crate::platform::actions::test_trace::note(format!("usages popup: {request:?} has no search"));
+                        continue;
+                    };
                     self.carry_out_fetch(FetchOwner::Popup(search), request, window, cx);
                 }
                 PopupEffect::Cancel(request) => cancel_request(request, cx),
@@ -810,7 +824,11 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(backend) = cx.try_global::<Backend>() else { return };
+        let Some(backend) = cx.try_global::<Backend>() else {
+            #[cfg(test)]
+            crate::platform::actions::test_trace::note(format!("usages: no backend for {request:?}"));
+            return;
+        };
         let label = self.label.clone();
         match request {
             // Edits reach the backend's documents as they are made: the index has them by now, and

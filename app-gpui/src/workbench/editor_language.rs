@@ -318,14 +318,22 @@ async fn editor_for(
     if open.is_some() {
         return Ok(open);
     }
-    for _ in 0..MOUNT_STEPS {
+    // A slow disk or a busy backend can take longer than any fixed time to open the file: the wait
+    // counts only the steps after the tab stopped loading (the file became a viewer, or failed).
+    let mut settled_steps = 0;
+    while settled_steps < MOUNT_STEPS {
         cx.background_executor().timer(MOUNT_STEP).await;
-        let open = this.update(cx, |workbench, cx| shown(workbench, cx))?;
+        let (open, opening) = this.update(cx, |workbench, cx| (shown(workbench, cx), workbench.is_opening(&path)))?;
         if open.is_some() {
             return Ok(open);
         }
+        if !opening {
+            settled_steps += 1;
+        }
     }
     tracing::info!("{} did not open in an editor", path.display());
+    #[cfg(test)]
+    crate::platform::actions::test_trace::note(format!("{} did not open in an editor", path.display()));
     Ok(None)
 }
 
@@ -1773,11 +1781,13 @@ mod tests {
         // Whether more time would have been enough tells a slow backend from one that never answers.
         let ran_out = started.elapsed();
         let servers = super::super::tests::window_lsp_report(cx);
+        let actions = super::super::tests::window_action_report(cx);
         let later = (0..3000).find(|_| poll(cx)).map(|_| started.elapsed());
         panic!(
             "{what} did not happen within thirty seconds (ran out after {ran_out:?}; reached later: {later:?})\n\
-             {servers}\nnow: {}",
-            super::super::tests::window_lsp_report(cx)
+             {servers}\n{actions}\nnow: {}\n{}",
+            super::super::tests::window_lsp_report(cx),
+            super::super::tests::window_action_report(cx)
         );
     }
 

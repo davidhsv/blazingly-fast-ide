@@ -375,7 +375,40 @@ fn run(id: &str, arg: Option<&serde_json::Value>, window: &mut Window, cx: &mut 
     cx.global_mut::<ActionRegistry>().nesting += 1;
     let result = (action.run)(&ActionCall { ctx: &ctx, arg }, window, cx);
     cx.global_mut::<ActionRegistry>().nesting -= 1;
+    #[cfg(test)]
+    test_trace::note(format!(
+        "action {id} {} ran: {}",
+        arg.map(|arg| arg.to_string()).unwrap_or_default(),
+        result.as_ref().map_or_else(|error| format!("failed: {error:#}"), |()| "ok".to_owned())
+    ));
     result.map_err(ActionError::Failed)
+}
+
+/// What the actions of a test did that a wait running out cannot see otherwise: the actions run and
+/// the places where one ended without doing anything. Each test runs on its own thread.
+#[cfg(test)]
+pub mod test_trace {
+    use std::cell::RefCell;
+
+    thread_local! {
+        static LINES: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    }
+
+    /// Keeps `line`, stamped with the wall clock in milliseconds.
+    pub fn note(line: String) {
+        let stamped = format!("{:.0} {line}", crate::platform::local_time::now_ms());
+        LINES.with(|lines| {
+            let mut lines = lines.borrow_mut();
+            lines.push(stamped);
+            let excess = lines.len().saturating_sub(40);
+            lines.drain(..excess);
+        });
+    }
+
+    /// The last lines kept on this thread, oldest first.
+    pub fn report() -> String {
+        LINES.with(|lines| lines.borrow().iter().map(|line| format!("  {line}")).collect::<Vec<_>>().join("\n"))
+    }
 }
 
 /// Runs an action if registered and enabled. Returns whether it ran; a failing handler is

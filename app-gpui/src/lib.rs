@@ -20,6 +20,7 @@ pub mod features_a;
 pub mod features_b;
 pub mod find;
 pub mod github;
+pub mod http_client;
 #[cfg(debug_assertions)]
 pub mod inspect;
 pub mod platform;

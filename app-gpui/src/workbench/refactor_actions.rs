@@ -1172,9 +1172,10 @@ mod tests {
             window.root::<Workbench>().flatten().map(|w| w.read(cx).refactorings.trace.join("\n  "))
         });
         panic!(
-            "{what} did not happen within thirty seconds\nruns:\n  {}\n{}",
+            "{what} did not happen within thirty seconds\nruns:\n  {}\n{}\n{}",
             trace.unwrap_or_default(),
-            super::super::tests::window_lsp_report(cx)
+            super::super::tests::window_lsp_report(cx),
+            super::super::tests::window_action_report(cx)
         );
     }
 
@@ -1348,12 +1349,13 @@ mod tests {
                 panic!(
                     "{action} did not happen within thirty seconds: text {:?}, version {version}, selections \
                      {selections:?}, hint {:?}, list open {}, {} asked {only} (before {asked})\nruns:\n  {trace}\n\
-                     the server got: {methods:?}\n{}",
+                     the server got: {methods:?}\n{}\n{}",
                     f.text(cx),
                     f.hint(cx),
                     !f.no_list(cx),
                     f.asked_only(&[only]),
                     super::super::tests::window_lsp_report(cx),
+                    super::super::tests::window_action_report(cx),
                 );
             }
             assert_eq!(f.asked_only(&[only]), asked + 1, "{action} asks the server for {only}");

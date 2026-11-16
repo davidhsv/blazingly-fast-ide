@@ -56,6 +56,11 @@ impl ServiceTabs {
         &self.http
     }
 
+    /// The services tree shown under the Services tab.
+    pub fn services(&self) -> &AnyView {
+        &self.services
+    }
+
     pub fn select(&mut self, tab: ServiceTab, cx: &mut Context<Self>) {
         self.active = tab;
         cx.notify();
@@ -141,6 +146,8 @@ impl Render for ServiceTabs {
                     .items_center()
                     .justify_center()
                     .rounded(px(4.0))
+                    // A coloured icon (Stop Request) keeps its colours: a disabled button is faded instead.
+                    .when(!action.enabled, |el| el.opacity(0.4))
                     .when(action.enabled, |el| el.hover(|el| el.bg(theme::color(cx, "bg-hover"))))
                     .tooltip(crate::ui::tooltip::tooltip(title))
                     .child(theme::icon(cx, action.icon, 14.0, color))

@@ -348,6 +348,43 @@ mod tests {
         close_project(cx);
     }
 
+    /// Show Usages with the caret on no name (an empty line) opens no popup and says that nothing
+    /// was found.
+    #[gpui_kit::test]
+    async fn show_usages_with_the_caret_on_no_name_opens_no_popup_and_says_so(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        edit_at(&workbench, &root.join("src/alpha.rs"), 1, 0, cx);
+
+        run_action(cx, "find.showUsages", None);
+        wait_long(cx, "the hint", |cx| workbench.read_with(cx, |w, _| w.code_insight_hint().is_some()));
+        let hint = workbench.read_with(cx, |w, _| w.code_insight_hint().map(|hint| hint.text.clone()));
+        assert_eq!(hint.as_deref(), Some("No usages found. Based on syntax (language server not ready)"));
+        assert!(workbench.read_with(cx, |w, _| w.usages_popup().is_none()), "no popup opens");
+        close_project(cx);
+    }
+
+    /// Show Usages cannot run while the file is still opening (its tab has no editor yet): nothing
+    /// is searched and no popup opens; once the editor has the keyboard it runs.
+    #[gpui_kit::test]
+    async fn show_usages_cannot_run_while_the_file_is_still_opening(cx: &mut TestAppContext) {
+        use crate::platform::actions::{ActionError, execute_action_or_throw};
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        let file = root.join("src/alpha.rs");
+        let ran = cx.update(|window, cx| {
+            workbench.update(cx, |w, cx| w.open_project_file(file.clone(), window, cx));
+            assert!(workbench.read(cx).editor().is_none(), "the file is still opening");
+            execute_action_or_throw("find.showUsages", None, window, cx)
+        });
+        assert!(matches!(ran, Err(ActionError::Unavailable(_))), "Show Usages is unavailable");
+        assert!(workbench.read_with(cx, |w, _| w.usages_popup().is_none() && w.code_insight_hint().is_none()));
+        edit_at(&workbench, &file, 0, 13, cx);
+        run_action(cx, "find.showUsages", None);
+        wait_long(cx, "the usages popup", |cx| workbench.read_with(cx, |w, _| w.usages_popup().is_some()));
+        close_project(cx);
+    }
+
     /// The mnemonic chooser opens just under the caret's line.
     #[gpui_kit::test]
     async fn the_mnemonic_chooser_opens_under_the_caret(cx: &mut TestAppContext) {
