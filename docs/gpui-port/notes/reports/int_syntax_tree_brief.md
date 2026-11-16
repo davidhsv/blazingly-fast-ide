@@ -1,0 +1,45 @@
+# Integrator brief: the editor's structure service and the commands that use the document's syntax tree (drafts written without a compiler)
+
+Read first: `$S/int_rules.md` (hard rules and report format), `$S/tests_brief.md`, `$S/view_rules.md`, `$S/wiring_brief.md`. Your own scratch subfolder: `$S/dsyni/`.
+
+Format only files you edited, taken from `git diff --name-only` plus the draft files this brief hands you by name. Never build a file list from `git status`. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
+
+## Part 0: Kotlin files are drawn without keyword and string colours (a seam in `crates/ide-language`, named here)
+
+Measured in a test of an earlier slice: the native highlights of `val s = "x"` in a Kotlin file are one Variable span. Read by the writer, not run: `highlight_query` in `crates/ide-language/src/syntax/mod.rs` uses the grammar spec's own query before the native one; Kotlin's `queries/kotlin/highlights.scm` covers declaration roles only (it adds to the webview's own token colouring), `native_highlights` (`crates/ide-language/src/syntax/grammars.rs`) has no Kotlin entry, and the Kotlin grammar ships no highlights query.
+
+First confirm it by test in the native app (a Kotlin file opened in a project window: the colour `val` and a string are drawn in), so the fix has a test that fails without it. Then fix it at the seam, and only there: a native-only Kotlin query (keywords, strings and their escapes, numbers, comments, annotations: read what the webview's Kotlin mode colours and match its token kinds) joined to the existing one for callers that have no token colouring of their own. The Tauri app must get byte-for-byte the same highlights as before for every language: find every caller of the query (`crates/ide-language/src/syntax/cache.rs`, `highlight.rs`, the ops and the Tauri commands that return highlights) and say which path each app takes; if both take the same path, add a separate entry point for the native app instead of changing the shared one. Prove "unchanged" with a crate test that compares the shared path's Kotlin output before and after (write the test first, against the unchanged code). No `///` doc comment on a type that derives `specta::Type`. Then, from the worktree root: `cargo test -p ide-language`, `cargo clippy -p ide-language --all-targets -- -D warnings`, `cargo test -p openidea export_bindings`, and `git status --short src/ src-tauri/` must print nothing. Check the other languages whose spec has a query of its own and no native entry (the writer lists zig, elixir, hcl, nix, graphql, make, gdscript): for each, say by test whether a keyword and a string get a colour natively; fix none of them here, list them.
+
+With Kotlin coloured, restore what the editor paint slice left out: put Kotlin back into the string-literal clipboard's languages (`MODES` in the editor's string-literal code and the window test `escapes_kotlin_dollars_and_unescapes_them_on_copy` that was removed: `git log -p -S escapes_kotlin_dollars -- app-gpui/src/editor/command_actions/tests/proofs23_string_clipboard.rs` shows it; read-only git is fine).
+
+## The slice
+
+Notes (27 numbered hunks grouped by command with quoted anchors and the landing order, `mod` lines, the rows expected with every test's full name, per command what the webview does with and without a tree with `file:line`, the hypotheses and how to settle each, the tests most likely to fail): `$S/drafts/syntax_tree_integration.md` (read this scratch copy: the copy under `docs/` was reformatted by the commit hook). Writer's report: `docs/gpui-port/notes/reports/syntax_tree_writer.md`. Draft files (committed, undeclared, never compiled): `app-gpui/src/editor/structure.rs`, `app-gpui/src/editor/structure/{commands,proofs25_structure}.rs`, `app-gpui/src/workbench/editor_structure.rs`, `app-gpui/src/editor_lsp/definition_source.rs`, `app-gpui/src/workbench/tests/proofs25_syntax_tree.rs`, `app-gpui/src/workbench/editor_language/tests/proofs25_quick_definition.rs`.
+
+The notes are hypotheses; where a note and the webview source disagree, the webview source wins (`src/editor/core/cm/structural.ts` and its test, `src/editor/core/actions.ts`, the callers the notes cite; the backend `crates/ide-host/src/ops/syntax.rs`; the Tauri adapters `src-tauri/src/commands/syntax.rs`). Land one command at a time in the notes' order: its hunks, compile, its tests by filter, fix, next. If a command does not converge, take its hunks out by editing, say exactly where it stands, and go on.
+
+Points to settle by measurement, not by the notes:
+
+- Move Statement: the draft uses the backend's structural ranges for every language with a grammar, where the webview uses its own planner for the languages its editor parses (Rust, Java, JavaScript, Python and others). That they move the same statement is a hypothesis. Take every Move Statement case of the webview's tests (`src/editor/core/cm/ideaParity.test.ts`, `structural.test.ts`, and any other: grep `moveStatement`) and run the same input natively through the action, in the same language; report each case as same or different. The action rows are done only if none differs; a difference is fixed where it is small, or listed and the rows stay partial.
+- The service: a keystroke never waits on the backend (assert it: with the backend's answer held back, typing still lands at once); a stale answer is dropped; nothing in paint or prepaint asks the service for anything not cached. The editor's long-file paint test and scroll test still pass; say what each command costs.
+- The existing case table of `editor::command_actions::tests` that hunk 1.4 makes wait on the service: it must not get slower by more than a few seconds in total (measure the test's time before and after).
+- `editor_commands::structural::tests::drops_the_edit_when_the_document_changed_meanwhile_and_reports_fallback_without_ranges`: the writer says it does not test what its name says. Read it; make the name and the assertion agree (the spec case it stands for is in `structural.test.ts`), through the service that now owns stale answers.
+- Tests use real small files of languages whose grammar is bundled and no language server of the machine (Light mode or the existing stand-in server for `.mock` files); nothing under the user's home.
+
+## Changed since the notes were written
+
+BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on the tree at commit 5714c388; compute the existing files the hunks anchor on against the tree at launch and say here which changed.
+
+## Gates (they replace rule 12 of `$S/int_rules.md`)
+
+The whole native suite twice to files, nothing else running beside the first (write `uptime` before and after each run into the same file); during the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings; and the crate checks of Part 0. Never pipe a test run into `head`. Start no test run with `&` inside a script. A test that is unstable under the loop is not done: find the cause and fix the wait, not the assertion. If any test fails in a whole-suite run, keep that run's log and quote the failure whole. (The manager runs the whole Tauri workspace suite afterwards; you do not.)
+
+## Report
+
+Besides the format of `$S/int_rules.md`: Part 0 (the failing test first, the seam, which path each app takes, the unchanged proof, the other languages' state); one table of every `parity.json` key the notes name with the state it reaches (done or partial), the proving tests by full name, for partial what is missing, "N of 27 cases" for `unit:src/editor/core/cm/structural.test.ts` with each new case's test, and for each `ipc:syntax_*` key the test that asserts state only that backend function can give; the Move Statement comparison case by case; which way each hypothesis went; what each command costs per press and what paint costs.
+
+No look at the real window is asked for the commands. For Part 0 look once at your own binary (only through `$S/insp8/run.sh`: short `PATH`, temp `HOME`, `ZDOTDIR`, `OPENIDEA_GPUI_HOME`, temp project): a small Kotlin file in the light theme and the dark one; say what is coloured. Do not open the Agents tool window or the Services window in it.
+
+## Do not touch
+
+Every undeclared draft of other agents under `app-gpui/src` and every undeclared `proofs*` or `*_pending.rs` test file this brief does not hand you. Under `crates/` only the seam of Part 0 in `crates/ide-language` (and its query file). No edits under `docs/`, `src/`, `src-tauri/`, `e2e/`, `languages/`. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`.
