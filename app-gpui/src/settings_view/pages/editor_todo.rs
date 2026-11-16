@@ -1,14 +1,15 @@
 //! Editor › TODO: the keywords the TODO tool window looks for, each enabled or not and with its
 //! colour, and whether matching is case sensitive and only in comments.
 //!
-//! The patterns are IDE-level UI state kept in the UI storage under [`STORAGE_KEY`], in the JSON
-//! the other app reads as well, not in the settings files: every change is stored at once and the
-//! TODO window matches with it from then on, so the page stages nothing and Apply, Reset and
-//! Cancel leave it alone. The page hands each change to the workbench as
-//! [`TodoSettingsEvent::Changed`].
+//! The patterns are IDE-level UI state kept in the UI storage under
+//! [`crate::features_a::todo::TODO_SETTINGS_KEY`], not in the settings files: every change is stored
+//! at once and the TODO windows match with it from then on, so the page stages nothing and Apply,
+//! Reset and Cancel leave it alone. The page hands each change to the workbench as
+//! [`TodoSettingsEvent::Changed`], and shows what another writer of the storage stores meanwhile
+//! (the TODO window's Match Case, another window's page).
 
 use super::{Binding, drop_down, drop_down_row, frame, icon_button, new_field, row, select_box};
-use crate::features_a::todo::{TodoPattern, TodoSettings, default_patterns};
+use crate::features_a::todo::{TodoPattern, TodoSettings, default_patterns, stored_todo_settings};
 use crate::platform::local_time::now_ms;
 use crate::platform::storage::UiStorage;
 use crate::settings_view::controls::{button, check_box, search_label, tx};
@@ -18,11 +19,8 @@ use gpui_kit::{
     AnyElement, App, ClickEvent, Context, Entity, EventEmitter, IntoElement, MouseButton, Render, SharedString,
     Subscription, Window, div, prelude::*, px,
 };
-use serde_json::{Value, json};
 
 pub const PAGE: &str = "editor.todo";
-/// Where the TODO settings are stored.
-pub const STORAGE_KEY: &str = "openidea.todo.v1";
 
 const CASE_SENSITIVE: &str = "Case sensitive";
 const COMMENTS_ONLY: &str = "Only in comments";
@@ -47,51 +45,6 @@ pub const COLORS: [(&str, &str); 6] = [
 /// The keyword and colour of a pattern added with Add Pattern.
 const NEW_KEYWORD: &str = "NOTE";
 const NEW_COLOR: &str = "var(--success)";
-
-/// The settings stored as `raw` (JSON text; `None` when nothing is stored). A missing or mistyped
-/// value takes its default; a pattern without a keyword is dropped.
-pub fn parse_todo_settings(raw: Option<&str>) -> TodoSettings {
-    let mut out = TodoSettings::default();
-    let Some(Value::Object(stored)) = raw.and_then(|raw| serde_json::from_str::<Value>(raw).ok()) else {
-        return out;
-    };
-    if let Some(patterns) = stored.get("patterns").and_then(Value::as_array) {
-        out.patterns = patterns.iter().filter_map(parse_pattern).collect();
-    }
-    if let Some(on) = stored.get("caseSensitive").and_then(Value::as_bool) {
-        out.case_sensitive = on;
-    }
-    if let Some(on) = stored.get("commentsOnly").and_then(Value::as_bool) {
-        out.comments_only = on;
-    }
-    out
-}
-
-fn parse_pattern(value: &Value) -> Option<TodoPattern> {
-    let text = |name: &str| value.get(name).and_then(Value::as_str).map(str::to_owned);
-    Some(TodoPattern {
-        keyword: text("keyword")?,
-        id: text("id").unwrap_or_default(),
-        color: text("color").unwrap_or_else(|| COLORS[0].0.to_owned()),
-        enabled: value.get("enabled").and_then(Value::as_bool).unwrap_or(true),
-    })
-}
-
-/// The JSON text `settings` are stored as.
-pub fn todo_settings_json(settings: &TodoSettings) -> String {
-    let patterns: Vec<Value> = settings
-        .patterns
-        .iter()
-        .map(|p| json!({ "id": p.id, "keyword": p.keyword, "color": p.color, "enabled": p.enabled }))
-        .collect();
-    json!({ "patterns": patterns, "caseSensitive": settings.case_sensitive, "commentsOnly": settings.comments_only })
-        .to_string()
-}
-
-/// The TODO settings as stored, the defaults while nothing is.
-pub fn stored_todo_settings(cx: &App) -> TodoSettings {
-    parse_todo_settings(cx.try_global::<UiStorage>().and_then(|storage| storage.get(STORAGE_KEY)))
-}
 
 /// `millis` in base 36, the digits of a new pattern's id.
 fn base36(mut millis: u64) -> String {
@@ -157,17 +110,37 @@ impl EventEmitter<TodoSettingsEvent> for TodoSettingsView {}
 
 impl TodoSettingsView {
     pub fn new(binding: Binding, settings: TodoSettings, cx: &mut Context<Self>) -> Self {
-        let observe = cx.observe(&binding.model, |_: &mut Self, _, cx| cx.notify());
+        let subscriptions = vec![
+            cx.observe(&binding.model, |_: &mut Self, _, cx| cx.notify()),
+            cx.observe_global::<UiStorage>(Self::follow_storage),
+        ];
         let mut view = Self {
             binding,
             settings,
             keywords: Vec::new(),
             open_color: None,
             keyword_events: Vec::new(),
-            _subscriptions: vec![observe],
+            _subscriptions: subscriptions,
         };
         view.make_keyword_fields(cx);
         view
+    }
+
+    /// Shows the settings another writer stored. What this page stored itself reads back equal, so
+    /// a keyword being typed keeps its field.
+    fn follow_storage(&mut self, cx: &mut Context<Self>) {
+        let stored = stored_todo_settings(cx);
+        if stored == self.settings {
+            return;
+        }
+        let same_keywords =
+            stored.patterns.iter().map(|p| &p.keyword).eq(self.settings.patterns.iter().map(|p| &p.keyword));
+        self.settings = stored;
+        if !same_keywords {
+            self.open_color = None;
+            self.make_keyword_fields(cx);
+        }
+        cx.notify();
     }
 
     pub fn settings(&self) -> &TodoSettings {
@@ -424,7 +397,8 @@ impl Render for TodoSettingsView {
                     .px(px(4.0))
                     .children(rows),
             )
-            .child(div().child(restore))
+            // The button keeps its own width, as an inline button does.
+            .child(div().flex().child(restore))
     }
 }
 
@@ -461,22 +435,6 @@ mod tests {
             Some(TodoSettingsEvent::Changed(settings)) => settings.clone(),
             other => panic!("the settings changed, not {other:?}"),
         }
-    }
-
-    // Not from a spec: what is stored reads back the same, a missing or mistyped value takes its
-    // default and text that is not JSON gives the defaults.
-    #[test]
-    fn stored_settings_read_back_and_bad_values_take_their_defaults() {
-        let mut settings = TodoSettings { case_sensitive: false, ..TodoSettings::default() };
-        settings.patterns[1].enabled = false;
-        assert_eq!(parse_todo_settings(Some(&todo_settings_json(&settings))), settings);
-        assert_eq!(parse_todo_settings(None), TodoSettings::default());
-        assert_eq!(parse_todo_settings(Some("not JSON")), TodoSettings::default());
-        let partly = r#"{"commentsOnly":false,"caseSensitive":"yes","patterns":[{"keyword":"BUG"},{"id":"x"}]}"#;
-        let read = parse_todo_settings(Some(partly));
-        assert!(!read.comments_only && read.case_sensitive);
-        assert_eq!(read.patterns.len(), 1);
-        assert_eq!((read.patterns[0].keyword.as_str(), read.patterns[0].enabled), ("BUG", true));
     }
 
     // Not from a spec: a new pattern's id is `p` and the time in base 36, made unique.

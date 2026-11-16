@@ -26,6 +26,7 @@ pub mod data_views;
 pub mod deployment_options;
 pub mod editor_files;
 pub mod editor_font;
+pub mod editor_todo;
 pub mod font_picker;
 pub mod general;
 pub mod general_date_formats;
@@ -36,6 +37,7 @@ pub mod languages_pages;
 pub mod languages_sdk;
 pub mod list_editor;
 pub mod notifications;
+pub mod security_project_trust;
 pub mod ssh_backend;
 pub mod terminal;
 pub mod tools_actions_on_save;
@@ -45,7 +47,9 @@ pub mod tools_ssh;
 pub mod vcs_commit;
 pub mod vcs_confirmation;
 pub mod vcs_git;
+pub mod vcs_github;
 pub mod vcs_issue_navigation;
+pub mod vcs_log;
 pub mod vcs_mappings;
 
 use super::controls::{

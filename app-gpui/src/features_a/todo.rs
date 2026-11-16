@@ -52,6 +52,60 @@ impl Default for TodoSettings {
     }
 }
 
+/// Where the TODO settings are kept in the UI storage, in JSON the other app reads as well.
+pub const TODO_SETTINGS_KEY: &str = "openidea.todo.v1";
+
+/// The colour a stored pattern without one takes.
+const DEFAULT_PATTERN_COLOR: &str = "var(--info)";
+
+/// The settings stored as `raw` (JSON text; `None` when nothing is stored). A missing or mistyped
+/// value takes its default; a pattern without a keyword is dropped.
+pub fn parse_todo_settings(raw: Option<&str>) -> TodoSettings {
+    use serde_json::Value;
+    let mut out = TodoSettings::default();
+    let Some(Value::Object(stored)) = raw.and_then(|raw| serde_json::from_str::<Value>(raw).ok()) else {
+        return out;
+    };
+    if let Some(patterns) = stored.get("patterns").and_then(Value::as_array) {
+        out.patterns = patterns.iter().filter_map(parse_stored_pattern).collect();
+    }
+    if let Some(on) = stored.get("caseSensitive").and_then(Value::as_bool) {
+        out.case_sensitive = on;
+    }
+    if let Some(on) = stored.get("commentsOnly").and_then(Value::as_bool) {
+        out.comments_only = on;
+    }
+    out
+}
+
+fn parse_stored_pattern(value: &serde_json::Value) -> Option<TodoPattern> {
+    let text = |name: &str| value.get(name).and_then(serde_json::Value::as_str).map(str::to_owned);
+    Some(TodoPattern {
+        keyword: text("keyword")?,
+        id: text("id").unwrap_or_default(),
+        color: text("color").unwrap_or_else(|| DEFAULT_PATTERN_COLOR.to_owned()),
+        enabled: value.get("enabled").and_then(serde_json::Value::as_bool).unwrap_or(true),
+    })
+}
+
+/// The JSON text `settings` are stored as.
+pub fn todo_settings_json(settings: &TodoSettings) -> String {
+    use serde_json::{Value, json};
+    let patterns: Vec<Value> = settings
+        .patterns
+        .iter()
+        .map(|p| json!({ "id": p.id, "keyword": p.keyword, "color": p.color, "enabled": p.enabled }))
+        .collect();
+    json!({ "patterns": patterns, "caseSensitive": settings.case_sensitive, "commentsOnly": settings.comments_only })
+        .to_string()
+}
+
+/// The TODO settings as stored, the defaults while nothing is.
+pub fn stored_todo_settings(cx: &gpui_kit::App) -> TodoSettings {
+    let storage = cx.try_global::<crate::platform::storage::UiStorage>();
+    parse_todo_settings(storage.and_then(|storage| storage.get(TODO_SETTINGS_KEY)))
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TodoItem {
     pub path: String,
@@ -541,6 +595,35 @@ mod tests {
 
     fn settings() -> TodoSettings {
         TodoSettings::default()
+    }
+
+    // Not from a spec: what is stored reads back the same, a missing or mistyped value takes its
+    // default and text that is not JSON gives the defaults.
+    #[test]
+    fn stored_settings_read_back_and_bad_values_take_their_defaults() {
+        let mut settings = TodoSettings { case_sensitive: false, ..TodoSettings::default() };
+        settings.patterns[1].enabled = false;
+        assert_eq!(parse_todo_settings(Some(&todo_settings_json(&settings))), settings);
+        assert_eq!(parse_todo_settings(None), TodoSettings::default());
+        assert_eq!(parse_todo_settings(Some("not JSON")), TodoSettings::default());
+        let partly = r#"{"commentsOnly":false,"caseSensitive":"yes","patterns":[{"keyword":"BUG"},{"id":"x"}]}"#;
+        let read = parse_todo_settings(Some(partly));
+        assert!(!read.comments_only && read.case_sensitive);
+        assert_eq!(read.patterns.len(), 1);
+        assert_eq!((read.patterns[0].keyword.as_str(), read.patterns[0].enabled), ("BUG", true));
+        assert_eq!(read.patterns[0].color, "var(--info)");
+    }
+
+    // Not from a spec: a keyword is matched as written, its `.` and brackets taken literally, both
+    // by the scan of an editor's text and in the project search's expression.
+    #[test]
+    fn a_keyword_is_matched_as_written_never_as_an_expression() {
+        let patterns = vec![pattern("a", "FIX.ME", "var(--info)"), pattern("b", "a(b[", "var(--info)")];
+        let s = TodoSettings { patterns, ..TodoSettings::default() };
+        let items = scan_text("/p/a.rs", "// FIXAME no\n// FIX.ME yes\n// a(b[x too\n", &s);
+        let lines: Vec<u32> = items.iter().map(|item| item.line).collect();
+        assert_eq!(lines, [1, 2]);
+        assert_eq!(todo_regex_source(&s).as_deref(), Some(r"\b(FIX\.ME|a\(b\[)\b.*"));
     }
 
     fn prefix(line: &str) -> &str {

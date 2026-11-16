@@ -2,21 +2,20 @@
 //! store), Editor › TODO, Version Control › Log and Version Control › GitHub (the UI storage). Each
 //! is a view drawn for its whole page, and the workbench carries out what it asks: the trust
 //! store's requests on the backend, with the page given the lists again once one is done; the
-//! other pages' changes stored at once and handed to the TODO window and the Git log, which follow
-//! them from then on. None of them stages anything, so Apply, Reset and Cancel leave them alone,
-//! as their options take effect the moment they change.
+//! other pages' changes stored at once, which every TODO window follows, and handed to the window's
+//! Git log. None of them stages anything, so Apply stays off and Reset, Cancel and OK leave them
+//! alone, as their options take effect the moment they change.
 
 use super::Workbench;
 use super::plugin_runtime::plugin_host;
 use crate::backend::Backend;
+use crate::features_a::todo::{TODO_SETTINGS_KEY, stored_todo_settings, todo_settings_json};
 use crate::github::diff::REVIEW_DIFF_SETTINGS_KEY;
 use crate::platform::storage::UiStorage;
 use crate::settings_model::staging::Scope;
 use crate::settings_view::dialog::SettingsDialogView;
 use crate::settings_view::pages::Binding;
-use crate::settings_view::pages::editor_todo::{
-    self, TodoSettingsEvent, TodoSettingsView, stored_todo_settings, todo_settings_json,
-};
+use crate::settings_view::pages::editor_todo::{self, TodoSettingsEvent, TodoSettingsView};
 use crate::settings_view::pages::security_project_trust::{self, ProjectTrustEvent, ProjectTrustView, TrustLists};
 use crate::settings_view::pages::vcs_github::{
     self, GithubSettingsEvent, GithubSettingsView, review_settings_with_auto_mark,
@@ -27,7 +26,7 @@ use ide_core::IdeResult;
 use ide_host::Host;
 use ide_host::plugins::PluginHost;
 use ide_host::trust::TrustDecisions;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// What Project Trust asks of the trust store; each ends with the decisions read again.
@@ -45,7 +44,8 @@ enum TrustRequest {
 
 /// Carries out `request` on the trust store and the projects open, then reads the decisions. A
 /// project that is no longer trusted has its project plugins unloaded, as Revoke Trust and Remove
-/// Trusted Location do when run as actions.
+/// Trusted Location do when run as actions. Like those actions, a Revoke Trust or Remove that fails
+/// is logged and the page lists what the store holds; a failed read or Add folder… is the page's.
 async fn carry_out(
     host: Arc<Host>,
     plugins: Option<Arc<PluginHost>>,
@@ -54,20 +54,13 @@ async fn carry_out(
     match request {
         TrustRequest::Read => {}
         TrustRequest::Revoke(path) => {
-            host.set_project_trust(&path, false, false).await?;
-            if let Some(plugins) = plugins {
-                // The folder as the trust store names it, links resolved.
-                let root = host.trust.status(&path).map(|status| status.root.into_path_buf()).unwrap_or(path);
-                plugins.restrict_project(&root);
+            if let Err(error) = revoke(&host, plugins, path).await {
+                tracing::error!("action project.revokeTrust failed: {}", error.message);
             }
         }
         TrustRequest::RemoveLocation(path) => {
-            host.trust.remove_location(&path)?;
-            host.refresh_project_trust().await?;
-            if let Some(plugins) = plugins {
-                for project in host.projects().into_iter().filter(|project| !project.is_trusted()) {
-                    plugins.restrict_project(&project.root);
-                }
+            if let Err(error) = remove_location(&host, plugins, &path).await {
+                tracing::error!("action project.removeTrustedLocation failed: {}", error.message);
             }
         }
         TrustRequest::AddLocation(path) => {
@@ -76,6 +69,27 @@ async fn carry_out(
         }
     }
     host.trust.decisions()
+}
+
+async fn revoke(host: &Host, plugins: Option<Arc<PluginHost>>, path: PathBuf) -> IdeResult<()> {
+    host.set_project_trust(&path, false, false).await?;
+    if let Some(plugins) = plugins {
+        // The folder as the trust store names it, links resolved.
+        let root = host.trust.status(&path).map(|status| status.root.into_path_buf()).unwrap_or(path);
+        plugins.restrict_project(&root);
+    }
+    Ok(())
+}
+
+async fn remove_location(host: &Host, plugins: Option<Arc<PluginHost>>, path: &Path) -> IdeResult<()> {
+    host.trust.remove_location(path)?;
+    host.refresh_project_trust().await?;
+    if let Some(plugins) = plugins {
+        for project in host.projects().into_iter().filter(|project| !project.is_trusted()) {
+            plugins.restrict_project(&project.root);
+        }
+    }
+    Ok(())
 }
 
 /// Draws `view` for the whole of `page`, its labels found by the Settings search.
@@ -142,6 +156,7 @@ impl Workbench {
                 self.trust_page_request(page, TrustRequest::RemoveLocation(path.into()), cx)
             }
             ProjectTrustEvent::AddLocation => self.add_trusted_location(page, cx),
+            ProjectTrustEvent::Shown => self.trust_page_request(page, TrustRequest::Read, cx),
         }
     }
 
@@ -160,10 +175,11 @@ impl Workbench {
         let plugins = plugin_host(cx);
         let work = backend.with_host(move |host| carry_out(host, plugins, request));
         cx.spawn(async move |_, cx| {
+            // The page shows a failure as the text of the error the backend answered with.
             let shown = match work.await {
                 Ok(Ok(decisions)) => Ok(TrustLists::from_decisions(&decisions)),
-                Ok(Err(error)) => Err(error.message),
-                Err(error) => Err(error.to_string()),
+                Ok(Err(error)) => Err(format!("IpcError: {}", error.message)),
+                Err(error) => Err(format!("Error: {error}")),
             };
             // The page is gone when the dialog closed meanwhile.
             page.update(cx, |page, cx| match shown {
@@ -191,13 +207,13 @@ impl Workbench {
             }
             Ok(Ok(None)) | Err(_) => {}
             Ok(Err(error)) => {
-                page.update(cx, |page, cx| page.set_error(error.to_string(), cx)).ok();
+                page.update(cx, |page, cx| page.set_error(format!("Error: {error}"), cx)).ok();
             }
         })
         .detach();
     }
 
-    /// TODO: the settings are stored, and the TODO window matches with them from now on.
+    /// TODO: the settings are stored; every TODO window follows the storage and matches with them.
     fn todo_settings_page_event(
         &mut self,
         _: &Entity<TodoSettingsView>,
@@ -207,8 +223,7 @@ impl Workbench {
     ) {
         match event {
             TodoSettingsEvent::Changed(settings) => {
-                cx.default_global::<UiStorage>().set(editor_todo::STORAGE_KEY, todo_settings_json(settings));
-                self.set_todo_settings(settings.clone(), cx);
+                cx.default_global::<UiStorage>().set(TODO_SETTINGS_KEY, todo_settings_json(settings));
             }
             TodoSettingsEvent::Submit => {
                 if let Some(dialog) = self.settings_dialog().cloned() {

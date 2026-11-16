@@ -7,7 +7,8 @@ use super::{Content, Panel, Workbench};
 use crate::backend::Backend;
 use crate::editor::view::Editor;
 use crate::features_a::todo::{
-    TodoMap, TodoScope, TodoSettings, TodoTab, build_todo_query, items_from_matches, scan_text, todo_search_scope,
+    TODO_SETTINGS_KEY, TodoMap, TodoScope, TodoSettings, TodoTab, build_todo_query, items_from_matches, scan_text,
+    stored_todo_settings, todo_search_scope, todo_settings_json,
 };
 use crate::features_a::todo_view::{TodoCommand, TodoData, TodoView, TodoViewEvent};
 use crate::platform::actions::{ActionRegistry, ActionSource, execute_action_from};
@@ -44,6 +45,8 @@ pub(super) struct TodoFeed {
     /// The number of the preview last asked for: an answer for an older one closes its document.
     preview: u64,
     _observer: Option<Subscription>,
+    /// Follows the stored TODO settings, which Settings › Editor › TODO of any window changes.
+    _settings: Subscription,
 }
 
 /// What a search found: the matches of each file, and whether it stopped at its limit.
@@ -120,7 +123,12 @@ impl Workbench {
                 .and_then(|storage| storage.get(&scopes_key(&root)))
                 .map(parse_scopes)
                 .unwrap_or_default();
-            let data = TodoData { project_root: root, custom_scopes, ..TodoData::default() };
+            let settings = stored_todo_settings(cx);
+            let data = TodoData { project_root: root, custom_scopes, settings, ..TodoData::default() };
+            let follow = cx.observe_global::<UiStorage>(|workbench, cx| {
+                let stored = stored_todo_settings(cx);
+                workbench.set_todo_settings(stored, cx);
+            });
             self.todo = Some(TodoFeed {
                 data,
                 editor: None,
@@ -130,6 +138,7 @@ impl Workbench {
                 live_scan: None,
                 preview: 0,
                 _observer: None,
+                _settings: follow,
             });
         }
         self.follow_todo_editor(cx);
@@ -276,6 +285,19 @@ impl Workbench {
         self.push_todo_data(cx);
     }
 
+    /// The TODO settings changed: the tool window matches with them from now on; the open editors
+    /// and the project are scanned again, and the Scope Based tab's scope on its next showing.
+    fn set_todo_settings(&mut self, settings: TodoSettings, cx: &mut Context<Self>) {
+        let Some(feed) = self.todo.as_mut() else { return };
+        if feed.data.settings == settings {
+            return;
+        }
+        feed.data.settings = settings;
+        feed.data.scoped_scope = None;
+        self.scan_open_editors(cx);
+        self.scan_todos(cx);
+    }
+
     /// Scans the Scope Based tab's scope, in place of a scan of another scope still running.
     fn scan_todo_scope(&mut self, scope: TodoScope, cx: &mut Context<Self>) {
         let label = self.label.clone();
@@ -406,13 +428,13 @@ impl Workbench {
             }
             TodoViewEvent::ScanScope(scope) => self.scan_todo_scope(scope, cx),
             TodoViewEvent::Refresh => self.scan_todos(cx),
+            // Match Case is the stored Case sensitive of Settings › Editor › TODO.
             TodoViewEvent::ToggleMatchCase => {
-                if let Some(feed) = self.todo.as_mut() {
-                    feed.data.settings.case_sensitive = !feed.data.settings.case_sensitive;
-                    feed.data.scoped_scope = None;
-                }
-                self.scan_open_editors(cx);
-                self.scan_todos(cx);
+                let Some(feed) = self.todo.as_ref() else { return };
+                let mut settings = feed.data.settings.clone();
+                settings.case_sensitive = !settings.case_sensitive;
+                cx.default_global::<UiStorage>().set(TODO_SETTINGS_KEY, todo_settings_json(&settings));
+                self.set_todo_settings(settings, cx);
             }
             TodoViewEvent::EditScopes(name) => {
                 let arg = name.map(|name| serde_json::json!({ "select": name }));

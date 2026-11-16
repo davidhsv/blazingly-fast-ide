@@ -1338,6 +1338,32 @@ mod tests {
         close(cx);
     }
 
+    // src/features/project-trust/trust.test.tsx › shows and trusts the canonical folder when opening
+    // through a symlink
+    #[gpui_kit::test]
+    async fn shows_and_trusts_the_canonical_folder_when_opening_through_a_symlink(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let base = tempfile::tempdir().expect("a temporary folder");
+        let base_path = base.path().canonicalize().expect("the folder exists");
+        let real = base_path.join("real").join("projects");
+        std::fs::create_dir_all(real.join("new")).expect("the folders are made");
+        let aliases = base_path.join("aliases");
+        std::os::unix::fs::symlink(&real, &aliases).expect("the link is made");
+        let (workbench, cx) = empty_window(cx);
+        open_through_the_flow(&aliases.join("new"), cx);
+        wait_long(cx, "the question is shown", |cx| asked_about(&workbench, cx).is_some());
+        let canonical = real.join("new");
+        assert_eq!(asked_about(&workbench, cx).as_deref(), Some(&*canonical.to_string_lossy()));
+        let named = workbench.read_with(cx, |w, cx| w.trust_dialog().map(|d| d.read(cx).parent().to_owned()));
+        assert_eq!(named.as_deref(), Some(&*real.to_string_lossy()), "the checkbox names the folder linked to");
+        click_on(cx, "trust-folder");
+        click_on(cx, "trust-button-project.trust");
+        wait_long(cx, "the project opens", |cx| shown_root(&workbench, cx).is_some());
+        let decisions = cx.update(|_, cx| cx.global::<Backend>().host.trust.decisions()).expect("the decisions read");
+        assert_eq!((decisions.projects, decisions.locations), (vec![canonical], vec![real]));
+        close(cx);
+    }
+
     /// A project that opens in a window of its own (New Window, Open in New Window) is asked about
     /// in that window; the window it was asked from shows nothing new.
     #[gpui_kit::test]

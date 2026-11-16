@@ -71,6 +71,7 @@ mod run_configs;
 mod run_context;
 mod services_actions;
 mod services_window;
+mod settings_feature_pages;
 mod settings_window;
 pub use settings_window::apply_keymap_settings;
 mod shelf;
@@ -4516,6 +4517,7 @@ mod tests {
     mod proofs28_settings_deployment;
     mod proofs29_settings_ssh;
     mod proofs30_settings_run_targets;
+    mod proofs31_settings_feature_pages;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

@@ -52,6 +52,8 @@ pub enum ProjectTrustEvent {
     RemoveLocation(String),
     /// Add folder…: a folder chosen with the system's chooser becomes a trusted location.
     AddLocation,
+    /// The dialog shows the page again: the decisions are to be read anew.
+    Shown,
 }
 
 pub struct ProjectTrustView {
@@ -60,6 +62,8 @@ pub struct ProjectTrustView {
     lists: Option<TrustLists>,
     /// Why the last read or request failed; it stays until the page is opened again.
     error: String,
+    /// Whether the dialog shows the page now.
+    page_shown: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -68,8 +72,27 @@ impl EventEmitter<ProjectTrustEvent> for ProjectTrustView {}
 impl ProjectTrustView {
     pub fn new(binding: Binding, cx: &mut Context<Self>) -> Self {
         // The search marks the page's labels as it is typed: the view follows the dialog's model.
-        let observe = cx.observe(&binding.model, |_: &mut Self, _, cx| cx.notify());
-        Self { binding, lists: None, error: String::new(), _subscriptions: vec![observe] }
+        let observe = cx.observe(&binding.model, |view: &mut Self, _, cx| {
+            view.follow_page(cx);
+            cx.notify();
+        });
+        let page_shown = binding.model.read(cx).page_id == binding.page;
+        Self { binding, lists: None, error: String::new(), page_shown, _subscriptions: vec![observe] }
+    }
+
+    /// The page starts afresh each time the dialog shows it, as a page of its own: nothing listed
+    /// and no failure until the store is read again.
+    fn follow_page(&mut self, cx: &mut Context<Self>) {
+        let shown = self.binding.model.read(cx).page_id == self.binding.page;
+        if shown == self.page_shown {
+            return;
+        }
+        self.page_shown = shown;
+        if shown {
+            self.lists = None;
+            self.error.clear();
+            cx.emit(ProjectTrustEvent::Shown);
+        }
     }
 
     pub fn set_lists(&mut self, lists: TrustLists, cx: &mut Context<Self>) {
