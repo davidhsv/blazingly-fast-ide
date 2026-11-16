@@ -5,11 +5,11 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1459/3145 rows at parity, 99 model only, 514 partial, 15 with nothing to port.**
+**Overall: 1460/3145 rows at parity, 99 model only, 515 partial, 15 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
-| Actions | 497 | 0 | 144 | 0 | 836 |
+| Actions | 498 | 0 | 144 | 0 | 836 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 46 |
 | Keymap presets | 6 | 0 | 0 | 0 | 6 |
 | Context keys | 50 | 0 | 4 | 0 | 83 |
@@ -50,7 +50,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerWorkbenchBanner` | 0 | 0 | 1 | 0 | 1 |
 | Extension point `registerShellActions` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerDevSamples` | 0 | 0 | 0 | 0 | 1 |
-| Settings pages | 32 | 0 | 28 | 0 | 68 |
+| Settings pages | 32 | 0 | 29 | 0 | 68 |
 | Features | 0 | 0 | 19 | 0 | 43 |
 | Editor, platform, workbench and design-system modules | 32 | 1 | 64 | 0 | 253 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
@@ -61,7 +61,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Behaviour specification: unit tests (vitest) | 383 | 98 | 129 | 0 | 753 |
 | Behaviour specification: end-to-end specs (Playwright) | 9 | 0 | 9 | 0 | 70 |
 
-## Actions (497/836 at parity, 144 partial)
+## Actions (498/836 at parity, 144 partial)
 
 `(dynamic)` rows are actions whose id is built at run time (one per plugin command, tool, run configuration…).
 
@@ -879,7 +879,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | [~] | `view.zoomIn` | `Ctrl+Alt+=` | src/features/settings/appearanceRuntime.ts:96 | `workbench::zoom_actions::tests::the_zoom_actions_step_the_ide_zoom_and_the_window_draws_at_it`, `workbench::zoom_actions::tests::the_ide_zoom_scales_the_editors_code_and_the_icons`; steps the stored zoom and the window draws at it: the theme's sizes, interface text, the editor's and the terminal's text, the diff viewers and every icon. Missing: gaps, paddings and sizes views write in pixels (about 2,600 places) do not scale, where the webview zooms the whole document |
 | [~] | `view.zoomOut` | `Ctrl+Alt+-` | src/features/settings/appearanceRuntime.ts:103 | `workbench::zoom_actions::tests::the_zoom_actions_step_the_ide_zoom_and_the_window_draws_at_it`, `workbench::zoom_actions::tests::the_ide_zoom_scales_the_editors_code_and_the_icons`; steps the stored zoom and the window draws at it: the theme's sizes, interface text, the editor's and the terminal's text, the diff viewers and every icon. Missing: gaps, paddings and sizes views write in pixels (about 2,600 places) do not scale, where the webview zooms the whole document |
 | [ ] | `vim.reloadRc` |  | src/features/vim/index.ts:99 |  |
-| [ ] | `vim.settings` |  | src/features/vim/index.ts:107 |  |
+| [x] | `vim.settings` |  | src/features/vim/index.ts:107 | `workbench::tests::proofs35_settings_vim::vim_settings_opens_settings_on_the_vim_page`; opens Settings on the Vim page, from the registry |
 | [ ] | `vim.toggle` |  | src/features/vim/index.ts:90 |  |
 | [ ] | `web.openInBrowser` | `Ctrl+Shift+R` | src/features/web/index.ts:68 |  |
 | [ ] | `web.togglePreview` |  | src/features/web/index.ts:82 |  |
@@ -1519,7 +1519,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | (registered at run time only) | src/workbench/devSamples.tsx |  |
 
-## Settings pages (32/68 at parity, 28 partial)
+## Settings pages (32/68 at parity, 29 partial)
 
 | | Page id | Source | Proof |
 |---|---|---|---|
@@ -1547,7 +1547,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `editor.general.postfixCompletion` | src/features/templates/index.ts:153 | `workbench::tests::proofs32_settings_postfix::postfix_completion_options_and_templates_are_stored_at_once_and_cancel_keeps_them`, `workbench::tests::proofs32_settings_postfix::ok_closes_the_postfix_completion_page_and_keeps_what_was_stored`; the three options and each template's checkbox by language are stored under the webview's key with its fields; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: nothing native reads the postfix settings yet (postfix expansion is not wired) |
 | [~] | `editor.liveTemplates` | src/features/templates/index.ts:145 | `workbench::tests::proofs32_settings_live_templates::a_live_template_added_and_typed_on_the_page_is_stored_at_once_and_cancel_keeps_it`, `workbench::tests::proofs32_settings_live_templates::a_built_in_live_template_edited_and_removed_on_the_page_is_stored_at_once`; templates are added, edited (abbreviation, description, group, text, contexts, variables), enabled, removed and restored, with the two options, and stored under the webview's keys; the page stores each change at once as the webview's does: Apply stays off, Reset is not shown, Cancel and OK keep what was stored. Missing: nothing native expands a live template yet, and plugin snippets have no native source |
 | [x] | `editor.todo` | src/features/todo/index.ts:12 | `workbench::tests::proofs31_settings_feature_pages::the_todo_window_matches_with_the_stored_patterns_when_first_shown`, `workbench::tests::proofs31_settings_feature_pages::todo_patterns_and_options_are_stored_at_once_and_the_todo_window_matches_with_them`, `workbench::tests::proofs31_settings_feature_pages::match_case_in_the_todo_window_is_the_stored_case_sensitive_option`, `workbench::tests::proofs31_settings_feature_pages::the_todo_window_of_another_window_follows_the_page_at_once`; patterns are added, removed, enabled, renamed and coloured, with Case sensitive and Only in comments; the TODO window of every window matches with the stored settings at once and its Match Case is the same setting; the page applies each change at once as the webview's does: Apply stays off, Reset is not shown and Cancel keeps the change |
-| [ ] | `editor.vim` | src/features/vim/index.ts:22 |  |
+| [~] | `editor.vim` | src/features/vim/index.ts:22 | `workbench::tests::proofs35_settings_vim::a_project_window_reads_the_rc_file_once_the_vim_page_is_shown`, `workbench::tests::proofs35_settings_vim::a_source_line_reads_nothing_outside_the_home_of_its_own`, `workbench::tests::proofs35_settings_vim::openideavimrc_is_read_in_place_of_ideavimrc`, `workbench::tests::proofs35_settings_vim::reload_reads_the_rc_file_again_and_showing_the_page_again_does_not`, `workbench::tests::proofs35_settings_vim::the_conflicts_table_lists_the_ide_actions_the_keymap_binds_to_each_vim_key`, `workbench::tests::proofs35_settings_vim::the_open_vim_page_shows_settings_stored_by_another_window`, `workbench::tests::proofs35_settings_vim::the_rc_file_in_the_home_folder_is_read_with_the_files_it_sources`, `workbench::tests::proofs35_settings_vim::the_rc_file_is_looked_for_in_the_home_of_its_own`, `workbench::tests::proofs35_settings_vim::the_settings_search_finds_the_vim_page_by_a_label_on_it`, `workbench::tests::proofs35_settings_vim::vim_emulation_and_each_handler_are_stored_at_once_and_cancel_keeps_them`, `workbench::tests::proofs35_settings_vim::vim_settings_opens_settings_on_the_vim_page`; Enable Vim emulation, each conflicting shortcut's handler and Reset to Defaults are stored at once under the webview's key (Apply stays off, Cancel keeps the change); the rc file's status with its mappings count and ignored lines, read only while the page is shown and, under a home of its own, never outside that home. Missing: nothing native reads the setting, since there is no Vim engine natively (the webview's is a third-party one); the handler lists take the mouse only |
 | [~] | `general` | src/features/settings/pages/behavior.tsx | `settings_view::custom_controls::tests::system_settings_open_in_directory_and_idle_save_apply`, `settings_view::custom_controls::tests::a_stored_attach_for_open_project_in_shows_ask`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; every row is drawn. Missing: the directory chooser has no title or start directory |
 | [x] | `general.dateFormats` | src/features/settings/pages/behavior.tsx | `workbench::tests::proofs19_settings_misc::date_formats_override_and_pattern_apply`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::general_date_formats::tests::a_blank_pattern_is_not_staged_and_the_pattern_in_effect_comes_back`, `settings_view::pages::general_date_formats::tests::the_pattern_is_editable_once_the_system_format_is_overridden`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; a blank pattern goes back to the stored one and the preview follows the pattern |
 | [~] | `general.httpProxy` | src/features/settings/pages/httpProxy.tsx | `workbench::tests::proofs19_settings_misc::http_proxy_manual_configuration_applies_and_the_password_stays_secret`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::general_http_proxy::tests::a_port_out_of_range_is_flagged_and_credentials_follow_authentication`, `settings_view::pages::general_http_proxy::tests::manual_configuration_enables_the_controls_and_names_what_is_missing`, `settings_view::pages::general_http_proxy::tests::the_password_is_shown_as_bullets_and_check_uses_the_settings_as_edited`, `settings_view::pages::general_http_proxy::tests::without_a_checker_given_the_test_build_has_none`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; the password is drawn as bullets, kept out of the settings file, the log and every debug output, and stored only in the saved-passwords file. Missing: Check connection has run only against a stand-in checker (the real one is wired to the backend's function and never ran), and its address is asked in a panel on the page where the webview opens a popup |
