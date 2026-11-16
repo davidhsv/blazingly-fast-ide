@@ -364,6 +364,45 @@ mod tests {
         close_project(cx);
     }
 
+    /// Show Usages finds what it finds when the plugins' injection providers change while its search
+    /// refreshes the file's injected fragments (a plugin enabled or reloaded, another plugin host
+    /// installed): the change is not a cancellation of the search.
+    #[gpui_kit::test]
+    async fn show_usages_answers_when_the_injection_providers_change_during_its_search(cx: &mut TestAppContext) {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = search_project(cx);
+        edit_at(&workbench, &root.join("src/alpha.rs"), 1, 0, cx);
+        let lsp = cx
+            .update(|_, cx| cx.global::<crate::backend::Backend>().host.project("w1").map(|p| p.lsp.clone()))
+            .expect("the project is open");
+        // While armed, every refresh of the fragments sees the providers change under it.
+        let armed = Arc::new(AtomicBool::new(true));
+        let refreshes = Arc::new(AtomicUsize::new(0));
+        let (flag, count, manager) = (armed.clone(), refreshes.clone(), Arc::downgrade(&lsp));
+        lsp.set_injection_provider(Arc::new(move |_, _, _, _| {
+            count.fetch_add(1, Ordering::AcqRel);
+            if flag.load(Ordering::Acquire)
+                && let Some(manager) = manager.upgrade()
+            {
+                manager.injection_providers_changed();
+            }
+            Vec::new()
+        }));
+        // The search refreshes the fragments itself: none refreshed earlier is current.
+        lsp.injection_providers_changed();
+        let before = refreshes.load(Ordering::Acquire);
+
+        run_action(cx, "find.showUsages", None);
+        wait_long(cx, "the hint", |cx| workbench.read_with(cx, |w, _| w.code_insight_hint().is_some()));
+        armed.store(false, Ordering::Release);
+        let hint = workbench.read_with(cx, |w, _| w.code_insight_hint().map(|hint| hint.text.clone()));
+        assert_eq!(hint.as_deref(), Some("No usages found. Based on syntax (language server not ready)"));
+        assert!(refreshes.load(Ordering::Acquire) > before, "the search refreshed the fragments");
+        close_project(cx);
+    }
+
     /// Show Usages cannot run while the file is still opening (its tab has no editor yet): nothing
     /// is searched and no popup opens; once the editor has the keyboard it runs.
     #[gpui_kit::test]

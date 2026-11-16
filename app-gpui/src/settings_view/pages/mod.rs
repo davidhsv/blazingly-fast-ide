@@ -30,6 +30,7 @@ pub mod editor_font;
 pub mod editor_live_templates;
 pub mod editor_postfix_completion;
 pub mod editor_todo;
+pub mod editor_vim;
 pub mod font_picker;
 pub mod general;
 pub mod general_date_formats;

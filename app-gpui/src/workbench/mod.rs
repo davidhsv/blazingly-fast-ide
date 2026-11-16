@@ -73,6 +73,7 @@ mod services_actions;
 mod services_window;
 mod settings_feature_pages;
 mod settings_template_pages;
+mod settings_vim_page;
 mod settings_window;
 pub use settings_window::apply_keymap_settings;
 mod shelf;
@@ -645,6 +646,7 @@ pub fn register_actions(cx: &mut App) {
     plugin_contributions::register_actions(registry);
     chrome::register_actions(registry);
     settings_window::register_actions(registry);
+    settings_vim_page::register_actions(registry);
     app_actions::register_actions(registry);
     keymap_reference::register_actions(registry);
     plugins_window::register_actions(registry);
@@ -4523,6 +4525,7 @@ mod tests {
     mod proofs32_settings_live_templates;
     mod proofs32_settings_postfix;
     mod proofs32_settings_templates_fixtures;
+    mod proofs35_settings_vim;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

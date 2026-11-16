@@ -6079,3 +6079,60 @@ async fn languages_sharing_a_server_keep_independent_target_choices() {
     assert_eq!(manager.servers()[0].id, host);
     manager.shutdown_all().await;
 }
+
+/// Plugin providers that change while a refresh of injected fragments runs (a plugin enabled, the
+/// servers' gate moving, a reconfiguration) are no cancellation of the request that asked for it:
+/// the ranges are found again with the new providers and the fragment routes to its own document.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_provider_change_during_a_refresh_finds_the_ranges_again_instead_of_cancelling() {
+    let h = harness_for("sql", "sql", &[("embedded", incremental_caps())], &[]);
+    let host = DocId::next();
+    let path = h.root.join("host.java");
+    // Opened before a provider is set: no refresh is scheduled, so the one below is the first.
+    h.mgr.did_open(host, &path, &LanguageId::plain_text(), 1, "sql");
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (count, manager) = (calls.clone(), Arc::downgrade(&h.mgr));
+    h.mgr.set_injection_provider(Arc::new(move |_, _, _, _| {
+        // The first call sees the providers change under it, as another plugin's arrival does.
+        if count.fetch_add(1, Ordering::SeqCst) == 0
+            && let Some(manager) = manager.upgrade()
+        {
+            manager.injection_providers_changed();
+        }
+        vec![ide_lsp::InjectedRange { range: rng(0, 0, 0, 3), language: LanguageId::new("sql") }]
+    }));
+    let generation = h.mgr.injection_generation();
+
+    h.mgr.refresh_injections(host).await.expect("a provider change does not cancel the refresh");
+    assert_eq!(h.mgr.injection_generation(), generation + 1, "the providers changed during the refresh");
+    assert_eq!(calls.load(Ordering::SeqCst), 2, "the ranges were found again with the new providers");
+    assert_ne!(h.mgr.injected_document(host, Pos::new(0, 1)), host, "the fragment has its own document");
+    h.mgr.did_close(host);
+    h.mgr.shutdown_all().await;
+}
+
+/// An edit of the document while its injected fragments are refreshed still cancels the refresh: the
+/// position the request asked about is in the older text.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_edit_during_a_refresh_cancels_it() {
+    let h = harness_for("sql", "sql", &[("embedded", incremental_caps())], &[]);
+    let host = DocId::next();
+    let path = h.root.join("host.java");
+    h.mgr.did_open(host, &path, &LanguageId::plain_text(), 1, "sql");
+    let manager = Arc::downgrade(&h.mgr);
+    let edited = Arc::new(AtomicUsize::new(0));
+    let once = edited.clone();
+    h.mgr.set_injection_provider(Arc::new(move |_, _, _, _| {
+        if once.fetch_add(1, Ordering::SeqCst) == 0
+            && let Some(manager) = manager.upgrade()
+        {
+            manager
+                .did_change(host, 2, &[AppliedChange { range: rng(0, 0, 0, 3), text: "SQL".into() }], &|| "SQL".into());
+        }
+        Vec::new()
+    }));
+    let error = h.mgr.refresh_injections(host).await.expect_err("an edit meanwhile cancels the refresh");
+    assert_eq!(error.kind, ide_core::error::ErrorKind::Cancelled);
+    h.mgr.did_close(host);
+    h.mgr.shutdown_all().await;
+}

@@ -18,6 +18,8 @@ use std::{
 
 pub const MAX_INJECTED_DOCUMENT_BYTES: usize = 2 << 20;
 const MAX_DOCUMENTS: usize = 32;
+/// How many times a refresh finds the ranges again when the providers change while it runs.
+const REFRESH_PASSES: usize = 3;
 const MARKER: &str = ".openidea-injected-";
 const ORIGIN: &str = "$openideaInjection";
 pub(super) const COMMAND: &str = "$openideaInjectedCommand";
@@ -119,33 +121,45 @@ impl LspManager {
     }
 
     /// Refresh on demand as well as after edits: point requests need not wait for the debounce.
+    ///
+    /// Providers that change meanwhile (a plugin enabled or reloaded, the servers' gate opening or
+    /// closing, a reconfiguration) make only the ranges found with the old ones obsolete, not the
+    /// caller's request: they are found again with the new ones, at most `REFRESH_PASSES` times,
+    /// after which the caller goes on with the documents as they are (the change scheduled their
+    /// refresh itself). An edit of `doc` meanwhile cancels: the caller's position is in older text.
     pub async fn refresh_injections(&self, doc: DocId) -> IdeResult<()> {
         let _refresh = self.injections.refresh.lock().await;
-        let generation = self.injections.generation.load(Ordering::Acquire);
-        let Ok(snap) = self.snapshot(doc) else { return Ok(()) };
-        if self.is_injected_doc(doc) || self.injections.refreshed.lock().get(&doc) == Some(&(snap.version as u32)) {
-            return Ok(());
-        }
-        let provider = self.injections.provider.read().clone();
-        let ranges = if snap.text.as_str().len() <= MAX_INJECTED_DOCUMENT_BYTES && !uri_is_virtual(&snap.path) {
-            if let Some(provider) = provider {
-                let (path, language, text, version) = (snap.path, snap.language, snap.text, snap.version);
-                tokio::task::spawn_blocking(move || provider(&path, &language, version as u32, text.as_str()))
-                    .await
-                    .map_err(|e| IdeError::unavailable(e.to_string()))?
+        for _ in 0..REFRESH_PASSES {
+            let generation = self.injections.generation.load(Ordering::Acquire);
+            let Ok(snap) = self.snapshot(doc) else { return Ok(()) };
+            let version = snap.version;
+            if self.is_injected_doc(doc) || self.injections.refreshed.lock().get(&doc) == Some(&(version as u32)) {
+                return Ok(());
+            }
+            let provider = self.injections.provider.read().clone();
+            let ranges = if snap.text.as_str().len() <= MAX_INJECTED_DOCUMENT_BYTES && !uri_is_virtual(&snap.path) {
+                if let Some(provider) = provider {
+                    let (path, language, text) = (snap.path, snap.language, snap.text);
+                    tokio::task::spawn_blocking(move || provider(&path, &language, version as u32, text.as_str()))
+                        .await
+                        .map_err(|e| IdeError::unavailable(e.to_string()))?
+                } else {
+                    Vec::new()
+                }
             } else {
                 Vec::new()
+            };
+            if let Some(me) = self.me.upgrade() {
+                tokio::task::spawn_blocking(move || me.set_injections_at(doc, version as u32, ranges, generation))
+                    .await
+                    .map_err(|e| IdeError::unavailable(e.to_string()))?;
             }
-        } else {
-            Vec::new()
-        };
-        if let Some(me) = self.me.upgrade() {
-            tokio::task::spawn_blocking(move || me.set_injections_at(doc, snap.version as u32, ranges, generation))
-                .await
-                .map_err(|e| IdeError::unavailable(e.to_string()))?;
-        }
-        if self.injection_generation() != generation || !self.snapshot(doc).is_ok_and(|s| s.version == snap.version) {
-            return Err(IdeError::cancelled());
+            if !self.snapshot(doc).is_ok_and(|s| s.version == version) {
+                return Err(IdeError::cancelled());
+            }
+            if self.injection_generation() == generation {
+                return Ok(());
+            }
         }
         Ok(())
     }

@@ -534,9 +534,8 @@ impl UsagesTabs {
             FetchStep::Failed(error) => {
                 self.inflight.remove(&id);
                 (tab.loading, tab.groups, tab.note) = (false, Vec::new(), None);
-                if is_cancelled(&error) {
-                    return Vec::new();
-                }
+                // A search still running here was cancelled by no tab of this window (closing or
+                // rerunning one removes its search first): the tab says so instead of an empty result.
                 tab.error = Some(error.message.clone());
                 error_usage_hint(&error).map(TabsEffect::Hint).into_iter().collect()
             }
@@ -779,6 +778,7 @@ impl UsagesPopupFlow {
             },
             FetchStep::Failed(error) => {
                 let Some(search) = self.search.take() else { return Vec::new() };
+                // A cancelled search ends without a word: the document was edited under it.
                 if is_cancelled(&error) {
                     #[cfg(test)]
                     crate::platform::actions::test_trace::note(format!("usages popup: search cancelled: {error:?}"));
@@ -1481,6 +1481,12 @@ mod tests {
         popup.libraries(request);
         let failed = popup.flow.answered(request, Err(IdeError::cancelled()), &mut I18n::default());
         assert!(failed.is_empty(), "a cancelled search says nothing");
+        let tab = search_id(&tabs.find(Some(caret()), RequestId(4)));
+        assert!(tabs.indexes_synced(tab, true).iter().any(|effect| matches!(effect, TabsEffect::Fetch { .. })));
+        assert!(tabs.answered(tab, Err(IdeError::cancelled()), &mut I18n::default()).is_empty());
+        let ended = tabs.tabs().iter().find(|t| t.id == tab).map(|t| (t.loading, t.error.clone()));
+        assert_eq!(ended, Some((false, Some("cancelled".to_owned()))), "the tab says that its search ended");
+        tabs.close(tab);
 
         // Closing a tab cancels its search and selects the next one.
         let first = search_id(&tabs.find(Some(caret()), RequestId(5)));

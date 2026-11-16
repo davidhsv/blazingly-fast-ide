@@ -83,6 +83,17 @@ fn index_of(stroke: &str) -> usize {
     VIM_KEYS.iter().position(|key| key.stroke == stroke).expect("a Vim key")
 }
 
+/// Clicks the page's element `selector`, which must be in the part of the page the dialog shows: a
+/// click on an element scrolled out of view fails here instead of landing on whatever is drawn there.
+fn click_shown(cx: &mut VisualTestContext, selector: &'static str) {
+    cx.run_until_parked();
+    let page = cx.debug_bounds("settings-vim-page").expect("the page is drawn");
+    let target = cx.debug_bounds(selector).unwrap_or_else(|| panic!("{selector} is drawn"));
+    let at = target.center();
+    assert!(page.contains(&at), "{selector} at {at:?} is outside the page the dialog shows ({page:?})");
+    click_on(cx, selector);
+}
+
 fn selector(text: String) -> &'static str {
     Box::leak(text.into_boxed_str())
 }
@@ -90,24 +101,34 @@ fn selector(text: String) -> &'static str {
 /// Opens the handler choices of `stroke` and picks `handler` (`vim`, `ide`).
 fn choose_handler(stroke: &str, handler: &str, cx: &mut VisualTestContext) {
     let row = index_of(stroke);
-    click_on(cx, selector(format!("settings-vim-handler-{row}")));
-    click_on(cx, selector(format!("settings-vim-handler-{row}-{handler}")));
+    click_shown(cx, selector(format!("settings-vim-handler-{row}")));
+    click_shown(cx, selector(format!("settings-vim-handler-{row}-{handler}")));
 }
 
-/// Scrolls the page under the element `at` by `distance` pixels towards its end (back with a
-/// negative distance).
-fn scroll_page(cx: &mut VisualTestContext, at: &'static str, distance: f32) {
+/// Turns the wheel over the page, a step at a time, until the element `at` is wholly inside the part
+/// of the page the dialog shows.
+fn scroll_into_view(cx: &mut VisualTestContext, at: &'static str) {
     use gpui_kit::{Modifiers, ScrollDelta, ScrollEvent, TouchPhase, point, px};
-    cx.run_until_parked();
-    let position = cx.debug_bounds(at).unwrap_or_else(|| panic!("{at} is drawn")).center();
-    cx.simulate_event(ScrollEvent {
-        position,
-        delta: ScrollDelta::Pixels(point(px(0.0), px(-distance))),
-        modifiers: Modifiers::default(),
-        touch_phase: TouchPhase::Moved,
-        source: gpui_kit::ScrollSource::Pointer,
-    });
-    cx.run_until_parked();
+    for _ in 0..60 {
+        cx.run_until_parked();
+        let page = cx.debug_bounds("settings-vim-page").expect("the page is drawn");
+        let target = cx.debug_bounds(at).unwrap_or_else(|| panic!("{at} is drawn"));
+        let step = if target.bottom() > page.bottom() {
+            -60.0
+        } else if target.top() < page.top() {
+            60.0
+        } else {
+            return;
+        };
+        cx.simulate_event(ScrollEvent {
+            position: point(page.center().x, page.top() + px(24.0)),
+            delta: ScrollDelta::Pixels(point(px(0.0), px(step))),
+            modifiers: Modifiers::default(),
+            touch_phase: TouchPhase::Moved,
+            source: gpui_kit::ScrollSource::Pointer,
+        });
+    }
+    panic!("{at} cannot be scrolled into view");
 }
 
 /// A registered action's title as the page shows it.
@@ -136,7 +157,7 @@ async fn vim_emulation_and_each_handler_are_stored_at_once_and_cancel_keeps_them
     assert_eq!(lines(&page, cx)[0], "[ ] Enable Vim emulation");
     assert_eq!(lines(&page, cx).last().map(String::as_str), Some("[Reset to Defaults] (disabled)"));
 
-    click_on(cx, "settings-vim-enabled");
+    click_shown(cx, "settings-vim-enabled");
     assert_eq!(stored_json(VIM_SETTINGS_KEY, cx), json!({ "enabled": true, "handlers": {} }));
     assert_eq!(lines(&page, cx)[0], "[x] Enable Vim emulation");
 
@@ -156,14 +177,14 @@ async fn vim_emulation_and_each_handler_are_stored_at_once_and_cancel_keeps_them
     assert_eq!(stored_json(VIM_SETTINGS_KEY, cx), escape_only);
 
     // Reset to Defaults is under the table, below the fold of the page.
-    scroll_page(cx, "settings-vim-enabled", 2000.0);
-    click_on(cx, "settings-vim-reset");
+    scroll_into_view(cx, "settings-vim-reset");
+    click_shown(cx, "settings-vim-reset");
     assert_eq!(stored_json(VIM_SETTINGS_KEY, cx), json!({ "enabled": true, "handlers": {} }));
     assert_eq!(lines(&page, cx).last().map(String::as_str), Some("[Reset to Defaults] (disabled)"));
     assert_nothing_staged(&dialog, cx);
 
-    scroll_page(cx, "settings-vim-reset", -2000.0);
-    click_on(cx, "settings-vim-enabled");
+    scroll_into_view(cx, "settings-vim-enabled");
+    click_shown(cx, "settings-vim-enabled");
     choose_handler("Ctrl+B", "ide", cx);
     click_on(cx, "settings-cancel");
     assert!(settings_dialog_of(&workbench, cx).is_none());
@@ -257,11 +278,11 @@ async fn reload_reads_the_rc_file_again_and_showing_the_page_again_does_not(cx: 
     let (_, again) = open_vim_page(&workbench, cx);
     assert_eq!(lines(&again, cx)[2], "No ~/.openideavimrc or ~/.ideavimrc found.", "not read again");
 
-    click_on(cx, "settings-vim-reload");
+    click_shown(cx, "settings-vim-reload");
     let found = format!("{} · 1 mappings", rc.display());
     wait_long(cx, "the rc file is found", |cx| lines(&again, cx)[2] == found);
     std::fs::remove_file(&rc).expect("the file is removed");
-    click_on(cx, "settings-vim-reload");
+    click_shown(cx, "settings-vim-reload");
     wait_long(cx, "the rc file is gone", |cx| lines(&again, cx)[2] == "No ~/.openideavimrc or ~/.ideavimrc found.");
 }
 
@@ -283,6 +304,27 @@ async fn a_project_window_reads_the_rc_file_once_the_vim_page_is_shown(cx: &mut 
     let dialog = settings_dialog_of(&workbench, cx).expect("Settings is open");
     let page = vim_view(&dialog, cx);
     assert_eq!(lines(&page, cx)[2], format!("{} · 2 mappings", rc.display()));
+}
+
+// Under a home of its own a `source` line reaches only files inside it: a file elsewhere, named by
+// its path or climbing out with `..`, is a line left out and none of its mappings count.
+#[gpui_kit::test]
+async fn a_source_line_reads_nothing_outside_the_home_of_its_own(cx: &mut TestAppContext) {
+    let home = start(cx);
+    let elsewhere = tempfile::tempdir().expect("a temporary folder");
+    let outside = elsewhere.path().canonicalize().expect("the folder exists").join("outside.vim");
+    write(&outside, "nnoremap x dd\nnnoremap y yy\n");
+    let climbing = format!("~/../{}", outside.strip_prefix("/").expect("an absolute path").display());
+    let rc = home.path().join(".ideavimrc");
+    write(&rc, &format!("nnoremap j gj\nsource {}\nsource {climbing}\nsource ~/inside.vim\n", outside.display()));
+    write(&home.path().join("inside.vim"), "nnoremap k gk\n");
+    let (workbench, cx) = window(cx);
+    let (_, page) = open_vim_page(&workbench, cx);
+    let shown = lines(&page, cx);
+    assert_eq!(shown[2], format!("{} · 2 mappings", rc.display()), "only the home's two files count");
+    assert_eq!(shown[4], format!("  2: source {} — cannot read file", outside.display()));
+    assert_eq!(shown[5], format!("  3: source {climbing} — cannot read file"));
+    assert_eq!(shown[6], "Shortcut conflicts");
 }
 
 // The rc file is looked for in the test's own home folder, never the user's: the home of a backend

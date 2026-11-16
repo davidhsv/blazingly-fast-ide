@@ -231,6 +231,7 @@ impl Workbench {
         subscriptions.extend(self.mount_plugin_settings_pages(&dialog, has_project, window, cx));
         subscriptions.extend(self.mount_feature_settings_pages(&dialog, window, cx));
         subscriptions.extend(self.mount_template_settings_pages(&dialog, cx));
+        subscriptions.extend(self.mount_vim_settings_page(&dialog, window, cx));
         let label = self.label.clone();
         let install = crate::settings_view::custom_controls::Install { window_label: &label, has_project };
         subscriptions.extend(crate::settings_view::custom_controls::install(&dialog, install, window, cx));

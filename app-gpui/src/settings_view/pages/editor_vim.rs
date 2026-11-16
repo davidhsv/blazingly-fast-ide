@@ -444,7 +444,12 @@ impl Render for VimSettingsView {
             .on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.toggle_enabled(cx)));
         let rc = self.rc_section(&query, cx);
         let conflicts = self.conflicts_section(&query, cx);
+        // The dialog gives a page drawn whole by its own view the page's size: the page scrolls itself.
         div()
+            .id("settings-vim-page")
+            .debug_selector(|| "settings-vim-page".to_owned())
+            .size_full()
+            .overflow_y_scroll()
             .flex()
             .flex_col()
             .gap(px(16.0))
