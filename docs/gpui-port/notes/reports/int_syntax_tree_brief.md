@@ -28,7 +28,9 @@ Points to settle by measurement, not by the notes:
 
 ## Changed since the notes were written
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on the tree at commit 5714c388; compute the existing files the hunks anchor on against the tree at launch and say here which changed.
+The notes were written on the tree at commit 5714c388. Measured at launch (`git diff --numstat 5714c388` over the existing files the hunks anchor on): changed are `workbench/editor_language.rs` (+14 −4: opening a file for an action now waits while its tab is opening), `workbench/mod.rs` (+136 −9: Deployment, HTTP Client, notebook), `workbench/editor_extras.rs` (+7 −4) and `workbench/refactor_actions.rs` (+12 −4), and `editor/view.rs` (+213 −41: the gutter now has ordered icon columns, `Editor::set_gutter_column`, a numbers column of its own width, and the row tints are painted before the right margin guides). Unchanged: `editor/command_actions.rs`, `editor_lsp/definition_view.rs`, `editor_lsp/mod.rs`, `editor/mod.rs`, `editor/core_actions.rs`, `editor/intelligence.rs`, `editor_commands/structural.rs`, `editor_commands/tree.rs`, `editor_refactor/server_introduce.rs`, `editor_refactor/refactor_this.rs`. Re-anchor every hunk from its quoted text and read the place before you edit it. Leave no polling loop behind (a loop on `pgrep -f "cargo test"` matches its own command line and never ends).
+
+Other agents' undeclared drafts now in the tree, not yours: `app-gpui/src/ui/code_preview.rs`, `ui/code_preview/`, `editor/view/gutter_marks.rs`, `vcs/hunk_popup.rs`, `workbench/editor_gutter.rs`, `workbench/editor_gutter/`, every `proofs26_*` and `proofs27_*` test file, `platform/error_log_sink.rs`.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 

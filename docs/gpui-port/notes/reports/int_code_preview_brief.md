@@ -21,6 +21,10 @@ An editable preview makes documents dirty that no tab shows. The writer read tha
 - A file that changed on disk while the preview holds it with unsaved edits is handled as an editor tab handles it (the same question or reload), not overwritten silently.
 - A document a preview opened is closed when the preview lets go of it and nothing else holds it (no leak of backend documents: assert the backend's open-document count returns to what it was). The writer found `preview_todo` drops its task while the open keeps running, so that document is never closed: fix it the same way and test it.
 
+## Part 0: Save All saves only the active editor (measured by reading, to fix first)
+
+`file.save` ("Save All", `app-gpui/src/editor/actions.rs`) saves the active text editor only and reports a failed save to the log only. The webview's saves every open document and custom document and raises one combined error to the user (`src/editor/core/controller.ts` `saveAll`, `manager.saveAll("explicit")`; read how the error is shown). The notebook slice put a wrapper in front of it that also saves the window's notebooks (`app-gpui/src/workbench/notebook.rs` `register_actions`): keep that working. First a test that fails today: two unsaved text tabs, Save All, both files on disk hold the text and neither tab is unsaved; and a save that fails (a read-only file in the temp folder) tells the user as the webview does and leaves that tab unsaved. Then fix it where the other "save everything first" paths already do it (`Workbench::save_all` in `workbench/mod.rs`, `workbench/branches.rs`, `workbench/project_files.rs`: read them, use one path, do not add a fourth). The row `action:file.save` is done only with those tests.
+
 ## Differences the draft leaves against the webview: close them or list them
 
 - All IDE shortcuts are blocked while the preview has the keyboard; the webview blocks only the text-editing ones. Follow the webview (read which keys it lets through: the spec's "editing keys stay out of the results, Escape bubbles" case and the component).
@@ -35,7 +39,7 @@ The preview reads files that can be large. Nothing reads a file, parses it or wa
 
 ## Changed since the notes were written
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on a tree between c70a011c and the HTTP Client integration; compute the existing files the hunks anchor on against the tree at launch (`$S/dprev/hunks.py` prints the misses) and say here which changed.
+BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on a tree between c70a011c and the HTTP Client integration; since then the HTTP Client, the visual defects (gutter icon columns in `editor/view.rs`, popup margin), the notebook (a wrapper in front of `file.save`, `ui/text_area.rs` `set_code_font`) and the syntax tree commands landed. Run `$S/dprev/hunks.py` at launch and say here which anchors moved.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
