@@ -228,3 +228,49 @@ async fn templates_stored_elsewhere_are_shown_at_once(cx: &mut TestAppContext) {
     cx.run_until_parked();
     assert_eq!(lines(&view, cx)[0], "[ ] Expand abbreviations with Tab");
 }
+
+// Not from a spec: the Contexts field keeps what is typed, separators included, while the template
+// stores the words between commas and blanks of the field's text, the list a field rewritten to
+// those words would store for the same final text.
+#[gpui_kit::test]
+async fn the_contexts_typed_key_by_key_are_kept_and_stored_as_the_words_of_the_final_text(cx: &mut TestAppContext) {
+    let (view, _, cx) = page(cx);
+    click(cx, "settings-live-add");
+    let id = view.read_with(cx, |view, _| view.selected().map(str::to_owned)).expect("the new template is selected");
+    let contexts = field(&view, FieldKind::Contexts, cx);
+    type_over(&contexts, "", cx);
+    for typed in ["r", "u", "s", "t", ",", " ", "g", "o"] {
+        cx.simulate_input(typed);
+        cx.run_until_parked();
+    }
+    assert_eq!(contexts.read_with(cx, |field, _| field.text().to_owned()), "rust, go");
+    assert_eq!(template(&view, &id, cx).contexts, ["rust", "go"]);
+    assert_eq!(stored_json(LIVE_TEMPLATES_KEY, cx)["templates"][id.as_str()]["contexts"], json!(["rust", "go"]));
+    for (text, words) in [(" ,rust,,  ts\tgo ,", vec!["rust", "ts", "go"]), (", ,", vec![]), ("any", vec!["any"])] {
+        type_over(&contexts, text, cx);
+        assert_eq!(template(&view, &id, cx).contexts, words, "{text:?}");
+        assert_eq!(contexts.read_with(cx, |field, _| field.text().to_owned()), text);
+    }
+}
+
+// Not from a spec: the list draws its rows from one pass over the templates per change of the
+// filter or of the store, every built-in template among them, and only the rows in view; a click on
+// a template's checkbox selects its row too.
+#[gpui_kit::test]
+async fn the_list_holds_every_template_and_draws_only_the_rows_in_view(cx: &mut TestAppContext) {
+    let (view, _, cx) = page(cx);
+    let all = builtin_templates().len();
+    let groups = group_templates(builtin_templates(), "").len();
+    assert_eq!(view.read_with(cx, |view, cx| view.tree_lines(cx)).len(), all + groups);
+    let last = builtin_templates().last().expect("built-in templates");
+    let first = &builtin_templates()[0];
+    assert!(cx.debug_bounds(Box::leak(format!("settings-live-item-{}", first.id).into_boxed_str())).is_some());
+    let last_row: &'static str = Box::leak(format!("settings-live-item-{}", last.id).into_boxed_str());
+    assert!(cx.debug_bounds(last_row).is_none(), "the last of {all} templates is not drawn while out of view");
+    filter(&view, &last.description, cx);
+    assert!(cx.debug_bounds(last_row).is_some(), "the filter brings it into view");
+    // A click on a template's checkbox turns it off and selects its row as well.
+    click(cx, &format!("settings-live-enabled-{}", last.id));
+    assert_eq!(template(&view, &last.id, cx).enabled, Some(false));
+    assert_eq!(view.read_with(cx, |view, _| view.selected().map(str::to_owned)), Some(last.id.clone()));
+}

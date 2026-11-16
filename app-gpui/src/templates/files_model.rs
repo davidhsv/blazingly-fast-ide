@@ -251,6 +251,18 @@ fn is_safe_file_name(file_name: &str) -> bool {
         && !is_reserved_stem(stem)
 }
 
+/// Whether `extension` (written without its dot) only names a file's type. It comes from the user
+/// and from plugins and is appended to the file's name, so one with a separator, a `..`, blanks
+/// around it or anything else a file name cannot hold would plan a file outside its folder, or
+/// one no platform can create.
+pub fn is_plain_extension(extension: &str) -> bool {
+    extension.is_empty()
+        || (!extension.starts_with('.')
+            && !extension.contains("..")
+            && extension.trim() == extension
+            && is_safe_file_name(&format!("x.{extension}")))
+}
+
 /// `com.acme.Name`: several `.`-separated words.
 fn is_dotted_name(part: &str) -> bool {
     let is_word = |word: &str| !word.is_empty() && word.chars().all(|c| is_ascii_word(c) || c == '$');
@@ -280,6 +292,9 @@ pub fn plan_file(template: &FileTemplate, directory: &str, input: &str) -> Optio
     let slashed = input.trim().replace('\\', "/");
     let mut raw = slashed.trim_matches('/');
     if raw.is_empty() {
+        return None;
+    }
+    if !is_plain_extension(&template.extension) {
         return None;
     }
     let ext = if template.extension.is_empty() { String::new() } else { format!(".{}", template.extension) };
@@ -1003,6 +1018,33 @@ mod tests {
             let template = FileTemplate { file_name: Some(file_name.to_owned()), ..tpl("file").clone() };
             assert_eq!(plan_file(&template, "/p", ""), None, "{file_name:?}");
         }
+    }
+
+    // An extension comes from the user or a plugin: one that is not a plain extension plans no file,
+    // whether the template or one of its kinds carries it.
+    #[test]
+    fn an_extension_that_is_not_a_plain_extension_plans_no_file() {
+        let unsafe_extensions =
+            ["/../../x", "../x", "..", "a..b", "a/b", "a\\b", "x/", "x.", " x", "x ", ".x", "a:b", "a?", "a\u{7}"];
+        for extension in unsafe_extensions {
+            let template = FileTemplate { extension: extension.to_owned(), ..tpl("file").clone() };
+            assert_eq!(plan_file(&template, "/p/src", "notes"), None, "{extension:?}");
+            assert!(!is_plain_extension(extension), "{extension:?}");
+            let plain = FileTemplate { extension: "txt".to_owned(), ..tpl("file").clone() };
+            let kind = FileTemplateKind { extension: Some(extension.to_owned()), ..FileTemplateKind::default() };
+            assert_eq!(plan_file(&with_kind(&plain, Some(&kind)), "/p/src", "notes"), None, "kind {extension:?}");
+        }
+        for extension in ["", "md", "tar.gz", "d.ts", "c++"] {
+            assert!(is_plain_extension(extension), "{extension:?}");
+        }
+        for template in builtin_file_templates() {
+            let kinds = template.kinds.iter().filter_map(|kind| kind.extension.as_deref());
+            for extension in std::iter::once(template.extension.as_str()).chain(kinds) {
+                assert!(is_plain_extension(extension), "{} {extension:?}", template.id);
+            }
+        }
+        let template = FileTemplate { extension: "tar.gz".to_owned(), ..tpl("file").clone() };
+        assert_eq!(path(&template, "/p/src", "notes").as_deref(), Some("/p/src/notes.tar.gz"));
     }
 
     // plugin template names and values › inserts variables literally and preserves UTF-16 caret offsets

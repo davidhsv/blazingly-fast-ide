@@ -77,6 +77,10 @@ impl EditorFields {
         let group = text(&template.group, None, cx);
         let placeholder = tx(cx, "any, rust, typescript…");
         let contexts = text(&template.contexts.join(", "), Some(placeholder), cx);
+        // What is typed as code is shown in the code font.
+        for field in [&abbreviation, &contexts] {
+            field.update(cx, |field, cx| field.set_code_font(true, cx));
+        }
         let body_text = template.body.clone();
         let body = cx.new(|cx| {
             let mut area = TextArea::new(cx);
@@ -129,7 +133,10 @@ impl EditorFields {
                 let default_value =
                     new_field(variable.default_value.as_deref().unwrap_or(""), Some(default_hint.clone()), cx);
                 for field in [&expression, &default_value] {
-                    field.update(cx, |field, cx| field.set_read_only(read_only, cx));
+                    field.update(cx, |field, cx| {
+                        field.set_read_only(read_only, cx);
+                        field.set_code_font(true, cx);
+                    });
                 }
                 VariableFields { name: variable.name, expression, default_value }
             })

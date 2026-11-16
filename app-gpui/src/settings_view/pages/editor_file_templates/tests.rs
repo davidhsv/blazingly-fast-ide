@@ -195,7 +195,7 @@ async fn includes_are_added_renamed_and_removed(cx: &mut TestAppContext) {
     assert_eq!(stored_json(FILE_TEMPLATES_KEY, cx)["includes"], json!({}));
 }
 
-// Not from a spec: what another window stores is shown at once.
+// Not from a spec: what another window stores is shown at once, and the entry selected stays.
 #[gpui_kit::test]
 async fn templates_stored_elsewhere_are_shown_at_once(cx: &mut TestAppContext) {
     let (view, _, cx) = page(cx, None);
@@ -205,4 +205,15 @@ async fn templates_stored_elsewhere_are_shown_at_once(cx: &mut TestAppContext) {
     cx.run_until_parked();
     let body = view.read_with(cx, |view, _| view.include_body()).expect("the body");
     assert_eq!(body.read_with(cx, |area, _| area.text().to_owned()), "// elsewhere");
+
+    // Within the same scheme the template selected stays selected, its fields showing the change.
+    click(cx, "settings-filetemplates-tab-files");
+    let second = view.read_with(cx, |view, _| view.store().templates()[1].clone());
+    click(cx, &format!("settings-filetemplates-item-{}", second.id));
+    let renamed = json!({ "templates": { second.id.as_str(): { "name": "Renamed elsewhere" } } });
+    cx.update(|_, cx| cx.global_mut::<UiStorage>().set(FILE_TEMPLATES_KEY, renamed.to_string()));
+    cx.run_until_parked();
+    assert_eq!(view.read_with(cx, |view, _| view.selected_file_template().map(str::to_owned)), Some(second.id));
+    let name = view.read_with(cx, |view, _| view.file_field(FileField::Name)).expect("the name field");
+    assert_eq!(name.read_with(cx, |field, _| field.text().to_owned()), "Renamed elsewhere");
 }

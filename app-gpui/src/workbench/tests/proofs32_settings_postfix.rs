@@ -4,12 +4,13 @@
 //! leaves them as they were changed, since nothing was staged.
 //!
 //! Nothing here reaches the network or anything under the user's home: the backend's folders are
-//! under a temporary home and the UI storage is the test's own, in memory.
+//! under a temporary home, and so is the UI storage's file.
 
 use super::proofs32_settings_templates_fixtures::{
     nothing_staged, open_template_page, stored_template_json, template_project,
 };
 use super::*;
+use crate::platform::storage::{FILE_NAME as STORAGE_FILE_NAME, UiStorage};
 use crate::settings_view::pages::editor_postfix_completion::{self, PostfixPageView};
 use crate::templates::postfix_store::POSTFIX_KEY;
 use serde_json::{Value, json};
@@ -20,7 +21,11 @@ const PAGE: &str = editor_postfix_completion::PAGE;
 // staged, Cancel keeps them, and Settings opened again shows them.
 #[gpui_kit::test]
 async fn postfix_completion_options_and_templates_are_stored_at_once_and_cancel_keeps_them(cx: &mut TestAppContext) {
-    let _home = start(cx);
+    let home = start(cx);
+    // The storage file of the backend's configuration folder, under the test's temporary home.
+    let config = cx.update(|cx| cx.global::<Backend>().dirs.config.clone());
+    assert!(config.starts_with(home.path()), "{}", config.display());
+    cx.update(|cx| cx.set_global(UiStorage::load(&config)));
     let (_folder, _root, workbench, cx) = template_project(cx, &[("a.ts", "const a = 1;\n")]);
     let (dialog, page) = open_template_page::<PostfixPageView>(&workbench, PAGE, cx);
     assert_eq!(page.read_with(cx, |page, cx| page.lines(cx))[0], "[x] Enable postfix completion");
@@ -48,6 +53,10 @@ async fn postfix_completion_options_and_templates_are_stored_at_once_and_cancel_
     let lines = again.read_with(cx, |page, cx| page.lines(cx));
     assert_eq!(lines[0], "[ ] Enable postfix completion");
     assert_eq!(lines[1], "[ ] Expand templates with Tab (disabled)");
+    let file = std::fs::read_to_string(config.join(STORAGE_FILE_NAME)).expect("the storage file is written");
+    let stored: Value = serde_json::from_str(&file).expect("the storage file is JSON");
+    let text = stored[POSTFIX_KEY].as_str().expect("the settings are stored as text");
+    assert_eq!(serde_json::from_str::<Value>(text).expect("JSON")["disabled"], json!(["rust.if"]));
 }
 
 // OK closes the dialog at once, as nothing is staged, and the stored settings stay.

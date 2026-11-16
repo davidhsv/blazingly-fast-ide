@@ -24,8 +24,11 @@ pub mod code_style;
 pub mod console;
 pub mod data_views;
 pub mod deployment_options;
+pub mod editor_file_templates;
 pub mod editor_files;
 pub mod editor_font;
+pub mod editor_live_templates;
+pub mod editor_postfix_completion;
 pub mod editor_todo;
 pub mod font_picker;
 pub mod general;
@@ -273,6 +276,56 @@ pub fn icon_button(cx: &App, selector: String, icon: &str, title: &'static str) 
         .hover(|el| el.bg(theme::color(cx, "bg-toolbar-hover")))
         .tooltip(crate::ui::tooltip::tooltip(title))
         .child(theme::icon(cx, icon, 16.0, theme::color(cx, "fg-icon")))
+}
+
+/// The description of a list row, cut with an ellipsis and whole in its tooltip. It is the user's or
+/// a plugin's text, so it is shown as written, never translated.
+pub fn description_cell(cx: &App, id: String, text: &str) -> gpui_kit::Stateful<Div> {
+    let title = SharedString::from(text.to_owned());
+    div()
+        .id(SharedString::from(id))
+        .min_w_0()
+        .overflow_hidden()
+        .whitespace_nowrap()
+        .text_ellipsis()
+        .text_color(theme::color(cx, "fg-subtle"))
+        .when(!text.is_empty(), |el| {
+            let title = title.clone();
+            el.tooltip(move |window, cx| crate::ui::tooltip::Tooltip::new(title.clone()).shown(window, cx))
+        })
+        .child(title)
+}
+
+/// The code font, for what the user types as code (an abbreviation, an extension, a template).
+pub fn code_family(cx: &App) -> SharedString {
+    crate::theme::installed_fonts::theme_family(cx, "font-mono", theme::fonts::BUNDLED_MONO_FAMILY)
+}
+
+/// A help text of plain parts (already in the UI language) and code parts (`true`), flowing as one
+/// paragraph: it breaks between words, and a plain part that goes on a sentence (`, e.g.`, `…);`)
+/// follows the one before without a space.
+pub fn hint_flow(cx: &App, parts: &[(bool, String)]) -> AnyElement {
+    let space = px(4.0);
+    let mut pieces: Vec<AnyElement> = Vec::new();
+    for (code, text) in parts {
+        let joined = pieces.is_empty() || (!code && text.starts_with([',', ';', ')', '.', '…']));
+        let words: Vec<&str> = if *code { vec![text.as_str()] } else { text.split_whitespace().collect() };
+        for (at, word) in words.into_iter().enumerate() {
+            let piece = div()
+                .when(*code, |el| el.font_family(code_family(cx)).text_color(theme::color(cx, "fg-muted")))
+                .when(at > 0 || !joined, |el| el.ml(space))
+                .child(SharedString::from(word.to_owned()));
+            pieces.push(piece.into_any_element());
+        }
+    }
+    div()
+        .flex()
+        .flex_wrap()
+        .text_size(theme::length(cx, "fs-small"))
+        .line_height(px(16.0))
+        .text_color(theme::color(cx, "fg-subtle"))
+        .children(pieces)
+        .into_any_element()
 }
 
 /// A help line under a control.

@@ -6,6 +6,7 @@
 //! from their fields.
 
 use super::Workbench;
+use super::settings_feature_pages::mount_page;
 use crate::platform::paths::ipc_path;
 use crate::settings_model::staging::Scope;
 use crate::settings_view::dialog::SettingsDialogView;
@@ -13,7 +14,7 @@ use crate::settings_view::pages::editor_file_templates::{self, FileTemplatesPage
 use crate::settings_view::pages::editor_live_templates::{self, LiveTemplatesPageView};
 use crate::settings_view::pages::editor_postfix_completion::{self, PostfixPageView};
 use crate::settings_view::pages::{Binding, ControlEvent};
-use gpui_kit::{AnyView, AppContext, Context, Entity, EventEmitter, Render, Subscription};
+use gpui_kit::{AppContext, Context, Entity, EventEmitter, Render, Subscription};
 
 /// Draws `view` for the whole of `page`, its labels found by the Settings search, and answers OK
 /// and Cancel asked from its fields.
@@ -24,12 +25,7 @@ fn mount<V: Render + EventEmitter<ControlEvent>>(
     labels: &[&str],
     cx: &mut Context<Workbench>,
 ) -> Subscription {
-    let labels = labels.iter().map(|label| (*label).to_owned()).collect();
-    let shown: AnyView = view.clone().into();
-    dialog.update(cx, |dialog, cx| {
-        dialog.set_page_view(page, shown, cx);
-        dialog.set_page_labels(page, labels, cx);
-    });
+    mount_page(dialog, page, view.clone().into(), labels, cx);
     let weak = dialog.downgrade();
     cx.subscribe(view, move |_, _, event: &ControlEvent, cx| {
         let Some(dialog) = weak.upgrade() else { return };

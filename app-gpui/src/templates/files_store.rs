@@ -6,7 +6,7 @@
 //! reset and hidden the same way.
 
 use super::files_builtins::{builtin_code_templates, builtin_file_templates, builtin_includes};
-use super::files_model::{FileTemplate, TemplateFragment};
+use super::files_model::{FileTemplate, TemplateFragment, is_plain_extension};
 use super::storage::{StorageWrite, load_object};
 use serde::de::{DeserializeOwned, MapAccess, Visitor};
 use serde::ser::SerializeMap;
@@ -313,12 +313,19 @@ impl FileTemplates {
         is_builtin_template(id) || self.contributed.iter().any(|template| template.id == id)
     }
 
-    pub fn save_template(&mut self, template: &FileTemplate) -> StorageWrite {
+    /// Saves a user template or an edit of a built-in or contributed one. Nothing changes, and
+    /// `None` is returned, for a template whose extension or a kind's is not a plain extension: New
+    /// would append it to the file's name.
+    pub fn save_template(&mut self, template: &FileTemplate) -> Option<StorageWrite> {
+        let kinds = template.kinds.iter().filter_map(|kind| kind.extension.as_deref());
+        if !std::iter::once(template.extension.as_str()).chain(kinds).all(is_plain_extension) {
+            return None;
+        }
         let mut custom = self.custom.clone();
         custom.deleted.retain(|id| *id != template.id);
         let stored = serde_json::to_value(template).unwrap_or_else(|_| json!({}));
         custom.templates.insert(&template.id, stored);
-        self.commit(custom)
+        Some(self.commit(custom))
     }
 
     /// Removes a user template, or hides a built-in or contributed one.
@@ -492,7 +499,7 @@ mod tests {
             icon: "file".to_owned(),
             ..FileTemplate::default()
         };
-        let write = store.save_template(&user);
+        let write = store.save_template(&user).expect("a template with a plain extension is saved");
         assert_eq!(write.key, FILE_TEMPLATES_KEY);
         assert_eq!(store.templates().last(), Some(&user));
         assert!(!store.is_modified_template("user.a"));
@@ -502,9 +509,9 @@ mod tests {
         assert_eq!(stored["deleted"], json!(["kotlin"]));
         assert_eq!(stored["deletedIncludes"], json!([]));
         assert_eq!(FileTemplates::load(None, &|_| Some(write.value.clone())).templates(), store.templates());
-        store.reset_template("kotlin");
+        let _ = store.reset_template("kotlin");
         assert!(store.templates().iter().any(|t| t.id == "kotlin"));
-        store.remove_template("user.a");
+        let _ = store.remove_template("user.a");
         assert_eq!(store.custom(), &FileTemplateCustomizations::default());
     }
 
@@ -514,19 +521,19 @@ mod tests {
     fn includes_and_code_templates_are_renamed_removed_and_reset() {
         let mut store = FileTemplates::load(None, &|_| None);
         let renamed = TemplateFragment { name: "Header".to_owned(), body: "// h".to_owned(), description: None };
-        store.save_include(&renamed, "File Header");
+        let _ = store.save_include(&renamed, "File Header");
         assert_eq!(store.includes(), std::slice::from_ref(&renamed));
         assert_eq!(store.custom().deleted_includes, ["File Header"]);
         assert!(!store.is_modified_include("Header"));
-        store.remove_include("Header");
+        let _ = store.remove_include("Header");
         assert!(store.includes().is_empty());
-        store.reset_include("File Header");
+        let _ = store.reset_include("File Header");
         assert_eq!(store.includes(), builtin_includes());
         let name = builtin_code_templates()[0].name.clone();
-        store.save_code_template(&name, "@Test\nvoid t() {}\n");
+        let _ = store.save_code_template(&name, "@Test\nvoid t() {}\n");
         assert_eq!(store.code_templates()[0].body, "@Test\nvoid t() {}\n");
         assert!(store.is_modified_code_template(&name));
-        store.reset_code_template(&name);
+        let _ = store.reset_code_template(&name);
         assert_eq!(store.code_templates(), builtin_code_templates());
         assert_eq!(FileTemplateCustomizations::parse(Some("{ not json")), FileTemplateCustomizations::default());
         assert_eq!(FileTemplateCustomizations::parse(Some("[1, 2]")), FileTemplateCustomizations::default());
@@ -548,7 +555,7 @@ mod tests {
                 icon: "file".to_owned(),
                 ..FileTemplate::default()
             };
-            storage.save(store.save_template(&template));
+            storage.save(store.save_template(&template).expect("saved"));
         }
         let names = |store: &FileTemplates| -> Vec<String> {
             let own = store.includes().iter().filter(|include| !is_builtin_include(&include.name));
@@ -566,5 +573,24 @@ mod tests {
         }
         assert_eq!(names(&store), ["b", "a"]);
         assert_eq!(storage.read(&project_key("/proj")), storage.read(FILE_TEMPLATES_KEY));
+    }
+
+    // Not from a spec: a template whose extension, or one of its kinds', names another folder or holds
+    // what no file name can is not stored, and the templates in effect stay as they were.
+    #[test]
+    fn a_template_whose_extension_is_not_a_plain_extension_is_not_stored() {
+        let mut store = FileTemplates::load(None, &|_| None);
+        let before = store.clone();
+        let kotlin = store.templates().iter().find(|t| t.id == "kotlin").cloned().expect("a built-in");
+        for extension in ["../x", "/../../x", "a\\b", ".kt", "kt "] {
+            let edited = FileTemplate { extension: extension.to_owned(), ..kotlin.clone() };
+            assert_eq!(store.save_template(&edited), None, "{extension:?}");
+            let mut kinds = kotlin.kinds.clone();
+            kinds[0].extension = Some(extension.to_owned());
+            assert_eq!(store.save_template(&FileTemplate { kinds, ..kotlin.clone() }), None, "kind {extension:?}");
+        }
+        assert_eq!(store, before);
+        let plain = FileTemplate { extension: "kts".to_owned(), ..kotlin };
+        assert!(store.save_template(&plain).is_some());
     }
 }

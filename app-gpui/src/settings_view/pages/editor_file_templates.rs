@@ -24,7 +24,7 @@ use crate::ui::text_area::{TextArea, TextAreaEvent};
 use crate::ui::text_field::{TextField, TextFieldEvent};
 use gpui_kit::{
     AnyElement, App, AppContext, ClickEvent, Context, Entity, EventEmitter, IntoElement, MouseButton, Render,
-    SharedString, Subscription, Window, div, prelude::*, px,
+    SharedString, Subscription, UniformListScrollHandle, Window, div, prelude::*, px,
 };
 
 pub use files_tab::FileField;
@@ -104,6 +104,7 @@ pub struct FileTemplatesPageView {
     shown: (Option<String>, Option<String>),
     tab: TemplateTab,
     scheme_open: bool,
+    files_scroll: UniformListScrollHandle,
     files: files_tab::FilesState,
     includes: fragments::IncludesState,
     code: fragments::CodeState,
@@ -130,6 +131,7 @@ impl FileTemplatesPageView {
             shown: (None, None),
             tab: TemplateTab::Files,
             scheme_open: false,
+            files_scroll: UniformListScrollHandle::new(),
             files: files_tab::FilesState::default(),
             includes: fragments::IncludesState::default(),
             code: fragments::CodeState::default(),
@@ -162,18 +164,28 @@ impl FileTemplatesPageView {
         self.shown = self.current_texts(cx);
     }
 
-    /// Another text is stored under a key the page shows (another window saved): it is read again
-    /// and the tab starts over on its first entry, as when the scheme changes.
+    /// Another text is stored under a key the page shows (another window saved): it is read again.
+    /// Another scheme starts the tab over on its first entry; within the same scheme the entry
+    /// selected stays, its fields showing what is stored now (nothing when it is gone).
     fn storage_changed(&mut self, cx: &mut Context<Self>) {
         if self.current_texts(cx) == self.shown {
             return;
         }
+        let scheme = self.store.scheme();
         {
             let storage = cx.try_global::<UiStorage>();
             self.store.reload(&|key| storage.and_then(|s| s.get(key)).map(str::to_owned));
         }
         self.shown = self.current_texts(cx);
-        self.start_tab(cx);
+        if self.store.scheme() == scheme {
+            match self.tab {
+                TemplateTab::Files => self.make_file_fields(cx),
+                TemplateTab::Includes => self.make_include_fields(cx),
+                TemplateTab::Code => self.make_code_fields(cx),
+            }
+        } else {
+            self.start_tab(cx);
+        }
         cx.notify();
     }
 
@@ -301,8 +313,13 @@ impl FileTemplatesPageView {
         out
     }
 
-    /// The list column of a tab: its toolbar when it has one, then its rows.
-    fn side(cx: &App, toolbar: Option<AnyElement>, selector: &'static str, rows: Vec<AnyElement>) -> AnyElement {
+    /// `rows` in a column that scrolls, drawn as `selector`.
+    fn scrolled_rows(selector: &'static str, rows: Vec<AnyElement>) -> AnyElement {
+        div().id(selector).flex_1().min_h_0().overflow_y_scroll().py(px(2.0)).children(rows).into_any_element()
+    }
+
+    /// The list column of a tab: its toolbar when it has one, then its list.
+    fn side(cx: &App, toolbar: Option<AnyElement>, list: AnyElement) -> AnyElement {
         let toolbar = toolbar.map(|buttons| {
             div()
                 .h(theme::length(cx, "h-header"))
@@ -323,7 +340,7 @@ impl FileTemplatesPageView {
             .border_r_1()
             .border_color(theme::color(cx, "border-strong"))
             .children(toolbar)
-            .child(div().id(selector).flex_1().min_h_0().overflow_y_scroll().py(px(2.0)).children(rows))
+            .child(list)
             .into_any_element()
     }
 
@@ -357,6 +374,7 @@ impl FileTemplatesPageView {
         div()
             .id(SharedString::from(selector.clone()))
             .debug_selector(move || selector)
+            .w_full()
             .h(theme::length(cx, "h-row"))
             .pl(px(18.0))
             .pr(px(8.0))
@@ -411,7 +429,7 @@ impl FileTemplatesPageView {
             .border_1()
             .border_color(theme::color(cx, "border-strong"))
             .bg(theme::color(cx, "bg-input"))
-            .when(mono, |el| el.font_family("monospace"))
+            .when(mono, |el| el.font_family(super::code_family(cx)))
             .child(control)
     }
 
@@ -433,25 +451,7 @@ impl FileTemplatesPageView {
 
     /// A help line of plain parts (in the UI language) and code.
     fn hint(cx: &App, parts: &[(bool, String)]) -> AnyElement {
-        let pieces = parts.iter().map(|(code, text)| {
-            if *code {
-                div()
-                    .font_family("monospace")
-                    .text_color(theme::color(cx, "fg-muted"))
-                    .child(SharedString::from(text.clone()))
-            } else {
-                div().child(SharedString::from(text.clone()))
-            }
-        });
-        div()
-            .flex()
-            .flex_wrap()
-            .gap(px(4.0))
-            .text_size(theme::length(cx, "fs-small"))
-            .line_height(px(16.0))
-            .text_color(theme::color(cx, "fg-subtle"))
-            .children(pieces)
-            .into_any_element()
+        super::hint_flow(cx, parts)
     }
 
     /// `text` in the UI language with its `{code}` placeholder drawn as code.
@@ -603,5 +603,7 @@ impl Render for FileTemplatesPageView {
     }
 }
 
+#[cfg(test)]
+mod extension_guard;
 #[cfg(test)]
 mod tests;

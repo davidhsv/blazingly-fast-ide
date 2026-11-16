@@ -9,7 +9,7 @@
 //! under a temporary home and the UI storage is the test's own, in memory.
 
 use super::proofs32_settings_templates_fixtures::{
-    nothing_staged, open_template_page, stored_template_json, template_project, type_into,
+    click_template, nothing_staged, open_template_page, stored_template_json, template_project, type_into,
 };
 use super::*;
 use crate::platform::paths::ipc_path;
@@ -68,8 +68,10 @@ async fn the_project_scheme_and_an_include_are_stored_at_once_and_cancel_keeps_t
 }
 
 // A template added on the Files tab, its name and extension typed, its file name style chosen, a kind
-// added with its text and Reformat according to style cleared, is stored at once; OK closes the
-// dialog at once, as nothing is staged.
+// added with its text and Reformat according to style cleared, is stored at once; an extension that
+// names another folder is not; Remove Kind, a template's checkbox and Remove Template are stored, and
+// so are a code template's text and its Restore Default; OK closes the dialog at once, as nothing is
+// staged.
 #[gpui_kit::test]
 async fn a_file_template_added_and_edited_on_the_page_is_stored_at_once(cx: &mut TestAppContext) {
     let _home = start(cx);
@@ -96,6 +98,43 @@ async fn a_file_template_added_and_edited_on_the_page_is_stored_at_once(cx: &mut
     assert_eq!(stored["reformat"], json!(false));
     assert_eq!(stored["kinds"][1]["label"], json!("Release"));
     assert_eq!(stored["kinds"][1]["body"], json!("## $NAME$\n$END$\n"));
+    // An extension that names another folder is refused where it is typed and not stored: typed key
+    // by key, the leading dots are dropped as they come, so what is stored is the last plain
+    // extension the field held, none.
+    type_into(&field(FileField::Extension, cx), "../notes", cx);
+    assert_eq!(field(FileField::Extension, cx).read_with(cx, |field, _| field.text().to_owned()), "/notes");
+    assert!(
+        page.read_with(cx, |page, cx| page.lines(cx)).contains(&"Not a file extension: it is not saved".to_owned())
+    );
+    let stored = stored_template_json(FILE_TEMPLATES_KEY, cx)["templates"][id.as_str()].clone();
+    assert_eq!(stored["extension"], json!(""));
+    type_into(&field(FileField::Extension, cx), "md", cx);
+    assert_eq!(stored_template_json(FILE_TEMPLATES_KEY, cx)["templates"][id.as_str()]["extension"], json!("md"));
+    click_on(cx, "settings-filetemplates-remove-kind");
+    let kinds = stored_template_json(FILE_TEMPLATES_KEY, cx)["templates"][id.as_str()]["kinds"].clone();
+    assert_eq!(kinds.as_array().map(Vec::len), Some(1), "Remove Kind is stored");
+    // The first template's checkbox turns it off in New, stored as an edit of it, and selects it;
+    // Remove Template then hides that built-in template, which is stored too.
+    let first = page.read_with(cx, |page, _| page.store().templates()[0].id.clone());
+    click_template(cx, format!("settings-filetemplates-enabled-{first}"));
+    assert_eq!(stored_template_json(FILE_TEMPLATES_KEY, cx)["templates"][first.as_str()]["enabled"], json!(false));
+    assert_eq!(page.read_with(cx, |page, _| page.selected_file_template().map(str::to_owned)), Some(first.clone()));
+    click_on(cx, "settings-filetemplates-remove");
+    assert_eq!(page.read_with(cx, |page, _| page.selected_file_template().map(str::to_owned)), None);
+    let stored = stored_template_json(FILE_TEMPLATES_KEY, cx);
+    assert!(stored["templates"].get(first.as_str()).is_none());
+    assert_eq!(stored["deleted"], json!([first]));
+
+    // The Code tab: a code template's text is stored as its edit, Restore Default drops it.
+    click_on(cx, "settings-filetemplates-tab-code");
+    type_area(page.read_with(cx, |page, _| page.code_body()), "@Test\nvoid t() {}\n", cx);
+    let code = stored_template_json(FILE_TEMPLATES_KEY, cx)["code"].clone();
+    assert_eq!(
+        code.as_object().map(|code| code.values().cloned().collect::<Vec<_>>()),
+        Some(vec![json!("@Test\nvoid t() {}\n")])
+    );
+    click_on(cx, "settings-code-restore");
+    assert_eq!(stored_template_json(FILE_TEMPLATES_KEY, cx)["code"], json!({}));
     nothing_staged(&dialog, cx);
     click_on(cx, "settings-ok");
     assert!(settings_dialog_of(&workbench, cx).is_none());

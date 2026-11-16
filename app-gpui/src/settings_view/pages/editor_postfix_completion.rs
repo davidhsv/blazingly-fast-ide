@@ -6,7 +6,7 @@
 //! page stages nothing and Apply, Reset and Cancel leave it alone. A change stored by another
 //! window is shown as soon as it is stored.
 
-use super::{Binding, ControlEvent, row};
+use super::{Binding, ControlEvent, description_cell, row};
 use crate::platform::storage::UiStorage;
 use crate::settings_view::controls::{check_box, search_label, tx};
 use crate::templates::postfix_model::{POSTFIX_GROUPS, PostfixTemplate, postfix_templates};
@@ -176,32 +176,18 @@ impl PostfixPageView {
             .into_any_element()
     }
 
-    /// `text` in the code font, as the hint writes its examples.
-    fn code(cx: &App, text: &str) -> AnyElement {
-        div()
-            .font_family("monospace")
-            .text_color(theme::color(cx, "fg-muted"))
-            .child(SharedString::from(text.to_owned()))
-            .into_any_element()
-    }
-
     fn hint(cx: &App) -> AnyElement {
-        let plain = |text: String| div().child(SharedString::from(text)).into_any_element();
-        div()
-            .flex()
-            .flex_wrap()
-            .gap(px(4.0))
-            .text_size(theme::length(cx, "fs-small"))
-            .text_color(theme::color(cx, "fg-subtle"))
-            .line_height(px(16.0))
-            .child(plain(tx(cx, HINT_START)))
-            .child(Self::code(cx, ".key"))
-            .child(plain(", e.g.".to_owned()))
-            .child(Self::code(cx, "user.name.nn"))
-            .child(plain("or".to_owned()))
-            .child(Self::code(cx, "items.for"))
-            .child(plain(tx(cx, HINT_END)))
-            .into_any_element()
+        let code = |text: &str| (true, text.to_owned());
+        let parts = [
+            (false, tx(cx, HINT_START)),
+            code(".key"),
+            (false, ", e.g.".to_owned()),
+            code("user.name.nn"),
+            (false, "or".to_owned()),
+            code("items.for"),
+            (false, tx(cx, HINT_END)),
+        ];
+        super::hint_flow(cx, &parts)
     }
 
     fn group_tab(&self, id: &'static str, title: &'static str, cx: &mut Context<Self>) -> AnyElement {
@@ -248,19 +234,11 @@ impl PostfixPageView {
             .child(
                 div()
                     .min_w(px(70.0))
-                    .font_family("monospace")
+                    .font_family(super::code_family(cx))
                     .text_color(theme::color(cx, "fg-emphasis"))
                     .child(SharedString::from(format!(".{}", template.key))),
             )
-            .child(
-                div()
-                    .min_w_0()
-                    .overflow_hidden()
-                    .whitespace_nowrap()
-                    .text_ellipsis()
-                    .text_color(theme::color(cx, "fg-subtle"))
-                    .child(SharedString::from(template.description.clone())),
-            )
+            .child(description_cell(cx, format!("settings-postfix-detail-{}", template.id), &template.description))
             .into_any_element()
     }
 }

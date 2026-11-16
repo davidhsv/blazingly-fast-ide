@@ -53,6 +53,8 @@ async fn a_live_template_added_and_typed_on_the_page_is_stored_at_once_and_cance
     cx.simulate_keystrokes("tab");
     cx.simulate_input("$END$");
     cx.run_until_parked();
+    type_into(&editor_field(&page, FieldKind::Expression("VALUE".to_owned()), cx), "clipboard()", cx);
+    click_on(cx, "settings-live-skip-VALUE");
     // The new template is listed last: the filter brings it into view before its checkbox is clicked.
     let filter = page.read_with(cx, |page, _| page.filter_field().clone());
     type_into(&filter, "logd", cx);
@@ -63,6 +65,8 @@ async fn a_live_template_added_and_typed_on_the_page_is_stored_at_once_and_cance
     assert_eq!(stored["body"], json!("dbg!($VALUE$);\t$END$"));
     assert_eq!(stored["group"], json!("User"));
     assert_eq!(stored["enabled"], json!(false));
+    let variable = json!({ "name": "VALUE", "expression": "clipboard()", "skipIfDefined": true });
+    assert_eq!(stored["variables"], json!([variable]));
     nothing_staged(&dialog, cx);
 
     click_on(cx, "settings-cancel");
@@ -77,7 +81,8 @@ async fn a_live_template_added_and_typed_on_the_page_is_stored_at_once_and_cance
 }
 
 // A built-in template's description typed on the page is stored as the user's edit of it and marks
-// it changed; Remove Template hides it, which is stored too, and OK closes the dialog at once.
+// it changed, and Restore Default drops the edit; its contexts, group and scope are stored as edits
+// too; Remove Template hides it, which is stored as well, and OK closes the dialog at once.
 #[gpui_kit::test]
 async fn a_built_in_live_template_edited_and_removed_on_the_page_is_stored_at_once(cx: &mut TestAppContext) {
     let _home = start(cx);
@@ -90,6 +95,15 @@ async fn a_built_in_live_template_edited_and_removed_on_the_page_is_stored_at_on
     let stored = stored_template_json(LIVE_TEMPLATES_KEY, cx);
     assert_eq!(stored["templates"]["java.psvm"]["description"], json!("Main method"));
     assert_eq!(page.read_with(cx, |page, cx| page.tree_lines(cx))[1], "> [x] psvm * | Main method");
+    nothing_staged(&dialog, cx);
+    click_on(cx, "settings-live-restore");
+    assert_eq!(stored_template_json(LIVE_TEMPLATES_KEY, cx), json!({ "templates": {}, "deleted": [] }));
+    type_into(&editor_field(&page, FieldKind::Contexts, cx), "java, kotlin", cx);
+    type_into(&editor_field(&page, FieldKind::Group, cx), "Mine", cx);
+    click_on(cx, "settings-live-scope");
+    let edit = stored_template_json(LIVE_TEMPLATES_KEY, cx)["templates"]["java.psvm"].clone();
+    assert_eq!((edit["contexts"].clone(), edit["group"].clone()), (json!(["java", "kotlin"]), json!("Mine")));
+    assert_eq!(edit["scope"], json!("any"));
     nothing_staged(&dialog, cx);
     click_on(cx, "settings-live-remove");
     let hidden = json!({ "templates": {}, "deleted": ["java.psvm"] });

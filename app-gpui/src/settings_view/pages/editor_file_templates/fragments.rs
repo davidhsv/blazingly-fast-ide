@@ -327,12 +327,39 @@ impl FileTemplatesPageView {
         let selected = self.includes.selected.clone();
         let prefix = "settings-includes-item-";
         let rows = Self::fragment_rows(&includes, selected.as_deref(), prefix, &modified, Self::select_include, cx);
-        let side = Self::side(cx, Some(toolbar), "settings-includes-items", rows);
+        let side = Self::side(cx, Some(toolbar), Self::scrolled_rows("settings-includes-items", rows));
         let editor = match (self.selected_include().cloned(), self.includes.fields.as_ref()) {
             (Some(include), Some(fields)) => {
-                let (name, body) = (fields.name.clone().into_any_element(), fields.body.clone());
+                let body = fields.body.clone();
+                // A built-in include's name cannot change: it is drawn as a disabled field, its text
+                // faint on no background.
+                let name_row = if is_builtin_include(&include.name) {
+                    let fixed = div()
+                        .text_color(theme::color(cx, "fg-faint"))
+                        .child(SharedString::from(include.name.clone()))
+                        .into_any_element();
+                    let frame = Self::frame(cx, "settings-includes-name", fixed, false)
+                        .flex_1()
+                        .bg(gpui_kit::transparent_black())
+                        .border_color(theme::color(cx, "border"));
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .w(px(92.0))
+                                .flex_none()
+                                .text_color(theme::color(cx, "fg-muted"))
+                                .child(SharedString::from(tx(cx, "Name"))),
+                        )
+                        .child(frame)
+                        .into_any_element()
+                } else {
+                    Self::labelled(cx, "Name", "settings-includes-name", fields.name.clone().into_any_element(), false)
+                };
                 let mut rows = vec![
-                    Self::labelled(cx, "Name", "settings-includes-name", name, false),
+                    name_row,
                     Self::body_frame(cx, "settings-includes-body", &body),
                     Self::with_code(cx, PARSE_INCLUDE, &parse_directive(&include.name)),
                 ];
@@ -352,7 +379,7 @@ impl FileTemplatesPageView {
         let selected = self.code.selected.clone();
         let prefix = "settings-code-item-";
         let rows = Self::fragment_rows(&code, selected.as_deref(), prefix, &modified, Self::select_code, cx);
-        let side = Self::side(cx, None, "settings-code-items", rows);
+        let side = Self::side(cx, None, Self::scrolled_rows("settings-code-items", rows));
         let editor = match (self.selected_code().cloned(), self.code.fields.as_ref()) {
             (Some(code), Some(fields)) => {
                 let body = fields.body.clone();

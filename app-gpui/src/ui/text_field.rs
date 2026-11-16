@@ -58,6 +58,8 @@ pub struct TextField {
     history: TextHistory,
     /// Runs drawn in their own colours, in order and apart; the owner keeps them up to date with the text.
     tags: Vec<TextTag>,
+    /// Drawn in the code font (an abbreviation, a file extension) rather than the interface's.
+    code_font: bool,
 }
 
 impl EventEmitter<TextFieldEvent> for TextField {}
@@ -95,6 +97,7 @@ impl TextField {
             read_only: false,
             history: TextHistory::default(),
             tags: Vec::new(),
+            code_font: false,
         }
     }
 
@@ -167,6 +170,12 @@ impl TextField {
 
     pub fn selected_text(&self) -> &str {
         &self.text[self.selection()]
+    }
+
+    /// Draws the text in the code font, or in the interface's.
+    pub fn set_code_font(&mut self, code: bool, cx: &mut Context<Self>) {
+        self.code_font = code;
+        cx.notify();
     }
 
     /// Whether the user can change the text; the owner still can, with [`Self::set_text`].
@@ -545,7 +554,12 @@ impl Element for TextFieldElement {
         } else {
             (SharedString::from(field.text.clone()), theme::color(cx, "fg-strong"))
         };
-        let family = crate::theme::installed_fonts::theme_family(cx, "font-ui", ".SystemUIFont").to_string();
+        let family = if field.code_font {
+            crate::theme::installed_fonts::theme_family(cx, "font-mono", theme::fonts::BUNDLED_MONO_FAMILY)
+        } else {
+            crate::theme::installed_fonts::theme_family(cx, "font-ui", ".SystemUIFont")
+        }
+        .to_string();
         let base = TextRun {
             len: 0,
             font: font(SharedString::from(family)),

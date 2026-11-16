@@ -5,14 +5,29 @@
 use super::{FileTemplatesPageView, NAME_STYLES, now_base36};
 use crate::settings_view::controls::{check_box, tx};
 use crate::settings_view::pages::{drop_down, drop_down_row, icon_button, select_box};
-use crate::templates::files_model::{FileTemplate, FileTemplateKind, NameStyle, reformats_on_create};
+use crate::templates::files_model::{
+    FileTemplate, FileTemplateKind, NameStyle, is_plain_extension, reformats_on_create,
+};
 use crate::theme;
 use crate::ui::text_area::TextArea;
 use crate::ui::text_field::TextField;
 use gpui_kit::{
     AnyElement, App, ClickEvent, Context, Entity, IntoElement, MouseButton, SharedString, Subscription, div,
-    prelude::*, px,
+    prelude::*, px, uniform_list,
 };
+use std::ops::Range;
+
+/// Why an extension typed is not stored.
+const EXTENSION_REFUSED: &str = "Not a file extension: it is not saved";
+/// Why a template stored elsewhere with a kind whose extension is not plain takes no change.
+const KIND_EXTENSION_REFUSED: &str =
+    "A kind's extension is not a file extension: changes to this template are not saved";
+
+/// Whether a kind of `template` carries an extension that is not a plain one; the store saves no
+/// change to such a template.
+fn has_unplain_kind_extension(template: &FileTemplate) -> bool {
+    template.kinds.iter().filter_map(|kind| kind.extension.as_deref()).any(|extension| !is_plain_extension(extension))
+}
 
 /// A single-line field of the Files tab's editor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,12 +53,15 @@ pub(super) struct FilesState {
     /// The kind shown, by index.
     pub(super) kind: usize,
     pub(super) style_open: bool,
+    /// The Extension field holds what is not a plain extension, so the template keeps its own.
+    extension_invalid: bool,
     fields: Option<FileFields>,
 }
 
 impl FilesState {
     pub(super) fn clear(&mut self) {
         self.fields = None;
+        self.extension_invalid = false;
     }
 }
 
@@ -95,10 +113,14 @@ impl FileTemplatesPageView {
     /// The fields for the selected template and the kind shown.
     pub(super) fn make_file_fields(&mut self, cx: &mut Context<Self>) {
         self.files.fields = None;
+        self.files.extension_invalid = false;
         let Some(template) = self.selected_file().cloned() else { return };
+        // A template stored elsewhere (the other app, an import, a plugin) can carry one already.
+        self.files.extension_invalid = !is_plain_extension(&template.extension);
         let kind = template.kinds.get(self.kind_of(&template)).cloned();
         let name = Self::text_field(&template.name, None, false, cx);
         let extension = Self::text_field(&template.extension, Some(tx(cx, "none")), false, cx);
+        extension.update(cx, |field, cx| field.set_code_font(true, cx));
         let mut events = vec![
             Self::watch_field(&name, Self::name_changed, cx),
             Self::watch_field(&extension, Self::extension_changed, cx),
@@ -121,7 +143,7 @@ impl FileTemplatesPageView {
         let Some(mut template) = self.selected_file().cloned() else { return };
         change(&mut template);
         let write = self.store.save_template(&template);
-        self.persist(vec![write], cx);
+        self.persist(write.into_iter().collect(), cx);
         cx.notify();
     }
 
@@ -140,14 +162,27 @@ impl FileTemplatesPageView {
         self.update_file(cx, |template| template.name = name);
     }
 
-    /// The extension is stored without a leading dot and the blanks around it, and shown so.
+    /// The extension is stored without a leading dot and the blanks around it, and shown so. One
+    /// that is not a plain extension (a separator, `..`, a character no file name can hold) is not
+    /// stored: the field is marked invalid and says why, and the template keeps the last plain
+    /// extension the field held.
     fn extension_changed(&mut self, field: &Entity<TextField>, cx: &mut Context<Self>) {
         let typed = field.read(cx).text().to_owned();
         let extension = typed.strip_prefix('.').unwrap_or(&typed).trim().to_owned();
         if extension != typed {
             field.update(cx, |field, cx| field.set_text(&extension, cx));
         }
+        self.files.extension_invalid = !is_plain_extension(&extension);
+        if self.files.extension_invalid {
+            cx.notify();
+            return;
+        }
         self.update_file(cx, |template| template.extension = extension);
+    }
+
+    /// Whether the Extension field holds what is not a plain extension, which is not stored.
+    pub fn extension_is_invalid(&self) -> bool {
+        self.files.extension_invalid
     }
 
     fn kind_label_changed(&mut self, field: &Entity<TextField>, cx: &mut Context<Self>) {
@@ -175,7 +210,7 @@ impl FileTemplatesPageView {
         };
         template.enabled = Some(template.enabled == Some(false));
         let write = self.store.save_template(&template);
-        self.persist(vec![write], cx);
+        self.persist(write.into_iter().collect(), cx);
         cx.notify();
     }
 
@@ -196,7 +231,7 @@ impl FileTemplatesPageView {
             ..FileTemplate::default()
         };
         let write = self.store.save_template(&template);
-        self.persist(vec![write], cx);
+        self.persist(write.into_iter().collect(), cx);
         (self.files.selected, self.files.kind) = (Some(template.id), 0);
         self.make_file_fields(cx);
         cx.notify();
@@ -290,6 +325,12 @@ impl FileTemplatesPageView {
         let style = tx(cx, style_title(template.name_style));
         let extension = text(&fields.extension);
         out.push(format!("{}: {extension} | {}: {style} ▾", tx(cx, "Extension"), tx(cx, "File name")));
+        if self.files.extension_invalid {
+            out.push(tx(cx, EXTENSION_REFUSED));
+        }
+        if has_unplain_kind_extension(template) {
+            out.push(tx(cx, KIND_EXTENSION_REFUSED));
+        }
         let kinds: Vec<String> = template
             .kinds
             .iter()
@@ -312,13 +353,8 @@ impl FileTemplatesPageView {
         let id = template.id.clone();
         let chosen = self.files.selected.as_deref() == Some(id.as_str());
         let on = template.enabled != Some(false);
-        let color = if !on {
-            "fg-faint"
-        } else if self.store.is_modified_template(&id) {
-            "link"
-        } else {
-            "fg"
-        };
+        // A template turned off keeps its colour: only its checkbox says it is off.
+        let color = if self.store.is_modified_template(&id) { "link" } else { "fg" };
         let enable = format!("settings-filetemplates-enabled-{id}");
         let toggled = id.clone();
         Self::list_row(cx, format!("settings-filetemplates-item-{id}"), chosen)
@@ -438,7 +474,8 @@ impl FileTemplatesPageView {
                 )
                 .child(
                     Self::frame(cx, "settings-filetemplates-extension", extension.into_any_element(), true)
-                        .w(px(120.0)),
+                        .w(px(120.0))
+                        .when(self.files.extension_invalid, |el| el.border_color(theme::color(cx, "danger"))),
                 )
                 .child(
                     div()
@@ -450,6 +487,19 @@ impl FileTemplatesPageView {
                 .child(self.style_select(&template, cx))
                 .into_any_element(),
         );
+        let refusals = [
+            self.files.extension_invalid.then_some(EXTENSION_REFUSED),
+            has_unplain_kind_extension(&template).then_some(KIND_EXTENSION_REFUSED),
+        ];
+        for refusal in refusals.into_iter().flatten() {
+            rows.push(
+                div()
+                    .text_size(theme::length(cx, "fs-small"))
+                    .text_color(theme::color(cx, "danger"))
+                    .child(SharedString::from(tx(cx, refusal)))
+                    .into_any_element(),
+            );
+        }
         rows.push(self.kind_tabs(&template, cx));
         if let (Some(label), Some(body)) = (kind_label, body) {
             let label = label.into_any_element();
@@ -500,9 +550,19 @@ impl FileTemplatesPageView {
             .when(!removable, |el| el.opacity(0.5))
             .when(removable, |el| el.on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.remove_template(cx))));
         let toolbar = div().flex().items_center().gap(px(2.0)).child(add).child(remove).into_any_element();
-        let templates = self.store.templates().to_vec();
-        let rows: Vec<AnyElement> = templates.iter().map(|template| self.file_item(template, cx)).collect();
-        let side = Self::side(cx, Some(toolbar), "settings-filetemplates-items", rows);
+        // Only the rows in view are drawn: plugins and the user can add any number of templates.
+        let list = uniform_list(
+            "settings-filetemplates-items",
+            self.store.templates().len(),
+            cx.processor(|view, range: Range<usize>, _, cx| {
+                view.store.templates()[range].iter().map(|template| view.file_item(template, cx)).collect::<Vec<_>>()
+            }),
+        )
+        .track_scroll(&self.files_scroll)
+        .flex_1()
+        .min_h_0()
+        .py(px(2.0));
+        let side = Self::side(cx, Some(toolbar), list.into_any_element());
         let editor = self.file_editor(cx);
         Self::split(cx, side, editor)
     }

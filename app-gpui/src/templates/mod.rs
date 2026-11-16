@@ -7,6 +7,7 @@ pub mod emmet_model;
 pub mod files_builtins;
 pub mod files_create;
 pub mod files_model;
+pub mod files_store;
 pub mod live_builtins;
 pub mod live_model;
 pub mod live_snippets;

@@ -93,7 +93,7 @@ async fn remove_location(host: &Host, plugins: Option<Arc<PluginHost>>, path: &P
 }
 
 /// Draws `view` for the whole of `page`, its labels found by the Settings search.
-fn mount_page(
+pub(super) fn mount_page(
     dialog: &Entity<SettingsDialogView>,
     page: &'static str,
     view: AnyView,
