@@ -42,7 +42,9 @@ Read the scratch copies of the notes (the copies under `docs/` were reformatted 
 
 ## Changed since the notes were written
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): the Deployment notes were written on the tree at 54bae391, the SSH and Run Targets notes at ee441bf1, all while another integration was in flight; the hunks anchor on `settings_view/pages/mod.rs`, `settings_view/custom_controls.rs` and `workbench/mod.rs`. Say here which changed.
+The Deployment notes were written on the tree at 54bae391, the SSH and Run Targets notes at ee441bf1. Measured at launch (`git diff --numstat 54bae391 HEAD` over the existing files the hunks anchor on): `settings_view/pages/mod.rs` and `settings_view/custom_controls.rs` are unchanged; `workbench/mod.rs` changed (+86 −15: the syntax tree commands, the code previews, Save All, the gutter). Re-anchor every hunk from its quoted text and read the place before you edit it. Since the notes: Save All (`file.save`) writes every unsaved document through `Workbench::save_all_documents` and tells the user of a failed save.
+
+Other agents' undeclared drafts now in the tree, not yours: `app-gpui/src/settings_view/pages/security_project_trust.rs`, `editor_todo.rs`, `vcs_log.rs`, `vcs_github.rs`, `editor_postfix_completion.rs`, `editor_live_templates.rs`, `editor_live_templates/`, `editor_file_templates.rs`, `editor_file_templates/`, `app-gpui/src/templates/files_store.rs`, `app-gpui/src/workbench/settings_feature_pages.rs`, `settings_template_pages.rs`, every `proofs31_*` and `proofs32_*` test file, `workbench/tests/proofs26_code_preview_pending.rs`, `platform/error_log_sink.rs`.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 

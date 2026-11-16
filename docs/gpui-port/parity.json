@@ -1760,8 +1760,8 @@
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `editor::goto_line::tests`, `workbench::popup_placement::tests::escape_closes_go_to_line_and_the_editor_has_the_keyboard_again`, `workbench::popup_placement::tests::go_to_line_is_a_dialog_and_enter_moves_the_caret_to_the_typed_line_and_column`, `workbench::popup_placement::tests::go_to_line_takes_a_line_a_line_and_column_and_a_comma`, `workbench::popup_placement::tests::the_go_to_line_key_runs_nothing_while_a_tool_window_has_the_keyboard`; see the navigate.gotoLine action"
   },
   "action:navigate.toggleBookmark": {
-    "status": "partial",
-    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_store::tests`; the bookmark is stored, listed and navigated to; missing: the bookmark's icon and mnemonic are not drawn in the editor's gutter (the native gutter has no bookmarks column), so the line shows no mark after the action"
+    "status": "done",
+    "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_store::tests`, `workbench::tests::proofs27_gutter::toggle_bookmark_draws_the_bookmark_icon_on_the_carets_line_in_the_bookmarks_column`; the bookmark is stored, listed and navigated to, and its icon is drawn on the line in the gutter's bookmarks column"
   },
   "action:navigate.nextBookmark": {
     "status": "done",
@@ -1776,8 +1776,8 @@
     "proof": "`workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_popup::tests`, `workbench::tests::proofs26_code_preview::the_bookmarks_popup_previews_the_bookmarked_line_in_an_editor`, `workbench::tests::proofs26_code_preview::an_empty_previewed_line_is_tinted`; the popup lists the bookmarks by list and file, opens, removes and describes them. Its preview is an editor on the document with the bookmarked line tinted"
   },
   "action:navigate.toggleBookmarkWithMnemonic": {
-    "status": "partial",
-    "proof": "`workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`; the chooser gives the caret's line a bookmark with the typed mnemonic; missing: the bookmark's icon and mnemonic are not drawn in the editor's gutter (the native gutter has no bookmarks column), so the line shows no mark after the action"
+    "status": "done",
+    "proof": "`workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`, `workbench::tests::proofs27_gutter::toggle_bookmark_with_mnemonic_draws_the_chosen_digit_on_the_carets_line`; the chooser gives the caret's line a bookmark with the typed mnemonic, drawn as a digit on the line in the gutter"
   },
   "action:bookmarks.toggleFileBookmark": {
     "status": "done",
@@ -5368,8 +5368,8 @@
     "proof": "`workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`; the rule is read in .gitignore or in .git/info/exclude, and git status no longer lists the excluded file"
   },
   "ipc:vcs_line_hunks": {
-    "status": "partial",
-    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_text_actions::tests::next_and_previous_change_move_through_the_editors_changed_ranges_and_wrap`; Rollback Lines reads the hunks and restores only the lines under the caret, and Next / Previous Change move through them. Missing: the editor gutter's change markers do not read it"
+    "status": "done",
+    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_text_actions::tests::next_and_previous_change_move_through_the_editors_changed_ranges_and_wrap`, `workbench::tests::proofs27_gutter::the_change_lane_draws_bars_on_added_and_modified_lines_and_a_notch_where_lines_were_deleted`, `workbench::tests::proofs27_gutter::the_bars_follow_an_edit_at_once_and_the_backends_next_answer_adds_the_typed_line`, `workbench::tests::proofs27_gutter::an_untracked_file_is_all_added_lines`; the change bars of the editor's gutter can only come from the backend's line hunks of the file, called as the Tauri adapter calls it (the host, the window's label, the path); Rollback Lines and Next and Previous Change use the same call"
   },
   "ipc:vcs_shelve": {
     "status": "done",
@@ -8250,5 +8250,21 @@
   "ipc:syntax_errors": {
     "status": "done",
     "proof": "`workbench::tests::proofs25_syntax_tree::complete_statement_closes_what_the_syntax_errors_say_is_left_open`; the statement is closed where the syntax errors say it is left open; the text rules alone give another text, called as the Tauri adapter calls it (the host, the window's label, the document and the position)"
+  },
+  "point.registerEditorContribution:vcs.changeMarkers": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs27_gutter::the_change_lane_draws_bars_on_added_and_modified_lines_and_a_notch_where_lines_were_deleted`, `workbench::tests::proofs27_gutter::the_bars_follow_an_edit_at_once_and_the_backends_next_answer_adds_the_typed_line`, `workbench::tests::proofs27_gutter::an_untracked_file_is_all_added_lines`, `workbench::tests::proofs27_gutter::a_press_on_a_bar_opens_its_changes_popup_and_rollback_puts_the_original_line_back`, `workbench::tests::proofs27_gutter::next_change_in_the_popup_moves_the_caret_and_shows_the_next_changes_popup`, `workbench::tests::proofs27_gutter::a_file_outside_any_repository_has_no_bars`, `workbench::tests::proofs27_gutter::an_open_editor_asks_the_backend_nothing_while_nothing_changes`, `workbench::tests::proofs27_gutter::an_editor_behind_another_tab_asks_nothing_until_it_is_shown_again`, `workbench::tests::proofs27_gutter::an_answer_for_a_text_that_changed_since_is_dropped`; bars for added and modified lines and a notch where lines were deleted, following edits at once; a press opens the change's popup with Previous, Next and Rollback; nothing is asked while nothing changes or while the tab is hidden. Missing: the marks in the overview lane, the bars' tooltips and pointer cursor, the inline blame of the same contribution, Show Diff and Copy from the popup in a window test"
+  },
+  "point.registerEditorContribution:search.bookmarks": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs27_gutter::toggle_bookmark_draws_the_bookmark_icon_on_the_carets_line_in_the_bookmarks_column`, `workbench::tests::proofs27_gutter::toggle_bookmark_with_mnemonic_draws_the_chosen_digit_on_the_carets_line`, `workbench::tests::proofs27_gutter::a_primary_click_in_the_gutter_toggles_the_lines_bookmark`, `workbench::tests::proofs27_gutter::a_bookmark_follows_its_line_when_a_line_is_inserted_above_it`, `workbench::tests::proofs27_gutter::a_bookmark_follows_its_line_when_the_file_changes_on_disk`, `workbench::tests::proofs27_gutter::a_moved_bookmark_keeps_its_line_after_the_tab_is_closed_and_opened_again`, `workbench::tests::proofs27_gutter::a_moved_bookmark_keeps_its_stored_line_when_the_tab_closes_without_saving`, `workbench::tests::proofs27_gutter::both_panes_of_a_split_window_draw_their_bookmarks`, `workbench::tests::proofs27_gutter::with_gutter_icons_off_the_bookmarks_and_run_columns_take_no_room`; the bookmark's icon or mnemonic in its own column of every shown editor, a ⌘ click toggling it, bookmarks following edits and stored again. Missing: the mark's tooltip; the stored line after its whole line is deleted has no test"
+  },
+  "point.registerEditorContribution:run.targets": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs27_gutter::a_main_gets_a_run_mark_whose_menu_offers_to_run_and_to_modify_its_configuration`, `workbench::tests::proofs27_gutter::a_run_mark_launch_with_nothing_to_run_says_that_no_configuration_matches_the_file`; a run mark on a runnable line whose menu offers Run, Debug and Modify Run Configuration. Missing: the passed and failed icons of tests, inherited Java mains, the Go preload, the executors' rows, a launch from the menu in a window test"
+  },
+  "point.registerEditorContribution:run.npmScripts": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs27_gutter::a_package_json_script_gets_a_run_mark_whose_menu_runs_it_with_the_lockfiles_manager`; a run mark on each script of package.json whose menu names the lockfile's package manager. Missing: choosing Run or Debug in a test (it would start the package manager)"
   }
 }

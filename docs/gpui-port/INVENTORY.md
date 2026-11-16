@@ -5,11 +5,11 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1440/3145 rows at parity, 102 model only, 506 partial, 15 with nothing to port.**
+**Overall: 1444/3145 rows at parity, 101 model only, 507 partial, 15 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
-| Actions | 495 | 0 | 146 | 0 | 836 |
+| Actions | 497 | 0 | 144 | 0 | 836 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 46 |
 | Keymap presets | 6 | 0 | 0 | 0 | 6 |
 | Context keys | 50 | 0 | 4 | 0 | 83 |
@@ -17,7 +17,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerCommitCheckProvider` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerDocumentIndexSync` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerEditorBanner` | 1 | 0 | 0 | 0 | 5 |
-| Extension point `registerEditorContribution` | 1 | 0 | 3 | 0 | 32 |
+| Extension point `registerEditorContribution` | 1 | 0 | 7 | 0 | 32 |
 | Extension point `registerEditorDropHandler` | 0 | 0 | 0 | 0 | 1 |
 | Editor kinds | 0 | 0 | 7 | 0 | 19 |
 | Extension point `registerEndpointProvider` | 1 | 0 | 0 | 0 | 2 |
@@ -55,13 +55,13 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Editor, platform, workbench and design-system modules | 32 | 1 | 64 | 0 | 253 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 21 |
-| IPC commands | 317 | 0 | 28 | 15 | 599 |
+| IPC commands | 318 | 0 | 27 | 15 | 599 |
 | Backend events (IdeEvent) | 17 | 0 | 2 | 0 | 31 |
 | Plugin API interfaces (wit/) | 8 | 0 | 12 | 0 | 49 |
-| Behaviour specification: unit tests (vitest) | 379 | 101 | 128 | 0 | 753 |
+| Behaviour specification: unit tests (vitest) | 380 | 100 | 128 | 0 | 753 |
 | Behaviour specification: end-to-end specs (Playwright) | 9 | 0 | 9 | 0 | 70 |
 
-## Actions (495/836 at parity, 146 partial)
+## Actions (497/836 at parity, 144 partial)
 
 `(dynamic)` rows are actions whose id is built at run time (one per plugin command, tool, run configuration…).
 
@@ -571,8 +571,8 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | [~] | `navigate.superMethod` | `Meta+U` | src/editor/navigation/index.ts:174 | `workbench::refactor_actions::tests::looks_for_the_method_in_supertypes_level_by_level`, `workbench::refactor_actions::tests::opens_the_super_method_in_another_file_or_says_there_is_none`, `workbench::refactor_actions::tests::the_editor_refactorings_do_nothing_while_a_tool_window_has_the_keyboard`; asks the server for the supertypes level by level, opens the super method in the same or another file, or says there is none. Missing: several levels and overloads have no test, and the chooser for several targets is a plain list without a test |
 | [~] | `navigate.switcher` | `Ctrl+Tab` | src/features/search/index.ts:308 | `workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `everywhere::recent_view::tests`; opens the Switcher on the previous editor with Ctrl held, moves on each press, opens on release. Not yet: Recent Locations, the files edited in this session (the list is empty, so Show edited only shows nothing), opening to the side, version control colours on names, keeping a row whose tab refused to close |
 | [x] | `navigate.switcherBack` | `Ctrl+Shift+Tab` | src/features/search/index.ts:319 | `workbench::tests::proofs_editor_actions_navigate::the_switcher_opened_backward_starts_on_the_oldest_editor_and_opens_it_when_ctrl_is_released`; with Ctrl held it opens the Switcher on the editor used longest ago, which opens when Ctrl is released |
-| [~] | `navigate.toggleBookmark` | `F3` | src/features/search/index.ts:414 | `workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_store::tests`; the bookmark is stored, listed and navigated to; missing: the bookmark's icon and mnemonic are not drawn in the editor's gutter (the native gutter has no bookmarks column), so the line shows no mark after the action |
-| [~] | `navigate.toggleBookmarkWithMnemonic` | `Alt+F3` | src/features/search/index.ts:463 | `workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`; the chooser gives the caret's line a bookmark with the typed mnemonic; missing: the bookmark's icon and mnemonic are not drawn in the editor's gutter (the native gutter has no bookmarks column), so the line shows no mark after the action |
+| [x] | `navigate.toggleBookmark` | `F3` | src/features/search/index.ts:414 | `workbench::tests::go_to_line_and_bookmarks_move_the_caret_through_the_project`, `everywhere::bookmarks_store::tests`, `workbench::tests::proofs27_gutter::toggle_bookmark_draws_the_bookmark_icon_on_the_carets_line_in_the_bookmarks_column`; the bookmark is stored, listed and navigated to, and its icon is drawn on the line in the gutter's bookmarks column |
+| [x] | `navigate.toggleBookmarkWithMnemonic` | `Alt+F3` | src/features/search/index.ts:463 | `workbench::tests::proofs5_navigation::toggle_bookmark_with_mnemonic_gives_the_caret_line_the_typed_digit`, `everywhere::bookmarks_popup::tests`, `workbench::tests::proofs27_gutter::toggle_bookmark_with_mnemonic_draws_the_chosen_digit_on_the_carets_line`; the chooser gives the caret's line a bookmark with the typed mnemonic, drawn as a digit on the line in the gutter |
 | [x] | `navigate.typeDeclaration` | `Meta+Shift+B`, `Ctrl+Shift+B` | src/editor/lsp/actions.ts:125 | `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several` |
 | [x] | `navigate.typeHierarchy` | `Ctrl+H` | src/features/code-insight/index.ts:126 | `editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`; the Hierarchy window titled Subtypes of Base lists Derived, the subtype the server reports |
 | [x] | `open-browser` |  | src/features/run/services.tsx:523 | `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`, `workbench::tests::proofs5_run::open_in_browser_opens_the_started_servers_page_and_remove_from_services_hides_a_row`; the toolbar's Open in Browser is enabled while a server with a port runs and disabled after Stop; run through run.services.openBrowser on the group it opens http://localhost:8123, and nothing while no server runs |
@@ -1084,7 +1084,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `php.composerInstall` | src/features/run/composerInstall.ts:120 |  |
 | [x] | `vcs.conflict` | src/features/vcs/conflictBanner.ts:13 | `workbench::tests::the_merge_conflicts_notification_appears_with_the_conflict_and_expires_once_it_is_resolved`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`, `vcs::conflict_banner::tests::warns_above_a_file_git_records_as_conflicted_and_offers_to_resolve_it`; a conflicted file gets the banner, its Resolve link over the editor opens the merge editor, and it goes once resolved |
 
-## Extension point `registerEditorContribution` (1/32 at parity, 3 partial)
+## Extension point `registerEditorContribution` (1/32 at parity, 7 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
@@ -1110,14 +1110,14 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `plugins.languageFeatures` | src/features/plugins/index.ts:163 |  |
 | [ ] | `plugins.lineMarkers` | src/features/plugins/index.ts:164 |  |
 | [ ] | `plugins.navigation` | src/features/plugins/navigation.ts:181 |  |
-| [ ] | `run.npmScripts` | src/features/run/index.ts:439 |  |
-| [ ] | `run.targets` | src/features/run/index.ts:438 |  |
-| [ ] | `search.bookmarks` | src/features/search/index.ts:188 |  |
+| [~] | `run.npmScripts` | src/features/run/index.ts:439 | `workbench::tests::proofs27_gutter::a_package_json_script_gets_a_run_mark_whose_menu_runs_it_with_the_lockfiles_manager`; a run mark on each script of package.json whose menu names the lockfile's package manager. Missing: choosing Run or Debug in a test (it would start the package manager) |
+| [~] | `run.targets` | src/features/run/index.ts:438 | `workbench::tests::proofs27_gutter::a_main_gets_a_run_mark_whose_menu_offers_to_run_and_to_modify_its_configuration`, `workbench::tests::proofs27_gutter::a_run_mark_launch_with_nothing_to_run_says_that_no_configuration_matches_the_file`; a run mark on a runnable line whose menu offers Run, Debug and Modify Run Configuration. Missing: the passed and failed icons of tests, inherited Java mains, the Go preload, the executors' rows, a launch from the menu in a window test |
+| [~] | `search.bookmarks` | src/features/search/index.ts:188 | `workbench::tests::proofs27_gutter::toggle_bookmark_draws_the_bookmark_icon_on_the_carets_line_in_the_bookmarks_column`, `workbench::tests::proofs27_gutter::toggle_bookmark_with_mnemonic_draws_the_chosen_digit_on_the_carets_line`, `workbench::tests::proofs27_gutter::a_primary_click_in_the_gutter_toggles_the_lines_bookmark`, `workbench::tests::proofs27_gutter::a_bookmark_follows_its_line_when_a_line_is_inserted_above_it`, `workbench::tests::proofs27_gutter::a_bookmark_follows_its_line_when_the_file_changes_on_disk`, `workbench::tests::proofs27_gutter::a_moved_bookmark_keeps_its_line_after_the_tab_is_closed_and_opened_again`, `workbench::tests::proofs27_gutter::a_moved_bookmark_keeps_its_stored_line_when_the_tab_closes_without_saving`, `workbench::tests::proofs27_gutter::both_panes_of_a_split_window_draw_their_bookmarks`, `workbench::tests::proofs27_gutter::with_gutter_icons_off_the_bookmarks_and_run_columns_take_no_room`; the bookmark's icon or mnemonic in its own column of every shown editor, a ⌘ click toggling it, bookmarks following edits and stored again. Missing: the mark's tooltip; the stored line after its whole line is deleted has no test |
 | [ ] | `search.tracking` | src/features/search/common/tracking.ts:130 |  |
 | [ ] | `services.dockerGutter` | src/features/services/index.ts:81 |  |
 | [ ] | `templates` | src/features/templates/index.ts:176 |  |
 | [ ] | `todo.highlight` | src/features/todo/index.ts:26 |  |
-| [ ] | `vcs.changeMarkers` | src/features/vcs/index.ts:304 |  |
+| [~] | `vcs.changeMarkers` | src/features/vcs/index.ts:304 | `workbench::tests::proofs27_gutter::the_change_lane_draws_bars_on_added_and_modified_lines_and_a_notch_where_lines_were_deleted`, `workbench::tests::proofs27_gutter::the_bars_follow_an_edit_at_once_and_the_backends_next_answer_adds_the_typed_line`, `workbench::tests::proofs27_gutter::an_untracked_file_is_all_added_lines`, `workbench::tests::proofs27_gutter::a_press_on_a_bar_opens_its_changes_popup_and_rollback_puts_the_original_line_back`, `workbench::tests::proofs27_gutter::next_change_in_the_popup_moves_the_caret_and_shows_the_next_changes_popup`, `workbench::tests::proofs27_gutter::a_file_outside_any_repository_has_no_bars`, `workbench::tests::proofs27_gutter::an_open_editor_asks_the_backend_nothing_while_nothing_changes`, `workbench::tests::proofs27_gutter::an_editor_behind_another_tab_asks_nothing_until_it_is_shown_again`, `workbench::tests::proofs27_gutter::an_answer_for_a_text_that_changed_since_is_dropped`; bars for added and modified lines and a notch where lines were deleted, following edits at once; a press opens the change's popup with Previous, Next and Rollback; nothing is asked while nothing changes or while the tab is hidden. Missing: the marks in the overview lane, the bars' tooltips and pointer cursor, the inline blame of the same contribution, Show Diff and Copy from the popup in a window test |
 | [~] | `viewers.markdownLive` | src/features/viewers/markdown/live.ts:105 | `workbench::tests::proofs_editor_actions_markdown::a_markdown_preview_follows_the_editors_scrolling_and_the_hidden_editors_caret`, `workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`; the preview follows the text, the editor's scrolling side by side and the hidden editor's caret in Preview Only; the editor's font zoom is not published to the preview |
 | [ ] | `vim` | src/features/vim/index.ts:63 |  |
 
@@ -1942,7 +1942,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [ ] | `src-tauri/src/window_work_area.rs` | 209 |  |
 | [~] | `src-tauri/src/windows.rs` | 2281 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 
-## IPC commands (317/599 at parity, 28 partial, 15 with nothing to port)
+## IPC commands (318/599 at parity, 27 partial, 15 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -2463,7 +2463,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `vcs_git_version` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `settings_view::custom_controls::tests::git_is_detected_after_the_dialog_opens_and_test_runs_it`; Test runs ide_host::ops::vcs::vcs_git_version on the path and the answer line names the detected git |
 | [x] | `vcs_has_hook` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in` |
 | [ ] | `vcs_init` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
-| [~] | `vcs_line_hunks` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_text_actions::tests::next_and_previous_change_move_through_the_editors_changed_ranges_and_wrap`; Rollback Lines reads the hunks and restores only the lines under the caret, and Next / Previous Change move through them. Missing: the editor gutter's change markers do not read it |
+| [x] | `vcs_line_hunks` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_text_actions::tests::next_and_previous_change_move_through_the_editors_changed_ranges_and_wrap`, `workbench::tests::proofs27_gutter::the_change_lane_draws_bars_on_added_and_modified_lines_and_a_notch_where_lines_were_deleted`, `workbench::tests::proofs27_gutter::the_bars_follow_an_edit_at_once_and_the_backends_next_answer_adds_the_typed_line`, `workbench::tests::proofs27_gutter::an_untracked_file_is_all_added_lines`; the change bars of the editor's gutter can only come from the backend's line hunks of the file, called as the Tauri adapter calls it (the host, the window's label, the path); Rollback Lines and Next and Previous Change use the same call |
 | [~] | `vcs_log` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `vcs::log_view::tests::shows_a_repositorys_commits_with_their_graph`, `workbench::tests::the_log_filters_by_text_and_by_the_branch_chosen_in_the_branches_pane`, `workbench::tests::proofs_vcs::the_log_user_filter_lists_the_authors_and_keeps_the_chosen_ones_commits`, `workbench::log_actions::tests::the_commit_menu_disables_history_rewriting_for_a_pushed_commit`, `workbench::log_actions::tests::a_commit_action_reads_a_commit_the_log_has_not_read`, `workbench::tests::proofs4_vcs::the_log_date_filter_keeps_the_commits_of_the_chosen_period`; the pages in the chosen order with the text, branch, user and date (Last 7 Days) filters, the @{u}..HEAD range and a commit read by id. Missing: the path filter and a typed date range (Select Folders… and the date range's Select… are not available) |
 | [x] | `vcs_log_details` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes | `workbench::tests::a_selected_commit_shows_its_details_and_the_diff_of_a_changed_file` |
 | [ ] | `vcs_log_details_batch` | src-tauri/src/commands/vcs.rs | `ide_host::ops` | yes |  |
@@ -2638,7 +2638,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `invocation` | wit/workspace.wit | `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`; a command run from the window gets its project and focused editor (the word count of notes.txt), and selected-paths carries the Project view menu's file |
 | [~] | `vcs` | wit/workspace.wit | `workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_reads_the_projects_log_blame_and_diff`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; log, blame and diff answer the commit, its author and the changed line, and status shows as the plugin's branch item. Missing: remotes, and fetch's effect is not asserted |
 
-## Behaviour specification: unit tests (vitest) (379/753 at parity, 101 model only, 128 partial)
+## Behaviour specification: unit tests (vitest) (380/753 at parity, 100 model only, 128 partial)
 
 753 files, 6287 cases. A row is at parity when the behaviour its cases assert is covered by Rust tests of the GPUI app.
 
@@ -3091,7 +3091,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `src/features/run/jvmTypes.test.ts` | 17 | `run::jvm_types::tests` |
 | [x] | `src/features/run/links.test.ts` | 10 | `run::links::tests` |
 | [x] | `src/features/run/navigate.test.ts` | 3 | `run::navigate::tests` |
-| [m] | `src/features/run/npmGutter.test.ts` | 31 | `run_producers::npm_gutter::tests` |
+| [x] | `src/features/run/npmGutter.test.ts` | 31 | `run_producers::npm_gutter::tests` |
 | [x] | `src/features/run/producers.ruby.test.ts` | 10 | `run_producers::producers::tests` |
 | [x] | `src/features/run/producers.test.ts` | 62 | `run_producers::producers::tests`, `run_producers::languages::tests` |
 | [ ] | `src/features/run/remote.test.tsx` | 22 |  |
