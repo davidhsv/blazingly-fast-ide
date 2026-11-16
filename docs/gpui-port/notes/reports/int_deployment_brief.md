@@ -24,6 +24,10 @@ The tool windows list grows by one (`remoteHost`): check every existing test tha
 
 After it passes, look at your own binary's window (launcher `$S/insp8/run.sh` only: it gives the binary a short `PATH` and a temp `HOME`; steps `docs/gpui-port/notes/inspections/INSPECT_SCRIPT.md`; a temp project whose `.openidea` settings name one local-folder server pointing at a second temp folder with a few files): the Remote Host tool window with its tree and toolbar; a row's context menu; the Sync dialog with one differing file selected and its preview. Do not open the Agents tool window, and configure no SFTP server. Look at each shot: nothing cut or overlapping, popups inside the window.
 
+## Changed since the notes were written
+
+The notes were written on the tree at about commit 20185bd1. Of the existing files the notes name, these changed since (measured: the notes' file names against `git diff --name-only 20185bd1 5714c388`): `app-gpui/src/lib.rs` (new `mod` lines and the colour scheme's `init` call) and `app-gpui/src/workbench/mod.rs` (the diff tab's fields and register calls; the Terminal draws its own header, the workbench no longer does; the waits of its tests now print the language servers when they run out). `workbench/app_actions.rs`, `workbench/context_menus.rs` and `workbench/menu_spec.rs` did not change. Re-anchor every hunk from its quoted text and read the place before you edit it. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
+
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
 The whole suite twice to files, nothing else running beside the first (write `uptime` before and after each run into the same file); during the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&` inside a script. A test that is unstable under the loop is not done: find the cause and fix the wait, not the assertion.

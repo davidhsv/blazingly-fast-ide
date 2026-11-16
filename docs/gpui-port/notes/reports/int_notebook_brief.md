@@ -32,9 +32,7 @@ Small additions the drafts do not have, in this order of value; build one only i
 
 ## Changed since the notes were written
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): compute the existing files the hunks anchor on (`lib.rs`, `workbench/mod.rs`, `workbench/tab_views.rs`, `workbench/edit_actions.rs`) against the tree the notes were written on (commit 4a3fd6fe) and say here which changed.
-
-Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
+The notes were written on the tree at commit 4a3fd6fe. Of the existing files the hunks anchor on, `app-gpui/src/lib.rs` and `app-gpui/src/workbench/mod.rs` changed with the editor paint slice (measured against `git diff --name-only 4a3fd6fe 5714c388`); `workbench/tab_views.rs` and `workbench/edit_actions.rs` did not. The Deployment and HTTP Client slices land before this one and change `lib.rs`, `workbench/mod.rs` and probably `workbench/tab_views.rs` again: read them as they are. Re-anchor every hunk from its quoted text and read the place before you edit it. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
