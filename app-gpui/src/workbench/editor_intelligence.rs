@@ -20,6 +20,7 @@ impl Workbench {
     ) {
         let intelligence = EditorIntelligence::install(editor, cx);
         self.install_editor_core(editor, window, cx);
+        self.install_editor_templates(editor, window, cx);
         self.watch_workspace_edits(cx);
         let blurred = intelligence.downgrade();
         cx.on_blur(&editor.focus_handle(cx), window, move |_, _, cx| {
@@ -44,6 +45,12 @@ impl Workbench {
             IntelligenceEvent::Open(location) => self.open_location(location, window, cx),
             IntelligenceEvent::Choose(chooser) => self.show_targets_chooser(intelligence, chooser, window, cx),
             IntelligenceEvent::Intentions(list) => self.show_intentions(intelligence, list, window, cx),
+            IntelligenceEvent::AcceptDeferred { from, id } => self.accept_lookup_template(*from, id, cx),
+            IntelligenceEvent::Snippet(fields) => {
+                if let Some(editor) = intelligence.read(cx).editor() {
+                    self.snippet_accepted(&editor, fields, cx);
+                }
+            }
             &IntelligenceEvent::RunAction(id) => {
                 window.defer(cx, move |window, cx| {
                     execute_action_from(ActionSource::Other, id, None, window, cx);

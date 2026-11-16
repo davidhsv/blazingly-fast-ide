@@ -512,6 +512,9 @@ pub enum ContributedApply {
     Text(String),
     /// An editor snippet template.
     Template(String),
+    /// Put in by the feature that listed the row, which is told the row's id
+    /// ([`crate::editor::intelligence::IntelligenceEvent::AcceptDeferred`]).
+    Deferred(String),
 }
 
 /// Accepts a contributed row over `from..to` of `doc`.
@@ -532,6 +535,10 @@ pub fn apply_contributed(
                 snippet: None,
                 follow_ups: Vec::new(),
             }
+        }
+        // The feature that listed the row puts it in itself: nothing changes here.
+        ContributedApply::Deferred(_) => {
+            AppliedCompletion { changes: Vec::new(), selection: vec![to..to], snippet: None, follow_ups: Vec::new() }
         }
         ContributedApply::Template(template) => {
             let insertion = apply_snippet(template, doc, to..to, from, to, indent_unit);

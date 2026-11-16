@@ -491,6 +491,13 @@ impl CompletionLookup {
                 let mut chars = typed.chars();
                 let (Some(ch), None) = (chars.next(), chars.next()) else { return false };
                 let Some(item) = self.selected_item() else { return false };
+                // A row another feature puts in itself takes no commit character: what is typed filters
+                // it or ends the lookup.
+                if let LookupItem::Contributed(contributed) = item
+                    && matches!(contributed.apply, ContributedApply::Deferred(_))
+                {
+                    return false;
+                }
                 let commits = commits_lookup(
                     ch,
                     self.session.focused(),

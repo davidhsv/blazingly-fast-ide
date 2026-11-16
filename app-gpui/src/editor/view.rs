@@ -2523,6 +2523,7 @@ impl Element for EditorElement {
             MarkKind::InactiveBreakpoint => theme::color(cx, "fg-gutter"),
             MarkKind::ExecutionLine => theme::color(cx, "bg-debug-line"),
             MarkKind::CurrentLine => theme::color(cx, "bg-current-line"),
+            MarkKind::SnippetField => theme::color(cx, "bg-editor-selection-inactive"),
         };
         #[cfg(test)]
         let mut painted_marks = Vec::new();

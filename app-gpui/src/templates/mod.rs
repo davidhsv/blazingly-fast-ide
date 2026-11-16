@@ -1,9 +1,11 @@
 //! Live templates, postfix completion, Surround With, Emmet and file templates: the models behind
 //! Tab expansion, the template lookups and New ▸ File, without any editor or window attached.
 
+pub mod chooser_view;
 pub mod editor;
 pub mod editor_context;
 pub mod emmet_model;
+pub mod expand;
 pub mod files_builtins;
 pub mod files_create;
 pub mod files_model;
@@ -18,3 +20,8 @@ pub mod postfix_model;
 pub mod postfix_store;
 pub mod snippet;
 pub mod storage;
+
+#[cfg(test)]
+mod proofs33_chooser_view;
+#[cfg(test)]
+mod proofs33_expand;

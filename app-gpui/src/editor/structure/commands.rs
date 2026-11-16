@@ -16,7 +16,7 @@ use crate::editor::view::Editor;
 use crate::editor_commands::tree::SyntaxTree;
 use crate::editor_commands::{Edit, EditState, IndentContext, SelectionExt, comments, editing, structural};
 use crate::editor_lsp::positions::offset_to_pos;
-use gpui_kit::{Context, EntityId};
+use gpui_kit::{App, AsyncApp, Context, Entity, EntityId, Task};
 use ide_core::{DocId, IdeError, IdeResult, LanguageId, Pos, Range};
 use ide_host::Host;
 use ide_syntax::{NodeAt, StructuralRanges, StructureSupport, SyntaxErrors};
@@ -168,6 +168,68 @@ pub fn comment_line(editor: &mut Editor, cx: &mut Context<Editor>) {
     });
     if done {
         editor.memory.comment = Some(editor.stamp());
+    }
+}
+
+/// The statement and declaration ranges around `pos` in `editor`, for a command of the window rather
+/// than of the editor (Surround With): the answer kept for the document's version, else asked of the
+/// backend off the window's thread and kept like the editor's own. `None` when the language has no
+/// syntax tree, the service cannot answer, or the text changed while the backend was asked: an answer
+/// for a version the document has left is stale and dropped.
+pub fn statement_ranges(editor: &Entity<Editor>, pos: Pos, cx: &mut App) -> Task<Option<StructuralRanges>> {
+    if !cx.has_global::<Backend>() {
+        return Task::ready(None);
+    }
+    let read = editor.read(cx);
+    let asked = Asked {
+        doc: read.doc(),
+        label: read.window_label().to_owned(),
+        path: read.path().to_path_buf(),
+        language: read.language().clone(),
+        version: read.version(),
+    };
+    let editor = editor.downgrade();
+    cx.spawn(async move |cx| {
+        let support = |cx: &mut App| cx.default_global::<StructureService>().cache(asked.doc).support(&asked.language);
+        if cx.update(support) == Lookup::Ask {
+            asked.fetch(Need::Support, cx).await;
+        }
+        // A failed question is not kept: the language counts as one without a tree this time.
+        let Lookup::Known(support) = cx.update(support) else { return None };
+        if !support.tree {
+            return None;
+        }
+        let ranges = |cx: &mut App| cx.default_global::<StructureService>().cache(asked.doc).ranges(asked.version, pos);
+        if cx.update(ranges) == Lookup::Ask {
+            asked.fetch(Need::Ranges(pos), cx).await;
+        }
+        let current = editor.upgrade()?.read_with(cx, |editor, _| editor.version());
+        match cx.update(ranges) {
+            Lookup::Known(ranges) if current == asked.version => ranges,
+            _ => None,
+        }
+    })
+}
+
+/// A document as a question about its structure was asked of it.
+struct Asked {
+    doc: DocId,
+    label: String,
+    path: PathBuf,
+    language: LanguageId,
+    version: u32,
+}
+
+impl Asked {
+    /// Asks the backend for `need` and keeps the answer for the version asked about.
+    async fn fetch(&self, need: Need, cx: &mut AsyncApp) {
+        let Self { doc, label, path, language, version } = self;
+        let host = cx.update(|cx| cx.global::<Backend>().host.clone());
+        let work = answer(host, label.clone(), *doc, path.clone(), language.clone(), need);
+        let work = cx.update(|cx| cx.global::<Backend>().call(work));
+        let answer = work.await.unwrap_or_else(|error| Answer::failed(need, IdeError::internal(error.to_string())));
+        let language = language.clone();
+        cx.update(|cx| store(cx.default_global::<StructureService>(), *doc, language, *version, answer));
     }
 }
 

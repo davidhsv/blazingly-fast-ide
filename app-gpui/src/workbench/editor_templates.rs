@@ -9,7 +9,6 @@
 
 use super::Workbench;
 use super::services_window::on_workbench;
-use crate::backend::Backend;
 use crate::editor::buffer;
 use crate::editor::intelligence::EditorIntelligence;
 use crate::editor::marks::{Mark, MarkKind, MarkLayer};
@@ -31,12 +30,13 @@ use crate::templates::expand::{
     escape_press, insert_live_template as lookup_rows, literal_ancestors, tab_press,
 };
 use crate::templates::popup_store::ChooserRequest;
+use crate::templates::snippet::ActiveSnippet;
 use crate::ui::popup_anchor::{CHOOSER_GAP, below, caret_bottom_left};
 use gpui_kit::{
     AnyView, App, AppContext as _, Context, Entity, EntityId, Focusable, Keystroke, Pixels, Point, Size, WeakEntity,
     Window, point, px,
 };
-use ide_core::{IdeResult, Pos};
+use ide_core::Pos;
 use ide_syntax::StructuralRanges;
 use std::collections::HashMap;
 use std::ops::Range;
@@ -152,6 +152,12 @@ impl Workbench {
         self.editor_templates.sessions.get(&editor.entity_id())
     }
 
+    /// How many editors of the window are filling in a template: a closed editor's template is gone.
+    #[cfg(test)]
+    pub(super) fn template_sessions(&self) -> usize {
+        self.editor_templates.sessions.len()
+    }
+
     /// The template chooser while it is open.
     pub fn template_chooser(&self) -> Option<Entity<TemplateChooser>> {
         self.popup.as_ref().and_then(|popup| popup.view.clone().downcast().ok())
@@ -239,6 +245,10 @@ impl Workbench {
     }
 
     fn template_escape(&mut self, editor: &Entity<Editor>, cx: &mut Context<Self>) -> bool {
+        // The tab's Find bar takes Escape before the template: the editor closes it, the template goes on.
+        if self.find_bar().is_some() {
+            return false;
+        }
         let (selections, main) = {
             let read = editor.read(cx);
             (read.selections().to_vec(), read.main_index())
@@ -254,6 +264,13 @@ impl Workbench {
             EscapePress::Editor => return false,
         }
         true
+    }
+
+    /// A snippet item of the completion lookup went into `editor`: its placeholders are filled in as
+    /// a template's fields.
+    pub(super) fn snippet_accepted(&mut self, editor: &Entity<Editor>, fields: &ActiveSnippet, cx: &mut Context<Self>) {
+        self.keep_template_session(editor, Some(TemplateSession::from_fields(fields.clone())));
+        self.show_template_fields(editor, cx);
     }
 
     /// Puts the caret in another field of the template `editor` fills in.
@@ -416,22 +433,13 @@ impl Workbench {
             self.open_surround(&editor, None, templates_only, window, cx);
             return;
         }
-        let (label, doc, language, version) =
-            (read.window_label().to_owned(), read.doc(), read.language().clone(), read.version());
         let line = buffer::line_col(read.rope(), read.caret()).0;
-        let work = cx.global::<Backend>().with_host(move |host| async move {
-            let support = ide_host::ops::syntax::syntax_support(&host, &label, language)?;
-            if !support.tree {
-                return Ok(None);
-            }
-            let pos = Pos::new(line, 0);
-            ide_host::ops::syntax::syntax_structural_ranges(&host, &label, doc, pos, None).await.map(Some)
-        });
+        let ranges = crate::editor::structure::commands::statement_ranges(&editor, Pos::new(line, 0), cx);
         let target = editor.downgrade();
         cx.spawn_in(window, async move |this, cx| {
-            let answer = work.await;
+            let ranges = ranges.await;
             let surrounded = this.update_in(cx, |workbench, window, cx| {
-                workbench.surround_answered(&target, version, answer, templates_only, window, cx);
+                workbench.surround_answered(&target, ranges, templates_only, window, cx);
             });
             if let Err(error) = surrounded {
                 tracing::debug!("Surround With ended with its window: {error:#}");
@@ -440,31 +448,18 @@ impl Workbench {
         .detach();
     }
 
-    /// The statement at the caret came back: it is the target while the document is unchanged and its
-    /// editor still the active one; on an error the caret's line is.
+    /// The statement at the caret came back: it is the target, wrapped when it spans whole lines,
+    /// while its editor is still the active one; without an answer the caret's line is.
     fn surround_answered(
         &mut self,
         editor: &WeakEntity<Editor>,
-        version: u32,
-        answer: anyhow::Result<IdeResult<Option<StructuralRanges>>>,
+        ranges: Option<StructuralRanges>,
         templates_only: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let Some(editor) = editor.upgrade().filter(|editor| self.editor() == Some(editor)) else { return };
-        let ranges = match answer {
-            Ok(Ok(ranges)) => ranges,
-            Ok(Err(error)) => {
-                tracing::debug!("no statement to surround: {}", error.message);
-                None
-            }
-            Err(error) => {
-                tracing::warn!("asking for the statement to surround did not run: {error:#}");
-                None
-            }
-        };
-        let read = editor.read(cx);
-        let target = if read.version() == version { multi_line_statement(read.rope(), ranges.as_ref()) } else { None };
+        let target = multi_line_statement(editor.read(cx).rope(), ranges.as_ref());
         self.open_surround(&editor, target, templates_only, window, cx);
     }
 

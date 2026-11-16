@@ -78,7 +78,7 @@ fn undo(cx: &mut VisualTestContext) {
 /// Puts the caret at the end of the 0-based `line`.
 fn caret_at_line_end(editor: &Entity<Editor>, line: u32, cx: &mut VisualTestContext) {
     editor.update(cx, |e, cx| {
-        let end = e.offset_of(line, u32::MAX);
+        let end = crate::editor::buffer::line_range(e.rope(), line).end;
         e.select(end, end, cx);
     });
 }
@@ -213,7 +213,8 @@ async fn does_not_expand_code_templates_inside_comments(cx: &mut TestAppContext)
     let _home = start(cx);
     let (_folder, root, workbench, cx) = template_window(cx, &[("src/c.ts", "// log\n")]);
     let editor = edit_at(&workbench, &root.join("src/c.ts"), len("// log"), cx);
-    settle(cx, |cx| editor.read_with(cx, |e, _| !e.highlights().is_empty()));
+    // The highlights come after a pause the executor's clock has to pass.
+    wait_long(cx, "the highlights", |cx| editor.read_with(cx, |e, _| !e.highlights().is_empty()));
     cx.simulate_keystrokes("tab");
     cx.run_until_parked();
     assert!(!text(&editor, cx).contains("console.log"), "{}", text(&editor, cx));
@@ -414,5 +415,24 @@ async fn opens_a_lookup_restricted_to_live_templates_and_ends_with_it(cx: &mut T
     cx.run_until_parked();
     assert!(lookup_rows(&editor, cx).is_empty());
     assert_eq!(text(&editor, cx), before);
+    close_backend_project(cx);
+}
+
+// Insert Live Template's lookup takes no commit character, moved over with the arrows or not: a dot
+// typed after ↓ is typed, ends the lookup and expands nothing.
+#[gpui_kit::test]
+async fn a_dot_typed_in_the_template_lookup_ends_it_without_expanding(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = template_window(cx, &[("src/main.ts", FUNCTION)]);
+    let editor = edit_at(&workbench, &root.join("src/main.ts"), len("function f() {\n  "), cx);
+    cx.simulate_input("lo");
+    run_action(cx, "code.insertLiveTemplate", None);
+    assert!(lookup_rows(&editor, cx).len() > 1, "{:?}", lookup_rows(&editor, cx));
+    cx.simulate_keystrokes("down");
+    cx.simulate_input(".");
+    cx.run_until_parked();
+    assert_eq!(text(&editor, cx), "function f() {\n  lo.\n}\n");
+    assert!(lookup_rows(&editor, cx).is_empty(), "the lookup ended");
+    assert_eq!(active_field(&workbench, &editor, cx), None);
     close_backend_project(cx);
 }

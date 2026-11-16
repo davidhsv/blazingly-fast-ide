@@ -39,6 +39,7 @@ mod editor_gutter;
 mod editor_intelligence;
 mod editor_language;
 mod editor_structure;
+mod editor_templates;
 pub mod empty_editor;
 mod github;
 mod http_client;
@@ -349,6 +350,8 @@ pub struct Workbench {
     light_pending: Option<Vec<crate::app_models::windows::FileOpen>>,
     /// Where the caret has been in the window's editors: Back / Forward and the edit locations.
     editor_core: editor_core::EditorCore,
+    /// Live and postfix templates in the window's editors: the template each one fills in, the chooser.
+    editor_templates: editor_templates::EditorTemplates,
     /// The Services tool window of the open project, once it was shown or used.
     services: Option<services_window::ServicesWindow>,
     /// The diff shown in front of the window.
@@ -625,6 +628,7 @@ pub fn register_actions(cx: &mut App) {
     bookmarks_window::register_actions(registry);
     project_files::register_actions(registry);
     editor_core::register_actions(registry);
+    editor_templates::register_actions(registry);
     todo_window::register_actions(registry);
     project_view_actions::register_actions(registry);
     project_view_options::register_actions(registry);
@@ -1187,6 +1191,7 @@ impl Workbench {
             popup: None,
             light_pending: None,
             editor_core: Default::default(),
+            editor_templates: Default::default(),
             services: None,
             github: None,
             diff_window: None,
@@ -3473,6 +3478,7 @@ impl Workbench {
         self.structure_popup_closed(&popup.view, cx);
         self.files_popup_closed(&popup.view);
         self.usages_popup_closed(&popup.view, cx);
+        self.template_chooser_closed(&popup.view);
         if let Some(target) = popup.restore.or_else(|| self.editor().map(|editor| editor.focus_handle(cx))) {
             window.focus(&target, cx);
         }
@@ -4522,9 +4528,14 @@ mod tests {
     mod proofs30_settings_run_targets;
     mod proofs31_settings_feature_pages;
     mod proofs32_settings_file_templates;
+    mod proofs32_settings_live_template_expands;
     mod proofs32_settings_live_templates;
     mod proofs32_settings_postfix;
     mod proofs32_settings_templates_fixtures;
+    mod proofs33_editor_keys;
+    mod proofs33_editor_templates;
+    mod proofs33_surround;
+    mod proofs33_template_session;
     mod proofs35_settings_vim;
     mod proofs3_context;
     mod proofs3_rename_lsp;

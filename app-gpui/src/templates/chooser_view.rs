@@ -381,11 +381,9 @@ impl Render for TemplateChooser {
                                 .into_any_element();
                         }
                         let color = if at == active { strong } else { emphasis };
-                        let item = div()
-                            .id(at)
-                            .debug_selector(move || format!("template-chooser-row-{at}"))
-                            .h(px(ROW_HEIGHT))
-                            .mx(px(6.0))
+                        // The row spans the list's width, so the selection fills it whatever the text's length.
+                        let line = div()
+                            .size_full()
                             .px(px(8.0))
                             .flex()
                             .items_center()
@@ -410,7 +408,14 @@ impl Render for TemplateChooser {
                                     .text_size(theme::length(cx, "fs-small"))
                                     .text_color(subtle)
                                     .child(SharedString::from(detail))
-                            }))
+                            }));
+                        let item = div()
+                            .id(at)
+                            .debug_selector(move || format!("template-chooser-row-{at}"))
+                            .h(px(ROW_HEIGHT))
+                            .w_full()
+                            .px(px(6.0))
+                            .child(line)
                             .on_mouse_move(cx.listener(move |chooser, _, _, cx| chooser.select(at, cx)))
                             .on_click(cx.listener(move |chooser, _, _, cx| {
                                 let row = chooser.rows.get(at).cloned();

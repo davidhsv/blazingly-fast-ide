@@ -18,6 +18,8 @@ pub enum MarkLayer {
     Execution,
     /// The usages Highlight Usages in File marks, until Escape.
     Usages,
+    /// The fields of the live template being filled in.
+    Snippet,
 }
 
 /// What a mark shows, and so how it is drawn.
@@ -48,6 +50,8 @@ pub enum MarkKind {
     ExecutionLine,
     /// The line a code preview is on: its row is tinted in the current line's colour, focused or not.
     CurrentLine,
+    /// A field of the live template being filled in: a faint background behind its text.
+    SnippetField,
 }
 
 impl MarkKind {

@@ -13,9 +13,9 @@ use super::view::{EditOrigin, Editor, EditorEvent, PointerHandler};
 use crate::backend::Backend;
 use crate::debugger::editor::quick_evaluate::{QUICK_EVALUATE_ACTION, selection_after_click};
 use crate::editor_lsp::completion::{
-    AUTO_INSERT_DELAY_MS, Answered, ApplyMode, ApplyOptions, Ask, CompletionRequest, CompletionSource, FollowUp,
-    LookupEvent, MatchCase, NO_SUGGESTIONS, NO_SUGGESTIONS_TIMEOUT_MS, apply_contributed, apply_lsp_completion,
-    completion_options, completion_query, late_edits, reuses_rows, rows_valid_for,
+    AUTO_INSERT_DELAY_MS, Answered, ApplyMode, ApplyOptions, Ask, CompletionRequest, CompletionSource,
+    ContributedApply, FollowUp, LookupEvent, MatchCase, NO_SUGGESTIONS, NO_SUGGESTIONS_TIMEOUT_MS, apply_contributed,
+    apply_lsp_completion, completion_options, completion_query, late_edits, reuses_rows, rows_valid_for,
 };
 use crate::editor_lsp::completion_view::{CompletionEvent, CompletionLookup, LookupItem, LookupOptions};
 use crate::editor_lsp::configuration_navigation::navigation_word;
@@ -39,6 +39,7 @@ use crate::editor_lsp::targets_view::TargetsChooser;
 use crate::platform::i18n::Localization;
 use crate::platform::input;
 use crate::settings_model::inspections_model::ProfileOverrides;
+use crate::templates::snippet::ActiveSnippet;
 use crate::theme;
 use gpui_kit::{
     Anchor, App, AppContext, Context, Entity, EventEmitter, Focusable, IntoElement, MouseDownEvent, Render,
@@ -65,6 +66,11 @@ pub enum IntelligenceEvent {
     RunAction(&'static str),
     /// Show the intentions list as the window's popup.
     Intentions(Entity<ListPopup>),
+    /// A row another feature listed alone ([`EditorIntelligence::show_exclusive`]) was accepted:
+    /// that feature puts in the row `id` in place of the text from `from` to the caret.
+    AcceptDeferred { from: u32, id: String },
+    /// An accepted item put a snippet in with several placeholders: they are filled in with Tab.
+    Snippet(ActiveSnippet),
 }
 
 /// The code intelligence of one editor.
@@ -110,6 +116,9 @@ pub struct EditorIntelligence {
     /// The intentions list while it is open: its rows, the code actions they run and the actions
     /// resolved for their previews.
     intentions: Option<OpenIntentions>,
+    /// The lookup lists the rows of another feature alone (Insert Live Template): typing filters them
+    /// and no server is asked.
+    exclusive: bool,
     _tasks: Vec<Task<()>>,
     _subscriptions: Vec<Subscription>,
 }
@@ -224,6 +233,7 @@ impl EditorIntelligence {
             lint: Vec::new(),
             listener,
             intentions: None,
+            exclusive: false,
             _tasks: Vec::new(),
             _subscriptions: subscriptions,
         }
@@ -244,6 +254,60 @@ impl EditorIntelligence {
 
     pub fn lookup(&self) -> &Entity<CompletionLookup> {
         &self.lookup
+    }
+
+    /// The editor this intelligence serves, while it is open.
+    pub fn editor(&self) -> Option<Entity<Editor>> {
+        self.editor.upgrade()
+    }
+
+    /// Opens the lookup on `items`, rows another feature lists alone, for the word that starts at
+    /// `from` and reads `typed` so far. Typing filters them without asking a server; accepting a
+    /// [`ContributedApply::Deferred`] row is reported as [`IntelligenceEvent::AcceptDeferred`].
+    pub fn show_exclusive(&mut self, from: u32, items: Vec<LookupItem>, typed: &str, cx: &mut Context<Self>) {
+        self.close_lookup(cx);
+        self.lookup_from = from;
+        self.lookup_incomplete = false;
+        let settings = self.settings(cx);
+        // Typing filters the rows or closes the lookup: no character commits one, and a single row
+        // waits for Enter.
+        let options = LookupOptions {
+            insert_on_special_keys: false,
+            show_documentation: settings.show_documentation,
+            sort_alphabetically: settings.sort_alphabetically,
+            auto_insert_single: false,
+        };
+        let event = self.lookup.update(cx, |lookup, cx| {
+            lookup.set_options(options, cx);
+            lookup.set_items(items, typed, cx)
+        });
+        self.exclusive = self.lookup.read(cx).is_open();
+        self.lookup_event_result(event, cx);
+    }
+
+    /// Whether the open lookup lists another feature's rows alone.
+    pub fn is_exclusive(&self) -> bool {
+        self.exclusive
+    }
+
+    /// The word before the caret changed while the lookup lists another feature's rows: they are
+    /// filtered on it while an abbreviation may hold it, and the lookup closes otherwise.
+    fn follow_exclusive(&mut self, editor: &Entity<Editor>, cx: &mut Context<Self>) {
+        let typed = {
+            let editor = editor.read(cx);
+            let caret = editor.caret();
+            (caret >= self.lookup_from).then(|| buffer::slice(editor.rope(), self.lookup_from, caret))
+        };
+        match typed.filter(|typed| crate::templates::expand::lookup_keeps_rows(typed)) {
+            Some(typed) => {
+                let event = self.lookup.update(cx, |lookup, cx| lookup.set_query(&typed, cx));
+                self.lookup_event_result(event, cx);
+                if !self.lookup.read(cx).is_open() {
+                    self.exclusive = false;
+                }
+            }
+            None => self.close_lookup(cx),
+        }
     }
 
     /// The targets chooser while it is open.
@@ -376,6 +440,10 @@ impl EditorIntelligence {
     /// filtered again when they stay valid, else completion asks again; without a word (or past
     /// it) the lookup closes.
     fn follow_word(&mut self, editor: &Entity<Editor>, cx: &mut Context<Self>) {
+        if self.exclusive {
+            self.follow_exclusive(editor, cx);
+            return;
+        }
         let Some(query) = self.query_at(editor, false, cx) else {
             self.close_lookup(cx);
             return;
@@ -401,6 +469,7 @@ impl EditorIntelligence {
     /// Asks the server for completion at the caret; `explicit` is Code › Code Completion › Basic.
     pub fn complete(&mut self, explicit: bool, cx: &mut Context<Self>) {
         self.activation = None;
+        self.exclusive = false;
         let Some(editor) = self.editor.upgrade() else { return };
         let Some(query) = self.query_at(&editor, explicit, cx) else { return };
         let id = Backend::next_request_id();
@@ -528,6 +597,7 @@ impl EditorIntelligence {
     }
 
     fn close_lookup(&mut self, cx: &mut Context<Self>) {
+        self.exclusive = false;
         self.abort_completion(cx);
         if self.lookup.read(cx).is_open() {
             self.lookup.update(cx, |lookup, cx| lookup.close(true, cx));
@@ -537,7 +607,10 @@ impl EditorIntelligence {
     fn lookup_event(&mut self, event: &CompletionEvent, cx: &mut Context<Self>) {
         match event {
             CompletionEvent::Accept { item, mode, typed } => self.accept(item, *mode, *typed, cx),
-            CompletionEvent::Closed => self.abort_completion(cx),
+            CompletionEvent::Closed => {
+                self.exclusive = false;
+                self.abort_completion(cx);
+            }
             CompletionEvent::Resolve { row, completion } => {
                 let (row, item) = (*row, completion.item.clone());
                 let (window, doc) = (self.window_label.clone(), self.doc);
@@ -584,6 +657,13 @@ impl EditorIntelligence {
             (editor.rope().clone(), editor.caret(), editor.facts().indent_unit.clone())
         };
         let from = self.lookup_from.min(caret);
+        self.exclusive = false;
+        if let LookupItem::Contributed(contributed) = item
+            && let ContributedApply::Deferred(id) = &contributed.apply
+        {
+            cx.emit(IntelligenceEvent::AcceptDeferred { from, id: id.clone() });
+            return;
+        }
         let insert_parentheses = self.settings(cx).insert_parentheses;
         let applied = match item {
             LookupItem::Lsp(completion) => {
@@ -598,6 +678,9 @@ impl EditorIntelligence {
         });
         if !done {
             return;
+        }
+        if let Some(fields) = applied.snippet.clone() {
+            cx.emit(IntelligenceEvent::Snippet(fields));
         }
         let opened_call = applied.changes.iter().any(|change| change.insert.contains('('));
         if let Some(ch) = typed.filter(|ch| *ch != '(' || !opened_call) {
@@ -1742,6 +1825,7 @@ mod tests {
     use std::path::PathBuf;
 
     mod proofs18_e2e_code_insight;
+    mod proofs33_template_keys;
     mod proofs9_cancel_task;
     mod proofs9_resolve;
     mod proofs9_syntax_usages;

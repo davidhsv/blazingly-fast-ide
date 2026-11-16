@@ -171,6 +171,11 @@ pub struct TemplateSession {
 }
 
 impl TemplateSession {
+    /// The fields of a snippet another feature already put in, whose edit the editor has reported.
+    pub fn from_fields(fields: ActiveSnippet) -> Self {
+        Self { fields, completing: Vec::new(), own_edits: 0 }
+    }
+
     pub fn fields(&self) -> &ActiveSnippet {
         &self.fields
     }

@@ -6,6 +6,7 @@
 //! The files are small ones in a temporary project, in languages whose grammar is bundled; no
 //! language server runs and the UI storage is the test's own, in memory.
 
+use super::proofs18_e2e_fixtures::primary;
 use super::*;
 use crate::platform::actions::execute_action_or_throw;
 use crate::templates::chooser_view::TemplateChooser;
@@ -164,6 +165,28 @@ async fn surround_with_live_template_lists_the_selection_templates_and_configure
     assert!(workbench.read_with(cx, |w, _| w.template_chooser().is_none()));
     assert_eq!(text(&editor, cx), JAVA);
 
+    // A `$SELECTION$` template the Live Templates page stored, picked by the mnemonic its abbreviation
+    // gives, wraps the selection, and the caret goes to its end.
+    let wrap = r#"{"templates":{"user.qq":{"id":"user.qq","group":"User","abbrev":"qq","description":"Wrap","body":"wrap($SELECTION$)$END$","contexts":["java"]}},"deleted":[]}"#;
+    cx.update(|_, cx| {
+        cx.global_mut::<crate::platform::storage::UiStorage>()
+            .set(crate::templates::live_store::LIVE_TEMPLATES_KEY, wrap.to_owned())
+    });
+    cx.simulate_keystrokes(&primary_alt("j"));
+    let chooser = open_chooser(&workbench, cx);
+    assert!(lines(&chooser, cx).iter().any(|line| line.starts_with("qq")), "{:?}", lines(&chooser, cx));
+    cx.simulate_keystrokes("q");
+    cx.run_until_parked();
+    assert!(workbench.read_with(cx, |w, _| w.template_chooser().is_none()));
+    let wrapped = JAVA.replace("a();", "wrap(a();)");
+    assert_eq!(text(&editor, cx), wrapped);
+    let end = at(&wrapped, "wrap(a();)") + "wrap(a();)".len() as u32;
+    assert_eq!(editor.read_with(cx, |e, _| e.selections().to_vec()), [(end, end)]);
+    cx.simulate_keystrokes(&primary("z"));
+    cx.run_until_parked();
+    assert_eq!(text(&editor, cx), JAVA);
+    editor.update(cx, |e, cx| e.select(from, from + 4, cx));
+
     run_action(cx, "code.surroundWithLiveTemplate", None);
     open_chooser(&workbench, cx);
     cx.simulate_keystrokes("end enter");
@@ -195,5 +218,64 @@ async fn the_template_actions_are_unavailable_in_a_read_only_editor(cx: &mut Tes
     cx.run_until_parked();
     assert!(workbench.read_with(cx, |w, _| w.template_chooser().is_none()));
     assert_eq!(text(&editor, cx), "log\n");
+    close_backend_project(cx);
+}
+
+const IF_STATEMENT: &str = "class A {\n  void f() {\n    if (x) {\n      a();\n    }\n  }\n}\n";
+
+// The statement at the caret is asked of the structure service; typed text that reaches the
+// editor before the answer makes the answer stale: it is dropped and Surround With wraps the caret's
+// line alone, as with no statement.
+#[gpui_kit::test]
+async fn a_statement_answer_for_text_that_changed_meanwhile_is_dropped(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = surround_window(cx, &[("src/A.java", IF_STATEMENT)]);
+    let caret = at(IF_STATEMENT, "if (x)");
+    let editor = edit(&workbench, &root.join("src/A.java"), caret, caret, cx);
+    cx.update(|window, cx| {
+        execute_action_or_throw("code.surroundWith", None, window, cx).expect("Surround With runs");
+        editor.update(cx, |e, cx| e.insert(None, "y", cx));
+    });
+    let chooser = open_chooser(&workbench, cx);
+    assert_eq!(lines(&chooser, cx).first().map(String::as_str), Some("1. if"));
+    cx.simulate_keystrokes("1");
+    cx.run_until_parked();
+    assert_eq!(
+        text(&editor, cx),
+        "class A {\n  void f() {\n    if () {\n        yif (x) {\n    }\n      a();\n    }\n  }\n}\n",
+        "only the caret's line is wrapped"
+    );
+    close_backend_project(cx);
+}
+
+// Surround With waits for the structure service only while its editor stays the active one: another
+// tab activated before the answer leaves both texts as they were and opens no chooser.
+#[gpui_kit::test]
+async fn surround_with_does_nothing_once_another_editor_is_active(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let files = [("src/A.java", IF_STATEMENT), ("src/B.java", JAVA)];
+    let (_folder, root, workbench, cx) = surround_window(cx, &files);
+    edit(&workbench, &root.join("src/B.java"), 0, 0, cx);
+    let caret = at(IF_STATEMENT, "if (x)");
+    let editor = edit(&workbench, &root.join("src/A.java"), caret, caret, cx);
+    let (doc, version) = editor.read_with(cx, |e, _| (e.doc(), e.version()));
+    cx.update(|window, cx| {
+        execute_action_or_throw("code.surroundWith", None, window, cx).expect("Surround With runs");
+        execute_action_or_throw("editor.nextTab", None, window, cx).expect("the next tab is selected");
+    });
+    let other = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+    assert_ne!(other, editor, "another tab is active");
+    let statement = ide_core::Pos::new(2, 0);
+    let answered = |cx: &mut VisualTestContext| {
+        cx.update(|_, cx| {
+            let service = cx.default_global::<crate::editor::structure::StructureService>();
+            service.cache(doc).ranges(version, statement) != crate::editor::structure::Lookup::Ask
+        })
+    };
+    settle(cx, answered);
+    cx.run_until_parked();
+    assert!(workbench.read_with(cx, |w, _| w.template_chooser().is_none()), "no chooser opens");
+    assert_eq!(text(&editor, cx), IF_STATEMENT);
+    assert_eq!(text(&other, cx), JAVA);
     close_backend_project(cx);
 }
