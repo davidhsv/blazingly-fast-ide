@@ -1,0 +1,48 @@
+# Integrator brief: live templates in the editor: expansion with a template session, Insert Live Template, Surround With, postfix on Tab (drafts written without a compiler)
+
+Read first: `$S/int_rules.md` (hard rules and report format), `$S/tests_brief.md`, `$S/view_rules.md`, `$S/wiring_brief.md`. Your own scratch subfolder: `$S/dtpli/`.
+
+Format only files you edited, taken from `git diff --name-only` plus the draft files this brief hands you by name. Never build a file list from `git status`. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing. Leave no polling loop behind (a loop on `pgrep -f "cargo test"` matches its own command line and never ends).
+
+## The slice
+
+Notes (23 hunks with quoted anchors, the rows with every test's full name, behaviours with `file:line`, hypotheses and how to settle each, the tests most likely to fail, what the real window must be checked for): `$S/drafts/templates_editor_integration.md` (read this scratch copy: the copy under `docs/` was reformatted by the commit hook). Report: `docs/gpui-port/notes/reports/templates_editor_writer.md`. Draft files (committed, undeclared, never compiled; run the formatter over them, some lines are too long): `app-gpui/src/templates/expand.rs`, `chooser_view.rs`, `proofs33_expand.rs`, `proofs33_chooser_view.rs`, `app-gpui/src/workbench/editor_templates.rs`, `app-gpui/src/workbench/tests/proofs33_editor_templates.rs`, `proofs33_surround.rs`.
+
+The webview: `src/features/templates/index.ts`, `editor.ts` (590 lines), `editorContext.ts`, `live/`, `postfix/`, `popup/`, and the tests under `src/features/templates/__tests__/`. The notes are hypotheses; where a note and the webview source disagree, the webview source wins. Parts 1 and 2 (Tab expansion with the session; Insert Live Template through the completion lookup restricted to templates) land together, by the writer's word; then Surround With; then postfix on Tab. If a part does not converge, take its hunks out by editing, leave its files undeclared, say exactly where it stands, and go on.
+
+## Points to settle by measurement, not by the notes
+
+- Keys. The draft claims Tab, Shift+Tab, Enter and Escape on the editor's focus handle with `input::claim_keys`. Tab and Escape already mean things in the editor (indent, the completion lookup's accept, signature help, the find bar, closing popups, multi-caret, the code preview's key rules of `platform/input.rs`). Write down the order in which each of those four keys is offered natively today and in the webview (`editor.ts`, the precedence of its keymap against completion and indent), then prove with tests that outside a template session and with no abbreviation before the caret every one of those existing behaviours is unchanged (run the existing editor and completion suites by filter before and after; add a test per key where none exists), and that inside a session the webview's order holds (completion open inside a field: who takes Tab and Enter). A read-only editor and a preview editor never expand.
+- Undo: one undo step per expansion; undo after filling fields; redo; an expansion with several carets (read what the webview does: every caret or the main one). The draft's undo always gives the abbreviation back first where CodeMirror joins an expansion with typing done within 500 ms: keep the draft's unless a spec case says otherwise, and say which.
+- The session: fields are marked through a new mark kind; linked fields take typing together; the session ends as the webview's does (caret leaves the fields, Escape, the last stop, an edit outside, the tab closed, the document changed from outside: reload from disk, a formatter, a rename, a Replace from Find in Files while the session is open: no panic, no stale offsets; test at least the reload and an outside edit). A session keeps no timer and costs nothing while idle.
+- Cost: a key press scans the caret's line and passes once over the template lists (119 live, 98 postfix, by the notes); the stores are read from UI storage on each key press by the notes: measure once what a Tab costs in a debug build with the built-in lists and with 2,000 stored templates, and make the stores answer from memory, re-reading only when the stored text changed, if a key press costs more than about a millisecond in debug. Nothing in paint looks templates up.
+- The lookup restricted to templates (hunks in `editor/intelligence.rs` and `editor_lsp/completion.rs`): the ordinary completion's behaviour is unchanged (its tests by filter before and after). The writer found that an ordinary completion item's snippet is computed and then dropped by `EditorIntelligence::accept` (tab stops of a language server's snippet are not walked): confirm by test; if the new session can run it in a few lines, do it with a test on the stand-in language server (`.mock` files) and say which rows that touches; otherwise list it.
+- `clipboard()` is the one template function that reads outside the editor: confirm by reading the model that no function reads the environment, a file, the user's name or the date in a way the webview's does not, list them all with what each reads, and test `clipboard()` with the test clipboard only.
+- Surround With asks the backend (`syntax_support`, `syntax_structural_ranges`) through the editor's structure service (`app-gpui/src/editor/structure.rs`) if the draft asks it directly: one service owns those calls, a stale answer is dropped, and the action does nothing if the editor changed meanwhile.
+- Templates come from the stores that own their keys (`templates/live_store.rs`, `postfix_store.rs`); the Settings pages for them are other drafts, not compiled: do not depend on them; tests write the keys directly.
+
+## Safety
+
+- A template's text and expressions are data: nothing is evaluated as code, no process is started, no file outside the document is read or written by an expansion.
+- No test uses the network, a language server or toolchain of the machine, or anything under the user's home.
+- The real binary: only through `$S/insp8/run.sh` (short `PATH`, temp `HOME`, `ZDOTDIR`, `OPENIDEA_GPUI_HOME`), with a temp project under a neutral path (`/private/tmp/openidea-inspect-<random>/`, removed afterwards). Never open the Agents tool window or the Services window. Shots, light and dark: a template expanded with its fields marked and the first one active; the Insert Live Template lookup; the Surround With chooser with its mnemonics; the result of a surround on a multi-line selection.
+
+## Rows
+
+`action:code.insertLiveTemplate`, `action:code.surroundWith`, `action:code.surroundWithLiveTemplate`, `point.registerEditorContribution:templates`, `point.registerOverlay:templates.chooser`, the unit rows of `src/features/templates/__tests__/` (`editor.test.ts`, `live.test.ts`, `postfix.test.ts`, `snippets.test.ts`, `surround.test.ts`, `surrounders.test.ts`: say for each which cases the app now reaches), and the inventory's `EDITOR_WHEN` row (the writer says it is not a context key but a constant the inventory picked up from a `when`: say what the row is and what proves the condition). Check which keys exist in `docs/gpui-port/parity.json`. An action row is done only when a test drives the action in a project window through the registry and through its shortcut and asserts the document's text, the selection and what the window shows.
+
+## Changed since the notes were written
+
+BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on the tree at febcf143 while the Settings pages integration was in flight; say here which of the existing files the 23 hunks anchor on changed (`editor/view.rs`, `editor/marks.rs`, `editor/intelligence.rs`, `editor_lsp/completion.rs`, `templates/mod.rs`, `workbench/mod.rs`, and whatever else the notes name).
+
+## Gates (they replace rule 12 of `$S/int_rules.md`)
+
+The whole suite twice to files, nothing else running beside the first (write `uptime` before and after each run into the same file); during the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&` inside a script. A test that is unstable under the loop is not done: find the cause and fix the wait, not the assertion. If any test fails in a whole-suite run, keep that run's log and quote the failure whole.
+
+## Report
+
+Besides the format of `$S/int_rules.md`: the keys section first (the order of Tab, Shift+Tab, Enter and Escape before and after, natively and in the webview, with the tests); undo; the session's endings; the cost measurements; the template functions and what each reads; the rows table with the proving tests by full name and for partial what is missing; which way each hypothesis went; the shots' absolute paths and what you saw in each.
+
+## Do not touch
+
+Every undeclared draft of other agents under `app-gpui/src` and every undeclared `proofs*` or `*_pending.rs` test file this brief does not hand you. No edits under `crates/`, `docs/`, `src/`, `src-tauri/`, `e2e/`. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`.
