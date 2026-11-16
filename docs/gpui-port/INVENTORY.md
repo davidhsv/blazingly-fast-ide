@@ -5,11 +5,11 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1416/3145 rows at parity, 104 model only, 510 partial, 15 with nothing to port.**
+**Overall: 1426/3145 rows at parity, 102 model only, 518 partial, 15 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
-| Actions | 486 | 0 | 155 | 0 | 836 |
+| Actions | 485 | 0 | 156 | 0 | 836 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 46 |
 | Keymap presets | 6 | 0 | 0 | 0 | 6 |
 | Context keys | 50 | 0 | 4 | 0 | 83 |
@@ -19,11 +19,11 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerEditorBanner` | 1 | 0 | 0 | 0 | 5 |
 | Extension point `registerEditorContribution` | 1 | 0 | 3 | 0 | 32 |
 | Extension point `registerEditorDropHandler` | 0 | 0 | 0 | 0 | 1 |
-| Editor kinds | 0 | 0 | 6 | 0 | 19 |
+| Editor kinds | 0 | 0 | 7 | 0 | 19 |
 | Extension point `registerEndpointProvider` | 1 | 0 | 0 | 0 | 2 |
 | Extension point `registerExtensionBindings` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerFileDropHandler` | 0 | 0 | 0 | 0 | 2 |
-| File editor providers | 2 | 0 | 0 | 0 | 4 |
+| File editor providers | 2 | 0 | 1 | 0 | 4 |
 | Extension point `registerFontZoomSurface` | 0 | 0 | 0 | 0 | 2 |
 | Extension point `registerGitLogChecks` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerKeyClaim` | 4 | 0 | 1 | 0 | 12 |
@@ -51,17 +51,17 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerShellActions` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerDevSamples` | 0 | 0 | 0 | 0 | 1 |
 | Settings pages | 27 | 0 | 23 | 0 | 68 |
-| Features | 0 | 0 | 18 | 0 | 43 |
+| Features | 0 | 0 | 19 | 0 | 43 |
 | Editor, platform, workbench and design-system modules | 32 | 1 | 64 | 0 | 253 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 21 |
-| IPC commands | 307 | 0 | 25 | 15 | 599 |
-| Backend events (IdeEvent) | 16 | 0 | 2 | 0 | 31 |
+| IPC commands | 315 | 0 | 28 | 15 | 599 |
+| Backend events (IdeEvent) | 17 | 0 | 2 | 0 | 31 |
 | Plugin API interfaces (wit/) | 8 | 0 | 12 | 0 | 49 |
-| Behaviour specification: unit tests (vitest) | 376 | 103 | 128 | 0 | 753 |
+| Behaviour specification: unit tests (vitest) | 378 | 101 | 129 | 0 | 753 |
 | Behaviour specification: end-to-end specs (Playwright) | 9 | 0 | 9 | 0 | 70 |
 
-## Actions (486/836 at parity, 155 partial)
+## Actions (485/836 at parity, 156 partial)
 
 `(dynamic)` rows are actions whose id is built at run time (one per plugin command, tool, run configuration…).
 
@@ -389,7 +389,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | [x] | `file.reloadFromDisk` | `Meta+Alt+Y` | src/editor/core/actions.ts:861 | `workbench::editor_core::tests::reload_from_disk_reads_the_file_again_unless_it_has_unsaved_changes`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; by the registry, with a path and by ⌥⌘Y the editor reads the file's new text, and with unsaved changes it keeps its text and warns notes.txt has unsaved changes; it does not run in a window without a project |
 | [ ] | `file.renameProject` |  | src/features/app/projectActions.ts:194 |  |
 | [ ] | `file.revertFileTypeOverride` |  | src/features/settings/fileTypesRuntime.ts:119 |  |
-| [x] | `file.save` | `Meta+S` | src/editor/core/actions.ts:1199 | `workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::saving_writes_the_file_and_clears_the_dirty_state` |
+| [~] | `file.save` | `Meta+S` | src/editor/core/actions.ts:1199 | `workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::saving_writes_the_file_and_clears_the_dirty_state`, `workbench::tests::proofs24_e2e_notebook::save_all_writes_the_unsaved_notebook`; saves the active text editor and the window's unsaved notebooks. Missing: Save All saves every unsaved document of the window in the webview (`src/editor/core/controller.ts` `saveAll`), natively only the active editor's; a failed save is only logged, the user is not told |
 | [~] | `file.settings` | `Meta+,` | src/features/settings/index.ts:65 | `workbench::tests::settings_searches_the_pages_applies_a_ticked_checkbox_and_ok_closes`, `workbench::tests::settings_cancel_after_an_edit_writes_nothing`, `workbench::tests::settings_write_the_project_layer_under_this_project_and_the_global_one_under_global`; search, staging, Apply, OK, Cancel and the Global / project scopes over the pages made of plain options. Pages that are views of their own show "not available yet": fonts, colour scheme, code style schemes, file types, languages, inspections, SSH and others |
 | [x] | `file.togglePowerSave` |  | src/features/app/projectActions.ts:216 | `workbench::app_actions::tests::power_save_mode_toggles_the_global_setting`; run through the registry it flips general.powerSaveMode globally and the toggle shows it; the banner over editors is its own row |
 | [~] | `file.toggleReadOnly` |  | src/editor/core/actions.ts:924 | `workbench::editor_core::tests::toggle_read_only_asks_then_locks_the_file_and_its_editor`, `workbench::editor_core::tests::the_actions_need_what_their_when_clauses_name`; run through the registry it asks Make File Read-only, and confirmed the file is read-only on disk and the editor refuses typing; run again both are writable; it does not run without an editor tab. Missing: the native target is always built as a file on disk without a banner, so nothing shows that a virtual document is refused as the webview refuses it |
@@ -1127,7 +1127,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `(at) src/features/agents/index.ts:104` | src/features/agents/index.ts:104 |  |
 
-## Editor kinds (0/19 at parity, 6 partial)
+## Editor kinds (0/19 at parity, 7 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
@@ -1145,7 +1145,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `localHistory` | src/features/vcs/index.ts:289 |  |
 | [ ] | `maven.dependencyAnalyzer` | src/features/build-tools/index.ts:203 |  |
 | [ ] | `merge` | src/features/vcs/index.ts:283 |  |
-| [ ] | `notebook` | src/features/notebook/index.ts:49 |  |
+| [~] | `notebook` | src/features/notebook/index.ts:49 | `workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`, `workbench::notebook::tests::the_notebook_kind_is_restorable_and_titled_by_its_file`, `workbench::tests::proofs24_e2e_notebook::closing_the_last_tab_of_a_notebook_releases_its_backend_document`, `workbench::tests::proofs24_e2e_notebook::an_unsaved_notebook_asks_before_its_tab_closes`, `workbench::tests::proofs24_e2e_notebook::save_all_writes_the_unsaved_notebook`, `workbench::tests::proofs24_e2e_notebook::edit_undo_and_redo_in_a_notebook_go_through_its_history`; a notebook opens in a tab of its own kind, saves, asks before closing unsaved, is saved by Save All and takes Edit's Undo and Redo. Missing: no test of the session restoring the tab, no unsaved mark on the tab, the save that VCS and run operations do first has no test |
 | [ ] | `pluginContent` | src/features/plugins/uiPoints.tsx:561 |  |
 | [ ] | `pluginEditor` | src/features/plugins/uiPoints.tsx:546 |  |
 | [~] | `pluginLog` | src/features/plugins/uiPoints.tsx:554 | `workbench::plugin_runtime::tests::starts_a_tab_opened_by_plugin_code_by_its_key_with_the_toggles_that_are_on`, `plugin_views::log_tab::tests`, `workbench::plugin_runtime::tests::proofs16_runtime::keeps_a_plugin_log_tab_and_its_program_while_another_tab_is_shown`; a log tab opened by plugin code shows its program's output, its toggles restart the program, Clear and Soft-wrap work. The tab and its program stay while another tab is shown. Missing: Find in Logs |
@@ -1171,12 +1171,12 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `(at) src/editor/core/cm/markdownImages.ts:117` | src/editor/core/cm/markdownImages.ts:117 |  |
 | [ ] | `(at) src/features/terminal/drop.ts:22` | src/features/terminal/drop.ts:22 |  |
 
-## File editor providers (2/4 at parity)
+## File editor providers (2/4 at parity, 1 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
 | [ ] | `(at) src/features/plugins/uiPoints.tsx:477` | src/features/plugins/uiPoints.tsx:477 |  |
-| [ ] | `notebook` | src/features/notebook/index.ts:57 |  |
+| [~] | `notebook` | src/features/notebook/index.ts:57 | `workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`, `notebook::tests::notebook_files_open_as_notebook_tabs_titled_by_their_name`; an `.ipynb` file of a project opens as a notebook. Missing: in a window without a project the file opens as JSON text |
 | [x] | `viewers.hex` | src/features/viewers/index.ts:95 | `workbench::tests::a_file_with_nul_bytes_opens_in_the_hex_view_and_open_as_text_gives_it_a_text_editor`, `features_b::viewers::file_kinds::tests::uses_the_hex_view_for_binary_or_huge_files`; binary content opens in the hex view before any document is opened |
 | [x] | `viewers.image` | src/features/viewers/index.ts:87 | `workbench::tests::a_png_opened_from_the_project_view_shows_in_an_image_tab_that_zooms_and_closes_without_asking`, `features_b::viewers::file_kinds::tests::routes_by_extension`, `features_b::viewers::file_kinds::tests::lets_a_text_editor_wrapper_take_precedence_over_the_image_viewer`; opening a png from the project view gives an image tab, not a text editor |
 
@@ -1592,7 +1592,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [x] | `vcs.mappings` | src/features/settings/pages/vcs.tsx | `workbench::tests::proofs19_settings_misc::directory_mappings_map_a_repository_root_to_git`, `workbench::tests::proofs19_settings_misc::directory_mappings_show_the_project_root`; the page lists the project's roots with their version control (a repository's root maps to Git); the page has nothing to edit, as in the webview |
 | [x] | `vcs.shelf` | src/features/settings/pages/vcs.tsx | `workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's one checkbox: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply |
 
-## Features (0/43 at parity, 18 partial)
+## Features (0/43 at parity, 19 partial)
 
 | | Feature | TS lines | Proof |
 |---|---|---|---|
@@ -1616,7 +1616,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `logcat` | 776 |  |
 | [ ] | `macros` | 597 |  |
 | [ ] | `mcp` | 203 |  |
-| [ ] | `notebook` | 1766 |  |
+| [~] | `notebook` | 1766 | `workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`, `workbench::tests::proofs24_e2e_notebook::undo_and_redo_of_the_toolbar_go_through_the_notebooks_history`, `workbench::tests::proofs24_e2e_notebook::reload_from_disk_asks_then_drops_unsaved_changes_for_the_files_content`, `workbench::tests::proofs24_e2e_notebook::typing_after_a_change_behind_the_editor_is_rebased_on_the_current_notebook`, `workbench::tests::proofs24_e2e_notebook::closing_the_last_tab_of_a_notebook_releases_its_backend_document`, `workbench::tests::proofs24_e2e_notebook::an_unsaved_notebook_asks_before_its_tab_closes`, `workbench::tests::proofs24_e2e_notebook::a_notebook_in_restricted_mode_starts_no_kernel`, `workbench::tests::proofs24_e2e_notebook::a_kernel_that_cannot_start_shows_why_with_the_install_hint`, `workbench::tests::proofs24_e2e_notebook::interrupt_kernel_stops_a_batch_whose_kernel_is_starting`, `workbench::tests::proofs24_e2e_notebook::a_notebook_from_anywhere_draws_text_only_and_only_a_clicked_web_link_opens`, `workbench::tests::proofs24_e2e_notebook::save_all_writes_the_unsaved_notebook`, `workbench::tests::proofs24_e2e_notebook::edit_undo_and_redo_in_a_notebook_go_through_its_history`; cells, Markdown previews, stream, error and image outputs, the toolbar, the kernel's state and the install hint. Missing: a successful run and Restart of a kernel (no stand-in kernel speaks the protocol), syntax colours and line numbers in cells, a virtualised list and the remembered scroll, the spinner, the interpreter's path in its menu, folding `<details>`, autosave, notebooks in a window without a project |
 | [ ] | `perf` | 725 |  |
 | [~] | `plugins` | 11849 | `plugins::tests::a_linked_plugins_theme_is_offered_and_applied`, `plugins::tests::a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project`, `workbench::plugin_contributions::tests::untrusted_windows`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_commit_message_entry_is_a_button_of_the_commit_message_toolbar`, `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::the_tools_menu_lists_plugin_entries_with_their_state_and_runs_the_chosen_one`, `workbench::plugin_contributions::tests::a_plugins_settings_page_saves_its_value_and_the_plugin_hears_the_change`, `workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::context_menus::tests::a_plugins_editor_menu_entries_appear_under_their_submenu_and_run`, `workbench::context_menus::tests::a_plugins_find_results_entry_shows_only_while_its_when_holds`, `workbench::context_menus::tests::renders_toolbar_slots_with_command_icons_and_honors_when_clauses`, `workbench::plugins_window::tests::a_trusted_projects_own_plugins_load_when_it_opens_and_their_command_runs`, `workbench::plugins_window::tests::trusting_an_open_project_loads_its_own_plugins`, `workbench::plugins_window::tests::revoking_trust_unloads_the_projects_own_plugins_and_their_contributions`; the plugin host runs in the app: themes, commands as actions, the Plugins page (list, enable, uninstall, install with consent, secrets), status items, tasks, notifications, questions, context keys, log tabs, Tools, Project view, editor and Find results menus, the editor tab strip's, title bar's and commit message's toolbar slots, gutter actions, settings pages, runs and DAP debug requests, workbench events, and a trusted project's own plugins, loaded when it opens or is trusted and unloaded on Revoke Trust; in Restricted Mode or a single-file window an installed plugin's commands, menu entries, status items, views, view events, settings actions, gutter actions, saved-file events and answers are refused, with the guard's reason where the webview shows one. Also proven: plugin tree views as tool windows (`workbench::plugin_tool_windows::tests::a_plugins_view_is_a_tool_window_with_its_title_and_icon_that_shows_the_rendered_rows`), the editor tab's menu entries (`workbench::context_menus::tests::proofs16_menus::a_plugins_editor_tab_entry_is_offered_in_the_tabs_menu_and_runs_its_command`), the marketplace (`workbench::plugins_window::tests::proofs6_plugins_market::the_marketplace_lists_the_indexs_plugins_and_install_downloads_and_installs_one`) and Update All from the updates announcement (`workbench::plugin_runtime::tests::proofs14_plugins::update_all_on_the_announcement_installs_the_updates`). Missing: web views, content tabs, OpenTerminal and terminal sessions, run targets, Run Anything, decorations, the JDWP debug branch, the Problems menu entries, the plugin's own icon on a slot button, IntelliJ theme imports, and one plugin listing for the whole app where the webview lists per window |
 | [ ] | `profiler` | 607 |  |
@@ -1942,7 +1942,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [ ] | `src-tauri/src/window_work_area.rs` | 209 |  |
 | [~] | `src-tauri/src/windows.rs` | 2281 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 
-## IPC commands (307/599 at parity, 25 partial, 15 with nothing to port)
+## IPC commands (315/599 at parity, 28 partial, 15 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -2221,17 +2221,17 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [~] | `menu_model` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::the_menu_bar_follows_the_window_and_runs_chosen_items`; the menu module's sync builds the bar from the focused window's state in one step; see the menu.rs shell row for what the bar does not hold yet |
 | [x] | `menu_refresh` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::proofs4_shell::open_recent_lists_a_project_once_opened_and_choosing_it_opens_it`, `workbench::menu::tests`; the adapter's function, menu::install with the recent list, is the Tauri shell's own; the native equivalent is workbench::menu::refresh_recent, run on every project open: Open Recent is empty before anything is opened, lists the project once opened with its path as the argument, and choosing it opens the project |
 | [~] | `menu_set_disabled` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::the_menu_bar_follows_the_window_and_runs_chosen_items`; the menu module's sync builds the bar from the focused window's state in one step; see the menu.rs shell row for what the bar does not hold yet |
-| [ ] | `notebook_close` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_edit` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_execute` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_get` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_interrupt` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_open` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_redo` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_reload` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_restart` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_save` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
-| [ ] | `notebook_undo` | src-tauri/src/commands/notebook.rs | desktop shell | yes |  |
+| [x] | `notebook_close` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::closing_the_last_tab_of_a_notebook_releases_its_backend_document`; the backend no longer holds the document after its last tab closes, called as the Tauri adapter calls it (the host, the window's label, the same arguments) |
+| [x] | `notebook_edit` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::typing_after_a_change_behind_the_editor_is_rebased_on_the_current_notebook`, `workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`; the typed source reaches the backend's document, which the saved file shows, called as the Tauri adapter calls it (the host, the window's label, the same arguments) |
+| [~] | `notebook_execute` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::a_kernel_that_cannot_start_shows_why_with_the_install_hint`, `workbench::tests::proofs24_e2e_notebook::a_notebook_in_restricted_mode_starts_no_kernel`; Run Cell starts the chosen interpreter and shows why a kernel could not start; in Restricted Mode nothing starts, called as the Tauri adapter calls it (the host, the window's label, the same arguments). Missing: the outputs of a successful run |
+| [x] | `notebook_get` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::typing_after_a_change_behind_the_editor_is_rebased_on_the_current_notebook`; the edit typed after a change behind the editor is rebased on the snapshot the backend returns, called as the Tauri adapter calls it (the host, the window's label, the same arguments) |
+| [~] | `notebook_interrupt` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::interrupt_kernel_stops_a_batch_whose_kernel_is_starting`; Interrupt Kernel stops a batch whose interpreter is starting and the stand-in process is gone, called as the Tauri adapter calls it (the host, the window's label, the same arguments). Missing: interrupting a cell that runs in a live kernel |
+| [x] | `notebook_open` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`; the tab's cells can only come from the backend's read of the file, called as the Tauri adapter calls it (the host, the window's label, the same arguments) |
+| [x] | `notebook_redo` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::undo_and_redo_of_the_toolbar_go_through_the_notebooks_history`, `workbench::tests::proofs24_e2e_notebook::edit_undo_and_redo_in_a_notebook_go_through_its_history`; the backend's document goes forward one step, called as the Tauri adapter calls it (the host, the window's label, the same arguments) |
+| [x] | `notebook_reload` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::reload_from_disk_asks_then_drops_unsaved_changes_for_the_files_content`; the cells are the file's again after the question, called as the Tauri adapter calls it (the host, the window's label, the same arguments) |
+| [~] | `notebook_restart` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::a_notebook_in_restricted_mode_starts_no_kernel`; refused in Restricted Mode with the backend's reason, called as the Tauri adapter calls it (the host, the window's label, the same arguments). Missing: Restart of a live or a dead kernel (after a kernel died it starts the interpreter again and waits out the 30 s connection timeout) |
+| [x] | `notebook_save` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`, `workbench::tests::proofs24_e2e_notebook::save_all_writes_the_unsaved_notebook`; the file on disk holds the typed source, called as the Tauri adapter calls it (the host, the window's label, the same arguments) |
+| [x] | `notebook_undo` | src-tauri/src/commands/notebook.rs | desktop shell | yes | `workbench::tests::proofs24_e2e_notebook::undo_and_redo_of_the_toolbar_go_through_the_notebooks_history`, `workbench::tests::proofs24_e2e_notebook::edit_undo_and_redo_in_a_notebook_go_through_its_history`; the backend's document goes back one step, called as the Tauri adapter calls it (the host, the window's label, the same arguments) |
 | [x] | `open_project` | src-tauri/src/commands/app.rs | desktop shell | yes | `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor` |
 | [ ] | `path_completions` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
 | [~] | `plugin_activation_event` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugin_contributions::tests::focusing_an_editor_fires_the_language_and_file_activation_events`; focusing a plain text file fires the language activation and a file under notes/ the file activation through PluginHost::activation_event with the project root; each plugin goes from Inactive to Active only then. Missing: the view activation kind has no native caller, since plugin views are not hosted |
@@ -2548,7 +2548,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `wsl_distros` | src-tauri/src/commands/wsl.rs | desktop shell | yes |  |
 | [ ] | `wsl_resolve` | src-tauri/src/commands/wsl.rs | desktop shell | yes |  |
 
-## Backend events (IdeEvent) (16/31 at parity, 2 partial)
+## Backend events (IdeEvent) (17/31 at parity, 2 partial)
 
 | | Variant | Proof |
 |---|---|---|
@@ -2582,7 +2582,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `ProjectRootsChanged` |  |
 | [ ] | `Askpass` |  |
 | [ ] | `AskpassDone` |  |
-| [ ] | `NotebookKernel` |  |
+| [x] | `NotebookKernel` | `workbench::tests::proofs24_e2e_notebook::a_kernel_that_cannot_start_shows_why_with_the_install_hint`, `notebook::tests::proofs24_notebook_view::a_kernel_failure_naming_ipykernel_shows_the_install_hint`; the kernel's state in the toolbar goes to dead from the backend's event, and a failure naming ipykernel shows the install hint |
 
 ## Plugin API interfaces (wit/) (8/49 at parity, 12 partial)
 
@@ -2638,7 +2638,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `invocation` | wit/workspace.wit | `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`; a command run from the window gets its project and focused editor (the word count of notes.txt), and selected-paths carries the Project view menu's file |
 | [~] | `vcs` | wit/workspace.wit | `workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_reads_the_projects_log_blame_and_diff`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; log, blame and diff answer the commit, its author and the changed line, and status shows as the plugin's branch item. Missing: remotes, and fetch's effect is not asserted |
 
-## Behaviour specification: unit tests (vitest) (376/753 at parity, 103 model only, 128 partial)
+## Behaviour specification: unit tests (vitest) (378/753 at parity, 101 model only, 129 partial)
 
 753 files, 6287 cases. A row is at parity when the behaviour its cases assert is covered by Rust tests of the GPUI app.
 
@@ -2996,10 +2996,10 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [m] | `src/features/macros/model.test.ts` | 8 | `features_b::macros::tests` |
 | [m] | `src/features/mcp/reporters.test.ts` | 4 | `features_b::mcp::tests` |
 | [ ] | `src/features/mcp/requests.test.tsx` | 4 |  |
-| [m] | `src/features/notebook/outputs.test.ts` | 8 | `features_a::notebook::outputs::tests` |
-| [~] | `src/features/notebook/OutputView.test.tsx` | 9 | `features_a::notebook::view::tests`; 2 of 9 cases by name |
-| [ ] | `src/features/notebook/security.test.ts` | 4 |  |
-| [m] | `src/features/notebook/session.test.ts` | 16 | `features_a::notebook::session::tests` |
+| [x] | `src/features/notebook/outputs.test.ts` | 8 | `features_a::notebook::outputs::tests` |
+| [~] | `src/features/notebook/OutputView.test.tsx` | 9 | `features_a::notebook::view::tests`, `workbench::tests::proofs24_e2e_notebook::a_notebook_from_anywhere_draws_text_only_and_only_a_clicked_web_link_opens`, `notebook::tests::proofs24_notebook_view::opens_web_links_with_the_system_handler`, `notebook::tests::proofs24_notebook_units::keeps_the_rendered_preview_across_snapshots_with_equal_attachments`, `notebook::tests::proofs24_notebook_units::resolves_an_entity_encoded_attachment_in_a_markdown_destination_a_reference_definition_and_raw_html`, `notebook::tests::proofs24_notebook_units::resolves_an_attachment_named_proto_or_constructor_from_parsed_notebook_json`, `notebook::tests::proofs24_notebook_units::does_not_resolve_inherited_members_as_attachments`, `notebook::tests::proofs24_notebook_units::does_not_rebuild_when_only_an_unreferenced_attachment_changes`, `notebook::tests::proofs24_notebook_units::ignores_attachment_identity_when_the_source_references_none`, `notebook::tests::proofs24_notebook_units::leaves_native_interactions_such_as_details_alone_and_only_claims_links`, `notebook::tests::proofs24_notebook_view::does_not_re_sanitize_an_unchanged_svg_when_a_fresh_snapshot_arrives`; 9 of 9 cases by name, 7 checking the same thing. Missing: `<details>` is always open natively, and the SVG case checks a PNG because SVG is never drawn |
+| [~] | `src/features/notebook/security.test.ts` | 4 | `notebook::tests::proofs24_notebook_units::keeps_raw_markdown_markup_from_reaching_the_page`, `notebook::tests::proofs24_notebook_units::retains_table_content_while_removing_executable_navigation_and_external_resource_surfaces`, `notebook::tests::proofs24_notebook_units::resolves_only_embedded_image_attachments_and_makes_markdown_file_links_editor_controlled`, `notebook::tests::proofs24_notebook_units::retains_safe_svg_chart_paint_local_definitions_and_raster_images_but_removes_active_external_svg`; 4 of 4 cases by name, 3 checking the same thing. Missing: the SVG case asserts that SVG is never drawn, where the webview keeps a safe SVG |
+| [x] | `src/features/notebook/session.test.ts` | 16 | `features_a::notebook::session::tests` |
 | [x] | `src/features/perf/__tests__/perf.test.ts` | 12 | `features_b::perf::tests` |
 | [ ] | `src/features/perf/__tests__/views.test.tsx` | 3 |  |
 | [ ] | `src/features/plugins/__tests__/contentEditor.test.tsx` | 10 |  |

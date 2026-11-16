@@ -104,8 +104,8 @@
     "proof": "`workbench::tests::appearance_toggles_hide_the_bars_and_tool_windows_maximize_and_resize`, `workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::title_bar::tests::the_main_toolbar_switch_and_distraction_free_make_the_compact_header`, `workbench::title_bar::tests::a_light_edit_bar_has_its_title_and_the_gear_and_the_welcome_bar_its_title_only`, `workbench::status_bar::tests::a_light_edit_window_shows_only_the_items_registered_for_it`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`; the frame with title bar, tool windows, banners and status bar, the toolbar and status bar switches, Distraction Free, the LightEdit frame and the Welcome view. Missing: the opening screen is one line (Opening path…) without the brand, progress bar and project name, and has no test; the window carries no project-colour gradient; there is no window-group tab strip"
   },
   "action:file.save": {
-    "status": "done",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::saving_writes_the_file_and_clears_the_dirty_state`"
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::saving_writes_the_file_and_clears_the_dirty_state`, `workbench::tests::proofs24_e2e_notebook::save_all_writes_the_unsaved_notebook`; saves the active text editor and the window's unsaved notebooks. Missing: Save All saves every unsaved document of the window in the webview (`src/editor/core/controller.ts` `saveAll`), natively only the active editor's; a failed save is only logged, the user is not told"
   },
   "action:edit.undo": {
     "status": "partial",
@@ -3213,7 +3213,7 @@
   },
   "unit:src/features/notebook/OutputView.test.tsx": {
     "status": "partial",
-    "proof": "`features_a::notebook::view::tests`; 2 of 9 cases by name"
+    "proof": "`features_a::notebook::view::tests`, `workbench::tests::proofs24_e2e_notebook::a_notebook_from_anywhere_draws_text_only_and_only_a_clicked_web_link_opens`, `notebook::tests::proofs24_notebook_view::opens_web_links_with_the_system_handler`, `notebook::tests::proofs24_notebook_units::keeps_the_rendered_preview_across_snapshots_with_equal_attachments`, `notebook::tests::proofs24_notebook_units::resolves_an_entity_encoded_attachment_in_a_markdown_destination_a_reference_definition_and_raw_html`, `notebook::tests::proofs24_notebook_units::resolves_an_attachment_named_proto_or_constructor_from_parsed_notebook_json`, `notebook::tests::proofs24_notebook_units::does_not_resolve_inherited_members_as_attachments`, `notebook::tests::proofs24_notebook_units::does_not_rebuild_when_only_an_unreferenced_attachment_changes`, `notebook::tests::proofs24_notebook_units::ignores_attachment_identity_when_the_source_references_none`, `notebook::tests::proofs24_notebook_units::leaves_native_interactions_such_as_details_alone_and_only_claims_links`, `notebook::tests::proofs24_notebook_view::does_not_re_sanitize_an_unchanged_svg_when_a_fresh_snapshot_arrives`; 9 of 9 cases by name, 7 checking the same thing. Missing: `<details>` is always open natively, and the SVG case checks a PNG because SVG is never drawn"
   },
   "unit:src/features/notebook/outputs.test.ts": {
     "status": "done",
@@ -8178,5 +8178,69 @@
   "feature:http-client": {
     "status": "partial",
     "proof": "`workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`, `workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`, `workbench::http_client::tests::the_http_client_lists_loads_and_clears_the_projects_history`, `workbench::http_client::tests::new_http_request_creates_a_request_file_with_the_example_in_the_folder`, `workbench::http_client::tests::open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch`, `workbench::http_client::tests::generate_requests_from_the_spring_mapping_at_the_caret`, `workbench::http_client::tests::the_spring_provider_lists_the_request_paths_and_rescans_after_a_change`; request files run from the caret, the toolbar and the gutter with an environment, the HTTP Client view with history, New HTTP Request, Open in HTTP Client, and the Spring request generation. Missing: highlighting of request files, URL completion from the endpoints, the endpoint gutter with a plugin's endpoints, the Spring intentions, the Endpoints tab of Search Everywhere, marks that follow an edit at once, a localized time in the history"
+  },
+  "point.registerEditorKind:notebook": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`, `workbench::notebook::tests::the_notebook_kind_is_restorable_and_titled_by_its_file`, `workbench::tests::proofs24_e2e_notebook::closing_the_last_tab_of_a_notebook_releases_its_backend_document`, `workbench::tests::proofs24_e2e_notebook::an_unsaved_notebook_asks_before_its_tab_closes`, `workbench::tests::proofs24_e2e_notebook::save_all_writes_the_unsaved_notebook`, `workbench::tests::proofs24_e2e_notebook::edit_undo_and_redo_in_a_notebook_go_through_its_history`; a notebook opens in a tab of its own kind, saves, asks before closing unsaved, is saved by Save All and takes Edit's Undo and Redo. Missing: no test of the session restoring the tab, no unsaved mark on the tab, the save that VCS and run operations do first has no test"
+  },
+  "point.registerFileEditorProvider:notebook": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`, `notebook::tests::notebook_files_open_as_notebook_tabs_titled_by_their_name`; an `.ipynb` file of a project opens as a notebook. Missing: in a window without a project the file opens as JSON text"
+  },
+  "feature:notebook": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`, `workbench::tests::proofs24_e2e_notebook::undo_and_redo_of_the_toolbar_go_through_the_notebooks_history`, `workbench::tests::proofs24_e2e_notebook::reload_from_disk_asks_then_drops_unsaved_changes_for_the_files_content`, `workbench::tests::proofs24_e2e_notebook::typing_after_a_change_behind_the_editor_is_rebased_on_the_current_notebook`, `workbench::tests::proofs24_e2e_notebook::closing_the_last_tab_of_a_notebook_releases_its_backend_document`, `workbench::tests::proofs24_e2e_notebook::an_unsaved_notebook_asks_before_its_tab_closes`, `workbench::tests::proofs24_e2e_notebook::a_notebook_in_restricted_mode_starts_no_kernel`, `workbench::tests::proofs24_e2e_notebook::a_kernel_that_cannot_start_shows_why_with_the_install_hint`, `workbench::tests::proofs24_e2e_notebook::interrupt_kernel_stops_a_batch_whose_kernel_is_starting`, `workbench::tests::proofs24_e2e_notebook::a_notebook_from_anywhere_draws_text_only_and_only_a_clicked_web_link_opens`, `workbench::tests::proofs24_e2e_notebook::save_all_writes_the_unsaved_notebook`, `workbench::tests::proofs24_e2e_notebook::edit_undo_and_redo_in_a_notebook_go_through_its_history`; cells, Markdown previews, stream, error and image outputs, the toolbar, the kernel's state and the install hint. Missing: a successful run and Restart of a kernel (no stand-in kernel speaks the protocol), syntax colours and line numbers in cells, a virtualised list and the remembered scroll, the spinner, the interpreter's path in its menu, folding `<details>`, autosave, notebooks in a window without a project"
+  },
+  "ipc:notebook_open": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`; the tab's cells can only come from the backend's read of the file, called as the Tauri adapter calls it (the host, the window's label, the same arguments)"
+  },
+  "ipc:notebook_get": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::typing_after_a_change_behind_the_editor_is_rebased_on_the_current_notebook`; the edit typed after a change behind the editor is rebased on the snapshot the backend returns, called as the Tauri adapter calls it (the host, the window's label, the same arguments)"
+  },
+  "ipc:notebook_edit": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::typing_after_a_change_behind_the_editor_is_rebased_on_the_current_notebook`, `workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`; the typed source reaches the backend's document, which the saved file shows, called as the Tauri adapter calls it (the host, the window's label, the same arguments)"
+  },
+  "ipc:notebook_save": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::a_notebook_file_opens_in_a_notebook_tab_and_saves_the_typed_source`, `workbench::tests::proofs24_e2e_notebook::save_all_writes_the_unsaved_notebook`; the file on disk holds the typed source, called as the Tauri adapter calls it (the host, the window's label, the same arguments)"
+  },
+  "ipc:notebook_undo": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::undo_and_redo_of_the_toolbar_go_through_the_notebooks_history`, `workbench::tests::proofs24_e2e_notebook::edit_undo_and_redo_in_a_notebook_go_through_its_history`; the backend's document goes back one step, called as the Tauri adapter calls it (the host, the window's label, the same arguments)"
+  },
+  "ipc:notebook_redo": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::undo_and_redo_of_the_toolbar_go_through_the_notebooks_history`, `workbench::tests::proofs24_e2e_notebook::edit_undo_and_redo_in_a_notebook_go_through_its_history`; the backend's document goes forward one step, called as the Tauri adapter calls it (the host, the window's label, the same arguments)"
+  },
+  "ipc:notebook_reload": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::reload_from_disk_asks_then_drops_unsaved_changes_for_the_files_content`; the cells are the file's again after the question, called as the Tauri adapter calls it (the host, the window's label, the same arguments)"
+  },
+  "ipc:notebook_close": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::closing_the_last_tab_of_a_notebook_releases_its_backend_document`; the backend no longer holds the document after its last tab closes, called as the Tauri adapter calls it (the host, the window's label, the same arguments)"
+  },
+  "ipc:notebook_interrupt": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::interrupt_kernel_stops_a_batch_whose_kernel_is_starting`; Interrupt Kernel stops a batch whose interpreter is starting and the stand-in process is gone, called as the Tauri adapter calls it (the host, the window's label, the same arguments). Missing: interrupting a cell that runs in a live kernel"
+  },
+  "ipc:notebook_execute": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::a_kernel_that_cannot_start_shows_why_with_the_install_hint`, `workbench::tests::proofs24_e2e_notebook::a_notebook_in_restricted_mode_starts_no_kernel`; Run Cell starts the chosen interpreter and shows why a kernel could not start; in Restricted Mode nothing starts, called as the Tauri adapter calls it (the host, the window's label, the same arguments). Missing: the outputs of a successful run"
+  },
+  "ipc:notebook_restart": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::a_notebook_in_restricted_mode_starts_no_kernel`; refused in Restricted Mode with the backend's reason, called as the Tauri adapter calls it (the host, the window's label, the same arguments). Missing: Restart of a live or a dead kernel (after a kernel died it starts the interpreter again and waits out the 30 s connection timeout)"
+  },
+  "event:NotebookKernel": {
+    "status": "done",
+    "proof": "`workbench::tests::proofs24_e2e_notebook::a_kernel_that_cannot_start_shows_why_with_the_install_hint`, `notebook::tests::proofs24_notebook_view::a_kernel_failure_naming_ipykernel_shows_the_install_hint`; the kernel's state in the toolbar goes to dead from the backend's event, and a failure naming ipykernel shows the install hint"
+  },
+  "unit:src/features/notebook/security.test.ts": {
+    "status": "partial",
+    "proof": "`notebook::tests::proofs24_notebook_units::keeps_raw_markdown_markup_from_reaching_the_page`, `notebook::tests::proofs24_notebook_units::retains_table_content_while_removing_executable_navigation_and_external_resource_surfaces`, `notebook::tests::proofs24_notebook_units::resolves_only_embedded_image_attachments_and_makes_markdown_file_links_editor_controlled`, `notebook::tests::proofs24_notebook_units::retains_safe_svg_chart_paint_local_definitions_and_raster_images_but_removes_active_external_svg`; 4 of 4 cases by name, 3 checking the same thing. Missing: the SVG case asserts that SVG is never drawn, where the webview keeps a safe SVG"
   }
 }

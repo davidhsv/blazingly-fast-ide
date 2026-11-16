@@ -32,7 +32,7 @@ Small additions the drafts do not have, in this order of value; build one only i
 
 ## Changed since the notes were written
 
-The notes were written on the tree at commit 4a3fd6fe. Of the existing files the hunks anchor on, `app-gpui/src/lib.rs` and `app-gpui/src/workbench/mod.rs` changed with the editor paint slice (measured against `git diff --name-only 4a3fd6fe 5714c388`); `workbench/tab_views.rs` and `workbench/edit_actions.rs` did not. The Deployment and HTTP Client slices land before this one and change `lib.rs`, `workbench/mod.rs` and probably `workbench/tab_views.rs` again: read them as they are. Re-anchor every hunk from its quoted text and read the place before you edit it. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing.
+The notes were written on the tree at commit 4a3fd6fe. Measured at launch (`git diff --name-only 4a3fd6fe HEAD` over the four existing files the hunks anchor on): `app-gpui/src/lib.rs` (three more `mod` lines: Deployment, HTTP Client) and `app-gpui/src/workbench/mod.rs` (the editor paint, Deployment and HTTP Client slices) changed; `workbench/tab_views.rs` and `workbench/edit_actions.rs` did not. Since then the editor's gutter also got ordered icon columns and popups keep 6 px from the window's edges (neither is in a file your hunks touch). Re-anchor every hunk from its quoted text and read the place before you edit it. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing. Leave no polling loop behind (a loop on `pgrep -f "cargo test"` matches its own command line and never ends), and start no test run with `&` inside a script.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
