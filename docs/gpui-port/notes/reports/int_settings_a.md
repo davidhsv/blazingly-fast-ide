@@ -1,131 +1,146 @@
-All 11 Settings pages are now declared, wired into the dialog and passing their tests: 7 are done and 4 are partial (Updates, HTTP Proxy, Gradle, Maven). The gates pass, with one failure seen once in a test this work does not touch. The language pages are not declared.
+All three pages landed whole: SSH Configurations, then Deployment servers, then Run Targets. Every gate passed after the last code change. Nothing is committed and nothing was pushed.
 
-## 1. Gates (from `app-gpui/`, output under `$S/dseta/`)
+## Part 0: the SSH files of a test backend
 
-| Gate                                                                                                                                              | Result                                                                                                                        |
-| ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Suite run 1, nothing else running (`suite1.txt`)                                                                                                  | ok, 7458 passed, 0 failed, 0 ignored, 175.23 s                                                                                |
-| Suite run 2, with the 20× loop beside it (`suite2.txt`)                                                                                           | FAILED: 7457 passed, 1 failed, 196.32 s                                                                                       |
-| Suite run 3 (`suite3.txt`)                                                                                                                        | ok, 7458 passed, 177.33 s                                                                                                     |
-| Suite run 4, after the last test edits (`suite4.txt`)                                                                                             | ok, 7459 passed, 175.24 s                                                                                                     |
-| 20× loop of every test added, declared or changed (filters `proofs19_settings_misc settings_view:: smoke_settings_pages settings_model::staging`) | 20/20 green during run 2 (154 tests); 20/20 again after the last edits (`loop2/`, 155 tests). No test failed in any loop run. |
-| `cargo test --test web_view`                                                                                                                      | ok, 1 passed (run twice)                                                                                                      |
-| `cargo clippy --all-targets -- -D warnings`                                                                                                       | exit 0                                                                                                                        |
-| `cargo build`                                                                                                                                     | exit 0, 0 warnings                                                                                                            |
+- **What changed:** an isolated backend (a test, or any run with `OPENIDEA_GPUI_HOME`) now uses `<home>/ssh/known_hosts` and reads no OpenSSH config. That comes from a new `AppDirs::ssh_files()` used in `Backend::start` (`app-gpui/src/backend.rs`). A normal run still gets `SshFiles::default()`.
+- **Why `crates/` changed:** `Host.ssh` is `pub`, but `Host::new` hands a clone of it to `ide_remote::RemoteService` in `host.remote`. Rebuilding that from `app-gpui` would need `ide-remote`, which is not in `app-gpui/Cargo.toml`, so a new dependency. Read in `crates/ide-host/src/lib.rs` and `crates/ide-remote/src/service.rs:77`.
+- **The seam:** `Host::with_ssh_files(config, ssh_files)` in `crates/ide-host/src/lib.rs`. `Host::new` is unchanged and calls it with `SshFiles::default()`, so the Tauri app behaves as before.
+- **Crate test:** `crates/ide-host/tests/ssh_files.rs`, two tests:
+  - `a_host_with_ssh_files_of_its_own_trusts_and_checks_host_keys_there`: an in-process sshd on the loopback address; `host.remote` is refused, then the key is recorded in the temp `known_hosts`, then `host.remote` connects.
+  - `a_host_built_without_ssh_files_keeps_the_default_ones`.
+- **Crate gates** (logs in `$S/dseti/`):
+  - `cargo test -p ide-host` exit 0 (`ide_host_test.log`).
+  - `cargo clippy -p ide-host --all-targets -- -D warnings` exit 0 (`ide_host_clippy.log`).
+  - `cargo test -p openidea export_bindings` gave `test result: ok. 1 passed` (`export_bindings.log`).
+  - `git status --short src/ src-tauri/` printed nothing.
+  - The manager still has to run the whole Tauri workspace suite.
+- **The native test:** `backend::tests::the_ssh_files_of_a_backend_under_a_temporary_home_are_under_that_home` passed on its own (`part0.log`) before any end-to-end test ran. The check it uses, `crate::backend::assert_ssh_files_under`, runs first in every slice test that touches SSH: `start_isolated` in proofs29, the SFTP test in proofs28, and two proofs30 tests.
 
-- **The one failure:** `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window` failed in run 2 at `editor_extras.rs:1115`: "the caret in b at 0:13 did not happen within thirty seconds … reached later: None". I did not touch this file.
-  - It then passed 20/20 alone (`occ/run_*`) and 15/15 while suite run 3 ran beside it (`occ/load_*`).
-  - None of the older scratch logs show it failing before.
-  - Hypothesis: under load from the concurrent loop, highlighted usages appear before `ctrl-alt-down`, which then steps to a usage instead of the next occurrence. To confirm: loop it during a full suite plus a second test loop, and log `f.at(cx)` before the keystroke.
+## Safety, bullet by bullet
 
-Earlier failures, all fixed:
+- **Network:** each test that presses Test Connection, and where it connects:
+  - `ssh_test_connection_shows_the_backends_answer_…`: a listener the test binds on `127.0.0.1:0`, which accepts and drops. The test asserts host `127.0.0.1`, the port and password auth before the click. The path to the socket was read: `SshManager::test` → `connect` → `resolve_hops` (password auth builds the hop from host and port and reads no config, `target.rs:507-528`) → `connect_first_hop` → TCP.
+  - `ssh_trust_host_asks_the_backend_…`: a stand-in tester. The real `trust_host` returns "no host key to trust" before touching any file (`manager.rs:172-177`).
+  - Deployment local-folder tests: `FsConnection::Local` connects nowhere (`deploy.rs:172` → `service.rs:81-89`).
+  - Deployment SFTP test: a stand-in tester. Its configuration is now `127.0.0.1` on a port bound and released by the test, and the address the backend holds is asserted.
+  - Run Targets: SSH configs are now `127.0.0.1` on a released port. The folder browser is a stand-in, and `ide_docker::load_settings` is a plain file read of the temp data folder (`crates/ide-docker/src/connection.rs:162-170`).
+  - All view tests use stand-ins. Nothing depends on DNS.
+- **Keychain:** an isolated home calls `keep_secrets_in_files()` (`backend.rs`, `if dirs.isolated`). After that the OS store reports itself unavailable (`crates/ide-ssh/src/secrets.rs:80-84`). Tests assert `secrets_in_files()` and `!default_store_installed()` before typing a secret, and the Apply test asserts the only file holding the password is `ssh-passwords.json.vault`.
+- **Never drawn:** `lines()` shows bullets only; the view tests assert the bullet text and that the typed secret appears in no line.
+- **Never in a settings file:** after Apply/OK every file under the temp home is scanned and only the `.vault` file contains the secret.
+- **Never logged:** only partly tested. The capturing subscriber is thread-local, so it covers the SSH Apply path, which runs `set_secret` on the main thread (`settings_window.rs:161-163`). It does not cover Deployment's `set_secret`, which runs on the backend runtime. For that one, by reading: `manager.rs:88-106` and the `tracing` lines in `secrets.rs` log ids and errors, never the value.
+- **Never in `Debug`:** `SecretText`, staging's `Secret` and `SecretField` all have hand-written redacting `Debug`s (`database/store.rs:100-104`, `staging.rs:115-119`, `secret_field.rs:41-45`). The Deployment and SSH tests assert the dialog's `Debug` output omits the secret.
+- **Secret memory on a closed page:** `deployment.tsx:40-95` keeps the secret in component state, so it goes when the page unmounts. Natively, all three pages now reset when the dialog shows another page:
+  - Deployment drops the test result and the typed password. Asserted in `deployment_an_sftp_password_typed_is_kept_by_the_backend_and_never_shown` and in shot `dseti6-13`.
+  - Run Targets closes the folder browser, and the password typed in it goes with it (asserted in the folder test).
+  - SSH clears its test state. Its password stays staged in the dialog until Apply or Cancel, as `ssh.tsx:265` stages it.
+- **User's SSH config and keys:** the page's configurations are the global `ssh.configs` (`tools_ssh.rs` `configs`). Nothing on that path reads `~/.ssh/config`, and test backends have `config: None` plus a temp `known_hosts`.
+  - Hypothesis: OpenSSH and key-pair authentication would still reach the SSH agent and `~/.ssh/id_*` (`session.rs:603-660`). No test gets past the TCP handshake to authentication.
+- **Validation:** Port is validated with `parse_ssh_port` as `ssh.tsx:85-95` does (view test and shot). No host, port or path becomes a shell command on these pages.
+- **Real binary:** run only through `$S/insp8/run.sh`, with temp projects under `/private/tmp/openidea-inspect-*`, both removed. Only the local-folder Test Connection was pressed, and it left the folder empty. No SSH or SFTP Test Connection or Trust, no Browse… on Run Targets, no password typed, no Agents or Services window. The app was stopped by its PID.
 
-- The checker's answer panicked by updating the proxy view inside its own update. `run_check` now defers it.
-- Three draft test expectations were wrong:
-  - A port is staged as it is typed (7000 before 70000), as in the webview's NumberInput.
-  - A table emptied back to the stored `[]` stages nothing.
-  - "rel" also matches MinSizeRel.
-- The `files.exclude` default is the backend's (`**/.git`, `**/node_modules`, `**/target`), not empty.
-- The test build keeps saved passwords in `proxy-password.json.vault`, not `proxy-password.json`.
-- File Types: Python and the ignored-names + button are below the visible list or page. The test now filters, and a `bring_into_view` scroll helper was added.
+## Gates (after the last change)
 
-## 2. Per part of the brief
+All logs are in `$S/dseti/final/`.
 
-**Declaration and wiring**
+| Gate                                        | Log                           | Result                                                                                                                                |
+| ------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Suite run 1                                 | `suite1.log`                  | `test result: ok. 7973 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 202.95s` (load 6.41 before, 117.94 after) |
+| Suite run 2                                 | `suite2.log`                  | `test result: ok. 7973 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 203.50s`                                  |
+| Slice tests ×20                             | `$S/dseti/loop20/summary.txt` | 20/20 runs `ok. 56 passed; 0 failed`; no test failed once                                                                             |
+| `cargo test --test web_view`                | `web_view.log`                | `test result: ok. 1 passed`                                                                                                           |
+| `cargo clippy --all-targets -- -D warnings` | `clippy.log`                  | rc 0                                                                                                                                  |
+| `cargo build`                               | `build.log`                   | rc 0, 0 warnings                                                                                                                      |
 
-- The 13 draft modules are declared in `pages/mod.rs`, and `proofs19_settings_misc` in `workbench/mod.rs`.
-- The 11 pages are installed in `settings_view/custom_controls.rs`. CMake, Gradle and Maven get a `Slots::page_view`.
-- The existing `SettingsDialogView::page_view` getter is reused; no second getter was added.
-- Search Everywhere: the page specs already existed in `builtin_pages`, so `settings_search_entries` lists them without change.
+The ×20 loop ran after suite run 2, not during it, to keep to one heavy cargo command at a time. An earlier full round of all these gates, before the page-reset change, was also green.
 
-**Smoke test** (`smoke_settings_pages.rs`, changed once)
+## Rows
 
-- A page with nothing for it to click now passes only if every line is a `—` header or ends `: <custom>`, with at least one such line. The existing "unavailable" and "page view" conditions are unchanged.
+New keys, named like `settings:tools.externalTools` and `settings:build.run`. Only `unit:…/dialog.test.tsx` already exists in `parity.json`. I did not write to it.
 
-**No secret in `Debug`** (`settings_model/staging.rs`)
+| Key                                                    | State         | Proving tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settings:tools.sshConfigurations`                     | done          | `workbench::tests::proofs29_settings_ssh::{ssh_a_configuration_added_and_edited_is_written_to_the_global_settings, ssh_reset_and_cancel_discard_a_configuration_added_and_a_password_typed, ssh_a_password_typed_is_stored_by_the_backend_on_apply_and_then_shown_as_stored}` and the 18 view tests in `settings_view::pages::tools_ssh::proofs29_ssh_view`                                                                                                                                                                                                               |
+| `unit:src/features/settings/__tests__/ssh.test.tsx`    | done, 15/15   | the 15 spec-named tests in `settings_view::pages::tools_ssh::proofs29_ssh_view`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `ipc:ssh_test`                                         | done          | `…proofs29_settings_ssh::ssh_test_connection_shows_the_backends_answer_for_the_configuration_as_edited`                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `ipc:ssh_needs_secret`                                 | done          | `…proofs29_settings_ssh::ssh_a_password_stored_before_shows_as_stored_and_an_unknown_one_does_not`                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `ipc:ssh_set_secret`                                   | done          | `…proofs29_settings_ssh::ssh_a_password_typed_is_stored_by_the_backend_on_apply_and_then_shown_as_stored` and `workbench::tests::proofs28_settings_deployment::deployment_an_sftp_password_typed_is_kept_by_the_backend_and_never_shown`                                                                                                                                                                                                                                                                                                                                  |
+| `ipc:ssh_trust_host`                                   | partial       | `…ssh_trust_host_asks_the_backend_for_the_configuration_tested`. Missing: a real pending key, which needs an in-process sshd; `app-gpui` lacks `ide-ssh`'s `testing` feature and I did not add it                                                                                                                                                                                                                                                                                                                                                                         |
+| `settings:build.deployment`                            | partial       | `workbench::tests::proofs28_settings_deployment::{deployment_a_local_server_tested_by_the_backend_is_written_to_the_project, deployment_without_a_project_writes_the_server_to_the_global_settings, deployment_reset_and_cancel_discard_a_server_added, deployment_an_sftp_password_typed_is_kept_by_the_backend_and_never_shown, deployment_shown_after_another_page_selects_the_projects_first_server}` and the 8 view tests in `settings_view::pages::build_deployment::proofs28_deployment_view`. Missing: the remote folder chooser of Root path and Deployment path |
+| `ipc:deploy_test_connection`                           | done          | `…deployment_a_local_server_tested_by_the_backend_is_written_to_the_project` ("Connected successfully", "Folder does not exist", "Not a folder", probe file removed)                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `settings:build.runTargets`                            | done          | `workbench::tests::proofs30_settings_run_targets::{run_targets_an_ssh_target_added_and_edited_is_written_to_the_project, run_targets_a_docker_target_offers_the_services_connections_and_applies, run_targets_the_folder_chosen_in_the_browser_is_the_targets_project_folder, run_targets_reset_and_cancel_discard_a_target_added, run_targets_a_target_stored_without_its_upload_choice_shows_the_value_the_backend_loads, run_targets_shown_after_another_page_select_the_first_target}` and 11 view tests plus `form::tests::container_fields_follow_the_kind`         |
+| `unit:src/features/settings/__tests__/dialog.test.tsx` | one more case | `settings_view::pages::build_run_targets::proofs30_run_targets_view::uses_the_attached_primary_name_for_run_target_paths`                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `ipc:docker_settings`                                  | done          | `…run_targets_a_docker_target_offers_the_services_connections_and_applies`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
-- `StagedChange` and `SettingsDialog` now print with `proxy.password` hidden, including inside `base` / `global_base`. `ApplyRun` holds `StagedChange`, so it is covered too.
-- `ProxyForm` got a `Debug` that hides the password.
-- The proxy e2e test checks, after typing and after Apply, that the password text is absent from:
-  - the lines and the staged changes' `{:?}`;
-  - the form's `{:?}` and `form.settings()`;
-  - the dialog model's `{:?}` (after asserting `base.proxy.password` really holds it);
-  - `settings.toml` and the log.
-- The only file holding it is `proxy-password.json.vault`.
-- Hypothesis: the password field's text is never copied. Not measured; check with a cmd-c test on `SecretField`.
+Run Targets' Connect passes `save` = `false`, as `runTargets.tsx:98` does. This forgets a password saved for that configuration. It is asserted in `the_folder_browser_hands_a_typed_password_to_the_backend_and_never_shows_it` (`secret s1 typed save=false`).
 
-**Check connection**
+## Other changes beyond the drafts
 
-- `src-tauri/src/commands/http.rs:84` `proxy_check_connection` calls `ide_http::client::check_connection`. `general_http_proxy::backend_checker` calls the same function on the backend runtime.
-- I added `ide-http` as a path dependency. `Cargo.lock` gains only the line `"ide-http"` in openidea-gpui's dependency list; no new package (diffed against a copy taken before).
-- The test build has no checker unless a test sets `ConnectionCheck` (test `without_a_checker_given_the_test_build_has_none`). No test makes a request.
+- **Shared module:** `settings_view/pages/ssh_backend.rs` holds `on_backend`, `HostTrust`, `SecretSetter`, `backend_trust_host()` and `backend_set_secret()`. All three pages use it, replacing three copies.
+- **Deployment Test Connection:** it is now `Option<Tester>`, and a test build has none unless a test installs one, as on the SSH page. Proven by `a_test_build_has_no_test_connection_of_its_own`.
+- **Deployment password field:** it takes the keyboard when it appears. Asserted in the view test.
+- **SSH Trust Host and Retry:** the button was drawn outside the dialog (measured at x=1460 against OK's right edge at 1433). The row now wraps, as the webview's `inlineRow` does.
+- **Page reset on show/hide:** measured in the real window, Deployment shown after another page had no server selected, because its view is built with the dialog. All three pages now reset when the dialog shows or leaves them.
+- Hypothesis: the webview remounts the page only on page change, not on a scope toggle. Natively, the selection now follows the page shown, not the scope.
 
-**Toolchain seam**
+## Hypotheses, and which way they went
 
-- `build_sdk_field::detector` returns nothing in the test build without `SdkDetection` (test `a_test_build_without_a_detection_of_its_own_finds_nothing`).
+- **Compile risks in the notes:** all settled; the drafts compiled.
+- **Focus after a secret remedy (SSH):** passed.
+- **"Cannot connect" prefix:** passed.
+- **Dialog-row clicks:** `settings-ssh-trust` needed scrolling into view and the row fix above.
+- **`syncBeforeRun`:** settled, nothing to fix.
+  - Measured natively: the backend loads a missing value as `false` and the page shows it unchecked.
+  - Webview, by reading: its base is `commands.settingsGet()` (`project.ts:88`), the same typed settings, so also `false`. The draft's `read_target` default of `true` only applies to hand-staged values.
+- **Strings:** English is the literal text, and other catalogs are keyed by it (`ko.json:2376`, `fr.json:2216`). The native pages go through `controls::tx` → `Localization::tx`, as their neighbours do.
 
-**Updates**
+## Left out
 
-- The webview registers `app.checkForUpdates` only when the build has an updater endpoint. Its handler and `app_update_status` are Tauri-only (`src-tauri/src/commands/window.rs:453,490`), so the native page stays hidden.
-- No stub was added to production code.
+- **Remote folder chooser (Deployment, `deployment.tsx:101-237`):** not built. The natural base is Run Targets' `folder.rs` browser (435 lines), generalised to take `FsConnection::Local` as well as SFTP; that is over the 300-line bound.
+- **Chooser title and start folder:** GPUI's `PathPromptOptions` has neither (`gpui-pre-0.3.12/src/platform.rs:2935-2944`).
+- **Spinner:** the crate has none; Deployment shows a muted icon.
 
-**Issue Navigation**
+## Stale or false inputs found
 
-- Patterns are checked with the `regex` crate, which commit-message linking also uses (`vcs_more/issue_links.rs`).
-- Measured (`look_around_and_backreferences_are_invalid_patterns`): `(?=…)`, `(?<=…)`, `(?!…)` and `\1` are flagged invalid; `(?<name>…)` is accepted.
-- Hypothesis: JavaScript's RegExp accepts all four.
+- `app-gpui/src/settings_model/remote_settings.rs` does not exist; it is `app-gpui/src/platform_more/remote_settings.rs`.
+- The notes' reason for `ipc:ssh_trust_host` being partial ("would read the user's `known_hosts`") no longer holds after Part 0.
+- The SSH notes say Run Targets "not started", which is stale.
+- The Run Targets notes put the `syncBeforeRun` fix in `ide-core`; no fix is needed.
 
-**Changes made against the webview source**
+## Shots
 
-- Date Formats (`behavior.tsx:476`): a blank pattern now snaps back to the stored one, where the draft flagged it.
-- Proxy (`httpProxy.tsx:129`, NumberInput `Form.tsx:155`): Up/Down step the port.
-- Paths and thread count are stored trimmed (`LanguagePages.tsx:47,616`), via a new `FieldKind::Trimmed`.
-- Path Browse is now a folder icon with a "Browse…" tooltip; Detect again has its tooltip.
-- CMake (`cmake.tsx:118`): Build type and Generator suggestions added. CMake and External Tools toolbar tooltips added.
-- Actions on Save (`tools.tsx:343`): the trailing "." after the link. `Part::Link` gained `after`, and the sentence now wraps (it was cut off in the window).
-- Directory Mappings: full width, root shown in a tooltip.
-- Proxy: the Check connection button no longer stretches across the page.
+All under `$S/insp8/shots/`. Cropped copies are in `…/scratchpad/dseti/crops5/` and `…/scratchpad/dseti/crops6/`. I describe only the shots I opened.
 
-**Real window** (final binary; temp `OPENIDEA_GPUI_HOME`, `HOME`, `ZDOTDIR` and project; stopped by PID)
+- **SSH Configurations:**
+  - `dseti1-06-ssh-empty-dark-1.png`: empty list, "No SSH configurations. Click + to add one." It is actually light; the `dseti1` labels lag one step.
+  - `dseti2-07-ssh-added-dark-1.png`: dark, SSH 1 added with OpenSSH placeholders and the OpenSSH note.
+  - `dseti3-03-ssh-auth-open-light-1.png`: the authentication drop-down open over the page.
+  - `dseti5-14-ssh-keypair-dark-1.png`: dark, key pair with Private key file, Passphrase and the red Port.
+- **Deployment:**
+  - `dseti1-01-…png`: the empty Deployment page, light ("No servers…" and the SFTP note).
+  - `dseti3-01-deployment-local-connection-light-1.png`: local server on the Connection tab.
+  - `dseti5-05-deployment-test-local-light-1.png`: "Connected successfully" in green.
+  - `dseti5-06-deployment-mappings-light-1.png`: the mapping row.
+  - `dseti5-07-deployment-excluded-light-1.png`: "cache", "logs".
+  - `dseti6-08-deployment-test-missing-light-1.png`: "Folder does not exist: …/missing" in red.
+  - `dseti6-13-deployment-dark-1.png`: dark, the result gone after leaving and returning to the page.
+- **Run Targets:**
+  - `dseti3-02-runtargets-three-light-1.png`: the page opens on Global, empty.
+  - `dseti5-11-runtargets-compose-light-1.png`: the Compose target's fields and hints.
+- **Pre-fix, kept as evidence:**
+  - `dseti4-05-…png`: Deployment with no server selected.
+  - `dseti4-10-…png`: a misclick left the SSH target selected; it shows "ssh-demo (missing)", Browse… enabled and Upload ticked.
+  - `dseti4-02/04-…png`: SSH Password and Port 70000 flagged red.
+- **Captured but not opened:** `dseti2-01..06` and `dseti5-01/02/03/09/10/12`.
 
-- Ten pages shot, in `$S/dseta/insp/shots/f-*.png`.
-- Each was looked at in this window: nothing over another control, labels end in one colon, every page fits or scrolls.
-- What was cut and fixed: the Actions on Save note, the stretched Check connection button and the narrow mappings table.
-- Directory Mappings cuts a long root path at the edge, as the webview's ellipsis cell does; the full path is in the tooltip.
-- The Maven page is taller than the dialog; the Maven e2e test now scrolls to Maven Daemon home path.
-- No button was pressed. Drawing Gradle and Maven runs the backend's SDK detection, as the webview does on mount. Hypothesis from reading `ide-sdk/src/discover.rs` and `java.rs`: it reads PATH (`which mvn`), system folders and the temp HOME's folders, and runs no program.
+## Files edited
 
-## 3. Rows
+- **`app-gpui`:**
+  - `src/backend.rs`, `src/settings_view/custom_controls.rs`, `src/settings_view/pages/mod.rs`, `src/workbench/mod.rs`
+  - new: `src/settings_view/pages/ssh_backend.rs`
+  - SSH: `src/settings_view/pages/tools_ssh.rs`, `tools_ssh/form.rs`, `tools_ssh/proofs29_ssh_view.rs` (formatted only), `src/workbench/tests/proofs29_settings_ssh.rs`
+  - Deployment: `build_deployment.rs`, `build_deployment/connection.rs`, `build_deployment/paths.rs` (formatted only), `build_deployment/proofs28_deployment_view.rs`, `src/workbench/tests/proofs28_settings_deployment.rs`
+  - Run Targets: `build_run_targets.rs`, `build_run_targets/sources.rs`, `build_run_targets/folder.rs`, `build_run_targets/form.rs` (formatted only), `build_run_targets/proofs30_run_targets_view.rs`, `src/workbench/tests/proofs30_settings_run_targets.rs`
+- **`crates/`:** `crates/ide-host/src/lib.rs` and new `crates/ide-host/tests/ssh_files.rs`.
 
-R&C below is `reset_and_cancel_discard_an_edit_on_each_kind_of_page`; P is `workbench::tests::proofs19_settings_misc`.
-
-| Row                            | State                                                    | Proving tests                                                                                                 | Missing                                                                                                                                                          |
-| ------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `settings:general.dateFormats` | done                                                     | P::date_formats_override_and_pattern_apply, R&C, `general_date_formats::tests::*`                             | —                                                                                                                                                                |
-| `settings:general.httpProxy`   | partial                                                  | P::http_proxy_manual_configuration_applies_and_the_password_stays_secret, R&C, `general_http_proxy::tests::*` | Hypothesis: the real checker works. It is compiled but never run; check by a manual Check connection in the app. The URL prompt is an inline panel, not a popup. |
-| `settings:general.updates`     | partial                                                  | P::updates_status_check_now_and_the_automatic_check_apply, R&C                                                | Page hidden in the app: no native updater action or status source.                                                                                               |
-| `settings:editor.files`        | done                                                     | P::file_types_patterns_and_ignored_names_are_written_to_the_project, R&C, `editor_files::tests::*`            | —                                                                                                                                                                |
-| `settings:build.cmake`         | done                                                     | P::cmake_profile_settings_are_written_to_the_project, R&C, `build_cmake::tests::*`                            | —                                                                                                                                                                |
-| `settings:build.gradle`        | partial                                                  | P::gradle_jvm_distribution_and_home_are_written_to_the_project, R&C, `build_gradle::tests::*`                 | Download JDK… (excluded by the brief).                                                                                                                           |
-| `settings:build.maven`         | partial                                                  | P::maven_home_and_thread_count_are_written_to_the_project, R&C, `build_maven::tests::*`                       | Download JDK….                                                                                                                                                   |
-| `settings:tools.actionsOnSave` | done                                                     | P::actions_on_save_are_written_to_the_project, R&C, `tools_actions_on_save::tests::*`                         | —                                                                                                                                                                |
-| `settings:tools.externalTools` | done                                                     | P::external_tools_a_tool_added_applies, R&C, `tools_external_tools::tests::*`                                 | —                                                                                                                                                                |
-| `settings:vcs.mappings`        | done (read-only page, nothing to apply, reset or cancel) | P::directory_mappings_show_the_project_root, P::directory_mappings_map_a_repository_root_to_git               | —                                                                                                                                                                |
-| `settings:vcs.issueNavigation` | done                                                     | P::issue_navigation_links_are_written_to_the_project, R&C, `vcs_issue_navigation::tests::*`                   | —                                                                                                                                                                |
-
-No IPC row is claimed. `sdk_detect` and `proxy_check_connection` are proven only through fakes, and the File Types list comes from `host.languages.all()`, the same source as the `languages` command.
-
-## 4. Unmeasured
-
-Everything marked "Hypothesis:" above.
-
-## 5. False or stale in notes and briefs
-
-- The misc notes say Check connection needs a new dependency and the row stays partial; the dependency adds no lock package and is now wired.
-- The notes list the blank date pattern being flagged and kept as matching the page; the webview snaps it back.
-- They expect the port not staged while typing "70000"; the webview stages each valid prefix.
-- The `build_sdk_field.rs` doc comment said detection "may run `java_home`"; reading the code found no execution, so the comment is corrected.
-- `docs/gpui-port/notes/reports/int_settings_b_brief.md` shows a 4-line diff ("Part 0: proofs21") that is not mine; I did not touch `docs/`.
-- For integration B: `Part::Link` gained an `after` field and pages `FieldKind` gained `Trimmed`. A read-only grep of `languages_*.rs` finds no `Part::Link` and only `FieldKind::Text`, so nothing there breaks. Its `.browse(true)` at `languages_pages.rs:557` will now draw the folder icon.
-
-Nothing was committed.
+No process of mine is left. The one other matching process (PID 86105, a loop in `~/hm-dataset`) belongs to another session and was not touched.

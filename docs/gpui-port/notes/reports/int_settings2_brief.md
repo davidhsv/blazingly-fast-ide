@@ -30,7 +30,9 @@ The webview's pages: Project Trust `src/features/project-trust/index.tsx` (`Trus
 
 ## Changed since the notes were written
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on the tree at ee441bf1 while the code preview integration was in flight; the hunks anchor on `workbench/mod.rs`, `workbench/settings_window.rs`, `settings_view/pages/mod.rs` and `workbench/todo_window.rs`. Say here which changed.
+The notes were written on the tree at ee441bf1. Since then the code previews with Save All, the gutter content and three Settings pages (SSH Configurations, Deployment servers, Run Targets) landed. Measured at launch (`git diff --numstat ee441bf1` over the existing files the hunks anchor on): changed are `workbench/mod.rs` (+87 −15), `settings_view/pages/mod.rs` (+4: the three pages' `pub mod` lines and a shared `ssh_backend`), `workbench/todo_window.rs` (+26 −14: its preview of a TODO item now closes the document it opened and lets a late answer go) and `settings_view/custom_controls.rs` (+27: the three pages' editors installed in `install()`); unchanged are `workbench/settings_window.rs` and `features_a/todo.rs`. Re-anchor every hunk from its quoted text and read the place before you edit it. The three pages that just landed reset themselves when the dialog shows or leaves them (read how in `settings_view/pages/tools_ssh.rs`) and their tests are in `workbench/tests/proofs28_*` to `proofs30_*`: use the same way for a page that must refresh when shown.
+
+Other agents' undeclared drafts now in the tree, not yours: `app-gpui/src/settings_view/pages/editor_postfix_completion.rs`, `editor_live_templates.rs`, `editor_live_templates/`, `editor_file_templates.rs`, `editor_file_templates/`, `app-gpui/src/templates/files_store.rs`, `expand.rs`, `chooser_view.rs`, `proofs33_*`, `app-gpui/src/workbench/settings_template_pages.rs`, `editor_templates.rs`, every `proofs32_*` and `proofs33_*` test file, `workbench/tests/proofs26_code_preview_pending.rs`, `platform/error_log_sink.rs`.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
