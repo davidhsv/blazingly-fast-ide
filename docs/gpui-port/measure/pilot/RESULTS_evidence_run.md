@@ -249,73 +249,73 @@ The sum of each process's lifetime maximum footprint is no longer given: in the 
 
 ## Timings and cross-checks
 
-| what                                                                                                         | native | Tauri |
-| ------------------------------------------------------------------------------------------------------------ | ------ | ----- |
-| cold: /usr/bin/time -l, app process only: maxrss_mib                                                         | 68.9   | 136.1 |
-| cold: /usr/bin/time -l, app process only: peak_footprint_mib                                                 | 100.7  | 47.7  |
-| cold: /usr/bin/time -l, app process only: real_s                                                             | 40.1   | 40.2  |
-| cold: /usr/bin/time -l, app process only: sys_s                                                              | 0.2    | 0.2   |
-| cold: /usr/bin/time -l, app process only: user_s                                                             | 0.2    | 0.3   |
-| project: /usr/bin/time -l, app process only: maxrss_mib                                                      | 410.2  | 514.6 |
-| project: /usr/bin/time -l, app process only: peak_footprint_mib                                              | 333.6  | 391.5 |
-| project: /usr/bin/time -l, app process only: real_s                                                          | 468.0  | 504.2 |
-| project: /usr/bin/time -l, app process only: sys_s                                                           | 4.5    | 12.0  |
-| project: /usr/bin/time -l, app process only: user_s                                                          | 19.6   | 27.6  |
-| wait (s) cold: a window is on screen                                                                         | 0.6    | 0.3   |
-| wait (s) cold: cold start: CPU < 3% of a core for 5 s                                                        | 6.1    | 7.1   |
-| wait (s) project: a window is on screen                                                                      | 0.3    | 0.3   |
-| wait (s) project: back in Blaze mode: CPU < 10% of a core for 10 s                                           | 10.2   | 10.1  |
-| wait (s) project: deep mode: CPU < 10% of a core for 10 s                                                    | 10.1   | 12.1  |
-| wait (s) project: file search File01.java: CPU < 10% of a core for 2 s           | 2.0    | 3.0   |
+| what                                                                   | native | Tauri |
+| ---------------------------------------------------------------------- | ------ | ----- |
+| cold: /usr/bin/time -l, app process only: maxrss_mib                   | 68.9   | 136.1 |
+| cold: /usr/bin/time -l, app process only: peak_footprint_mib           | 100.7  | 47.7  |
+| cold: /usr/bin/time -l, app process only: real_s                       | 40.1   | 40.2  |
+| cold: /usr/bin/time -l, app process only: sys_s                        | 0.2    | 0.2   |
+| cold: /usr/bin/time -l, app process only: user_s                       | 0.2    | 0.3   |
+| project: /usr/bin/time -l, app process only: maxrss_mib                | 410.2  | 514.6 |
+| project: /usr/bin/time -l, app process only: peak_footprint_mib        | 333.6  | 391.5 |
+| project: /usr/bin/time -l, app process only: real_s                    | 468.0  | 504.2 |
+| project: /usr/bin/time -l, app process only: sys_s                     | 4.5    | 12.0  |
+| project: /usr/bin/time -l, app process only: user_s                    | 19.6   | 27.6  |
+| wait (s) cold: a window is on screen                                   | 0.6    | 0.3   |
+| wait (s) cold: cold start: CPU < 3% of a core for 5 s                  | 6.1    | 7.1   |
+| wait (s) project: a window is on screen                                | 0.3    | 0.3   |
+| wait (s) project: back in Blaze mode: CPU < 10% of a core for 10 s     | 10.2   | 10.1  |
+| wait (s) project: deep mode: CPU < 10% of a core for 10 s              | 10.1   | 12.1  |
+| wait (s) project: file search File01.java: CPU < 10% of a core for 2 s | 2.0    | 3.0   |
 | wait (s) project: file search File02.java: CPU < 10% of a core for 2 s | 2.0    | 2.0   |
-| wait (s) project: file search File03.java: CPU < 10% of a core for 2 s                  | 2.0    | 3.0   |
-| wait (s) project: file search File04.java: CPU < 10% of a core for 2 s                            | 2.0    | 2.0   |
-| wait (s) project: file search File05.java: CPU < 10% of a core for 2 s                                 | 2.0    | 3.0   |
-| wait (s) project: file search File06.java: CPU < 10% of a core for 2 s                            | 2.0    | 3.0   |
-| wait (s) project: file search File07.java: CPU < 10% of a core for 2 s                          | 2.0    | 3.0   |
-| wait (s) project: file search File08.java: CPU < 10% of a core for 2 s                    | 2.0    | 2.0   |
-| wait (s) project: file search File09.java: CPU < 10% of a core for 2 s                       | 2.0    | 2.0   |
-| wait (s) project: file search File10.java: CPU < 10% of a core for 2 s                          | 2.0    | 3.0   |
-| wait (s) project: find closed: CPU < 10% of a core for 5 s                                                   | 5.1    | 5.1   |
-| wait (s) project: find preview: CPU < 10% of a core for 5 s                                                  | 5.1    | 5.0   |
-| wait (s) project: find results: CPU < 10% of a core for 5 s                                                  | 6.1    | 7.1   |
-| wait (s) project: git log hidden: CPU < 10% of a core for 5 s                                                | 5.1    | 5.1   |
-| wait (s) project: git log: CPU < 10% of a core for 5 s                                                       | 5.1    | 5.0   |
-| wait (s) project: log: index finished                                                                        | 3.0    | 3.0   |
-| wait (s) project: log: opened <project>                                                                      | 0.0    | 0.8   |
-| wait (s) project: opened File01.java: CPU < 10% of a core for 2 s                | 2.0    | 4.0   |
+| wait (s) project: file search File03.java: CPU < 10% of a core for 2 s | 2.0    | 3.0   |
+| wait (s) project: file search File04.java: CPU < 10% of a core for 2 s | 2.0    | 2.0   |
+| wait (s) project: file search File05.java: CPU < 10% of a core for 2 s | 2.0    | 3.0   |
+| wait (s) project: file search File06.java: CPU < 10% of a core for 2 s | 2.0    | 3.0   |
+| wait (s) project: file search File07.java: CPU < 10% of a core for 2 s | 2.0    | 3.0   |
+| wait (s) project: file search File08.java: CPU < 10% of a core for 2 s | 2.0    | 2.0   |
+| wait (s) project: file search File09.java: CPU < 10% of a core for 2 s | 2.0    | 2.0   |
+| wait (s) project: file search File10.java: CPU < 10% of a core for 2 s | 2.0    | 3.0   |
+| wait (s) project: find closed: CPU < 10% of a core for 5 s             | 5.1    | 5.1   |
+| wait (s) project: find preview: CPU < 10% of a core for 5 s            | 5.1    | 5.0   |
+| wait (s) project: find results: CPU < 10% of a core for 5 s            | 6.1    | 7.1   |
+| wait (s) project: git log hidden: CPU < 10% of a core for 5 s          | 5.1    | 5.1   |
+| wait (s) project: git log: CPU < 10% of a core for 5 s                 | 5.1    | 5.0   |
+| wait (s) project: log: index finished                                  | 3.0    | 3.0   |
+| wait (s) project: log: opened <project>                                | 0.0    | 0.8   |
+| wait (s) project: opened File01.java: CPU < 10% of a core for 2 s      | 2.0    | 4.0   |
 | wait (s) project: opened File02.java: CPU < 10% of a core for 2 s      | 2.0    | 3.0   |
-| wait (s) project: opened File03.java: CPU < 10% of a core for 2 s                       | 2.0    | 4.1   |
-| wait (s) project: opened File04.java: CPU < 10% of a core for 2 s                                 | 2.0    | 4.0   |
-| wait (s) project: opened File05.java: CPU < 10% of a core for 2 s                                      | 2.0    | 4.1   |
-| wait (s) project: opened File06.java: CPU < 10% of a core for 2 s                                 | 2.0    | 4.0   |
-| wait (s) project: opened File07.java: CPU < 10% of a core for 2 s                               | 2.0    | 3.0   |
-| wait (s) project: opened File08.java: CPU < 10% of a core for 2 s                         | 2.0    | 4.0   |
-| wait (s) project: opened File09.java: CPU < 10% of a core for 2 s                            | 2.0    | 4.1   |
-| wait (s) project: opened File10.java: CPU < 10% of a core for 2 s                               | 2.0    | 3.0   |
-| wait (s) project: project open: CPU < 3% of a core for 10 s                                                  | 10.1   | 11.1  |
-| wait (s) project: scrolled File01.java: CPU < 10% of a core for 3 s              | 3.0    | 6.1   |
+| wait (s) project: opened File03.java: CPU < 10% of a core for 2 s      | 2.0    | 4.1   |
+| wait (s) project: opened File04.java: CPU < 10% of a core for 2 s      | 2.0    | 4.0   |
+| wait (s) project: opened File05.java: CPU < 10% of a core for 2 s      | 2.0    | 4.1   |
+| wait (s) project: opened File06.java: CPU < 10% of a core for 2 s      | 2.0    | 4.0   |
+| wait (s) project: opened File07.java: CPU < 10% of a core for 2 s      | 2.0    | 3.0   |
+| wait (s) project: opened File08.java: CPU < 10% of a core for 2 s      | 2.0    | 4.0   |
+| wait (s) project: opened File09.java: CPU < 10% of a core for 2 s      | 2.0    | 4.1   |
+| wait (s) project: opened File10.java: CPU < 10% of a core for 2 s      | 2.0    | 3.0   |
+| wait (s) project: project open: CPU < 3% of a core for 10 s            | 10.1   | 11.1  |
+| wait (s) project: scrolled File01.java: CPU < 10% of a core for 3 s    | 3.0    | 6.1   |
 | wait (s) project: scrolled File02.java: CPU < 10% of a core for 3 s    | 3.1    | 3.0   |
-| wait (s) project: scrolled File03.java: CPU < 10% of a core for 3 s                     | 3.0    | 4.1   |
-| wait (s) project: scrolled File04.java: CPU < 10% of a core for 3 s                               | 3.0    | 3.0   |
-| wait (s) project: scrolled File05.java: CPU < 10% of a core for 3 s                                    | 3.0    | 4.0   |
-| wait (s) project: scrolled File06.java: CPU < 10% of a core for 3 s                               | 3.1    | 5.1   |
-| wait (s) project: scrolled File07.java: CPU < 10% of a core for 3 s                             | 3.1    | 5.0   |
-| wait (s) project: scrolled File08.java: CPU < 10% of a core for 3 s                       | 3.0    | 4.0   |
-| wait (s) project: scrolled File09.java: CPU < 10% of a core for 3 s                          | 3.0    | 5.1   |
-| wait (s) project: scrolled File10.java: CPU < 10% of a core for 3 s                             | 3.1    | 4.0   |
-| wait (s) project: settings.toml no longer says mode = "full"                                                 | 0.0    | 0.0   |
-| wait (s) project: settings.toml says mode = "full"                                                           | 0.0    | 0.0   |
-| wait (s) project: title ends with ' – File01.java'                               | 0.0    | 0.0   |
+| wait (s) project: scrolled File03.java: CPU < 10% of a core for 3 s    | 3.0    | 4.1   |
+| wait (s) project: scrolled File04.java: CPU < 10% of a core for 3 s    | 3.0    | 3.0   |
+| wait (s) project: scrolled File05.java: CPU < 10% of a core for 3 s    | 3.0    | 4.0   |
+| wait (s) project: scrolled File06.java: CPU < 10% of a core for 3 s    | 3.1    | 5.1   |
+| wait (s) project: scrolled File07.java: CPU < 10% of a core for 3 s    | 3.1    | 5.0   |
+| wait (s) project: scrolled File08.java: CPU < 10% of a core for 3 s    | 3.0    | 4.0   |
+| wait (s) project: scrolled File09.java: CPU < 10% of a core for 3 s    | 3.0    | 5.1   |
+| wait (s) project: scrolled File10.java: CPU < 10% of a core for 3 s    | 3.1    | 4.0   |
+| wait (s) project: settings.toml no longer says mode = "full"           | 0.0    | 0.0   |
+| wait (s) project: settings.toml says mode = "full"                     | 0.0    | 0.0   |
+| wait (s) project: title ends with ' – File01.java'                     | 0.0    | 0.0   |
 | wait (s) project: title ends with ' – File02.java'                     | 0.0    | 0.0   |
-| wait (s) project: title ends with ' – File03.java'                                      | 0.0    | 0.0   |
-| wait (s) project: title ends with ' – File04.java'                                                | 0.0    | 0.0   |
-| wait (s) project: title ends with ' – File05.java'                                                     | 0.0    | 0.0   |
-| wait (s) project: title ends with ' – File06.java'                                                | 0.0    | 0.0   |
-| wait (s) project: title ends with ' – File07.java'                                              | 0.0    | 0.0   |
-| wait (s) project: title ends with ' – File08.java'                                        | 0.0    | 0.0   |
-| wait (s) project: title ends with ' – File09.java'                                           | 0.0    | 0.0   |
-| wait (s) project: title ends with ' – File10.java'                                              | 0.0    | 0.3   |
+| wait (s) project: title ends with ' – File03.java'                     | 0.0    | 0.0   |
+| wait (s) project: title ends with ' – File04.java'                     | 0.0    | 0.0   |
+| wait (s) project: title ends with ' – File05.java'                     | 0.0    | 0.0   |
+| wait (s) project: title ends with ' – File06.java'                     | 0.0    | 0.0   |
+| wait (s) project: title ends with ' – File07.java'                     | 0.0    | 0.0   |
+| wait (s) project: title ends with ' – File08.java'                     | 0.0    | 0.0   |
+| wait (s) project: title ends with ' – File09.java'                     | 0.0    | 0.0   |
+| wait (s) project: title ends with ' – File10.java'                     | 0.0    | 0.3   |
 
 ## CPU self-check
 
