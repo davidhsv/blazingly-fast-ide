@@ -1,0 +1,148 @@
+diff --color -u dmeasure/scripts/build.sh dmrun/scripts/build.sh
+--- dmeasure/scripts/build.sh	2026-11-17 13:41:16
++++ dmrun/scripts/build.sh	2026-11-17 14:57:32
+@@ -1,21 +1,37 @@
+ #!/bin/sh
+-# usage: build.sh <base> [--dry-run]
+-# Exports HEAD of the worktree into <base>/src (git archive: the index, the tree and the stash are
++# usage: build.sh <base> [--dry-run]     (BUILD_COMMIT=<rev> selects the commit; default HEAD)
++# Exports one commit of the worktree into <base>/src (git archive: the index, the tree and the stash are
+ # not touched), builds both release binaries from that one export, and writes <base>/config.json.
+ # Nothing is fetched: pnpm and cargo run offline against their caches and the lock files.
+ set -eu
+ WT=/Users/davidvieira/code/openidea-bazel-work/openidea/.claude/worktrees/agent-a307dd904b5ae1f01
++here=$(cd "$(dirname "$0")" && pwd)
+ base=${1:?usage: build.sh <base> [--dry-run]}
+ dry=${2:-}
+ case "$base" in /private/tmp/openidea-measure-[A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9]*) ;; *) echo "base must be /private/tmp/openidea-measure-<random>"; exit 2;; esac
+ run() { if [ "$dry" = --dry-run ]; then echo "[dry-run] $*"; else echo "+ $*"; sh -c "$*"; fi; }
++# Free space on the data volume: logged before each build; under $1 GiB is a no-go.
++disk() {
++  echo "df $(date '+%F %T'): $(df -k /System/Volumes/Data | tail -1)"
++  free_gib=$(df -g /System/Volumes/Data | awk 'NR==2 {print $4}')
++  echo "free on /System/Volumes/Data: ${free_gib} GiB"
++  [ "$free_gib" -ge "$1" ] || { echo "no-go: less than $1 GiB free"; exit 2; }
++}
+ 
+-head=$(git -C "$WT" rev-parse HEAD)
+-echo "commit $head"
+-free_gib=$(df -g /private/tmp | awk 'NR==2 {print $4}')
+-echo "free on /private/tmp: ${free_gib} GiB"
+-[ "$free_gib" -ge 80 ] || { echo "no-go: less than 80 GiB free (both release targets, the export and node_modules)"; exit 2; }
++head=$(git -C "$WT" rev-parse --verify "${BUILD_COMMIT:-HEAD}^{commit}")
++echo "commit $head (worktree HEAD $(git -C "$WT" rev-parse HEAD))"
++disk 80
+ 
++# pnpm 10.34.9 (the version that installed the worktree's node_modules; the pnpm on PATH is 9, which
++# refuses this pnpm-workspace.yaml) from the corepack cache, through a shim that is also what
++# tauri's beforeBuildCommand ("pnpm build") finds on PATH. The store is the one the worktree uses
++# (from /private/tmp pnpm would otherwise pick an empty /private/tmp/.pnpm-store).
++SHIM_DIR=${SHIM_DIR:-$(cd "$here/../bin" 2>/dev/null && pwd || echo "")}
++[ -x "$SHIM_DIR/pnpm" ] || { echo "no-go: no pnpm shim at $SHIM_DIR/pnpm"; exit 2; }
++export PATH="$SHIM_DIR:$PATH"
++STORE=/Users/davidvieira/.pnpm-store
++echo "pnpm $(pnpm -v), store $(cd /private/tmp && pnpm store path --store-dir "$STORE")"
++
+ run "mkdir -p '$base/src'"
+ run "git -C '$WT' archive --format=tar '$head' | tar -x -C '$base/src'"
+ run "printf '%s\n' '$head' > '$base/src/COMMIT'"
+@@ -26,14 +42,22 @@
+ if [ "$dry" = --dry-run ]; then echo "[dry-run] write $base/measure.tauri.conf.json: $conf"; else printf '%s\n' "$conf" > "$base/measure.tauri.conf.json"; fi
+ 
+ # Frontend dependencies from the pnpm store only (fails rather than downloads).
+-run "cd '$base/src' && CI=1 pnpm install --offline --frozen-lockfile"
++# Each build writes its log to a file (no pipe into tee, whose status would hide a failed build from set -e).
++run "cd '$base/src' && CI=1 pnpm install --offline --frozen-lockfile --store-dir '$STORE' > '$base/pnpm-install.log' 2>&1"
+ # tauri build: runs beforeBuildCommand (pnpm build: tsc, vite build, check-webkit) and builds the
+ # release binary with the frontend embedded; --no-bundle: no .app, so nothing registers with
+ # Launch Services (no file associations, no second "Blazingly Fast IDE" for open -a).
+-run "cd '$base/src' && CARGO_NET_OFFLINE=true pnpm tauri build --no-bundle --config '$base/measure.tauri.conf.json' -- --locked 2>&1 | tee '$base/build-tauri.log'"
++disk 80
++t0=$(date +%s)
++run "cd '$base/src' && CARGO_NET_OFFLINE=true pnpm tauri build --no-bundle --config '$base/measure.tauri.conf.json' -- --locked > '$base/build-tauri.log' 2>&1"
++echo "tauri build: $(( $(date +%s) - t0 )) s"
+ # The native app with its own release profile (fat LTO; the root workspace uses thin LTO).
+ # For equal LTO set CARGO_PROFILE_RELEASE_LTO=thin here: a decision for the manager (DESIGN.md).
+-run "cd '$base/src/app-gpui' && CARGO_NET_OFFLINE=true cargo build --release --locked --bin openidea-gpui 2>&1 | tee '$base/build-native.log'"
++disk 80
++t0=$(date +%s)
++run "cd '$base/src/app-gpui' && CARGO_NET_OFFLINE=true cargo build --release --locked --bin openidea-gpui > '$base/build-native.log' 2>&1"
++echo "native build: $(( $(date +%s) - t0 )) s"
++disk 40
+ 
+ tauri_bin="$base/src/target/release/openidea"
+ native_bin="$base/src/app-gpui/target/release/openidea-gpui"
+@@ -42,15 +66,21 @@
+   # Gate: the identity compiled into the Tauri binary (embedded Info.plist, if any, and the config).
+   launchctl plist __TEXT,__info_plist "$tauri_bin" > "$base/tauri-info-plist.txt" 2>&1 || true
+   grep -q 'ai.l0ng.openidea.measure' "$base/tauri-info-plist.txt" && echo "embedded Info.plist: ai.l0ng.openidea.measure" || echo "note: no embedded Info.plist naming the measure identifier (see DESIGN.md, risk R3)"
+-  if grep -q '"ai.l0ng.openidea"' "$base/tauri-info-plist.txt"; then echo "no-go: the binary carries the owner's identifier"; exit 1; fi
+-  strings "$tauri_bin" | grep -c 'ai.l0ng.openidea.measure' > "$base/tauri-identifier-count.txt" || true
++  # The owner's identifier as a whole value, in the old-style ("...") and the XML (<string>...</string>) forms.
++  if grep -qE '"ai\.l0ng\.openidea"|>ai\.l0ng\.openidea<' "$base/tauri-info-plist.txt"; then echo "no-go: the binary carries the owner's identifier"; exit 1; fi
++  strings -a "$tauri_bin" | grep -c 'ai.l0ng.openidea.measure' > "$base/tauri-identifier-count.txt" || true
+   [ "$(cat "$base/tauri-identifier-count.txt")" -ge 1 ] || { echo "no-go: identifier ai.l0ng.openidea.measure not found in the binary"; exit 1; }
+-  python3 -I "$(dirname "$0")/lockdiff.py" "$base/src/Cargo.lock" "$base/src/app-gpui/Cargo.lock" > "$base/lockdiff.txt"
++  # For the report: every string naming ai.l0ng.openidea other than as the measure identifier
++  # (keychain service prefixes are expected there, DESIGN.md part 3); and the same for the native binary.
++  strings -a "$tauri_bin" | grep 'ai\.l0ng\.openidea' | grep -v 'ai\.l0ng\.openidea\.measure' | sort | uniq -c > "$base/tauri-other-identifier-strings.txt" || true
++  strings -a "$native_bin" | grep 'ai\.l0ng\.openidea' | sort | uniq -c > "$base/native-identifier-strings.txt" || true
++  python3 -I "$here/lockdiff.py" "$base/src/Cargo.lock" "$base/src/app-gpui/Cargo.lock" > "$base/lockdiff.txt"
+   shasum -a 256 "$tauri_bin" "$native_bin" > "$base/binaries.sha256"
++  ls -l "$tauri_bin" "$native_bin" > "$base/binaries-ls.txt"
+   du -sh "$base/src/target" "$base/src/app-gpui/target" "$base/src/node_modules" > "$base/disk.txt" 2>&1 || true
+   cat > "$base/config.json" <<EOF
+ {"commit": "$head", "tauri_bin": "$tauri_bin", "native_bin": "$native_bin", "project": "$base/project/Allocadia",
+- "rustc": "$(rustc -V)", "node": "$(node -v)"}
++ "rustc": "$(rustc -V)", "node": "$(node -v)", "pnpm": "$(pnpm -v)"}
+ EOF
+   cat "$base/disk.txt"
+ fi
+diff --color -u dmeasure/scripts/macos.py dmrun/scripts/macos.py
+--- dmeasure/scripts/macos.py	2026-11-17 13:38:53
++++ dmrun/scripts/macos.py	2026-11-17 14:56:02
+@@ -278,7 +278,13 @@
+         asn = subprocess.run(["/usr/bin/lsappinfo", "front"], capture_output=True, text=True, timeout=5).stdout.strip()
+         if not asn:
+             return None
+-        info = subprocess.run(["/usr/bin/lsappinfo", "info", "-only", "pid", asn], capture_output=True, text=True, timeout=5).stdout
++        # `lsappinfo front` prints the low half without its 0x ("ASN:0x0-1a6d06b6:"), a form that
++        # `lsappinfo info` does not resolve (it prints nothing); the canonical form is "ASN:0x0-0x1a6d06b6:".
++        m = re.match(r"^ASN:0x([0-9a-fA-F]+)-(?:0x)?([0-9a-fA-F]+):?$", asn)
++        if not m:
++            return None
++        asn = f"ASN:0x{m.group(1)}-0x{m.group(2)}:"
++        info =subprocess.run(["/usr/bin/lsappinfo", "info", "-only", "pid", asn], capture_output=True, text=True, timeout=5).stdout
+         m = re.search(r"pid\"?\s*=\s*(\d+)", info)
+         return int(m.group(1)) if m else None
+     except (subprocess.SubprocessError, OSError):
+diff --color -u dmeasure/scripts/measure.py dmrun/scripts/measure.py
+--- dmeasure/scripts/measure.py	2026-11-17 13:53:10
++++ dmrun/scripts/measure.py	2026-11-17 15:04:34
+@@ -596,12 +596,21 @@
+ # ------------------------------------------------------------------ campaign helpers
+ 
+ def select_files(project: str, n=10) -> list:
+-    """The n largest .java files of 20-200 KB with a basename unique in the project."""
++    """The n largest .java files of 20-200 KB with a basename unique among the project's files that
++    git does not ignore (tracked plus untracked-not-ignored). A walk of the tree would also see
++    ignored copies such as nested worktrees (.claude/worktrees/* in Allocadia), whose files the
++    apps' Go to File need not list and whose duplicates would make every main-tree name non-unique."""
++    r = subprocess.run(["/usr/bin/git", "-C", project, "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
++                       capture_output=True, env={"PATH": "/usr/bin:/bin", "GIT_OPTIONAL_LOCKS": "0", "GIT_CONFIG_NOSYSTEM": "1",
++                                                 "HOME": "/nonexistent"}, check=True)
+     by_name = {}
+-    for dirpath, dirnames, filenames in os.walk(project):
+-        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith("bazel-")]
+-        for f in filenames:
+-            by_name.setdefault(f, []).append(os.path.join(dirpath, f))
++    for rel in r.stdout.decode("utf-8", "replace").split("\0"):
++        parts = rel.split("/")
++        if not rel or any(p in SKIP_DIRS or p.startswith("bazel-") for p in parts[:-1]):
++            continue
++        path = os.path.join(project, rel)
++        if os.path.isfile(path) and not os.path.islink(path):
++            by_name.setdefault(parts[-1], []).append(path)
+     cands = []
+     for name, paths in by_name.items():
+         if name.endswith(".java") and len(paths) == 1:
