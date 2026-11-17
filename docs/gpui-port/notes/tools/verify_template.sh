@@ -8,6 +8,7 @@ done
 { cargo clippy --all-targets -- -D warnings 2>&1; echo "rc=$?"; } > ${S}/verify_agv_clippy.log
 { cargo build 2>&1; echo "rc=$?"; } > ${S}/verify_agv_build.log
 { (cd .. && node docs/gpui-port/gen-data.mjs --check 2>&1); echo "rc=$?"; } > ${S}/verify_agv_gen.log
+python3 ${S}/reach.py ${W} ${S}/verify_agv_reach.json > ${S}/verify_agv_reach.log 2>&1
 cargo test --lib -- --list > ${S}/listed/lib.txt 2>/dev/null
 grep ': test$' ${S}/listed/lib.txt | sed 's/: test$//' > ${S}/rust_tests.txt
 echo done > ${S}/verify_agv_done
