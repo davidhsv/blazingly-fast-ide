@@ -1,6 +1,7 @@
 //! Reading an agent conversation: quoting, file links, turn times and finding text.
 
 use crate::find::utf16;
+use crate::platform::paths::opens_other_share;
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -82,6 +83,10 @@ pub fn file_href(href: &str, cwd: &str) -> Option<PathLink> {
     let m = SUFFIX.captures(&decoded)?;
     let rel = m.get(1).map(|g| g.as_str()).filter(|rel| !rel.is_empty())?;
     let path = if rel.starts_with('/') { rel.to_owned() } else { joined(cwd, rel) };
+    // The reply is text someone else wrote: it leads to no network share but the task folder's.
+    if opens_other_share(&path, rel, cwd) {
+        return None;
+    }
     let line = m.get(2).or_else(|| m.get(4)).map(|g| zero_based(g.as_str()));
     let col = m.get(3).map(|g| zero_based(g.as_str()));
     Some(PathLink { path, line, col })
@@ -190,6 +195,30 @@ mod tests {
         assert_eq!(path_link("a/b.ts:3:5", cwd), link("/repo/a/b.ts", Some(2), Some(4)));
         assert_eq!(path_link("Cargo.toml", cwd), link("/repo/Cargo.toml", None, None));
         assert_eq!(path_link("/abs/x.py#L7", cwd), link("/abs/x.py", Some(6), None));
+    }
+
+    // src/features/agents/conversation.test.ts › fileHref › names no network share, however the link spells it
+    #[test]
+    fn names_no_network_share_however_the_link_spells_it() {
+        let cwd = "C:/repo";
+        for href in [
+            "//evil/share/x.md",
+            "%2F%2Fevil/share/x.md",
+            "/%2Fevil/share/x.md",
+            "/\\evil/share/x.md",
+            "/%5Cevil/share/x.md",
+            "%5C%5Cevil%5Cshare%5Cx.md",
+        ] {
+            assert_eq!(file_href(href, cwd), None, "{href}");
+        }
+        assert_eq!(file_href("%5Cevil/share/x.md", ""), None, "no task folder");
+        assert_eq!(file_href("docs/a.md", cwd), link("C:/repo/docs/a.md", None, None));
+    }
+
+    // src/features/agents/conversation.test.ts › fileHref › follows links in a task that is on a share
+    #[test]
+    fn follows_links_in_a_task_that_is_on_a_share() {
+        assert_eq!(file_href("docs/a.md", "//nas/work/app"), link("//nas/work/app/docs/a.md", None, None));
     }
 
     #[test]

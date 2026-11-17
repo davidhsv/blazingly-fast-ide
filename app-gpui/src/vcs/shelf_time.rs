@@ -1,5 +1,5 @@
 //! When a shelf was made, as its row in the Shelf tab shows it after the number of files: a list
-//! timestamp in the Date Formats settings ("5 min ago", "Today 09:07 AM", "Nov 3, 2026").
+//! timestamp in the Date Formats settings ("5 min ago", "Today 09:07 AM", "11/03/2026 03:30 PM").
 
 use crate::platform::date_format::{DateFormatOptions, date_format_options};
 use crate::platform::i18n::I18n;
@@ -84,7 +84,8 @@ mod tests {
         assert_eq!(detail(2, 1_793_879_700_000.0, &mut i18n), "2 files · 5 min ago");
         assert_eq!(detail(1, 1_793_869_620_000.0, &mut i18n), "1 file · Today 09:07 AM");
         assert_eq!(detail(1, 1_793_830_200_000.0, &mut i18n), "1 file · Yesterday 10:10 PM");
-        assert_eq!(detail(3, 1_793_719_800_000.0, &mut i18n), "3 files · Nov 3, 2026");
+        // An older shelf keeps its time (src/platform/dateFormat.ts:99, through src/features/vcs/model.ts:137).
+        assert_eq!(detail(3, 1_793_719_800_000.0, &mut i18n), "3 files · 11/03/2026 03:30 PM");
         assert_eq!(detail(2, 0.0, &mut i18n), "2 files");
         assert_eq!(detail(2, f64::NAN, &mut i18n), "2 files");
         let plain = DateFormatOptions { pretty: false, override_system: true, ..DateFormatOptions::default() };

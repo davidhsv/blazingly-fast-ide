@@ -6,6 +6,7 @@
 use super::markdown::percent_decode;
 use super::positions::range_to_offsets;
 use crate::editor::buffer;
+use crate::platform::paths::on_other_share;
 use ide_core::ipc_path::to_ipc;
 use ide_core::{Pos, is_virtual_uri};
 use ide_lsp::types::DocumentLink;
@@ -51,23 +52,27 @@ pub enum Reference {
     },
 }
 
-/// The server link around `offset`.
-pub fn link_reference(doc: &Rope, links: &[DocumentLink], offset: u32) -> Option<Reference> {
-    links.iter().find_map(|link| {
+/// The server link around `offset` in the document at `path`; none to a network share that document
+/// is not on.
+pub fn link_reference(doc: &Rope, links: &[DocumentLink], offset: u32, path: &str) -> Option<Reference> {
+    let link = links.iter().find(|link| {
         let range = range_to_offsets(doc, link.range);
-        if offset < range.start || offset > range.end {
+        range.start <= offset && offset <= range.end
+    })?;
+    let range = range_to_offsets(doc, link.range);
+    if let Some(target) = &link.path {
+        let target = to_ipc(target);
+        if on_other_share(&target, path) {
             return None;
         }
-        if let Some(path) = &link.path {
-            return Some(Reference::File {
-                from: range.start,
-                to: range.end,
-                path: to_ipc(path),
-                fragment: link.fragment.clone(),
-            });
-        }
-        link.url.as_ref().map(|url| Reference::Url { from: range.start, to: range.end, url: url.clone() })
-    })
+        return Some(Reference::File {
+            from: range.start,
+            to: range.end,
+            path: target,
+            fragment: link.fragment.clone(),
+        });
+    }
+    link.url.as_ref().map(|url| Reference::Url { from: range.start, to: range.end, url: url.clone() })
 }
 
 static URL: LazyLock<Regex> =
@@ -401,10 +406,34 @@ mod tests {
             tooltip: None,
         };
         assert_eq!(
-            link_reference(&doc, std::slice::from_ref(&link), 12),
+            link_reference(&doc, std::slice::from_ref(&link), 12, "/p/a.html"),
             Some(Reference::File { from: 9, to: 19, path: "/p/b.html".into(), fragment: Some("top".into()) })
         );
-        assert_eq!(link_reference(&doc, &[link], 2), None);
+        assert_eq!(link_reference(&doc, &[link], 2, "/p/a.html"), None);
+    }
+
+    // src/editor/lsp/links.test.ts › follows no server link to a share the file is not on
+    #[test]
+    fn follows_no_server_link_to_a_share_the_file_is_not_on() {
+        let doc = Rope::from_str("<a href=\"file:////evil/share/b.html\">");
+        let link = |path: &str| DocumentLink {
+            range: Range::new(Pos::new(0, 9), Pos::new(0, 35)),
+            path: Some(path.into()),
+            fragment: None,
+            url: None,
+            tooltip: None,
+        };
+        let evil = link("//evil/share/b.html");
+        assert_eq!(link_reference(&doc, std::slice::from_ref(&evil), 12, "C:/p/a.html"), None);
+        assert_eq!(link_reference(&doc, &[evil], 12, "//nas/work/a.html"), None);
+        assert_eq!(
+            link_reference(&doc, &[link("//nas/work/b.html")], 12, "//NAS/Work/a.html"),
+            Some(Reference::File { from: 9, to: 35, path: "//nas/work/b.html".into(), fragment: None })
+        );
+        assert_eq!(
+            link_reference(&doc, &[link("/p/b.html")], 12, "/p/a.html"),
+            Some(Reference::File { from: 9, to: 35, path: "/p/b.html".into(), fragment: None })
+        );
     }
 
     #[test]

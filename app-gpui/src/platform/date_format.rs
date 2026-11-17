@@ -184,6 +184,17 @@ pub fn format_day(d: CivilDateTime, o: &DateFormatOptions, short: bool) -> Strin
     }
 }
 
+/// A numeric date and time (`11/05/2026 09:07 AM`, or the pattern's date with the override), as IDEA's
+/// `formatDateTime` writes it.
+pub fn format_date_time(d: CivilDateTime, o: &DateFormatOptions) -> String {
+    let day = if o.override_system {
+        format_pattern(d, &o.pattern)
+    } else {
+        format!("{:02}/{:02}/{}", d.month, d.day, d.year)
+    };
+    format!("{day} {}", format_clock(d, o))
+}
+
 /// A timestamp for lists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Timestamp {
@@ -222,12 +233,13 @@ impl Timestamp {
     }
 }
 
-/// Timestamp for lists: pretty ("Today 10:42", "5 min ago") when enabled, else date + time.
+/// Timestamp for lists: pretty ("Today 10:42", "5 min ago") when enabled, else date + time; older dates
+/// keep their time, as IDEA's `formatPrettyDateTime` does.
 /// `ms` and `now_ms` are Unix times; both are shown `utc_offset_minutes` east of UTC.
 pub fn format_timestamp(ms: f64, now_ms: f64, utc_offset_minutes: i32, o: &DateFormatOptions) -> Timestamp {
     let d = CivilDateTime::from_unix_ms(ms, utc_offset_minutes);
     if !o.pretty {
-        return Timestamp::Plain(format!("{} {}", format_day(d, o, false), format_clock(d, o)));
+        return Timestamp::Plain(format_date_time(d, o));
     }
     let (minute, day) = (MINUTE_MS as f64, DAY_MS as f64);
     let diff = now_ms - ms;
@@ -243,7 +255,7 @@ pub fn format_timestamp(ms: f64, now_ms: f64, utc_offset_minutes: i32, o: &DateF
     } else if d.date() == date_at(now_ms - day) {
         Timestamp::Yesterday(format_clock(d, o))
     } else {
-        Timestamp::Plain(format_day(d, o, false))
+        Timestamp::Plain(format_date_time(d, o))
     }
 }
 
@@ -277,6 +289,21 @@ mod tests {
         assert_eq!(format_day(D, &system(), true), "11/05/26");
         assert_eq!(format_clock(D, &system()), "09:07 AM");
         assert_eq!(format_pattern(D, "MMMM MMM dd.MM.yyyy"), "November Nov 05.11.2026");
+    }
+
+    // src/platform/dateFormat.test.ts › keeps the time of dates before yesterday, as IDEA's pretty date-time does
+    #[test]
+    fn keeps_the_time_of_dates_before_yesterday_as_ideas_pretty_date_time_does() {
+        let now = unix_ms(2026, 11, 13, 12, 0);
+        let pretty = DateFormatOptions { pretty: true, ..system() };
+        let at = unix_ms(2026, 11, 5, 9, 7);
+        assert_eq!(format_timestamp(at, now, 0, &pretty).text(), format!("11/05/2026 {}", format_clock(D, &system())));
+        let plain = DateFormatOptions { pretty: false, ..system() };
+        assert_eq!(format_timestamp(at, now, 0, &plain).text(), format_date_time(D, &system()));
+        assert!(format_timestamp(unix_ms(2026, 11, 13, 9, 7), now, 0, &pretty).text().contains("09:07"));
+        let custom =
+            DateFormatOptions { override_system: true, pattern: "dd.MM.yyyy".into(), use_24_hour: true, ..pretty };
+        assert_eq!(format_timestamp(at, now, 0, &custom).text(), "05.11.2026 09:07");
     }
 
     // src/platform/dateFormat.test.ts › formats another date with the same cached formatter
@@ -328,7 +355,8 @@ mod tests {
         assert_eq!(at(now - 5.0 * 60_000.0 - 1.0), Timestamp::MinutesAgo(5));
         assert_eq!(at(unix_ms(2026, 11, 5, 0, 30)), Timestamp::Today("00:30".to_owned()));
         assert_eq!(at(unix_ms(2026, 11, 4, 23, 59)), Timestamp::Yesterday("23:59".to_owned()));
-        assert_eq!(at(unix_ms(2026, 11, 3, 12, 0)), Timestamp::Plain("03.11.2026".to_owned()));
+        // An older date keeps its time (src/platform/dateFormat.ts:99).
+        assert_eq!(at(unix_ms(2026, 11, 3, 12, 0)), Timestamp::Plain("03.11.2026 12:00".to_owned()));
         // A time ahead of the clock is never "ago".
         assert_eq!(at(now + 1_000.0), Timestamp::Today("09:07".to_owned()));
         // One hour east, last night's 23:59 UTC is already today.

@@ -34,11 +34,11 @@ use gpui_kit::{
     AnyView, App, Bounds, ClipboardItem, Context, DispatchPhase, Element, ElementId, ElementInputHandler, Entity,
     EntityInputHandler, FocusHandle, Focusable, Font, FontFallbacks, FontFeatures, FontStyle, FontWeight,
     GlobalElementId, Hitbox, HitboxBehavior, Hsla, InspectorElementId, IntoElement, KeyDownEvent, LayoutId, Modifiers,
-    MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollEvent, ShapedLine, SharedString, Style, TextAlign,
+    MouseButton, MouseDownEvent, Pixels, Point, Render, ScrollEvent, ShapedLine, SharedString, Style, Task, TextAlign,
     TextRun, UTF16Selection, WeakEntity, Window, div, fill, point, prelude::*, px, quad, relative, size,
 };
 use ide_core::error::ErrorKind;
-use ide_core::{ChangeSet, DocId, IdeEvent, IdeResult, LanguageId, TextChange};
+use ide_core::{ChangeSet, DocId, IdeError, IdeEvent, IdeResult, LanguageId, TextChange};
 use ide_host::Host;
 use ide_language::SyntaxHighlightKind;
 use ide_text::LineEnding;
@@ -180,6 +180,8 @@ pub struct EditorStatus {
     pub selected_line_breaks: u32,
     pub line_ending: LineEnding,
     pub encoding: String,
+    /// Whether the file starts with a byte order mark.
+    pub has_bom: bool,
     pub read_only: bool,
 }
 
@@ -328,6 +330,7 @@ pub struct Editor {
     large: bool,
     line_ending: LineEnding,
     encoding: String,
+    has_bom: bool,
     editorconfig: Option<EditorConfigProps>,
     rope: Rope,
     version: u32,
@@ -466,6 +469,7 @@ impl Editor {
             large: info.large,
             line_ending: info.line_ending,
             encoding: info.encoding.clone(),
+            has_bom: info.has_bom,
             editorconfig: info.editorconfig.clone(),
             rope,
             version,
@@ -612,6 +616,7 @@ impl Editor {
             selected_line_breaks: line_of(selection.end) - line_of(selection.start),
             line_ending: self.line_ending,
             encoding: self.encoding.clone(),
+            has_bom: self.has_bom,
             read_only: self.read_only,
         }
     }
@@ -1282,11 +1287,26 @@ impl Editor {
         Ok(())
     }
 
-    /// Changes the document's encoding. With `reload` the file is read again from disk in that
-    /// encoding, which the backend refuses while there are unsaved changes; without, the text
-    /// stays and is written in the encoding on the next save.
-    pub fn set_encoding(&mut self, encoding: &str, reload: bool, cx: &mut Context<Self>) -> IdeResult<()> {
-        self.encoding = self.documents()?.set_encoding(self.doc, encoding, reload)?.encoding;
+    /// Changes the document's encoding. With `reload` the text is read again in that encoding from
+    /// where it came from (the file on disk, or the archive, language server or Git revision of a
+    /// virtual document), which the backend refuses while there are unsaved changes; without, the
+    /// text stays and is written in the encoding on the next save. The task ends once the editor
+    /// shows the backend's answer, with its byte order mark state.
+    pub fn set_encoding(&mut self, encoding: &str, reload: bool, cx: &mut Context<Self>) -> Task<IdeResult<()>> {
+        let (host, window, doc, encoding) =
+            (self.host.clone(), self.window_label.clone(), self.doc, encoding.to_owned());
+        let changed = cx
+            .global::<Backend>()
+            .call(async move { ide_host::ops::doc::doc_set_encoding(&host, &window, doc, encoding, reload).await });
+        cx.spawn(async move |this, cx| {
+            let answer = changed.await.unwrap_or_else(|error| Err(IdeError::internal(format!("{error:#}"))))?;
+            this.update(cx, |editor, cx| editor.encoding_changed(answer, reload, cx))
+                .map_err(|error| IdeError::internal(error.to_string()))
+        })
+    }
+
+    fn encoding_changed(&mut self, answer: ide_workspace::DocumentEncoding, reload: bool, cx: &mut Context<Self>) {
+        (self.encoding, self.has_bom) = (answer.encoding, answer.has_bom);
         if reload {
             // The text is another one: what could be undone no longer applies to it.
             self.history.clear();
@@ -1296,7 +1316,6 @@ impl Editor {
             self.dirty = true;
         }
         cx.notify();
-        Ok(())
     }
 
     /// Whether the document has changes that are not on disk.

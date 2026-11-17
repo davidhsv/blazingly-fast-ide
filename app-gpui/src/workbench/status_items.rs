@@ -125,7 +125,9 @@ pub fn encoding_name(encoding: &str) -> &str {
 
 /// File Encoding: the encoding's name; a click opens Reload with / Convert to Encoding.
 pub fn encoding_item(status: &EditorStatus) -> StatusText {
-    StatusText::new(encoding_name(&status.encoding)).tooltip("File Encoding").on_click(StatusClick::Open)
+    let name = encoding_name(&status.encoding);
+    let label = if status.has_bom { format!("{name} BOM") } else { name.to_owned() };
+    StatusText::new(label).tooltip("File Encoding").on_click(StatusClick::Open)
 }
 
 /// The indentation of a file: how wide a tab is and whether indenting inserts spaces.
@@ -270,6 +272,7 @@ mod tests {
             selected_line_breaks: 0,
             line_ending: LineEnding::Lf,
             encoding: "utf-8".to_owned(),
+            has_bom: false,
             read_only: false,
         }
     }

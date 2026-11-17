@@ -51,6 +51,11 @@ impl FeatureBackoff {
         }
     }
 
+    /// Asks about `doc` again at once.
+    pub fn forget(&mut self, doc: DocId) {
+        self.until.remove(&doc);
+    }
+
     pub fn clear(&mut self) {
         self.until.clear();
     }

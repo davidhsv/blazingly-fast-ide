@@ -1439,7 +1439,7 @@ impl PluginsPage {
                 kind: ItemKind::Market,
                 id: e.id.clone(),
                 name: e.name.clone(),
-                vendor: e.publisher.clone(),
+                vendor: publisher_of(entry).to_owned(),
                 version: e.version.clone(),
                 icon,
                 tooltip: if e.description.is_empty() { e.name.clone() } else { e.description.clone() },
@@ -1942,6 +1942,7 @@ impl PluginsPage {
 
     fn market_details(&mut self, entry: &MarketPlugin, cx: &mut App) -> Details {
         let e = &entry.entry;
+        let publisher = publisher_of(entry);
         let icon = self.icon_name(&e.id, markup!(e.icon));
         let installing = self.installing();
         let i18n = i18n(cx);
@@ -1972,13 +1973,10 @@ impl PluginsPage {
             kind: ItemKind::Market,
             id: e.id.clone(),
             name: e.name.clone(),
-            authors: Some(if e.authors.is_empty() { e.publisher.clone() } else { e.authors.join(", ") }),
+            authors: Some(if e.authors.is_empty() { publisher.to_owned() } else { e.authors.join(", ") }),
             version: e.version.clone(),
             icon,
-            badges: vec![Badge {
-                label: i18n.tx_built(&["Signed by ", ""], &[text(&e.publisher)]),
-                tone: Tone::Success,
-            }],
+            badges: vec![Badge { label: i18n.tx_built(&["Signed by ", ""], &[text(publisher)]), tone: Tone::Success }],
             buttons,
             busy: false,
             error: None,
@@ -3385,6 +3383,11 @@ impl Render for IntellijThemesDialog {
     }
 }
 
+/// The name the marketplace shows for `entry`'s publisher: the index's display name, else its id.
+fn publisher_of(entry: &MarketPlugin) -> &str {
+    entry.publisher_name.as_deref().filter(|name| !name.is_empty()).unwrap_or(&entry.entry.publisher)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3908,6 +3911,30 @@ mod tests {
         cx.run_until_parked();
         taken(&events);
         (page, events, cx)
+    }
+
+    /// A marketplace plugin whose publisher the index names is shown with that name, in its row, as its
+    /// author and in the signature badge; one without a name shows the publisher's id.
+    #[gpui_kit::test]
+    async fn a_marketplace_plugin_shows_its_publishers_name(cx: &mut TestAppContext) {
+        let popular = market_entry("popular", "Popular", "1.0.0", json!({ "publisherName": "Acme Inc." }));
+        let rare = market_entry("rare", "Rare", "1.0.0", json!({}));
+        let (page, _events, cx) = market_page(cx, vec![popular, rare]);
+        let rows = page.update(cx, |page, cx| page.rows(cx));
+        let vendor = |id: &str| {
+            rows.iter().find_map(|row| match row {
+                ListRow::Item(item) if item.id == id => Some(item.vendor.clone()),
+                _ => None,
+            })
+        };
+        assert_eq!(vendor("popular").as_deref(), Some("Acme Inc."));
+        assert_eq!(vendor("rare").as_deref(), Some("acme"));
+        click(cx, "plugins-market-row-popular");
+        let shown = details(&page, cx);
+        assert!(shown.badges.iter().any(|b| b.label == "Signed by Acme Inc."), "{:?}", shown.badges);
+        assert_eq!(shown.authors.as_deref(), Some("Acme Inc."));
+        click(cx, "plugins-market-row-rare");
+        assert!(details(&page, cx).badges.iter().any(|b| b.label == "Signed by acme"));
     }
 
     // src/features/plugins/__tests__/plugins.test.tsx › marketplace › lists the index's plugins and installs one

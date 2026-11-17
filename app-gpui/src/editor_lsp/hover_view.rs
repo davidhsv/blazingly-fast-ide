@@ -322,6 +322,8 @@ enum HoverContent {
 pub struct HoverView {
     content: HoverContent,
     on_link: LinkHandler,
+    /// The open project's folder, which documentation links to a network share are checked against.
+    link_base: String,
 }
 
 impl EventEmitter<HoverEvent> for HoverView {}
@@ -329,7 +331,12 @@ impl EventEmitter<HoverEvent> for HoverView {}
 impl HoverView {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let on_link = link_handler(cx, |view: &mut Self, href, _, cx| view.link(href, cx));
-        Self { content: HoverContent::Empty, on_link }
+        Self { content: HoverContent::Empty, on_link, link_base: String::new() }
+    }
+
+    /// The folder of the project the documentation is shown in (empty without one).
+    pub fn set_link_base(&mut self, base: String) {
+        self.link_base = base;
     }
 
     /// Shows `popup` (from [`super::hover::hover_popup`]): its problems, then its documentation.
@@ -401,7 +408,7 @@ impl HoverView {
     }
 
     fn link(&mut self, href: &str, cx: &mut Context<Self>) {
-        let link = doc_link(href);
+        let link = doc_link(href, &self.link_base);
         if link != DocLink::Ignored {
             cx.emit(HoverEvent::Link(link));
         }
@@ -560,6 +567,8 @@ pub struct QuickDocView {
     focus: FocusHandle,
     on_link: LinkHandler,
     key_claim: u64,
+    /// The open project's folder, which documentation links to a network share are checked against.
+    link_base: String,
 }
 
 impl EventEmitter<QuickDocEvent> for QuickDocView {}
@@ -576,9 +585,15 @@ impl QuickDocView {
         );
         cx.on_release(|view, cx| input::release_keys(view.key_claim, cx)).detach();
         let on_link = link_handler(cx, |view: &mut Self, href, window, cx| view.link(href, window, cx));
-        let mut view = Self { entries, index: 0, blocks: Vec::new(), focus, on_link, key_claim };
+        let mut view =
+            Self { entries, index: 0, blocks: Vec::new(), focus, on_link, key_claim, link_base: String::new() };
         view.show(index);
         view
+    }
+
+    /// The folder of the project the documentation is shown in (empty without one).
+    pub fn set_link_base(&mut self, base: String) {
+        self.link_base = base;
     }
 
     pub fn entries(&self) -> &[DocEntry] {
@@ -633,7 +648,7 @@ impl QuickDocView {
     fn link(&mut self, href: &str, window: &mut Window, cx: &mut Context<Self>) {
         let modifiers = window.modifiers();
         let primary = has_primary_modifier(&modifiers, is_mac_host());
-        let link = doc_link(href);
+        let link = doc_link(href, &self.link_base);
         if link != DocLink::Ignored {
             cx.emit(QuickDocEvent::Link { link, primary });
         }
@@ -933,6 +948,28 @@ mod tests {
         cx.run_until_parked();
         click_start(cx, "hover-text-0");
         let target = SourceLink { path: "/p/Order.java".into(), line: 11, col: 0 };
+        assert_eq!(*events.borrow(), [HoverEvent::Link(DocLink::Source(target))]);
+    }
+
+    /// A documentation link to a network share the project is not on opens nothing when clicked;
+    /// one on the project's own share opens the file.
+    #[gpui_kit::test]
+    async fn a_documentation_link_to_another_share_opens_nothing(cx: &mut TestAppContext) {
+        init(cx);
+        let (view, cx) = cx.add_window_view(|_, cx| HoverView::new(cx));
+        let events = subscribe::<_, HoverEvent>(&view, cx);
+        view.update(cx, |view, _| view.set_link_base("//nas/work/app".into()));
+        let popup = hovered(Vec::new(), Some("[Order](file:////evil/share/Order.java#L12) is the type"));
+        view.update(cx, |view, cx| view.show(&popup, cx));
+        cx.run_until_parked();
+        click_start(cx, "hover-text-0");
+        assert!(events.borrow().is_empty(), "nothing opens");
+
+        let popup = hovered(Vec::new(), Some("[Order](file:////nas/work/lib/Order.java#L12) is the type"));
+        view.update(cx, |view, cx| view.show(&popup, cx));
+        cx.run_until_parked();
+        click_start(cx, "hover-text-0");
+        let target = SourceLink { path: "//nas/work/lib/Order.java".into(), line: 11, col: 0 };
         assert_eq!(*events.borrow(), [HoverEvent::Link(DocLink::Source(target))]);
     }
 

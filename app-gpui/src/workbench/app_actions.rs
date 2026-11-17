@@ -892,9 +892,12 @@ impl Workbench {
                 }
             };
             let target = path.clone();
-            let exported =
-                call(&this, cx, move |host, _| async move { host.global_settings.export_bundle(&target, storage) })
-                    .await;
+            // Values of the user's MCP servers go to the secret store first, so the file holds only their names.
+            let exported = call(&this, cx, move |host, _| async move {
+                ide_host::ops::agent::move_user_mcp_values(&host);
+                host.global_settings.export_bundle(&target, storage)
+            })
+            .await;
             let _ = this.update(cx, |workbench, cx| {
                 let notice = match exported {
                     Ok(Ok(())) => {
@@ -947,6 +950,8 @@ impl Workbench {
             };
             let imported = call(&this, cx, move |host, _| async move {
                 let (_, storage) = host.global_settings.import_bundle(&path)?;
+                // An imported MCP server value leaves the user settings for the secret store at once.
+                ide_host::ops::agent::move_user_mcp_values(&host);
                 for project in host.projects() {
                     let effective = project.settings.reload();
                     let defaults = ide_workspace::FileDefaults::from_settings(&effective, Some(&project.root));
@@ -1851,6 +1856,86 @@ mod tests {
         let macros = cx.update(|_, cx| cx.global::<UiStorage>().get("openidea.macros.v1").map(str::to_owned));
         assert_eq!(macros.as_deref(), Some("{\"last\":[]}"));
         assert!(cx.update(|_, cx| settings::global(cx).general.power_save_mode));
+        close(cx);
+    }
+
+    /// A stand-in for an MCP server's environment value; not the shape of any real key.
+    const MCP_MARKER: &str = "mcp-marker-value-not-a-key-7c41";
+    /// Where the backend keeps that value once it leaves the user settings.
+    const MCP_MARKER_KEY: &str = "mcp/user/probe/env/PROBE_TOKEN";
+
+    /// The user settings' MCP servers: one whose environment holds `value`.
+    fn mcp_servers_holding(value: &str) -> Value {
+        serde_json::json!({
+            "probe": { "transport": "stdio", "enabled": true, "command": "probe-mcp", "env": { "PROBE_TOKEN": value } }
+        })
+    }
+
+    fn global_settings_text(cx: &mut VisualTestContext) -> String {
+        let file = cx.update(|_, cx| cx.global::<Backend>().dirs.config.join("settings.toml"));
+        std::fs::read_to_string(file).unwrap_or_default()
+    }
+
+    fn saved_mcp_marker(cx: &mut VisualTestContext) -> bool {
+        let saved = cx.update(|_, cx| cx.global::<Backend>().host.agent_secrets.get(MCP_MARKER_KEY));
+        saved.as_deref() == Some(MCP_MARKER)
+    }
+
+    /// Export Settings… writes only the names of the user's MCP servers' environment values: a value
+    /// written into the user settings moves to the secret store first, and the file holds none.
+    #[gpui_kit::test]
+    async fn export_settings_moves_mcp_server_values_to_the_secret_store_and_writes_only_their_names(
+        cx: &mut TestAppContext,
+    ) {
+        let _home = start(cx);
+        assert!(ide_ssh::secrets::secrets_in_files(), "secrets go to files under the temporary home");
+        let (_folder, _root, workbench, cx) = project(cx, true, &[("main.rs", "fn main() {}\n")]);
+        let out = tempfile::tempdir().expect("a temporary folder");
+        let file = out.path().join(EXPORT_FILE_NAME);
+        cx.update(|_, cx| {
+            let host = &cx.global::<Backend>().host;
+            host.global_settings.set(SettingsScope::Global, "agents.mcpServers", mcp_servers_holding(MCP_MARKER))
+        })
+        .expect("the user settings are written");
+        assert!(global_settings_text(cx).contains(MCP_MARKER), "the user settings file holds the value");
+
+        run_action(cx, "file.exportSettings", None);
+        let target = file.clone();
+        cx.simulate_new_path_selection(move |_| Some(target));
+        wait_long(cx, "the export", |cx| notification_titles(&workbench, cx).contains(&"Settings exported".to_owned()));
+        let exported = std::fs::read_to_string(&file).expect("the file is written");
+        assert!(!exported.contains(MCP_MARKER), "the exported file holds no MCP server value");
+        assert!(exported.contains("PROBE_TOKEN"), "the exported file names the value");
+        assert!(!global_settings_text(cx).contains(MCP_MARKER), "the value left the user settings file");
+        assert!(saved_mcp_marker(cx), "the secret store holds the value");
+        close(cx);
+    }
+
+    /// Import Settings… of a bundle that holds an MCP server's environment value leaves the value in
+    /// the secret store and only its name in the user settings file.
+    #[gpui_kit::test]
+    async fn import_settings_moves_mcp_server_values_out_of_the_user_settings(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        assert!(ide_ssh::secrets::secrets_in_files(), "secrets go to files under the temporary home");
+        let (_folder, _root, workbench, cx) = project(cx, true, &[("main.rs", "fn main() {}\n")]);
+        let out = tempfile::tempdir().expect("a temporary folder");
+        let file = out.path().join(EXPORT_FILE_NAME);
+        let settings = format!(
+            "[agents.mcpServers.probe]\ntransport = \"stdio\"\nenabled = true\ncommand = \"probe-mcp\"\n\n\
+             [agents.mcpServers.probe.env]\nPROBE_TOKEN = \"{MCP_MARKER}\"\n"
+        );
+        let bundle =
+            serde_json::json!({ "format": "openidea-settings", "version": 1, "settings": settings, "storage": {} });
+        std::fs::write(&file, bundle.to_string()).expect("the bundle is written");
+
+        run_action(cx, "file.importSettings", None);
+        let picked = file.clone();
+        cx.simulate_path_prompt_response(move |_| Some(vec![picked]));
+        wait_long(cx, "the import", |cx| notification_titles(&workbench, cx).contains(&"Settings imported".to_owned()));
+        let stored = global_settings_text(cx);
+        assert!(!stored.contains(MCP_MARKER), "the user settings file holds no MCP server value");
+        assert!(stored.contains("PROBE_TOKEN"), "the user settings file keeps the value's name");
+        assert!(saved_mcp_marker(cx), "the secret store holds the value");
         close(cx);
     }
 

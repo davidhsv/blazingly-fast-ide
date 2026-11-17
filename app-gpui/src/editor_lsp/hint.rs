@@ -33,7 +33,7 @@ impl Hint {
 /// How long a hint stays without being dismissed.
 pub const HINT_TIMEOUT_MS: u64 = 4000;
 /// A request faster than this shows no progress hint.
-pub const PENDING_DELAY_MS: u64 = 250;
+pub const PENDING_DELAY_MS: u64 = 50;
 /// How long a progress hint stays at most.
 pub const PENDING_TIMEOUT_MS: u64 = 30_000;
 
@@ -164,8 +164,11 @@ mod tests {
         assert_eq!(text(&state), None);
     }
 
+    // src/editor/lsp/hint.test.ts › pending hints › shows a slow request within the feedback budget and removes
+    // its hint on completion
     #[test]
-    fn shows_a_slow_request_and_removes_its_hint_on_completion() {
+    fn shows_a_slow_request_within_the_feedback_budget_and_removes_its_hint_on_completion() {
+        const { assert!(PENDING_DELAY_MS < 100, "a slow request is told within the feedback budget") };
         let mut state = HintState::default();
         let mut pending = state.show_pending("Waiting…", 0);
         let timer = state.pending_due(&mut pending);

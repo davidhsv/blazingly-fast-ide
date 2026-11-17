@@ -86,7 +86,9 @@ impl LookupItem {
         match self {
             Self::Lsp(completion) => {
                 let item = completion.resolved.as_ref().unwrap_or(&completion.item);
-                type_column_text(item.detail.as_deref(), &item.additional_edits)
+                // A label description (a return type or module) is what servers mean for this column.
+                let description = item.label_description.as_deref().map(str::trim).filter(|text| !text.is_empty());
+                type_column_text(description.or(item.detail.as_deref()), &item.additional_edits)
             }
             Self::Contributed(item) => {
                 item.type_text.as_ref().map(|text| text.split_whitespace().collect::<Vec<_>>().join(" "))
@@ -839,6 +841,25 @@ mod tests {
         let event = lookup.update(cx, |lookup, cx| lookup.set_query("zzz", cx));
         assert_eq!(event, LookupEvent::None);
         assert!(!lookup.read_with(cx, |lookup, _| lookup.is_open()));
+    }
+
+    /// The type column shows the item's label description when it has one, before its detail; a blank
+    /// description leaves the detail.
+    #[gpui_kit::test]
+    async fn the_type_column_shows_the_label_description_before_the_detail(cx: &mut TestAppContext) {
+        let (lookup, _, cx) = open(cx);
+        let items = vec![
+            with(lsp("println", CompletionKind::Method), |item| {
+                item.label_description = Some("  java.io.PrintStream ".into());
+                item.detail = Some("void java.io.PrintStream.println()".into());
+            }),
+            with(lsp("printf", CompletionKind::Method), |item| {
+                item.label_description = Some(" ".into());
+                item.detail = Some("PrintStream".into());
+            }),
+        ];
+        fill(&lookup, items, "print", cx);
+        assert_eq!(rows(&lookup, cx), ["printf — PrintStream", "println — java.io.PrintStream"]);
     }
 
     #[gpui_kit::test]

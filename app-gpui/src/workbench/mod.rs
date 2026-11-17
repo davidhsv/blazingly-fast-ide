@@ -2143,9 +2143,8 @@ impl Workbench {
     /// and encoding, in that order.
     pub fn status_items(&self, cx: &App) -> Vec<String> {
         let Some(status) = self.editor().map(|editor| editor.read(cx).status()) else { return Vec::new() };
-        let encoding = status.encoding.to_lowercase();
-        let shown = ENCODINGS.iter().find(|(id, _)| *id == encoding).map_or(status.encoding.as_str(), |(_, name)| name);
-        vec![status.caret_text(), status.line_ending_text().to_owned(), shown.to_owned()]
+        let encoding = status_items::encoding_item(&status).text;
+        vec![status.caret_text(), status.line_ending_text().to_owned(), encoding]
     }
 
     /// The Line Separator item's menu: the three separators, the file's own marked.
@@ -2209,26 +2208,34 @@ impl Workbench {
     /// in a notification.
     pub fn run_status_command(&mut self, command: StatusCommand, cx: &mut Context<Self>) {
         let Some(editor) = self.editor().cloned() else { return };
-        let (title, done) = match &command {
-            StatusCommand::LineEnding(line_ending) => (
-                "Cannot change line separators",
-                editor.update(cx, |editor, cx| editor.set_line_ending(*line_ending, cx)),
-            ),
-            StatusCommand::Reload(encoding) => {
-                ("Cannot reload with encoding", editor.update(cx, |editor, cx| editor.set_encoding(encoding, true, cx)))
+        let (title, reload, encoding) = match command {
+            StatusCommand::LineEnding(line_ending) => {
+                if let Err(error) = editor.update(cx, |editor, cx| editor.set_line_ending(line_ending, cx)) {
+                    self.notify_refusal("Cannot change line separators", error, cx);
+                }
+                cx.notify();
+                return;
             }
-            StatusCommand::Convert(encoding) => {
-                ("Cannot convert encoding", editor.update(cx, |editor, cx| editor.set_encoding(encoding, false, cx)))
-            }
+            StatusCommand::Reload(encoding) => ("Cannot reload with encoding", true, encoding),
+            StatusCommand::Convert(encoding) => ("Cannot convert encoding", false, encoding),
         };
-        if let Err(error) = done {
-            let request = NotificationRequest {
-                body: Some(error.message),
-                ..NotificationRequest::new(NotificationLevel::Error, title)
-            };
-            self.notify(request, cx);
-        }
+        let changing = editor.update(cx, |editor, cx| editor.set_encoding(&encoding, reload, cx));
+        cx.spawn(async move |this, cx| {
+            if let Err(error) = changing.await {
+                let _ = this.update(cx, |workbench, cx| workbench.notify_refusal(title, error, cx));
+            }
+        })
+        .detach();
         cx.notify();
+    }
+
+    /// Tells in a notification titled `title` why the backend refused a change to the edited file.
+    fn notify_refusal(&mut self, title: &str, error: ide_core::IdeError, cx: &mut Context<Self>) {
+        let request = NotificationRequest {
+            body: Some(error.message),
+            ..NotificationRequest::new(NotificationLevel::Error, title)
+        };
+        self.notify(request, cx);
     }
 
     /// The window's title for what it shows now.
@@ -3198,7 +3205,8 @@ impl Workbench {
         }
         let Some(backend) = cx.try_global::<Backend>() else { return };
         let recent = ide_workspace::RecentProjects::load(&backend.dirs.config);
-        let (list, groups) = (recent.list(), recent.groups());
+        // Each project's branch as its repository has it now, not as it was when last opened.
+        let (list, groups) = (ide_workspace::recent::with_live_branches(recent.list()), recent.groups());
         if let Some((welcome, _)) = &self.welcome {
             welcome.update(cx, |view, cx| view.set_recent(&list, &groups, cx));
             // A plugin host that started after the window, or a Welcome screen first made behind a
@@ -3258,7 +3266,7 @@ impl Workbench {
                 let recent = ide_workspace::RecentProjects::load(&config);
                 match recent.set_groups(groups) {
                     Ok(groups) => {
-                        let list = recent.list();
+                        let list = ide_workspace::recent::with_live_branches(recent.list());
                         welcome.update(cx, |view, cx| view.set_recent(&list, &groups, cx));
                     }
                     Err(error) => {
@@ -4599,6 +4607,7 @@ mod tests {
     mod proofs_services;
     mod proofs_tool_windows;
     mod proofs_vcs;
+    mod recent_live_branch;
     mod smoke_backend_events;
     mod smoke_registered_actions;
     mod smoke_services;
@@ -7702,13 +7711,39 @@ mod tests {
             menu(cx).read_with(cx, |menu, _| menu.rows().iter().map(|row| row.label.clone()).collect());
         assert!(!offered.contains(&"UTF-8".to_owned()) && offered[0] == "UTF-16LE", "{offered:?}");
         cx.simulate_keystrokes("enter");
-        assert_eq!(items(cx)[2], "UTF-16LE");
+        settle(cx, |cx| items(cx)[2] != "UTF-8");
+        // The backend writes UTF-16 with a byte order mark, and the item says so
+        // (src/editor/core/view/StatusItems.tsx:369, :419).
+        assert_eq!(items(cx)[2], "UTF-16LE BOM");
 
         // A refusal by the backend is told.
         workbench.update(cx, |w, cx| w.run_status_command(StatusCommand::Reload("gbk".to_owned()), cx));
-        let told = workbench.read_with(cx, |w, _| format!("{:?}", w.notifications()));
-        assert!(told.contains("Cannot reload with encoding"), "{told}");
-        assert_eq!(items(cx)[2], "UTF-16LE");
+        let told = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| format!("{:?}", w.notifications()));
+        settle(cx, |cx| told(cx).contains("Cannot reload with encoding"));
+        assert!(told(cx).contains("Cannot reload with encoding"), "{}", told(cx));
+        assert_eq!(items(cx)[2], "UTF-16LE BOM");
+    }
+
+    /// Reload with Encoding reads the file again through the backend, and the encoding item shows the
+    /// byte order mark state of its answer: `UTF-8 BOM` for a file that starts with one, the plain
+    /// name once it is read in an encoding without one.
+    #[gpui_kit::test]
+    async fn reload_with_encoding_shows_the_byte_order_mark_state_the_backend_answers(cx: &mut TestAppContext) {
+        let _home = start(cx);
+        let (_folder, root, workbench, cx) = trusted_project(cx, &[("bom.txt", "\u{feff}caf\u{e9}\n")]);
+        workbench.update_in(cx, |w, window, cx| w.open_project_file(root.join("bom.txt"), window, cx));
+        settle(cx, |cx| workbench.read_with(cx, |w, _| w.editor().is_some()));
+        let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
+        let encoding = |cx: &mut VisualTestContext| workbench.read_with(cx, |w, cx| w.status_items(cx))[2].clone();
+        assert_eq!(encoding(cx), "UTF-8 BOM");
+        workbench.update(cx, |w, cx| w.run_status_command(StatusCommand::Reload("ISO-8859-1".to_owned()), cx));
+        settle(cx, |cx| encoding(cx) != "UTF-8 BOM");
+        assert!(!encoding(cx).contains("BOM"), "{}", encoding(cx));
+        let text = editor.read_with(cx, |editor, _| editor.rope().to_string());
+        assert!(text.starts_with("\u{ef}\u{bb}\u{bf}caf"), "the bytes are read again as Latin-1: {text:?}");
+        workbench.update(cx, |w, cx| w.run_status_command(StatusCommand::Reload("UTF-8".to_owned()), cx));
+        settle(cx, |cx| encoding(cx) == "UTF-8 BOM");
+        assert_eq!(editor.read_with(cx, |editor, _| editor.rope().to_string()), "caf\u{e9}\n");
     }
 
     /// A raised notification shows as a balloon; closing the balloon keeps it in the history.

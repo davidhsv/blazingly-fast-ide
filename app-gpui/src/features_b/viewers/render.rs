@@ -11,6 +11,7 @@
 //! share its block, so the container does not end early and spill its content out.
 
 use crate::editor_lsp::markdown::{self as docs, Block, Run, Style};
+use crate::platform::paths::opens_other_share;
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -1195,6 +1196,10 @@ pub fn resolve_link(file: &str, href: &str) -> Option<LinkTarget> {
     };
     let path_part = docs::percent_decode(path_part.split('?').next().unwrap_or(""));
     let path = if path_part.is_empty() { file.to_owned() } else { join_path(dir_of(file), &path_part) };
+    // A document is text someone else wrote: it leads to no network share but its own.
+    if !path_part.is_empty() && opens_other_share(&path, &path_part, file) {
+        return None;
+    }
     if let Some(found) = fragment.as_deref().and_then(|fragment| LINE.captures(fragment)) {
         let number: u32 = found.get(1).map_or("", |m| m.as_str()).parse().unwrap_or(u32::MAX);
         return Some(LinkTarget::File { path, anchor: None, line: Some(number.saturating_sub(1)) });
@@ -1521,6 +1526,32 @@ mod tests {
         assert_eq!(resolve_link(file, "javascript:alert(1)"), None);
         assert_eq!(join_path("C:/repo/docs", "../a.md"), "C:/repo/a.md");
         assert_eq!(join_path("/repo", "../../a.md"), "/a.md");
+    }
+
+    // src/features/viewers/markdown/render.test.ts › resolves no link to a network share, however the file spells it
+    #[test]
+    fn resolves_no_link_to_a_network_share_however_the_file_spells_it() {
+        let file = "C:/repo/docs/guide.md";
+        for href in [
+            "/\\evil/share/x.png",
+            "/%5Cevil/share/x.png",
+            "//evil/share/x.png",
+            "/%2Fevil/share/x.png",
+            "file:///%5Cevil/share/x.png",
+            "file:////evil/share/x.png",
+            "%5C%5Cevil%5Cshare%5Cx.png",
+        ] {
+            assert_eq!(resolve_link(file, href), None, "{href}");
+        }
+        assert_eq!(resolve_link("/guide.md", "../%5Cevil/share/x.png"), None, "file at the root");
+        assert_eq!(
+            resolve_link(file, "/docs/a.png"),
+            Some(LinkTarget::File { path: "/docs/a.png".into(), anchor: None, line: None })
+        );
+        assert_eq!(
+            resolve_link(file, "img/a.png"),
+            Some(LinkTarget::File { path: "C:/repo/docs/img/a.png".into(), anchor: None, line: None })
+        );
     }
 
     #[test]

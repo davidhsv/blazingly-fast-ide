@@ -480,7 +480,7 @@ impl EditorIntelligence {
                 lookup.loading(cx);
             });
         }
-        match self.source.ask(self.doc, id, now) {
+        match self.source.ask(self.doc, id, now, explicit) {
             Ask::Fallback => {
                 self.asking = None;
                 if explicit {
@@ -1136,7 +1136,16 @@ impl EditorIntelligence {
         let popup = hover_popup(&self.navigation_modifier, editor.read(cx).rope(), offset, problems, hover);
         let Some(popup) = popup else { return };
         self.hover_range = Some((popup.from, popup.to));
-        self.hover.update(cx, |view, cx| view.show(&popup, cx));
+        let base = cx
+            .global::<Backend>()
+            .host
+            .project(&self.window_label)
+            .map(|project| to_ipc(&project.root))
+            .unwrap_or_default();
+        self.hover.update(cx, |view, cx| {
+            view.set_link_base(base);
+            view.show(&popup, cx);
+        });
         cx.notify();
     }
 

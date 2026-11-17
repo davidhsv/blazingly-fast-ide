@@ -128,8 +128,9 @@ pub struct CompletionSource {
 }
 
 impl CompletionSource {
-    pub fn ask(&mut self, doc: DocId, id: RequestId, now: u64) -> Ask {
-        if self.backoff.active(doc, now) {
+    /// A request for `doc`; while it backs off, only an explicit one (Code Completion › Basic) asks.
+    pub fn ask(&mut self, doc: DocId, id: RequestId, now: u64, explicit: bool) -> Ask {
+        if !explicit && self.backoff.active(doc, now) {
             return Ask::Fallback;
         }
         Ask::Request { id, cancel: self.inflight.begin(id) }
@@ -156,8 +157,11 @@ impl CompletionSource {
                 Answered::Fallback
             }
             Err(_) => Answered::Nothing,
-            Ok(list) if list.items.is_empty() => Answered::Fallback,
-            Ok(list) => Answered::List(list),
+            Ok(list) => {
+                // The server answered: the document has one again.
+                self.backoff.forget(doc);
+                if list.items.is_empty() { Answered::Fallback } else { Answered::List(list) }
+            }
         }
     }
 }
@@ -1133,16 +1137,31 @@ mod tests {
         assert_eq!(completion_query("foo.ba", 6, false).map(|query| query.from), Some(4));
         let mut source = CompletionSource::default();
         let list = || CompletionList { is_incomplete: false, items: vec![item()] };
-        assert_eq!(source.ask(DocId(1), RequestId(1), 0), Ask::Request { id: RequestId(1), cancel: None });
+        assert_eq!(source.ask(DocId(1), RequestId(1), 0, false), Ask::Request { id: RequestId(1), cancel: None });
         assert_eq!(
-            source.ask(DocId(1), RequestId(2), 0),
+            source.ask(DocId(1), RequestId(2), 0, false),
             Ask::Request { id: RequestId(2), cancel: Some(RequestId(1)) }
         );
         assert!(matches!(source.answer(DocId(1), RequestId(1), Ok(list()), 0), Answered::Stale));
         assert!(matches!(source.answer(DocId(1), RequestId(2), Ok(list()), 0), Answered::List(_)));
-        source.ask(DocId(1), RequestId(3), 0);
+        source.ask(DocId(1), RequestId(3), 0, false);
         let missing = IdeError::new(ide_core::error::ErrorKind::Unavailable, "jdtls is not running");
         assert!(matches!(source.answer(DocId(1), RequestId(3), Err(missing), 0), Answered::Fallback));
-        assert_eq!(source.ask(DocId(1), RequestId(4), 1), Ask::Fallback);
+        assert_eq!(source.ask(DocId(1), RequestId(4), 1, false), Ask::Fallback);
+    }
+
+    /// Code Completion › Basic asks the server even while typing backs off after a "no server here"
+    /// answer, and an answer from the server ends the back-off for typing too.
+    #[test]
+    fn an_explicit_completion_bypasses_the_back_off_and_an_answer_clears_it() {
+        let mut source = CompletionSource::default();
+        let missing = || IdeError::new(ide_core::error::ErrorKind::Unavailable, "jdtls is not running");
+        source.ask(DocId(1), RequestId(1), 0, false);
+        assert!(matches!(source.answer(DocId(1), RequestId(1), Err(missing()), 0), Answered::Fallback));
+        assert_eq!(source.ask(DocId(1), RequestId(2), 1, false), Ask::Fallback);
+        assert_eq!(source.ask(DocId(1), RequestId(3), 1, true), Ask::Request { id: RequestId(3), cancel: None });
+        let empty = CompletionList { is_incomplete: false, items: Vec::new() };
+        assert!(matches!(source.answer(DocId(1), RequestId(3), Ok(empty), 2), Answered::Fallback));
+        assert_eq!(source.ask(DocId(1), RequestId(4), 3, false), Ask::Request { id: RequestId(4), cancel: None });
     }
 }

@@ -388,6 +388,8 @@ pub struct WindowCloseState {
     pub processes: Vec<String>,
     pub dirty: usize,
     pub project: Option<String>,
+    /// Settings › Appearance & Behavior › System Settings: the last window closes instead of showing Welcome.
+    pub close_without_welcome: bool,
 }
 
 /// A window's close requests: one at a time; a second while one is decided is refused.
@@ -412,7 +414,8 @@ impl CloseRequests {
         if !documents_closed {
             return Some(CloseRoute::Refused);
         }
-        if !context.quitting && context.windows <= 1 && (window.has_project || window.light_edit) {
+        let has_session = window.has_project || window.light_edit;
+        if !context.quitting && context.windows <= 1 && has_session && !window.close_without_welcome {
             return Some(CloseRoute::ToWelcome);
         }
         let processes = if window.confirm_terminate { window.processes } else { Vec::new() };

@@ -291,13 +291,19 @@ impl Workbench {
                 continue;
             }
             let encoding = editor.read(cx).status().encoding;
-            if let Err(error) = editor.update(cx, |editor, cx| editor.set_encoding(&encoding, true, cx)) {
-                let request = NotificationRequest {
-                    body: Some(error.message),
-                    ..NotificationRequest::new(NotificationLevel::Error, "Cannot reload from disk")
-                };
-                self.notify(request, cx);
-            }
+            let reloading = editor.update(cx, |editor, cx| editor.set_encoding(&encoding, true, cx));
+            cx.spawn(async move |this, cx| {
+                if let Err(error) = reloading.await {
+                    let _ = this.update(cx, |workbench, cx| {
+                        let request = NotificationRequest {
+                            body: Some(error.message),
+                            ..NotificationRequest::new(NotificationLevel::Error, "Cannot reload from disk")
+                        };
+                        workbench.notify(request, cx);
+                    });
+                }
+            })
+            .detach();
         }
     }
 

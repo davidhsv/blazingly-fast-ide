@@ -147,6 +147,7 @@ impl Workbench {
                 Content::Project { name, .. } => Some(name.clone()),
                 _ => None,
             },
+            close_without_welcome: settings.general.close_without_welcome,
         }
     }
 

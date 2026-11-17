@@ -243,7 +243,10 @@ fn npm_type() -> RunConfigType {
             .mono()
             .browse(BrowseKind::File)
             .placeholder("Project default")
-            .hint("The node executable this script runs on; empty uses Settings › Languages & Frameworks › Node.js."),
+            .hint(concat!(
+                "The node executable this script runs on; empty uses ",
+                "Settings › Languages & Frameworks › JavaScript Runtime."
+            )),
     ])
     .params_from(|config| {
         let manager = command_name(&config.command);
@@ -662,6 +665,20 @@ mod tests {
         let form = params(&[("mainClass", "a.Main"), ("programArgs", "x")]);
         let same = with_params(&detected, form, Some(&ty), &env);
         assert_eq!(same.extras.module.as_deref(), Some("app"));
+    }
+
+    /// The npm configuration's Node interpreter field points at the settings page that picks the runtime.
+    #[test]
+    fn the_npm_node_interpreter_hint_names_the_javascript_runtime_page() {
+        let npm = npm_type();
+        let field = npm.fields.iter().find(|field| field.key == "nodeInterpreter").expect("the field exists");
+        assert_eq!(
+            field.hint.as_deref(),
+            Some(concat!(
+                "The node executable this script runs on; empty uses ",
+                "Settings › Languages & Frameworks › JavaScript Runtime."
+            ))
+        );
     }
 
     // Not from a spec: every built-in type registers under its own id, in a stable order.

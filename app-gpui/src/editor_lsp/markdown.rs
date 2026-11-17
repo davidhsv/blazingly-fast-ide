@@ -7,6 +7,7 @@
 //! a link keeps its target only for the schemes documentation legitimately uses.
 
 use crate::find::utf16;
+use crate::platform::paths::on_other_share;
 use ide_lsp::types::Markup;
 use regex::Regex;
 use std::sync::LazyLock;
@@ -780,8 +781,8 @@ fn zero_based(text: &str) -> Option<u32> {
 }
 
 /// Where a documentation link points in the sources (`file://…#L12,5`, `jdt://…#L42`); `None` for
-/// a web link.
-pub fn source_link(href: &str) -> Option<SourceLink> {
+/// a web link, and for a file on a network share that `root` (the open project's folder) is not on.
+pub fn source_link(href: &str, root: &str) -> Option<SourceLink> {
     if let Some(rest) = href.strip_prefix("file://") {
         let (location, hash) = rest.split_once('#').unwrap_or((rest, ""));
         let location = location.split('?').next().unwrap_or("");
@@ -791,7 +792,12 @@ pub fn source_link(href: &str) -> Option<SourceLink> {
         let line = zero_based(fragment);
         let digits = fragment.chars().take_while(char::is_ascii_digit).count();
         let col = line.and_then(|_| fragment[digits..].strip_prefix([',', ':'])).and_then(zero_based);
-        return Some(SourceLink { path: percent_decode(path), line: line.unwrap_or(0), col: col.unwrap_or(0) });
+        let path = percent_decode(path);
+        // Documentation is text someone else wrote.
+        if on_other_share(&path, root) {
+            return None;
+        }
+        return Some(SourceLink { path, line: line.unwrap_or(0), col: col.unwrap_or(0) });
     }
     let lower = href.to_ascii_lowercase();
     let web = lower.starts_with("http:") || lower.starts_with("https:") || lower.starts_with("mailto:");
@@ -814,8 +820,9 @@ pub enum DocLink {
     Ignored,
 }
 
-pub fn doc_link(href: &str) -> DocLink {
-    if let Some(target) = source_link(href) {
+/// What opening `href` from documentation shown in the project at `root` does.
+pub fn doc_link(href: &str, root: &str) -> DocLink {
+    if let Some(target) = source_link(href, root) {
         DocLink::Source(target)
     } else if href.starts_with("http://") || href.starts_with("https://") {
         DocLink::Web(href.to_owned())
@@ -930,15 +937,33 @@ mod tests {
     #[test]
     fn finds_where_documentation_links_point() {
         assert_eq!(
-            source_link("file:///p/src/a%20b.rs#L12,5"),
+            source_link("file:///p/src/a%20b.rs#L12,5", "/p"),
             Some(SourceLink { path: "/p/src/a b.rs".into(), line: 11, col: 4 })
         );
         assert_eq!(
-            source_link("jdt://contents/rt.jar/java.lang/String.class#L42"),
+            source_link("jdt://contents/rt.jar/java.lang/String.class#L42", "/p"),
             Some(SourceLink { path: "jdt://contents/rt.jar/java.lang/String.class".into(), line: 41, col: 0 })
         );
-        assert_eq!(source_link("https://example.com/#L3"), None);
-        assert_eq!(doc_link("https://example.com"), DocLink::Web("https://example.com".into()));
-        assert_eq!(doc_link("mailto:a@b.c"), DocLink::Ignored);
+        assert_eq!(source_link("https://example.com/#L3", "/p"), None);
+        assert_eq!(doc_link("https://example.com", "/p"), DocLink::Web("https://example.com".into()));
+        assert_eq!(doc_link("mailto:a@b.c", "/p"), DocLink::Ignored);
+    }
+
+    // src/editor/lsp/markdown.test.ts › sourceLink › names no share the project is not on
+    #[test]
+    fn names_no_share_the_project_is_not_on() {
+        for root in ["C:/repo", "//nas/work/app", ""] {
+            assert_eq!(source_link("file:////evil/share/a.py#L3", root), None, "{root}");
+            assert_eq!(source_link("file:///%5C%5Cevil/share/a.py", root), None, "{root}");
+            assert_eq!(doc_link("file:////evil/share/a.py#L3", root), DocLink::Ignored, "{root}");
+        }
+        assert_eq!(
+            source_link("file:////NAS/work/lib/a.py#L3", "//nas/work/app"),
+            Some(SourceLink { path: "//NAS/work/lib/a.py".into(), line: 2, col: 0 })
+        );
+        assert_eq!(
+            doc_link("file:///p/src/a.rs#L3", "/p"),
+            DocLink::Source(SourceLink { path: "/p/src/a.rs".into(), line: 2, col: 0 })
+        );
     }
 }

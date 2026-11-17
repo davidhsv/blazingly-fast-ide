@@ -281,3 +281,23 @@ async fn confirm_leave_asks_about_running_processes_before_closing(cx: &mut Test
     wait_long(cx, "the end of app", |cx| !is_running(&store, "app", cx));
     wait_long(cx, "the Welcome screen", |cx| welcomes(&workbench, cx));
 }
+
+/// With `general.closeWithoutWelcome` on, closing the last project window closes it instead of
+/// returning it to the Welcome screen; with the default, the same close shows the Welcome screen.
+#[gpui_kit::test]
+async fn closing_the_last_project_window_closes_it_when_close_without_welcome_is_on(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("a.txt", "a\n")]);
+    cx.update(|window, _| window.activate_window());
+    set_setting(cx, "general.confirmExit", false);
+    assert!(!cx.simulate_close());
+    wait_long(cx, "the Welcome screen", |cx| welcomes(&workbench, cx));
+    assert!(!cx.windows().is_empty(), "the window stays, showing Welcome");
+
+    workbench.update_in(cx, |w, window, cx| w.open_project(root.clone(), window, cx));
+    settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
+    set_setting(cx, "general.closeWithoutWelcome", true);
+    // Nothing is left to ask, so the close is granted at once or the window closes once it is decided.
+    let granted = cx.simulate_close();
+    wait_long(cx, "the window to close", |cx| granted || cx.windows().is_empty());
+}
