@@ -15,7 +15,7 @@ The webview: `src/features/app/locale.ts` (the UI locale follows `appearance.loc
 1. A failing test first, in a project window on the real backend: with the setting written to Chinese through the Settings dialog's Apply, a text the window draws (take three of different kinds: a main menu title, a tool window's title, an action's title in Find Action) is the Chinese catalog's; set back to English they are English again; no restart. And at start: a home whose stored settings say Chinese opens its first window in Chinese.
 2. The wiring: one place that applies the language when the app starts and whenever the settings change (the same place other runtime settings are applied, or where they should be: read how appearance, keymap and idle-save settings reach the windows today, and whether `runtime_settings` was meant to be that place), switches the catalog, redraws every window, rebuilds what holds titles (the native menu bar, registered actions' titles if they are stored translated: read), and tells the plugin host the new tag after the catalog switched, as the webview does. No file is read and nothing blocks on the window's thread beyond what the lookup already does.
 3. An unset or unknown value: do what the webview does. If that is the system's language, the system language is read through a seam so a test never depends on the machine's (read how `I18n::set_locale(input, system)` takes it and what the app passes today), and a test covers system Chinese with the setting unset, and an unknown stored tag.
-4. Declare `proofs10_locale_pending.rs` (renamed without `_pending`) once it passes; the manager deletes the older undeclared `proofs10_locale.rs`.
+4. Declare `proofs10_locale_pending.rs` once it passes, as a file named `proofs10_locale.rs` with the same content (write the new file and empty nothing else: list the pending file for the manager to delete).
 5. Run every test that asserts a translated text or the Language page by filter before and after (grep the tests for `set_locale` and for the Language page's key); none changes its expectation.
 
 ## Hard rules
@@ -30,7 +30,7 @@ The webview: `src/features/app/locale.ts` (the UI locale follows `appearance.loc
 
 ## Changed since
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): HEAD, and the other agents' undeclared drafts then in the tree.
+HEAD is `bf33621dd`. The older undeclared `proofs10_locale.rs` is already deleted: only `app-gpui/src/workbench/plugin_runtime/tests/proofs10_locale_pending.rs` exists (yours: rename it without `_pending` when it passes and say so; the manager records the rename). Other agents' undeclared drafts in the tree, not yours: `app-gpui/src/settings_view/pages/tools_agents.rs`, `tools_agents/`, `workbench/settings_agents.rs`, `settings_view/pages/agents_list.rs`, `agents_list/`, `agents/agent_list.rs`, `agents/agent_list/`, `workbench/agent_list_backend.rs`, `workbench/settings_agents_list.rs`, `settings_view/pages/remote_folder_browser.rs`, `remote_folder_browser/`, `build_deployment/remote_folder.rs`, `everywhere/view/memory.rs`, `everywhere/view/parts.rs`, every `proofs36_*`, `proofs37_*`, `proofs38_*` and `proofs41_*` file, every other `*_pending.rs`, `platform/error_log_sink.rs`, `workbench/app_actions/tests/proofs6_app_actions.rs`.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
