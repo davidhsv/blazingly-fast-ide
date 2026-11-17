@@ -35,7 +35,9 @@ The settings rows of the pages that hold these keys and the unit rows of the spe
 
 ## Changed since
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): HEAD, what landed since the audit's export (81efb75f7), and the other agents' undeclared drafts then in the tree.
+HEAD is `6ed9bfb98`. Since the audit's export (`81efb75f7`) two commits changed `app-gpui/` (measured: `git log --oneline 81efb75f7..HEAD -- app-gpui`; 19 files, +838 −180): the UI now follows the Language setting (`platform/ui_language.rs`), and Search Everywhere gained its scope box, history and layout (`everywhere/view.rs` and its parts, `workbench/tests/proofs41_*`). Neither touches saving. The other agents' undeclared drafts now in the tree, none of them yours, are listed in `$S/undeclared_now.txt` (the reach check's output of the last verification): leave every file named there alone.
+
+While you work, another agent runs release builds of both apps from a separate folder (`/private/tmp/openidea-measure-i3NdVc`) and posts keys to them: never touch that folder or its processes, never launch any app or real binary yourself, and never signal a process you did not start. The machine also carries the owner's own load: a test that fails only under load is still yours to make robust by fixing its wait.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
