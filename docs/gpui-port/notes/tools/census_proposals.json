@@ -1,0 +1,66 @@
+{
+  "ipc:agent_commands": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs11_agents::new_task_looks_up_the_agents_commands_once_in_a_session_it_never_prompts`, `workbench::tests::proofs14_agents_views::completes_the_commands_the_agent_offered_in_the_project`; opening New Task in a window looks up the agent's commands through the real backend (the agent reads initialize and session/new) and the page completes the agent's /command, though the second test does not separate this answer from the commands offered earlier; missing: the session composer's lookup with a task id (`src/features/agents/SessionEditor.tsx:2866`)"
+  },
+  "ipc:clipboard_image": {
+    "status": "partial",
+    "proof": "`agents::new_task_view::tests::attaches_the_clipboards_image_when_pasting_without_text`; pasting an image with no text into the agents' New Task composer attaches it; missing: the session composer (`src/features/agents/Composer.tsx:654` via SessionEditor) and the Project view image paste (`src/features/project-tree/clipboard.ts:59`)"
+  },
+  "ipc:find_files_named": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs4_run::keeps_the_package_in_a_crowded_java_source_lookup`; a stack frame opened through the window's run driver finds every same-named file through the real backend and opens the one of the frame's package; missing: `src/features/http-client/spring/editor.ts:39`, `src/editor/navigation/index.ts:243`"
+  },
+  "ipc:fs_create_file_bytes": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs34_template_files::writes_the_titled_notebook_body_before_the_notebook_editor_takes_the_file`; creating a notebook from a template writes its body to disk through the New File dialog; missing: `src/features/settings/keymap/KeymapPage.tsx:298`, `src/features/settings/pages/editor/colorScheme.tsx:1490`, `src/features/scratch/scratches.ts:27`, `src/features/graphql/store.ts:257`, `src/features/graphql/store.ts:444`, `src/features/project-tree/fs.ts:34`, `src/editor/core/cm/markdownImages.ts:69`"
+  },
+  "ipc:java_build_workspace": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::proofs11_hotswap::reload_changed_classes_compiles_then_reloads_the_classes_into_the_java_session`, `workbench::debug::tests::proofs11_hotswap::cancel_hot_swap_build_aborts_the_reload_before_any_class_is_redefined`; Reload Changed Classes run as an action in a window compiles, then redefines the classes or stops when cancelled, with the compile answered by a test seam (JavaBuildAnswer) instead of java_build_workspace; missing: the real backend build call (`src/features/debugger/hotswap.ts:140`)"
+  },
+  "ipc:java_debug_server": {
+    "status": "partial",
+    "proof": "`workbench::debug::tests::proofs11_hotswap::reload_changed_classes_compiles_then_reloads_the_classes_into_the_java_session`; debug.startConfig on a Remote JVM Debug configuration in a window starts a running Java session attached to the port the debug-server step returns, with that port supplied by a test seam (JavaDebugServerPort) instead of java_debug_server; missing: the real backend call (`src/features/debugger/java.ts:127`)"
+  },
+  "ipc:plugin_formatters": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_languages::code_style_offers_a_plugin_formatter_per_covered_language_and_stores_the_pick`; Settings > Code Style lists a choice per covered language and stores the pick, with the formatter list supplied by a test SdkDetection seam; missing: the real backend call is never reached in a test (`src/features/settings/pages/editor/pluginFormatters.tsx:14`)"
+  },
+  "ipc:proxy_check_connection": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_misc::http_proxy_manual_configuration_applies_and_the_password_stays_secret`; Check connection… sends the URL with the proxy settings as edited to the checker and shows its answer, through the Settings page in a window, but with a fake checker; missing: the real ide_http::client::check_connection call is untested (`src/features/settings/pages/httpProxy.tsx:208`)"
+  },
+  "ipc:sdk_detect": {
+    "status": "partial",
+    "proof": "`settings_view::pages::languages_sdk::tests::the_combo_offers_the_detected_installations_and_stages_a_choice`, `workbench::tests::proofs19_settings_languages::java_level_and_shared_jdt_ls_apply_and_reset_discards_jvm_options`; the Settings SDK combos show and stage detected installations, with detection supplied by a test SdkDetection seam; missing: `src/features/app/NewProject.tsx:180`, `src/features/run/jvmTypes.ts:74`, `src/features/run/runtimes.ts:36`, `src/features/run/runtimes.ts:41`, `src/features/run/TomcatSettings.tsx:167`, and the real backend call is never reached in a test"
+  },
+  "ipc:system_font_families": {
+    "status": "partial",
+    "proof": "`settings_view::custom_controls::tests::the_installed_fonts_are_read_once_a_font_picker_is_shown`; the font picker reads the installed fonts once it is shown and says when none came back; missing: test builds never enumerate the system's fonts, so the real list is untested, and the appearance runtime use (`src/features/settings/appearanceRuntime.ts:277`) was not mapped"
+  },
+  "ipc:term_store_image": {
+    "status": "done",
+    "proof": "`terminal::view::tests::proofs23_paste::stores_raw_local_clipboard_media_through_paste`, `terminal::view::tests::proofs23_paste::ignores_an_image_after_its_target_is_replaced_during_upload`, `terminal::view::tests::proofs23_paste::rejects_oversized_images_before_reading_or_uploading`; ⌘V of a copied picture with no text in a terminal running a shell stores it through the real backend in a terminal-images file of the data folder and types its quoted path, a picture over 20 MB is refused with a notice, and an answer for a session the terminal no longer runs pastes and reports nothing while a failure for the current one is reported"
+  },
+  "ipc:window_open_deployment": {
+    "status": "partial",
+    "proof": "`workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`; Sync with Deployed to (default server) opens the comparison of local and server files, previews a file and synchronizes all, through the action in a window; missing: it is a dialog over the window, not the separate window `src/features/deployment/windowBridge.ts:11` opens"
+  },
+  "ipc:window_open_settings": {
+    "status": "partial",
+    "proof": "`workbench::tests::the_appearance_pages_font_labels_end_in_one_colon_on_their_fields_line`, `workbench::tests::focus_editor_runs_from_the_focused_project_view`; File › Settings opens the Settings dialog over the window on the page asked for; missing: Settings is a dialog, not the separate window `src/features/settings/index.ts:104` opens, and Settings for New Projects is not tested"
+  },
+  "context:toolWindowLayoutActive": {
+    "status": "done",
+    "proof": "`workbench::app_actions::tests::proofs20_layouts::restores_the_current_layout_and_saves_changes_into_it`; in a project window the key is off with no saved layout, on once a layout is saved as Custom 1 (Save Changes in Current Layout and Restore Current Layout then act on it), and off again after Restore Default Layout"
+  },
+  "event:DocLanguage": {
+    "status": "partial",
+    "proof": "`editor::command_actions::tests::proofs23_doc_comment_tags::removes_decorations_when_switching_to_an_unsupported_language`; a file type override written to the settings makes the backend re-detect an open Java file as plain text, and its editor switches to plaintext and drops the Java doc-comment tags; missing: the event's ui_mode is dropped where the webview hands it to the document (`src/editor/core/model/document.ts:765`), and no test shows the configuration-key navigation cleared on it (`src/editor/lsp/configurationNavigation.ts:154`)"
+  },
+  "point.registerMenuGroup:build.module": {
+    "status": "partial",
+    "proof": "`workbench::tests::proofs8_build::registers_the_build_menu_actions_shortcuts_and_an_on_use_bottom_tool_window`; in a trusted project window the menu groups of the Project view for one folder (Workbench::group_rows, which the Project view's menu is built from) offer Build Module with that folder as its argument, and Build Module is registered and enabled there; missing: no test opens the Project view's menu and finds or chooses the row (`src/features/build/index.ts:139`)"
+  }
+}

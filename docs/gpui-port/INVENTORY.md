@@ -5,14 +5,14 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1207/3782 rows at parity, 65 model only, 820 partial, 14 with nothing to port.**
+**Overall: 1209/3782 rows at parity, 65 model only, 834 partial, 14 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
 | Actions | 442 | 0 | 209 | 0 | 974 |
 | Keymap ids with no statically registered action | 43 | 0 | 0 | 0 | 45 |
 | Keymap presets | 4 | 0 | 2 | 0 | 6 |
-| Context keys | 48 | 0 | 6 | 0 | 98 |
+| Context keys | 49 | 0 | 6 | 0 | 98 |
 | Extension point `registerAgentContextSource` | 0 | 0 | 0 | 0 | 3 |
 | Extension point `registerCloneSource` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerCommitCheckProvider` | 0 | 0 | 0 | 0 | 1 |
@@ -31,7 +31,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Extension point `registerGitLogChecks` | 0 | 0 | 0 | 0 | 1 |
 | Extension point `registerKeyClaim` | 4 | 0 | 1 | 0 | 14 |
 | Extension point `registerLanguageMode` | 0 | 0 | 0 | 0 | 1 |
-| Extension point `registerMenuGroup` | 3 | 0 | 7 | 0 | 28 |
+| Extension point `registerMenuGroup` | 3 | 0 | 8 | 0 | 28 |
 | Extension point `registerMenuSlotItem` | 1 | 0 | 1 | 0 | 2 |
 | Extension point `registerNavigationProvider` | 0 | 0 | 0 | 0 | 6 |
 | Extension point `registerOccurrenceNavigator` | 0 | 0 | 1 | 0 | 1 |
@@ -60,8 +60,8 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | Editor, platform, workbench and design-system modules | 24 | 1 | 72 | 0 | 289 |
 | Design tokens, icons and locales | 9 | 0 | 0 | 0 | 9 |
 | Native shell modules (src-tauri) | 0 | 0 | 2 | 0 | 25 |
-| IPC commands | 308 | 0 | 45 | 14 | 715 |
-| Backend events (IdeEvent) | 11 | 0 | 8 | 0 | 31 |
+| IPC commands | 309 | 0 | 57 | 14 | 715 |
+| Backend events (IdeEvent) | 11 | 0 | 9 | 0 | 31 |
 | Plugin API interfaces (wit/) | 7 | 0 | 13 | 0 | 53 |
 | Behaviour specification: unit tests (vitest) | 243 | 64 | 306 | 0 | 976 |
 | Behaviour specification: end-to-end specs (Playwright) | 7 | 0 | 11 | 0 | 113 |
@@ -1110,7 +1110,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [~] | `vscode-macos` | 396 | 153 | `platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Meta+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 "untitled buffers and Save As with a file type"); the native app registers no file.newUntitled action (no "file.newUntitled" under app-gpui/src), so in this preset Meta+N does nothing natively where it ran file.new before the merge |
 | [~] | `vscode-windows` | 46 | 32 | `platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Ctrl+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 "untitled buffers and Save As with a file type"); the native app registers no file.newUntitled action (no "file.newUntitled" under app-gpui/src), so in this preset Ctrl+N does nothing natively where it ran file.new before the merge |
 
-## Context keys (48/98 at parity, 6 partial)
+## Context keys (49/98 at parity, 6 partial)
 
 | | Key | First source | Proof |
 |---|---|---|---|
@@ -1199,7 +1199,7 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 | [ ] | `TEXT_WHEN` | src/editor/core/actions.ts |  |
 | [x] | `textEditorActive` | src/editor/core/controller.ts | `workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor` |
 | [x] | `toolWindowFocus` | src/workbench/toolwindows/store.ts | `workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view` |
-| [ ] | `toolWindowLayoutActive` | src/workbench/toolwindows/actions.ts |  |
+| [x] | `toolWindowLayoutActive` | src/workbench/toolwindows/actions.ts | `workbench::app_actions::tests::proofs20_layouts::restores_the_current_layout_and_saves_changes_into_it`; in a project window the key is off with no saved layout, on once a layout is saved as Custom 1 (Save Changes in Current Layout and Restore Current Layout then act on it), and off again after Restore Default Layout |
 | [x] | `toolWindowLayoutsSaved` | src/workbench/toolwindows/actions.ts | `workbench::app_actions::tests::saves_and_restores_visible_windows_and_sizes_by_name`; read OFF before a layout is saved, ON after Save, OFF again once the last one is deleted |
 | [ ] | `VCS` | src/features/vcs/actions.tsx |  |
 | [x] | `vcsAvailable` | src/features/vcs/store.ts | `workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository` |
@@ -1411,13 +1411,13 @@ Bound in a keymap preset but registered at run time (dynamic rows above) or hand
 |---|---|---|---|
 | [ ] | `(at) src/features/http-client/index.ts:142` | src/features/http-client/index.ts:142 |  |
 
-## Extension point `registerMenuGroup` (3/28 at parity, 7 partial)
+## Extension point `registerMenuGroup` (3/28 at parity, 8 partial)
 
 | | Id | Registered at | Proof |
 |---|---|---|---|
 | [~] | `agents.send` | src/features/agents/index.ts:215 | `workbench::context_menus::tests::proofs7_send_to_agent::send_to_agent_chosen_in_the_editors_menu_mentions_the_selected_lines_in_the_new_tasks_prompt`, `workbench::project_view_actions::tests::proofs7_project_menu::send_to_agent_in_a_folders_project_view_menu_mentions_the_folder_in_the_new_tasks_prompt`, `workbench::context_menus::tests::the_groups_of_a_menu_come_in_order_each_followed_by_a_separator`, `workbench::context_menus::tests::proofs16_menus::the_send_to_agent_row_is_left_out_for_a_virtual_document`; chosen in the editor's menu inside a two-line selection it puts @a.txt:1-2 and the file in the New Task prompt, chosen in a folder's Project view menu it puts @src there, and the menu closes. The row is left out for a virtual document (checked on the menu's rows, not in a window). Missing: the Project view sends one selected path where the webview sends every selected one |
 | [ ] | `build.compileFile` | src/features/build/index.ts:150 |  |
-| [ ] | `build.module` | src/features/build/index.ts:139 |  |
+| [~] | `build.module` | src/features/build/index.ts:139 | `workbench::tests::proofs8_build::registers_the_build_menu_actions_shortcuts_and_an_on_use_bottom_tool_window`; in a trusted project window the menu groups of the Project view for one folder (Workbench::group_rows, which the Project view's menu is built from) offer Build Module with that folder as its argument, and Build Module is registered and enabled there; missing: no test opens the Project view's menu and finds or chooses the row (`src/features/build/index.ts:139`) |
 | [ ] | `codeInsight.eslint` | src/features/code-insight/index.ts:69 |  |
 | [ ] | `debugger.evaluate` | src/features/debugger/index.ts:99 |  |
 | [ ] | `debugger.hotswap` | src/features/debugger/index.ts:104 |  |
@@ -2223,7 +2223,7 @@ Desktop-shell behaviour implemented in Rust next to the webview (menus, title ba
 | [~] | `src-tauri/src/windows.rs` | 2438 | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; labels, opening a window for nothing, a project or a file, focusing the window that has a project, cycling. Not yet: restoring the windows of the last run, native window tabs and groups, auxiliary windows (settings, diff), LightEdit routing of loose files between windows, detaching a tab, the close and quit sequence, window state |
 | [ ] | `src-tauri/src/windows_error_mode.rs` | 51 |  |
 
-## IPC commands (308/715 at parity, 45 partial, 14 with nothing to port)
+## IPC commands (309/715 at parity, 57 partial, 14 with nothing to port)
 
 The GPUI app calls the implementation directly; a row is at parity when the UI behaviour that used the command is.
 
@@ -2234,7 +2234,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `agent_base_text` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
 | [x] | `agent_cancel` | src-tauri/src/commands/agent.rs | desktop shell | yes | `workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn` |
 | [~] | `agent_changes` | src-tauri/src/commands/agent.rs | desktop shell | yes | `workbench::tests::proofs6_agents::a_finished_turn_lists_the_file_the_agent_edited_among_the_tasks_changes`; the test reads the agents store: no native view shows a task's changes |
-| [ ] | `agent_commands` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
+| [~] | `agent_commands` | src-tauri/src/commands/agent.rs | desktop shell | yes | `workbench::tests::proofs11_agents::new_task_looks_up_the_agents_commands_once_in_a_session_it_never_prompts`, `workbench::tests::proofs14_agents_views::completes_the_commands_the_agent_offered_in_the_project`; opening New Task in a window looks up the agent's commands through the real backend (the agent reads initialize and session/new) and the page completes the agent's /command, though the second test does not separate this answer from the commands offered earlier; missing: the session composer's lookup with a task id (`src/features/agents/SessionEditor.tsx:2866`) |
 | [~] | `agent_create` | src-tauri/src/commands/agent.rs | desktop shell | yes | `workbench::tests::a_task_started_from_the_tool_window_streams_its_reply_and_stop_cancels_the_turn`; a task started from the tool window streams its reply and Stop cancels the turn; missing: the new task's mcpOverrides, the per-session MCP server choices the webview sends (src/features/agents/store.ts:989, picked at src/features/agents/HomeEditor.tsx:207, 32abc77a7); the native request sends an empty map (app-gpui/src/agents/store.rs:1106) |
 | [ ] | `agent_create_ephemeral` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
 | [ ] | `agent_custom_import` | src-tauri/src/commands/agent.rs | desktop shell | yes |  |
@@ -2307,7 +2307,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `clipboard_file_list` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
 | [ ] | `clipboard_has_files` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
 | [ ] | `clipboard_has_image` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
-| [ ] | `clipboard_image` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
+| [~] | `clipboard_image` | src-tauri/src/commands/clipboard.rs | desktop shell | yes | `agents::new_task_view::tests::attaches_the_clipboards_image_when_pasting_without_text`; pasting an image with no text into the agents' New Task composer attaches it; missing: the session composer (`src/features/agents/Composer.tsx:654` via SessionEditor) and the Project view image paste (`src/features/project-tree/clipboard.ts:59`) |
 | [ ] | `clipboard_set_file_list` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
 | [ ] | `clipboard_text` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
 | [ ] | `clipboard_write_text` | src-tauri/src/commands/clipboard.rs | desktop shell | yes |  |
@@ -2454,7 +2454,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `file_dialog_needs_gtk` | src-tauri/src/commands/file_dialog.rs | desktop shell | yes |  |
 | [ ] | `find_dirs` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
 | [x] | `find_files` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes | `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it` |
-| [ ] | `find_files_named` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
+| [~] | `find_files_named` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes | `workbench::tests::proofs4_run::keeps_the_package_in_a_crowded_java_source_lookup`; a stack frame opened through the window's run driver finds every same-named file through the real backend and opens the one of the frame's package; missing: `src/features/http-client/spring/editor.ts:39`, `src/editor/navigation/index.ts:243` |
 | [x] | `find_symbols` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes | `workbench::tests::search_everywhere_runs_actions_finds_text_and_switches_tabs` |
 | [ ] | `find_symbols_named` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
 | [ ] | `fs_compare_directories` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
@@ -2462,7 +2462,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `fs_copy_merge` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
 | [x] | `fs_create_dir` | src-tauri/src/commands/fs.rs | desktop shell | yes | `workbench::tests::new_directory_and_a_nested_new_file_create_their_folders`; New Directory from the project view goes through BackendCall::FsCreateDir to ide_vfs::create_dir, the same function the fs_create_dir adapter calls, and the test asserts the folder exists on disk and is selected in the tree |
 | [x] | `fs_create_file` | src-tauri/src/commands/fs.rs | desktop shell | yes | `workbench::tests::new_file_in_the_project_view_creates_selects_and_opens_the_file` |
-| [ ] | `fs_create_file_bytes` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
+| [~] | `fs_create_file_bytes` | src-tauri/src/commands/fs.rs | desktop shell | yes | `workbench::tests::proofs34_template_files::writes_the_titled_notebook_body_before_the_notebook_editor_takes_the_file`; creating a notebook from a template writes its body to disk through the New File dialog; missing: `src/features/settings/keymap/KeymapPage.tsx:298`, `src/features/settings/pages/editor/colorScheme.tsx:1490`, `src/features/scratch/scratches.ts:27`, `src/features/graphql/store.ts:257`, `src/features/graphql/store.ts:444`, `src/features/project-tree/fs.ts:34`, `src/editor/core/cm/markdownImages.ts:69` |
 | [x] | `fs_delete` | src-tauri/src/commands/fs.rs | desktop shell | yes | `workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`, `workbench::tests::a_confirmed_delete_searches_deletes_and_reports_what_could_not_be_deleted`; a confirmed Delete… takes docs/notes.txt off the disk and out of the tree into the trash folder the test gives the host in place of the system Trash, with its text, which only ide_host::ops::fs::delete moves there (after Local History records it); the window calls ops::fs::delete with its label and the path, as the adapter does |
 | [x] | `fs_entry_kind` | src-tauri/src/commands/fs.rs | desktop shell | yes | `workbench::tests::proofs4_run::a_location_printed_in_the_output_opens_the_file_that_exists_there`; a click on notes.txt:2 printed by a process running in server/ opens server/notes.txt at line 2 although the root has one too, and docs.txt:1, a folder in server/, opens the root's file; the driver calls ide_host::ops::fs::entry_kind, as the adapter does |
 | [ ] | `fs_open_with_system` | src-tauri/src/commands/fs.rs | desktop shell | yes |  |
@@ -2510,8 +2510,8 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `index_file_extensions` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes | `find::popup_view::tests::proofs_editor_project_masks::the_masks_list_offers_the_projects_most_common_language_file_types_after_the_recent_ones`; the masks list orders the project's file types by file count, which only the index's counts give, through ide_host::ops::nav::index_file_extensions as the adapter |
 | [ ] | `index_status` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes |  |
 | [ ] | `inspect_code` | src-tauri/src/commands/analysis.rs | `ide_host::ops` | yes |  |
-| [ ] | `java_build_workspace` | src-tauri/src/commands/java.rs | `ide_host::ops` | yes |  |
-| [ ] | `java_debug_server` | src-tauri/src/commands/java.rs | `ide_host::ops` | yes |  |
+| [~] | `java_build_workspace` | src-tauri/src/commands/java.rs | `ide_host::ops` | yes | `workbench::debug::tests::proofs11_hotswap::reload_changed_classes_compiles_then_reloads_the_classes_into_the_java_session`, `workbench::debug::tests::proofs11_hotswap::cancel_hot_swap_build_aborts_the_reload_before_any_class_is_redefined`; Reload Changed Classes run as an action in a window compiles, then redefines the classes or stops when cancelled, with the compile answered by a test seam (JavaBuildAnswer) instead of java_build_workspace; missing: the real backend build call (`src/features/debugger/hotswap.ts:140`) |
+| [~] | `java_debug_server` | src-tauri/src/commands/java.rs | `ide_host::ops` | yes | `workbench::debug::tests::proofs11_hotswap::reload_changed_classes_compiles_then_reloads_the_classes_into_the_java_session`; debug.startConfig on a Remote JVM Debug configuration in a window starts a running Java session attached to the port the debug-server step returns, with that port supplied by a test seam (JavaDebugServerPort) instead of java_debug_server; missing: the real backend call (`src/features/debugger/java.ts:127`) |
 | [~] | `java_resolve_launch` | src-tauri/src/commands/java.rs | `ide_host::ops` | yes | called while a Java launch is prepared, with a request Stop cancels; needs the language server, no test |
 | [ ] | `jdk_download` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
 | [ ] | `jdk_download_location` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
@@ -2621,7 +2621,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `plugin_endpoints` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
 | [x] | `plugin_event_kinds` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugin_contributions::tests::an_input_mode_change_reaches_the_plugin_that_wants_it`, `workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`; the window asks PluginHost::event_kinds after the initial load, as the adapter does, and posts only kinds some plugin wants; the events reach the plugins once the kinds are known |
 | [x] | `plugin_finish_operation` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugin_contributions::tests::a_plugins_run_shows_its_output_in_the_run_tool_window_and_the_plugin_hears_its_exit`, `workbench::plugin_contributions::tests::a_plugins_debug_request_runs_under_the_debugger_and_the_plugin_hears_the_end`; when the plugin's run or debug session ends the window calls PluginHost::finish_operation with its label, the operation and the exit code (3, then 0), not stopped, and the plugin records that status |
-| [ ] | `plugin_formatters` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes |  |
+| [~] | `plugin_formatters` | src-tauri/src/commands/lsp.rs | `ide_host::ops` | yes | `workbench::tests::proofs19_settings_languages::code_style_offers_a_plugin_formatter_per_covered_language_and_stores_the_pick`; Settings > Code Style lists a choice per covered language and stores the pick, with the formatter list supplied by a test SdkDetection seam; missing: the real backend call is never reached in a test (`src/features/settings/pages/editor/pluginFormatters.tsx:14`) |
 | [x] | `plugin_grant` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugins_window::tests::proofs6_plugins::review_permissions_grants_a_plugin_waiting_for_consent`, `workbench::plugins_window::tests::proofs16_plugins::a_running_plugins_permission_request_shows_the_permission_page_and_ok_grants_it`; and from a running plugin's request: OK grants the permission on the host through the function the adapter calls |
 | [x] | `plugin_install_dir` | src-tauri/src/commands/plugin.rs | desktop shell | yes | `workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`; accepted on the install page, the folder is installed through PluginHost::install_from_dir with the consent given, as the adapter does, and the host then lists the plugin; declined, nothing is installed |
 | [ ] | `plugin_installed_intellij_themes` | src-tauri/src/commands/plugin.rs | desktop shell | yes |  |
@@ -2687,7 +2687,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `project_trust_remove_location` | src-tauri/src/commands/app.rs | desktop shell | yes | `workbench::app_actions::tests::removing_a_trusted_location_restricts_the_projects_inside_it`; the project inside the removed location becomes restricted, which only the store's removal plus Host::refresh_project_trust produce; the window calls remove_location, refresh_project_trust and PluginHost::restrict_project per untrusted project, as the adapter does |
 | [x] | `project_trust_set` | src-tauri/src/commands/app.rs | desktop shell | yes | `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`; the trust store holds the project and its parent folder as trusted locations, and a previewed or revoked project as decided and not trusted, which only Host::set_project_trust writes; the window calls it with the path, trusted and folder, as the adapter does, and restricts the project's plugins when not trusted |
 | [x] | `project_trust_status` | src-tauri/src/commands/app.rs | desktop shell | yes | `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`; an undecided folder is asked about by its root as the store names it, a decided one and a sibling in a trusted location open without a question; the window reads TrustStore::status, as the adapter does |
-| [ ] | `proxy_check_connection` | src-tauri/src/commands/http.rs | desktop shell | yes |  |
+| [~] | `proxy_check_connection` | src-tauri/src/commands/http.rs | desktop shell | yes | `workbench::tests::proofs19_settings_misc::http_proxy_manual_configuration_applies_and_the_password_stays_secret`; Check connection… sends the URL with the proxy settings as edited to the checker and shows its answer, through the Settings page in a window, but with a fake checker; missing: the real ide_http::client::check_connection call is untested (`src/features/settings/pages/httpProxy.tsx:208`) |
 | [x] | `recent_files` | src-tauri/src/commands/nav.rs | `ide_host::ops` | yes | `workbench::tests::recent_files_and_the_switcher_go_between_the_editors`, `workbench::tests::go_to_file_finds_a_file_by_name_and_opens_it` |
 | [x] | `recent_project_groups` | src-tauri/src/commands/app.rs | desktop shell | yes | `workbench::tests::proofs6_workbench::the_welcome_screen_shows_the_stored_project_groups_with_their_projects` |
 | [x] | `recent_projects` | src-tauri/src/commands/app.rs | desktop shell | yes | `workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`, `workbench::tests::recent_live_branch::the_welcome_screen_shows_the_live_branch_of_a_recent_project`; the Welcome screen lists the recent projects and opens them; each recent project shows the live branch read from its repository's HEAD file, as the adapter returns it |
@@ -2753,7 +2753,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `scaffold_requirements` | src-tauri/src/commands/scaffold.rs | `ide_host::ops` | yes |  |
 | [ ] | `sdk_container_python` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
 | [ ] | `sdk_container_python_refresh` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
-| [ ] | `sdk_detect` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
+| [~] | `sdk_detect` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes | `settings_view::pages::languages_sdk::tests::the_combo_offers_the_detected_installations_and_stages_a_choice`, `workbench::tests::proofs19_settings_languages::java_level_and_shared_jdt_ls_apply_and_reset_discards_jvm_options`; the Settings SDK combos show and stage detected installations, with detection supplied by a test SdkDetection seam; missing: `src/features/app/NewProject.tsx:180`, `src/features/run/jvmTypes.ts:74`, `src/features/run/runtimes.ts:36`, `src/features/run/runtimes.ts:41`, `src/features/run/TomcatSettings.tsx:167`, and the real backend call is never reached in a test |
 | [ ] | `sdk_jdk_at` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
 | [x] | `sdk_locate_tools` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes | `workbench::run_context::tests::proofs20_run::run_context_runs_a_script_with_the_tool_found_beside_the_project`; Run from context on a script runs it with the tool ide_host::ops::sdk::locate_tools, the adapter's function, finds beside the project (a stand-in in node_modules/.bin) |
 | [ ] | `sdk_php_composer_install` | src-tauri/src/commands/sdk.rs | `ide_host::ops` | yes |  |
@@ -2802,7 +2802,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `syntax_node_at` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes | `workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`; Unwrap/Remove calls ide_host::ops::syntax::syntax_node_at with the window's label, the document and the caret's empty range, as the adapter does; the if is replaced by its body, an edit built only from the node and ancestors it returns, and on the function's first line it says Nothing to unwrap here |
 | [x] | `syntax_structural_ranges` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes | `workbench::tests::proofs25_syntax_tree::move_statement_moves_a_whole_statement_and_stays_inside_its_block`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_shows_the_whole_declaration_from_the_syntax_tree_in_colour`; a three-line statement moves as one and the popup shows exactly the declaration's lines, which only the ranges give, called as the Tauri adapter calls it (the host, the window's label, the document and the position) |
 | [x] | `syntax_support` | src-tauri/src/commands/syntax.rs | `ide_host::ops` | yes | `workbench::editor_extras::tests::unwrap_replaces_the_statement_around_the_caret_by_its_body`; Unwrap/Remove calls ide_host::ops::syntax::syntax_support with the window's label and the editor's language, as the adapter does: for the Rust file it goes on to the syntax tree and unwraps, and for the plain text file it says Unwrap/Remove is not available for this language, which only that answer decides |
-| [ ] | `system_font_families` | src-tauri/src/commands/fonts.rs | desktop shell | yes |  |
+| [~] | `system_font_families` | src-tauri/src/commands/fonts.rs | desktop shell | yes | `settings_view::custom_controls::tests::the_installed_fonts_are_read_once_a_font_picker_is_shown`; the font picker reads the installed fonts once it is shown and says when none came back; missing: test builds never enumerate the system's fonts, so the real list is untested, and the appearance runtime use (`src/features/settings/appearanceRuntime.ts:277`) was not mapped |
 | [ ] | `system_probe_hotkeys` | src-tauri/src/commands/hotkeys.rs | desktop shell | yes |  |
 | [x] | `term_available_shells` | src-tauri/src/commands/term.rs | desktop shell | yes | `settings_view::custom_controls::tests::proofs6_custom_controls::the_shell_path_list_offers_the_installed_shells` |
 | [x] | `term_default_shell` | src-tauri/src/commands/term.rs | desktop shell | yes | `settings_view::custom_controls::tests::the_login_shell_is_read_after_the_dialog_opens`; the Terminal page fills the Shell path placeholder from ide_terminal::default_shell_path, as the adapter answers |
@@ -2810,7 +2810,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `term_kill` | src-tauri/src/commands/term.rs | desktop shell | yes | `workbench::tests::proofs4_shell::closing_a_terminal_session_ends_its_shell`; the shell of a new terminal tab runs while the tab is open and is gone once Close Terminal Session releases the view, which calls ide_host::ops::term::kill, the same Terminals::kill the adapter calls |
 | [x] | `term_resize` | src-tauri/src/commands/term.rs | desktop shell | yes | `terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit` |
 | [x] | `term_spawn` | src-tauri/src/commands/term.rs | `ide_host::ops` | yes | `terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit`, `workbench::tests::the_terminal_tool_window_runs_a_shell_at_the_bottom` |
-| [ ] | `term_store_image` | src-tauri/src/commands/term.rs | `ide_host::ops` | yes |  |
+| [x] | `term_store_image` | src-tauri/src/commands/term.rs | `ide_host::ops` | yes | `terminal::view::tests::proofs23_paste::stores_raw_local_clipboard_media_through_paste`, `terminal::view::tests::proofs23_paste::ignores_an_image_after_its_target_is_replaced_during_upload`, `terminal::view::tests::proofs23_paste::rejects_oversized_images_before_reading_or_uploading`; ⌘V of a copied picture with no text in a terminal running a shell stores it through the real backend in a terminal-images file of the data folder and types its quoted path, a picture over 20 MB is refused with a notice, and an answer for a session the terminal no longer runs pastes and reports nothing while a failure for the current one is reported |
 | [x] | `term_write` | src-tauri/src/commands/term.rs | desktop shell | yes | `terminal::view::tests::a_shell_runs_in_the_terminal_and_reports_its_exit` |
 | [ ] | `tools_install` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
 | [ ] | `tools_list` | src-tauri/src/commands/tools.rs | `ide_host::ops` | yes |  |
@@ -2925,14 +2925,14 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `window_is_fullscreen` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [x] | `window_new` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; the adapter's function, windows::create_window, is the Tauri shell's own; the native equivalent is the window.new action (workbench::windows::open_window with an empty target), and run through the registry it adds window project-2 to the open windows |
 | [ ] | `window_open_comparison` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
-| [ ] | `window_open_deployment` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [~] | `window_open_deployment` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::deployment::tests::sync_with_default_compares_previews_and_synchronizes_all`; Sync with Deployed to (default server) opens the comparison of local and server files, previews a file and synchronizes all, through the action in a window; missing: it is a dialog over the window, not the separate window `src/features/deployment/windowBridge.ts:11` opens |
 | [ ] | `window_open_diff` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [ ] | `window_open_file_in_new_window` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [x] | `window_open_files` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it`, `workbench::tests::proofs13_windows::leaves_files_to_the_existing_light_edit_window_or_their_projects_window`, `workbench::tests::proofs13_windows::turns_a_window_without_a_project_into_light_edit_when_no_light_edit_window_exists`; a command of the Tauri shell with no backend function behind it; the native app does the same for the user itself: a loose file opened from a window goes to the window whose project has it, which comes to the front, else to the single-file window, else this window becomes one |
 | [~] | `window_open_project` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; see the file.openProjectPath action |
 | [ ] | `window_open_projects` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [ ] | `window_open_remote` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
-| [ ] | `window_open_settings` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
+| [~] | `window_open_settings` | src-tauri/src/commands/window.rs | desktop shell | yes | `workbench::tests::the_appearance_pages_font_labels_end_in_one_colon_on_their_fields_line`, `workbench::tests::focus_editor_runs_from_the_focused_project_view`; File › Settings opens the Settings dialog over the window on the page asked for; missing: Settings is a dialog, not the separate window `src/features/settings/index.ts:104` opens, and Settings for New Projects is not tested |
 | [ ] | `window_set_titlebar_height` | src-tauri/src/commands/window.rs | desktop shell | yes |  |
 | [~] | `window_start_drag` | src-tauri/src/commands/window_drag.rs | desktop shell | yes | `workbench::tests::proofs21_shell::the_title_bars_empty_space_is_left_to_the_system_to_move_the_window`; the title bar's empty space is a system drag region (a Tauri-shell command: the window is moved and zoomed by the system). Missing: the move and the double-click zoom were not checked in a real window |
 | [ ] | `window_take_launch` | src-tauri/src/commands/window.rs | desktop shell | no |  |
@@ -2945,7 +2945,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [ ] | `wsl_distros` | src-tauri/src/commands/wsl.rs | desktop shell | yes |  |
 | [ ] | `wsl_resolve` | src-tauri/src/commands/wsl.rs | desktop shell | yes |  |
 
-## Backend events (IdeEvent) (11/31 at parity, 8 partial)
+## Backend events (IdeEvent) (11/31 at parity, 9 partial)
 
 | | Variant | Proof |
 |---|---|---|
@@ -2960,7 +2960,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `DocPatched` | `workbench::tests::smoke_backend_events::an_edit_and_a_save_made_by_the_backend_show_in_the_open_editor`; an edit the backend applies to an open document shows in its editor |
 | [x] | `DocDirty` | `workbench::tests::smoke_backend_events::an_edit_and_a_save_made_by_the_backend_show_in_the_open_editor`; the editor is marked modified after the backend's edit and clean again once the backend saves the document |
 | [~] | `WorkspaceEditApplied` | `workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`, `workbench::tests::proofs39_agent_undo::edit_undo_takes_back_an_agents_edit_over_two_files_and_redo_applies_it_again`, `workbench::tests::proofs39_agent_undo::does_not_announce_an_agents_edit_as_a_refactoring`, `workbench::tests::proofs39_agent_undo::reports_a_refused_undo_instead_of_discarding_newer_work`, `workbench::tests::proofs39_agent_undo::an_agents_edit_made_before_any_editor_opened_is_undone_from_the_editor_opened_later`, `workbench::tests::proofs39_agent_undo::each_agents_edit_is_remembered_once_before_and_after_an_editor_opens`, `workbench::tests::proofs39_agent_undo::undoing_an_agents_edit_touches_only_the_files_it_changed_created_or_deleted`, `workbench::tests::proofs39_agent_undo::an_undo_from_another_editor_keeps_newer_unsaved_typing_in_an_editor_of_the_edit`, `workbench::tests::proofs39_agent_undo::typing_made_before_an_agents_edit_is_kept_but_no_longer_undoable`; the rename's applied edit raises Refactoring applied with Undo, and after the undo Refactoring undone with Redo; the window remembers every applied edit from the moment the project opens, an agent's too (without the notification), so Edit › Undo takes it back over all its files and Redo applies it again, and a refused undo keeps every file. Missing: typing made in an open editor before a workspace edit can no longer be undone afterwards (the edit clears that editor's own history; the webview keeps it: src/editor/core/model/workspaceHistory.ts), and when another editor of the edit has newer unsaved typing the backend's refusal is shown where the webview says "Undo newer editor changes before undoing this refactoring" (workspaceHistory.ts:156) |
-| [ ] | `DocLanguage` |  |
+| [~] | `DocLanguage` | `editor::command_actions::tests::proofs23_doc_comment_tags::removes_decorations_when_switching_to_an_unsupported_language`; a file type override written to the settings makes the backend re-detect an open Java file as plain text, and its editor switches to plaintext and drops the Java doc-comment tags; missing: the event's ui_mode is dropped where the webview hands it to the document (`src/editor/core/model/document.ts:765`), and no test shows the configuration-key navigation cleared on it (`src/editor/lsp/configurationNavigation.ts:154`) |
 | [x] | `Diagnostics` | `workbench::tests::the_problems_window_lists_published_problems_and_opens_the_chosen_one`; the Problems window lists exactly the problems the Diagnostics events handed to the window, and drops a file whose list is cleared |
 | [~] | `Task` | `workbench::tests::backend_tasks_and_notifications_reach_the_window`; listed and shown in the status bar: the popup and its cancel button are proven with a plugin task, not with a backend one; no progress bar |
 | [~] | `IndexState` | `workbench::tests::backend_tasks_and_notifications_reach_the_window`; shown as the Indexing task: dumb mode is not applied to other features |
