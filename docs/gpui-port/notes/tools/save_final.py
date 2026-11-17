@@ -1,4 +1,6 @@
-"""Writes the last text an agent said (its final report) from its task transcript to a file.
+"""Writes an agent's final report from its task transcript to a file: the last text it said, or, when
+that is a short closing line after the report (an agent that waited on its own background work
+says one), the longest of its last five texts.
 
 usage: save_final.py <task .output (JSONL transcript)> <destination .md>
 """
@@ -22,7 +24,7 @@ def texts(node):
     return out
 
 
-last = None
+said = []
 with open(src, encoding="utf-8", errors="replace") as f:
     for line in f:
         line = line.strip()
@@ -34,9 +36,10 @@ with open(src, encoding="utf-8", errors="replace") as f:
             continue
         found = texts(node)
         if found:
-            last = "\n\n".join(found)
-if last is None:
+            said.append("\n\n".join(found))
+if not said:
     sys.exit(f"no assistant text found in {src}")
+last = said[-1] if len(said[-1]) >= 2000 else max(said[-5:], key=len)
 with open(dst, "w", encoding="utf-8") as f:
     f.write(last.rstrip() + "\n")
 print(os.path.basename(dst), len(last.encode("utf-8")))
