@@ -20,6 +20,10 @@ A reader compared the 454 action rows at parity whose registering file changed i
 
 For each item: a test that fails first, then the change. No assertion is loosened: an expectation changes only to what the webview at HEAD does, named with its `file:line`.
 
+## If the slice is larger than one pass
+
+Take the items in order. When about two thirds of your budget is used, finish the item in hand, run the gates on what has landed, and report: which items are done with their tests, which are not started. Never leave an item half applied; an item that is not finished is undone by editing. The manager launches the rest as another integration.
+
 ## Rows
 
 For each lowered row the items touch, say which missing clause of its proof is now proven, by which test. Do not write to `parity.json`.
