@@ -32,7 +32,7 @@ Part 1 first, file by file, then Part 2 by native file. When about two thirds of
 
 ## Changed since
 
-BEFORE LAUNCH (for the manager; delete this paragraph then): HEAD, what landed since the census (read at 21685f123), and the other agents' undeclared drafts then in the tree.
+HEAD is `2ad1903b4`. The census read the tree at `21685f123`; since then three integrations landed: the Run and Debug guards (`fdbec9074`: every start carries a request id; Debug on a running configuration asks; a run reuses its configuration's finished tab), the second half of the pre-merge behaviour fixes (`0c3765eec`: the Execute popup, plugin decorations and markers, client-only settings, inspections) and their notes. So the census's native `file:line` are "near": find each place by its text, and re-check each "code no test" row against the tests that exist now (`$S/rust_tests.txt` is current): a row whose test was written meanwhile is reported as already covered, with the test's name. Six more undeclared drafts joined the tree, not yours: `app-gpui/src/everywhere/view/memory.rs`, `everywhere/view/parts.rs`, `everywhere/view/proofs41_stale.rs`, `app-gpui/src/workbench/tests/proofs41_e2e_search_everywhere.rs`, `proofs41_e2e_search_layout.rs`, `proofs41_recent_edited.rs`; and `proofs40_*` files other than `run/store/tests/proofs40_run_tabs_pending.rs` are now declared and are ordinary compiled tests.
 
 ## Gates (they replace rule 12 of `$S/int_rules.md`)
 
@@ -40,8 +40,8 @@ The whole suite twice to files, nothing else running beside the first (write `up
 
 ## Report
 
-Besides the format of `$S/int_rules.md`: Part 1, one section per file (declared and passing; changed how; what failed and why; or duplicate of which tests); defects of the app found, each with the failure quoted; Part 2, one line per row (the test, what it asserts, the row's state); files for the manager to delete.
+Your final message must be the full report (no short closing line after it). Besides the format of `$S/int_rules.md`: Part 1, one section per file (declared and passing; changed how; what failed and why; or duplicate of which tests); defects of the app found, each with the failure quoted; Part 2, one line per row (the test, what it asserts, the row's state); files for the manager to delete.
 
 ## Do not touch
 
-The queued drafts of other agents: `app-gpui/src/settings_view/pages/tools_agents.rs`, `tools_agents/`, `workbench/settings_agents.rs`, `settings_view/pages/agents_list.rs`, `agents_list/`, `agents/agent_list.rs`, `agents/agent_list/`, `workbench/agent_list_backend.rs`, `workbench/settings_agents_list.rs`, `settings_view/pages/remote_folder_browser.rs`, `remote_folder_browser/`, `build_deployment/remote_folder.rs`, every `proofs36_*`, `proofs37_*`, `proofs38_*` and `proofs40_*` file, `workbench/debug_guards.rs`, every `*_pending.rs`, `platform/error_log_sink.rs`. No edits under `crates/`, `docs/`, `src/`, `src-tauri/`, `e2e/`. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`.
+The queued drafts of other agents: `app-gpui/src/settings_view/pages/tools_agents.rs`, `tools_agents/`, `workbench/settings_agents.rs`, `settings_view/pages/agents_list.rs`, `agents_list/`, `agents/agent_list.rs`, `agents/agent_list/`, `workbench/agent_list_backend.rs`, `workbench/settings_agents_list.rs`, `settings_view/pages/remote_folder_browser.rs`, `remote_folder_browser/`, `build_deployment/remote_folder.rs`, every `proofs36_*`, `proofs37_*`, `proofs38_*` and `proofs41_*` file, `everywhere/view/memory.rs`, `everywhere/view/parts.rs`, every `*_pending.rs`, `platform/error_log_sink.rs`. No edits under `crates/`, `docs/`, `src/`, `src-tauri/`, `e2e/`. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`.
