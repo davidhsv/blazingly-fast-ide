@@ -39,6 +39,8 @@ pub enum PackageStyle {
     Go,
     /// PHP: the PSR-4 namespace of the directory.
     Php,
+    /// C#: the root namespace of the nearest .csproj plus the folders below it.
+    Csharp,
 }
 
 /// One body of a template ("Class", "Interface", "JUnit 5 Test").
@@ -541,6 +543,91 @@ pub fn infer_php_namespace(directory: &str, psr4: &[(String, String)]) -> String
     if parts.iter().all(is_label) { parts.join("\\") } else { String::new() }
 }
 
+/// A folder or project name as a C# identifier: other characters become `_`, and one that starts with
+/// a digit gets a `_` in front, as Rider names them.
+fn csharp_identifier(text: &str) -> String {
+    let id: String = text.chars().map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' }).collect();
+    if id.chars().next().is_some_and(char::is_numeric) { format!("_{id}") } else { id }
+}
+
+/// The text of the first `<tag>` element of a .csproj, trimmed; matched without regard to case.
+fn csproj_element<'a>(text: &'a str, tag: &str) -> Option<&'a str> {
+    let lower = text.to_ascii_lowercase();
+    let open = format!("<{}>", tag.to_ascii_lowercase());
+    let close = format!("</{}>", tag.to_ascii_lowercase());
+    let start = lower.find(&open)? + open.len();
+    let end = start + lower[start..].find(&close)?;
+    let inner = &text[start..end];
+    (!inner.contains('<')).then(|| inner.trim())
+}
+
+/// A .csproj's `<RootNamespace>`, else its file name (`My.App.csproj` → `My.App`).
+pub fn csproj_root_namespace(text: &str, file_name: &str) -> String {
+    let explicit = csproj_element(text, "RootNamespace").filter(|explicit| !explicit.is_empty());
+    let base = explicit.map_or_else(
+        || {
+            let cut = file_name.len().saturating_sub(".csproj".len());
+            match file_name.get(cut..) {
+                Some(suffix) if suffix.eq_ignore_ascii_case(".csproj") => &file_name[..cut],
+                _ => file_name,
+            }
+        },
+        |explicit| explicit,
+    );
+    base.split('.').filter(|part| !part.is_empty()).map(csharp_identifier).collect::<Vec<_>>().join(".")
+}
+
+/// Whether a .csproj's C# version has file-scoped namespaces (C# 10): its `<LangVersion>`, else every
+/// target framework is .NET 6 or later. .NET Framework (Unity), .NET Standard and .NET Core projects stay
+/// on C# 9 or earlier.
+pub fn csproj_file_scoped(text: &str) -> bool {
+    if let Some(lang) = csproj_element(text, "LangVersion").map(str::to_ascii_lowercase).filter(|l| !l.is_empty()) {
+        if matches!(lang.as_str(), "latest" | "latestmajor" | "preview") {
+            return true;
+        }
+        let digits = |part: &str| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit());
+        let numeric =
+            lang.split_once('.').map_or_else(|| digits(&lang), |(major, minor)| digits(major) && digits(minor));
+        if numeric {
+            return lang.parse::<f64>().is_ok_and(|version| version >= 10.0);
+        }
+    }
+    if text.to_ascii_lowercase().contains("<targetframeworkversion>") {
+        return false;
+    }
+    let frameworks = csproj_element(text, "TargetFrameworks").or_else(|| csproj_element(text, "TargetFramework"));
+    let Some(frameworks) = frameworks.filter(|frameworks| !frameworks.is_empty()) else { return true };
+    frameworks.split(';').map(str::trim).filter(|framework| !framework.is_empty()).all(|framework| {
+        let version = framework.strip_prefix("net").and_then(|rest| {
+            let (major, rest) = rest.split_once('.')?;
+            rest.starts_with(|c: char| c.is_ascii_digit()).then_some(major)
+        });
+        version.and_then(|major| major.parse::<u32>().ok()).unwrap_or(0) >= 6
+    })
+}
+
+/// The namespace of a folder `rel_dir` below the .csproj: the root namespace plus each folder.
+pub fn infer_csharp_namespace(rel_dir: &str, root_namespace: &str) -> String {
+    let root = root_namespace.split('.').filter(|part| !part.is_empty()).map(str::to_owned);
+    let folders = rel_dir.split('/').filter(|folder| !folder.is_empty()).map(csharp_identifier);
+    root.chain(folders).collect::<Vec<_>>().join(".")
+}
+
+/// A body with `namespace $PACKAGE$;` rewritten as a namespace block, for C# before 10.
+pub fn block_scoped_namespace(body: &str) -> String {
+    const LINE: &str = "namespace $PACKAGE$;\n";
+    let at = if body.starts_with(LINE) { Some(0) } else { body.find(&format!("\n{LINE}")).map(|at| at + 1) };
+    let Some(at) = at else { return body.to_owned() };
+    let mut after = at + LINE.len();
+    if body[after..].starts_with('\n') {
+        after += 1;
+    }
+    let rest = body[after..].trim_end_matches('\n');
+    let indented: Vec<String> =
+        rest.split('\n').map(|line| if line.is_empty() { String::new() } else { format!("    {line}") }).collect();
+    format!("{}namespace $PACKAGE$\n{{\n{}\n}}\n", &body[..at], indented.join("\n"))
+}
+
 /// What a file template's body is rendered with.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FileTemplateVars {
@@ -765,6 +852,7 @@ mod tests {
         assert_eq!(style_name("UserService", NameStyle::Snake), "user_service");
         assert_eq!(style_name("user service", NameStyle::Pascal), "UserService");
         assert_eq!(path(tpl("rust"), "/p/src", "HttpClient").as_deref(), Some("/p/src/http_client.rs"));
+        assert_eq!(path(tpl("zig"), "/p/src", "HttpServer").as_deref(), Some("/p/src/http_server.zig"));
         assert_eq!(path(tpl("tsx"), "/p/src", "user-card.tsx").as_deref(), Some("/p/src/UserCard.tsx"));
         let java = plan_file(tpl("java"), "/p/src/main/java", "com.acme.Foo").expect("a dotted name is planned");
         assert_eq!(java.path, "/p/src/main/java/com/acme/Foo.java");
@@ -773,6 +861,94 @@ mod tests {
         assert_eq!(path(tpl("file"), "/p", "notes/todo.txt").as_deref(), Some("/p/notes/todo.txt"));
         assert_eq!(plan_file(tpl("file"), "/p", "  "), None);
         assert_eq!(plan_file(tpl("file"), "/p", "../x"), None);
+    }
+
+    // file naming › renders a Zig test block from the Test file kind
+    #[test]
+    fn renders_a_zig_test_block_from_the_test_file_kind() {
+        let rendered = render(&kind(tpl("zig"), "test").body, &vars("http_server", "http_server.zig"));
+        assert_eq!(rendered.text.trim(), "test \"http_server\" {\n    \n}");
+    }
+
+    // file naming › ships a Jupyter Notebook template that the notebook editor accepts
+    #[test]
+    fn ships_a_jupyter_notebook_template_that_the_notebook_editor_accepts() {
+        let jupyter = tpl("jupyter");
+        assert_eq!((jupyter.extension.as_str(), jupyter.icon.as_str()), ("ipynb", "file-jupyter"));
+        assert_eq!(jupyter.name_style, NameStyle::Asis);
+        assert_ne!(jupyter.enabled, Some(false));
+        for kind in &jupyter.kinds {
+            let text = render(&kind.body, &vars("analysis", "analysis.ipynb")).text;
+            let notebook: serde_json::Value = serde_json::from_str(&text).expect("the notebook is JSON");
+            assert_eq!(notebook["nbformat"], 4);
+            assert!(notebook["nbformat_minor"].is_u64());
+            assert!(notebook["metadata"].is_object());
+            let cells = notebook["cells"].as_array().expect("cells");
+            for cell in cells {
+                assert!(cell["cell_type"].is_string() && cell["metadata"].is_object() && cell["source"].is_array());
+            }
+        }
+    }
+
+    // file naming › names the titled notebook after the file
+    #[test]
+    fn names_the_titled_notebook_after_the_file() {
+        let text = render(&kind(tpl("jupyter"), "titled").body, &vars("report", "report.ipynb")).text;
+        let notebook: serde_json::Value = serde_json::from_str(&text).expect("the notebook is JSON");
+        assert_eq!(notebook["cells"][0]["cell_type"], "markdown");
+        assert_eq!(notebook["cells"][0]["source"], serde_json::json!(["# report"]));
+    }
+
+    // file naming › plans the notebook file name from the entered name
+    #[test]
+    fn plans_the_notebook_file_name_from_the_entered_name() {
+        let jupyter = tpl("jupyter");
+        assert_eq!(path(jupyter, "/p/notebooks", "analysis").as_deref(), Some("/p/notebooks/analysis.ipynb"));
+        assert_eq!(path(jupyter, "/p", "analysis.ipynb").as_deref(), Some("/p/analysis.ipynb"));
+    }
+
+    // C# namespaces › come from the project's root namespace and the folders below the .csproj
+    #[test]
+    fn come_from_the_projects_root_namespace_and_the_folders_below_the_csproj() {
+        assert_eq!(csproj_root_namespace("<Project Sdk=\"Microsoft.NET.Sdk\"></Project>", "My.App.csproj"), "My.App");
+        assert_eq!(csproj_root_namespace("<RootNamespace>Acme.Shop</RootNamespace>", "Web.csproj"), "Acme.Shop");
+        assert_eq!(csproj_root_namespace("", "my-app.csproj"), "my_app");
+        assert_eq!(infer_csharp_namespace("/Services/Billing", "Acme.Shop"), "Acme.Shop.Services.Billing");
+        assert_eq!(infer_csharp_namespace("", "Acme.Shop"), "Acme.Shop");
+        assert_eq!(infer_csharp_namespace("/2024-data", "App"), "App._2024_data");
+    }
+
+    // C# namespaces › are file-scoped from C# 10 and blocks before it (.NET Framework and Unity projects)
+    #[test]
+    fn are_file_scoped_from_csharp_10_and_blocks_before_it() {
+        let sdk =
+            |tf: &str| format!("<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup>{tf}</PropertyGroup></Project>");
+        assert!(csproj_file_scoped(&sdk("<TargetFramework>net8.0</TargetFramework>")));
+        assert!(csproj_file_scoped(&sdk("<TargetFrameworks>net6.0;net8.0</TargetFrameworks>")));
+        assert!(!csproj_file_scoped(&sdk("<TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>")));
+        assert!(!csproj_file_scoped(&sdk("<TargetFramework>net48</TargetFramework>")));
+        assert!(!csproj_file_scoped(&sdk("<TargetFramework>net5.0</TargetFramework>")));
+        assert!(csproj_file_scoped(&sdk(
+            "<TargetFramework>netstandard2.1</TargetFramework><LangVersion>latest</LangVersion>"
+        )));
+        assert!(!csproj_file_scoped(
+            "<TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion><LangVersion>9.0</LangVersion>"
+        ));
+    }
+
+    // C# namespaces › render C# classes with a file-scoped namespace, a block, or none
+    #[test]
+    fn render_csharp_classes_with_a_file_scoped_namespace_a_block_or_none() {
+        let class = &tpl("csharp").kinds[0].body;
+        let packaged = in_package("OrderService", "OrderService.cs", "Acme.Shop");
+        assert_eq!(render(class, &packaged).text, "namespace Acme.Shop;\n\npublic class OrderService\n{\n    \n}\n");
+        assert_eq!(
+            render(&block_scoped_namespace(class), &packaged).text,
+            "namespace Acme.Shop\n{\n    public class OrderService\n    {\n        \n    }\n}\n"
+        );
+        assert_eq!(render(class, &vars("Foo", "Foo.cs")).text, "public class Foo\n{\n    \n}\n");
+        let labels: Vec<&str> = tpl("csharp").kinds.iter().map(|kind| kind.label.as_str()).collect();
+        assert_eq!(labels, ["Class", "Interface", "Struct", "Enum", "Record"]);
     }
 
     // file naming › lets a kind pick the extension (Stylesheet › SCSS)

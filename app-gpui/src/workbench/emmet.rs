@@ -12,7 +12,7 @@ use crate::platform::actions::ActionRegistry;
 use crate::platform::i18n::{Localization, Param};
 use crate::templates::emmet_model::{enclosing_tag, update_tag_edits};
 use crate::templates::update_tag_dialog::{UpdateTagDialog, UpdateTagEvent};
-use gpui_kit::{App, Context, Entity, Focusable as _, Window};
+use gpui_kit::{App, AppContext as _, Context, Entity, Focusable as _, Window};
 
 pub(super) const UPDATE_TAG: &str = "emmet.updateTag";
 /// One notification at a time for the action: the next replaces it.

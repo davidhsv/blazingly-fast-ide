@@ -4,9 +4,10 @@
 
 use super::files_builtins::builtin_file_templates;
 use super::files_model::{
-    FileTemplate, FileTemplateKind, FileTemplateVars, Includes, PackageStyle, PlannedFile, caret_after_reformat,
-    composer_psr4, go_package_of, infer_go_package, infer_jvm_package, infer_php_namespace, plan_file,
-    reformats_on_create, render_file_template, with_kind,
+    FileTemplate, FileTemplateKind, FileTemplateVars, Includes, PackageStyle, PlannedFile, block_scoped_namespace,
+    caret_after_reformat, composer_psr4, csproj_file_scoped, csproj_root_namespace, go_package_of,
+    infer_csharp_namespace, infer_go_package, infer_jvm_package, infer_php_namespace, plan_file, reformats_on_create,
+    render_file_template, with_kind,
 };
 use crate::platform::project_roots::{FolderRole, RootFolder};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
@@ -136,6 +137,78 @@ impl ComposerLookup {
     }
 }
 
+/// The namespace of a C# file and whether the project's C# has file-scoped namespaces.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CsharpNamespace {
+    pub name: String,
+    pub file_scoped: bool,
+}
+
+/// Finding the C# namespace from the nearest .csproj between the directory and the project root: list
+/// [`CsprojLookup::folder`] and go on with [`CsprojLookup::listed`]; read the .csproj it names and
+/// [`CsprojLookup::read`] its text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CsprojLookup {
+    start: String,
+    /// The folder listed now.
+    at: String,
+    top: Option<String>,
+}
+
+/// What a .csproj lookup does after a folder was listed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CsprojStep {
+    /// Read this .csproj (path and file name) and give its text to [`CsprojLookup::read`].
+    Read { path: String, name: String },
+    /// No .csproj there: list the parent folder.
+    Next(CsprojLookup),
+    /// No .csproj up to the project root: no namespace.
+    Done(CsharpNamespace),
+}
+
+impl CsprojLookup {
+    fn new(directory: &str, project_root: Option<&str>) -> Self {
+        let start = directory.trim_end_matches('/').to_owned();
+        Self { at: start.clone(), start, top: project_root.map(|root| root.trim_end_matches('/').to_owned()) }
+    }
+
+    /// The folder to list.
+    pub fn folder(&self) -> &str {
+        &self.at
+    }
+
+    /// Continues with the files of the folder (`None`: it could not be listed).
+    pub fn listed(self, files: Option<&[SiblingFile<'_>]>) -> CsprojStep {
+        let csproj = files.unwrap_or_default().iter().find(|file| {
+            let cut = file.name.len().saturating_sub(".csproj".len());
+            file.name.get(cut..).is_some_and(|suffix| suffix.eq_ignore_ascii_case(".csproj"))
+        });
+        if let Some(csproj) = csproj {
+            return CsprojStep::Read { path: csproj.path.to_owned(), name: csproj.name.to_owned() };
+        }
+        // Only folders below the project root have a parent worth asking.
+        let below_top =
+            self.top.as_deref().filter(|top| !top.is_empty()).is_some_and(|top| {
+                self.at != top && self.at.strip_prefix(top).is_some_and(|rest| rest.starts_with('/'))
+            });
+        match self.at.rfind('/') {
+            Some(slash) if below_top => {
+                let parent = if slash == 0 { "/".to_owned() } else { self.at[..slash].to_owned() };
+                CsprojStep::Next(Self { at: parent, ..self })
+            }
+            _ => CsprojStep::Done(CsharpNamespace { name: String::new(), file_scoped: true }),
+        }
+    }
+
+    /// The namespace from the text of the .csproj named `name` found in [`Self::folder`] (empty when it
+    /// could not be read).
+    pub fn read(&self, name: &str, text: &str) -> CsharpNamespace {
+        let root_namespace = csproj_root_namespace(text, name);
+        let below = self.start.get(self.at.len()..).unwrap_or_default();
+        CsharpNamespace { name: infer_csharp_namespace(below, &root_namespace), file_scoped: csproj_file_scoped(text) }
+    }
+}
+
 /// How the package of a new file is found.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PackageLookup {
@@ -143,6 +216,7 @@ pub enum PackageLookup {
     Known(String),
     Go(GoSiblingLookup),
     Php(ComposerLookup),
+    Csharp(CsprojLookup),
 }
 
 /// The package lookup for a file created from `template` in `directory`. `roots` are the
@@ -162,6 +236,7 @@ pub fn package_for(
             project_root: project_root.map(str::to_owned),
         }),
         Some(PackageStyle::Php) => PackageLookup::Php(ComposerLookup::new(directory, project_root)),
+        Some(PackageStyle::Csharp) => PackageLookup::Csharp(CsprojLookup::new(directory, project_root)),
         None => PackageLookup::Known(String::new()),
     }
 }
@@ -218,6 +293,8 @@ pub fn plan_creation(
 pub enum CreateEffect {
     /// Create the (empty) file on disk.
     CreateFile(String),
+    /// Create the file on disk with this text: a viewer opens it, not a text editor to fill.
+    CreateFileWithText(String, String),
     /// Tell the file views that the file was created.
     NotifyCreated(String),
     /// Open the file in an editor and focus it.
@@ -250,6 +327,12 @@ impl Creation {
         package_for(&self.template, &self.plan.directory, project_root, roots)
     }
 
+    /// Writes the body's `namespace $PACKAGE$;` as a namespace block, for a project whose C# has no
+    /// file-scoped namespaces.
+    pub fn use_block_namespace(&mut self) {
+        self.body = block_scoped_namespace(&self.body);
+    }
+
     /// Renders the body with the package the lookup found.
     pub fn render(self, package_name: &str, project: Option<ProjectInfo<'_>>, includes: Includes<'_>) -> PreparedFile {
         let vars = FileTemplateVars {
@@ -279,6 +362,21 @@ impl PreparedFile {
             CreateEffect::NotifyCreated(path.clone()),
             CreateEffect::OpenFile(path.clone()),
         ]
+    }
+
+    /// What to do for a file a viewer opens instead of a text editor (a notebook): the body goes on disk
+    /// with the file, since no text editor is there to fill, and nothing follows the opening.
+    pub fn viewer_effects(&self, cancelled: bool) -> Vec<CreateEffect> {
+        if cancelled {
+            return Vec::new();
+        }
+        let path = &self.plan.path;
+        let create = if self.text.is_empty() {
+            CreateEffect::CreateFile(path.clone())
+        } else {
+            CreateEffect::CreateFileWithText(path.clone(), self.text.clone())
+        };
+        vec![create, CreateEffect::NotifyCreated(path.clone()), CreateEffect::OpenFile(path.clone())]
     }
 
     /// The notification for a file whose editor did not open in time.
@@ -376,6 +474,68 @@ mod tests {
         let files = [SiblingFile { name: "sibling.go", path: "/p/sibling.go" }];
         assert_eq!(lookup.pick(&files), Some("/p/sibling.go"));
         assert_eq!(lookup.finish(Some("package service\n")), "service");
+    }
+
+    // plugin package inference uses built-in rules › uses the nearest .csproj for C#
+    #[test]
+    fn uses_the_nearest_csproj_for_csharp() {
+        let csproj = [SiblingFile { name: "Shop.csproj", path: "/p/src/Shop/Shop.csproj" }];
+        let text = "<Project><PropertyGroup><RootNamespace>Acme.Shop</RootNamespace></PropertyGroup></Project>";
+        let walk = |directory: &str| {
+            let PackageLookup::Csharp(mut lookup) = package_for(&plugin("cs"), directory, Some("/p"), &[]) else {
+                panic!("a .csproj lookup")
+            };
+            let mut listed = Vec::new();
+            loop {
+                listed.push(lookup.folder().to_owned());
+                let files = (lookup.folder() == "/p/src/Shop").then_some(&csproj[..]);
+                match lookup.clone().listed(files) {
+                    CsprojStep::Read { path, name } => {
+                        assert_eq!(path, "/p/src/Shop/Shop.csproj");
+                        return (lookup.read(&name, text).name, listed);
+                    }
+                    CsprojStep::Next(next) => lookup = next,
+                    CsprojStep::Done(none) => return (none.name, listed),
+                }
+            }
+        };
+        let (found, listed) = walk("/p/src/Shop/Orders/Api");
+        assert_eq!(found, "Acme.Shop.Orders.Api");
+        assert_eq!(listed, ["/p/src/Shop/Orders/Api", "/p/src/Shop/Orders", "/p/src/Shop"]);
+        let (none, listed) = walk("/p/tools");
+        assert_eq!(none, "");
+        assert_eq!(listed, ["/p/tools", "/p"], "the walk stops at the project root");
+        let (outside, listed) = walk("/elsewhere/tools");
+        assert_eq!((outside.as_str(), listed), ("", vec!["/elsewhere/tools".to_owned()]), "nothing above it is asked");
+    }
+
+    // createFromTemplate › writes the rendered body before a notebook editor takes the file;
+    // creates an empty file when the template renders nothing
+    #[test]
+    fn a_file_a_viewer_opens_gets_its_body_on_creation_and_an_empty_body_an_empty_file() {
+        let jupyter = builtin_file_templates().iter().find(|t| t.id == "jupyter").expect("the notebook template");
+        let titled = jupyter.kinds.iter().find(|k| k.id == "titled").expect("the titled kind");
+        let creation = plan_creation(jupyter, titled, "/p", "analysis", BTreeMap::new()).expect("a valid name");
+        let prepared = creation.render("", None, Includes::builtin());
+        assert_eq!(prepared.plan.path, "/p/analysis.ipynb");
+        let effects = prepared.viewer_effects(false);
+        let [
+            CreateEffect::CreateFileWithText(path, text),
+            CreateEffect::NotifyCreated(_),
+            CreateEffect::OpenFile(open),
+        ] = &effects[..]
+        else {
+            panic!("the body is written with the file, then it opens: {effects:?}")
+        };
+        assert_eq!((path.as_str(), open.as_str()), ("/p/analysis.ipynb", "/p/analysis.ipynb"));
+        let notebook: serde_json::Value = serde_json::from_str(text).expect("the notebook is JSON");
+        assert_eq!(notebook["cells"][0]["source"], serde_json::json!(["# analysis"]));
+        assert!(prepared.viewer_effects(true).is_empty());
+        let blank =
+            FileTemplateKind { id: "blank".to_owned(), label: "Empty".to_owned(), ..FileTemplateKind::default() };
+        let empty = plan_creation(jupyter, &blank, "/p", "blank", BTreeMap::new()).expect("a valid name");
+        let empty = empty.render("", None, Includes::builtin());
+        assert_eq!(empty.viewer_effects(false)[0], CreateEffect::CreateFile("/p/blank.ipynb".to_owned()));
     }
 
     // plugin package inference uses built-in rules › uses Composer PSR-4 namespaces for PHP

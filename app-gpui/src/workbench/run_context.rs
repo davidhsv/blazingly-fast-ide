@@ -582,6 +582,11 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // Refused before anything is built: a compiled file's binary goes to the debugger directly.
+        let config = produced.config.as_ref().filter(|_| debug && produced.missing.is_none());
+        if config.is_some_and(|config| self.remote_debug_blocked(config, cx)) {
+            return;
+        }
         let debugger = registered(DEBUG_START, cx);
         let Some(launch) = launch_produced(&produced, debug, debugger) else { return };
         let Some(driver) = self.run_driver().cloned() else { return };

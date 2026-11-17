@@ -46,6 +46,7 @@ pub mod jvm_targets;
 pub mod jvm_types;
 pub mod links;
 pub mod navigate;
+pub mod remote_debug;
 pub mod segments;
 pub mod sessions;
 pub mod store;

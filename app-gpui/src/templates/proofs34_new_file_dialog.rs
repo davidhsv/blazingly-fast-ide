@@ -77,7 +77,8 @@ fn open(cx: &mut TestAppContext, input: NewFileDialogInput) -> (Entity<NewFileDi
 }
 
 fn creations(events: &Events) -> Vec<NewFileCreate> {
-    let created = events.borrow().iter().filter_map(|event| match event {
+    let events = events.borrow();
+    let created = events.iter().filter_map(|event| match event {
         NewFileDialogEvent::Create(create) => Some(create.clone()),
         _ => None,
     });
@@ -307,7 +308,7 @@ async fn the_arrows_go_round_the_list_and_a_bad_name_is_reported(cx: &mut TestAp
     cx.simulate_keystrokes("enter");
     assert_eq!(dialog.read_with(cx, |dialog, _| dialog.error().map(str::to_owned)).as_deref(), Some("Enter a name"));
     cx.simulate_input("../up");
-    assert_eq!(dialog.read_with(cx, |dialog, _| dialog.error()), None, "typing clears the problem");
+    assert!(dialog.read_with(cx, |dialog, _| dialog.error().is_none()), "typing clears the problem");
     cx.simulate_keystrokes("enter");
     assert_eq!(dialog.read_with(cx, |dialog, _| dialog.error().map(str::to_owned)).as_deref(), Some("Invalid name"));
     assert!(creations(&events).is_empty());

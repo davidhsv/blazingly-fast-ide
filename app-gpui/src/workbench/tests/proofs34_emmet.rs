@@ -128,3 +128,43 @@ async fn the_editor_menu_offers_update_tag_for_markup_files_only(cx: &mut TestAp
     let actions = editor_group_actions(&workbench, &root.join("src/main.rs"), cx);
     assert!(!actions.contains(&"emmet.updateTag".to_owned()), "{actions:?}");
 }
+
+/// A right click in an HTML editor opens the editor's menu; a click on its Update Tag with Emmet row
+/// opens the prompt for the tag at the press, and the abbreviation renames both tags in one undo step:
+/// one Undo gives the document back as it was.
+#[gpui_kit::test]
+async fn the_editor_menus_row_opens_the_prompt_and_one_undo_reverts_the_update(cx: &mut TestAppContext) {
+    use crate::workbench::context_menus::EditorMenuCommand;
+    use gpui_kit::{Modifiers, MouseButton, point, px};
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("index.html", DOC)]);
+    let editor = focus_file(&workbench, &root.join("index.html"), cx);
+    wait_long(cx, "the editor is an HTML editor", |cx| context_text(cx, "editorLangId").as_deref() == Some("html"));
+    cx.run_until_parked();
+    let at = editor.read_with(cx, |editor, cx| {
+        let at = editor.position_of(2).expect("the line is painted");
+        point(at.x + px(2.0), at.y + editor.line_height(cx) / 2.0)
+    });
+    cx.simulate_mouse_down(at, MouseButton::Right, Modifiers::default());
+    cx.simulate_mouse_up(at, MouseButton::Right, Modifiers::default());
+    cx.run_until_parked();
+    let menu = workbench.read_with(cx, |w, _| w.open_menu::<EditorMenuCommand>()).expect("the editor's menu");
+    let rows = menu.read_with(cx, |menu, _| menu.lines());
+    let index = rows[0]
+        .iter()
+        .position(|line| line.trim_start_matches("> ") == "Update Tag with Emmet")
+        .unwrap_or_else(|| panic!("the row is offered: {rows:?}"));
+    let selector: &'static str = Box::leak(format!("menu-row-0-{index}").into_boxed_str());
+    let bounds = cx.debug_bounds(selector).expect("the row is drawn");
+    cx.simulate_click(bounds.center(), Modifiers::none());
+    cx.run_until_parked();
+    let dialog = workbench.read_with(cx, |w, _| w.update_tag_dialog()).expect("the prompt is open");
+    assert!(dialog.update(cx, |dialog, cx| dialog.label(cx)).starts_with("Abbreviation for <div>"));
+    cx.simulate_input("article");
+    cx.simulate_keystrokes("enter");
+    let renamed = "<article class=\"a\" id=\"x\">\n  <p>hi</p>\n</article>\n";
+    wait_long(cx, "the tag pair is renamed", |cx| text(&editor, cx) == renamed);
+    wait_long(cx, "the editor has the keyboard again", |cx| context_is_on(cx, "editorFocus"));
+    run_action(cx, "edit.undo", None);
+    wait_long(cx, "one undo reverts both tags", |cx| text(&editor, cx) == DOC);
+}

@@ -15,13 +15,19 @@ pub mod live_model;
 pub mod live_snippets;
 pub mod live_store;
 pub mod live_surrounders;
+pub mod new_file_dialog;
 pub mod popup_store;
 pub mod postfix_model;
 pub mod postfix_store;
 pub mod snippet;
 pub mod storage;
+pub mod update_tag_dialog;
 
 #[cfg(test)]
 mod proofs33_chooser_view;
 #[cfg(test)]
 mod proofs33_expand;
+#[cfg(test)]
+mod proofs34_new_file_dialog;
+#[cfg(test)]
+mod proofs34_update_tag_dialog;

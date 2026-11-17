@@ -380,18 +380,33 @@ async fn the_http_client_lists_loads_and_clears_the_projects_history(cx: &mut Te
     assert!(view.read_with(cx, |v, _| v.body()).is_none());
 }
 
-/// New HTTP Request in a folder creates `requests.http` there with the example request, then
-/// `requests_1.http` once it is taken.
+/// New HTTP Request in a folder asks for the file's name and creates it there with the example request.
 #[gpui_kit::test]
 async fn new_http_request_creates_a_request_file_with_the_example_in_the_folder(cx: &mut TestAppContext) {
     let (f, cx) = open_project(cx, &[("api/.keep", String::new())], None);
     let directory = f.path("api");
+    cx.update(|window, _| window.activate_window());
     run_action(cx, NEW_REQUEST, Some(json!({ "directory": directory })));
+    cx.run_until_parked();
+    assert!(f.workbench.read_with(cx, |w, _| w.new_file_dialog().is_some()), "the name is asked for");
+    cx.simulate_input("requests");
+    cx.simulate_keystrokes("enter");
     let first = format!("{directory}/requests.http");
     wait_long(cx, "the new request file", |cx| f.text_of(&first, cx).as_deref() == Some(NEW_REQUEST_TEMPLATE));
     assert!(Path::new(&first).is_file());
-    run_action(cx, NEW_REQUEST, Some(json!({ "directory": directory })));
-    let second = format!("{directory}/requests_1.http");
+}
+
+/// New HTTP Request without a folder creates `requests.http` in the scratches with the example request,
+/// then `requests_1.http` once it is taken.
+#[gpui_kit::test]
+async fn new_http_request_without_a_folder_names_the_scratch_requests_then_requests_1(cx: &mut TestAppContext) {
+    let (f, cx) = open_project(cx, &[("a.txt", String::new())], None);
+    let scratches = Path::new(&f.scratch()).parent().expect("the scratches").to_string_lossy().into_owned();
+    run_action(cx, NEW_REQUEST, None);
+    let first = format!("{scratches}/requests.http");
+    wait_long(cx, "the first request file", |cx| f.text_of(&first, cx).as_deref() == Some(NEW_REQUEST_TEMPLATE));
+    run_action(cx, NEW_REQUEST, None);
+    let second = format!("{scratches}/requests_1.http");
     wait_long(cx, "the second request file", |cx| f.text_of(&second, cx).as_deref() == Some(NEW_REQUEST_TEMPLATE));
 }
 

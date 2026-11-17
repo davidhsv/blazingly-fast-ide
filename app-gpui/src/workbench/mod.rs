@@ -40,6 +40,7 @@ mod editor_intelligence;
 mod editor_language;
 mod editor_structure;
 mod editor_templates;
+mod emmet;
 pub mod empty_editor;
 mod github;
 mod http_client;
@@ -80,6 +81,8 @@ pub use settings_window::apply_keymap_settings;
 mod shelf;
 mod structure_window;
 pub mod tab_views;
+mod template_actions;
+mod template_files;
 use crate::github::window_view::PULL_REQUESTS_TOOL_WINDOW;
 use structure_window::STRUCTURE_TOOL_WINDOW;
 mod terminal_actions;
@@ -605,6 +608,7 @@ pub fn register_actions(cx: &mut App) {
         Ok(())
     }
     windows::register_actions(cx);
+    template_actions::register_actions(cx);
     let registry = cx.default_global::<ActionRegistry>();
     services_window::register_actions(registry);
     github::register_actions(registry);
@@ -644,6 +648,7 @@ pub fn register_actions(cx: &mut App) {
     editor_language::register_actions(registry);
     refactor_actions::register_actions(registry);
     editor_extras::register_actions(registry);
+    emmet::register_actions(registry);
     agents::register_actions(registry);
     tab_views::register_actions(registry);
     plugin_runtime::register_actions(registry);
@@ -1400,6 +1405,15 @@ impl Workbench {
                 if !self.run_vcs_follow_up(&own.command, window, cx) {
                     tracing::debug!("the notification command {} has no handler any more", own.command);
                 }
+            }
+            EntryAction::Own(own) if crate::run::remote_debug::notice_command(&own.command).is_some() => {
+                let Some((id, config)) = crate::run::remote_debug::notice_command(&own.command) else { return };
+                let arg = serde_json::Value::from(config);
+                window.defer(cx, move |window, cx| {
+                    if !execute_action_from(ActionSource::Other, id, Some(&arg), window, cx) {
+                        tracing::info!("{id} is not available in this window");
+                    }
+                });
             }
             EntryAction::Own(own) => {
                 if self.debug_notification_command(&own.command, cx) {
@@ -3139,6 +3153,7 @@ impl Workbench {
         if self.project_tree().is_none() {
             return;
         }
+        cx.defer(template_actions::sync_template_actions);
         self.leave(cx);
         self.reset_runs(cx);
         self.reset_build(window, cx);
@@ -3407,6 +3422,8 @@ impl Workbench {
                 workbench.mount_build_tools(window, cx);
                 if workbench.project_root(cx).is_some() {
                     workbench.code_insight_project_opened(cx);
+                    // The project's template scheme may give the actions templates of its own.
+                    cx.defer(template_actions::sync_template_actions);
                 }
                 workbench.sync_welcome(window, cx);
                 // Registering a window reconciles the stored layout with what exists; a project
@@ -4536,6 +4553,9 @@ mod tests {
     mod proofs33_editor_templates;
     mod proofs33_surround;
     mod proofs33_template_session;
+    mod proofs34_emmet;
+    mod proofs34_template_actions;
+    mod proofs34_template_files;
     mod proofs35_settings_vim;
     mod proofs3_context;
     mod proofs3_rename_lsp;

@@ -227,3 +227,45 @@ async fn run_context_runs_a_script_with_the_tool_found_beside_the_project(cx: &m
     long(cx, "the stand-in's output", &|cx| printed(cx));
     fixture.close_project(cx);
 }
+
+// Not from a spec: Debug Context Configuration of a Python file whose run target is another machine, or a
+// container (where the window cannot start debugpy and attach), says where it runs and starts no session.
+#[cfg(unix)]
+#[gpui_kit::test]
+async fn debug_context_on_a_run_target_is_refused_and_starts_no_session(cx: &mut TestAppContext) {
+    use ide_workspace::settings::SettingsScope;
+    let (project, cx) = open_python_project(cx);
+    let workbench = project.workbench.clone();
+    let store = run_store(&workbench, cx);
+    long(cx, "listing the configurations", &|cx| store.read_with(cx, |store, _| store.loaded));
+    let targets = json!([
+        { "kind": "ssh", "id": "box", "name": "Build box", "sshConfig": "made-up", "projectRoot": "/srv/app" },
+        { "kind": "docker", "id": "img", "name": "App image", "image": "made-up:latest" },
+    ]);
+    let file = project.root.join("main.py").to_string_lossy().into_owned();
+    for (target, title) in
+        [("box", "Debugging on run targets is not supported"), ("img", "Debugging on run targets is not supported")]
+    {
+        cx.update(|_, cx| {
+            crate::platform::settings::set("w1", SettingsScope::Project, "runTargets", &targets, cx)
+                .expect("the targets are stored");
+            crate::platform::settings::set("w1", SettingsScope::Project, "run.defaultTarget", &json!(target), cx)
+                .expect("the default target is stored");
+        });
+        workbench.update(cx, |w, _| w.notifications.clear());
+        run(cx, DEBUG_CONTEXT, Some(json!({ "path": file })));
+        let body = |cx: &mut VisualTestContext| {
+            workbench.read_with(cx, |w, _| {
+                w.notifications().items().iter().find(|n| n.title == title).and_then(|n| n.body.clone())
+            })
+        };
+        long(cx, title, &|cx| body(cx).is_some());
+        let expected = format!("runs on {}.", if target == "box" { "Build box" } else { "App image" });
+        assert!(body(cx).is_some_and(|body| body.contains(&expected)), "{:?}", body(cx));
+        cx.run_until_parked();
+        assert!(!context(cx, "debugSessionActive"), "no session starts on {target}");
+        assert!(workbench.read_with(cx, |w, _| w.debug_window_view().is_none()), "the Debug tool window stays shut");
+    }
+    workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+    cx.run_until_parked();
+}

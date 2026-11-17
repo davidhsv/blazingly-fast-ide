@@ -458,6 +458,9 @@ impl Workbench {
             move |workbench, window, cx| {
                 let Some(run) = workbench.run_driver().cloned() else { return };
                 let Some(config) = run.update(cx, |run, cx| run.config_from_arg(arg.as_ref(), cx)) else { return };
+                if workbench.remote_debug_blocked(&config, cx) {
+                    return;
+                }
                 run.update(cx, |run, cx| run.mark_recent(&config.id, cx));
                 let mut start = json!({ "config": serde_json::to_value(&config).unwrap_or(Value::Null) });
                 if let Some(show) = show {
@@ -468,6 +471,30 @@ impl Workbench {
             window,
             cx,
         );
+    }
+
+    /// Whether `config` runs somewhere the debugger cannot reach (another machine, a container, a
+    /// plugin's target); the window then says so and offers Run. Every Debug of a configuration asks
+    /// here before the debugger starts or a build for it runs.
+    pub(super) fn remote_debug_blocked(&mut self, config: &ide_run::RunConfig, cx: &mut Context<Self>) -> bool {
+        use crate::run::remote_debug::{Targets, remote_debug_notice};
+        let settings = crate::platform::settings::effective(&self.label, cx);
+        let run_settings = crate::run::driver::run_settings(&settings);
+        let plugins = match (self.project_root(cx), cx.try_global::<crate::plugins::Plugins>()) {
+            (Some(root), Some(plugins)) => plugins.host.run_targets(&root),
+            _ => Vec::new(),
+        };
+        let saved = crate::platform_more::remote_settings::normalized_run_targets(&settings.run_targets);
+        let targets = Targets { saved: &saved, plugins: &plugins };
+        // The window has no way to start a container under debugpy and attach to it, so Python in a
+        // container is refused as well.
+        let notice = {
+            let i18n = &mut cx.default_global::<Localization>().0;
+            remote_debug_notice(config, &run_settings, &targets, false, i18n)
+        };
+        let Some(notice) = notice else { return false };
+        self.notify(notice, cx);
+        true
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1038,6 +1065,7 @@ pub(super) mod tests {
     use std::time::Duration;
     mod proofs11_hotswap;
     mod proofs20_debug;
+    mod proofs34_remote_debug;
     mod proofs3_debug;
     mod proofs6_debug;
     mod proofs8_recent;

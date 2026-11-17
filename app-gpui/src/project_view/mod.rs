@@ -17,5 +17,6 @@ pub mod new_popup;
 pub mod new_popup_model;
 pub mod operations;
 pub mod pane;
+pub mod project_type;
 pub mod store;
 pub mod tree_clicks;

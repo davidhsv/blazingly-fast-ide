@@ -97,7 +97,7 @@ struct NameStep {
 
 enum Step {
     Choose { active: usize },
-    Name(NameStep),
+    Name(Box<NameStep>),
 }
 
 pub struct NewFileDialog {
@@ -213,7 +213,7 @@ impl NewFileDialog {
         } else {
             variables.first().map(|(_, field)| field.focus_handle(cx))
         };
-        self.step = Step::Name(NameStep {
+        self.step = Step::Name(Box::new(NameStep {
             template,
             variables,
             kind,
@@ -221,7 +221,7 @@ impl NewFileDialog {
             busy: false,
             package: String::new(),
             package_query: None,
-        });
+        }));
         self.update_placeholder(cx);
         cx.notify();
         target.unwrap_or_else(|| self.focus.clone())
@@ -348,7 +348,7 @@ impl NewFileDialog {
         };
         let package = match package_style_for(&effective) {
             Some(_) if step.package.is_empty() => String::new(),
-            Some(PackageStyle::Php) => format!(" · namespace {}", step.package),
+            Some(PackageStyle::Php | PackageStyle::Csharp) => format!(" · namespace {}", step.package),
             Some(_) => format!(" · package {}", step.package),
             None => String::new(),
         };
@@ -597,6 +597,7 @@ impl NewFileDialog {
             .map(|(index, template)| {
                 let selected = index == active;
                 let icon = theme::icon(cx, &template.icon, 16.0, theme::color(cx, "fg-muted"));
+                let name = tx(cx, &template.name);
                 div()
                     .id(index)
                     .debug_selector(move || format!("new-file-template-{index}"))
@@ -611,12 +612,7 @@ impl NewFileDialog {
                     .when(selected, |row| row.bg(theme::color(cx, "bg-selected")))
                     .child(div().flex_none().child(icon))
                     .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .overflow_hidden()
-                            .whitespace_nowrap()
-                            .child(SharedString::from(template.name.clone())),
+                        div().flex_1().min_w_0().overflow_hidden().whitespace_nowrap().child(SharedString::from(name)),
                     )
                     .on_hover(cx.listener(move |dialog: &mut Self, hovered: &bool, _, cx| {
                         if *hovered && matches!(dialog.step, Step::Choose { active } if active != index) {
@@ -675,6 +671,7 @@ impl NewFileDialog {
                 .map(|(index, kind)| {
                     let chosen = index == step.kind;
                     let icon = theme::icon(cx, &step.template.icon, 14.0, theme::color(cx, "fg-muted"));
+                    let label = tx(cx, &kind.label);
                     div()
                         .id(SharedString::from(format!("new-file-kind-{index}")))
                         .debug_selector(move || format!("new-file-kind-{index}"))
@@ -688,7 +685,7 @@ impl NewFileDialog {
                         .when(chosen, |row| row.bg(theme::color(cx, "bg-selected")))
                         .when(!chosen, |row| row.hover(move |row| row.bg(hover)))
                         .child(icon)
-                        .child(SharedString::from(kind.label.clone()))
+                        .child(SharedString::from(label))
                         .on_mouse_down(
                             MouseButton::Left,
                             cx.listener(move |dialog, event: &MouseDownEvent, window, cx| {

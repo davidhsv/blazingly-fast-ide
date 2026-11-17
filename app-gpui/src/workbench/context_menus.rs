@@ -155,7 +155,12 @@ pub const MENU_GROUPS: [GroupDecl; 25] = [
     },
     GroupDecl { id: "templates.emmet", menus: &[ContextMenu::Editor], order: 60, rows: Some(emmet_update_tag) },
     // One row per enabled file template.
-    GroupDecl { id: "templates.new", menus: &[ContextMenu::New], order: 10, rows: None },
+    GroupDecl {
+        id: "templates.new",
+        menus: &[ContextMenu::New],
+        order: 10,
+        rows: Some(super::template_actions::templates_new_group),
+    },
     GroupDecl {
         id: "templates.newFromTemplate",
         menus: &[ContextMenu::New],
@@ -194,6 +199,8 @@ pub struct GroupFacts {
     pub run: Vec<GroupRow>,
     /// The Spring group's rows for the menu being built: the generate actions at the caret.
     pub http_spring: Vec<GroupRow>,
+    /// The file templates' New rows for the menu being built: one per enabled template but File.
+    pub templates_new: Vec<GroupRow>,
 }
 
 /// The groups that make rows in this window, each reading `facts`.
@@ -742,6 +749,7 @@ impl Workbench {
             plugins,
             run: self.run_menu_rows(menu, ctx, cx),
             http_spring: if menu == ContextMenu::Editor { self.http_spring_rows(ctx, cx) } else { Vec::new() },
+            templates_new: if menu == ContextMenu::New { self.templates_new_rows(ctx, cx) } else { Vec::new() },
         }
     }
 
@@ -1374,7 +1382,6 @@ mod tests {
                 "gradle.analyzeDependencies",
                 "maven.analyzeDependencies",
                 "settings.fileType",
-                "templates.new",
                 "web.openIn",
             ]
         );

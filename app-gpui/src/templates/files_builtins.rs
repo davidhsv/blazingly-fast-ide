@@ -19,6 +19,7 @@ pub fn builtin_code_templates() -> &'static [TemplateFragment] {
             ("JUnit5 Test Method", "Java Class › JUnit 5 Test", "@Test\nvoid test() {\n    $END$\n}\n"),
             ("Kotlin JUnit5 Test Method", "Kotlin Class/File › JUnit 5 Test", "@Test\nfun test() {\n    $END$\n}\n"),
             ("Go Test Function", "Go File › Test file", "func Test$NAME$(t *testing.T) {\n\t$END$\n}\n"),
+            ("Zig Test Function", "Zig File › Test file", "test \"$NAME$\" {\n    $END$\n}\n"),
             ("Rust Test Function", "Rust File › Test module", "#[test]\nfn it_works() {\n    $END$\n}\n"),
             ("Vitest Test", "TypeScript File › Test", "it(\"works\", () => {\n  $END$\n});\n"),
             (
@@ -93,6 +94,24 @@ fn java_type(id: &str, label: &str, keyword: &str) -> FileTemplateKind {
 /// A Kotlin type declaration in its package.
 fn kotlin_type(id: &str, label: &str, keyword: &str) -> FileTemplateKind {
     let body = format!("package $PACKAGE$\n\n#parse(\"File Header\")\n{keyword} $NAME$ {{\n    $END$\n}}\n");
+    kind(id, label, &body)
+}
+
+/// A notebook that opens empty: the notebook editor adds the first cell.
+const JUPYTER_NOTEBOOK: &str = "{\n \"cells\": [],\n \"metadata\": {\n  \"kernelspec\": {\n   \
+    \"display_name\": \"Python 3\",\n   \"language\": \"python\",\n   \"name\": \"python3\"\n  },\n  \
+    \"language_info\": {\n   \"name\": \"python\"\n  }\n },\n \"nbformat\": 4,\n \"nbformat_minor\": 5\n}\n";
+
+/// A notebook that starts with a Markdown heading named after the file.
+const JUPYTER_TITLED_NOTEBOOK: &str = "{\n \"cells\": [\n  {\n   \"cell_type\": \"markdown\",\n   \
+    \"id\": \"cell-title\",\n   \"metadata\": {},\n   \"source\": [\n    \"# $NAME$\"\n   ]\n  }\n ],\n \
+    \"metadata\": {\n  \"kernelspec\": {\n   \"display_name\": \"Python 3\",\n   \"language\": \"python\",\n   \
+    \"name\": \"python3\"\n  },\n  \"language_info\": {\n   \"name\": \"python\"\n  }\n },\n \
+    \"nbformat\": 4,\n \"nbformat_minor\": 5\n}\n";
+
+/// A C# type declaration in its namespace.
+fn csharp_type(id: &str, label: &str, keyword: &str) -> FileTemplateKind {
+    let body = format!("namespace $PACKAGE$;\n\n#parse(\"File Header\")\npublic {keyword} $NAME$\n{{\n    $END$\n}}\n");
     kind(id, label, &body)
 }
 
@@ -175,6 +194,17 @@ fn build() -> Vec<FileTemplate> {
                 kind("script", "Script", "def main():\n    $END$\n\n\nif __name__ == \"__main__\":\n    main()\n"),
             ],
         ),
+        template(
+            "jupyter",
+            "Jupyter Notebook",
+            "file-jupyter",
+            "ipynb",
+            Asis,
+            vec![
+                kind("notebook", "Notebook", JUPYTER_NOTEBOOK),
+                kind("titled", "Notebook with a title", JUPYTER_TITLED_NOTEBOOK),
+            ],
+        ),
         packaged(
             PackageStyle::Go,
             template(
@@ -204,6 +234,19 @@ fn build() -> Vec<FileTemplate> {
                 Asis,
                 vec![kind("module", "Module", "module $PROJECT_NAME$\n\ngo 1.20\n")],
             ),
+        ),
+        template(
+            "zig",
+            "Zig File",
+            "file-zig",
+            "zig",
+            Snake,
+            vec![
+                kind("file", "Empty file", "$END$\n"),
+                kind("main", "Main", "pub fn main() !void {\n    $END$\n}\n"),
+                kind("test", "Test file", "#parse(\"Zig Test Function\")\n"),
+                kind("struct", "Struct", "pub const $NAME$ = struct {\n    $END$\n};\n"),
+            ],
         ),
         template("php", "PHP File", "file-php", "php", Asis, vec![kind("file", "File", "<?php\n\n$END$\n")]),
         packaged(
@@ -254,6 +297,23 @@ fn build() -> Vec<FileTemplate> {
                          import static org.junit.jupiter.api.Assertions.*;\n\n#parse(\"File Header\")\n\
                          class $NAME$ {\n\n    #parse(\"JUnit5 Test Method\")\n}\n",
                     ),
+                ],
+            ),
+        ),
+        packaged(
+            PackageStyle::Csharp,
+            template(
+                "csharp",
+                "C# Class",
+                "class",
+                "cs",
+                Pascal,
+                vec![
+                    csharp_type("class", "Class", "class"),
+                    csharp_type("interface", "Interface", "interface"),
+                    csharp_type("struct", "Struct", "struct"),
+                    csharp_type("enum", "Enum", "enum"),
+                    csharp_type("record", "Record", "record"),
                 ],
             ),
         ),
@@ -427,6 +487,22 @@ mod tests {
         assert!(body("tomcat-context", "context").ends_with("path=\"$END$\">\n</Context>\n"));
     }
 
+    // built-in template names › are translated where the New menu and dialog show them
+    #[test]
+    fn are_translated_where_the_new_menu_and_dialog_show_them() {
+        // Names that read the same in Chinese.
+        const AS_WRITTEN: [&str; 2] = ["Dockerfile", "Jupyter Notebook"];
+        let mut i18n = crate::platform::i18n::I18n::default();
+        assert!(i18n.set_locale(Some("zh"), "en"));
+        let names = builtin_file_templates()
+            .iter()
+            .map(|t| t.name.as_str())
+            .chain(builtin_code_templates().iter().map(|t| t.name.as_str()));
+        let untranslated: Vec<&str> =
+            names.filter(|name| !AS_WRITTEN.contains(name) && i18n.tx(name) == *name).collect();
+        assert_eq!(untranslated, Vec::<&str>::new());
+    }
+
     // Not from a spec: the JVM templates take dotted names, and only the templates with a package
     // rule declare one.
     #[test]
@@ -440,7 +516,8 @@ mod tests {
         assert_eq!(style("go"), Some((Some(PackageStyle::Go), false)));
         assert_eq!(style("php-class"), Some((Some(PackageStyle::Php), false)));
         assert_eq!(style("php"), Some((None, false)));
-        assert_eq!(builtin_code_templates().len(), 7);
+        assert_eq!(style("csharp"), Some((Some(PackageStyle::Csharp), false)));
+        assert_eq!(builtin_code_templates().len(), 8);
         assert_eq!(builtin_includes().first().map(|f| f.name.as_str()), Some("File Header"));
     }
 }

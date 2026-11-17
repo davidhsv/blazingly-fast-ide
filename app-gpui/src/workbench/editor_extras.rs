@@ -1310,9 +1310,9 @@ mod tests {
         f.close(cx);
     }
 
-    /// Go to Test with two tests of the file offers both; Create New Test… needs the New File
-    /// dialog of the file templates, so without it the row is not offered and a file without tests
-    /// opens no chooser.
+    /// Go to Test with two tests of the file offers both and Create New Test…, which opens the New File
+    /// dialog of the file templates on the test kind; without that dialog the row is not offered and a
+    /// file without tests opens no chooser.
     #[gpui_kit::test]
     async fn go_to_test_offers_create_new_test_only_with_the_file_templates(cx: &mut TestAppContext) {
         let files = [
@@ -1337,7 +1337,26 @@ mod tests {
             })
         };
         settle(cx, "the index", indexed);
-        assert!(!cx.update(|_, cx| cx.global::<ActionRegistry>().contains("templates.newFromTemplate")));
+        // With the file templates, Create New Test… opens their New File dialog for the test.
+        f.run(cx, "navigate.gotoTest");
+        let list = f.popup_list(cx);
+        let lines = list.read_with(cx, |list, _| list.lines());
+        let at =
+            lines.iter().position(|line| line.starts_with("Create New Test…")).expect("Create New Test… is offered");
+        for _ in 0..at {
+            cx.simulate_keystrokes("down");
+        }
+        cx.simulate_keystrokes("enter");
+        settle(cx, "the New File dialog", |cx| f.workbench.read_with(cx, |w, _| w.new_file_dialog().is_some()));
+        let dialog = f.workbench.read_with(cx, |w, _| w.new_file_dialog()).expect("the dialog");
+        assert_eq!(dialog.update(cx, |dialog, cx| dialog.title(cx)), "New Python File");
+        let kinds = dialog.read_with(cx, |dialog, _| dialog.kinds());
+        let kind = dialog.read_with(cx, |dialog, _| dialog.kind()).map(|at| kinds[at].clone());
+        assert_eq!(kind.as_deref(), Some("Test (pytest)"));
+        cx.simulate_keystrokes("escape");
+        settle(cx, "the dialog closes", |cx| f.workbench.read_with(cx, |w, _| w.new_file_dialog().is_none()));
+        // The branch without the file templates: their New File dialog is taken away.
+        cx.update(|_, cx| cx.global_mut::<ActionRegistry>().unregister("templates.newFromTemplate"));
         f.run(cx, "navigate.gotoTest");
         let list = f.popup_list(cx);
         let lines = list.read_with(cx, |list, _| list.lines());

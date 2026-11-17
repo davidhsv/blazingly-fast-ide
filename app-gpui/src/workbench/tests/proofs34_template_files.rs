@@ -253,3 +253,277 @@ async fn escape_closes_the_dialog_without_creating_anything(cx: &mut TestAppCont
     assert!(workbench.read_with(cx, |w, _| w.new_file_dialog().is_none()));
     assert!(!root.join("src/never.txt").exists());
 }
+
+/// Every file and symbolic link under `dir`, relative to it; links are listed, never followed.
+fn tree_of(dir: &std::path::Path) -> std::collections::BTreeSet<String> {
+    fn walk(base: &std::path::Path, dir: &std::path::Path, out: &mut std::collections::BTreeSet<String>) {
+        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let kind = entry.file_type().expect("the entry's type");
+            if kind.is_dir() {
+                walk(base, &path, out);
+            } else {
+                out.insert(path.strip_prefix(base).expect("below the base").to_string_lossy().into_owned());
+            }
+        }
+    }
+    let mut out = std::collections::BTreeSet::new();
+    walk(dir, dir, &mut out);
+    out
+}
+
+fn tree(paths: &[&str]) -> std::collections::BTreeSet<String> {
+    paths.iter().map(|path| (*path).to_owned()).collect()
+}
+
+/// Types `name` into the open dialog of `request`, presses Enter and waits until the dialog either
+/// reports a problem or closes; returns the problem.
+fn submit_name(
+    workbench: &Entity<Workbench>,
+    request: NewFileRequest,
+    name: &str,
+    cx: &mut VisualTestContext,
+) -> Option<String> {
+    let dialog = open_dialog(workbench, request, cx);
+    if dialog.read_with(cx, |dialog, _| dialog.name_field().is_some()) {
+        cx.simulate_input(name);
+        cx.simulate_keystrokes("enter");
+    }
+    wait_long(cx, "the dialog answers", |cx| {
+        dialog_error(&dialog, cx).is_some() || workbench.read_with(cx, |w, _| w.new_file_dialog().is_none())
+    });
+    let error = dialog_error(&dialog, cx);
+    if error.is_some() {
+        cx.simulate_keystrokes("escape");
+        cx.run_until_parked();
+    }
+    error
+}
+
+/// No typed name, template file name, template extension or kind extension puts a file outside the
+/// folder New was used in: a name that climbs (`../`, `..\`) and a separator in a template's file name,
+/// its extension or a kind's extension are refused with the dialog's message; an absolute name is
+/// read below the folder. Afterwards the project holds only the files expected, and nothing appeared
+/// beside it.
+#[gpui_kit::test]
+async fn no_name_template_or_kind_creates_a_file_outside_the_folder_new_was_used_in(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/main.rs", "fn main() {}\n")]);
+    let src = root.join("src");
+    let beside = root.parent().expect("the project has a parent").to_path_buf();
+    let invalid = Some("Invalid name".to_owned());
+    assert_eq!(submit_name(&workbench, notes_in(&src), "../escape34", cx), invalid);
+    assert_eq!(submit_name(&workbench, notes_in(&src), "..\\escape34", cx), invalid);
+    assert_eq!(submit_name(&workbench, notes_in(&src), "a/../../escape34", cx), invalid);
+    let fixed = FileTemplate { file_name: Some("../fixed34.txt".to_owned()), ..notes_template() };
+    let request = NewFileRequest { template: Some(fixed), ..notes_in(&src) };
+    assert_eq!(submit_name(&workbench, request, "", cx), invalid, "a template's file name with a separator");
+    let climbing = FileTemplate { extension: "/../../x34".to_owned(), ..notes_template() };
+    let request = NewFileRequest { template: Some(climbing), ..notes_in(&src) };
+    assert_eq!(submit_name(&workbench, request, "notes", cx), invalid, "a template's extension with a separator");
+    let mut kind_climbs = notes_template();
+    kind_climbs.kinds[0].extension = Some("txt/../../../x34".to_owned());
+    let request = NewFileRequest { template: Some(kind_climbs), ..notes_in(&src) };
+    assert_eq!(submit_name(&workbench, request, "notes", cx), invalid, "a kind's extension with a separator");
+
+    assert_eq!(submit_name(&workbench, notes_in(&src), "/abs/inner", cx), None);
+    let inner = src.join("abs/inner.txt");
+    wait_long(cx, "the absolute name is created below the folder", |_| inner.is_file());
+    assert_eq!(tree_of(&root), tree(&["src/main.rs", "src/abs/inner.txt"]));
+    for name in ["escape34.txt", "escape34", "x34", "fixed34.txt"] {
+        assert!(!beside.join(name).exists() && !root.join(name).exists(), "{name} appeared outside src");
+    }
+}
+
+/// A plugin's template that infers its package writes what the folder's Go file declares into the body
+/// only: the file goes into the folder New was used in, whatever the package says.
+#[gpui_kit::test]
+async fn a_plugin_templates_package_goes_into_the_body_never_into_the_path(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("pkg/store/db.go", "package service\n")]);
+    let repository = FileTemplate {
+        id: "plugin.demo.repo".to_owned(),
+        name: "Repository".to_owned(),
+        icon: "file".to_owned(),
+        extension: "go".to_owned(),
+        infer_package: true,
+        reformat: Some(false),
+        kinds: vec![FileTemplateKind {
+            id: "file".to_owned(),
+            label: "Repository".to_owned(),
+            body: "$PACKAGE$".to_owned(),
+            extension: None,
+        }],
+        ..FileTemplate::default()
+    };
+    let request = NewFileRequest {
+        directory: text_of(&root.join("pkg/store")),
+        template: Some(repository),
+        ..Default::default()
+    };
+    assert_eq!(submit_name(&workbench, request, "repo", cx), None);
+    let file = root.join("pkg/store/repo.go");
+    wait_long(cx, "the file is saved with the package", |_| {
+        std::fs::read_to_string(&file).ok().as_deref() == Some("service")
+    });
+    assert_eq!(tree_of(&root), tree(&["pkg/store/db.go", "pkg/store/repo.go"]));
+}
+
+/// New used on a folder that is a symbolic link to a folder outside the project creates the file
+/// through the link, as the backend's file creation does for any path: it lands in the link's target.
+/// A name typed through the link from its parent does the same. The project itself gains nothing.
+#[cfg(unix)]
+#[gpui_kit::test]
+async fn new_on_a_linked_folder_creates_the_file_in_the_folder_the_link_points_to(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("src/main.rs", "fn main() {}\n")]);
+    let outside = tempfile::tempdir().expect("a folder outside the project");
+    let target = outside.path().canonicalize().expect("the folder exists");
+    std::os::unix::fs::symlink(&target, root.join("link")).expect("the link is made");
+    assert_eq!(submit_name(&workbench, notes_in(&root.join("link")), "through", cx), None);
+    // The new file's editor takes the keyboard once it has loaded; the next dialog opens after that.
+    let through = root.join("link/through.txt");
+    wait_long(cx, "the file in the link's target, open", |cx| {
+        target.join("through.txt").is_file() && editor_of(&workbench, &through, cx).is_some()
+    });
+    assert_eq!(submit_name(&workbench, notes_in(&root), "link/typed", cx), None);
+    wait_long(cx, "the typed path through the link", |_| target.join("typed.txt").is_file());
+    assert_eq!(tree_of(&root), tree(&["src/main.rs", "link"]));
+    assert_eq!(tree_of(&target), tree(&["through.txt", "typed.txt"]));
+}
+
+/// A notebook that exists already is not overwritten: the backend refuses, the dialog says so and the
+/// file keeps its bytes.
+#[gpui_kit::test]
+async fn an_existing_notebook_is_not_overwritten_by_a_new_one_of_the_same_name(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("nb/analysis.ipynb", "keep")]);
+    let request = NewFileRequest {
+        directory: text_of(&root.join("nb")),
+        template_id: Some("jupyter".to_owned()),
+        ..NewFileRequest::default()
+    };
+    let error = submit_name(&workbench, request, "analysis", cx);
+    let file = root.join("nb/analysis.ipynb");
+    assert!(error.as_deref().is_some_and(|error| error.contains("already exists")), "{error:?}");
+    assert_eq!(std::fs::read(&file).expect("the notebook is there"), b"keep");
+}
+
+/// The built-in Jupyter Notebook writes its titled body to disk with the file and opens it in the
+/// notebook editor; no text editor is waited for, so no "could not insert" warning is raised.
+#[gpui_kit::test]
+async fn writes_the_titled_notebook_body_before_the_notebook_editor_takes_the_file(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("nb/.keep", "")]);
+    let request = NewFileRequest {
+        directory: text_of(&root.join("nb")),
+        template_id: Some("jupyter".to_owned()),
+        kind_id: Some("titled".to_owned()),
+        ..NewFileRequest::default()
+    };
+    assert_eq!(submit_name(&workbench, request, "analysis", cx), None);
+    let file = root.join("nb/analysis.ipynb");
+    wait_long(cx, "the notebook's tab", |cx| {
+        workbench.read_with(cx, |w, _| w.tab_titles().iter().any(|tab| tab.name == "analysis.ipynb"))
+    });
+    let text = std::fs::read_to_string(&file).expect("the notebook is on disk");
+    let notebook: serde_json::Value = serde_json::from_str(&text).expect("the notebook is JSON");
+    assert_eq!(notebook["nbformat"], 4);
+    assert_eq!(notebook["cells"][0]["source"], serde_json::json!(["# analysis"]));
+    cx.run_until_parked();
+    let titles = notification_titles(&workbench, cx);
+    assert!(!titles.iter().any(|title| title.starts_with("Created ")), "{titles:?}");
+}
+
+/// A shell script standing in for Prettier: it notes each start in `started` and gives the text back.
+#[cfg(unix)]
+fn counting_formatter(dir: &std::path::Path) -> (PathBuf, PathBuf) {
+    use std::os::unix::fs::PermissionsExt;
+    let started = dir.join("formatter.started");
+    let script = dir.join("prettier-stand-in");
+    std::fs::write(&script, format!("#!/bin/sh\necho started >> '{}'\ncat\n", started.display()))
+        .expect("the script is written");
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).expect("the script runs");
+    (script, started)
+}
+
+/// Uses `script` as Prettier for CSS.
+#[cfg(unix)]
+fn format_css_with(script: &std::path::Path, cx: &mut VisualTestContext) {
+    use crate::platform::settings::{SettingsWrite, set_global};
+    let writes = [
+        SettingsWrite { key: "languages.prettier.path", value: serde_json::json!(text_of(script)) },
+        SettingsWrite { key: "languages.prettier.languages", value: serde_json::json!(["css"]) },
+    ];
+    cx.update(|_, cx| set_global("w1", &writes, cx)).expect("the formatter is set");
+}
+
+fn stylesheet_in(directory: &std::path::Path) -> NewFileRequest {
+    NewFileRequest {
+        directory: text_of(directory),
+        template_id: Some("stylesheet".to_owned()),
+        ..NewFileRequest::default()
+    }
+}
+
+/// In Restricted Mode New creates, fills and saves a file whose template reformats it, and starts no
+/// formatter: the quiet Reformat that follows the creation is refused by the backend there.
+#[cfg(unix)]
+#[gpui_kit::test]
+async fn in_restricted_mode_new_starts_no_formatter_after_creating_the_file(cx: &mut TestAppContext) {
+    let home = start(cx);
+    let (script, started) = counting_formatter(home.path());
+    let (_folder, root, workbench, cx) = restricted_project(cx, &[("web/.keep", "")]);
+    format_css_with(&script, cx);
+    assert_eq!(submit_name(&workbench, stylesheet_in(&root.join("web")), "main", cx), None);
+    let file = root.join("web/main.css");
+    wait_long(cx, "the stylesheet is created, opened and saved", |cx| {
+        editor_of(&workbench, &file, cx).is_some_and(|editor| !editor.read_with(cx, |e, _| e.is_dirty()))
+            && std::fs::read_to_string(&file).ok().as_deref() == Some("\n")
+    });
+    assert!(!started.exists(), "no formatter starts in Restricted Mode");
+    cx.run_until_parked();
+    assert_eq!(notification_titles(&workbench, cx), Vec::<String>::new(), "the refused Reformat says nothing");
+}
+
+/// In a trusted project the same creation starts the formatter: the check above can see one start.
+#[cfg(unix)]
+#[gpui_kit::test]
+async fn in_a_trusted_project_new_reformats_the_file_with_the_formatter(cx: &mut TestAppContext) {
+    let home = start(cx);
+    let (script, started) = counting_formatter(home.path());
+    let (_folder, root, workbench, cx) = trusted_project(cx, &[("web/.keep", "")]);
+    format_css_with(&script, cx);
+    assert_eq!(submit_name(&workbench, stylesheet_in(&root.join("web")), "main", cx), None);
+    wait_long(cx, "the formatter starts", |_| started.exists());
+    let file = root.join("web/main.css");
+    wait_long(cx, "the stylesheet is saved", |_| std::fs::read_to_string(&file).ok().as_deref() == Some("\n"));
+}
+
+/// A C# class two folders below a .NET Framework project's .csproj gets the project's root namespace
+/// and the folders below it: the hint shows it, and the class is written in a namespace block, as C#
+/// before 10 needs.
+#[gpui_kit::test]
+async fn a_csharp_class_gets_the_namespace_of_its_csproj_in_a_block_before_csharp_10(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let csproj = "<Project><PropertyGroup><RootNamespace>Acme.Shop</RootNamespace>\
+                  <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion></PropertyGroup></Project>";
+    let files = [("Shop/Shop.csproj", csproj), ("Shop/Orders/Api/.keep", "")];
+    let (_folder, root, workbench, cx) = trusted_project(cx, &files);
+    let request = NewFileRequest {
+        directory: text_of(&root.join("Shop/Orders/Api")),
+        template_id: Some("csharp".to_owned()),
+        ..NewFileRequest::default()
+    };
+    let dialog = open_dialog(&workbench, request, cx);
+    cx.simulate_input("OrderService");
+    let hint = "Shop/Orders/Api/OrderService.cs · namespace Acme.Shop.Orders.Api";
+    wait_long(cx, "the namespace in the hint", |cx| dialog.read_with(cx, |dialog, cx| dialog.hint(cx)) == hint);
+    cx.simulate_keystrokes("enter");
+    let file = root.join("Shop/Orders/Api/OrderService.cs");
+    let expected = "namespace Acme.Shop.Orders.Api\n{\n    public class OrderService\n    {\n        \n    }\n}\n";
+    wait_long(cx, "the class is saved in a namespace block", |_| {
+        std::fs::read_to_string(&file).ok().as_deref() == Some(expected)
+    });
+}

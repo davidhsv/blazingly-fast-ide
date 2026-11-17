@@ -10,7 +10,10 @@ use std::rc::Rc;
 
 type Events = Rc<RefCell<Vec<UpdateTagEvent>>>;
 
-fn open(cx: &mut TestAppContext, tag: &'static str) -> (Entity<UpdateTagDialog>, Events, &mut VisualTestContext) {
+fn open<'a>(
+    cx: &'a mut TestAppContext,
+    tag: &'static str,
+) -> (Entity<UpdateTagDialog>, Events, &'a mut VisualTestContext) {
     cx.update(|cx| {
         cx.set_global(theme::ActiveTheme::default());
         if !cx.has_global::<input::Keymap>() {

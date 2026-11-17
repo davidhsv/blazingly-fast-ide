@@ -19,16 +19,17 @@ use crate::editor::view::Editor;
 use crate::platform::actions::execute_action;
 use crate::platform::i18n::Localization;
 use crate::platform::project_roots::{FolderRole, RootFolder};
-use crate::templates::files_builtins::{builtin_code_templates, builtin_file_templates, builtin_includes};
+use crate::platform::storage::UiStorage;
 use crate::templates::files_create::{
-    ComposerStep, CreateEffect, Creation, INVALID_FILE_NAME, PackageLookup, ProjectInfo, SiblingFile,
+    ComposerStep, CreateEffect, Creation, CsprojStep, INVALID_FILE_NAME, PackageLookup, ProjectInfo, SiblingFile,
     caret_after_fill_reformat, package_for, plan_creation,
 };
 use crate::templates::files_model::{FileTemplate, Includes, PlannedFile, TemplateFragment};
+use crate::templates::files_store::FileTemplates;
 use crate::templates::new_file_dialog::{
     NewFileCreate, NewFileDialog, NewFileDialogEvent, NewFileDialogInput, PackageQuery,
 };
-use gpui_kit::{App, AsyncWindowContext, Context, Entity, Focusable as _, Global, WeakEntity, Window};
+use gpui_kit::{App, AppContext as _, AsyncWindowContext, Context, Entity, Focusable as _, WeakEntity, Window};
 use ide_core::{IdeError, IdeResult, TextChange};
 use ide_host::Host;
 use ide_vfs::EntryKind;
@@ -48,18 +49,6 @@ pub struct FileTemplateSet {
     pub code_templates: Vec<TemplateFragment>,
 }
 
-impl Default for FileTemplateSet {
-    fn default() -> Self {
-        Self {
-            templates: builtin_file_templates().to_vec(),
-            includes: builtin_includes().to_vec(),
-            code_templates: builtin_code_templates().to_vec(),
-        }
-    }
-}
-
-impl Global for FileTemplateSet {}
-
 impl FileTemplateSet {
     /// The templates New offers: every one the user did not turn off.
     pub fn enabled(&self) -> Vec<FileTemplate> {
@@ -67,10 +56,16 @@ impl FileTemplateSet {
     }
 }
 
-/// The file templates in effect for the project at `root`: the ones the app holds, the built-ins
-/// unless a [`FileTemplateSet`] global replaced them.
-pub fn templates_in_effect(_root: Option<&str>, cx: &mut App) -> FileTemplateSet {
-    cx.default_global::<FileTemplateSet>().clone()
+/// The file templates in effect for the project at `root` (none: the Default scheme): the built-ins
+/// with the customisations of the scheme the project chose, as File and Code Templates stores them.
+pub fn templates_in_effect(root: Option<&str>, cx: &App) -> FileTemplateSet {
+    let storage = cx.try_global::<UiStorage>();
+    let loaded = FileTemplates::load(root, &|key| storage.and_then(|storage| storage.get(key)).map(str::to_owned));
+    FileTemplateSet {
+        templates: loaded.templates().to_vec(),
+        includes: loaded.includes().to_vec(),
+        code_templates: loaded.code_templates().to_vec(),
+    }
 }
 
 /// What New › <template> and New from Template… open the dialog with.
@@ -120,19 +115,48 @@ fn project_roots(host: &Host, label: &str) -> Vec<RootFolder> {
         .collect()
 }
 
+/// The files of `directory`, as names and paths; none when it cannot be listed.
+async fn listed_files(host: &Host, label: &str, directory: &str) -> Option<Vec<(String, String)>> {
+    let listed = ide_host::ops::fs::read_dir(host, label, PathBuf::from(directory)).await.ok()?;
+    let files = listed
+        .into_iter()
+        .filter(|entry| matches!(entry.kind, EntryKind::File))
+        .map(|entry| (entry.name, entry.path.0.to_string_lossy().into_owned()))
+        .collect();
+    Some(files)
+}
+
+/// A package a lookup found; `block_namespace`: the project's C# has no file-scoped namespaces, so the
+/// body's `namespace $PACKAGE$;` is written as a block.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct FoundPackage {
+    name: String,
+    block_namespace: bool,
+}
+
 /// Carries out a package lookup, reading what it asks for. A file that cannot be read counts as one
 /// that is not there.
-async fn finish_lookup(host: &Host, label: &str, lookup: PackageLookup) -> String {
-    match lookup {
+async fn finish_lookup(host: &Host, label: &str, lookup: PackageLookup) -> FoundPackage {
+    let name = match lookup {
         PackageLookup::Known(package) => package,
+        PackageLookup::Csharp(mut lookup) => loop {
+            let files = listed_files(host, label, lookup.folder()).await;
+            let siblings: Option<Vec<SiblingFile<'_>>> = files.as_ref().map(|files| {
+                files.iter().map(|(name, path)| SiblingFile { name: name.as_str(), path: path.as_str() }).collect()
+            });
+            match lookup.clone().listed(siblings.as_deref()) {
+                CsprojStep::Read { path, name } => {
+                    let text = ide_host::ops::fs::read_text(host, label, PathBuf::from(path)).await.unwrap_or_default();
+                    let found = lookup.read(&name, &text);
+                    let block_namespace = !found.name.is_empty() && !found.file_scoped;
+                    return FoundPackage { name: found.name, block_namespace };
+                }
+                CsprojStep::Next(next) => lookup = next,
+                CsprojStep::Done(none) => break none.name,
+            }
+        },
         PackageLookup::Go(lookup) => {
-            let listed = ide_host::ops::fs::read_dir(host, label, PathBuf::from(&lookup.directory)).await;
-            let files: Vec<(String, String)> = listed
-                .unwrap_or_default()
-                .into_iter()
-                .filter(|entry| matches!(entry.kind, EntryKind::File))
-                .map(|entry| (entry.name, entry.path.0.to_string_lossy().into_owned()))
-                .collect();
+            let files = listed_files(host, label, &lookup.directory).await.unwrap_or_default();
             let siblings: Vec<SiblingFile<'_>> =
                 files.iter().map(|(name, path)| SiblingFile { name: name.as_str(), path: path.as_str() }).collect();
             let text = match lookup.pick(&siblings) {
@@ -148,7 +172,8 @@ async fn finish_lookup(host: &Host, label: &str, lookup: PackageLookup) -> Strin
                 ComposerStep::Next(next) => lookup = next,
             }
         },
-    }
+    };
+    FoundPackage { name, block_namespace: false }
 }
 
 /// Runs `f` on a blocking thread of the backend's runtime.
@@ -244,7 +269,7 @@ impl Workbench {
             })
             .await;
             let result = match found {
-                Ok(Ok(package)) => dialog.update(cx, |dialog, cx| dialog.set_package(&query, package, cx)),
+                Ok(Ok(package)) => dialog.update(cx, |dialog, cx| dialog.set_package(&query, package.name, cx)),
                 Ok(Err(error)) => {
                     tracing::debug!("no package for the New File dialog: {}", error.message);
                     Ok(())
@@ -324,22 +349,38 @@ async fn create_and_fill(
         Ok((creation, package))
     })
     .await?;
-    let (creation, package) = match found {
+    let (mut creation, package) = match found {
         Ok(found) => found,
         Err(error) => return creation_failed(&dialog, cx, error.message),
     };
+    if package.block_namespace {
+        creation.use_block_namespace();
+    }
     let name = root.as_deref().map(project_name).unwrap_or_default();
     let lists: [&[TemplateFragment]; 2] = [&set.includes, &set.code_templates];
     let project = root.as_deref().map(|root| ProjectInfo { name: &name, root });
-    let prepared = creation.render(&package, project, Includes::new(&lists));
+    let prepared = creation.render(&package.name, project, Includes::new(&lists));
     // Closing the dialog while the package was looked up cancels the creation.
     let cancelled = !this.update(cx, |workbench, _| workbench.is_new_file_dialog(&dialog))?;
-    for effect in prepared.effects(cancelled) {
+    // A notebook opens in its own editor, which reads the file from disk: no text editor is filled.
+    let viewer = crate::notebook::is_notebook_path(&prepared.plan.path);
+    let effects = if viewer { prepared.viewer_effects(cancelled) } else { prepared.effects(cancelled) };
+    for effect in effects {
         match effect {
             CreateEffect::CreateFile(path) => {
                 let file = PathBuf::from(path);
                 let made = call(&this, cx, move |host, label| async move {
                     blocking(move || ide_host::ops::fs::create_file(&host, &label, file)).await
+                })
+                .await?;
+                if let Err(error) = made {
+                    return creation_failed(&dialog, cx, error.message);
+                }
+            }
+            CreateEffect::CreateFileWithText(path, text) => {
+                let file = PathBuf::from(path);
+                let made = call(&this, cx, move |host, label| async move {
+                    ide_host::ops::fs::create_file_bytes(&host, &label, file, text.into_bytes()).await
                 })
                 .await?;
                 if let Err(error) = made {
@@ -357,7 +398,7 @@ async fn create_and_fill(
             })?,
         }
     }
-    if cancelled {
+    if cancelled || viewer {
         return Ok(());
     }
     let Some(editor) = wait_for_editor(&this, cx, &prepared.plan.path).await? else {
