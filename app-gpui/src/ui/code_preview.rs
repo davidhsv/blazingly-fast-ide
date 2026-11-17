@@ -149,6 +149,21 @@ struct PreviewEditors {
 
 impl Global for PreviewEditors {}
 
+/// An editor for a preview of `info`: a save leaves the cleanup to an editor tab of the document, and the
+/// preview's carets keep no trailing spaces.
+fn preview_editor(
+    host: std::sync::Arc<ide_host::Host>,
+    label: &str,
+    info: &ide_workspace::DocumentInfo,
+    version: u32,
+    rope: Rope,
+    cx: &mut Context<Editor>,
+) -> Editor {
+    let mut editor = Editor::with_text(host, label, info, version, rope, cx);
+    editor.set_cleans_up_on_save(false);
+    editor
+}
+
 /// Keeps `editor` when its document has unsaved edits, so they survive the preview going away; drops it
 /// otherwise, which lets its document go. With Files › Autosave on, the edits are saved now, as when the
 /// last tab of a document closes, a failure told to the user; the editor stays held until they are. A
@@ -167,7 +182,7 @@ fn hold_or_release(label: &str, path: &str, editor: Entity<Editor>, cx: &mut App
         return;
     }
     if crate::platform::settings::effective(label, cx).files.auto_save {
-        let saving = editor.read(cx).save(cx);
+        let saving = Editor::save_document(&editor, cx);
         let window = label.to_owned();
         cx.spawn(async move |cx| {
             let failure = match saving.await {
@@ -426,7 +441,7 @@ impl CodePreview {
                 let read_only = preview.mode == PreviewMode::ReadOnly || info.read_only;
                 let info = ide_workspace::DocumentInfo { read_only, ..info.clone() };
                 // The editor holds the document it was opened for and closes it when it goes.
-                let editor = cx.new(|cx| Editor::with_text(host, &label, &info, version, rope, cx));
+                let editor = cx.new(|cx| preview_editor(host, &label, &info, version, rope, cx));
                 preview.install(path.clone(), editor, cx);
                 true
             });
@@ -518,7 +533,7 @@ impl CodePreview {
             return;
         }
         cx.stop_propagation();
-        let saving = editor.read(cx).save(cx);
+        let saving = Editor::save_document(&editor, cx);
         cx.spawn(async move |preview, cx| {
             let failure = match saving.await {
                 Ok(Ok(())) => return,
@@ -543,7 +558,7 @@ fn let_go(label: &str, path: &str, info: &ide_workspace::DocumentInfo, cx: &mut 
         project.as_ref().filter(|_| changed).and_then(|project| project.documents.rope_snapshot(info.id).ok());
     if let Some((version, rope)) = snapshot {
         // The editor takes over the reference and closes the document when it goes.
-        let editor = cx.new(|cx| Editor::with_text(host, label, info, version, rope, cx));
+        let editor = cx.new(|cx| preview_editor(host, label, info, version, rope, cx));
         hold_or_release(label, path, editor, cx);
         return;
     }

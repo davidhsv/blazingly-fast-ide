@@ -1036,14 +1036,14 @@ impl Workbench {
     fn save_open_documents(
         &self,
         paths: &[String],
-        cx: &App,
+        cx: &mut App,
     ) -> impl Future<Output = Result<(), String>> + 'static + use<> {
-        let saving: Vec<_> = self
+        let open: Vec<_> = self
             .editors()
-            .iter()
+            .into_iter()
             .filter(|editor| paths.contains(&editor.read(cx).path().to_string_lossy().into_owned()))
-            .map(|editor| editor.read(cx).save(cx))
             .collect();
+        let saving: Vec<_> = open.iter().map(|editor| crate::editor::view::Editor::save_document(editor, cx)).collect();
         async move {
             let mut failure = None;
             for save in saving {

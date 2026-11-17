@@ -1760,7 +1760,7 @@ mod tests {
         run_in_window(cx, &root, "test.path-events", "filter", Some("nothing/*.none")).expect("the filter is set");
         let editor = open_file(&workbench, root.join("config/app.yaml"), cx);
         editor.update(cx, |editor, cx| editor.insert(Some(0..0), "b: 2\n", cx));
-        let saving = editor.read_with(cx, |editor, cx| editor.save(cx));
+        let saving = cx.update(|_, cx| crate::editor::view::Editor::save_document(&editor, cx));
         cx.executor().spawn(saving).detach();
         wait_long(cx, "the file is saved", |cx| !editor.read_with(cx, |editor, _| editor.is_dirty()));
         wait_long(cx, "the plugin heard the save", |cx| count(cx).as_deref() == Some("1"));

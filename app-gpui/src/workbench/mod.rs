@@ -45,6 +45,7 @@ mod emmet;
 pub mod empty_editor;
 mod github;
 mod http_client;
+mod idle_save;
 mod keymap_reference;
 mod light_edit_tabs;
 mod log_actions;
@@ -319,6 +320,8 @@ pub struct Workbench {
     /// Wakes the task list when its next deadline (a finished task leaving, a slow one
     /// appearing) falls due.
     task_timer: Option<gpui_kit::Task<()>>,
+    /// Saves the documents once the window has been idle for System Settings' seconds ([`idle_save`]).
+    idle_save: Option<gpui_kit::Task<()>>,
     listener: u64,
     /// The editor that was active before the last tab change: it is saved when another takes over.
     previous_editor: Option<gpui_kit::WeakEntity<Editor>>,
@@ -1190,6 +1193,7 @@ impl Workbench {
             tasks: Tasks::default(),
             notifications: Notifications::default(),
             task_timer: None,
+            idle_save: None,
             listener: listener.unwrap_or_default(),
             previous_editor: None,
             close_requests: Default::default(),
@@ -1784,8 +1788,11 @@ impl Workbench {
                 };
                 let failure = match answer {
                     Some(0) => {
-                        let saving = editor.read_with(cx, |editor, cx| editor.save(cx));
-                        match saving.await {
+                        let saved = match cx.update(|_, cx| Editor::save_document(&editor, cx)) {
+                            Ok(saving) => saving.await,
+                            Err(error) => Err(error),
+                        };
+                        match saved {
                             Ok(Ok(())) => return light_edit_tabs::closed_tab_settled(&workbench, cx),
                             Ok(Err(error)) => Some(error.message),
                             Err(error) => Some(error.to_string()),
@@ -1931,8 +1938,9 @@ impl Workbench {
             Some(editor) => vec![editor.clone()],
             None => self.document_editors(cx),
         };
-        for editor in editors.into_iter().filter(|editor| editor.read(cx).is_dirty()) {
-            let saving = editor.read(cx).save(cx);
+        let unsaved: Vec<_> = editors.into_iter().filter(|editor| editor.read(cx).is_dirty()).collect();
+        for editor in unsaved {
+            let saving = Editor::save_document(&editor, cx);
             cx.spawn(async move |workbench, cx| {
                 let failure = match saving.await {
                     Ok(Ok(())) => return,
@@ -1947,13 +1955,10 @@ impl Workbench {
 
     /// Saves every unsaved text document of the window, all at once; the first failure's message,
     /// if any. A document that fails stays unsaved in its editor.
-    fn save_documents(&self, cx: &App) -> impl Future<Output = Option<String>> + 'static + use<> {
-        let saving: Vec<_> = self
-            .document_editors(cx)
-            .iter()
-            .filter(|editor| editor.read(cx).is_dirty())
-            .map(|editor| editor.read(cx).save(cx))
-            .collect();
+    fn save_documents(&self, cx: &mut App) -> impl Future<Output = Option<String>> + 'static + use<> {
+        let unsaved: Vec<_> =
+            self.document_editors(cx).into_iter().filter(|editor| editor.read(cx).is_dirty()).collect();
+        let saving: Vec<_> = unsaved.iter().map(|editor| Editor::save_document(editor, cx)).collect();
         async move {
             let mut failure = None;
             for done in futures::future::join_all(saving).await {
@@ -1984,7 +1989,7 @@ impl Workbench {
     }
 
     /// Saves every unsaved editor and notebook; the first failure's message, if any.
-    fn save_all(&self, cx: &App) -> impl Future<Output = Result<(), String>> + 'static + use<> {
+    fn save_all(&self, cx: &mut App) -> impl Future<Output = Result<(), String>> + 'static + use<> {
         let saving = self.save_documents(cx);
         // The notebooks are saved when the future runs, outside the update that asked for it.
         let app = cx.to_async();
@@ -2033,6 +2038,9 @@ impl Workbench {
         }
         // Build files, project folders, Java settings and trust: the build model is read again.
         self.build_tools_backend_event(&event.event, cx);
+        if let IdeEvent::DocDirty { dirty: false, .. } = &event.event {
+            self.idle_save_document_saved(cx);
+        }
         let now = now_ms();
         match &event.event {
             IdeEvent::Task { id, title, message, fraction, done, cancellable } => self.tasks.on_task_event(
@@ -2076,6 +2084,7 @@ impl Workbench {
             // consoles and the Run tool window.
             IdeEvent::SettingsChanged { key } => {
                 self.settings_changed(key, cx);
+                self.idle_save_settings_changed(cx);
                 if let Some(driver) = self.run_driver().cloned() {
                     driver.update(cx, |driver, cx| driver.apply_console_settings(cx));
                     self.sync_run_window(cx);
@@ -2614,7 +2623,7 @@ impl Workbench {
         let save_all: SaveAll = Rc::new(move |cx: &mut App| {
             use futures::FutureExt as _;
             match weak.upgrade() {
-                Some(workbench) => workbench.read(cx).save_all(cx).boxed_local(),
+                Some(workbench) => workbench.update(cx, |workbench, cx| workbench.save_all(cx)).boxed_local(),
                 None => futures::future::ready(Ok(())).boxed_local(),
             }
         });
@@ -4421,6 +4430,7 @@ impl Render for Workbench {
         let framed = self.project_tree().is_some();
         let this = cx.entity().downgrade();
         let pressed_in = this.clone();
+        let typed_in = this.clone();
         div()
             .size_full()
             .bg(theme::color(cx, if framed { "bg-frame" } else { "bg-app" }))
@@ -4439,7 +4449,12 @@ impl Render for Workbench {
             })
             // A left press on an editor's text is the editor's: it places the caret, then runs the mouse
             // shortcut at the pressed position itself.
+            // Keys and presses restart the idle save's countdown; the handlers run on after it.
+            .capture_key_down(move |_, window, cx| {
+                let _ = typed_in.update(cx, |workbench, cx| workbench.idle_input(window, cx));
+            })
             .capture_any_mouse_down(move |event: &MouseDownEvent, window, cx| {
+                let _ = pressed_in.update(cx, |workbench, cx| workbench.idle_input(window, cx));
                 let on_text = pressed_in
                     .upgrade()
                     .is_some_and(|workbench| workbench.read(cx).editor_text_under(event.position, window, cx));
@@ -4640,6 +4655,7 @@ mod tests {
     mod proofs_vcs;
     mod recent_live_branch;
     mod run_targets_plugins;
+    mod save_cleanup;
     mod smoke_backend_events;
     mod smoke_registered_actions;
     mod smoke_services;

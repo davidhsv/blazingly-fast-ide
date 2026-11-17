@@ -261,7 +261,7 @@ async fn a_saved_file_is_not_forwarded_to_plugins_in_restricted_mode_and_reaches
     let editor = open_file(&workbench, root.join("config/app.yaml"), cx);
     let save = |text: &str, cx: &mut VisualTestContext| {
         editor.update(cx, |editor, cx| editor.insert(Some(0..0), text, cx));
-        let saving = editor.read_with(cx, |editor, cx| editor.save(cx));
+        let saving = cx.update(|_, cx| crate::editor::view::Editor::save_document(&editor, cx));
         cx.executor().spawn(saving).detach();
         wait_long(cx, "the file is saved", |cx| !editor.read_with(cx, |editor, _| editor.is_dirty()));
     };

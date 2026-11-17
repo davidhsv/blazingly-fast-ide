@@ -54,7 +54,7 @@ async fn a_file_the_window_opens_reaches_the_plugin_subscribed_to_file_opened(cx
     // save is heard with or after the opening: once the save is counted, an opening heard would be counted too.
     let editor = workbench.read_with(cx, |w, _| w.editor().cloned()).expect("an editor");
     editor.update(cx, |editor, cx| editor.insert(Some(0..0), "b: 2\n", cx));
-    let saving = editor.read_with(cx, |editor, cx| editor.save(cx));
+    let saving = cx.update(|_, cx| crate::editor::view::Editor::save_document(&editor, cx));
     cx.executor().spawn(saving).detach();
     wait(cx, "the file is saved", |cx| !editor.read_with(cx, |editor, _| editor.is_dirty()));
     wait(cx, "the plugin heard the save", |cx| count(cx) > before);

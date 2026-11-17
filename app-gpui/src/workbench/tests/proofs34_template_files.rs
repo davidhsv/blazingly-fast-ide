@@ -364,8 +364,9 @@ async fn a_plugin_templates_package_goes_into_the_body_never_into_the_path(cx: &
     };
     assert_eq!(submit_name(&workbench, request, "repo", cx), None);
     let file = root.join("pkg/store/repo.go");
+    // The save ends the file with a line break.
     wait_long(cx, "the file is saved with the package", |_| {
-        std::fs::read_to_string(&file).ok().as_deref() == Some("service")
+        std::fs::read_to_string(&file).ok().as_deref() == Some("service\n")
     });
     assert_eq!(tree_of(&root), tree(&["pkg/store/db.go", "pkg/store/repo.go"]));
 }

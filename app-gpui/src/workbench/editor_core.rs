@@ -156,7 +156,7 @@ impl Workbench {
     /// Follows `editor` for the histories of the window: its caret moves, its edits and the keyboard
     /// coming to it.
     pub(super) fn install_editor_core(&mut self, editor: &Entity<Editor>, window: &mut Window, cx: &mut Context<Self>) {
-        cx.subscribe_in(editor, window, |workbench, editor, event: &EditorEvent, _, cx| match event {
+        cx.subscribe_in(editor, window, |workbench, editor, event: &EditorEvent, window, cx| match event {
             EditorEvent::SelectionMoved => workbench.record_place(editor, false, cx),
             EditorEvent::Edited { origin, .. } => {
                 if !matches!(origin, EditOrigin::External) {
@@ -166,6 +166,10 @@ impl Workbench {
                 if !matches!(origin, EditOrigin::External | EditOrigin::History) {
                     let place = place_of(editor.read(cx));
                     workbench.editor_core.edits.record(place);
+                }
+                // An edit is input; the cleanup of a save and the backend's own edits are not.
+                if !matches!(origin, EditOrigin::External | EditOrigin::SaveCleanup) {
+                    workbench.idle_input(window, cx);
                 }
                 workbench.record_place(editor, false, cx);
             }

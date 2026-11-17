@@ -200,7 +200,9 @@ async fn reloading_the_file_from_disk_ends_the_template(cx: &mut TestAppContext)
     let editor = edit_at(&workbench, &path, 0, cx);
     expand_fori(&workbench, &editor, cx);
     run_action(cx, "file.save", None);
-    settle(cx, |_| std::fs::read_to_string(&path).is_ok_and(|saved| saved == FORI));
+    // The save trims the edited body line, which no caret is on.
+    let saved_text = "for (let i = 0; i < .length; i++) {\n\n}\n";
+    settle(cx, |_| std::fs::read_to_string(&path).is_ok_and(|saved| saved == saved_text));
     assert_eq!(active_field(&workbench, &editor, cx), Some(0), "saving keeps the template");
     std::fs::write(&path, "let other = 1;\n").expect("the file is written");
     run_action(cx, "file.reloadFromDisk", None);

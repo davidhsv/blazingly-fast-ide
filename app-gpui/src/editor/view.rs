@@ -57,6 +57,7 @@ mod column_gestures;
 mod doc_tags;
 pub mod gutter_marks;
 pub(crate) mod right_margin;
+mod save_cleanup;
 mod string_literals;
 mod token_style;
 
@@ -293,6 +294,8 @@ pub enum EditOrigin {
     External,
     /// Any other command of this editor (paste, line commands, an edit applied by its owner).
     Other,
+    /// The cleanup a save applies before writing (trailing spaces, the final line break).
+    SaveCleanup,
 }
 
 /// What the editor tells its owner.
@@ -382,6 +385,11 @@ pub struct Editor {
     column_drag: Option<commands::column_mode::BlockPoint>,
     /// The document has changes that are not on disk.
     dirty: bool,
+    /// The ranges this editor edited since the document was last saved, which a save cleans up.
+    modified: crate::editor_model::document::ModifiedRanges,
+    /// A save of the document cleans it up through this editor and keeps the trailing spaces under its
+    /// carets (false for a code preview).
+    cleans_on_save: bool,
     /// Counts edits, so that a highlight request an edit has overtaken is dropped.
     generation: u64,
     created: std::time::Instant,
@@ -421,6 +429,9 @@ impl Editor {
             IdeEvent::DocDirty { doc: changed, dirty } if *changed == doc => {
                 let _ = weak.update(cx, |editor, cx| {
                     editor.dirty = *dirty;
+                    if !*dirty {
+                        editor.modified.clear();
+                    }
                     cx.notify();
                 });
             }
@@ -500,6 +511,8 @@ impl Editor {
             adding: None,
             column_drag: None,
             dirty,
+            modified: Default::default(),
+            cleans_on_save: true,
             generation: 0,
             created: std::time::Instant::now(),
             core: Default::default(),
@@ -1119,7 +1132,9 @@ impl Editor {
             self.history.clear();
         }
         let record = (!workspace_edit).then_some(EditKind::Other);
-        self.follow((base_version == self.version).then_some(changes), record, None, EditOrigin::External, cx);
+        let followed =
+            self.follow((base_version == self.version).then_some(changes), record, None, EditOrigin::External, cx);
+        self.modified.map(&followed);
     }
 
     /// Sends `edit` (changes in the coordinates of the current text) to the backend as one
@@ -1132,6 +1147,7 @@ impl Editor {
         self.dirty = true;
         let base = self.version;
         self.follow(Some(&edit.changes), Some(kind), Some((edit.selections, edit.main)), origin, cx);
+        self.modified.add(&edit.changes);
         self.tell_other_editors(base, &edit.changes, cx);
         self.reveal_caret(cx);
         Ok(())
@@ -1165,7 +1181,8 @@ impl Editor {
                 Ok(()) => return true,
                 // The backend's edit becomes an undo entry of its own before the user's.
                 Err(error) if error.kind == ErrorKind::OutOfSync && attempt < 2 => {
-                    self.follow(None, Some(EditKind::Other), None, EditOrigin::External, cx);
+                    let followed = self.follow(None, Some(EditKind::Other), None, EditOrigin::External, cx);
+                    self.modified.map(&followed);
                 }
                 Err(error) => {
                     tracing::warn!("edit of {} rejected: {}", self.path.display(), error.message);
@@ -1208,7 +1225,8 @@ impl Editor {
             Ok(()) => true,
             Err(error) => {
                 if error.kind == ErrorKind::OutOfSync {
-                    self.follow(None, Some(EditKind::Other), None, EditOrigin::External, cx);
+                    let followed = self.follow(None, Some(EditKind::Other), None, EditOrigin::External, cx);
+                    self.modified.map(&followed);
                 } else {
                     tracing::warn!("edit of {} rejected: {}", self.path.display(), error.message);
                 }
@@ -1226,13 +1244,15 @@ impl Editor {
             if let Err(error) = applied {
                 tracing::warn!("cannot replay an edit of {}: {}", self.path.display(), error.message);
                 self.history.clear();
-                self.follow(None, None, None, EditOrigin::External, cx);
+                let followed = self.follow(None, None, None, EditOrigin::External, cx);
+                self.modified.map(&followed);
                 return false;
             }
             self.dirty = true;
             let base = self.version;
             let selection = Some((selection.ranges.clone(), selection.main));
             self.follow(Some(changes), None, selection, EditOrigin::History, cx);
+            self.modified.add(changes);
             self.tell_other_editors(base, changes, cx);
         }
         self.reveal_caret(cx);
@@ -1312,6 +1332,7 @@ impl Editor {
             self.history.clear();
             self.follow(None, None, None, EditOrigin::External, cx);
             self.dirty = false;
+            self.modified.clear();
         } else {
             self.dirty = true;
         }
@@ -1323,8 +1344,12 @@ impl Editor {
         self.dirty
     }
 
-    /// Writes the document to disk; the backend reports the document clean when it is done.
-    pub fn save(&self, cx: &App) -> impl Future<Output = anyhow::Result<IdeResult<()>>> + Send + 'static + use<> {
+    /// Writes the document to disk as it is, without the cleanup of [`Editor::save_document`]; the
+    /// backend reports the document clean when it is done.
+    pub fn write_as_is(
+        &self,
+        cx: &App,
+    ) -> impl Future<Output = anyhow::Result<IdeResult<()>>> + Send + 'static + use<> {
         let (host, window, doc) = (self.host.clone(), self.window_label.clone(), self.doc);
         cx.global::<Backend>().call(async move { ide_host::ops::doc::save(&host, &window, doc).await })
     }
@@ -3439,7 +3464,7 @@ mod editing_tests {
         cx.simulate_input("final ");
         settle(cx, |cx| o.editor.read_with(cx, |e, _| e.is_dirty()));
         assert_eq!(std::fs::read_to_string(&o.path).expect("readable"), "draft\n");
-        let saved = o.editor.read_with(cx, |e, cx| e.save(cx));
+        let saved = cx.update(|_, cx| Editor::save_document(&o.editor, cx));
         saved.await.expect("the task completes").expect("the file saves");
         assert_eq!(std::fs::read_to_string(&o.path).expect("readable"), "final draft\n");
         settle(cx, |cx| !o.editor.read_with(cx, |e, _| e.is_dirty()));
