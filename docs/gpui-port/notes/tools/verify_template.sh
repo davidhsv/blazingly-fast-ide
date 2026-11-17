@@ -7,6 +7,7 @@ done
 { cargo test --test web_view 2>&1; echo "rc=$?"; } > ${S}/verify_agv_web.log
 { cargo clippy --all-targets -- -D warnings 2>&1; echo "rc=$?"; } > ${S}/verify_agv_clippy.log
 { cargo build 2>&1; echo "rc=$?"; } > ${S}/verify_agv_build.log
+{ (cd .. && node docs/gpui-port/gen-data.mjs --check 2>&1); echo "rc=$?"; } > ${S}/verify_agv_gen.log
 cargo test --lib -- --list > ${S}/listed/lib.txt 2>/dev/null
 grep ': test$' ${S}/listed/lib.txt | sed 's/: test$//' > ${S}/rust_tests.txt
 echo done > ${S}/verify_agv_done
