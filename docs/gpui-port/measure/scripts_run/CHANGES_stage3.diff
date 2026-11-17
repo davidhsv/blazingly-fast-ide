@@ -1,0 +1,844 @@
+diff --color -ru ../dmrun2/scripts/aggregate.py scripts/aggregate.py
+--- ../dmrun2/scripts/aggregate.py	2026-11-17 14:55:24
++++ scripts/aggregate.py	2026-11-17 18:35:09
+@@ -1,16 +1,26 @@
+ #!/usr/bin/python3 -I
+-"""Aggregates <base>/runs/*/ into one Markdown table per scenario: median [min - max] over the
+-repetitions of each app, the spread, and native / Tauri of the medians.
++"""Aggregates <runs root>/*-*/ into one Markdown table per scenario: median [min - max] over the
++repetitions of each app, the spread, and native / Tauri of the medians. measure.py imports
++`scenario_metrics` from here, so the driver's per-scenario numbers and the table share one definition.
+ 
+-usage: aggregate.py --base B [--dry-run]
++usage: aggregate.py --base B [--runs-root R] [--include-degraded] [--dry-run]
+ 
+-Definitions (DESIGN.md, part 4):
+-- peak: the largest 1 Hz sample of the summed phys_footprint (resp. resident size) of the set
+-  within the scenario; "lifetime max" also sums each process's own ri_lifetime_max_phys_footprint
+-  at the end of the launch (an upper bound of the peak: the processes need not peak together).
+-- steady: the median of the summed footprint over the scenario's last 10 samples (idle: last 60).
+-- CPU: the increase of the summed user+system time of the set over the scenario (processes that
+-  exited keep their last reading), in CPU seconds; idle CPU = that / the idle duration, in % of one core.
++Definitions (DESIGN.md, part 4), each split into app (the app process and its /usr/bin/time
++launcher), WebKit helpers and children (language tools, git, java, mvn), with a total with and a
++total without children:
++- A scenario is every sample labelled with its name. It can have several contiguous segments: the
++  keys that close it (the Escape after Find, the Cmd+9 that hides the Git log) and the settle after
++  them come back to it after its tools_* snapshot window. Each segment's boundary is the last sample
++  before it (none for a launch's first sample: then the launch itself is the boundary).
++- CPU: per segment, for every process of the set, its cumulative user+system time at the segment's
++  last sample minus its reading at the boundary. A process with no reading at the boundary counts
++  from zero if it started inside the segment (its start time >= the boundary sample's time), else
++  from its first reading. A process that exited keeps its last reading. The scenario's CPU is the
++  sum over its segments; its duration is the sum of the segments' spans (boundary to last sample).
++  Wakeups use the same rule.
++- peak: the largest 1 Hz sample of the summed phys_footprint over all of the scenario's samples.
++- steady: the median of the summed footprint over the last 10 samples (idle: last 60) of the
++  scenario's first segment, the state it shows before its snapshot window and closing keys.
+ """
+ from __future__ import annotations
+ 
+@@ -23,6 +33,7 @@
+ import sys
+ 
+ SCENARIOS = ["cold_start", "cold_steady", "open_project", "open_files", "find_in_files", "git_log", "deep_mode", "blaze_again", "idle"]
++GROUPS = ("app", "webkit", "child")
+ MiB = 1024 * 1024
+ 
+ 
+@@ -35,41 +46,140 @@
+     return "webkit" if kind.startswith("webkit") else ("child" if kind == "child" else "app")
+ 
+ 
+-def scenario_metrics(samples, name):
+-    s = [x for x in samples if x["scenario"] == name]
+-    if len(s) < 2:
++def _key(p):
++    # Older samples (the pilot) carry no start time: pid and kind then name the process.
++    return (p["pid"], p.get("start_us", p["kind"]))
++
++
++class Readings:
++    """Cumulative readings of one launch's samples: for every sample index, each process's last
++    reading at or before it, and the index at which each process was first read."""
++
++    def __init__(self, samples):
++        self.samples = samples
++        self.last = []  # index -> {key: (cpu_ns, wakeups, group)}
++        self.first = {}  # key -> (index, cpu_ns, wakeups, start_us or None)
++        cur = {}
++        for i, x in enumerate(samples):
++            for p in x["procs"]:
++                k = _key(p)
++                cur[k] = (p["cpu_ns"], p["wakeups"], group(p["kind"]))
++                if k not in self.first:
++                    self.first[k] = (i, p["cpu_ns"], p["wakeups"], p.get("start_us"))
++            self.last.append(dict(cur))
++
++    def base(self, key, b):
++        """(cpu_ns, wakeups, how) a process counts from in a segment whose boundary is index b."""
++        if b is not None and key in self.last[b]:
++            c, w, _g = self.last[b][key]
++            return c, w, "boundary"
++        _i, c, w, start = self.first[key]
++        if b is None:
++            return 0, 0, "launch"
++        if start is None:
++            # Hypothesis (no start time recorded): first read after the boundary = started inside.
++            return 0, 0, "zero_no_start_time"
++        if start / 1e6 >= self.samples[b]["t"]:
++            return 0, 0, "zero_started_inside"
++        return c, w, "first_reading"
++
++    def span(self, b, e):
++        """CPU (ns) and wakeups per group over (b, e]."""
++        cpu = {g: 0 for g in GROUPS}
++        wk = {g: 0 for g in GROUPS}
++        for k, (c, w, g) in self.last[e].items():
++            c0, w0, _how = self.base(k, b)
++            cpu[g] += c - c0
++            wk[g] += w - w0
++        return cpu, wk
++
++
++def segments(samples, name):
++    """[(boundary index or None, first index, last index)] of the contiguous runs labelled `name`."""
++    out, i = [], 0
++    while i < len(samples):
++        if samples[i]["scenario"] != name:
++            i += 1
++            continue
++        j = i
++        while j + 1 < len(samples) and samples[j + 1]["scenario"] == name:
++            j += 1
++        out.append((i - 1 if i > 0 else None, i, j))
++        i = j + 1
++    return out
++
++
++def _group_sums(x):
++    d = {g: 0 for g in GROUPS}
++    for p in x["procs"]:
++        d[group(p["kind"])] += p["footprint"]
++    return d
++
++
++def scenario_metrics(samples, name, readings=None):
++    segs = segments(samples, name)
++    if not segs or sum(e - s + 1 for _b, s, e in segs) < 2:
+         return None
+-    tail = s[-60:] if name == "idle" else s[-10:]
+-    dur = s[-1]["t"] - s[0]["t"]
+-    cpu = (s[-1]["cpu_ns_total"] - s[0]["cpu_ns_total"]) / 1e9
+-    wk = s[-1]["wakeups_total"] - s[0]["wakeups_total"]
+-    by = {}
+-    for x in s:
+-        sums = {}
+-        for p in x["procs"]:
+-            g = group(p["kind"])
+-            sums[g] = sums.get(g, 0) + p["footprint"]
+-        for g, v in sums.items():
+-            by[g] = max(by.get(g, 0), v)
+-    return {
++    r = readings or Readings(samples)
++    dur = 0.0
++    cpu = {g: 0 for g in GROUPS}
++    wk = {g: 0 for g in GROUPS}
++    for b, s, e in segs:
++        dur += samples[e]["t"] - samples[b if b is not None else s]["t"]
++        c, w = r.span(b, e)
++        for g in GROUPS:
++            cpu[g] += c[g]
++            wk[g] += w[g]
++    s_all = [samples[i] for _b, s, e in segs for i in range(s, e + 1)]
++    _b0, s0, e0 = segs[0]
++    first = samples[s0:e0 + 1]
++    tail = first[-60:] if name == "idle" else first[-10:]
++    pg = [_group_sums(x) for x in s_all]
++    tg = [_group_sums(x) for x in tail]
++    m = {
+         "duration_s": dur,
+-        "peak_footprint_mib": max(x["sum_footprint"] for x in s) / MiB,
+-        "peak_resident_mib": max(x["sum_resident"] for x in s) / MiB,
+-        "steady_footprint_mib": statistics.median(x["sum_footprint"] for x in tail) / MiB,
+-        "cpu_s": cpu,
+-        "cpu_pct_core": 100.0 * cpu / dur if dur > 0 else 0.0,
+-        "wakeups_per_s": wk / dur if dur > 0 else 0.0,
+-        "procs_max": max(len(x["procs"]) for x in s),
+-        **{f"peak_{g}_mib": v / MiB for g, v in by.items()},
++        "samples": len(s_all),
++        "segments": len(segs),
++        "peak_resident_total_mib": max(x["sum_resident"] for x in s_all) / MiB,
++        "peak_footprint_total_mib": max(x["sum_footprint"] for x in s_all) / MiB,
++        "peak_footprint_total_without_children_mib": max(d["app"] + d["webkit"] for d in pg) / MiB,
++        "steady_footprint_total_mib": statistics.median(x["sum_footprint"] for x in tail) / MiB,
++        "steady_footprint_total_without_children_mib": statistics.median(d["app"] + d["webkit"] for d in tg) / MiB,
++        "cpu_total_s": sum(cpu.values()) / 1e9,
++        "cpu_total_without_children_s": (cpu["app"] + cpu["webkit"]) / 1e9,
++        "cpu_pct_core": 100.0 * sum(cpu.values()) / 1e9 / dur if dur > 0 else 0.0,
++        "wakeups_per_s": sum(wk.values()) / dur if dur > 0 else 0.0,
++        "procs_max": max(len(x["procs"]) for x in s_all),
++        "not_frontmost_samples": sum(1 for x in s_all if x.get("front_is_app") is False),
++        "frontmost_unknown_samples": sum(1 for x in s_all if "front_is_app" in x and x["front_is_app"] is None),
+     }
++    for g in GROUPS:
++        m[f"peak_footprint_{g}_mib"] = max(d[g] for d in pg) / MiB
++        m[f"steady_footprint_{g}_mib"] = statistics.median(d[g] for d in tg) / MiB
++        m[f"cpu_{g}_s"] = cpu[g] / 1e9
++    return m
+ 
+ 
+-def lifetime_upper_bound(samples):
+-    last = {}
++def self_check(samples, readings=None):
++    """(per-label CPU summed over every label, the launch's total by the same rule) in s. The second
++    is the driver's own running total (`cpu_ns_rule`, kept per sample) when the samples carry it;
++    else (older samples) the sum of every process's last reading, which is what the rule gives
++    when every process counts from zero."""
++    r = readings or Readings(samples)
++    labels = []
+     for x in samples:
+-        for p in x["procs"]:
+-            last[(p["pid"], p["kind"])] = p["lifetime_max"]
+-    return sum(last.values()) / MiB
++        if x["scenario"] not in labels:
++            labels.append(x["scenario"])
++    total = 0
++    for name in labels:
++        for b, _s, e in segments(samples, name):
++            c, _w = r.span(b, e)
++            total += sum(c.values())
++    if "cpu_ns_rule" in samples[-1]:
++        expected = samples[-1]["cpu_ns_rule"]
++    else:
++        expected = sum(c for c, _w, _g in r.last[-1].values())
++    return total / 1e9, expected / 1e9
+ 
+ 
+ def waits(events_path):
+@@ -106,36 +216,67 @@
+     if not vals:
+         return "-"
+     med = statistics.median(vals)
++    if len(vals) == 1:
++        return f"{med:.1f}"
+     spread = (max(vals) - min(vals)) / med * 100 if med else 0.0
+     return f"{med:.1f} [{min(vals):.1f}-{max(vals):.1f}] ±{spread:.0f}%"
+ 
+ 
++ROWS = [
++    ("duration (s)", "duration_s"),
++    ("peak footprint MiB: app", "peak_footprint_app_mib"),
++    ("peak footprint MiB: WebKit", "peak_footprint_webkit_mib"),
++    ("peak footprint MiB: children", "peak_footprint_child_mib"),
++    ("peak footprint MiB: total", "peak_footprint_total_mib"),
++    ("peak footprint MiB: total without children", "peak_footprint_total_without_children_mib"),
++    ("steady footprint MiB: app", "steady_footprint_app_mib"),
++    ("steady footprint MiB: WebKit", "steady_footprint_webkit_mib"),
++    ("steady footprint MiB: children", "steady_footprint_child_mib"),
++    ("steady footprint MiB: total", "steady_footprint_total_mib"),
++    ("steady footprint MiB: total without children", "steady_footprint_total_without_children_mib"),
++    ("CPU s: app", "cpu_app_s"),
++    ("CPU s: WebKit", "cpu_webkit_s"),
++    ("CPU s: children", "cpu_child_s"),
++    ("CPU s: total", "cpu_total_s"),
++    ("CPU s: total without children", "cpu_total_without_children_s"),
++    ("CPU % of one core (total)", "cpu_pct_core"),
++    ("wakeups/s (total)", "wakeups_per_s"),
++    ("peak resident MiB: total", "peak_resident_total_mib"),
++    ("processes (max)", "procs_max"),
++    ("samples not frontmost", "not_frontmost_samples"),
++]
++
++
+ def main():
+     ap = argparse.ArgumentParser()
+     ap.add_argument("--base", required=True)
++    ap.add_argument("--runs-root", help="folder of the run folders (default: <base>/runs)")
+     ap.add_argument("--dry-run", action="store_true")
+-    ap.add_argument("--include-degraded", action="store_true", help="also count runs with timeouts, warnings or findings")
++    ap.add_argument("--include-degraded", action="store_true", help="also count runs (and scenarios) marked degraded")
+     a = ap.parse_args()
+-    runs = sorted(glob.glob(f"{a.base}/runs/*-*"))
++    root = a.runs_root or f"{a.base}/runs"
++    runs = sorted(d for d in glob.glob(f"{root}/*-*") if os.path.isdir(d))
+     if a.dry_run:
+-        print(f"[dry-run] would aggregate {len(runs)} runs under {a.base}/runs")
++        print(f"[dry-run] would aggregate {len(runs)} runs under {root}")
+         return
+     table = {}  # (scenario, metric) -> app -> [values]
+-    extra = {}  # (label) -> app -> [values]
++    extra = {}  # label -> app -> [values]
+     status = []
++    checks = []
+     for r in runs:
+         rep, app = os.path.basename(r).split("-", 1)
+         st = json.load(open(f"{r}/status.json")) if os.path.exists(f"{r}/status.json") else {"status": "no status"}
+         findings = {}
+         for l in open(f"{r}/events.jsonl", encoding="utf-8") if os.path.exists(f"{r}/events.jsonl") else []:
+             e = json.loads(l)
+-            if e.get("event") in ("timeout", "file_not_opened", "mode_not_switched", "warning", "abort"):
++            if e.get("event") in ("timeout", "file_not_opened", "mode_not_switched", "warning", "abort", "idle_not_frontmost", "capture_failed"):
+                 findings[e["event"]] = findings.get(e["event"], 0) + 1
+             if e.get("event") == "stopped":
+                 for k in ("network", "left_running", "unreadable"):
+                     if e.get(k):
+                         findings[k] = findings.get(k, 0) + len(e[k])
+-        status.append((rep, app, st["status"], findings))
++        bad_sc = set(st.get("degraded_scenarios", []))
++        status.append((rep, app, st["status"], findings, sorted(bad_sc)))
+         if st["status"] != "ok" and not (a.include_degraded and st["status"] == "degraded"):
+             continue
+         for launch in ("cold", "project"):
+@@ -143,34 +284,43 @@
+             if not os.path.exists(path):
+                 continue
+             samples = load_samples(path)
++            rd = Readings(samples)
++            got, want = self_check(samples, rd)
++            checks.append(f"{os.path.basename(r)} {launch}: per-label CPU summed {got:.3f} s, launch total by the same rule {want:.3f} s{'' if abs(got - want) < 1e-6 else '  MISMATCH'}")
+             for sc in SCENARIOS:
+-                m = scenario_metrics(samples, sc)
++                if sc in bad_sc and not a.include_degraded:
++                    continue
++                m = scenario_metrics(samples, sc, rd)
+                 for k, v in (m or {}).items():
+                     table.setdefault((sc, k), {}).setdefault(app, []).append(v)
+-            extra.setdefault(f"{launch}: sum of per-process lifetime max footprint (MiB)", {}).setdefault(app, []).append(lifetime_upper_bound(samples))
+             for k, v in time_l(f"{r}/time-{launch}.txt").items():
+                 extra.setdefault(f"{launch}: /usr/bin/time -l, app process only: {k}", {}).setdefault(app, []).append(v)
+         for k, v in waits(f"{r}/events.jsonl").items():
+             extra.setdefault(f"wait (s) {k}", {}).setdefault(app, []).append(v)
+     print("# Measurement results\n")
+-    print("| run | status | findings (timeouts, files not opened, mode not switched, warnings, network lines, left running, unreadable) |\n|---|---|---|")
+-    for rep, app, s, f in status:
+-        print(f"| {rep}-{app} | {s} | {', '.join(f'{k} {v}' for k, v in sorted(f.items())) or 'none'} |")
+-    print(f"\nCounted: runs with status ok{' or degraded' if a.include_degraded else ''}.\n")
+-    print("Each cell: median [min-max] ±spread over the successful repetitions. Read DESIGN.md's fairness caveats beside every number.\n")
++    print(f"Runs root: `{root}`.\n")
++    print("| run | status | scenarios degraded | findings |\n|---|---|---|---|")
++    for rep, app, s, f, bad in status:
++        print(f"| {rep}-{app} | {s} | {', '.join(bad) or 'none'} | {', '.join(f'{k} {v}' for k, v in sorted(f.items())) or 'none'} |")
++    print(f"\nCounted: runs with status ok{' or degraded' if a.include_degraded else ''}; a scenario a run marks degraded (idle not frontmost) is left out of that run{' (here kept: --include-degraded)' if a.include_degraded else ''}.\n")
++    print("Each cell: median [min-max] ±spread over the counted repetitions (one value when there is one). Read DESIGN.md's fairness caveats beside every number. Definitions: the docstring of aggregate.py.\n")
++    print("The sum of each process's lifetime maximum footprint is no longer given: in the pilot the word read as `ri_lifetime_max_phys_footprint` was below the current footprint 31 times, so the bound it gave was wrong.\n")
+     for sc in SCENARIOS:
+-        rows = [(k, v) for (s, k), v in table.items() if s == sc]
+-        if not rows:
++        if not any(s == sc for (s, _k) in table):
+             continue
+         print(f"## {sc}\n\n| metric | native | Tauri | native / Tauri |\n|---|---|---|---|")
+-        for k, v in sorted(rows):
++        for label, k in ROWS:
++            v = table.get((sc, k), {})
+             n, t = v.get("native", []), v.get("tauri", [])
+             ratio = f"{statistics.median(n) / statistics.median(t):.2f}" if n and t and statistics.median(t) else "-"
+-            print(f"| {k} | {fmt(n)} | {fmt(t)} | {ratio} |")
++            print(f"| {label} | {fmt(n)} | {fmt(t)} | {ratio} |")
+         print()
+     print("## Timings and cross-checks\n\n| what | native | Tauri |\n|---|---|---|")
+     for k, v in sorted(extra.items()):
+         print(f"| {k} | {fmt(v.get('native', []))} | {fmt(v.get('tauri', []))} |")
++    print("\n## CPU self-check\n")
++    for c in checks:
++        print(f"- {c}")
+ 
+ 
+ if __name__ == "__main__":
+diff --color -ru ../dmrun2/scripts/macos.py scripts/macos.py
+--- ../dmrun2/scripts/macos.py	2026-11-17 17:10:02
++++ scripts/macos.py	2026-11-17 18:33:13
+@@ -272,10 +272,10 @@
+     return max(ws, key=lambda w: w["w"] * w["h"]) if ws else None
+ 
+ 
+-def frontmost_pid():
++def frontmost_pid(timeout: float = 5):
+     """The frontmost application's pid from Launch Services (lsappinfo; no Apple event to any app)."""
+     try:
+-        asn = subprocess.run(["/usr/bin/lsappinfo", "front"], capture_output=True, text=True, timeout=5).stdout.strip()
++        asn = subprocess.run(["/usr/bin/lsappinfo", "front"], capture_output=True, text=True, timeout=timeout).stdout.strip()
+         if not asn:
+             return None
+         # `lsappinfo front` prints the low half without its 0x ("ASN:0x0-1a6d06b6:"), a form that
+@@ -284,11 +284,25 @@
+         if not m:
+             return None
+         asn = f"ASN:0x{m.group(1)}-0x{m.group(2)}:"
+-        info =subprocess.run(["/usr/bin/lsappinfo", "info", "-only", "pid", asn], capture_output=True, text=True, timeout=5).stdout
++        info = subprocess.run(["/usr/bin/lsappinfo", "info", "-only", "pid", asn], capture_output=True, text=True, timeout=timeout).stdout
+         m = re.search(r"pid\"?\s*=\s*(\d+)", info)
+         return int(m.group(1)) if m else None
+     except (subprocess.SubprocessError, OSError):
+         return None
++
++
++def capture_window(window_id: int, path: str) -> str:
++    """A picture of ONE window by its id (screencapture -l; -x no sound, -o no shadow). Never the
++    screen, never another window: the caller checks that the window's owner is the measured app.
++    Returns "" on success, else the error text."""
++    try:
++        r = subprocess.run(["/usr/sbin/screencapture", "-x", "-o", "-l", str(int(window_id)), path],
++                           capture_output=True, text=True, timeout=20)
++    except (subprocess.SubprocessError, OSError) as e:
++        return repr(e)
++    if r.returncode != 0 or not os.path.exists(path) or os.path.getsize(path) == 0:
++        return f"rc {r.returncode}: {r.stderr.strip()}"
++    return ""
+ 
+ 
+ # ---------------------------------------------------------------- input posted to one PID
+diff --color -ru ../dmrun2/scripts/measure.py scripts/measure.py
+--- ../dmrun2/scripts/measure.py	2026-11-17 17:33:20
++++ scripts/measure.py	2026-11-17 18:34:50
+@@ -24,6 +24,7 @@
+ import time
+ 
+ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++import aggregate  # noqa: E402  (the one definition of a scenario's CPU, memory and wakeups)
+ import macos  # noqa: E402
+ 
+ BASE_RE = re.compile(r"^/private/tmp/openidea-measure-[A-Za-z0-9]{6,}$")
+@@ -185,7 +186,13 @@
+         self.stop_flag = threading.Event()
+         self.members = {}  # (pid, start) -> kind
+         self.last = {}  # (pid, start) -> last rusage
+-        self.cpu_hist = []  # (t, total cpu ns)
++        self.cpu_hist = []  # (t, cumulative cpu ns by aggregate.py's rule)
++        self.cpu_acc = 0
++        self.prev_t = None  # time of the previous sample
++        self.label = None  # the label of the previous sample
++        self.boundary_t = None  # time of the last sample before the current label's segment
++        self.front = None  # last frontmost pid read
++        self.front_counts = {}  # scenario -> {"samples", "not_frontmost", "unknown", "paths"}
+         self.abort = None
+         self.unreadable = set()
+         self.net_hits = []
+@@ -231,6 +238,10 @@
+             snap = macos.snapshot()
+             self.classify(snap)
+             procs = []
++            delta = 0
++            label = self.scenario  # read once: this sample's label
++            if label != self.label:
++                self.boundary_t, self.label = self.prev_t, label
+             for (pid, start), kind in list(self.members.items()):
+                 alive = pid in snap and snap[pid][2] == start
+                 r = macos.rusage(pid) if alive else None
+@@ -249,18 +260,43 @@
+                 if r:
+                     if r["lifetime_max"] < r["footprint"]:
+                         self.lifetime_ok = False
++                    # aggregate.py's rule: a process first read now counts from zero if it started
++                    # after the segment's boundary sample (or the launch), else from this first reading.
++                    prev = self.last.get((pid, start))
++                    if prev is not None:
++                        delta += r["cpu_ns"] - prev["cpu_ns"]
++                    elif self.boundary_t is None or start / 1e6 >= self.boundary_t:
++                        delta += r["cpu_ns"]
+                     self.last[(pid, start)] = r
+-                    procs.append({"pid": pid, "kind": kind, **r})
++                    procs.append({"pid": pid, "kind": kind, "start_us": start, **r})
+             total_cpu = sum(v["cpu_ns"] for v in self.last.values())  # exited processes keep their last value
+-            self.cpu_hist.append((t, total_cpu))
++            self.cpu_acc += delta
++            self.cpu_hist.append((t, self.cpu_acc))
++            self.prev_t = t
++            front = macos.frontmost_pid(timeout=2)
++            if front != self.front:
++                self.guard.log("frontmost", pid=front, path=macos.pid_path(front) if front else None,
++                               is_app=(front == self.app) if front else None, scenario=self.scenario)
++                self.front = front
++            is_app = (front == self.app) if front else None  # None: unknown, not "not frontmost"
++            fc = self.front_counts.setdefault(label, {"samples": 0, "not_frontmost": 0, "unknown": 0, "paths": []})
++            fc["samples"] += 1
++            if is_app is None:
++                fc["unknown"] += 1
++            elif not is_app:
++                fc["not_frontmost"] += 1
++                path = macos.pid_path(front)
++                if path not in fc["paths"]:
++                    fc["paths"].append(path)
+             st = macos.session_state()
+             if st["locked"] or st["display_asleep"]:
+                 self.abort = f"session not usable: {st}"
+             if tick % 10 == 0:
+                 self.network([p["pid"] for p in procs])
+-            rec = {"t": t, "scenario": self.scenario, "sum_footprint": sum(p["footprint"] for p in procs),
+-                   "sum_resident": sum(p["resident"] for p in procs), "cpu_ns_total": total_cpu,
+-                   "wakeups_total": sum(v["wakeups"] for v in self.last.values()), "procs": procs, "session": st}
++            rec = {"t": t, "scenario": label, "sum_footprint": sum(p["footprint"] for p in procs),
++                   "sum_resident": sum(p["resident"] for p in procs), "cpu_ns_total": total_cpu, "cpu_ns_rule": self.cpu_acc,
++                   "wakeups_total": sum(v["wakeups"] for v in self.last.values()), "procs": procs, "session": st,
++                   "front": front, "front_is_app": is_app}
+             self.out.write(json.dumps(rec) + "\n")
+             self.out.flush()
+             tick += 1
+@@ -343,6 +379,11 @@
+         self.sampler.start()
+ 
+     def set_scenario(self, name: str):
++        if self.sampler:
++            prev = self.sampler.scenario
++            fc = self.sampler.front_counts.get(prev)
++            if fc:
++                self.ev("scenario_frontmost", name=prev, **fc)
+         self.ev("scenario", name=name)
+         if self.sampler:
+             self.sampler.scenario = name
+@@ -434,13 +475,39 @@
+             return
+         self.ev("windows", at=label, windows=ws, ax=macos.ax_focused(self.app) if self.ctx.ax_probe else None)
+ 
++    def capture(self, label: str):
++        """A picture of the measured app's own main window (by window id, owner pid checked), kept
++        under the run's folder. Never the screen, never another window. A failure is an event."""
++        c = self.ctx
++        if not c.capture:
++            return
++        if c.dry:
++            print(f"[dry-run] screencapture -x -o -l <window id of pid's main window> {c.run}/captures/NN-{self.name}-{label}.png")
++            return
++        w = self.window()
++        if not w or w["pid"] != self.app or not c.guard.check(self.app):
++            self.ev("capture_failed", label=label, detail="no main window owned by the recorded measured app")
++            return
++        c.capture_seq += 1
++        slug = re.sub(r"[^A-Za-z0-9._-]+", "_", label)[:80]
++        path = f"{c.run}/captures/{c.capture_seq:02d}-{self.name}-{slug}.png"
++        os.makedirs(os.path.dirname(path), exist_ok=True)
++        err = macos.capture_window(w["id"], path)
++        if err:
++            self.ev("capture_failed", label=label, window_id=w["id"], detail=err)
++        else:
++            self.ev("capture", label=label, file=path, window_id=w["id"], owner_pid=w["pid"], title=w["title"], w=w["w"], h=w["h"])
++
+     def snapshot_tools(self, label: str):
+-        """Cross-check numbers from the system tools at a scenario's end."""
++        """Cross-check numbers from the system tools at a scenario's end, and the capture of the
++        window while the scenario's view (Find, the Git log) is still shown."""
+         if self.ctx.dry:
+             print(f"[dry-run] footprint -p / ps -o rss=,time= / top -l 2 on the set ({label})")
++            self.capture(label)
+             return
+         # The tools' own cost lands in a window of its own, not in the scenario just measured.
+         self.set_scenario(f"tools_{label}")
++        self.capture(label)
+         pids = [p for (p, s), _k in self.sampler.members.items() if macos.bsdinfo(p) and macos.bsdinfo(p)[2] == s]
+         base = f"{self.ctx.run}/tools-{self.name}-{label}"
+         with open(base + ".txt", "w") as f:
+@@ -578,10 +645,16 @@
+                 if not ctx.dry:
+                     L.ev("file_opened", file=name, title=L.title())
+                 L.settle(f"opened {name}", 0.10, 2, 30)
++                # The first and the last file: one picture at the top, one after the scrolling.
++                pictured = i in {0, len(files) - 1}
++                if pictured:
++                    L.capture(f"opened {name}")
+                 for _ in range(40):
+                     L.key("pagedown", gap=0.1)
+                 L.key("cmd-down", gap=0.3)
+                 L.settle(f"scrolled {name}", EDITOR_SETTLE, 3, 60)
++                if pictured:
++                    L.capture(f"scrolled {name}")
+                 L.windows_event(f"scrolled {name}")
+             L.hold(15, "steady after opening files")
+             L.snapshot_tools("open_files")
+@@ -597,19 +670,22 @@
+             L.settle("find preview", EDITOR_SETTLE, 5, 60)
+             L.windows_event("find preview")
+             L.snapshot_tools("find_in_files")
++            # The key that closes Find and the settle after it belong to the scenario.
++            L.set_scenario("find_in_files")
+             L.key("escape", gap=1.0)
+             L.settle("find closed", EDITOR_SETTLE, 5, 60)
+ 
+         if "git_log" in want:
++            # Open the Git log and let it settle; no scrolling. After Cmd+9 the Tauri app focuses the
++            # branch filter field and the native app the commit list, no key reaches the Tauri list
++            # the same way, and PageDown moves 20 rows in Tauri and 10 natively.
+             L.set_scenario("git_log")
+             L.key("cmd-9", gap=1.0)
+             L.settle("git log", EDITOR_SETTLE, 5, 300)
+             L.windows_event("git log shown")
+-            for _ in range(20):
+-                L.key("pagedown", gap=0.3)
+-            L.settle("git log scrolled", EDITOR_SETTLE, 5, 120)
+-            L.windows_event("git log scrolled")
+             L.snapshot_tools("git_log")
++            # The key that hides the log and the settle after it belong to the scenario.
++            L.set_scenario("git_log")
+             L.key("cmd-9", gap=1.0)
+             L.settle("git log hidden", EDITOR_SETTLE, 5, 60)
+ 
+@@ -645,6 +721,11 @@
+             L.set_scenario("idle")
+             L.hold(ctx.idle_s, "idle, no input")
+             L.windows_event("idle end")
++            fc = {} if ctx.dry else L.sampler.front_counts.get("idle", {})
++            if fc.get("not_frontmost"):
++                # Kept, but its idle row is left out of the aggregate (degraded for this scenario only).
++                L.ev("idle_not_frontmost", seconds=fc["not_frontmost"], of=fc["samples"], unknown=fc["unknown"], paths=fc["paths"])
++                ctx.degraded_scenarios.add("idle")
+             L.snapshot_tools("idle")
+     finally:
+         L.set_scenario("stop")
+@@ -720,6 +801,26 @@
+     pass
+ 
+ 
++def run_summary(run: str) -> dict:
++    """Per scenario: samples not frontmost, and the numbers by aggregate.py's one definition."""
++    out = {"not_frontmost": {}, "scenarios": {}}
++    for launch in ("cold", "project"):
++        path = f"{run}/samples-{launch}.jsonl"
++        if not os.path.exists(path):
++            continue
++        try:
++            samples = aggregate.load_samples(path)
++            rd = aggregate.Readings(samples)
++            for sc in aggregate.SCENARIOS:
++                m = aggregate.scenario_metrics(samples, sc, rd)
++                if m:
++                    out["scenarios"][sc] = m
++                    out["not_frontmost"][sc] = m["not_frontmost_samples"]
++        except (OSError, ValueError, KeyError) as e:
++            out.setdefault("summary_errors", []).append(f"{launch}: {e!r}")
++    return out
++
++
+ def main():
+     ap = argparse.ArgumentParser()
+     ap.add_argument("--base", required=True)
+@@ -737,6 +838,7 @@
+     ap.add_argument("--scenarios", default=",".join(SCENARIO_GROUPS), help="comma list of " + ",".join(SCENARIO_GROUPS))
+     ap.add_argument("--idle-s", type=float, default=600)
+     ap.add_argument("--ax-probe", action="store_true", help="read the focused element through Accessibility at each evidence point")
++    ap.add_argument("--capture", action="store_true", help="picture the measured app's own main window at each snapshot and for the first and last file")
+     a = ap.parse_args()
+     base = os.path.realpath(a.base)
+     if not BASE_RE.match(base):
+@@ -766,6 +868,7 @@
+     ctx = Ctx()
+     ctx.dry, ctx.allow_activate, ctx.project = a.dry_run, a.allow_activate, project
+     ctx.scenarios, ctx.idle_s, ctx.ax_probe = set(scenarios), a.idle_s, a.ax_probe
++    ctx.capture, ctx.capture_seq, ctx.degraded_scenarios = a.capture, 0, set()
+     ctx.exe = cfg.get(f"{a.app}_bin", f"<{a.app} binary from build.sh>")
+     if not ctx.dry and not (ctx.exe.startswith(base + "/") and os.access(ctx.exe, os.X_OK)):
+         sys.exit(f"binary not under the base folder or not executable: {ctx.exe}")
+@@ -792,7 +895,7 @@
+     ctx.log = log
+     ctx.guard = Guard(base, log)
+     ctx.owner_at_start = [] if ctx.dry else ctx.guard.owner_pids()
+-    log("run", app=a.app, rep=a.rep, exe=ctx.exe, project=project, scenarios=scenarios, idle_s=a.idle_s, files_json=files_json, ax_probe=a.ax_probe, owner_app_pids=ctx.owner_at_start,
++    log("run", app=a.app, rep=a.rep, exe=ctx.exe, project=project, scenarios=scenarios, idle_s=a.idle_s, files_json=files_json, ax_probe=a.ax_probe, capture=a.capture, owner_app_pids=ctx.owner_at_start,
+         loadavg=os.getloadavg(), session=macos.session_state(), permissions=macos.permissions())
+     ctx.prep = prepare(ctx.run, a.app, project, ctx.dry)
+     files = json.load(open(files_json)) if os.path.exists(files_json) else ["<10 files from --select-files>"]
+@@ -811,9 +914,11 @@
+     finally:
+         if status == "ok" and degraded:
+             status = "degraded"
+-        log("end", status=status, degraded=degraded)
++        log("end", status=status, degraded=degraded, degraded_scenarios=sorted(ctx.degraded_scenarios))
+         if not ctx.dry:
+-            json.dump({"status": status, "app": a.app, "rep": a.rep, "degraded": degraded}, open(f"{ctx.run}/status.json", "w"))
++            json.dump({"status": status, "app": a.app, "rep": a.rep, "degraded": degraded,
++                       "degraded_scenarios": sorted(ctx.degraded_scenarios), **run_summary(ctx.run)},
++                      open(f"{ctx.run}/status.json", "w"), indent=1)
+     sys.exit(0 if status == "ok" else 3)
+ 
+ 
+diff --color -ru ../dmrun2/scripts/preflight.sh scripts/preflight.sh
+--- ../dmrun2/scripts/preflight.sh	2026-11-17 14:55:24
++++ scripts/preflight.sh	2026-11-17 19:11:41
+@@ -7,6 +7,20 @@
+ here=$(cd "$(dirname "$0")" && pwd)
+ fail=0
+ no() { echo "NO-GO: $*"; fail=1; }
++# Processes running from the base (their command line names a path under it), except this script,
++# its ancestors and its own subshells (same command line, parent in that chain), whose arguments
++# name the base (e.g. --runs-root <base>/evidence). The apps and measure.py are never excluded.
++from_base() {
++  anc=" $$ "; p=$$
++  while [ -n "$p" ] && [ "$p" -gt 1 ]; do p=$(ps -o ppid= -p "$p" | tr -d ' '); anc="$anc$p "; done
++  self=$(ps -o command= -p $$)
++  ps -axo pid=,ppid=,command= | grep -F "$base/" | grep -v grep | awk -v a="$anc" -v self="$self" '{
++    pid = $1; ppid = $2; cmd = $0; sub(/^ *[0-9]+ +[0-9]+ /, "", cmd)
++    if (index(a, " " pid " ")) next
++    if (cmd == self && index(a, " " ppid " ")) next
++    print pid, cmd }'
++}
++
+ ok() { echo "ok: $*"; }
+ case "$base" in /private/tmp/openidea-measure-[A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9]*) ok "base $base";; *) no "base must be /private/tmp/openidea-measure-<random>";; esac
+ [ -f "$base/config.json" ] || no "no $base/config.json (run build.sh)"
+@@ -16,12 +30,17 @@
+ for b in "$tauri" "$native"; do case "$b" in "$base"/*) [ -x "$b" ] && ok "binary $b" || no "missing $b";; *) no "binary outside the base: $b";; esac; done
+ [ -n "$tauri" ] && { strings "$tauri" | grep -q 'ai.l0ng.openidea.measure' && ok "Tauri binary carries ai.l0ng.openidea.measure" || no "Tauri binary lacks the measure identifier"; }
+ # Nothing of ours still running; the single-instance socket of the measure identity is not held.
+-running=$(ps -axo pid=,command= | grep -F "$base/" | grep -v grep)
++running=$(from_base)
+ [ -z "$running" ] && ok "no process from the base is running" || no "processes from the base are running: $running"
++# Holder check by our pids' unix sockets (`lsof -t <socket>` finds no holder of a unix socket path).
++# No pid from the base running means none of ours holds it; lsof is never run without -p pids.
+ sock=/private/tmp/ai_l0ng_openidea_measure_si.sock
+ if [ -e "$sock" ]; then
+-  holder=$(lsof -t "$sock" 2>/dev/null)
+-  [ -z "$holder" ] && echo "note: stale $sock (no holder): run_all.sh removes it" || no "$sock is held by pid $holder"
++  pids=$(from_base | awk '{print $1}' | paste -sd, -)
++  holder=""
++  # lsof names the socket by the path it was bound with (/tmp/..., not /private/tmp/...): match the file name.
++  [ -n "$pids" ] && holder=$(lsof -a -p "$pids" -U 2>/dev/null | grep -F "/$(basename "$sock")")
++  [ -z "$holder" ] && echo "note: stale $sock (no holder among our pids): run_all.sh removes it" || no "$sock is held: $holder"
+ fi
+ # The owner's app: listed, never touched.
+ owner=$(ps -axo pid=,command= | grep -F "/Applications/Blazingly Fast IDE.app/" | grep -v grep)
+diff --color -ru ../dmrun2/scripts/run_all.sh scripts/run_all.sh
+--- ../dmrun2/scripts/run_all.sh	2026-11-17 17:33:20
++++ scripts/run_all.sh	2026-11-17 19:11:41
+@@ -1,5 +1,6 @@
+ #!/bin/sh
+-# usage: run_all.sh <base> [--dry-run] [--reps N] [--keep-openidea] [--allow-activate] [--ax-probe]
++# usage: run_all.sh <base> [--dry-run] [--reps N] [--keep-openidea] [--allow-activate] [--ax-probe] [--capture]
++#                   [--runs-root <folder under the base>] [--idle-s S]
+ # The campaign: an APFS clone of the project under the base, the 10 files, the preflight, then
+ # N repetitions per app alternating which app runs first (rep 1: native then tauri, rep 2: tauri
+ # then native, ...), a check of what each run wrote into the clone, and the aggregate table.
+@@ -7,18 +8,34 @@
+ set -u
+ base=${1:?usage: run_all.sh <base> [--dry-run] [--reps N] [--keep-openidea] [--allow-activate]}
+ shift
+-dry=""; reps=3; keep=""; act=""; ax=""
++dry=""; reps=3; keep=""; act=""; ax=""; cap=""; runs="$base/runs"; idle=600
+ while [ $# -gt 0 ]; do
+   case "$1" in
+     --dry-run) dry=--dry-run;; --reps) reps=$2; shift;; --keep-openidea) keep=1;; --allow-activate) act=--allow-activate;; --ax-probe) ax=--ax-probe;;
++    --capture) cap=--capture;; --runs-root) runs=$2; shift;; --idle-s) idle=$2; shift;;
+     *) echo "unknown option $1"; exit 2;;
+   esac; shift
+ done
++case "$runs" in "$base"/*) ;; *) echo "the runs root must be under the base: $runs"; exit 2;; esac
+ here=$(cd "$(dirname "$0")" && pwd)
+ py="/usr/bin/python3 -I"
+ clone="$base/project/Allocadia"
+ case "$base" in /private/tmp/openidea-measure-[A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9]*) ;; *) echo "base must be /private/tmp/openidea-measure-<random>"; exit 2;; esac
+ say() { echo "== $*"; }
++# Processes running from the base (their command line names a path under it), except this script,
++# its ancestors and its own subshells (same command line, parent in that chain), whose arguments
++# name the base (e.g. --runs-root <base>/evidence). The apps and measure.py are never excluded.
++from_base() {
++  anc=" $$ "; p=$$
++  while [ -n "$p" ] && [ "$p" -gt 1 ]; do p=$(ps -o ppid= -p "$p" | tr -d ' '); anc="$anc$p "; done
++  self=$(ps -o command= -p $$)
++  ps -axo pid=,ppid=,command= | grep -F "$base/" | grep -v grep | awk -v a="$anc" -v self="$self" '{
++    pid = $1; ppid = $2; cmd = $0; sub(/^ *[0-9]+ +[0-9]+ /, "", cmd)
++    if (index(a, " " pid " ")) next
++    if (cmd == self && index(a, " " ppid " ")) next
++    print pid, cmd }'
++}
++
+ do_() { if [ -n "$dry" ]; then echo "[dry-run] $*"; else echo "+ $*"; sh -c "$*"; fi; }
+ 
+ # 1. The clone was made and detached from the original beforehand; it is never made again here
+@@ -29,7 +46,14 @@
+ # 2. Preflight (no-go stops here).
+ if [ -z "$dry" ]; then "$here/preflight.sh" "$base" || exit 2; else echo "[dry-run] $here/preflight.sh $base"; fi
+ sock=/private/tmp/ai_l0ng_openidea_measure_si.sock
+-[ -e "$sock" ] && [ -z "$(lsof -t "$sock" 2>/dev/null)" ] && do_ "rm -f '$sock'"
++# Held = one of our pids (anything executing from the base) has it among its unix sockets.
++# lsof is never run without a pid list.
++sock_held() {
++  ps_pids=$(from_base | awk '{print $1}' | paste -sd, -)
++  # lsof names the socket by the path it was bound with (/tmp/..., not /private/tmp/...): match the file name.
++  [ -n "$ps_pids" ] && lsof -a -p "$ps_pids" -U 2>/dev/null | grep -qF "/$(basename "$sock")"
++}
++[ -e "$sock" ] && ! sock_held && do_ "rm -f '$sock'"
+ 
+ # 3. Keep the display awake for as long as this script lives (no setting is changed).
+ if [ -z "$dry" ]; then /usr/bin/caffeinate -d -i -m -w $$ & echo "caffeinate pid $!"; else echo "[dry-run] caffeinate -d -i -m -w $$ &"; fi
+@@ -42,20 +66,20 @@
+     say "rep $i: $app"
+     do_ "$py '$here/measure.py' --base '$base' --project-stamp"
+     if [ -n "$dry" ]; then
+-      $py "$here/measure.py" --base "$base" --app "$app" --rep "$i" --dry-run $act $ax
++      $py "$here/measure.py" --base "$base" --app "$app" --rep "$i" --runs-root "$runs" --idle-s "$idle" --dry-run $act $ax $cap
+     else
+-      $py "$here/measure.py" --base "$base" --app "$app" --rep "$i" $act $ax; rc=$?
+-      [ $rc -eq 0 ] || { echo "run $i-$app ended with $rc: see $base/runs/$i-$app/events.jsonl"; }
++      $py "$here/measure.py" --base "$base" --app "$app" --rep "$i" --runs-root "$runs" --idle-s "$idle" $act $ax $cap; rc=$?
++      [ $rc -eq 0 ] || { echo "run $i-$app ended with $rc: see $runs/$i-$app/events.jsonl"; }
+       # Our own stale lock, if the app was killed.
+-      [ -e "$sock" ] && [ -z "$(lsof -t "$sock" 2>/dev/null)" ] && rm -f "$sock"
++      [ -e "$sock" ] && ! sock_held && rm -f "$sock" && echo "removed stale $sock"
+       if ! $py "$here/measure.py" --base "$base" --project-check; then
+         echo "NO-GO (G11): the run $i-$app wrote into the clone outside .openidea (list above); stopping, nothing is re-cloned"
+-        $py "$here/stop.py" --base "$base"
++        $py "$here/stop.py" --base "$base" --runs-root "$runs"
+         exit 4
+       elif [ -z "$keep" ] && [ -d "$clone/.openidea" ]; then
+         # The owner's .openidea was moved out before the first run: what is there now the app wrote
+         # (changelists.json, .gitignore). Kept for inspection, then the clone is as before.
+-        mv "$clone/.openidea" "$base/runs/$i-$app/openidea-written-into-the-clone"
++        mv "$clone/.openidea" "$runs/$i-$app/openidea-written-into-the-clone"
+       fi
+       # The machine back at rest before the next app starts.
+       sleep 60
+@@ -66,13 +90,13 @@
+ 
+ # 5. Nothing of ours is left running (recorded PIDs, and anything executing from the base).
+ if [ -z "$dry" ]; then
+-  $py "$here/stop.py" --base "$base"
+-  left=$(ps -axo pid=,command= | grep -F "$base/" | grep -v grep)
++  $py "$here/stop.py" --base "$base" --runs-root "$runs"
++  left=$(from_base)
+   [ -z "$left" ] && echo "nothing from the base is running" || echo "STILL RUNNING from the base (stop by these PIDs only): $left"
+ else
+-  echo "[dry-run] $here/stop.py --base $base; ps -axo pid=,command= | grep -F '$base/'"
++  echo "[dry-run] $here/stop.py --base $base --runs-root $runs; ps -axo pid=,command= | grep -F '$base/'"
+ fi
+ 
+ # 6. The table.
+-do_ "$py '$here/aggregate.py' --base '$base' > '$base/RESULTS.md'"
+-say "done: $base/RESULTS.md"
++do_ "$py '$here/aggregate.py' --base '$base' --runs-root '$runs' > '$runs/RESULTS.md'"
++say "done: $runs/RESULTS.md"
+diff --color -ru ../dmrun2/scripts/stop.py scripts/stop.py
+--- ../dmrun2/scripts/stop.py	2026-11-17 14:55:24
++++ scripts/stop.py	2026-11-17 18:34:22
+@@ -3,7 +3,7 @@
+ the same start time and an executable under the base folder gets SIGTERM, then SIGKILL after 10 s.
+ Nothing else is signalled.
+ 
+-usage: stop.py --base B [--dry-run]
++usage: stop.py --base B [--runs-root R ...] [--dry-run]   (default: B/runs; every R must be under B)
+ """
+ from __future__ import annotations
+ 
+@@ -19,8 +19,8 @@
+ import macos  # noqa: E402
+ 
+ 
+-def recorded(base):
+-    for path in glob.glob(f"{base}/runs/*/events.jsonl"):
++def recorded(roots):
++    for path in [p for r in roots for p in glob.glob(f"{r}/*/events.jsonl")]:
+         for line in open(path, encoding="utf-8"):
+             e = json.loads(line)
+             if e.get("event") == "record":
+@@ -35,10 +35,14 @@
+ def main():
+     ap = argparse.ArgumentParser()
+     ap.add_argument("--base", required=True)
++    ap.add_argument("--runs-root", action="append", help="folder of run folders (repeatable; default: <base>/runs)")
+     ap.add_argument("--dry-run", action="store_true")
+     a = ap.parse_args()
+     base = os.path.realpath(a.base)
+-    targets = [(p, s) for p, s in set(recorded(base)) if alive(base, p, s)]
++    roots = [os.path.realpath(r) for r in (a.runs_root or [f"{base}/runs"])]
++    if any(not r.startswith(base + "/") for r in roots):
++        sys.exit("every runs root must be under the base")
++    targets = [(p, s) for p, s in set(recorded(roots)) if alive(base, p, s)]
+     if not targets:
+         print("nothing of ours is running")
+         return 0

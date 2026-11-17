@@ -1,5 +1,6 @@
 #!/bin/sh
-# usage: run_all.sh <base> [--dry-run] [--reps N] [--keep-openidea] [--allow-activate]
+# usage: run_all.sh <base> [--dry-run] [--reps N] [--keep-openidea] [--allow-activate] [--ax-probe] [--capture]
+#                   [--runs-root <folder under the base>] [--idle-s S]
 # The campaign: an APFS clone of the project under the base, the 10 files, the preflight, then
 # N repetitions per app alternating which app runs first (rep 1: native then tauri, rep 2: tauri
 # then native, ...), a check of what each run wrote into the clone, and the aggregate table.
@@ -7,35 +8,52 @@
 set -u
 base=${1:?usage: run_all.sh <base> [--dry-run] [--reps N] [--keep-openidea] [--allow-activate]}
 shift
-dry=""; reps=3; keep=""; act=""
+dry=""; reps=3; keep=""; act=""; ax=""; cap=""; runs="$base/runs"; idle=600
 while [ $# -gt 0 ]; do
   case "$1" in
-    --dry-run) dry=--dry-run;; --reps) reps=$2; shift;; --keep-openidea) keep=1;; --allow-activate) act=--allow-activate;;
+    --dry-run) dry=--dry-run;; --reps) reps=$2; shift;; --keep-openidea) keep=1;; --allow-activate) act=--allow-activate;; --ax-probe) ax=--ax-probe;;
+    --capture) cap=--capture;; --runs-root) runs=$2; shift;; --idle-s) idle=$2; shift;;
     *) echo "unknown option $1"; exit 2;;
   esac; shift
 done
+case "$runs" in "$base"/*) ;; *) echo "the runs root must be under the base: $runs"; exit 2;; esac
 here=$(cd "$(dirname "$0")" && pwd)
 py="/usr/bin/python3 -I"
-src=/Users/davidvieira/code/Allocadia
 clone="$base/project/Allocadia"
 case "$base" in /private/tmp/openidea-measure-[A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9]*) ;; *) echo "base must be /private/tmp/openidea-measure-<random>"; exit 2;; esac
 say() { echo "== $*"; }
+# Processes running from the base (their command line names a path under it), except this script,
+# its ancestors and its own subshells (same command line, parent in that chain), whose arguments
+# name the base (e.g. --runs-root <base>/evidence). The apps and measure.py are never excluded.
+from_base() {
+  anc=" $$ "; p=$$
+  while [ -n "$p" ] && [ "$p" -gt 1 ]; do p=$(ps -o ppid= -p "$p" | tr -d ' '); anc="$anc$p "; done
+  self=$(ps -o command= -p $$)
+  ps -axo pid=,ppid=,command= | grep -F "$base/" | grep -v grep | awk -v a="$anc" -v self="$self" '{
+    pid = $1; ppid = $2; cmd = $0; sub(/^ *[0-9]+ +[0-9]+ /, "", cmd)
+    if (index(a, " " pid " ")) next
+    if (cmd == self && index(a, " " ppid " ")) next
+    print pid, cmd }'
+}
+
 do_() { if [ -n "$dry" ]; then echo "[dry-run] $*"; else echo "+ $*"; sh -c "$*"; fi; }
 
-# 1. The clone: clonefile(2) copies on the same APFS volume (checked), so writes stay in the copy.
-if [ ! -d "$clone" ]; then
-  [ "$(stat -f %d "$src")" = "$(stat -f %d /private/tmp)" ] || { echo "no-go: the project is not on the volume of /private/tmp (no clonefile)"; exit 2; }
-  do_ "mkdir -p '$base/project' && /bin/cp -Rc '$src' '$clone'"
-  # The owner's per-project files would steer both apps (a project-level ide.mode, a project name):
-  # moved aside in the clone only, unless the manager decides to keep them (decision D4).
-  [ -z "$keep" ] && do_ "[ -e '$clone/.openidea' ] && mv '$clone/.openidea' '$base/project/openidea-of-the-owner' || true"
-fi
+# 1. The clone was made and detached from the original beforehand; it is never made again here
+# (a copy of the original would bring back its worktree pointers and outside symlinks).
+[ -d "$clone/.git" ] || { echo "no-go: no clone at $clone"; exit 2; }
 do_ "$py '$here/measure.py' --base '$base' --select-files"
 
 # 2. Preflight (no-go stops here).
 if [ -z "$dry" ]; then "$here/preflight.sh" "$base" || exit 2; else echo "[dry-run] $here/preflight.sh $base"; fi
 sock=/private/tmp/ai_l0ng_openidea_measure_si.sock
-[ -e "$sock" ] && [ -z "$(lsof -t "$sock" 2>/dev/null)" ] && do_ "rm -f '$sock'"
+# Held = one of our pids (anything executing from the base) has it among its unix sockets.
+# lsof is never run without a pid list.
+sock_held() {
+  ps_pids=$(from_base | awk '{print $1}' | paste -sd, -)
+  # lsof names the socket by the path it was bound with (/tmp/..., not /private/tmp/...): match the file name.
+  [ -n "$ps_pids" ] && lsof -a -p "$ps_pids" -U 2>/dev/null | grep -qF "/$(basename "$sock")"
+}
+[ -e "$sock" ] && ! sock_held && do_ "rm -f '$sock'"
 
 # 3. Keep the display awake for as long as this script lives (no setting is changed).
 if [ -z "$dry" ]; then /usr/bin/caffeinate -d -i -m -w $$ & echo "caffeinate pid $!"; else echo "[dry-run] caffeinate -d -i -m -w $$ &"; fi
@@ -48,20 +66,20 @@ while [ "$i" -le "$reps" ]; do
     say "rep $i: $app"
     do_ "$py '$here/measure.py' --base '$base' --project-stamp"
     if [ -n "$dry" ]; then
-      $py "$here/measure.py" --base "$base" --app "$app" --rep "$i" --dry-run $act
+      $py "$here/measure.py" --base "$base" --app "$app" --rep "$i" --runs-root "$runs" --idle-s "$idle" --dry-run $act $ax $cap
     else
-      $py "$here/measure.py" --base "$base" --app "$app" --rep "$i" $act; rc=$?
-      [ $rc -eq 0 ] || { echo "run $i-$app ended with $rc: see $base/runs/$i-$app/events.jsonl"; }
+      $py "$here/measure.py" --base "$base" --app "$app" --rep "$i" --runs-root "$runs" --idle-s "$idle" $act $ax $cap; rc=$?
+      [ $rc -eq 0 ] || { echo "run $i-$app ended with $rc: see $runs/$i-$app/events.jsonl"; }
       # Our own stale lock, if the app was killed.
-      [ -e "$sock" ] && [ -z "$(lsof -t "$sock" 2>/dev/null)" ] && rm -f "$sock"
+      [ -e "$sock" ] && ! sock_held && rm -f "$sock" && echo "removed stale $sock"
       if ! $py "$here/measure.py" --base "$base" --project-check; then
-        echo "the run wrote into the clone outside .openidea (list above); the next run gets a fresh clone"
-        mv "$clone" "$base/project/Allocadia-after-$i-$app" && /bin/cp -Rc "$src" "$clone"
-        [ -z "$keep" ] && [ -e "$clone/.openidea" ] && mv "$clone/.openidea" "$base/project/openidea-of-the-owner-$i-$app"
+        echo "NO-GO (G11): the run $i-$app wrote into the clone outside .openidea (list above); stopping, nothing is re-cloned"
+        $py "$here/stop.py" --base "$base" --runs-root "$runs"
+        exit 4
       elif [ -z "$keep" ] && [ -d "$clone/.openidea" ]; then
         # The owner's .openidea was moved out before the first run: what is there now the app wrote
         # (changelists.json, .gitignore). Kept for inspection, then the clone is as before.
-        mv "$clone/.openidea" "$base/runs/$i-$app/openidea-written-into-the-clone"
+        mv "$clone/.openidea" "$runs/$i-$app/openidea-written-into-the-clone"
       fi
       # The machine back at rest before the next app starts.
       sleep 60
@@ -72,13 +90,13 @@ done
 
 # 5. Nothing of ours is left running (recorded PIDs, and anything executing from the base).
 if [ -z "$dry" ]; then
-  $py "$here/stop.py" --base "$base"
-  left=$(ps -axo pid=,command= | grep -F "$base/" | grep -v grep)
+  $py "$here/stop.py" --base "$base" --runs-root "$runs"
+  left=$(from_base)
   [ -z "$left" ] && echo "nothing from the base is running" || echo "STILL RUNNING from the base (stop by these PIDs only): $left"
 else
-  echo "[dry-run] $here/stop.py --base $base; ps -axo pid=,command= | grep -F '$base/'"
+  echo "[dry-run] $here/stop.py --base $base --runs-root $runs; ps -axo pid=,command= | grep -F '$base/'"
 fi
 
 # 6. The table.
-do_ "$py '$here/aggregate.py' --base '$base' > '$base/RESULTS.md'"
-say "done: $base/RESULTS.md"
+do_ "$py '$here/aggregate.py' --base '$base' --runs-root '$runs' > '$runs/RESULTS.md'"
+say "done: $runs/RESULTS.md"

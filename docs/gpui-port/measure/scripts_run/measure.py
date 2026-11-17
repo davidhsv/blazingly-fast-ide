@@ -13,6 +13,7 @@ binaries and the project clone. Everything the run writes is under B/runs/<rep>-
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 import os
 import re
@@ -23,6 +24,7 @@ import threading
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import aggregate  # noqa: E402  (the one definition of a scenario's CPU, memory and wakeups)
 import macos  # noqa: E402
 
 BASE_RE = re.compile(r"^/private/tmp/openidea-measure-[A-Za-z0-9]{6,}$")
@@ -30,6 +32,13 @@ OWNER_BUNDLE = "/Applications/Blazingly Fast IDE.app/"
 MEASURE_ID = "ai.l0ng.openidea.measure"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 SKIP_DIRS = {".git", "node_modules", ".idea", ".openidea", "target", "build", "out", "dist", ".gradle", ".mvn"}
+
+
+# Settle threshold once an editor is open, the same for both apps. Measured in the smoke: the Tauri
+# set rests at about 7% of a core with an editor focused (app 2%, WebKit GPU 2%, WebContent 3%),
+# so the earlier 3% and 5% were never met and every such wait ran to its ceiling.
+EDITOR_SETTLE = 0.10
+SCENARIO_GROUPS = ["cold", "open_files", "find_in_files", "git_log", "mode", "idle"]
 
 
 class Abort(Exception):
@@ -166,8 +175,9 @@ class Sampler(threading.Thread):
     """1 Hz: the process set of one launch (the launcher, its descendants, and WebKit helpers whose
     responsible process is the launcher), each read with proc_pid_rusage."""
 
-    def __init__(self, run_dir: str, launcher: int, name: str, guard: Guard, pre_existing: set):
+    def __init__(self, run_dir: str, launcher: int, name: str, guard: Guard, pre_existing: set, app: int):
         super().__init__(daemon=True)
+        self.app = app
         self.out = open(f"{run_dir}/samples-{name}.jsonl", "a", encoding="utf-8")
         self.launcher = launcher
         self.guard = guard
@@ -176,7 +186,13 @@ class Sampler(threading.Thread):
         self.stop_flag = threading.Event()
         self.members = {}  # (pid, start) -> kind
         self.last = {}  # (pid, start) -> last rusage
-        self.cpu_hist = []  # (t, total cpu ns)
+        self.cpu_hist = []  # (t, cumulative cpu ns by aggregate.py's rule)
+        self.cpu_acc = 0
+        self.prev_t = None  # time of the previous sample
+        self.label = None  # the label of the previous sample
+        self.boundary_t = None  # time of the last sample before the current label's segment
+        self.front = None  # last frontmost pid read
+        self.front_counts = {}  # scenario -> {"samples", "not_frontmost", "unknown", "paths"}
         self.abort = None
         self.unreadable = set()
         self.net_hits = []
@@ -198,12 +214,14 @@ class Sampler(threading.Thread):
                     path = snap[pid][3]
                     kind = "launcher" if pid == self.launcher else ("app" if path.startswith(self.guard.base + "/") else "child")
                     self.members[key] = kind
+                    self.guard.log("member", pid=pid, kind=kind, path=path, ppid=snap[pid][0], scenario=self.scenario)
                     self.guard.ours.setdefault(pid, snap[pid][2])
         for pid, (ppid, comm, start, path) in snap.items():
             if "/com.apple.WebKit." not in path or (pid, start) in self.members:
                 continue
-            if macos.responsible_pid(pid) == self.launcher and (pid, start) not in self.pre:
+            if macos.responsible_pid(pid) in (self.launcher, self.app) and (pid, start) not in self.pre:
                 self.members[(pid, start)] = "webkit:" + path.rsplit("/", 1)[-1]
+                self.guard.log("member", pid=pid, kind=self.members[(pid, start)], path=path, scenario=self.scenario)
 
     def run(self):
         try:
@@ -220,27 +238,65 @@ class Sampler(threading.Thread):
             snap = macos.snapshot()
             self.classify(snap)
             procs = []
+            delta = 0
+            label = self.scenario  # read once: this sample's label
+            if label != self.label:
+                self.boundary_t, self.label = self.prev_t, label
             for (pid, start), kind in list(self.members.items()):
                 alive = pid in snap and snap[pid][2] == start
                 r = macos.rusage(pid) if alive else None
                 if alive and r is None:
+                    # The snapshot is from the top of the tick: a process that exited since then is not unreadable.
+                    info = macos.bsdinfo(pid)
+                    alive = bool(info) and info[2] == start
+                    if not alive:
+                        self.guard.log("member_exited_before_read", pid=pid, kind=kind)
+                if alive and r is None:
+                    if pid not in self.unreadable:
+                        self.guard.log("unreadable_member", pid=pid, kind=kind, path=snap[pid][3], comm=snap[pid][1], ppid=snap[pid][0],
+                                       errno=ctypes.get_errno())
                     self.unreadable.add(pid)
                     self.abort = f"pid {pid} ({kind}) is alive but unreadable: totals would undercount"
                 if r:
                     if r["lifetime_max"] < r["footprint"]:
                         self.lifetime_ok = False
+                    # aggregate.py's rule: a process first read now counts from zero if it started
+                    # after the segment's boundary sample (or the launch), else from this first reading.
+                    prev = self.last.get((pid, start))
+                    if prev is not None:
+                        delta += r["cpu_ns"] - prev["cpu_ns"]
+                    elif self.boundary_t is None or start / 1e6 >= self.boundary_t:
+                        delta += r["cpu_ns"]
                     self.last[(pid, start)] = r
-                    procs.append({"pid": pid, "kind": kind, **r})
+                    procs.append({"pid": pid, "kind": kind, "start_us": start, **r})
             total_cpu = sum(v["cpu_ns"] for v in self.last.values())  # exited processes keep their last value
-            self.cpu_hist.append((t, total_cpu))
+            self.cpu_acc += delta
+            self.cpu_hist.append((t, self.cpu_acc))
+            self.prev_t = t
+            front = macos.frontmost_pid(timeout=2)
+            if front != self.front:
+                self.guard.log("frontmost", pid=front, path=macos.pid_path(front) if front else None,
+                               is_app=(front == self.app) if front else None, scenario=self.scenario)
+                self.front = front
+            is_app = (front == self.app) if front else None  # None: unknown, not "not frontmost"
+            fc = self.front_counts.setdefault(label, {"samples": 0, "not_frontmost": 0, "unknown": 0, "paths": []})
+            fc["samples"] += 1
+            if is_app is None:
+                fc["unknown"] += 1
+            elif not is_app:
+                fc["not_frontmost"] += 1
+                path = macos.pid_path(front)
+                if path not in fc["paths"]:
+                    fc["paths"].append(path)
             st = macos.session_state()
             if st["locked"] or st["display_asleep"]:
                 self.abort = f"session not usable: {st}"
             if tick % 10 == 0:
                 self.network([p["pid"] for p in procs])
-            rec = {"t": t, "scenario": self.scenario, "sum_footprint": sum(p["footprint"] for p in procs),
-                   "sum_resident": sum(p["resident"] for p in procs), "cpu_ns_total": total_cpu,
-                   "wakeups_total": sum(v["wakeups"] for v in self.last.values()), "procs": procs, "session": st}
+            rec = {"t": t, "scenario": label, "sum_footprint": sum(p["footprint"] for p in procs),
+                   "sum_resident": sum(p["resident"] for p in procs), "cpu_ns_total": total_cpu, "cpu_ns_rule": self.cpu_acc,
+                   "wakeups_total": sum(v["wakeups"] for v in self.last.values()), "procs": procs, "session": st,
+                   "front": front, "front_is_app": is_app}
             self.out.write(json.dumps(rec) + "\n")
             self.out.flush()
             tick += 1
@@ -260,7 +316,11 @@ class Sampler(threading.Thread):
 
     def cpu_rate(self, window_s: float) -> float:
         """Share of one core used by the set over the last window_s seconds."""
-        h = [x for x in self.cpu_hist if x[0] >= now() - window_s]
+        # The last sample before the window starts is included: at 1 Hz the samples inside a window of
+        # N s span only about N-1 s, so windows of 2-3 s never reached the 0.8 coverage and never settled.
+        cut = now() - window_s
+        i = next((k for k, x in enumerate(self.cpu_hist) if x[0] >= cut), len(self.cpu_hist))
+        h = self.cpu_hist[max(0, i - 1):]
         if len(h) < 2 or h[-1][0] - h[0][0] < window_s * 0.8:
             return 1.0
         return (h[-1][1] - h[0][1]) / 1e9 / (h[-1][0] - h[0][0])
@@ -309,14 +369,21 @@ class Launch:
             raise Abort("the app process did not appear under /usr/bin/time")
         resp = macos.responsible_pid(self.app)
         self.ev("app", pid=self.app, responsible=resp)
-        if disclaimed and resp != self.launcher:
-            raise Abort(f"responsibility: expected {self.launcher}, got {resp}; helper attribution would be wrong")
+        # Measured: with the launcher disclaimed, the app it execs is responsible for itself, so its
+        # WebKit helpers name the app (not the launcher) as their responsible process. Both are ours.
+        if disclaimed and resp not in (self.launcher, self.app):
+            raise Abort(f"responsibility: expected {self.launcher} or {self.app}, got {resp}; helper attribution would be wrong")
         if not disclaimed:
             self.ev("warning", detail="no disclaim SPI: WebKit helpers are matched by responsible pid of the terminal chain plus start time")
-        self.sampler = Sampler(c.run, self.launcher, self.name, c.guard, pre)
+        self.sampler = Sampler(c.run, self.launcher, self.name, c.guard, pre, self.app)
         self.sampler.start()
 
     def set_scenario(self, name: str):
+        if self.sampler:
+            prev = self.sampler.scenario
+            fc = self.sampler.front_counts.get(prev)
+            if fc:
+                self.ev("scenario_frontmost", name=prev, **fc)
         self.ev("scenario", name=name)
         if self.sampler:
             self.sampler.scenario = name
@@ -367,8 +434,13 @@ class Launch:
             return False
 
     def settle(self, what: str, threshold: float, hold_s: float, timeout: float):
-        """CPU of the whole set below `threshold` of one core over the last `hold_s` seconds."""
-        return self.wait(f"{what}: CPU < {threshold:.0%} of a core for {hold_s:.0f} s", lambda: self.sampler.cpu_rate(hold_s) < threshold, timeout, poll=1.0)
+        """CPU of the whole set below `threshold` of one core over the last `hold_s` seconds, all of them
+        after this wait began: quiet seconds from before the input that started the work do not count."""
+        if self.ctx.dry:
+            return self.wait(f"{what}: CPU < {threshold:.0%} of a core for {hold_s:.0f} s", lambda: True, timeout)
+        t0 = now()
+        return self.wait(f"{what}: CPU < {threshold:.0%} of a core for {hold_s:.0f} s",
+                         lambda: now() - t0 >= hold_s and self.sampler.cpu_rate(hold_s) < threshold, timeout, poll=1.0)
 
     def hold(self, seconds: float, what: str):
         if self.ctx.dry:
@@ -394,13 +466,48 @@ class Launch:
         self.check()
         self.ctx.guard.post(self.app, f"type {text}", lambda: macos.type_text(self.app, text), self.ctx.allow_activate)
 
+    def windows_event(self, label: str):
+        """The app's on-screen windows (title, size) as evidence of what a scenario showed."""
+        if self.ctx.dry:
+            return
+        ws = [{"title": w["title"], "w": w["w"], "h": w["h"]} for w in macos.windows(self.app) if w["onscreen"]]
+        if not self.ctx.guard.check(self.app):
+            return
+        self.ev("windows", at=label, windows=ws, ax=macos.ax_focused(self.app) if self.ctx.ax_probe else None)
+
+    def capture(self, label: str):
+        """A picture of the measured app's own main window (by window id, owner pid checked), kept
+        under the run's folder. Never the screen, never another window. A failure is an event."""
+        c = self.ctx
+        if not c.capture:
+            return
+        if c.dry:
+            print(f"[dry-run] screencapture -x -o -l <window id of pid's main window> {c.run}/captures/NN-{self.name}-{label}.png")
+            return
+        w = self.window()
+        if not w or w["pid"] != self.app or not c.guard.check(self.app):
+            self.ev("capture_failed", label=label, detail="no main window owned by the recorded measured app")
+            return
+        c.capture_seq += 1
+        slug = re.sub(r"[^A-Za-z0-9._-]+", "_", label)[:80]
+        path = f"{c.run}/captures/{c.capture_seq:02d}-{self.name}-{slug}.png"
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        err = macos.capture_window(w["id"], path)
+        if err:
+            self.ev("capture_failed", label=label, window_id=w["id"], detail=err)
+        else:
+            self.ev("capture", label=label, file=path, window_id=w["id"], owner_pid=w["pid"], title=w["title"], w=w["w"], h=w["h"])
+
     def snapshot_tools(self, label: str):
-        """Cross-check numbers from the system tools at a scenario's end."""
+        """Cross-check numbers from the system tools at a scenario's end, and the capture of the
+        window while the scenario's view (Find, the Git log) is still shown."""
         if self.ctx.dry:
             print(f"[dry-run] footprint -p / ps -o rss=,time= / top -l 2 on the set ({label})")
+            self.capture(label)
             return
         # The tools' own cost lands in a window of its own, not in the scenario just measured.
         self.set_scenario(f"tools_{label}")
+        self.capture(label)
         pids = [p for (p, s), _k in self.sampler.members.items() if macos.bsdinfo(p) and macos.bsdinfo(p)[2] == s]
         base = f"{self.ctx.run}/tools-{self.name}-{label}"
         with open(base + ".txt", "w") as f:
@@ -417,7 +524,7 @@ class Launch:
     def stop(self):
         c = self.ctx
         if c.dry:
-            print("[dry-run] make the app that was frontmost before the launch (never the owner's) frontmost again;"
+            print("[dry-run] log the app that was frontmost before the launch (nothing is activated);"
                   " SIGTERM the app pid; wait 10 s; SIGKILL; then the recorded descendants by pid and start time")
             return
         if self.app and c.guard.check(self.app):
@@ -466,14 +573,13 @@ class Launch:
             return
         prev = self.prev_front
         info = macos.bsdinfo(prev[0]) if prev else None
-        if not prev or not info or info[2] != prev[1] or prev[0] in self.ctx.guard.owner_pids():
-            self.ev("warning", detail="no app to hand the focus to: macOS picks the next one when ours stops")
-            return
-        subprocess.run(["/usr/bin/osascript", "-e",
-                        f'tell application "System Events" to set frontmost of (first process whose unix id is {prev[0]}) to true'],
-                       capture_output=True, timeout=10)
-        time.sleep(0.5)
-        self.ev("focus_handed_back", pid=prev[0], frontmost=macos.frontmost_pid())
+        # Making a process this run did not start frontmost is not allowed: macOS picks the next app
+        # when ours stops. That is only a risk while the owner's app runs.
+        owners = self.ctx.guard.owner_pids()
+        self.ev("focus_not_handed_back", previous_front=list(prev) if prev else None,
+                previous_alive=bool(info and prev and info[2] == prev[1]), owner_app_pids=owners)
+        if owners:
+            self.ev("warning", detail=f"the owner's app runs ({owners}): macOS may activate it when ours stops")
 
     def fakehome_entries(self):
         """What the app created under the fake home's Library (WebKit storage, caches, preferences)."""
@@ -490,6 +596,8 @@ class Launch:
 # ------------------------------------------------------------------ the scenarios
 
 def launch_cold(ctx):
+    if "cold" not in ctx.scenarios:
+        return
     L = Launch(ctx, "cold", [])
     try:
         L.start()
@@ -507,6 +615,7 @@ def launch_cold(ctx):
 
 def launch_project(ctx, files: list, query: str):
     L = Launch(ctx, "project", [ctx.project])
+    want = ctx.scenarios
     root = re.escape(ctx.project)
     try:
         L.start()
@@ -516,78 +625,108 @@ def launch_project(ctx, files: list, query: str):
         L.wait("log: opened <project>", lambda: L.log_has(r"opened " + root + r" in window"), 300)
         L.wait("log: index finished", lambda: L.log_has(r"(indexed \d+ files|index snapshot: warm start)"), 1800, poll=1.0)
         L.settle("project open", 0.03, 10, 600)
+        L.windows_event("project open")
         L.hold(30, "steady with the project open")
         L.snapshot_tools("open_project")
 
-        L.set_scenario("open_files")
-        for i, path in enumerate(files):
-            name = os.path.basename(path)
-            L.key("cmd-shift-o", gap=0.8)
-            L.type(name)
-            L.settle(f"file search {name}", 0.10, 2, 15)
-            L.key("enter", gap=0.3)
-            ok = L.wait(f"title ends with ' – {name}'", lambda: L.title().endswith(" – " + name), 30)
-            if ok is None and not ctx.dry:
-                L.ev("file_not_opened", file=name, title=L.title())
-                L.key("escape")
-                continue
-            L.settle(f"opened {name}", 0.10, 2, 30)
-            for _ in range(40):
-                L.key("pagedown", gap=0.1)
-            L.key("cmd-down", gap=0.3)
-            L.settle(f"scrolled {name}", 0.05, 3, 60)
-        L.hold(15, "steady after opening files")
-        L.snapshot_tools("open_files")
+        if "open_files" in want:
+            L.set_scenario("open_files")
+            for i, path in enumerate(files):
+                name = os.path.basename(path)
+                L.key("cmd-shift-o", gap=0.8)
+                L.type(name)
+                L.settle(f"file search {name}", 0.10, 2, 15)
+                L.key("enter", gap=0.3)
+                ok = L.wait(f"title ends with ' – {name}'", lambda: L.title().endswith(" – " + name), 30)
+                if ok is None and not ctx.dry:
+                    L.ev("file_not_opened", file=name, title=L.title())
+                    L.key("escape")
+                    continue
+                if not ctx.dry:
+                    L.ev("file_opened", file=name, title=L.title())
+                L.settle(f"opened {name}", 0.10, 2, 30)
+                # The first and the last file: one picture at the top, one after the scrolling.
+                pictured = i in {0, len(files) - 1}
+                if pictured:
+                    L.capture(f"opened {name}")
+                for _ in range(40):
+                    L.key("pagedown", gap=0.1)
+                L.key("cmd-down", gap=0.3)
+                L.settle(f"scrolled {name}", EDITOR_SETTLE, 3, 60)
+                if pictured:
+                    L.capture(f"scrolled {name}")
+                L.windows_event(f"scrolled {name}")
+            L.hold(15, "steady after opening files")
+            L.snapshot_tools("open_files")
 
-        L.set_scenario("find_in_files")
-        L.key("cmd-shift-f", gap=1.0)
-        L.type(query)
-        L.settle("find results", 0.05, 5, 300)
-        for _ in range(10):
-            L.key("down", gap=0.5)
-        L.settle("find preview", 0.05, 5, 60)
-        L.snapshot_tools("find_in_files")
-        L.key("escape", gap=1.0)
-        L.settle("find closed", 0.05, 5, 60)
+        if "find_in_files" in want:
+            L.set_scenario("find_in_files")
+            L.key("cmd-shift-f", gap=1.0)
+            L.type(query)
+            L.settle("find results", EDITOR_SETTLE, 5, 300)
+            L.windows_event("find results")
+            for _ in range(10):
+                L.key("down", gap=0.5)
+            L.settle("find preview", EDITOR_SETTLE, 5, 60)
+            L.windows_event("find preview")
+            L.snapshot_tools("find_in_files")
+            # The key that closes Find and the settle after it belong to the scenario.
+            L.set_scenario("find_in_files")
+            L.key("escape", gap=1.0)
+            L.settle("find closed", EDITOR_SETTLE, 5, 60)
 
-        L.set_scenario("git_log")
-        L.key("cmd-9", gap=1.0)
-        L.settle("git log", 0.05, 5, 300)
-        for _ in range(20):
-            L.key("pagedown", gap=0.3)
-        L.settle("git log scrolled", 0.05, 5, 120)
-        L.snapshot_tools("git_log")
-        L.key("cmd-9", gap=1.0)
-        L.settle("git log hidden", 0.05, 5, 60)
+        if "git_log" in want:
+            # Open the Git log and let it settle; no scrolling. After Cmd+9 the Tauri app focuses the
+            # branch filter field and the native app the commit list, no key reaches the Tauri list
+            # the same way, and PageDown moves 20 rows in Tauri and 10 natively.
+            L.set_scenario("git_log")
+            L.key("cmd-9", gap=1.0)
+            L.settle("git log", EDITOR_SETTLE, 5, 300)
+            L.windows_event("git log shown")
+            L.snapshot_tools("git_log")
+            # The key that hides the log and the settle after it belong to the scenario.
+            L.set_scenario("git_log")
+            L.key("cmd-9", gap=1.0)
+            L.settle("git log hidden", EDITOR_SETTLE, 5, 60)
 
-        settings = ctx.prep["files"]["settings"]
+        if "mode" in want:
+            settings = ctx.prep["files"]["settings"]
 
-        def mode_is(m):
-            def pred():
-                try:
-                    return re.search(r'mode\s*=\s*"' + m + '"', open(settings, encoding="utf-8").read()) is not None
-                except OSError:
-                    return False
-            return pred
+            def mode_is(m):
+                def pred():
+                    try:
+                        return re.search(r'mode\s*=\s*"' + m + '"', open(settings, encoding="utf-8").read()) is not None
+                    except OSError:
+                        return False
+                return pred
 
-        L.set_scenario("deep_mode")
-        L.key("ctrl-alt-shift-m", gap=0.5)
-        if L.wait("settings.toml says mode = \"full\"", mode_is("full"), 20) is None and not ctx.dry:
-            L.ev("mode_not_switched", to="full")
-        L.settle("deep mode", 0.03, 10, 600)
-        L.hold(60, "steady in Deep mode")
-        L.snapshot_tools("deep_mode")
-        L.set_scenario("blaze_again")
-        L.key("ctrl-alt-shift-m", gap=0.5)
-        if L.wait("settings.toml no longer says mode = \"full\"", lambda: not mode_is("full")(), 20) is None and not ctx.dry:
-            L.ev("mode_not_switched", to="light")
-        L.settle("back in Blaze mode", 0.03, 10, 600)
-        L.hold(60, "steady back in Blaze mode")
-        L.snapshot_tools("blaze_again")
+            L.set_scenario("deep_mode")
+            L.key("ctrl-alt-shift-m", gap=0.5)
+            if L.wait("settings.toml says mode = \"full\"", mode_is("full"), 20) is None and not ctx.dry:
+                L.ev("mode_not_switched", to="full")
+            L.settle("deep mode", EDITOR_SETTLE, 10, 600)
+            L.windows_event("deep mode")
+            L.hold(60, "steady in Deep mode")
+            L.snapshot_tools("deep_mode")
+            L.set_scenario("blaze_again")
+            L.key("ctrl-alt-shift-m", gap=0.5)
+            if L.wait("settings.toml no longer says mode = \"full\"", lambda: not mode_is("full")(), 20) is None and not ctx.dry:
+                L.ev("mode_not_switched", to="light")
+            L.settle("back in Blaze mode", EDITOR_SETTLE, 10, 600)
+            L.windows_event("blaze again")
+            L.hold(60, "steady back in Blaze mode")
+            L.snapshot_tools("blaze_again")
 
-        L.set_scenario("idle")
-        L.hold(600, "idle, no input")
-        L.snapshot_tools("idle")
+        if "idle" in want:
+            L.set_scenario("idle")
+            L.hold(ctx.idle_s, "idle, no input")
+            L.windows_event("idle end")
+            fc = {} if ctx.dry else L.sampler.front_counts.get("idle", {})
+            if fc.get("not_frontmost"):
+                # Kept, but its idle row is left out of the aggregate (degraded for this scenario only).
+                L.ev("idle_not_frontmost", seconds=fc["not_frontmost"], of=fc["samples"], unknown=fc["unknown"], paths=fc["paths"])
+                ctx.degraded_scenarios.add("idle")
+            L.snapshot_tools("idle")
     finally:
         L.set_scenario("stop")
         L.stop()
@@ -621,10 +760,20 @@ def select_files(project: str, n=10) -> list:
     return [p for _s, p in cands[:n]]
 
 
+def index_sha(project: str) -> str:
+    import hashlib
+    try:
+        with open(f"{project}/.git/index", "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError as e:
+        return f"unreadable: {e}"
+
+
 def project_stamp(base: str, project: str):
     stamp = f"{base}/project.stamp"
-    open(stamp, "w").close()
-    print(f"stamped {stamp}")
+    with open(stamp, "w") as f:
+        f.write(f"git index sha256 at stamp: {index_sha(project)}\n")
+    print(f"stamped {stamp}; git index sha256 {index_sha(project)}")
 
 
 def project_check(base: str, project: str) -> int:
@@ -635,16 +784,41 @@ def project_check(base: str, project: str) -> int:
     r = subprocess.run(["/usr/bin/find", project, "-newer", stamp, "-print"], capture_output=True, text=True)
     written = [l for l in r.stdout.splitlines() if l != project]
     inside = [l for l in written if l == f"{project}/.openidea" or l.startswith(f"{project}/.openidea/")]
-    outside = [l for l in written if l not in inside]
+    # Measured in the first pilot: opening the project rewrites the clone's .git/index (the stat-cache
+    # refresh the design lists as expected; GIT_OPTIONAL_LOCKS=0 did not prevent it). Listed, not fatal.
+    index = [l for l in written if l in (f"{project}/.git", f"{project}/.git/index")]
+    outside = [l for l in written if l not in inside and l not in index]
+    before = open(stamp).read().strip()
     out = f"{base}/project-writes-{int(now())}.txt"
     with open(out, "w") as f:
-        f.write("# under .openidea\n" + "\n".join(inside) + "\n# elsewhere\n" + "\n".join(outside) + "\n")
-    print(f"written into the clone since the stamp: {len(inside)} under .openidea, {len(outside)} elsewhere: {out}")
+        f.write("# under .openidea\n" + "\n".join(inside) + "\n# git index refresh\n" + "\n".join(index)
+                + f"\n# {before}; at check: {index_sha(project)}\n# elsewhere\n" + "\n".join(outside) + "\n")
+    print(f"written into the clone since the stamp: {len(inside)} under .openidea, {len(index)} git index, {len(outside)} elsewhere: {out}")
     return len(outside)
 
 
 class Ctx:
     pass
+
+
+def run_summary(run: str) -> dict:
+    """Per scenario: samples not frontmost, and the numbers by aggregate.py's one definition."""
+    out = {"not_frontmost": {}, "scenarios": {}}
+    for launch in ("cold", "project"):
+        path = f"{run}/samples-{launch}.jsonl"
+        if not os.path.exists(path):
+            continue
+        try:
+            samples = aggregate.load_samples(path)
+            rd = aggregate.Readings(samples)
+            for sc in aggregate.SCENARIOS:
+                m = aggregate.scenario_metrics(samples, sc, rd)
+                if m:
+                    out["scenarios"][sc] = m
+                    out["not_frontmost"][sc] = m["not_frontmost_samples"]
+        except (OSError, ValueError, KeyError) as e:
+            out.setdefault("summary_errors", []).append(f"{launch}: {e!r}")
+    return out
 
 
 def main():
@@ -658,12 +832,28 @@ def main():
     ap.add_argument("--select-files", action="store_true")
     ap.add_argument("--project-stamp", action="store_true")
     ap.add_argument("--project-check", action="store_true")
+    ap.add_argument("--project", help="project folder (default: config.json's clone)")
+    ap.add_argument("--files-json", help="the files to open (default: <base>/files.json)")
+    ap.add_argument("--runs-root", help="folder of the run folders, under the base (default: <base>/runs)")
+    ap.add_argument("--scenarios", default=",".join(SCENARIO_GROUPS), help="comma list of " + ",".join(SCENARIO_GROUPS))
+    ap.add_argument("--idle-s", type=float, default=600)
+    ap.add_argument("--ax-probe", action="store_true", help="read the focused element through Accessibility at each evidence point")
+    ap.add_argument("--capture", action="store_true", help="picture the measured app's own main window at each snapshot and for the first and last file")
     a = ap.parse_args()
     base = os.path.realpath(a.base)
     if not BASE_RE.match(base):
         sys.exit(f"base must be /private/tmp/openidea-measure-<random>, got {base}")
     cfg = json.load(open(f"{base}/config.json")) if os.path.exists(f"{base}/config.json") else {}
-    project = cfg.get("project", f"{base}/project/Allocadia")
+    project = os.path.realpath(a.project) if a.project else cfg.get("project", f"{base}/project/Allocadia")
+    if not project.startswith(base + "/"):
+        sys.exit(f"the project must be under the base: {project}")
+    runs_root = os.path.realpath(a.runs_root) if a.runs_root else f"{base}/runs"
+    if not runs_root.startswith(base + "/"):
+        sys.exit(f"the runs root must be under the base: {runs_root}")
+    scenarios = [x for x in a.scenarios.split(",") if x]
+    if not scenarios or any(x not in SCENARIO_GROUPS for x in scenarios):
+        sys.exit(f"--scenarios: choose from {','.join(SCENARIO_GROUPS)}")
+    files_json = a.files_json or f"{base}/files.json"
     if a.select_files:
         files = select_files(project)
         json.dump(files, open(f"{base}/files.json", "w"), indent=1)
@@ -677,10 +867,12 @@ def main():
         sys.exit("--app and --rep are required")
     ctx = Ctx()
     ctx.dry, ctx.allow_activate, ctx.project = a.dry_run, a.allow_activate, project
+    ctx.scenarios, ctx.idle_s, ctx.ax_probe = set(scenarios), a.idle_s, a.ax_probe
+    ctx.capture, ctx.capture_seq, ctx.degraded_scenarios = a.capture, 0, set()
     ctx.exe = cfg.get(f"{a.app}_bin", f"<{a.app} binary from build.sh>")
     if not ctx.dry and not (ctx.exe.startswith(base + "/") and os.access(ctx.exe, os.X_OK)):
         sys.exit(f"binary not under the base folder or not executable: {ctx.exe}")
-    ctx.run = f"{base}/runs/{a.rep}-{a.app}"
+    ctx.run = f"{runs_root}/{a.rep}-{a.app}"
     if not ctx.dry:
         if os.path.exists(ctx.run):
             sys.exit(f"{ctx.run} exists: every run gets a fresh folder")
@@ -703,10 +895,10 @@ def main():
     ctx.log = log
     ctx.guard = Guard(base, log)
     ctx.owner_at_start = [] if ctx.dry else ctx.guard.owner_pids()
-    log("run", app=a.app, rep=a.rep, exe=ctx.exe, project=project, owner_app_pids=ctx.owner_at_start,
+    log("run", app=a.app, rep=a.rep, exe=ctx.exe, project=project, scenarios=scenarios, idle_s=a.idle_s, files_json=files_json, ax_probe=a.ax_probe, capture=a.capture, owner_app_pids=ctx.owner_at_start,
         loadavg=os.getloadavg(), session=macos.session_state(), permissions=macos.permissions())
     ctx.prep = prepare(ctx.run, a.app, project, ctx.dry)
-    files = json.load(open(f"{base}/files.json")) if os.path.exists(f"{base}/files.json") else ["<10 files from --select-files>"]
+    files = json.load(open(files_json)) if os.path.exists(files_json) else ["<10 files from --select-files>"]
     status = "ok"
     try:
         launch_cold(ctx)
@@ -722,9 +914,11 @@ def main():
     finally:
         if status == "ok" and degraded:
             status = "degraded"
-        log("end", status=status, degraded=degraded)
+        log("end", status=status, degraded=degraded, degraded_scenarios=sorted(ctx.degraded_scenarios))
         if not ctx.dry:
-            json.dump({"status": status, "app": a.app, "rep": a.rep, "degraded": degraded}, open(f"{ctx.run}/status.json", "w"))
+            json.dump({"status": status, "app": a.app, "rep": a.rep, "degraded": degraded,
+                       "degraded_scenarios": sorted(ctx.degraded_scenarios), **run_summary(ctx.run)},
+                      open(f"{ctx.run}/status.json", "w"), indent=1)
     sys.exit(0 if status == "ok" else 3)
 
 

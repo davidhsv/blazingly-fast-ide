@@ -7,6 +7,20 @@ base=${1:?usage: preflight.sh <base>}
 here=$(cd "$(dirname "$0")" && pwd)
 fail=0
 no() { echo "NO-GO: $*"; fail=1; }
+# Processes running from the base (their command line names a path under it), except this script,
+# its ancestors and its own subshells (same command line, parent in that chain), whose arguments
+# name the base (e.g. --runs-root <base>/evidence). The apps and measure.py are never excluded.
+from_base() {
+  anc=" $$ "; p=$$
+  while [ -n "$p" ] && [ "$p" -gt 1 ]; do p=$(ps -o ppid= -p "$p" | tr -d ' '); anc="$anc$p "; done
+  self=$(ps -o command= -p $$)
+  ps -axo pid=,ppid=,command= | grep -F "$base/" | grep -v grep | awk -v a="$anc" -v self="$self" '{
+    pid = $1; ppid = $2; cmd = $0; sub(/^ *[0-9]+ +[0-9]+ /, "", cmd)
+    if (index(a, " " pid " ")) next
+    if (cmd == self && index(a, " " ppid " ")) next
+    print pid, cmd }'
+}
+
 ok() { echo "ok: $*"; }
 case "$base" in /private/tmp/openidea-measure-[A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9]*) ok "base $base";; *) no "base must be /private/tmp/openidea-measure-<random>";; esac
 [ -f "$base/config.json" ] || no "no $base/config.json (run build.sh)"
@@ -16,12 +30,17 @@ native=$($py -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["native_
 for b in "$tauri" "$native"; do case "$b" in "$base"/*) [ -x "$b" ] && ok "binary $b" || no "missing $b";; *) no "binary outside the base: $b";; esac; done
 [ -n "$tauri" ] && { strings "$tauri" | grep -q 'ai.l0ng.openidea.measure' && ok "Tauri binary carries ai.l0ng.openidea.measure" || no "Tauri binary lacks the measure identifier"; }
 # Nothing of ours still running; the single-instance socket of the measure identity is not held.
-running=$(ps -axo pid=,command= | grep -F "$base/" | grep -v grep)
+running=$(from_base)
 [ -z "$running" ] && ok "no process from the base is running" || no "processes from the base are running: $running"
+# Holder check by our pids' unix sockets (`lsof -t <socket>` finds no holder of a unix socket path).
+# No pid from the base running means none of ours holds it; lsof is never run without -p pids.
 sock=/private/tmp/ai_l0ng_openidea_measure_si.sock
 if [ -e "$sock" ]; then
-  holder=$(lsof -t "$sock" 2>/dev/null)
-  [ -z "$holder" ] && echo "note: stale $sock (no holder): run_all.sh removes it" || no "$sock is held by pid $holder"
+  pids=$(from_base | awk '{print $1}' | paste -sd, -)
+  holder=""
+  # lsof names the socket by the path it was bound with (/tmp/..., not /private/tmp/...): match the file name.
+  [ -n "$pids" ] && holder=$(lsof -a -p "$pids" -U 2>/dev/null | grep -F "/$(basename "$sock")")
+  [ -z "$holder" ] && echo "note: stale $sock (no holder among our pids): run_all.sh removes it" || no "$sock is held: $holder"
 fi
 # The owner's app: listed, never touched.
 owner=$(ps -axo pid=,command= | grep -F "/Applications/Blazingly Fast IDE.app/" | grep -v grep)

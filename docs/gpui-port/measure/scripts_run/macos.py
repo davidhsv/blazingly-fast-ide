@@ -272,10 +272,10 @@ def main_window(pid: int):
     return max(ws, key=lambda w: w["w"] * w["h"]) if ws else None
 
 
-def frontmost_pid():
+def frontmost_pid(timeout: float = 5):
     """The frontmost application's pid from Launch Services (lsappinfo; no Apple event to any app)."""
     try:
-        asn = subprocess.run(["/usr/bin/lsappinfo", "front"], capture_output=True, text=True, timeout=5).stdout.strip()
+        asn = subprocess.run(["/usr/bin/lsappinfo", "front"], capture_output=True, text=True, timeout=timeout).stdout.strip()
         if not asn:
             return None
         # `lsappinfo front` prints the low half without its 0x ("ASN:0x0-1a6d06b6:"), a form that
@@ -284,11 +284,25 @@ def frontmost_pid():
         if not m:
             return None
         asn = f"ASN:0x{m.group(1)}-0x{m.group(2)}:"
-        info =subprocess.run(["/usr/bin/lsappinfo", "info", "-only", "pid", asn], capture_output=True, text=True, timeout=5).stdout
+        info = subprocess.run(["/usr/bin/lsappinfo", "info", "-only", "pid", asn], capture_output=True, text=True, timeout=timeout).stdout
         m = re.search(r"pid\"?\s*=\s*(\d+)", info)
         return int(m.group(1)) if m else None
     except (subprocess.SubprocessError, OSError):
         return None
+
+
+def capture_window(window_id: int, path: str) -> str:
+    """A picture of ONE window by its id (screencapture -l; -x no sound, -o no shadow). Never the
+    screen, never another window: the caller checks that the window's owner is the measured app.
+    Returns "" on success, else the error text."""
+    try:
+        r = subprocess.run(["/usr/sbin/screencapture", "-x", "-o", "-l", str(int(window_id)), path],
+                           capture_output=True, text=True, timeout=20)
+    except (subprocess.SubprocessError, OSError) as e:
+        return repr(e)
+    if r.returncode != 0 or not os.path.exists(path) or os.path.getsize(path) == 0:
+        return f"rc {r.returncode}: {r.stderr.strip()}"
+    return ""
 
 
 # ---------------------------------------------------------------- input posted to one PID
@@ -368,6 +382,69 @@ def scroll(pid: int, x: float, y: float, lines: int):
     CF.CFRelease(e)
 
 
+# ---------------------------------------------------------------- accessibility: read only
+
+AS.AXUIElementCreateApplication.argtypes = [c_int32]
+AS.AXUIElementCreateApplication.restype = c_void_p
+AS.AXUIElementCopyAttributeValue.argtypes = [c_void_p, c_void_p, POINTER(c_void_p)]
+AS.AXUIElementCopyAttributeValue.restype = c_int32
+CF.CFGetTypeID.argtypes = [c_void_p]
+CF.CFGetTypeID.restype = c_ulong
+CF.CFStringGetTypeID.restype = c_ulong
+CF.CFNumberGetTypeID.restype = c_ulong
+
+
+def _ax_attr(el, name: str):
+    k = _cfstr(name)
+    v = c_void_p()
+    try:
+        err = AS.AXUIElementCopyAttributeValue(el, k, byref(v))
+    finally:
+        CF.CFRelease(k)
+    return v.value if err == 0 else None
+
+
+def _ax_text(ref):
+    if not ref:
+        return None
+    try:
+        t = CF.CFGetTypeID(ref)
+        if t == CF.CFStringGetTypeID():
+            buf = ctypes.create_string_buffer(8192)
+            return buf.value.decode("utf-8", "replace")[:300] if CF.CFStringGetCString(ref, buf, 8192, UTF8) else None
+        if t == CF.CFNumberGetTypeID():
+            return str(_num(ref))
+        return None
+    finally:
+        CF.CFRelease(ref)
+
+
+def ax_focused(pid: int) -> dict:
+    """Role, title, value and description of the app's focused element and focused window, read
+    through the Accessibility API (nothing is sent to the app). Empty fields when unavailable."""
+    app = AS.AXUIElementCreateApplication(pid)
+    if not app:
+        return {}
+    out = {}
+    try:
+        for label, attr in (("focused", "AXFocusedUIElement"), ("window", "AXFocusedWindow")):
+            el = _ax_attr(app, attr)
+            if not el:
+                out[label] = None
+                continue
+            try:
+                d = {k: _ax_text(_ax_attr(el, "AX" + k)) for k in ("Role", "Subrole", "Title", "Value", "Description", "NumberOfCharacters")}
+                # A short value (a search field) is evidence; a long one is a document's text: not kept.
+                if d["Value"] is not None and len(d["Value"]) > 64:
+                    d["Value"] = f"<{len(d['Value'])}+ characters, not kept>"
+                out[label] = d
+            finally:
+                CF.CFRelease(el)
+    finally:
+        CF.CFRelease(app)
+    return out
+
+
 # ---------------------------------------------------------------- session and permissions
 
 CG.CGSessionCopyCurrentDictionary.restype = c_void_p
@@ -412,6 +489,8 @@ if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "session"
     if cmd == "session":
         print(json.dumps({**session_state(), **permissions(), "frontmost": frontmost_pid()}))
+    elif cmd == "ax":
+        print(json.dumps(ax_focused(int(sys.argv[2])), indent=1))
     elif cmd == "windows":
         print(json.dumps(windows(int(sys.argv[2])), indent=1))
     else:

@@ -3,7 +3,7 @@
 the same start time and an executable under the base folder gets SIGTERM, then SIGKILL after 10 s.
 Nothing else is signalled.
 
-usage: stop.py --base B [--dry-run]
+usage: stop.py --base B [--runs-root R ...] [--dry-run]   (default: B/runs; every R must be under B)
 """
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import macos  # noqa: E402
 
 
-def recorded(base):
-    for path in glob.glob(f"{base}/runs/*/events.jsonl"):
+def recorded(roots):
+    for path in [p for r in roots for p in glob.glob(f"{r}/*/events.jsonl")]:
         for line in open(path, encoding="utf-8"):
             e = json.loads(line)
             if e.get("event") == "record":
@@ -35,10 +35,14 @@ def alive(base, pid, start):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", required=True)
+    ap.add_argument("--runs-root", action="append", help="folder of run folders (repeatable; default: <base>/runs)")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     base = os.path.realpath(a.base)
-    targets = [(p, s) for p, s in set(recorded(base)) if alive(base, p, s)]
+    roots = [os.path.realpath(r) for r in (a.runs_root or [f"{base}/runs"])]
+    if any(not r.startswith(base + "/") for r in roots):
+        sys.exit("every runs root must be under the base")
+    targets = [(p, s) for p, s in set(recorded(roots)) if alive(base, p, s)]
     if not targets:
         print("nothing of ours is running")
         return 0
