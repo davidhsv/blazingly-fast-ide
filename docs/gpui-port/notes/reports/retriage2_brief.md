@@ -1,0 +1,27 @@
+# Reading task: re-verify the `ipc:` rows at parity whose backend command changed in the merge of upstream v0.1.46
+
+You read and compare; you build nothing. You never run cargo, rustc, pnpm, either app, or the network; you never edit a tracked file and run no git command that changes anything. Another agent is editing `app-gpui/src` right now: read every file under `app-gpui/` with `git show HEAD:<path>` or `git grep … HEAD -- <path>`, never from the working tree. Use `git diff -U3` when you read a diff (this machine's git shows a thousand lines of context by default).
+
+Worktree: `/Users/davidvieira/code/openidea-bazel-work/openidea/.claude/worktrees/agent-a307dd904b5ae1f01` (branch `gpui`, HEAD `f8d8ccb57`; the fork's base before the merge is upstream `37c2a604`, the merged upstream tag is `v0.1.46`; the tree of this branch before the merge is `3662ca0ea`). Scratch: `S=/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad`; your own subfolder `$S/dret2/` (create it).
+
+## What this is
+
+`app-gpui/` is a native rewrite of the IDE's webview UI (`src/`). The webview reaches the backend through commands: an adapter function in `src-tauri/src/commands/` that calls a function of `crates/ide-host/src/ops/` (or other backend code). The native app has no adapters: it calls the backend's functions directly, and must pass what the webview's adapter passes for the same call and treat the answer as the webview does. Parity is tracked row by row in `docs/gpui-port/parity.json` (key → `{status, proof}`; a proof cites native tests by full name in backticks, then after a semicolon says what works and, for partial, what is missing); an `ipc:<command>` row at parity means the native app makes that call with the same arguments and meaning, proven by a native test. Read the top of `docs/gpui-port/INVENTORY.md` first. The native tests, one full name per line: `$S/rust_tests.txt`.
+
+`docs/gpui-port/notes/RETRIAGE.md`, section "IPC commands", lists the done `ipc:` rows whose adapter file or `ops` file changed in the merge; its note column says "BODIES CHANGED" where the adapter function's own body or the called `ops::` function's own body changed (37 rows by its count: take the list from the table and say how many you found). Those are your first part. Second part, if the first is complete: the done rows whose adapter calls no `ops::` function (the note lists them: 110), where nobody looked at the backend code the adapter calls: for each, find what the adapter calls, and whether that changed between `37c2a604` and `v0.1.46`; those that changed are treated as the first part's rows.
+
+## For each row
+
+1. What changed: the adapter function at `37c2a604` and at HEAD (arguments, what it passes on, how it maps the result or the error), and the backend function it calls (signature, new parameters, new fields of the result, new error cases, changed meaning: a filter that became optional, a path that must now be absolute, a new permission or trust check, a value that moved to the secret store). One or two lines per change, with `file:line` at HEAD and the upstream commit's subject (`git log --oneline 37c2a604..v0.1.46 -- <file>` narrowed by `-L` or `-S` as needed).
+2. What the webview does with it at HEAD (the caller in `src/`: grep the command's camelCase name): new arguments it passes, new result fields it shows.
+3. What the native app does at HEAD: every native call of the backend function (`git grep -n '<fn name>' HEAD -- app-gpui/src`), the arguments it passes compared with the adapter's, and whether it uses the new result fields the webview shows. The merge's integrators adapted call sites so they compile (`docs/gpui-port/notes/reports/merge_adaptations.md`): a call that compiles may still pass a default where the webview now passes a value.
+4. A verdict: `keep` (same arguments and meaning, and the cited tests still prove it), or `lower` to partial with the proof text to write: the citations that remain true, then after a semicolon what works and what is missing (the argument the native call does not pass, the result field it does not show, the error case it does not tell), each with the webview's `file:line`. A difference that is only in the backend and reaches the native app unchanged (the function does something new inside for every caller) is `keep`, with one line saying what changed.
+
+You never raise a row. When in doubt, lower it and say why.
+
+## Deliver
+
+- `$S/dret2/RETRIAGE_IPC.md`: one section per row as above, lowered rows first; at the top the totals (rows read, kept, lowered) and the list of native differences found, grouped by native file, as work for an integrator: each with the native `file:line`, what the webview passes or shows, and the size of the fix as you judge it (one line, a few lines, a feature).
+- `$S/dret2/lowerings.json`: an object key → `{ "status": "partial", "proof": "<the full new proof text>" }` for every row you lower, and nothing else. Every citation in a proof must be a full test name present in `$S/rust_tests.txt` (check each by script and say so).
+
+Markdown: one paragraph per line, no hard wrapping. Your final message (all the manager sees): the totals of each part; the native differences, largest first; anything in these instructions or in `RETRIAGE.md` that turned out wrong. Mark every statement you did not measure as "Hypothesis:".
