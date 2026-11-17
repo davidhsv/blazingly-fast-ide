@@ -1,0 +1,41 @@
+# Measurement, stage 1: check the scripts, build both release binaries, clone the project, run the pilot
+
+You run a designed measurement; you do not change either app. Read first, whole: the design `$S/dmeasure/DESIGN.md` (its fairness caveats, isolation and safety part, risks, and the go / no-go list G0 to G11) and every script under `$S/dmeasure/scripts/`. The scripts were written without being run: every line of them is a hypothesis until it runs. Your own scratch subfolder: `$S/dmrun/` (logs, notes, fixed copies of scripts).
+
+Worktree: `/Users/davidvieira/code/openidea-bazel-work/openidea/.claude/worktrees/agent-a307dd904b5ae1f01` (branch `gpui`; the builds are made from an export of its HEAD, which the manager says at launch). Scratch: `S=/private/tmp/claude-502/-Users-davidvieira--claude-personal-spares-spare-BDrKLZ/ef45d052-1f0c-4be6-a975-4f7e63cf4971/scratchpad`. The run's base folder: create one `/private/tmp/openidea-measure-<six random letters or digits>/` and say its name; everything of the run lives there.
+
+## This launch prepares; it launches neither app (the owner is using the machine)
+
+The owner said: get everything ready, and they will say when the machine is free. Until then nothing may take the keyboard focus, post an input event, or start either app. So this launch does only: step 1 without anything that needs a window of a measured app (the scripts' dry runs; `macos.py session` only if it reads state without activating or posting anything: read it first; `macos.py windows` only on the terminal process you run in, or skip it and say so); step 2's checks that read state (free space, the owner's app listed if running, no leftover socket or process from an earlier run); step 3's builds and the static identity gate of `build.sh`, but NOT the run-time isolation launch; step 4, the clone. Steps 3's run-time isolation proof, 5 (the pilot) and anything else that starts an app are for a later launch: leave them undone and say exactly what is ready and what the next launch must do first. The display being asleep or the session locked does not matter for this launch.
+
+## What the owner asked and what is decided
+
+The owner wants a preliminary measurement of the native (GPUI) app against the Tauri app, release builds, over seven scenarios, to decide whether the rewrite pays off in memory and CPU. Decided by the manager (design's D1 to D8): Deep mode without language servers (nothing is installed or downloaded); the project is a clone of `/Users/davidvieira/code/Allocadia` under the base (`cp -cR`, an APFS clone; the original is never opened by either app and never written to), with the clone's `.openidea` folder moved aside; if the measured app loses focus the run stops rather than taking focus back; link-time optimisation as each app ships; window sizes as they are; a run with any connection to an outside host, or with the webview's storage outside the base, is rejected; three repetitions per app in the campaign (not yours: you run the pilot only).
+
+## Your steps, in order; stop at the first no-go and report
+
+1. G0: run the scripts' own checks and dry runs (`macos.py session`, `macos.py windows` on a window of a process you start for that purpose or of the terminal you run in, `build.sh <base> --dry-run`, `run_all.sh <base> --dry-run`, `measure.py … --dry-run`). Where a script is wrong, fix a copy under `$S/dmrun/scripts/` (never the originals), say exactly what you changed and why, and use your copies from then on. A fix never weakens a safety gate (the identity checks, the PID checks, the refusal of the owner's bundle, the frontmost check, the network record).
+2. Preflight: G3, G4, G6, G7, G8 (`preflight.sh`). Free space: at least 80 GiB before building. The display must be awake and the session unlocked; if not, stop and report.
+3. The builds (`build.sh <base>`): from an export of HEAD, the Tauri release binary with the identifier `ai.l0ng.openidea.measure` and no bundle, and the native release binary. Nothing is fetched: `pnpm install --offline --frozen-lockfile` and `cargo … --locked` with `CARGO_NET_OFFLINE=true`; if either wants the network, stop and report what it wanted (do not fetch). One heavy build at a time. The identity gate of `build.sh` must pass: the binary holds the measure identifier and not the installed app's as its identifier; then prove the isolation at run time before any scenario: start the Tauri binary once with the run's isolated environment and no project, and check that it stays up as its own process (it does not exit at once handing over to another instance), that its single-instance socket and its data, config, log and cache folders are under the base or named after the measure identifier, and that no process of `/Applications/Blazingly Fast IDE.app` started or received anything (list them by path before and after: read-only). Stop it by its PID. If any of this fails: no-go, report.
+4. The clone: `cp -cR /Users/davidvieira/code/Allocadia <base>/project/Allocadia` (reads the original, writes only under the base), `.openidea` moved aside inside the clone, the clone's size and file count recorded. The original's modification state must be unchanged: record `git -C /Users/davidvieira/code/Allocadia status --porcelain | wc -l` and the newest modification time under its top level before the clone and at the very end (read-only commands), and report both.
+5. The pilot (G9, G10, G11): `run_all.sh <throwaway base or the same base> --reps 1`: one run of each app through the seven scenarios. Read every event the runs log. The pilot's purpose is to find out whether the key events reach each app and each scenario really happens: for each scenario and each app say what evidence shows it happened (the window title after opening a file, a log line, the Find results count, the mode shown) or that it did not. A threshold the Tauri app never meets is raised for both apps, never for one. If a scenario cannot be driven in one of the apps, say exactly where it stops: do not patch around it with app changes.
+6. Leave nothing running: every process the run started is stopped by its recorded PID and checked; the base folder stays (the manager needs the binaries and the clone for the campaign); nothing is written outside the base and `$S/dmrun/`.
+
+## Hard rules
+
+- Never quit, restart, focus, signal or send input to the owner's app "Blazingly Fast IDE" or to any process you did not start; input and signals go only to PIDs you started and recorded. Never launch a `.app` bundle; never `open -a`.
+- No network: nothing is downloaded or installed; a run that shows a connection to an outside host is reported and rejected. No agents, no Docker, no sign-in, no `sudo`.
+- The original `/Users/davidvieira/code/Allocadia` is read once to clone it and never opened by an app; `/Users/davidvieira/code/openidea-bazel` is not touched. Nothing under the user's home is read or written except through the clone command above; the apps see a fake home under the base.
+- Commit nothing, push nothing, run no git command that changes anything; edit no tracked file.
+- Disk: write `df -k /System/Volumes/Data | tail -1` into your log before each build and before the pilot; under 40 GiB free, stop and report without deleting anything.
+- If the display sleeps or the session locks during the pilot, that run is invalid: say so; do not report its numbers as results.
+
+## Report (your final message is all the manager sees; it must be the full report, no short closing line after it)
+
+1. The base folder's path; the commit built; each gate G0 to G11 with pass or fail and the evidence (a log's path and the line).
+2. Every change you made to a script copy, with the reason.
+3. The isolation proof of step 3, with what you observed.
+4. The pilot, per app and scenario: happened or not, with the evidence; the events logged (timeouts, aborts); and the pilot's raw numbers per scenario (clearly labelled as one run each: not results).
+5. What must be fixed or decided before the campaign, and your estimate of the campaign's wall time from the pilot's.
+6. The Allocadia original's before and after state; what is left under the base (sizes); that nothing of yours is running.
+   Mark every statement you did not measure as "Hypothesis:".
