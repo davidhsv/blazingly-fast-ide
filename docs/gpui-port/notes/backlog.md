@@ -1017,3 +1017,4 @@ Standing facts: inventory.mjs runs cargo (never run it while an integrator works
 - THROUGHPUT LOG: … tests only 0h58 +4; locale 0h50 +2 (1222 → 1224). Eight integrations: 8h52, +40: 4.5 rows per integrator-hour.
 - `$S/insp8/run.sh` now needs `INSPECT_BASE=<neutral folder>` (said in `$S/int_rules.md`).
 - NEXT (cargo): search B (`$S/int_search_b_brief.md`) → follow upstream 4 → remote chooser → agents list → second visual slice; the unwired audit's wiring work goes ahead of new features when it reports.
+- RUNNING (cargo, Opus, launched 2026-11-17 at HEAD 0df1bf911): search B = `$S/int_search_b_brief.md` (scratch `$S/dsbi/`). Decision D160; rows script `$S/parity_d160.py`; inventory export dir `$S/clean43`. The integrator has uncommitted edits under `app-gpui/src`: add docs by name, NEVER `git add -u app-gpui` until it reports. DO NOT LAUNCH IT AGAIN. Draft queue = 2 waiting (remote chooser, agents list) + search B in flight = 3: no feature writers.
