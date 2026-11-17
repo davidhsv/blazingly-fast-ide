@@ -32,12 +32,12 @@
     "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
   },
   "keymap:vscode-macos": {
-    "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
+    "status": "partial",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Meta+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 \"untitled buffers and Save As with a file type\"); the native app registers no file.newUntitled action (no \"file.newUntitled\" under app-gpui/src), so in this preset Meta+N does nothing natively where it ran file.new before the merge"
   },
   "keymap:vscode-windows": {
-    "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`"
+    "status": "partial",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the preset's bindings load verbatim from the generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatch. Missing: the preset now binds Ctrl+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 \"untitled buffers and Save As with a file type\"); the native app registers no file.newUntitled action (no \"file.newUntitled\" under app-gpui/src), so in this preset Ctrl+N does nothing natively where it ran file.new before the merge"
   },
   "keymap:eclipse-macos": {
     "status": "done",
@@ -84,8 +84,8 @@
     "proof": "`workbench::tests::proofs20_shell::propagates_host_launch_errors_while_retaining_ordinary_action_error_handling`; 1 of 5 cases; not covered: counts a run of an 'indicatesRunning' action until it settles, on success and on failure; does not track actions that did not ask for it; checks argument-specific enablement before dispatch; registers a batch with one store update and disposes every action; the running-action count of indicatesRunning actions does not exist natively"
   },
   "module:src/platform/actions.ts": {
-    "status": "done",
-    "proof": "`platform::actions::tests`, `platform::input::tests`, `workbench::tests::smoke_registered_actions::every_action_registered_in_a_project_window_is_known_to_the_manifest`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::tests::proofs20_shell::propagates_host_launch_errors_while_retaining_ordinary_action_error_handling`, `workbench::tests::proofs20_shell::listeners_hear_the_action_the_user_runs_and_not_the_ones_it_runs_itself`; the registry runs every feature action of a project window, enablement follows `when`, `keyWhen` and projectOpening, and an action-performed listener hears a menu run with its source. A failing handler's error is returned by execute_action_or_throw and only reported by execute_action, and listeners hear the action the user runs but not the ones it runs itself"
+    "status": "partial",
+    "proof": "`platform::actions::tests::enablement_follows_when_and_key_when`, `platform::actions::tests::localizes_titles_through_catalog_keys_then_source_text`, `platform::actions::tests::manifest_describes_the_webview_actions`, `platform::actions::tests::only_window_and_quit_actions_run_while_a_project_opens`, `platform::actions::tests::proofs_titles::has_a_chinese_entry_for_every_literal_action_title`, `platform::actions::tests::proofs_titles::translates_every_action_title_built_from_a_template`, `platform::input::tests::double_shift_runs_its_action`, `platform::input::tests::keystrokes_respect_when_clauses_per_window`, `platform::input::tests::keystrokes_run_bound_actions_and_chords`, `platform::input::tests::names_keys_as_the_keymap_spells_them`, `platform::input::tests::proofs7_suspend::a_suspended_window_runs_no_shortcut_until_it_is_resumed`, `platform::input::tests::side_buttons_run_mouse_bindings`, `workbench::tests::smoke_registered_actions::every_action_registered_in_a_project_window_is_known_to_the_manifest`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::tests::proofs20_shell::propagates_host_launch_errors_while_retaining_ordinary_action_error_handling`, `workbench::tests::proofs20_shell::listeners_hear_the_action_the_user_runs_and_not_the_ones_it_runs_itself`; the registry runs every feature action of a project window, enablement follows `when`, `keyWhen` and projectOpening, an action-performed listener hears a menu run with its source, a failing handler's error is returned by execute_action_or_throw and only reported by execute_action. Missing: an action's own enabled(ctx, arg) predicate, for a parameterised action or the selection, which the enablement check and a run both apply (src/platform/actions.ts:40, :170); `indicatesRunning`, the running state that makes the action's toolbar buttons spin and ignore clicks until the run settles (:64, :232); `keymap`, which lists a hidden action in Settings › Keymap (:53); native ActionMeta has none of these fields (platform/actions.rs:24)"
   },
   "design:icons": {
     "status": "done",
@@ -148,8 +148,8 @@
     "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`"
   },
   "point.registerStatusItem:editor.encoding": {
-    "status": "done",
-    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`"
+    "status": "partial",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::a_click_on_the_line_separator_opens_its_menu_and_crlf_changes_the_files_separator`, `workbench::tests::the_status_bars_items_open_go_to_line_and_their_menus`; the item shows the file's encoding and its menu offers Reload with Encoding (disabled while unsaved), Convert to Encoding and File Encodings Settings…. Missing: a file with a UTF-8 BOM shows UTF-8 BOM (src/editor/core/view/StatusItems.tsx:419) and a UTF-8 file's menu has Add UTF-8 BOM / Remove UTF-8 BOM, saving at once under auto-save (StatusItems.tsx:384-403, :436-445); Reload with Encoding is also disabled when the document cannot be re-read (canReloadEncoding, StatusItems.tsx:431). The native menu has neither (app-gpui/src/workbench/mod.rs:2185-2190)"
   },
   "unit:src/ui/icons.test.tsx": {
     "status": "partial",
@@ -164,12 +164,12 @@
     "proof": "`editor::view::editing_tests`, `editor::view::tests`, `editor::buffer::tests`, `editor::core_actions::tests`, `workbench::plugin_contributions::tests::a_fold_above_moves_every_line_below_it_to_its_row`, `workbench::editor_extras::tests::a_click_on_the_fold_chevron_folds_and_unfolds_its_region`, `workbench::editor_extras::tests::rainbow_brackets_colour_the_brackets_by_their_depth`, `workbench::editor_extras::tests::distraction_free_mode_hides_the_tabs_and_the_gutter_and_centres_the_text`; caret movement, selection, multiple carets, column selection, undo, clipboard, find, highlighting, folding on the backend's fold ranges with the gutter's chevrons, every line painted on its row below a fold, rainbow brackets and the centred column of Distraction Free Mode; no fold-by-default on open, no bracket or indentation rules, no sticky lines or margin guides"
   },
   "module:src/workbench/StatusBar.tsx": {
-    "status": "done",
-    "proof": "`workbench::status_bar::tests`, `workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::tests::proofs5_layout::background_tasks_opens_the_popup_and_running_it_again_keeps_it_open`, `workbench::background_tasks_view::tests`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::status_items::tests::the_status_message_is_shown_while_there_is_one`; items ordered by priority on each side, light-edit items only, hidden widgets and the context menu that toggles them, the status message, the task item naming the working task with the count of the others, and the Background Tasks popup with its working, Cancelling… and disabled Cancel buttons"
+    "status": "partial",
+    "proof": "`workbench::status_bar::tests::a_click_runs_the_items_action_or_opens_what_belongs_to_it`, `workbench::status_bar::tests::a_light_edit_window_shows_only_the_items_registered_for_it`, `workbench::status_bar::tests::an_item_shows_only_while_its_when_clause_holds`, `workbench::status_bar::tests::applies_defaults_and_overrides`, `workbench::status_bar::tests::equal_priorities_order_by_id_and_unordered_priorities_count_as_equal`, `workbench::status_bar::tests::lists_titled_widgets_with_checkmarks`, `workbench::status_bar::tests::puts_higher_priorities_closer_to_the_window_edges`, `workbench::status_bar::tests::registering_an_id_again_replaces_its_item`, `workbench::status_bar::tests::renders_registered_items_in_order`, `workbench::status_bar::tests::text_items_draw_their_text_and_items_with_nothing_to_say_are_left_out`, `workbench::status_bar::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::status_bar::tests::toggles_one_widget_by_id_from_view_appearance_status_bar_widgets`, `workbench::tests::the_status_bar_follows_the_editors_caret_and_selection`, `workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::tests::proofs5_layout::background_tasks_opens_the_popup_and_running_it_again_keeps_it_open`, `workbench::background_tasks_view::tests::an_empty_list_says_there_are_no_background_tasks`, `workbench::background_tasks_view::tests::escape_does_nothing_while_the_popup_has_no_keyboard`, `workbench::background_tasks_view::tests::shows_progress_and_uncancellable_tasks`, `workbench::background_tasks_view::tests::the_popups_cancel_buttons_working_cancelling_and_disabled_with_the_reason`, `workbench::status_items::tests::the_status_message_is_shown_while_there_is_one`; items ordered by priority on each side, light-edit items only, hidden widgets and the context menu that toggles them, the status message, the task item naming the working task with the count of the others, and the Background Tasks popup with its working, Cancelling… and disabled Cancel buttons. Missing: unavailable widgets left out of the bar (src/workbench/StatusBar.tsx:41); the Background Tasks popup closing when its last task ends (:141), natively it stays open, and workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it relies on that (it toggles the popup closed after the task ended, workbench/plugin_contributions.rs:1900)"
   },
   "module:src/workbench/TitleBar.tsx": {
-    "status": "done",
-    "proof": "`workbench::title_bar::tests`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::main_toolbar::tests`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`, `workbench::tests::proofs20_shell::the_title_bars_avatar_is_drawn_on_the_colours_of_the_projects_slot`; the bar draws the project widget (initials, name, root tooltip, Open…/Close Project menu), the branch widget or Version Control fallback, the gear menu, the context menu and Customize Main Toolbar dialog, the compact, light-edit and bare headers, the main menu button where there is no native menu bar, and a plugin's mainToolbar button, whose click runs its command. The avatar is drawn on the colours of the project's slot (read from what the title bar hands its renderer)"
+    "status": "partial",
+    "proof": "`workbench::title_bar::tests::a_click_runs_the_entrys_action_or_asks_for_its_menu`, `workbench::title_bar::tests::a_light_edit_bar_has_its_title_and_the_gear_and_the_welcome_bar_its_title_only`, `workbench::title_bar::tests::a_toggle_shows_or_hides_the_entry_and_reset_restores_the_default`, `workbench::title_bar::tests::draws_the_entries_of_each_side_in_order_around_the_drag_space`, `workbench::title_bar::tests::escape_closes_the_picker_first_then_cancels_the_dialog`, `workbench::title_bar::tests::every_built_in_widget_is_registered_as_the_contributions_list_says`, `workbench::title_bar::tests::hidden_widgets_and_widgets_with_nothing_to_show_are_left_out`, `workbench::title_bar::tests::hides_the_right_hand_toolbar_while_the_menu_is_expanded_and_restores_it_on_close`, `workbench::title_bar::tests::keeps_the_main_menu_button_where_there_is_no_native_menu_bar`, `workbench::title_bar::tests::lists_every_widget_with_a_checkbox_in_customize_main_toolbar`, `workbench::title_bar::tests::opens_a_menu_instead_of_settings_directly`, `workbench::title_bar::tests::prefers_an_explicit_title`, `workbench::title_bar::tests::shows_the_window_title_and_follows_it_without_toolbar_widgets`, `workbench::title_bar::tests::the_built_in_widgets_take_their_default_places`, `workbench::title_bar::tests::the_context_menu_lists_the_entries_and_its_rows_write_the_layout`, `workbench::title_bar::tests::the_customize_dialog_edits_the_layout_and_ok_applies_it`, `workbench::title_bar::tests::the_dialog_adds_after_the_selection_and_restores_the_defaults`, `workbench::title_bar::tests::the_dialog_moves_entries_within_and_across_the_sides`, `workbench::title_bar::tests::the_dialog_remembers_a_removed_widget_but_drops_a_removed_action`, `workbench::title_bar::tests::the_gear_menu_lists_run_anything_settings_plugins_view_mode_customization_and_updates`, `workbench::title_bar::tests::the_main_toolbar_switch_and_distraction_free_make_the_compact_header`, `workbench::title_bar::tests::the_picker_offers_removed_widgets_then_actions_with_icons_by_title`, `workbench::title_bar::tests::the_stored_toolbar_reads_as_the_layout_resolve_takes`, `workbench::title_bar::tests::title_items_sort_by_priority_within_each_side`, `workbench::tests::the_title_bars_menus_open_and_the_context_menu_hides_and_restores_an_entry`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::main_toolbar::tests::defaults_to_the_project_and_vcs_widgets_then_contributed_widgets_then_search_everywhere`, `workbench::main_toolbar::tests::hides_and_re_adds_widgets_and_drops_removed_actions`, `workbench::main_toolbar::tests::keeps_the_saved_order_and_appends_widgets_registered_since`, `workbench::main_toolbar::tests::names_entries_by_widget_action_or_id`, `workbench::main_toolbar::tests::saves_the_layout_in_the_shape_the_settings_store`, `workbench::context_menus::tests::proofs7_toolbar_slots::a_plugins_main_toolbar_entry_is_a_title_bar_button_that_runs_its_command`, `workbench::tests::proofs20_shell::the_title_bars_avatar_is_drawn_on_the_colours_of_the_projects_slot`; the bar draws the project widget (initials, name, root tooltip, Open…/Close Project menu), the branch widget or Version Control fallback, the gear menu, the context menu and Customize Main Toolbar dialog, the compact, light-edit and bare headers, the main menu button where there is no native menu bar, and a plugin's mainToolbar button. Missing: New Project… first in the project widget's menu (src/workbench/TitleBar.tsx:64, native workbench/title_bar.rs:128); Create Git Repository… first in the Version Control fallback (:98, native title_bar.rs:47); the main menu in a row of its own under the bar when Appearance's main menu style is toolbar (:316, :381)"
   },
   "context:projectOpen": {
     "status": "done",
@@ -200,8 +200,8 @@
     "proof": "`platform::paths::tests::slashes_windows_drive_paths_plain_or_verbatim`, `platform::paths::tests::slashes_network_shares`, `platform::paths::tests::leaves_ui_paths_and_posix_paths_alone`; 3 of 9 cases; not covered: is true for a share the base is not on; reads the server and share of a device path; is false on the base's own share and off any share; is true for a share the text names itself, in any mix of slashes; is true for a share that only appears once the path is resolved; is false on a local drive and on the share the text is on; the other-network-share checks (onOtherShare, opensOtherShare) do not exist natively"
   },
   "module:src/platform/paths.ts": {
-    "status": "done",
-    "proof": "`platform::paths::tests`"
+    "status": "partial",
+    "proof": "`platform::paths::tests::leaves_ui_paths_and_posix_paths_alone`, `platform::paths::tests::slashes_network_shares`, `platform::paths::tests::slashes_windows_drive_paths_plain_or_verbatim`; IPC paths: Windows drive and network-share paths, plain or verbatim, get forward slashes, UI and POSIX paths are left alone. Missing: onOtherShare and opensOtherShare, which refuse to follow a link to a network share other than the one the linking text is on (src/platform/paths.ts:43, :53; used by links, Markdown and agent conversation paths); no native counterpart"
   },
   "unit:src/platform/gitRefName.test.ts": {
     "status": "done",
@@ -420,8 +420,8 @@
     "proof": "`workbench::status_bar::tests::applies_defaults_and_overrides`, `workbench::status_bar_widgets::tests::applies_defaults_and_overrides`, `workbench::status_bar::tests::lists_titled_widgets_with_checkmarks`, `workbench::status_bar_widgets::tests::lists_titled_widgets_with_checkmarks`, `workbench::status_bar::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::status_bar::tests::toggles_one_widget_by_id_from_view_appearance_status_bar_widgets`; 4 of 5 cases; not covered: leaves widgets that don't apply to the project out of the bar and the menu; per-project widget availability (a widget that does not apply left out of the bar and the menu) does not exist natively"
   },
   "module:src/workbench/statusBarWidgets.ts": {
-    "status": "done",
-    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::status_bar_widgets::tests`; the window's status bar shows the visible items, its context menu lists the titled items, hiding one from it stores the override and removes the item, and View › Appearance › Status Bar Widgets toggles it back"
+    "status": "partial",
+    "proof": "`workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::status_bar_widgets::tests::applies_defaults_and_overrides`, `workbench::status_bar_widgets::tests::lists_titled_widgets_with_checkmarks`, `workbench::status_bar_widgets::tests::toggles_a_widget_from_the_context_menu_and_persists_it`, `workbench::status_bar_widgets::tests::toggles_one_widget_by_id`; the window's status bar shows the visible items, its context menu lists the titled items, hiding one from it stores the override and removes the item, and View › Appearance › Status Bar Widgets toggles it back. Missing: a widget marked unavailable (a language's widget in a project without that language) is neither shown nor listed in the menus until it applies again (src/workbench/statusBarWidgets.ts:24, :54)"
   },
   "unit:src/workbench/quickSwitch.test.tsx": {
     "status": "partial",
@@ -456,12 +456,12 @@
     "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`; shown as the Indexing task: dumb mode is not applied to other features"
   },
   "event:Notify": {
-    "status": "done",
-    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::tests::smoke_backend_events::a_file_changed_on_disk_under_unsaved_edits_is_reported_in_a_balloon`; a file changed on disk under unsaved edits is reported in a balloon and in the window's notifications, and the edits stay"
+    "status": "partial",
+    "proof": "`workbench::tests::backend_tasks_and_notifications_reach_the_window`, `workbench::tests::smoke_backend_events::a_file_changed_on_disk_under_unsaved_edits_is_reported_in_a_balloon`; a file changed on disk under unsaved edits is reported in a balloon and in the window's notifications, and the edits stay. Missing: a balloon is also shown as a system notification while the app is in the background, with the chime left to it, under Notifications › system notifications (src/workbench/notificationStore.ts:158, :165); no native code shows system notifications"
   },
   "point.registerStatusItem:workbench.tasks": {
-    "status": "done",
-    "proof": "`workbench::status_items::tests`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; the current task with its progress and count, and a click toggles Background Tasks, which lists every running task"
+    "status": "partial",
+    "proof": "`workbench::status_items::tests::tracks_task_events_and_shows_the_current_task`, `workbench::status_items::tests::a_working_task_wins_over_the_queued_ones_and_the_others_are_counted`, `workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`; the item shows the current task with its progress, the count of the others (+1) and the tooltip, its click is the Background Tasks toggle (view.backgroundTasks with toggle), and a plugin's cancellable task is the window's task status while it runs. Missing: the Background Tasks popup the item opens closes by itself when the last task ends (src/workbench/StatusBar.tsx:138-142); natively it stays open (app-gpui/src/workbench/background_tasks_view.rs:119-124 only replaces the rows), and the native test that operated it, workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it, relies on it staying open"
   },
   "unit:src/platform/virtualDocs.test.ts": {
     "status": "partial",
@@ -3908,8 +3908,8 @@
     "proof": "`workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`, `workbench::tests::proofs15_merge_resolve::resolve_conflicts_on_the_title_bar_opens_the_conflicts_dialog_again`; Abort, Continue and Skip of a stopped operation, and Resolve on the widget opens the conflicts dialog again"
   },
   "point.registerOverlay:run.chooser": {
-    "status": "done",
-    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`"
+    "status": "partial",
+    "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`; the chooser opens from the run widget and Select Run/Debug Configuration, choosing a row selects it, Enter in the Run mode runs it, Escape and the action close it. Missing: once there are pinned or recent configurations (and at least MAX_RECENT configurations), the others fold under a collapsed All Configurations row with its count, expanded by type, and mnemonics stop above it (src/features/run/ConfigChooser.tsx:82, :387); Current File comes after the configurations and separators set off Current File and Edit Configurations… (src/features/run/ConfigChooser.tsx:90-96), where native lists Current File first (app-gpui/src/run/config_chooser.rs:67); the row's Pin button became a More Actions (⋮) menu of Run, Debug, Edit…, Pin/Unpin and Delete, also opened with → (src/features/run/ConfigChooser.tsx:236, :281)"
   },
   "point.registerOverlay:run.editConfigs": {
     "status": "partial",
@@ -4104,12 +4104,12 @@
     "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `code_insight::usages_view::tests`; see find.usages"
   },
   "point.registerToolWindow:hierarchy": {
-    "status": "done",
-    "proof": "`editor::intelligence::tests::proofs_editor_lsp::call_hierarchy_lists_the_callers_the_server_reports`, `editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`, `workbench::tests::type_hierarchy_without_a_server_says_no_language_server_is_available`, `code_insight::hierarchy_view::tests`; the Hierarchy window opens titled by mode and root (Callers of target, Subtypes of Base), lists what the server reports, expands lazily, opens a caller at its call site, switches direction, refreshes and autoscrolls from its toolbar, says how to show a hierarchy when empty and that no server is available"
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::call_hierarchy_lists_the_callers_the_server_reports`, `editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`, `workbench::tests::type_hierarchy_without_a_server_says_no_language_server_is_available`, `code_insight::hierarchy_view::tests::expands_lazily_and_opens_a_caller_at_its_call_site`, `code_insight::hierarchy_view::tests::says_how_to_show_a_hierarchy_and_resets_for_a_new_tree`, `code_insight::hierarchy_view::tests::the_toolbar_switches_direction_refreshes_and_autoscrolls`; the Hierarchy window opens titled by mode and root, lists what the server reports, expands lazily, opens a caller at its call site, switches direction, refreshes and autoscrolls from its toolbar, says how to show a hierarchy when empty and that no server is available. Missing: hierarchies are content tabs that can be closed, pinned and switched, with Close Tab, Close All Tabs, Close Other Tabs and Pin Tab on the tab's menu, and a new hierarchy replaces the selected tab unless it is pinned (src/features/code-insight/HierarchyView.tsx:61-99, hierarchy.ts:109-121); the root row shows the server's detail (the Java package) beside the name (HierarchyView.tsx:189, hierarchy.ts:332), which the native root row does not (app-gpui/src/code_insight/hierarchy_view.rs:395-404); the next levels are prefetched so a node without children shows no expand arrow before it is opened (HierarchyView.tsx:151-156, :254)"
   },
   "point.registerOverlay:code-insight.usagesPopup": {
-    "status": "done",
-    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `code_insight::usages_popup::tests`, `workbench::popup_placement::tests::show_usages_opens_under_the_caret`; see find.showUsages"
+    "status": "partial",
+    "proof": "`workbench::tests::find_usages_without_a_server_lists_text_matches_by_file_and_show_usages_opens_the_chosen_one`, `code_insight::usages_popup::tests::clears_speed_search_before_closing_when_escape_comes_from_an_access_button`, `code_insight::usages_popup::tests::filters_by_typing_esc_clears_the_filter_then_closes`, `code_insight::usages_popup::tests::keeps_filter_controls_available_when_all_classified_rows_are_hidden`, `code_insight::usages_popup::tests::keeps_unknown_results_visible_after_classified_results_are_replaced`, `code_insight::usages_popup::tests::moves_with_the_arrows_and_opens_with_enter_or_a_click`, `code_insight::usages_popup::tests::open_in_find_window_moves_the_found_usages_instead_of_searching_again`, `code_insight::usages_popup::tests::opens_with_the_usages_found_first_and_fills_in_the_rest`, `code_insight::usages_popup::tests::separates_calls_on_the_same_line_and_preserves_categories_when_opening_the_find_window`, `code_insight::usages_popup::tests::the_preview_pane_toggles`, `workbench::popup_placement::tests::show_usages_opens_under_the_caret`; the popup lists the usages under the caret, filters, moves, opens the chosen one and toggles its preview. Missing: the Show Preview button's icon is preview-details (src/features/code-insight/UsagesPopup.tsx:190; native list, app-gpui/src/code_insight/usages_popup.rs:424), file icons are 16 px (UsagesPopup.tsx:228; native 14, usages_popup.rs:501) and the spinner is the 16 px spokes one (UsagesPopup.tsx:181); a Searching for usages… hint shows at the caret until the popup or the answer shows (src/features/code-insight/usages.ts:433); a search made while plugin indexes are updating notes May be incomplete: plugin indexes are still updating (usages.ts:280)"
   },
   "point.registerOverlay:settings.dialog": {
     "status": "partial",
@@ -4376,8 +4376,8 @@
     "proof": "`workbench::tests::the_merge_conflicts_notification_appears_with_the_conflict_and_expires_once_it_is_resolved`, `workbench::tests::the_merge_editor_opened_from_the_banner_runs_its_actions_and_the_rebase_is_continued_from_the_notice`, `vcs::conflict_banner::tests::warns_above_a_file_git_records_as_conflicted_and_offers_to_resolve_it`; a conflicted file gets the banner, its Resolve link over the editor opens the merge editor, and it goes once resolved"
   },
   "point.registerTextEditorWrapper:viewers.markdown": {
-    "status": "done",
-    "proof": "`workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`, `workbench::tests::reopening_a_project_restores_its_text_and_markdown_tabs_and_not_its_image_tab`; a .md file stays a text tab wrapped in the preview host, with the three layouts in the tab strip, and a restored tab gets them back"
+    "status": "partial",
+    "proof": "`workbench::tests::a_markdown_file_opens_as_text_with_its_layouts_and_a_preview_that_follows_the_typing`, `workbench::tests::reopening_a_project_restores_its_text_and_markdown_tabs_and_not_its_image_tab`; a .md file stays a text tab wrapped in the preview host, with the three layouts in the tab strip, and a restored tab gets them back. Missing: the preview highlights the editor's search matches and the selected word's occurrences (src/features/viewers/markdown/MarkdownEditor.tsx:298-366); a drawn Mermaid diagram has Full screen and a PNG export (src/features/viewers/markdown/mermaidTools.ts:25-35, :175); natively the preview has neither (app-gpui/src/features_b/viewers/markdown_view.rs)"
   },
   "point.registerFileEditorProvider:viewers.image": {
     "status": "done",
@@ -4404,8 +4404,8 @@
     "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; run through the registry with \"program\", it adds the Program type row and its configurations to the Services tree"
   },
   "point.registerServiceProvider:runConfigurations": {
-    "status": "done",
-    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; the run configurations provider fills the Services tree with type and configuration rows that run and stop"
+    "status": "partial",
+    "proof": "`workbench::tests::a_run_configuration_added_to_services_runs_from_its_row_into_the_detail_pane_and_stop_ends_a_service`; a type added with Add Service lists its configurations, which run from their row into the detail pane and stop. Missing: Services lists only the types the user added, with no Spring Boot default (src/features/run/services.tsx:101); natively Spring Boot is shown until the list changes (app-gpui/src/run_testing/services.rs:46, :76); types and configurations that ran are no longer added and a hidden configuration stays hidden while it runs (services.tsx:340-350); natively the ran list is kept (services.rs:40); a type's configurations are grouped by their folders (services.tsx:323); the running-services count is the Services window's badge (services.tsx:254)"
   },
   "point.registerServiceView:services": {
     "status": "done",
@@ -4424,12 +4424,12 @@
     "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:intellij-windows row"
   },
   "module:src/platform/keymaps/vscode-macos.ts": {
-    "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:vscode-macos row"
+    "status": "partial",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatches. Missing: the preset now binds Meta+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 \"untitled buffers and Save As with a file type\"); the native app registers no file.newUntitled action (no \"file.newUntitled\" under app-gpui/src), so in this preset Meta+N does nothing natively where it ran file.new before the merge"
   },
   "module:src/platform/keymaps/vscode-windows.ts": {
-    "status": "done",
-    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json) and dispatches; same proof as the keymap:vscode-windows row"
+    "status": "partial",
+    "proof": "`platform::keymap::tests::every_preset_holds_valid_normalized_bindings`, `platform::keymap::tests::lets_scoped_actions_win_shared_keys`, `platform::keymap::tests::a_rebound_action_keeps_its_place_and_a_new_one_comes_last`; the module is the preset's binding table, which the app loads verbatim from its generated copy (assets/gen/keymaps.json, fresh at HEAD by gen-data.mjs --check) and dispatches. Missing: the preset now binds Ctrl+N to file.newUntitled and leaves file.new unbound (src/platform/keymaps/vscode-macos.ts:198-199, 951e81e06 \"untitled buffers and Save As with a file type\"); the native app registers no file.newUntitled action (no \"file.newUntitled\" under app-gpui/src), so in this preset Ctrl+N does nothing natively where it ran file.new before the merge"
   },
   "module:src/platform/keymaps/eclipse-macos.ts": {
     "status": "done",
@@ -4500,16 +4500,16 @@
     "proof": "`workbench::tests::the_problems_window_lists_published_problems_and_opens_the_chosen_one`; the Problems window lists exactly the problems the Diagnostics events handed to the window, and drops a file whose list is cleared"
   },
   "event:LanguageServer": {
-    "status": "done",
-    "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the Language Services item lists a server once its LanguageServer event reaches the window"
+    "status": "partial",
+    "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the Language Services item lists a server once its LanguageServer event reaches the window. Missing: the event's label (the program serving in the server's place, e.g. TypeScript 7's tsc --lsp) is ignored, the webview shows it as the server's name (src/features/code-insight/servers.ts:43, :133); a ready server that turns busy shows busy at once where the webview waits 500 ms (src/features/code-insight/servers.ts:38, :134)"
   },
   "event:LanguageServerRemoved": {
     "status": "done",
     "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`; the Language Services item drops the server on LanguageServerRemoved and keeps it dropped"
   },
   "event:FsChanged": {
-    "status": "done",
-    "proof": "`project_tree::tests::follows_changes_on_disk`; the window's Project view lists a created file on the FsChanged event for its window and ignores another window's"
+    "status": "partial",
+    "proof": "`project_tree::tests::follows_changes_on_disk`, `project_tree_model::tests::a_change_of_ignore_rules_reloads_the_loaded_folders_inside_once`; the window's Project view lists a created file on the FsChanged event for its window and ignores another window's, and a change of ignore rules (the event's new ignore_rules) reloads the loaded folders inside it; the Git status also refreshes whole on it (workbench/branches.rs:1439). Missing: the Find window's tabs and the Find in Files popup are not searched again when ignore rules change (src/features/search/index.ts:550, src/features/search/find/FindInFiles.tsx:241), and a disk change cancels the configuration-key navigation in flight where the webview only stops keeping its answer (src/editor/lsp/configurationNavigation.ts:151, native editor_lsp/configuration_navigation.rs:147)"
   },
   "event:VcsChanged": {
     "status": "done",
@@ -4908,20 +4908,20 @@
     "proof": "`workbench::tests::context_keys_follow_the_project_the_editor_the_tool_windows_and_the_repository`"
   },
   "context:dbTableEditorFocus": {
-    "status": "done",
-    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+    "status": "partial",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; on while the Database tool window's table editor has the keyboard and off once the Database tree takes it (workbench/database.rs:1959). Missing: an editable query console result grid with the keyboard does not turn it on (the webview registers ResultsView as a table editor, src/features/database/ResultsView.tsx:487, :507; native results_view.rs has submit/revert but nothing publishes the key for it), and the grid's inline cell editor counting as the grid (src/features/database/tableEditorFocus.ts:46, :48) is not asserted"
   },
   "context:dbTableEditorChanges": {
-    "status": "done",
-    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+    "status": "partial",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; off with nothing changed, on after an edit of the focused table editor and off once it is submitted (workbench/database.rs:1965, focused && dirty). Missing: on while a cell is being edited although nothing is staged yet (src/features/database/tableEditorFocus.ts:52, :63), and on for an editable query console result grid with pending edits (src/features/database/ResultsView.tsx:487)"
   },
   "point.registerRunConfigType:shell": {
     "status": "done",
     "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
   },
   "point.registerRunConfigType:npm": {
-    "status": "done",
-    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`"
+    "status": "partial",
+    "proof": "`workbench::tests::edit_configurations_adds_and_saves_a_configuration_of_every_built_in_type`; an npm configuration is added through Add New Configuration, its required Script typed, saved with the command line the type builds, and the chooser lists it. Missing: the Node interpreter field's hint names Settings › Languages & Frameworks › JavaScript Runtime (src/features/run/types.ts:244); the native hint still names Node.js (app-gpui/src/run/types.rs:246)"
   },
   "point.registerRunConfigType:godot": {
     "status": "done",
@@ -5664,16 +5664,16 @@
     "proof": "`workbench::tests::smoke_backend_events::ignored_names_written_to_the_projects_settings_file_hide_their_entries`; ignored names written to the project's settings file on disk hide their entries in the Project view"
   },
   "event:ExcludedDirsChanged": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_backend_events::a_file_created_in_an_expanded_ignored_folder_shows_in_the_project_view`; a file created in an expanded Git-ignored folder shows in the Project view"
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_backend_events::a_file_created_in_an_expanded_ignored_folder_shows_in_the_project_view`; a file created in an expanded Git-ignored folder shows in the Project view. Missing: the event cancels the configuration-key navigation in flight where the webview only stops keeping its answer, so a ⌘-click still navigates while the build writes its output (src/editor/lsp/configurationNavigation.ts:152, native editor_lsp/configuration_navigation.rs:148)"
   },
   "event:DbSourcesChanged": {
     "status": "done",
     "proof": "`workbench::tests::smoke_backend_events::data_sources_saved_by_the_backend_show_in_the_open_database_tool_window`; data sources saved by the backend show in the open Database tool window"
   },
   "settings:build.debugger": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the five checkboxes of the webview's page: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the page's checkboxes that existed before the merge are drawn natively and the test changes one with the mouse and reads the stored value back after Apply. Missing: the JavaScript section's Debug a dev server's page in the browser checkbox, debugger.debugServerPage, off by default (src/features/settings/pages/execution.tsx:263-273)"
   },
   "settings:build.debugger.stepping": {
     "status": "done",
@@ -5684,8 +5684,8 @@
     "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's two checkboxes: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
   },
   "settings:build.run": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the webview's three checkboxes and the termination time limit: its controls are those of the webview's page, all drawn natively; the test changes one with the mouse and reads the stored value back after Apply"
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_settings_pages::every_settings_page_opens_and_applies_a_change_made_with_the_mouse`; the three checkboxes and the termination time limit the page had before the merge are drawn natively and the test changes one with the mouse and reads the stored value back after Apply. Missing: the Make configurations pinned by default checkbox, run.pinTabs, off by default, with its hint (src/features/settings/pages/execution.tsx:387-392)"
   },
   "settings:general.language": {
     "status": "done",
@@ -5708,20 +5708,20 @@
     "proof": "`settings_view::custom_controls::tests::system_settings_open_in_directory_and_idle_save_apply`, `settings_view::custom_controls::tests::a_stored_attach_for_open_project_in_shows_ask`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; every row is drawn. Missing: the directory chooser has no title or start directory"
   },
   "settings:notifications": {
-    "status": "done",
-    "proof": "`settings_view::custom_controls::tests::notifications_no_popup_applies_and_the_groups_balloon_is_not_shown`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`"
+    "status": "partial",
+    "proof": "`settings_view::custom_controls::tests::notifications_no_popup_applies_and_the_groups_balloon_is_not_shown`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; a group's popup type set to No popup is applied and that group's notification is listed without a balloon, and Reset and Cancel discard an edit of the page's own control. Missing: the Enable system notifications toggle, on by default (src/features/settings/pages/behavior.tsx:1120-1124, src/features/settings/model/behaviorSchema.ts DEFAULT_NOTIFICATIONS), with the system notification it sends for a balloon and the chime it takes over while the app is in the background (src/workbench/notificationStore.ts:157-166), and the page's system and os keywords (behavior.tsx:1115)"
   },
   "settings:build.console": {
-    "status": "done",
-    "proof": "`settings_view::custom_controls::tests::console_buffer_and_fold_patterns_apply_and_cancel_discards`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
+    "status": "partial",
+    "proof": "`settings_view::custom_controls::tests::console_buffer_and_fold_patterns_apply_and_cancel_discards`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; the buffer override and size and the fold patterns are applied, and Cancel discards a pattern added. Missing: Colour log lines by level, a toggle that shows a colour row per level (Error, Warning, Info, Debug, Trace) with five presets, console.logColors.* (src/features/settings/pages/execution.tsx:70-115, :237-242), and the page's colour keyword (:224)"
   },
   "settings:build.debugger.dataViews": {
-    "status": "done",
-    "proof": "`settings_view::custom_controls::tests::data_views_delay_steps_with_the_arrows_and_reset_restores_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
+    "status": "partial",
+    "proof": "`settings_view::custom_controls::tests::data_views_delay_steps_with_the_arrows_and_reset_restores_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; the page's other controls are drawn and the tooltip delay steps, resets and tells its range. Missing: the Evaluate watches while the program runs checkbox, debugger.liveWatches, off by default, with its hint (src/features/settings/pages/execution.tsx:308-313)"
   },
   "settings:tools.terminal": {
-    "status": "done",
-    "proof": "`settings_view::custom_controls::tests::terminal_environment_cursor_and_shell_apply`, `settings_view::custom_controls::tests::the_login_shell_is_read_after_the_dialog_opens`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
+    "status": "partial",
+    "proof": "`settings_view::custom_controls::tests::terminal_environment_cursor_and_shell_apply`, `settings_view::custom_controls::tests::the_login_shell_is_read_after_the_dialog_opens`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; the page's other controls are drawn and the tests operate some of its own controls. Missing: the Highlight occurrences of selected text checkbox, terminal.highlightSelection, on by default (src/features/settings/pages/tools.tsx:245, src/platform/workflowSettings.ts)"
   },
   "settings:agents.mcpServer": {
     "status": "partial",
@@ -5736,8 +5736,8 @@
     "proof": "`settings_view::custom_controls::tests::vcs_confirmation_radio_buttons_and_history_limit_apply`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
   },
   "settings:vcs.git": {
-    "status": "done",
-    "proof": "`settings_view::custom_controls::tests::vcs_git_test_protected_branches_and_update_method`, `settings_view::custom_controls::tests::git_test_is_refused_in_restricted_mode`, `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; every control of the page is drawn; the tests operate some of its own controls and the others were compared with the original page by reading"
+    "status": "partial",
+    "proof": "`settings_view::custom_controls::tests::vcs_git_test_protected_branches_and_update_method`, `settings_view::custom_controls::tests::git_test_is_refused_in_restricted_mode`, `settings_view::custom_controls::tests::passwords_lists_a_saved_credential_and_forget_removes_it`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `settings_view::custom_controls::tests::a_number_out_of_range_on_a_page_of_its_own_controls_tells_its_range_in_a_tooltip`; the page's other controls are drawn and the tests operate the Git test, protected branches, update method and saved passwords. Missing: Show branch and incoming/outgoing commits in the Project view, vcs.git.showBranchInProjectView (src/features/settings/pages/vcs.tsx:497-501), and Enable staging area with its hint, vcs.git.stagingArea, both off by default (vcs.tsx:507-512)"
   },
   "settings:build.deployment.options": {
     "status": "done",
@@ -5864,12 +5864,12 @@
     "proof": "`workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_runtime::tests::keeps_a_window_status_override_above_global_updates_and_falls_back_on_removal`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; declared items show before the code runs, named after the plugin in the bar's menu, a click runs the item's command, and items the code sets, overrides for this window and removes show as set"
   },
   "point.registerOverlay:workbench.backgroundTasks": {
-    "status": "done",
-    "proof": "`workbench::background_tasks_view::tests::the_popups_cancel_buttons_working_cancelling_and_disabled_with_the_reason`, `workbench::background_tasks_view::tests::shows_progress_and_uncancellable_tasks`, `workbench::background_tasks_view::tests::escape_does_nothing_while_the_popup_has_no_keyboard`, `workbench::background_tasks_view::tests::an_empty_list_says_there_are_no_background_tasks`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`; the popup lists the tasks with progress, a working, Cancelling… or disabled-with-reason Cancel, says when there are none, and Escape closes it only while it has the keyboard"
+    "status": "partial",
+    "proof": "`workbench::background_tasks_view::tests::the_popups_cancel_buttons_working_cancelling_and_disabled_with_the_reason`, `workbench::background_tasks_view::tests::shows_progress_and_uncancellable_tasks`, `workbench::background_tasks_view::tests::escape_does_nothing_while_the_popup_has_no_keyboard`, `workbench::background_tasks_view::tests::an_empty_list_says_there_are_no_background_tasks`; the popup lists the tasks with progress, a working, Cancelling… or disabled-with-reason Cancel, says when there are none, and Escape closes it only while it has the keyboard. Missing: the popup closes when its last task ends or is cancelled from it (src/workbench/StatusBar.tsx:138-143); natively it stays open showing the empty list (app-gpui/src/workbench/background_tasks_view.rs:113-125), which the native test cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it relies on when it toggles the open popup closed after the task ended, so that test is no longer cited"
   },
   "point.registerOverlay:plugins.consent": {
-    "status": "done",
-    "proof": "`workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::proofs16_plugins::a_running_plugins_permission_request_shows_the_permission_page_and_ok_grants_it`; the install page over the window, capabilities from the highest risk down, Cancel and OK answered. A running plugin's permission request shows the permission page; Cancel grants nothing and OK grants it"
+    "status": "partial",
+    "proof": "`workbench::plugins_window::tests::installing_from_disk_asks_for_consent_with_high_risk_first_and_installs_only_when_accepted`, `workbench::plugins_window::tests::install_from_disk_takes_a_plugin_folder_by_its_manifest_and_makes_its_commands_actions`, `workbench::plugins_window::tests::proofs16_plugins::a_running_plugins_permission_request_shows_the_permission_page_and_ok_grants_it`; the install page over the window, capabilities from the highest risk down, Cancel and OK answered; a running plugin's permission request shows the permission page and OK grants it. Missing: the descriptions of the net:ask capability (asking at the first connection to an unlisted host, revocable) and of lsp:<server> (requests to that language server) (src/features/plugins/consent.tsx:42, :55); native capability_description has neither (app-gpui/src/plugin_models/consent.rs:59)"
   },
   "point.registerEditorKind:pluginLog": {
     "status": "partial",
@@ -5908,8 +5908,8 @@
     "proof": "`workbench::plugin_contributions::tests::a_saved_file_reaches_the_plugin_that_watches_its_saves`, `workbench::plugin_contributions::tests::reports_actions_to_action_performed_plugins`, `workbench::plugin_runtime::tests::a_changed_plugin_setting_reaches_the_plugin_as_settings_changed`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`, `workbench::plugin_contributions::tests::an_input_mode_change_reaches_the_plugin_that_wants_it`, `workbench::plugin_runtime::tests::proofs10_events::a_file_whose_tab_closes_reaches_the_plugin_activated_by_file_closed`, `workbench::plugin_runtime::tests::proofs10_events::a_file_created_on_disk_reaches_the_plugin_as_files_changed`, `workbench::plugin_runtime::tests::proofs10_events::a_plugin_on_a_schedule_runs_when_its_period_is_over`; subscribe and subscribe-paths with file-saved, action-performed, settings-changed, editor-focused, vcs-changed, file-closed, files-changed and scheduled delivered by the window. Missing: file-opened and unsubscribe have a written test that is not compiled (its second half waits a fixed time), and input-mode-changed is produced by the test itself (nothing in the app reports an input mode)"
   },
   "wit:wit/events.wit#tasks": {
-    "status": "done",
-    "proof": "`workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it`, `workbench::plugin_runtime::tests::proofs10_events::a_plugins_task_shows_the_progress_and_message_it_reports`; begin shows the plugin's cancellable task in the status bar and Background Tasks, Cancel makes is-cancelled stop it, and report's message and done/total show in the window's task list while the task runs"
+    "status": "partial",
+    "proof": "`workbench::plugin_runtime::tests::a_plugins_task_is_listed_while_it_runs_and_cancel_stops_it`, `workbench::plugin_runtime::tests::proofs10_events::a_plugins_task_shows_the_progress_and_message_it_reports`; begin shows the plugin's cancellable task in the window's task status, Cancel makes is-cancelled stop it, and report's message and done/total show in the window's task list while the task runs. Missing: cancelling from the Background Tasks popup is no longer shown by a valid test: its test, workbench::plugin_contributions::tests::cancelling_a_plugins_task_from_the_background_tasks_popup_stops_it, relies on the popup staying open after the task ends, which the webview no longer does (src/workbench/StatusBar.tsx:138-142); the interface itself (wit/events.wit) did not change"
   },
   "wit:wit/exports.wit#commands": {
     "status": "done",
@@ -6324,8 +6324,8 @@
     "proof": "`workbench::editor_language::tests::moves_by_line`, `editor_refactor::structure_nav::tests`, `workbench::refactor_actions::tests::looks_for_the_method_in_supertypes_level_by_level`, `workbench::refactor_actions::tests::opens_the_super_method_in_another_file_or_says_there_is_none`; methodStop drives Next / Previous Method, and Go to Super Method finds the member and its super methods one level up. Missing: several levels, overloads, the chooser for several targets"
   },
   "event:WorkspaceEditApplied": {
-    "status": "done",
-    "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; the rename's applied edit raises Refactoring applied with Undo, and after the undo Refactoring undone with Redo, notices raised only by the window's listener of this event, which also remembers the edit so that Edit › Undo takes it back"
+    "status": "partial",
+    "proof": "`workbench::editor_language::tests::rename_applies_the_servers_edit_to_both_files_and_one_undo_restores_each`; the rename's applied edit raises Refactoring applied with Undo, and after the undo Refactoring undone with Redo, and the window remembers the edit so that Edit › Undo takes it back. Missing: an edit made by an agent (by_agent) is dropped whole natively, so Edit › Undo cannot take it back; the webview only leaves out the notification (src/features/code-insight/workspaceUndo.ts:45) and still records it for Undo (src/editor/core/model/workspaceHistory.ts:34); no test sends an agent's edit"
   },
   "action:merge.accept": {
     "status": "done",
@@ -6448,8 +6448,8 @@
     "proof": "`workbench::app_actions::tests::removing_a_trusted_location_restricts_the_projects_inside_it`; the project inside the removed location becomes restricted, which only the store's removal plus Host::refresh_project_trust produce; the window calls remove_location, refresh_project_trust and PluginHost::restrict_project per untrusted project, as the adapter does"
   },
   "point.registerOverlay:project.trustDialog": {
-    "status": "done",
-    "proof": "`app_views::trust_dialog::tests`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`; Trust and Open Project? with the folder, Preview in Restricted Mode, Don't Open and Trust Project, the Trust projects in checkbox naming the parent folder, a long path cut so the buttons stay inside, Escape as Don't Open, shown in the window the project opens in"
+    "status": "partial",
+    "proof": "`app_views::trust_dialog::tests::a_long_parent_folder_is_cut_and_keeps_the_buttons_inside_the_dialog`, `app_views::trust_dialog::tests::each_button_runs_its_action_and_escape_is_dont_open`, `app_views::trust_dialog::tests::the_checkbox_names_the_parent_folder_and_toggles`, `app_views::trust_dialog::tests::the_parent_of_a_folder_at_the_root_is_the_root`, `workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`; Trust and Open Project? with the folder, Preview in Restricted Mode, Don't Open and Trust Project, the Trust projects in checkbox naming the parent folder, a long path cut so the buttons stay inside, Escape as Don't Open. Missing: a project that would open in a new window is asked about in the current window first and the window is created only after Trust or Preview, Don't Open creating none (src/features/app/windows.ts:134-141); natively the new window opens and asks, as the native test a_project_opening_in_a_new_window_is_asked_about_in_that_window asserts (app-gpui/src/workbench/app_actions.rs), so that test is no longer cited; a launch without an originating window keeps the splash up under the question (src/features/project-trust/index.tsx:224); in a remote window the desktop's own trust decision must match the server's or the question is asked again, and the answer is stored on both (index.tsx:204, :246-251)"
   },
   "point.registerWorkbenchBanner:project.restrictedMode": {
     "status": "partial",
@@ -6716,8 +6716,8 @@
     "proof": "`workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`, `workbench::project_view_actions::tests::proofs20_tree::undo_in_the_project_view_takes_back_its_last_move_and_rename`; Edit › Undo (edit.undo) while the Project view has the keyboard brings its last deleted file back from Local History and selects it. Undo also takes back the view's last move and its last rename. Missing: ⌘Z pressed in the tree (the tests run edit.undo through the registry)"
   },
   "module:src/editor/lsp/hint.ts": {
-    "status": "done",
-    "proof": "`editor_lsp::hint::tests`, `workbench::editor_language::tests::proofs7_hint::show_editor_hint_draws_the_hint_in_the_tone_it_is_given`, `workbench::editor_language::tests::proofs7_hint::a_hint_at_the_caret_goes_away_after_four_seconds`, `workbench::editor_language::tests::proofs7_hint::an_edit_a_caret_move_or_escape_dismisses_the_hint_at_the_caret`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; the hint at the caret in its tone, replaced by the next one, gone after the 4000 ms timeout and dismissed by an edit, a caret move or Escape, and slow requests show their progress hint without flashing"
+    "status": "partial",
+    "proof": "`editor_lsp::hint::tests::does_not_dismiss_a_newer_hint_when_an_old_request_finishes`, `editor_lsp::hint::tests::does_not_flash_for_fast_requests`, `editor_lsp::hint::tests::does_not_overwrite_a_newer_hint_while_waiting_to_show_progress`, `editor_lsp::hint::tests::does_not_show_stale_progress_after_edit_move_or_destroy`, `editor_lsp::hint::tests::shows_a_slow_request_and_removes_its_hint_on_completion`, `workbench::editor_language::tests::proofs7_hint::show_editor_hint_draws_the_hint_in_the_tone_it_is_given`, `workbench::editor_language::tests::proofs7_hint::a_hint_at_the_caret_goes_away_after_four_seconds`, `workbench::editor_language::tests::proofs7_hint::an_edit_a_caret_move_or_escape_dismisses_the_hint_at_the_caret`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; the hint at the caret in its tone, replaced by the next one, gone after the 4000 ms timeout and dismissed by an edit, a caret move or Escape, and slow requests show their progress hint without flashing. Missing: the progress hint shows after 50 ms, natively after 250 ms (src/editor/lsp/hint.ts:86, native editor_lsp/hint.rs:36)"
   },
   "action:github.pullRequests": {
     "status": "done",
@@ -7344,8 +7344,8 @@
     "proof": "`workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`, `workbench::tests::the_theme_toggle_action_switches_and_stores_the_theme`, `workbench::tests::title_widgets_sort_by_priority_and_customize_toolbar_removes_and_restores_one`, `workbench::tests::toggles_a_widget_from_the_status_bar_context_menu_and_persists_it`, `workbench::tests::proofs5_layout::background_tasks_opens_the_popup_and_running_it_again_keeps_it_open`, `workbench::tests::notifications_show_as_balloons_and_in_their_tool_window`, `workbench::zoom_actions::tests::quick_switch_scheme_switches_the_theme_and_the_editor_color_scheme`, `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; of the 11 actions the file registers, 6 are done through the application (file.closeProject, view.toggleTheme, toolbar.customize, view.toggleStatusBarWidget, view.backgroundTasks, view.notifications) and 2 are partial (file.openProject, view.quickSwitchScheme: see their rows). Missing: workbench.stopBackgroundProcesses, find.field.newLine and find.field.recentSearches have no proof"
   },
   "event:Debug": {
-    "status": "done",
-    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug_extras::tests::evaluate_expression_evaluates_the_selection_in_the_paused_frame_and_adds_it_to_the_watches`, `workbench::debug::tests::proofs20_debug::the_adapters_output_breakpoint_and_hot_code_replace_events_show_in_the_window`; the window passes IdeEvent::Debug to its debugger driver, whose state follows the adapter's events: the stop at the breakpoint (frame and execution line shown), the step, the end of the session. The adapter's output, a breakpoint it changes and its hot-code-replace event show in the window too (the console's line, the breakpoint's new state, the Classes changed notice with Reload)"
+    "status": "partial",
+    "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug_extras::tests::evaluate_expression_evaluates_the_selection_in_the_paused_frame_and_adds_it_to_the_watches`, `workbench::debug::tests::proofs20_debug::the_adapters_output_breakpoint_and_hot_code_replace_events_show_in_the_window`; the window passes IdeEvent::Debug to its debugger driver, whose state follows the adapter's events: the stop at the breakpoint, the step, the end of the session, the adapter's output, a changed breakpoint and hot code replace; Capabilities fetches the capabilities again and Invalidated reads the paused frame's locals again (debugger/state.rs:1741, :1747, no test). Missing: JvmBackend (the JVM object backend's state, src/features/debugger/state.ts:1362), JsNetwork and JsNetworkUnavailable (a debugged page's Network tab, :1365, :1368) are dropped natively (debugger/state.rs:1759); Invalidated does not bump the variables epoch (:1374); a started child session does not select its browser page (:1290)"
   },
   "e2e:e2e/codeInsight.spec.ts": {
     "status": "partial",
@@ -7364,8 +7364,8 @@
     "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`; a breakpoint toggled at the caret's line is marked, Debug stops at it with the Debug window showing the frame, the execution line and the local's value, Step Over moves the execution line and the frame, Resume runs to the end and clears the execution line (one test drives the whole flow: debug.toggleBreakpoint, run.debug, debug.stepOver, debug.resume; the spec presses Control+D, F8 and F9, and its fake adapter reports two frames where the native fake reports one)"
   },
   "e2e:e2e/diff-navigation.spec.ts": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs18_e2e_diff_navigation::continues_between_changed_files_from_toolbar_buttons_and_the_keymap`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::maximizes_a_diff_preview_tab_and_restores_its_previous_layout`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::continues_between_changed_files_from_toolbar_buttons_and_the_keymap`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::skips_binary_and_unchanged_siblings_and_restores_after_changing_preview_files`; 3 of 3 flows driven whole in a diff tab: maximizing a diff preview tab and restoring the layout, continuing between changed files from the toolbar and the keymap, and skipping binary and unchanged siblings, ending with the diff's toolbar not drawn and the Project tree drawn after Restore Size with the Project view maximized"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs18_e2e_diff_navigation::continues_between_changed_files_from_toolbar_buttons_and_the_keymap`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::maximizes_a_diff_preview_tab_and_restores_its_previous_layout`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::continues_between_changed_files_from_toolbar_buttons_and_the_keymap`, `workbench::diff_tab::tests::proofs18_e2e_diff_navigation::skips_binary_and_unchanged_siblings_and_restores_after_changing_preview_files`; 3 of the spec's 4 tests (13 cases) driven whole in a diff tab: maximizing a diff preview tab and restoring the layout, continuing between changed files from the toolbar and the keymap, and skipping binary and unchanged siblings. Missing: the 10 cases of the caret centred during Next/Previous Difference and F7/Shift+F7, at column 0 with a visible blinking caret, in split (aligned or not, either pane) and unified mode, with and without reduced motion, the two panes scrolled alike (e2e/diff-navigation.spec.ts:101, :111); natively the change is scrolled a third down the pane (vcs_diff/view.rs:2586)"
   },
   "e2e:e2e/editor.spec.ts": {
     "status": "partial",
@@ -7468,8 +7468,8 @@
     "proof": "`workbench::tests::proofs6_database_console::a_sqlite_console_runs_in_the_default_schema_its_completion_model_names`; a console bound to its source loads ide_host::ops::db::completion, the adapter's function; the default schema the console runs in is the one that model names"
   },
   "e2e:e2e/commit.spec.ts": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs18_e2e_commit::cmd_k_commits_the_checked_changes_with_the_typed_message`; 1 of 1 flow, driven whole in a project window on a temp repository: the keymap's shortcut opens Commit, the checked changes are committed with the typed message"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs18_e2e_commit::cmd_k_commits_the_checked_changes_with_the_typed_message`; 1 of 2 flows, driven whole in a project window on a temp repository: the keymap's shortcut opens Commit, the checked changes are committed with the typed message. Missing: the commit message history opening above the message, left-aligned with it, its rows without an empty icon column (e2e/commit.spec.ts:78)"
   },
   "e2e:e2e/gitIgnore.spec.ts": {
     "status": "done",
@@ -7728,8 +7728,8 @@
     "proof": "`workbench::editor_language::tests::proofs20_mcp_problems::the_problems_of_an_open_file_reach_the_mcp_hosts_file_problems`; the problems a language server publishes for an open file are reported through the same function the adapter calls, and the MCP host's file problems then list them"
   },
   "settings:general.dateFormats": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs19_settings_misc::date_formats_override_and_pattern_apply`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::general_date_formats::tests::a_blank_pattern_is_not_staged_and_the_pattern_in_effect_comes_back`, `settings_view::pages::general_date_formats::tests::the_pattern_is_editable_once_the_system_format_is_overridden`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; a blank pattern goes back to the stored one and the preview follows the pattern"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_misc::date_formats_override_and_pattern_apply`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::general_date_formats::tests::a_blank_pattern_is_not_staged_and_the_pattern_in_effect_comes_back`, `settings_view::pages::general_date_formats::tests::the_pattern_is_editable_once_the_system_format_is_overridden`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; a blank pattern goes back to the stored one and the preview follows the pattern. Missing: the preview's older date keeps its time with pretty formatting on, and without an override the date and time are numeric (2026/11/11 22:43) (src/platform/dateFormat.ts:78, :89-100, shown by src/features/settings/pages/behavior.tsx:766); natively an older pretty date is the day only and the system day is the short-month form (app-gpui/src/platform/date_format.rs:230, :246)"
   },
   "settings:general.httpProxy": {
     "status": "partial",
@@ -7740,8 +7740,8 @@
     "proof": "`workbench::tests::proofs19_settings_misc::updates_status_check_now_and_the_automatic_check_apply`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`; the page's controls, the automatic check stored after Apply, and Check Now running the update action a test registers. Missing: the page is not shown in the app, because nothing native checks for updates or reports their status"
   },
   "settings:editor.files": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs19_settings_misc::file_types_patterns_and_ignored_names_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::editor_files::tests::patterns_added_and_removed_are_stored_as_additions_and_removals`, `settings_view::pages::editor_files::tests::the_filter_matches_names_and_patterns_and_hashbangs_are_stored`; every control of the webview's page is drawn; a change made with the mouse or the keyboard is stored after Apply, and Reset and Cancel discard it; the recognized file types come from the backend's languages, and patterns and ignored names are written to the project"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs19_settings_misc::file_types_patterns_and_ignored_names_are_written_to_the_project`, `workbench::tests::proofs19_settings_misc::reset_and_cancel_discard_an_edit_on_each_kind_of_page`, `settings_view::pages::editor_files::tests::patterns_added_and_removed_are_stored_as_additions_and_removals`, `settings_view::pages::editor_files::tests::the_filter_matches_names_and_patterns_and_hashbangs_are_stored`; the recognized file types come from the backend's languages, and patterns and ignored names are written to the project after Apply, and Reset and Cancel discard an edit. Missing: the Files opened in associated applications section, a list of file name patterns, files.associatedApplications (src/features/settings/pages/builtins.tsx:63-73, src/features/settings/pages/FileTypes.tsx:143)"
   },
   "settings:build.cmake": {
     "status": "done",
@@ -8140,8 +8140,8 @@
     "proof": "`workbench::http_client::tests::the_spring_provider_lists_the_request_paths_and_rescans_after_a_change`; the request paths the Spring provider lists, and their rescan after a change, can only come from ide_host::ops::nav::spring_route_sources, the function the Tauri adapter calls with the same arguments"
   },
   "point.registerEditorContribution:http.requests": {
-    "status": "done",
-    "proof": "`workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`, `workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`, `http_client::request_toolbar::tests::runs_all_requests_and_stops_only_while_one_is_sent`, `http_client::request_toolbar::tests::chooses_an_environment_of_the_file`, `http_client::request_toolbar::tests::a_buffer_without_a_file_has_no_environments`, `http_client::request_toolbar::tests::the_environment_list_closes_on_escape_a_press_outside_and_the_chooser`; a request file's editor gets the toolbar (Run All, Stop only while a request is sent, the environment chooser, reload) and a run mark on each request line"
+    "status": "partial",
+    "proof": "`workbench::http_client::tests::run_request_at_the_caret_sends_it_with_the_chosen_environment_and_shows_the_response`, `workbench::http_client::tests::run_all_sends_every_request_of_the_file_in_order_and_a_run_mark_sends_its_own`, `http_client::request_toolbar::tests::runs_all_requests_and_stops_only_while_one_is_sent`, `http_client::request_toolbar::tests::chooses_an_environment_of_the_file`, `http_client::request_toolbar::tests::a_buffer_without_a_file_has_no_environments`, `http_client::request_toolbar::tests::the_environment_list_closes_on_escape_a_press_outside_and_the_chooser`; a request file's editor gets the toolbar with Run All, Stop while a request is sent and the environment chooser, and the run marks send their request. Missing: the toolbar's Add Environment File menu (public or private env file) and Convert to cURL and Copy buttons (src/features/http-client/editor.tsx:134-153), and a pasted curl command becoming the request it sends (editor.tsx:171-186, :215); the native toolbar has neither (app-gpui/src/http_client/request_toolbar.rs:301-330)"
   },
   "point.registerEditorContribution:http.spring": {
     "status": "partial",
