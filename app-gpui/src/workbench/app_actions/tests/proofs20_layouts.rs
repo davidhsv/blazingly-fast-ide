@@ -132,3 +132,45 @@ async fn persists_across_reloads_and_ignores_malformed_entries(cx: &mut TestAppC
     assert!(project_shows && !run_shows, "a malformed layout restores the default one");
     close(cx);
 }
+
+// src/workbench/toolwindows/layouts.test.ts › restores the current layout, and saves changes into it
+/// Restore Current Layout (Shift+F12) puts the active saved layout back, Save Changes in Current Layout stores the
+/// windows as they are into it without adding a layout, and with no active layout Restore Current Layout restores
+/// the default one; `toolWindowLayoutActive` says whether a saved layout is active.
+#[gpui_kit::test]
+async fn restores_the_current_layout_and_saves_changes_into_it(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = project(cx, true, &[("main.rs", "fn main() {}\n")]);
+    let run_shows =
+        |cx: &mut VisualTestContext| workbench.read_with(cx, |w, _| w.is_tool_window_visible(RUN_TOOL_WINDOW));
+    let hide_run = |cx: &mut VisualTestContext| {
+        workbench.update_in(cx, |w, window, cx| w.with_layout(window, cx, |layout| layout.hide(RUN_TOOL_WINDOW)));
+        cx.run_until_parked();
+    };
+    assert!(!context_is_on(cx, "toolWindowLayoutActive"));
+    save_as(&workbench, "Custom 1", cx);
+    assert!(context_is_on(cx, "toolWindowLayoutActive"));
+    run_action(cx, "toolwindow.run", None);
+    assert!(run_shows(cx));
+    cx.simulate_keystrokes("shift-f12");
+    cx.run_until_parked();
+    assert!(!run_shows(cx), "Shift+F12 restores Custom 1, saved without the Run window");
+
+    run_action(cx, "toolwindow.run", None);
+    run_action(cx, "layout.saveCurrent", None);
+    hide_run(cx);
+    assert!(!run_shows(cx));
+    run_action(cx, "layout.restoreCurrent", None);
+    assert!(run_shows(cx), "Custom 1 now keeps the Run window");
+    assert_eq!(saved(cx), (vec!["Custom 1".to_owned()], Some("Custom 1".to_owned())));
+
+    // With no active layout it is the default one.
+    run_action(cx, "layout.restoreDefault", None);
+    assert!(!context_is_on(cx, "toolWindowLayoutActive"));
+    run_action(cx, "toolwindow.run", None);
+    assert!(run_shows(cx));
+    run_action(cx, "layout.restoreCurrent", None);
+    assert!(!run_shows(cx), "the default layout shows no Run window");
+    assert_eq!(saved(cx), (vec!["Custom 1".to_owned()], None));
+    close(cx);
+}

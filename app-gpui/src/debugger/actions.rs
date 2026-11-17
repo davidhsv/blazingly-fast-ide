@@ -40,7 +40,6 @@ use crate::platform::i18n::{I18n, Param};
 use crate::platform::misc::jdk::{DOWNLOAD_JDK_ACTION, download_jdk_fix};
 use crate::platform::virtual_docs::class_file_breakpoint_reason;
 use crate::run::java_launch::FoundSource;
-use crate::run::store::{RunSettings as RunTargets, with_run_target};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use ide_core::{DebugSessionId, IdeError, RequestId, RunId};
 use ide_dap::attach::AttachableProcess;
@@ -94,8 +93,6 @@ pub struct Host<'a> {
     pub run_debug_action: bool,
     /// The action that downloads a JDK exists.
     pub download_jdk_action: bool,
-    /// The run targets chosen in the settings.
-    pub run_targets: &'a RunTargets,
     /// The module directories of the build model.
     pub modules: &'a [&'a str],
 }
@@ -153,7 +150,7 @@ enum Stage {
     /// The PHP chosen in the settings is looked up.
     Php { config: Box<RunConfig>, prepared: Box<RunConfig> },
     /// The open documents are saved before the launch.
-    Saving { config: Box<RunConfig>, launch: Box<LaunchConfig>, run_after: bool },
+    Saving { config: Box<RunConfig>, launch: Box<LaunchConfig> },
     /// The IDE listens for the remote JVM of `config` to connect.
     Listening { config: Box<RunConfig>, module: String, key: String },
 }
@@ -228,8 +225,6 @@ enum Waiting {
 /// What happens once a start has ended.
 #[derive(Debug, Clone)]
 enum AfterStart {
-    /// A PHP program on a plugin's run target: it is run there once the debugger listens.
-    RunPluginTarget(Box<RunConfig>),
     /// A container waiting for the debugger: it stops when the attach fails.
     StopProcessOnFailure(RunId),
     /// A plugin started the session for this operation and is told how it went.
@@ -860,12 +855,10 @@ impl Debugger {
     }
 
     fn start_with_config(&mut self, flow: StartFlow, config: RunConfig, host: &mut Host) {
-        let config = with_run_target(&config, host.run_targets);
-        let plugin_target = config.extras.target.as_deref().is_some_and(|target| target.starts_with("plugin-target:"));
-        if !plugin_target && is_remote_config(&config.kind) {
+        if is_remote_config(&config.kind) {
             return self.start_remote(flow, config, host);
         }
-        if !plugin_target && is_java_debuggable(&config) {
+        if is_java_debuggable(&config) {
             return self.start_java(flow, config, host);
         }
         if config.kind == "plugin" {
@@ -922,25 +915,17 @@ impl Debugger {
 
     fn launch(&mut self, flow: StartFlow, config: RunConfig, prepared: RunConfig, php: Option<&str>, host: &mut Host) {
         let env = LaunchEnv { debugger: host.env.debugger, windows: host.windows };
-        let Some(mut launch) = launch_config_for(&prepared, &flow.root, php, &env) else {
+        let Some(launch) = launch_config_for(&prepared, &flow.root, php, &env) else {
             let title = format!("“{}” can't be debugged", config.name);
             let mut request = run_notification(NotificationLevel::Warning, title);
             let reason = debug_unsupported_reason(&config);
             request.body = Some(reason.unwrap_or_else(|| "It has no debug adapter.".to_owned()));
             return self.notify(request);
         };
-        let target = config.extras.target.as_deref().filter(|target| target.starts_with("plugin-target:"));
-        let php_debug = config.debug_adapter.as_deref() == Some("php-debug");
-        if let Some(target) = target {
-            let extra = launch.extra_json.as_deref().and_then(|extra| serde_json::from_str::<Value>(extra).ok());
-            let mut extra = extra.and_then(|extra| extra.as_object().cloned()).unwrap_or_default();
-            extra.insert("__runTarget".to_owned(), json!(target));
-            launch.extra_json = Some(Value::Object(extra).to_string());
-        } else if php_debug && host.env.desktop {
+        if config.debug_adapter.as_deref() == Some("php-debug") && host.env.desktop {
             self.warn_without_xdebug(&launch);
         }
-        let run_after = target.is_some() && php_debug;
-        let stage = Stage::Saving { config: Box::new(config), launch: Box::new(launch), run_after };
+        let stage = Stage::Saving { config: Box::new(config), launch: Box::new(launch) };
         let ticket = self.wait(Waiting::Start(Box::new(flow), stage));
         self.effects.push(Effect::SaveAllThen { ticket });
     }
@@ -999,14 +984,11 @@ impl Debugger {
     pub fn saved(&mut self, ticket: u64, result: Result<(), String>, host: &mut Host) {
         match self.waiting.remove(&ticket) {
             // A launch goes on with what is on disk.
-            Some(Waiting::Start(flow, Stage::Saving { config, launch, run_after })) => {
-                let run_config = Some(flow.origin.unwrap_or_else(|| (*config).clone()));
+            Some(Waiting::Start(flow, Stage::Saving { config, launch })) => {
+                let run_config = Some(flow.origin.unwrap_or(*config));
                 let options = StartOptions { run_config, show: flow.show, ..Default::default() };
                 let mut ctx = ctx!(self, host);
-                let start = self.state.start_session(*launch, options, &mut ctx);
-                if let Some(start) = start.filter(|_| run_after) {
-                    self.starts.insert(start, AfterStart::RunPluginTarget(config));
-                }
+                self.state.start_session(*launch, options, &mut ctx);
             }
             Some(Waiting::Java(mut run, JavaWait::Save)) => {
                 if self.java_abandoned(&run, host) {
@@ -1317,10 +1299,6 @@ impl Debugger {
 
     fn start_ended(&mut self, outcome: StartOutcome, host: &mut Host) {
         match (self.starts.remove(&outcome.start), outcome.session) {
-            (Some(AfterStart::RunPluginTarget(config)), Some(_)) => {
-                let arg = serde_json::to_value(*config).ok();
-                self.effects.push(Effect::ExecuteAction { id: "run.runConfig".to_owned(), arg });
-            }
             (Some(AfterStart::StopProcessOnFailure(process)), None) => {
                 self.state.stop_associated_process(process, &host.env);
             }
@@ -1472,7 +1450,6 @@ mod tests {
         debugger: Debugger,
         settings: Settings,
         i18n: I18n,
-        targets: RunTargets,
         now: f64,
         root: Option<&'static str>,
         run_debug_action: bool,
@@ -1492,7 +1469,6 @@ mod tests {
                 debugger: Debugger::default(),
                 settings: Settings::default(),
                 i18n: I18n::default(),
-                targets: RunTargets::default(),
                 now: 1_000_000.0,
                 root: Some("/p"),
                 run_debug_action: false,
@@ -1515,7 +1491,6 @@ mod tests {
                 windows: false,
                 run_debug_action: bench.run_debug_action,
                 download_jdk_action: false,
-                run_targets: &bench.targets,
                 modules: &[],
             };
             (&mut bench.debugger, host)
@@ -2058,6 +2033,36 @@ mod tests {
             debugger.take_effects().as_slice(),
             [Effect::ExecuteAction { id, arg: Some(page) }] if id == "file.settings" && *page == json!("languages.php")
         ));
+    }
+
+    // Not from a spec: a plugin's run target runs programs only; Debug starts the debugger on this machine as for
+    // any configuration, so the launch names no target, the PHP is checked for Xdebug, and nothing is run in the
+    // target once the session starts.
+    #[test]
+    fn debugs_a_configuration_on_a_plugin_target_on_this_machine() {
+        let mut bench = Bench::default();
+        let mut config = rc("php", "php", &["index.php"], Some("php-debug"));
+        config.id = "php:index".to_owned();
+        config.name = "index.php".to_owned();
+        config.extras.target = Some("plugin-target:4:ddev".to_owned());
+        bench.run("debug.startConfig", Some(as_arg(&config)), None);
+        bench.settle();
+        let started: Vec<Value> = bench
+            .calls
+            .iter()
+            .filter_map(|call| match call {
+                BackendCall::DebugStart(launch) => Some(extra(launch)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(started.len(), 1);
+        assert_eq!(started[0].get("__runTarget"), None, "{:?}", started[0]);
+        assert_eq!(probes(&bench), [("/opt/php81/bin/php", Some("/p"))]);
+        let ran = bench
+            .effects
+            .iter()
+            .any(|effect| matches!(effect, Effect::ExecuteAction { id, .. } if id == "run.runConfig"));
+        assert!(!ran, "nothing runs in the target");
     }
 
     #[test]

@@ -933,6 +933,9 @@ mod tests {
         store.update(cx, |store, cx| {
             let finished = AgentEvent::Task { task: Box::new(task("a", AgentStatus::Ready, 0.0)) };
             store.on_event(generation, finished, &I18n::default());
+            let reason = ide_agent::AgentAttentionReason::Finished;
+            let attention = AgentEvent::Attention { task: "a".into(), event_id: "a:finished:1".into(), reason };
+            store.on_event(generation, attention, &I18n::default());
             cx.notify();
         });
         cx.run_until_parked();

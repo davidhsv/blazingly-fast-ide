@@ -1,7 +1,7 @@
-//! Tools: Terminal, Actions on Save, Agents › Chat, External Tools and SSH Configurations. The
-//! MCP Server page comes from its own module.
+//! Tools: Terminal, Actions on Save, External Tools and SSH Configurations, and Agents › Chat.
+//! The IDE MCP Server page comes from its own module.
 
-use super::{TOOLS_GROUP, custom, hint, text, toggle};
+use super::{AGENTS_GROUP, TOOLS_GROUP, custom, hint, text, toggle};
 use crate::settings_model::page_spec::{OptionDetail, PageSpec};
 
 fn terminal() -> PageSpec {
@@ -55,11 +55,27 @@ fn actions_on_save() -> PageSpec {
         .section(None, vec![custom("Save", &[])])
 }
 
-/// Tools › Agents › Chat: under the Agents page.
+/// Agents › Chat: after Coding Agents.
 fn agent_chat() -> PageSpec {
-    PageSpec::new("tools.agents.chat", "Chat", 0)
-        .group(TOOLS_GROUP)
-        .keywords(&["agent", "claude", "codex", "usage", "quota", "rate limit", "cost", "tokens", "meter"])
+    PageSpec::new("agents.chat", "Chat", 460)
+        .group(AGENTS_GROUP)
+        .keywords(&[
+            "agent",
+            "claude",
+            "codex",
+            "usage",
+            "quota",
+            "rate limit",
+            "cost",
+            "tokens",
+            "meter",
+            "send",
+            "reasoning",
+            "approval",
+            "permission",
+            "bypass",
+            "width",
+        ])
         .section(
             Some("Shown in the Task Header"),
             vec![

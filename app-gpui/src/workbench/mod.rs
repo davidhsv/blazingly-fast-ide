@@ -9922,6 +9922,55 @@ for line in sys.stdin:
         assert_eq!(git_head(&root), "topical");
     }
 
+    /// src/features/vcs/__tests__/branchOps.test.ts › renames with the tracking kept, or dropped when the box is
+    /// ticked: Rename… on a branch that tracks one offers "Unset upstream branch", unchecked; left so, the renamed
+    /// branch tracks the same upstream, and ticked, it tracks none.
+    #[gpui_kit::test]
+    async fn renames_with_the_tracking_kept_or_dropped_when_the_box_is_ticked(cx: &mut TestAppContext) {
+        let remote = tempfile::tempdir().expect("a temporary folder");
+        let parent = remote.path().canonicalize().expect("the folder exists");
+        let bare_path = parent.join("origin.git").to_string_lossy().into_owned();
+        git_in(&parent, &["init", "-q", "--bare", "-b", "main", &bare_path]);
+        let (workbench, cx, _folders, root) = git_project(cx, |root| {
+            init_repo(root);
+            git_in(root, &["remote", "add", "origin", &bare_path]);
+            for name in ["kept", "dropped"] {
+                git_in(root, &["branch", name]);
+                git_in(root, &["push", "-q", "-u", "origin", name]);
+            }
+        });
+        let upstream =
+            |name: &str| git_in(&root, &["for-each-ref", "--format=%(upstream:short)", &format!("refs/heads/{name}")]);
+        assert_eq!(upstream("kept"), "origin/kept");
+        let tracked = |cx: &mut VisualTestContext, name: &str| {
+            workbench.read_with(cx, |w, _| {
+                w.vcs_state().is_some_and(|state| {
+                    state.branches.iter().any(|branch| branch.name == name && branch.upstream.is_some())
+                })
+            })
+        };
+        wait_long(cx, "the branches with their upstreams", |cx| tracked(cx, "kept") && tracked(cx, "dropped"));
+
+        choose_in_branch_menu(&workbench, "kept", "Rename…", cx);
+        let dialog = wait_for_prompt(&workbench, cx);
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.checked()), Some(false), "offered unchecked");
+        retype(&dialog, "kept2", cx);
+        cx.simulate_keystrokes("enter");
+        // Git renames the branch first and its configuration after: the tracking is read once both are done.
+        wait_long(cx, "the rename with its tracking", |_| {
+            git_branches(&root).contains(&"kept2".to_owned()) && upstream("kept2") == "origin/kept"
+        });
+
+        choose_in_branch_menu(&workbench, "dropped", "Rename…", cx);
+        let dialog = wait_for_prompt(&workbench, cx);
+        click_on(cx, "prompt-checkbox");
+        assert_eq!(dialog.read_with(cx, |dialog, _| dialog.checked()), Some(true));
+        retype(&dialog, "dropped2", cx);
+        cx.simulate_keystrokes("enter");
+        wait_long(cx, "the rename", |_| git_branches(&root).contains(&"dropped2".to_owned()));
+        wait_long(cx, "the upstream to be unset", |_| upstream("dropped2").is_empty());
+    }
+
     /// Push… lists the commit made since the last push and sends it to the local bare repository
     /// `origin`; Fetch brings in a commit another clone pushed, and the widget shows it incoming.
     #[gpui_kit::test]

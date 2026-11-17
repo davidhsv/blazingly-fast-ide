@@ -24,21 +24,30 @@ fn toolchain(id: &'static str, title: &'static str, order: f64, keywords: &[&'st
 /// Markdown settings; the Go sub-pages pick their scope themselves.
 pub fn language_pages() -> Vec<PageSpec> {
     vec![
-        PageSpec::new("languages.pluginFormatters", "Plugin Formatters", 450)
-            .group(LANGUAGES_GROUP)
-            .project_scope()
-            .keywords(&["format", "plugins"]),
+        // PyCharm's "Python" settings folder: its pages nest under this id, and it shows links to them.
+        PageSpec::new("python", "Python", 403).group(LANGUAGES_GROUP).folder().keywords(&[
+            "python",
+            "interpreters",
+            "dependencies",
+            "packages",
+            "virtualenv",
+            "venv",
+            "ruff",
+        ]),
         toolchain(
             "python.interpreter",
-            "Python Interpreter",
-            403.0,
+            "Dependencies",
+            403.1,
             &[
                 "python interpreter",
+                "project interpreter",
+                "interpreter",
                 "sdk",
                 "virtualenv",
                 "venv",
                 "conda",
                 "pyenv",
+                "dependencies",
                 "packages",
                 "pip",
                 "install package",
@@ -111,9 +120,9 @@ pub fn language_pages() -> Vec<PageSpec> {
             &["formatter", "oxfmt", "oxc", ".oxfmtrc.json", "format on save", "node_modules"],
         ),
         toolchain(
-            "languages.ruff",
+            "python.ruff",
             "Ruff",
-            403.7,
+            403.3,
             &[
                 "formatter",
                 "ruff",
@@ -514,22 +523,13 @@ mod tests {
         let languages: Vec<&str> = tree[1].children.iter().map(|node| node.title.as_str()).collect();
         assert_eq!(
             languages,
-            [
-                "Go",
-                "Java",
-                "Markdown",
-                "Node.js",
-                "Python Interpreter",
-                "PHP",
-                "Prettier",
-                "oxfmt",
-                "Ruff",
-                "Ruby",
-                "Rust",
-                "TypeScript",
-                "Plugin Formatters",
-            ]
+            ["Go", "Java", "Markdown", "Node.js", "Python", "PHP", "Prettier", "oxfmt", "Ruby", "Rust", "TypeScript",]
         );
+        let python = tree[1].children.iter().find(|node| node.title == "Python").expect("the Python folder");
+        let keys: Vec<&str> = python.children.iter().map(|node| node.key.as_str()).collect();
+        assert_eq!(keys, ["python.interpreter", "python.ruff"]);
+        let titles: Vec<&str> = python.children.iter().map(|node| node.title.as_str()).collect();
+        assert_eq!(titles, ["Dependencies", "Ruff"]);
     }
 
     // language pages › filters packages and shortens home paths
@@ -568,7 +568,6 @@ mod tests {
         assert_eq!(tildify("/Users/"), "/Users/");
         assert_eq!(tildify("/Usersx/ann"), "/Usersx/ann");
         assert_eq!(tildify("relative/Users/ann"), "relative/Users/ann");
-        assert_eq!(page("languages.pluginFormatters").default_scope, None);
         assert!(page("languages.rust").project_scope);
     }
 }

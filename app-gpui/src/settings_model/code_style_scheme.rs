@@ -8,7 +8,7 @@ use super::staging::{Scope, SettingsDialog};
 pub const CODE_STYLE_SCOPE: &str = "editor.codeStyle";
 
 /// What a Code Style scheme holds.
-pub const CODE_STYLE_KEYS: [&str; 13] = [
+pub const CODE_STYLE_KEYS: [&str; 14] = [
     "editor.tabSize",
     "editor.insertSpaces",
     "editor.codeStyle.lineSeparator",
@@ -22,6 +22,7 @@ pub const CODE_STYLE_KEYS: [&str; 13] = [
     "editor.codeStyle.formatterOffTag",
     "editor.codeStyle.formatterOnTag",
     "editor.codeStyle.formatterTagsRegexp",
+    "languages.pluginFormatters",
 ];
 
 /// Stages the values of the `from` scheme in the `to` scheme; `page` owns the staged edits.

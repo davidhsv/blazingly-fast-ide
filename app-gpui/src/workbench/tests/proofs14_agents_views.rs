@@ -109,7 +109,7 @@ async fn lists_the_agents_and_more_agents_in_the_new_task_agent_menu(cx: &mut Te
     click_on(cx, leak(format!("menu-row-0-{more}")));
     wait_long(cx, "the Settings dialog", |cx| settings_dialog_of(&workbench, cx).is_some());
     let dialog = settings_dialog_of(&workbench, cx).expect("Settings opens");
-    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("tools.agents"));
+    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("agents.list"));
     click_on(cx, "settings-cancel");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }

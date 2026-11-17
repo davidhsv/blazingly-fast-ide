@@ -127,6 +127,37 @@ async fn a_location_printed_in_the_output_opens_the_file_that_exists_there(cx: &
     close_backend_project(cx);
 }
 
+// src/features/run/navigate.test.ts › run output navigation › keeps the package in a crowded java source lookup
+/// A stack frame opens the file of its package even when many more files of the project have its name than a
+/// fuzzy search returns: every file of that exact name is looked at.
+#[gpui_kit::test]
+async fn keeps_the_package_in_a_crowded_java_source_lookup(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, root, _store) = run_project(cx, Vec::new());
+    for i in 0..60 {
+        let dir = root.join(format!("m{i}"));
+        std::fs::create_dir_all(&dir).expect("the folder is made");
+        std::fs::write(dir.join("AService.java"), format!("package other{i};\nclass AService {{}}\n"))
+            .expect("the file is written");
+    }
+    let source = root.join("service/src/main/java/com/example/AService.java");
+    std::fs::create_dir_all(source.parent().expect("a folder")).expect("the folder is made");
+    std::fs::write(&source, "package com.example;\nclass AService {}\n").expect("the file is written");
+    let named = |cx: &mut VisualTestContext| {
+        cx.update(|_, cx| {
+            let backend = cx.global::<Backend>();
+            backend.block_on(ide_host::ops::nav::find_files_named(&backend.host, "w1", "AService.java".to_owned()))
+        })
+        .map_or(0, |found| found.len())
+    };
+    wait_long(cx, "the index to list every AService.java", |cx| named(cx) == 61);
+    let frame = crate::run::links::jvm_frame_target(Some("com.example.AService"), "AService.java", Some(2));
+    let cwd = root.to_string_lossy().into_owned();
+    let driver = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
+    driver.update(cx, |driver, cx| driver.open_location(frame, cwd, cx));
+    wait_long(cx, "the frame's source to open", |cx| opened(&workbench, cx) == Some((source.clone(), (1, 0))));
+    close_backend_project(cx);
+}
+
 /// A build tool standing in for Gradle: it says which init scripts it was given and what they
 /// carry, then names its tasks.
 const FAKE_GRADLE: &str = r#"#!/bin/sh

@@ -25,10 +25,6 @@ use std::collections::BTreeSet;
 /// The Services tool window's id.
 pub const SERVICES_TOOL_WINDOW: &str = "services";
 
-/// Nodes expanded before the user expands or collapses anything: the default Docker connection and
-/// its containers.
-pub const DEFAULT_EXPANDED: [&str; 2] = ["docker:default", "docker:default:group:containers"];
-
 /// The run-configuration provider's place among the providers.
 pub const RUN_PROVIDER_ORDER: i32 = 0;
 /// The Docker provider's place among the providers.
@@ -195,7 +191,7 @@ impl ServicesTree {
     pub fn new() -> Self {
         Self {
             providers: Vec::new(),
-            expanded: DEFAULT_EXPANDED.iter().map(|key| key.to_string()).collect(),
+            expanded: BTreeSet::new(),
             seen_expanded: BTreeSet::new(),
             selection: Selection::default(),
             shown: true,

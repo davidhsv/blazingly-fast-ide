@@ -266,6 +266,9 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
     });
     registry
         .handle("layout.restoreDefault", |_, window, cx| on_workbench(window, cx, Workbench::restore_default_layout));
+    registry
+        .handle("layout.restoreCurrent", |_, window, cx| on_workbench(window, cx, Workbench::restore_current_layout));
+    registry.handle("layout.saveCurrent", |_, window, cx| on_workbench(window, cx, Workbench::save_current_layout));
     registry.handle("layout.rename", |_, window, cx| {
         on_workbench(window, cx, |workbench, window, cx| {
             workbench.pick_layout("Rename Layout", Workbench::rename_layout, window, cx)
@@ -298,10 +301,12 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
 }
 
 impl Workbench {
-    /// Publishes `toolWindowLayoutsSaved` (Rename and Delete need a saved layout) and
-    /// `distractionFree`.
+    /// Publishes `toolWindowLayoutsSaved` (Rename and Delete need a saved layout),
+    /// `toolWindowLayoutActive` (Save Changes in Current Layout needs one) and `distractionFree`.
     pub(super) fn publish_app_context(&mut self, window: &mut Window, cx: &mut App) {
-        set_context(window, cx, "toolWindowLayoutsSaved", !named_layouts(cx).is_empty());
+        let layouts = named_layouts(cx);
+        set_context(window, cx, "toolWindowLayoutsSaved", !layouts.is_empty());
+        set_context(window, cx, "toolWindowLayoutActive", layouts.active().is_some());
         set_context(window, cx, DISTRACTION_FREE_CONTEXT, zen_active(cx));
     }
 
@@ -527,6 +532,21 @@ impl Workbench {
         store_named_layouts(&layouts, cx);
         self.with_layout(window, cx, |layout| layout.apply(snapshot));
         cx.notify();
+    }
+
+    /// Restore Current Layout: the active saved layout again, or the default one when none is active.
+    fn restore_current_layout(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match named_layouts(cx).active().map(str::to_owned) {
+            Some(name) => self.restore_layout(name, window, cx),
+            None => self.restore_default_layout(window, cx),
+        }
+    }
+
+    /// Save Changes in Current Layout: the active saved layout takes the windows as they are now.
+    fn save_current_layout(&mut self, _: &mut Window, cx: &mut Context<Self>) {
+        if let Some(name) = named_layouts(cx).active().map(str::to_owned) {
+            self.store_layout_as(&name, cx);
+        }
     }
 
     /// Rename Tool Window Layout…: asks for the new name of `from`.

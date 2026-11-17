@@ -10,8 +10,8 @@ pub const HOME_KEY: &str = "agent:new";
 pub const TOOL_WINDOW: &str = "agents";
 /// MIME of a dragged agent task (a tree row or the docked conversation bar): the payload is the task id.
 pub const TASK_DRAG: &str = "application/x-openidea-agent-task";
-/// Settings › Tools › Agents: the ACP Registry.
-pub const REGISTRY_PAGE: &str = "tools.agents";
+/// Settings › Agents › Coding Agents: the agents this machine runs.
+pub const REGISTRY_PAGE: &str = "agents.list";
 
 /// Editor key of a task's session tab.
 pub fn session_key(task: &str) -> String {
@@ -321,29 +321,6 @@ pub fn age(ms: f64, now: f64) -> String {
     format!("{}d", (h / 24.0).round())
 }
 
-/// A status change worth a notification.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Attention {
-    Finished,
-    Failed,
-    Input,
-}
-
-pub fn attention_change(prev: Option<AgentStatus>, next: AgentStatus) -> Option<Attention> {
-    let prev = prev.filter(|prev| *prev != next)?;
-    if next == AgentStatus::NeedsInput {
-        return Some(Attention::Input);
-    }
-    if !is_busy(prev) {
-        return None;
-    }
-    match next {
-        AgentStatus::Ready => Some(Attention::Finished),
-        AgentStatus::Failed | AgentStatus::Limited => Some(Attention::Failed),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -417,18 +394,6 @@ mod tests {
         let mut entries = vec![agent("a")];
         assert!(!upsert_entry(&mut entries, 3, agent("b")));
         assert_eq!(entries, vec![agent("a")]);
-    }
-
-    #[test]
-    fn notifies_on_finish_failure_and_questions_only() {
-        use AgentStatus::*;
-        assert_eq!(attention_change(Some(Running), Ready), Some(Attention::Finished));
-        assert_eq!(attention_change(Some(Running), Failed), Some(Attention::Failed));
-        assert_eq!(attention_change(Some(Running), Limited), Some(Attention::Failed));
-        assert_eq!(attention_change(Some(Running), NeedsInput), Some(Attention::Input));
-        assert_eq!(attention_change(Some(NeedsInput), Running), None);
-        assert_eq!(attention_change(Some(Ready), Archived), None);
-        assert_eq!(attention_change(None, Ready), None);
     }
 
     fn card(title: Option<&str>) -> AgentEntry {

@@ -28,6 +28,8 @@ pub const APPEARANCE_GROUP: &str = "Appearance & Behavior";
 pub const EDITOR_GROUP: &str = "Editor";
 /// The group of the Tools pages.
 pub const TOOLS_GROUP: &str = "Tools";
+/// The group of the agent pages: after Languages & Frameworks, before Tools.
+pub const AGENTS_GROUP: &str = "Agents";
 
 fn toggle(key: &'static str, label: &'static str) -> OptionSpec {
     OptionSpec::Toggle { key, label }
@@ -239,23 +241,24 @@ mod tests {
             (1, "languages.servers"),
             (1, "languages.markdown"),
             (1, "languages.node"),
-            (1, "python.interpreter"),
+            (1, "python"),
+            (2, "python.interpreter"),
+            (2, "python.ruff"),
             (1, "languages.php"),
             (1, "languages.prettier"),
             (1, "languages.oxfmt"),
-            (1, "languages.ruff"),
             (1, "languages.ruby"),
             (1, "languages.rust"),
             (1, "languages.typescript"),
-            (1, "languages.pluginFormatters"),
+            (0, "group:Agents"),
+            (1, "agents.list"),
+            (1, "agents.chat"),
+            (1, "agents.mcpServer"),
             (0, "group:Tools"),
-            (1, "tools.agents"),
-            (2, "tools.agents.chat"),
             (1, "tools.terminal"),
             (1, "tools.actionsOnSave"),
             (1, "tools.externalTools"),
             (1, "tools.sshConfigurations"),
-            (1, "tools.mcpServer"),
         ];
         let registry = settings_registry(true);
         let actual = tree_rows(&registry);

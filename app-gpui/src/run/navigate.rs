@@ -5,14 +5,11 @@
 
 use crate::find::utf16;
 use crate::platform::i18n::{I18n, Param};
-use crate::run::java_launch::FoundSource;
 use crate::run::links::{FileTarget, Resolve, join_path};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use regex::Regex;
 use std::sync::LazyLock;
 
-/// How many files of the target's name the file index is asked for.
-pub const NAME_SEARCH_LIMIT: u32 = 50;
 /// How much of a source file is read to find its package declaration, in UTF-16 code units.
 const PACKAGE_SCAN: u32 = 20_000;
 /// Symbol kinds that declare a type.
@@ -56,8 +53,8 @@ pub enum ResolveStep {
     /// Whether directory `dir` has an entry `name` that is not a directory (a failed listing: no);
     /// then [`TargetResolver::exists`].
     FileExists { dir: String, name: String },
-    /// Ask the file index for `name`, then [`TargetResolver::files_found`].
-    FindFiles { name: String, limit: u32 },
+    /// Ask the file index for every file named exactly `name`, then [`TargetResolver::files_found`].
+    FindFilesNamed { name: String },
     /// Read the file, then [`TargetResolver::source_read`].
     ReadSource { path: String },
     /// Ask the language server for the workspace symbols matching `query`, then
@@ -140,29 +137,22 @@ impl TargetResolver {
         }
     }
 
-    /// The index answered (`None`: the search failed).
-    pub fn files_found(&mut self, found: Option<&[FoundSource]>) -> ResolveStep {
+    /// The index answered with the paths of the files of that name (`None`: the search failed).
+    pub fn files_found(&mut self, found: Option<&[String]>) -> ResolveStep {
         let Some(hits) = found else { return self.not_in_project() };
-        let name = self.name();
         let tail = self.target.path.strip_prefix('.').unwrap_or(&self.target.path);
         let tail = tail.strip_prefix('/').unwrap_or(self.target.path.as_str());
-        let exact = hits
-            .iter()
-            .find(|hit| hit.rel_path == tail || hit.rel_path.strip_suffix(tail).is_some_and(|dir| dir.ends_with('/')));
+        let exact =
+            hits.iter().find(|path| *path == tail || path.strip_suffix(tail).is_some_and(|dir| dir.ends_with('/')));
         if let Some(exact) = exact {
-            return ResolveStep::Done(Some(exact.path.clone()));
+            return ResolveStep::Done(Some(exact.clone()));
         }
-        let named: Vec<String> = hits
-            .iter()
-            .filter(|hit| hit.rel_path.rsplit('/').next() == Some(name))
-            .map(|hit| hit.path.clone())
-            .collect();
         // A stack frame names its class: a same-named file of another package is not it.
         if self.target.class_name.is_some() {
-            self.phase = Phase::ByPackage { candidates: named, next: 0 };
+            self.phase = Phase::ByPackage { candidates: hits.to_vec(), next: 0 };
             return self.next_candidate();
         }
-        ResolveStep::Done(named.into_iter().next())
+        ResolveStep::Done(hits.first().cloned())
     }
 
     /// The source of the candidate was read (`None`: it could not be).
@@ -193,7 +183,7 @@ impl TargetResolver {
 
     fn find_by_name(&mut self) -> ResolveStep {
         self.phase = Phase::ByName;
-        ResolveStep::FindFiles { name: self.name().to_string(), limit: NAME_SEARCH_LIMIT }
+        ResolveStep::FindFilesNamed { name: self.name().to_string() }
     }
 
     fn next_candidate(&mut self) -> ResolveStep {
@@ -311,11 +301,11 @@ mod tests {
                 ResolveStep::FileExists { dir, name } => {
                     resolver.exists(FILES.iter().any(|(path, _)| *path == format!("{dir}/{name}")))
                 }
-                ResolveStep::FindFiles { name, .. } => {
-                    let found: Vec<FoundSource> = FILES
+                ResolveStep::FindFilesNamed { name } => {
+                    let found: Vec<String> = FILES
                         .iter()
                         .filter(|(path, _)| path.ends_with(&format!("/{name}")))
-                        .map(|(path, _)| FoundSource { path: path.to_string(), rel_path: path[3..].to_string() })
+                        .map(|(path, _)| path.to_string())
                         .collect();
                     resolver.files_found(Some(&found))
                 }
@@ -373,7 +363,7 @@ mod tests {
         assert_eq!(resolver.exists(false), exists("/p/src/main/kotlin"));
         assert_eq!(resolver.exists(true), ResolveStep::Done(Some("/p/src/main/kotlin/Orders.kt".into())));
         let (mut resolver, _) = TargetResolver::start(target.clone(), "/p", Some("/p"));
-        assert_eq!(resolver.exists(false), ResolveStep::FindFiles { name: "Orders.kt".into(), limit: 50 });
+        assert_eq!(resolver.exists(false), ResolveStep::FindFilesNamed { name: "Orders.kt".into() });
         assert_eq!(resolver.files_found(None), ResolveStep::Done(None));
         let mut i18n = I18n::default();
         let opened = open_resolved(&target, Some("/p/a.kt"), true, &mut i18n);

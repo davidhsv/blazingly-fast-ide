@@ -206,6 +206,9 @@ pub fn new_branch_in_repos_prompt(
 
 /// Rename Branch `name`.
 pub fn rename_branch_prompt(name: &str, branches: &[Branch], i18n: &mut I18n) -> BranchPrompt {
+    // Dropping the tracking is offered only for a branch that has some.
+    let tracks = branches.iter().any(|branch| !branch.remote && branch.name == name && branch.upstream.is_some());
+    let checkbox = tracks.then(|| PromptCheckbox { label: "Unset upstream branch".to_owned(), initial: false });
     BranchPrompt {
         request: PromptRequest {
             title: i18n.tx_built(&["Rename Branch ", ""], &[Param::from(name)]),
@@ -214,7 +217,7 @@ pub fn rename_branch_prompt(name: &str, branches: &[Branch], i18n: &mut I18n) ->
             ok_label: "Rename".to_owned(),
             mono: true,
             validate_initial: false,
-            checkbox: None,
+            checkbox,
         },
         rule: BranchNameRule::Rename { from: name.to_owned(), local: local_names(branches) },
         offers_overwrite: false,
@@ -862,6 +865,20 @@ mod tests {
     }
 
     // src/features/vcs/__tests__/branchOps.test.ts › %s turns a typed space into a separator, as IDEA does
+    // src/features/vcs/__tests__/branchOps.test.ts › offers to drop the upstream only for a branch that tracks one
+    #[test]
+    fn offers_to_drop_the_upstream_only_for_a_branch_that_tracks_one() {
+        let mut i18n = I18n::default();
+        let mut topic = local("topic", false);
+        topic.upstream = Some("origin/topic".to_owned());
+        let branches = vec![topic, local("plain", false)];
+        let prompt = rename_branch_prompt("topic", &branches, &mut i18n);
+        assert_eq!(prompt.request.initial, "topic");
+        let checkbox = prompt.request.checkbox.expect("the choice is offered");
+        assert_eq!((checkbox.label.as_str(), checkbox.initial), ("Unset upstream branch", false));
+        assert!(rename_branch_prompt("plain", &branches, &mut i18n).request.checkbox.is_none());
+    }
+
     #[test]
     fn every_branch_name_prompt_turns_a_typed_space_into_a_separator() {
         let mut i18n = I18n::default();

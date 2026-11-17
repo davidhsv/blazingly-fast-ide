@@ -252,15 +252,26 @@ async fn does_not_mark_historical_tasks_unread_but_tracks_replies_even_without_l
     assert!(store.read_with(cx, |store, _| store.entries("one", None).is_none_or(<[AgentEntry]>::is_empty)));
 }
 
-/// A running task that turns ready, needs input, fails or hits a limit in the background shows the unread mark.
+/// A running task that turns ready, needs input, fails or hits a limit in the background shows the unread mark
+/// once the backend says it needs attention; the status change alone leaves none.
 #[gpui_kit::test]
-async fn marks_background_status_transitions_unread(cx: &mut TestAppContext) {
-    for status in [AgentStatus::Ready, AgentStatus::NeedsInput, AgentStatus::Failed, AgentStatus::Limited] {
+async fn marks_background_attention_unread(cx: &mut TestAppContext) {
+    use ide_agent::AgentAttentionReason::{Failed, Finished, Input};
+    let cases = [
+        (Finished, AgentStatus::Ready),
+        (Input, AgentStatus::NeedsInput),
+        (Failed, AgentStatus::Failed),
+        (Failed, AgentStatus::Limited),
+    ];
+    for (reason, status) in cases {
         let (store, generation) = connected_store(vec![task("one", AgentStatus::Running, 0.0)]);
         let (view, store, _, cx) = open(cx, store, None);
         assert!(unread(&view, cx).is_empty());
         emit(&store, generation, AgentEvent::Task { task: Box::new(task("one", status, 0.0)) }, cx);
-        assert_eq!(unread(&view, cx), ["one"], "{status:?}");
+        assert!(unread(&view, cx).is_empty(), "{status:?}");
+        let attention = AgentEvent::Attention { task: "one".into(), event_id: "one:1".into(), reason };
+        emit(&store, generation, attention, cx);
+        assert_eq!(unread(&view, cx), ["one"], "{reason:?}");
     }
 }
 

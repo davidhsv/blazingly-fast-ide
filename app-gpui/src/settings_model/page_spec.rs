@@ -86,6 +86,8 @@ pub struct PageSpec {
     pub scope_group: Option<&'static str>,
     /// The page picks its scope itself (Code Style's Scheme): no Global / This project switch.
     pub own_scope_switch: bool,
+    /// The page has no body of its own: it shows its description and links to the pages below it.
+    pub folder: bool,
     pub sections: Vec<SectionSpec>,
     /// The details of the controls, by setting key.
     pub details: Vec<(&'static str, OptionDetail)>,
@@ -119,6 +121,11 @@ impl PageSpec {
 
     pub fn own_scope_switch(mut self) -> Self {
         self.own_scope_switch = true;
+        self
+    }
+
+    pub fn folder(mut self) -> Self {
+        self.folder = true;
         self
     }
 

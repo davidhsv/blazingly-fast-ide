@@ -3,14 +3,11 @@
 //!
 //! The menus are data: a [`MenuItem`] names what becoming active ([`Hover`]) and being chosen
 //! ([`Command`]) do, and the menu host carries that out. [`ThemePreview`] is the instant theme
-//! switch of Quick Switch; its delay is a deadline the host checks with [`ThemePreview::expire`].
+//! switch of Quick Switch.
 
 use crate::platform::keymap::PRESET_TITLES;
 use crate::platform::settings::SettingsWrite;
 use serde_json::Value;
-
-/// How long a theme stays under the pointer or keyboard before Quick Switch shows it (IDEA's delay).
-pub const THEME_PREVIEW_DELAY: f64 = 500.0;
 
 /// The global settings key of the keymap in effect.
 pub const KEYMAP_KEY: &str = "keymap";
@@ -38,49 +35,32 @@ pub enum ThemeEffect {
     Select(String),
 }
 
-/// IDEA's instant theme switch (`ide.instant.theme.switch`): in Quick Switch the active theme
-/// shows after a moment, in this window only; choosing one selects it, and closing the menu
-/// without a choice brings the selected theme back.
+/// Instant theme switch: in Quick Switch the active theme shows right away, in this window only;
+/// choosing one selects it, and closing the menu without a choice brings the selected theme back.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ThemePreview {
-    /// The theme waiting to be shown, and when it is due.
-    pending: Option<(f64, String)>,
     shown: Option<String>,
     chosen: bool,
 }
 
 impl ThemePreview {
-    /// The theme became the active item: it shows once it stayed active for
-    /// [`THEME_PREVIEW_DELAY`]. Moving on restarts the delay.
-    pub fn preview(&mut self, id: &str, now_ms: f64) {
-        self.pending = Some((now_ms + THEME_PREVIEW_DELAY, id.to_owned()));
-    }
-
-    /// When [`Self::expire`] has something to do.
-    pub fn deadline(&self) -> Option<f64> {
-        self.pending.as_ref().map(|(due, _)| *due)
-    }
-
-    /// Shows the waiting theme once its delay has passed.
-    pub fn expire(&mut self, now_ms: f64) -> Option<ThemeEffect> {
-        if self.deadline()? > now_ms {
+    /// The theme became the active item: it shows at once, unless it is the one shown.
+    pub fn preview(&mut self, id: &str) -> Option<ThemeEffect> {
+        if self.shown.as_deref() == Some(id) {
             return None;
         }
-        let (_, id) = self.pending.take()?;
-        self.shown = Some(id.clone());
-        Some(ThemeEffect::Preview(Some(id)))
+        self.shown = Some(id.to_owned());
+        Some(ThemeEffect::Preview(Some(id.to_owned())))
     }
 
     /// Back to the selected theme (another Quick Switch entry became active).
     pub fn restore(&mut self) -> Option<ThemeEffect> {
-        self.pending = None;
         let previewed = self.shown.take().is_some();
         (previewed && !self.chosen).then_some(ThemeEffect::Preview(None))
     }
 
     /// The theme was chosen: the effects to carry out, in order.
     pub fn choose(&mut self, id: &str) -> Vec<ThemeEffect> {
-        self.pending = None;
         self.chosen = true;
         let mut effects = Vec::new();
         // Shown right away; selecting it then changes nothing visible.
@@ -97,12 +77,9 @@ impl ThemePreview {
     }
 
     /// A menu item became the active one.
-    pub fn activate(&mut self, hover: &Hover, now_ms: f64) -> Option<ThemeEffect> {
+    pub fn activate(&mut self, hover: &Hover) -> Option<ThemeEffect> {
         match hover {
-            Hover::Preview(id) => {
-                self.preview(id, now_ms);
-                None
-            }
+            Hover::Preview(id) => self.preview(id),
             Hover::Restore => self.restore(),
         }
     }
@@ -364,29 +341,24 @@ mod tests {
         Some(ThemeEffect::Preview(Some(id.to_owned())))
     }
 
-    // src/workbench/quickSwitch.test.tsx › Quick Switch theme preview › shows the active theme after a
-    // moment, in this window only, and takes it back
+    /// The theme `id` becomes the active item, as the pointer or the keyboard makes it.
+    fn show(preview: &mut ThemePreview, id: &str) -> Option<ThemeEffect> {
+        preview.activate(&Hover::Preview(id.to_owned()))
+    }
+
+    // src/workbench/quickSwitch.test.tsx › Quick Switch theme preview › shows the active theme right away,
+    // in this window only, and takes it back
     #[test]
-    fn shows_the_active_theme_after_a_moment_and_takes_it_back() {
+    fn shows_the_active_theme_right_away_in_this_window_only_and_takes_it_back() {
         let mut preview = ThemePreview::default();
-        let mut now = 0.0;
-        preview.preview("solarized-dark", now);
-        now += THEME_PREVIEW_DELAY - 1.0;
-        assert_eq!(preview.expire(now), None);
-        // Moving on restarts the delay: only the theme the user stays on shows.
-        preview.preview("solarized-light", now);
-        now += THEME_PREVIEW_DELAY - 1.0;
-        assert_eq!(preview.expire(now), None);
-        now += 1.0;
         // Shown, not selected: no `Select` effect, so nothing is saved.
-        assert_eq!(preview.expire(now), preview_of("solarized-light"));
-        assert_eq!(preview.expire(now), None);
+        assert_eq!(show(&mut preview, "solarized-dark"), preview_of("solarized-dark"));
+        assert_eq!(show(&mut preview, "solarized-light"), preview_of("solarized-light"));
+        assert_eq!(show(&mut preview, "solarized-light"), None, "the theme shown is not shown again");
 
         assert_eq!(preview.restore(), Some(ThemeEffect::Preview(None)));
         assert_eq!(preview.restore(), None);
-        preview.preview("solarized-dark", now);
-        now += THEME_PREVIEW_DELAY;
-        assert_eq!(preview.expire(now), preview_of("solarized-dark"));
+        assert_eq!(show(&mut preview, "solarized-dark"), preview_of("solarized-dark"));
         assert_eq!(preview.end(), Some(ThemeEffect::Preview(None)));
     }
 
@@ -395,8 +367,7 @@ mod tests {
     #[test]
     fn selects_the_chosen_theme_and_keeps_it_when_the_menu_closes() {
         let mut preview = ThemePreview::default();
-        preview.preview("solarized-light", 0.0);
-        assert_eq!(preview.expire(THEME_PREVIEW_DELAY), preview_of("solarized-light"));
+        assert_eq!(show(&mut preview, "solarized-light"), preview_of("solarized-light"));
         assert_eq!(
             preview.choose("solarized-dark"),
             [ThemeEffect::Preview(Some("solarized-dark".to_owned())), ThemeEffect::Select("solarized-dark".to_owned())]
@@ -413,23 +384,20 @@ mod tests {
         let theme = entry(&menu, "Theme");
         let solarized_light = entry(&theme.submenu, "Solarized Light");
         assert_eq!(solarized_light.checked, Some(false));
-        let hover = |preview: &mut ThemePreview, entry: &MenuEntry, now: f64| {
-            entry.on_active.as_ref().and_then(|hover| preview.activate(hover, now))
+        let hover = |preview: &mut ThemePreview, entry: &MenuEntry| match entry.on_active.as_ref() {
+            Some(Hover::Preview(id)) => show(preview, id),
+            Some(Hover::Restore) => preview.restore(),
+            None => None,
         };
 
-        let mut now = 200.0;
-        assert_eq!(hover(&mut preview, theme, 0.0), None);
-        assert_eq!(hover(&mut preview, solarized_light, now), None);
-        now += THEME_PREVIEW_DELAY;
-        assert_eq!(preview.expire(now), preview_of("solarized-light"));
+        assert_eq!(hover(&mut preview, theme), None);
+        assert_eq!(hover(&mut preview, solarized_light), preview_of("solarized-light"));
 
         // Back on another entry: the selected theme again.
-        assert_eq!(hover(&mut preview, entry(&menu, "Keymap"), now), Some(ThemeEffect::Preview(None)));
+        assert_eq!(hover(&mut preview, entry(&menu, "Keymap")), Some(ThemeEffect::Preview(None)));
 
-        assert_eq!(hover(&mut preview, theme, now), None);
-        assert_eq!(hover(&mut preview, solarized_light, now), None);
-        now += THEME_PREVIEW_DELAY;
-        assert_eq!(preview.expire(now), preview_of("solarized-light"));
+        assert_eq!(hover(&mut preview, theme), None);
+        assert_eq!(hover(&mut preview, solarized_light), preview_of("solarized-light"));
         // The menu closes without a choice: the preview goes, and nothing was selected.
         assert_eq!(preview.end(), Some(ThemeEffect::Preview(None)));
     }

@@ -1,6 +1,6 @@
 use super::*;
 use crate::agents::fixtures::{agent, local_task, option, path, user};
-use ide_agent::{AgentCommandReadOnlyReason, AgentSource, AgentToolDiff};
+use ide_agent::{AgentAttentionReason, AgentCommandReadOnlyReason, AgentSource, AgentToolDiff};
 
 struct Harness {
     store: AgentsStore,
@@ -182,16 +182,35 @@ fn does_not_mark_historical_tasks_unread_but_tracks_replies_even_without_loaded_
     assert_eq!(notifications(&h.effects), 0);
 }
 
+fn attention(id: &str, reason: AgentAttentionReason, n: u32) -> AgentEvent {
+    AgentEvent::Attention { task: id.into(), event_id: format!("{id}:{reason:?}:{n}"), reason }
+}
+
 #[test]
-fn marks_background_status_transitions_unread() {
-    for status in [AgentStatus::Ready, AgentStatus::NeedsInput, AgentStatus::Failed, AgentStatus::Limited] {
+fn marks_background_attention_unread() {
+    use AgentAttentionReason::{Failed, Finished, Input};
+    let cases = [
+        (Finished, AgentStatus::Ready),
+        (Input, AgentStatus::NeedsInput),
+        (Failed, AgentStatus::Failed),
+        (Failed, AgentStatus::Limited),
+    ];
+    for (reason, status) in cases {
         let mut h = unread_harness();
-        assert_eq!(notifications(h.task(with_status("one", status))), 1, "{status:?}");
+        assert_eq!(notifications(h.task(with_status("one", status))), 0, "{status:?}");
+        assert_eq!(notifications(h.emit(attention("one", reason, 1))), 1, "{reason:?}");
         assert!(h.store.is_unread("one"));
         h.store.show_session("one");
-        assert_eq!(notifications(h.task(with_status("one", status))), 0);
+        assert_eq!(notifications(h.emit(attention("one", reason, 2))), 0);
         assert!(h.unread().is_empty());
     }
+}
+
+#[test]
+fn does_not_notify_from_status_alone_once_attention_exists() {
+    let mut h = unread_harness();
+    assert_eq!(notifications(h.task(with_status("one", AgentStatus::Ready))), 0);
+    assert!(!h.store.is_unread("one"));
 }
 
 #[test]
@@ -287,6 +306,7 @@ fn cleans_up_archived_and_deleted_tasks_ignores_late_replies_and_resets_on_proje
 fn shows_a_dot_on_the_task_and_a_clickable_status_count_even_when_all_tasks_are_idle() {
     let mut h = unread_harness();
     h.task(with_status("one", AgentStatus::Ready));
+    h.emit(attention("one", AgentAttentionReason::Finished, 1));
     assert!(h.store.is_unread("one"));
     let item = h.store.status_item().expect("a status item");
     assert_eq!((item.unread, item.target), (1, Some("one")));

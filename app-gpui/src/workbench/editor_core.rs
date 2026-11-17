@@ -100,8 +100,14 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
         Ok(())
     });
     registry.handle("file.toggleReadOnly", |_, window, cx| on_workbench(window, cx, Workbench::toggle_read_only));
-    registry.handle("editor.resetFontSize", |_, _, cx| {
-        reset_font_size(cx);
+    registry.handle("editor.resetFontSize", |_, window, cx| {
+        if let Some(editor) = super::active_editor(window, cx) {
+            editor.update(cx, |editor, cx| editor.set_font_zoom(0, cx));
+        }
+        Ok(())
+    });
+    registry.handle("editor.resetFontSizeAll", |_, _, cx| {
+        reset_font_size_in_all_editors(cx);
         Ok(())
     });
     registry.handle("code.pasteFromHistory", |_, window, cx| on_workbench(window, cx, Workbench::show_paste_history));
@@ -123,7 +129,7 @@ pub(super) fn register_actions(registry: &mut ActionRegistry) {
 }
 
 /// Reset Font Size in All Editors: every editor of every window back to the configured size.
-fn reset_font_size(cx: &mut App) {
+fn reset_font_size_in_all_editors(cx: &mut App) {
     let workbenches: Vec<Entity<Workbench>> = cx
         .try_global::<Workbenches>()
         .map(|all| all.0.values().filter_map(gpui_kit::WeakEntity::upgrade).collect())
@@ -644,9 +650,10 @@ mod tests {
     }
 
     /// Increase / Decrease Font Size step the active editor's font by one px, within the limits;
-    /// Reset Font Size puts every editor back to the configured size.
+    /// Reset Font Size puts the active editor back to the configured size, and Reset Font Size in
+    /// All Editors every editor.
     #[gpui_kit::test]
-    async fn the_font_size_steps_in_the_active_editor_and_resets_in_every_editor(cx: &mut TestAppContext) {
+    async fn the_font_size_steps_and_resets_in_the_active_editor_and_resets_in_all_editors(cx: &mut TestAppContext) {
         use crate::features_b::viewers::font_zoom::MIN_EDITOR_ZOOM;
         let _home = start(cx);
         let (_folder, root, workbench, cx) = project(cx, FILES);
@@ -666,8 +673,12 @@ mod tests {
             |cx: &mut VisualTestContext| [a.read_with(cx, |e, _| e.font_zoom()), b.read_with(cx, |e, _| e.font_zoom())];
         assert_eq!(zooms(cx), [1, MIN_EDITOR_ZOOM]);
         run(cx, "editor.resetFontSize", None);
-        assert_eq!(zooms(cx), [0, 0]);
+        assert_eq!(zooms(cx), [1, 0], "only the active editor is reset");
         assert_eq!(b.read_with(cx, |e, cx| e.font_size(cx)), base);
+        run(cx, "editor.decreaseFontSize", None);
+        run(cx, "editor.resetFontSizeAll", None);
+        assert_eq!(zooms(cx), [0, 0]);
+        assert_eq!(a.read_with(cx, |e, cx| e.font_size(cx)), base);
         close(cx);
     }
 
@@ -747,6 +758,7 @@ mod tests {
                 "editor.increaseFontSize",
                 "editor.decreaseFontSize",
                 "editor.resetFontSize",
+                "editor.resetFontSizeAll",
             ],
         );
         // Their keys do nothing there either.

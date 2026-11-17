@@ -150,7 +150,7 @@ fn issue_navigation() -> PageSpec {
 /// to its pages.
 pub(super) fn pages() -> Vec<PageSpec> {
     vec![
-        PageSpec::new("vcs", "Version Control", 300).keywords(&["git", "vcs", "history"]),
+        PageSpec::new("vcs", "Version Control", 300).folder().keywords(&["git", "vcs", "history"]),
         commit(),
         confirmation(),
         directory_mappings(),

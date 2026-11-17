@@ -617,6 +617,7 @@ fn code_style() -> PageSpec {
                 text("editor.codeStyle.formatterOffTag", "Off"),
                 text("editor.codeStyle.formatterOnTag", "On"),
                 toggle("editor.codeStyle.formatterTagsRegexp", "Enable regular expressions in formatter markers"),
+                custom("Plugin Formatters", &["Plugin Formatters", "Automatic (language server first)"]),
             ],
         )
         .detail("editor.codeStyle.lineSeparator", hint("Used for new files."))

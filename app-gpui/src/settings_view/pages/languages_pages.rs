@@ -1,13 +1,13 @@
 //! Languages & Frameworks › Go (Build Tags, Go Modules), Java, Markdown, Node.js, Python
-//! Interpreter, PHP, Prettier, oxfmt, Ruff, Ruby, Rust, TypeScript and Plugin Formatters: each
-//! page's controls in their sections, drawn as the page's own view.
+//! (Dependencies, Ruff), PHP, Prettier, oxfmt, Ruby, Rust and TypeScript: each page's controls in
+//! their sections, drawn as the page's own view.
 //!
 //! A page edits the scope its Global / This project switch shows; the Go build tags and modules
 //! belong to the project only.
 
 use super::languages_controls::{
-    Control, FormatterLanguagesView, JdtlsSharedView, LanguagePageView, PhpInterpreterView, PluginFormattersView,
-    PreviewFontSizeView, ProjectOnlyView, Section,
+    Control, FormatterLanguagesView, JdtlsSharedView, LanguagePageView, PhpInterpreterView, PreviewFontSizeView,
+    ProjectOnlyView, Section,
 };
 use super::languages_sdk::{
     LanguageAsk, PathFieldView, PathPlaceholder, PathSpec, SdkChoices, SdkFieldView, SdkSpec, Toolchain, ToolchainKind,
@@ -33,30 +33,14 @@ pub const PYTHON: &str = "python.interpreter";
 pub const PHP: &str = "languages.php";
 pub const PRETTIER: &str = "languages.prettier";
 pub const OXFMT: &str = "languages.oxfmt";
-pub const RUFF: &str = "languages.ruff";
+pub const RUFF: &str = "python.ruff";
 pub const RUBY: &str = "languages.ruby";
 pub const RUST: &str = "languages.rust";
 pub const TYPESCRIPT: &str = "languages.typescript";
-pub const PLUGIN_FORMATTERS: &str = "languages.pluginFormatters";
 
 /// The pages drawn here, in the order the Settings tree lists them.
-pub const PAGES: [&str; 15] = [
-    GO,
-    GO_BUILD_TAGS,
-    GO_MODULES,
-    JAVA,
-    MARKDOWN,
-    NODE,
-    PYTHON,
-    PHP,
-    PRETTIER,
-    OXFMT,
-    RUFF,
-    RUBY,
-    RUST,
-    TYPESCRIPT,
-    PLUGIN_FORMATTERS,
-];
+pub const PAGES: [&str; 14] =
+    [GO, GO_BUILD_TAGS, GO_MODULES, JAVA, MARKDOWN, NODE, PYTHON, PHP, PRETTIER, OXFMT, RUFF, RUBY, RUST, TYPESCRIPT];
 
 /// What the pages are built over.
 struct Build {
@@ -659,17 +643,6 @@ fn typescript(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>)
 }
 
 // ---------------------------------------------------------------------------
-// Plugin Formatters
-
-fn plugin_formatters(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
-    let binding = build.binding(PLUGIN_FORMATTERS);
-    let list_binding = binding.clone();
-    let formatters = Control::Formatters(cx.new(|cx| PluginFormattersView::new(list_binding, cx)));
-    let save = form(binding, vec![toggle("editor.formatOnSave", "Format on save").into()], cx);
-    (vec![(Some("Plugin Formatters"), vec![formatters, save])], Vec::new())
-}
-
-// ---------------------------------------------------------------------------
 // Search and mounting
 
 /// The texts the Settings search finds a page by, besides its keywords: its labels and choices.
@@ -736,7 +709,6 @@ pub fn search_labels(page: &str) -> Vec<&'static str> {
             "Additional arguments",
         ],
         TYPESCRIPT => vec!["TypeScript", "Bundled"],
-        PLUGIN_FORMATTERS => vec!["Plugin Formatters", "Format on save"],
         _ => Vec::new(),
     }
 }
@@ -758,7 +730,6 @@ fn page_sections(page: &str, build: &Build, cx: &mut App) -> Option<(Vec<Section
         RUBY => ruby(build, cx),
         RUST => rust(build, cx),
         TYPESCRIPT => typescript(build, cx),
-        PLUGIN_FORMATTERS => plugin_formatters(build, cx),
         _ => return None,
     })
 }
@@ -823,7 +794,8 @@ mod tests {
     use ide_core::settings::LanguagesSettings;
 
     // Not from a spec: every page drawn here is a page of the Settings tree, and every page of
-    // Languages & Frameworks is drawn here except Language Servers, which another module draws.
+    // Languages & Frameworks is drawn here except Language Servers, which another module draws, and
+    // the Python folder, which the dialog draws as a folder.
     #[test]
     fn draws_every_language_page_of_the_settings_tree() {
         let registry = settings_registry(false);
@@ -834,7 +806,7 @@ mod tests {
         }
         let languages = registry.iter().filter(|spec| spec.group == Some("Languages & Frameworks"));
         let missing: Vec<&str> = languages.map(|spec| spec.id).filter(|id| !PAGES.contains(id)).collect();
-        assert!(missing.iter().all(|id| *id == "languages.servers"), "{missing:?}");
+        assert_eq!(missing, ["languages.servers", "python"]);
     }
 
     // Not from a spec: the languages a formatter page offers are those the backend enables by

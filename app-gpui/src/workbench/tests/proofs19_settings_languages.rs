@@ -448,7 +448,7 @@ async fn oxfmt_run_on_save_is_written_to_the_project(cx: &mut TestAppContext) {
 async fn ruff_configuration_directory_is_chosen_with_browse_and_written_to_the_project(cx: &mut TestAppContext) {
     let _home = start(cx);
     let (_folder, root, workbench, cx) = trusted_project(cx, &[("config/ruff/ruff.toml", "line-length = 100\n")]);
-    let view = open_page(cx, &workbench, "languages.ruff");
+    let view = open_page(cx, &workbench, "python.ruff");
     assert_eq!(
         labels(&view, cx),
         [
@@ -559,24 +559,13 @@ async fn typescript_version_is_chosen_with_browse_and_written_to_the_project(cx:
     assert!(project_file(&root).contains("tsdk"));
 }
 
-// Plugin Formatters: a choice per language a plugin formatter covers, then Format on save, which
-// applies globally.
+// Not from a spec: the plugin formatter choices are part of Editor › Code Style.
+/// Editor › Code Style lists, under its formatter settings, a choice per language a plugin formatter covers:
+/// Automatic and the formatters covering it, in the registry's order; the formatter picked for one language is
+/// stored under it, and Reset discards a second pick. Languages & Frameworks has no Plugin Formatters page.
 #[gpui_kit::test]
-async fn plugin_formatters_format_on_save_applies(cx: &mut TestAppContext) {
-    let _home = start(cx);
-    let (workbench, cx) = window(cx);
-    let view = open_page(cx, &workbench, "languages.pluginFormatters");
-    assert_eq!(lines(&view, cx), ["— Plugin Formatters —", "[ ] Format on save"]);
-    click_on(cx, "settings-toggle-editor.formatOnSave");
-    click_on(cx, "settings-apply");
-    assert_eq!(effective(cx, "editor.formatOnSave"), Some(json!(true)));
-}
-
-// Plugin Formatters: each language a plugin formatter covers gets Automatic and the formatters
-// covering it, in the registry's order; the formatter picked for one language is stored under it,
-// and Reset discards a second pick.
-#[gpui_kit::test]
-async fn plugin_formatters_offer_a_choice_per_covered_language_and_store_the_pick(cx: &mut TestAppContext) {
+async fn code_style_offers_a_plugin_formatter_per_covered_language_and_stores_the_pick(cx: &mut TestAppContext) {
+    use crate::settings_view::pages::languages_controls::PluginFormattersView;
     let _home = start(cx);
     let (_folder, _root, workbench, cx) = trusted_project(cx, &[("query.sql", "select 1;\n")]);
     let formatter = |id: &str, name: &str, languages: &[&str]| PluginFormatter {
@@ -587,29 +576,38 @@ async fn plugin_formatters_offer_a_choice_per_covered_language_and_store_the_pic
     let formatters =
         vec![formatter("p.stylua", "StyLua", &["lua"]), formatter("p.taplo", "Taplo and SQL", &["toml", "sql"])];
     give_toolchains(cx, SdkDetection { formatters, ..SdkDetection::default() });
-    let view = open_page(cx, &workbench, "languages.pluginFormatters");
+    run_action(cx, "file.settings", Some(Value::from("languages.pluginFormatters")));
+    let dialog = settings_dialog_of(&workbench, cx).expect("Settings opens");
+    assert_ne!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("languages.pluginFormatters"));
+    click_on(cx, "settings-cancel");
+    run_action(cx, "file.settings", Some(Value::from("editor.codeStyle")));
+    let dialog = settings_dialog_of(&workbench, cx).expect("Settings opens");
+    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("editor.codeStyle"));
+    let view = dialog.read_with(cx, |view, _| view.custom_control("editor.codeStyle", "Plugin Formatters").cloned());
+    let view = view.and_then(|view| view.downcast::<PluginFormattersView>().ok()).expect("the formatters' view");
+    cx.run_until_parked();
+    let lines = |cx: &mut VisualTestContext| view.read_with(cx, |view, cx| view.lines(cx));
     assert_eq!(
-        lines(&view, cx),
+        lines(cx),
         [
-            "— Plugin Formatters —",
             "lua: Automatic (language server first) ▾",
             "sql: Automatic (language server first) ▾",
             "toml: Automatic (language server first) ▾",
-            "[ ] Format on save",
         ]
     );
+    bring_into_view(cx, "settings-formatter-2");
     choose(cx, "settings-formatter-1", "settings-formatter-1-1");
-    assert_eq!(lines(&view, cx)[2], "sql: Taplo and SQL ▾");
+    assert_eq!(lines(cx)[1], "sql: Taplo and SQL ▾");
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "languages.pluginFormatters"), Some(json!({ "sql": "p.taplo" })));
 
     choose(cx, "settings-formatter-0", "settings-formatter-0-1");
-    assert_eq!(lines(&view, cx)[1], "lua: StyLua ▾");
+    assert_eq!(lines(cx)[0], "lua: StyLua ▾");
     assert!(modified(&workbench, cx));
     click_on(cx, "settings-reset");
     assert!(!modified(&workbench, cx), "Reset discards the second pick");
     assert_eq!(
-        lines(&view, cx)[1..4],
+        lines(cx),
         [
             "lua: Automatic (language server first) ▾",
             "sql: Taplo and SQL ▾",
@@ -649,7 +647,7 @@ async fn reset_and_cancel_discard_an_edit_on_each_language_page(cx: &mut TestApp
     let (_folder, root, workbench, cx) = trusted_project(cx, &[("main.go", "package main\n")]);
     let ruby = toolchain(&root.join("rubies/3.3.0/bin/ruby"), "ruby 3.3.0", Some("3.3.0"));
     give_toolchains(cx, SdkDetection { found: vec![(ToolchainKind::Ruby, vec![ruby])], ..SdkDetection::default() });
-    let cases: [(&str, Act, &str); 15] = [
+    let cases: [(&str, Act, &str); 14] = [
         ("languages.go", Act::Type("settings-text-languages.go.gopath", "/work/go"), "languages.go.gopath"),
         (
             "languages.go.buildTags",
@@ -691,7 +689,7 @@ async fn reset_and_cancel_discard_an_edit_on_each_language_page(cx: &mut TestApp
             "languages.prettier.runOnSave",
         ),
         ("languages.oxfmt", Act::Click(&["settings-toggle-languages.oxfmt.runOnSave"]), "languages.oxfmt.runOnSave"),
-        ("languages.ruff", Act::Click(&["settings-toggle-languages.ruff.runOnSave"]), "languages.ruff.runOnSave"),
+        ("python.ruff", Act::Click(&["settings-toggle-languages.ruff.runOnSave"]), "languages.ruff.runOnSave"),
         (
             "languages.ruby",
             Act::Click(&[
@@ -709,7 +707,6 @@ async fn reset_and_cancel_discard_an_edit_on_each_language_page(cx: &mut TestApp
             ]),
             "languages.typescript.version",
         ),
-        ("languages.pluginFormatters", Act::Click(&["settings-toggle-editor.formatOnSave"]), "editor.formatOnSave"),
     ];
     for (page, act, key) in cases {
         let before = effective(cx, key);
@@ -727,4 +724,46 @@ async fn reset_and_cancel_discard_an_edit_on_each_language_page(cx: &mut TestApp
         assert!(settings_dialog_of(&workbench, cx).is_none(), "{page}: Cancel closes the dialog");
         assert_eq!(effective(cx, key), before, "{page}: Cancel writes nothing");
     }
+}
+
+// src/features/settings/__tests__/languages.test.ts › languages settings › puts the Python pages in a Python
+// folder, in PyCharm's order
+/// File › Settings… opened on the Python folder shows no page body of its own but its description and links to
+/// the pages below it (those built here: Dependencies, then Ruff); a link opens its page. The Agents folder sits
+/// after Languages & Frameworks and links to Coding Agents, Chat and IDE MCP Server.
+#[gpui_kit::test]
+async fn puts_the_python_pages_in_a_python_folder_in_pycharms_order(cx: &mut TestAppContext) {
+    let _home = start(cx);
+    let (_folder, _root, workbench, cx) = trusted_project(cx, &[("main.py", "print(1)\n")]);
+    run_action(cx, "file.settings", Some(Value::from("python")));
+    let dialog = settings_dialog_of(&workbench, cx).expect("Settings opens");
+    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("python"));
+    assert_eq!(
+        dialog.read_with(cx, |view, cx| view.control_lines(cx)),
+        [
+            "Configure the project interpreter and its packages, every interpreter the IDE knows, and Ruff.",
+            "→ Dependencies",
+            "→ Ruff",
+        ]
+    );
+    let pages = dialog.read_with(cx, |view, cx| view.pages(cx));
+    let at = |title: &str| pages.iter().position(|page| page == title).unwrap_or_else(|| panic!("{title}: {pages:?}"));
+    assert!(at("Languages & Frameworks") < at("Agents") && at("Agents") < at("Tools"), "{pages:?}");
+    click_on(cx, "settings-link-python.ruff");
+    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("python.ruff"));
+
+    click_on(cx, "settings-cancel");
+    run_action(cx, "file.settings", Some(Value::from("group:Agents")));
+    let dialog = settings_dialog_of(&workbench, cx).expect("Settings opens again");
+    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("group:Agents"));
+    assert_eq!(
+        dialog.read_with(cx, |view, cx| view.control_lines(cx)),
+        [
+            "Install coding agents and configure how they launch, chat and connect to the IDE.",
+            "→ Coding Agents",
+            "→ Chat",
+            "→ IDE MCP Server",
+        ]
+    );
+    click_on(cx, "settings-cancel");
 }

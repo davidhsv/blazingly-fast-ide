@@ -115,7 +115,9 @@ async fn every_settings_page_opens_and_applies_a_change_made_with_the_mouse(cx: 
                 // here each of its controls must be drawn.
                 let own_controls = lines.iter().any(|line| line.ends_with(OWN_CONTROL))
                     && lines.iter().all(|line| line.starts_with('—') || line.ends_with(OWN_CONTROL));
-                if !drawn_elsewhere && !unavailable && !own_controls {
+                // A folder has nothing to change: it links to the pages below it.
+                let folder = spec.folder && lines.iter().any(|line| line.starts_with("→ "));
+                if !drawn_elsewhere && !unavailable && !own_controls && !folder {
                     failed.push(format!("{}: nothing to change in {lines:?}", spec.id));
                 }
             }

@@ -22,7 +22,7 @@ use crate::platform::i18n::Localization;
 use crate::platform::local_time::now_ms;
 use crate::platform::misc::jdk::DOWNLOAD_JDK_ACTION;
 use crate::platform::storage::UiStorage;
-use crate::run::driver::{SaveAll, run_settings};
+use crate::run::driver::SaveAll;
 use crate::run::java_launch::FoundSource;
 use crate::workbench::notifications::NotificationRequest;
 use gpui_kit::{App, AppContext, BorrowAppContext, Context, Entity, EventEmitter, Task};
@@ -176,7 +176,6 @@ impl DebugDriver {
     /// the text catalog), then tells its observers.
     pub fn with_host<R>(&mut self, cx: &mut Context<Self>, act: impl FnOnce(&mut Debugger, &mut Host) -> R) -> R {
         let settings = crate::platform::settings::effective(&self.label, cx);
-        let targets = run_settings(&settings);
         let desktop = cx.has_global::<Backend>();
         let trusted = cx
             .try_global::<Backend>()
@@ -204,7 +203,6 @@ impl DebugDriver {
                 windows: cfg!(windows),
                 run_debug_action,
                 download_jdk_action,
-                run_targets: &targets,
                 modules: &[],
             };
             debugger.update(cx, |debugger, cx| {

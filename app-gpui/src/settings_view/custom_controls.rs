@@ -173,6 +173,15 @@ pub fn install(
     slots.forms(code_style.clone(), pages::code_style::forms(), cx);
     slots.lists(code_style.clone(), pages::code_style::lists(), cx);
     let can_project = install.has_project && !model.read(cx).new_projects;
+    let formatters = cx.new(|cx| pages::languages_controls::PluginFormattersView::new(code_style.clone(), cx));
+    let window = install.window_label.to_owned();
+    slots.subscriptions.push(cx.subscribe(&formatters, move |_, event: &pages::languages_sdk::LanguageEvent, cx| {
+        match event {
+            pages::languages_sdk::LanguageEvent::Ask(ask) => pages::languages_sdk::answer(ask.clone(), &window, cx),
+            pages::languages_sdk::LanguageEvent::Control(_) => {}
+        }
+    }));
+    slots.fill(pages::code_style::PAGE, "Plugin Formatters", formatters.into(), cx);
     let scheme = cx.new(|cx| pages::code_style::SchemeView::new(code_style, can_project, cx));
     slots.put(pages::code_style::PAGE, "Scheme", &scheme, cx);
 

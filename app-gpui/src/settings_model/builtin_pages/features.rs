@@ -2,7 +2,7 @@
 //! Agents, TODO, Vim, the template pages, Log, GitHub, Project Trust), so they declare only where
 //! they sit and the words the search finds them by.
 
-use super::{EDITOR_GROUP, TOOLS_GROUP};
+use super::{AGENTS_GROUP, EDITOR_GROUP};
 use crate::settings_model::language_pages::LANGUAGES_GROUP;
 use crate::settings_model::page_spec::PageSpec;
 
@@ -31,7 +31,7 @@ pub(super) fn pages() -> Vec<PageSpec> {
             "gopls",
             "pyright",
         ]),
-        PageSpec::new("tools.agents", "Agents", 500).group(TOOLS_GROUP).keywords(&[
+        PageSpec::new("agents.list", "Coding Agents", 450).group(AGENTS_GROUP).keywords(&[
             "agent",
             "acp",
             "registry",

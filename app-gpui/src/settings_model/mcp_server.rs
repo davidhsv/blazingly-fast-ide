@@ -1,5 +1,6 @@
 //! Settings › Tools › MCP Server: the page and the client configurations it copies.
 
+use super::builtin_pages::AGENTS_GROUP;
 use super::page_spec::{OptionDetail, OptionSpec, PageSpec};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -46,9 +47,22 @@ pub fn stdio_config(status: &McpServerStatus) -> Option<String> {
 
 /// The MCP Server page. It edits the global settings only.
 pub fn mcp_server_page() -> PageSpec {
-    PageSpec::new("tools.mcpServer", "MCP Server", 604)
-        .group("Tools")
-        .keywords(&["mcp", "model context protocol", "ai", "agent", "claude", "codex", "tools", "stdio"])
+    PageSpec::new("agents.mcpServer", "IDE MCP Server", 470)
+        .group(AGENTS_GROUP)
+        .keywords(&[
+            "mcp",
+            "model context protocol",
+            "ai",
+            "agent",
+            "claude",
+            "codex",
+            "tools",
+            "stdio",
+            "address",
+            "listen",
+            "port",
+            "token",
+        ])
         .section(
             None,
             vec![

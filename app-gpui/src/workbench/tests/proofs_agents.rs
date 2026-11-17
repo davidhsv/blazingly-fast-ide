@@ -168,7 +168,7 @@ async fn more_agents_opens_settings_on_the_agents_page(cx: &mut TestAppContext) 
     run_action(cx, "agents.addAgent", None);
     wait_long(cx, "the Settings dialog", |cx| settings_dialog_of(&workbench, cx).is_some());
     let dialog = settings_dialog_of(&workbench, cx).expect("Settings opens");
-    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("tools.agents"));
+    assert_eq!(dialog.read_with(cx, |view, cx| view.selected_page(cx)).as_deref(), Some("agents.list"));
     click_on(cx, "settings-cancel");
     assert!(settings_dialog_of(&workbench, cx).is_none());
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));

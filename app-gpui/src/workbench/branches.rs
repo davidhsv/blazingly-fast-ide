@@ -862,13 +862,14 @@ async fn checkout_revision(this: This, cx: &mut AsyncWindowContext) -> anyhow::R
 async fn rename(this: This, cx: &mut AsyncWindowContext, name: String, repo: Option<String>) -> anyhow::Result<()> {
     let branches = branches_of(&this, cx, repo.clone()).await?;
     let prompt = i18n(&this, cx, |i18n| rename_branch_prompt(&name, &branches, i18n))?;
+    let offers_unset = prompt.request.checkbox.is_some();
     let answer = ask_dialog(&this, cx, move |window, cx| PromptDialog::rename_branch(prompt, window, cx)).await?;
     let Some(result) = answer.prompt_result() else { return Ok(()) };
     let (to, title, success) = i18n(&this, cx, |i18n| rename_branch(&name, &result, i18n))?;
+    let unset_upstream = offers_unset && result.checked;
     let (from, target, path) = (name.clone(), to.clone(), repo_path(repo.as_deref()));
     let work = move |host: Arc<Host>, label: String| async move {
-        // The rename dialog has no "Unset upstream branch" choice: the tracking moves with the name.
-        git::vcs_rename_branch(&host, &label, path, from, target, false).await
+        git::vcs_rename_branch(&host, &label, path, from, target, unset_upstream).await
     };
     if run_op(&this, cx, &title, Some(success), false, work).await?.is_some() {
         this.update(cx, |workbench, cx| {

@@ -37,7 +37,6 @@ pub enum Control {
     Languages(Entity<FormatterLanguagesView>),
     FontSize(Entity<PreviewFontSizeView>),
     Shared(Entity<JdtlsSharedView>),
-    Formatters(Entity<PluginFormattersView>),
     Php(Entity<PhpInterpreterView>),
     ProjectOnly(Entity<ProjectOnlyView>),
 }
@@ -52,7 +51,6 @@ impl Control {
             Self::Languages(view) => view.clone().into(),
             Self::FontSize(view) => view.clone().into(),
             Self::Shared(view) => view.clone().into(),
-            Self::Formatters(view) => view.clone().into(),
             Self::Php(view) => view.clone().into(),
             Self::ProjectOnly(view) => view.clone().into(),
         }
@@ -68,7 +66,6 @@ impl Control {
             Self::Languages(view) => view.read(cx).lines(cx),
             Self::FontSize(view) => view.read(cx).lines(cx),
             Self::Shared(view) => view.read(cx).lines(cx),
-            Self::Formatters(view) => view.read(cx).lines(cx),
             Self::Php(view) => view.read(cx).lines(cx),
             Self::ProjectOnly(view) => view.read(cx).lines(cx),
         }
@@ -120,7 +117,6 @@ impl LanguagePageView {
             Control::Languages(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::FontSize(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::Shared(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
-            Control::Formatters(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::Php(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::ProjectOnly(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
         }
@@ -483,7 +479,8 @@ impl Render for JdtlsSharedView {
 
 pub const PLUGIN_FORMATTERS: &str = "languages.pluginFormatters";
 
-/// A formatter choice per language a plugin can format (or one was chosen for).
+/// Editor › Code Style › Plugin Formatters: a formatter choice per language a plugin can format (or
+/// one was chosen for); nothing is drawn while no language has one.
 pub struct PluginFormattersView {
     binding: Binding,
     known: Vec<String>,
@@ -630,7 +627,10 @@ impl Render for PluginFormattersView {
                 .child(div().relative().child(boxed).children(open));
             rows.push(drawn.into_any_element());
         }
-        div().flex().flex_col().children(rows)
+        if rows.is_empty() {
+            return div();
+        }
+        section(cx, Some(&tx(cx, "Plugin Formatters")), &query, rows)
     }
 }
 

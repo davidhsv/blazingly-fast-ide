@@ -40,7 +40,7 @@ const SIDEBAR_WIDTH: f32 = 240.0;
 const INDENT: f32 = 16.0;
 
 /// What a group folder's page says about the group.
-const GROUP_DESCRIPTIONS: [(&str, &str); 6] = [
+const GROUP_DESCRIPTIONS: [(&str, &str); 8] = [
     (
         "Appearance & Behavior",
         "Customize IDE appearance and behavior: change themes and font size, configure system settings and \
@@ -49,6 +49,8 @@ const GROUP_DESCRIPTIONS: [(&str, &str); 6] = [
     ("Editor", "Configure code editing: completion, folding, tabs, fonts, colors, code style and inspections."),
     ("Build, Execution, Deployment", "Configure build tools, run configurations, debugger and deployment."),
     ("Languages & Frameworks", "Configure language servers, interpreters, SDKs and framework support."),
+    ("Python", "Configure the project interpreter and its packages, every interpreter the IDE knows, and Ruff."),
+    ("Agents", "Install coding agents and configure how they launch, chat and connect to the IDE."),
     ("Tools", "Configure external tools, terminal, database and other integrations."),
     ("Version Control", "Configure the settings related to version control used in your project"),
 ];
@@ -256,6 +258,12 @@ impl SettingsDialogView {
 
     fn spec(&self, page: &str) -> Option<&PageSpec> {
         self.specs.iter().find(|spec| spec.id == page)
+    }
+
+    /// Whether `node` is shown as a folder (its description and links to its pages): a group, or a
+    /// page without a body of its own (Version Control, Python).
+    fn is_folder(&self, node: &PageNode) -> bool {
+        node.page.is_none() || self.spec(&node.key).is_some_and(|spec| spec.folder)
     }
 
     /// The search texts of `page`: its spec's labels and those given for it.
@@ -707,7 +715,7 @@ impl SettingsDialogView {
     pub fn control_lines(&self, cx: &App) -> Vec<String> {
         let Some(key) = self.current_key(cx) else { return Vec::new() };
         let Some(node) = find_node(&self.tree, &key) else { return Vec::new() };
-        if node.page.is_none() {
+        if self.is_folder(node) {
             let description = GROUP_DESCRIPTIONS.iter().find(|(group, _)| *group == node.title);
             let description = description.map(|(_, text)| tx(cx, text));
             let links = node.children.iter().map(|child| format!("→ {}", child.title));
@@ -916,7 +924,7 @@ impl SettingsDialogView {
             let text = tx(cx, "Nothing found");
             return div().text_color(muted).child(SharedString::from(text)).into_any_element();
         };
-        if node.page.is_none() {
+        if self.is_folder(&node) {
             let description = GROUP_DESCRIPTIONS.iter().find(|(group, _)| *group == node.title).map(|(_, text)| *text);
             let description = description.map(|text| {
                 let text = tx(cx, text);
@@ -1607,7 +1615,7 @@ mod tests {
         };
         assert_eq!(
             pages(&view, cx),
-            ["Appearance & Behavior", "  Appearance", "Keymap", "Editor", "Languages & Frameworks", "Tools"]
+            ["Appearance & Behavior", "  Appearance", "Keymap", "Editor", "Languages & Frameworks", "Agents", "Tools"]
         );
         cx.update(|window, cx| {
             let focus = view.read(cx).tree_focus().clone();
@@ -1620,7 +1628,7 @@ mod tests {
         assert_eq!(selected(&view, cx).as_deref(), Some("editor.general"));
         cx.simulate_keystrokes("left left");
         assert_eq!(selected(&view, cx).as_deref(), Some("group:Editor"));
-        assert_eq!(pages(&view, cx).len(), 6);
+        assert_eq!(pages(&view, cx).len(), 7);
         click(cx, "settings-link-editor.font");
         assert_eq!(selected(&view, cx).as_deref(), Some("editor.font"));
         click(cx, "settings-back");
@@ -1650,7 +1658,7 @@ mod tests {
         assert_eq!(lines(&view, cx), ["<page view>"]);
         assert!(cx.debug_bounds("probe").is_some());
 
-        view.update(cx, |view, cx| view.select("tools.mcpServer", cx));
+        view.update(cx, |view, cx| view.select("agents.mcpServer", cx));
         cx.run_until_parked();
         // The checkbox's hint is a line of its own under it.
         let hint = "    Agents can read, edit, and run projects open in OpenIDEA through its built-in tools. Run tools \
@@ -1658,7 +1666,7 @@ mod tests {
         let shown = lines(&view, cx);
         assert_eq!(shown, ["[ ] Enable MCP server".to_owned(), hint.to_owned(), format!("Endpoint: {UNAVAILABLE}")]);
         let endpoint = cx.update(|_, cx| AnyView::from(cx.new(|_| Probe)));
-        view.update(cx, |view, cx| view.set_custom_control("tools.mcpServer", "Endpoint", endpoint, cx));
+        view.update(cx, |view, cx| view.set_custom_control("agents.mcpServer", "Endpoint", endpoint, cx));
         assert_eq!(lines(&view, cx), ["[ ] Enable MCP server", hint, "Endpoint: <custom>"]);
     }
 }

@@ -1398,19 +1398,15 @@ impl RunDriver {
                             });
                             resolver.exists(matches!(kind.await, Ok(ide_vfs::EntryKind::File)))
                         }
-                        ResolveStep::FindFiles { name, limit } => {
+                        ResolveStep::FindFilesNamed { name } => {
                             let window = label.clone();
                             let found = Self::on_host(cx, move |host| async move {
-                                ide_host::ops::nav::find_files(&host, &window, name, limit).await
+                                ide_host::ops::nav::find_files_named(&host, &window, name).await
                             });
-                            let found: Option<Vec<FoundSource>> = found.await.ok().map(|hits| {
-                                hits.into_iter()
-                                    .map(|hit| FoundSource {
-                                        path: hit.path.0.to_string_lossy().into_owned(),
-                                        rel_path: hit.rel_path,
-                                    })
-                                    .collect()
-                            });
+                            let found: Option<Vec<String>> = found
+                                .await
+                                .ok()
+                                .map(|hits| hits.into_iter().map(|hit| hit.0.to_string_lossy().into_owned()).collect());
                             resolver.files_found(found.as_deref())
                         }
                         ResolveStep::ReadSource { path } => {

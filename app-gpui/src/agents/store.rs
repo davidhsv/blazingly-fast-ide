@@ -15,15 +15,15 @@
 use crate::agents::composer::{ComposerDraft, FileRef, bypass_defaults, can_send, to_prompt};
 use crate::agents::conversation::with_quote;
 use crate::agents::model::{
-    Attention, HOME_KEY, TOOL_WINDOW, append_entry, attention_change, entries_key, entry_is_behind, is_busy,
-    session_key, upsert_entry,
+    HOME_KEY, TOOL_WINDOW, append_entry, entries_key, entry_is_behind, is_busy, session_key, upsert_entry,
 };
 use crate::platform::i18n::I18n;
 use crate::platform::paths::is_same_or_inside;
 use crate::workbench::notifications::{NotificationAction, NotificationLevel, NotificationRequest};
 use ide_agent::{
-    AgentChange, AgentConfigChoice, AgentConfigOption, AgentEntry, AgentEvent, AgentImage, AgentLimit, AgentPrompt,
-    AgentProvider, AgentQueued, AgentStatus, AgentTask, AgentToolStatus, Isolation, NewAgentTask,
+    AgentAttentionReason, AgentChange, AgentConfigChoice, AgentConfigOption, AgentEntry, AgentEvent, AgentImage,
+    AgentLimit, AgentPrompt, AgentProvider, AgentQueued, AgentStatus, AgentTask, AgentToolStatus, Isolation,
+    NewAgentTask,
 };
 use ide_core::IpcPath;
 use serde::{Deserialize, Serialize};
@@ -696,21 +696,14 @@ impl AgentsStore {
                 }
                 let prev_status = prev.map(|(status, _)| status);
                 let status = task.status;
-                let change = attention_change(prev_status, status);
                 match self.tasks.iter_mut().find(|t| t.id == id) {
                     Some(slot) => *slot = task,
                     None => self.tasks.push(task),
                 }
+                // The backend says when a task needs attention ([`AgentEvent::Attention`]): a status
+                // change alone neither marks it unread nor notifies.
                 if status == AgentStatus::Archived {
                     self.set_unread(&id, false);
-                } else if change.is_some() {
-                    self.mark_unread(&id);
-                }
-                if let Some(change) = change
-                    && !self.viewing(&id)
-                    && let Some(task) = self.task(&id)
-                {
-                    effects.push(AgentEffect::Notify(Box::new(notification(task, change, i18n))));
                 }
                 if prev_status != Some(status) && !is_busy(status) {
                     effects.push(AgentEffect::RefreshChanges { task: id.clone() });
@@ -793,9 +786,16 @@ impl AgentsStore {
                     effects.push(AgentEffect::LoadEntries { task: task.clone(), subagent });
                 }
             }
-            // Attention is derived from the task's status changes above, and new tasks pick their
-            // settings from the provider's own options: neither event adds to what this window shows.
-            AgentEvent::Attention { .. } | AgentEvent::ModelCatalog { .. } => {}
+            AgentEvent::Attention { task, reason, .. } => {
+                self.mark_unread(&task);
+                if !self.viewing(&task) {
+                    let request = notification(&task, self.task(&task), reason, i18n);
+                    effects.push(AgentEffect::Notify(Box::new(request)));
+                }
+            }
+            // New tasks pick their settings from the provider's own options: the catalog adds nothing
+            // to what this window shows.
+            AgentEvent::ModelCatalog { .. } => {}
         }
         effects
     }
@@ -1509,19 +1509,25 @@ pub fn draft_config(provider: Option<&AgentProvider>, draft: &Draft) -> Vec<Agen
     config
 }
 
-fn notification(task: &AgentTask, change: Attention, i18n: &I18n) -> NotificationRequest {
-    let body = match change {
-        Attention::Input => i18n.tx("Waiting for your answer"),
-        Attention::Failed => task.error.clone().unwrap_or_else(|| i18n.tx("The agent stopped")),
-        Attention::Finished => i18n.tx("Finished"),
+/// The balloon of an attention event of task `id` (`task`: the task, when it is listed).
+fn notification(id: &str, task: Option<&AgentTask>, reason: AgentAttentionReason, i18n: &I18n) -> NotificationRequest {
+    let body = match reason {
+        AgentAttentionReason::Input => i18n.tx("Waiting for your answer"),
+        AgentAttentionReason::Failed => {
+            task.and_then(|task| task.error.clone()).unwrap_or_else(|| i18n.tx("The agent stopped"))
+        }
+        AgentAttentionReason::Finished => i18n.tx("Finished"),
     };
-    let level = if change == Attention::Failed { NotificationLevel::Error } else { NotificationLevel::Info };
-    let label = i18n.tx(if change == Attention::Finished { "Review" } else { "Open" });
-    let mut request = NotificationRequest::new(level, task.title.clone());
+    let failed = reason == AgentAttentionReason::Failed;
+    let finished = reason == AgentAttentionReason::Finished;
+    let level = if failed { NotificationLevel::Error } else { NotificationLevel::Info };
+    let label = i18n.tx(if finished { "Review" } else { "Open" });
+    let title = task.map_or_else(|| "Agent".to_owned(), |task| task.title.clone());
+    let mut request = NotificationRequest::new(level, title);
     request.body = Some(body);
-    request.key = Some(session_key(&task.id));
+    request.key = Some(session_key(id));
     request.group = Some("tools".to_owned());
-    request.sticky = Some(change != Attention::Finished);
+    request.sticky = Some(!finished);
     request.verbatim = true;
     request.actions = vec![NotificationAction { label, command: OPEN_TASK_COMMAND.to_owned() }];
     request

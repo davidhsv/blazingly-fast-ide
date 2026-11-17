@@ -496,7 +496,8 @@ pub fn docker_items(
                 icon: if state.is_ready() { "docker-connected" } else { "file-docker" }.to_string(),
                 detail: connection_detail(state),
                 dim: !state.is_ready(),
-                expanded: false,
+                // A connection the user just added opens once, so its groups are in sight.
+                expanded: true,
                 expandable: false,
                 children: Some(children.iter().map(|kid| convert(&connection.id, snapshot, kid, filters)).collect()),
             }
@@ -2009,6 +2010,23 @@ mod tests {
     fn states() -> BTreeMap<String, ConnectionState> {
         let state = ConnectionState { snapshot: Some(snapshot()), loading: false, error: None };
         BTreeMap::from([("default".to_string(), state)])
+    }
+
+    // Not from a spec: Services lists only the connections the user added, nothing starts expanded, and a
+    // connection opens once when it first appears, so its groups are in sight; collapsing it then sticks.
+    #[test]
+    fn opens_a_connection_once_when_it_first_appears() {
+        let mut tree = crate::services::model::ServicesTree::new();
+        assert!(!tree.is_expanded("docker:default") && !tree.is_expanded("docker:default:group:containers"));
+        let state = ConnectionState { snapshot: Some(snapshot()), loading: false, error: None };
+        let states = BTreeMap::from([("c2".to_string(), state)]);
+        let items = docker_items(&connections()[1..], &[], &states, DockerFilters::default());
+        tree.set_provider_roots(DOCKER_PROVIDER, 10, items.clone(), false);
+        assert!(tree.is_expanded("docker:c2"), "the added connection opens");
+        assert!(!tree.is_expanded("docker:default"), "no connection is invented");
+        tree.set_expanded("docker:c2", false);
+        tree.set_provider_roots(DOCKER_PROVIDER, 10, items, false);
+        assert!(!tree.is_expanded("docker:c2"), "collapsed stays collapsed");
     }
 
     #[test]
