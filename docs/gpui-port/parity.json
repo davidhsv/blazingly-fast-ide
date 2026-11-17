@@ -1332,8 +1332,8 @@
     "proof": "`settings_model::file_types::tests`; pattern editing is reached; user patterns for icons and per-file overrides are tested on the model; missing: nothing in the app reaches it (native: app-gpui/src/theme/icons.rs:126 file_icon_name ignores settings_model::file_types::user_file_type, and no Override File Type action calls override_key; webview: src/features/settings/fileTypesRuntime.ts:84)"
   },
   "unit:src/features/settings/__tests__/fontSync.test.ts": {
-    "status": "done",
-    "proof": "`settings_model::runtime::tests`"
+    "status": "partial",
+    "proof": "`settings_model::runtime::tests`; the coalescing of settings-changed events into one reload is tested on the model only: `SettingsReload` has no caller in the app (the module is reached only through `runtime_settings`, for idle saving). Missing: a test through windows that the editor font, the terminal font and the UI font follow a settings change applied in another window, with one reload for a burst of events"
   },
   "unit:src/features/settings/__tests__/inspections.test.ts": {
     "status": "partial",
@@ -3109,7 +3109,7 @@
   },
   "unit:src/editor/core/cm/prefs.test.ts": {
     "status": "partial",
-    "proof": "`editor_model::editor_prefs::tests`, `editor_commands::paste::tests::re_indents_a_pasted_block_to_the_caret_column`, `editor::tabs::tests::closes_unchanged_least_recently_used_tabs_beyond_the_limit`; completion case, soft-wrap patterns, cleanup and paste re-indent are tested and reached; the tab limit is tested on the tab model only (app-gpui/src/editor/tabs.rs:655 enforce_tab_limit has no production caller) and file indent detection with its layering is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/editor/language_facts.rs:79 takes the indent from the language registry config, code style and editorconfig without reading the file, editor_prefs::detect_indent is never called; webview: src/editor/core/model/document.ts:268)"
+    "proof": "`editor_model::editor_prefs::tests`, `editor_commands::paste::tests::re_indents_a_pasted_block_to_the_caret_column`, `editor::tabs::tests::closes_unchanged_least_recently_used_tabs_beyond_the_limit`, `workbench::tests::save_cleanup::all_lines_scope_strips_the_trailing_spaces_of_every_line`, `workbench::tests::save_cleanup::trailing_blank_lines_go_only_when_the_option_is_on`, `workbench::tests::save_cleanup::editorconfig_overrides_the_save_options_while_its_support_is_on`, `workbench::tests::save_cleanup::autosave_cleans_up_the_tab_it_saves`, `workbench::tests::save_cleanup::a_preview_save_is_cleaned_up_only_through_a_tab_of_the_file`; completion case, soft-wrap patterns, cleanup and paste re-indent are tested and reached; the tab limit is tested on the tab model only (app-gpui/src/editor/tabs.rs:655 enforce_tab_limit has no production caller) and file indent detection with its layering is tested on the model only; missing: nothing in the app reaches it (native: app-gpui/src/editor/language_facts.rs:79 takes the indent from the language registry config, code style and editorconfig without reading the file, editor_prefs::detect_indent is never called; webview: src/editor/core/model/document.ts:268). The cleanup on save is applied by the app since 2026-11-17 (before it the options were stored and read by nothing): scope, trailing blank lines, .editorconfig, autosave and a preview save are proven through a window with the bytes on disk"
   },
   "unit:src/editor/core/controller.test.ts": {
     "status": "partial",
@@ -3145,7 +3145,7 @@
   },
   "unit:src/editor/core/model/document.test.ts": {
     "status": "partial",
-    "proof": "`editor_model::document::tests`; 6 of 19 cases by name"
+    "proof": "`editor_model::document::tests`, `workbench::tests::save_cleanup::trims_modified_lines_and_adds_the_final_newline_on_save`, `workbench::tests::save_cleanup::with_both_options_off_a_save_writes_only_the_users_edit`, `workbench::tests::save_cleanup::the_caret_line_keeps_its_trailing_spaces_unless_the_option_is_off`, `workbench::tests::save_cleanup::edits_and_carets_of_a_second_editor_of_the_document_count`, `workbench::tests::save_cleanup::a_crlf_file_keeps_its_line_breaks_when_cleaned_up`; 6 of 19 cases by name. Through a window on the real backend, with the bytes on disk asserted: trim of modified lines and the final newline on save, an untouched document left byte for byte with its modification time, the caret line kept. Missing: the other cases; save participants (format and optimize imports on save) do not exist natively"
   },
   "unit:src/editor/core/model/workspaceHistory.test.ts": {
     "status": "partial",
@@ -5705,7 +5705,7 @@
   },
   "settings:general": {
     "status": "partial",
-    "proof": "`settings_view::custom_controls::tests::system_settings_open_in_directory_and_idle_save_apply`, `settings_view::custom_controls::tests::a_stored_attach_for_open_project_in_shows_ask`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`; every row is drawn. Missing: the directory chooser has no title or start directory"
+    "proof": "`settings_view::custom_controls::tests::system_settings_open_in_directory_and_idle_save_apply`, `settings_view::custom_controls::tests::a_stored_attach_for_open_project_in_shows_ask`, `settings_view::custom_controls::tests::on_every_page_reset_and_cancel_discard_an_edit_of_an_own_control`, `workbench::tests::save_cleanup::idle_saving_saves_the_edited_files_after_the_seconds_without_input`, `workbench::tests::save_cleanup::without_idle_saving_an_edit_starts_no_countdown`, `workbench::tests::save_cleanup::a_key_pressed_while_idle_saving_counts_down_starts_the_countdown_over`, `workbench::tests::save_cleanup::saving_everything_stops_the_idle_countdown`, `workbench::tests::save_cleanup::a_failed_idle_save_is_told_once_and_not_retried_without_input`; every row is drawn. Missing: the directory chooser has no title or start directory. Idle saving has its effect: ticked in Settings it saves after the seconds without input, input starts the countdown over, no countdown runs with nothing unsaved or with the option off, and a failed save is told once"
   },
   "settings:notifications": {
     "status": "partial",
