@@ -112,24 +112,24 @@
     "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::project_view_actions::tests::a_confirmed_delete_moves_the_file_to_the_trash_and_undo_brings_it_back`; acts on code editors, and run through the registry while the Project view has the keyboard it brings the view's last deleted file back from Local History and selects it. In a text field it takes back the field's typing (`workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`). Missing: ⌘Z pressed in the tree (edit.undo has no key binding and the tree passes no modified keys on), and the Project view's Undo of a move"
   },
   "action:edit.redo": {
-    "status": "done",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut"
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::undo_and_redo_walk_groups_of_typing`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`)"
   },
   "action:edit.copy": {
-    "status": "done",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::context_menus::tests::right_click_in_the_selection_keeps_it_and_copy_puts_it_on_the_clipboard`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut"
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::context_menus::tests::right_click_in_the_selection_keeps_it_and_copy_puts_it_on_the_clipboard`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`)"
   },
   "action:edit.cut": {
-    "status": "done",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut"
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`)"
   },
   "action:edit.paste": {
-    "status": "done",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut"
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`; acts on what has the keyboard: a code editor, the text field of a dialog or of Find in Files, and leaves the editor alone while the Project view has it; a password field is never copied or cut; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`)"
   },
   "action:edit.selectAll": {
-    "status": "done",
-    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`, `workbench::edit_actions::tests::select_all_in_the_services_tree_selects_every_row`; selects all of what has the keyboard: a code editor, a text field, every row of the Services tree"
+    "status": "partial",
+    "proof": "`workbench::tests::the_keymap_runs_editor_actions_on_the_windows_editor`, `editor::view::editing_tests::clipboard_keys_copy_cut_and_paste`, `workbench::edit_actions::tests::a_password_field_is_never_copied_or_cut`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_find_in_files_field`, `workbench::edit_actions::tests::the_edit_commands_act_on_the_text_field_of_a_dialog`, `workbench::edit_actions::tests::in_the_project_view_the_edit_commands_leave_the_editor_alone`, `workbench::edit_actions::tests::select_all_in_the_services_tree_selects_every_row`; selects all of what has the keyboard: a code editor, a text field, every row of the Services tree; missing: listed in Settings › Keymap although hidden and unbound (`src/features/app/appActions.ts:83`); selects the focused reading pane's text (`src/features/app/appActions.ts:53`)"
   },
   "feature:project-tree": {
     "status": "partial",
@@ -304,8 +304,8 @@
     "proof": "`workbench::tests::tool_window_actions_show_focus_and_hide_the_project_view`"
   },
   "action:toolwindow.hideActive": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs_tool_windows::hide_active_tool_window_hides_the_focused_project_view`; the focused Project view is hidden and toolWindowFocus is off"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_tool_windows::hide_active_tool_window_hides_the_focused_project_view`; the focused Project view is hidden and toolWindowFocus is off; missing: with a maximized side whose window unregistered, it clears the maximized state instead of hiding a window (`src/workbench/toolwindows/store.ts:655`)"
   },
   "action:toolwindow.focusEditor": {
     "status": "done",
@@ -1128,12 +1128,12 @@
     "proof": "`workbench::tests::opening_another_project_here_asks_about_the_unsaved_changes_of_this_one`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`"
   },
   "action:file.openInNewWindow": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs3_windows::open_in_new_window_opens_the_given_or_picked_folder_in_a_new_window`; with a folder it opens it in a new window although the asking window has a project; a folder another window has brings that window to the front; without one it asks for a folder and opens the picked one in a new window"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs3_windows::open_in_new_window_opens_the_given_or_picked_folder_in_a_new_window`; with a folder it opens it in a new window although the asking window has a project; a folder another window has brings that window to the front; without one it asks for a folder and opens the picked one in a new window; missing: the trust question comes before the new window opens (`src/features/app/windows.ts:140`)"
   },
   "action:file.openFile": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it`; run through the registry it asks for files; the picked file opens as a tab of the window's project; from an empty window a file of another window's project opens there and that window comes to the front; a file of no open project is edited on its own in the asking window"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs3_windows::open_file_opens_the_picked_file_in_the_project_or_in_the_window_that_has_it`; run through the registry it asks for files; the picked file opens as a tab of the window's project; from an empty window a file of another window's project opens there and that window comes to the front; a file of no open project is edited on its own in the asking window; missing: the Welcome screen's Open File button runs it (`src/features/welcome/ProjectsPage.tsx:51`)"
   },
   "action:window.toggleFullScreen": {
     "status": "done",
@@ -2204,16 +2204,16 @@
     "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`, `run::sessions::tests`; the focused window, the widget argument, the only running process and the menu of several. Contributed debug sessions are not counted: the debugger is not drawn"
   },
   "action:run.runConfig": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs3_run::run_configuration_runs_the_named_or_given_configuration_and_stop_process_ends_the_process`, `run::driver::tests`; run through the registry by id the configuration runs, exits 0 and its output shows in the Run tool window; given whole with temporary it runs and is kept as a temporary configuration"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs3_run::run_configuration_runs_the_named_or_given_configuration_and_stop_process_ends_the_process`; run through the registry by id the configuration runs, exits 0 and its output shows in the Run tool window; given whole with temporary it runs and is kept as a temporary configuration; missing: a rerun asks to stop the configuration's live debug sessions too (`src/features/run/store.ts:865`); runs started together each get their own tab (`src/features/run/store.ts:881`); a new run tab is pinned under the pin-tabs setting (`src/features/run/store.ts:929`)"
   },
   "action:run.stopProcess": {
     "status": "done",
     "proof": "`workbench::tests::proofs3_run::run_configuration_runs_the_named_or_given_configuration_and_stop_process_ends_the_process`; run through the registry with a running process's run id, that session ends as stopped"
   },
   "action:run.reloadConfigs": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs3_run::reload_run_configurations_lists_a_configuration_saved_since_the_project_opened`; a configuration saved after the project opened is listed only once the action has run through the registry"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs3_run::reload_run_configurations_lists_a_configuration_saved_since_the_project_opened`; a configuration saved after the project opened is listed only once the action has run through the registry; missing: a Unity project lists a Unity Editor configuration, selected by default (`src/features/run/store.ts:241`)"
   },
   "point.registerToolWindow:run": {
     "status": "partial",
@@ -3472,8 +3472,8 @@
     "proof": "`workbench::tests::the_run_widget_shows_the_selection_and_the_chooser_selects_runs_and_closes`, `workbench::tests::deleting_a_configuration_in_the_chooser_removes_it_from_the_project`"
   },
   "action:run.createConfig": {
-    "status": "done",
-    "proof": "`workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`"
+    "status": "partial",
+    "proof": "`workbench::tests::edit_configurations_saves_a_configuration_added_in_its_form_and_cancel_saves_nothing`; what the cited tests drive still holds: edit configurations saves a configuration added in its form and cancel saves nothing; missing: the Docker Compose gutter menu's Modify Run Configuration… opens it (`src/features/services/dockerGutter.ts:67`)"
   },
   "action:run.editConfigs": {
     "status": "partial",
@@ -3512,8 +3512,8 @@
     "proof": "`workbench::tests::the_branch_widget_names_the_branch_and_the_popup_checks_out_another`, `workbench::tests::a_merge_stopped_on_conflicts_is_aborted_from_the_title_bar`; one repository: checkout with its questions, favourites, options, merge and its abort. Not yet: commands across several repositories, Compare and Show Diff with Working Tree, the tag menu"
   },
   "action:vcs.commit": {
-    "status": "done",
-    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`, `workbench::tests::amend_loads_the_last_message_and_amends_the_commit`"
+    "status": "partial",
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`, `workbench::tests::amend_loads_the_last_message_and_amends_the_commit`; what the cited tests drive still holds: commit takes exactly the included files with the typed message; amend loads the last message and amends the commit; missing: includes only the Local Changes selection under the modal interface (`src/features/vcs/commitUi.ts:40`)"
   },
   "action:vcs.newBranch": {
     "status": "partial",
@@ -3528,8 +3528,8 @@
     "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`; the current branch of one repository to a local remote. Not yet: pushing another branch, update and retry of a rejected push, the changed files of a commit, Cancel on the progress notice"
   },
   "action:vcs.fetch": {
-    "status": "done",
-    "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`"
+    "status": "partial",
+    "proof": "`workbench::tests::push_sends_a_new_commit_to_origin_and_fetch_shows_what_came_in`; what the cited tests drive still holds: push sends a new commit to origin and fetch shows what came in; missing: the fetch result shows as a balloon even with balloons off (`src/features/vcs/ops.ts:65`)"
   },
   "context:vcsOperation": {
     "status": "done",
@@ -3644,8 +3644,8 @@
     "proof": "`workbench::tests::the_tree_context_menu_offers_the_model_rows_and_creates_from_new`"
   },
   "action:project.rename": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs3_rename_lsp::renaming_a_file_applies_the_reference_updates_its_language_server_returns`, `workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; the language server watching the file is asked workspace/willRenameFiles with the old and new URIs, its update of another file is previewed and applied with the rename, the server hears didRenameFiles, and Undo Move / Rename takes both back; text references and the open editor follow too"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs3_rename_lsp::renaming_a_file_applies_the_reference_updates_its_language_server_returns`, `workbench::tests::rename_renames_the_file_its_reference_and_its_open_editor`; the language server watching the file is asked workspace/willRenameFiles with the old and new URIs, its update of another file is previewed and applied with the rename, the server hears didRenameFiles, and Undo Move / Rename takes both back; text references and the open editor follow too; missing: Alt+Shift+R renames in the Project view under the Eclipse (Windows) keymap although Git log actions share the stroke (`src/platform/keymap.ts`, f82808a82)"
   },
   "action:project.undoMove": {
     "status": "done",
@@ -3704,8 +3704,8 @@
     "proof": "`ui::tooltip::tests`; 4 of 4: shown after the delay with its shortcut, none without text, and hidden on pointer leave, press, wheel, a key press and the window losing the focus; the spec's stripe variants differ only in a CSS class"
   },
   "action:vcs.commitAndPush": {
-    "status": "done",
-    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`"
+    "status": "partial",
+    "proof": "`workbench::tests::commit_takes_exactly_the_included_files_with_the_typed_message`; what the cited tests drive still holds: commit takes exactly the included files with the typed message; missing: includes only the Local Changes selection under the modal interface when there is no message (`src/features/vcs/commitUi.ts:40`)"
   },
   "action:vcs.showMessageHistory": {
     "status": "done",
@@ -4068,12 +4068,12 @@
     "proof": "`workbench::tests::the_code_insight_actions_and_events_run_in_a_window_with_a_project`"
   },
   "action:navigate.typeHierarchy": {
-    "status": "done",
-    "proof": "`editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`; the Hierarchy window titled Subtypes of Base lists Derived, the subtype the server reports"
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::type_hierarchy_lists_the_subtypes_the_server_reports`; the Hierarchy window titled Subtypes of Base lists Derived, the subtype the server reports; missing: a new hierarchy opens in its own tab when the selected one is pinned (`src/features/code-insight/hierarchy.ts:112`)"
   },
   "action:navigate.callHierarchy": {
-    "status": "done",
-    "proof": "`editor::intelligence::tests::proofs_editor_lsp::call_hierarchy_lists_the_callers_the_server_reports`; the Hierarchy window titled Callers of target lists the caller the server reports, with its file"
+    "status": "partial",
+    "proof": "`editor::intelligence::tests::proofs_editor_lsp::call_hierarchy_lists_the_callers_the_server_reports`; the Hierarchy window titled Callers of target lists the caller the server reports, with its file; missing: a new hierarchy opens in its own tab when the selected one is pinned (`src/features/code-insight/hierarchy.ts:112`)"
   },
   "action:file.settings": {
     "status": "partial",
@@ -4228,8 +4228,8 @@
     "proof": "`workbench::tests::expanding_a_data_source_lists_its_tables_and_a_tables_columns`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
   },
   "action:db.newDataSource": {
-    "status": "done",
-    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`"
+    "status": "partial",
+    "proof": "`workbench::tests::new_data_source_tests_and_saves_a_sqlite_file_that_then_shows_in_the_tree`; what the cited tests drive still holds: new data source tests and saves a sqlite file that then shows in the tree; missing: a request whose project changed while the data sources loaded is dropped (`src/features/database/requests.ts:20`)"
   },
   "action:db.properties": {
     "status": "done",
@@ -4248,8 +4248,8 @@
     "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
   },
   "action:db.rename": {
-    "status": "done",
-    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`"
+    "status": "partial",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; what the cited tests drive still holds: the database trees actions and shortcuts reach the store and the backend; missing: Alt+Shift+R renames in the Database view under the Eclipse (Windows) keymap although Git log actions share the stroke (`src/platform/keymap.ts`, f82808a82)"
   },
   "action:db.copyReference": {
     "status": "done",
@@ -4264,28 +4264,28 @@
     "proof": "`workbench::tests::dropping_a_data_source_asks_and_removes_it_from_the_project_and_the_tree`"
   },
   "action:db.submitChanges": {
-    "status": "done",
-    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+    "status": "partial",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; what the cited tests drive still holds: edit data shows the rows submit writes an edit and revert discards one; missing: acts on the focused console result grid too (`src/features/database/ResultsView.tsx:449`); confirms the cell being edited before it runs (`src/features/database/tableEditorFocus.ts:92`)"
   },
   "action:db.revertChanges": {
-    "status": "done",
-    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`"
+    "status": "partial",
+    "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`; what the cited tests drive still holds: edit data shows the rows submit writes an edit and revert discards one; missing: acts on the focused console result grid too (`src/features/database/ResultsView.tsx:449`); confirms the cell being edited before it runs (`src/features/database/tableEditorFocus.ts:92`)"
   },
   "action:db.editData": {
     "status": "partial",
     "proof": "`workbench::tests::edit_data_shows_the_rows_submit_writes_an_edit_and_revert_discards_one`, `workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`; the table opens with its rows, from the action and from F4 in the tree only; it shows in the lower half of the Database window, not in an editor tab"
   },
   "action:db.execute": {
-    "status": "done",
-    "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`, `workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`; the statement at the caret runs, rows and output shown; a plain .sql file with two or more sources runs on the one chosen in the toolbar"
+    "status": "partial",
+    "proof": "`workbench::tests::execute_shows_a_querys_rows_and_its_output_lines_and_a_failing_statement_its_error`, `workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`; the statement at the caret runs, rows and output shown; a plain .sql file with two or more sources runs on the one chosen in the toolbar; missing: a request whose project changed while the data sources loaded is dropped (`src/features/database/requests.ts:20`)"
   },
   "action:db.explainPlan": {
-    "status": "done",
-    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`, `database::plan_view::tests::a_narrow_plan_puts_the_properties_under_the_tree_and_a_wide_one_beside_it`, `database::plan_view::tests::an_empty_plan_shows_no_rows`, `database::plan_view::tests::collapsing_an_operation_hides_what_is_under_it`, `database::plan_view::tests::explain_again_asks_once_until_the_new_plan_arrives`, `database::plan_view::tests::roots_the_operations_in_the_statement_with_everything_expanded`, `database::plan_view::tests::selecting_an_operation_shows_its_properties`; the statement is explained by the backend and the Query Plan tab shows the plan's tree with the selected node's properties, beside the tree in a wide pane and under it in a narrow one; running again replaces it"
+    "status": "partial",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`, `database::plan_view::tests::a_narrow_plan_puts_the_properties_under_the_tree_and_a_wide_one_beside_it`, `database::plan_view::tests::an_empty_plan_shows_no_rows`, `database::plan_view::tests::collapsing_an_operation_hides_what_is_under_it`, `database::plan_view::tests::explain_again_asks_once_until_the_new_plan_arrives`, `database::plan_view::tests::roots_the_operations_in_the_statement_with_everything_expanded`, `database::plan_view::tests::selecting_an_operation_shows_its_properties`; the statement is explained by the backend and the Query Plan tab shows the plan's tree with the selected node's properties, beside the tree in a wide pane and under it in a narrow one; running again replaces it; missing: a request whose project changed while the data sources loaded is dropped (`src/features/database/requests.ts:20`)"
   },
   "action:db.openConsole": {
-    "status": "done",
-    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`, `workbench::tests::proofs6_database_console::a_sqlite_console_runs_in_the_default_schema_its_completion_model_names`; the source's console file opens in an editor with its toolbar (run, explain, history, row limit, transaction mode, data source and schema), bound to its source's default schema"
+    "status": "partial",
+    "proof": "`workbench::tests::the_database_trees_actions_and_shortcuts_reach_the_store_and_the_backend`, `workbench::database_extras::tests::the_console_toolbar_chooses_the_data_source_of_a_plain_sql_file_and_executes_on_it`, `workbench::tests::proofs6_database_console::a_sqlite_console_runs_in_the_default_schema_its_completion_model_names`; the source's console file opens in an editor with its toolbar (run, explain, history, row limit, transaction mode, data source and schema), bound to its source's default schema; missing: New ▸ Query Console in the + menu and the node menu creates another console (`db.newConsole`, `src/features/database/index.ts:243`) instead of opening the existing one"
   },
   "action:db.refresh": {
     "status": "done",
@@ -4524,8 +4524,8 @@
     "proof": "`workbench::tests::a_run_configuration_runs_into_the_run_tool_window_and_stop_ends_a_long_running_one`; the session finishes with exit code 0, which only RunExited sets (run/driver.rs backend_event)"
   },
   "action:(dynamic) src/features/plugins/points.tsx:200": {
-    "status": "done",
-    "proof": "`plugins::tests::a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project`, `workbench::plugin_contributions::tests::untrusted_windows::a_plugin_command_run_as_an_action_is_refused_in_restricted_mode_and_runs_once_trusted`; a linked, consented plugin's command becomes a registered action (title, category) before its code loads and is unavailable without an editor; run through the registry in a single-file window or in Restricted Mode it is refused with the error notification <title> failed carrying the guard's reason, rewrites nothing and loads no code, and in a trusted project's window it rewrites the editor's selection and activates the plugin"
+    "status": "partial",
+    "proof": "`plugins::tests::a_plugins_command_is_refused_on_a_file_of_its_own_and_runs_its_wasm_in_a_trusted_project`, `workbench::plugin_contributions::tests::untrusted_windows::a_plugin_command_run_as_an_action_is_refused_in_restricted_mode_and_runs_once_trusted`; a linked, consented plugin's command becomes a registered action (title, category) before its code loads and is unavailable without an editor; run through the registry in a single-file window or in Restricted Mode it is refused with the error notification <title> failed carrying the guard's reason, rewrites nothing and loads no code, and in a trusted project's window it rewrites the editor's selection and activates the plugin; missing: its toolbar button shows that the click was taken while the command runs (`src/features/plugins/points.tsx:213`)"
   },
   "action:(dynamic) src/features/search/index.ts:484": {
     "status": "done",
@@ -4644,16 +4644,16 @@
     "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`, `workbench::debug::tests::the_debug_views_evaluate_watch_set_and_copy_values_and_close_a_live_session`"
   },
   "action:debug.rerun": {
-    "status": "done",
-    "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`"
+    "status": "partial",
+    "proof": "`workbench::debug::tests::the_debuggers_keys_act_only_where_their_conditions_hold`; what the cited tests drive still holds: the debuggers keys act only where their conditions hold; missing: the rerun session takes its own tab's place and keeps its pin (`src/features/debugger/state.ts:319-324`)"
   },
   "action:run.debug": {
     "status": "done",
     "proof": "`workbench::debug::tests::debugging_a_configuration_stops_at_the_breakpoint_steps_over_and_resumes_to_the_end`, `workbench::debug::tests::the_run_widgets_debug_button_debugs_the_selection`, `workbench::tests::the_new_agent_task_and_debugger_shortcuts_need_a_project`"
   },
   "action:run.debugConfig": {
-    "status": "done",
-    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`"
+    "status": "partial",
+    "proof": "`workbench::debug::tests::the_debuggers_other_actions_reach_the_adapter_and_the_editor`; what the cited tests drive still holds: the debuggers other actions reach the adapter and the editor; missing: Debug on a running configuration asks to stop it instead of starting another (`src/features/run/index.ts:182`); a second Debug while the first one prepares does nothing (`src/features/run/index.ts:177`)"
   },
   "action:debug.toggleMethodBreakpoint": {
     "status": "done",
@@ -4788,8 +4788,8 @@
     "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
   },
   "action:agents.quoteReply": {
-    "status": "done",
-    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`"
+    "status": "partial",
+    "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; what the cited tests drive still holds: the agents actions keep the conversation docked and never show the agents key; missing: the session's selection toolbar has Quote (`src/features/agents/SelectionToolbar.tsx:141`)"
   },
   "action:agents.archiveTasks": {
     "status": "done",
@@ -4828,8 +4828,8 @@
     "proof": "`workbench::tests::the_agents_actions_keep_the_conversation_docked_and_never_show_the_agents_key`; runs and leaves the conversation docked in the tool window: a conversation cannot be an editor tab yet"
   },
   "action:agents.forkTask": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; with an agent that can fork, Fork adds a third task copied from the first"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; with an agent that can fork, Fork adds a third task copied from the first; missing: its failure message reads Couldn't fork the task (`src/features/agents/taskActions.ts:307`)"
   },
   "action:agents.retractMessage": {
     "status": "done",
@@ -5008,12 +5008,12 @@
     "proof": "`workbench::shelf::tests::create_patch_from_selected_changes_writes_a_file_that_applies_in_a_clean_clone`"
   },
   "action:vcs.ignoreLocal": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`; what the cited tests drive still holds: add to vcs stages an unversioned file and the ignore actions write their own file; missing: in the changes view's Add to .gitignore submenu (`src/features/vcs/CommitView.tsx:393`); opens `.git/info/exclude` after writing (`src/features/vcs/ignore.ts:18`)"
   },
   "action:vcs.ignoreShared": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::add_to_vcs_stages_an_unversioned_file_and_the_ignore_actions_write_their_own_file`; what the cited tests drive still holds: add to vcs stages an unversioned file and the ignore actions write their own file; missing: the changes view shows it as `.gitignore` in an Add to .gitignore submenu (`src/features/vcs/CommitView.tsx:392`)"
   },
   "action:vcs.log.branches.delete": {
     "status": "done",
@@ -5032,8 +5032,8 @@
     "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`"
   },
   "action:vcs.log.branches.update": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::the_branches_pane_actions_act_on_the_selected_branch`; what the cited tests drive still holds: the branches pane actions act on the selected branch; missing: updates only the repository whose branch menu was used (`src/features/vcs/branchOps.ts:534`)"
   },
   "action:vcs.log.changes.compareBeforeWithLocal": {
     "status": "partial",
@@ -5056,16 +5056,16 @@
     "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
   },
   "action:vcs.log.changes.jumpToSource": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; what the cited tests drive still holds: the changed files actions act on the files of the selected commit; missing: F4 / ⌘↓ in the changed files tree runs it on the selected files (`src/features/vcs/GitLog.tsx:2780`)"
   },
   "action:vcs.log.changes.revert": {
     "status": "done",
     "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
   },
   "action:vcs.log.changes.showDiff": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::the_changed_files_actions_act_on_the_files_of_the_selected_commit`; what the cited tests drive still holds: the changed files actions act on the files of the selected commit; missing: ⌘D / Ctrl+D in the changed files runs it: native has no `vcsLogChangesFocus` context key (`src/features/vcs/logPaneActions.ts:155`); an explicit Show Diff opens in the reusable preview tab (`src/features/vcs/logChanges.ts:251`)"
   },
   "action:vcs.log.checkoutRevision": {
     "status": "done",
@@ -5096,20 +5096,20 @@
     "proof": "`workbench::log_actions::tests::create_patch_of_commits_writes_their_changes_oldest_first`"
   },
   "action:vcs.log.dropCommit": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::drop_commit_removes_it_after_the_confirmation`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::drop_commit_removes_it_after_the_confirmation`; what the cited tests drive still holds: drop commit removes it after the confirmation; missing: the Git Log menu enables it on a pushed commit (`src/features/vcs/GitLog.tsx:1226`); a range that reaches the upstream asks first and is refused on a protected branch (`src/features/vcs/rebase.tsx:154`)"
   },
   "action:vcs.log.editMessage": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::edit_commit_message_rewords_the_head_and_an_older_commit_and_undo_restores_it`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::edit_commit_message_rewords_the_head_and_an_older_commit_and_undo_restores_it`; what the cited tests drive still holds: edit commit message rewords the head and an older commit and undo restores it; missing: the Git Log menu enables it on a pushed commit (`src/features/vcs/GitLog.tsx:1226`); a range that reaches the upstream asks first and is refused on a protected branch (`src/features/vcs/rebase.tsx:154`)"
   },
   "action:vcs.log.expandLinear": {
     "status": "partial",
     "proof": "`workbench::log_actions::tests::collapse_and_expand_linear_branches_set_the_option_the_log_presents_its_graph_with`; the option is stored and the model expands; the collapsed graph is not drawn"
   },
   "action:vcs.log.fixup": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::commit_and_rebase_after_fixup_melds_the_change_into_the_older_commit`, `workbench::log_actions::tests::fixup_and_squash_into_prepare_the_commit_message`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::commit_and_rebase_after_fixup_melds_the_change_into_the_older_commit`, `workbench::log_actions::tests::fixup_and_squash_into_prepare_the_commit_message`; what the cited tests drive still holds: commit and rebase after fixup melds the change into the older commit; fixup and squash into prepare the commit message; missing: the Git Log menu enables it on a pushed commit (`src/features/vcs/GitLog.tsx:1226`); a range that reaches the upstream asks first and is refused on a protected branch (`src/features/vcs/rebase.tsx:154`)"
   },
   "action:vcs.log.goToChild": {
     "status": "done",
@@ -5124,8 +5124,8 @@
     "proof": "`workbench::log_actions::tests::copy_revision_and_the_navigation_actions_move_the_selection`; selects only a commit already loaded: no paging and no filter reset"
   },
   "action:vcs.log.interactiveRebase": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::interactive_rebase_lists_the_commits_oldest_first_and_applies_the_plan`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::interactive_rebase_lists_the_commits_oldest_first_and_applies_the_plan`; what the cited tests drive still holds: interactive rebase lists the commits oldest first and applies the plan; missing: the Git Log menu enables it on a pushed commit (`src/features/vcs/GitLog.tsx:1226`); a range that reaches the upstream asks first and is refused on a protected branch (`src/features/vcs/rebase.tsx:154`)"
   },
   "action:vcs.log.newBranch": {
     "status": "done",
@@ -5164,20 +5164,20 @@
     "proof": "`workbench::log_actions::tests::squash_commits_melds_the_selected_commits_with_the_typed_message`; the log has no multi-selection, so several commits reach the action only as its argument"
   },
   "action:vcs.log.squashInto": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::fixup_and_squash_into_prepare_the_commit_message`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::fixup_and_squash_into_prepare_the_commit_message`; what the cited tests drive still holds: fixup and squash into prepare the commit message; missing: the Git Log menu enables it on a pushed commit (`src/features/vcs/GitLog.tsx:1226`); a range that reaches the upstream asks first and is refused on a protected branch (`src/features/vcs/rebase.tsx:154`)"
   },
   "action:vcs.log.undoCommit": {
-    "status": "done",
-    "proof": "`workbench::log_actions::tests::undo_commit_brings_the_changes_back_and_offers_the_message`"
+    "status": "partial",
+    "proof": "`workbench::log_actions::tests::undo_commit_brings_the_changes_back_and_offers_the_message`; what the cited tests drive still holds: undo commit brings the changes back and offers the message; missing: refuses to undo a pushed commit on a protected branch (`src/features/vcs/rebase.tsx:93`)"
   },
   "action:vcs.manageRemotes": {
     "status": "partial",
     "proof": "`workbench::vcs_operations::tests::the_remotes_dialog_adds_edits_and_removes_a_remote`; a password inside a remote URL is masked in the list and the edit field; the original shows the URL as stored"
   },
   "action:vcs.merge": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`; what the cited tests drive still holds: merge merges a branch and abort merge undoes one stopped on conflicts; missing: starts on the repository of the context's file (`src/features/vcs/actions.tsx:152`); in the editor's Git submenu (`src/editor/core/controller.ts:2252`)"
   },
   "action:vcs.merge.abort": {
     "status": "done",
@@ -5192,20 +5192,20 @@
     "proof": "`workbench::vcs_operations::tests::new_worktree_creates_one_that_the_worktrees_dialog_lists_and_removes`"
   },
   "action:vcs.openDiff": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::open_diff_shows_the_diff_of_its_argument`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::open_diff_shows_the_diff_of_its_argument`; what the cited tests drive still holds: open diff shows the diff of its argument; missing: with Show All Files in One Diff View on, opens every file of the change in one combined diff (`src/features/vcs/diffInput.ts:152`)"
   },
   "action:vcs.operations": {
     "status": "done",
     "proof": "`workbench::vcs_operations::tests::the_operations_popup_lists_the_operations_in_order_and_runs_the_chosen_one`"
   },
   "action:vcs.pull": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::pull_brings_in_a_commit_from_the_remote`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::pull_brings_in_a_commit_from_the_remote`; what the cited tests drive still holds: pull brings in a commit from the remote; missing: starts on the repository of the context's file (`src/features/vcs/actions.tsx:152`); in the editor's Git submenu (`src/editor/core/controller.ts:2252`)"
   },
   "action:vcs.rebase": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`, `workbench::vcs_operations::tests::rebase_onto_a_branch_and_continue_a_rebase_that_stopped`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::merge_merges_a_branch_and_abort_merge_undoes_one_stopped_on_conflicts`, `workbench::vcs_operations::tests::rebase_onto_a_branch_and_continue_a_rebase_that_stopped`; what the cited tests drive still holds: merge merges a branch and abort merge undoes one stopped on conflicts; rebase onto a branch and continue a rebase that stopped; missing: starts on the repository of the context's file (`src/features/vcs/actions.tsx:152`); in the editor's Git submenu (`src/editor/core/controller.ts:2252`)"
   },
   "action:vcs.rebase.abort": {
     "status": "done",
@@ -5224,8 +5224,8 @@
     "proof": "`workbench::vcs_operations::tests::a_stopped_cherry_pick_and_revert_are_aborted_and_continued`"
   },
   "action:vcs.resetHead": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::reset_head_moves_the_branch_in_each_mode`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::reset_head_moves_the_branch_in_each_mode`; what the cited tests drive still holds: reset head moves the branch in each mode; missing: in the editor's Git submenu (`src/editor/core/controller.ts:2278`)"
   },
   "action:vcs.revert.abort": {
     "status": "done",
@@ -5236,8 +5236,8 @@
     "proof": "`workbench::vcs_operations::tests::a_stopped_cherry_pick_and_revert_are_aborted_and_continued`"
   },
   "action:vcs.rollback": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::rollback_in_an_editor_restores_the_changed_lines_under_the_caret`, `workbench::vcs_operations::tests::rollback_restores_a_modified_file_and_deletes_an_added_one_only_when_asked`; what the cited tests drive still holds: rollback in an editor restores the changed lines under the caret; rollback restores a modified file and deletes an added one only when asked; missing: falls back to the checked changes when the Commit window's selection has nothing to roll back (`src/features/vcs/actions.tsx:383`)"
   },
   "action:vcs.shelf.compareLocal": {
     "status": "done",
@@ -5292,8 +5292,8 @@
     "proof": "`workbench::shelf::tests::shelving_selected_changes_reverts_them_and_the_shelf_lists_the_entry_with_its_files`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`, `vcs::shelf_time::tests::a_shelf_row_shows_its_files_then_when_it_was_shelved`, `vcs::shelf_time::tests::the_shelf_tab_shows_each_shelfs_time_after_its_files`; the Shelf tab lists each shelf with its files and its time"
   },
   "action:vcs.stash": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`; what the cited tests drive still holds: stash then unstash restores the change; missing: in the editor's Git submenu (`src/editor/core/controller.ts:2280`)"
   },
   "action:vcs.toggleAmend": {
     "status": "done",
@@ -5304,12 +5304,12 @@
     "proof": "`workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`"
   },
   "action:vcs.unstash": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::stash_then_unstash_restores_the_change`; what the cited tests drive still holds: stash then unstash restores the change; missing: in the editor's Git submenu (`src/editor/core/controller.ts:2281`)"
   },
   "action:vcs.update": {
-    "status": "done",
-    "proof": "`workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`, `workbench::vcs_operations::tests::update_project_pulls_with_the_method_chosen_and_resets_to_the_remote_branch`"
+    "status": "partial",
+    "proof": "`workbench::vcs_operations::tests::proofs_update::update_project_tells_what_came_in_from_where_the_branch_met_its_upstream`, `workbench::vcs_operations::tests::update_project_pulls_with_the_method_chosen_and_resets_to_the_remote_branch`; what the cited tests drive still holds: update project tells what came in from where the branch met its upstream; update project pulls with the method chosen and resets to the remote branch; missing: updates only the repository it is given (`src/features/vcs/remoteUi.tsx:44`); the editor's Git submenu shows Pull… instead of it (`src/editor/core/controller.ts:2269`); its result is shown as a balloon even when VCS balloons are off (`src/features/vcs/ops.ts:65`)"
   },
   "action:vcs.worktrees": {
     "status": "done",
@@ -5456,8 +5456,8 @@
     "proof": "`vcs::shelf_view::tests::preserves_file_targets_through_selection_menus_toolbar_and_activation`, `vcs::shelf_view::tests::keeps_file_scope_from_selection_and_explicit_targets_rejects_stale_files`, `workbench::shelf::tests::show_diff_of_a_shelved_file_opens_the_diff_window_with_the_shelved_content`, `workbench::shelf::tests::show_diff_in_the_shelf_tab_shows_the_selected_shelved_file`, `workbench::shelf::tests::copy_patch_puts_the_shelved_patch_on_the_clipboard`, `workbench::shelf::tests::unshelve_restores_the_changes_into_the_chosen_list_and_removes_what_applied_when_asked`, `workbench::shelf::model_tests::compares_saved_sides_keeps_binary_files_out_of_text_diffs_and_scopes_chains`, `workbench::shelf::model_tests::maps_saved_and_local_diffs_to_the_owning_repo`, `workbench::shelf::model_tests::keeps_legacy_shelves_on_the_primary_repo_after_selecting_another_repo`, `workbench::shelf::model_tests::the_shelf_menu_disables_rename_for_a_file`, `workbench::shelf::tests::proofs11_shelf::copies_only_the_selected_file_patch_through_the_scoped_patch_command`, `workbench::shelf::tests::proofs11_shelf::routes_the_configured_show_diff_shortcut_to_the_focused_shelf_selection`; Copy as Patch of one file from the file's context menu, and the diff shortcut in the Shelf tab with its refusal in an editor. Missing: Compare with Local skipping files, and unshelving across roots, are only on the model"
   },
   "action:debug.startConfig": {
-    "status": "done",
-    "proof": "`workbench::debug::tests::proofs_debug::debug_without_a_configuration_starts_the_only_debuggable_one`; run without a configuration, it starts the project's only configuration with a debug adapter, which stops at the breakpoint with the frame main, main.fake:2 in the Debug window's main tab"
+    "status": "partial",
+    "proof": "`workbench::debug::tests::proofs_debug::debug_without_a_configuration_starts_the_only_debuggable_one`; run without a configuration, it starts the project's only configuration with a debug adapter, which stops at the breakpoint with the frame main, main.fake:2 in the Debug window's main tab; missing: the configuration's `.env` files are loaded into the debug launch (`src/features/debugger/actions.ts:369`); a JavaScript Debug (browser) configuration starts a browser debug session (`src/features/debugger/actions.ts:355`)"
   },
   "action:debug.forceRunToCursor": {
     "status": "done",
@@ -5476,8 +5476,8 @@
     "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; the last reply is replaced by a new one (Answer 2 by Answer 3) and the message it answers is listed once"
   },
   "action:agents.forkReply": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; Branch Conversation from Here opens a new task, docked, holding the first turn only"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_agents::an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts`; Fork Conversation from Here opens a new task, docked, holding the first turn only; missing: its failure message reads Couldn't fork the task (`src/features/agents/replyActions.ts:149`)"
   },
   "ipc:agent_fork": {
     "status": "partial",
@@ -5500,20 +5500,20 @@
     "proof": "`workbench::tests::proofs_database::explain_plan_logs_the_explained_statement_and_its_plan_nodes`, `workbench::database_extras::tests::the_console_banner_and_the_query_plan_tab_follow_the_runs`; Explain Plan asks ide_host::ops::db::explain, the adapter's function; the Output tab logs the statement and its node count and the Query Plan tab draws the nodes that only that reply carries"
   },
   "action:run-all": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Run All, run through run.services.runAll on the Program group, starts both configurations and both rows say Running"
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Run All, run through run.services.runAll on the Program group, starts both configurations and both rows say Running; missing: on a configuration folder node of the Services tree, it acts on that folder's configurations (`src/features/run/services.tsx:657`)"
   },
   "action:restart-all": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`; the toolbar's Restart All, run through run.services.restartAll on the Program group, starts each configuration again in its own session, started later, and both rows still say Running"
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`; the toolbar's Restart All, run through run.services.restartAll on the Program group, starts each configuration again in its own session, started later, and both rows still say Running; missing: on a configuration folder node of the Services tree, it acts on that folder's configurations (`src/features/run/services.tsx:657`)"
   },
   "action:stop-all": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Stop All, run through run.services.stopAll on the Program group, ends both sessions and both rows say Stopped"
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`, `workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`; the toolbar's Stop All, run through run.services.stopAll on the Program group, ends both sessions and both rows say Stopped; missing: on a configuration folder node of the Services tree, it acts on that folder's configurations (`src/features/run/services.tsx:657`)"
   },
   "action:open-browser": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`, `workbench::tests::proofs5_run::open_in_browser_opens_the_started_servers_page_and_remove_from_services_hides_a_row`; the toolbar's Open in Browser is enabled while a server with a port runs and disabled after Stop; run through run.services.openBrowser on the group it opens http://localhost:8123, and nothing while no server runs"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs_services::run_all_and_stop_all_drive_a_type_group_and_a_started_servers_port_shows`, `workbench::tests::proofs5_run::open_in_browser_opens_the_started_servers_page_and_remove_from_services_hides_a_row`; the toolbar's Open in Browser is enabled while a server with a port runs and disabled after Stop; run through run.services.openBrowser on the group it opens http://localhost:8123, and nothing while no server runs; missing: on a configuration folder node of the Services tree, it acts on that folder's configurations (`src/features/run/services.tsx:657`)"
   },
   "module:src/platform/serverPort.ts": {
     "status": "done",
@@ -5948,16 +5948,16 @@
     "proof": "`workbench::plugin_contributions::tests::renders_owned_gutter_commands_and_drops_answers_to_superseded_buffers`, `workbench::plugin_contributions::tests::puts_the_actions_of_one_line_behind_one_icon_whose_click_opens_a_menu`, `workbench::plugin_contributions::tests::a_gutter_icon_click_neither_moves_the_caret_nor_toggles_a_breakpoint`; gutter-actions show as icons whose click runs the action without moving the caret or toggling a breakpoint, two plugins' actions of a line behind one menu. Missing: every other function of the interface (format, signature help, highlights, links, lenses, folding, colors, symbols…) has no app-level test"
   },
   "action:run.services.runAll": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`"
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`; what the cited tests drive still holds: run all restart all and stop all drive every configuration of a type; missing: on a configuration folder node of the Services tree, it acts on that folder's configurations (`src/features/run/services.tsx:657`)"
   },
   "action:run.services.restartAll": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`"
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`; what the cited tests drive still holds: run all restart all and stop all drive every configuration of a type; missing: on a configuration folder node of the Services tree, it acts on that folder's configurations (`src/features/run/services.tsx:657`)"
   },
   "action:run.services.stopAll": {
-    "status": "done",
-    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`"
+    "status": "partial",
+    "proof": "`workbench::tests::smoke_services::run_all_restart_all_and_stop_all_drive_every_configuration_of_a_type`; what the cited tests drive still holds: run all restart all and stop all drive every configuration of a type; missing: on a configuration folder node of the Services tree, it acts on that folder's configurations (`src/features/run/services.tsx:657`)"
   },
   "action:plugins.log.clear": {
     "status": "done",
@@ -6196,8 +6196,8 @@
     "proof": "`workbench::editor_language::tests::generate_lists_the_generate_actions_and_applies_the_chosen_one`, `workbench::editor_language::tests::proofs3_editor_keys::ctrl_o_in_the_editor_overrides_the_offered_method`, `workbench::editor_language::tests::proofs20_generate::override_methods_indents_the_inserted_method_under_the_brace`; with no override action it says Nothing to override; Ctrl-O in the editor applies the only override action the server offers, leaving the implement action. The method an override inserts is indented to the file's style under the brace"
   },
   "action:code.applyQuickFix": {
-    "status": "done",
-    "proof": "`workbench::editor_language::tests::apply_quick_fix_applies_the_fix_of_the_problem_at_the_caret`, `workbench::editor_language::tests::proofs20_generate::apply_quick_fix_indents_the_inserted_lines_under_the_brace`; run through the registry it asks for quick fixes only and applies the preferred fix of the problem at the caret, or says No quick fixes available. The lines the applied fix inserts are indented to the file's style"
+    "status": "partial",
+    "proof": "`workbench::editor_language::tests::apply_quick_fix_applies_the_fix_of_the_problem_at_the_caret`, `workbench::editor_language::tests::proofs20_generate::apply_quick_fix_indents_the_inserted_lines_under_the_brace`; run through the registry it asks for quick fixes only and applies the preferred fix of the problem at the caret, or says No quick fixes available. The lines the applied fix inserts are indented to the file's style; missing: the fix applied is one whose code action names the problem at the caret (`src/editor/lsp/intentions.ts:154`)"
   },
   "action:navigate.nextError": {
     "status": "done",
@@ -6224,8 +6224,8 @@
     "proof": "`workbench::editor_language::tests::highlight_usages_marks_the_occurrences_and_the_caret_moves_through_them`, `workbench::editor_extras::tests::next_occurrence_steps_through_the_results_of_the_tool_window`; run through the registry the caret goes to the previous highlighted usage at the same place in the name, wrapping; with no highlighted usages ⌃⌥↑ in the editor runs Previous Occurrence and steps back through the TODO tool window's items, as the webview's fallback does"
   },
   "action:code.quickDefinition": {
-    "status": "done",
-    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `editor_lsp::definition_view::tests`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_shows_the_whole_declaration_from_the_syntax_tree_in_colour`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_in_the_edited_file_leaves_its_document_open`; run through the registry it shows the definition's file, line and lines in a popup with the keyboard, ← / → switch between several, and F4 opens it with the caret on it"
+    "status": "partial",
+    "proof": "`workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_shows_the_whole_declaration_from_the_syntax_tree_in_colour`, `workbench::editor_language::tests::proofs25_quick_definition::quick_definition_in_the_edited_file_leaves_its_document_open`; run through the registry it shows the definition's file, line and lines in a popup with the keyboard, ← / → switch between several, and F4 opens it with the caret on it; missing: an answer that arrives after the document changed is dropped (`src/editor/lsp/hover.ts:368`)"
   },
   "action:code.quickTypeDefinition": {
     "status": "partial",
@@ -6420,16 +6420,16 @@
     "proof": "`workbench::app_actions::tests::updates_the_running_projects_banner_after_a_backend_trust_transition`, `workbench::app_actions::tests::saves_the_parent_folder_choice_and_reuses_a_persisted_decision`, `workbench::app_actions::tests::a_project_opening_in_a_new_window_is_asked_about_in_that_window`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`; Trust Project from the Restricted Mode banner, from the trust question (with its parent folder when the checkbox is ticked) and through the registry trusts the project, the banner goes and its tools run. Missing: a workspace whose attached member is untrusted is not named in the banner, and Trust Project does not ask about that member first"
   },
   "action:project.previewRestricted": {
-    "status": "done",
-    "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`; the question's Preview in Restricted Mode runs the action: the project opens in Restricted Mode with the banner, decided as not trusted, and the next opening asks nothing"
+    "status": "partial",
+    "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`; the question's Preview in Restricted Mode runs the action: the project opens in Restricted Mode with the banner, decided as not trusted, and the next opening asks nothing; missing: for a remote project the answer also sets the desktop's own trust (`src/features/project-trust/index.tsx:204`)"
   },
   "action:project.dontOpen": {
     "status": "done",
     "proof": "`workbench::app_actions::tests::offers_three_choices_cancels_without_a_trust_decision_and_supports_restricted_preview`, `app_views::trust_dialog::tests::each_button_runs_its_action_and_escape_is_dont_open`; Don't Open (and Escape) closes the question, nothing opens, nothing is decided and nothing is reported"
   },
   "action:project.revokeTrust": {
-    "status": "done",
-    "proof": "`workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`; run through the registry it puts the window's project back in Restricted Mode (decided, not trusted) and its run configurations stop running; the Trust settings page that runs it with a path is its own row"
+    "status": "partial",
+    "proof": "`workbench::app_actions::tests::revoking_trust_or_removing_its_location_restricts_the_project`, `workbench::tests::a_project_in_restricted_mode_runs_no_configuration_until_it_is_trusted`; run through the registry it puts the window's project back in Restricted Mode (decided, not trusted) and its run configurations stop running; the Trust settings page that runs it with a path is its own row; missing: for a remote project it also revokes the desktop's own trust (`src/features/project-trust/index.tsx:282`)"
   },
   "action:project.removeTrustedLocation": {
     "status": "done",
@@ -6660,8 +6660,8 @@
     "proof": "`workbench::project_view_actions::tests::proofs7_tree_options::sort_by_modification_time_lists_the_newest_file_first`; run through the registry it says it is on (Sort by Name off) and the tree lists b.txt, c.md, a.md, newest first, an order neither the name nor the type gives; Sort by Name then puts the names back in order"
   },
   "action:terminal.openAt": {
-    "status": "done",
-    "proof": "`workbench::terminal_actions::tests::open_in_terminal_on_a_folder_opens_a_shell_there_named_after_it`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`; run through the registry with a folder it opens a tab named after the folder whose shell starts there, beside the tabs already open; without a project it is refused"
+    "status": "partial",
+    "proof": "`workbench::terminal_actions::tests::open_in_terminal_on_a_folder_opens_a_shell_there_named_after_it`, `workbench::terminal_actions::tests::the_terminal_actions_need_a_project`; run through the registry with a folder it opens a tab named after the folder whose shell starts there, beside the tabs already open; without a project it is refused; missing: in the agent task menu it reads Terminal and shows only for a task with its own terminal (`src/features/agents/taskActions.ts:399`)"
   },
   "action:terminal.runCommand": {
     "status": "done",
@@ -6700,8 +6700,8 @@
     "proof": "`workbench::services_actions::tests::proofs7_move::move_up_and_down_are_greyed_out_at_the_ends_of_a_group_and_a_later_window_keeps_the_order`, `workbench::services_actions::tests::move_up_and_move_down_reorder_a_configuration_within_its_type_and_store_the_order`; the Services toolbar's Move Down puts a configuration after the next one of its type group, it is greyed out on the group's last row, and a Services window opened later on the project lists the moved order"
   },
   "action:run.services.openBrowser": {
-    "status": "done",
-    "proof": "`workbench::tests::proofs5_run::open_in_browser_opens_the_started_servers_page_and_remove_from_services_hides_a_row`, `run_testing::services::tests::opens_the_known_group_url_and_offers_a_named_choice_for_several_web_apps`; run through the registry on a type group it opens nothing while no server runs and http://localhost:8123 once its started server reported the port"
+    "status": "partial",
+    "proof": "`workbench::tests::proofs5_run::open_in_browser_opens_the_started_servers_page_and_remove_from_services_hides_a_row`, `run_testing::services::tests::opens_the_known_group_url_and_offers_a_named_choice_for_several_web_apps`; run through the registry on a type group it opens nothing while no server runs and http://localhost:8123 once its started server reported the port; missing: on a configuration folder node of the Services tree, it acts on that folder's configurations (`src/features/run/services.tsx:657`)"
   },
   "action:run.services.hideConfig": {
     "status": "done",
@@ -7408,8 +7408,8 @@
     "proof": "`workbench::database_extras::tests::the_trees_navigation_actions_reach_the_referenced_table_and_the_console`; selects the table a foreign key refers to in the tree"
   },
   "action:db.jumpToConsole": {
-    "status": "done",
-    "proof": "`workbench::database_extras::tests::the_trees_navigation_actions_reach_the_referenced_table_and_the_console`; opens the console of the selected row's data source"
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::the_trees_navigation_actions_reach_the_referenced_table_and_the_console`; opens the console of the selected row's data source; missing: with several consoles of the source, a chooser lists them and New Query Console (`src/features/database/treeActions.ts:549`)"
   },
   "action:db.separateProceduresAndFunctions": {
     "status": "done",
@@ -7440,12 +7440,12 @@
     "proof": "`workbench::database_extras::tests::run_sql_script_runs_a_picked_file_and_a_template_opens_in_the_console`; runs the statements of a picked file on the data source. Missing: the picker's .sql/.ddl filter (the platform's file prompt takes none)"
   },
   "action:db.queryHistory": {
-    "status": "done",
-    "proof": "`workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::tests::proofs6_database_console::delete_in_query_history_removes_the_statement_from_the_stored_history`; lists the statements run on the data source, filters them, pastes one into the console and deletes one from the stored history"
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::query_history_lists_the_statements_run_and_pastes_one_into_the_console`, `workbench::tests::proofs6_database_console::delete_in_query_history_removes_the_statement_from_the_stored_history`; lists the statements run on the data source, filters them, pastes one into the console and deletes one from the stored history; missing: a request whose project changed while the data sources loaded is dropped (`src/features/database/requests.ts:20`)"
   },
   "action:db.goToColumn": {
-    "status": "done",
-    "proof": "`workbench::database_extras::tests::go_to_column_lists_the_columns_of_the_table_editor_with_the_keyboard`; lists the columns of the table editor, filters them by typing and moves to the chosen one with the keyboard"
+    "status": "partial",
+    "proof": "`workbench::database_extras::tests::go_to_column_lists_the_columns_of_the_table_editor_with_the_keyboard`; lists the columns of the table editor, filters them by typing and moves to the chosen one with the keyboard; missing: acts on the focused console result grid too (`src/features/database/ResultsView.tsx:449`); confirms the cell being edited before it runs (`src/features/database/tableEditorFocus.ts:92`)"
   },
   "ipc:db_history": {
     "status": "done",
@@ -8100,8 +8100,8 @@
     "proof": "`workbench::http_client::tests::new_http_request_creates_a_request_file_with_the_example_in_the_folder`, `workbench::http_client::tests::the_http_client_actions_run_only_where_their_when_clause_holds`; creates a request file with the example in the chosen folder; its condition is read on and off. Missing: the scratch file when there is no folder, and the hand-off to New from Template, have no test"
   },
   "action:http.openEndpoint": {
-    "status": "done",
-    "proof": "`workbench::http_client::tests::open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch`; appends the endpoint's request to the generated requests scratch file and opens it"
+    "status": "partial",
+    "proof": "`workbench::http_client::tests::open_in_http_client_appends_the_endpoint_to_the_generated_requests_scratch`; appends the endpoint's request to the generated requests scratch file and opens it; missing: the request uses the endpoint's module server address (`src/features/http-client/endpoints.ts:28`)"
   },
   "action:http.generateSpringRequest": {
     "status": "done",
