@@ -533,7 +533,7 @@ pub fn scheme_tokens(id: SchemeId, css: &str) -> Vars {
 #[derive(Debug, Clone)]
 pub struct SchemeSource {
     /// Indexed by scheme id, in the order of [`BUILTIN_THEME_IDS`].
-    tokens: [Vars; 7],
+    tokens: [Vars; BUILTIN_THEME_IDS.len()],
 }
 
 impl SchemeSource {
@@ -1115,12 +1115,25 @@ mod tests {
         assert!(selected.root.contains(&("--syn-keyword".to_owned(), "#cf8e6d".to_owned())));
     }
 
+    /// A scheme the settings name that is not built in (`one-dark`, `one-light`) is not applied: the editor
+    /// takes the theme's own scheme, as for any scheme it does not know.
+    #[test]
+    fn a_removed_one_scheme_in_the_settings_gives_way_to_the_themes_own() {
+        let source = SchemeSource::new(TOKENS_CSS);
+        let none = BTreeMap::new();
+        let solarized = dark_root().with(COLOR_THEME_ATTRIBUTE, "solarized-dark");
+        assert_eq!(effective_scheme(Some("one-dark"), Some(&solarized), &none), "solarized-dark");
+        assert_eq!(effective_scheme(Some("one-light"), Some(&dark_root()), &none), "dark");
+        assert_eq!(scheme_css(&source, Some("one-dark"), None, Some(&dark_root()), &none), "");
+        assert_eq!(scheme_kind(Some("one-dark"), &none), None);
+    }
+
     // src/platform/colorScheme.test.ts › color schemes › switches a chosen scheme of the other kind back to the
     // theme's own when the theme turns light or dark
     #[test]
     fn switches_a_chosen_scheme_of_the_other_kind_back_to_the_themes_own() {
         let none = BTreeMap::new();
-        assert_eq!(scheme_after_theme_change(Some("one-dark"), ThemeKind::Light, &none), Some("theme-default"));
+        assert_eq!(scheme_after_theme_change(Some("solarized-dark"), ThemeKind::Light, &none), Some("theme-default"));
         assert_eq!(scheme_after_theme_change(Some("solarized-light"), ThemeKind::Light, &none), None);
         assert_eq!(scheme_after_theme_change(Some("theme-default"), ThemeKind::Light, &none), None);
         let customs = custom("custom-night", "Night", "dark", BTreeMap::new());

@@ -185,8 +185,13 @@ mod tests {
     // agent chat settings › defaults every meter but the cost to on and keeps stored values
     #[test]
     fn defaults_every_meter_but_the_cost_to_on_and_keeps_stored_values() {
-        let defaults =
-            AgentSettings { show_context_usage: true, show_work_time: true, show_usage_limits: true, show_cost: false };
+        let defaults = AgentSettings {
+            show_context_usage: true,
+            show_work_time: true,
+            show_usage_limits: true,
+            show_cost: false,
+            ..AgentSettings::default()
+        };
         assert_eq!(parsed(json!({})).agents, defaults);
         let stored = parsed(json!({ "agents": { "showUsageLimits": false, "showCost": true } })).agents;
         assert_eq!(stored, AgentSettings { show_usage_limits: false, show_cost: true, ..defaults });

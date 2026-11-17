@@ -10,6 +10,19 @@ const tooltipSurface = {
   color: "var(--fg)",
 };
 
+/**
+ * Row metrics that put a label one icon column right of the popup's left edge. They live on the
+ * popup as custom properties so every rule consuming them — including the popup's negative
+ * offset below — changes together. The remaining 1px is tooltipSurface's border, shared with
+ * the hover and signature tooltips.
+ */
+const completionRowMetrics = {
+  "--cm-completion-edge": "4px",
+  "--cm-completion-inset": "6px",
+  "--cm-completion-icon": "16px",
+  "--cm-completion-gap": "6px",
+};
+
 const markdown = {
   ".cm-lsp-markdown": {
     fontFamily: "var(--font-ui)",
@@ -84,10 +97,20 @@ export const lspTheme = EditorView.theme({
   // --- completion (IDEA lookup: icon column, bold blue match, grey tail/type, advertiser) ---
   ".cm-tooltip.cm-tooltip-autocomplete.cm-lsp-completion": {
     ...tooltipSurface,
+    ...completionRowMetrics,
     fontFamily: "var(--openidea-editor-font, var(--font-mono))",
     fontWeight: "var(--fw-code, 400)",
     fontSize: "var(--fs-code)",
-    overflow: "hidden",
+    // CodeMirror anchors the popup at the completed word's start. Pull it left by one row's
+    // leading inset so the labels, not the icon column, sit on the text. CodeMirror's horizontal
+    // clamp measures the border box (margins excluded), so this offset sits outside its math:
+    // near the right edge it leaves that much extra space, and a word starting within one inset
+    // of the viewport's left edge would let the popup clip there. The normal editor layout
+    // (gutter + project sidebar) keeps the word well clear of that edge.
+    marginLeft:
+      "calc(-1 * (1px + var(--cm-completion-edge) + var(--cm-completion-inset) + var(--cm-completion-icon) + var(--cm-completion-gap)))",
+    // No overflow clipping: CodeMirror nests the documentation pane in this box and
+    // positions it outside it (see `positionCompletionInfo`). The footer rounds itself.
   },
   ".cm-tooltip.cm-tooltip-autocomplete.cm-lsp-completion > ul": {
     fontFamily: "var(--openidea-editor-font, var(--font-mono))",
@@ -100,11 +123,11 @@ export const lspTheme = EditorView.theme({
   ".cm-tooltip.cm-tooltip-autocomplete.cm-lsp-completion > ul > li": {
     display: "flex",
     alignItems: "center",
-    gap: "6px",
+    gap: "var(--cm-completion-gap)",
     height: "var(--h-list-row)",
     lineHeight: "var(--h-list-row)",
-    margin: "0 4px",
-    padding: "0 8px 0 6px",
+    margin: "0 var(--cm-completion-edge)",
+    padding: "0 8px 0 var(--cm-completion-inset)",
     borderRadius: "var(--radius-small)",
     color: "var(--fg-editor, var(--fg-strong))",
     whiteSpace: "nowrap",
@@ -122,8 +145,8 @@ export const lspTheme = EditorView.theme({
   },
   ".cm-lsp-completion .cm-lsp-kind": {
     flex: "none",
-    width: "16px",
-    height: "16px",
+    width: "var(--cm-completion-icon)",
+    height: "var(--cm-completion-icon)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -143,7 +166,9 @@ export const lspTheme = EditorView.theme({
     color: "var(--fg-completion-match, var(--link))",
   },
   // A server's label detail (`(a: string)`) hugs the name; template descriptions keep the gap.
-  ".cm-lsp-completion .cm-lsp-option .cm-completionDetail": { marginLeft: "-6px" },
+  ".cm-lsp-completion .cm-lsp-option .cm-completionDetail": {
+    marginLeft: "calc(-1 * var(--cm-completion-gap))",
+  },
   ".cm-lsp-completion .cm-lsp-type": {
     flex: "1 0 auto",
     maxWidth: "60%",
@@ -170,6 +195,7 @@ export const lspTheme = EditorView.theme({
     whiteSpace: "nowrap",
     gap: "12px",
     justifyContent: "space-between",
+    borderRadius: "0 0 calc(var(--radius-popup) - 1px) calc(var(--radius-popup) - 1px)",
   },
   ".cm-lsp-completion-sort": {
     padding: "0",
@@ -192,7 +218,10 @@ export const lspTheme = EditorView.theme({
   ".cm-lsp-doc-signature": { marginTop: "0", color: "var(--fg-emphasis)" },
 
   // --- hover / quick documentation / signature / hints ---------------------
-  ".cm-tooltip.cm-tooltip-hover": { ...tooltipSurface },
+  // Near the window edge CodeMirror caps the tooltip's height to the space left: its sections then
+  // shrink and scroll inside the popup instead of running past its border.
+  ".cm-tooltip.cm-tooltip-hover": { ...tooltipSurface, display: "flex", flexDirection: "column" },
+  ".cm-tooltip-hover > .cm-tooltip-section": { minHeight: 0, flexShrink: 1 },
   ".cm-lsp-hover": { maxWidth: "580px", maxHeight: "380px", overflow: "auto", padding: "10px 14px" },
   ".cm-lsp-hover-diagnostics + .cm-lsp-markdown": {
     borderTop: "1px solid var(--border-popup)",
@@ -266,9 +295,10 @@ export const lspTheme = EditorView.theme({
     padding: "6px 10px",
     borderRadius: "var(--radius-popup)",
     boxShadow: "var(--shadow-popup)",
-    maxWidth: "480px",
     whiteSpace: "pre-wrap",
   },
+  // The hint is the tooltip element itself: beat the editor theme's `.cm-tooltip` width.
+  ".cm-tooltip.cm-lsp-hint": { maxWidth: "min(480px, 100%)" },
   ".cm-lsp-hint-error": {
     backgroundColor: "var(--bg-feedback-error, color-mix(in srgb, var(--danger) 8%, var(--bg-popup)))",
     borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border-popup))",
@@ -285,11 +315,18 @@ export const lspTheme = EditorView.theme({
     textUnderlineOffset: "2px",
     cursor: "pointer",
   },
-  ".cm-lsp-occurrence": {
-    backgroundColor: "var(--bg-identifier-under-caret, color-mix(in srgb, var(--accent) 14%, transparent))",
+  ".cm-lsp-occurrence, .cm-lsp-occurrence-tail": {
+    "--lsp-occurrence-bg": "var(--bg-identifier-under-caret, color-mix(in srgb, var(--accent) 14%, transparent))",
   },
-  ".cm-lsp-occurrence-write": {
-    backgroundColor: "var(--bg-identifier-under-caret-write, color-mix(in srgb, var(--danger) 12%, transparent))",
+  ".cm-lsp-occurrence-write, .cm-lsp-occurrence-tail-write": {
+    "--lsp-occurrence-bg": "var(--bg-identifier-under-caret-write, color-mix(in srgb, var(--danger) 12%, transparent))",
+  },
+  ".cm-lsp-occurrence": { backgroundColor: "var(--lsp-occurrence-bg)" },
+  // First line of a highlight over several lines: from its start column to the right edge,
+  // over the line's own background (the caret row's).
+  ".cm-lsp-occurrence-tail": {
+    backgroundImage:
+      "linear-gradient(to right, transparent var(--lsp-occurrence-from), var(--lsp-occurrence-bg) var(--lsp-occurrence-from))",
   },
   ".cm-lsp-nav-info": { padding: "4px 8px" },
   // Chooser highlight (tempHighlight.ts): the expression / occurrences a choice would take.
@@ -369,6 +406,13 @@ export const lspTheme = EditorView.theme({
   ".cm-sem-python-predefined-definition": semanticStyle("python-predefined-definition", "predefined"),
   ".cm-sem-python-predefined-usage": semanticStyle("python-predefined-usage", "predefined"),
   ".cm-sem-python-docstring, .cm-sem-python-docstring *": semanticStyle("docstring", "string"),
+  // After the docstring wildcard above so the tag's own colour wins inside it.
+  ".cm-sem-python-docstring-tag": {
+    ...semanticStyle("python-docstring-tag", "doc-comment-tag"),
+    textDecoration: "var(--syn-python-docstring-tag-effect, var(--syn-doc-comment-tag-effect, none))",
+    WebkitTextDecoration: "var(--syn-python-docstring-tag-effect, var(--syn-doc-comment-tag-effect, none))",
+  },
+  ".cm-sem-python-docstring-keyword": semanticStyle("python-docstring-keyword", "doc-comment-tag-value"),
   ".cm-sem-python-bytes": semanticStyle("python-bytes", "string"),
   ".cm-sem-python-fstring, .cm-sem-python-fstring .tok-string, .cm-sem-python-fstring .tok-string2": semanticStyle(
     "python-fstring",

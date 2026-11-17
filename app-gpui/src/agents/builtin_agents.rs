@@ -26,11 +26,6 @@ pub fn env_key(agent: &str) -> String {
     format!("agents.{agent}.env")
 }
 
-/// The page's tabs.
-pub fn page_tabs(i18n: &I18n) -> [String; 2] {
-    [i18n.tx("Built-in"), i18n.tx("ACP Registry")]
-}
-
 /// `NAME=value` pairs separated by `;` or new lines; a pair without a valid name is refused.
 pub fn parse_env(text: &str, i18n: &mut I18n) -> Result<BTreeMap<String, String>, String> {
     static NAME: LazyLock<Regex> =

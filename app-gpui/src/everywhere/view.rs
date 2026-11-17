@@ -320,8 +320,7 @@ impl SearchEverywhere {
                     let window = window.clone();
                     let found = cx.global::<Backend>().with_host(move |host| async move {
                         let limit = u32::try_from(limit).unwrap_or(u32::MAX);
-                        let inner = host.clone();
-                        host.blocking(move || ide_host::ops::nav::find_files(&inner, &window, query, limit)).await
+                        ide_host::ops::nav::find_files(&host, &window, query, limit).await
                     });
                     self.fetches.push(cx.spawn(async move |popup, cx| {
                         let answer = match found.await {
@@ -339,9 +338,7 @@ impl SearchEverywhere {
                     };
                     let found = cx.global::<Backend>().with_host(move |host| async move {
                         let limit = u32::try_from(limit).unwrap_or(u32::MAX);
-                        let inner = host.clone();
-                        host.blocking(move || ide_host::ops::nav::find_symbols(&inner, &window, query, filter, limit))
-                            .await
+                        ide_host::ops::nav::find_symbols(&host, &window, query, filter, limit).await
                     });
                     self.fetches.push(cx.spawn(async move |popup, cx| {
                         let answer = match found.await {

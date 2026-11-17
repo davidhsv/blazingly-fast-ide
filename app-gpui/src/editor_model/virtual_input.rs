@@ -76,6 +76,9 @@ mod tests {
             title: "Lib.class".to_owned(),
             description: Some("/m2/lib-1.0.jar".to_owned()),
             decompiled: true,
+            can_reload_encoding: false,
+            encoding: "utf-8".to_owned(),
+            has_bom: false,
         }
     }
 

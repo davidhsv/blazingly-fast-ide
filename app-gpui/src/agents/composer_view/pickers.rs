@@ -112,9 +112,13 @@ mod tests {
                     value: (*value).to_owned(),
                     name: (*name).to_owned(),
                     description: description.map(str::to_owned),
+                    cost_category: None,
+                    pricing: None,
+                    usage_multiplier: None,
                 })
                 .collect(),
             via: AgentConfigVia::Option,
+            default_value: None,
         }
     }
 

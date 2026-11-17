@@ -84,7 +84,7 @@ fn send_in_composer(
 }
 
 /// With an agent that can roll its session back and copy it: Regenerate Response replaces the last reply with a
-/// new one; Branch Conversation from Here copies the conversation up to that reply into a new task, which opens;
+/// new one; Fork Conversation from Here copies the conversation up to that reply into a new task, which opens;
 /// Fork copies a whole task; Retract drops the last message from the conversation and puts it back in the
 /// composer.
 #[gpui_kit::test]
@@ -107,7 +107,7 @@ async fn an_agent_that_can_roll_back_regenerates_branches_forks_and_retracts(cx:
     assert!(!lines.iter().any(|line| line.starts_with("agent: Answer 2")), "{lines:?}");
     assert_eq!(lines.iter().filter(|line| line.starts_with("you: Say hello again")).count(), 1, "{lines:?}");
 
-    // Branch Conversation from Here on the first reply: a new task with the first turn only, shown.
+    // Fork Conversation from Here on the first reply: a new task with the first turn only, shown.
     run_action(cx, "agents.forkReply", Some(serde_json::json!({ "task": task, "turn": 0 })));
     wait_long(cx, "the branch", |cx| store.read_with(cx, |store, _| store.tasks().len() == 2));
     wait_long(cx, "the branch to show", |cx| {

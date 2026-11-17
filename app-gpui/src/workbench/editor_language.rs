@@ -976,7 +976,7 @@ async fn goto_test(this: &This, editor: &Entity<Editor>, cx: &mut AsyncWindowCon
     let found = call(this, cx, move |host, label| async move {
         let mut files = Vec::new();
         for name in names {
-            match ide_host::ops::nav::find_files(&host, &label, name.clone(), 50) {
+            match ide_host::ops::nav::find_files(&host, &label, name.clone(), 50).await {
                 Ok(matches) => files.extend(
                     matches.into_iter().map(|found| to_ipc(&found.path.0)).filter(|found| basename(found) == name),
                 ),
@@ -1115,7 +1115,8 @@ impl Workbench {
         }
         let (this, label) = (cx.weak_entity(), self.label.clone());
         let listener = cx.global_mut::<Backend>().listen(move |event, cx| {
-            if let IdeEvent::WorkspaceEditApplied { id, paths } = &event.event
+            // An agent's edit through the MCP tools is undoable but not announced as a refactoring.
+            if let IdeEvent::WorkspaceEditApplied { id, paths, by_agent: false } = &event.event
                 && event.window.as_deref().is_none_or(|window| window == label)
             {
                 let paths: Vec<String> = paths.iter().map(|path| to_ipc(&path.0)).collect();
@@ -2365,7 +2366,12 @@ mod tests {
         let indexed = |cx: &mut VisualTestContext| {
             cx.update(|_, cx| {
                 let host = cx.global::<Backend>().host.clone();
-                let found = ide_host::ops::nav::find_files(&host, "w1", "test_calc.py".to_owned(), 50);
+                let found = cx.global::<Backend>().block_on(ide_host::ops::nav::find_files(
+                    &host,
+                    "w1",
+                    "test_calc.py".to_owned(),
+                    50,
+                ));
                 found.is_ok_and(|found| !found.is_empty())
             })
         };

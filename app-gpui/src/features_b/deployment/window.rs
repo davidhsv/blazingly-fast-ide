@@ -30,7 +30,7 @@ pub enum LaunchStep {
     LoadProject,
     /// Set the window title, open the comparison
     /// ([`DeploymentStore::open_sync`]) and call [`ComparisonWindow::sync_opened`].
-    Open { title: String, server: DeploymentServer, paths: Vec<String> },
+    Open { title: String, server: Box<DeploymentServer>, paths: Vec<String> },
     /// The launch failed: the error is in the comparison, or [`ComparisonWindow::startup_error`].
     Failed,
 }
@@ -137,7 +137,7 @@ impl ComparisonWindow {
             return self.fail(i18n.tx("The deployment server is no longer available."), store);
         };
         let name = if server.name.is_empty() { &server.id } else { &server.name };
-        LaunchStep::Open { title: comparison_title(name, i18n), server: server.clone(), paths: launch.paths }
+        LaunchStep::Open { title: comparison_title(name, i18n), server: Box::new(server.clone()), paths: launch.paths }
     }
 
     /// The comparison was opened (or not, when nothing selected is mapped to the server).

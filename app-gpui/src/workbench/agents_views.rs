@@ -50,12 +50,16 @@ impl Workbench {
         let Some(store) = self.agents_store_entity() else { return };
         let provider = store.read(cx).draft.provider.clone();
         let asked = provider.clone();
+        #[cfg(test)]
+        let seam = cx.try_global::<spawn_guard::AgentSpawnSeam>().cloned();
         self.agents_backend(
             cx,
             move |host, label| async move {
                 // Reading a built-in agent's commands can start its program: tests start only their own agents.
                 #[cfg(test)]
-                spawn_guard::check(&host, &label, &asked)?;
+                if let Some(refused) = spawn_guard::gate_lookup(&host, &label, &asked, seam.as_ref()) {
+                    return Err(refused);
+                }
                 ide_host::ops::agent::commands(&host, &label, asked, None).await.map_err(|error| error.message)
             },
             move |workbench, answer, cx| match answer {

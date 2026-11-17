@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  effectiveBindings,
   formatBinding,
   installKeyboardDispatcher,
   isAltGrTyping,
@@ -11,12 +12,26 @@ import {
   useKeymap,
 } from "./keymap";
 import { executeAction, registerAction } from "./actions";
+import { clearContext, setContext } from "./context";
 import { usePlatform } from "./platformInfo";
 
 describe("keymap", () => {
   it("normalizes modifier order and case", () => {
     expect(normalizeBinding("Shift+Meta+o")).toBe("Shift+Meta+O");
     expect(normalizeBinding("meta+K  meta+c")).toBe("Meta+K Meta+C");
+  });
+
+  it("serves the effective pairs from cache until the keymap changes", () => {
+    const initial = useKeymap.getState();
+    useKeymap.setState({ overrides: { "t.cached": ["Meta+K"] } });
+    const first = effectiveBindings();
+    expect(effectiveBindings()).toBe(first);
+    expect(first).toContainEqual(["Meta+K", "t.cached"]);
+    useKeymap.setState({ overrides: { "t.cached": ["Meta+L"] } });
+    const second = effectiveBindings();
+    expect(second).not.toBe(first);
+    expect(second).toContainEqual(["Meta+L", "t.cached"]);
+    useKeymap.setState({ overrides: initial.overrides, extensions: initial.extensions });
   });
 
   it("formats macOS style", () => {
@@ -93,6 +108,93 @@ describe("keymap", () => {
       expect(run).not.toHaveBeenCalled();
       expect(await executeAction("t.keyGated")).toBe(true);
       expect(run).toHaveBeenCalledOnce();
+    });
+
+    it("prefers a matching keyWhen over a keyWhenless action sharing the stroke", async () => {
+      const specific = vi.fn();
+      const general = vi.fn();
+      // Insertion order (later wins) puts the keyWhenless action first.
+      registerAction({ id: "t.keyWhenMatch", title: "specific", keyWhen: "projectViewFocus", run: specific });
+      registerAction({ id: "t.keyWhenless", title: "general", run: general });
+      useKeymap.setState({ overrides: { "t.keyWhenMatch": ["Meta+J"], "t.keyWhenless": ["Meta+J"] } });
+      setContext("projectViewFocus", true);
+      uninstall = installKeyboardDispatcher(window);
+      try {
+        window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyJ", key: "j", metaKey: true }));
+        await Promise.resolve();
+        expect(specific).toHaveBeenCalledOnce();
+        expect(general).not.toHaveBeenCalled();
+      } finally {
+        clearContext("projectViewFocus");
+      }
+    });
+
+    it.each([
+      ["input", "Backspace", { metaKey: true }],
+      ["textarea", "Backspace", { metaKey: true }],
+      ["input", "Backspace", { ctrlKey: true }],
+      ["input", "Delete", { ctrlKey: true }],
+      ["input", "Backspace", { altKey: true }],
+    ] as const)("leaves %s %s deletion with %j to the text field", async (tag, key, modifiers) => {
+      const run = vi.fn();
+      const dispose = registerAction({ id: "t.deleteBehindInput", title: "Delete Line", run });
+      const modifier = "metaKey" in modifiers ? "Meta" : "ctrlKey" in modifiers ? "Ctrl" : "Alt";
+      useKeymap.setState({ overrides: { "t.deleteBehindInput": [`${modifier}+${key}`] } });
+      uninstall = installKeyboardDispatcher(window);
+      const input = document.createElement(tag);
+      document.body.append(input);
+      input.focus();
+      try {
+        const event = new KeyboardEvent("keydown", {
+          code: key,
+          key,
+          ...modifiers,
+          bubbles: true,
+          cancelable: true,
+        });
+        input.dispatchEvent(event);
+        await Promise.resolve();
+        expect(event.defaultPrevented).toBe(false);
+        expect(run).not.toHaveBeenCalled();
+      } finally {
+        input.remove();
+        dispose();
+      }
+    });
+
+    it.each([
+      ["Shift-modified input navigation", true, false],
+      ["terminal textarea bindings", false, true],
+    ] as const)("preserves %s", async (_name, shiftKey, terminal) => {
+      const run = vi.fn();
+      const dispose = registerAction({ id: "t.inputNavigation", title: "Navigate", run });
+      useKeymap.setState({
+        overrides: { "t.inputNavigation": [shiftKey ? "Meta+Shift+Backspace" : "Meta+Backspace"] },
+      });
+      uninstall = installKeyboardDispatcher(window);
+      const wrapper = document.createElement("div");
+      if (terminal) wrapper.className = "xterm";
+      const input = document.createElement(terminal ? "textarea" : "input");
+      wrapper.append(input);
+      document.body.append(wrapper);
+      input.focus();
+      try {
+        input.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Backspace",
+            code: "Backspace",
+            metaKey: true,
+            shiftKey,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+        await Promise.resolve();
+        expect(run).toHaveBeenCalledOnce();
+      } finally {
+        wrapper.remove();
+        dispose();
+      }
     });
 
     it("waits 2s for a chord's second stroke and swallows a wrong one", async () => {

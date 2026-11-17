@@ -7,6 +7,7 @@ use crate::types::*;
 #[cfg(target_arch = "wasm32")]
 mod imp {
     //! Calls through the `openidea:plugin@1.0.0` world.
+    use super::{WebSocketBatch, WebSocketRequest};
     use crate::bindings::openidea::plugin as wit;
     use crate::types::*;
 
@@ -80,6 +81,29 @@ mod imp {
             })
             .collect();
         wit::ui::notify(level, title, body, &actions).map_err(error)
+    }
+
+    pub fn notify_project(
+        p: &ProjectRes,
+        level: NotificationLevel,
+        title: &str,
+        body: &str,
+        actions: &[NotificationAction],
+    ) -> Result<(), Error> {
+        let level = match level {
+            NotificationLevel::Info => wit::types::NotificationLevel::Info,
+            NotificationLevel::Warning => wit::types::NotificationLevel::Warning,
+            NotificationLevel::Error => wit::types::NotificationLevel::Error,
+        };
+        let actions: Vec<_> = actions
+            .iter()
+            .map(|a| wit::ui::NotificationAction {
+                label: a.label.clone(),
+                command: a.command.clone(),
+                argument: a.argument.clone(),
+            })
+            .collect();
+        wit::ui::notify_project(p, level, title, body, &actions).map_err(error)
     }
 
     pub fn set_status_item(id: &str, item: &StatusItem) {
@@ -225,8 +249,29 @@ mod imp {
         p.read_file(path).map_err(error)
     }
 
+    pub fn project_read_bytes(p: &ProjectRes, path: &str) -> Result<Vec<u8>, Error> {
+        p.read_bytes(path).map_err(error)
+    }
+
     pub fn project_write(p: &ProjectRes, path: &str, text: &str) -> Result<(), Error> {
         p.write_file(path, text).map_err(error)
+    }
+
+    pub fn project_document(p: &ProjectRes, path: &str) -> Result<Document, Error> {
+        wit::editor::document_at(p, path).map(|d| Document { version: d.version, text: d.text }).map_err(error)
+    }
+
+    pub fn project_apply_document_edits(
+        p: &ProjectRes,
+        path: &str,
+        version: u64,
+        edits: &[TextEdit],
+    ) -> Result<u64, Error> {
+        let edits: Vec<wit::types::TextEdit> = edits
+            .iter()
+            .map(|edit| wit::types::TextEdit { range: range_out(edit.range), text: edit.text.clone() })
+            .collect();
+        wit::editor::apply_edits_at(p, path, version, &edits).map_err(error)
     }
 
     pub fn invocation_project(i: InvocationRef<'_>) -> Option<ProjectRes> {
@@ -370,6 +415,15 @@ mod imp {
     }
     pub fn clear_file_decorations(set: &str) -> Result<(), Error> {
         wit::decorations::clear_file(set).map_err(error)
+    }
+    pub fn set_file_note(path: &str, set: &str, note: &str, tooltip: Option<&str>) -> Result<(), Error> {
+        wit::decorations::set_file_note(path, set, note, tooltip).map_err(error)
+    }
+    pub fn set_file_icon(path: &str, set: &str, icon: &str, tooltip: Option<&str>) -> Result<(), Error> {
+        wit::decorations::set_file_icon(path, set, icon, tooltip).map_err(error)
+    }
+    pub fn set_file_icons(set: &str, items: &[(String, String)]) -> Result<(), Error> {
+        wit::decorations::set_file_icons(set, items).map_err(error)
     }
     pub fn vcs_log(p: &ProjectRes, path: Option<&str>, limit: u32) -> Result<Vec<CommitInfo>, Error> {
         wit::vcs::log(p, path, limit)
@@ -610,6 +664,40 @@ mod imp {
             .map_err(error)
     }
 
+    pub type WebSocketRes = wit::net::Websocket;
+
+    pub fn websocket_connect(project: &ProjectRes, req: &WebSocketRequest) -> Result<WebSocketRes, Error> {
+        let request = wit::net::WebsocketRequest {
+            url: req.url.clone(),
+            headers: req
+                .headers
+                .iter()
+                .map(|(name, value)| wit::net::Header { name: name.clone(), value: value.clone() })
+                .collect(),
+            subprotocol: req.subprotocol.clone(),
+        };
+        wit::net::websocket_connect(project, &request).map_err(error)
+    }
+
+    pub fn websocket_id(connection: &WebSocketRes) -> u64 {
+        connection.id()
+    }
+
+    pub fn websocket_send(connection: &WebSocketRes, bytes: &[u8]) -> Result<(), Error> {
+        connection.send(bytes).map_err(error)
+    }
+
+    pub fn websocket_drain(connection: &WebSocketRes, limit: u32) -> Result<WebSocketBatch, Error> {
+        connection
+            .drain(limit)
+            .map(|batch| WebSocketBatch { messages: batch.messages, closed: batch.closed })
+            .map_err(error)
+    }
+
+    pub fn websocket_close(connection: &WebSocketRes) -> Result<(), Error> {
+        connection.close().map_err(error)
+    }
+
     pub fn secret_set(name: &str, value: &str) -> Result<(), Error> {
         wit::secrets::set(name, value).map_err(error)
     }
@@ -719,6 +807,17 @@ mod imp {
     pub fn database_connect(project: &ProjectRes, id: &str) -> Result<(), Error> {
         wit::database::connect(project, id).map_err(error)
     }
+    pub fn lsp_request(
+        project: &ProjectRes,
+        server: &str,
+        method: &str,
+        params: Option<&str>,
+    ) -> Result<String, Error> {
+        wit::language_servers::request(project, server, method, params).map_err(error)
+    }
+    pub fn lsp_notify(project: &ProjectRes, server: &str, method: &str, params: Option<&str>) -> Result<(), Error> {
+        wit::language_servers::notify(project, server, method, params).map_err(error)
+    }
     pub fn mcp_stdio_command() -> Option<Vec<String>> {
         wit::mcp::stdio_command()
     }
@@ -734,6 +833,32 @@ mod imp {
                 workdir_args: target.workdir_args.clone(),
                 container_root: target.container_root.clone(),
                 commands: target.commands.clone(),
+            },
+        )
+        .map_err(error)
+    }
+    pub fn register_run_target_with_overrides(
+        project: &ProjectRes,
+        target: &crate::PluginRunTargetWithOverrides,
+    ) -> Result<(), Error> {
+        wit::run_targets::register_with_overrides(
+            project,
+            &wit::run_targets::RunTargetWithOverrides {
+                id: target.id.clone(),
+                name: target.name.clone(),
+                program: target.program.clone(),
+                args: target.args.clone(),
+                workdir_args: target.workdir_args.clone(),
+                container_root: target.container_root.clone(),
+                commands: target
+                    .commands
+                    .iter()
+                    .map(|c| wit::run_targets::CommandOverride {
+                        name: c.name.clone(),
+                        args: c.args.clone(),
+                        workdir_args: c.workdir_args.clone(),
+                    })
+                    .collect(),
             },
         )
         .map_err(error)
@@ -761,6 +886,9 @@ mod imp {
     pub fn reply_content_tab(request: &str, reply: &crate::ContentTabReply) -> Result<(), Error> {
         wit::views::reply_content_tab(request, &content_tab_reply_to(reply)).map_err(error)
     }
+    pub fn open_diff(diff: &crate::ContentDiff, file_name: Option<&str>) -> Result<(), Error> {
+        wit::views::open_diff(&content_diff_to(diff), file_name).map_err(error)
+    }
 
     pub fn open_terminal(title: &str, program: &str, args: &[String]) -> Result<(), Error> {
         wit::views::open_terminal(title, program, args).map_err(error)
@@ -780,6 +908,11 @@ mod imp {
 
     pub fn setting(key: &str) -> Option<String> {
         wit::settings::get(key)
+    }
+
+    pub fn extension_contributions(point: &str) -> Result<Vec<crate::Contribution>, Error> {
+        let list = wit::extensions::contributions(point).map_err(error)?;
+        Ok(list.into_iter().map(|c| crate::Contribution { plugin: c.plugin, data: c.data }).collect())
     }
 
     pub fn run_process(
@@ -921,6 +1054,21 @@ impl Project {
         imp::database_connect(&self.inner, id)
     }
 
+    /// Sends `method` to the language server named `server` (its name in the language
+    /// definition, e.g. `phoxite`) running for this project and returns the result as
+    /// JSON (API 1.9). `params` is JSON. Requires `lsp:<server>` and a trusted project.
+    ///
+    /// Only the server's own methods pass (`phoxite/laravel/routes`); LSP's own
+    /// (`textDocument/…`, `workspace/…`, `initialize`, `$/…`) are [`Error::Invalid`].
+    /// [`Error::NotFound`] when the server is not running: the call never starts one.
+    pub fn language_server_request(&self, server: &str, method: &str, params: Option<&str>) -> Result<String, Error> {
+        imp::lsp_request(&self.inner, server, method, params)
+    }
+    /// The same for a notification: no answer is awaited.
+    pub fn language_server_notify(&self, server: &str, method: &str, params: Option<&str>) -> Result<(), Error> {
+        imp::lsp_notify(&self.inner, server, method, params)
+    }
+
     /// Find in Files with unsaved text, project excludes, cancellation and a 10,000 match cap.
     /// Requires project.read; locations use zero-based lines and UTF-16 columns.
     pub fn search_text(&self, query: &TextQuery, limit: u32) -> Result<TextSearch, Error> {
@@ -939,6 +1087,20 @@ impl Project {
         imp::vcs_diff(&self.inner, path, against)
     }
 
+    /// [`notify_with_actions`] in a window of this project only (API 1.5), also from
+    /// scheduled or background work: the most recently focused one when it is open in
+    /// several, and its buttons run there. Once the project has closed this is
+    /// [`Error::NotFound`] and nothing is shown. Needs no capability.
+    pub fn notify(
+        &self,
+        level: NotificationLevel,
+        title: &str,
+        body: &str,
+        actions: &[NotificationAction],
+    ) -> Result<(), Error> {
+        imp::notify_project(&self.inner, level, title, body, actions)
+    }
+
     /// Absolute path of the root. Needs `project.read`.
     pub fn root(&self) -> Result<String, Error> {
         imp::project_root(&self.inner)
@@ -949,6 +1111,26 @@ impl Project {
     /// Needs `project.read`.
     pub fn read_file(&self, path: &str) -> Result<String, Error> {
         imp::project_read(&self.inner, path)
+    }
+
+    /// Reads the bytes of a file inside the project (absolute or
+    /// root-relative) — images, archives, fonts — at most 16 MiB, the file on
+    /// disk. Paths leaving the root are rejected; a missing path is
+    /// `Error::NotFound`. Needs `project.read`.
+    pub fn read_bytes(&self, path: &str) -> Result<Vec<u8>, Error> {
+        imp::project_read_bytes(&self.inner, path)
+    }
+
+    /// Versioned text of an explicitly named open document. This works from
+    /// background events and requires `project.read` plus `editor.read`.
+    pub fn document(&self, path: &str) -> Result<Document, Error> {
+        imp::project_document(&self.inner, path)
+    }
+
+    /// Applies versioned edits to an explicitly named open document. Returns
+    /// [`Error::Stale`] without writing when its version changed.
+    pub fn apply_document_edits(&self, path: &str, version: u64, edits: &[TextEdit]) -> Result<u64, Error> {
+        imp::project_apply_document_edits(&self.inner, path, version, edits)
     }
 
     /// Replaces the text of a file inside the project (absolute or
@@ -1043,6 +1225,51 @@ pub fn publish_diagnostics(path: &str, items: &[Diagnostic]) -> Result<(), Error
 /// `secrets`). `Error::Cancelled` when the call was superseded.
 pub fn fetch(request: &HttpRequest) -> Result<HttpResponse, Error> {
     imp::fetch(request)
+}
+
+/// A host-owned background WebSocket. Dropping it closes the connection.
+pub struct WebSocket {
+    inner: imp::WebSocketRes,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WebSocketRequest {
+    pub url: String,
+    pub headers: Vec<(String, String)>,
+    pub subprotocol: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct WebSocketBatch {
+    pub messages: Vec<Vec<u8>>,
+    pub closed: bool,
+}
+
+impl WebSocket {
+    pub fn connect(project: &Project, request: &WebSocketRequest) -> Result<Self, Error> {
+        imp::websocket_connect(&project.inner, request).map(|inner| Self { inner })
+    }
+    pub fn id(&self) -> u64 {
+        imp::websocket_id(&self.inner)
+    }
+    pub fn send(&self, bytes: &[u8]) -> Result<(), Error> {
+        imp::websocket_send(&self.inner, bytes)
+    }
+    pub fn drain(&self, limit: u32) -> Result<WebSocketBatch, Error> {
+        imp::websocket_drain(&self.inner, limit)
+    }
+    pub fn close(&self) -> Result<(), Error> {
+        imp::websocket_close(&self.inner)
+    }
+}
+
+impl Drop for WebSocket {
+    fn drop(&mut self) {
+        // The WIT resource also closes on its own drop. Calling close here
+        // keeps the native mock faithful to that lifecycle; host close is
+        // intentionally idempotent.
+        let _ = imp::websocket_close(&self.inner);
+    }
 }
 
 /// Whether the user stored secret `name` (declared under `[[contributes.secrets]]`).
@@ -1650,6 +1877,21 @@ pub fn set_file_decoration(path: &str, set: &str, item: &FileDecoration) -> Resu
 pub fn clear_file_decorations(set: &str) -> Result<(), Error> {
     imp::clear_file_decorations(set)
 }
+/// Set a note shown after a file's name in the project tree, replacing this tree set's
+/// annotation for the file (API 1.7). One line of at most 200 characters. Requires project.read.
+pub fn set_file_note(path: &str, set: &str, note: &str, tooltip: Option<&str>) -> Result<(), Error> {
+    imp::set_file_note(path, set, note, tooltip)
+}
+/// Set a `[[contributes.fileIcons]]` icon for a file or folder in the project tree, replacing
+/// this tree set's annotation for the path (API 1.8). Requires project.read.
+pub fn set_file_icon(path: &str, set: &str, icon: &str, tooltip: Option<&str>) -> Result<(), Error> {
+    imp::set_file_icon(path, set, icon, tooltip)
+}
+/// Replace all `(path, icon)` entries of a tree icon set at once (API 1.8; at most 10,000 entries).
+/// Requires project.read.
+pub fn set_file_icons(set: &str, items: &[(String, String)]) -> Result<(), Error> {
+    imp::set_file_icons(set, items)
+}
 
 /// Starts an owned run configuration in the invoking window. Its id receives run-exited.
 pub fn start_run(config: &str, args: &[String], debug: bool) -> Result<String, Error> {
@@ -1671,10 +1913,23 @@ pub fn open_content_tab(tab: &crate::ContentTab) -> Result<(), Error> {
 pub fn reply_content_tab(request: &str, reply: &crate::ContentTabReply) -> Result<(), Error> {
     imp::reply_content_tab(request, reply)
 }
+/// API 1.7: opens two texts in the invoking window's diff viewer; `file_name` picks the
+/// syntax highlighting.
+pub fn open_diff(diff: &crate::ContentDiff, file_name: Option<&str>) -> Result<(), Error> {
+    imp::open_diff(diff, file_name)
+}
 
 /// Registers/replaces a read-only project target. Requires the program's process grant.
 pub fn register_run_target(project: &Project, target: &crate::PluginRunTarget) -> Result<(), Error> {
     imp::register_run_target(&project.inner, target)
+}
+/// Registers a target with per-command working-directory control (API 1.5).
+/// Requires the same process grant and project trust as register_run_target.
+pub fn register_run_target_with_overrides(
+    project: &Project,
+    target: &crate::PluginRunTargetWithOverrides,
+) -> Result<(), Error> {
+    imp::register_run_target_with_overrides(&project.inner, target)
 }
 /// Withdraws a target owned by this plugin.
 pub fn unregister_run_target(project: &Project, id: &str) {
@@ -1684,4 +1939,14 @@ pub fn unregister_run_target(project: &Project, id: &str) {
 /// Stdio bridge argv for the invoking project, none while the built-in MCP server is off.
 pub fn mcp_stdio_command() -> Option<Vec<String>> {
     imp::mcp_stdio_command()
+}
+
+/// What other plugins contributed to `point`, an extension point this plugin
+/// declares in `[[extension-points]]`, in the order those plugins started.
+/// `Error::Denied` for another plugin's point, `Error::NotFound` while no
+/// running plugin declares it. Contributions change when plugins are enabled,
+/// disabled, updated or reloaded: subscribe to `EventKind::ExtensionsChanged`
+/// to refresh what was derived from them. Needs `engines.openidea = "^1.4"`.
+pub fn extension_contributions(point: &str) -> Result<Vec<crate::Contribution>, Error> {
+    imp::extension_contributions(point)
 }

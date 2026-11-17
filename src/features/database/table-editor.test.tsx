@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DbDriver, DbTablePage } from "@/platform/ipc";
+import { installKeyboardDispatcher, useKeymap } from "@/platform/keymap";
+import { activeCellGrid, installCellActions } from "./cellActions";
 import { getContext } from "@/platform/context";
 import { TableEditor } from "./TableEditor";
 import { activeTableEditor, installTableEditorFocus } from "./tableEditorFocus";
@@ -104,8 +106,8 @@ describe("table editor capabilities", () => {
 
       fireEvent.doubleClick(await screen.findByRole("gridcell", { name: "Ann" }));
       const input = screen.getByRole("textbox", { name: "Edit name" });
-      // A text field keeps ⌘↩ for its own edit.
-      expect(getContext().dbTableEditorFocus).toBe(false);
+      // The inline cell editor still counts as the grid: ⌘↩ confirms the cell, then submits (#2332).
+      expect(getContext().dbTableEditorFocus).toBe(true);
       fireEvent.change(input, { target: { value: "Bob" } });
       fireEvent.keyDown(input, { key: "Enter" });
       act(() => grid.focus());
@@ -123,6 +125,38 @@ describe("table editor capabilities", () => {
       expect(backend.applyEdits).toHaveBeenCalledTimes(1);
     } finally {
       uninstall();
+    }
+  });
+
+  it("runs the row and toolbar commands of the db.* actions on the focused grid's selection (#3506)", async () => {
+    backend.driver = "postgres";
+    const uninstallFocus = installTableEditorFocus();
+    const uninstallCells = installCellActions();
+    try {
+      await act(async () => {
+        render(<TableEditor input={tableInput("source", "public", "users")} />);
+      });
+      const cell = await screen.findByRole("gridcell", { name: "Ann" });
+      fireEvent.mouseDown(cell, { button: 0 });
+      act(() => screen.getByRole("grid").focus());
+      const rows = activeCellGrid()!.selectedRows();
+      expect(rows).toEqual([0]);
+      const commands = activeTableEditor()!.commands!;
+      expect(commands.nextPage!.enabled(rows)).toBe(false);
+      expect(commands.previousPage!.enabled(rows)).toBe(false);
+      expect(commands.exportData!.enabled(rows)).toBe(true);
+      expect(commands.restoreRows!.enabled(rows)).toBe(false);
+      act(() => commands.deleteRows!.run(rows));
+      expect(getContext().dbTableEditorChanges).toBe(true);
+      expect(activeTableEditor()!.commands!.restoreRows!.enabled(rows)).toBe(true);
+      act(() => activeTableEditor()!.commands!.restoreRows!.run(rows));
+      expect(getContext().dbTableEditorChanges).toBe(false);
+      act(() => activeTableEditor()!.commands!.addRow!.run([]));
+      expect(screen.getAllByRole("row").length).toBeGreaterThan(2);
+      expect(getContext().dbTableEditorChanges).toBe(true);
+    } finally {
+      uninstallCells();
+      uninstallFocus();
     }
   });
 
@@ -150,4 +184,30 @@ describe("table editor capabilities", () => {
       uninstall();
     }
   });
+});
+
+it("omits a reset inserted cell from Submit instead of writing SQL NULL", async () => {
+  backend.driver = "postgres";
+  backend.applyEdits.mockResolvedValue({ status: "ok", data: 1 });
+  useKeymap.setState({ preset: "intellij-macos", overrides: {} });
+  const disposeActions = installCellActions();
+  const disposeKeys = installKeyboardDispatcher();
+  try {
+    await act(async () => {
+      render(<TableEditor input={tableInput("source", "public", "users")} />);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Row" }));
+    const cells = screen.getAllByRole("gridcell");
+    fireEvent.mouseDown(cells[2]!, { button: 0 });
+    fireEvent.paste(screen.getByRole("grid"), { clipboardData: { getData: () => "3\tCara" } });
+    fireEvent.mouseDown(cells[3]!, { button: 0 });
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "Backspace", metaKey: true, shiftKey: true });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    });
+    expect(backend.applyEdits.mock.calls[0]?.[3]).toEqual([{ kind: "insert", values: [{ column: "id", value: "3" }] }]);
+  } finally {
+    disposeKeys();
+    disposeActions();
+  }
 });

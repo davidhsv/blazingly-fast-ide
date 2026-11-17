@@ -1008,6 +1008,22 @@ mod tests {
         assert!(keys.iter().all(|k| k.starts_with("menu.")));
     }
 
+    /// The source texts the catalogs' spec keeps as written in every locale: its `SAME_AS_ENGLISH`
+    /// set, read from the spec itself so both apps check the catalogs against one list.
+    fn same_as_english() -> Vec<String> {
+        const SPEC: &str = include_str!("../../../src/platform/i18n.test.ts");
+        let start = SPEC.find("const SAME_AS_ENGLISH = new Set([").expect("the spec lists SAME_AS_ENGLISH");
+        let block = &SPEC[start..];
+        let block = &block[..block.find("]);").expect("the list ends")];
+        block
+            .lines()
+            .skip(1)
+            .map(|line| line.trim().trim_end_matches(','))
+            .filter(|item| item.starts_with('"'))
+            .map(|item| serde_json::from_str::<String>(item).expect("each entry is a string literal"))
+            .collect()
+    }
+
     // src/platform/i18n.test.ts › catalogs
     #[test]
     fn catalogs_are_complete_and_well_formed() {
@@ -1054,40 +1070,13 @@ mod tests {
                 );
             }
         }
-        // Written in another script, so a text equal to its English source was not translated.
-        const SAME_AS_ENGLISH: [&str; 25] = [
-            "Docker",
-            "Shell",
-            "Java",
-            "Python",
-            "C/C++",
-            "C#",
-            "Go",
-            "Rust",
-            "Kotlin",
-            "PHP",
-            "SQL",
-            "JavaScript",
-            "TypeScript",
-            "HTML",
-            "CSS",
-            "JSON",
-            "YAML",
-            "XML",
-            "Maven",
-            "Gradle",
-            "npm",
-            "pnpm",
-            "Yarn",
-            "Cargo",
-            "CMake",
-        ];
+        // Written in another script, so a text equal to its English source was not translated,
+        // unless the catalogs' spec keeps it as written in every locale (product names, sizes).
+        let same_as_english = same_as_english();
+        assert!(same_as_english.contains(&"Docker".to_owned()) && same_as_english.contains(&"Fork".to_owned()));
         for locale in ["zh", "ko"] {
             for (source, text) in text_catalog(locale) {
-                assert!(
-                    text != source || SAME_AS_ENGLISH.contains(&source.as_str()),
-                    "{locale}:{source} is not translated"
-                );
+                assert!(text != source || same_as_english.contains(source), "{locale}:{source} is not translated");
             }
         }
         // Chinese must have every key; the other locales show English for keys they lack.

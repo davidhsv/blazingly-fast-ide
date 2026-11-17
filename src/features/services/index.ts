@@ -8,19 +8,32 @@
  * Compose run configuration types; Dockerfiles and Compose files get gutter run
  * icons that start them.
  */
-import { registerActions } from "@/platform/actions";
-import { registerEditorContribution } from "@/editor/api";
+import { executeAction, registerActions } from "@/platform/actions";
+import { activeEditor, registerEditorContribution } from "@/editor/api";
 import {
   SERVICES_WINDOW,
+  registerEditorBanner,
   registerEditorKind,
   registerOverlay,
   registerServiceProvider,
   registerServiceView,
   registerToolWindow,
   showServiceView,
+  useServicesRunningCount,
 } from "@/workbench/contributions";
+import { useProject } from "@/platform/project";
+import { addFileIconProvider } from "@/ui";
+import {
+  activateComposeFiles,
+  composeAutoDetectBanner,
+  composeFileIcon,
+  composeTargetAtLine,
+  isComposeFile,
+  setComposeFileOverride,
+} from "./compose";
+import { composeEditorExtension } from "./composeEditor";
 import { dockerGutter } from "./dockerGutter";
-import { registerDockerRunTypes } from "./runTypes";
+import { gutterActions, registerDockerRunTypes } from "./runTypes";
 import { ServicesDialogHost } from "./dialogs";
 import { dockerProvider, selectedTarget } from "./docker";
 import { DOCKER_LOG_EDITOR_KIND, DockerLogEditor, dockerLogEditorTitle, openContainerLogInEditor } from "./logEditor";
@@ -46,11 +59,15 @@ import type { PruneTarget } from "@/platform/ipc";
 
 const PROJECT = "projectOpen";
 
+/** The window badge: how many of the listed services are running (the run provider tracks them). */
+const useServicesBadge = () => useServicesRunningCount((s) => s.count);
+
 /** The connection of the selection, else the first one. */
 const currentConnection = () => selectedTarget()?.conn ?? connections()[0]?.id ?? null;
 
 export function activate(): () => void {
   const disposers = [
+    activateComposeFiles(),
     registerToolWindow({
       id: SERVICES_WINDOW,
       title: "Services",
@@ -58,6 +75,7 @@ export function activate(): () => void {
       anchor: "bottom",
       order: 8,
       stripe: "onUse",
+      useBadge: useServicesBadge,
       component: ServicesHost,
       headerContent: ServicesTabs,
       headerActions: ServicesHeaderActions,
@@ -78,9 +96,22 @@ export function activate(): () => void {
       keepAlive: true,
     }),
     registerOverlay({ id: "services.dialogs", component: ServicesDialogHost }),
+    addFileIconProvider(composeFileIcon),
+    registerEditorBanner(composeAutoDetectBanner),
     registerEditorContribution({ id: "services.dockerGutter", order: 56, extensions: dockerGutter }),
+    registerEditorContribution({ id: "services.composeEditor", order: 57, extensions: composeEditorExtension }),
     registerDockerRunTypes(),
     registerActions([
+      {
+        id: "docker.setComposeFileOverride",
+        title: "Set Docker Compose File Detection",
+        category: "Docker",
+        hidden: true,
+        run: ({ arg }) => {
+          const { path, status } = (arg ?? {}) as { path?: string; status?: string };
+          if (path && (status === "kept" || status === "excluded")) return setComposeFileOverride(path, status);
+        },
+      },
       {
         id: "services.show",
         title: "Services",
@@ -259,6 +290,26 @@ export function activate(): () => void {
         run: ({ arg }) => {
           const conn = currentConnection();
           return conn ? prunePrompt(conn, typeof arg === "string" ? (arg as PruneTarget) : "system") : undefined;
+        },
+      },
+      {
+        id: "docker.composeUp",
+        title: "Compose Up",
+        description: "Start the service at the caret, or all services in the active Docker Compose file",
+        category: "Docker",
+        icon: "run",
+        keywords: ["docker compose up", "start stack", "start service"],
+        when: PROJECT,
+        run: () => {
+          const ed = activeEditor();
+          if (!ed) return;
+          const text = ed.view.state.doc.toString();
+          if (!isComposeFile(ed.ctx.path, text)) return;
+          const line = ed.view.state.doc.lineAt(ed.view.state.selection.main.head).number - 1;
+          const target = composeTargetAtLine(text, line) ?? { kind: "composeAll" as const, line: 0 };
+          const root = useProject.getState().project?.root ?? null;
+          const [action] = gutterActions(target, ed.ctx.path, root);
+          if (action) void executeAction("run.runConfig", { config: action.config, temporary: true });
         },
       },
     ]),

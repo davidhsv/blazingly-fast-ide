@@ -3,7 +3,9 @@
 use crate::state::AppState;
 use ide_agent::registry::AgentRegistry;
 use ide_agent::{
-    AgentChange, AgentCommand, AgentEntry, AgentEvent, AgentProbe, AgentPrompt, AgentProvider, AgentQueued, AgentTask,
+    AcpImportOutcome, AgentAcceptOutcome, AgentChange, AgentChanges, AgentChangesView, AgentCommand, AgentEntry,
+    AgentEvent, AgentModelCatalog, AgentProbe, AgentPrompt, AgentProvider, AgentQueued, AgentTask, CustomAgentInput,
+    ExternalSession, McpExternalSource, McpImportSelection, McpProbeResult, McpScope, McpServer, McpServerInput,
     NewAgentTask,
 };
 use ide_core::{IdeResult, IpcPath, RequestId};
@@ -36,6 +38,18 @@ pub fn agent_providers(window: Window, state: State<'_, AppState>) -> IdeResult<
     agent::providers(&state.host, window.label())
 }
 
+/// Refreshes the model catalog; force bypasses freshness, not the cooldown.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_refresh_models(
+    window: Window,
+    state: State<'_, AppState>,
+    provider: String,
+    force: bool,
+) -> IdeResult<AgentModelCatalog> {
+    agent::refresh_models(&state.host, window.label(), provider, force)
+}
+
 /// Overrides built-in agent `id`'s command with `command` (its agent file keeps the
 /// built-in's driver and arguments), or returns it to auto-detection with `None`.
 #[tauri::command]
@@ -60,6 +74,32 @@ pub fn agent_set_env(
     env: std::collections::BTreeMap<String, String>,
 ) -> IdeResult<()> {
     agent::set_env(&state.host, window.label(), id, env)
+}
+
+/// Saves a new custom ACP agent through its agent file; refuses built-in and
+/// ACP Registry ids and taken ids.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_custom_save(window: Window, state: State<'_, AppState>, input: CustomAgentInput) -> IdeResult<()> {
+    agent::save_custom_agent(&state.host, window.label(), input)
+}
+
+/// Removes a custom agent's file (registry installs go through `agent_registry_remove`).
+#[tauri::command]
+#[specta::specta]
+pub fn agent_custom_remove(window: Window, state: State<'_, AppState>, id: String) -> IdeResult<()> {
+    agent::remove_custom_agent(&state.host, window.label(), id)
+}
+
+/// Imports a JetBrains `acp.json` file's `agent_servers` entries as custom agents.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_custom_import(
+    window: Window,
+    state: State<'_, AppState>,
+    text: String,
+) -> IdeResult<Vec<AcpImportOutcome>> {
+    agent::import_acp_agents(&state.host, window.label(), text)
 }
 
 /// Agents of the ACP Registry this machine can run, with what is installed; the list
@@ -95,6 +135,103 @@ pub async fn agent_registry_remove(window: Window, state: State<'_, AppState>, i
     agent::registry_remove(&state.host, window.label(), id).await
 }
 
+/// Lists configured and discovered MCP servers across User, Workspace, Plugin, and Built-In scopes.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_mcp_list(window: Window, state: State<'_, AppState>) -> IdeResult<Vec<McpServer>> {
+    agent::mcp_list(&state.host, window.label())
+}
+
+/// Creates or updates a User or Workspace MCP server and returns the updated list.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_mcp_save(window: Window, state: State<'_, AppState>, input: McpServerInput) -> IdeResult<Vec<McpServer>> {
+    agent::mcp_save(&state.host, window.label(), input)
+}
+
+/// Enables or disables an MCP server and returns the updated list.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_mcp_set_enabled(
+    window: Window,
+    state: State<'_, AppState>,
+    id: String,
+    enabled: bool,
+) -> IdeResult<Vec<McpServer>> {
+    agent::mcp_set_enabled(&state.host, window.label(), id, enabled)
+}
+
+/// Removes a User or Workspace MCP server and returns the updated list.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_mcp_remove(window: Window, state: State<'_, AppState>, id: String) -> IdeResult<Vec<McpServer>> {
+    agent::mcp_remove(&state.host, window.label(), id)
+}
+
+/// Copies MCP servers from `.mcp.json` and `.vscode/mcp.json` into the workspace settings once.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_mcp_import(window: Window, state: State<'_, AppState>) -> IdeResult<Vec<McpServer>> {
+    agent::mcp_import(&state.host, window.label())
+}
+
+/// Parses and saves one or more MCP servers from a pasted JSON snippet (`{"mcpServers": {...}}` or
+/// single server object).
+#[tauri::command]
+#[specta::specta]
+pub fn agent_mcp_save_json(
+    window: Window,
+    state: State<'_, AppState>,
+    scope: McpScope,
+    raw_json: String,
+    fallback_name: Option<String>,
+    agents: Vec<String>,
+) -> IdeResult<Vec<McpServer>> {
+    agent::mcp_save_json(&state.host, window.label(), scope, raw_json, fallback_name, agents)
+}
+
+/// Discovers external MCP configuration files on disk (CLI user configs + workspace `.mcp.json`).
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_mcp_discover_sources(
+    window: Window,
+    state: State<'_, AppState>,
+) -> IdeResult<Vec<McpExternalSource>> {
+    agent::mcp_discover_sources(&state.host, window.label()).await
+}
+
+/// Imports selected servers from discovered external MCP configuration files into User or Workspace scope.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_mcp_import_selected(
+    window: Window,
+    state: State<'_, AppState>,
+    scope: McpScope,
+    selections: Vec<McpImportSelection>,
+    overwrite: bool,
+) -> IdeResult<Vec<McpServer>> {
+    agent::mcp_import_selected(&state.host, window.label(), scope, selections, overwrite).await
+}
+
+/// Tests an MCP server by connecting (`initialize`) and listing its tools (`tools/list`).
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_mcp_test(window: Window, state: State<'_, AppState>, id: String) -> IdeResult<McpProbeResult> {
+    agent::mcp_test(&state.host, window.label(), id).await
+}
+
+/// Updates per-session MCP server enable/disable overrides on `task`.
+#[tauri::command]
+#[specta::specta]
+pub fn agent_set_mcp_overrides(
+    window: Window,
+    state: State<'_, AppState>,
+    task: String,
+    overrides: std::collections::BTreeMap<String, bool>,
+) -> IdeResult<AgentTask> {
+    agent::set_mcp_overrides(&state.host, window.label(), task, overrides)
+}
+
 /// Slash commands to complete for `provider` in `task`'s directory, or in the project
 /// before a task exists (skills and custom commands on disk included).
 #[tauri::command]
@@ -124,6 +261,25 @@ pub fn agent_entries(
 #[specta::specta]
 pub async fn agent_create(window: Window, state: State<'_, AppState>, request: NewAgentTask) -> IdeResult<AgentTask> {
     agent::create(&state.host, window.label(), request).await
+}
+
+/// Sessions of the project on this machine that no task holds yet, newest first.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_external_sessions(window: Window, state: State<'_, AppState>) -> IdeResult<Vec<ExternalSession>> {
+    agent::external_sessions(&state.host, window.label()).await
+}
+
+/// Imports an external session as a task: its first turn loads and replays it.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_import_session(
+    window: Window,
+    state: State<'_, AppState>,
+    provider: String,
+    session_id: String,
+) -> IdeResult<AgentTask> {
+    agent::import_session(&state.host, window.label(), provider, session_id).await
 }
 
 /// Sends a message; while the agent works it is queued, or with `now` it interrupts the turn.
@@ -186,6 +342,19 @@ pub async fn agent_fork(
     turns: Option<u32>,
 ) -> IdeResult<AgentTask> {
     agent::fork(&state.host, window.label(), task, turns).await
+}
+
+/// Creates a temporary side conversation of `source`: lives in memory only, never
+/// persisted, not listed, and its session starts with the first message sent to it.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_create_ephemeral(
+    window: Window,
+    state: State<'_, AppState>,
+    request: NewAgentTask,
+    source: String,
+) -> IdeResult<AgentTask> {
+    agent::create_ephemeral(&state.host, window.label(), request, source).await
 }
 
 /// Drops the task's turns after its first `turns`; returns the message of the first dropped one.
@@ -283,6 +452,43 @@ pub async fn agent_delete(
 #[specta::specta]
 pub async fn agent_changes(window: Window, state: State<'_, AppState>, task: String) -> IdeResult<Vec<AgentChange>> {
     agent::changes(&state.host, window.label(), task).await
+}
+
+/// The task's uncommitted changes and the commits made since it started.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_grouped_changes(
+    window: Window,
+    state: State<'_, AppState>,
+    task: String,
+) -> IdeResult<AgentChanges> {
+    agent::grouped_changes(&state.host, window.label(), task).await
+}
+
+/// Rollback: the task's changed files among `paths` (all without) back as `view` compares them.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_rollback_changes(
+    window: Window,
+    state: State<'_, AppState>,
+    task: String,
+    paths: Option<Vec<String>>,
+    view: Option<AgentChangesView>,
+) -> IdeResult<()> {
+    agent::rollback_changes(&state.host, window.label(), task, paths, view).await
+}
+
+/// Accept: copies a worktree task's changed files among `paths` (all without) into the
+/// local checkout, uncommitted; files the checkout changed itself are left alone and reported.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_accept_changes(
+    window: Window,
+    state: State<'_, AppState>,
+    task: String,
+    paths: Option<Vec<String>>,
+) -> IdeResult<AgentAcceptOutcome> {
+    agent::accept_changes(&state.host, window.label(), task, paths).await
 }
 
 /// Content of `path` when the task started (left side of its diff).

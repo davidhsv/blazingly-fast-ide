@@ -9,12 +9,12 @@ pub fn plugin(id: &str, fields: Value) -> PluginInfo {
     let mut info = json!({
         "id": id, "name": id, "version": "1", "description": "", "authors": [],
         "homepage": null, "changeNotes": null, "icon": null, "source": "installed", "path": format!("/plugins/{id}"),
-        "enabled": true, "status": "active", "error": null, "hasCode": true, "capabilities": [],
+        "enabled": true, "status": "active", "error": null, "hasCode": true, "capabilities": [], "netHosts": [],
         "contributions": [], "activation": [], "warnings": [], "stats": {
             "activations": 0, "activationMs": 0.0, "calls": 0, "errors": 0, "maxCallMs": 0.0,
             "p95CallMs": 0.0, "slowCalls": 0, "crashes": 0, "reclaims": 0,
         },
-        "publisher": null, "previousVersion": null,
+        "publisher": null, "previousVersion": null, "depends": [], "dependents": [], "extensionPoints": [],
     });
     if let (Some(info), Some(fields)) = (info.as_object_mut(), fields.as_object()) {
         info.extend(fields.clone());

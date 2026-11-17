@@ -479,10 +479,27 @@ fn start_fresh(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) {
     click_on(cx, "prompt-button-ok");
 }
 
+/// Opening New Task looks up the agent's commands and models once for the agent and the project: the agent
+/// reads `initialize` and `session/new` and is never prompted in that session, and opening the page again to
+/// start a task looks up nothing more, so the task's own session follows.
+#[gpui_kit::test]
+async fn new_task_looks_up_the_agents_commands_once_in_a_session_it_never_prompts(cx: &mut TestAppContext) {
+    let home = start(cx);
+    let (folder, workbench, store, cx) = editing_project(cx, home.path());
+    run_action(cx, "agents.newTask", None);
+    wait_long(cx, "the New Task page", |cx| workbench.read_with(cx, |w, _| w.agents_home_page().is_some()));
+    wait_long(cx, "the lookup's session", |_| agent_calls(&folder).iter().any(|call| call == "session/new"));
+    assert_eq!(agent_calls(&folder), ["initialize", "session/new"]);
+    let task = start_task(&workbench, &store, "Original message", cx);
+    wait_for_answer(&workbench, &store, &task, "agent: Answer 1", cx);
+    assert_eq!(agent_calls(&folder), ["initialize", "session/new", "initialize", "session/new", "session/prompt"]);
+    workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
+}
+
 /// Edit on the first message, a change and Send: once a fresh session is confirmed, the conversation is rolled
 /// back before the edited text is sent, and shows the edited message with its new answer in place of the old
-/// turn. Rolling back every turn starts the agent's session over, so the agent reads a second `session/new`
-/// and then the edited prompt.
+/// turn. Rolling back every turn starts the agent's session over, so the agent reads another `session/new`
+/// and then the edited prompt; the first `session/new` it reads is the New Task page's lookup of its commands.
 #[gpui_kit::test]
 async fn rolls_back_before_sending_the_edited_text_when_send_is_clicked(cx: &mut TestAppContext) {
     let home = start(cx);
@@ -503,7 +520,8 @@ async fn rolls_back_before_sending_the_edited_text_when_send_is_clicked(cx: &mut
             && lines.iter().filter(|line| line.starts_with("agent: ")).count() == 1
     });
     let calls = agent_calls(&folder);
-    assert_eq!(count(&calls, "session/new"), 2, "{calls:?}");
+    // The lookup, the task's session and the fresh one.
+    assert_eq!(count(&calls, "session/new"), 3, "{calls:?}");
     assert!(last_index(&calls, "session/new") < last_index(&calls, "session/prompt"), "{calls:?}");
     assert_eq!(count(&calls, "session/prompt"), 2, "{calls:?}");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
@@ -530,7 +548,8 @@ async fn waits_for_a_running_turn_to_stop_before_rolling_it_back(cx: &mut TestAp
     let fresh = last_index(&calls, "session/new");
     assert!(first_index(&calls, "session/cancel") < fresh, "the agent stops before the rollback: {calls:?}");
     assert!(fresh < last_index(&calls, "session/prompt"), "the rollback comes before the edited text: {calls:?}");
-    assert_eq!(count(&calls, "session/new"), 2, "{calls:?}");
+    // The New Task page's lookup of the agent's commands, the task's session and the fresh one.
+    assert_eq!(count(&calls, "session/new"), 3, "{calls:?}");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }
 

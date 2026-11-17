@@ -1,5 +1,6 @@
-//! Embeds the icon set: every SVG under `src/ui/expui` and `src/ui/openidea` of the webview UI,
-//! keyed by the path the icon table uses (`expui/nodes/folder.svg`, `openidea/vcs/stash.svg`).
+//! Embeds the icon set: every SVG under `src/ui/expui`, `src/ui/openidea` and `src/ui/brands` of
+//! the webview UI, keyed by the path the icon table uses (`expui/nodes/folder.svg`,
+//! `openidea/vcs/stash.svg`, `brands/rust.svg`).
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -24,7 +25,7 @@ fn main() {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/ui").canonicalize().expect("src/ui exists next to app-gpui");
     let mut table = String::from("pub static ICON_FILES: &[(&str, &[u8])] = &[\n");
     let mut count = 0;
-    for set in ["expui", "openidea"] {
+    for set in ["expui", "openidea", "brands"] {
         let root = ui.join(set);
         println!("cargo:rerun-if-changed={}", root.display());
         let mut files = Vec::new();

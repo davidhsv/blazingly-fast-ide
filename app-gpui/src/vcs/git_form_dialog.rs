@@ -644,7 +644,7 @@ mod tests {
     }
 
     fn remote(name: &str, url: &str) -> Remote {
-        Remote { name: name.to_owned(), url: url.to_owned() }
+        Remote { name: name.to_owned(), url: url.to_owned(), resolved_url: None }
     }
 
     // Not from a spec: typed text reaches the form, OK can only be pressed once the form allows it,

@@ -259,7 +259,7 @@ async fn marks_background_status_transitions_unread(cx: &mut TestAppContext) {
         let (store, generation) = connected_store(vec![task("one", AgentStatus::Running, 0.0)]);
         let (view, store, _, cx) = open(cx, store, None);
         assert!(unread(&view, cx).is_empty());
-        emit(&store, generation, AgentEvent::Task { task: task("one", status, 0.0) }, cx);
+        emit(&store, generation, AgentEvent::Task { task: Box::new(task("one", status, 0.0)) }, cx);
         assert_eq!(unread(&view, cx), ["one"], "{status:?}");
     }
 }
@@ -277,7 +277,7 @@ async fn ignores_user_messages_thoughts_empty_replies_and_subagent_streaming(cx:
     emit(&store, generation, streaming, cx);
     let mut renamed = task("one", AgentStatus::Running, 0.0);
     renamed.title = "Renamed".into();
-    emit(&store, generation, AgentEvent::Task { task: renamed }, cx);
+    emit(&store, generation, AgentEvent::Task { task: Box::new(renamed) }, cx);
     assert!(unread(&view, cx).is_empty());
     let rows = view.read_with(cx, |view, cx| view.rows(cx));
     assert!(rows.iter().any(|row| row.contains(" | Renamed | ")), "{rows:?}");
@@ -298,7 +298,7 @@ async fn clears_only_the_viewed_task_and_keeps_reading_while_either_split_shows_
     assert_eq!(unread(&view, cx), ["two"]);
     set_shown(&left, false, cx);
     reply(&store, generation, "one", agent("Another reply"), cx);
-    emit(&store, generation, AgentEvent::Task { task: task("one", AgentStatus::Ready, 1.0) }, cx);
+    emit(&store, generation, AgentEvent::Task { task: Box::new(task("one", AgentStatus::Ready, 1.0)) }, cx);
     assert_eq!(unread(&view, cx), ["two"]);
 }
 
@@ -313,7 +313,7 @@ async fn cleans_up_archived_and_deleted_tasks_ignores_late_replies_and_resets_on
     let (view, store, _, cx) = open(cx, store, None);
     reply(&store, generation, "one", agent("New reply"), cx);
     reply(&store, generation, "two", agent("New reply"), cx);
-    emit(&store, generation, AgentEvent::Task { task: task("one", AgentStatus::Archived, 1.0) }, cx);
+    emit(&store, generation, AgentEvent::Task { task: Box::new(task("one", AgentStatus::Archived, 1.0)) }, cx);
     reply(&store, generation, "one", agent("Late reply"), cx);
     click(cx, "agents-group-archived", Modifiers::default());
     assert_eq!(unread(&view, cx), ["two"]);
@@ -328,7 +328,7 @@ async fn cleans_up_archived_and_deleted_tasks_ignores_late_replies_and_resets_on
         let other = vec![task("other", AgentStatus::Running, 0.0)];
         store.connected(fresh, Ok((other, Vec::new())), &Editors::default());
         // A late event of the old project is dropped.
-        let late = AgentEvent::Task { task: task("one", AgentStatus::Ready, 1.0) };
+        let late = AgentEvent::Task { task: Box::new(task("one", AgentStatus::Ready, 1.0)) };
         store.on_event(generation, late, &I18n::default());
         cx.notify();
     });

@@ -10,7 +10,7 @@
 .sectionTitle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   height: 22px;
   margin-bottom: 6px;
   color: var(--fg-strong);
@@ -22,16 +22,35 @@
   background: var(--border);
 }
 .sectionBody {
-  display: flex;
-  flex-direction: column;
   padding-left: 18px;
+}
+.formGroup {
+  display: grid;
+  grid-template-columns: fit-content(45%) minmax(0, 1fr);
+  column-gap: var(--space-2);
+  min-width: 0;
+}
+.formGroup > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.formGroup > .row,
+.formGroup > .formGroup {
+  grid-template-columns: subgrid;
+}
+.formGroup > .stacked,
+.formGroup > .toggleRow {
+  grid-template-columns: minmax(0, 1fr);
+}
+.indented {
+  padding-left: 20px;
 }
 
 .row {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  column-gap: 8px;
+  align-items: start;
+  column-gap: var(--space-2);
   min-height: 28px;
   padding: 2px 6px;
   margin: 0 -6px;
@@ -42,14 +61,18 @@
 }
 .stacked {
   grid-template-columns: minmax(0, 1fr);
-  row-gap: 6px;
+  row-gap: var(--space-1-5);
   align-items: start;
   padding-top: 4px;
   padding-bottom: 4px;
 }
 .label {
   color: var(--fg);
+  padding-top: max(0px, calc((var(--h-field) - 1.4em) / 2));
   white-space: nowrap;
+}
+.stacked > .label {
+  padding-top: 0;
 }
 .row:not(.stacked) > .label::after {
   content: ":";
@@ -60,11 +83,16 @@
 .control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   min-width: 0;
+  min-height: var(--h-field);
+}
+.control > * {
+  max-width: 100%;
 }
 .hint {
-  grid-column: 1 / -1;
+  grid-column: 2;
   color: var(--fg-subtle);
   font-size: var(--fs-small);
   line-height: 1.4;
@@ -75,13 +103,17 @@
   min-height: 26px;
 }
 .toggleHint {
+  grid-column: 1 / -1;
   padding-left: 20px;
+}
+.stacked > .hint {
+  grid-column: 1 / -1;
 }
 
 .number {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
 }
 .numberInput {
   width: 64px;
@@ -91,17 +123,23 @@
   color: var(--fg-subtle);
 }
 .select {
-  min-width: 180px;
-  max-width: 320px;
+  min-width: min(180px, 100%);
+  max-width: min(320px, 100%);
 }
 .text {
   width: 240px;
 }
 
+@container settings-content (max-width: 480px) {
+  .label {
+    white-space: normal;
+  }
+}
+
 .swatches {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .swatch {
   position: relative;
@@ -160,7 +198,7 @@
 }
 .listToolbar {
   display: flex;
-  gap: 2px;
+  gap: var(--space-0-5);
   height: 28px;
   align-items: center;
   padding: 0 4px;

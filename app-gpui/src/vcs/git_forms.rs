@@ -2078,8 +2078,8 @@ mod tests {
         }))
         .expect("branch info in its wire form");
         let remotes = vec![
-            Remote { name: "origin".to_owned(), url: "/o.git".to_owned() },
-            Remote { name: "fork".to_owned(), url: "/f.git".to_owned() },
+            Remote { name: "origin".to_owned(), url: "/o.git".to_owned(), resolved_url: None },
+            Remote { name: "fork".to_owned(), url: "/f.git".to_owned(), resolved_url: None },
         ];
         let branches = vec![
             branch("main", false, true),
@@ -2151,7 +2151,10 @@ mod tests {
         let new = RemoteForm::new(None, &[]);
         assert_eq!(new.name, "origin");
         assert_eq!(new.problem().as_deref(), Some("Enter the remote URL"));
-        let edit = RemoteForm::new(Some(Remote { name: "origin".to_owned(), url: "/o".to_owned() }), &taken);
+        let edit = RemoteForm::new(
+            Some(Remote { name: "origin".to_owned(), url: "/o".to_owned(), resolved_url: None }),
+            &taken,
+        );
         assert_eq!(edit.problem(), None, "a remote keeps its own name");
     }
 
@@ -2265,7 +2268,7 @@ mod tests {
         assert_eq!(redacted_url("git@example.test:r.git"), "git@example.test:r.git");
         assert_eq!(redacted_url("/srv/r.git"), "/srv/r.git");
         let url = "https://ada:s3cret@example.test/r.git";
-        let origin = Remote { name: "origin".to_owned(), url: url.to_owned() };
+        let origin = Remote { name: "origin".to_owned(), url: url.to_owned(), resolved_url: None };
         let mut i18n = I18n::default();
         let shown = format!("{:?}", RemotesForm::new(vec![origin.clone()], None, None).spec(&mut i18n));
         assert!(!shown.contains("s3cret"), "{shown}");

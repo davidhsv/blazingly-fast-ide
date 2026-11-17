@@ -9,15 +9,24 @@ use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
 
 /// The debuggers in the order the popup lists them.
-const KIND_ORDER: [AttachKind; 5] =
-    [AttachKind::Java, AttachKind::Node, AttachKind::Python, AttachKind::Go, AttachKind::Native];
+const KIND_ORDER: [AttachKind; 7] = [
+    AttachKind::Unity,
+    AttachKind::Java,
+    AttachKind::Node,
+    AttachKind::Python,
+    AttachKind::Dotnet,
+    AttachKind::Go,
+    AttachKind::Native,
+];
 
 /// The header of a debugger's group.
 pub fn kind_label(kind: AttachKind) -> &'static str {
     match kind {
+        AttachKind::Unity => "Unity Editor",
         AttachKind::Java => "Java (JDWP)",
         AttachKind::Node => "Node.js",
         AttachKind::Python => "Python (debugpy)",
+        AttachKind::Dotnet => ".NET (netcoredbg)",
         AttachKind::Go => "Go (Delve)",
         AttachKind::Native => "Native (LLDB)",
     }
@@ -26,9 +35,11 @@ pub fn kind_label(kind: AttachKind) -> &'static str {
 /// The name row keys are built from.
 fn kind_id(kind: AttachKind) -> &'static str {
     match kind {
+        AttachKind::Unity => "unity",
         AttachKind::Java => "java",
         AttachKind::Node => "node",
         AttachKind::Python => "python",
+        AttachKind::Dotnet => "dotnet",
         AttachKind::Go => "go",
         AttachKind::Native => "native",
     }
@@ -92,7 +103,11 @@ pub enum AttachRequest {
 }
 
 fn base(p: &AttachableProcess, cwd: &str, extra: Value) -> AttachRequest {
-    AttachRequest::Launch(Box::new(LaunchConfig {
+    AttachRequest::Launch(Box::new(attach_launch(p, cwd, extra)))
+}
+
+fn attach_launch(p: &AttachableProcess, cwd: &str, extra: Value) -> LaunchConfig {
+    LaunchConfig {
         name: format!("{} ({})", p.name, p.pid),
         adapter: p.adapter.clone(),
         request: "attach".to_owned(),
@@ -101,7 +116,7 @@ fn base(p: &AttachableProcess, cwd: &str, extra: Value) -> AttachRequest {
         cwd: Some(ipc(cwd)),
         env: BTreeMap::new(),
         extra_json: Some(extra.to_string()),
-    }))
+    }
 }
 
 /// The attach request for `p`; `root` is the project root (sources, java module).
@@ -109,6 +124,11 @@ fn base(p: &AttachableProcess, cwd: &str, extra: Value) -> AttachRequest {
 pub fn attach_config(p: &AttachableProcess, root: &str, skip_library_code: bool) -> AttachRequest {
     let host = p.host.as_deref().unwrap_or("localhost");
     match p.kind {
+        AttachKind::Unity => {
+            let name = format!("Unity Editor ({})", p.pid);
+            let launch = attach_launch(p, root, json!({ "name": name, "__exceptionOptions": [] }));
+            AttachRequest::Launch(Box::new(LaunchConfig { adapter: "unity".to_owned(), ..launch }))
+        }
         AttachKind::Java => AttachRequest::Java(JavaAttachTarget {
             name: format!("{} ({})", p.name, p.pid),
             module: String::new(),
@@ -140,6 +160,7 @@ pub fn attach_config(p: &AttachableProcess, root: &str, skip_library_code: bool)
             Some(port) => base(p, root, json!({ "debugServer": port, "justMyCode": skip_library_code })),
             None => base(p, root, json!({ "processId": p.pid, "justMyCode": skip_library_code })),
         },
+        AttachKind::Dotnet => base(p, root, json!({ "processId": p.pid, "justMyCode": skip_library_code })),
         AttachKind::Go => base(p, root, json!({ "mode": "local", "processId": p.pid })),
         AttachKind::Native => base(p, root, json!({ "pid": p.pid })),
     }
@@ -152,6 +173,8 @@ pub(crate) mod testing {
     /// A process `kind` debugs, named after it, with nothing listening.
     pub fn proc(pid: u32, kind: AttachKind) -> AttachableProcess {
         let adapter = match kind {
+            AttachKind::Unity => "unity",
+            AttachKind::Dotnet => "netcoredbg",
             AttachKind::Java => "java-debug",
             AttachKind::Node => "js-debug",
             AttachKind::Python => "debugpy",
@@ -252,5 +275,38 @@ mod tests {
         assert_eq!(native.name, "a.out (30)");
         assert_eq!(native.cwd.as_ref().map(path_text).as_deref(), Some("/proj"));
         assert_eq!(extra(&native), json!({ "pid": 30 }));
+    }
+
+    // src/features/debugger/attach.ts › KIND_ORDER, KIND_LABELS and attachConfig's `unity` / `dotnet` cases
+    #[test]
+    fn lists_unity_first_and_dotnet_after_python_and_builds_their_requests() {
+        let mut processes = list();
+        processes.push(named(40, AttachKind::Dotnet, "Api", "./Api", None));
+        processes.push(named(41, AttachKind::Unity, "Unity", "/Applications/Unity.app/Contents/MacOS/Unity", None));
+        let groups: Vec<&str> = attach_rows(&processes, "")
+            .into_iter()
+            .filter_map(|row| match row {
+                AttachRow::Group { label, .. } => Some(label),
+                AttachRow::Process { .. } => None,
+            })
+            .collect();
+        assert_eq!(
+            groups,
+            [
+                "Unity Editor",
+                "Java (JDWP)",
+                "Node.js",
+                "Python (debugpy)",
+                ".NET (netcoredbg)",
+                "Go (Delve)",
+                "Native (LLDB)"
+            ]
+        );
+        let unity = launch(&processes[7]);
+        assert_eq!((unity.adapter.as_str(), unity.request.as_str()), ("unity", "attach"));
+        assert_eq!(extra(&unity), json!({ "name": "Unity Editor (41)", "__exceptionOptions": [] }));
+        let dotnet = launch(&processes[6]);
+        assert_eq!(dotnet.adapter, "netcoredbg");
+        assert_eq!(extra(&dotnet), json!({ "processId": 40, "justMyCode": true }));
     }
 }

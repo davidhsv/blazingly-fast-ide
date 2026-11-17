@@ -327,6 +327,21 @@ pub fn diverged_ask(local: &str, remote: &str, i18n: &mut I18n) -> AskRequest {
     }
 }
 
+/// The question about a branch already checked out in another worktree, at `path`.
+pub fn worktree_ask(branch: &str, path: &str, i18n: &mut I18n) -> AskRequest {
+    let strings = ["Branch '", "' is already checked out in a worktree at:\n", ""];
+    AskRequest {
+        title: "Worktree Conflict".to_owned(),
+        body: i18n.tx_built(&strings, &[Param::from(branch), Param::from(path)]),
+        buttons: vec![
+            AskButton { id: "anyway", label: "Checkout Anyway", primary: true },
+            AskButton { id: "open", label: "Open Existing Worktree", primary: false },
+            AskButton { id: "cancel", label: "Cancel", primary: false },
+        ],
+        ..AskRequest::default()
+    }
+}
+
 /// What a checkout attempt came to.
 #[derive(Clone, Debug, PartialEq)]
 pub enum CheckoutStep {
@@ -364,6 +379,9 @@ pub fn checkout_step(outcome: &CheckoutOutcome, success: &str, quiet: bool, i18n
         }
         CheckoutOutcome::LocalChanges { files } => CheckoutStep::Ask(smart_checkout_ask(files, i18n)),
         CheckoutOutcome::LocalBranchAhead { local, remote } => CheckoutStep::Ask(diverged_ask(local, remote, i18n)),
+        CheckoutOutcome::CheckedOutInWorktree { branch, path } => {
+            CheckoutStep::Ask(worktree_ask(branch, &path.to_string_lossy(), i18n))
+        }
     }
 }
 
@@ -375,6 +393,7 @@ pub fn checkout_retry(options: CheckoutOptions, answer: &AskAnswer) -> Option<Ch
         "force" => Some(CheckoutOptions { mode: CheckoutMode::Force, ..options }),
         "rebase" => Some(CheckoutOptions { diverged: Some(DivergedLocal::Rebase), ..options }),
         "reset" => Some(CheckoutOptions { diverged: Some(DivergedLocal::Reset), ..options }),
+        "anyway" => Some(CheckoutOptions { ignore_other_worktrees: true, ..options }),
         _ => None,
     }
 }
@@ -1237,6 +1256,15 @@ mod tests {
         let reset = checkout_retry(smart, &AskAnswer::new("reset", false)).unwrap();
         assert_eq!((reset.mode, reset.diverged), (CheckoutMode::Smart, Some(DivergedLocal::Reset)));
         assert!(checkout_retry(options, &AskAnswer::new("cancel", false)).is_none());
+        // src/features/vcs/branchOps.ts › performCheckout's `checkedOutInWorktree` case
+        let held = CheckoutOutcome::CheckedOutInWorktree { branch: "topic".to_owned(), path: "/work/linked".into() };
+        let CheckoutStep::Ask(ask) = checkout_step(&held, "", false, &mut i18n) else { panic!("expected a question") };
+        assert_eq!(ask.title, "Worktree Conflict");
+        assert_eq!(ask.body, "Branch 'topic' is already checked out in a worktree at:\n/work/linked");
+        let buttons: Vec<&str> = ask.buttons.iter().map(|button| button.label).collect();
+        assert_eq!(buttons, ["Checkout Anyway", "Open Existing Worktree", "Cancel"]);
+        assert!(checkout_retry(options, &AskAnswer::new("anyway", false)).unwrap().ignore_other_worktrees);
+        assert!(checkout_retry(options, &AskAnswer::new("open", false)).is_none());
 
         let namesake = Branch { upstream: Some("origin/dev".to_owned()), ..local("main", false) };
         let tracking = [remote("origin/main"), namesake];

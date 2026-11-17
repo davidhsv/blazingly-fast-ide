@@ -1,5 +1,6 @@
-//! The icon set: JetBrains new-UI ("expui") icons and OpenIDEA's own, as vendored by the webview
-//! UI under `src/ui/expui` and `src/ui/openidea`, with their `_dark` and `@20x20` variants.
+//! The icon set: JetBrains new-UI ("expui") icons, OpenIDEA's own and project type logos, as
+//! vendored by the webview UI under `src/ui/expui`, `src/ui/openidea` and `src/ui/brands`, with
+//! their `_dark` and `@20x20` variants.
 //! Names are the contract used by actions (`ActionMeta::icon`) and contributions.
 //!
 //! - Monochrome icons (only the standard greys `#6C707E` light / `#CED0D6` dark) are drawn in
@@ -148,7 +149,11 @@ pub fn icon_names() -> impl Iterator<Item = &'static str> {
 }
 
 fn asset_path(path: &str) -> String {
-    if path.starts_with("openidea/") { format!("{path}.svg") } else { format!("expui/{path}.svg") }
+    if path.starts_with("openidea/") || path.starts_with("brands/") {
+        format!("{path}.svg")
+    } else {
+        format!("expui/{path}.svg")
+    }
 }
 
 fn raw(path: &str) -> Option<&'static [u8]> {

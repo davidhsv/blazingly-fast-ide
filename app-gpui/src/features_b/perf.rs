@@ -699,6 +699,8 @@ mod tests {
             detail: detail.map(str::to_owned),
             processes: 1,
             bytes: mbs.map(|n| n * 1024 * 1024),
+            cpu_percent: None,
+            pid: 0,
         }
     }
 

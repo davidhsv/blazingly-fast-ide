@@ -435,14 +435,15 @@ mod tests {
     fn invalidates_on_type() {
         let path = || vec![IpcPath::from("/p/Config.java")];
         let events = [
-            IdeEvent::FsChanged { created: vec![], modified: path(), removed: vec![] },
-            IdeEvent::FsChanged { created: vec![], modified: vec![], removed: path() },
+            IdeEvent::FsChanged { created: vec![], modified: path(), removed: vec![], ignore_rules: Vec::new() },
+            IdeEvent::FsChanged { created: vec![], modified: vec![], removed: path(), ignore_rules: Vec::new() },
             IdeEvent::DocPatched { doc: DocId(2), base_version: 1, version: 2, changes: vec![], workspace_edit: false },
             IdeEvent::LanguageServer {
                 server: ServerId(1),
                 name: "jdtls".into(),
                 status: ServerStatus::Starting,
                 message: None,
+                label: None,
             },
             IdeEvent::LspRefresh { server: ServerId(1), kind: LspRefreshKind::CodeLens },
             IdeEvent::ExcludedDirsChanged { dirs: vec![IpcPath::from("/p/target")] },

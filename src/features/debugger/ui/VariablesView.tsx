@@ -1,4 +1,5 @@
 /** Lazy variables tree (scopes, locals, watches, evaluation results). */
+import { writeClipboardText } from "@/platform/clipboard";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import clsx from "clsx";
 import { call, commands, type DebugSessionId, type Variable } from "@/platform/ipc";
@@ -10,7 +11,7 @@ import { addFieldWatchpoint } from "../breakpoints/special";
 import { methodAt } from "../breakpoints/symbols";
 import { activeSession, addWatch, removeWatch, revealFrame, sessionSupports, setVariableValue } from "../state";
 import { blurDebugView, focusDebugView } from "./focusedView";
-import { classifyValue, oneLine, sortVariables } from "../values";
+import { classifyValue, oneLine, shownValue, sortVariables } from "../values";
 import { valueText } from "../valueText";
 import { workflowSettings } from "@/platform/workflowSettings";
 import styles from "./VariablesView.module.css";
@@ -287,7 +288,7 @@ export function VariablesView({
         return;
       }
     }
-    await navigator.clipboard?.writeText(text);
+    await writeClipboardText(text);
   };
 
   const onContextMenu = (node: VarNode | null, _sel: Set<string>, e: React.MouseEvent) => {
@@ -302,7 +303,7 @@ export function VariablesView({
     if (node.kind === "watch") items.push({ label: "Remove Watch", icon: "minus", run: () => removeWatch(node.name) });
     if (node.kind !== "scope") {
       items.push({ label: "Copy Value", icon: "copy", run: () => void copyValue(node) });
-      items.push({ label: "Copy Name", run: () => void navigator.clipboard?.writeText(node.name) });
+      items.push({ label: "Copy Name", run: () => void writeClipboardText(node.name) });
       if (node.kind === "var" && node.evaluateName)
         items.push({ label: "Add to Watches", icon: "eye", run: () => addWatch(node.evaluateName!) });
       if (canWatch(node))
@@ -485,20 +486,25 @@ function VarRow({
       </span>
     );
   const kind = node.error ? null : classifyValue(node.value, node.typeName);
+  const shown = shownValue(node.value, node.typeName);
   return (
     <span className={styles.row}>
       <Icon name={nodeIcon(node)} size={16} className={styles.nodeIcon} />
-      <span className={clsx(styles.name, node.kind === "var" && styles.varName, changed && styles.changed)}>
-        {node.name}
-      </span>
-      <span className={styles.eq}>=</span>
+      {!shown.entry && (
+        <>
+          <span className={clsx(styles.name, node.kind === "var" && styles.varName, changed && styles.changed)}>
+            {node.name}
+          </span>
+          <span className={styles.eq}>=</span>
+        </>
+      )}
       {node.error ? (
         <span className={styles.error}>{oneLine(node.error)}</span>
       ) : (
         <>
-          {node.typeName && <span className={styles.type}>{`{${node.typeName}}`}</span>}
+          {shown.label && <span className={styles.type}>{shown.label}</span>}
           <span ref={valueRef} className={clsx(styles.value, kind && styles[kind])} title={node.value}>
-            {oneLine(node.value)}
+            {oneLine(shown.text)}
           </span>
           {overflow && (
             <button

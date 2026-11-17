@@ -155,6 +155,36 @@ pub enum PluginTestEvent {
 pub trait RunConfigurations {
     fn configurations(&mut self, project_root: &str) -> Vec<PluginRunConfiguration>;
 }
+/// How Debug starts a launch configuration (API 1.9).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "type")]
+pub enum Debugger {
+    /// Starts `program` under the debugger of this language id (its `[debugger]`), e.g. `python`.
+    #[serde(rename_all = "camelCase")]
+    Launch { language: String },
+    /// Runs the configuration as Run does, then attaches to the first process of `kind`
+    /// (`dotnet`, `node`, `python`, `go` or `native`) the run starts, optionally only one whose
+    /// command line contains `command_contains`.
+    #[serde(rename_all = "camelCase")]
+    AttachChild { kind: String, command_contains: Option<String> },
+}
+
+/// A run configuration with an environment and a debugger (API 1.9).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginLaunchConfiguration {
+    pub config: PluginRunConfiguration,
+    /// Variables added to the run's environment; a name the IDE's environment already has is refused.
+    pub env: Vec<(String, String)>,
+    /// None: Debug infers the debugger from a source file in the arguments.
+    pub debugger: Option<Debugger>,
+}
+
+/// Supplies complete project configurations with environments and debuggers (API 1.9);
+/// register with launch_configurations instead of run_configurations.
+pub trait LaunchConfigurations {
+    fn launch_configurations(&mut self, project_root: &str) -> Vec<PluginLaunchConfiguration>;
+}
 /// Parses bounded test output batches; register with test_results.
 pub trait TestResults {
     fn parse(&mut self, config: &str, chunk: &str) -> Vec<PluginTestEvent>;
@@ -194,4 +224,67 @@ pub struct PluginRunTarget {
     pub workdir_args: Vec<String>,
     pub container_root: Option<String>,
     pub commands: Vec<(String, Vec<String>)>,
+}
+
+/// Per-command argv prefix and optional working-directory arguments (API 1.5).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginCommandOverride {
+    pub name: String,
+    pub args: Vec<String>,
+    /// None inherits the target's list; Some(Vec::new()) suppresses it.
+    #[serde(default)]
+    pub workdir_args: Option<Vec<String>>,
+}
+
+/// A project run target with per-command working-directory control (API 1.5).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginRunTargetWithOverrides {
+    pub id: String,
+    pub name: String,
+    pub program: String,
+    pub args: Vec<String>,
+    pub workdir_args: Vec<String>,
+    pub container_root: Option<String>,
+    pub commands: Vec<PluginCommandOverride>,
+}
+
+impl From<PluginRunTarget> for PluginRunTargetWithOverrides {
+    fn from(target: PluginRunTarget) -> Self {
+        Self {
+            id: target.id,
+            name: target.name,
+            program: target.program,
+            args: target.args,
+            workdir_args: target.workdir_args,
+            container_root: target.container_root,
+            commands: target
+                .commands
+                .into_iter()
+                .map(|(name, args)| PluginCommandOverride { name, args, workdir_args: None })
+                .collect(),
+        }
+    }
+}
+
+/// Operation about to launch through a plugin-owned run target (API 1.5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RunTargetOperation {
+    Run,
+    Test,
+}
+
+/// Launch metadata available to a target validator; arguments and environment are omitted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunTargetLaunch {
+    pub operation: RunTargetOperation,
+    pub program: String,
+    pub cwd: String,
+}
+
+/// Optional pre-launch validation; register with `run_target_validation`.
+pub trait RunTargetValidation {
+    /// Refuse with a user-facing explanation, or allow with `Ok(())`.
+    fn validate(&mut self, project: &str, target_id: &str, launch: &RunTargetLaunch) -> Result<(), String>;
 }

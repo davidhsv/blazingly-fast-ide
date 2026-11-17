@@ -45,7 +45,7 @@ impl Harness {
     }
 
     fn task(&mut self, task: AgentTask) -> &[AgentEffect] {
-        self.emit(AgentEvent::Task { task })
+        self.emit(AgentEvent::Task { task: Box::new(task) })
     }
 
     fn reply(&mut self, id: &str, text: &str) {
@@ -278,7 +278,7 @@ fn cleans_up_archived_and_deleted_tasks_ignores_late_replies_and_resets_on_proje
     h.store.disconnect();
     let generation = generation_of(&h.store.connect(true));
     h.store.connected(generation, Ok((vec![running("other")], Vec::new())), &Editors::default());
-    h.store.on_event(old, AgentEvent::Task { task: with_status("one", AgentStatus::Ready) }, &h.i18n);
+    h.store.on_event(old, AgentEvent::Task { task: Box::new(with_status("one", AgentStatus::Ready)) }, &h.i18n);
     assert!(h.unread().is_empty());
     assert_eq!(h.store.tasks().iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), vec!["other"]);
 }

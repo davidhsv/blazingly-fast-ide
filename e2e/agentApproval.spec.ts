@@ -49,6 +49,7 @@ const entries: AgentEntry[] = [
     type: "permission",
     id: 1,
     title: `Run ${command}`,
+    command,
     options: [
       { id: "once", kind: "allow_once", name: "Allow once" },
       { id: "always", kind: "allow_always", name: `Always allow \`${command}\`` },
@@ -59,9 +60,73 @@ const entries: AgentEntry[] = [
   },
 ];
 
+for (const choice of ["codex-trust-project", "codex-keep-untrusted"]) {
+  test(`project trust has explicit choices and submits ${choice}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1050, height: 800 });
+    await page.goto("/");
+    await page.getByRole("tree", { name: "Project" }).waitFor();
+    await page.evaluate(
+      async ({ task }) => {
+        const path = "/src/features/agents/store.ts";
+        const store = await import(path);
+        store.useAgents.setState({
+          loaded: true,
+          tasks: new Map([[task.id, task]]),
+          entries: new Map([
+            [
+              task.id,
+              [
+                { type: "user", text: "Load the project's MCP configuration.", attachments: [], steered: false },
+                { type: "error", message: "Project-local config is disabled until the project is trusted in Codex." },
+                {
+                  type: "permission",
+                  id: 2,
+                  title:
+                    "Trust project in Codex: /dev/acme-api? This saves trust in your Codex user configuration and allows this project's MCP servers, hooks and exec policies to load.",
+                  command: null,
+                  options: [
+                    { id: "codex-trust-project", name: "Trust Project in Codex", kind: "allow_always" },
+                    { id: "codex-keep-untrusted", name: "Keep Untrusted", kind: "reject_once" },
+                  ],
+                  chosen: null,
+                },
+              ],
+            ],
+          ]),
+        });
+        store.openTaskInEditorLocation(task.id);
+        const ipcPath = "/src/platform/ipc.ts";
+        (await import(ipcPath)).commands.agentRespond = async (task: string, permission: number, option: string) => {
+          (window as unknown as { trustAnswer: unknown }).trustAnswer = { task, permission, option };
+          return { status: "ok", data: null };
+        };
+      },
+      { task },
+    );
+    const card = page.getByRole("region", { name: "Trust Project in Codex" });
+    await expect(card).toBeVisible();
+    await expect(
+      page.getByText("Project-local config is disabled until the project is trusted in Codex."),
+    ).toBeVisible();
+    await expect(card.getByRole("button")).toHaveText(["Trust Project in Codex", "Keep Untrusted"]);
+    await expect(card).toContainText("MCP servers, hooks and exec policies");
+    expect(await page.evaluate(() => (window as unknown as { trustAnswer?: unknown }).trustAnswer)).toBeUndefined();
+    await page.screenshot({ path: testInfo.outputPath("project-trust-confirmation.png"), animations: "disabled" });
+    await card
+      .getByRole("button", {
+        name: choice === "codex-trust-project" ? "Trust Project in Codex" : "Keep Untrusted",
+        exact: true,
+      })
+      .click();
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { trustAnswer?: unknown }).trustAnswer))
+      .toEqual({ task: task.id, permission: 2, option: choice });
+  });
+}
+
 for (const theme of ["dark", "light"] as const) {
   for (const width of [760, 1400]) {
-    test(`approval stays inside the agent column at ${width}px in ${theme}`, async ({ page }) => {
+    test(`approval is asked above the composer at ${width}px in ${theme}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/");
       await page.getByRole("tree", { name: "Project" }).waitFor();
@@ -85,43 +150,47 @@ for (const theme of ["dark", "light"] as const) {
       await expect(card.locator("pre")).toHaveText(command);
       await expect(card.getByRole("button")).toHaveText(["Allow Once", "Always Allow", "Decline", "Decline and Stop"]);
       const geometry = await card.evaluate((el) => {
-        const transcript = el.parentElement!.parentElement!;
+        // Asked above the composer, below the conversation.
+        const area = el.closest('[class*="_composerArea_"]')!;
+        const transcript = area.parentElement!.querySelector('[class*="_stream_"]')!;
         const prompt = transcript.querySelector('[class*="_user_"]')!;
         const reply = transcript.querySelector('[class*="_agentCard_"]')!;
         const rect = el.getBoundingClientRect();
-        const bounds = transcript.getBoundingClientRect();
+        const bounds = area.getBoundingClientRect();
         return {
-          scroll: transcript.scrollWidth,
-          client: transcript.clientWidth,
+          scroll: area.scrollWidth,
+          client: area.clientWidth,
+          inStream: transcript.contains(el),
           contained: rect.left >= bounds.left && rect.right <= bounds.right,
+          below: rect.top >= transcript.getBoundingClientRect().bottom - 1,
           promptRadius: parseFloat(getComputedStyle(prompt).borderRadius),
           replyBackground: getComputedStyle(reply).backgroundColor,
           replyBorder: getComputedStyle(reply).borderTopWidth,
           userOnRight: prompt.getBoundingClientRect().right > reply.getBoundingClientRect().right,
-          approvalAligned: Math.abs(rect.left - reply.getBoundingClientRect().left) < 1,
           authorBeforeWork:
             transcript.querySelector('[class*="_agentAuthor_"]')?.nextElementSibling?.matches("details") ?? false,
-          footerAligned:
-            Math.abs(prompt.getBoundingClientRect().right - prompt.nextElementSibling!.getBoundingClientRect().right) <
-            1,
+          headAligned:
+            Math.abs(
+              prompt.getBoundingClientRect().right - prompt.previousElementSibling!.getBoundingClientRect().right,
+            ) < 1,
           cardWidth: rect.width,
           available: bounds.width,
-          actionsVisible: getComputedStyle(reply.nextElementSibling!.querySelector('[class*="_messageActions_"]')!)
-            .opacity,
+          replyFooter: reply.nextElementSibling != null,
         };
       });
       expect(geometry.scroll).toBe(geometry.client);
+      expect(geometry.inStream).toBe(false);
       expect(geometry.contained).toBe(true);
+      expect(geometry.below).toBe(true);
       expect(geometry.promptRadius).toBeLessThanOrEqual(6);
       // Replies read as plain text on the panel.
       expect(geometry.replyBackground).toBe("rgba(0, 0, 0, 0)");
       expect(geometry.replyBorder).toBe("0px");
       expect(geometry.userOnRight).toBe(true);
-      expect(geometry.approvalAligned).toBe(true);
       expect(geometry.authorBeforeWork).toBe(true);
-      expect(geometry.footerAligned).toBe(true);
-      // The last message stays actionable even while an approval follows it.
-      expect(geometry.actionsVisible).toBe("1");
+      expect(geometry.headAligned).toBe(true);
+      // The turn waits on the approval: its interim message has no footer yet.
+      expect(geometry.replyFooter).toBe(false);
       if (width === 760) expect(geometry.cardWidth).toBeGreaterThan(geometry.available * 0.8);
       await card.locator("pre").focus();
       for (const label of ["Allow Once", "Always Allow", "Decline", "Decline and Stop"]) {

@@ -1754,10 +1754,10 @@ mod tests {
         close(cx);
     }
 
-    /// Restore Default Layout's key (⇧F12) needs an open project: it does nothing in a window
-    /// without one, and restores the default layout in a project.
+    /// Restore Default Layout needs an open project: it is unavailable in a window without one, and
+    /// restores the default layout in a project.
     #[gpui_kit::test]
-    async fn the_restore_default_layout_key_works_only_with_a_project(cx: &mut TestAppContext) {
+    async fn restore_default_layout_works_only_with_a_project(cx: &mut TestAppContext) {
         use super::super::tool_windows::LayoutSnapshot;
         let _home = start(cx);
         let folder = tempfile::tempdir().expect("a temporary folder");
@@ -1771,11 +1771,10 @@ mod tests {
             store_named_layouts(&layouts, cx);
         });
         let active = |cx: &mut VisualTestContext| cx.update(|_, cx| named_layouts(cx).active().map(str::to_owned));
-        cx.simulate_keystrokes("shift-f12");
-        cx.run_until_parked();
-        assert_eq!(active(cx).as_deref(), Some("Coding"), "without a project the key does nothing");
         let refused = cx.update(|window, cx| execute_action_or_throw("layout.restoreDefault", None, window, cx));
         assert!(refused.is_err(), "the action is unavailable without a project");
+        cx.run_until_parked();
+        assert_eq!(active(cx).as_deref(), Some("Coding"), "without a project nothing is restored");
 
         workbench.update_in(cx, |w, window, cx| w.open_project(root.clone(), window, cx));
         wait_long(cx, "the project opens", |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
@@ -1784,8 +1783,7 @@ mod tests {
         run_action(cx, "toolwindow.run", None);
         workbench.update_in(cx, |w, window, cx| w.with_layout(window, cx, |layout| layout.hide("project")));
         assert!(!visible(cx, "project") && visible(cx, RUN_TOOL_WINDOW));
-        cx.simulate_keystrokes("shift-f12");
-        cx.run_until_parked();
+        run_action(cx, "layout.restoreDefault", None);
         assert!(visible(cx, "project") && !visible(cx, RUN_TOOL_WINDOW), "the default layout is back");
         assert_eq!(active(cx), None);
         close(cx);

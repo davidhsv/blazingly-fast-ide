@@ -232,6 +232,7 @@ pub(crate) mod testing {
             command: None,
             data: None,
             server: ServerId(1),
+            label_description: None,
         }
     }
 }

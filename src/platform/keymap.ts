@@ -12,7 +12,7 @@
  */
 import { create } from "zustand";
 import { executeAction, executeActionFrom, getAction, isActionKeyEnabled } from "./actions";
-import { getContext } from "./context";
+import { evaluateWhen, getContext } from "./context";
 import { intellijMacos } from "./keymaps/intellij-macos";
 import { intellijWindows } from "./keymaps/intellij-windows";
 import { eclipseMacos } from "./keymaps/eclipse-macos";
@@ -199,11 +199,31 @@ export function bindingsFor(actionId: string): string[] {
   return overrides[actionId] ?? PRESETS[preset]?.[actionId] ?? usableExtensionBindings(extensions)[actionId] ?? [];
 }
 
+let bindingsCache: {
+  preset: string;
+  overrides: Keymap;
+  extensions: Keymap;
+  pairs: Array<[string, string]>;
+} | null = null;
+
 /** Every (binding, actionId) pair of the effective keymap. */
 export function effectiveBindings(): Array<[string, string]> {
   const { preset, overrides, extensions } = useKeymap.getState();
+  // The dispatcher asks for these on every keystroke; merging and normalizing
+  // the whole keymap each time costs more than handling the key. The store
+  // replaces `overrides` / `extensions` wholesale, so identity tracks changes.
+  if (
+    bindingsCache?.preset === preset &&
+    bindingsCache.overrides === overrides &&
+    bindingsCache.extensions === extensions
+  )
+    return bindingsCache.pairs;
   const merged: Keymap = { ...usableExtensionBindings(extensions), ...PRESETS[preset], ...overrides };
-  return Object.entries(merged).flatMap(([id, keys]) => keys.map((k) => [normalizeBinding(k), id] as [string, string]));
+  const pairs = Object.entries(merged).flatMap(([id, keys]) =>
+    keys.map((k) => [normalizeBinding(k), id] as [string, string]),
+  );
+  bindingsCache = { preset, overrides, extensions, pairs };
+  return pairs;
 }
 
 let extensionCache: { source: Keymap; preset: string; overrides: Keymap; usable: Keymap } | null = null;
@@ -553,7 +573,12 @@ export function installKeyboardDispatcher(
     if (!chord) {
       if (isAltGrTyping(e)) return;
       const hasCommandMod = e.metaKey || e.ctrlKey || e.altKey;
-      if (!hasCommandMod && isPlainTextField(e.target) && !/^(Shift\+)?(F\d{1,2}|Escape)$/.test(stroke)) return;
+      if (isPlainTextField(e.target)) {
+        // Native deletion stays in the field; Shift bindings and terminal keys keep their own routing.
+        if ((e.key === "Backspace" || e.key === "Delete") && !e.shiftKey && !(e.target as Element).closest?.(".xterm"))
+          return;
+        if (!hasCommandMod && !/^(Shift\+)?(F\d{1,2}|Escape)$/.test(stroke)) return;
+      }
       if (isClaimed(e, stroke)) return;
     }
 
@@ -571,8 +596,25 @@ export function installKeyboardDispatcher(
       : physicalSeq.replace(/Numpad(Add|Subtract|Multiply|Divide)/g, (key) => keypadAliases[key]!);
     const ctx = getContext();
     const exact = bindings.filter(([b]) => b === seq).map(([, id]) => id);
-    // Later presets/overrides win; the first enabled match runs.
-    for (const id of exact.reverse()) {
+    // Later presets/overrides win; the first enabled match runs. When several
+    // actions share the sequence, a binding whose `keyWhen` matches the current
+    // context runs before one without it: the context-specific claim beats the
+    // context-free one at equal specificity, so Eclipse's Alt+Shift+R renames
+    // in the project view instead of reaching the Git log's Edit Commit
+    // Message. An unmatching `keyWhen` fails the enablement check below, and
+    // when no `keyWhen` matches, the preset/override order decides as before.
+    const keyWhenMatches = (id: string) => {
+      const action = getAction(id);
+      return !!action?.keyWhen && evaluateWhen(action.keyWhen, ctx);
+    };
+    const ordered = exact.reverse();
+    const preferred: string[] = [];
+    const fallback: string[] = [];
+    for (const id of ordered) {
+      if (keyWhenMatches(id)) preferred.push(id);
+      else fallback.push(id);
+    }
+    for (const id of [...preferred, ...fallback]) {
       const action = getAction(id);
       if (action && isActionKeyEnabled(action, ctx)) {
         e.preventDefault();
@@ -619,7 +661,10 @@ export function installKeyboardDispatcher(
   const onMouseDown = (e: MouseEvent) => {
     // Shift+click (extend a selection) is not half of a double Shift.
     resetTap();
-    if (suspended > 0) return;
+    if (suspended > 0) {
+      reset();
+      return;
+    }
     const stroke = mouseStrokeOf(e);
     if (!stroke) return;
     if (e.button === 0) {
@@ -684,4 +729,44 @@ export function installKeyboardDispatcher(
     target.removeEventListener("webkitmouseforcewillbegin", onForceWillBegin, true);
     target.removeEventListener("blur", onBlur);
   };
+}
+
+/** A keymap being edited: a bundled preset and the overrides on top of it. */
+export interface KeymapDraft {
+  preset: string;
+  overrides: Keymap;
+}
+
+/**
+ * The defaults of `id`: the preset's, or for an action the preset leaves out,
+ * the shortcut its plugin declares (`keymaps`). Removing or changing one is an
+ * override like any other.
+ */
+export function presetBindings(preset: string, id: string): string[] {
+  const own = PRESETS[preset];
+  const keys = own && id in own ? own[id] : useKeymap.getState().extensions?.[id];
+  return (keys ?? []).map(normalizeBinding);
+}
+
+const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** Sets the full binding list of `id`; drops the override when it equals the preset. */
+export function withBindings(draft: KeymapDraft, id: string, bindings: readonly string[]): Keymap {
+  const list = [...new Set(bindings.map(normalizeBinding))];
+  const overrides = { ...draft.overrides };
+  if (sameList(list, presetBindings(draft.preset, id))) delete overrides[id];
+  else overrides[id] = list;
+  return overrides;
+}
+
+/** A free id for a user keymap called `name`. */
+export function customKeymapId(name: string, customs: Record<string, unknown>): string {
+  const slug =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "keymap";
+  let id = `custom.${slug}`;
+  for (let i = 2; customs[id] || PRESETS[id]; i++) id = `custom.${slug}-${i}`;
+  return id;
 }

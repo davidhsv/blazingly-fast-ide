@@ -154,6 +154,8 @@ mod tests {
                 routine("refresh_data", DbObjectKind::Procedure, "", None),
             ],
             sequences: Vec::new(),
+            others: Vec::new(),
+            packages: Vec::new(),
         }
     }
 

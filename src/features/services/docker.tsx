@@ -3,6 +3,7 @@
  * grouped by Compose project, images, volumes, networks) and one per registry;
  * log / inspect of the selection in the detail pane.
  */
+import { writeClipboardText } from "@/platform/clipboard";
 import { copySelectionOnKeyDown } from "@/ui/selectableText";
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
@@ -139,6 +140,8 @@ export function dockerItems(
       icon: snap?.availability.kind === "ready" ? "docker-connected" : "file-docker",
       detail: connectionDetail(state),
       dim: snap?.availability.kind !== "ready",
+      // A connection the user just added opens once, so its groups are in sight.
+      expanded: true,
       children: children(root)?.map(convert) ?? [],
     };
   });
@@ -359,7 +362,7 @@ function InspectView({ text, error }: { text: string | null; error: string | nul
           size="small"
           title="Copy"
           disabled={!text}
-          onClick={() => text && void navigator.clipboard?.writeText(text)}
+          onClick={() => text && void writeClipboardText(text)}
         />
       </div>
       <pre

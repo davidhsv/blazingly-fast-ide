@@ -86,7 +86,7 @@ pub enum MessageAction {
     Quote { task: String, text: String },
     /// Regenerate Response.
     Regenerate(ReplyTarget),
-    /// Branch Conversation from Here.
+    /// Fork Conversation from Here.
     Branch(ReplyTarget),
     /// Retract Message.
     Retract(ReplyTarget),
@@ -117,7 +117,7 @@ fn reply_label(button: ReplyButton, copied: bool) -> &'static str {
         ReplyButton::Copy => "Copy Markdown",
         ReplyButton::QuoteReply => "Quote Reply",
         ReplyButton::Regenerate => "Regenerate Response",
-        ReplyButton::Branch => "Branch Conversation from Here",
+        ReplyButton::Branch => "Fork",
     }
 }
 
@@ -2506,6 +2506,8 @@ mod tests {
             options: vec![permission_option("allow", "Allow", "allow_once")],
             questions: Vec::new(),
             chosen: Some("Allow".to_owned()),
+            command: None,
+            form: None,
         };
         store.update(cx, |store, cx| {
             store.entries_loaded("A", None, vec![agent("Checking"), answered]);
@@ -2528,6 +2530,8 @@ mod tests {
                 &[("Rust (Recommended)", "Fast", None), ("Go", "Simple", None)],
             )],
             chosen: None,
+            command: None,
+            form: None,
         }
     }
 
@@ -2696,10 +2700,7 @@ mod tests {
     #[gpui_kit::test]
     async fn quotes_and_regenerates_the_latest_reply(cx: &mut TestAppContext) {
         let (view, _, events, cx) = open(cx, vec![editable("A")], vec![user("Question", false), agent("Answer")]);
-        assert_eq!(
-            buttons(&view, 1, cx),
-            ["Copy Markdown", "Quote Reply", "Regenerate Response", "Branch Conversation from Here"]
-        );
+        assert_eq!(buttons(&view, 1, cx), ["Copy Markdown", "Quote Reply", "Regenerate Response", "Fork"]);
         click(cx, "session-reply-1-quote");
         click(cx, "session-reply-1-regenerate");
         let target = ReplyTarget { task: "A".to_owned(), turn: 0 };

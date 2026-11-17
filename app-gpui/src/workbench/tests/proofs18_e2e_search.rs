@@ -11,8 +11,11 @@ fn orders_project(cx: &mut TestAppContext) -> Opened<'_> {
         trusted_project(cx, &[(SERVICE, "class OrderService\n"), ("build.gradle.kts", "plugins {}\n")]);
     cx.update(|window, _| window.activate_window());
     settle(cx, |cx| {
-        let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
-        ide_host::ops::nav::find_files(&host, "w1", "OrderSer".to_owned(), 5).is_ok_and(|found| !found.is_empty())
+        cx.update(|_, cx| {
+            let backend = cx.global::<Backend>();
+            backend.block_on(ide_host::ops::nav::find_files(&backend.host, "w1", "OrderSer".to_owned(), 5))
+        })
+        .is_ok_and(|found| !found.is_empty())
     });
     (folder, root, workbench, cx)
 }

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { emitLocalIdeEvent } from "@/platform/ipc";
 import { setLocale } from "@/platform/i18n";
+import { useProject } from "@/platform/project";
 import { registerStatusItem, registerToolWindow, type StatusItemContribution } from "./contributions";
 import { orderStatusItems, StatusBar, TaskStatus } from "./StatusBar";
 import { orderTitleItems } from "./TitleBar";
@@ -17,7 +18,13 @@ import {
 } from "./notificationStore";
 import { installTaskEvents, useTasks } from "./tasks";
 import { ToolWindowLayout, ToolWindowStripe } from "./toolwindows/ToolWindows";
-import { isToolWindowVisible, loadToolWindowLayout, showToolWindow, type SlotRecord } from "./toolwindows/store";
+import {
+  isToolWindowVisible,
+  loadToolWindowLayout,
+  showToolWindow,
+  toggleMaximizeToolWindow,
+  type SlotRecord,
+} from "./toolwindows/store";
 
 const NO_SLOTS: SlotRecord = {
   left: null,
@@ -223,6 +230,8 @@ describe("notifications", () => {
   });
 
   it("the Notifications tool window lists history, marks it read and hides balloons", () => {
+    const previousProject = useProject.getState().project;
+    useProject.setState({ project: { root: "/notifications", name: "notifications" } as never });
     const dispose = registerToolWindow({
       id: NOTIFICATIONS_TOOL_WINDOW,
       title: "Notifications",
@@ -244,6 +253,7 @@ describe("notifications", () => {
     expect(screen.getAllByText("Hello")).toHaveLength(1);
     expect(useNotifications.getState().items.every((n) => n.read && !n.balloon)).toBe(true);
     dispose();
+    useProject.setState({ project: previousProject });
   });
 
   it("pops up the answer to a command the user ran even when balloons are off for its group", async () => {
@@ -362,6 +372,45 @@ describe("tool window split areas", () => {
     expect(container.querySelector('[data-slot="left-split"]')).not.toHaveAttribute("hidden");
     unmount();
     disposers.forEach((d) => d());
+  });
+
+  it("unhides the editor and other tool windows if a maximized window unregisters", () => {
+    useProject.setState({ project: { root: "/max", name: "max", trusted: true, isGit: false, settings: {} } });
+    const disposeProject = registerToolWindow({
+      id: "project",
+      title: "Project",
+      icon: "folder",
+      anchor: "left",
+      component: () => <div>project-tree</div>,
+    });
+    const disposeK8s = registerToolWindow({
+      id: "plugin.k8s.view:kubernetes",
+      title: "Kubernetes",
+      icon: "cloud",
+      anchor: "right",
+      secondary: true,
+      component: () => <div>k8s-explorer</div>,
+    });
+    loadToolWindowLayout("/max");
+    const { container, unmount } = render(<ToolWindowLayout editor={<div>editor-surface</div>} />);
+    try {
+      act(() => {
+        showToolWindow("plugin.k8s.view:kubernetes", true);
+        toggleMaximizeToolWindow("plugin.k8s.view:kubernetes");
+      });
+      expect(screen.getByText("editor-surface").parentElement).toHaveAttribute("hidden");
+      expect(container.querySelector('[data-anchor="left"]')).toHaveAttribute("hidden");
+
+      act(() => disposeK8s());
+
+      expect(screen.getByText("editor-surface").parentElement).not.toHaveAttribute("hidden");
+      expect(container.querySelector('[data-anchor="left"]')).not.toHaveAttribute("hidden");
+      expect(container.querySelector("[data-maximized]")).toBeNull();
+    } finally {
+      unmount();
+      disposeProject();
+      useProject.setState({ project: null });
+    }
   });
 });
 

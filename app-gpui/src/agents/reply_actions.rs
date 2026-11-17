@@ -121,7 +121,7 @@ impl ReplyActions {
         effects
     }
 
-    /// Branch Conversation from Here: copies the conversation up to and including the reply's turn.
+    /// Fork Conversation from Here: copies the conversation up to and including the reply's turn.
     pub fn fork(&mut self, store: &mut AgentsStore, target: &ReplyTarget) -> Vec<AgentEffect> {
         if self.is_busy(&target.task) || resolve(store, target, |o| o.fork).is_none() {
             return Vec::new();

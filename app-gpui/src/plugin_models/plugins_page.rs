@@ -1600,6 +1600,7 @@ impl PluginsPage {
             PluginStatus::Disabled => ("Disabled", Tone::Neutral),
             PluginStatus::NeedsConsent => ("Needs permission", Tone::Warning),
             PluginStatus::Failed => ("Failed", Tone::Danger),
+            PluginStatus::Blocked => ("Blocked", Tone::Warning),
         };
         let mut badges = vec![Badge { label: i18n.tx(status), tone }];
         match (plugin.source, &plugin.publisher) {

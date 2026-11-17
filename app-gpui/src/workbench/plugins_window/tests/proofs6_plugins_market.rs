@@ -39,6 +39,11 @@ fn signed_market(home: &tempfile::TempDir, host: &PluginHost, market: &Path) -> 
         engine: "^1.0".to_owned(),
         categories: vec!["tools".to_owned()],
         icon: None,
+        homepage: None,
+        notes: None,
+        downloads: None,
+        featured: false,
+        suggest: Vec::new(),
     };
     let publisher =
         Publisher { id: "acme".to_owned(), name: "ACME".to_owned(), keys: vec![KeyEntry::new(key.public_base64())] };

@@ -9,11 +9,23 @@ const mocks = vi.hoisted(() => ({
   worktrees: vi.fn(),
   restoreBranch: vi.fn(),
   branches: vi.fn(),
+  rename: vi.fn(),
+  ask: vi.fn(),
+  checkout: vi.fn(),
+  executeAction: vi.fn(),
 }));
 vi.mock("../dialogs", async (original) => ({
   ...(await original<typeof import("../dialogs")>()),
   promptText: mocks.prompt,
   confirmDialog: mocks.confirm,
+}));
+vi.mock("@/workbench/messages", async (original) => ({
+  ...(await original<typeof import("@/workbench/messages")>()),
+  ask: mocks.ask,
+}));
+vi.mock("@/platform/actions", async (original) => ({
+  ...(await original<typeof import("@/platform/actions")>()),
+  executeAction: mocks.executeAction,
 }));
 vi.mock("@/workbench/contributions", () => ({ notifications: () => ({ notify: mocks.notify, expire: vi.fn() }) }));
 vi.mock("@/platform/ipc", async (original) => {
@@ -27,10 +39,12 @@ vi.mock("@/platform/ipc", async (original) => {
       vcsDeleteBranch: mocks.deleteBranch,
       vcsRestoreBranch: mocks.restoreBranch,
       vcsBranches: mocks.branches,
+      vcsRenameBranch: mocks.rename,
+      vcsCheckout: mocks.checkout,
     },
   };
 });
-import { deleteBranch, deleteBranches, newBranch, newBranchInRepos, renameBranch } from "../branchOps";
+import { checkoutBranch, deleteBranch, deleteBranches, newBranch, newBranchInRepos, renameBranch } from "../branchOps";
 import { useVcs } from "../store";
 import { useProject } from "@/platform/project";
 
@@ -95,13 +109,52 @@ it.each([
   ["New Branch", () => newBranch()],
   ["New Branch from a revision", () => newBranch("origin/main")],
   ["New Branch in several repositories", () => newBranchInRepos(["/p/front", "/p/back"])],
-  ["Rename Branch", () => renameBranch("main")],
+  ["Rename Branch", () => renameBranch(local("main"))],
 ])("%s turns a typed space into a separator, as IDEA does", async (_name, open) => {
   await open();
   const { sanitize, validate } = mocks.prompt.mock.calls[0]![0];
   const typed: string = sanitize("fix login");
   expect(typed).toBe("fix-login");
   expect(validate(typed)).toBeNull();
+});
+
+const tracked = (name: string, upstream: string, current = false): Branch => ({ ...local(name, current), upstream });
+
+it("offers to drop the upstream only for a branch that tracks one", async () => {
+  await renameBranch(tracked("topic", "origin/topic"));
+  expect(mocks.prompt.mock.calls[0]?.[0]).toMatchObject({
+    initial: "topic",
+    checkbox: { label: "Unset upstream branch", initial: false },
+  });
+  await renameBranch(local("plain"));
+  expect(mocks.prompt.mock.calls[1]?.[0].checkbox).toBeUndefined();
+});
+
+it("renames with the tracking kept, or dropped when the box is ticked", async () => {
+  mocks.prompt.mockResolvedValue({ value: "renamed", checked: false });
+  await renameBranch(tracked("topic", "origin/topic"));
+  expect(mocks.rename).toHaveBeenLastCalledWith("/p/front", "topic", "renamed", false);
+
+  mocks.prompt.mockResolvedValue({ value: "renamed", checked: true });
+  await renameBranch(tracked("topic", "origin/topic"));
+  expect(mocks.rename).toHaveBeenLastCalledWith("/p/front", "topic", "renamed", true);
+
+  // Nothing to drop on a branch without an upstream, whatever the box says.
+  await renameBranch(local("plain"));
+  expect(mocks.rename).toHaveBeenLastCalledWith("/p/front", "plain", "renamed", false);
+});
+
+it("shows a partial failure without claiming that the rename failed", async () => {
+  const message = "Renamed branch 'topic' to 'renamed', but could not unset its upstream: config is locked";
+  mocks.prompt.mockResolvedValue({ value: "renamed", checked: true });
+  mocks.rename.mockResolvedValue({ status: "error", error: { kind: "io", message } });
+  await renameBranch(tracked("topic", "origin/topic"));
+  expect(mocks.notify).toHaveBeenCalledExactlyOnceWith({
+    group: "vcs",
+    level: "error",
+    title: "Rename branch topic",
+    body: message,
+  });
 });
 
 const worktree = (path: string, branchName: string | null, main = false): Worktree => ({
@@ -132,6 +185,38 @@ it("deletes a worktree holding the branch before deleting it", async () => {
   expect(mocks.confirm.mock.calls[0]?.[0].message).toContain("/p/front-feature-wt");
   expect(mocks.removeWorktree).toHaveBeenCalledWith("/p/front", "/p/front-feature-wt", false);
   expect(mocks.deleteBranch).toHaveBeenCalledWith("/p/front", "feature/wt");
+});
+
+it("offers to open the worktree that has the branch checked out", async () => {
+  mocks.checkout.mockResolvedValue(ok({ kind: "checkedOutInWorktree", branch: "feature/wt", path: "/p/front-wt" }));
+  mocks.ask.mockResolvedValue({ button: "open" });
+  await checkoutBranch("feature/wt");
+  expect(mocks.checkout).toHaveBeenCalledWith("/p/front", "feature/wt", false, { mode: "normal", diverged: null });
+  expect(mocks.ask.mock.calls[0]?.[0].title).toBe("Worktree Conflict");
+  expect(mocks.ask.mock.calls[0]?.[0].body).toContain("already checked out in a worktree at:\n/p/front-wt");
+  expect(mocks.executeAction).toHaveBeenCalledWith("file.openProjectPath", "/p/front-wt");
+  expect(mocks.checkout).toHaveBeenCalledTimes(1);
+});
+
+it("checks the branch out anyway when asked, alongside the other worktree", async () => {
+  mocks.checkout
+    .mockResolvedValueOnce(ok({ kind: "checkedOutInWorktree", branch: "feature/wt", path: "/p/front-wt" }))
+    .mockResolvedValueOnce(ok({ kind: "done" }));
+  mocks.ask.mockResolvedValue({ button: "anyway" });
+  await checkoutBranch("feature/wt");
+  expect(mocks.checkout).toHaveBeenLastCalledWith("/p/front", "feature/wt", false, {
+    mode: "normal",
+    diverged: null,
+    ignoreOtherWorktrees: true,
+  });
+  expect(mocks.executeAction).not.toHaveBeenCalled();
+});
+
+it("does not open the worktree when the checkout offer is declined", async () => {
+  mocks.checkout.mockResolvedValue(ok({ kind: "checkedOutInWorktree", branch: "feature/wt", path: "/p/front-wt" }));
+  mocks.ask.mockResolvedValue({ button: "cancel" });
+  await checkoutBranch("feature/wt");
+  expect(mocks.executeAction).not.toHaveBeenCalled();
 });
 
 it("keeps the branch when the worktree question is turned down", async () => {

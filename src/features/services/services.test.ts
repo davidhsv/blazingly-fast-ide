@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
+import { EditorState } from "@codemirror/state";
 import type { DockerContainer, DockerSnapshot } from "@/platform/ipc";
-import { composeTargets, dockerfileTargets, fileTargets, imageTag, isComposeFile, isDockerfile } from "./compose";
+import type { SshConfigValid } from "@/platform/remoteSettings";
+import { fileIconName } from "@/ui/icons";
+import {
+  composeFileIcon,
+  composeTargetAtLine,
+  composeTargets,
+  dockerfileTargets,
+  fileTargets,
+  imageTag,
+  isAutoDetectedComposeFile,
+  isComposeContent,
+  isComposeFile,
+  isDockerfile,
+  useComposeFiles,
+} from "./compose";
+import { composeCompletionsAt, parseComposeDocument, resolveComposeReferenceAt } from "./composeEditor";
 import {
   DOCKERFILE,
   DOCKER_COMPOSE,
@@ -39,7 +55,7 @@ import {
   splitLayerInstruction,
   unitsToBytes,
 } from "./dashboard";
-import { endpointFrom } from "./dialogs";
+import { endpointFrom, sshConfigForUrl, sshConfigUrl } from "./dialogs";
 import { dockerItems } from "./docker";
 import { setDockerFilters, useServices } from "./store";
 import { addServiceMenu, expandableKeys, indexTree, setProviderRoots, useServicesTree } from "./tree";
@@ -193,6 +209,36 @@ describe("services tree host", () => {
     expect(endpointFrom("context", { ...f, context: "--evil" })).toBeNull();
     expect(endpointFrom("context", { ...f, context: "orbstack" })).toEqual({ kind: "context", name: "orbstack" });
     expect(endpointFrom("default", f)).toEqual({ kind: "default" });
+  });
+
+  it("fills the Engine API URL from an OpenSSH-config SSH configuration and shows the selection", () => {
+    const box: SshConfigValid = {
+      id: "ssh1",
+      name: "Build server",
+      host: "build-server",
+      port: 2222,
+      user: "ops",
+      auth: "openSsh",
+      keyFile: "",
+      saveSecret: false,
+    };
+    const bare: SshConfigValid = { ...box, id: "ssh2", name: "", host: "bare", port: null, user: "", auth: "openSsh" };
+    const password: SshConfigValid = { ...box, id: "ssh3", host: "vault", user: "root", port: null, auth: "password" };
+    const configs = [box, bare, password];
+    expect(sshConfigUrl(box)).toBe("ssh://ops@build-server:2222");
+    expect(sshConfigUrl(bare)).toBe("ssh://bare");
+    // The selection follows the URL the field holds; only OpenSSH-config configurations match.
+    expect(sshConfigForUrl("ssh://ops@build-server:2222", configs)).toBe("ssh1");
+    expect(sshConfigForUrl(" ssh://build-server:2222 ", configs)).toBe("ssh1");
+    expect(sshConfigForUrl("ssh://build-server", configs)).toBe("ssh1");
+    expect(sshConfigForUrl("ssh://bare", configs)).toBe("ssh2");
+    // Another user or port than the configuration's, a tcp URL or a password configuration is not a selection.
+    expect(sshConfigForUrl("ssh://root@build-server", configs)).toBe("");
+    expect(sshConfigForUrl("ssh://build-server:22", configs)).toBe("");
+    expect(sshConfigForUrl("ssh://root@vault", configs)).toBe("");
+    expect(sshConfigForUrl("tcp://build-host:2376", configs)).toBe("");
+    expect(sshConfigForUrl("ssh://", configs)).toBe("");
+    expect(sshConfigForUrl("", configs)).toBe("");
   });
 });
 
@@ -381,6 +427,8 @@ describe("phase 1: filters, cross-references and dashboard parsers", () => {
     expect(nodeDetail(groups[3]!)).toBe("2");
     const imageNodes = filtered(groups[3]!)!;
     expect(imageNodes.map(nodeLabel)).toEqual(["postgres:16", "postgres:latest"]);
+    // Both tags share one image id; the tree needs distinct keys for them.
+    expect(new Set(imageNodes.map((n) => n.key)).size).toBe(imageNodes.length);
     expect(isUntaggedImage(richSnapshot.images[2]!)).toBe(true);
     expect(isUntaggedImage(richSnapshot.images[0]!)).toBe(false);
 
@@ -515,5 +563,164 @@ describe("phase 1: filters, cross-references and dashboard parsers", () => {
     )!;
     expect(nInspect.ipamConfigs[0]!.subnet).toBe("172.18.0.0/16");
     expect(nInspect.containers[0]!.name).toBe("shop-db-1");
+  });
+});
+
+describe("docker compose detection and targets", () => {
+  const playgroundCompose = [
+    "# StarRocks local development environment",
+    'version: "3.9"',
+    "",
+    "networks:",
+    "  playground-network:",
+    "    driver: bridge",
+    "",
+    "services:",
+    "  starrocks:",
+    "    container_name: starrocks",
+    "    hostname: starrocks.local.com",
+    "    po",
+    "    image: starrocks/allin1-ubuntu:3.3.10",
+    "    restart: unless-stopped",
+    "    ports:",
+    '      - "8030:8030"',
+    "    healthcheck:",
+    "      test: 'mysql -uroot'",
+    "      interval: 10s",
+    "      timeout: 5s",
+    "      retries: 3",
+    "    networks:",
+    "      playground-network:",
+    "",
+    "  minio:",
+    "    container_name: minio",
+    "    image: minio/minio:latest",
+    "    depends_on:",
+    "      - starrocks",
+  ].join("\n");
+
+  it.each(["composeprod.yml", "mycompose.yaml", "team compose-dev.yml", "docker-compose.override.yaml"])(
+    "recognises the Compose filename %s in detection and icons",
+    (name) => {
+      expect(isComposeFile(`/p/${name}`)).toBe(true);
+      expect(fileIconName(name, `/p/${name}`)).toBe("file-docker");
+    },
+  );
+
+  it.each([
+    ["Kubernetes", "apiVersion: v1\nkind: Service\nservices:\n  web:\n    image: nginx\n"],
+    ["OpenAPI", "openapi: 3.0.0\nservices:\n  web:\n    image: nginx\n"],
+    ["Swagger", "swagger: '2.0'\nservices:\n  web:\n    image: nginx\n"],
+    ["GitHub Actions", "on: push\njobs:\n  build:\n    services:\n      db:\n        image: postgres\n"],
+    [
+      "Ansible",
+      "- hosts: all\n  tasks:\n    - name: Start services\n      services:\n        web:\n          image: nginx\n",
+    ],
+    ["Helm values", "name: shop\nreplicaCount: 1\nservices:\n  web:\n    image: nginx\n"],
+    ["mkdocs", "site_name: Docs\nservices:\n  search:\n    image: example\n"],
+    ["unrelated service list", "name: catalog\nservices:\n  web:\n    url: https://example.test\n"],
+    ["embedded Compose example", "example: |\n  services:\n    web:\n      image: nginx\n"],
+  ])("does not content-detect %s as Compose", (_name, content) => {
+    expect(isComposeContent(content)).toBe(false);
+    expect(fileTargets("/p/stack.yaml", content)).toEqual([]);
+  });
+
+  it("bounds content scanning by characters and lines", () => {
+    expect(isComposeContent(`#${" ".repeat(70_000)}\nservices:\n  web:\n    image: nginx\n`)).toBe(false);
+    expect(isComposeContent(`${"# comment\n".repeat(600)}services:\n  web:\n    image: nginx\n`)).toBe(false);
+  });
+
+  it("does not add run markers to extension or merge keys", () => {
+    expect(
+      composeTargets("services:\n  x-defaults:\n    image: nginx\n  <<: *services\n  web:\n    image: nginx\n"),
+    ).toEqual([
+      { kind: "composeAll", line: 0 },
+      { kind: "composeService", line: 4, service: "web" },
+    ]);
+  });
+
+  it("adds markers for services using aliases and inline mappings", () => {
+    expect(composeTargets("services:\n  api: *defaults\n  db: {image: postgres}\n")).toEqual([
+      { kind: "composeAll", line: 0 },
+      { kind: "composeService", line: 1, service: "api" },
+      { kind: "composeService", line: 2, service: "db" },
+    ]);
+  });
+
+  it("recognises service names beginning with an underscore", () => {
+    const content = "services:\n  _worker:\n    image: busybox\n";
+    expect(isComposeContent(content)).toBe(true);
+    expect(fileTargets("/p/stack.yml", content)).toEqual([
+      { kind: "composeAll", line: 0 },
+      { kind: "composeService", line: 1, service: "_worker" },
+    ]);
+  });
+
+  it("detects compose files by name and content, and respects Keep / Not a Compose file overrides", () => {
+    expect(isComposeFile("/git/gocommon/docker/playground-compose.yml")).toBe(true);
+    expect(fileIconName("playground-compose.yml", "/git/gocommon/docker/playground-compose.yml")).toBe("file-docker");
+    expect(isComposeContent(playgroundCompose)).toBe(true);
+    expect(isComposeFile("/git/gocommon/docker/custom-stack.yml", playgroundCompose)).toBe(true);
+    expect(isComposeContent("apiVersion: v1\nkind: Service\nmetadata:\n  name: my-svc\n")).toBe(false);
+
+    const path = "/git/gocommon/docker/playground-compose.yml";
+    expect(isAutoDetectedComposeFile(path, playgroundCompose)).toBe(false);
+    expect(isAutoDetectedComposeFile("/p/stack.yml", playgroundCompose)).toBe(true);
+
+    useComposeFiles.setState({ overrides: { [path]: "excluded" } });
+    expect(isComposeFile(path, playgroundCompose)).toBe(false);
+    expect(composeFileIcon("playground-compose.yml", path)).toBe("file-yaml");
+    expect(fileTargets(path, playgroundCompose)).toEqual([]);
+
+    useComposeFiles.setState({ overrides: { [path]: "kept" } });
+    expect(isComposeFile(path)).toBe(true);
+    expect(isAutoDetectedComposeFile(path, playgroundCompose)).toBe(false);
+    expect(composeFileIcon("playground-compose.yml", path)).toBe("file-docker");
+    useComposeFiles.setState({ overrides: {} });
+  });
+
+  it("locates compose targets per line and enclosing service at caret", () => {
+    const targets = fileTargets("/git/gocommon/docker/playground-compose.yml", playgroundCompose);
+    expect(targets).toEqual([
+      { kind: "composeAll", line: 7 },
+      { kind: "composeService", line: 8, service: "starrocks" },
+      { kind: "composeService", line: 24, service: "minio" },
+    ]);
+    expect(composeTargetAtLine(playgroundCompose, 7)).toEqual({ kind: "composeAll", line: 7 });
+    expect(composeTargetAtLine(playgroundCompose, 11)).toEqual({
+      kind: "composeService",
+      line: 8,
+      service: "starrocks",
+    });
+    expect(composeTargetAtLine(playgroundCompose, 26)).toEqual({
+      kind: "composeService",
+      line: 24,
+      service: "minio",
+    });
+  });
+
+  it("completes and resolves internal service, network, volume, config and secret references", () => {
+    const depPos = playgroundCompose.indexOf("      - starrocks") + "      - star".length;
+    const depRes = composeCompletionsAt(playgroundCompose, depPos, false)!;
+    expect(depRes.options.map((o) => o.label)).toEqual(["starrocks"]);
+
+    const netPos = playgroundCompose.indexOf("      playground-network:") + "      play".length;
+    const netRes = composeCompletionsAt(playgroundCompose, netPos, false)!;
+    expect(netRes.options.map((o) => o.label)).toContain("playground-network");
+
+    const state = EditorState.create({ doc: playgroundCompose });
+    const model = parseComposeDocument(playgroundCompose);
+    expect([...model.services.keys()]).toEqual(["starrocks", "minio"]);
+    expect([...model.networks.keys()]).toEqual(["playground-network"]);
+
+    const netRefOffset = playgroundCompose.indexOf("      playground-network:") + 8;
+    const netDecl = resolveComposeReferenceAt(state, netRefOffset);
+    expect(netDecl?.name).toBe("playground-network");
+    expect(netDecl?.line).toBe(4);
+
+    const svcRefOffset = playgroundCompose.indexOf("      - starrocks") + 10;
+    const svcDecl = resolveComposeReferenceAt(state, svcRefOffset);
+    expect(svcDecl?.name).toBe("starrocks");
+    expect(svcDecl?.line).toBe(8);
   });
 });

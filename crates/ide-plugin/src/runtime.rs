@@ -18,6 +18,7 @@ use crate::types::{
 };
 use crate::wit_host::injections_bindings::exports::openidea::plugin::injections as wit_inj;
 use crate::wit_host::language_features_bindings::exports::openidea::plugin::language_features as wit_lf;
+use crate::wit_host::run_target_validation_bindings::exports::openidea::plugin::run_target_validation as wit_rtv;
 use crate::wit_host::{
     bindings, commit_checks_bindings, details_bindings, endpoints_bindings, file_actions_bindings, hover_bindings,
     indexing_bindings, inlay_bindings, providers_bindings, semantic_bindings, syntax_bindings, views_bindings,
@@ -35,6 +36,7 @@ use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder, UpdateDea
 use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
+use crate::wit_host::launch_configurations_bindings::exports::openidea::plugin::launch_configurations as wit_launch;
 use crate::wit_host::run_configurations_bindings::exports::openidea::plugin::run_configurations as wit_configs;
 use crate::wit_host::test_results_bindings::exports::openidea::plugin::test_results as wit_tests;
 use bindings::openidea::plugin::events as wit_events;
@@ -54,7 +56,7 @@ use views_bindings::exports::openidea::plugin::view_provider as wit_view;
 use views_bindings::openidea::plugin::view_types as wit_vt;
 
 /// The API version of the world above, `major.minor` of [`host_api`].
-pub const API_VERSION: &str = "1.4";
+pub const API_VERSION: &str = "1.9";
 const EPOCH_TICK: Duration = Duration::from_millis(10);
 pub(crate) const MAX_TEXT: usize = 1 << 20;
 pub(crate) const MAX_TITLE: usize = 256;
@@ -98,10 +100,33 @@ pub trait HostApi: Send + Sync {
         let _ = (root, client, id, cancel, timeout);
         Err(HostError::Invalid("Database subsystem is unavailable on this host".into()))
     }
+    /// Sends `method` to the running language server named `server` of the project at
+    /// `root`: a request (the result as JSON), or with `notify` a notification (`null`).
+    /// `params` is JSON. Never starts a server.
+    #[allow(clippy::too_many_arguments)]
+    fn lsp_request(
+        &self,
+        root: &Path,
+        server: &str,
+        method: &str,
+        params: Option<String>,
+        notify: bool,
+        cancel: &CancellationToken,
+        timeout: Duration,
+    ) -> Result<String, HostError> {
+        let _ = (root, method, params, notify, cancel, timeout);
+        Err(HostError::NotFound(format!("no language server `{server}` is running for this project")))
+    }
     /// Stdio argv only; no URL or bearer token.
     fn mcp_stdio_command(&self, client: &str) -> Option<Vec<String>> {
         let _ = client;
         None
+    }
+    /// What other plugins contributed to `point`, as (plugin id, JSON). Only the
+    /// plugin that declares the point may read it.
+    fn extension_contributions(&self, point: &str) -> Result<Vec<(String, String)>, HostError> {
+        let _ = point;
+        Err(HostError::NotFound("extension points are unavailable on this host".into()))
     }
 
     /// Registers a project-scoped wrapper after validating its process grant and pin.
@@ -163,6 +188,11 @@ pub trait HostApi: Send + Sync {
         let _ = (client, tab, cancel, timeout);
         Err(HostError::Failed("content tabs unavailable".into()))
     }
+    /// Opens a diff of two texts in the invoking window.
+    fn open_diff(&self, client: &str, diff: crate::ContentDiff, file_name: Option<String>) -> Result<(), HostError> {
+        let _ = (client, diff, file_name);
+        Err(HostError::Failed("diffs unavailable".into()))
+    }
     /// Answers a content action in the invoking window.
     fn reply_content_tab(&self, client: &str, request: &str, reply: crate::ContentTabReply) -> Result<(), HostError> {
         let _ = (client, request, reply);
@@ -222,6 +252,11 @@ pub trait HostApi: Send + Sync {
         let _ = (path, set, item);
         Err(HostError::Failed("decorations unavailable".into()))
     }
+    /// Replace all `(path, icon)` entries of a tree decoration set at once (API 1.8).
+    fn file_icon_decorations(&self, set: &str, items: Vec<(PathBuf, String)>) -> Result<(), HostError> {
+        let _ = (set, items);
+        Err(HostError::Failed("decorations unavailable".into()))
+    }
     /// Trusted repository history.
     fn vcs_log(
         &self,
@@ -259,6 +294,19 @@ pub trait HostApi: Send + Sync {
         body: String,
         actions: Vec<crate::NotificationAction>,
     ) -> Result<(), HostError>;
+    /// [`HostApi::notify`] in the most recently focused window of the open project at
+    /// `root`; not-found (and nothing shown) once it has closed.
+    fn notify_project(
+        &self,
+        root: &Path,
+        level: NotificationLevel,
+        title: String,
+        body: String,
+        actions: Vec<crate::NotificationAction>,
+    ) -> Result<(), HostError> {
+        let _ = (root, level, title, body, actions);
+        Err(HostError::NotFound("project notifications unavailable".into()))
+    }
     fn copy_to_clipboard(&self, client: Option<&str>, text: String) -> Result<(), HostError> {
         let _ = (client, text);
         Ok(())
@@ -336,16 +384,16 @@ pub trait HostApi: Send + Sync {
     }
     /// Roots of the open projects.
     fn projects(&self) -> Vec<std::path::PathBuf>;
+    /// Roots of the workspace members attached to the project at `root` (a
+    /// project window group's folders, as the editor and LSP resolve them).
+    /// Empty for a plain project.
+    fn member_roots(&self, root: &Path) -> Vec<std::path::PathBuf> {
+        let _ = root;
+        Vec::new()
+    }
     /// The most specific open project containing a document (including a new file).
     fn project_of(&self, path: &Path) -> Option<std::path::PathBuf> {
-        if !path.is_absolute() {
-            return None;
-        }
-        let real = crate::resolve_real(path);
-        self.projects()
-            .into_iter()
-            .filter(|root| real.starts_with(crate::resolve_real(root)))
-            .max_by_key(|root| root.components().count())
+        crate::sandbox::innermost_root(self.projects(), path)
     }
 
     /// Searches the current in-memory index of an open project.
@@ -405,6 +453,42 @@ pub trait HostApi: Send + Sync {
     fn publish_diagnostics(&self, path: &Path, items: Vec<ide_core::Diagnostic>) -> Result<(), HostError>;
     /// Performs `request` (its host is granted), filling in secret placeholders.
     fn fetch(&self, request: HttpRequest, cancel: &CancellationToken) -> Result<HttpResponse, HostError>;
+
+    fn websocket_connect(
+        &self,
+        root: &Path,
+        request: crate::WebSocketRequest,
+        timeout: Duration,
+    ) -> Result<u64, HostError> {
+        let _ = (root, request, timeout);
+        Err(HostError::Invalid("background WebSockets are unavailable on this host".into()))
+    }
+    fn websocket_send(&self, connection: u64, bytes: Vec<u8>) -> Result<(), HostError> {
+        let _ = (connection, bytes);
+        Err(HostError::Invalid("background WebSockets are unavailable on this host".into()))
+    }
+    fn websocket_drain(&self, connection: u64, limit: usize) -> Result<crate::WebSocketBatch, HostError> {
+        let _ = (connection, limit);
+        Err(HostError::Invalid("background WebSockets are unavailable on this host".into()))
+    }
+    fn websocket_close(&self, connection: u64) {
+        let _ = connection;
+    }
+    /// The `net:ask` answer for a request to HTTPS host `host` of this plugin
+    /// (`subject`): `Some(true)` allowed and remembered (a host the user
+    /// already allowed connects without asking again, also in the background),
+    /// `Some(false)` allowed for this request only, `None` refused — also when
+    /// nobody could be asked (`client` is `None` outside commands and native view actions).
+    fn net_ask(
+        &self,
+        subject: &ide_extension::ledger::Subject,
+        client: Option<&str>,
+        host: &str,
+        cancel: &CancellationToken,
+    ) -> Result<Option<bool>, HostError> {
+        let _ = (subject, client, host, cancel);
+        Ok(None)
+    }
     fn secret_is_set(&self, name: &str) -> bool;
 
     /// Stores or deletes a secret declared by this plugin; never returns its value.
@@ -564,6 +648,10 @@ impl PluginEngine {
         let mut linker = Linker::new(&engine);
         wasmtime_wasi::p2::add_to_linker_sync(&mut linker).map_err(|e| e.to_string())?;
         bindings::Plugin::add_to_linker::<_, HasSelf<_>>(&mut linker, |s| s).map_err(|e| e.to_string())?;
+        // Cranelift caches fuel in a JIT local across `new_epoch` yields and only
+        // reloads `VMStoreContext::fuel_consumed` across host import calls, so
+        // `tasks` host calls refill `StoreContextMut::set_fuel` directly on return.
+        bind_task_fuel_refill(&mut linker).map_err(|e| e.to_string())?;
 
         let weak = engine.weak();
         std::thread::Builder::new()
@@ -757,7 +845,7 @@ impl CallCancel {
         self.token.lock().clone()
     }
 
-    fn is_set(&self) -> bool {
+    pub(crate) fn is_set(&self) -> bool {
         self.flag.load(Ordering::Acquire)
     }
 
@@ -782,15 +870,21 @@ pub struct StoreData {
     stderr_seen: usize,
     pub(crate) plugin_id: String,
     pub(crate) granted: Vec<Capability>,
+    pub(crate) subject: ide_extension::ledger::Subject,
     pub(crate) host: Arc<dyn HostApi>,
     pub(crate) invocation: Invocation,
     /// The running call is a command or an event.
     pub(crate) interactive: bool,
+    pub(crate) net_interactive: bool,
     /// Editor window for pick, pick-many, input and confirm during action resolution.
     pub(crate) action_prompt_client: Option<String>,
     /// Tasks begun by the running call and not ended yet.
     pub(crate) open_tasks: Vec<u64>,
     pub(crate) last_report: Option<Instant>,
+    /// One-shot unwind window after a blocking host I/O call times out.
+    pub(crate) host_io_grace_used: bool,
+    /// Fuel budget active for the running call (scales when a background task begins).
+    pub(crate) active_fuel: u64,
 }
 
 impl WasiView for StoreData {
@@ -899,6 +993,9 @@ pub struct RuntimeSetup {
     pub version: String,
     /// Capabilities granted to the plugin.
     pub granted: Vec<Capability>,
+    /// Whose grant this is (installed id, or the package directory of a
+    /// linked or project plugin): what `net:ask` answers are remembered for.
+    pub subject: ide_extension::ledger::Subject,
     pub host: Arc<dyn HostApi>,
     pub limits: Limits,
 }
@@ -912,6 +1009,7 @@ pub struct Runtime {
 
 /// What the component exports: the `plugin` world, plus optional interfaces.
 struct Exports {
+    run_target_validation: Option<wit_rtv::Guest>,
     language_features: Option<wit_lf::Guest>,
     injections: Option<wit_inj::Guest>,
     plugin: bindings::Plugin,
@@ -928,6 +1026,7 @@ struct Exports {
     inlay: Option<wit_inlay::Guest>,
     endpoints: Option<wit_endpoints::Guest>,
     run_configurations: Option<wit_configs::Guest>,
+    launch_configurations: Option<wit_launch::Guest>,
     test_results: Option<wit_tests::Guest>,
     mcp: Option<crate::wit_host::mcp_bindings::exports::openidea::plugin::mcp_provider::Guest>,
 }
@@ -939,6 +1038,14 @@ const MAX_BATCH: usize = 1000;
 
 fn event_to_wit(e: WorkbenchEvent) -> wit_events::Event {
     match e {
+        WorkbenchEvent::DocumentChanged(value) => wit_events::Event::Other(wit_types::Extension {
+            kind: "document-changed".into(),
+            data: serde_json::to_string(&value).expect("document change serializes"),
+        }),
+        WorkbenchEvent::WebsocketReady(value) => wit_events::Event::Other(wit_types::Extension {
+            kind: "websocket-ready".into(),
+            data: serde_json::to_string(&value).expect("WebSocket ready event serializes"),
+        }),
         WorkbenchEvent::RunExited(value) => wit_events::Event::Other(wit_types::Extension {
             kind: "run-exited".into(),
             data: serde_json::to_string(&value).unwrap(),
@@ -959,6 +1066,10 @@ fn event_to_wit(e: WorkbenchEvent) -> wit_events::Event {
             kind: "settings-changed".into(),
             data: serde_json::to_string(&keys).expect("keys serialize"),
         }),
+        WorkbenchEvent::ExtensionsChanged(points) => wit_events::Event::Other(wit_types::Extension {
+            kind: "extensions-changed".into(),
+            data: serde_json::to_string(&points).expect("points serialize"),
+        }),
         WorkbenchEvent::InputModeChanged(mode) => wit_events::Event::Other(wit_types::Extension {
             kind: "input-mode-changed".into(),
             data: serde_json::to_string(&mode).expect("mode serializes"),
@@ -971,6 +1082,9 @@ fn event_to_wit(e: WorkbenchEvent) -> wit_events::Event {
         }),
         WorkbenchEvent::EditorFocused(p) => wit_events::Event::EditorFocused(p),
         WorkbenchEvent::VcsChanged(p) => wit_events::Event::VcsChanged(p),
+        WorkbenchEvent::ProblemsChanged => {
+            wit_events::Event::Other(wit_types::Extension { kind: "problems-changed".into(), data: "{}".into() })
+        }
         WorkbenchEvent::Scheduled => wit_events::Event::Scheduled,
         WorkbenchEvent::ActionPerformed(a) => wit_events::Event::ActionPerformed(wit_events::ActionPerformed {
             action: a.action,
@@ -1007,12 +1121,16 @@ impl Runtime {
             stderr_seen: 0,
             plugin_id: setup.plugin_id,
             granted: setup.granted,
+            subject: setup.subject,
             host: setup.host,
             invocation: Invocation::default(),
             interactive: false,
+            net_interactive: false,
             action_prompt_client: None,
             open_tasks: Vec::new(),
             last_report: None,
+            host_io_grace_used: false,
+            active_fuel: setup.limits.fuel,
         };
         let mut store = Store::new(&engine.engine, data);
         store.limiter(|d| &mut d.store_limits);
@@ -1029,7 +1147,7 @@ impl Runtime {
         });
         arm(&mut store, &setup.limits, setup.limits.timeout).map_err(|e| e.to_string())?;
         let api_hint = |e: wasmtime::Error| {
-            let msg = describe_trap(&e, &setup.limits);
+            let msg = describe_trap(&e, &setup.limits, setup.limits.fuel);
             if msg.contains("openidea:plugin/") { link_error(&msg) } else { msg }
         };
         let pre = engine.linker.instantiate_pre(component).map_err(api_hint)?;
@@ -1048,7 +1166,9 @@ impl Runtime {
         let inlay_indices = wit_inlay::GuestIndices::new(&pre).ok();
         let endpoint_indices = wit_endpoints::GuestIndices::new(&pre).ok();
         let configs_indices = wit_configs::GuestIndices::new(&pre).ok();
+        let launch_indices = wit_launch::GuestIndices::new(&pre).ok();
         let tests_indices = wit_tests::GuestIndices::new(&pre).ok();
+        let validation_indices = wit_rtv::GuestIndices::new(&pre).ok();
         let lf_indices = wit_lf::GuestIndices::new(&pre).ok();
         let inj_indices = wit_inj::GuestIndices::new(&pre).ok();
         let mcp_indices =
@@ -1057,9 +1177,13 @@ impl Runtime {
         let mcp = mcp_indices.map(|i| i.load(&mut store, &instance)).transpose().map_err(api_hint)?;
         let run_configurations =
             configs_indices.map(|i| i.load(&mut store, &instance)).transpose().map_err(api_hint)?;
+        let launch_configurations =
+            launch_indices.map(|i| i.load(&mut store, &instance)).transpose().map_err(api_hint)?;
         let test_results = tests_indices.map(|i| i.load(&mut store, &instance)).transpose().map_err(api_hint)?;
         let language_features = lf_indices.map(|i| i.load(&mut store, &instance)).transpose().map_err(api_hint)?;
         let injections = inj_indices.map(|i| i.load(&mut store, &instance)).transpose().map_err(api_hint)?;
+        let run_target_validation =
+            validation_indices.map(|i| i.load(&mut store, &instance)).transpose().map_err(api_hint)?;
         let plugin = plugin_indices.load(&mut store, &instance).map_err(api_hint)?;
         let syntax = match syntax_indices {
             Some(indices) => Some(indices.load(&mut store, &instance).map_err(api_hint)?),
@@ -1112,6 +1236,7 @@ impl Runtime {
         Ok(Self {
             store,
             exports: Exports {
+                run_target_validation,
                 language_features,
                 injections,
                 plugin,
@@ -1127,6 +1252,7 @@ impl Runtime {
                 inlay,
                 endpoints,
                 run_configurations,
+                launch_configurations,
                 test_results,
                 mcp,
                 file_actions,
@@ -1136,34 +1262,97 @@ impl Runtime {
         })
     }
 
-    /// Complete configurations from the optional API 1.4 export.
+    pub fn has_run_target_validation(&self) -> bool {
+        self.exports.run_target_validation.is_some()
+    }
+
+    /// Missing optional validators allow the launch without a guest call.
+    pub fn validate_run_target(
+        &mut self,
+        root: String,
+        target: String,
+        launch: crate::RunTargetLaunch,
+        timeout: Duration,
+    ) -> Result<Result<(), String>, CallError> {
+        if self.exports.run_target_validation.is_none() {
+            return Ok(Ok(()));
+        }
+        let invocation = Invocation { workspace_root: Some(root.clone().into()), ..Default::default() };
+        let launch = wit_rtv::LaunchInfo {
+            operation: match launch.operation {
+                crate::RunTargetOperation::Run => wit_rtv::Operation::Run,
+                crate::RunTargetOperation::Test => wit_rtv::Operation::Test,
+            },
+            program: launch.program,
+            cwd: launch.cwd,
+        };
+        self.call(invocation, timeout, |e, store| {
+            e.run_target_validation.as_ref().unwrap().call_validate(store, &root, &target, &launch)
+        })
+        .map(|r| r.map_err(|message| clip(message, 4096)))
+    }
+
+    /// Complete configurations from the optional API 1.9 export, else the API 1.4 one.
     pub fn run_configurations(
         &mut self,
         root: String,
         timeout: Duration,
     ) -> Result<Vec<crate::PluginRunConfiguration>, CallError> {
-        if self.exports.run_configurations.is_none() {
-            return Err(CallError::missing_export("run-configurations"));
-        }
         let invocation = Invocation { workspace_root: Some(root.clone().into()), ..Default::default() };
-        let items = self.call(invocation, timeout, |e, store| {
-            e.run_configurations.as_ref().unwrap().call_configurations(store, &root)
-        })?;
-        if items.len() > 1000 {
-            return Err(CallError::Guest(GuestError::Invalid("too many run configurations".into())));
-        }
-        Ok(items
-            .into_iter()
-            .map(|c| crate::PluginRunConfiguration {
-                id: c.id,
-                name: c.name,
-                program: c.program,
-                args: c.args,
-                cwd: c.cwd,
-                test: c.test,
-                framework: c.framework,
-            })
-            .collect())
+        let items: Vec<crate::PluginRunConfiguration> = if self.exports.launch_configurations.is_some() {
+            let items = self.call(invocation, timeout, |e, store| {
+                e.launch_configurations.as_ref().unwrap().call_configurations(store, &root)
+            })?;
+            if items.len() > 1000 {
+                return Err(CallError::Guest(GuestError::Invalid("too many run configurations".into())));
+            }
+            items
+                .into_iter()
+                .map(|c| crate::PluginRunConfiguration {
+                    id: c.id,
+                    name: c.name,
+                    program: c.program,
+                    args: c.args,
+                    cwd: c.cwd,
+                    test: c.test,
+                    framework: c.framework,
+                    env: c.env,
+                    debugger: match c.debugger {
+                        Some(wit_launch::Debugger::Launch(language)) => {
+                            Some(crate::PluginDebugger::Launch { language })
+                        }
+                        Some(wit_launch::Debugger::AttachChild(a)) => Some(crate::PluginDebugger::AttachChild {
+                            kind: a.kind,
+                            command_contains: a.command_contains,
+                        }),
+                        Some(wit_launch::Debugger::Other(_)) | None => None,
+                    },
+                })
+                .collect()
+        } else if self.exports.run_configurations.is_some() {
+            let items = self.call(invocation, timeout, |e, store| {
+                e.run_configurations.as_ref().unwrap().call_configurations(store, &root)
+            })?;
+            if items.len() > 1000 {
+                return Err(CallError::Guest(GuestError::Invalid("too many run configurations".into())));
+            }
+            items
+                .into_iter()
+                .map(|c| crate::PluginRunConfiguration {
+                    id: c.id,
+                    name: c.name,
+                    program: c.program,
+                    args: c.args,
+                    cwd: c.cwd,
+                    test: c.test,
+                    framework: c.framework,
+                    ..Default::default()
+                })
+                .collect()
+        } else {
+            return Err(CallError::missing_export("run-configurations"));
+        };
+        Ok(items)
     }
     /// Selects tests under the same budget as the test parser.
     pub fn select_tests(
@@ -1587,6 +1776,7 @@ impl Runtime {
         let result = self.call(invocation, self.limits.timeout, |e, store| {
             let ctx = store.data_mut().new_invocation()?;
             store.data_mut().interactive = true;
+            store.data_mut().net_interactive = true;
             let r = e.plugin.openidea_plugin_commands().call_run(
                 &mut *store,
                 id,
@@ -1712,10 +1902,12 @@ impl Runtime {
         if self.exports.views.is_none() {
             return Err(CallError::missing_export("view-provider"));
         }
+        let net_interactive = !matches!(&event, ViewEvent::Message { .. });
         let event = event_to_wit_view(event);
         let result = self.call(invocation, self.limits.timeout, |e, store| {
             let ctx = store.data_mut().new_invocation()?;
             store.data_mut().interactive = true;
+            store.data_mut().net_interactive = net_interactive;
             let views = e.views.as_ref().expect("checked");
             let r = views.call_handle(&mut *store, view, &event, wasmtime::component::Resource::new_borrow(ctx.rep()));
             store.data_mut().drop_invocation(ctx);
@@ -1767,6 +1959,7 @@ impl Runtime {
         let data = self.store.data_mut();
         data.invocation = Invocation::default();
         data.interactive = false;
+        data.net_interactive = false;
         data.action_prompt_client = None;
         // Tasks don't outlive the call that began them.
         for id in std::mem::take(&mut data.open_tasks) {
@@ -1776,10 +1969,11 @@ impl Runtime {
         if !stderr.trim().is_empty() {
             tracing::info!(plugin = %data.plugin_id, "stderr: {}", stderr.trim_end());
         }
+        let active_fuel = data.active_fuel;
         match result {
             Ok(r) => Ok(r),
             Err(e) => {
-                let mut msg = describe_trap(&e, &self.limits);
+                let mut msg = describe_trap(&e, &self.limits, active_fuel);
                 // Typically the panic message: "panicked at src/lib.rs:1:2:\nboom".
                 let detail: Vec<&str> =
                     stderr.lines().filter(|l| !l.trim().is_empty() && !l.starts_with("note:")).collect();
@@ -1831,15 +2025,55 @@ fn arm(store: &mut Store<StoreData>, limits: &Limits, timeout: Duration) -> wasm
     data.deadline = now + timeout;
     data.timeout = timeout;
     data.last_report = None;
+    data.host_io_grace_used = false;
+    data.active_fuel = limits.fuel;
     data.cancel.reset();
     // The callback above runs every tick and decides.
     store.set_epoch_deadline(1);
     Ok(())
 }
 
-fn describe_trap(e: &wasmtime::Error, limits: &Limits) -> String {
+fn bind_task_fuel_refill(linker: &mut Linker<StoreData>) -> wasmtime::Result<()> {
+    use crate::wit_host::TaskRes;
+    use crate::wit_host::bindings::openidea::plugin::tasks::{Host, HostTask};
+    use wasmtime::StoreContextMut;
+    use wasmtime::component::Resource;
+
+    linker.allow_shadowing(true);
+    let tasks_iface = format!("openidea:plugin/tasks@{}", ide_extension::ENGINE_VERSION);
+    let mut inst = linker.instance(&tasks_iface)?;
+    inst.func_wrap("begin", |mut caller: StoreContextMut<'_, StoreData>, (title, cancellable): (String, bool)| {
+        let task = Host::begin(caller.data_mut(), title, cancellable)?;
+        let fuel = caller.data().active_fuel;
+        caller.set_fuel(fuel)?;
+        Ok((task,))
+    })?;
+    inst.func_wrap(
+        "[method]task.report",
+        |mut caller: StoreContextMut<'_, StoreData>,
+         (this, done, total, message): (Resource<TaskRes>, u32, Option<u32>, Option<String>)| {
+            HostTask::report(caller.data_mut(), this, done, total, message)?;
+            let fuel = caller.data().active_fuel;
+            caller.set_fuel(fuel)?;
+            Ok(())
+        },
+    )?;
+    inst.func_wrap(
+        "[method]task.is-cancelled",
+        |mut caller: StoreContextMut<'_, StoreData>, (this,): (Resource<TaskRes>,)| {
+            let cancelled = HostTask::is_cancelled(caller.data_mut(), this)?;
+            let fuel = caller.data().active_fuel;
+            caller.set_fuel(fuel)?;
+            Ok((cancelled,))
+        },
+    )?;
+    linker.allow_shadowing(false);
+    Ok(())
+}
+
+fn describe_trap(e: &wasmtime::Error, limits: &Limits, active_fuel: u64) -> String {
     match e.downcast_ref::<wasmtime::Trap>() {
-        Some(wasmtime::Trap::OutOfFuel) => format!("exceeded its CPU budget ({} fuel per call)", limits.fuel),
+        Some(wasmtime::Trap::OutOfFuel) => format!("exceeded its CPU budget ({active_fuel} fuel per call)"),
         Some(wasmtime::Trap::Interrupt) => CANCELLED.to_owned(),
         Some(wasmtime::Trap::UnreachableCodeReached) => "crashed (panic / unreachable)".to_owned(),
         Some(trap) => format!("trapped: {trap}"),

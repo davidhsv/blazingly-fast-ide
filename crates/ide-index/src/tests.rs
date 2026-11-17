@@ -57,6 +57,27 @@ fn files(idx: &ProjectIndex, q: &str) -> Vec<String> {
     idx.find_files(q, 20).into_iter().map(|m| m.rel_path).collect()
 }
 
+#[test]
+fn exact_file_names_keep_all_source_candidates() {
+    let f = Fixture::new(&[
+        ("src/OtherOrders.kt", "package other"),
+        ("src/Orders.kt.bak", "backup"),
+        ("target/Orders.kt", "excluded"),
+        ("src/orders.kt", "different case"),
+    ]);
+    for i in 0..65 {
+        f.write(&format!("module{i}/Orders.kt"), &format!("package module{i}"));
+    }
+    let source = f.write("service/src/Orders.kt", "package com.example.orders");
+    let idx = f.open();
+    let candidates = idx.files_named("Orders.kt");
+    assert_eq!(candidates.len(), 66);
+    assert!(candidates.contains(&source));
+    assert!(candidates.iter().all(|path| path.file_name().unwrap() == "Orders.kt"));
+    assert_eq!(candidates, idx.files_named("Orders.kt"));
+    assert!(idx.files_named("Missing.kt").is_empty());
+}
+
 fn symbols(idx: &ProjectIndex, q: &str, filter: SymbolFilter) -> Vec<String> {
     idx.find_symbols(q, filter, 20).into_iter().map(|m| m.name).collect()
 }
@@ -508,6 +529,45 @@ fn css_selectors_are_found_by_exact_name() {
 }
 
 #[test]
+fn symbols_named_within_keeps_out_of_root_matches_from_evicting_a_root() {
+    let f = Fixture::new(&[
+        ("a/w.rs", "struct Decoder;\nstruct Decoder;\n"),
+        ("b/x.rs", "struct Decoder;\nstruct Decoder;\nstruct Decoder;\n"),
+        ("dep/b.rs", "struct Decoder;\n"),
+    ]);
+    let idx = f.open();
+    let own = f.root.join("a");
+    let dep = f.root.join("dep");
+    // Unfiltered, the cap fills in rel-path order — own root, then the out-of-root
+    // content root b/ — so dep/ is evicted before the caller's root filter runs.
+    let unfiltered = idx.symbols_named("Decoder", None, 3);
+    let unfiltered: Vec<&str> = unfiltered.iter().map(|m| m.rel_path.as_ref()).collect();
+    assert_eq!(unfiltered, vec!["a/w.rs", "a/w.rs", "b/x.rs"]);
+    let found: Vec<String> =
+        idx.symbols_named_within("Decoder", None, &[own, dep], 3).into_iter().map(|m| m.rel_path).collect();
+    assert_eq!(found, vec!["a/w.rs".to_string(), "a/w.rs".to_string(), "dep/b.rs".to_string()]);
+    assert!(idx.symbols_named_within("Decoder", None, &[f.root.join("none")], 3).is_empty());
+}
+
+#[test]
+fn symbols_named_any_answers_every_name_inside_the_root_in_one_walk() {
+    let fixture = Fixture::new(&[
+        ("app/a.rs", "struct Config;\nfn load() {}\nfn load_all() {}\n"),
+        ("app/b.rs", "fn load() {}\nfn load() {}\n"),
+        ("other/c.rs", "struct Config;\n"),
+    ]);
+    let idx = fixture.open();
+    let names = ["Config".to_string(), "load".to_string(), "missing".to_string()];
+    let found: Vec<(String, String)> = idx
+        .symbols_named_any(&names, &fixture.root.join("app"), 2)
+        .into_iter()
+        .map(|symbol| (symbol.name, symbol.rel_path))
+        .collect();
+    let expected = [("Config", "app/a.rs"), ("load", "app/a.rs"), ("load", "app/b.rs")];
+    assert_eq!(found, expected.map(|(name, path)| (name.to_string(), path.to_string())));
+}
+
+#[test]
 fn content_roots_and_excludes_change_without_reopening() {
     let fx = Fixture::new(&[("src/main.rs", "fn alpha() {}\n"), ("src/gen/out.rs", "fn generated() {}\n")]);
     let shared = fx._dir.path().join("shared-lib");
@@ -728,4 +788,282 @@ fn persisted_symbols_do_not_load_through_escaping_symlink_ancestors() {
     assert!(idx.wait_idle(WAIT));
     assert!(symbols(&idx, "old_symbol", SymbolFilter::All).is_empty());
     assert_eq!(initial.lock()[0], 0, "unsafe cached symbols must never be published");
+}
+
+#[test]
+fn incremental_changes_refresh_the_warm_start_snapshot() {
+    let f = Fixture::new(&[("src/a.rs", "fn a() {}\n")]);
+    let idx = f.open();
+    let changed = f.write("src/a.rs", "fn renamed() {}\n");
+    idx.update(&[changed], &[]);
+    assert!(idx.wait_idle(WAIT));
+    // The snapshot is written after a short delay, on the worker's next round.
+    let snapshot = f.cache.join("index.snapshot");
+    let deadline = std::time::Instant::now() + WAIT;
+    while !snapshot.exists() && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(snapshot.exists(), "a watcher update must regenerate the snapshot");
+}
+
+#[test]
+fn warm_start_detects_changed_ignore_rules() {
+    let f = Fixture::new(&[("sub/generated/a.rs", "fn a() {}\n"), (".git/HEAD", "ref: refs/heads/main\n")]);
+    f.write("sub/.gitignore", "");
+    let idx = f.open();
+    assert_eq!(idx.status().files, 2, "generated/a.rs plus .gitignore itself");
+    drop(idx);
+
+    std::thread::sleep(Duration::from_millis(20));
+    f.write("sub/.gitignore", "generated/\n");
+    let idx = f.open();
+    assert_eq!(idx.status().files, 1, "an updated ignore rule invalidates the warm snapshot");
+}
+
+#[test]
+fn warm_start_detects_changed_ignore_rules_above_the_project() {
+    // The project is a folder of a repository whose ignore files sit above it.
+    let f = Fixture::new(&[("generated/a.rs", "fn a() {}\n"), ("src/b.rs", "fn b() {}\n")]);
+    let repo = f.root.parent().unwrap().to_owned();
+    std::fs::create_dir_all(repo.join(".git/info")).unwrap();
+    std::fs::write(repo.join(".git/HEAD"), "ref: refs/heads/main\n").unwrap();
+    let idx = f.open();
+    assert_eq!(idx.status().files, 2);
+    drop(idx);
+
+    std::fs::write(repo.join(".gitignore"), "proj/generated/\n").unwrap();
+    let idx = f.open();
+    assert_eq!(idx.status().files, 1, "a new ignore file above the project invalidates the warm snapshot");
+    drop(idx);
+
+    std::thread::sleep(Duration::from_millis(20));
+    std::fs::write(repo.join(".gitignore"), "").unwrap();
+    std::fs::write(repo.join(".git/info/exclude"), "proj/src/\n").unwrap();
+    let idx = f.open();
+    assert_eq!(idx.status().files, 1, "so do the enclosing repository's changed rules");
+    assert!(!symbols(&idx, "a", SymbolFilter::All).is_empty());
+}
+
+#[test]
+fn warm_start_detects_a_changed_exclude_file_of_a_linked_worktree() {
+    // The project is a linked worktree: its `.git` file points into the main repository,
+    // whose shared `info/exclude` the walker reads through `commondir`.
+    let f = Fixture::new(&[("generated/a.rs", "fn a() {}\n"), ("src/b.rs", "fn b() {}\n")]);
+    let main = f.root.parent().unwrap().join("main/.git");
+    let worktree = main.join("worktrees/proj");
+    std::fs::create_dir_all(main.join("info")).unwrap();
+    std::fs::create_dir_all(&worktree).unwrap();
+    std::fs::write(main.join("HEAD"), "ref: refs/heads/main\n").unwrap();
+    std::fs::write(worktree.join("HEAD"), "ref: refs/heads/wt\n").unwrap();
+    std::fs::write(worktree.join("commondir"), "../..\n").unwrap();
+    std::fs::write(f.root.join(".git"), format!("gitdir: {}\n", worktree.display())).unwrap();
+    let idx = f.open();
+    assert_eq!(idx.status().files, 2);
+    drop(idx);
+
+    std::fs::write(main.join("info/exclude"), "generated/\n").unwrap();
+    let idx = f.open();
+    assert_eq!(idx.status().files, 1, "the shared exclude file invalidates the warm snapshot");
+}
+
+#[test]
+fn warm_start_detects_a_new_file_in_an_existing_empty_directory() {
+    let f = Fixture::new(&[("src/a.rs", "fn a() {}\n")]);
+    std::fs::create_dir(f.root.join("empty")).unwrap();
+    let idx = f.open();
+    assert_eq!(idx.status().files, 1);
+    assert!(idx.find_dirs("empty", 10).is_empty());
+    drop(idx);
+    let idx = f.open();
+    assert!(idx.find_dirs("empty", 10).is_empty(), "empty folders are not searchable after warm start");
+    drop(idx);
+
+    f.write("empty/new.rs", "fn new_symbol() {}\n");
+    let idx = f.open();
+    assert_eq!(idx.status().files, 2);
+    assert_eq!(symbols(&idx, "new_symbol", SymbolFilter::All), ["new_symbol"]);
+}
+
+#[test]
+fn rule_changes_refresh_only_the_affected_index_subtree() {
+    for (rule, subtree) in [(".git/info/exclude", ""), ("sub/.gitignore", "sub"), ("sub/.ignore", "sub")] {
+        let fx = Fixture::new(&[
+            (".git/HEAD", "ref: refs/heads/main\n"),
+            ("sub/generated/file.ts", "export function generated() {}\n"),
+            ("sub/local.ts", "export function localOnly() {}\n"),
+            ("other/keep.ts", "export function keep() {}\n"),
+        ]);
+        fx.write(rule, "");
+        let idx = fx.open();
+        assert_eq!(files(&idx, "file.ts"), ["sub/generated/file.ts"]);
+        fx.write(rule, "generated/\nlocal.ts\n");
+        let dirs = [fx.root.join(subtree)];
+        idx.ignore_rules_changed(&dirs);
+        assert!(idx.wait_idle(WAIT));
+        assert!(files(&idx, "file.ts").is_empty(), "{rule}: ignored directory remained indexed");
+        assert_eq!(files(&idx, "local.ts"), ["sub/local.ts"]);
+        assert!(symbols(&idx, "localOnly", SymbolFilter::All).is_empty());
+        assert_eq!(files(&idx, "keep.ts"), ["other/keep.ts"]);
+
+        fx.write(rule, "");
+        idx.ignore_rules_changed(&dirs);
+        assert!(idx.wait_idle(WAIT));
+        assert_eq!(files(&idx, "file.ts"), ["sub/generated/file.ts"]);
+        assert_eq!(symbols(&idx, "localOnly", SymbolFilter::All), ["localOnly"]);
+        // The cached root matcher must also follow the rules for later watcher updates.
+        let fresh = fx.write("sub/generated/new.ts", "export function fresh() {}\n");
+        idx.update(&[fresh], &[]);
+        assert!(idx.wait_idle(WAIT));
+        assert_eq!(files(&idx, "new.ts"), ["sub/generated/new.ts"]);
+    }
+}
+
+#[test]
+fn repository_rule_changes_refresh_members_of_an_unindexed_container() {
+    let fx = Fixture::new(&[
+        (".git/HEAD", "ref: refs/heads/main\n"),
+        (".git/info/exclude", ""),
+        ("member/generated/item.txt", "x"),
+    ]);
+    let idx = ProjectIndex::open(
+        &fx.root,
+        &fx.cache,
+        IndexRoots { include_root: false, folders: vec![fx.root.join("member")] },
+        vec![],
+        Arc::new(LanguageRegistry::load(None).unwrap()),
+        Arc::new(Syntax::new()),
+        Arc::new(NullSink),
+    )
+    .unwrap();
+    assert!(idx.wait_idle(WAIT));
+    assert_eq!(files(&idx, "item.txt"), ["member/generated/item.txt"]);
+    fx.write(".git/info/exclude", "generated/\n");
+    idx.ignore_rules_changed(std::slice::from_ref(&fx.root));
+    assert!(idx.wait_idle(WAIT));
+    assert!(files(&idx, "item.txt").is_empty());
+    fx.write(".git/info/exclude", "");
+    idx.ignore_rules_changed(std::slice::from_ref(&fx.root));
+    assert!(idx.wait_idle(WAIT));
+    assert_eq!(files(&idx, "item.txt"), ["member/generated/item.txt"]);
+}
+
+#[test]
+fn warm_start_sees_edits_deletions_and_renames_made_while_closed() {
+    let f = Fixture::new(&[
+        ("src/a.rs", "fn aaaa() {}\n"),
+        ("src/deep/b.rs", "fn bbbb() {}\n"),
+        ("c.rs", "fn cccc() {}\n"),
+    ]);
+    let idx = f.open();
+    assert!(idx.wait_idle(WAIT));
+    drop(idx);
+    std::thread::sleep(Duration::from_millis(200));
+    // Warm start of an unchanged tree keeps everything.
+    let idx = f.open();
+    assert!(idx.wait_idle(WAIT));
+    assert_eq!(symbols(&idx, "aaaa", SymbolFilter::All), ["aaaa"]);
+    drop(idx);
+    std::thread::sleep(Duration::from_millis(20));
+    // Same size, new content; a deletion; a new file two levels down; a rename.
+    f.write("src/a.rs", "fn zzzz() {}\n");
+    std::fs::remove_file(f.root.join("c.rs")).unwrap();
+    f.write("src/deep/deeper/n.rs", "fn nnnn() {}\n");
+    std::fs::rename(f.root.join("src/deep/b.rs"), f.root.join("src/deep/r.rs")).unwrap();
+    let idx = f.open();
+    assert!(idx.wait_idle(WAIT));
+    assert!(symbols(&idx, "aaaa", SymbolFilter::All).is_empty(), "stale content");
+    assert_eq!(symbols(&idx, "zzzz", SymbolFilter::All), ["zzzz"]);
+    assert!(symbols(&idx, "cccc", SymbolFilter::All).is_empty(), "deleted file");
+    assert_eq!(symbols(&idx, "nnnn", SymbolFilter::All), ["nnnn"]);
+    assert_eq!(symbols(&idx, "bbbb", SymbolFilter::All), ["bbbb"]);
+    assert_eq!(idx.status().files, 3);
+    drop(idx);
+    // After the cold rescan, the next warm start agrees.
+    std::thread::sleep(Duration::from_millis(200));
+    let idx = f.open();
+    assert!(idx.wait_idle(WAIT));
+    assert_eq!(idx.status().files, 3);
+    assert_eq!(symbols(&idx, "zzzz", SymbolFilter::All), ["zzzz"]);
+}
+
+#[test]
+fn queries_during_streaming_scan_do_not_deadlock() {
+    // More than `2 * SCAN_BATCH` (4,096) files so a scan both flushes mid-pass
+    // (`publish` -> `data.write()`) and fills the bounded parse channel while
+    // concurrent queries hold `data.read()` and dispatch onto Rayon.
+    const FILES: usize = 4_600;
+    let f = Fixture::new(&[]);
+    for m in 0..32 {
+        std::fs::create_dir_all(f.root.join(format!("mod{m}"))).unwrap();
+    }
+    for i in 0..FILES {
+        std::fs::write(
+            f.root.join(format!("mod{}/File{i}.rs", i % 32)),
+            format!("pub struct Type{i};\npub fn sym{i}() {{}}\n"),
+        )
+        .unwrap();
+    }
+
+    let (done_tx, done_rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let languages = Arc::new(LanguageRegistry::load(None).unwrap());
+        let syntax = Arc::new(Syntax::new());
+        let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let idx =
+            ProjectIndex::open(&f.root, &f.cache, Vec::new(), vec![], languages, syntax, Arc::new(NullSink)).unwrap();
+
+        let readers: Vec<_> = (0..4usize)
+            .map(|r| {
+                let idx = idx.clone();
+                let stop = stop.clone();
+                std::thread::spawn(move || {
+                    let mut n = r;
+                    while !stop.load(Ordering::Relaxed) {
+                        match n % 3 {
+                            0 => {
+                                let _ = idx.find_files("File1", 20);
+                            }
+                            1 => {
+                                let _ = idx.find_dirs("mod", 20);
+                            }
+                            _ => {
+                                let _ = idx.find_symbols("sym1", SymbolFilter::All, 20);
+                            }
+                        }
+                        n = n.wrapping_add(1);
+                    }
+                })
+            })
+            .collect();
+
+        assert!(idx.wait_idle(WAIT), "initial streaming scan did not finish");
+        let parsed_before = idx.shared.parsed.load(Ordering::SeqCst);
+        assert_eq!(parsed_before, FILES);
+
+        // Touch every file without changing its contents so `parse_found` takes
+        // the `Extracted::Unchanged` path across multiple `SCAN_BATCH` flushes.
+        let bumped = std::fs::FileTimes::new().set_modified(std::time::SystemTime::now() + Duration::from_secs(10));
+        for i in 0..FILES {
+            let path = f.root.join(format!("mod{}/File{i}.rs", i % 32));
+            std::fs::File::options().write(true).open(path).unwrap().set_times(bumped).unwrap();
+        }
+        idx.shared.enqueue(Job::Rescan);
+        assert!(idx.wait_idle(WAIT), "rescan of unchanged-content files did not finish");
+        assert_eq!(idx.shared.parsed.load(Ordering::SeqCst), parsed_before, "unchanged content is not re-parsed");
+        assert_eq!(symbols(&idx, "sym4599", SymbolFilter::All), ["sym4599"]);
+
+        stop.store(true, Ordering::Relaxed);
+        for h in readers {
+            h.join().unwrap();
+        }
+        assert_eq!(idx.status().files, FILES as u32);
+        drop(idx);
+
+        let reopened = f.open();
+        assert_eq!(reopened.shared.parsed.load(Ordering::SeqCst), 0);
+        assert_eq!(symbols(&reopened, "sym4599", SymbolFilter::All), ["sym4599"]);
+        let _ = done_tx.send(());
+    });
+
+    done_rx.recv_timeout(Duration::from_secs(60)).expect("concurrent index queries deadlocked with streaming scan");
 }

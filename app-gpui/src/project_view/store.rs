@@ -586,7 +586,7 @@ impl ProjectViewState {
             return FsRefresh::default();
         }
         let loaded: BTreeSet<String> = self.listings.keys().cloned().collect();
-        let plan = plan_refresh(&FsChange { created, modified, removed }, &loaded);
+        let plan = plan_refresh(&FsChange { created, modified, removed, ignore_rules: &[] }, &loaded);
         if !plan.drop.is_empty() {
             drop_listings(&mut self.listings, &plan.drop);
         }

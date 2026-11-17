@@ -5,9 +5,9 @@ wit_bindgen::generate!({
     inline: "
         package fixture:misbehave;
         world misbehave {
-            include openidea:plugin/plugin-syntax@1.4.0;
-            export openidea:plugin/providers@1.4.0;
-            export openidea:plugin/file-actions@1.4.0;
+            include openidea:plugin/plugin-syntax@1.9.0;
+            export openidea:plugin/providers@1.9.0;
+            export openidea:plugin/file-actions@1.9.0;
         }
     ",
     path: "../../../../../wit",
@@ -65,6 +65,13 @@ impl commands::Guest for Misbehave {
             "read" => {
                 let project = ctx.project().ok_or_else(|| failed("no project is open"))?;
                 project.read_file(&arg.unwrap_or_default()).map(Some)
+            }
+            // The bytes `project.read-bytes` returns, as "len hex hex …" so binary survives.
+            "read-bytes" => {
+                let project = ctx.project().ok_or_else(|| failed("no project is open"))?;
+                let bytes = project.read_bytes(&arg.unwrap_or_default())?;
+                let hex: Vec<String> = bytes.iter().map(|b| format!("{b:02x}")).collect();
+                Ok(Some(format!("{} {}", bytes.len(), hex.join(" "))))
             }
             "root" => ctx.project().map(|p| p.root()).transpose(),
             // The `fs.read` grants: the text of `arg`, or the refusal naming what it needs.
@@ -173,8 +180,14 @@ impl commands::Guest for Misbehave {
                     env: Vec::new(),
                 };
                 let child = process::start(&cmd, None)?;
+                // CPU work per step (loop iterations), for fuel budget tests.
+                let work: u64 = arg.as_deref().and_then(|a| a.parse().ok()).unwrap_or(0);
                 for step in 0..25 {
                     task.report(step, Some(25), Some("waiting"));
+                    let mut x: u64 = 0;
+                    for _ in 0..work {
+                        x = std::hint::black_box(x.wrapping_add(1));
+                    }
                     // Waiting blocks in the host for 100 ms: wall time passes
                     // while the plugin itself is not running.
                     let _ = child.wait(100);

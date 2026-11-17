@@ -122,6 +122,32 @@ const CASES: Record<string, Case> = {
       file: "LibraryTest.kt",
     },
   },
+  php: {
+    fixture: "php-app",
+    setup: (root) =>
+      execFileSync("composer", ["install", "--no-interaction", "--no-progress"], { cwd: root, stdio: "ignore" }),
+    run: { config: "composer:quote", prints: "Bluebird Electronics: VAT $34.20, clearance fee $5.00" },
+    tests: {
+      config: "phpunit",
+      failing: (c) => env(c, { OPENIDEA_FAIL: "1" }),
+      passed: 13,
+      failed: "it intentionally fails (set OPENIDEA_FAIL=1)",
+      file: "ThresholdCustomsTest.php",
+    },
+  },
+  // The failing run uses the fixture's dedicated `test-failing` step (`zig build` forwards
+  // no args to the test binary, so a failing test can't be switched on through the config).
+  zig: {
+    fixture: "zig-app",
+    run: { config: "zig:run", prints: "Total: $134.97" },
+    tests: {
+      config: "zig:test-failing",
+      failing: (c) => c,
+      passed: 0,
+      failed: "intentionally fails",
+      file: "src/failing.zig",
+    },
+  },
 };
 
 let server: Server | null = null;

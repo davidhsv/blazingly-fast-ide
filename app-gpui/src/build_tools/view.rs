@@ -904,7 +904,7 @@ mod tests {
         let profiles = vec![MavenProfile { project_root: None, id: "ci".to_owned(), active_by_default: false }];
         let maven =
             MavenModel { projects: vec![project], profiles, synced_at: Some(1.0), stale: true, sync_error: None };
-        BuildModel { maven: Some(maven), gradle: Vec::new() }
+        BuildModel { maven: Some(maven), gradle: Vec::new(), sbt: Vec::new() }
     }
 
     fn gradle_model() -> BuildModel {
@@ -916,7 +916,7 @@ mod tests {
             ..GradleProject::default()
         };
         let build = GradleModel { projects: vec![project], command: "gradle".to_owned(), ..GradleModel::default() };
-        BuildModel { maven: None, gradle: vec![build] }
+        BuildModel { maven: None, gradle: vec![build], sbt: Vec::new() }
     }
 
     fn open(

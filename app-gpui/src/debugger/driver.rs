@@ -951,20 +951,16 @@ impl DebugDriver {
                 })
                 .collect();
             let work = move |host: Arc<IdeHost>, label: String| async move {
-                let inner = Arc::clone(&host);
-                host.blocking(move || {
-                    let mut found = Vec::new();
-                    for (name, limit) in searches {
-                        let hits = ide_host::ops::nav::find_files(&inner, &label, name.clone(), limit)?;
-                        let named = hits.into_iter().filter(|hit| hit.rel_path.rsplit('/').next() == Some(&name));
-                        found.extend(named.map(|hit| FoundSource {
-                            path: hit.path.0.to_string_lossy().into_owned(),
-                            rel_path: hit.rel_path,
-                        }));
-                    }
-                    Ok(found)
-                })
-                .await
+                let mut found = Vec::new();
+                for (name, limit) in searches {
+                    let hits = ide_host::ops::nav::find_files(&host, &label, name.clone(), limit).await?;
+                    let named = hits.into_iter().filter(|hit| hit.rel_path.rsplit('/').next() == Some(&name));
+                    found.extend(named.map(|hit| FoundSource {
+                        path: hit.path.0.to_string_lossy().into_owned(),
+                        rel_path: hit.rel_path,
+                    }));
+                }
+                Ok(found)
             };
             let then = Self::on_debugger(move |debugger, result: Result<Vec<FoundSource>, IdeError>, host| {
                 debugger.files_found(ticket, result.unwrap_or_default(), host);

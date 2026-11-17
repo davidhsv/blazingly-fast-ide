@@ -1,6 +1,8 @@
 /** Opens file locations printed in run output (resolving relative and bare names). */
+import { executeAction, getAction } from "@/platform/actions";
 import { call, commands, isTauri, nextRequestId } from "@/platform/ipc";
 import { useProject } from "@/platform/project";
+import { useRemote } from "@/platform/remote";
 import { editorService, notifications } from "@/workbench/contributions";
 import { streamSearch } from "@/platform/textSearch";
 import { joinPath, type FileTarget } from "./links";
@@ -36,18 +38,24 @@ async function declaresPackage(path: string, pkg: string): Promise<boolean> {
 async function findByName(target: FileTarget): Promise<string | null> {
   const name = target.path.split("/").pop() ?? target.path;
   try {
-    const hits = await call(commands.findFiles(name, 50));
+    const remote = useRemote.getState().session;
+    // Older remote servers only have fuzzy search: request the whole inventory before filtering.
+    const hits =
+      remote && !remote.commands.includes("find_files_named")
+        ? (await call(commands.findFiles(name, (await call(commands.indexStatus())).files)))
+            .filter((h) => h.relPath.split("/").pop() === name)
+            .map((h) => h.path)
+        : await call(commands.findFilesNamed(name));
     const tail = target.path.replace(/^\.?\//, "");
-    const exact = hits.find((h) => h.relPath === tail || h.relPath.endsWith(`/${tail}`));
-    if (exact) return exact.path;
-    const named = hits.filter((h) => h.relPath.split("/").pop() === name);
+    const exact = hits.find((path) => path === tail || path.endsWith(`/${tail}`));
+    if (exact) return exact;
     // A stack frame names its class: a same-named file of another package is not it.
     if (target.className) {
       const pkg = packageOf(target.className);
-      for (const h of named) if (await declaresPackage(h.path, pkg)) return h.path;
+      for (const path of hits) if (await declaresPackage(path, pkg)) return path;
       return null;
     }
-    return named[0]?.path ?? null;
+    return hits[0] ?? null;
   } catch {
     return null;
   }
@@ -155,6 +163,17 @@ export async function openTarget(target: FileTarget, cwd: string, focus = true):
   }
   const selection = target.line ? { line: target.line - 1, col: Math.max(0, (target.col ?? 1) - 1) } : undefined;
   await editorService().openFile(path, { selection, focus });
+}
+
+/**
+ * ⌘⇧-click (Ctrl+Shift elsewhere) on a URL in console output debugs its page in a browser
+ * session instead of opening it, like IDEA's Ctrl+Shift+click on a URL in the Run tool window.
+ * Returns whether the click was taken.
+ */
+export function debugConsoleUrl(e: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }, url: string): boolean {
+  if (!e.shiftKey || !(e.metaKey || e.ctrlKey) || !getAction("debug.debugInBrowser")) return false;
+  void executeAction("debug.debugInBrowser", url);
+  return true;
 }
 
 export async function openUrl(url: string): Promise<void> {

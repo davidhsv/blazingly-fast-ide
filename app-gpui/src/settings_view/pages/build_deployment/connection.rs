@@ -84,6 +84,7 @@ impl DeploymentServersView {
     pub fn can_test(&self, server: &DeploymentServer, cx: &App) -> bool {
         let ready = match server.kind {
             DeploymentType::Sftp => !server.ssh_config.is_empty(),
+            DeploymentType::Ftp | DeploymentType::Ftps => !server.ftp.host.trim().is_empty(),
             DeploymentType::Local => !server.root_path.trim().is_empty(),
         };
         ready && self.connections.test.is_some() && self.test_state(cx) != Some(TestState::Busy)
@@ -475,7 +476,7 @@ impl DeploymentServersView {
         let failed = match state {
             Some(TestState::Failed { message, .. }) => Some(match server.kind {
                 DeploymentType::Sftp => self.problem_block(server, &message, cx).into_any_element(),
-                DeploymentType::Local => div()
+                DeploymentType::Ftp | DeploymentType::Ftps | DeploymentType::Local => div()
                     .px(px(4.0))
                     .debug_selector(|| "settings-deployment-test-result".to_owned())
                     .text_color(theme::color(cx, "danger"))

@@ -1738,6 +1738,25 @@ impl DebugState {
             }
             DebugEvent::Terminated => self.mark_terminated(id, ctx),
             DebugEvent::HotCodeReplace { .. } => {}
+            DebugEvent::Capabilities => {
+                if self.sessions.contains_key(&id) {
+                    self.ask(BackendCall::DebugCapabilities(id), Pending::Capabilities(id));
+                }
+            }
+            // Stale variables of a paused session: the selected frame's locals are read again.
+            DebugEvent::Invalidated { areas } => {
+                let Some(session) = self.sessions.get(&id).filter(|s| s.status == SessionStatus::Paused) else {
+                    return;
+                };
+                if !areas.is_empty() && !areas.iter().any(|area| area == "variables" || area == "all") {
+                    return;
+                }
+                if let Some(frame) = session.selected_frame {
+                    self.load_locals(id, frame);
+                }
+            }
+            // The JVM debugger's backend state and a page's network requests have no view here.
+            DebugEvent::JvmBackend { .. } | DebugEvent::JsNetwork { .. } | DebugEvent::JsNetworkUnavailable => {}
         }
     }
 
@@ -3036,6 +3055,37 @@ mod tests {
         });
         assert_eq!(world.count(|call| matches!(call, BackendCall::DebugVariables { .. })), 0);
         assert_eq!(point(&world), (Some(PATH), 3));
+    }
+
+    // src/features/debugger/state.ts › handleDebugEvent's `capabilities` and `invalidated` cases
+    #[test]
+    fn changed_capabilities_are_read_again_and_invalidated_variables_reload_the_locals() {
+        let mut world = World::default();
+        world.adopt(1, |_| {});
+        world.settle();
+        let caps = |world: &World| world.count(|call| matches!(call, BackendCall::DebugCapabilities(_)));
+        let scopes = |world: &World| world.count(|call| matches!(call, BackendCall::DebugScopes { .. }));
+        let before = caps(&world);
+        world.event(1, DebugEvent::Capabilities);
+        world.settle();
+        assert_eq!(caps(&world), before + 1);
+        // Running: nothing to read again.
+        world.event(1, DebugEvent::Invalidated { areas: Vec::new() });
+        world.settle();
+        assert_eq!(scopes(&world), 0);
+        world.stopped(1, 5, "step");
+        world.pump(&mut |call| match call {
+            BackendCall::DebugStackTrace { .. } => top(3),
+            _ => Reply::Done,
+        });
+        let paused = scopes(&world);
+        assert!(paused > 0, "the stop reads the frame's locals");
+        world.event(1, DebugEvent::Invalidated { areas: vec!["threads".to_owned()] });
+        world.settle();
+        assert_eq!(scopes(&world), paused, "only threads are stale");
+        world.event(1, DebugEvent::Invalidated { areas: vec!["variables".to_owned()] });
+        world.settle();
+        assert_eq!(scopes(&world), paused + 1);
     }
 
     // Not from a spec: watches are trimmed, unique and stored as a JSON array of strings.

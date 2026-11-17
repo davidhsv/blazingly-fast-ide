@@ -32,7 +32,7 @@ fn line(entry: &AgentEntry) -> PermissionLine {
 
 fn asking(id: u32, title: &str, questions: Vec<AgentQuestion>) -> AgentEntry {
     let options = vec![permission_option("reject", "Skip", "reject_once")];
-    AgentEntry::Permission { id, title: title.to_owned(), options, questions, chosen: None }
+    AgentEntry::Permission { id, title: title.to_owned(), options, questions, chosen: None, command: None, form: None }
 }
 
 #[test]
@@ -73,7 +73,15 @@ fn keeps_separate_answers_for_codex_question_ids_with_identical_wording() {
         })
         .collect();
     let title = "Which?".to_owned();
-    let entries = [AgentEntry::Permission { id: 11, title, options: Vec::new(), questions, chosen: None }];
+    let entries = [AgentEntry::Permission {
+        id: 11,
+        title,
+        options: Vec::new(),
+        questions,
+        chosen: None,
+        command: None,
+        form: None,
+    }];
     let (id, title, questions) = question_card(&entries).expect("a question card");
     assert_eq!(title, "Which?");
     let mut form = QuestionForm::new("A", id, questions);
@@ -168,7 +176,15 @@ fn sends_the_original_kind_option_id_then_collapses_the_resolved_card() {
         let effect = responding.answer(&mut store, "A", 12, answer.option.as_deref());
         assert_eq!(sent(effect), [respond("A", 12, Some(option.id.as_str()))]);
         let AgentEntry::Permission { id, title, options, questions, .. } = pending else { unreachable!() };
-        let resolved = AgentEntry::Permission { id, title, options, questions, chosen: Some(option.name.clone()) };
+        let resolved = AgentEntry::Permission {
+            id,
+            title,
+            options,
+            questions,
+            chosen: Some(option.name.clone()),
+            command: None,
+            form: None,
+        };
         let view = line(&resolved);
         assert_eq!(view.command, None);
         assert!(view.answers.is_empty());

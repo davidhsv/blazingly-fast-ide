@@ -135,8 +135,15 @@ async fn keeps_separate_answers_for_codex_question_ids_with_identical_wording(cx
             asked
         })
         .collect();
-    let entry =
-        AgentEntry::Permission { id: 11, title: "Which?".to_owned(), options: Vec::new(), questions, chosen: None };
+    let entry = AgentEntry::Permission {
+        id: 11,
+        title: "Which?".to_owned(),
+        options: Vec::new(),
+        questions,
+        chosen: None,
+        command: None,
+        form: None,
+    };
     let (view, _, events, cx) = open(cx, vec![local_task("A")], vec![entry]);
     let card = view.read_with(cx, |view, cx| view.card(cx)).expect("the question card shows");
     assert!(card.contains(&"first: Which?".to_owned()) && card.contains(&"second: Which?".to_owned()), "{card:?}");
@@ -372,6 +379,8 @@ async fn picks_options_with_number_keys_previews_the_picked_or_hovered_one_and_s
         options: vec![permission_option("reject", "Skip", "reject_once")],
         questions: vec![question("", "Which layout?", false, &[("Table", "", Some("| a | b |")), ("List", "", None)])],
         chosen: None,
+        command: None,
+        form: None,
     };
     let (view, _, events, cx) = open(cx, vec![local_task("A")], vec![ask]);
     let focus = view.read_with(cx, |view, _| view.question.as_ref().map(|q| q.focus.clone())).expect("a card");

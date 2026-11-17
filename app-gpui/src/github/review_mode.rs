@@ -53,9 +53,12 @@ pub fn tracked_branch(
 ) -> Option<TrackedBranch> {
     let remote = remote.filter(|r| !r.is_empty() && *r != ".")?;
     let merge = merge.filter(|m| !m.is_empty())?;
-    let url = remotes.iter().find(|r| r.name == remote).map_or(remote, |r| r.url.as_str());
-    let repository = parse_github_remote(url).or_else(|| {
-        let own = [Remote { name: remote.to_owned(), url: url.to_owned() }];
+    let found = remotes.iter().find(|r| r.name == remote);
+    let url = found.map_or(remote, |r| r.url.as_str());
+    // An `~/.ssh/config` host alias names GitHub only once resolved.
+    let parsed = found.and_then(|r| r.resolved_url.as_deref()).unwrap_or(url);
+    let repository = parse_github_remote(parsed).or_else(|| {
+        let own = [Remote { name: remote.to_owned(), url: url.to_owned(), resolved_url: None }];
         connected.filter(|c| remote_of_repository(&own, c).is_some()).cloned()
     })?;
     if let Some(pr) = PULL_HEAD.captures(merge) {
@@ -825,7 +828,7 @@ mod tests {
     use ide_vcs::HunkKind;
 
     fn remote(name: &str, url: &str) -> Remote {
-        Remote { name: name.into(), url: url.into() }
+        Remote { name: name.into(), url: url.into(), resolved_url: None }
     }
 
     fn remotes() -> Vec<Remote> {
@@ -870,6 +873,12 @@ mod tests {
         );
         let gitlab = [remote("gitlab", "git@gitlab.com:o/r.git")];
         assert_eq!(tracked_branch(Some("gitlab"), Some("refs/heads/x"), &gitlab, None), None);
+        // The alias resolved through `~/.ssh/config` names the GitHub repository.
+        let resolved = [Remote { resolved_url: Some("git@github.com:o/r.git".into()), ..alias[0].clone() }];
+        assert_eq!(
+            tracked_branch(Some("origin"), Some("refs/heads/x"), &resolved, None).map(|t| t.repository),
+            Some(Coordinates::new("o", "r"))
+        );
     }
 
     #[test]

@@ -3,7 +3,7 @@ import { Fragment, useState } from "react";
 import { call, commands, type DataSource } from "@/platform/ipc";
 import { Checkbox, Dialog, Input, lazyComponent, T } from "@/ui";
 import { sshLabel } from "./model";
-import { SourceDialog } from "./SourceDialog";
+import { SourceDialog, snowflakeSecretLabel } from "./SourceDialog";
 import { closeDialog, useDatabase } from "./store";
 import styles from "./Database.module.css";
 import { isImeKey } from "@/platform/ime";
@@ -13,6 +13,7 @@ const ObjectDialogs = lazyComponent(() => import("./ObjectDialogs").then((m) => 
 const ExportDialog = lazyComponent(() => import("./ExportDialog").then((m) => m.ExportDialog));
 const HistoryDialog = lazyComponent(() => import("./DataDialogs").then((m) => m.HistoryDialog));
 const ImportDialog = lazyComponent(() => import("./DataDialogs").then((m) => m.ImportDialog));
+const SchemaCompareDialog = lazyComponent(() => import("./SchemaCompareDialog").then((m) => m.SchemaCompareDialog));
 
 function PasswordDialog({ source, resolve }: { source: DataSource; resolve: (ok: boolean) => void }) {
   const [password, setPassword] = useState("");
@@ -42,7 +43,7 @@ function PasswordDialog({ source, resolve }: { source: DataSource; resolve: (ok:
         </span>
         <span>{source.user || "(default)"}</span>
         <label className={styles.formLabel} htmlFor="db-ask-password">
-          <T>Password:</T>
+          {tx(source.driver === "snowflake" ? snowflakeSecretLabel(source.snowflake?.auth) : "Password:")}
         </label>
         <Input
           id="db-ask-password"
@@ -185,6 +186,7 @@ export function DatabaseDialogs() {
   if (dialog.kind === "params") return <ParamsDialog names={dialog.names} resolve={dialog.resolve} />;
   if (dialog.kind === "export")
     return <ExportDialog data={dialog.data} source={dialog.source} initialFormat={dialog.format} />;
+  if (dialog.kind === "compareSchemas") return <SchemaCompareDialog initial={dialog.source} />;
   if (dialog.kind === "history") return <HistoryDialog key={dialog.id} id={dialog.id} path={dialog.path} />;
   if (dialog.kind === "import")
     return (

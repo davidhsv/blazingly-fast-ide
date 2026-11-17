@@ -18,7 +18,7 @@ use super::tokens::{Color, Theme, ThemeAttributes};
 pub const THEME_ATTRIBUTE: &str = "data-theme";
 /// Root attribute set to `high` by the high-contrast theme.
 pub const CONTRAST_ATTRIBUTE: &str = "data-contrast";
-/// Root attribute naming a palette theme (Solarized, One) over its light / dark base.
+/// Root attribute naming a palette theme (Solarized) over its light / dark base.
 pub const COLOR_THEME_ATTRIBUTE: &str = "data-color-theme";
 /// Root attribute naming the active plugin theme as `<pluginId>/<themeId>`.
 pub const PLUGIN_THEME_ATTRIBUTE: &str = "data-plugin-theme";
@@ -58,8 +58,6 @@ pub enum BuiltinThemeId {
     DarkHc,
     SolarizedLight,
     SolarizedDark,
-    OneLight,
-    OneDark,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,24 +68,20 @@ pub struct BuiltinTheme {
 }
 
 /// The built-in themes, in the order of [`BuiltinThemeId`]'s variants.
-pub const BUILTIN_THEMES: [BuiltinTheme; 7] = [
+pub const BUILTIN_THEMES: [BuiltinTheme; 5] = [
     BuiltinTheme { id: BuiltinThemeId::Light, label: "Islands Light", kind: ThemeKind::Light },
     BuiltinTheme { id: BuiltinThemeId::Dark, label: "Islands Dark", kind: ThemeKind::Dark },
     BuiltinTheme { id: BuiltinThemeId::DarkHc, label: "High Contrast", kind: ThemeKind::Dark },
     BuiltinTheme { id: BuiltinThemeId::SolarizedLight, label: "Solarized Light", kind: ThemeKind::Light },
     BuiltinTheme { id: BuiltinThemeId::SolarizedDark, label: "Solarized Dark", kind: ThemeKind::Dark },
-    BuiltinTheme { id: BuiltinThemeId::OneLight, label: "One Light", kind: ThemeKind::Light },
-    BuiltinTheme { id: BuiltinThemeId::OneDark, label: "One Dark", kind: ThemeKind::Dark },
 ];
 
-pub const BUILTIN_THEME_IDS: [BuiltinThemeId; 7] = [
+pub const BUILTIN_THEME_IDS: [BuiltinThemeId; 5] = [
     BuiltinThemeId::Light,
     BuiltinThemeId::Dark,
     BuiltinThemeId::DarkHc,
     BuiltinThemeId::SolarizedLight,
     BuiltinThemeId::SolarizedDark,
-    BuiltinThemeId::OneLight,
-    BuiltinThemeId::OneDark,
 ];
 
 impl BuiltinThemeId {
@@ -99,8 +93,6 @@ impl BuiltinThemeId {
             Self::DarkHc => "dark-hc",
             Self::SolarizedLight => "solarized-light",
             Self::SolarizedDark => "solarized-dark",
-            Self::OneLight => "one-light",
-            Self::OneDark => "one-dark",
         }
     }
 
@@ -919,8 +911,6 @@ mod tests {
         assert_eq!(token(BuiltinThemeId::SolarizedDark, "--bg-editor").as_deref(), Some("#002b36"));
         assert_eq!(token(BuiltinThemeId::SolarizedDark, "--syn-string").as_deref(), Some("#2aa198"));
         assert_eq!(token(BuiltinThemeId::SolarizedLight, "--ansi-bright-blue").as_deref(), Some("#839496"));
-        assert_eq!(token(BuiltinThemeId::OneLight, "--syn-keyword").as_deref(), Some("hsl(301, 63%, 40%)"));
-        assert_eq!(token(BuiltinThemeId::OneDark, "--syn-string").as_deref(), Some("hsl(95, 38%, 62%)"));
     }
 
     // src/platform/themes.test.ts › built-in palettes › keeps explicit editor schemes and per-scheme edits
@@ -934,14 +924,14 @@ mod tests {
             BTreeMap::from([("solarized-light".to_owned(), BTreeMap::from([("keyword".to_owned(), keyword)]))]);
         let root = apply_theme_attributes(BuiltinThemeId::SolarizedLight, ThemeAttributes::default());
         assert!(
-            scheme_css(&source, Some("one-dark"), None, Some(&root), &customs)
-                .contains("--bg-editor: hsl(220, 13%, 18%) !important")
+            scheme_css(&source, Some("solarized-dark"), None, Some(&root), &customs)
+                .contains("--bg-editor: #002b36 !important")
         );
         assert!(
             scheme_css(&source, Some("theme-default"), Some(&edits), Some(&root), &customs)
                 .contains("--syn-keyword: #123456 !important")
         );
-        let root = apply_theme_attributes(BuiltinThemeId::OneLight, root);
+        let root = apply_theme_attributes(BuiltinThemeId::SolarizedDark, root);
         assert_eq!(scheme_css(&source, Some("theme-default"), Some(&edits), Some(&root), &customs), "");
     }
 
@@ -949,12 +939,13 @@ mod tests {
     // plugin is removed
     #[test]
     fn clears_the_palette_for_plugins_and_restores_it_when_the_plugin_is_removed() {
-        let root = apply_theme_attributes(BuiltinThemeId::OneDark, ThemeAttributes::default());
-        let root = apply_theme_attributes(BuiltinThemeId::OneDark, root.with(PLUGIN_THEME_KIND_ATTRIBUTE, "light"));
+        let root = apply_theme_attributes(BuiltinThemeId::SolarizedDark, ThemeAttributes::default());
+        let root =
+            apply_theme_attributes(BuiltinThemeId::SolarizedDark, root.with(PLUGIN_THEME_KIND_ATTRIBUTE, "light"));
         assert_eq!(root.get(COLOR_THEME_ATTRIBUTE), None);
         assert_eq!(root.get(THEME_ATTRIBUTE), Some("light"));
-        let root = apply_theme_attributes(BuiltinThemeId::OneDark, root.without(PLUGIN_THEME_KIND_ATTRIBUTE));
-        assert_eq!(root.get(COLOR_THEME_ATTRIBUTE), Some("one-dark"));
+        let root = apply_theme_attributes(BuiltinThemeId::SolarizedDark, root.without(PLUGIN_THEME_KIND_ATTRIBUTE));
+        assert_eq!(root.get(COLOR_THEME_ATTRIBUTE), Some("solarized-dark"));
         let root = apply_theme_attributes(BuiltinThemeId::DarkHc, root);
         assert_eq!(root.get(COLOR_THEME_ATTRIBUTE), None);
         assert_eq!(root.get(CONTRAST_ATTRIBUTE), Some("high"));

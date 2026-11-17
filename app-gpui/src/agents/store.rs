@@ -15,7 +15,8 @@
 use crate::agents::composer::{ComposerDraft, FileRef, bypass_defaults, can_send, to_prompt};
 use crate::agents::conversation::with_quote;
 use crate::agents::model::{
-    Attention, HOME_KEY, TOOL_WINDOW, attention_change, entries_key, is_busy, session_key, upsert_entry,
+    Attention, HOME_KEY, TOOL_WINDOW, append_entry, attention_change, entries_key, entry_is_behind, is_busy,
+    session_key, upsert_entry,
 };
 use crate::platform::i18n::I18n;
 use crate::platform::paths::is_same_or_inside;
@@ -684,6 +685,7 @@ impl AgentsStore {
         let mut effects = Vec::new();
         match event {
             AgentEvent::Task { task } => {
+                let task = *task;
                 if self.removed.contains(&task.id) {
                     return effects;
                 }
@@ -766,13 +768,34 @@ impl AgentsStore {
                     }
                 }
                 let Some(current) = self.entries.get_mut(&key) else { return effects };
-                if !upsert_entry(current, index as usize, entry) {
+                if !entry_is_behind(current, index as usize, &entry) && !upsert_entry(current, index as usize, entry) {
                     effects.push(AgentEffect::LoadEntries { task: task.clone(), subagent });
                 }
                 if edited {
                     effects.extend(self.schedule_changes(&task));
                 }
             }
+            AgentEvent::Append { task, subagent, index, from, text } => {
+                let key = entries_key(&task, subagent.as_deref());
+                let shown_reply = self
+                    .entries
+                    .get(&key)
+                    .and_then(|entries| entries.get(index as usize))
+                    .is_some_and(|entry| matches!(entry, AgentEntry::Agent { .. }));
+                if subagent.is_none() && !text.trim().is_empty() && shown_reply {
+                    self.mark_unread(&task);
+                }
+                if let Some(reading) = self.reading.get_mut(&key) {
+                    reading.stale = true;
+                }
+                let Some(current) = self.entries.get_mut(&key) else { return effects };
+                if !append_entry(current, index as usize, from as usize, &text) {
+                    effects.push(AgentEffect::LoadEntries { task: task.clone(), subagent });
+                }
+            }
+            // Attention is derived from the task's status changes above, and new tasks pick their
+            // settings from the provider's own options: neither event adds to what this window shows.
+            AgentEvent::Attention { .. } | AgentEvent::ModelCatalog { .. } => {}
         }
         effects
     }
@@ -1079,6 +1102,8 @@ impl AgentsStore {
             config,
             isolation,
             base: if isolation == Isolation::Worktree { self.draft.base.clone() } else { None },
+            // The New Task page has no MCP servers menu: every configured server keeps its setting.
+            mcp_overrides: BTreeMap::new(),
         };
         let ticket = self.ticket();
         let text = composer.text.trim().to_owned();

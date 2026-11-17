@@ -248,7 +248,6 @@ mod tests {
             (1, "languages.rust"),
             (1, "languages.typescript"),
             (1, "languages.pluginFormatters"),
-            (1, "languages.serverTargets"),
             (0, "group:Tools"),
             (1, "tools.agents"),
             (2, "tools.agents.chat"),

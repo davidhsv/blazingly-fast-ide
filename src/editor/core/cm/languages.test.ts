@@ -1,3 +1,4 @@
+import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { highlightTree, tagHighlighter, tags as t } from "@lezer/highlight";
 import { logWarning } from "./highlight";
@@ -136,6 +137,123 @@ describe("language modes", () => {
     ]);
   });
 
+  it("recognizes reStructuredText files and highlights their syntax", async () => {
+    expect(findLanguageDescription("reStructuredText", "/docs/index.rst")?.name).toBe("reStructuredText");
+    const support = await loadSupport(findLanguageDescription("reStructuredText", "/docs/index.rst")!);
+    const state = EditorState.create({ extensions: support!.language });
+    expect(state.languageDataAt("commentTokens", 0)).toEqual([{ line: ".." }]);
+    const doc = [
+      "=====",
+      "Guide",
+      "=====",
+      "",
+      "Intro",
+      "-----",
+      "",
+      "Some **bold**, *em*, ``code``, :py:func:`len`, `Docs <https://example.com>`_ and target_.",
+      "See https://example.com and |sub|.",
+      "",
+      "Example::",
+      "",
+      "   Not a title",
+      "   -----------",
+      "",
+      ".. code-block:: python",
+      "   :linenos:",
+      "",
+      "   x = 1",
+      "",
+      ".. _target:",
+      "",
+      ".. a comment",
+      "   continued",
+      "",
+      ":field: value",
+      "",
+      "A paragraph",
+      "-----",
+      "",
+      "Two lines of",
+      "a paragraph",
+      "------------",
+    ].join("\n");
+    const highlighter = tagHighlighter([
+      { tag: t.heading, class: "heading" },
+      { tag: t.strong, class: "strong" },
+      { tag: t.emphasis, class: "emphasis" },
+      { tag: t.monospace, class: "monospace" },
+      { tag: t.keyword, class: "keyword" },
+      { tag: t.string, class: "string" },
+      { tag: t.link, class: "link" },
+      { tag: t.url, class: "url" },
+      { tag: t.variableName, class: "variable" },
+      { tag: t.attributeName, class: "attribute" },
+      { tag: t.labelName, class: "label" },
+      { tag: t.comment, class: "comment" },
+    ]);
+    const highlighted: [string, string][] = [];
+    highlightTree(support!.language.parser.parse(doc), highlighter, (from, to, style) => {
+      highlighted.push([doc.slice(from, to), style]);
+    });
+    expect(highlighted).toEqual([
+      ["=====\nGuide\n=====", "heading"],
+      ["Intro\n-----", "heading"],
+      ["**bold**", "strong"],
+      ["*em*", "emphasis"],
+      ["``code``", "monospace"],
+      [":py:func:", "keyword"],
+      ["`len`", "string"],
+      ["`Docs <https://example.com>`_", "link"],
+      ["target_", "link"],
+      ["https://example.com", "url"],
+      ["|sub|", "variable"],
+      ["Not a title", "monospace"],
+      ["-----------", "monospace"],
+      [".. code-block::", "keyword"],
+      [":linenos:", "attribute"],
+      ["x = 1", "monospace"],
+      [".. _target:", "label"],
+      [".. a comment", "comment"],
+      ["continued", "comment"],
+      [":field:", "attribute"],
+      ["A paragraph\n-----", "heading"],
+    ]);
+  });
+
+  it("preserves Unicode heading offsets with CRLF and skips escaped markup", async () => {
+    const support = await loadSupport(findLanguageDescription("reStructuredText", "guide.rst")!);
+    const doc =
+      "=========\r\n 中文😀\r\n=========\r\n\r\n子章节\r\n------\r\n\r\n\\*plain* and \\`plain` and **strong**";
+    const highlighted: [string, string][] = [];
+    highlightTree(
+      support!.language.parser.parse(doc),
+      tagHighlighter([
+        { tag: t.heading, class: "heading" },
+        { tag: t.strong, class: "strong" },
+        { tag: t.emphasis, class: "emphasis" },
+        { tag: t.string, class: "string" },
+      ]),
+      (from, to, style) => highlighted.push([doc.slice(from, to), style]),
+    );
+    expect(highlighted).toEqual([
+      ["=========\r\n 中文😀\r\n=========", "heading"],
+      ["子章节\r\n------", "heading"],
+      ["**strong**", "strong"],
+    ]);
+  });
+
+  it("counts the indentation of short overlined titles", async () => {
+    const support = await loadSupport(findLanguageDescription("reStructuredText", "guide.rst")!);
+    const doc = "===\n  Hi\n===";
+    const headings: string[] = [];
+    highlightTree(
+      support!.language.parser.parse(doc),
+      tagHighlighter([{ tag: t.heading, class: "heading" }]),
+      (from, to) => headings.push(doc.slice(from, to)),
+    );
+    expect(headings).toEqual([]);
+  });
+
   it("styles `?.` like `.` in JavaScript and TypeScript", async () => {
     const highlighter = tagHighlighter([{ tag: t.derefOperator, class: "deref" }]);
     for (const [mode, path] of [
@@ -149,6 +267,32 @@ describe("language modes", () => {
       const derefs: string[] = [];
       highlightTree(support!.language.parser.parse(doc), highlighter, (from, to) => derefs.push(doc.slice(from, to)));
       expect(derefs, mode).toEqual(["?.", ".", "?."]);
+    }
+  });
+
+  it("colours `this`, `super` and Rust's `self` as keywords", async () => {
+    const highlighter = tagHighlighter([
+      { tag: t.keyword, class: "keyword" },
+      { tag: t.self, class: "self" },
+      { tag: t.atom, class: "atom" },
+    ]);
+    for (const [mode, path, doc, expected] of [
+      ["Java", "/p/A.java", "class A extends B { A() { super(); this.a = 1; } }", ["super", "this"]],
+      ["JavaScript", "/p/a.js", "class A extends B { m() { super.m(); this.a = 1; } }", ["super", "this"]],
+      ["TypeScript", "/p/a.ts", "class A extends B { m() { super.m(); this.a = 1; } }", ["super", "this"]],
+      ["C++", "/p/a.cpp", "void A::m() { this->a = 1; }", ["this"]],
+      ["Rust", "/p/a.rs", "impl A { fn m(&self) { self.a = 1; } }", ["self", "self"]],
+    ] as const) {
+      const support = await loadSupport(findLanguageDescription(mode, path)!);
+      const found: Array<[string, string]> = [];
+      highlightTree(support!.language.parser.parse(doc), highlighter, (from, to, style) =>
+        found.push([doc.slice(from, to), style]),
+      );
+      const words = new Set<string>(expected);
+      expect(
+        found.filter(([text]) => words.has(text)),
+        mode,
+      ).toEqual(expected.map((word) => [word, "keyword"]));
     }
   });
 

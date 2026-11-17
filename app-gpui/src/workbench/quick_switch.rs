@@ -320,8 +320,6 @@ mod tests {
             ("dark-hc", "High Contrast"),
             ("solarized-light", "Solarized Light"),
             ("solarized-dark", "Solarized Dark"),
-            ("one-light", "One Light"),
-            ("one-dark", "One Dark"),
         ];
         vec![
             themes
@@ -376,12 +374,12 @@ mod tests {
         now += THEME_PREVIEW_DELAY - 1.0;
         assert_eq!(preview.expire(now), None);
         // Moving on restarts the delay: only the theme the user stays on shows.
-        preview.preview("one-light", now);
+        preview.preview("solarized-light", now);
         now += THEME_PREVIEW_DELAY - 1.0;
         assert_eq!(preview.expire(now), None);
         now += 1.0;
         // Shown, not selected: no `Select` effect, so nothing is saved.
-        assert_eq!(preview.expire(now), preview_of("one-light"));
+        assert_eq!(preview.expire(now), preview_of("solarized-light"));
         assert_eq!(preview.expire(now), None);
 
         assert_eq!(preview.restore(), Some(ThemeEffect::Preview(None)));
@@ -397,11 +395,11 @@ mod tests {
     #[test]
     fn selects_the_chosen_theme_and_keeps_it_when_the_menu_closes() {
         let mut preview = ThemePreview::default();
-        preview.preview("solarized-dark", 0.0);
-        assert_eq!(preview.expire(THEME_PREVIEW_DELAY), preview_of("solarized-dark"));
+        preview.preview("solarized-light", 0.0);
+        assert_eq!(preview.expire(THEME_PREVIEW_DELAY), preview_of("solarized-light"));
         assert_eq!(
-            preview.choose("one-dark"),
-            [ThemeEffect::Preview(Some("one-dark".to_owned())), ThemeEffect::Select("one-dark".to_owned())]
+            preview.choose("solarized-dark"),
+            [ThemeEffect::Preview(Some("solarized-dark".to_owned())), ThemeEffect::Select("solarized-dark".to_owned())]
         );
         assert_eq!(preview.end(), None);
     }
@@ -460,8 +458,8 @@ mod tests {
         let mut groups = builtin_themes();
         groups.push(vec![plugin]);
         let themes = theme_items(&groups, "plugin:acme/night", false);
-        assert_eq!(themes.len(), 9);
-        assert_eq!(themes[7], MenuItem::Separator);
+        assert_eq!(themes.len(), 7);
+        assert_eq!(themes[5], MenuItem::Separator);
         let night = entry(&themes, "Acme Night");
         assert_eq!((night.id.as_str(), night.verbatim, night.checked), ("theme.plugin:acme/night", true, Some(true)));
         assert_eq!(night.on_active, None);

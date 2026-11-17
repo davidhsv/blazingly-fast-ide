@@ -179,7 +179,7 @@ mod tests {
             ThemeAttributes::light(),
             ThemeAttributes::dark(),
             ThemeAttributes::dark_high_contrast(),
-            ThemeAttributes::dark().with("data-color-theme", "one-dark"),
+            ThemeAttributes::dark().with("data-color-theme", "solarized-dark"),
             ThemeAttributes::light().with("data-color-theme", "solarized-light"),
         ];
         for attributes in attributes {

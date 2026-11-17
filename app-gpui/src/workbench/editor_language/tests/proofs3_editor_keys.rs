@@ -86,7 +86,12 @@ async fn cmd_shift_t_in_the_editor_goes_to_the_test_and_back(cx: &mut TestAppCon
     let indexed = |cx: &mut VisualTestContext| {
         cx.update(|_, cx| {
             let host = cx.global::<Backend>().host.clone();
-            let found = ide_host::ops::nav::find_files(&host, "w1", "test_calc.py".to_owned(), 50);
+            let found = cx.global::<Backend>().block_on(ide_host::ops::nav::find_files(
+                &host,
+                "w1",
+                "test_calc.py".to_owned(),
+                50,
+            ));
             found.is_ok_and(|found| !found.is_empty())
         })
     };

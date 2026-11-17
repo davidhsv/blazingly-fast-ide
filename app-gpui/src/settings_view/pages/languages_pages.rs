@@ -1,13 +1,13 @@
 //! Languages & Frameworks › Go (Build Tags, Go Modules), Java, Markdown, Node.js, Python
-//! Interpreter, PHP, Prettier, oxfmt, Ruff, Ruby, Rust, TypeScript, Plugin Formatters and Language
-//! server targets: each page's controls in their sections, drawn as the page's own view.
+//! Interpreter, PHP, Prettier, oxfmt, Ruff, Ruby, Rust, TypeScript and Plugin Formatters: each
+//! page's controls in their sections, drawn as the page's own view.
 //!
-//! A page edits the scope its Global / This project switch shows; where a language server runs is
-//! always the project's choice, and the Go build tags and modules belong to the project only.
+//! A page edits the scope its Global / This project switch shows; the Go build tags and modules
+//! belong to the project only.
 
 use super::languages_controls::{
     Control, FormatterLanguagesView, JdtlsSharedView, LanguagePageView, PhpInterpreterView, PluginFormattersView,
-    PreviewFontSizeView, ProjectOnlyView, Section, ServerTargetView, TargetLanguages,
+    PreviewFontSizeView, ProjectOnlyView, Section,
 };
 use super::languages_sdk::{
     LanguageAsk, PathFieldView, PathPlaceholder, PathSpec, SdkChoices, SdkFieldView, SdkSpec, Toolchain, ToolchainKind,
@@ -38,10 +38,9 @@ pub const RUBY: &str = "languages.ruby";
 pub const RUST: &str = "languages.rust";
 pub const TYPESCRIPT: &str = "languages.typescript";
 pub const PLUGIN_FORMATTERS: &str = "languages.pluginFormatters";
-pub const SERVER_TARGETS: &str = "languages.serverTargets";
 
 /// The pages drawn here, in the order the Settings tree lists them.
-pub const PAGES: [&str; 16] = [
+pub const PAGES: [&str; 15] = [
     GO,
     GO_BUILD_TAGS,
     GO_MODULES,
@@ -57,7 +56,6 @@ pub const PAGES: [&str; 16] = [
     RUST,
     TYPESCRIPT,
     PLUGIN_FORMATTERS,
-    SERVER_TARGETS,
 ];
 
 /// What the pages are built over.
@@ -107,11 +105,6 @@ fn path_field(build: &Build, binding: Binding, spec: PathSpec, cx: &mut App) -> 
 
 fn list(binding: Binding, spec: ListSpec, cx: &mut App) -> Control {
     Control::List(cx.new(|cx| ListEditor::from_spec(binding, spec, cx)))
-}
-
-fn targets(build: &Build, page: &'static str, languages: TargetLanguages, cx: &mut App) -> Control {
-    let (binding, project, enabled) = (build.binding(page), build.project(page), build.project_open);
-    Control::Targets(cx.new(|cx| ServerTargetView::new(binding, project, enabled, languages, cx)))
 }
 
 /// A drop-down with a help line.
@@ -302,8 +295,8 @@ fn java(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
         .hint(JDTLS_JDK_HINT);
     let vm_args =
         field("languages.java.jdtlsVmArgs", "JVM options", FieldKind::Text).placeholder("-Xmx4g").hint(VM_ARGS_HINT);
-    let (shared_binding, project) = (binding.clone(), build.project(JAVA));
-    let shared = Control::Shared(cx.new(|cx| JdtlsSharedView::new(shared_binding, project, cx)));
+    let shared_binding = binding.clone();
+    let shared = Control::Shared(cx.new(|cx| JdtlsSharedView::new(shared_binding, cx)));
     let sections = vec![
         (
             Some("Project JDK"),
@@ -334,7 +327,6 @@ fn markdown(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
 
 const NODE_HINT: &str = "Runs npm scripts and Node-based language servers (vtsls, eslint, pyright…).";
 const PACKAGE_MANAGER_HINT: &str = "Used by the npm run configurations detected from package.json scripts.";
-const NODE_SERVER_LANGUAGES: &[&str] = &["javascript", "javascriptreact", "typescript", "typescriptreact"];
 
 const PACKAGE_MANAGER: &str = "languages.node.packageManager";
 const PACKAGE_MANAGERS: [&str; 4] = ["npm", "pnpm", "yarn", "bun"];
@@ -375,7 +367,6 @@ fn node(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
     let controls = vec![
         sdk_field(build, binding.clone(), interpreter, cx),
         form(binding.clone(), vec![run_target("languages.node.runTarget")], cx),
-        targets(build, NODE, TargetLanguages::Picker(Some(NODE_SERVER_LANGUAGES)), cx),
         form_with_details(binding, vec![manager], PACKAGE_MANAGER, detail, cx),
     ];
     (vec![(None, controls)], vec![ToolchainKind::Node, ToolchainKind::PackageManager])
@@ -459,7 +450,6 @@ fn php(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
             Some("CLI Interpreter"),
             vec![
                 form(binding.clone(), vec![run_target("languages.php.runTarget")], cx),
-                targets(build, PHP, TargetLanguages::Fixed("php"), cx),
                 sdk_field(build, binding, interpreter, cx),
                 info,
             ],
@@ -669,7 +659,7 @@ fn typescript(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>)
 }
 
 // ---------------------------------------------------------------------------
-// Plugin Formatters, Language server targets
+// Plugin Formatters
 
 fn plugin_formatters(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
     let binding = build.binding(PLUGIN_FORMATTERS);
@@ -677,10 +667,6 @@ fn plugin_formatters(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<Toolchai
     let formatters = Control::Formatters(cx.new(|cx| PluginFormattersView::new(list_binding, cx)));
     let save = form(binding, vec![toggle("editor.formatOnSave", "Format on save").into()], cx);
     (vec![(Some("Plugin Formatters"), vec![formatters, save])], Vec::new())
-}
-
-fn server_targets(build: &Build, cx: &mut App) -> (Vec<Section>, Vec<ToolchainKind>) {
-    (vec![(None, vec![targets(build, SERVER_TARGETS, TargetLanguages::Picker(None), cx)])], Vec::new())
 }
 
 // ---------------------------------------------------------------------------
@@ -709,14 +695,7 @@ pub fn search_labels(page: &str) -> Vec<&'static str> {
             "jdk for importer",
         ],
         MARKDOWN => vec!["Preview", "Preview font size"],
-        NODE => vec![
-            "Node interpreter",
-            "Run in target",
-            "Language server targets",
-            "Language",
-            "Language server runs on",
-            "Package manager",
-        ],
+        NODE => vec!["Node interpreter", "Run in target", "Package manager"],
         PYTHON => vec!["Python Interpreter", "Terminal", "Activate virtualenv"],
         PHP => vec![
             "PHP language level",
@@ -726,7 +705,6 @@ pub fn search_labels(page: &str) -> Vec<&'static str> {
             "Configuration file",
             "CLI Interpreter",
             "Run in target",
-            "Language server runs on",
             "PHP interpreter",
             "Xdebug",
         ],
@@ -759,7 +737,6 @@ pub fn search_labels(page: &str) -> Vec<&'static str> {
         ],
         TYPESCRIPT => vec!["TypeScript", "Bundled"],
         PLUGIN_FORMATTERS => vec!["Plugin Formatters", "Format on save"],
-        SERVER_TARGETS => vec!["Language", "Language server runs on", "Language server"],
         _ => Vec::new(),
     }
 }
@@ -782,7 +759,6 @@ fn page_sections(page: &str, build: &Build, cx: &mut App) -> Option<(Vec<Section
         RUST => rust(build, cx),
         TYPESCRIPT => typescript(build, cx),
         PLUGIN_FORMATTERS => plugin_formatters(build, cx),
-        SERVER_TARGETS => server_targets(build, cx),
         _ => return None,
     })
 }

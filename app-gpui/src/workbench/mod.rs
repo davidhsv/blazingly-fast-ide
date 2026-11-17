@@ -2032,7 +2032,7 @@ impl Workbench {
                 self.tasks.set_indexing(*indexing, u64::from(*files), u64::from(*symbols), now);
             }
             IdeEvent::VcsChanged { .. } | IdeEvent::FsChanged { .. } => {
-                if let IdeEvent::FsChanged { created, modified, removed } = &event.event {
+                if let IdeEvent::FsChanged { created, modified, removed, .. } = &event.event {
                     let paths: Vec<String> = created
                         .iter()
                         .chain(modified)
@@ -2083,7 +2083,7 @@ impl Workbench {
                 self.diagnostics_published(path, source, items, cx);
                 return;
             }
-            IdeEvent::LanguageServer { server, name, status, message } => {
+            IdeEvent::LanguageServer { server, name, status, message, .. } => {
                 self.language_server_event(*server, name, *status, message.clone(), cx);
                 return;
             }
@@ -5883,8 +5883,11 @@ mod tests {
         settle(cx, |cx| workbench.read_with(cx, |w, _| w.project_tree().is_some()));
         // The index lists the files once it has walked the project.
         settle(cx, |cx| {
-            let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
-            ide_host::ops::nav::find_files(&host, "w1", "alpha".to_owned(), 5).is_ok_and(|found| !found.is_empty())
+            cx.update(|_, cx| {
+                let backend = cx.global::<Backend>();
+                backend.block_on(ide_host::ops::nav::find_files(&backend.host, "w1", "alpha".to_owned(), 5))
+            })
+            .is_ok_and(|found| !found.is_empty())
         });
         (folder, root, workbench, cx)
     }
@@ -6070,8 +6073,11 @@ mod tests {
             std::fs::write(root.join(format!("zebra{n}.txt")), "zebra text\n").expect("the file is written");
         }
         settle(cx, |cx| {
-            let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
-            ide_host::ops::nav::find_files(&host, "w1", "zebra".to_owned(), 50).is_ok_and(|found| found.len() == 10)
+            cx.update(|_, cx| {
+                let backend = cx.global::<Backend>();
+                backend.block_on(ide_host::ops::nav::find_files(&backend.host, "w1", "zebra".to_owned(), 50))
+            })
+            .is_ok_and(|found| found.len() == 10)
         });
         cx.update(|window, cx| execute_action_or_throw("navigate.searchEverywhere", None, window, cx))
             .expect("it runs");
@@ -6738,7 +6744,7 @@ mod tests {
         settle(cx, |cx| build_context(cx).1.is_some());
         assert_eq!(build_context(cx), (false, Some("failed".to_owned())));
         assert!(workbench.read_with(cx, |w, _| w.is_tool_window_visible(BUILD_TOOL_WINDOW)));
-        let reason = "no supported build system (Maven, Gradle, Cargo, Go, TypeScript, CMake) found";
+        let reason = "no supported build system (Maven, Gradle, .NET, Cargo, Go, TypeScript, CMake) found";
         assert_eq!(lines(cx), ["Build  1 error".to_owned(), format!("  {reason}")]);
         let notified = workbench.read_with(cx, |w, _| {
             w.notifications.items().iter().map(|n| (n.title.clone(), n.body.clone())).collect::<Vec<_>>()
@@ -8629,6 +8635,28 @@ for line in sys.stdin:
         wait_long(cx, "the fake agent reaches the seam", |_| !started(&seam).is_empty());
         assert_eq!(started(&seam), ["fake"]);
         assert!(store.read_with(cx, |store, _| store.tasks().is_empty()), "the seam started nothing");
+    }
+
+    /// Opening New Task looks up the selected agent's commands, which can start the agent's program: in a test
+    /// build the lookup for the default agent of a new task, which no test declares, is refused before it reaches
+    /// the backend, so no program of the machine starts.
+    #[gpui_kit::test]
+    async fn the_new_task_commands_lookup_of_the_default_agent_is_refused_in_a_test_build(cx: &mut TestAppContext) {
+        use super::agents::spawn_guard::AgentSpawnSeam;
+        let home = start(cx);
+        let (_folder, workbench, store, cx) = agents_project(cx, home.path());
+        let seam = AgentSpawnSeam::default();
+        cx.update(|_, cx| cx.set_global(seam.clone()));
+        let lookups = |seam: &AgentSpawnSeam| seam.lookups.lock().map(|lookups| lookups.clone()).unwrap_or_default();
+        let default = crate::agents::store::Draft::default().provider;
+        assert_eq!(default, "claude");
+        store.update(cx, |store, _| store.draft.provider.clone_from(&default));
+        run_action(cx, "agents.newTask", None);
+        wait_long(cx, "the New Task page", |cx| workbench.read_with(cx, |w, _| w.agents_home_page().is_some()));
+        wait_long(cx, "the lookup of the agent's commands", |_| !lookups(&seam).is_empty());
+        assert_eq!(lookups(&seam), [("claude".to_owned(), true)], "refused before the backend");
+        assert_eq!(seam.started.lock().map(|started| started.len()).ok(), Some(0), "nothing was started");
+        workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
     }
 
     /// A task started from the Agents tool window shows the user's message and the agent's reply while
@@ -12184,7 +12212,7 @@ for line in sys.stdin:
         };
         let server = ide_core::ServerId(7);
         let name = "checker".to_owned();
-        send(IdeEvent::LanguageServer { server, name, status: ServerStatus::Ready, message: None }, cx);
+        send(IdeEvent::LanguageServer { server, name, label: None, status: ServerStatus::Ready, message: None }, cx);
         let listed = |cx: &mut VisualTestContext| {
             workbench.read_with(cx, |w, cx| w.server_status_item().read(cx).servers().len())
         };

@@ -17,9 +17,17 @@ fn option(id: &str, category: &str, values: &[&str], current: &str) -> AgentConf
         current: Some(current.to_owned()),
         values: values
             .iter()
-            .map(|v| AgentConfigValue { value: (*v).to_owned(), name: (*v).to_owned(), description: None })
+            .map(|v| AgentConfigValue {
+                value: (*v).to_owned(),
+                name: (*v).to_owned(),
+                description: None,
+                cost_category: None,
+                pricing: None,
+                usage_multiplier: None,
+            })
             .collect(),
         via: AgentConfigVia::Option,
+        default_value: None,
     }
 }
 

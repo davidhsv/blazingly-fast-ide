@@ -1326,7 +1326,12 @@ mod tests {
             cx.update(|_, cx| {
                 let host = cx.global::<Backend>().host.clone();
                 ["test_calc.py", "calc_test.py", "alone.py"].into_iter().all(|name| {
-                    let found = ide_host::ops::nav::find_files(&host, "w1", name.to_owned(), 50);
+                    let found = cx.global::<Backend>().block_on(ide_host::ops::nav::find_files(
+                        &host,
+                        "w1",
+                        name.to_owned(),
+                        50,
+                    ));
                     found.is_ok_and(|found| !found.is_empty())
                 })
             })

@@ -374,7 +374,7 @@ impl Workbench {
     /// settings or the project's trust. The model is read again shortly after.
     pub(super) fn build_tools_backend_event(&mut self, event: &IdeEvent, cx: &mut Context<Self>) {
         let reload = match event {
-            IdeEvent::FsChanged { created, modified, removed } => {
+            IdeEvent::FsChanged { created, modified, removed, .. } => {
                 let paths: Vec<String> = created
                     .iter()
                     .chain(modified)
@@ -1939,7 +1939,8 @@ EOF
     fn created(paths: Vec<PathBuf>, cx: &mut VisualTestContext) {
         cx.update(|_, cx| {
             let created = paths.into_iter().map(Into::into).collect();
-            let event = IdeEvent::FsChanged { created, modified: Vec::new(), removed: Vec::new() };
+            let event =
+                IdeEvent::FsChanged { created, modified: Vec::new(), removed: Vec::new(), ignore_rules: Vec::new() };
             cx.global::<Backend>().emit(Some("w1"), event);
         });
     }

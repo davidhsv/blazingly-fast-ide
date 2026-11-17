@@ -11,11 +11,15 @@ import {
   registerStatusItem,
 } from "@/workbench/contributions";
 import { _provideCodePreview, _provideDocumentAttacher, editorsFor } from "@/editor/api";
+import { isUntitledUri } from "@/platform/virtualDocs";
 import { formatDocument } from "@/editor/lsp/format";
+import { chooserTitle, locationItems, pinToFind } from "@/editor/lsp/navigation";
+import { openPopup } from "@/editor/lsp/popupStore";
 import { editorController } from "./controller";
 import { attachDocument } from "./model/attachment";
 import { previewExtensions } from "./cm/preview";
 import { registerEditorActions } from "./actions";
+import { registerLibrarySourcesActions } from "./librarySources";
 import { installColorScheme } from "./colorSchemeRuntime";
 import { documentBanner } from "./view/Banner";
 import { EditorAreaView } from "./view/EditorArea";
@@ -24,13 +28,16 @@ import { PasteHistoryDialogHost, registerPasteHistoryActions } from "./view/Past
 import { NavBarPopup } from "./view/NavBarPopup";
 import { installClipboardTracking } from "./clipboardHistory";
 import {
-  Breadcrumbs,
   CaretStatus,
   EncodingStatus,
   IndentStatus,
   LineEndingStatus,
   ReadOnlyStatus,
+  StatusBarBreadcrumbs,
 } from "./view/StatusItems";
+
+/** The workbench navigation bar (View › Appearance › Navigation Bar). */
+export { Breadcrumbs } from "./view/StatusItems";
 
 export function activate(): void | (() => void) {
   const ctrl = editorController();
@@ -38,21 +45,35 @@ export function activate(): void | (() => void) {
   provideEditorService({
     openFile: (path, options) => ctrl.openFile(path, options),
     openInput: (input, options) => ctrl.openInput(input, options),
+    openUntitled: (options) => ctrl.openUntitled(options),
     activePath: () => ctrl.activePath(),
     activeCursor: () => ctrl.activeCursor(),
-    saveAll: () => ctrl.saveAll(),
+    saveAll: (opts) => ctrl.saveAll(opts),
     dirtyDocumentIds: () => [...ctrl.manager.byId.values()].filter((m) => m.getMeta().dirty).map((m) => m.doc),
+    untitledDirtyDocumentIds: () =>
+      [...ctrl.manager.byId.values()].filter((m) => isUntitledUri(m.path) && m.getMeta().dirty).map((m) => m.doc),
     focus: () => ctrl.focus(),
     openPaths: () => ctrl.openPaths(),
     openTabs: () => ctrl.openTabs(),
     tabInput: (paneId, tabId) => ctrl.tabInput(paneId, tabId),
+    paneOf: (key) => ctrl.paneOf(key),
     activeInput: () => ctrl.activeInput(),
     onActiveInputChange: (fn) => ctrl.onActiveInputChange(fn),
     closePath: (path) => ctrl.closePath(path),
     closeInput: (key) => ctrl.closeInput(key),
     prepareClose: () => ctrl.prepareClose(),
     cancelClose: () => ctrl.cancelClose(),
+    forgetSavedTabs: () => ctrl.forgetSavedTabs(),
+    keepSavedTabs: () => ctrl.keepSavedTabs(),
     documentHistory: (command) => ctrl.documentHistory(command),
+    chooseDeclaration: async (targets, name, anchor) =>
+      openPopup({
+        kind: "list",
+        anchor,
+        title: chooserTitle("declaration", name, targets.length),
+        items: await locationItems(targets),
+        pin: pinToFind(name, targets),
+      }),
     reformat: async (path) => {
       const handle = editorsFor(path)[0];
       return !!handle && (await formatDocument(handle.view, { explicit: false, selectionOnly: false })).applied;
@@ -66,6 +87,7 @@ export function activate(): void | (() => void) {
     installColorScheme(),
     provideEditorArea(EditorAreaView),
     registerEditorActions(),
+    registerLibrarySourcesActions(),
     registerPasteHistoryActions(),
     registerEditorBanner(documentBanner),
     registerOverlay({ id: "editor.gotoLine", component: GotoLineDialog }),
@@ -76,7 +98,7 @@ export function activate(): void | (() => void) {
       id: "editor.breadcrumbs",
       align: "left",
       priority: 0,
-      component: Breadcrumbs,
+      component: StatusBarBreadcrumbs,
       title: "Navigation Bar",
     }),
     registerStatusItem({

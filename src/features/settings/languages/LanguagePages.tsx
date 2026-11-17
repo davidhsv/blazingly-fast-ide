@@ -3,18 +3,17 @@
  * Build Tools › Maven: the toolchain each language's server and run configurations
  * use (applied by `ide-sdk` when language servers start and when run configurations load).
  */
-import { LanguageServerTargetRows, LanguageServerTargetsPage } from "./LanguageServerTarget";
 import { useProject } from "@/platform/project";
 import { useRunTargets } from "@/platform/pluginRunTargets";
 import { tx } from "@/platform/i18n";
 import { useEffect, useId, useMemo, useState } from "react";
-import { call, commands, type LanguageServerTarget, type Sdk } from "@/platform/ipc";
+import { call, commands, type Sdk } from "@/platform/ipc";
 import { IconButton, Input, type SelectOption, T } from "@/ui";
 import { JAVA_LANGUAGE_LEVELS, PHP_LANGUAGE_LEVELS } from "@/platform/languageSettings";
 import { GlobListEditor, Row, Section, Select, Toggle } from "../components/Form";
-import { choosePath } from "./api";
+import { choosePath } from "@/platform/choosePath";
 import { usePageContext, useSetting } from "../components/context";
-import { SdkField, tildify, useDetected } from "./components";
+import { SdkField, tildify, useDetected, useJdtlsJdk } from "./components";
 import styles from "./Sdk.module.css";
 
 function PathInput({
@@ -94,7 +93,15 @@ function RunTargetRow({ language }: { language: "php" | "node" }) {
   );
 }
 
+const RUNTIME_OPTIONS: SelectOption[] = [
+  { value: "", label: "Auto", detail: "deno.json → Deno, bun.lock → Bun, else Node.js" },
+  { value: "node", label: "Node.js" },
+  { value: "bun", label: "Bun" },
+  { value: "deno", label: "Deno" },
+];
+
 export function NodePage() {
+  const [runtime, setRuntime] = useSetting<string>("languages.node.runtime");
   const [pm, setPm] = useSetting<string>("languages.node.packageManager");
   const { list } = useDetected("packageManager");
   const pmOptions = useMemo<SelectOption[]>(
@@ -114,6 +121,17 @@ export function NodePage() {
   return (
     <div className={styles.page}>
       <Section>
+        <Row
+          label="Preferred runtime"
+          hint="Runs JavaScript and TypeScript files from the gutter and the editor's Run action."
+        >
+          <Select value={runtime} options={RUNTIME_OPTIONS} onChange={setRuntime} aria-label="Preferred runtime" />
+        </Row>
+        <Row label="Package manager" hint="Used by the npm run configurations detected from package.json scripts.">
+          <Select value={pm} options={pmOptions} onChange={setPm} aria-label="Package manager" />
+        </Row>
+      </Section>
+      <Section title="Node.js">
         <SdkRow
           k="languages.node.interpreter"
           label="Node interpreter"
@@ -125,10 +143,6 @@ export function NodePage() {
           hint="Runs npm scripts and Node-based language servers (vtsls, eslint, pyright…)."
         />
         <RunTargetRow language="node" />
-        <LanguageServerTargetsPage ids={["javascript", "javascriptreact", "typescript", "typescriptreact"]} />
-        <Row label="Package manager" hint="Used by the npm run configurations detected from package.json scripts.">
-          <Select value={pm} options={pmOptions} onChange={setPm} aria-label="Package manager" />
-        </Row>
       </Section>
     </div>
   );
@@ -236,7 +250,6 @@ export function PhpPage() {
       </Section>
       <Section title="CLI Interpreter">
         <RunTargetRow language="php" />
-        <LanguageServerTargetRows language="php" />
         <SdkRow
           k="languages.php.interpreter"
           label="PHP interpreter"
@@ -389,12 +402,16 @@ export const JAVA_LEVEL_OPTIONS: SelectOption[] = JAVA_LANGUAGE_LEVELS.map((leve
 
 export function JavaPage() {
   const [shared, setShared] = useSetting<boolean>("languages.java.jdtlsShared");
-  const [serverTargets] = useSetting<Record<string, LanguageServerTarget>>("languageServerTargets", "project");
   const { scope } = usePageContext();
   const workspace = useProject((s) => !!s.project?.workspace);
-  const sharedDisabled = scope === "project" && (workspace || !!serverTargets?.java?.target);
+  const sharedDisabled = scope === "project" && workspace;
   const [vmArgs, setVmArgs] = useSetting<string>("languages.java.jdtlsVmArgs");
   const [languageLevel, setLanguageLevel] = useSetting<string>("languages.java.languageLevel");
+  const [jdtlsJdk] = useSetting<string>("languages.java.jdtlsJdk");
+  const jdtls = useJdtlsJdk(
+    "Runs jdtls only; the project keeps its Project JDK. When empty, a suitable installed JDK is used first, otherwise Eclipse Temurin is downloaded automatically into a separate language-server folder. The jdtls executable itself is set in Language Servers.",
+    jdtlsJdk ?? "",
+  );
   const id = useId();
   return (
     <div className={styles.page}>
@@ -408,7 +425,7 @@ export function JavaPage() {
           directory
           browseTitle="Select JDK Home Directory"
           aria-label="Project JDK"
-          hint="Compiles and runs the project: the default jdtls runtime, Run/Debug, and JAVA_HOME for Maven and Gradle."
+          hint="Compiles and runs the project: Run/Debug and JAVA_HOME for Maven and Gradle; it also runs jdtls when new enough for it."
         />
         <Row
           label="Language level"
@@ -430,9 +447,7 @@ export function JavaPage() {
           disabled={sharedDisabled}
           hint={
             sharedDisabled
-              ? workspace
-                ? "Shared JDT LS is available only in local ordinary project windows. Open a workspace member as a project to change this setting for it."
-                : "Shared JDT LS is available only in local ordinary project windows. Select Local machine for the Java language server to use it."
+              ? "Shared JDT LS is available only in local ordinary project windows. Open a workspace member as a project to change this setting for it."
               : "Uses one JDT LS process for linked builds in each local ordinary project window. Other project windows use separate processes."
           }
         />
@@ -445,7 +460,8 @@ export function JavaPage() {
           directory
           browseTitle="Select JDK Home Directory"
           aria-label="Language server JDK"
-          hint="Runs jdtls only; the project keeps its Project JDK. When empty, a suitable installed JDK is used first, otherwise Eclipse Temurin is downloaded automatically into a separate language-server folder. The jdtls executable itself is set in Language Servers."
+          hint={jdtls.hint}
+          minJava={jdtls.minJava}
         />
         <Row
           label="JVM options"
@@ -535,6 +551,7 @@ export function GradlePage() {
 }
 
 export function MavenPage() {
+  const [delegateBuild, setDelegateBuild] = useSetting<boolean>("languages.java.maven.delegateBuild");
   const [daemon, setDaemon] = useSetting<boolean>("languages.java.maven.daemon");
   const [threads, setThreads] = useSetting<string>("languages.java.maven.threads");
   const [activeProfiles, setActiveProfiles] = useSetting<string>("languages.java.maven.activeProfiles");
@@ -542,6 +559,12 @@ export function MavenPage() {
   return (
     <div className={styles.page}>
       <Section>
+        <Toggle
+          label="Delegate IDE build/run actions to Maven"
+          checked={delegateBuild}
+          onChange={setDelegateBuild}
+          hint="Run and Debug build Maven modules with Maven (the project's javac) instead of the Java language server. Editor problems still come from the language server."
+        />
         <SdkRow
           k="languages.java.maven.runnerJre"
           label="JRE"
@@ -641,6 +664,7 @@ export function MavenPage() {
 
 export function TypeScriptPage() {
   const [version, setVersion] = useSetting<string>("languages.typescript.version");
+  const [memory, setMemory] = useSetting<number>("languages.typescript.tsserverMaxMemory");
   const { list } = useDetected("typeScript");
   const workspace = list.find((s) => s.source === "workspace");
   const options = useMemo<SelectOption[]>(() => {
@@ -656,6 +680,17 @@ export function TypeScriptPage() {
       out.push({ value: version, label: tildify(version), detail: "custom" });
     return out;
   }, [workspace, version]);
+  const memoryOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: "0", label: "Auto", detail: "8192 MB in Vue hybrid mode, else the server default" },
+      { value: "4096", label: "4096 MB" },
+      { value: "6144", label: "6144 MB" },
+      { value: "8192", label: "8192 MB" },
+      { value: "12288", label: "12288 MB" },
+      { value: "16384", label: "16384 MB" },
+    ],
+    [],
+  );
   return (
     <div className={styles.page}>
       <Section>
@@ -676,6 +711,40 @@ export function TypeScriptPage() {
             />
           </span>
         </Row>
+        <Row
+          label="tsserver memory limit"
+          hint="Heap limit of the TypeScript server (typescript.tsserver.maxTsServerMemory, in MB). Auto raises it for Vue projects, whose single program holds every .vue file's virtual TypeScript."
+        >
+          <Select
+            value={String(memory ?? 0)}
+            options={memoryOptions}
+            onChange={(v) => setMemory(Number(v))}
+            aria-label="tsserver memory limit"
+          />
+        </Row>
+      </Section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Zig
+
+export function ZigPage() {
+  return (
+    <div className={styles.page}>
+      <Section>
+        <SdkRow
+          k="languages.zig.zig"
+          label="Zig toolchain"
+          kind="zig"
+          emptyLabel="Auto"
+          emptyDetail="zig on PATH"
+          directory
+          browseTitle="Select Zig Directory"
+          aria-label="Zig toolchain"
+          hint="Zig whose standard library and build.zig.zon packages appear under External Libraries. ZLS must match this Zig version. PATH, Homebrew, zvm and mise / asdf installs are detected."
+        />
       </Section>
     </div>
   );

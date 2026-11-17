@@ -76,5 +76,7 @@ pub(crate) fn code_action(title: &str, kind: &str, disabled_reason: Option<&str>
         command: None,
         data: None,
         server: ServerId(1),
+        diagnostics: Vec::new(),
+        original_diagnostics: None,
     }
 }

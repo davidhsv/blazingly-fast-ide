@@ -165,6 +165,8 @@ pub(super) mod spawn_guard {
     #[derive(Clone, Default)]
     pub(in crate::workbench) struct AgentSpawnSeam {
         pub(in crate::workbench) started: Arc<Mutex<Vec<String>>>,
+        /// Every lookup of an agent's commands, by its agent's id, and whether the guard refused it.
+        pub(in crate::workbench) lookups: Arc<Mutex<Vec<(String, bool)>>>,
     }
 
     impl gpui_kit::Global for AgentSpawnSeam {}
@@ -215,6 +217,27 @@ pub(super) mod spawn_guard {
             Err(poisoned) => poisoned.into_inner().push(provider.to_owned()),
         }
         Some(format!("`{provider}` was not started: the test's seam answers instead"))
+    }
+
+    /// [`gate`] for a lookup of an agent's commands, which can start the agent: the seam, when a test set one,
+    /// records the lookup and whether the guard refused it, and answers in the backend's place.
+    pub(super) fn gate_lookup(
+        host: &ide_host::Host,
+        label: &str,
+        provider: &str,
+        seam: Option<&AgentSpawnSeam>,
+    ) -> Option<String> {
+        let refused = check(host, label, provider).err();
+        let seam = match seam {
+            Some(seam) => seam,
+            None => return refused,
+        };
+        let lookup = (provider.to_owned(), refused.is_some());
+        match seam.lookups.lock() {
+            Ok(mut lookups) => lookups.push(lookup),
+            Err(poisoned) => poisoned.into_inner().push(lookup),
+        }
+        Some(refused.unwrap_or_else(|| format!("`{provider}` was not asked: the test's seam answers instead")))
     }
 }
 

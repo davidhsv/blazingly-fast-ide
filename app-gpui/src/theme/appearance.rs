@@ -325,6 +325,35 @@ mod tests {
         settle(cx, |cx| accent(cx) == own);
     }
 
+    /// Settings naming `one-light` or `one-dark`, which are not built-in themes, read as Islands
+    /// Light and Islands Dark: the window draws the Islands theme of that kind, with no palette
+    /// over it.
+    #[gpui_kit::test]
+    async fn a_removed_one_theme_in_the_settings_draws_as_the_islands_theme_of_its_kind(cx: &mut TestAppContext) {
+        cx.executor().allow_parking();
+        let home = tempfile::tempdir().expect("a home");
+        cx.update(|cx| {
+            cx.set_global(ActiveTheme::default());
+            Backend::init(AppDirs::under(home.path()), cx).expect("the backend starts");
+            init(cx);
+            assert!(!dark(cx), "the default theme is light");
+            write("appearance.theme", json!("one-dark"), cx);
+        });
+        settle(cx, |cx| dark(cx));
+        cx.update(|cx| {
+            assert_eq!(settings::global(cx).appearance.theme, "dark");
+            assert_eq!(cx.global::<ActiveTheme>().theme.attributes().get(COLOR_THEME_ATTRIBUTE), None);
+            write("appearance.syncWithOs", json!(true), cx);
+            write("appearance.preferredLightTheme", json!("one-light"), cx);
+            system_appearance_changed(WindowAppearance::Light, cx);
+        });
+        settle(cx, |cx| !dark(cx));
+        cx.update(|cx| {
+            assert_eq!(settings::global(cx).appearance.preferred_light_theme, "light");
+            assert_eq!(cx.global::<ActiveTheme>().theme.attributes().get(COLOR_THEME_ATTRIBUTE), None);
+        });
+    }
+
     /// With Sync with OS the preferred light or dark theme shows for the OS mode, and the
     /// toggle picks the opposite theme and ends the sync.
     #[gpui_kit::test]

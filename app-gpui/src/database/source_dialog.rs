@@ -67,7 +67,6 @@ pub enum Field {
     Database,
     Url,
     DefaultSchema,
-    InstantClient,
     TimeZone,
     KeepAlive,
     AutoDisconnect,
@@ -170,6 +169,18 @@ pub fn property_hint(driver: DbDriver) -> (&'static [&'static str], &'static str
             &["NLS_DATE_FORMAT", "NLS_TIMESTAMP_FORMAT", "NLS_LANGUAGE", "connect_timeout"],
             "Session parameters set after connecting (ALTER SESSION SET name = value). connect_timeout is in \
              seconds.",
+        ),
+        DbDriver::Snowflake => (
+            &[
+                "QUERY_TAG",
+                "STATEMENT_TIMEOUT_IN_SECONDS",
+                "TIMEZONE",
+                "WEEK_START",
+                "CLIENT_SESSION_KEEP_ALIVE",
+                "connect_timeout",
+            ],
+            "Session parameters set when signing in (any session parameter, e.g. QUERY_TAG). connect_timeout is \
+             in seconds.",
         ),
     }
 }
@@ -464,7 +475,6 @@ impl SourceForm {
             Field::Url if self.url_only() => s.url.clone(),
             Field::Url => self.url_draft.clone().unwrap_or_else(|| source_url(s)),
             Field::DefaultSchema => s.options.default_schema.clone(),
-            Field::InstantClient => s.options.instant_client.clone(),
             Field::TimeZone => s.options.time_zone.clone(),
             Field::KeepAlive => self.keep_alive_draft.clone(),
             Field::AutoDisconnect => self.auto_disconnect_draft.clone(),
@@ -501,7 +511,6 @@ impl SourceForm {
             Field::Url if url_only => s.url = text.to_owned(),
             Field::Url => self.type_url(text),
             Field::DefaultSchema => s.options.default_schema = text.to_owned(),
-            Field::InstantClient => s.options.instant_client = text.to_owned(),
             Field::TimeZone => s.options.time_zone = text.to_owned(),
             Field::KeepAlive => {
                 self.keep_alive_draft = text.to_owned();
@@ -1189,7 +1198,6 @@ impl SourceDialog {
             Field::Database,
             Field::Url,
             Field::DefaultSchema,
-            Field::InstantClient,
             Field::TimeZone,
             Field::KeepAlive,
             Field::AutoDisconnect,
@@ -1235,7 +1243,6 @@ impl SourceDialog {
             Field::ObjectFilter => "e.g. order*, customers (tables, views, routines, sequences)",
             Field::PropertyName(_) => "<user defined>",
             Field::PropertyValue(_) => "<value>",
-            Field::InstantClient => "/opt/oracle/instantclient_23_5",
             Field::SshKey => "~/.ssh/id_ed25519",
             Field::SshPort => "22",
             Field::File => "path/to/database.db (absolute or project-relative)",
@@ -1798,11 +1805,6 @@ impl SourceDialog {
         }
         if oracle {
             rows.push(Self::row(self.text_box(Field::DefaultSchema, false, true, cx), "Current schema:", cx));
-            rows.push(Self::row(self.text_box(Field::InstantClient, false, true, cx), "Instant Client:", cx));
-            rows.push(Self::hint(
-                cx,
-                "Directory of Oracle Instant Client 19 or later. Empty: ORACLE_HOME or the system library path.",
-            ));
         }
         if !f.sqlite() {
             rows.push(Self::row(self.text_box(Field::TimeZone, false, true, cx), "Time zone:", cx));

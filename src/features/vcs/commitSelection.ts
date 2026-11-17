@@ -10,7 +10,8 @@ import { workflowSettings } from "@/platform/workflowSettings";
 import { maybeEditorService, provideCommitService, useCommitCheckProviders } from "@/workbench/contributions";
 import { commitRepos, planCommit, type CommitPlan } from "./changes";
 import type { CommitProblem } from "./commitChecks";
-import { useChangelists, withListDefaults } from "./changelists";
+import { useChangelists } from "./changelists";
+import { inclusionChecks, stagingAreaOn } from "./staging";
 import { useCommit } from "./commitStore";
 import { hunkKeys } from "./hunks";
 import { baseName, rootOf } from "./model";
@@ -29,7 +30,8 @@ export function installDraftRevision(): () => void {
   });
   const offLists = useChangelists.subscribe(() => void revision++);
   const offRepo = useVcs.subscribe((s, p) => {
-    if (s.root !== p.root) revision++;
+    // With the staging area the index is the inclusion: a status change may change the commit.
+    if (s.root !== p.root || (s.status !== p.status && stagingAreaOn())) revision++;
   });
   return () => {
     offCommit();
@@ -41,7 +43,7 @@ export function installDraftRevision(): () => void {
 /** The included changes, as the status (refreshed by the caller) and the checkboxes say. */
 export function currentPlan(): CommitPlan {
   const { status, root } = useVcs.getState();
-  const checks = withListDefaults(status, root ?? "", useChangelists.getState().state, useCommit.getState().checks);
+  const checks = inclusionChecks(status, root ?? "", useChangelists.getState().state, useCommit.getState().checks);
   return planCommit(status, checks);
 }
 
@@ -86,7 +88,11 @@ export async function selectionOf(plan: CommitPlan): Promise<CommitSelection> {
   const stage = [...plan.stage, ...partial.whole];
   const fallback = useVcs.getState().root ?? "";
   const repositories = repos.map((repo) => {
-    const inRepo = (path: string) => repos.length === 1 || (rootOf(path, roots) ?? null) === repo;
+    // A path in another known repository never goes to this one, even when it is the only one committed.
+    const inRepo = (path: string) => {
+      const root = rootOf(path, roots);
+      return root === null ? repos.length === 1 : root === repo;
+    };
     const options: CommitOptions = {
       amend,
       signOff,

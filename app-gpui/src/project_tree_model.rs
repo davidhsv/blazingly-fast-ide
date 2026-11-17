@@ -785,6 +785,8 @@ pub struct FsChange<'a> {
     pub created: &'a [String],
     pub modified: &'a [String],
     pub removed: &'a [String],
+    /// Subtrees whose ignore rules changed: every loaded folder in them reads its ignored state again.
+    pub ignore_rules: &'a [String],
 }
 
 /// What to do with the loaded folders after a change on disk.
@@ -827,6 +829,9 @@ pub fn plan_refresh(event: &FsChange<'_>, loaded: &BTreeSet<String>) -> RefreshP
             add_once(&mut reload, dir);
             gone.retain(|dropped| *dropped != dir);
         }
+    }
+    for dir in loaded.iter().filter(|dir| event.ignore_rules.iter().any(|root| is_same_or_inside(dir, root))) {
+        add_once(&mut reload, dir);
     }
     // A reloaded parent may report the folder as present again; keep its descendants then.
     reload.retain(|dir| !gone.contains(dir));
@@ -1082,7 +1087,7 @@ mod tests {
     /// The plan for a change while `/r`, `/r/src`, `/r/src/deep` and `/r/docs` are loaded.
     fn plan(created: &[&str], modified: &[&str], removed: &[&str]) -> RefreshPlan {
         let (created, modified, removed) = (strings(created), strings(modified), strings(removed));
-        let event = FsChange { created: &created, modified: &modified, removed: &removed };
+        let event = FsChange { created: &created, modified: &modified, removed: &removed, ignore_rules: &[] };
         plan_refresh(&event, &keys(&["/r", "/r/src", "/r/src/deep", "/r/docs"]))
     }
 
@@ -1121,6 +1126,21 @@ mod tests {
         let plan = plan(&["/r/docs"], &[], &["/r/docs"]);
         assert!(plan.drop.is_empty());
         assert_eq!(sorted(plan.reload), ["/r", "/r/docs"]);
+    }
+
+    // src/features/project-tree/store.test.ts › refresh on ignore-rule changes › refreshes loaded descendants once
+    #[test]
+    fn a_change_of_ignore_rules_reloads_the_loaded_folders_inside_once() {
+        let modified = strings(&["/r/src/.gitignore"]);
+        let ignore_rules = strings(&["/r/src", "/r/src/deep"]);
+        let event = FsChange { modified: &modified, ignore_rules: &ignore_rules, ..FsChange::default() };
+        let plan = plan_refresh(&event, &keys(&["/r", "/r/src", "/r/src/deep", "/r/docs"]));
+        assert_eq!(sorted(plan.reload), ["/r/src", "/r/src/deep"]);
+        assert!(plan.drop.is_empty());
+        let ignore_rules = strings(&["/r"]);
+        let event = FsChange { ignore_rules: &ignore_rules, ..FsChange::default() };
+        let plan = plan_refresh(&event, &keys(&["/r", "/r/src", "/r/src/deep", "/r/docs"]));
+        assert_eq!(sorted(plan.reload), ["/r", "/r/docs", "/r/src", "/r/src/deep"]);
     }
 
     // src/features/project-tree/model.test.ts › mergeListing › returns the previous array when nothing changed and keeps unchanged entries

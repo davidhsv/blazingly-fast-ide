@@ -94,8 +94,8 @@ fn plain_ident(name: &str, driver: DbDriver) -> bool {
             |c| c == '_' || c.is_ascii_lowercase(),
             |c| c == '_' || c == '$' || c.is_ascii_lowercase() || c.is_ascii_digit(),
         ),
-        // Oracle folds unquoted names to upper case; a lower-case name must stay quoted.
-        DbDriver::Oracle => (
+        // Oracle and Snowflake fold unquoted names to upper case; a lower-case name must stay quoted.
+        DbDriver::Oracle | DbDriver::Snowflake => (
             |c| c == '_' || c.is_ascii_uppercase(),
             |c| c == '_' || c == '$' || c.is_ascii_uppercase() || c.is_ascii_digit(),
         ),

@@ -242,14 +242,15 @@ mod tests {
         assert!((black_on_white - 21.0).abs() < 1e-5);
     }
 
-    /// Tokens the palette themes (Solarized, One) take from their light / dark base on purpose:
-    /// colours the user assigns (project and data source colours), the platform's caption close
-    /// and macOS window buttons, and the tint strength.
+    /// Tokens the palette themes (Solarized) take from their light / dark base on purpose: colours
+    /// the user assigns (project, data source and file colours), the platform's caption close and
+    /// macOS window buttons, the tint strengths, and the selection foreground, whose base default
+    /// preserves syntax colours.
     fn inherited_from_base(token: &str) -> bool {
-        ["--project-color-", "--db-color-", "--caption-close-", "--fg-caption-close-"]
+        ["--project-color-", "--db-color-", "--file-color-", "--caption-close-", "--fg-caption-close-"]
             .iter()
             .any(|start| token.starts_with(start))
-            || token == "--tint-strength"
+            || ["--tint-strength", "--file-tint-strength", "--fg-editor-selection"].contains(&token)
     }
 
     fn palettes() -> Vec<(&'static str, ThemeKind)> {
@@ -265,7 +266,7 @@ mod tests {
             block.captures_iter(TOKENS_CSS).filter_map(|found| found.get(1)).map(|id| id.as_str()).collect();
         let ids: BTreeSet<&str> = palettes().into_iter().map(|(id, _)| id).collect();
         assert_eq!(blocks, ids);
-        assert!(ids.len() >= 4);
+        assert!(ids.len() >= 2);
     }
 
     // palette themes › $id defines every token or inherits it from its $kind base on purpose

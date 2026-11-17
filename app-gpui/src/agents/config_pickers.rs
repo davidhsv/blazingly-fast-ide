@@ -93,6 +93,7 @@ mod tests {
             current: None,
             values,
             via: AgentConfigVia::Option,
+            default_value: None,
         }
     }
 
@@ -101,6 +102,9 @@ mod tests {
             value: id.into(),
             name: name.unwrap_or(id).into(),
             description: description.map(str::to_owned),
+            cost_category: None,
+            pricing: None,
+            usage_multiplier: None,
         }
     }
 

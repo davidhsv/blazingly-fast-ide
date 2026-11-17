@@ -2079,6 +2079,7 @@ mod tests {
             duration_ms: (!failed).then_some(3.0),
             message: message.map(str::to_string),
             output: output.map(str::to_string),
+            stdout: None,
         }
     }
 

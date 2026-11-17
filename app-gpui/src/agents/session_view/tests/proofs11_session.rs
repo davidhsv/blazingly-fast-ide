@@ -72,6 +72,8 @@ async fn keeps_tool_reasoning_plan_and_approval_rows_in_one_author_run(cx: &mut 
             options: Vec::new(),
             questions: Vec::new(),
             chosen: chosen.map(str::to_owned),
+            command: None,
+            form: None,
         };
         let plan = AgentEntry::Plan {
             items: vec![AgentPlanItem { content: "Check files".to_owned(), status: "in_progress".to_owned() }],
@@ -116,6 +118,8 @@ async fn sends_the_original_option_id_then_collapses_the_resolved_card(cx: &mut 
             options: options.clone(),
             questions: Vec::new(),
             chosen,
+            command: None,
+            form: None,
         };
         let (view, store, events, cx) = open(cx, vec![local_task("A")], vec![pending(None)]);
         let shown = lines(&view, cx);

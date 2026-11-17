@@ -18,10 +18,11 @@ import {
 } from "@/platform/ipc";
 import { executeAction } from "@/platform/actions";
 import { shortcutLabel } from "@/platform/keymap";
-import { diagnosticsAt, type PlacedDiagnostic } from "./diagnostics";
+import { diagnosticsAt, type PlacedDiagnostic, type EditorDiagnostic } from "./diagnostics";
 import { isEmptyMarkup, languageForPath, renderMarkup } from "./markdown";
 import { selectableText } from "@/ui/selectableText";
 import { docOf, lspRequest, reportLspError } from "./lsp";
+import { requestNavigation } from "./configurationNavigation";
 import { offsetToPos, rangeToOffsets } from "./positions";
 import { showHint } from "./hint";
 import { caretAnchor, focusPopup, openPopup, useLspPopup, type DefinitionTarget, type DocEntry } from "./popupStore";
@@ -30,7 +31,7 @@ import { readFileLines, targetLabel, withDocument } from "./files";
 import { docWindowVisible, moveDocPopupToWindow, showInDocWindow } from "./docs";
 import { structure } from "@/editor/structure";
 import { basename } from "@/platform/project";
-import { iconNode } from "./iconMarkup";
+import { iconNode } from "@/ui/iconNode";
 import { applyCodeAction, quickFixesAt } from "./intentions";
 import { editorPrefs } from "@/platform/editorSettings";
 import { CONTRIBUTED_HOVER, contributedAt, type ContributedHover } from "@/editor/api";
@@ -103,7 +104,7 @@ function renderDiagnostics(view: EditorView, diags: PlacedDiagnostic[]): HTMLEle
     fix.className = "cm-lsp-link-button";
     const keys = shortcutLabel("code.showIntentions");
     fix.textContent = keys ? `More actions… ${keys}` : "More actions…";
-    if (d.severity !== "hint") offerQuickFix(view, meta, fix, from, to);
+    if (d.severity !== "hint") offerQuickFix(view, meta, fix, from, to, d);
     fix.addEventListener("mousedown", (e) => e.preventDefault());
     fix.addEventListener("click", () => {
       view.dispatch({ selection: EditorSelection.cursor(from) });
@@ -118,9 +119,16 @@ function renderDiagnostics(view: EditorView, diags: PlacedDiagnostic[]): HTMLEle
 }
 
 /** IDEA's hover link to the problem's preferred quick fix, shown once the server named one. */
-function offerQuickFix(view: EditorView, meta: HTMLElement, before: HTMLElement, from: number, to: number) {
+function offerQuickFix(
+  view: EditorView,
+  meta: HTMLElement,
+  before: HTMLElement,
+  from: number,
+  to: number,
+  diagnostic: EditorDiagnostic,
+) {
   const doc = view.state.doc;
-  void quickFixesAt(view, from, to)
+  void quickFixesAt(view, from, to, diagnostic.problem)
     .then(([action]) => {
       if (!action || view.state.doc !== doc || !before.isConnected) return;
       const link = document.createElement("button");
@@ -208,7 +216,10 @@ const hoverYieldsToNavigation = ViewPlugin.fromClass(
 
 export function hoverExtension(): Extension {
   return [
-    hoverTooltip(hoverSource, { hoverTime: Math.max(100, editorPrefs().codeEditing.quickDocDelay) }),
+    hoverTooltip(hoverSource, {
+      hoverTime: Math.max(100, editorPrefs().codeEditing.quickDocDelay),
+      hideOnChange: true,
+    }),
     hoverYieldsToNavigation,
   ];
 }
@@ -349,9 +360,12 @@ export async function quickDefinition(view: EditorView, kind: "definition" | "ty
   const doc = docOf(view);
   if (!doc) return;
   const pos = view.state.selection.main.head;
+  const source = view.state.doc;
+  const stale = () => !view.dom.isConnected || view.state.doc !== source || docOf(view) !== doc;
   if (kind === "definition" && showPhpConstructDocumentation(view, pos)) return;
   try {
-    const found = await lspRequest(() => commands.lspGoto(doc.doc, offsetToPos(view.state.doc, pos), kind));
+    const found = await requestNavigation(view, pos, kind);
+    if (stale()) return;
     const seen = new Set<string>();
     const locations = found.filter((l) => {
       const key = `${l.path}:${l.range.start.line}:${l.range.start.col}`;
@@ -364,6 +378,7 @@ export async function quickDefinition(view: EditorView, kind: "definition" | "ty
     const targets = (
       await Promise.all(locations.slice(0, MAX_TARGETS).map((l) => definitionTarget(l, doc.uiMode)))
     ).filter((t): t is DefinitionTarget => !!t);
+    if (stale()) return;
     if (!targets.length) {
       showHint(view, "Cannot read the definition's file");
       return;
@@ -376,6 +391,6 @@ export async function quickDefinition(view: EditorView, kind: "definition" | "ty
       themeClasses: view.themeClasses,
     });
   } catch (e) {
-    reportLspError(view, e, true);
+    if (!stale()) reportLspError(view, e, true);
   }
 }

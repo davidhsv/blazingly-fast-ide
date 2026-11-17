@@ -2,7 +2,7 @@
 //! way the webview's CSS engine does it.
 //!
 //! The stylesheet stays the single source of truth for colours and metrics. A [`Theme`] is the
-//! cascade for one set of root attributes (`data-theme="light"`, `data-color-theme="one-dark"`,
+//! cascade for one set of root attributes (`data-theme="light"`, `data-color-theme="solarized-dark"`,
 //! `data-compact`…); values are resolved through `var()`, `color-mix()`, `rgb()` and `hsl()`.
 
 use std::collections::{BTreeMap, HashMap};
@@ -627,7 +627,7 @@ mod tests {
             ThemeAttributes::dark(),
             ThemeAttributes::light(),
             ThemeAttributes::dark_high_contrast(),
-            ThemeAttributes::dark().with("data-color-theme", "one-dark"),
+            ThemeAttributes::dark().with("data-color-theme", "solarized-dark"),
             ThemeAttributes::light().with("data-color-theme", "solarized-light"),
             ThemeAttributes::light()
                 .with("data-compact", "")

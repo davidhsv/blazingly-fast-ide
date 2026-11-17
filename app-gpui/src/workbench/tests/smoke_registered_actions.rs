@@ -6,17 +6,17 @@ use crate::platform::actions::ActionRegistry;
 /// kind. The table must name exactly the manifest's dynamic entries, so an entry added to the manifest
 /// fails here until its rule is written.
 const DYNAMIC: &[(&str, &str, Rest)] = &[
-    ("src/editor/core/actions.ts:796", "code.expandToLevel", Rest::Digits),
-    ("src/editor/core/actions.ts:800", "code.expandAllToLevel", Rest::Digits),
+    ("src/editor/core/actions.ts:879", "code.expandToLevel", Rest::Digits),
+    ("src/editor/core/actions.ts:883", "code.expandAllToLevel", Rest::Digits),
     ("src/features/macros/index.ts:101", "macros.play.", Rest::Any),
-    ("src/features/plugins/points.tsx:199", "plugin.", Rest::Dotted),
+    ("src/features/plugins/points.tsx:200", "plugin.", Rest::Dotted),
     ("src/features/plugins/views/serviceProvider.tsx:88", "", Rest::NulSeparated),
     ("src/features/run/externalTools.ts:164", "externalTools.", Rest::Any),
-    ("src/features/search/index.ts:476", "navigate.toggleBookmark", Rest::Digit),
-    ("src/features/search/index.ts:486", "navigate.gotoBookmark", Rest::Digit),
-    ("src/features/templates/index.ts:130", "templates.new.", Rest::Any),
-    ("src/workbench/toolwindows/actions.ts:160", "toolwindow.", Rest::Any),
-    ("src/workbench/toolwindows/actions.ts:247", "toolwindow.resize", Rest::Direction),
+    ("src/features/search/index.ts:484", "navigate.toggleBookmark", Rest::Digit),
+    ("src/features/search/index.ts:494", "navigate.gotoBookmark", Rest::Digit),
+    ("src/features/templates/index.ts:155", "templates.new.", Rest::Any),
+    ("src/workbench/toolwindows/actions.ts:186", "toolwindow.", Rest::Any),
+    ("src/workbench/toolwindows/actions.ts:303", "toolwindow.resize", Rest::Direction),
 ];
 
 #[derive(Clone, Copy, Debug)]

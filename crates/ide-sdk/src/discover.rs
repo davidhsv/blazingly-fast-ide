@@ -2,8 +2,10 @@
 
 use crate::exec::{executables_in, query, search_path, which};
 use crate::{Sdk, SdkKind, bin_dir, exe, home_dir, pinned, venv_of};
+use ide_core::process::host_var_os;
 use ide_core::version_managers::{self, Tool};
 use std::collections::HashSet;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -23,6 +25,7 @@ pub fn detect(kind: SdkKind, root: Option<&Path>) -> Vec<Sdk> {
         SdkKind::Jdk => jdk(),
         SdkKind::Maven => maven(),
         SdkKind::Ruby => crate::ruby::detect(root),
+        SdkKind::Zig => zig(),
     };
     if let Some(root) = root {
         pinned_first(&mut out, kind, root);
@@ -38,6 +41,7 @@ fn tool_of(kind: SdkKind) -> Option<Tool> {
         SdkKind::Jdk => Some(Tool::Java),
         SdkKind::Maven => Some(Tool::Maven),
         SdkKind::Ruby => Some(Tool::Ruby),
+        SdkKind::Zig => Some(Tool::Zig),
         SdkKind::Php | SdkKind::PackageManager | SdkKind::Rust | SdkKind::TypeScript => None,
     }
 }
@@ -132,6 +136,66 @@ fn conda_env_list_prefixes(output: &str) -> Vec<PathBuf> {
         .collect()
 }
 
+/// The host's directory conventions; a parameter so tests cover every platform.
+#[derive(Clone, Copy)]
+enum Host {
+    Windows,
+    Mac,
+    Unix,
+}
+
+impl Host {
+    fn current() -> Self {
+        if cfg!(windows) {
+            Self::Windows
+        } else if cfg!(target_os = "macos") {
+            Self::Mac
+        } else {
+            Self::Unix
+        }
+    }
+}
+
+/// Where Poetry creates virtualenvs: `POETRY_VIRTUALENVS_PATH`, else `virtualenvs` in its
+/// cache dir — `POETRY_CACHE_DIR`, else `%LOCALAPPDATA%\pypoetry\Cache` (Windows),
+/// `~/Library/Caches/pypoetry` (macOS) or `$XDG_CACHE_HOME/pypoetry` / `~/.cache/pypoetry`.
+fn poetry_venv_dirs(host: Host, home: &Path, env: impl Fn(&str) -> Option<OsString>) -> Vec<PathBuf> {
+    let var = |key: &str| env(key).filter(|v| !v.is_empty()).map(PathBuf::from);
+    let cache = var("POETRY_CACHE_DIR").unwrap_or_else(|| match host {
+        Host::Windows => {
+            let local = var("LOCALAPPDATA").unwrap_or_else(|| home.join("AppData").join("Local"));
+            local.join("pypoetry").join("Cache")
+        }
+        Host::Mac => home.join("Library/Caches/pypoetry"),
+        Host::Unix => var("XDG_CACHE_HOME").unwrap_or_else(|| home.join(".cache")).join("pypoetry"),
+    });
+    var("POETRY_VIRTUALENVS_PATH").into_iter().chain([cache.join("virtualenvs")]).collect()
+}
+
+/// Where uv installs Pythons (`uv python dir`): `UV_PYTHON_INSTALL_DIR`, else `python` in its
+/// data dir — `%APPDATA%\uv` on Windows (`%APPDATA%\uv\data` when an older uv made it), else
+/// `$XDG_DATA_HOME/uv` / `~/.local/share/uv` (older uv on macOS: `~/Library/Application Support/uv`).
+fn uv_python_dirs(host: Host, home: &Path, env: impl Fn(&str) -> Option<OsString>) -> Vec<PathBuf> {
+    let var = |key: &str| env(key).filter(|v| !v.is_empty()).map(PathBuf::from);
+    let data = match host {
+        Host::Windows => {
+            let roaming = var("APPDATA").unwrap_or_else(|| home.join("AppData").join("Roaming"));
+            vec![roaming.join("uv"), roaming.join("uv").join("data")]
+        }
+        Host::Mac | Host::Unix => {
+            let xdg = var("XDG_DATA_HOME").unwrap_or_else(|| home.join(".local/share")).join("uv");
+            let legacy = matches!(host, Host::Mac).then(|| home.join("Library/Application Support/uv"));
+            [xdg].into_iter().chain(legacy).collect()
+        }
+    };
+    var("UV_PYTHON_INSTALL_DIR").into_iter().chain(data.into_iter().map(|d| d.join("python"))).collect()
+}
+
+/// The interpreter of a uv-managed install: `python.exe` at its root on Windows, `bin/python3` elsewhere.
+fn uv_python(install: &Path) -> Option<PathBuf> {
+    [install.join(exe("python")), install.join("bin").join(exe("python3"))].into_iter().find(|p| p.is_file())
+}
+
 fn python(root: Option<&Path>) -> Vec<Sdk> {
     let mut found: Vec<(PathBuf, &'static str)> = Vec::new();
     if let Some(root) = root {
@@ -155,8 +219,10 @@ fn python(root: Option<&Path>) -> Vec<Sdk> {
     }
     if let Some(home) = home_dir() {
         // Virtualenvs managed by virtualenvwrapper / pipenv / poetry.
-        for dir in [".virtualenvs", ".local/share/virtualenvs", "Library/Caches/pypoetry/virtualenvs"] {
-            for env in subdirs(&home.join(dir)) {
+        let env_dirs = [".virtualenvs", ".local/share/virtualenvs"].map(|d| home.join(d));
+        let var = |key: &str| host_var_os(key);
+        for dir in env_dirs.into_iter().chain(poetry_venv_dirs(Host::current(), &home, var)) {
+            for env in subdirs(&dir) {
                 found.push((env.join(bin_dir()).join(exe("python")), "venv"));
             }
         }
@@ -164,8 +230,8 @@ fn python(root: Option<&Path>) -> Vec<Sdk> {
         for v in subdirs(&pyenv.join("versions")) {
             found.push((v.join(bin_dir()).join(exe("python")), "pyenv"));
         }
-        for v in subdirs(&home.join(".local/share/uv/python")) {
-            found.push((v.join(bin_dir()).join(exe("python3")), "uv"));
+        for dir in uv_python_dirs(Host::current(), &home, var) {
+            found.extend(subdirs(&dir).iter().filter_map(|v| uv_python(v)).map(|p| (p, "uv")));
         }
         for (v, manager) in version_managers::installs(Tool::Python) {
             found.extend(pinned::python_in_install(&v).map(|p| (p, manager)));
@@ -297,14 +363,7 @@ fn python_sdk_with_version(path: &Path, source: &str, root: Option<&Path>, versi
                 _ => format!("Python {short} ({dir})"),
             }
         }
-        (None, "conda") => {
-            let env = path
-                .parent()
-                .and_then(Path::parent)
-                .and_then(|p| p.file_name())
-                .map(|n| n.to_string_lossy().into_owned());
-            format!("Python {short} (conda: {})", env.unwrap_or_default())
-        }
+        (None, "conda") => format!("Python {short} (conda: {})", conda_env_name(path).unwrap_or_default()),
         (None, "pixi") => {
             let env = pixi_env_name(path).unwrap_or_default();
             format!("Python {short} (pixi: {env})")
@@ -320,10 +379,28 @@ fn python_sdk_with_version(path: &Path, source: &str, root: Option<&Path>, versi
         source: source.to_owned(),
         home: venv
             .or_else(|| (source == "pixi").then(|| pixi_env_home(path)).flatten())
+            .or_else(|| (source == "conda").then(|| conda_env_home(path)).flatten())
             .or_else(|| path.parent().and_then(Path::parent).map(Path::to_path_buf))
             .map(Into::into),
         extra: None,
     }
+}
+
+/// The prefix of a conda interpreter: `<env>/bin/python` on Unix, `<env>/python.exe` on Windows.
+pub(crate) fn conda_env_home(python: &Path) -> Option<PathBuf> {
+    let dir = python.parent()?;
+    let bin = dir.file_name().is_some_and(|n| n == "bin" || n.eq_ignore_ascii_case("Scripts"));
+    Some(if bin { dir.parent()? } else { dir }.to_path_buf())
+}
+
+/// The name conda gives an environment: `base` for the installation itself (it holds
+/// `condabin/`), else the prefix's folder (`envs/<name>`, or a `--prefix` env's directory).
+fn conda_env_name(python: &Path) -> Option<String> {
+    let home = conda_env_home(python)?;
+    if home.join("condabin").is_dir() {
+        return Some("base".into());
+    }
+    home.file_name().map(|n| n.to_string_lossy().into_owned())
 }
 
 /// `.pixi/envs/<env>` of a pixi interpreter (`<env>/python`, `<env>/bin/python`).
@@ -664,6 +741,86 @@ fn go() -> Vec<Sdk> {
     })
 }
 
+// ------------------------------------------------------------------ zig
+
+/// The directory holding the `zig` executable of the install rooted at `base`,
+/// the way the common distributions lay it out: `zig` at the root (official
+/// tarballs, mise / asdf installs), `<base>/bin/zig` (Homebrew) or one
+/// directory down (zvm's nested version folders).
+fn zig_dir(base: &Path) -> Option<PathBuf> {
+    if base.join(exe("zig")).is_file() {
+        return Some(base.to_path_buf());
+    }
+    let bin = base.join(bin_dir());
+    if bin.join(exe("zig")).is_file() {
+        return Some(bin);
+    }
+    subdirs(base).into_iter().find(|d| d.join(exe("zig")).is_file())
+}
+
+/// Zig toolchains: PATH, Homebrew, zvm and mise / asdf installs. `path` is the
+/// directory holding `zig`, which is what `languages.zig.zig` stores.
+fn zig() -> Vec<Sdk> {
+    let mut roots: Vec<(PathBuf, &'static str)> = Vec::new();
+    if let Some(bin) = which("zig").filter(|p| !version_managers::is_shim(p))
+        && let Some(dir) = bin.parent()
+    {
+        roots.push((dir.to_path_buf(), "path"));
+    }
+    for p in ["/opt/homebrew/opt/zig", "/usr/local/opt/zig"] {
+        roots.push((PathBuf::from(p), "system"));
+    }
+    if let Some(home) = home_dir() {
+        for d in subdirs(&home.join(".zvm")) {
+            roots.push((d, "zvm"));
+        }
+    }
+    for (d, manager) in version_managers::installs(Tool::Zig) {
+        roots.push((d, manager));
+    }
+    let mut dirs: Vec<(PathBuf, &'static str)> =
+        roots.into_iter().filter_map(|(base, source)| zig_dir(&base).map(|dir| (dir, source))).collect();
+    let mut seen = HashSet::new();
+    dirs.retain(|(dir, _)| seen.insert(dir.canonicalize().unwrap_or_else(|_| dir.clone())));
+    par_map(&dirs, |(dir, source)| {
+        let version = query(&dir.join(exe("zig")), &["version"], VERSION_TIMEOUT).map(|v| v.trim().to_owned());
+        Some(Sdk {
+            path: dir.clone().into(),
+            name: format!("Zig {}", version.as_deref().unwrap_or_default()).trim().to_owned(),
+            version,
+            source: (*source).to_owned(),
+            home: Some(dir.clone().into()),
+            extra: None,
+        })
+    })
+}
+
+#[cfg(test)]
+mod zig_tests {
+    use super::*;
+
+    #[test]
+    fn finds_the_zig_directory_of_each_layout() {
+        let tmp = tempfile::tempdir().unwrap();
+        let install = |rel: &str| {
+            let dir = tmp.path().join(rel);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join(exe("zig")), "").unwrap();
+            dir
+        };
+        // Official tarballs and mise / asdf installs: `zig` at the root.
+        let root = install("0.14.1");
+        assert_eq!(zig_dir(&root), Some(root));
+        // Homebrew: <opt>/bin/zig.
+        let brew = install("brew/bin");
+        assert_eq!(zig_dir(brew.parent().unwrap()), Some(brew));
+        // zvm: one directory down.
+        let zvm = install("zvm/x");
+        assert_eq!(zig_dir(&tmp.path().join("zvm")), Some(zvm));
+        assert_eq!(zig_dir(&tmp.path().join("missing")), None);
+    }
+}
+
 // ------------------------------------------------------------------ typescript
 
 /// `node_modules/typescript/lib` of the project (root or a direct workspace member).
@@ -674,14 +831,26 @@ pub(crate) fn workspace_tsdk(root: &Path) -> Option<PathBuf> {
 
 fn typescript(root: Option<&Path>) -> Vec<Sdk> {
     let mut out = Vec::new();
-    if let Some(lib) = root.and_then(workspace_tsdk) {
+    // TypeScript 7 has no `tsserver.js`; its package directory stands for it (`native_tsdk`).
+    let native = || {
+        let package = root?.join("node_modules/typescript");
+        crate::npm::native_typescript(&package).map(|_| package.join("lib"))
+    };
+    if let Some(lib) = root.and_then(workspace_tsdk).or_else(native) {
         let version = std::fs::read_to_string(lib.parent().unwrap_or(&lib).join("package.json"))
             .ok()
             .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
             .and_then(|v| v.get("version").and_then(|v| v.as_str()).map(str::to_owned));
         out.push(Sdk {
             path: lib.clone().into(),
-            name: format!("TypeScript {}", version.clone().unwrap_or_default()).trim().to_owned(),
+            name: format!(
+                "TypeScript {}{}",
+                version.clone().unwrap_or_default(),
+                if crate::npm::has_ts_api(&lib) { "" } else { " (native)" }
+            )
+            .replace("  ", " ")
+            .trim()
+            .to_owned(),
             version,
             source: "workspace".into(),
             home: lib.parent().map(Into::into),
@@ -716,6 +885,8 @@ pub fn jdk_sdk(j: &crate::java::Jdk) -> Sdk {
         "JAVA_HOME"
     } else if crate::java::is_downloaded(&j.home) {
         "downloaded"
+    } else if crate::java::is_added(&j.home) {
+        "added"
     } else {
         version_managers::manager_of(&j.home).unwrap_or("system")
     };
@@ -935,6 +1106,26 @@ mod conda_tests {
     use super::*;
 
     #[test]
+    fn conda_envs_are_named_after_their_prefix_on_every_layout() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("anaconda3");
+        std::fs::create_dir_all(root.join("condabin")).unwrap();
+        let name = |python: PathBuf| super::conda_env_name(&python);
+        // Windows: python.exe at the prefix root.
+        assert_eq!(name(root.join("envs/agent-gateway/python.exe")).as_deref(), Some("agent-gateway"));
+        assert_eq!(name(root.join("python.exe")).as_deref(), Some("base"));
+        // Unix: <prefix>/bin/python.
+        assert_eq!(name(root.join("envs/ml/bin/python")).as_deref(), Some("ml"));
+        assert_eq!(name(root.join("bin/python")).as_deref(), Some("base"));
+        // A `--prefix` env outside envs/.
+        assert_eq!(name(tmp.path().join("work/.conda/python.exe")).as_deref(), Some(".conda"));
+        assert_eq!(
+            super::conda_env_home(&root.join("envs/agent-gateway/python.exe")),
+            Some(root.join("envs/agent-gateway"))
+        );
+    }
+
+    #[test]
     fn conda_env_list_names_named_prefix_and_bare_prefix_envs() {
         // `conda env list` on Windows with Anaconda on a second drive (#2240).
         let output = "\
@@ -965,5 +1156,103 @@ legacy                   C:\\Users\\dev\\.conda\\envs\\legacy
             conda_env_list_prefixes(output),
             vec![PathBuf::from("/opt/miniconda3"), PathBuf::from("/opt/miniconda3/envs/prod")]
         );
+    }
+}
+
+#[cfg(test)]
+mod env_manager_dir_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn env(vars: &[(&str, &str)]) -> impl Fn(&str) -> Option<OsString> {
+        let vars: HashMap<String, OsString> = vars.iter().map(|(k, v)| ((*k).to_owned(), (*v).into())).collect();
+        move |key| vars.get(key).cloned()
+    }
+
+    #[test]
+    fn poetry_venvs_follow_each_platforms_cache_dir() {
+        let home = Path::new("/home/me");
+        let local = Path::new("C:/Users/me/AppData/Local");
+        assert_eq!(
+            poetry_venv_dirs(Host::Windows, home, env(&[("LOCALAPPDATA", "C:/Users/me/AppData/Local")])),
+            vec![local.join("pypoetry").join("Cache").join("virtualenvs")]
+        );
+        assert_eq!(
+            poetry_venv_dirs(Host::Windows, home, env(&[])),
+            vec![home.join("AppData").join("Local").join("pypoetry").join("Cache").join("virtualenvs")]
+        );
+        assert_eq!(
+            poetry_venv_dirs(Host::Mac, home, env(&[])),
+            vec![home.join("Library").join("Caches").join("pypoetry").join("virtualenvs")]
+        );
+        assert_eq!(
+            poetry_venv_dirs(Host::Unix, home, env(&[])),
+            vec![home.join(".cache").join("pypoetry").join("virtualenvs")]
+        );
+        assert_eq!(
+            poetry_venv_dirs(Host::Unix, home, env(&[("XDG_CACHE_HOME", "/xdg/cache")])),
+            vec![Path::new("/xdg/cache").join("pypoetry").join("virtualenvs")]
+        );
+    }
+
+    #[test]
+    fn poetry_overrides_come_first_and_empty_ones_are_ignored() {
+        let home = Path::new("/home/me");
+        assert_eq!(
+            poetry_venv_dirs(
+                Host::Unix,
+                home,
+                env(&[("POETRY_VIRTUALENVS_PATH", "/envs"), ("POETRY_CACHE_DIR", "/cache")])
+            ),
+            vec![PathBuf::from("/envs"), Path::new("/cache").join("virtualenvs")]
+        );
+        assert_eq!(
+            poetry_venv_dirs(Host::Unix, home, env(&[("POETRY_VIRTUALENVS_PATH", ""), ("POETRY_CACHE_DIR", "")])),
+            vec![home.join(".cache").join("pypoetry").join("virtualenvs")]
+        );
+    }
+
+    #[test]
+    fn uv_pythons_follow_each_platforms_data_dir() {
+        let home = Path::new("/home/me");
+        let roaming = Path::new("C:/Users/me/AppData/Roaming");
+        assert_eq!(
+            uv_python_dirs(Host::Windows, home, env(&[("APPDATA", "C:/Users/me/AppData/Roaming")])),
+            vec![roaming.join("uv").join("python"), roaming.join("uv").join("data").join("python")]
+        );
+        assert_eq!(
+            uv_python_dirs(Host::Mac, home, env(&[])),
+            vec![
+                home.join(".local").join("share").join("uv").join("python"),
+                home.join("Library").join("Application Support").join("uv").join("python"),
+            ]
+        );
+        assert_eq!(
+            uv_python_dirs(Host::Unix, home, env(&[("XDG_DATA_HOME", "/xdg/data")])),
+            vec![Path::new("/xdg/data").join("uv").join("python")]
+        );
+        assert_eq!(
+            uv_python_dirs(Host::Unix, home, env(&[("UV_PYTHON_INSTALL_DIR", "/pythons")])),
+            vec![PathBuf::from("/pythons"), home.join(".local").join("share").join("uv").join("python")]
+        );
+    }
+
+    #[test]
+    fn a_uv_install_finds_its_interpreter_on_either_layout() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Windows: python.exe at the install root.
+        let windows = tmp.path().join("cpython-3.13.15-windows-x86_64-none");
+        std::fs::create_dir_all(&windows).unwrap();
+        std::fs::write(windows.join(exe("python")), "").unwrap();
+        assert_eq!(uv_python(&windows), Some(windows.join(exe("python"))));
+        // Unix: bin/python3.
+        let unix = tmp.path().join("cpython-3.13.15-linux-x86_64-gnu");
+        std::fs::create_dir_all(unix.join("bin")).unwrap();
+        std::fs::write(unix.join("bin").join(exe("python3")), "").unwrap();
+        assert_eq!(uv_python(&unix), Some(unix.join("bin").join(exe("python3"))));
+        // uv's own bookkeeping folders (`.temp`, `.cache`) hold no interpreter.
+        let temp = tmp.path().join(".temp");
+        std::fs::create_dir_all(&temp).unwrap();
+        assert_eq!(uv_python(&temp), None);
     }
 }

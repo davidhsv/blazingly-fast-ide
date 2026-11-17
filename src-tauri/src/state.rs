@@ -5,7 +5,7 @@ use ide_workspace::RecentProjects;
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 pub use ide_host::{Host, Project};
 
@@ -19,9 +19,7 @@ pub struct AppState {
     pub recent: RecentProjects,
     /// Plugins (`ide_host::plugins`), shared by all windows.
     pub plugins: Arc<ide_host::plugins::PluginHost>,
-    /// The built-in web server (Open In › Browser, the editor's browser bar).
-    pub web: ide_web::WebServer,
-    /// Tools › MCP Server: built-in IDE tools for agents.
+    /// Agents › MCP Server: built-in IDE tools for agents.
     pub mcp: crate::commands::mcp::McpService,
     /// Credential prompts of `ssh` / `git` child processes (`None` if it failed to start).
     pub askpass: Option<ide_ssh::askpass::AskpassServer>,
@@ -52,7 +50,7 @@ pub struct Startup {
 }
 
 impl AppState {
-    pub fn new(app: AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(app: AppHandle, local_data_dir: std::path::PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         ide_workspace::process::mark_start();
         let process_to_main = ide_workspace::process::before_main();
         let process_to_setup = ide_workspace::process::process_age();
@@ -65,9 +63,9 @@ impl AppState {
                 syntax.get_or_init(|| Arc::new(Syntax::new()));
             })?;
         }
-        let config_dir = app.path().app_config_dir()?;
-        let data_dir = app.path().app_data_dir()?;
-        let local_data_dir = app.path().app_local_data_dir()?;
+        // `OPENIDEA_CONFIG_DIR` / `OPENIDEA_DATA_DIR` move these; an unusable value fails the start.
+        let config_dir = ide_host::data_dirs::config_dir(&app.config().identifier)?;
+        let data_dir = ide_host::data_dirs::data_dir(&app.config().identifier)?;
         std::fs::create_dir_all(&config_dir)?;
         std::fs::create_dir_all(&data_dir)?;
         if let Err(error) = std::fs::create_dir_all(&local_data_dir) {
@@ -76,6 +74,11 @@ impl AppState {
         tracing::info!(?data_dir, ?local_data_dir, "application data directories");
         // Saved git HTTPS credentials (askpass answers them silently).
         ide_ssh::git_creds::init(data_dir.join("git-credentials.json"));
+        // A newly chosen local-data directory from Settings › System Settings ›
+        // Caches: the previous tree moves first, so a pending invalidation still
+        // wipes what was just moved.
+        let identifier = app.config().identifier.clone();
+        ide_host::data_dirs::apply_custom_migration(&identifier, &local_data_dir);
         // File › Invalidate Caches… requested at the last run.
         let removed = ide_workspace::caches::apply_pending(&data_dir, &local_data_dir);
         if !removed.is_empty() {
@@ -104,7 +107,6 @@ impl AppState {
             askpass: start_askpass(&app),
             sink: global_sink,
             plugins: crate::commands::plugin::create_host(&app, &data_dir, &host)?,
-            web: ide_web::WebServer::new(),
             mcp: Default::default(),
             remote_dev: crate::remote_dev::Connections::default(),
             host,
@@ -168,9 +170,16 @@ impl AppState {
         self.host.open_light(window, file)
     }
 
+    /// LightEdit without a file (File › New File from a welcome window).
+    pub fn open_light_empty(&self, window: &str) -> IdeResult<Arc<Project>> {
+        self.remote_dev.disconnect(window);
+        self.host.open_light_empty(window)
+    }
+
     /// Called on the event-loop thread (window destruction, the `close_project`
     /// command), so it must not wait for the project's workers to shut down.
     pub fn close_project(&self, window: &str) {
+        crate::system_notifications::clear_window(window);
         self.remote_dev.disconnect(window);
         self.host.close_project_detached(window);
     }

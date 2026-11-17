@@ -63,6 +63,7 @@ pub fn driver_id(driver: DbDriver) -> &'static str {
         DbDriver::SqlServer => "sqlServer",
         DbDriver::Clickhouse => "clickhouse",
         DbDriver::Oracle => "oracle",
+        DbDriver::Snowflake => "snowflake",
     }
 }
 

@@ -1,4 +1,30 @@
 {
+ "registerAgentContextSource": [
+  {
+   "id": "changes",
+   "title": "Changes",
+   "description": "Files with uncommitted changes",
+   "icon": "diff",
+   "$resolve": "function",
+   "source": "src/features/agents/index.ts:108"
+  },
+  {
+   "id": "problems",
+   "title": "Problems",
+   "description": "The project's errors and warnings",
+   "icon": "problems",
+   "$resolve": "function",
+   "source": "src/features/code-insight/index.ts:54"
+  },
+  {
+   "id": "terminal",
+   "title": "Terminal",
+   "description": "The active terminal's recent output",
+   "icon": "terminal",
+   "$resolve": "function",
+   "source": "src/features/terminal/index.ts:106"
+  }
+ ],
  "registerCloneSource": [
   {
    "id": "github",
@@ -13,12 +39,12 @@
   {
    "$checks": "function",
    "$run": "function",
-   "source": "src/features/plugins/uiPoints.tsx:212"
+   "source": "src/features/plugins/uiPoints.tsx:215"
   }
  ],
  "registerDocumentIndexSync": [
   {
-   "source": "src/features/plugins/navigation.ts:154"
+   "source": "src/features/plugins/navigation.ts:170"
   }
  ],
  "registerEditorBanner": [
@@ -26,19 +52,19 @@
    "id": "editor.document",
    "order": -10,
    "$useBanner": "function",
-   "source": "src/editor/core/index.ts:70"
+   "source": "src/editor/core/index.ts:92"
   },
   {
    "id": "lsp.outsideProject",
    "order": 5,
    "$useBanner": "function",
-   "source": "src/editor/lsp/index.ts:85"
+   "source": "src/editor/lsp/index.ts:128"
   },
   {
    "id": "app.powerSave",
    "order": 0,
    "$useBanner": "function",
-   "source": "src/features/app/projectActions.ts:229"
+   "source": "src/features/app/projectActions.ts:264"
   },
   {
    "id": "php.composerInstall",
@@ -47,10 +73,22 @@
    "source": "src/features/run/composerInstall.ts:120"
   },
   {
+   "id": "docker.composeAutoDetect",
+   "order": 5,
+   "$useBanner": "function",
+   "source": "src/features/services/index.ts:100"
+  },
+  {
    "id": "vcs.conflict",
    "order": -5,
    "$useBanner": "function",
    "source": "src/features/vcs/conflictBanner.ts:13"
+  },
+  {
+   "id": "web.djangoTemplate",
+   "order": 6,
+   "$useBanner": "function",
+   "source": "src/features/web/index.ts:70"
   }
  ],
  "registerEditorContribution": [
@@ -58,35 +96,47 @@
    "id": "lsp",
    "order": 50,
    "$extensions": "computed",
-   "source": "src/editor/lsp/index.ts:78"
+   "$cellExtensions": "computed",
+   "$diffExtensions": "computed",
+   "source": "src/editor/lsp/index.ts:112"
   },
   {
    "id": "lsp.lineMarkers",
    "order": 56,
    "$extensions": "computed",
-   "source": "src/editor/lsp/index.ts:80"
+   "source": "src/editor/lsp/index.ts:120"
   },
   {
    "id": "lsp.parameterTab",
    "order": 95,
    "$extensions": "function",
-   "source": "src/editor/lsp/index.ts:82"
+   "source": "src/editor/lsp/index.ts:122"
+  },
+  {
+   "id": "analysis.python-inheritance",
+   "$extensions": "computed",
+   "source": "src/features/analysis/index.ts:26"
   },
   {
    "id": "build-tools.versionCatalog",
    "$extensions": "computed",
-   "source": "src/features/build-tools/index.ts:200"
+   "source": "src/features/build-tools/index.ts:224"
   },
   {
    "id": "build-tools.pomNavigation",
    "$extensions": "computed",
-   "source": "src/features/build-tools/index.ts:201"
+   "source": "src/features/build-tools/index.ts:225"
+  },
+  {
+   "id": "build-tools.pomCompletion",
+   "$extensions": "computed",
+   "source": "src/features/build-tools/index.ts:226"
   },
   {
    "id": "colorPreview.gutter",
    "order": 59,
    "$extensions": "function",
-   "source": "src/features/color-preview/index.ts:7"
+   "source": "src/features/color-preview/index.ts:9"
   },
   {
    "id": "coverage.gutter",
@@ -95,16 +145,27 @@
    "source": "src/features/coverage/index.ts:30"
   },
   {
+   "id": "cucumber.undefinedSteps",
+   "$extensions": "function",
+   "source": "src/features/cucumber/index.ts:176"
+  },
+  {
    "id": "database.console",
    "order": 57,
    "$extensions": "computed",
-   "source": "src/features/database/index.ts:84"
+   "source": "src/features/database/index.ts:119"
+  },
+  {
+   "id": "database.mybatis",
+   "order": 58,
+   "$extensions": "computed",
+   "source": "src/features/database/index.ts:127"
   },
   {
    "id": "debugger",
    "order": 60,
    "$extensions": "function",
-   "source": "src/features/debugger/index.ts:92"
+   "source": "src/features/debugger/index.ts:118"
   },
   {
    "id": "dependency-versions",
@@ -127,19 +188,19 @@
    "id": "http.requests",
    "order": 56,
    "$extensions": "computed",
-   "source": "src/features/http-client/index.ts:123"
+   "source": "src/features/http-client/index.ts:143"
   },
   {
    "id": "http.endpoints",
    "order": 58,
    "$extensions": "computed",
-   "source": "src/features/http-client/index.ts:124"
+   "source": "src/features/http-client/index.ts:144"
   },
   {
    "id": "http.spring",
    "order": 57,
    "$extensions": "computed",
-   "source": "src/features/http-client/index.ts:125"
+   "source": "src/features/http-client/index.ts:145"
   },
   {
    "id": "macros.recorder",
@@ -150,42 +211,53 @@
   {
    "id": "plugins.decorations",
    "$extensions": "computed",
-   "source": "src/features/plugins/decorations.ts:139"
+   "source": "src/features/plugins/decorations.ts:258"
   },
   {
    "id": "plugins.languageFeatures",
    "order": 58,
    "$extensions": "computed",
-   "source": "src/features/plugins/index.ts:163"
+   "source": "src/features/plugins/index.ts:165"
   },
   {
    "id": "plugins.lineMarkers",
    "order": 57,
    "$extensions": "computed",
-   "source": "src/features/plugins/index.ts:164"
+   "source": "src/features/plugins/index.ts:166"
   },
   {
    "id": "plugins.indexedMarkers",
    "order": 65,
    "$extensions": "function",
-   "source": "src/features/plugins/indexedMarkers.ts:163"
+   "source": "src/features/plugins/indexedMarkers.ts:169"
   },
   {
    "id": "plugins.navigation",
    "$extensions": "function",
-   "source": "src/features/plugins/navigation.ts:181"
+   "source": "src/features/plugins/navigation.ts:206"
+  },
+  {
+   "id": "plugins.editorPanels",
+   "$extensions": "function",
+   "source": "src/features/plugins/uiPoints.tsx:496"
   },
   {
    "id": "run.targets",
    "order": 55,
    "$extensions": "computed",
-   "source": "src/features/run/index.ts:438"
+   "source": "src/features/run/index.ts:487"
   },
   {
    "id": "run.npmScripts",
    "order": 58,
    "$extensions": "computed",
-   "source": "src/features/run/index.ts:439"
+   "source": "src/features/run/index.ts:488"
+  },
+  {
+   "id": "run.launchSettings",
+   "order": 58,
+   "$extensions": "computed",
+   "source": "src/features/run/index.ts:489"
   },
   {
    "id": "search.tracking",
@@ -197,19 +269,25 @@
    "id": "search.bookmarks",
    "order": 50,
    "$extensions": "function",
-   "source": "src/features/search/index.ts:188"
+   "source": "src/features/search/index.ts:196"
   },
   {
    "id": "services.dockerGutter",
    "order": 56,
    "$extensions": "computed",
-   "source": "src/features/services/index.ts:81"
+   "source": "src/features/services/index.ts:101"
+  },
+  {
+   "id": "services.composeEditor",
+   "order": 57,
+   "$extensions": "computed",
+   "source": "src/features/services/index.ts:102"
   },
   {
    "id": "templates",
    "order": 90,
    "$extensions": "computed",
-   "source": "src/features/templates/index.ts:176"
+   "source": "src/features/templates/index.ts:201"
   },
   {
    "id": "todo.highlight",
@@ -226,12 +304,12 @@
    "id": "vcs.changeMarkers",
    "order": 60,
    "$extensions": "function",
-   "source": "src/features/vcs/index.ts:304"
+   "source": "src/features/vcs/index.ts:329"
   },
   {
    "id": "viewers.markdownLive",
    "$extensions": "function",
-   "source": "src/features/viewers/markdown/live.ts:105"
+   "source": "src/features/viewers/markdown/live.ts:261"
   },
   {
    "id": "vim",
@@ -239,13 +317,27 @@
    "embedded": true,
    "$extensions": "function",
    "source": "src/features/vim/index.ts:63"
+  },
+  {
+   "id": "web.djangoContent",
+   "order": 57,
+   "$extensions": "computed",
+   "source": "src/features/web/index.ts:71"
   }
  ],
  "registerEditorDropHandler": [
   {
    "$accepts": "function",
    "$drop": "function",
-   "source": "src/features/agents/index.ts:104"
+   "source": "src/features/agents/index.ts:210"
+  }
+ ],
+ "registerEditorGroupPanel": [
+  {
+   "$id": "computed",
+   "$width": "computed",
+   "$component": "computed",
+   "source": "src/features/plugins/views/editorPanel.tsx:304"
   }
  ],
  "registerEditorKind": [
@@ -254,17 +346,22 @@
    "$component": "computed",
    "$title": "function",
    "$icon": "function",
+   "$trailing": "function",
    "restorable": true,
+   "$onClose": "function",
+   "$onTabClose": "function",
    "keepAlive": true,
-   "source": "src/features/agents/index.ts:83"
+   "source": "src/features/agents/index.ts:168"
   },
   {
    "kind": "agent-home",
    "$component": "computed",
    "$title": "function",
    "$icon": "function",
+   "$onTabClose": "function",
    "restorable": true,
-   "source": "src/features/agents/index.ts:96"
+   "keepAlive": true,
+   "source": "src/features/agents/index.ts:196"
   },
   {
    "kind": "maven.dependencyAnalyzer",
@@ -272,14 +369,22 @@
    "$title": "function",
    "$icon": "function",
    "restorable": true,
-   "source": "src/features/build-tools/index.ts:203"
+   "source": "src/features/build-tools/index.ts:228"
   },
   {
    "kind": "db-table",
    "$component": "computed",
    "$title": "computed",
    "$icon": "function",
-   "source": "src/features/database/index.ts:74"
+   "source": "src/features/database/index.ts:109"
+  },
+  {
+   "kind": "heap-snapshot",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "$onClose": "function",
+   "source": "src/features/debugger/index.ts:92"
   },
   {
    "kind": "github.timeline",
@@ -305,7 +410,7 @@
    "$component": "computed",
    "$title": "function",
    "$icon": "function",
-   "source": "src/features/notebook/index.ts:49"
+   "source": "src/features/notebook/index.ts:52"
   },
   {
    "kind": "pluginEditor",
@@ -324,7 +429,7 @@
     "$undo": "function",
     "$redo": "function"
    },
-   "source": "src/features/plugins/uiPoints.tsx:546"
+   "source": "src/features/plugins/uiPoints.tsx:558"
   },
   {
    "kind": "pluginLog",
@@ -332,7 +437,7 @@
    "keepAlive": true,
    "$title": "computed",
    "$icon": "function",
-   "source": "src/features/plugins/uiPoints.tsx:554"
+   "source": "src/features/plugins/uiPoints.tsx:566"
   },
   {
    "kind": "pluginContent",
@@ -351,7 +456,7 @@
     "$undo": "function",
     "$redo": "function"
    },
-   "source": "src/features/plugins/uiPoints.tsx:561"
+   "source": "src/features/plugins/uiPoints.tsx:573"
   },
   {
    "kind": "dockerLog",
@@ -359,7 +464,18 @@
    "$title": "computed",
    "$icon": "function",
    "keepAlive": true,
-   "source": "src/features/services/index.ts:73"
+   "source": "src/features/services/index.ts:91"
+  },
+  {
+   "kind": "cli",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "restorable": true,
+   "keepAlive": true,
+   "$onClose": "function",
+   "$isBusy": "function",
+   "source": "src/features/terminal/index.ts:126"
   },
   {
    "kind": "diff",
@@ -367,7 +483,15 @@
    "$component": "computed",
    "$title": "function",
    "$icon": "function",
-   "source": "src/features/vcs/index.ts:156"
+   "source": "src/features/vcs/index.ts:163"
+  },
+  {
+   "kind": "combined-diff",
+   "standalone": true,
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "source": "src/features/vcs/index.ts:170"
   },
   {
    "kind": "git-revision",
@@ -376,7 +500,7 @@
    "$title": "function",
    "$icon": "function",
    "restorable": true,
-   "source": "src/features/vcs/index.ts:254"
+   "source": "src/features/vcs/index.ts:278"
   },
   {
    "kind": "git-log",
@@ -386,7 +510,7 @@
    "$icon": "function",
    "restorable": true,
    "$onClose": "function",
-   "source": "src/features/vcs/index.ts:265"
+   "source": "src/features/vcs/index.ts:289"
   },
   {
    "kind": "git-merge-diff",
@@ -395,42 +519,51 @@
    "$title": "function",
    "$icon": "function",
    "restorable": true,
-   "source": "src/features/vcs/index.ts:274"
+   "source": "src/features/vcs/index.ts:298"
   },
   {
    "kind": "merge",
    "$component": "computed",
    "$title": "function",
    "$icon": "function",
-   "source": "src/features/vcs/index.ts:283"
+   "source": "src/features/vcs/index.ts:308"
   },
   {
    "kind": "localHistory",
    "$component": "computed",
    "$title": "function",
    "$icon": "function",
-   "source": "src/features/vcs/index.ts:289"
+   "source": "src/features/vcs/index.ts:314"
   },
   {
    "kind": "selectionHistory",
    "$component": "computed",
    "$title": "function",
    "$icon": "function",
-   "source": "src/features/vcs/index.ts:295"
+   "source": "src/features/vcs/index.ts:320"
   },
   {
    "kind": "image",
    "$component": "computed",
    "$title": "computed",
    "$icon": "computed",
-   "source": "src/features/viewers/index.ts:85"
+   "source": "src/features/viewers/index.ts:97"
   },
   {
    "kind": "binary",
    "$component": "computed",
    "$title": "computed",
    "$icon": "computed",
-   "source": "src/features/viewers/index.ts:86"
+   "source": "src/features/viewers/index.ts:98"
+  },
+  {
+   "kind": "whatsNew",
+   "$component": "computed",
+   "$title": "function",
+   "$icon": "function",
+   "restorable": false,
+   "standalone": true,
+   "source": "src/features/whats-new/index.ts:10"
   }
  ],
  "registerEndpointProvider": [
@@ -447,7 +580,16 @@
  ],
  "registerExtensionBindings": [
   {
-   "source": "src/features/plugins/uiPoints.tsx:439"
+   "source": "src/features/plugins/uiPoints.tsx:446"
+  }
+ ],
+ "registerExternalFileOpenHandler": [
+  {
+   "id": "viewers.associatedApps",
+   "order": 1,
+   "$matches": "function",
+   "$open": "computed",
+   "source": "src/features/viewers/index.ts:90"
   }
  ],
  "registerFileDropHandler": [
@@ -455,7 +597,7 @@
    "source": "src/editor/core/cm/markdownImages.ts:117"
   },
   {
-   "source": "src/features/terminal/drop.ts:22"
+   "source": "src/features/terminal/drop.ts:23"
   }
  ],
  "registerFileEditorProvider": [
@@ -463,33 +605,39 @@
    "id": "notebook",
    "order": 5,
    "$resolve": "function",
-   "source": "src/features/notebook/index.ts:57"
+   "source": "src/features/notebook/index.ts:60"
   },
   {
    "$id": "computed",
    "order": 40,
    "$resolve": "function",
-   "source": "src/features/plugins/uiPoints.tsx:477"
+   "source": "src/features/plugins/uiPoints.tsx:484"
   },
   {
    "id": "viewers.image",
    "order": 10,
    "$resolve": "function",
-   "source": "src/features/viewers/index.ts:87"
+   "source": "src/features/viewers/index.ts:99"
   },
   {
    "id": "viewers.hex",
    "order": 50,
    "$resolve": "function",
-   "source": "src/features/viewers/index.ts:95"
+   "source": "src/features/viewers/index.ts:107"
   }
  ],
  "registerFontZoomSurface": [
   {
-   "source": "src/features/plugins/views/WebView.tsx:169"
+   "source": "src/features/agents/fontZoom.ts:83"
   },
   {
-   "source": "src/features/terminal/session.ts:325"
+   "source": "src/features/plugins/views/WebView.tsx:233"
+  },
+  {
+   "source": "src/features/terminal/session.ts:382"
+  },
+  {
+   "source": "src/features/viewers/markdown/MarkdownEditor.tsx:390"
   }
  ],
  "registerGitLogChecks": [
@@ -499,25 +647,28 @@
  ],
  "registerKeyClaim": [
   {
-   "source": "src/editor/core/view/FindBar.tsx:367"
+   "source": "src/editor/core/view/FindBar.tsx:411"
   },
   {
-   "source": "src/features/debugger/ui/DebugConsole.tsx:244"
+   "source": "src/features/agents/Composer.tsx:871"
   },
   {
-   "source": "src/features/plugins/views/contentEditor.tsx:518"
+   "source": "src/features/debugger/ui/DebugConsole.tsx:253"
+  },
+  {
+   "source": "src/features/plugins/views/contentEditor.tsx:521"
   },
   {
    "source": "src/features/plugins/views/logEditor.tsx:241"
   },
   {
-   "source": "src/features/run/ConsoleView.tsx:346"
+   "source": "src/features/run/ConsoleView.tsx:362"
   },
   {
-   "source": "src/features/search/everywhere/SearchEverywhere.tsx:82"
+   "source": "src/features/search/everywhere/SearchEverywhere.tsx:86"
   },
   {
-   "source": "src/features/search/find/parts.tsx:182"
+   "source": "src/features/search/find/parts.tsx:184"
   },
   {
    "source": "src/features/services/logEditor.tsx:273"
@@ -526,18 +677,21 @@
    "source": "src/features/terminal/keys.ts:136"
   },
   {
-   "source": "src/features/vcs/BranchWidget.tsx:297"
+   "source": "src/features/vcs/BranchWidget.tsx:368"
   },
   {
    "source": "src/features/vcs/diffDialog.tsx:85"
   },
   {
    "source": "src/features/vim/index.ts:79"
+  },
+  {
+   "source": "src/ui/Tree.tsx:389"
   }
  ],
  "registerLanguageMode": [
   {
-   "source": "src/features/http-client/index.ts:122"
+   "source": "src/features/http-client/index.ts:142"
   }
  ],
  "registerMenuGroup": [
@@ -549,7 +703,7 @@
    ],
    "order": 80,
    "$items": "function",
-   "source": "src/features/agents/index.ts:109"
+   "source": "src/features/agents/index.ts:215"
   },
   {
    "id": "gradle.analyzeDependencies",
@@ -560,7 +714,7 @@
    ],
    "order": 30,
    "$items": "function",
-   "source": "src/features/build-tools/index.ts:211"
+   "source": "src/features/build-tools/index.ts:236"
   },
   {
    "id": "maven.analyzeDependencies",
@@ -571,7 +725,7 @@
    ],
    "order": 30,
    "$items": "function",
-   "source": "src/features/build-tools/index.ts:224"
+   "source": "src/features/build-tools/index.ts:249"
   },
   {
    "id": "build.module",
@@ -580,7 +734,27 @@
    ],
    "order": 40,
    "$items": "function",
-   "source": "src/features/build/index.ts:125"
+   "source": "src/features/build/index.ts:139"
+  },
+  {
+   "id": "build.compileFile",
+   "menus": [
+    "editor",
+    "editorTab",
+    "projectView"
+   ],
+   "order": 40,
+   "$items": "function",
+   "source": "src/features/build/index.ts:150"
+  },
+  {
+   "id": "codeInsight.eslint",
+   "menus": [
+    "editor"
+   ],
+   "order": 40,
+   "$items": "function",
+   "source": "src/features/code-insight/index.ts:69"
   },
   {
    "id": "debugger.evaluate",
@@ -588,7 +762,7 @@
     "editor"
    ],
    "$items": "function",
-   "source": "src/features/debugger/index.ts:73"
+   "source": "src/features/debugger/index.ts:99"
   },
   {
    "id": "debugger.hotswap",
@@ -596,7 +770,7 @@
     "editor"
    ],
    "$items": "function",
-   "source": "src/features/debugger/index.ts:78"
+   "source": "src/features/debugger/index.ts:104"
   },
   {
    "id": "debugger.stop",
@@ -604,7 +778,7 @@
     "stopProcess"
    ],
    "$items": "function",
-   "source": "src/features/debugger/index.ts:84"
+   "source": "src/features/debugger/index.ts:110"
   },
   {
    "id": "deployment",
@@ -634,7 +808,7 @@
    ],
    "order": 40,
    "$items": "function",
-   "source": "src/features/http-client/index.ts:126"
+   "source": "src/features/http-client/index.ts:146"
   },
   {
    "id": "http.new",
@@ -643,7 +817,7 @@
    ],
    "order": 20,
    "$items": "function",
-   "source": "src/features/http-client/index.ts:136"
+   "source": "src/features/http-client/index.ts:156"
   },
   {
    "id": "plugins",
@@ -656,7 +830,7 @@
    ],
    "order": 90,
    "$items": "function",
-   "source": "src/features/plugins/uiPoints.tsx:569"
+   "source": "src/features/plugins/uiPoints.tsx:581"
   },
   {
    "id": "go.modules",
@@ -677,7 +851,7 @@
    ],
    "$items": "computed",
    "$prepare": "computed",
-   "source": "src/features/run/index.ts:440"
+   "source": "src/features/run/index.ts:490"
   },
   {
    "id": "scratch.new",
@@ -694,7 +868,7 @@
     "selectIn"
    ],
    "$items": "function",
-   "source": "src/features/search/index.ts:194"
+   "source": "src/features/search/index.ts:202"
   },
   {
    "id": "search.bookmarks",
@@ -703,7 +877,7 @@
    ],
    "order": 20,
    "$items": "function",
-   "source": "src/features/search/index.ts:209"
+   "source": "src/features/search/index.ts:217"
   },
   {
    "id": "search.bookmarks.files",
@@ -713,7 +887,7 @@
    ],
    "order": 60,
    "$items": "function",
-   "source": "src/features/search/index.ts:226"
+   "source": "src/features/search/index.ts:234"
   },
   {
    "id": "settings.fileType",
@@ -733,7 +907,7 @@
    ],
    "order": 10,
    "$items": "function",
-   "source": "src/features/templates/index.ts:99"
+   "source": "src/features/templates/index.ts:116"
   },
   {
    "id": "templates.newFromTemplate",
@@ -742,7 +916,7 @@
    ],
    "order": 100,
    "$items": "function",
-   "source": "src/features/templates/index.ts:114"
+   "source": "src/features/templates/index.ts:139"
   },
   {
    "id": "templates.emmet",
@@ -751,7 +925,7 @@
    ],
    "order": 60,
    "$items": "function",
-   "source": "src/features/templates/index.ts:180"
+   "source": "src/features/templates/index.ts:205"
   },
   {
    "id": "vcs.gutter",
@@ -760,7 +934,16 @@
    ],
    "order": 10,
    "$items": "function",
-   "source": "src/features/vcs/index.ts:309"
+   "source": "src/features/vcs/index.ts:334"
+  },
+  {
+   "id": "vcs.openOnRemote",
+   "menus": [
+    "openIn",
+    "copyPath"
+   ],
+   "$items": "function",
+   "source": "src/features/vcs/openOnRemote.ts:126"
   },
   {
    "id": "web.open",
@@ -771,7 +954,7 @@
    ],
    "order": 5,
    "$items": "function",
-   "source": "src/features/web/index.ts:100"
+   "source": "src/features/web/index.ts:110"
   },
   {
    "id": "web.openIn",
@@ -779,15 +962,15 @@
     "openIn"
    ],
    "$items": "function",
-   "source": "src/features/web/index.ts:118"
+   "source": "src/features/web/index.ts:128"
   }
  ],
  "registerMenuSlotItem": [
   {
-   "source": "src/features/plugins/uiPoints.tsx:177"
+   "source": "src/features/plugins/uiPoints.tsx:180"
   },
   {
-   "source": "src/features/plugins/uiPoints.tsx:182"
+   "source": "src/features/plugins/uiPoints.tsx:185"
   }
  ],
  "registerNavigationProvider": [
@@ -795,44 +978,133 @@
    "$from": "computed",
    "$to": "computed",
    "$targets": "computed",
-   "source": "src/features/plugins/navigation.ts:172"
+   "source": "src/features/cucumber/index.ts:160"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "$targets": "computed",
+   "source": "src/features/cucumber/index.ts:160"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "targets": [
+    {
+     "$path": "computed",
+     "range": {
+      "start": {
+       "line": 0,
+       "col": 0
+      },
+      "end": {
+       "line": 0,
+       "col": 0
+      }
+     }
+    }
+   ],
+   "source": "src/features/http-client/fileNavigation.ts:29"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "targets": [],
+   "source": "src/features/http-client/fileNavigation.ts:29"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "$targets": "computed",
+   "source": "src/features/http-client/variableNavigation.ts:39"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "$targets": "computed",
+   "source": "src/features/plugins/navigation.ts:193"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "$targets": "computed",
+   "source": "src/features/rails/index.ts:57"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "$targets": "computed",
+   "source": "src/features/rails/index.ts:57"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "$targets": "computed",
+   "source": "src/features/thymeleaf/index.ts:64"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "$targets": "computed",
+   "source": "src/features/thymeleaf/index.ts:64"
+  },
+  {
+   "$from": "computed",
+   "$to": "computed",
+   "$targets": "computed",
+   "source": "src/features/thymeleaf/index.ts:64"
   }
  ],
  "registerOccurrenceNavigator": [
   {
-   "source": "src/workbench/contributions.ts:1362"
+   "source": "src/workbench/contributions.ts:1628"
   }
  ],
  "registerOverlay": [
   {
    "id": "editor.gotoLine",
    "$component": "computed",
-   "source": "src/editor/core/index.ts:71"
+   "source": "src/editor/core/index.ts:93"
   },
   {
    "id": "editor.pasteHistory",
    "$component": "computed",
-   "source": "src/editor/core/index.ts:72"
+   "source": "src/editor/core/index.ts:94"
   },
   {
    "id": "editor.navigationBar",
    "$component": "computed",
-   "source": "src/editor/core/index.ts:73"
+   "source": "src/editor/core/index.ts:95"
   },
   {
    "id": "editor-lsp.popups",
    "$component": "computed",
-   "source": "src/editor/lsp/index.ts:83"
+   "source": "src/editor/lsp/index.ts:123"
   },
   {
    "id": "editor-lsp.hierarchyDialog",
    "$component": "computed",
-   "source": "src/editor/lsp/index.ts:84"
+   "source": "src/editor/lsp/index.ts:124"
+  },
+  {
+   "id": "editor-lsp.changeSignatureDialog",
+   "$component": "computed",
+   "source": "src/editor/lsp/index.ts:125"
+  },
+  {
+   "id": "editor-lsp.extractInterfaceDialog",
+   "$component": "computed",
+   "source": "src/editor/lsp/index.ts:126"
+  },
+  {
+   "id": "agents.importSessions",
+   "$component": "computed",
+   "source": "src/features/agents/index.ts:161"
   },
   {
    "id": "analysis.dialogs",
    "$component": "computed",
-   "source": "src/features/analysis/index.ts:29"
+   "source": "src/features/analysis/index.ts:33"
   },
   {
    "id": "app.about",
@@ -867,12 +1139,12 @@
   {
    "id": "build-tools.execute",
    "$component": "computed",
-   "source": "src/features/build-tools/index.ts:199"
+   "source": "src/features/build-tools/index.ts:223"
   },
   {
    "id": "code-insight.usagesPopup",
    "$component": "computed",
-   "source": "src/features/code-insight/index.ts:91"
+   "source": "src/features/code-insight/index.ts:120"
   },
   {
    "id": "coverage.manageReports",
@@ -882,12 +1154,12 @@
   {
    "id": "database.dialogs",
    "$component": "computed",
-   "source": "src/features/database/index.ts:80"
+   "source": "src/features/database/index.ts:115"
   },
   {
    "id": "debugger",
    "$component": "computed",
-   "source": "src/features/debugger/index.ts:69"
+   "source": "src/features/debugger/index.ts:95"
   },
   {
    "id": "deployment.dialogs",
@@ -922,42 +1194,42 @@
   {
    "id": "plugins.consent",
    "$component": "computed",
-   "source": "src/features/plugins/index.ts:63"
+   "source": "src/features/plugins/index.ts:64"
   },
   {
    "id": "plugins.intellijThemes",
    "$component": "computed",
-   "source": "src/features/plugins/index.ts:64"
+   "source": "src/features/plugins/index.ts:65"
   },
   {
    "id": "plugins.consent",
    "$component": "computed",
-   "source": "src/features/plugins/index.ts:80"
+   "source": "src/features/plugins/index.ts:81"
   },
   {
    "id": "plugins.intellijThemes",
    "$component": "computed",
-   "source": "src/features/plugins/index.ts:81"
+   "source": "src/features/plugins/index.ts:82"
   },
   {
    "id": "project.fileRefactor",
    "$component": "computed",
-   "source": "src/features/project-tree/index.ts:204"
+   "source": "src/features/project-tree/index.ts:237"
   },
   {
    "id": "project.refactoringPreview",
    "$component": "computed",
-   "source": "src/features/project-tree/index.ts:205"
+   "source": "src/features/project-tree/index.ts:238"
   },
   {
    "id": "project.newPopup",
    "$component": "computed",
-   "source": "src/features/project-tree/index.ts:206"
+   "source": "src/features/project-tree/index.ts:239"
   },
   {
    "id": "project.trustDialog",
    "$component": "computed",
-   "source": "src/features/project-trust/index.tsx:245"
+   "source": "src/features/project-trust/index.tsx:255"
   },
   {
    "id": "remote.connect",
@@ -972,32 +1244,32 @@
   {
    "id": "run.chooser",
    "$component": "computed",
-   "source": "src/features/run/index.ts:391"
+   "source": "src/features/run/index.ts:439"
   },
   {
    "id": "run.editConfigs",
    "$component": "computed",
-   "source": "src/features/run/index.ts:392"
+   "source": "src/features/run/index.ts:440"
   },
   {
    "id": "run.dialogs",
    "$component": "computed",
-   "source": "src/features/run/index.ts:396"
+   "source": "src/features/run/index.ts:444"
   },
   {
    "id": "run.serviceImport",
    "$component": "computed",
-   "source": "src/features/run/index.ts:397"
+   "source": "src/features/run/index.ts:445"
   },
   {
    "id": "run.serviceImport",
    "$component": "computed",
-   "source": "src/features/run/index.ts:398"
+   "source": "src/features/run/index.ts:446"
   },
   {
    "id": "run.stackTraceDialog",
    "$component": "computed",
-   "source": "src/features/run/stackTrace.tsx:153"
+   "source": "src/features/run/stackTrace.tsx:154"
   },
   {
    "id": "scratch.chooser",
@@ -1007,37 +1279,37 @@
   {
    "id": "search.everywhere",
    "$component": "computed",
-   "source": "src/features/search/index.ts:130"
+   "source": "src/features/search/index.ts:137"
   },
   {
    "id": "search.recent",
    "$component": "computed",
-   "source": "src/features/search/index.ts:136"
+   "source": "src/features/search/index.ts:143"
   },
   {
    "id": "search.findInFiles",
    "$component": "computed",
-   "source": "src/features/search/index.ts:140"
+   "source": "src/features/search/index.ts:147"
   },
   {
    "id": "search.scopes",
    "$component": "computed",
-   "source": "src/features/search/index.ts:144"
+   "source": "src/features/search/index.ts:151"
   },
   {
    "id": "search.fileStructure",
    "$component": "computed",
-   "source": "src/features/search/index.ts:145"
+   "source": "src/features/search/index.ts:152"
   },
   {
    "id": "search.bookmarks",
    "$component": "computed",
-   "source": "src/features/search/index.ts:151"
+   "source": "src/features/search/index.ts:158"
   },
   {
    "id": "services.dialogs",
    "$component": "computed",
-   "source": "src/features/services/index.ts:80"
+   "source": "src/features/services/index.ts:98"
   },
   {
    "id": "settings.dialog",
@@ -1052,7 +1324,7 @@
   {
    "id": "settings.assignShortcut",
    "$component": "computed",
-   "source": "src/features/settings/index.ts:139"
+   "source": "src/features/settings/index.ts:140"
   },
   {
    "id": "ssh.askpass",
@@ -1062,27 +1334,32 @@
   {
    "id": "templates.chooser",
    "$component": "computed",
-   "source": "src/features/templates/index.ts:177"
+   "source": "src/features/templates/index.ts:202"
   },
   {
    "id": "templates.newFile",
    "$component": "computed",
-   "source": "src/features/templates/index.ts:178"
+   "source": "src/features/templates/index.ts:203"
   },
   {
    "id": "templates.emmetUpdateTag",
    "$component": "computed",
-   "source": "src/features/templates/index.ts:179"
+   "source": "src/features/templates/index.ts:204"
   },
   {
    "id": "vcs.dialogs",
    "$component": "computed",
-   "source": "src/features/vcs/index.ts:240"
+   "source": "src/features/vcs/index.ts:263"
   },
   {
    "id": "vcs.branches",
    "$component": "computed",
-   "source": "src/features/vcs/index.ts:241"
+   "source": "src/features/vcs/index.ts:264"
+  },
+  {
+   "id": "vcs.syncCommits",
+   "$component": "computed",
+   "source": "src/features/vcs/index.ts:265"
   },
   {
    "id": "welcome.recentProjects",
@@ -1092,12 +1369,17 @@
   {
    "id": "workbench.customizeToolbar",
    "$component": "computed",
-   "source": "src/workbench/activate.ts:81"
+   "source": "src/workbench/activate.ts:85"
   },
   {
    "id": "workbench.backgroundTasks",
    "$component": "computed",
-   "source": "src/workbench/activate.ts:82"
+   "source": "src/workbench/activate.ts:86"
+  }
+ ],
+ "registerPendingEdits": [
+  {
+   "source": "src/features/notebook/index.ts:91"
   }
  ],
  "registerProjectViewRoot": [
@@ -1108,7 +1390,7 @@
    "order": 5,
    "readOnly": true,
    "$children": "computed",
-   "source": "src/features/libraries/index.ts:159"
+   "source": "src/features/libraries/index.ts:181"
   },
   {
    "$id": "computed",
@@ -1123,6 +1405,8 @@
     "github",
     "stop",
     "pause",
+    "image",
+    "package",
     "folder",
     "refresh",
     "edit",
@@ -1130,25 +1414,62 @@
     "filter",
     "word",
     "plugin",
-    "server",
-    "commit",
-    "branch",
     "module",
-    "tag",
-    "settings",
-    "sort",
-    "web",
-    "replace",
-    "search",
-    "split",
     "class",
     "interface",
     "enum",
     "method",
     "field",
     "variable",
-    "package",
+    "server",
+    "commit",
+    "branch",
+    "diff",
+    "run",
+    "tag",
+    "settings",
+    "database",
+    "sort",
     "annotation",
+    "replace",
+    "search",
+    "split",
+    "project-flutter",
+    "project-vite",
+    "project-angular",
+    "project-astro",
+    "project-cpp",
+    "project-dart",
+    "project-django",
+    "project-dotnet",
+    "project-elixir",
+    "project-express",
+    "project-fastapi",
+    "project-flask",
+    "project-go",
+    "project-haskell",
+    "project-html",
+    "project-java",
+    "project-kotlin",
+    "project-ktor",
+    "project-laravel",
+    "project-nestjs",
+    "project-nextjs",
+    "project-node",
+    "project-nuxt",
+    "project-phoenix",
+    "project-php",
+    "project-python",
+    "project-quarkus",
+    "project-rails",
+    "project-ruby",
+    "project-rust",
+    "project-scala",
+    "project-spring-boot",
+    "project-sveltekit",
+    "project-swift",
+    "project-symfony",
+    "project-zig",
     "folder-open",
     "folder-source",
     "folder-test",
@@ -1166,6 +1487,7 @@
     "exception",
     "jvm-test",
     "runnable-mark",
+    "symlink-mark",
     "kotlin-object",
     "spring-config",
     "gradle-project",
@@ -1191,6 +1513,7 @@
     "file-ts",
     "file-tsx",
     "file-npm",
+    "file-bun",
     "file-vue",
     "file-svelte",
     "file-jsp",
@@ -1251,6 +1574,9 @@
     "file-gdshader",
     "file-asciidoc",
     "file-d",
+    "file-gherkin",
+    "file-prisma",
+    "file-slint",
     "file-dart",
     "file-elixir",
     "file-erlang",
@@ -1316,6 +1642,7 @@
     "toolwindow-database",
     "toolwindow-agents",
     "toolwindow-graphql",
+    "toolwindow-sbt",
     "agent-claude",
     "agent-codex",
     "agent-gemini",
@@ -1323,16 +1650,25 @@
     "agent-cursor",
     "agent-opencode",
     "agent-qwen",
+    "agent-qoder",
+    "agent-qodercn",
     "agent-kimi",
     "agent-goose",
     "agent-auggie",
     "agent-kiro",
     "agent-vibe",
+    "agent-omp",
     "toolwindow-maven",
     "toolwindow-gradle",
     "toolwindow-build",
+    "python-venv",
+    "python-conda",
+    "python-uv",
+    "python-poetry",
+    "python-versions",
     "chevron-right",
     "chevron-down",
+    "toolbar-expand",
     "chevron-up",
     "chevron-left",
     "close",
@@ -1359,13 +1695,19 @@
     "layout",
     "split-horizontal",
     "editor-only",
+    "swap-panels",
+    "external-tools",
     "editor-preview",
+    "preview-details",
     "preview-only",
     "maximize",
+    "fullscreen",
+    "download",
     "zoom-in",
     "zoom-out",
     "actual-size",
     "chessboard",
+    "eyedropper",
     "minimize",
     "main-menu",
     "window-minimize",
@@ -1394,6 +1736,7 @@
     "arrow-right",
     "arrow-up",
     "arrow-down",
+    "scroll-to-end",
     "undo",
     "redo",
     "sun",
@@ -1406,7 +1749,6 @@
     "history",
     "clock",
     "bell",
-    "database",
     "db-table",
     "db-view",
     "db-column",
@@ -1424,6 +1766,7 @@
     "db-sequence",
     "db-plan",
     "db-chart",
+    "db-in-editor-results",
     "db-sort",
     "db-folder",
     "db-add",
@@ -1435,6 +1778,7 @@
     "db-mysql",
     "db-sqlserver",
     "db-oracle",
+    "db-snowflake",
     "db-mariadb",
     "db-aurora",
     "db-redshift",
@@ -1448,6 +1792,7 @@
     "db-timescale",
     "db-yugabyte",
     "export",
+    "web",
     "browser-chrome",
     "browser-chromium",
     "browser-firefox",
@@ -1462,12 +1807,18 @@
     "bookmark",
     "warning",
     "success",
-    "run",
+    "test-passed",
+    "test-failed",
+    "test-ignored",
+    "test-pending",
+    "test-show-passed",
+    "test-show-ignored",
     "run-coverage",
     "profile",
     "toolwindow-coverage",
     "toolwindow-profiler",
     "toolwindow-logcat",
+    "gutter-navigate",
     "gutter-run",
     "gutter-run-all",
     "gutter-run-passed",
@@ -1476,6 +1827,8 @@
     "gutter-implementing",
     "gutter-overridden",
     "gutter-overriding",
+    "gutter-javadoc-read",
+    "gutter-javadoc-edit",
     "rerun",
     "hot-reload",
     "rerun-filled",
@@ -1503,6 +1856,7 @@
     "breakpoint-exception",
     "mute-breakpoint",
     "view-breakpoints",
+    "heap-snapshot",
     "maven-project",
     "maven-module",
     "maven-goal",
@@ -1527,8 +1881,9 @@
     "git-fetch",
     "vcs-incoming",
     "vcs-outgoing",
-    "diff",
     "revert",
+    "diff-side-by-side",
+    "diff-unified",
     "diff-apply-left",
     "diff-apply-all",
     "diff-apply-right",
@@ -1583,23 +1938,23 @@
     "ci-skipped",
     "ci-failed-in-progress",
     "symbol-function",
-    "symbol-file",
+    "symbol-package",
     "symbol-text",
+    "symbol-file",
     "symbol-module",
-    "symbol-property",
+    "symbol-namespace",
     "symbol-class",
     "symbol-interface",
-    "symbol-enum",
     "symbol-struct",
+    "symbol-enum",
     "symbol-trait",
     "symbol-method",
     "symbol-constructor",
     "symbol-field",
+    "symbol-property",
     "symbol-variable",
     "symbol-constant",
     "symbol-parameter",
-    "symbol-namespace",
-    "symbol-package",
     "symbol-type",
     "symbol-annotation",
     "symbol-keyword",
@@ -1607,13 +1962,22 @@
    ],
    "$path": "computed",
    "$order": "computed",
-   "source": "src/features/project-tree/index.ts:131"
+   "source": "src/features/project-tree/index.ts:140"
+  },
+  {
+   "$id": "computed",
+   "$label": "computed",
+   "$detail": "computed",
+   "icon": "maven-project",
+   "$path": "computed",
+   "$order": "computed",
+   "source": "src/features/project-tree/index.ts:151"
   },
   {
    "$id": "computed",
    "$order": "computed",
    "beforeProject": true,
-   "source": "src/features/project-tree/index.ts:141"
+   "source": "src/features/project-tree/index.ts:162"
   },
   {
    "id": "scratches",
@@ -1632,7 +1996,7 @@
    "order": 20,
    "$items": "function",
    "$execute": "function",
-   "source": "src/features/build-tools/index.ts:202"
+   "source": "src/features/build-tools/index.ts:227"
   },
   {
    "id": "run.configs",
@@ -1640,7 +2004,7 @@
    "order": 10,
    "$items": "function",
    "$execute": "function",
-   "source": "src/features/run/index.ts:387"
+   "source": "src/features/run/index.ts:433"
   }
  ],
  "registerRunConfigType": [
@@ -1723,7 +2087,7 @@
     }
    ],
    "$commandLine": "function",
-   "source": "src/features/debugger/index.ts:58"
+   "source": "src/features/debugger/index.ts:78"
   },
   {
    "id": "go-remote",
@@ -1738,7 +2102,7 @@
    "debugAdapter": "delve",
    "$fields": "computed",
    "$commandLine": "function",
-   "source": "src/features/debugger/index.ts:58"
+   "source": "src/features/debugger/index.ts:78"
   },
   {
    "id": "python-remote",
@@ -1753,7 +2117,7 @@
    "debugAdapter": "debugpy",
    "$fields": "computed",
    "$commandLine": "function",
-   "source": "src/features/debugger/index.ts:58"
+   "source": "src/features/debugger/index.ts:78"
   },
   {
    "id": "node-remote",
@@ -1768,7 +2132,7 @@
    "debugAdapter": "js-debug",
    "$fields": "computed",
    "$commandLine": "function",
-   "source": "src/features/debugger/index.ts:58"
+   "source": "src/features/debugger/index.ts:78"
   },
   {
    "id": "php-remote",
@@ -1782,7 +2146,7 @@
    "debugAdapter": "php-debug",
    "$fields": "computed",
    "$commandLine": "function",
-   "source": "src/features/debugger/index.ts:58"
+   "source": "src/features/debugger/index.ts:78"
   },
   {
    "id": "godot-attach",
@@ -1817,7 +2181,79 @@
     }
    ],
    "$commandLine": "function",
-   "source": "src/features/debugger/index.ts:58"
+   "source": "src/features/debugger/index.ts:78"
+  },
+  {
+   "id": "js-browser",
+   "label": "JavaScript Debug",
+   "icon": "browser-chrome",
+   "description": "Open a page in Chrome or Edge and debug its JavaScript and TypeScript",
+   "defaults": {
+    "url": "http://localhost:5173",
+    "browser": "chrome"
+   },
+   "debugOnly": true,
+   "debugAdapter": "js-debug",
+   "fields": [
+    {
+     "key": "url",
+     "label": "URL",
+     "mono": true,
+     "required": true,
+     "$validate": "function",
+     "hint": "Start the page's server first, e.g. the dev script of package.json"
+    },
+    {
+     "key": "browser",
+     "label": "Browser",
+     "control": "select",
+     "options": [
+      {
+       "value": "chrome",
+       "label": "Chrome"
+      },
+      {
+       "value": "edge",
+       "label": "Edge"
+      }
+     ]
+    },
+    {
+     "key": "webRoot",
+     "label": "Web root",
+     "mono": true,
+     "placeholder": "Project root",
+     "hint": "Folder whose files the URL serves",
+     "browse": "directory"
+    }
+   ],
+   "$commandLine": "function",
+   "source": "src/features/debugger/index.ts:79"
+  },
+  {
+   "id": "junit",
+   "label": "JUnit",
+   "icon": "jvm-test",
+   "description": "Run JUnit tests through the module's Maven or Gradle build",
+   "defaults": {
+    "module": ".",
+    "testKind": "class"
+   },
+   "debugAdapter": "java-debug",
+   "ownsWorkingDirectory": true,
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$prepareLaunch": "function",
+   "source": "src/features/run/index.ts:435"
+  },
+  {
+   "id": "unity-editor",
+   "label": "Unity Editor",
+   "icon": "attach-to-process",
+   "debugOnly": true,
+   "fields": [],
+   "$commandLine": "function",
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "shell",
@@ -1901,7 +2337,7 @@
    ],
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "program",
@@ -1925,7 +2361,7 @@
    ],
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "npm",
@@ -1976,12 +2412,54 @@
      "mono": true,
      "browse": "file",
      "placeholder": "Project default",
-     "hint": "The node executable this script runs on; empty uses Settings › Languages & Frameworks › Node.js."
+     "hint": "The node executable this script runs on; empty uses Settings › Languages & Frameworks › JavaScript Runtime."
     }
    ],
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
+  },
+  {
+   "id": "bun",
+   "label": "Bun",
+   "icon": "file-bun",
+   "description": "Run a TypeScript or JavaScript file with Bun",
+   "defaults": {
+    "packageManager": "bun",
+    "command": "run"
+   },
+   "ownsWorkingDirectory": true,
+   "fields": [
+    {
+     "key": "packageDir",
+     "label": "Working directory",
+     "mono": true,
+     "browse": "directory",
+     "placeholder": "Project root"
+    },
+    {
+     "key": "command",
+     "label": "Command",
+     "control": "select",
+     "$options": "computed"
+    },
+    {
+     "key": "script",
+     "label": "Script",
+     "mono": true,
+     "required": true,
+     "$visible": "function",
+     "$suggestions": "function"
+    },
+    {
+     "key": "arguments",
+     "label": "Arguments",
+     "mono": true
+    }
+   ],
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "gradle",
@@ -1994,7 +2472,7 @@
    "$commandLine": "function",
    "$prepareLaunch": "computed",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "maven",
@@ -2007,7 +2485,7 @@
    "$commandLine": "function",
    "$prepareLaunch": "computed",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "godot",
@@ -2041,7 +2519,7 @@
    ],
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "pytest",
@@ -2084,7 +2562,7 @@
    ],
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "ruby",
@@ -2095,7 +2573,7 @@
    "$fields": "computed",
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "rake",
@@ -2108,7 +2586,7 @@
    "$fields": "computed",
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "rspec",
@@ -2121,7 +2599,7 @@
    "$fields": "computed",
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "django-test",
@@ -2171,7 +2649,7 @@
    ],
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "phpunit",
@@ -2221,7 +2699,7 @@
    ],
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "dotnet",
@@ -2271,8 +2749,9 @@
     }
    ],
    "$commandLine": "function",
+   "$paramsFrom": "computed",
    "$prepareLaunch": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "dotnet-test",
@@ -2282,7 +2761,7 @@
    "$fields": "computed",
    "$commandLine": "function",
    "$prepareLaunch": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "go",
@@ -2371,7 +2850,7 @@
    ],
    "$commandLine": "computed",
    "$paramsFrom": "computed",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "go-test",
@@ -2459,7 +2938,7 @@
    ],
    "$commandLine": "computed",
    "$paramsFrom": "computed",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "application",
@@ -2473,7 +2952,7 @@
    "$fields": "computed",
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "spring-boot",
@@ -2489,7 +2968,18 @@
    "$fields": "computed",
    "$commandLine": "function",
    "$paramsFrom": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
+  },
+  {
+   "id": "jar-application",
+   "label": "JAR Application",
+   "icon": "file-binary",
+   "description": "Run an executable JAR",
+   "debugAdapter": "java-debug",
+   "$fields": "computed",
+   "$commandLine": "function",
+   "$paramsFrom": "function",
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "tomcat",
@@ -2511,7 +3001,7 @@
    "$fields": "computed",
    "$commandLine": "function",
    "$prepareLaunch": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "compound",
@@ -2520,7 +3010,7 @@
    "description": "Run or debug several configurations together",
    "fields": [],
    "$commandLine": "function",
-   "source": "src/features/run/types.ts:456"
+   "source": "src/features/run/types.ts:512"
   },
   {
    "id": "docker-dockerfile",
@@ -2680,14 +3170,34 @@
    "source": "src/features/coverage/index.ts:18"
   },
   {
-   "id": "profiler",
-   "$label": "function",
+   "$id": "computed",
+   "$label": "computed",
    "icon": "profile",
-   "action": "run.profile",
-   "order": 20,
-   "$supports": "function",
-   "$prepare": "computed",
-   "source": "src/features/profiler/index.ts:14"
+   "$action": "computed",
+   "$order": "computed",
+   "$supports": "computed",
+   "$prepare": "function",
+   "source": "src/features/profiler/index.ts:15"
+  },
+  {
+   "$id": "computed",
+   "$label": "computed",
+   "icon": "profile",
+   "$action": "computed",
+   "$order": "computed",
+   "$supports": "computed",
+   "$prepare": "function",
+   "source": "src/features/profiler/index.ts:16"
+  },
+  {
+   "$id": "computed",
+   "$label": "computed",
+   "icon": "profile",
+   "$action": "computed",
+   "$order": "computed",
+   "$supports": "computed",
+   "$prepare": "function",
+   "source": "src/features/profiler/index.ts:17"
   }
  ],
  "registerRunningProcessesProvider": [
@@ -2695,7 +3205,7 @@
    "id": "run",
    "$running": "function",
    "$stop": "function",
-   "source": "src/features/run/index.ts:401"
+   "source": "src/features/run/index.ts:450"
   }
  ],
  "registerSaveParticipant": [
@@ -2703,19 +3213,19 @@
    "id": "lsp.formatOnSave",
    "order": 50,
    "$beforeSave": "function",
-   "source": "src/editor/lsp/actions.ts:139"
+   "source": "src/editor/lsp/actions.ts:146"
   },
   {
    "id": "lsp.organizeImportsOnSave",
    "order": 40,
    "$beforeSave": "function",
-   "source": "src/editor/lsp/actions.ts:152"
+   "source": "src/editor/lsp/actions.ts:159"
   },
   {
    "id": "lsp.cleanupOnSave",
    "order": 45,
    "$beforeSave": "function",
-   "source": "src/editor/lsp/actions.ts:152"
+   "source": "src/editor/lsp/actions.ts:159"
   }
  ],
  "registerServiceProvider": [
@@ -2729,7 +3239,7 @@
    "$activate": "function",
    "$expand": "function",
    "$detail": "computed",
-   "source": "src/features/plugins/uiPoints.tsx:372"
+   "source": "src/features/plugins/uiPoints.tsx:379"
   },
   {
    "id": "runConfigurations",
@@ -2744,7 +3254,7 @@
     "$canMove": "function",
     "$move": "function"
    },
-   "source": "src/features/run/index.ts:399"
+   "source": "src/features/run/index.ts:447"
   },
   {
    "id": "docker",
@@ -2757,7 +3267,7 @@
    "$detail": "computed",
    "$banner": "computed",
    "$addMenu": "function",
-   "source": "src/features/services/index.ts:72"
+   "source": "src/features/services/index.ts:90"
   }
  ],
  "registerServiceView": [
@@ -2768,7 +3278,7 @@
    "order": 20,
    "onUse": true,
    "$component": "computed",
-   "source": "src/features/database/index.ts:66"
+   "source": "src/features/database/index.ts:101"
   },
   {
    "id": "httpClient",
@@ -2778,7 +3288,7 @@
    "onUse": true,
    "$component": "computed",
    "$headerActions": "computed",
-   "source": "src/features/http-client/index.ts:127"
+   "source": "src/features/http-client/index.ts:147"
   },
   {
    "id": "services",
@@ -2786,15 +3296,15 @@
    "icon": "toolwindow-services",
    "order": 0,
    "$component": "computed",
-   "source": "src/features/services/index.ts:65"
+   "source": "src/features/services/index.ts:83"
   }
  ],
  "registerSettingsPage": [
   {
-   "id": "tools.agents",
-   "title": "Agents",
-   "group": "Tools",
-   "order": 500,
+   "id": "agents.list",
+   "title": "Coding Agents",
+   "group": "Agents",
+   "order": 450,
    "keywords": [
     "agent",
     "acp",
@@ -2804,7 +3314,79 @@
     "coding agent"
    ],
    "$component": "computed",
-   "source": "src/features/agents/index.ts:30"
+   "source": "src/features/agents/index.ts:61"
+  },
+  {
+   "id": "agents.workingStatus",
+   "title": "Working Status",
+   "group": "Agents",
+   "order": 465,
+   "keywords": [
+    "agent",
+    "status",
+    "playful",
+    "words",
+    "working",
+    "spinner",
+    "fun",
+    "delay",
+    "seconds"
+   ],
+   "$component": "computed",
+   "source": "src/features/agents/index.ts:70"
+  },
+  {
+   "id": "agents.mcpServers",
+   "title": "External MCP Servers",
+   "group": "Agents",
+   "order": 475,
+   "keywords": [
+    "mcp",
+    "model context protocol",
+    "servers",
+    "tools",
+    "agent"
+   ],
+   "$component": "computed",
+   "source": "src/features/agents/index.ts:79"
+  },
+  {
+   "id": "agents.policy",
+   "title": "Command Permissions",
+   "group": "Agents",
+   "order": 490,
+   "keywords": [
+    "agent",
+    "policy",
+    "security",
+    "whitelist",
+    "blacklist",
+    "permission",
+    "command",
+    "exec"
+   ],
+   "$component": "computed",
+   "source": "src/features/agents/index.ts:87"
+  },
+  {
+   "id": "languages.sqlResolutionScopes",
+   "title": "SQL Resolution Scopes",
+   "group": "Languages & Frameworks",
+   "order": 404.5,
+   "projectScope": true,
+   "defaultScope": "project",
+   "keywords": [
+    "sql",
+    "data source",
+    "database",
+    "schema",
+    "mybatis",
+    "mapper",
+    "resolve",
+    "dialect"
+   ],
+   "$component": "computed",
+   "source": "src/features/database/settingsPages.ts:6"
   },
   {
    "id": "vcs.github",
@@ -2831,7 +3413,7 @@
     "marketplace"
    ],
    "$component": "computed",
-   "source": "src/features/plugins/index.ts:44"
+   "source": "src/features/plugins/index.ts:45"
   },
   {
    "$id": "computed",
@@ -2839,7 +3421,7 @@
    "projectScope": true,
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/plugins/settings.tsx:327"
+   "source": "src/features/plugins/settings.tsx:376"
   },
   {
    "$id": "computed",
@@ -2847,14 +3429,14 @@
    "projectScope": true,
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/plugins/settings.tsx:337"
+   "source": "src/features/plugins/settings.tsx:386"
   },
   {
    "id": "projectTrust",
    "title": "Project Trust",
    "group": "Security",
    "$component": "computed",
-   "source": "src/features/project-trust/index.tsx:247"
+   "source": "src/features/project-trust/index.tsx:257"
   },
   {
    "$id": "computed",
@@ -2870,7 +3452,7 @@
    "$order": "computed",
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/settings/pages/registry.tsx:62"
+   "source": "src/features/settings/pages/registry.tsx:64"
   },
   {
    "$id": "computed",
@@ -2879,7 +3461,7 @@
    "$order": "computed",
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/settings/pages/registry.tsx:62"
+   "source": "src/features/settings/pages/registry.tsx:64"
   },
   {
    "$id": "computed",
@@ -2888,7 +3470,7 @@
    "$order": "computed",
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/settings/pages/registry.tsx:62"
+   "source": "src/features/settings/pages/registry.tsx:64"
   },
   {
    "$id": "computed",
@@ -2897,7 +3479,7 @@
    "$order": "computed",
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/settings/pages/registry.tsx:69"
+   "source": "src/features/settings/pages/registry.tsx:71"
   },
   {
    "$id": "computed",
@@ -2906,7 +3488,7 @@
    "$order": "computed",
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/settings/pages/registry.tsx:69"
+   "source": "src/features/settings/pages/registry.tsx:71"
   },
   {
    "$id": "computed",
@@ -2915,7 +3497,7 @@
    "$order": "computed",
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/settings/pages/registry.tsx:69"
+   "source": "src/features/settings/pages/registry.tsx:71"
   },
   {
    "$id": "computed",
@@ -2924,7 +3506,7 @@
    "$order": "computed",
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/settings/pages/registry.tsx:82"
+   "source": "src/features/settings/pages/registry.tsx:84"
   },
   {
    "$id": "computed",
@@ -2933,7 +3515,7 @@
    "$order": "computed",
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/settings/pages/registry.tsx:82"
+   "source": "src/features/settings/pages/registry.tsx:84"
   },
   {
    "$id": "computed",
@@ -2942,7 +3524,7 @@
    "$order": "computed",
    "$keywords": "computed",
    "$component": "computed",
-   "source": "src/features/settings/pages/registry.tsx:82"
+   "source": "src/features/settings/pages/registry.tsx:84"
   },
   {
    "id": "editor.liveTemplates",
@@ -2956,7 +3538,7 @@
     "template"
    ],
    "$component": "computed",
-   "source": "src/features/templates/index.ts:145"
+   "source": "src/features/templates/index.ts:170"
   },
   {
    "id": "editor.general.postfixCompletion",
@@ -2971,7 +3553,7 @@
     ".for"
    ],
    "$component": "computed",
-   "source": "src/features/templates/index.ts:153"
+   "source": "src/features/templates/index.ts:178"
   },
   {
    "id": "editor.fileTemplates",
@@ -2990,7 +3572,7 @@
     "reformat"
    ],
    "$component": "computed",
-   "source": "src/features/templates/index.ts:162"
+   "source": "src/features/templates/index.ts:187"
   },
   {
    "id": "editor.todo",
@@ -3025,7 +3607,7 @@
    ],
    "projectScope": true,
    "$component": "computed",
-   "source": "src/features/tools/index.ts:17"
+   "source": "src/features/tools/index.ts:18"
   },
   {
    "id": "vcs.log",
@@ -3039,7 +3621,7 @@
     "commit time"
    ],
    "$component": "computed",
-   "source": "src/features/vcs/index.ts:166"
+   "source": "src/features/vcs/index.ts:184"
   },
   {
    "id": "editor.vim",
@@ -3060,7 +3642,7 @@
  ],
  "registerSoftWrapSurface": [
   {
-   "source": "src/features/vcs/DiffEditor.tsx:384"
+   "source": "src/features/vcs/DiffEditor.tsx:453"
   }
  ],
  "registerStatusItem": [
@@ -3070,7 +3652,7 @@
    "priority": 0,
    "$component": "computed",
    "title": "Navigation Bar",
-   "source": "src/editor/core/index.ts:75"
+   "source": "src/editor/core/index.ts:97"
   },
   {
    "id": "editor.caret",
@@ -3079,7 +3661,7 @@
    "$component": "computed",
    "title": "Line:Column Number",
    "lightEdit": true,
-   "source": "src/editor/core/index.ts:82"
+   "source": "src/editor/core/index.ts:104"
   },
   {
    "id": "editor.lineEnding",
@@ -3088,7 +3670,7 @@
    "$component": "computed",
    "title": "Line Separator",
    "lightEdit": true,
-   "source": "src/editor/core/index.ts:90"
+   "source": "src/editor/core/index.ts:112"
   },
   {
    "id": "editor.encoding",
@@ -3097,7 +3679,7 @@
    "$component": "computed",
    "title": "File Encoding",
    "lightEdit": true,
-   "source": "src/editor/core/index.ts:98"
+   "source": "src/editor/core/index.ts:120"
   },
   {
    "id": "editor.indent",
@@ -3106,7 +3688,7 @@
    "$component": "computed",
    "title": "Indentation",
    "lightEdit": true,
-   "source": "src/editor/core/index.ts:106"
+   "source": "src/editor/core/index.ts:128"
   },
   {
    "id": "editor.readOnly",
@@ -3115,14 +3697,14 @@
    "$component": "computed",
    "title": "Read-only Attribute",
    "lightEdit": true,
-   "source": "src/editor/core/index.ts:114"
+   "source": "src/editor/core/index.ts:136"
   },
   {
    "id": "editor-lsp.usagesStatus",
    "align": "left",
    "priority": 10,
    "$component": "computed",
-   "source": "src/editor/lsp/index.ts:86"
+   "source": "src/editor/lsp/index.ts:129"
   },
   {
    "id": "agents.status",
@@ -3130,7 +3712,7 @@
    "priority": 3,
    "title": "Agents",
    "$component": "computed",
-   "source": "src/features/agents/index.ts:108"
+   "source": "src/features/agents/index.ts:214"
   },
   {
    "id": "app.lightEdit",
@@ -3146,7 +3728,7 @@
    "priority": 5,
    "$component": "computed",
    "title": "Language Services",
-   "source": "src/features/code-insight/index.ts:84"
+   "source": "src/features/code-insight/index.ts:113"
   },
   {
    "id": "macros.recording",
@@ -3174,7 +3756,7 @@
    ],
    "$priority": "computed",
    "$component": "computed",
-   "source": "src/features/plugins/runtimeUi.tsx:159"
+   "source": "src/features/plugins/runtimeUi.tsx:164"
   },
   {
    "id": "remote.location",
@@ -3190,7 +3772,7 @@
    "align": "right",
    "priority": 89,
    "$component": "computed",
-   "source": "src/features/settings/languages/PhpStatus.tsx:145"
+   "source": "src/features/settings/languages/PhpStatus.tsx:155"
   },
   {
    "id": "python.interpreter",
@@ -3198,7 +3780,7 @@
    "align": "right",
    "priority": 90,
    "$component": "computed",
-   "source": "src/features/settings/languages/PythonStatus.tsx:175"
+   "source": "src/features/settings/languages/PythonStatus.tsx:238"
   },
   {
    "id": "vim.mode",
@@ -3215,7 +3797,7 @@
    "priority": 0,
    "$component": "computed",
    "lightEdit": true,
-   "source": "src/workbench/activate.ts:83"
+   "source": "src/workbench/activate.ts:87"
   },
   {
    "id": "workbench.info",
@@ -3223,7 +3805,7 @@
    "priority": 5,
    "$component": "computed",
    "lightEdit": true,
-   "source": "src/workbench/activate.ts:84"
+   "source": "src/workbench/activate.ts:88"
   }
  ],
  "registerTextEditorWrapper": [
@@ -3232,20 +3814,20 @@
    "$matches": "computed",
    "$component": "computed",
    "$tabActions": "computed",
-   "source": "src/features/plugins/uiPoints.tsx:471"
+   "source": "src/features/plugins/uiPoints.tsx:478"
   },
   {
    "id": "viewers.markdown",
    "$matches": "computed",
    "$component": "computed",
    "$tabActions": "computed",
-   "source": "src/features/viewers/index.ts:108"
+   "source": "src/features/viewers/index.ts:120"
   },
   {
    "id": "web.html",
    "$matches": "computed",
    "$component": "computed",
-   "source": "src/features/web/index.ts:62"
+   "source": "src/features/web/index.ts:72"
   }
  ],
  "registerTitleItem": [
@@ -3271,7 +3853,7 @@
    "align": "right",
    "priority": 0,
    "$component": "computed",
-   "source": "src/features/run/index.ts:386"
+   "source": "src/features/run/index.ts:432"
   },
   {
    "id": "vcs.mergeRebase",
@@ -3279,7 +3861,7 @@
    "align": "left",
    "priority": 11,
    "$component": "computed",
-   "source": "src/features/vcs/index.ts:60"
+   "source": "src/features/vcs/index.ts:66"
   },
   {
    "id": "vcs.branch",
@@ -3287,7 +3869,7 @@
    "align": "left",
    "priority": 10,
    "$component": "computed",
-   "source": "src/features/vcs/index.ts:84"
+   "source": "src/features/vcs/index.ts:90"
   }
  ],
  "registerToolWindow": [
@@ -3300,7 +3882,7 @@
    "stripe": "onUse",
    "order": 90,
    "$component": "computed",
-   "source": "src/editor/lsp/index.ts:88"
+   "source": "src/editor/lsp/index.ts:131"
   },
   {
    "id": "agents",
@@ -3309,10 +3891,11 @@
    "anchor": "right",
    "order": 0.5,
    "$component": "computed",
-   "$headerContent": "computed",
+   "$headerMenu": "computed",
+   "plainTitle": true,
    "$headerActions": "computed",
    "$useBadge": "function",
-   "source": "src/features/agents/index.ts:67"
+   "source": "src/features/agents/index.ts:141"
   },
   {
    "id": "inspection",
@@ -3324,7 +3907,7 @@
    "$component": "computed",
    "$headerActions": "computed",
    "$headerMenu": "computed",
-   "source": "src/features/analysis/index.ts:30"
+   "source": "src/features/analysis/index.ts:34"
   },
   {
    "id": "duplicates",
@@ -3335,7 +3918,7 @@
    "order": 37,
    "$component": "computed",
    "$headerActions": "computed",
-   "source": "src/features/analysis/index.ts:41"
+   "source": "src/features/analysis/index.ts:45"
   },
   {
    "id": "maven",
@@ -3344,7 +3927,7 @@
    "anchor": "right",
    "order": 10,
    "$component": "computed",
-   "source": "src/features/build-tools/index.ts:138"
+   "source": "src/features/build-tools/index.ts:147"
   },
   {
    "id": "gradle",
@@ -3353,7 +3936,16 @@
    "anchor": "right",
    "order": 11,
    "$component": "computed",
-   "source": "src/features/build-tools/index.ts:146"
+   "source": "src/features/build-tools/index.ts:155"
+  },
+  {
+   "id": "sbt",
+   "title": "sbt",
+   "icon": "toolwindow-sbt",
+   "anchor": "right",
+   "order": 12,
+   "$component": "computed",
+   "source": "src/features/build-tools/index.ts:173"
   },
   {
    "id": "gradle",
@@ -3362,7 +3954,7 @@
    "anchor": "right",
    "order": 11,
    "$component": "computed",
-   "source": "src/features/build-tools/index.ts:183"
+   "source": "src/features/build-tools/index.ts:207"
   },
   {
    "id": "build",
@@ -3387,7 +3979,7 @@
    "$headerActions": "computed",
    "$headerMenu": "computed",
    "$useBadge": "computed",
-   "source": "src/features/code-insight/index.ts:51"
+   "source": "src/features/code-insight/index.ts:79"
   },
   {
    "id": "usages",
@@ -3395,11 +3987,12 @@
    "icon": "toolwindow-usages",
    "anchor": "bottom",
    "stripe": "onUse",
+   "sessionContent": true,
    "order": 35,
    "$component": "computed",
    "$headerContent": "computed",
    "$headerMenu": "computed",
-   "source": "src/features/code-insight/index.ts:63"
+   "source": "src/features/code-insight/index.ts:91"
   },
   {
    "id": "hierarchy",
@@ -3410,7 +4003,7 @@
    "order": 40,
    "$component": "computed",
    "$headerContent": "computed",
-   "source": "src/features/code-insight/index.ts:74"
+   "source": "src/features/code-insight/index.ts:103"
   },
   {
    "id": "coverage",
@@ -3433,7 +4026,7 @@
    "$component": "computed",
    "$headerMenu": "computed",
    "$headerActions": "computed",
-   "source": "src/features/database/index.ts:56"
+   "source": "src/features/database/index.ts:91"
   },
   {
    "id": "debug",
@@ -3441,10 +4034,12 @@
    "icon": "toolwindow-debug",
    "anchor": "bottom",
    "stripe": "onUse",
+   "sessionContent": true,
    "order": 20,
    "$component": "computed",
    "$headerContent": "computed",
-   "source": "src/features/debugger/index.ts:59"
+   "$useBadge": "computed",
+   "source": "src/features/debugger/index.ts:80"
   },
   {
    "id": "remoteHost",
@@ -3554,7 +4149,7 @@
    "order": 25,
    "$component": "computed",
    "$headerContent": "computed",
-   "source": "src/features/profiler/index.ts:15"
+   "source": "src/features/profiler/index.ts:18"
   },
   {
    "id": "project",
@@ -3566,7 +4161,7 @@
    "$headerActions": "computed",
    "$headerMenu": "computed",
    "$titleMenu": "computed",
-   "source": "src/features/project-tree/index.ts:193"
+   "source": "src/features/project-tree/index.ts:226"
   },
   {
    "id": "remote.ports",
@@ -3584,11 +4179,12 @@
    "icon": "toolwindow-run",
    "anchor": "bottom",
    "stripe": "onUse",
+   "sessionContent": true,
    "order": 5,
    "$component": "computed",
    "$headerContent": "computed",
    "$useBadge": "computed",
-   "source": "src/features/run/index.ts:375"
+   "source": "src/features/run/index.ts:420"
   },
   {
    "id": "structure",
@@ -3598,7 +4194,7 @@
    "secondary": true,
    "order": 20,
    "$component": "computed",
-   "source": "src/features/search/index.ts:153"
+   "source": "src/features/search/index.ts:160"
   },
   {
    "id": "bookmarks",
@@ -3610,7 +4206,7 @@
    "$component": "computed",
    "$headerActions": "computed",
    "$useBadge": "function",
-   "source": "src/features/search/index.ts:163"
+   "source": "src/features/search/index.ts:170"
   },
   {
    "id": "find",
@@ -3618,12 +4214,13 @@
    "icon": "toolwindow-find",
    "anchor": "bottom",
    "stripe": "onUse",
+   "sessionContent": true,
    "order": 5,
    "$component": "computed",
    "$headerContent": "computed",
    "$headerActions": "computed",
    "$headerMenu": "computed",
-   "source": "src/features/search/index.ts:175"
+   "source": "src/features/search/index.ts:182"
   },
   {
    "id": "services",
@@ -3632,10 +4229,11 @@
    "anchor": "bottom",
    "order": 8,
    "stripe": "onUse",
+   "$useBadge": "computed",
    "$component": "computed",
    "$headerContent": "computed",
    "$headerActions": "computed",
-   "source": "src/features/services/index.ts:54"
+   "source": "src/features/services/index.ts:71"
   },
   {
    "id": "terminal",
@@ -3645,7 +4243,7 @@
    "order": 10,
    "$component": "computed",
    "$headerContent": "computed",
-   "source": "src/features/terminal/index.ts:57"
+   "source": "src/features/terminal/index.ts:116"
   },
   {
    "id": "todo",
@@ -3665,6 +4263,15 @@
    "source": "src/features/todo/index.ts:27"
   },
   {
+   "id": "compare",
+   "title": "Compare",
+   "icon": "diff",
+   "anchor": "left",
+   "order": 2,
+   "$component": "computed",
+   "source": "src/features/vcs/compareTool.tsx:37"
+  },
+  {
    "id": "commit",
    "title": "Commit",
    "icon": "toolwindow-commit",
@@ -3674,7 +4281,7 @@
    "$headerContent": "computed",
    "tabsReplaceTitle": true,
    "$useBadge": "function",
-   "source": "src/features/vcs/index.ts:115"
+   "source": "src/features/vcs/index.ts:121"
   },
   {
    "id": "git",
@@ -3684,7 +4291,7 @@
    "order": 5,
    "$component": "computed",
    "$headerContent": "computed",
-   "source": "src/features/vcs/index.ts:245"
+   "source": "src/features/vcs/index.ts:269"
   },
   {
    "id": "notifications",
@@ -3695,19 +4302,26 @@
    "$component": "computed",
    "$headerActions": "computed",
    "$useBadge": "computed",
-   "source": "src/workbench/activate.ts:85"
+   "source": "src/workbench/activate.ts:89"
   }
  ],
  "registerUndoHandler": [
   {
-   "source": "src/features/project-tree/index.ts:209"
+   "source": "src/features/project-tree/index.ts:242"
+  }
+ ],
+ "registerUriOpener": [
+  {
+   "scheme": "vscode-notebook-cell",
+   "$open": "function",
+   "source": "src/features/notebook/index.ts:93"
   }
  ],
  "registerWorkbenchBanner": [
   {
    "id": "project.restrictedMode",
    "$component": "computed",
-   "source": "src/features/project-trust/index.tsx:246"
+   "source": "src/features/project-trust/index.tsx:256"
   }
  ]
 }

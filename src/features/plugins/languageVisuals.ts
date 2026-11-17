@@ -1,25 +1,16 @@
 /** Embedded highlighting and command gutter actions share the editor-provider refresh. */
-import {
-  Compartment,
-  Prec,
-  RangeSet,
-  StateEffect,
-  StateField,
-  type Extension,
-  type EditorState,
-} from "@codemirror/state";
+import { Prec, RangeSet, StateEffect, StateField, type Extension, type EditorState } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
   GutterMarker,
   ViewPlugin,
-  gutter,
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
 import { highlightingFor } from "@codemirror/language";
 import { highlightTree } from "@lezer/highlight";
-import { shownAgain, type EditorDocContext } from "@/editor/api";
+import { iconAreaSource, mapLineStart, shownAgain, type EditorDocContext } from "@/editor/api";
 import { rangeToOffsets } from "@/editor/lsp/positions";
 import { pluginVisuals } from "@/editor/lsp/pluginVisuals";
 import { findLanguageDescription, languageInfo, loadSupport } from "@/editor/core/cm/languages";
@@ -72,7 +63,21 @@ class ActionMarker extends GutterMarker {
     super();
   }
   override eq(other: GutterMarker) {
-    return other instanceof ActionMarker && JSON.stringify(other.actions) === JSON.stringify(this.actions);
+    // The line is left out: a marker whose line moved keeps its button mounted.
+    return (
+      other instanceof ActionMarker &&
+      other.actions.length === this.actions.length &&
+      other.actions.every(({ plugin, action }, i) => {
+        const mine = this.actions[i]!;
+        return (
+          plugin === mine.plugin &&
+          action.icon === mine.action.icon &&
+          action.tooltip === mine.action.tooltip &&
+          action.command === mine.action.command &&
+          action.argument === mine.action.argument
+        );
+      })
+    );
   }
   private execute({ plugin, action }: LineAction) {
     void call(
@@ -121,11 +126,13 @@ const actions = StateField.define<{ pos: number; marker: ActionMarker }[]>({
   create: () => [],
   update(v, tr) {
     for (const e of tr.effects) if (e.is(setActions)) return e.value;
-    return tr.docChanged ? [] : v;
+    if (!tr.docChanged) return v;
+    return v.map((a) => ({ ...a, pos: mapLineStart(tr, a.pos) }));
   },
 });
-const column = gutter({
-  class: `${styles.gutter} cm-plugin-gutter-actions`,
+/** In the shared icon area, beside the plugins' line markers. */
+const actionSource = iconAreaSource.of({
+  order: 65,
   markers: (view) =>
     RangeSet.of(
       view.state.field(actions).map((a) => a.marker.range(a.pos)),
@@ -134,21 +141,19 @@ const column = gutter({
 });
 export function pluginLanguageVisuals(ctx: EditorDocContext): Extension {
   if (ctx.doc < 0) return [];
-  const compartment = new Compartment();
   return [
     highlights,
     actions,
-    compartment.of([]),
+    actionSource,
     ViewPlugin.define(
       (view) =>
         new (class {
           timer: ReturnType<typeof setTimeout> | undefined;
           generation = 0;
-          shown = false;
           skipped = false;
           off: () => void;
           constructor() {
-            const a = onNavigationProvidersChanged(() => this.schedule(true));
+            const a = onNavigationProvidersChanged(() => this.schedule());
             const b = onMarkerIconsChanged(() => this.schedule());
             this.off = () => {
               a();
@@ -156,17 +161,9 @@ export function pluginLanguageVisuals(ctx: EditorDocContext): Extension {
             };
             this.schedule();
           }
-          schedule(clear = false) {
+          schedule() {
             this.generation++;
             clearTimeout(this.timer);
-            if (clear)
-              queueMicrotask(() => {
-                if (view.dom.isConnected)
-                  view.dispatch({
-                    effects: [setHighlight.of(Decoration.none), setActions.of([]), compartment.reconfigure([])],
-                  });
-                this.shown = false;
-              });
             this.timer = setTimeout(() => void this.run(), 300);
           }
           update(u: ViewUpdate) {
@@ -195,19 +192,9 @@ export function pluginLanguageVisuals(ctx: EditorDocContext): Extension {
               if (generation !== this.generation || view.state.doc !== text) return;
               this.skipped = !view.dom.isConnected;
               if (this.skipped) return;
-              this.shown = !!placed.length;
-              view.dispatch({
-                effects: [
-                  setHighlight.of(deco),
-                  setActions.of(placed),
-                  compartment.reconfigure(this.shown ? column : []),
-                ],
-              });
-            } catch {
-              if (generation === this.generation && view.dom.isConnected)
-                view.dispatch({
-                  effects: [setHighlight.of(Decoration.none), setActions.of([]), compartment.reconfigure([])],
-                });
+              view.dispatch({ effects: [setHighlight.of(deco), setActions.of(placed)] });
+            } catch (error) {
+              console.debug("[plugin language visuals]", error);
             }
           }
           destroy() {

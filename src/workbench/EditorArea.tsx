@@ -16,8 +16,9 @@ const HINTS: Hint[] = [
   { label: "Drop files here to open them" },
 ];
 
-/** LightEdit has no project to navigate: only opening files works there. */
+/** LightEdit has no project to navigate: only opening and creating files works there. */
 const LIGHT_EDIT_HINTS: Hint[] = [
+  { label: "New File", action: "file.newUntitled" },
   { label: "Open File", action: "file.openFile" },
   { label: "Drop files here to open them" },
 ];
@@ -43,7 +44,8 @@ export function EmptyEditor() {
                   <T>{h.label}</T>
                 )}
               </dt>
-              {keys && <dd className={styles.keys}>{keys}</dd>}
+              {/* Rendered even when unbound: the grid auto-places cells, so a missing one shifts every later row. */}
+              {h.action && <dd className={styles.keys}>{keys}</dd>}
             </div>
           );
         })}

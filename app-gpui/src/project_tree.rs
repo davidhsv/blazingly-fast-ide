@@ -481,10 +481,20 @@ impl ProjectTree {
             paths.iter().map(|path| path.0.to_string_lossy().into_owned()).collect()
         };
         match &event.event {
-            IdeEvent::FsChanged { created, modified, removed } => {
+            IdeEvent::FsChanged { created, modified, removed, ignore_rules } => {
                 #[cfg(test)]
                 self.trace_line(format!("event fs created={created:?} modified={modified:?} removed={removed:?}"));
-                self.apply_fs_change(&paths(created), &paths(modified), &paths(removed), cx);
+                let (created, modified, removed) = (paths(created), paths(modified), paths(removed));
+                let ignore_rules = paths(ignore_rules);
+                self.apply_fs_event(
+                    &FsChange {
+                        created: &created,
+                        modified: &modified,
+                        removed: &removed,
+                        ignore_rules: &ignore_rules,
+                    },
+                    cx,
+                );
             }
             // Ignored Files and Folders is read live: the rows follow the setting.
             IdeEvent::SettingsChanged { key } if key.is_empty() || key == "files" || key.starts_with("files.") => {
@@ -510,8 +520,15 @@ impl ProjectTree {
         removed: &[String],
         cx: &mut Context<Self>,
     ) {
+        self.apply_fs_event(&FsChange { created, modified, removed, ignore_rules: &[] }, cx);
+    }
+
+    /// [`Self::apply_fs_change`], also re-reading the loaded folders under subtrees whose ignore
+    /// rules changed.
+    fn apply_fs_event(&mut self, event: &FsChange<'_>, cx: &mut Context<Self>) {
+        let removed = event.removed;
         let loaded: BTreeSet<String> = self.listings.keys().cloned().collect();
-        let plan = plan_refresh(&FsChange { created, modified, removed }, &loaded);
+        let plan = plan_refresh(event, &loaded);
         let gone = |key: &str| {
             let path = path_of_key(key);
             plan.drop.iter().any(|dropped| is_same_or_inside(path, dropped)) || removed.iter().any(|at| at == path)
@@ -1066,6 +1083,7 @@ mod tests {
                 created: vec![ide_core::IpcPath(root.join("TODO.md"))],
                 modified: Vec::new(),
                 removed: Vec::new(),
+                ignore_rules: Vec::new(),
             },
         };
         // Another window's change starts no read; the tree's own watcher may be reading meanwhile.

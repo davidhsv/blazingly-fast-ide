@@ -494,11 +494,22 @@ export const VCS_PAGES: PageSpec[] = [
             component: GitExecutableRow,
           },
           { kind: "toggle", key: "vcs.git.inlineBlame", label: "Show inline blame for the current line" },
+          {
+            kind: "toggle",
+            key: "vcs.git.showBranchInProjectView",
+            label: "Show branch and incoming/outgoing commits in the Project view",
+          },
         ],
       },
       {
         title: "Commit",
         options: [
+          {
+            kind: "toggle",
+            key: "vcs.git.stagingArea",
+            label: "Enable staging area",
+            hint: "Commit works on the Git index: stage and unstage changes instead of checking them. Change lists are not used. Only for the non-modal commit interface.",
+          },
           { kind: "toggle", key: "vcs.git.warnCrlf", label: "Warn if CRLF line separators are about to be committed" },
           {
             kind: "toggle",

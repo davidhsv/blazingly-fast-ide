@@ -6,6 +6,7 @@ import { ToolWindowHeader, useOwnToolWindowHeader } from "@/workbench/toolwindow
 import { usePlatform } from "@/platform/platformInfo";
 import { commands, isTauri } from "@/platform/ipc";
 import {
+  Badge,
   dropZoneAt,
   IconButton,
   Input,
@@ -13,6 +14,7 @@ import {
   Popup,
   registerDropTarget,
   showContextMenu,
+  Spinner,
   SplitGroup,
   SplitHandle,
   SplitPanel,
@@ -126,7 +128,9 @@ function paneMenu(e: MouseEvent, key: string) {
       icon: "close",
       run: () =>
         void requestCloseSession(key).then((closed) => {
-          if (closed) requestAnimationFrame(() => activeSession()?.focus());
+          if (!closed) return;
+          if (useTerminals.getState().tabs.length === 0) toolWindowService().hide("terminal");
+          else requestAnimationFrame(() => activeSession()?.focus());
         }),
     },
   ];
@@ -356,8 +360,19 @@ function GroupTabs({ group }: { group: string }) {
   const focusRaf = useRef(0);
 
   const items: TabItem[] = tabs.map((t) => {
-    const status = sessions[t.session]?.status;
+    const session = sessions[t.session];
+    const status = session?.status;
     const dead = status === "exited" || status === "error";
+    // Running / done marker (#2233): a command at work spins, a finished one
+    // shows a filled dot, an idle shell at the prompt shows none.
+    const busy = !!session?.commandRunning || status === "starting";
+    const mark = busy ? (
+      <Spinner size={10} variant="spokes" label="Running" />
+    ) : dead ? (
+      <Badge dot tone={status === "error" ? "danger" : "neutral"}>
+        {status === "error" ? "Failed" : "Exited"}
+      </Badge>
+    ) : null;
     return {
       id: t.id,
       label: tabTitle(t, sessions),
@@ -365,6 +380,7 @@ function GroupTabs({ group }: { group: string }) {
       italic: dead,
       color: dead ? "var(--fg-subtle)" : undefined,
       tooltip: tabTooltip(t, sessions),
+      trailing: mark ?? undefined,
     };
   });
 
@@ -380,6 +396,7 @@ function GroupTabs({ group }: { group: string }) {
     const others = tabs.length > 1;
     showContextMenu(e, [
       { label: "Rename Session…", icon: "edit", run: () => setRenaming({ id, anchor }) },
+      { kind: "action", action: "terminal.moveToEditor", arg: id },
       { kind: "separator" },
       { label: "Close Tab", icon: "close", run: () => void onClose(id) },
       {
@@ -459,7 +476,7 @@ function GroupTabs({ group }: { group: string }) {
             />
             <IconButton
               ref={menuRef}
-              icon="chevron-down"
+              icon="toolbar-expand"
               size="small"
               title="More Terminal Options"
               aria-haspopup="menu"

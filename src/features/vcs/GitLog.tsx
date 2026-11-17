@@ -1,3 +1,4 @@
+import { writeClipboardText } from "@/platform/clipboard";
 import { useBookmarkPopups } from "@/features/search/bookmarks/store";
 import { commitBookmarkPath } from "./logBookmarks";
 import { copySelectionOnKeyDown } from "@/ui/selectableText";
@@ -24,11 +25,13 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { Branch, ChangedFile, Commit } from "@/bindings";
 import { call, commands } from "@/platform/ipc";
 import { executeAction } from "@/platform/actions";
+import { setContext } from "@/platform/context";
 import { maybeEditorService, useGitLogChecks, type EditorInput } from "@/workbench/contributions";
 import {
   EmptyState,
   Icon,
   IconButton,
+  Menu,
   SearchField,
   SplitGroup,
   SplitHandle,
@@ -46,6 +49,7 @@ import {
   copyText,
   hideNativeScrollbar,
   lazyComponent,
+  lockDragCursor,
   Scrollbar,
 } from "@/ui";
 import { hasPrimaryModifier } from "@/platform/keymap";
@@ -58,7 +62,6 @@ import {
   goToChild,
   goToParent,
   initLogBranchFilter,
-  isPushed,
   isMine,
   loadMore,
   logState,
@@ -83,7 +86,7 @@ import {
   PAGE,
 } from "./logStore";
 import { logOptions, refLabels, useLogOptions, type LogOptions } from "./logOptions";
-import { KIND_COLOR, baseName, dirName, fileCount, formatTime, relTo, type EffectiveKind } from "./model";
+import { KIND_COLOR, dirName, fileCount, formatTime, relTo, renameFrom, type EffectiveKind } from "./model";
 import { clearConsole, useVcsConsole } from "./ops";
 import { currentRepo, currentRepoRoot, loadBranches, repoName, useVcs } from "./store";
 import { canDeleteBranch, loadFavoriteBranches, useFavoriteBranches } from "./branchOps";
@@ -142,7 +145,9 @@ function useLogRepositories() {
   const roots = useVcs((s) => s.roots);
   const repo = tab?.repo;
   const repositories = tab?.repositories;
-  return useMemo(() => (repositories?.length ? repositories : repo ? [repo] : roots), [repo, roots, repositories]);
+  const key = (repositories?.length ? repositories : repo ? [repo] : roots).join("\0");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => (repositories?.length ? repositories : repo ? [repo] : roots), [key]);
 }
 
 function useReadOnlyLog() {
@@ -281,10 +286,13 @@ export function LogView() {
 
   // On mount, when the window switches to another project and when another of its
   // repositories is selected (its branches are needed to notice its refs moving).
+  const mounted = useRef(false);
   useEffect(() => {
     lastRefs.current = null;
     allRefs.current = null;
-    void reloadLog({ preserve: logState(scope ?? undefined).commits.length > 0 }, scope ?? undefined);
+    const state = logState(scope ?? undefined);
+    if (mounted.current || !state.loading) void reloadLog({ preserve: state.commits.length > 0 }, scope ?? undefined);
+    mounted.current = true;
     if (!readOnly) void loadBranches().catch(() => undefined);
   }, [root, repo, readOnly, scope]);
 
@@ -319,6 +327,7 @@ export function LogView() {
       key={showBranches ? "branches" : "no-branches"}
       orientation="horizontal"
       id={showBranches ? "git-log" : "git-log-no-branches"}
+      storageKey={`openidea.vcs.logSplit.${showBranches ? "branches" : "noBranches"}.${showDetails ? "details" : "noDetails"}`}
       className={styles.split}
     >
       {showBranches && (
@@ -656,9 +665,18 @@ const DATE_OPTIONS: { label: string; days: number }[] = [
   { label: "Last Year", days: 365 },
 ];
 
-function menuBelow(anchor: HTMLElement | ReactMouseEvent<HTMLElement>, items: MenuItem[]) {
-  const r = ("currentTarget" in anchor ? anchor.currentTarget : anchor).getBoundingClientRect();
-  showContextMenu({ x: r.left, y: r.bottom + 2 }, items);
+/**
+ * A toolbar button's dropdown, anchored to the button: a second click on it closes the menu
+ * instead of reopening it, as in IDEA. Returns the opener and the element to render.
+ */
+function useDropdownMenu() {
+  const [menu, setMenu] = useState<{ anchor: HTMLElement; items: MenuItem[] } | null>(null);
+  const open = (anchor: HTMLElement | ReactMouseEvent<HTMLElement>, items: MenuItem[]) => {
+    const el = "currentTarget" in anchor ? anchor.currentTarget : anchor;
+    setMenu((m) => (m?.anchor === el ? null : { anchor: el, items }));
+  };
+  const dropdown = menu && <Menu open anchor={menu.anchor} items={menu.items} onClose={() => setMenu(null)} />;
+  return [open, dropdown] as const;
 }
 
 interface LogFilter {
@@ -734,6 +752,7 @@ function FilterBar() {
   }, [repositories, filters.repositories, version, logGeneration]);
   const [text, setText] = useState(filters.text);
   const [branchAnchor, setBranchAnchor] = useState<HTMLElement | null>(null);
+  const [menuBelow, dropdown] = useDropdownMenu();
   // Filters that do not fit move behind a chevron, like a toolbar's overflow.
   const groupRef = useRef<HTMLSpanElement>(null);
   const [hiddenFrom, setHiddenFrom] = useState(Infinity);
@@ -883,7 +902,7 @@ function FilterBar() {
     {
       label: "Branch",
       value: filters.range || filters.branches.join(", ") || null,
-      onOpen: setBranchAnchor,
+      onOpen: (anchor: HTMLElement) => setBranchAnchor((open) => (open === anchor ? null : anchor)),
       onClear: () => setLogBranches([]),
     },
     {
@@ -961,6 +980,7 @@ function FilterBar() {
           }}
         />
       )}
+      {dropdown}
       {branchAnchor && (
         <BranchFilterPopup
           anchor={branchAnchor}
@@ -1148,10 +1168,7 @@ export function commitMenu(c: Commit, selection: Commit[] = [c]): MenuItem[] {
   const vcs = useVcs.getState();
   const head = (repo ? vcs.heads[repo]?.head : vcs.branch?.head) ?? null;
   const { outgoing } = useGitLog.getState();
-  const pushed = (x: Commit) =>
-    commitRepo(x) === undefined ? !!outgoing && !outgoing.has(x.id) : isPushed(commitKey(x));
   if (many) {
-    const anyPushed = selection.some(pushed);
     return [
       { kind: "action", action: "vcs.log.copyRevision", arg: selection, label: "Copy Revision Numbers" },
       { kind: "action", action: "vcs.log.createPatch", arg: selection },
@@ -1162,11 +1179,10 @@ export function commitMenu(c: Commit, selection: Commit[] = [c]): MenuItem[] {
       { kind: "separator" },
       { kind: "action", action: "vcs.log.revert", arg: selection, label: "Revert Commits" },
       { kind: "separator" },
-      { kind: "action", action: "vcs.log.squashCommits", arg: selection, disabled: anyPushed },
-      { kind: "action", action: "vcs.log.dropCommit", arg: selection, label: "Drop Commits", disabled: anyPushed },
+      { kind: "action", action: "vcs.log.squashCommits", arg: selection },
+      { kind: "action", action: "vcs.log.dropCommit", arg: selection, label: "Drop Commits" },
     ];
   }
-  const pushedCommit = pushed(c);
   // Without an upstream there is no outgoing set: allow pushing up to any commit of HEAD.
   const canPushHere =
     !!head &&
@@ -1207,11 +1223,11 @@ export function commitMenu(c: Commit, selection: Commit[] = [c]): MenuItem[] {
     { kind: "action", action: "vcs.log.revert", arg: c },
     { kind: "action", action: "vcs.log.undoCommit", arg: c },
     { kind: "separator" },
-    { kind: "action", action: "vcs.log.editMessage", arg: c, disabled: pushedCommit },
-    { kind: "action", action: "vcs.log.fixup", arg: c, disabled: pushedCommit },
-    { kind: "action", action: "vcs.log.squashInto", arg: c, disabled: pushedCommit },
-    { kind: "action", action: "vcs.log.dropCommit", arg: c, disabled: pushedCommit },
-    { kind: "action", action: "vcs.log.interactiveRebase", arg: c, disabled: pushedCommit },
+    { kind: "action", action: "vcs.log.editMessage", arg: c },
+    { kind: "action", action: "vcs.log.fixup", arg: c },
+    { kind: "action", action: "vcs.log.squashInto", arg: c },
+    { kind: "action", action: "vcs.log.dropCommit", arg: c },
+    { kind: "action", action: "vcs.log.interactiveRebase", arg: c },
     { kind: "action", action: "vcs.log.pushUpToHere", arg: c, disabled: !canPushHere },
     { kind: "separator" },
     ...(branchActions.length > 2 ? [{ label: "Branches", submenu: branchActions }] : branchActions),
@@ -1269,7 +1285,8 @@ function CommitList() {
             {
               id: "date",
               title: "Date",
-              width: 120,
+              // Fits a 12-hour date and time ("11/05/2026 02:30 PM", "Yesterday 09:07 AM").
+              width: 140,
               render: (c: Commit) => formatTime(opts.commitTimestamp ? (c.commitTimeMs ?? c.timeMs) : c.timeMs),
             },
           ]
@@ -1400,12 +1417,19 @@ function CommitList() {
   const selectedSet = useMemo(() => new Set(selection), [selection]);
   const revealTick = useGitLog((s) => s.revealTick);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const selectedIndex = useMemo(
+    () => (selected ? commits.findIndex((c) => commitKey(c) === selected) : -1),
+    [commits, selected],
+  );
+  const lastRevealed = useRef(0);
+  // Recycled rows can emit enter events without the pointer moving.
+  const hoverPointer = useRef<{ x: number; y: number } | null>(null);
   const previousRows = useRef(commits);
   useLayoutEffect(() => {
     const element = scrollRef.current;
     const previous = previousRows.current;
     previousRows.current = commits;
-    if (!element || previous === commits) return;
+    if (!element || previous === commits || (revealTick !== lastRevealed.current && selectedIndex >= 0)) return;
     const top = Math.max(0, Math.floor((element.scrollTop - ROW) / ROW));
     // Preserve the first surviving visible commit and its pixel offset.
     for (let i = top; i < previous.length; i++) {
@@ -1414,7 +1438,7 @@ function CommitList() {
       element.scrollTop += (next - i) * ROW;
       break;
     }
-  }, [commits]);
+  }, [commits, revealTick, selectedIndex]);
   const finished = done;
   const virtualizer = useVirtualizer({
     count: commits.length + (finished ? 0 : 1),
@@ -1432,15 +1456,11 @@ function CommitList() {
     if (!finished && !loading && last && last.index >= commits.length - PAGE) void loadMore(scope ?? undefined);
   }, [last, commits.length, finished, loading, active, scope]);
 
-  const selectedIndex = useMemo(
-    () => (selected ? commits.findIndex((c) => commitKey(c) === selected) : -1),
-    [commits, selected],
-  );
   useLayoutEffect(() => {
-    if (selectedIndex >= 0) virtualizer.scrollToIndex(selectedIndex, { align: "center" });
-    // Only on explicit reveal requests.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealTick]);
+    if (revealTick === lastRevealed.current || selectedIndex < 0) return;
+    lastRevealed.current = revealTick;
+    virtualizer.scrollToIndex(selectedIndex, { align: "center" });
+  }, [revealTick, selectedIndex, virtualizer]);
 
   const visible = useRef(commits);
   visible.current = commits;
@@ -1647,6 +1667,11 @@ function CommitList() {
 
   rowEvents.current = {
     onHover: (edge) => {
+      if (
+        edge === hoverColor ||
+        (edge && (virtualizer.isScrolling || scrollRef.current?.hasAttribute("data-hover-paused")))
+      )
+        return;
       setHoverColor(edge);
       if (!edge) return;
       const source = displayedGraph.find((c) => c.parents.some((p) => `${c.id}\0${p}` === edge));
@@ -1703,6 +1728,19 @@ function CommitList() {
         aria-multiselectable
         aria-activedescendant={selectedIndex >= 0 ? `commit-${scope ?? "log"}-${selectedIndex}` : undefined}
         tabIndex={0}
+        onScroll={(e) => {
+          if (!e.currentTarget.hasAttribute("data-hover-paused")) e.currentTarget.dataset.hoverPaused = "";
+          setHoverColor(null);
+        }}
+        onPointerMoveCapture={(e) => {
+          const previous = hoverPointer.current;
+          hoverPointer.current = { x: e.clientX, y: e.clientY };
+          if (!virtualizer.isScrolling && (!previous || previous.x !== e.clientX || previous.y !== e.clientY))
+            delete e.currentTarget.dataset.hoverPaused;
+        }}
+        onPointerLeave={(e) => {
+          hoverPointer.current = { x: e.clientX, y: e.clientY };
+        }}
         onKeyDown={onKeyDown}
         onCopy={(e) => {
           if (window.getSelection()?.toString()) return;
@@ -1867,10 +1905,17 @@ function LogColumnHeader({
     element: HTMLElement;
     pointerId: number;
   } | null>(null);
-  const resizeDrag = useRef<{ x: number; width: number; element: HTMLElement; pointerId: number } | null>(null);
+  const resizeDrag = useRef<{
+    x: number;
+    width: number;
+    element: HTMLElement;
+    pointerId: number;
+    releaseCursor: () => void;
+  } | null>(null);
   const cancel = useCallback(() => {
     const captures = [press.current, resizeDrag.current];
     press.current = null;
+    resizeDrag.current?.releaseCursor();
     resizeDrag.current = null;
     for (const capture of captures)
       if (capture?.element.hasPointerCapture?.(capture.pointerId))
@@ -1972,7 +2017,13 @@ function LogColumnHeader({
             if (e.button !== 0) return;
             e.preventDefault();
             e.stopPropagation();
-            resizeDrag.current = { x: e.clientX, width, element: e.currentTarget, pointerId: e.pointerId };
+            resizeDrag.current = {
+              x: e.clientX,
+              width,
+              element: e.currentTarget,
+              pointerId: e.pointerId,
+              releaseCursor: lockDragCursor("ew-resize"),
+            };
             e.currentTarget.setPointerCapture(e.pointerId);
           }}
           onPointerMove={(e) => {
@@ -1980,13 +2031,16 @@ function LogColumnHeader({
               resize(resizeDrag.current.width + e.clientX - resizeDrag.current.x);
           }}
           onPointerUp={(e) => {
+            resizeDrag.current?.releaseCursor();
             resizeDrag.current = null;
             if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
           }}
           onPointerCancel={() => {
+            resizeDrag.current?.releaseCursor();
             resizeDrag.current = null;
           }}
           onLostPointerCapture={() => {
+            resizeDrag.current?.releaseCursor();
             resizeDrag.current = null;
           }}
           onKeyDown={(e) => {
@@ -2068,17 +2122,26 @@ function CommitRowView({
   const merge = opts.highlightMerges && c.parents.length > 1;
   const subjectRef = useRef<HTMLSpanElement>(null);
   const [tooltip, setTooltip] = useState(false);
+  const tooltipBody = useRef<HTMLDivElement>(null);
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(tooltipTimer.current), []);
   useEffect(() => {
     if (!tooltip) return;
-    const hide = () => setTooltip(false);
+    // Scrolling the log moves the anchor away; scrolling a long message inside the card doesn't.
+    const hide = (e: Event) => {
+      const card = tooltipBody.current?.closest("[data-popup]");
+      if (e.target instanceof Node && card?.contains(e.target)) return;
+      setTooltip(false);
+    };
     window.addEventListener("scroll", hide, true);
     return () => window.removeEventListener("scroll", hide, true);
   }, [tooltip]);
   const enterTooltip = () => {
     clearTimeout(tooltipTimer.current);
-    tooltipTimer.current = setTimeout(() => setTooltip(true), TOOLTIP_DELAY);
+    if (tooltip || subjectRef.current?.closest("[data-hover-paused]")) return;
+    tooltipTimer.current = setTimeout(() => {
+      if (!subjectRef.current?.closest("[data-hover-paused]")) setTooltip(true);
+    }, TOOLTIP_DELAY);
   };
   const leaveTooltip = () => {
     clearTimeout(tooltipTimer.current);
@@ -2116,6 +2179,7 @@ function CommitRowView({
         ref={subjectRef}
         className={clsx(styles.subject, head && styles.headSubject, merge && styles.mergeSubject)}
         onPointerEnter={enterTooltip}
+        onPointerMove={enterTooltip}
         onPointerLeave={leaveTooltip}
         onPointerDown={() => {
           clearTimeout(tooltipTimer.current);
@@ -2134,7 +2198,7 @@ function CommitRowView({
         onClose={() => setTooltip(false)}
         className={styles.commitTooltip}
       >
-        <div onPointerEnter={() => clearTimeout(tooltipTimer.current)} onPointerLeave={leaveTooltip}>
+        <div ref={tooltipBody} onPointerEnter={() => clearTimeout(tooltipTimer.current)} onPointerLeave={leaveTooltip}>
           <CommitMessage commit={c} />
         </div>
       </Popup>
@@ -2280,6 +2344,7 @@ export function GraphCell({
           tabIndex={actionable ? 0 : undefined}
           aria-label={actionable ? label : undefined}
           onMouseEnter={() => onHover?.(s.edge ?? `${s.source ?? ""}\0${target ?? ""}`)}
+          onMouseMove={() => onHover?.(s.edge ?? `${s.source ?? ""}\0${target ?? ""}`)}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
@@ -2315,6 +2380,7 @@ export function GraphCell({
         aria-label={onNode ? tx("Collapse or expand this branch") : undefined}
         onMouseDown={(e) => e.stopPropagation()}
         onMouseEnter={() => row.id && onHover?.(`node:${row.id}`)}
+        onMouseMove={() => row.id && onHover?.(`node:${row.id}`)}
         onClick={(e) => {
           e.stopPropagation();
           onNode?.();
@@ -2389,6 +2455,7 @@ export function RefLabels({
  */
 export function CommitDetails({ commits }: { commits: Commit[] }) {
   const scope = useContext(LogIdContext);
+  const [menuBelow, dropdown] = useDropdownMenu();
   const shown = useGitLog((s) => s.shownLog);
   const active = !scope || scope === shown;
   const readOnly = useReadOnlyLog();
@@ -2477,7 +2544,8 @@ export function CommitDetails({ commits }: { commits: Commit[] }) {
     return () => {
       alive = false;
     };
-  }, [idsKey, chosen, fromParents, parentIndex, commitRoot, filesKey, many, readOnly, showLineStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey, fromParents, parentIndex, commitRoot, filesKey, many, readOnly, showLineStats]);
 
   const groupByDirectory = useLogOptions((s) => s.groupByDirectory);
   const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(() => new Set());
@@ -2528,9 +2596,12 @@ export function CommitDetails({ commits }: { commits: Commit[] }) {
   }, [active]);
   const previewSelection = (sel: ReadonlySet<string>) => {
     clearTimeout(previewTimer.current);
-    if (syncingDiff.current) return;
-    if (!logOptions().diffPreview || logOptions().diffLocation !== "editor" || vcsDiffInFront() || sel.size !== 1)
-      return;
+    if (syncingDiff.current || sel.size !== 1) return;
+    // While the editor shows one of this pane's diffs, the selection walks it along (a click or
+    // arrow key), as in the Commit window.
+    const shown = maybeEditorService()?.activeInput?.();
+    const following = shown?.kind === DIFF_KIND && ordered.some((c) => diffInput(c.diff).key === shown.key);
+    if (!following && (!logOptions().diffPreview || logOptions().diffLocation !== "editor" || vcsDiffInFront())) return;
     const file = fileNodeAt(tree, [...sel][0]!)?.file;
     // A preview that cannot open (no editor yet, the file went away) is just skipped.
     if (file)
@@ -2578,6 +2649,7 @@ export function CommitDetails({ commits }: { commits: Commit[] }) {
     },
     [scope],
   );
+  useEffect(() => () => setContext("vcsLogChangesFocus", false), []);
 
   if (!commit)
     return (
@@ -2616,9 +2688,15 @@ export function CommitDetails({ commits }: { commits: Commit[] }) {
   };
 
   const details = (
-    <SplitGroup orientation="vertical" id="git-log-details">
+    <SplitGroup orientation="vertical" id="git-log-details" storageKey="openidea.vcs.logDetailsSplit">
       <SplitPanel id="files" defaultSize="60%" minSize="60px">
-        <div className={styles.filesPane}>
+        <div
+          className={styles.filesPane}
+          onFocusCapture={() => setContext("vcsLogChangesFocus", true)}
+          onBlurCapture={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setContext("vcsLogChangesFocus", false);
+          }}
+        >
           <div className={styles.detailsBar} role="toolbar" aria-label={tx("Changed files")}>
             <IconButton
               icon="diff"
@@ -2699,6 +2777,10 @@ export function CommitDetails({ commits }: { commits: Commit[] }) {
               }}
               renderNode={(n) => <ChangedFileRow node={n} flat={!groupByDirectory} />}
               onActivate={(n) => n.file && void showChangesDiff([n.file])}
+              onJumpToSource={(n, sel) => {
+                const files = sel.has(n.key) ? filesUnder(tree, sel) : filesUnder([n]);
+                void executeAction("vcs.log.changes.jumpToSource", files);
+              }}
               onContextMenu={onFileMenu}
               aria-label="Changed files"
               className={styles.fileTree}
@@ -2722,10 +2804,12 @@ export function CommitDetails({ commits }: { commits: Commit[] }) {
   const selectedChange = chosenChanges.length === 1 ? chosenChanges[0] : undefined;
   return (
     <div className={styles.details}>
+      {dropdown}
       {embedded ? (
         <SplitGroup
           orientation={diffLocation === "right" ? "horizontal" : "vertical"}
           id={`git-log-preview-${diffLocation}`}
+          storageKey={`openidea.vcs.logPreviewSplit.${diffLocation}`}
         >
           <SplitPanel id="changes" defaultSize="55%" minSize="20%">
             {details}
@@ -2785,7 +2869,7 @@ function CommitMessage({ commit, compact = false }: { commit: Commit; compact?: 
           type="button"
           className={clsx(styles.linkButton, styles.hash)}
           title={tx("Copy revision number")}
-          onClick={() => void navigator.clipboard?.writeText(commit.id)}
+          onClick={() => void writeClipboardText(commit.id)}
         >
           {commit.shortId}
         </button>{" "}
@@ -2992,7 +3076,7 @@ function ChangedFileRow({ node, flat = false }: { node: FileTreeNode<ChangedFile
         {node.name}
       </span>
       {flat && dirName(f.path) && <span className={styles.fileDir}>{dirName(f.path)}</span>}
-      {f.oldPath && <span className={styles.fileDir}>{tx`renamed from ${baseName(f.oldPath)}`}</span>}
+      {f.oldPath && <span className={styles.fileDir}>{renameFrom(f.path, f.oldPath)}</span>}
       {stats && <LineStats added={stats.added} removed={stats.removed} />}
     </span>
   );

@@ -145,8 +145,7 @@ async fn disables_shared_jdt_ls_only_in_a_native_workspaces_project_scope(cx: &m
     let scope = Rc::new(Cell::new(Scope::Project));
     let edited = scope.clone();
     let binding = Binding::new(model.clone(), JAVA, Rc::new(move |_: &App| edited.get()));
-    let project = Binding::fixed(model.clone(), JAVA, Scope::Project);
-    let (view, cx) = open(cx, move |_, cx| JdtlsSharedView::new(binding, project, cx));
+    let (view, cx) = open(cx, move |_, cx| JdtlsSharedView::new(binding, cx));
     view.update(cx, |view, cx| view.set_workspace(true, cx));
     let lines = view.read_with(cx, |view, cx| view.lines(cx));
     assert_eq!(lines, [format!("[ ] {SHARED_LABEL} (disabled)"), format!("    {SHARED_IN_WORKSPACE}")]);

@@ -654,20 +654,16 @@ impl RunDriver {
         limit: u32,
     ) -> Result<Vec<FoundSource>, IdeError> {
         Self::on_host(cx, move |host| async move {
-            let inner = Arc::clone(&host);
-            host.blocking(move || {
-                let mut found = Vec::new();
-                for name in names {
-                    let hits = ide_host::ops::nav::find_files(&inner, &window, name.clone(), limit)?;
-                    let named = hits.into_iter().filter(|hit| hit.rel_path.rsplit('/').next() == Some(&name));
-                    found.extend(named.map(|hit| FoundSource {
-                        path: hit.path.0.to_string_lossy().into_owned(),
-                        rel_path: hit.rel_path,
-                    }));
-                }
-                Ok(found)
-            })
-            .await
+            let mut found = Vec::new();
+            for name in names {
+                let hits = ide_host::ops::nav::find_files(&host, &window, name.clone(), limit).await?;
+                let named = hits.into_iter().filter(|hit| hit.rel_path.rsplit('/').next() == Some(&name));
+                found.extend(named.map(|hit| FoundSource {
+                    path: hit.path.0.to_string_lossy().into_owned(),
+                    rel_path: hit.rel_path,
+                }));
+            }
+            Ok(found)
         })
         .await
     }
@@ -1392,44 +1388,42 @@ impl RunDriver {
         cx.spawn(async move |this, cx| {
             let (mut resolver, mut step) = TargetResolver::start(target.clone(), &cwd, root.as_deref());
             let path = loop {
-                step = match step {
-                    ResolveStep::Done(path) => break path,
-                    ResolveStep::FileExists { dir, name } => {
-                        let path = PathBuf::from(dir).join(name);
-                        let kind =
-                            Self::on_host(
-                                cx,
-                                move |host| async move { ide_host::ops::fs::entry_kind(&host, path).await },
-                            );
-                        resolver.exists(matches!(kind.await, Ok(ide_vfs::EntryKind::File)))
-                    }
-                    ResolveStep::FindFiles { name, limit } => {
-                        let window = label.clone();
-                        let found = Self::on_host(cx, move |host| async move {
-                            let inner = Arc::clone(&host);
-                            host.blocking(move || ide_host::ops::nav::find_files(&inner, &window, name, limit)).await
-                        });
-                        let found: Option<Vec<FoundSource>> = found.await.ok().map(|hits| {
-                            hits.into_iter()
-                                .map(|hit| FoundSource {
-                                    path: hit.path.0.to_string_lossy().into_owned(),
-                                    rel_path: hit.rel_path,
-                                })
-                                .collect()
-                        });
-                        resolver.files_found(found.as_deref())
-                    }
-                    ResolveStep::ReadSource { path } => {
-                        let window = label.clone();
-                        let text = Self::on_host(cx, move |host| async move {
-                            ide_host::ops::fs::read_text(&host, &window, PathBuf::from(path)).await
-                        });
-                        let text = text.await.ok();
-                        resolver.source_read(text.as_deref())
-                    }
-                    // Library sources come from the language server, which this window does not ask.
-                    ResolveStep::WorkspaceSymbols { .. } => resolver.symbols_found(None),
-                };
+                step =
+                    match step {
+                        ResolveStep::Done(path) => break path,
+                        ResolveStep::FileExists { dir, name } => {
+                            let path = PathBuf::from(dir).join(name);
+                            let kind = Self::on_host(cx, move |host| async move {
+                                ide_host::ops::fs::entry_kind(&host, path).await
+                            });
+                            resolver.exists(matches!(kind.await, Ok(ide_vfs::EntryKind::File)))
+                        }
+                        ResolveStep::FindFiles { name, limit } => {
+                            let window = label.clone();
+                            let found = Self::on_host(cx, move |host| async move {
+                                ide_host::ops::nav::find_files(&host, &window, name, limit).await
+                            });
+                            let found: Option<Vec<FoundSource>> = found.await.ok().map(|hits| {
+                                hits.into_iter()
+                                    .map(|hit| FoundSource {
+                                        path: hit.path.0.to_string_lossy().into_owned(),
+                                        rel_path: hit.rel_path,
+                                    })
+                                    .collect()
+                            });
+                            resolver.files_found(found.as_deref())
+                        }
+                        ResolveStep::ReadSource { path } => {
+                            let window = label.clone();
+                            let text = Self::on_host(cx, move |host| async move {
+                                ide_host::ops::fs::read_text(&host, &window, PathBuf::from(path)).await
+                            });
+                            let text = text.await.ok();
+                            resolver.source_read(text.as_deref())
+                        }
+                        // Library sources come from the language server, which this window does not ask.
+                        ResolveStep::WorkspaceSymbols { .. } => resolver.symbols_found(None),
+                    };
             };
             let action = Self::with_i18n(cx, |i18n| open_resolved(&target, path.as_deref(), true, i18n));
             let _ = this.update(cx, |driver, cx| match action {

@@ -36,7 +36,8 @@ import {
 import { markdownImages } from "./markdownImages";
 import { selectionMarks } from "./selectionMarks";
 import { seamlessSelection } from "./selectionLayer";
-import type { EditorExtras } from "@/platform/editorSettings";
+import { useEditorRegistry } from "@/editor/api";
+import { editorPrefs, type EditorExtras } from "@/platform/editorSettings";
 import { openideaHighlightStyle } from "./highlight";
 import {
   cursorHumpLeft,
@@ -48,10 +49,14 @@ import {
   selectHumpRight,
 } from "./editing";
 import { enterInLineComment, lineCommentStyle, type LineCommentStyle } from "./comments";
-import { enterInDocComment } from "./docComment";
-import { skipClosingQuote, smartBackspace, smartBackspaceApplies, tabOut } from "./smartKeys";
+import { enterInBlockComment, enterInDocComment } from "./docComment";
+import { renderDocComments } from "./renderedDocs";
+import { skipClosingQuote, smartAngleBrackets, smartBackspace, smartBackspaceApplies, tabOut } from "./smartKeys";
+import { linkedTags } from "./linkedTags";
 import { stringClipboard } from "./stringClipboard";
 import { filterCopiedText } from "./clipboard";
+import { LINE_INSET } from "./lineInset";
+import { codeLensPositions } from "./codeLens";
 
 // --- soft wraps ---------------------------------------------------------------
 
@@ -82,7 +87,9 @@ const wrapIndentCache = new Map<number, Decoration>();
 function wrapIndentDeco(cols: number) {
   let d = wrapIndentCache.get(cols);
   if (!d) {
-    d = Decoration.line({ attributes: { style: `padding-left: calc(6px + ${cols}ch); text-indent: -${cols}ch` } });
+    d = Decoration.line({
+      attributes: { style: `padding-left: calc(${LINE_INSET}px + ${cols}ch); text-indent: -${cols}ch` },
+    });
     wrapIndentCache.set(cols, d);
   }
   return d;
@@ -164,7 +171,7 @@ export function marginGuides(columns: readonly number[]): Extension {
   const image = cols
     .map(
       (c) =>
-        `linear-gradient(to right, transparent calc(6px + ${c}ch), var(--border-right-margin, var(--border)) calc(6px + ${c}ch), var(--border-right-margin, var(--border)) calc(7px + ${c}ch), transparent calc(7px + ${c}ch))`,
+        `linear-gradient(to right, transparent calc(${LINE_INSET}px + ${c}ch), var(--border-right-margin, var(--border)) calc(${LINE_INSET}px + ${c}ch), var(--border-right-margin, var(--border)) calc(${LINE_INSET + 1}px + ${c}ch), transparent calc(${LINE_INSET + 1}px + ${c}ch))`,
     )
     .join(", ");
   return EditorView.contentAttributes.of({ style: `background-image: ${image}` });
@@ -371,10 +378,16 @@ const richCopy = EditorView.domEventHandlers({
 
 // --- caret / scrolling / mouse ----------------------------------------------
 
+/**
+ * Font zoom new editors start from. ⌘/Ctrl+wheel keeps every open editor on the
+ * same value (#2480), so editors opened afterwards match the others.
+ */
+let sharedFontZoom = 0;
+
 /** Font zoom of one editor (⌘ + wheel), in px relative to the configured size. */
 export const setFontZoom = StateEffect.define<number>();
 export const fontZoom = StateField.define<number>({
-  create: () => 0,
+  create: () => sharedFontZoom,
   update: (v, tr) => tr.effects.reduce((acc, e) => (e.is(setFontZoom) ? e.value : acc), v),
   // Highest precedence: its style comes after the configured font size, which it scales.
   provide: (f) =>
@@ -397,11 +410,51 @@ export function stepFontZoom(view: EditorView, delta: number): void {
   if (next !== z) view.dispatch({ effects: setFontZoom.of(next) });
 }
 
-const wheelZoom = EditorView.domEventHandlers({
+/**
+ * Steps the font zoom of every open editor to the same value, so ⌘/Ctrl+wheel
+ * resizes all editor areas together (#2480) instead of only the focused one.
+ */
+export function stepAllEditorsFontZoom(origin: EditorView, delta: number): void {
+  const current = origin.state.field(fontZoom, false);
+  if (current === undefined) return;
+  const next = Math.max(-6, Math.min(36, current + delta));
+  if (next === current) return;
+  sharedFontZoom = next;
+  for (const ed of useEditorRegistry.getState().editors) {
+    if (ed.view.state.field(fontZoom, false) === undefined) continue;
+    if (ed.view.state.field(fontZoom) !== next) ed.view.dispatch({ effects: setFontZoom.of(next) });
+  }
+}
+
+/** Resets one editor's font zoom to 0. */
+export function resetEditorFontZoom(view: EditorView): void {
+  if (view.state.field(fontZoom, false)) view.dispatch({ effects: setFontZoom.of(0) });
+}
+
+/** Resets every open editor's font zoom, and the value new editors start from. */
+export function resetAllEditorsFontZoom(): void {
+  sharedFontZoom = 0;
+  for (const ed of useEditorRegistry.getState().editors) resetEditorFontZoom(ed.view);
+}
+
+/** Steps font zoom according to `editor.general.wheelZoomScope` (`active` editor by default, or `all` editors). */
+export function stepConfiguredEditorsFontZoom(origin: EditorView, delta: number): void {
+  if (editorPrefs().general.wheelZoomScope === "all") stepAllEditorsFontZoom(origin, delta);
+  else stepFontZoom(origin, delta);
+}
+
+/** Resets font zoom according to `editor.general.wheelZoomScope` (`active` editor by default, or `all` editors). */
+export function resetConfiguredEditorsFontZoom(origin: EditorView): void {
+  if (editorPrefs().general.wheelZoomScope === "all") resetAllEditorsFontZoom();
+  else resetEditorFontZoom(origin);
+}
+
+/** Exported for tests: the ⌘/Ctrl+wheel handler of the prefs compartment. */
+export const wheelZoom = EditorView.domEventHandlers({
   wheel(e, view) {
     if (!e.metaKey && !e.ctrlKey) return false;
     e.preventDefault();
-    stepFontZoom(view, e.deltaY < 0 ? 1 : -1);
+    stepConfiguredEditorsFontZoom(view, e.deltaY < 0 ? 1 : -1);
     return true;
   },
 });
@@ -435,14 +488,27 @@ const noSurround = EditorView.inputHandler.of((view, from, to, text) => {
   return true;
 });
 
-/** Gutter icon groups of Settings › Editor › General › Gutter Icons (stable gutter classes). */
+/**
+ * Gutter icon groups of Settings › Editor › General › Gutter Icons. A hidden group sets
+ * `cm-openidea-hideGutter-<id>` on the editor (the theme hides the bookmark, color and
+ * script/compose run columns by it); the icon area's run and inheritance icons read the
+ * setting themselves.
+ */
 export const GUTTER_ICON_GROUPS = [
-  { id: "run", gutterClass: "cm-openidea-gutter-run" },
-  { id: "bookmarks", gutterClass: "cm-openidea-bookmarks" },
-  { id: "inheritors", gutterClass: "cm-openidea-gutter-lineMarkers" },
-  { id: "supers", gutterClass: "cm-openidea-gutter-lineMarkers" },
-  { id: "colors", gutterClass: "cm-openidea-gutter-colors" },
+  { id: "run" },
+  { id: "bookmarks" },
+  { id: "inheritors" },
+  { id: "supers" },
+  { id: "colors" },
 ] as const;
+
+/**
+ * Languages whose outer parser is `@lezer/html`, where simultaneous
+ * `<tag></tag>` editing works from the syntax tree. Angular templates carry
+ * the `html` backend id (the Angular mode is picked per project), `erb` is a
+ * token-based mode without a syntax tree and stays out.
+ */
+const LINKED_TAG_LANGUAGES = new Set(["html", "vue", "jsp", "django-html", "astro"]);
 
 export interface PrefsOptions {
   prefs: EditorExtras;
@@ -450,6 +516,8 @@ export interface PrefsOptions {
   softWrap: boolean | undefined;
   /** Soft wraps toggled for the file, overriding `softWrap` and the file patterns. */
   wrapOverride?: boolean | null;
+  /** Rendered doc comments toggled for the file, overriding `appearance.renderDocComments`. */
+  renderedDocsOverride?: boolean | null;
   showWhitespace: boolean | undefined;
   /** Hard wrap column for this file's language. */
   hardWrapAt: number;
@@ -523,7 +591,12 @@ export function prefsExtension(o: PrefsOptions): Extension {
   const { prefs } = o;
   const g = prefs.general;
   const k = prefs.smartKeys;
-  const out: Extension[] = [];
+  const out: Extension[] = [
+    codeLensPositions.of({
+      usages: prefs.inlay.codeVisionUsagesPosition,
+      author: prefs.inlay.codeVisionAuthorPosition,
+    }),
+  ];
   if (!o.readOnly)
     out.push(markdownImages({ path: o.path, folder: g.markdownImageFolder, pattern: g.markdownImageNamePattern }));
   if (g.scrollPastEnd) out.push(scrollPastEnd());
@@ -538,6 +611,7 @@ export function prefsExtension(o: PrefsOptions): Extension {
     out.push(marginGuides([o.hardWrapAt, ...prefs.codeStyle.visualGuides]));
   if (prefs.appearance.methodSeparators)
     out.push(EditorView.editorAttributes.of({ class: "cm-openidea-methodSeparators" }));
+  if (o.renderedDocsOverride ?? prefs.appearance.renderDocComments) out.push(renderDocComments.of(true));
   const hidden = GUTTER_ICON_GROUPS.filter(
     (grp) => !prefs.showGutterIcons || prefs.gutterIconsDisabled.includes(grp.id),
   );
@@ -556,9 +630,16 @@ export function prefsExtension(o: PrefsOptions): Extension {
   // Pairing: closeBrackets() reads the brackets list from language data; ours comes first.
   const brackets = [...(k.pairBrackets ? ["(", "[", "{"] : []), ...(k.pairQuotes ? ["'", '"'] : [])];
   out.push(Prec.highest(EditorState.languageData.of(() => [{ closeBrackets: { brackets } }])));
+  // `<` pairs where the syntax says a generic type list starts, as in IDEA — no separate option.
+  if (k.pairBrackets && !o.readOnly) out.push(smartAngleBrackets(o.language));
   if (!k.surroundSelection) out.push(Prec.highest(noSurround));
   if (k.pairQuotes) out.push(Prec.highest(skipClosingQuote));
   if (k.tabOutOfPair) out.push(tabOut);
+  // Simultaneous `<tag></tag>` editing, from the syntax tree: every mode whose outer
+  // parser is `@lezer/html` — plain HTML plus the HTML-based modes (Vue SFCs, Angular
+  // templates, JSP, Django and Astro; Angular templates carry the `html` backend id).
+  // ERB is token-based (no syntax tree), so it stays out.
+  if (!o.readOnly && k.simultaneousTagEditing && LINKED_TAG_LANGUAGES.has(o.language ?? "")) out.push(linkedTags);
   if (o.commentStyle) out.push(lineCommentStyle.of(o.commentStyle));
 
   const keys = [];
@@ -580,7 +661,7 @@ export function prefsExtension(o: PrefsOptions): Extension {
       { mac: "Mod-ArrowLeft", run: cursorLineStart, shift: selectLineStart, preventDefault: true },
     );
   if (!o.readOnly && k.insertDocStub) keys.push({ key: "Enter", run: enterInDocComment(o.language) });
-  if (!o.readOnly) keys.push({ key: "Enter", run: enterInLineComment });
+  if (!o.readOnly) keys.push({ key: "Enter", run: enterInBlockComment }, { key: "Enter", run: enterInLineComment });
   if (!k.smartIndent) keys.push({ key: "Enter", run: insertNewlineKeepIndent });
   if (k.backspaceUnindent === "none") keys.push({ key: "Backspace", run: deleteCharBackwardStrict });
   else if (smartBackspaceApplies(k.backspaceUnindent, o.language)) keys.push({ key: "Backspace", run: smartBackspace });

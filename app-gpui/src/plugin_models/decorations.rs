@@ -265,7 +265,7 @@ mod tests {
         decorations.set("test", vec![unknown]);
         assert!(decorations.editor(Some("/p"), "/p/a.txt", TEXT).is_empty());
         let (badge, tooltip) = (Some("M".to_owned()), Some("changed".to_owned()));
-        let file = FileDecoration { style: "modified".into(), badge, tooltip };
+        let file = FileDecoration { style: "modified".into(), badge, tooltip, icon: None, note: None };
         let tree = DecorationSet { tree: true, items: Vec::new(), file: Some(file), ..set("/p") };
         decorations.set("test", vec![tree]);
         let badge = decorations.tree(Some("/p"), "test").get("/p/a.txt").and_then(|d| d.badge.clone());

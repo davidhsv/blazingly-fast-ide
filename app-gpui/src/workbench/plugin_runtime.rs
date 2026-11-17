@@ -1032,6 +1032,13 @@ impl Workbench {
                 cx.new(|cx| PluginPrompt::input(prompt, value.as_deref(), *multiline, window, cx))
             }
             Prompt::Confirm { title, message } => cx.new(|cx| PluginPrompt::confirm_question(title, message, cx)),
+            // The host's question about an HTTPS host the manifest does not list has no dialog in
+            // this window: it is answered as Deny, so nothing undeclared is reached unasked.
+            Prompt::NetPermission { host, .. } => {
+                tracing::warn!("a plugin's connection to {host} is denied: this window cannot ask for it");
+                self.send_prompt_answer(prompt_id, None, cx);
+                return;
+            }
         };
         let id = prompt_id.to_owned();
         let events = cx.subscribe_in(&view, window, move |workbench, _, event: &PluginPromptEvent, window, cx| {

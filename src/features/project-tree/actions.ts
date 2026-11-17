@@ -2,7 +2,7 @@
 import { activeEditor } from "@/editor/api";
 import { getAction, registerActions, type Action } from "@/platform/actions";
 import { getContext } from "@/platform/context";
-import { revealInFileManagerLabel } from "@/platform/fileManager";
+import { canRevealInFileManager, revealInFileManagerLabel } from "@/platform/fileManager";
 import { dirname, useProject } from "@/platform/project";
 import { showContextMenu, type MenuItem } from "@/ui";
 import { maybeEditorService, menuGroupItems, toolWindowService } from "@/workbench/contributions";
@@ -24,9 +24,11 @@ import {
   openMoveDialog,
   openRenameDialog,
   openSelection,
+  openSelectionInRightSplit,
   paste,
   reloadFromDisk,
   revealInFinder,
+  selectedFiles,
   selectedNodes,
   type PathKind,
 } from "./operations";
@@ -121,7 +123,9 @@ export function selectInTargets(path: string): MenuItem[] {
     ...(getAction("navigate.navigationBar") && maybeEditorService()?.activePath() === path
       ? [{ kind: "action" as const, action: "navigate.navigationBar", label: "Navigation Bar" }]
       : []),
-    { label: revealLabel(), icon: "external-link", run: () => void revealInFinder(nodesFrom(path)) },
+    ...(canRevealInFileManager()
+      ? [{ label: revealLabel(), icon: "external-link", run: () => void revealInFinder(nodesFrom(path)) }]
+      : []),
     ...(getAction("terminal.openAt")
       ? [{ label: "Terminal", icon: "terminal", run: () => void delegate("terminal.openAt", parentOf(path)) }]
       : []),
@@ -150,7 +154,7 @@ function showSelectIn(path: string) {
   const view = activeEditor()?.view;
   const coords = view && activeEditor()?.ctx.path === path ? view.coordsAtPos(view.state.selection.main.head) : null;
   const at = coords ? { x: coords.left, y: coords.bottom + 2 } : { x: window.innerWidth / 2 - 100, y: 80 };
-  showContextMenu(at, selectInTargets(path));
+  showContextMenu(at, selectInTargets(path), { numbers: true });
 }
 
 export function registerProjectActions(): () => void {
@@ -288,6 +292,16 @@ export function registerProjectActions(): () => void {
       category: "Project View",
       when: FOCUS,
       run: openSelection,
+    },
+    {
+      id: "project.openInRightSplit",
+      title: "Open in Right Split",
+      category: "Project View",
+      icon: "split",
+      when: FOCUS,
+      // Folders keep Enter's expand / collapse.
+      enabled: () => selectedFiles().length > 0,
+      run: () => openSelectionInRightSplit(),
     },
     {
       id: "project.rename",

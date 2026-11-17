@@ -2308,7 +2308,8 @@ mod tests {
         let [DockerRequest::LoadSettings { ticket }] = requests.as_slice() else { panic!("loads first") };
         let saved = store.settings_loaded(*ticket, Ok(DockerSettings::default()));
         let [DockerRequest::SaveSettings { ticket, settings }] = saved.as_slice() else { panic!("saves") };
-        assert_eq!(settings.connections.len(), 2);
+        // Nothing is configured before: the saved list holds the added connection alone.
+        assert_eq!(settings.connections.len(), 1);
         assert!(store.connections().iter().all(|connection| connection.id != "c3"), "not before it is saved");
         store.settings_saved(*ticket, Ok(()));
         assert!(store.connections().contains(&added));

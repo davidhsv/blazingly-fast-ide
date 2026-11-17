@@ -715,11 +715,11 @@ mod tests {
 
     #[test]
     fn re_renders_when_switching_between_built_in_palette_themes_of_the_same_light_dark_base() {
-        let one = theme_key(&ThemeAttributes::dark().with("data-color-theme", "one-dark"), "", "Inter");
+        let light = theme_key(&ThemeAttributes::dark().with("data-color-theme", "solarized-light"), "", "Inter");
         let solarized = theme_key(&ThemeAttributes::dark().with("data-color-theme", "solarized-dark"), "", "Inter");
-        assert_ne!(one, solarized);
+        assert_ne!(light, solarized);
         let mut mermaid = Mermaid::new();
-        render(&mut mermaid, SEQ, &one, &mut Vec::new());
+        render(&mut mermaid, SEQ, &light, &mut Vec::new());
         let (first, _) = draw_all(&mut mermaid);
         render(&mut mermaid, SEQ, &solarized, &mut Vec::new());
         let (second, _) = draw_all(&mut mermaid);

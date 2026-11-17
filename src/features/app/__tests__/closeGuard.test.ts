@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { confirmExitEnabled, decideClose, type CloseDeps, type CloseInput } from "../closeGuard";
+import {
+  closeTabsWithWindowEnabled,
+  closeWithoutWelcomeEnabled,
+  confirmExitEnabled,
+  decideClose,
+  returnsToWelcome,
+  type CloseDeps,
+  type CloseInput,
+} from "../closeGuard";
 import type { MessageRequest as PromptRequest, MessageResult as PromptResult } from "@/workbench/messages";
 import type { EditorCloseSession } from "@/workbench/contributions";
 
@@ -145,6 +153,25 @@ describe("decideClose", () => {
     expect(confirmExitEnabled(null)).toBe(false);
   });
 
+  it("returns to Welcome unless the user chooses to close the last window", () => {
+    const on = { general: { closeWithoutWelcome: true } };
+    expect(closeWithoutWelcomeEnabled(null)).toBe(false);
+    expect(closeWithoutWelcomeEnabled({ general: {} })).toBe(false);
+    expect(closeWithoutWelcomeEnabled(on)).toBe(true);
+    expect(returnsToWelcome(false, 1, true, null)).toBe(true);
+    expect(returnsToWelcome(false, 1, true, { general: {} })).toBe(true);
+    expect(returnsToWelcome(false, 1, true, on)).toBe(false);
+    expect(returnsToWelcome(true, 1, true, null)).toBe(false);
+    expect(returnsToWelcome(false, 2, true, null)).toBe(false);
+    expect(returnsToWelcome(false, 1, false, null)).toBe(false);
+  });
+
+  it("keeps editor tabs across a close unless the user chooses to drop them", () => {
+    expect(closeTabsWithWindowEnabled(null)).toBe(false);
+    expect(closeTabsWithWindowEnabled({ general: {} })).toBe(false);
+    expect(closeTabsWithWindowEnabled({ general: { closeTabsWithWindow: true } })).toBe(true);
+  });
+
   it("includes dirty changes produced while preparing a custom document", async () => {
     const { d } = deps([{ button: "save", checked: false }]);
     let text = "old output";
@@ -253,4 +280,33 @@ it("confirmLeave asks about running processes before closing", async () => {
   await expect(confirmLeave(d, "openidea")).resolves.toBe(false);
   expect(asked[0]?.title).toContain("app");
   expect(asked[0]?.body).toContain("app");
+});
+
+it("counts untitled buffers only when leaving for Welcome, and stays when one isn't saved", async () => {
+  const service = await import("@/workbench/contributions");
+  const { confirmLeave } = await import("../closeGuard");
+  let untitled = [7];
+  const spy = vi.spyOn(service, "maybeEditorService").mockReturnValue({
+    dirtyDocumentIds: () => [7],
+    untitledDirtyDocumentIds: () => untitled,
+    saveAll: vi.fn(async () => {}),
+  } as never);
+  try {
+    // Another project in place keeps the buffer: nothing to ask.
+    const kept = deps([]);
+    await expect(confirmLeave(kept.d, "openidea", true)).resolves.toBe(true);
+    expect(kept.asked).toHaveLength(0);
+    // Close Project asks; Save with the Save As cancelled keeps the project open, quietly.
+    const left = deps([{ button: "save", checked: false }]);
+    await expect(confirmLeave(left.d, "openidea", false)).resolves.toBe(false);
+    expect(left.asked[0]?.body).toContain("1");
+    expect(left.d.saveAll).toHaveBeenCalled();
+    // Saved: the project closes.
+    untitled = [];
+    const saved = deps([{ button: "save", checked: false }]);
+    left.d.saveAll = vi.fn(async () => {});
+    await expect(confirmLeave(saved.d, "openidea", false)).resolves.toBe(true);
+  } finally {
+    spy.mockRestore();
+  }
 });

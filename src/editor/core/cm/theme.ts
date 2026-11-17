@@ -7,6 +7,8 @@
  */
 import { EditorView } from "@codemirror/view";
 import { BRACKET_COLORS } from "./rainbowBrackets";
+import { LINE_INSET } from "./lineInset";
+import { GUIDE_COLORS } from "./indentGuides";
 
 /** The `--editor-*` locals of `findStyles`, for the `&` rule. */
 export const findLocals = {
@@ -135,6 +137,20 @@ export const openideaTheme = EditorView.theme({
       "var(--bg-editor-selection-inactive, color-mix(in srgb, var(--accent) 14%, transparent))",
     "--editor-indent-guide": "var(--border-indent-guide, var(--border))",
     "--openidea-guide": "linear-gradient(var(--editor-indent-guide), var(--editor-indent-guide))",
+    // The guide the caret is on (IDEA's Selected indent guide).
+    "--editor-indent-guide-active": "var(--border-indent-guide-active, var(--editor-indent-guide))",
+    "--openidea-guide-active": "linear-gradient(var(--editor-indent-guide-active), var(--editor-indent-guide-active))",
+    // The guide of the block whose braces match at the caret (IDEA's Matched braces indent guide).
+    "--editor-indent-guide-brace":
+      "var(--border-indent-guide-brace, var(--bg-matched-brace, var(--editor-indent-guide-active)))",
+    "--openidea-guide-brace": "linear-gradient(var(--editor-indent-guide-brace), var(--editor-indent-guide-brace))",
+    // Rainbow indent guides: one image per depth, so they follow the colour scheme.
+    ...Object.fromEntries(
+      Array.from({ length: GUIDE_COLORS }, (_, i) => {
+        const color = `var(--syn-rainbow-${i + 1}, var(--editor-indent-guide))`;
+        return [`--openidea-guide-${i + 1}`, `linear-gradient(${color}, ${color})`];
+      }),
+    ),
     ...findLocals,
     "--editor-brace": "var(--bg-matched-brace, color-mix(in srgb, var(--accent) 22%, transparent))",
     "--editor-fold-chip": "var(--bg-fold-placeholder, color-mix(in srgb, var(--fg-muted) 14%, transparent))",
@@ -150,12 +166,13 @@ export const openideaTheme = EditorView.theme({
     overscrollBehavior: "contain",
   },
   ".cm-content": {
-    padding: "4px 0 8px 0",
+    // no top padding: the first line starts at the top edge, as in IDEA, and so does its selection
+    padding: "0 0 8px 0",
     caretColor: "var(--caret, var(--fg-strong))",
     cursor: "text",
   },
   // The right side also leaves room for the floating corner widgets (core/cm/cornerInset.ts).
-  ".cm-line": { padding: "0 calc(16px + var(--cm-corner-inset, 0px)) 0 6px" },
+  ".cm-line": { padding: `0 calc(16px + var(--cm-corner-inset, 0px)) 0 ${LINE_INSET}px` },
   ...caretStyles,
   "&.cm-openidea-ligatures .cm-scroller, &.cm-openidea-ligatures .cm-openidea-sticky": {
     fontVariantLigatures: "normal",
@@ -171,7 +188,9 @@ export const openideaTheme = EditorView.theme({
   "&.cm-openidea-hideGutter-inheritors :is(.cm-openidea-lineMarker-implemented, .cm-openidea-lineMarker-overridden), &.cm-openidea-hideGutter-supers :is(.cm-openidea-lineMarker-implementing, .cm-openidea-lineMarker-overriding)":
     { display: "none" },
   // Distraction Free Mode: no gutter; the text column (n chars + line padding) is centred.
-  "&.cm-openidea-distractionFree": { "--openidea-df-width": "calc(var(--openidea-df-columns, 80) * 1ch + 22px)" },
+  "&.cm-openidea-distractionFree": {
+    "--openidea-df-width": `calc(var(--openidea-df-columns, 80) * 1ch + ${16 + LINE_INSET}px)`,
+  },
   "&.cm-openidea-distractionFree .cm-gutters": { display: "none" },
   "&.cm-openidea-distractionFree .cm-content": {
     marginInlineStart: "max(0px, calc((100% - var(--openidea-df-width)) / 2))",
@@ -320,6 +339,8 @@ export const openideaTheme = EditorView.theme({
 
   // Find in file (cm/find.ts)
   ...findStyles,
+  // Find in Files preview matches (search/find/parts.tsx)
+  ".cm-openidea-searchResult": { backgroundColor: "var(--bg-search-result)" },
 
   // Overlays
   ".cm-tooltip": {
@@ -369,7 +390,17 @@ export const openideaTheme = EditorView.theme({
     boxSizing: "border-box",
     paddingRight: "8px",
   },
-  ".cm-openidea-stickyText": { flex: "1", overflow: "hidden" },
+  ".cm-openidea-stickyText": { flex: "1", overflow: "hidden", position: "relative" },
+  ".cm-openidea-stickyInner": { position: "relative" },
+  // The selection on a pinned line, under its text (as the selection layer in the editor).
+  ".cm-openidea-stickySelection": {
+    position: "absolute",
+    top: "0",
+    bottom: "0",
+    background: "var(--editor-selection-inactive)",
+    pointerEvents: "none",
+  },
+  "&.cm-focused .cm-openidea-stickySelection": { background: "var(--editor-selection)" },
 
   // Soft-wrap: continuation rows indent slightly, like IDEA's wrap sign column.
   "&.cm-lineWrapping .cm-line, .cm-lineWrapping .cm-line": {

@@ -81,6 +81,11 @@ pub fn deployment_connection(server: &DeploymentServer) -> FsConnection {
     match server.kind {
         DeploymentType::Local => FsConnection::Local,
         DeploymentType::Sftp => FsConnection::Sftp { ssh: server.ssh_config.clone() },
+        DeploymentType::Ftp | DeploymentType::Ftps => FsConnection::Ftp {
+            server: server.id.clone(),
+            secure: server.kind == DeploymentType::Ftps,
+            ftp: server.ftp.clone(),
+        },
     }
 }
 
@@ -131,12 +136,29 @@ mod tests {
         }
     }
 
+    // deployment types › connects %s servers with their host and the password saved under the server
+    #[test]
+    fn connects_ftp_servers_with_their_host_and_the_password_saved_under_the_server() {
+        for kind in ["ftp", "ftps"] {
+            let ftp = json!({ "host": "ftp.example.com", "port": 2121, "user": "web", "passive": false });
+            let settings = deployment(json!({ "servers": [{ "kind": kind, "id": "s1", "ftp": ftp }] }));
+            let stored = serde_json::to_value(&settings).expect("deployment settings are plain values");
+            assert_eq!(deployment(stored), settings);
+            let expected = FsConnection::Ftp {
+                server: "s1".to_owned(),
+                secure: kind == "ftps",
+                ftp: serde_json::from_value(ftp).expect("an FTP login"),
+            };
+            assert_eq!(deployment_connection(&settings.servers[0]), expected);
+        }
+    }
+
     // deployment types › normalizes unsupported types to SFTP
     #[test]
     fn normalizes_unsupported_types_to_sftp() {
         assert_eq!(deployment(json!({ "servers": [{}] })).servers[0].kind, DeploymentType::Sftp);
         // A type the backend does not know is refused where the settings are stored.
-        for kind in [json!("ftp"), json!("ftps"), json!("webdav"), json!("inPlace"), Value::Null] {
+        for kind in [json!("webdav"), json!("inPlace"), Value::Null] {
             let raw = json!({ "servers": [{ "kind": kind }] });
             assert!(serde_json::from_value::<DeploymentSettings>(raw).is_err(), "{kind}");
         }

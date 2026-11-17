@@ -326,6 +326,12 @@
    ]
   ],
   [
+   "navigate.relatedSymbol",
+   [
+    "Ctrl+Meta+Up"
+   ]
+  ],
+  [
    "navigate.nextMethod",
    [
     "Ctrl+Shift+Down"
@@ -955,6 +961,10 @@
    ]
   ],
   [
+   "refactor.extractInterface",
+   []
+  ],
+  [
    "refactor.pullMembersUp",
    []
   ],
@@ -1161,6 +1171,12 @@
    ]
   ],
   [
+   "project.openInRightSplit",
+   [
+    "Shift+Enter"
+   ]
+  ],
+  [
    "project.findUsages",
    [
     "Alt+F7"
@@ -1192,6 +1208,18 @@
   ],
   [
    "project.collapseAll",
+   [
+    "Meta+-"
+   ]
+  ],
+  [
+   "run.expandAllTests",
+   [
+    "Meta+="
+   ]
+  ],
+  [
+   "run.collapseAllTests",
    [
     "Meta+-"
    ]
@@ -1299,10 +1327,14 @@
    ]
   ],
   [
-   "layout.restoreDefault",
+   "layout.restoreCurrent",
    [
     "Shift+F12"
    ]
+  ],
+  [
+   "layout.restoreDefault",
+   []
   ],
   [
    "toolwindow.jumpToLast",
@@ -1620,6 +1652,16 @@
    ]
   ],
   [
+   "vcs.log.changes.showDiff",
+   [
+    "Meta+D"
+   ]
+  ],
+  [
+   "vcs.showDiffInNewWindow",
+   []
+  ],
+  [
    "vcs.nextChange",
    [
     "Ctrl+Alt+Shift+Down"
@@ -1766,6 +1808,12 @@
    ]
   ],
   [
+   "diff.focusOppositePane",
+   [
+    "Ctrl+Shift+Tab"
+   ]
+  ],
+  [
    "project.compareWith",
    [
     "Meta+D"
@@ -1868,9 +1916,57 @@
    []
   ],
   [
+   "db.toggleBooleanCell",
+   [
+    "Space"
+   ]
+  ],
+  [
+   "db.setCellNull",
+   [
+    "Meta+Backspace"
+   ]
+  ],
+  [
+   "db.setCellDefault",
+   [
+    "Meta+Shift+Backspace"
+   ]
+  ],
+  [
+   "db.reformatValue",
+   [
+    "Meta+Alt+L"
+   ]
+  ],
+  [
+   "db.openValueWindow",
+   []
+  ],
+  [
+   "db.findInValue",
+   [
+    "Meta+F"
+   ]
+  ],
+  [
    "db.execute",
    [
     "Meta+Enter"
+   ]
+  ],
+  [
+   "db.nextResultTab",
+   [
+    "Meta+Shift+]",
+    "Ctrl+Right"
+   ]
+  ],
+  [
+   "db.previousResultTab",
+   [
+    "Meta+Shift+[",
+    "Ctrl+Left"
    ]
   ],
   [
@@ -1892,6 +1988,54 @@
    ]
   ],
   [
+   "db.reloadPage",
+   [
+    "Meta+R"
+   ]
+  ],
+  [
+   "db.firstPage",
+   []
+  ],
+  [
+   "db.previousPage",
+   [
+    "Meta+Alt+Up"
+   ]
+  ],
+  [
+   "db.nextPage",
+   [
+    "Meta+Alt+Down"
+   ]
+  ],
+  [
+   "db.lastPage",
+   []
+  ],
+  [
+   "db.addRow",
+   [
+    "Meta+N"
+   ]
+  ],
+  [
+   "db.deleteRows",
+   []
+  ],
+  [
+   "db.restoreRows",
+   []
+  ],
+  [
+   "db.exportData",
+   []
+  ],
+  [
+   "db.editCell",
+   []
+  ],
+  [
    "db.showToolWindow",
    []
   ],
@@ -1899,6 +2043,18 @@
    "agents.newTask",
    [
     "Meta+Shift+I"
+   ]
+  ],
+  [
+   "agents.focusInput",
+   [
+    "Meta+L"
+   ]
+  ],
+  [
+   "agents.cycleEffort",
+   [
+    "Alt+T"
    ]
   ],
   [
@@ -2068,6 +2224,14 @@
   ],
   [
    "db.goToReferencedTable",
+   []
+  ],
+  [
+   "db.selectOpened",
+   []
+  ],
+  [
+   "db.expandAll",
    []
   ],
   [
@@ -2461,6 +2625,12 @@
    "navigate.superMethod",
    [
     "Ctrl+U"
+   ]
+  ],
+  [
+   "navigate.relatedSymbol",
+   [
+    "Ctrl+Alt+Home"
    ]
   ],
   [
@@ -3092,6 +3262,10 @@
    ]
   ],
   [
+   "refactor.extractInterface",
+   []
+  ],
+  [
    "refactor.pullMembersUp",
    []
   ],
@@ -3290,6 +3464,12 @@
    ]
   ],
   [
+   "project.openInRightSplit",
+   [
+    "Shift+Enter"
+   ]
+  ],
+  [
    "project.findUsages",
    [
     "Alt+F7"
@@ -3321,6 +3501,18 @@
   ],
   [
    "project.collapseAll",
+   [
+    "Ctrl+-"
+   ]
+  ],
+  [
+   "run.expandAllTests",
+   [
+    "Ctrl+="
+   ]
+  ],
+  [
+   "run.collapseAllTests",
    [
     "Ctrl+-"
    ]
@@ -3404,10 +3596,14 @@
    ]
   ],
   [
-   "layout.restoreDefault",
+   "layout.restoreCurrent",
    [
     "Shift+F12"
    ]
+  ],
+  [
+   "layout.restoreDefault",
+   []
   ],
   [
    "toolwindow.jumpToLast",
@@ -3719,6 +3915,16 @@
    ]
   ],
   [
+   "vcs.log.changes.showDiff",
+   [
+    "Ctrl+D"
+   ]
+  ],
+  [
+   "vcs.showDiffInNewWindow",
+   []
+  ],
+  [
    "vcs.nextChange",
    [
     "Ctrl+Alt+Shift+Down"
@@ -3890,6 +4096,12 @@
    ]
   ],
   [
+   "diff.focusOppositePane",
+   [
+    "Ctrl+Shift+Tab"
+   ]
+  ],
+  [
    "project.compareWith",
    [
     "Ctrl+D"
@@ -3992,9 +4204,55 @@
    []
   ],
   [
+   "db.toggleBooleanCell",
+   [
+    "Space"
+   ]
+  ],
+  [
+   "db.setCellNull",
+   [
+    "Ctrl+Backspace"
+   ]
+  ],
+  [
+   "db.setCellDefault",
+   [
+    "Ctrl+Shift+Backspace"
+   ]
+  ],
+  [
+   "db.reformatValue",
+   [
+    "Ctrl+Alt+L"
+   ]
+  ],
+  [
+   "db.openValueWindow",
+   []
+  ],
+  [
+   "db.findInValue",
+   [
+    "Ctrl+F"
+   ]
+  ],
+  [
    "db.execute",
    [
     "Ctrl+Enter"
+   ]
+  ],
+  [
+   "db.nextResultTab",
+   [
+    "Alt+Right"
+   ]
+  ],
+  [
+   "db.previousResultTab",
+   [
+    "Alt+Left"
    ]
   ],
   [
@@ -4016,6 +4274,57 @@
    ]
   ],
   [
+   "db.reloadPage",
+   [
+    "Ctrl+F5"
+   ]
+  ],
+  [
+   "db.firstPage",
+   []
+  ],
+  [
+   "db.previousPage",
+   [
+    "Ctrl+Alt+Up"
+   ]
+  ],
+  [
+   "db.nextPage",
+   [
+    "Ctrl+Alt+Down"
+   ]
+  ],
+  [
+   "db.lastPage",
+   []
+  ],
+  [
+   "db.addRow",
+   [
+    "Alt+Insert"
+   ]
+  ],
+  [
+   "db.deleteRows",
+   [
+    "Ctrl+Y",
+    "Alt+Delete"
+   ]
+  ],
+  [
+   "db.restoreRows",
+   []
+  ],
+  [
+   "db.exportData",
+   []
+  ],
+  [
+   "db.editCell",
+   []
+  ],
+  [
    "db.showToolWindow",
    []
   ],
@@ -4023,6 +4332,18 @@
    "agents.newTask",
    [
     "Ctrl+Alt+Shift+I"
+   ]
+  ],
+  [
+   "agents.focusInput",
+   [
+    "Ctrl+L"
+   ]
+  ],
+  [
+   "agents.cycleEffort",
+   [
+    "Alt+T"
    ]
   ],
   [
@@ -4191,6 +4512,14 @@
   ],
   [
    "db.goToReferencedTable",
+   []
+  ],
+  [
+   "db.selectOpened",
+   []
+  ],
+  [
+   "db.expandAll",
    []
   ],
   [
@@ -4392,6 +4721,46 @@
    ]
   ],
   [
+   "db.reloadPage",
+   []
+  ],
+  [
+   "db.firstPage",
+   []
+  ],
+  [
+   "db.previousPage",
+   []
+  ],
+  [
+   "db.nextPage",
+   []
+  ],
+  [
+   "db.lastPage",
+   []
+  ],
+  [
+   "db.addRow",
+   []
+  ],
+  [
+   "db.deleteRows",
+   []
+  ],
+  [
+   "db.restoreRows",
+   []
+  ],
+  [
+   "db.exportData",
+   []
+  ],
+  [
+   "db.editCell",
+   []
+  ],
+  [
    "navigate.relatedSymbol",
    []
   ],
@@ -4557,6 +4926,10 @@
   ],
   [
    "toolwindow.resizeDown",
+   []
+  ],
+  [
+   "layout.restoreCurrent",
    []
   ],
   [
@@ -5070,6 +5443,10 @@
    []
   ],
   [
+   "refactor.extractInterface",
+   []
+  ],
+  [
    "refactor.pullMembersUp",
    []
   ],
@@ -5084,10 +5461,14 @@
    ]
   ],
   [
-   "file.new",
+   "file.newUntitled",
    [
     "Meta+N"
    ]
+  ],
+  [
+   "file.new",
+   []
   ],
   [
    "file.settings",
@@ -5286,6 +5667,12 @@
    ]
   ],
   [
+   "project.openInRightSplit",
+   [
+    "Meta+Enter"
+   ]
+  ],
+  [
    "project.reloadFromDisk",
    []
   ],
@@ -5295,6 +5682,14 @@
   ],
   [
    "project.collapseAll",
+   []
+  ],
+  [
+   "run.expandAllTests",
+   []
+  ],
+  [
+   "run.collapseAllTests",
    []
   ],
   [
@@ -5604,6 +5999,14 @@
    []
   ],
   [
+   "vcs.log.changes.showDiff",
+   []
+  ],
+  [
+   "vcs.showDiffInNewWindow",
+   []
+  ],
+  [
    "vcs.nextChange",
    [
     "Alt+F5"
@@ -5778,6 +6181,10 @@
    []
   ],
   [
+   "diff.focusOppositePane",
+   []
+  ],
+  [
    "diff.prevDifference",
    [
     "Shift+F7"
@@ -5804,9 +6211,57 @@
    []
   ],
   [
+   "db.toggleBooleanCell",
+   [
+    "Space"
+   ]
+  ],
+  [
+   "db.setCellNull",
+   [
+    "Meta+Backspace"
+   ]
+  ],
+  [
+   "db.setCellDefault",
+   [
+    "Meta+Shift+Backspace"
+   ]
+  ],
+  [
+   "db.reformatValue",
+   [
+    "Alt+Shift+F"
+   ]
+  ],
+  [
+   "db.openValueWindow",
+   []
+  ],
+  [
+   "db.findInValue",
+   [
+    "Meta+F"
+   ]
+  ],
+  [
    "db.execute",
    [
     "Meta+Enter"
+   ]
+  ],
+  [
+   "db.nextResultTab",
+   [
+    "Meta+Alt+Right",
+    "Meta+Shift+]"
+   ]
+  ],
+  [
+   "db.previousResultTab",
+   [
+    "Meta+Alt+Left",
+    "Meta+Shift+["
    ]
   ],
   [
@@ -5942,6 +6397,14 @@
    []
   ],
   [
+   "db.selectOpened",
+   []
+  ],
+  [
+   "db.expandAll",
+   []
+  ],
+  [
    "db.collapseAll",
    []
   ],
@@ -5971,6 +6434,18 @@
    "agents.newTask",
    [
     "Meta+Shift+I"
+   ]
+  ],
+  [
+   "agents.focusInput",
+   [
+    "Meta+L"
+   ]
+  ],
+  [
+   "agents.cycleEffort",
+   [
+    "Alt+T"
    ]
   ],
   [
@@ -6134,6 +6609,46 @@
    [
     "Ctrl+Alt+Z"
    ]
+  ],
+  [
+   "db.reloadPage",
+   []
+  ],
+  [
+   "db.firstPage",
+   []
+  ],
+  [
+   "db.previousPage",
+   []
+  ],
+  [
+   "db.nextPage",
+   []
+  ],
+  [
+   "db.lastPage",
+   []
+  ],
+  [
+   "db.addRow",
+   []
+  ],
+  [
+   "db.deleteRows",
+   []
+  ],
+  [
+   "db.restoreRows",
+   []
+  ],
+  [
+   "db.exportData",
+   []
+  ],
+  [
+   "db.editCell",
+   []
   ],
   [
    "navigate.relatedSymbol",
@@ -6301,6 +6816,10 @@
   ],
   [
    "toolwindow.resizeDown",
+   []
+  ],
+  [
+   "layout.restoreCurrent",
    []
   ],
   [
@@ -6812,6 +7331,10 @@
    []
   ],
   [
+   "refactor.extractInterface",
+   []
+  ],
+  [
    "refactor.pullMembersUp",
    []
   ],
@@ -6826,10 +7349,14 @@
    ]
   ],
   [
-   "file.new",
+   "file.newUntitled",
    [
     "Ctrl+N"
    ]
+  ],
+  [
+   "file.new",
+   []
   ],
   [
    "file.settings",
@@ -7026,6 +7553,12 @@
    []
   ],
   [
+   "project.openInRightSplit",
+   [
+    "Ctrl+Enter"
+   ]
+  ],
+  [
    "project.reloadFromDisk",
    []
   ],
@@ -7035,6 +7568,14 @@
   ],
   [
    "project.collapseAll",
+   []
+  ],
+  [
+   "run.expandAllTests",
+   []
+  ],
+  [
+   "run.collapseAllTests",
    []
   ],
   [
@@ -7344,6 +7885,14 @@
    []
   ],
   [
+   "vcs.log.changes.showDiff",
+   []
+  ],
+  [
+   "vcs.showDiffInNewWindow",
+   []
+  ],
+  [
    "vcs.nextChange",
    [
     "Alt+F5"
@@ -7518,6 +8067,10 @@
    []
   ],
   [
+   "diff.focusOppositePane",
+   []
+  ],
+  [
    "diff.prevDifference",
    [
     "Shift+F7"
@@ -7544,9 +8097,55 @@
    []
   ],
   [
+   "db.toggleBooleanCell",
+   [
+    "Space"
+   ]
+  ],
+  [
+   "db.setCellNull",
+   [
+    "Ctrl+Backspace"
+   ]
+  ],
+  [
+   "db.setCellDefault",
+   [
+    "Ctrl+Shift+Backspace"
+   ]
+  ],
+  [
+   "db.reformatValue",
+   [
+    "Alt+Shift+F"
+   ]
+  ],
+  [
+   "db.openValueWindow",
+   []
+  ],
+  [
+   "db.findInValue",
+   [
+    "Ctrl+F"
+   ]
+  ],
+  [
    "db.execute",
    [
     "Ctrl+Enter"
+   ]
+  ],
+  [
+   "db.nextResultTab",
+   [
+    "Ctrl+PageDown"
+   ]
+  ],
+  [
+   "db.previousResultTab",
+   [
+    "Ctrl+PageUp"
    ]
   ],
   [
@@ -7682,6 +8281,14 @@
    []
   ],
   [
+   "db.selectOpened",
+   []
+  ],
+  [
+   "db.expandAll",
+   []
+  ],
+  [
    "db.collapseAll",
    []
   ],
@@ -7711,6 +8318,18 @@
    "agents.newTask",
    [
     "Ctrl+Shift+I"
+   ]
+  ],
+  [
+   "agents.focusInput",
+   [
+    "Ctrl+L"
+   ]
+  ],
+  [
+   "agents.cycleEffort",
+   [
+    "Alt+T"
    ]
   ],
   [
@@ -8061,6 +8680,12 @@
   [
    "navigate.superMethod",
    []
+  ],
+  [
+   "navigate.relatedSymbol",
+   [
+    "Ctrl+Meta+Up"
+   ]
   ],
   [
    "navigate.nextMethod",
@@ -8636,6 +9261,10 @@
    []
   ],
   [
+   "refactor.extractInterface",
+   []
+  ],
+  [
    "refactor.pullMembersUp",
    []
   ],
@@ -8796,8 +9425,6 @@
   [
    "project.delete",
    [
-    "Delete",
-    "Backspace",
     "Meta+Backspace"
    ]
   ],
@@ -8836,6 +9463,12 @@
    ]
   ],
   [
+   "project.openInRightSplit",
+   [
+    "Shift+Enter"
+   ]
+  ],
+  [
    "project.findUsages",
    [
     "Meta+Shift+G"
@@ -8865,6 +9498,18 @@
   ],
   [
    "project.collapseAll",
+   [
+    "Meta+Shift+NumpadDivide"
+   ]
+  ],
+  [
+   "run.expandAllTests",
+   [
+    "Meta+Shift+NumpadMultiply"
+   ]
+  ],
+  [
+   "run.collapseAllTests",
    [
     "Meta+Shift+NumpadDivide"
    ]
@@ -8960,10 +9605,14 @@
    []
   ],
   [
-   "layout.restoreDefault",
+   "layout.restoreCurrent",
    [
     "Shift+F12"
    ]
+  ],
+  [
+   "layout.restoreDefault",
+   []
   ],
   [
    "toolwindow.jumpToLast",
@@ -9263,6 +9912,16 @@
    ]
   ],
   [
+   "vcs.log.changes.showDiff",
+   [
+    "Meta+D"
+   ]
+  ],
+  [
+   "vcs.showDiffInNewWindow",
+   []
+  ],
+  [
    "vcs.nextChange",
    [
     "Ctrl+Alt+Shift+Down"
@@ -9402,6 +10061,10 @@
    ]
   ],
   [
+   "diff.focusOppositePane",
+   []
+  ],
+  [
    "project.compareWith",
    [
     "Meta+D"
@@ -9496,9 +10159,55 @@
    []
   ],
   [
+   "db.toggleBooleanCell",
+   [
+    "Space"
+   ]
+  ],
+  [
+   "db.setCellNull",
+   [
+    "Meta+Backspace"
+   ]
+  ],
+  [
+   "db.setCellDefault",
+   [
+    "Meta+Shift+Backspace"
+   ]
+  ],
+  [
+   "db.reformatValue",
+   [
+    "Shift+Meta+F"
+   ]
+  ],
+  [
+   "db.openValueWindow",
+   []
+  ],
+  [
+   "db.findInValue",
+   []
+  ],
+  [
    "db.execute",
    [
     "Meta+Enter"
+   ]
+  ],
+  [
+   "db.nextResultTab",
+   [
+    "Meta+F6",
+    "Meta+Alt+Right"
+   ]
+  ],
+  [
+   "db.previousResultTab",
+   [
+    "Shift+Meta+F6",
+    "Meta+Alt+Left"
    ]
   ],
   [
@@ -9518,6 +10227,52 @@
    []
   ],
   [
+   "db.reloadPage",
+   []
+  ],
+  [
+   "db.firstPage",
+   []
+  ],
+  [
+   "db.previousPage",
+   [
+    "Meta+Alt+Up"
+   ]
+  ],
+  [
+   "db.nextPage",
+   [
+    "Meta+Alt+Down"
+   ]
+  ],
+  [
+   "db.lastPage",
+   []
+  ],
+  [
+   "db.addRow",
+   [
+    "Meta+N"
+   ]
+  ],
+  [
+   "db.deleteRows",
+   []
+  ],
+  [
+   "db.restoreRows",
+   []
+  ],
+  [
+   "db.exportData",
+   []
+  ],
+  [
+   "db.editCell",
+   []
+  ],
+  [
    "db.showToolWindow",
    []
   ],
@@ -9525,6 +10280,18 @@
    "agents.newTask",
    [
     "Meta+Shift+I"
+   ]
+  ],
+  [
+   "agents.focusInput",
+   [
+    "Meta+L"
+   ]
+  ],
+  [
+   "agents.cycleEffort",
+   [
+    "Alt+T"
    ]
   ],
   [
@@ -9694,6 +10461,14 @@
   ],
   [
    "db.goToReferencedTable",
+   []
+  ],
+  [
+   "db.selectOpened",
+   []
+  ],
+  [
+   "db.expandAll",
    []
   ],
   [
@@ -10084,6 +10859,12 @@
   [
    "navigate.superMethod",
    []
+  ],
+  [
+   "navigate.relatedSymbol",
+   [
+    "Ctrl+Alt+Home"
+   ]
   ],
   [
    "navigate.nextMethod",
@@ -10616,7 +11397,8 @@
   [
    "refactor.rename",
    [
-    "Shift+Alt+R"
+    "Shift+Alt+R",
+    "Shift+F6"
    ]
   ],
   [
@@ -10679,6 +11461,10 @@
    [
     "Alt+Delete"
    ]
+  ],
+  [
+   "refactor.extractInterface",
+   []
   ],
   [
    "refactor.pullMembersUp",
@@ -10825,7 +11611,8 @@
   [
    "project.rename",
    [
-    "Shift+Alt+R"
+    "Shift+Alt+R",
+    "Shift+F6"
    ]
   ],
   [
@@ -10879,6 +11666,12 @@
    ]
   ],
   [
+   "project.openInRightSplit",
+   [
+    "Shift+Enter"
+   ]
+  ],
+  [
    "project.findUsages",
    [
     "Ctrl+G"
@@ -10910,6 +11703,18 @@
   ],
   [
    "project.collapseAll",
+   [
+    "Ctrl+Shift+NumpadDivide"
+   ]
+  ],
+  [
+   "run.expandAllTests",
+   [
+    "Ctrl+Shift+NumpadMultiply"
+   ]
+  ],
+  [
+   "run.collapseAllTests",
    [
     "Ctrl+Shift+NumpadDivide"
    ]
@@ -10993,10 +11798,14 @@
    ]
   ],
   [
-   "layout.restoreDefault",
+   "layout.restoreCurrent",
    [
     "Shift+F12"
    ]
+  ],
+  [
+   "layout.restoreDefault",
+   []
   ],
   [
    "toolwindow.jumpToLast",
@@ -11307,6 +12116,16 @@
    ]
   ],
   [
+   "vcs.log.changes.showDiff",
+   [
+    "Ctrl+D"
+   ]
+  ],
+  [
+   "vcs.showDiffInNewWindow",
+   []
+  ],
+  [
    "vcs.nextChange",
    [
     "Ctrl+Alt+Shift+Down"
@@ -11462,6 +12281,10 @@
    ]
   ],
   [
+   "diff.focusOppositePane",
+   []
+  ],
+  [
    "project.compareWith",
    [
     "Ctrl+D"
@@ -11560,9 +12383,58 @@
    []
   ],
   [
+   "db.toggleBooleanCell",
+   [
+    "Space"
+   ]
+  ],
+  [
+   "db.setCellNull",
+   [
+    "Ctrl+Backspace"
+   ]
+  ],
+  [
+   "db.setCellDefault",
+   [
+    "Ctrl+Shift+Backspace"
+   ]
+  ],
+  [
+   "db.reformatValue",
+   [
+    "Ctrl+Alt+L",
+    "Shift+Ctrl+F"
+   ]
+  ],
+  [
+   "db.openValueWindow",
+   []
+  ],
+  [
+   "db.findInValue",
+   []
+  ],
+  [
    "db.execute",
    [
     "Ctrl+Enter"
+   ]
+  ],
+  [
+   "db.nextResultTab",
+   [
+    "Ctrl+F6",
+    "Ctrl+Alt+Left",
+    "Ctrl+PageDown"
+   ]
+  ],
+  [
+   "db.previousResultTab",
+   [
+    "Shift+Ctrl+F6",
+    "Ctrl+Alt+Right",
+    "Ctrl+PageUp"
    ]
   ],
   [
@@ -11585,6 +12457,54 @@
    ]
   ],
   [
+   "db.reloadPage",
+   []
+  ],
+  [
+   "db.firstPage",
+   []
+  ],
+  [
+   "db.previousPage",
+   [
+    "Ctrl+Alt+Up"
+   ]
+  ],
+  [
+   "db.nextPage",
+   [
+    "Ctrl+Alt+Down"
+   ]
+  ],
+  [
+   "db.lastPage",
+   []
+  ],
+  [
+   "db.addRow",
+   [
+    "Alt+Insert"
+   ]
+  ],
+  [
+   "db.deleteRows",
+   [
+    "Alt+Delete"
+   ]
+  ],
+  [
+   "db.restoreRows",
+   []
+  ],
+  [
+   "db.exportData",
+   []
+  ],
+  [
+   "db.editCell",
+   []
+  ],
+  [
    "db.showToolWindow",
    []
   ],
@@ -11592,6 +12512,18 @@
    "agents.newTask",
    [
     "Ctrl+Alt+Shift+I"
+   ]
+  ],
+  [
+   "agents.focusInput",
+   [
+    "Ctrl+L"
+   ]
+  ],
+  [
+   "agents.cycleEffort",
+   [
+    "Alt+T"
    ]
   ],
   [
@@ -11700,7 +12632,8 @@
   [
    "db.rename",
    [
-    "Shift+Alt+R"
+    "Shift+Alt+R",
+    "Shift+F6"
    ]
   ],
   [
@@ -11761,6 +12694,14 @@
   ],
   [
    "db.goToReferencedTable",
+   []
+  ],
+  [
+   "db.selectOpened",
+   []
+  ],
+  [
+   "db.expandAll",
    []
   ],
   [

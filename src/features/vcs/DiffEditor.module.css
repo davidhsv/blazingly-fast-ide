@@ -8,12 +8,15 @@
   flex-direction: column;
   background: var(--bg-app);
 }
+.toolbar[hidden] {
+  display: none;
+}
 .toolbar {
   flex: none;
   height: var(--h-header);
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   padding: 0 6px;
   border-bottom: 1px solid var(--border);
 }
@@ -61,7 +64,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 0 12px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -70,6 +73,17 @@
 }
 .label + .label {
   border-left: 1px solid var(--border);
+}
+/* Side by side, the right label starts at the right pane (`--diff-b-start`, set by the viewer). */
+.labels > .label:first-child:not(:only-child) {
+  flex: 0 0 var(--diff-b-start, 50%);
+}
+.labelFile {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-subtle);
+  font-family: var(--font-ui);
 }
 .badge {
   padding: 0 5px;
@@ -93,13 +107,14 @@
   border-bottom: none;
 }
 .findRowSplit > div {
-  flex: 0 0 50%;
+  flex: 0 0 var(--diff-b-start, 50%);
   border-right: 1px solid var(--border);
 }
 .findRowRight {
   justify-content: flex-end;
 }
 .findRowRight > div {
+  flex-basis: calc(100% - var(--diff-b-start, 50%));
   border-right: none;
   border-left: 1px solid var(--border);
 }
@@ -184,11 +199,12 @@
 .host :global(.cm-diffHoverRevert) {
   position: absolute;
   right: 8px;
-  top: 0;
+  /* Centre on the first row, including when the editor's line height changes. */
+  top: calc((var(--openidea-editor-line-height, var(--lh-code)) - var(--space-4)) / 2);
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  height: 16px;
+  height: var(--space-4);
   padding: 0 6px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-small);
@@ -238,8 +254,18 @@
   background: var(--bg-app);
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
+  cursor: ew-resize;
+  touch-action: none;
 }
-.host :global(.cm-diffDivider svg) {
+.host :global(.cm-diffDivider:hover) {
+  background: var(--bg-hover);
+}
+.host :global(.cm-diffDivider:focus-visible) {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+/* Only the band layer: the chevrons inside the arrow buttons are centred by the button's flex box. */
+.host :global(.cm-diffDivider > svg) {
   position: absolute;
   inset: 0;
 }
@@ -276,10 +302,16 @@
   cursor: pointer;
 }
 .host :global(.cm-diffDivider button.cm-diffArrow-a-to-b) {
-  left: 1px;
+  left: 0;
 }
 .host :global(.cm-diffDivider button.cm-diffArrow-b-to-a) {
-  right: 1px;
+  right: 0;
+}
+/* With one direction there is no pair to keep apart: the arrow sits in the middle of the divider. */
+.host :global(.cm-diffDivider-lone button.cm-diffArrow) {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
 }
 .host :global(.cm-diffDivider button.cm-diffArrow:hover) {
   color: var(--fg-strong);
@@ -303,7 +335,7 @@
 .notes {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1-5);
   margin: 4px 8px 6px 8px;
   padding: 6px 10px;
   border: 1px solid var(--border-strong);
@@ -320,7 +352,7 @@
 }
 .noteHead {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--fs-small);
   color: var(--fg-subtle);
 }
@@ -363,4 +395,23 @@
   .host:not([hidden]) {
     animation: none;
   }
+}
+
+/* A block of the all-in-one diff: as tall as its content, the tab scrolls. */
+.fit {
+  flex: none;
+  height: auto;
+}
+.fit .host {
+  flex: none;
+}
+.fit .host > :global(.cm-editor) {
+  flex: none;
+}
+.fit .host :global(.cm-mergeView) {
+  flex: none;
+  overflow-y: visible;
+}
+.fit .host :global(.cm-mergeViewEditors) {
+  min-height: 0;
 }

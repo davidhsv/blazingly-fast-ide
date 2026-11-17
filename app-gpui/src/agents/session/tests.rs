@@ -78,7 +78,15 @@ fn keeps_tool_reasoning_plan_and_approval_rows_in_one_author_run() {
         else {
             unreachable!()
         };
-        let request = AgentEntry::Permission { id, title, options, questions, chosen: chosen.map(str::to_owned) };
+        let request = AgentEntry::Permission {
+            id,
+            title,
+            options,
+            questions,
+            chosen: chosen.map(str::to_owned),
+            command: None,
+            form: None,
+        };
         let plan = AgentEntry::Plan {
             items: vec![AgentPlanItem { content: "Check files".to_owned(), status: "in_progress".to_owned() }],
         };
@@ -262,6 +270,7 @@ fn keeps_docked_changes_opt_in_preserves_the_draft_and_returns_to_the_same_conve
         kind: ide_vcs::ChangeKind::Modified,
         added: 8,
         removed: 2,
+        old_path: None,
     }];
     let (mut store, generation) = connected_store(vec![local_task("A")]);
     let mut open = ChangesOpen::new("A", true, Some(saved));

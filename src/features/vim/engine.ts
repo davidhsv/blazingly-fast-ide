@@ -5,16 +5,30 @@
  */
 import { EditorState, Prec, StateEffect, StateField, Transaction, type Extension } from "@codemirror/state";
 import { EditorView, ViewPlugin, runScopeHandlers } from "@codemirror/view";
-import { Vim, getCM, vim } from "@replit/codemirror-vim";
-import { transientChange, reportInputMode, type EditorDocContext } from "@/editor/api";
+import { CodeMirror, Vim, getCM, vim } from "@replit/codemirror-vim";
+import { externalHistory, transientChange, reportInputMode, type EditorDocContext } from "@/editor/api";
 import { setContext } from "@/platform/context";
+import { strokeOf } from "@/platform/keymap";
 import { executeAction, getAction } from "@/platform/actions";
 import { showStatusInfo } from "@/workbench/contributions";
-import { VIM_EDITOR_ATTR } from "./conflicts";
+import { movedToIde, VIM_EDITOR_ATTR } from "./conflicts";
 import { useVimMode, type VimModeState } from "./mode";
 import { resolveActionId, type RcCommand } from "./rc";
+import { useVimSettings } from "./settings";
+import { mapFunctionTextObjects } from "./textObjects";
 
 /** Insert/Replace state as seen by transactions (mode changes are queued). */
+// Vim's `u` / `Ctrl-R` call CodeMirror's history; an editor that keeps its history elsewhere
+// (notebook cells) provides `externalHistory` and gets those keys too.
+for (const name of ["undo", "redo"] as const) {
+  const own = CodeMirror.commands[name];
+  CodeMirror.commands[name] = (cm) => {
+    const history = cm.cm6.state.facet(externalHistory);
+    if (history) history[name]();
+    else own(cm);
+  };
+}
+
 const setVimInsert = StateEffect.define<boolean>();
 
 const vimInsert = StateField.define<boolean>({
@@ -40,6 +54,12 @@ interface ImeComposition {
 }
 
 const imeCompositions = new WeakMap<EditorView, ImeComposition>();
+/** The last Normal-mode composition's end, until a keydown reaches the editor (see `imeNextKey`). */
+const imeEnded = new WeakMap<EditorView, { at: number; commit: string }>();
+/** CodeMirror's own window is 100ms; the text input follows its dropped keydown a little later. */
+const IME_NEXT_KEY_WINDOW_MS = 200;
+/** Text input as the `KeyboardEvent.key` Vim maps (`<Space>`, `<CR>`, `<Tab>`). */
+const TEXT_KEYS: Record<string, string> = { "\n": "Enter", "\t": "Tab" };
 /** Views with a Normal-mode IME composition in progress (`imeCompositions` can't be iterated). */
 const composingViews = new Set<EditorView>();
 
@@ -119,14 +139,54 @@ const imeHandlers = EditorView.domEventHandlers({
     // force-ends a composition; real ends (even cancelled ones) are trusted.
     if (!composition || (typeof e.data !== "string" && !e.isTrusted)) return false;
     composition.ended = typeof e.data === "string" ? e.data : "";
+    imeEnded.set(view, { at: Date.now(), commit: composition.ended });
     clearTimeout(composition.timer);
     composition.timer = setTimeout(() => finishImeComposition(view), 0);
     return false;
   },
 });
 
+/** A keydown CodeMirror didn't drop reaches Vim the usual way (observers run even after Vim's). */
+const imeKeydown = EditorView.domEventObservers({
+  keydown(_e, view) {
+    imeEnded.delete(view);
+  },
+});
+
+/**
+ * The key typed right after a Normal-mode composition. On WebKit (macOS, and WebKitGTK on
+ * Linux), CodeMirror drops the first keydown within 100ms of `compositionend`, meant for the
+ * IME's own Enter. Vim never sees that key, and a printable one arrives as text input that
+ * would be written to the document. Korean ends a composition implicitly, by the next key or
+ * an input source switch, so `ㄱ` then a quick `j` hits this; Japanese and Chinese can too.
+ * Run the key through Vim instead. Keys that type no text (Esc, arrows) are still dropped.
+ */
+function imeNextKey(view: EditorView, text: string): boolean {
+  const ended = imeEnded.get(view);
+  if (!ended || view.composing) return false;
+  if (Date.now() - ended.at > IME_NEXT_KEY_WINDOW_MS) {
+    imeEnded.delete(view);
+    return false;
+  }
+  const composition = imeCompositions.get(view);
+  if (composition?.ended === null) return false;
+  // The IME's own commit (or the part CodeMirror reports of it) belongs to the composition.
+  if (ended.commit.endsWith(text)) return false;
+  if (text.length !== 1 || text.charCodeAt(0) >= 0x80) return false;
+  const cm = getCM(view);
+  const vimState = cm?.state.vim;
+  if (!cm || !vimState || vimState.insertMode || cm.curOp?.isVimOp) return false;
+  imeEnded.delete(view);
+  if (composition) finishImeComposition(view);
+  // Through `vimKeyFromEvent` like a keydown, for `<Space>`/`<CR>` and 'langmap'.
+  const key = Vim.vimKeyFromEvent({ key: TEXT_KEYS[text] ?? text } as KeyboardEvent, vimState);
+  if (key) Vim.handleKey(cm, key, "user");
+  return true;
+}
+
 /** Let CodeMirror apply the composing text; it is removed when the IME ends. */
-const imeInput = EditorView.inputHandler.of((view) => {
+const imeInput = EditorView.inputHandler.of((view, _from, _to, text) => {
+  if (imeNextKey(view, text)) return true;
   const composition = imeCompositions.get(view);
   if (!composition) return false;
   const cm = getCM(view);
@@ -191,6 +251,26 @@ const escapeClosesPopupsFirst = EditorView.domEventHandlers({
   },
 });
 
+/**
+ * Keys the user gave to the IDE in the conflicts table never reach Vim. An IDE action bound
+ * to one has already run (the keyboard dispatcher, before the editor); otherwise the editor's
+ * own key bindings run (Select All), else the browser default (cut, paste).
+ */
+const ideHandledKeys = EditorView.domEventHandlers({
+  keydown(e, view) {
+    const stroke = strokeOf(e);
+    if (!stroke || !movedToIde(stroke, useVimSettings.getState().handlers)) return false;
+    if (runScopeHandlers(view, e, "editor")) return true;
+    // Returning true would cancel the browser's cut or paste: skip Vim's handler for this event only.
+    const plugin = getCM(view)?.state.vimPlugin as { handleKey?: unknown } | undefined;
+    if (plugin) {
+      plugin.handleKey = () => undefined;
+      queueMicrotask(() => delete plugin.handleKey);
+    }
+    return false;
+  },
+});
+
 const modeTracker = (ctx?: EditorDocContext) =>
   ViewPlugin.define((view) => {
     const cm = getCM(view);
@@ -222,8 +302,15 @@ const caret = "var(--caret, var(--fg-strong))";
 
 /** Block caret and command line in theme tokens (the package's defaults are fixed colours). */
 const vimTheme = EditorView.theme({
+  // A solid block with the character under it in the editor's background colour, as IdeaVim's
+  // block caret: a translucent fill over light text on a dark theme read as a brighter letter.
   "& .cm-vimCursorLayer .cm-fat-cursor": {
-    background: `color-mix(in srgb, ${caret} 60%, transparent)`,
+    background: caret,
+  },
+  // The package sets the letter's own colour inline; a partial block (replace, operator-pending)
+  // draws no letter.
+  "&.cm-focused .cm-vimCursorLayer .cm-fat-cursor:not([style*='color: transparent'])": {
+    color: "var(--bg-editor, var(--bg-island, var(--bg-app))) !important",
   },
   "&:not(.cm-focused) .cm-vimCursorLayer .cm-fat-cursor": {
     background: "none",
@@ -249,10 +336,12 @@ export function vimExtension(ctx?: EditorDocContext): Extension {
     Prec.highest([
       vimInsert,
       imeHandlers,
+      imeKeydown,
       imeInput,
       imeTracker,
       imeTransactions,
       escapeClosesPopupsFirst,
+      ideHandledKeys,
       vim(),
       modeTracker(ctx),
     ]),
@@ -300,6 +389,7 @@ export function defineExCommands() {
   Vim.defineEx("wq", "wq", saveThenClose);
   Vim.defineEx("xit", "x", saveThenClose);
   Vim.defineEx("action", "action", (_cm, params) => void runIdeAction(params.args?.[0]));
+  mapFunctionTextObjects();
 }
 
 /**
@@ -361,6 +451,8 @@ export function applyRcCommands(commands: readonly RcCommand[]): string[] {
   defineExCommands();
   Vim.mapclear();
   shadowLeaderBuiltins(commands);
+  // `mapclear` drops them with the user mappings; before those, which may remap them.
+  mapFunctionTextObjects();
   const problems: string[] = [];
   for (const c of commands) {
     try {

@@ -11,11 +11,13 @@ import {
 import { AgentsView } from "./AgentsView";
 import { AgentsStatus } from "./AgentsStatus";
 import { activate } from "./index";
+import { openChangeDiff } from "./SessionEditor";
 import * as actions from "@/platform/actions";
 import { TASK_DRAG } from "./model";
 import {
   connect,
   disconnect,
+  loadEntries,
   dockTask,
   markVisible,
   openHome,
@@ -30,6 +32,7 @@ const backend = vi.hoisted(() => ({
   tabs: [] as OpenEditorTab[],
   channel: null as { onmessage: (event: AgentEvent) => void } | null,
   tasks: [] as AgentTask[],
+  entries: null as Promise<AgentEntry[]> | null,
   notify: vi.fn(),
   openInput: vi.fn(),
   closeInput: vi.fn(),
@@ -52,6 +55,9 @@ vi.mock("@/platform/ipc", async (original) => ({
     },
     agentProviders: async () => ({ status: "ok", data: [] }),
     agentChanges: async () => ({ status: "ok", data: [] }),
+    agentGroupedChanges: async () => ({ status: "ok", data: { uncommitted: [], commits: [] } }),
+    agentBaseText: async (_task: string, path: string) => ({ status: "ok", data: `base of ${path}` }),
+    agentEntries: async () => ({ status: "ok", data: await backend.entries }),
   },
 }));
 vi.mock("@/workbench/contributions", async (original) => ({
@@ -149,14 +155,34 @@ describe("agent unread activity", () => {
     expect(backend.notify).not.toHaveBeenCalled();
   });
 
-  it.each(["ready", "needsInput", "failed", "limited"] as const)("marks background %s transitions unread", (status) => {
+  it("tracks a reply that streams on as appends, but not a thought", () => {
+    reply("one", "");
+    emit({ type: "append", task: "one", subagent: null, index: 0, from: 0, text: "Done" });
+    emit({ type: "entry", task: "two", subagent: null, index: 0, entry: { type: "thought", text: "" } });
+    emit({ type: "append", task: "two", subagent: null, index: 0, from: 0, text: "Hmm" });
+    expect([...useAgents.getState().unread]).toEqual(["one"]);
+  });
+
+  it.each([
+    ["finished", "ready"],
+    ["input", "needsInput"],
+    ["failed", "failed"],
+    ["failed", "limited"],
+  ] as const)("marks background attention %s unread", (reason, status) => {
     emit({ type: "task", task: task("one", status) });
+    emit({ type: "attention", task: "one", eventId: `one:${reason}:1`, reason });
     expect(useAgents.getState().unread.has("one")).toBe(true);
     expect(backend.notify).toHaveBeenCalledTimes(1);
     show();
-    emit({ type: "task", task: task("one", status) });
+    emit({ type: "attention", task: "one", eventId: `one:${reason}:2`, reason });
     expect(useAgents.getState().unread.size).toBe(0);
     expect(backend.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not notify from status alone once Attention exists", () => {
+    emit({ type: "task", task: task("one", "ready") });
+    expect(backend.notify).not.toHaveBeenCalled();
+    expect(useAgents.getState().unread.has("one")).toBe(false);
   });
 
   it("keeps the latest usage limits per provider without marking anything unread", () => {
@@ -244,6 +270,7 @@ describe("agent unread activity", () => {
 describe("agent unread indicators", () => {
   it("shows a dot on the task and a clickable status count even when all tasks are idle", () => {
     emit({ type: "task", task: task("one", "ready") });
+    emit({ type: "attention", task: "one", eventId: "one:finished:1", reason: "finished" });
     render(
       <>
         <AgentsView />
@@ -369,5 +396,53 @@ describe("docking a conversation in the tool window", () => {
     disconnect();
     expect(useAgents.getState().docked).toBeNull();
     expect(useAgents.getState().sessionLocation).toBe("toolWindow");
+  });
+});
+
+describe("streaming while the conversation loads", () => {
+  it("applies what arrived meanwhile on top of the loaded copy", async () => {
+    let resolve!: (entries: AgentEntry[]) => void;
+    backend.entries = new Promise((r) => (resolve = r));
+    const load = loadEntries("one");
+    // Sent before the copy was read, then after.
+    emit({ type: "entry", task: "one", subagent: null, index: 1, entry: { type: "agent", text: "He" } });
+    emit({ type: "append", task: "one", subagent: null, index: 1, from: 2, text: "llo" });
+    emit({ type: "append", task: "one", subagent: null, index: 1, from: 5, text: " there" });
+    const user: AgentEntry = { type: "user", text: "Hi", attachments: [] };
+    await act(async () => {
+      resolve([user, { type: "agent", text: "Hello" }]);
+      await load;
+    });
+    expect(useAgents.getState().entries.get("one")).toEqual([user, { type: "agent", text: "Hello there" }]);
+    emit({ type: "append", task: "one", subagent: null, index: 1, from: 11, text: "!" });
+    expect(useAgents.getState().entries.get("one")?.[1]).toEqual({ type: "agent", text: "Hello there!" });
+    expect(useAgents.getState().entryLoads.size).toBe(0);
+  });
+});
+
+describe("the diff of an agent change", () => {
+  const change = (path: string) => ({
+    path,
+    relPath: path.slice("/project/".length),
+    kind: "modified" as const,
+    added: 1,
+    removed: 1,
+    oldPath: null,
+  });
+
+  it("lists the task's other changed files, so F7 moves on to the next one", async () => {
+    useAgents.setState({ changes: new Map([["one", [change("/project/a.ts"), change("/project/b.ts")]]]) });
+    await openChangeDiff(task("one"), "/project/b.ts");
+    const input = backend.openInput.mock.lastCall![0];
+    expect(input.data.path).toBe("/project/b.ts");
+    expect(input.data.left).toEqual({ type: "text", text: "base of /project/b.ts", label: "Base" });
+    expect(input.data.chain.map((d: { path: string }) => d.path)).toEqual(["/project/a.ts", "/project/b.ts"]);
+    expect(input.data.chain[0].left.text).toBe("base of /project/a.ts");
+  });
+
+  it("opens a file outside the change list on its own", async () => {
+    useAgents.setState({ changes: new Map([["one", [change("/project/a.ts")]]]) });
+    await openChangeDiff(task("one"), "/project/c.ts");
+    expect(backend.openInput.mock.lastCall![0].data.chain).toBeUndefined();
   });
 });

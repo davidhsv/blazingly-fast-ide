@@ -270,7 +270,7 @@ pub enum ReplyButton {
     Copy,
     QuoteReply,
     Regenerate,
-    /// "Branch Conversation from Here".
+    /// "Fork": Fork Conversation from Here.
     Branch,
 }
 

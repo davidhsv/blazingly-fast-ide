@@ -2,7 +2,14 @@ use super::*;
 use ide_agent::AgentConfigVia;
 
 fn value(id: &str, name: &str, description: Option<&str>) -> AgentConfigValue {
-    AgentConfigValue { value: id.to_owned(), name: name.to_owned(), description: description.map(str::to_owned) }
+    AgentConfigValue {
+        value: id.to_owned(),
+        name: name.to_owned(),
+        description: description.map(str::to_owned),
+        cost_category: None,
+        pricing: None,
+        usage_multiplier: None,
+    }
 }
 
 fn setting(
@@ -20,6 +27,7 @@ fn setting(
         current: current.map(str::to_owned),
         values,
         via: AgentConfigVia::Option,
+        default_value: None,
     }
 }
 

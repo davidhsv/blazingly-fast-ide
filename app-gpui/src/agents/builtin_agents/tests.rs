@@ -154,7 +154,7 @@ impl Page {
 }
 
 #[test]
-fn follows_locale_changes_in_tabs_and_renders_login_commands_as_inline_code() {
+fn follows_locale_changes_and_renders_login_commands_as_inline_code() {
     let mut page = Page::open(FakeCommands::with(vec![claude("claude"), codex()]));
     let details = page.details();
     assert!(details.login.contains(&HintPart::Code("claude".to_owned())));
@@ -162,10 +162,8 @@ fn follows_locale_changes_in_tabs_and_renders_login_commands_as_inline_code() {
     assert_eq!(page.tag("claude"), None);
     assert!(page.i18n.set_locale(Some("zh"), "en"));
     assert_eq!(page.tag("codex").as_deref(), Some("未找到"));
-    assert_eq!(page_tabs(&page.i18n), ["内置".to_owned(), "ACP 注册表".to_owned()]);
     assert!(page.i18n.set_locale(Some("en"), "en"));
     assert_eq!(page.tag("codex").as_deref(), Some("Not found"));
-    assert_eq!(page_tabs(&page.i18n), ["Built-in".to_owned(), "ACP Registry".to_owned()]);
 }
 
 #[test]

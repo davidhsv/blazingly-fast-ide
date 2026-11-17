@@ -191,6 +191,7 @@ function providePluginEndpoints(pluginId: string): () => void {
 export function defineBuiltinUiPoints(): () => void {
   const disposers = [
     defineUiPoint("mcpTools", {}),
+    defineUiPoint("serverCommands", {}),
     defineUiPoint("endpoints", { project: ({ pluginId }) => providePluginEndpoints(pluginId) }),
     defineUiPoint<CommandDecl>("commands", {
       title: "Commands",
@@ -208,6 +209,8 @@ export function defineBuiltinUiPoints(): () => void {
                 : "package",
           when: decl.when ?? undefined,
           verbatim: true,
+          // A command can call a model or a server; its toolbar button must show the click was taken.
+          indicatesRunning: true,
           keywords: ["plugin", plugin.name, pluginId],
           description: tx`From plugin ${plugin.name}`,
           run: async ({ arg }: { arg?: unknown }) => {

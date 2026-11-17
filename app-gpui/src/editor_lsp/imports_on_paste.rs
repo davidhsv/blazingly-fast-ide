@@ -700,6 +700,8 @@ mod tests {
             command: None,
             data: None,
             server: ServerId(1),
+            diagnostics: Vec::new(),
+            original_diagnostics: None,
         }
     }
 

@@ -6,6 +6,7 @@
  * `LineProgress`) and binary/SI unit & system-local timezone formatters
  * proven in `openidea-kubernetes` (`ResourceDetails.tsx`).
  */
+import { writeClipboardText } from "@/platform/clipboard";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import type {
@@ -28,6 +29,7 @@ import {
   containersUsingImage,
   containersUsingVolume,
   findImageForContainer,
+  imageKey,
   imageTagsForId,
   isDevContainer,
   isRunning,
@@ -520,7 +522,7 @@ export function parseNetworkInspect(raw: string | null): ParsedNetworkInspect | 
 // ---------------------------------------------------------------------------
 // Shared UI primitives (adapted from openidea-kubernetes ResourceDetails.tsx)
 
-const copyText = (text: string) => void navigator.clipboard?.writeText(text);
+const copyText = (text: string) => void writeClipboardText(text);
 
 async function openExternalUrl(url: string): Promise<void> {
   try {
@@ -771,7 +773,7 @@ export function ContainerDashboard({
                 className={styles.link}
                 onClick={() => {
                   selectServicesTreeKey(
-                    treeKey(conn, { kind: "image", key: `image:${matchedImage.id}`, image: matchedImage }),
+                    treeKey(conn, { kind: "image", key: imageKey(matchedImage), image: matchedImage }),
                   );
                   showDetail("dashboard");
                 }}
@@ -1141,7 +1143,7 @@ export function ImageDashboard({
   snapshot: DockerSnapshot;
   inspectText: string | null;
 }) {
-  const target: DockerTarget = { conn, node: { kind: "image", key: `image:${image.id}`, image } };
+  const target: DockerTarget = { conn, node: { kind: "image", key: imageKey(image), image } };
   const inspect = useMemo(() => parseImageInspect(inspectText), [inspectText]);
   const tags = useMemo(() => {
     const fromSnap = imageTagsForId(snapshot, image);

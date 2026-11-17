@@ -145,7 +145,7 @@
    "file-docker"
   ],
   [
-   "^(docker-)?compose([.-][\\w-]+)?\\.ya?ml$",
+   "^.*compose.*\\.ya?ml$",
    "file-docker"
   ],
   [
@@ -235,6 +235,7 @@
   "desktop": "file-config",
   "di": "file-d",
   "diff": "file-patch",
+  "djhtml": "file-html",
   "dll": "file-binary",
   "dml": "file-sql",
   "dockerfile": "file-docker",
@@ -250,6 +251,7 @@
   "ex": "file-elixir",
   "exe": "file-windows",
   "exs": "file-elixir",
+  "feature": "file-gherkin",
   "fish": "file-shell",
   "fs": "file-fsharp",
   "fsi": "file-fsharp",
@@ -265,6 +267,7 @@
   "gitignore": "file-ignored",
   "go": "file-go",
   "godot": "file-godot",
+  "gotmpl": "file-yaml",
   "gql": "file-graphql",
   "gradle": "file-gradle",
   "gradle.kts": "file-gradle-kts",
@@ -378,6 +381,7 @@
   "pom": "file-xml",
   "postcss": "file-css",
   "prefs": "file-properties",
+  "prisma": "file-prisma",
   "properties": "file-properties",
   "props": "file-xml",
   "proto": "file-proto",
@@ -420,6 +424,7 @@
   "service": "file-config",
   "sh": "file-shell",
   "shtml": "file-html",
+  "slint": "file-slint",
   "so": "file-binary",
   "socket": "file-config",
   "sql": "file-sql",

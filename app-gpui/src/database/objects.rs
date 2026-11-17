@@ -11,7 +11,9 @@ pub fn quote_ident(driver: DbDriver, name: &str) -> String {
         DbDriver::Clickhouse => format!("\"{}\"", name.replace('\\', "\\\\").replace('"', "\\\"")),
         DbDriver::Mysql => format!("`{}`", name.replace('`', "``")),
         DbDriver::SqlServer => format!("[{}]", name.replace(']', "]]")),
-        DbDriver::Sqlite | DbDriver::Postgres | DbDriver::Oracle => format!("\"{}\"", name.replace('"', "\"\"")),
+        DbDriver::Sqlite | DbDriver::Postgres | DbDriver::Oracle | DbDriver::Snowflake => {
+            format!("\"{}\"", name.replace('"', "\"\""))
+        }
     }
 }
 
@@ -32,8 +34,8 @@ fn plain(driver: DbDriver, name: &str) -> bool {
             (first == '_' || first.is_ascii_lowercase())
                 && chars.all(|c| c == '_' || c == '$' || c.is_ascii_lowercase() || c.is_ascii_digit())
         }
-        // Oracle folds unquoted names to upper case.
-        DbDriver::Oracle => {
+        // Oracle and Snowflake fold unquoted names to upper case.
+        DbDriver::Oracle | DbDriver::Snowflake => {
             (first == '_' || first.is_ascii_uppercase())
                 && chars.all(|c| c == '_' || c == '$' || c.is_ascii_uppercase() || c.is_ascii_digit())
         }
@@ -236,7 +238,7 @@ pub fn truncate_sql(driver: DbDriver, schema: &str, table: &str, opts: TruncateO
     let q = qualified_name(driver, schema, table);
     match driver {
         DbDriver::Sqlite => format!("delete from {q};"),
-        DbDriver::Mysql | DbDriver::SqlServer | DbDriver::Clickhouse | DbDriver::Oracle => {
+        DbDriver::Mysql | DbDriver::SqlServer | DbDriver::Clickhouse | DbDriver::Oracle | DbDriver::Snowflake => {
             format!("truncate table {q};")
         }
         DbDriver::Postgres => format!(
@@ -345,6 +347,7 @@ fn column_definition(driver: DbDriver, c: &ColumnDraft) -> String {
         DbDriver::Clickhouse => "String",
         DbDriver::Sqlite => "TEXT",
         DbDriver::Oracle => "VARCHAR2(255)",
+        DbDriver::Snowflake => "VARCHAR",
         DbDriver::Postgres | DbDriver::Mysql | DbDriver::SqlServer => "text",
     };
     let data_type = c.data_type.trim();

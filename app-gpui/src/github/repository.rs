@@ -48,7 +48,8 @@ impl GhRemote {
 pub fn github_remotes(remotes: &[Remote], root: Option<&str>) -> Vec<GhRemote> {
     let mut out: Vec<GhRemote> = Vec::new();
     for r in remotes {
-        if let Some(c) = parse_github_remote(&r.url)
+        // An `~/.ssh/config` host alias names GitHub only once resolved.
+        if let Some(c) = parse_github_remote(r.resolved_url.as_deref().unwrap_or(&r.url))
             && !out.iter().any(|o| o.same(Some(&c)))
         {
             out.push(GhRemote {
@@ -355,7 +356,7 @@ mod tests {
     use crate::github::data_model::fixtures::user;
 
     fn remote(name: &str, url: &str) -> Remote {
-        Remote { name: name.into(), url: url.into() }
+        Remote { name: name.into(), url: url.into(), resolved_url: None }
     }
 
     #[test]
@@ -383,6 +384,14 @@ mod tests {
         );
         let names: Vec<String> = found.iter().map(|r| format!("{}={}/{}", r.remote, r.owner, r.name)).collect();
         assert_eq!(names, ["origin=me/r", "upstream=org/r"]);
+        // A host alias of `~/.ssh/config` is a GitHub remote once resolved; its own URL stays.
+        let alias =
+            Remote { resolved_url: Some("git@github.com:me/r.git".into()), ..remote("work", "work-gh:me/r.git") };
+        let found = github_remotes(&[alias], None);
+        assert_eq!(
+            found.iter().map(|r| (r.remote.as_str(), r.url.as_str())).collect::<Vec<_>>(),
+            [("work", "work-gh:me/r.git")]
+        );
     }
 
     fn ready(name_with_owner: &str) -> GhAvailability {

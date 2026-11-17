@@ -471,7 +471,8 @@ async fn stash(this: This, cx: &mut AsyncWindowContext) -> anyhow::Result<()> {
     let (title, success) = i18n(&this, cx, |i18n| (i18n.tx("Stash changes"), i18n.tx("Changes stashed")))?;
     let path = repo_path(repo.as_deref());
     let work = move |host: Arc<Host>, label: String| async move {
-        git::vcs_stash_push(&host, &label, path, message, include_untracked, keep_index).await
+        // Every change of the repository, as Stash Changes without a file selection does.
+        git::vcs_stash_push(&host, &label, path, message, include_untracked, keep_index, None).await
     };
     run_op(&this, cx, &title, Some(success), false, work).await?;
     Ok(())

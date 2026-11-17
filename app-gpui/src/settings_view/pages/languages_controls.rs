@@ -1,7 +1,6 @@
 //! The page view of a language page, which holds its controls in their sections, and the
 //! controls of those pages beyond the shared form controls: the languages an external formatter
-//! formats, the Markdown preview font size, sharing JDT LS, where a language server runs, the
-//! plugin formatter of each language, the PHP interpreter's version and Xdebug, and the forms that
+//! formats, the Markdown preview font size, sharing JDT LS, the plugin formatter of each language, the PHP interpreter's version and Xdebug, and the forms that
 //! only a project has.
 
 use super::languages_sdk::{
@@ -38,7 +37,6 @@ pub enum Control {
     Languages(Entity<FormatterLanguagesView>),
     FontSize(Entity<PreviewFontSizeView>),
     Shared(Entity<JdtlsSharedView>),
-    Targets(Entity<ServerTargetView>),
     Formatters(Entity<PluginFormattersView>),
     Php(Entity<PhpInterpreterView>),
     ProjectOnly(Entity<ProjectOnlyView>),
@@ -54,7 +52,6 @@ impl Control {
             Self::Languages(view) => view.clone().into(),
             Self::FontSize(view) => view.clone().into(),
             Self::Shared(view) => view.clone().into(),
-            Self::Targets(view) => view.clone().into(),
             Self::Formatters(view) => view.clone().into(),
             Self::Php(view) => view.clone().into(),
             Self::ProjectOnly(view) => view.clone().into(),
@@ -71,7 +68,6 @@ impl Control {
             Self::Languages(view) => view.read(cx).lines(cx),
             Self::FontSize(view) => view.read(cx).lines(cx),
             Self::Shared(view) => view.read(cx).lines(cx),
-            Self::Targets(view) => view.read(cx).lines(cx),
             Self::Formatters(view) => view.read(cx).lines(cx),
             Self::Php(view) => view.read(cx).lines(cx),
             Self::ProjectOnly(view) => view.read(cx).lines(cx),
@@ -124,7 +120,6 @@ impl LanguagePageView {
             Control::Languages(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::FontSize(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::Shared(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
-            Control::Targets(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::Formatters(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::Php(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
             Control::ProjectOnly(view) => cx.subscribe(view, |_, _, event, cx| Self::forward(event, cx)),
@@ -413,16 +408,12 @@ pub const JDTLS_SHARED: &str = "languages.java.jdtlsShared";
 const SHARED_LABEL: &str = "Share JDT LS across builds";
 const SHARED_IN_WORKSPACE: &str = "Shared JDT LS is available only in local ordinary project windows. Open a \
                                    workspace member as a project to change this setting for it.";
-const SHARED_ON_TARGET: &str = "Shared JDT LS is available only in local ordinary project windows. Select Local \
-                                machine for the Java language server to use it.";
 const SHARED_HINT: &str = "Uses one JDT LS process for linked builds in each local ordinary project window. Other \
                            project windows use separate processes.";
 
-/// Share JDT LS across builds: not editable for the project of a workspace, or of a project whose
-/// Java language server runs in a target, which never share one.
+/// Share JDT LS across builds: not editable for the project of a workspace, which never shares one.
 pub struct JdtlsSharedView {
     binding: Binding,
-    project: Binding,
     /// The window's project is a workspace; asked of the backend when the checkbox is first shown.
     workspace: bool,
     asked: bool,
@@ -432,10 +423,9 @@ pub struct JdtlsSharedView {
 impl EventEmitter<LanguageEvent> for JdtlsSharedView {}
 
 impl JdtlsSharedView {
-    /// `project`: the project's settings, which choose where the Java server runs.
-    pub fn new(binding: Binding, project: Binding, cx: &mut Context<Self>) -> Self {
+    pub fn new(binding: Binding, cx: &mut Context<Self>) -> Self {
         let observe = cx.observe(&binding.model, |_: &mut Self, _, cx| cx.notify());
-        Self { binding, project, workspace: false, asked: false, _subscriptions: vec![observe] }
+        Self { binding, workspace: false, asked: false, _subscriptions: vec![observe] }
     }
 
     pub fn set_workspace(&mut self, workspace: bool, cx: &mut Context<Self>) {
@@ -443,24 +433,12 @@ impl JdtlsSharedView {
         cx.notify();
     }
 
-    /// The Java language server of the project runs in a target.
-    fn java_on_target(&self, cx: &App) -> bool {
-        let targets = self.project.value("languageServerTargets", cx);
-        let target =
-            targets.as_ref().and_then(|targets| targets.get("java")?.get("target")?.as_str().map(str::to_owned));
-        target.is_some_and(|target| !target.is_empty())
-    }
-
     pub fn is_disabled(&self, cx: &App) -> bool {
-        self.binding.scope(cx) == Scope::Project && (self.workspace || self.java_on_target(cx))
+        self.binding.scope(cx) == Scope::Project && self.workspace
     }
 
     fn hint(&self, cx: &App) -> &'static str {
-        match (self.is_disabled(cx), self.workspace) {
-            (true, true) => SHARED_IN_WORKSPACE,
-            (true, false) => SHARED_ON_TARGET,
-            (false, _) => SHARED_HINT,
-        }
+        if self.is_disabled(cx) { SHARED_IN_WORKSPACE } else { SHARED_HINT }
     }
 
     fn flip(&mut self, cx: &mut Context<Self>) {
@@ -497,270 +475,6 @@ impl Render for JdtlsSharedView {
             .when(enabled, |el| el.on_click(cx.listener(|view, _: &ClickEvent, _, cx| view.flip(cx))));
         let hint = tx(cx, self.hint(cx));
         div().flex().flex_col().child(drawn).child(hint_line(cx, &hint, 28.0))
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Where a language server runs
-
-/// The languages a target control offers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TargetLanguages {
-    /// A Language choice over the languages with a language server (only `ids` when given).
-    Picker(Option<&'static [&'static str]>),
-    /// The one language.
-    Fixed(&'static str),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TargetList {
-    Language,
-    Target,
-    Server,
-}
-
-const TARGETS_KEY: &str = "languageServerTargets";
-const RUNS_ON: &str = "Language server runs on";
-const RUNS_ON_HINT: &str = "Project only. Install the selected server inside the target; IDE downloads are host \
-                            binaries.";
-
-/// Language server runs on and Language server: the project's choice of where a language's
-/// server runs, editable only for an open project.
-pub struct ServerTargetView {
-    binding: Binding,
-    project: Binding,
-    enabled: bool,
-    languages: TargetLanguages,
-    known: Vec<KnownLanguage>,
-    chosen: String,
-    open: Option<TargetList>,
-    asked: bool,
-    _subscriptions: Vec<Subscription>,
-}
-
-impl EventEmitter<LanguageEvent> for ServerTargetView {}
-
-impl ServerTargetView {
-    /// `project`: the project's settings, where the choice is stored; `enabled`: a project is open
-    /// and the dialog does not edit the settings for new projects.
-    pub fn new(
-        binding: Binding,
-        project: Binding,
-        enabled: bool,
-        languages: TargetLanguages,
-        cx: &mut Context<Self>,
-    ) -> Self {
-        let observe = cx.observe(&binding.model, |_: &mut Self, _, cx| cx.notify());
-        Self {
-            binding,
-            project,
-            enabled,
-            languages,
-            known: Vec::new(),
-            // The Language choice starts on PHP; the first language with a server stands in when
-            // PHP has none.
-            chosen: "php".to_owned(),
-            open: None,
-            asked: false,
-            _subscriptions: vec![observe],
-        }
-    }
-
-    /// The languages of the registry.
-    pub fn set_known(&mut self, known: Vec<KnownLanguage>, cx: &mut Context<Self>) {
-        self.known = known;
-        cx.notify();
-    }
-
-    /// The languages the Language choice offers: those with a language server.
-    fn available(&self) -> Vec<&KnownLanguage> {
-        let ids = match self.languages {
-            TargetLanguages::Picker(ids) => ids,
-            TargetLanguages::Fixed(_) => None,
-        };
-        let with_server = self.known.iter().filter(|language| !language.servers.is_empty());
-        with_server.filter(|language| ids.is_none_or(|ids| ids.contains(&language.id.as_str()))).collect()
-    }
-
-    /// The language the rows edit and its servers.
-    fn language(&self) -> Option<(String, Vec<String>)> {
-        match self.languages {
-            TargetLanguages::Fixed(id) => {
-                let servers = self.known.iter().find(|language| language.id == id).map(|l| l.servers.clone());
-                Some((id.to_owned(), servers.unwrap_or_default()))
-            }
-            TargetLanguages::Picker(_) => {
-                let available = self.available();
-                let selected = available.iter().find(|language| language.id == self.chosen).or(available.first());
-                selected.map(|language| (language.id.clone(), language.servers.clone()))
-            }
-        }
-    }
-
-    /// The project's choices, by language.
-    fn selections(&self, cx: &App) -> Map<String, Value> {
-        let value = self.project.value(TARGETS_KEY, cx);
-        value.and_then(|value| value.as_object().cloned()).unwrap_or_default()
-    }
-
-    /// The (target, server) chosen for `language`; empty: the host, the first configured server.
-    fn selection(&self, language: &str, cx: &App) -> (String, String) {
-        let selections = self.selections(cx);
-        let entry = selections.get(language);
-        let text = |name: &str| entry.and_then(|entry| entry.get(name)?.as_str()).unwrap_or_default().to_owned();
-        (text("target"), text("server"))
-    }
-
-    fn set(&mut self, field: &str, value: String, cx: &mut Context<Self>) {
-        self.open = None;
-        let Some((language, _)) = self.language() else { return };
-        let mut selections = self.selections(cx);
-        let (target, server) = self.selection(&language, cx);
-        let mut entry = Map::new();
-        entry.insert("target".to_owned(), Value::String(target));
-        entry.insert("server".to_owned(), Value::String(server));
-        entry.insert(field.to_owned(), Value::String(value));
-        selections.insert(language, Value::Object(entry));
-        self.project.stage(TARGETS_KEY, Value::Object(selections), cx);
-        cx.notify();
-    }
-
-    /// The choices of the target list: the host, and a stored target no plugin offers now.
-    fn target_choices(&self, target: &str, cx: &App) -> Vec<(String, String, Option<String>)> {
-        let mut out = vec![(String::new(), tx(cx, "Local machine"), None)];
-        if !target.is_empty() {
-            let detail = tx(cx, "Target unavailable; language server runs on the host");
-            out.push((target.to_owned(), target.to_owned(), Some(detail)));
-        }
-        out
-    }
-
-    fn server_choices(servers: &[String], cx: &App) -> Vec<(String, String, Option<String>)> {
-        let first = (String::new(), tx(cx, "First configured server"), None);
-        std::iter::once(first).chain(servers.iter().map(|name| (name.clone(), name.clone(), None))).collect()
-    }
-
-    fn label_of(choices: &[(String, String, Option<String>)], value: &str) -> String {
-        choices.iter().find(|(own, _, _)| own == value).map(|(_, label, _)| label.clone()).unwrap_or_default()
-    }
-
-    pub fn lines(&self, cx: &App) -> Vec<String> {
-        let mut out = Vec::new();
-        if let TargetLanguages::Picker(_) = self.languages {
-            out.push(format!("— {} —", tx(cx, "Language server targets")));
-            let name =
-                self.language().and_then(|(id, _)| self.known.iter().find(|l| l.id == id).map(|l| l.name.clone()));
-            out.push(format!("{}: {} ▾", tx(cx, "Language"), name.unwrap_or_default()));
-        }
-        let Some((language, servers)) = self.language() else { return out };
-        let (target, server) = self.selection(&language, cx);
-        let disabled = if self.enabled { "" } else { " (disabled)" };
-        let shown = Self::label_of(&self.target_choices(&target, cx), &target);
-        out.push(format!("{}: {shown} ▾{disabled}", tx(cx, RUNS_ON)));
-        out.push(format!("    {}", tx(cx, RUNS_ON_HINT)));
-        if !target.is_empty() {
-            let shown = Self::label_of(&Self::server_choices(&servers, cx), &server);
-            out.push(format!("{}: {shown} ▾{disabled}", tx(cx, "Language server")));
-        }
-        out
-    }
-
-    fn select_row(
-        &self,
-        list: TargetList,
-        label: &str,
-        choices: Vec<(String, String, Option<String>)>,
-        current: &str,
-        enabled: bool,
-        cx: &mut Context<Self>,
-    ) -> Div {
-        let name = match list {
-            TargetList::Language => "language",
-            TargetList::Target => "runs-on",
-            TargetList::Server => "server",
-        };
-        let query = self.binding.query(cx);
-        let matched = self.binding.matches(label, cx);
-        let text = tx(cx, label);
-        let shown = Self::label_of(&choices, current);
-        let selector = format!("settings-target-{name}");
-        let boxed = select_box(cx, &shown)
-            .id(SharedString::from(selector.clone()))
-            .debug_selector(move || selector)
-            .when(!enabled, |el| el.opacity(0.5))
-            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-            .when(enabled, |el| {
-                el.on_click(cx.listener(move |view, _: &ClickEvent, _, cx| {
-                    view.open = if view.open == Some(list) { None } else { Some(list) };
-                    cx.notify();
-                }))
-            });
-        let open = (self.open == Some(list)).then(|| {
-            let mut rows: Vec<AnyElement> = Vec::new();
-            for (index, (value, label, detail)) in choices.into_iter().enumerate() {
-                let detail = detail.map(|detail| muted(cx, &detail));
-                let chosen = value == current;
-                let drawn = drop_down_row(cx, format!("settings-target-{name}-{index}"), &label, chosen)
-                    .children(detail)
-                    .on_click(cx.listener(move |view, _: &ClickEvent, _, cx| match list {
-                        TargetList::Language => {
-                            view.open = None;
-                            view.chosen = value.clone();
-                            cx.notify();
-                        }
-                        TargetList::Target => view.set("target", value.clone(), cx),
-                        TargetList::Server => view.set("server", value.clone(), cx),
-                    }));
-                rows.push(drawn.into_any_element());
-            }
-            drop_down(cx, rows)
-        });
-        row(cx, matched).child(row_label(cx, &text, &query)).child(div().relative().child(boxed).children(open))
-    }
-}
-
-impl Render for ServerTargetView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        if !self.asked {
-            self.asked = true;
-            let view = cx.weak_entity();
-            let then: Then<Vec<KnownLanguage>> = Rc::new(move |known, cx: &mut App| {
-                view.update(cx, |view, cx| view.set_known(known, cx)).ok();
-            });
-            cx.emit(LanguageEvent::Ask(LanguageAsk::Languages { then }));
-        }
-        let mut rows: Vec<AnyElement> = Vec::new();
-        if let TargetLanguages::Picker(_) = self.languages {
-            let choices: Vec<(String, String, Option<String>)> = self
-                .available()
-                .into_iter()
-                .map(|language| (language.id.clone(), language.name.clone(), None))
-                .collect();
-            let current = self.language().map(|(id, _)| id).unwrap_or_default();
-            rows.push(
-                self.select_row(TargetList::Language, "Language", choices, &current, true, cx).into_any_element(),
-            );
-        }
-        if let Some((language, servers)) = self.language() {
-            let (target, server) = self.selection(&language, cx);
-            let choices = self.target_choices(&target, cx);
-            let runs_on = self.select_row(TargetList::Target, RUNS_ON, choices, &target, self.enabled, cx);
-            rows.push(runs_on.into_any_element());
-            rows.push(hint_line(cx, &tx(cx, RUNS_ON_HINT), 0.0).into_any_element());
-            if !target.is_empty() {
-                let choices = Self::server_choices(&servers, cx);
-                let drawn = self.select_row(TargetList::Server, "Language server", choices, &server, self.enabled, cx);
-                rows.push(drawn.into_any_element());
-            }
-        }
-        match self.languages {
-            TargetLanguages::Picker(_) => {
-                let query = self.binding.query(cx);
-                let title = tx(cx, "Language server targets");
-                section(cx, Some(&title), &query, rows)
-            }
-            TargetLanguages::Fixed(_) => div().flex().flex_col().children(rows),
-        }
     }
 }
 
@@ -1147,8 +861,7 @@ mod tests {
         const PAGE: &str = "languages.java";
         let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
         let binding = Binding::fixed(model.clone(), PAGE, Scope::Project);
-        let project = Binding::fixed(model.clone(), PAGE, Scope::Project);
-        let (view, cx) = open(cx, move |_, cx| JdtlsSharedView::new(binding, project, cx));
+        let (view, cx) = open(cx, move |_, cx| JdtlsSharedView::new(binding, cx));
         view.update(cx, |view, cx| view.set_workspace(true, cx));
         let lines = view.read_with(cx, |view, cx| view.lines(cx));
         assert_eq!(
@@ -1157,34 +870,6 @@ mod tests {
         );
         click(cx, "settings-toggle-languages.java.jdtlsShared");
         assert!(staged(&model, cx).is_empty());
-    }
-
-    // Not from a spec: a target stored for the language shows as unavailable with the server
-    // choice; choosing Local machine stages the project's choice and hides the server.
-    #[gpui_kit::test]
-    async fn a_stored_target_shows_as_unavailable_and_local_machine_is_staged(cx: &mut TestAppContext) {
-        const PAGE: &str = "languages.php";
-        let stored = [("languageServerTargets", json!({ "php": { "target": "ddev", "server": "" } }))];
-        let model = cx.update(|cx| dialog_model(PAGE, &stored, cx));
-        let binding = Binding::fixed(model.clone(), PAGE, Scope::Project);
-        let project = Binding::fixed(model.clone(), PAGE, Scope::Project);
-        let (view, cx) =
-            open(cx, move |_, cx| ServerTargetView::new(binding, project, true, TargetLanguages::Fixed("php"), cx));
-        view.update(cx, |view, cx| {
-            let php = KnownLanguage { id: "php".into(), name: "PHP".into(), servers: vec!["intelephense".into()] };
-            view.set_known(vec![php], cx);
-        });
-        let lines = view.read_with(cx, |view, cx| view.lines(cx));
-        assert_eq!(lines[0], "Language server runs on: ddev ▾");
-        assert_eq!(lines[2], "Language server: First configured server ▾");
-        click(cx, "settings-target-runs-on");
-        click(cx, "settings-target-runs-on-0");
-        let staged = staged(&model, cx);
-        assert_eq!(staged.len(), 1, "{staged:?}");
-        assert_eq!(staged[0].0, "project:languageServerTargets");
-        let value: Value = serde_json::from_str(&staged[0].1).expect("the staged value is JSON");
-        assert_eq!(value, json!({ "php": { "target": "", "server": "" } }));
-        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)).len(), 2, "no server row on the host");
     }
 
     // Not from a spec: a language a plugin formatter covers gets a choice of Automatic and the

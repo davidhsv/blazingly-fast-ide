@@ -1,6 +1,25 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { fileManagerName, fileManagerPath, revealInFileManagerLabel, showInFileManagerLabel } from "./fileManager";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import {
+  canOpenWithSystemApp,
+  canRevealInFileManager,
+  fileManagerName,
+  fileManagerPath,
+  openWithSystemApp,
+  revealInFileManager,
+  revealInFileManagerLabel,
+  showInFileManagerLabel,
+} from "./fileManager";
 import { _resetI18nForTests, setLocale, tx } from "./i18n";
+import { commands, type RemoteTarget } from "./ipc";
+import { usePlatform } from "./platformInfo";
+import { useRemote } from "./remote";
+
+vi.mock("@tauri-apps/plugin-opener", () => ({ openPath: vi.fn(), revealItemInDir: vi.fn() }));
+vi.mock("./ipc", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./ipc")>()),
+  isTauri: () => true,
+}));
 
 const raw = String.raw;
 
@@ -41,6 +60,79 @@ describe("showInFileManagerLabel", () => {
   });
 });
 
+describe("revealInFileManager", () => {
+  const platform = usePlatform.getState();
+  afterEach(() => {
+    usePlatform.setState(platform);
+    useRemote.setState({ session: null });
+    vi.mocked(revealItemInDir).mockClear();
+  });
+
+  const ssh: RemoteTarget = { kind: "ssh", config: "box" };
+  const container: RemoteTarget = { kind: "devContainer", folder: "/Users/me/app", config: "" };
+  it.each<{ window: string; os: string; target: RemoteTarget | null; path: string; revealed: string | null }>([
+    { window: "a local window", os: "macos", target: null, path: "/Users/me/app/a.ts", revealed: "/Users/me/app/a.ts" },
+    {
+      window: "a WSL window on Windows",
+      os: "windows",
+      target: { kind: "wsl", distro: "Ubuntu" },
+      path: "/home/me/app/a.ts",
+      revealed: raw`\\wsl.localhost\Ubuntu\home\me\app\a.ts`,
+    },
+    { window: "an SSH window on macOS", os: "macos", target: ssh, path: "/srv/app/a.ts", revealed: null },
+    { window: "an SSH window on Windows", os: "windows", target: ssh, path: "/srv/app/a.ts", revealed: null },
+    { window: "a dev-container window", os: "macos", target: container, path: "/workspaces/app/a.ts", revealed: null },
+  ])("in $window passes only paths this desktop has to the OS", async ({ os, target, path, revealed }) => {
+    usePlatform.setState({ os });
+    useRemote.setState({ session: target && { target, root: "/p", host: "h", os: "linux", commands: [] } });
+    const shown = await revealInFileManager(path);
+    if (revealed) expect(revealItemInDir).toHaveBeenCalledExactlyOnceWith(revealed);
+    else expect(revealItemInDir).not.toHaveBeenCalled();
+    expect(shown).toBe(revealed !== null);
+    expect(canRevealInFileManager()).toBe(revealed !== null);
+  });
+
+  it("reveals this desktop's own files from a remote window", async () => {
+    usePlatform.setState({ os: "macos" });
+    useRemote.setState({ session: { target: ssh, root: "/p", host: "h", os: "linux", commands: [] } });
+    expect(await revealInFileManager("/Users/me/Library/Logs/openidea.log", null)).toBe(true);
+    expect(revealItemInDir).toHaveBeenCalledExactlyOnceWith("/Users/me/Library/Logs/openidea.log");
+  });
+});
+
+describe("openWithSystemApp", () => {
+  afterEach(() => {
+    useRemote.setState({ session: null });
+    vi.restoreAllMocks();
+  });
+
+  const ssh: RemoteTarget = { kind: "ssh", config: "box" };
+  const container: RemoteTarget = { kind: "devContainer", folder: "/Users/me/app", config: "" };
+  const wsl: RemoteTarget = { kind: "wsl", distro: "Ubuntu" };
+  it.each<{ window: string; target: RemoteTarget | null; path: string; launched: boolean }>([
+    { window: "a local window", target: null, path: "/Users/me/a.xlsx", launched: true },
+    { window: "a WSL window", target: wsl, path: "/home/me/a.xlsx", launched: false },
+    { window: "an SSH window", target: ssh, path: "/srv/app/a.xlsx", launched: false },
+    { window: "a dev-container window", target: container, path: "/workspaces/app/a.xlsx", launched: false },
+  ])("in $window asks the backend only for this desktop's own files", async ({ target, path, launched }) => {
+    const open = vi.spyOn(commands, "fsOpenWithSystem").mockResolvedValue({ status: "ok", data: null });
+    useRemote.setState({ session: target && { target, root: "/p", host: "h", os: "linux", commands: [] } });
+    expect(await openWithSystemApp(path)).toBe(launched);
+    if (launched) expect(open).toHaveBeenCalledExactlyOnceWith(path);
+    else expect(open).not.toHaveBeenCalled();
+    expect(canOpenWithSystemApp()).toBe(launched);
+  });
+
+  it("reports a refused launch so the caller can fall back", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(commands, "fsOpenWithSystem").mockResolvedValue({
+      status: "error",
+      error: { kind: "invalid", message: "outside the project" } as never,
+    });
+    expect(await openWithSystemApp("/Users/me/a.xyz")).toBe(false);
+  });
+});
+
 describe("fileManagerPath", () => {
   it("converts verbatim UNC paths to the form Windows Shell accepts", () => {
     expect(
@@ -74,14 +166,8 @@ describe("fileManagerPath", () => {
   });
 
   it("translates a WSL distro path to a shell-compatible share on Windows", () => {
-    expect(
-      fileManagerPath("/home/me/my app", "windows", {
-        target: { kind: "wsl", distro: "Ubuntu-24.04" },
-        root: "/p",
-        host: "Ubuntu",
-        os: "linux",
-        commands: [],
-      }),
-    ).toBe(raw`\\wsl.localhost\Ubuntu-24.04\home\me\my app`);
+    expect(fileManagerPath("/home/me/my app", "windows", { kind: "wsl", distro: "Ubuntu-24.04" })).toBe(
+      raw`\\wsl.localhost\Ubuntu-24.04\home\me\my app`,
+    );
   });
 });

@@ -83,16 +83,23 @@ fn same_group(a: &NSWindow, b: &NSWindow) -> bool {
     }
 }
 
-/// Puts `members` in one native tab group and shows `selected`.
-pub fn sync_tab_group(members: Vec<WebviewWindow>, selected: &WebviewWindow) -> tauri::Result<()> {
+/// Adds `members` to the existing anchor's native tab group and shows `selected`.
+pub fn sync_tab_group(
+    members: Vec<WebviewWindow>,
+    anchor: &WebviewWindow,
+    selected: &WebviewWindow,
+) -> tauri::Result<()> {
+    let anchor = anchor.clone();
     let target = selected.clone();
     on_main(selected, move || {
         let Some(shown) = native(&target) else { return };
-        for member in members.iter().filter(|m| m.label() != target.label()) {
+        let Some(anchor_window) = native(&anchor) else { return };
+        // Joining into a new tab's desktop window would take the existing group out of full screen.
+        for member in members.iter().filter(|m| m.label() != anchor.label()) {
             if let Some(window) = native(member)
-                && !same_group(shown, window)
+                && !same_group(anchor_window, window)
             {
-                shown.addTabbedWindow_ordered(window, objc2_app_kit::NSWindowOrderingMode::Above);
+                anchor_window.addTabbedWindow_ordered(window, objc2_app_kit::NSWindowOrderingMode::Above);
             }
         }
         if let Some(group) = shown.tabGroup() {
@@ -172,6 +179,29 @@ unsafe extern "C-unwind" fn should_terminate(_this: *mut AnyObject, _selector: S
 }
 
 static APP: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
+
+/// Escape the page leaves unhandled reaches the window as `cancelOperation:`, on which NSWindow
+/// leaves full screen, so pressing Escape once more after closing a popup left full screen. The
+/// IDE's windows answer it with nothing; View › Appearance › Toggle Full Screen (⌃⌘F) leaves it.
+pub fn keep_full_screen_on_escape() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| unsafe {
+        let Some(class) = AnyClass::get(c"TaoWindow") else {
+            tracing::warn!("no TaoWindow class: Escape leaves full screen");
+            return;
+        };
+        let imp: Imp = std::mem::transmute(ignore_cancel_operation as CancelOperation);
+        let class = class as *const AnyClass as *mut AnyClass;
+        let added = objc2::ffi::class_addMethod(class, objc2::sel!(cancelOperation:), imp, c"v@:@".as_ptr());
+        if !added.as_bool() {
+            tracing::warn!("could not handle cancelOperation:");
+        }
+    });
+}
+
+type CancelOperation = unsafe extern "C-unwind" fn(*mut AnyObject, Sel, *mut AnyObject);
+
+unsafe extern "C-unwind" fn ignore_cancel_operation(_this: *mut AnyObject, _selector: Sel, _sender: *mut AnyObject) {}
 
 /// Whether AppKit is handling a key press right now. A menu item performed at this point
 /// was chosen by its key equivalent: a click, arrow keys plus Return and accessibility

@@ -271,8 +271,8 @@ async fn markdown_preview_size_follows_the_editor_until_set_and_applies(cx: &mut
     assert_eq!(effective(cx, "languages.markdown.previewFontSize"), Some(json!(17)), "Cancel writes nothing");
 }
 
-// Node.js: the interpreter, the run target, where the servers run (the project's choice) and the
-// package managers found; the manager chosen is written to the project.
+// Node.js: the interpreter, the run target and the package managers found; the manager chosen is
+// written to the project.
 #[gpui_kit::test]
 async fn node_package_manager_is_written_to_the_project(cx: &mut TestAppContext) {
     let _home = start(cx);
@@ -284,13 +284,10 @@ async fn node_package_manager_is_written_to_the_project(cx: &mut TestAppContext)
     let shown = labels(&view, cx);
     assert_eq!(shown[0], "Node interpreter: Default ▾");
     assert_eq!(shown[1], "Run in target: Default run target ▾");
-    assert_eq!(shown[2], "— Language server targets —");
-    assert!(shown[3].starts_with("Language: "), "{shown:?}");
-    assert_eq!(shown[4], "Language server runs on: Local machine ▾");
-    assert_eq!(shown[5], "Package manager: Auto ▾");
-    assert_eq!(shown.len(), 6, "{shown:?}");
+    assert_eq!(shown[2], "Package manager: Auto ▾");
+    assert_eq!(shown.len(), 3, "{shown:?}");
     choose(cx, "settings-select-languages.node.packageManager", "settings-choice-languages.node.packageManager-pnpm");
-    assert_eq!(labels(&view, cx)[5], "Package manager: pnpm ▾");
+    assert_eq!(labels(&view, cx)[2], "Package manager: pnpm ▾");
     choose(cx, "settings-select-languages.node.runTarget", "settings-choice-languages.node.runTarget-local");
     click_on(cx, "settings-apply");
     assert_eq!(effective(cx, "languages.node.packageManager"), Some(json!("pnpm")));
@@ -361,7 +358,6 @@ async fn php_include_path_and_level_are_written_to_the_project(cx: &mut TestAppC
             "Configuration file: (phpstan.neon, phpstan.neon.dist or phpstan.dist.neon)",
             "— CLI Interpreter —",
             "Run in target: Default run target ▾",
-            "Language server runs on: Local machine ▾",
             "PHP interpreter: Default ▾",
             "Version: 8.3.1",
             "Xdebug: 3.3.0",
@@ -623,54 +619,6 @@ async fn plugin_formatters_offer_a_choice_per_covered_language_and_store_the_pic
     assert_eq!(effective(cx, "languages.pluginFormatters"), Some(json!({ "sql": "p.taplo" })));
 }
 
-// Language server targets: without a project the choice is shown but not editable.
-#[gpui_kit::test]
-async fn language_server_targets_are_not_editable_without_a_project(cx: &mut TestAppContext) {
-    let _home = start(cx);
-    let (workbench, cx) = window(cx);
-    let view = open_page(cx, &workbench, "languages.serverTargets");
-    let shown = labels(&view, cx);
-    assert_eq!(shown[1], "Language: PHP ▾");
-    assert_eq!(shown[2], "Language server runs on: Local machine ▾ (disabled)");
-    click_on(cx, "settings-target-runs-on");
-    assert!(cx.debug_bounds("settings-target-runs-on-0").is_none(), "the list does not open");
-}
-
-// Language server targets: a target stored for PHP that no plugin offers shows as unavailable;
-// Local machine chosen is written to the project.
-#[gpui_kit::test]
-async fn language_server_targets_local_machine_is_written_to_the_project(cx: &mut TestAppContext) {
-    let _home = start(cx);
-    let (_folder, root, workbench, cx) = trusted_project(cx, &[("index.php", "<?php\n")]);
-    cx.update(|_, cx| {
-        let stored = json!({ "php": { "target": "ddev", "server": "" } });
-        crate::platform::settings::set(
-            "w1",
-            ide_workspace::settings::SettingsScope::Project,
-            "languageServerTargets",
-            &stored,
-            cx,
-        )
-        .expect("the target is stored");
-    });
-    let view = open_page(cx, &workbench, "languages.serverTargets");
-    assert_eq!(
-        labels(&view, cx),
-        [
-            "— Language server targets —",
-            "Language: PHP ▾",
-            "Language server runs on: ddev ▾",
-            "Language server: First configured server ▾",
-        ]
-    );
-    choose(cx, "settings-target-runs-on", "settings-target-runs-on-0");
-    click_on(cx, "settings-apply");
-    assert_eq!(effective(cx, "languageServerTargets.php.target"), Some(json!("")));
-    assert_eq!(labels(&view, cx).len(), 3, "no server choice on the host");
-    let file = project_file(&root);
-    assert!(!file.contains("ddev"), "{file}");
-}
-
 // The search finds a language page by a label of its own controls.
 #[gpui_kit::test]
 async fn the_search_finds_a_language_page_by_a_label_of_its_controls(cx: &mut TestAppContext) {
@@ -701,13 +649,7 @@ async fn reset_and_cancel_discard_an_edit_on_each_language_page(cx: &mut TestApp
     let (_folder, root, workbench, cx) = trusted_project(cx, &[("main.go", "package main\n")]);
     let ruby = toolchain(&root.join("rubies/3.3.0/bin/ruby"), "ruby 3.3.0", Some("3.3.0"));
     give_toolchains(cx, SdkDetection { found: vec![(ToolchainKind::Ruby, vec![ruby])], ..SdkDetection::default() });
-    cx.update(|_, cx| {
-        let stored = json!({ "php": { "target": "ddev", "server": "" } });
-        let scope = ide_workspace::settings::SettingsScope::Project;
-        crate::platform::settings::set("w1", scope, "languageServerTargets", &stored, cx)
-            .expect("the target is stored");
-    });
-    let cases: [(&str, Act, &str); 16] = [
+    let cases: [(&str, Act, &str); 15] = [
         ("languages.go", Act::Type("settings-text-languages.go.gopath", "/work/go"), "languages.go.gopath"),
         (
             "languages.go.buildTags",
@@ -768,11 +710,6 @@ async fn reset_and_cancel_discard_an_edit_on_each_language_page(cx: &mut TestApp
             "languages.typescript.version",
         ),
         ("languages.pluginFormatters", Act::Click(&["settings-toggle-editor.formatOnSave"]), "editor.formatOnSave"),
-        (
-            "languages.serverTargets",
-            Act::Click(&["settings-target-runs-on", "settings-target-runs-on-0"]),
-            "languageServerTargets",
-        ),
     ];
     for (page, act, key) in cases {
         let before = effective(cx, key);

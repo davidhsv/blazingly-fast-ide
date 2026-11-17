@@ -13,7 +13,7 @@ import {
   type DbTablePage,
   type RequestId,
 } from "@/platform/ipc";
-import { Button, EmptyState, Icon, IconButton, Select, Spinner, T, showContextMenu } from "@/ui";
+import { Button, EmptyState, Icon, IconButton, Select, Spinner, T, showContextMenu, tooltipAttrs } from "@/ui";
 import { notifications, type EditorInput } from "@/workbench/contributions";
 import { SqlFilterInput } from "./SqlFilterInput";
 import { ColumnsPopup } from "./ColumnsPopup";
@@ -99,12 +99,17 @@ export function TableEditor({ input }: { input: EditorInput }) {
   const rowCount = loaded + edits.inserts.length;
   const gridColumns = useMemo(
     () =>
-      columns.map((c) => ({
-        name: c.name,
-        type: c.typeName,
-        primaryKey: pk.includes(c.name),
-        foreignKey: fkColumns.has(c.name),
-      })),
+      columns.map((c) => {
+        const d = page?.details.columns.find((x) => x.name === c.name);
+        return {
+          name: c.name,
+          type: d?.dataType ?? c.typeName,
+          primaryKey: pk.includes(c.name),
+          foreignKey: fkColumns.has(c.name),
+          nullable: d?.nullable,
+          default: d?.default ?? null,
+        };
+      }),
     // `pk` / `fkColumns` derive from `page`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [page],
@@ -142,6 +147,16 @@ export function TableEditor({ input }: { input: EditorInput }) {
         else next.updates.delete(row);
       }
       return next;
+    });
+  };
+
+  const onResetCell = (row: number, col: number) => {
+    setEdits((e) => {
+      const inserts = [...e.inserts];
+      const ins = new Map(inserts[row - loaded]);
+      ins.delete(names[col]!);
+      inserts[row - loaded] = ins;
+      return { ...e, inserts };
     });
   };
 
@@ -200,18 +215,61 @@ export function TableEditor({ input }: { input: EditorInput }) {
     const r = viewRef.current?.getBoundingClientRect();
     if (page && r) setColumnsAt({ x: r.left + r.width / 2, y: r.top + 48 });
   };
+  const addRow = () => setEdits((e) => ({ ...e, inserts: [...e.inserts, new Map()] }));
+  const restoreRows = (rows: number[]) =>
+    setEdits((e) => ({ ...e, deletes: new Set([...e.deletes].filter((d) => !rows.includes(d))) }));
+  const showExport = (at: { x: number; y: number }) =>
+    page &&
+    showContextMenu(
+      at,
+      exportMenu(
+        {
+          columns: gridColumns,
+          rows: page.result.rows,
+          table: ref.table,
+          driver: sourceById(ref.id)?.driver ?? "sqlite",
+        },
+        `${ref.schema}.${ref.table}`,
+        extractor,
+      ),
+    );
+  const canPrevious = offset > 0 && !loading;
+  const canNext = !!page?.result.hasMore && !loading;
+  handle.commands = {
+    reload: { enabled: () => !loading, run: reload },
+    firstPage: { enabled: () => canPrevious, run: () => setOffset(0) },
+    previousPage: { enabled: () => canPrevious, run: () => setOffset(Math.max(0, offset - limit)) },
+    nextPage: { enabled: () => canNext, run: () => setOffset(offset + limit) },
+    addRow: { enabled: () => editable, run: addRow },
+    exportData: {
+      enabled: () => !!page,
+      run: () => {
+        const r = viewRef.current?.querySelector("[data-db-export]")?.getBoundingClientRect();
+        if (r) showExport({ x: r.left, y: r.bottom });
+      },
+    },
+    deleteRows: { enabled: (rows) => editable && rows.length > 0, run: deleteRows },
+    restoreRows: { enabled: (rows) => editable && rows.some((r) => edits.deletes.has(r)), run: restoreRows },
+  };
   useEffect(() => registerTableEditor(viewRef.current!, handle), [handle]);
   useEffect(() => tableEditorChanged(handle), [handle, dirty, editable]);
   const orderInvalid = orderDraft !== null && !parseOrderBy(orderDraft, names);
   return (
     <div className={styles.view} ref={viewRef} data-db-table-editor="">
       <div className={styles.toolbar}>
-        <IconButton icon="refresh" title="Reload Page" onClick={reload} disabled={loading} />
+        <IconButton
+          icon="refresh"
+          title="Reload Page"
+          shortcut={shortcutLabel("db.reloadPage")}
+          onClick={reload}
+          disabled={loading}
+        />
         <div className={styles.pager}>
           <IconButton
             icon="chevron-left"
             title="Previous Page"
-            disabled={offset === 0 || loading}
+            shortcut={shortcutLabel("db.previousPage")}
+            disabled={!canPrevious}
             onClick={() => setOffset(Math.max(0, offset - limit))}
           />
           <span>
@@ -221,7 +279,8 @@ export function TableEditor({ input }: { input: EditorInput }) {
           <IconButton
             icon="chevron-right"
             title="Next Page"
-            disabled={!page?.result.hasMore || loading}
+            shortcut={shortcutLabel("db.nextPage")}
+            disabled={!canNext}
             onClick={() => setOffset(offset + limit)}
           />
           <Select
@@ -236,15 +295,22 @@ export function TableEditor({ input }: { input: EditorInput }) {
         </div>
         {editable && (
           <>
-            <IconButton
-              icon="plus"
-              title="Add Row"
-              onClick={() => setEdits((e) => ({ ...e, inserts: [...e.inserts, new Map()] }))}
-            />
-            <Button size="small" variant="primary" disabled={!dirty} onClick={() => void submit()}>
+            <IconButton icon="plus" title="Add Row" shortcut={shortcutLabel("db.addRow")} onClick={addRow} />
+            <Button
+              size="small"
+              variant="primary"
+              disabled={!dirty}
+              onClick={() => void submit()}
+              {...tooltipAttrs("Submit", shortcutLabel("db.submitChanges"))}
+            >
               <T>Submit</T>
             </Button>
-            <Button size="small" disabled={!dirty} onClick={() => setEdits(emptyEdits())}>
+            <Button
+              size="small"
+              disabled={!dirty}
+              onClick={() => setEdits(emptyEdits())}
+              {...tooltipAttrs("Revert", shortcutLabel("db.revertChanges"))}
+            >
               <T>Revert</T>
             </Button>
           </>
@@ -255,23 +321,10 @@ export function TableEditor({ input }: { input: EditorInput }) {
         <IconButton
           icon="export"
           title="Export Data"
+          shortcut={shortcutLabel("db.exportData")}
+          data-db-export=""
           disabled={!page}
-          onClick={(e) =>
-            page &&
-            showContextMenu(
-              e,
-              exportMenu(
-                {
-                  columns: gridColumns,
-                  rows: page.result.rows,
-                  table: ref.table,
-                  driver: sourceById(ref.id)?.driver ?? "sqlite",
-                },
-                `${ref.schema}.${ref.table}`,
-                extractor,
-              ),
-            )
-          }
+          onClick={(e) => showExport({ x: e.clientX, y: e.clientY })}
         />
         <IconButton
           icon="import"
@@ -363,17 +416,15 @@ export function TableEditor({ input }: { input: EditorInput }) {
             isModified={(r, c) => !!edits.updates.get(r)?.has(names[c]!)}
             editable={editable}
             onEdit={onEdit}
+            onResetCell={onResetCell}
+            driver={source?.driver}
             sort={sort}
             onSort={onSort}
             rowMenu={(rows) =>
               editable
                 ? [
-                    { label: "Delete Rows", icon: "trash", run: () => deleteRows(rows) },
-                    {
-                      label: "Restore Rows",
-                      run: () =>
-                        setEdits((e) => ({ ...e, deletes: new Set([...e.deletes].filter((d) => !rows.includes(d))) })),
-                    },
+                    { kind: "action", action: "db.deleteRows", icon: "trash", arg: { rows, editor: handle } },
+                    { kind: "action", action: "db.restoreRows", arg: { rows, editor: handle } },
                   ]
                 : []
             }

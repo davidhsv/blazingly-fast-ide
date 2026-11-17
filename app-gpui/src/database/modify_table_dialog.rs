@@ -67,6 +67,7 @@ fn first_type(driver: DbDriver) -> &'static str {
         DbDriver::Mysql | DbDriver::SqlServer => "int",
         DbDriver::Clickhouse => "UInt64",
         DbDriver::Oracle => "NUMBER",
+        DbDriver::Snowflake => "NUMBER(38,0)",
     }
 }
 

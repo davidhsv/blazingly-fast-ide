@@ -117,7 +117,8 @@ fn recovers_images_after_a_failed_regeneration(cx: &mut TestAppContext, draft: b
     assert_eq!(sent["images"], serde_json::json!(data), "{sent}");
     assert_eq!(sent["files"], serde_json::json!(if draft { vec!["README.md"] } else { Vec::new() }), "{sent}");
     let calls = agent_calls(&folder);
-    assert_eq!(count(&calls, "session/new"), 2, "rolled back once, by a fresh session: {calls:?}");
+    // The New Task page's lookup of the agent's commands opened one session, never prompted; the task the other two.
+    assert_eq!(count(&calls, "session/new"), 3, "rolled back once, by a fresh session: {calls:?}");
     assert_eq!(count(&calls, "_openidea/rollback"), 0, "{calls:?}");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }
@@ -166,7 +167,8 @@ fn recovers_the_edit_after_rollback_if_sending_fails(cx: &mut TestAppContext, dr
     wait_for_answer(&workbench, &store, &task, "agent: Answer 1", cx);
     assert!(shows(&workbench, "you: Original message edited", cx), "{:?}", agent_conversation(&workbench, cx));
     let calls = agent_calls(&folder);
-    assert_eq!(count(&calls, "session/new"), 2, "rolled back once, by a fresh session: {calls:?}");
+    // The New Task page's lookup of the agent's commands opened one session, never prompted; the task the other two.
+    assert_eq!(count(&calls, "session/new"), 3, "rolled back once, by a fresh session: {calls:?}");
     assert_eq!(count(&calls, "session/prompt"), 2, "{calls:?}");
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }

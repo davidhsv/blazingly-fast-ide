@@ -931,7 +931,7 @@ mod tests {
         let (view, store, _, cx) = open(cx, store, None);
         assert!(cx.debug_bounds("agents-unread-a").is_none());
         store.update(cx, |store, cx| {
-            let finished = AgentEvent::Task { task: task("a", AgentStatus::Ready, 0.0) };
+            let finished = AgentEvent::Task { task: Box::new(task("a", AgentStatus::Ready, 0.0)) };
             store.on_event(generation, finished, &I18n::default());
             cx.notify();
         });

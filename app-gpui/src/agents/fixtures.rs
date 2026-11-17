@@ -37,6 +37,7 @@ pub fn task(id: &str, status: AgentStatus, updated_ms: f64) -> AgentTask {
         resets_ms: None,
         retry: None,
         background: Box::default(),
+        mcp_overrides: Default::default(),
     }
 }
 
@@ -94,7 +95,15 @@ pub fn permission_option(id: &str, name: &str, kind: &str) -> AgentPermissionOpt
 
 /// An open permission request.
 pub fn permission(id: u32, title: &str, options: Vec<AgentPermissionOption>) -> AgentEntry {
-    AgentEntry::Permission { id, title: title.to_owned(), options, questions: Vec::new(), chosen: None }
+    AgentEntry::Permission {
+        id,
+        title: title.to_owned(),
+        options,
+        questions: Vec::new(),
+        chosen: None,
+        command: None,
+        form: None,
+    }
 }
 
 pub fn question(header: &str, text: &str, multi_select: bool, options: &[(&str, &str, Option<&str>)]) -> AgentQuestion {
@@ -142,9 +151,17 @@ pub fn option(category: &str, values: &[&str], current: Option<&str>) -> AgentCo
         current: current.map(str::to_owned),
         values: values
             .iter()
-            .map(|v| AgentConfigValue { value: (*v).to_owned(), name: (*v).to_owned(), description: None })
+            .map(|v| AgentConfigValue {
+                value: (*v).to_owned(),
+                name: (*v).to_owned(),
+                description: None,
+                cost_category: None,
+                pricing: None,
+                usage_multiplier: None,
+            })
             .collect(),
         via: AgentConfigVia::Option,
+        default_value: None,
     }
 }
 

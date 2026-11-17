@@ -59,7 +59,7 @@ use ide_core::{IdeEvent, IdeResult};
 use ide_host::Host;
 use ide_host::ops::Channel;
 use ide_host::ops::vcs::{self as git, GitOperation, RemoteOp, VcsRoot};
-use ide_vcs::{Branch, CheckoutOptions, LogQuery};
+use ide_vcs::{Branch, CheckoutOptions, CheckoutOutcome, LogQuery};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::future::Future;
@@ -743,8 +743,18 @@ pub(super) async fn checkout(
                 return Ok(false);
             }
             CheckoutStep::Ask(request) => {
-                let answer = ask(this, cx, request).await?;
-                match checkout_retry(options, &answer.ask_answer()) {
+                let answer = ask(this, cx, request).await?.ask_answer();
+                // Open Existing Worktree: the worktree that holds the branch opens instead.
+                if let CheckoutOutcome::CheckedOutInWorktree { path, .. } = &outcome
+                    && answer.button == "open"
+                {
+                    let path = Value::String(path.to_string_lossy().into_owned());
+                    this.update_in(cx, |_, window, cx| {
+                        run_action_later("file.openProjectPath".to_owned(), Some(path), window, cx);
+                    })?;
+                    return Ok(false);
+                }
+                match checkout_retry(options, &answer) {
                     Some(retry) => options = retry,
                     None => return Ok(false),
                 }
@@ -857,7 +867,8 @@ async fn rename(this: This, cx: &mut AsyncWindowContext, name: String, repo: Opt
     let (to, title, success) = i18n(&this, cx, |i18n| rename_branch(&name, &result, i18n))?;
     let (from, target, path) = (name.clone(), to.clone(), repo_path(repo.as_deref()));
     let work = move |host: Arc<Host>, label: String| async move {
-        git::vcs_rename_branch(&host, &label, path, from, target).await
+        // The rename dialog has no "Unset upstream branch" choice: the tracking moves with the name.
+        git::vcs_rename_branch(&host, &label, path, from, target, false).await
     };
     if run_op(&this, cx, &title, Some(success), false, work).await?.is_some() {
         this.update(cx, |workbench, cx| {
@@ -1423,7 +1434,11 @@ impl Workbench {
         let Some(slot) = self.vcs.as_mut() else { return };
         let delay = match event {
             IdeEvent::VcsChanged { .. } => Some(VCS_EVENT_DELAY),
-            IdeEvent::FsChanged { created, modified, removed } => {
+            // Changed ignore rules re-filter every path: only a full status answers for them.
+            IdeEvent::FsChanged { ignore_rules, .. } if !ignore_rules.is_empty() => {
+                slot.state.available.then_some(FS_EVENT_DELAY)
+            }
+            IdeEvent::FsChanged { created, modified, removed, .. } => {
                 let paths: Vec<String> = created
                     .iter()
                     .chain(modified)
@@ -1437,7 +1452,7 @@ impl Workbench {
         #[cfg(test)]
         {
             let what = match event {
-                IdeEvent::FsChanged { created, modified, removed } => {
+                IdeEvent::FsChanged { created, modified, removed, .. } => {
                     Some(format!("fs created={created:?} modified={modified:?} removed={removed:?}"))
                 }
                 IdeEvent::VcsChanged { .. } => Some("vcs changed".to_owned()),

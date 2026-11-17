@@ -267,6 +267,7 @@ mod tests {
             languages: languages.iter().map(|language| LanguageId::new(*language)).collect(),
             status,
             pid: None,
+            label: None,
         }
     }
 

@@ -2,17 +2,18 @@
  * File operations behind the project view's actions: new / rename / delete,
  * internal copy-cut-paste, drag & drop moves and OS file imports.
  */
+import { writeClipboardText } from "@/platform/clipboard";
 import { createElement, Fragment } from "react";
 import { askUsagesDetected, fileUsages, viewUsages } from "@/editor/refactor";
 import { executeAction, getAction } from "@/platform/actions";
-import { fileManagerName, fileManagerPath, revealInFileManager } from "@/platform/fileManager";
+import { canRevealInFileManager, fileManagerName, fileManagerPath, revealInFileManager } from "@/platform/fileManager";
 import { maybeEditorService, notifications } from "@/workbench/contributions";
 import { ask, confirmChecked } from "@/workbench/messages";
 import { osClipboard } from "./clipboard";
 import { lastFileRefactoring, nextFileOperation, runFileRefactoring, undoFileRefactoring } from "./fileRefactor";
 import { openFileRefactorDialog, rememberedOptions } from "./FileRefactorDialogs";
 import { beginLocalImport, projectFs } from "./fs";
-import { call, commands, isCancelled } from "@/platform/ipc";
+import { call, commands, IpcError, isCancelled } from "@/platform/ipc";
 import { MEMBER_PREFIX, type ProjectNode } from "./model";
 import {
   isInside,
@@ -126,14 +127,22 @@ function expandFolder(path: string) {
 // ---------------------------------------------------------------------------
 // Open
 
-export async function openFile(path: string, opts: { preview?: boolean; focus?: boolean } = {}) {
+export async function openFile(
+  path: string,
+  opts: { preview?: boolean; focus?: boolean; external?: boolean; side?: boolean } = {},
+) {
   const editor = maybeEditorService();
   if (!editor) {
     notifications().notify({ level: "warning", title: "No editor available", body: path, key: "project.noEditor" });
     return;
   }
   try {
-    await editor.openFile(path, { preview: opts.preview, focus: opts.focus ?? true });
+    await editor.openFile(path, {
+      preview: opts.preview,
+      focus: opts.focus ?? true,
+      external: opts.external,
+      ...(opts.side && { side: true }),
+    });
   } catch (e) {
     fail(`Cannot open ${nameOf(path)}`, e);
   }
@@ -141,6 +150,16 @@ export async function openFile(path: string, opts: { preview?: boolean; focus?: 
 
 export function openSelection() {
   for (const n of selectedNodes()) if (!n.dir) void openFile(n.path);
+}
+
+/** Files among the selected nodes, for actions that open them. */
+export function selectedFiles(): ProjectNode[] {
+  return selectedNodes().filter((n) => !n.dir && !n.placeholder && !n.member);
+}
+
+/** Open in Right Split (⇧Enter): the selected files in the pane right of the current editor. */
+export async function openSelectionInRightSplit(nodes = selectedFiles()) {
+  for (const [i, n] of nodes.entries()) await openFile(n.path, { side: true, focus: i === nodes.length - 1 });
 }
 
 // ---------------------------------------------------------------------------
@@ -566,14 +585,15 @@ export function copySelection(cut: boolean) {
   const remote = isRemoteWindow();
   const osWrite = (async () => {
     if (!remote) return osClipboard().setFiles(paths);
-    await navigator.clipboard.writeText(paths.join("\n"));
+    await writeClipboardText(paths.join("\n"));
     return true;
   })().catch(() => false);
   setClipboard({ paths, cut, remote, osWrite });
 }
 
-/** Files on the OS clipboard, cached: `canPaste` runs while a menu renders. */
+/** Files or an image on the OS clipboard, cached: `canPaste` runs while a menu renders. */
 let osHasFiles = false;
+let osHasImage = false;
 
 /** Keeps Paste enabled for what Explorer copied; called when the window gains focus. */
 export async function refreshOsClipboard() {
@@ -587,10 +607,11 @@ export async function refreshOsClipboard() {
 async function readOsClipboard(): Promise<string[] | null> {
   const { clipboard } = get();
   const handedOff = await clipboard?.osWrite;
-  const external = await osClipboard().files();
+  const [external, image] = await Promise.all([osClipboard().files(), osClipboard().hasImage()]);
   // A newer Copy/Cut owns the state if this read (or its hand-off) was delayed.
   if (get().clipboard !== clipboard) return null;
   osHasFiles = external.length > 0;
+  osHasImage = image;
   // Our remote text write removes file URLs, so any files were copied later.
   // A failed write leaves ownership uncertain; retain the remote copy then.
   if (handedOff && (clipboard?.remote ? external.length > 0 : !sameFiles(external, clipboard?.paths)))
@@ -599,12 +620,13 @@ async function readOsClipboard(): Promise<string[] | null> {
 }
 
 export function canPaste(): boolean {
-  return !!get().clipboard?.paths.length || osHasFiles;
+  return !!get().clipboard?.paths.length || osHasFiles || osHasImage;
 }
 
 /**
  * Paste: cut items go through the Move dialog, copied ones through the Copy
- * dialog (IDEA). Files copied in Explorer paste as copies.
+ * dialog (IDEA). Files copied in Explorer paste as copies; an image (a
+ * screenshot) is saved as `img.png`.
  */
 export async function paste(target = targetFolder()) {
   if (!target || isReadOnlyPath(target)) return;
@@ -625,6 +647,7 @@ export async function paste(target = targetFolder()) {
   if (!clipboard?.remote && external.length && !sameFiles(external, clipboard?.paths))
     return pasteFromOsClipboard(external, target);
   if (!clipboard?.paths.length) {
+    if (await pasteImage(target)) return;
     notifications().notify({ level: "info", title: "No files on the clipboard" });
     return;
   }
@@ -637,6 +660,39 @@ export async function paste(target = targetFolder()) {
   openMoveDialogFor(paths, target, single, () => {
     if (get().clipboard === clipboard) setClipboard(null);
   });
+}
+
+/**
+ * Saves the clipboard's image in `target` as `img.png`, or `img_1.png`, `img_2.png`
+ * … when taken, and selects it. False when the clipboard holds no image.
+ */
+async function pasteImage(target: string): Promise<boolean> {
+  let png: Uint8Array | null;
+  try {
+    png = await osClipboard().image();
+  } catch (e) {
+    fail(tx("Cannot access the clipboard"), e);
+    return true;
+  }
+  if (!png) return false;
+  await loadDir(target);
+  const taken = new Set((get().listings.get(target) ?? []).map((e) => e.name));
+  for (let i = 0; ; i++) {
+    const name = i ? `img_${i}.png` : "img.png";
+    if (taken.has(name)) continue;
+    const path = joinPath(target, name);
+    try {
+      await projectFs(get().root ?? target).createFileBytes(path, png);
+    } catch (e) {
+      // Created since the listing was read: take the next name.
+      if (e instanceof IpcError && e.kind === "alreadyExists") continue;
+      fail(tx`Cannot paste the image into ${name}`, e);
+      return true;
+    }
+    await loadDir(target, true);
+    revealPath(path, true);
+    return true;
+  }
 }
 
 /** Pasting from Explorer copies, whatever the source: never a move or a refactoring. */
@@ -817,7 +873,7 @@ export async function copyPaths(kind: PathKind, nodes: ProjectNode[] = selectedN
   const text = pathsFor(kind, nodes).join("\n");
   if (!text) return;
   try {
-    await navigator.clipboard.writeText(text);
+    await writeClipboardText(text);
     void executeAction("editor.showHint", { text: tx`Copied ${text}` });
   } catch (e) {
     fail(tx("Cannot access the clipboard"), e);
@@ -833,7 +889,14 @@ export function revealablePath(path: string): string {
   return fileManagerPath(path);
 }
 
+/** For a reveal invoked where the menus hide it (shortcut, Search Everywhere) in an SSH or dev-container window. */
+export function notifyRevealUnavailable() {
+  const fileManager = tx(fileManagerName());
+  notifications().notify({ level: "warning", title: tx`Remote project files cannot be shown in ${fileManager}` });
+}
+
 export async function revealInFinder(nodes: ProjectNode[] = selectedNodes()) {
+  if (!canRevealInFileManager()) return notifyRevealUnavailable();
   try {
     await revealInFileManager(nodes.map((n) => n.path));
   } catch (e) {

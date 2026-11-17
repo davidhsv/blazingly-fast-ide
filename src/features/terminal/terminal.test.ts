@@ -276,6 +276,16 @@ describe("terminal find", () => {
     const d = buildSearchDecorations((n) => (n === "--match" ? "#8fa5d6" : n === "--bg-app" ? "#000000" : ""));
     for (const v of Object.values(d)) expect(v).toMatch(/^#[0-9a-f]{6}$/);
     expect(d.matchOverviewRuler).toBe("#8fa5d6");
+
+    const fromSearchTokens = buildSearchDecorations((n) => {
+      if (n === "--bg-app") return "#191a1c";
+      if (n === "--bg-search-match") return "#ba9752";
+      if (n === "--bg-search-match-current") return "#f2c55c";
+      return "";
+    });
+    expect(fromSearchTokens.matchBackground).toBe("#ba9752");
+    expect(fromSearchTokens.activeMatchBackground).toBe("#f2c55c");
+    expect(fromSearchTokens.activeMatchBorder).toBe("#f2c55c");
   });
 });
 
@@ -312,7 +322,7 @@ describe("terminalFont", () => {
     columnWidth: 1,
   };
   const editor = { fontFamily: "JetBrains Mono", fontSize: 10, lineHeight: 12 };
-  const head = (family: string) => family.slice(0, family.indexOf('"Symbols Nerd Font Mono"'));
+  const head = (family: string) => family.slice(0, family.indexOf('"Symbols Nerd Font"'));
 
   it.each([
     // #26: "Use editor font" with the default family must reach the bundled face, not the system monospace.
@@ -395,6 +405,12 @@ describe("terminalFont", () => {
   it("keeps the terminal's line height with Use editor font", () => {
     expect(terminalFont(t, { ...editor, lineHeight: 21 }, BASE).lineHeight).toBe(1);
     expect(terminalFont({ ...t, lineHeight: 1.2 }, editor, BASE).lineHeight).toBe(1.2);
+  });
+
+  it("prefers full-width Nerd Font fallbacks ahead of shrunk Mono variants", () => {
+    const { family } = terminalFont(t, editor, BASE);
+    expect(family.indexOf('"Symbols Nerd Font"')).toBeLessThan(family.indexOf('"Symbols Nerd Font Mono"'));
+    expect(family.indexOf('"JetBrainsMono Nerd Font"')).toBeLessThan(family.indexOf('"JetBrainsMono Nerd Font Mono"'));
   });
 
   it("turns the column width into letter spacing", () => {

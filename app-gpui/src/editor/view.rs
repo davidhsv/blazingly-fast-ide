@@ -108,6 +108,7 @@ pub fn syntax_token(kind: SyntaxHighlightKind) -> &'static str {
         K::Tag => "syn-tag",
         K::Operator | K::Punctuation => "syn-punct",
         K::Parameter => "syn-param",
+        K::Command => "syn-shell-command",
     }
 }
 
@@ -1285,7 +1286,7 @@ impl Editor {
     /// encoding, which the backend refuses while there are unsaved changes; without, the text
     /// stays and is written in the encoding on the next save.
     pub fn set_encoding(&mut self, encoding: &str, reload: bool, cx: &mut Context<Self>) -> IdeResult<()> {
-        self.encoding = self.documents()?.set_encoding(self.doc, encoding, reload)?;
+        self.encoding = self.documents()?.set_encoding(self.doc, encoding, reload)?.encoding;
         if reload {
             // The text is another one: what could be undone no longer applies to it.
             self.history.clear();

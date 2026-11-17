@@ -1,7 +1,7 @@
 id = "execution"
 name = "Plugin execution tests"
 version = "0.1.0"
-engines.openidea = "^1.4"
+engines.openidea = "^1.9"
 wasm = "dist/plugin.wasm"
 activation = ["on-command:*"]
 [capabilities]
@@ -41,6 +41,10 @@ id = "content"
 title = "content"
 
 [[contributes.commands]]
+id = "diff"
+title = "diff"
+
+[[contributes.commands]]
 id = "events"
 title = "events"
 
@@ -50,3 +54,11 @@ title = "target"
 [[contributes.commands]]
 id = "untarget"
 title = "untarget"
+
+[[contributes.commands]]
+id = "target-overrides"
+title = "target-overrides"
+
+[[contributes.commands]]
+id = "validation"
+title = "validation"

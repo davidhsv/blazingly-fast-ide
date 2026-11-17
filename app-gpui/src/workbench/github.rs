@@ -2266,9 +2266,17 @@ exit 1
     #[test]
     fn remotes_keep_no_credentials_and_still_name_their_repository() {
         let remotes = vec![
-            Remote { name: "origin".to_owned(), url: format!("https://ada:{SENTINEL}@github.com/org/app.git") },
-            Remote { name: "fork".to_owned(), url: format!("https://{SENTINEL}@github.com/ada/app.git") },
-            Remote { name: "ssh".to_owned(), url: "git@github.com:org/app.git".to_owned() },
+            Remote {
+                name: "origin".to_owned(),
+                url: format!("https://ada:{SENTINEL}@github.com/org/app.git"),
+                resolved_url: None,
+            },
+            Remote {
+                name: "fork".to_owned(),
+                url: format!("https://{SENTINEL}@github.com/ada/app.git"),
+                resolved_url: None,
+            },
+            Remote { name: "ssh".to_owned(), url: "git@github.com:org/app.git".to_owned(), resolved_url: None },
         ];
         let kept = without_credentials(remotes);
         assert!(!format!("{kept:?}").contains(SENTINEL), "{kept:?}");

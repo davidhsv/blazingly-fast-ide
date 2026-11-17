@@ -1193,7 +1193,7 @@ mod tests {
     }
 
     fn build_model(maven: MavenModel) -> BuildModel {
-        BuildModel { maven: Some(maven), gradle: Vec::new() }
+        BuildModel { maven: Some(maven), gradle: Vec::new(), sbt: Vec::new() }
     }
 
     fn run_config(id: &str, name: &str, kind: &str, cwd: Option<&str>) -> RunConfig {
@@ -1396,7 +1396,7 @@ mod tests {
     }
 
     fn gradle_model(builds: Vec<GradleModel>) -> BuildModel {
-        BuildModel { maven: None, gradle: builds }
+        BuildModel { maven: None, gradle: builds, sbt: Vec::new() }
     }
 
     #[test]

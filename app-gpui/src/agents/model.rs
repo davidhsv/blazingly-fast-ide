@@ -123,6 +123,44 @@ pub fn upsert_entry(entries: &mut Vec<AgentEntry>, index: usize, entry: AgentEnt
     true
 }
 
+/// Whether `entry` (an `Entry` event) only repeats less of the message streamed into `entries`
+/// already: sent before the copy here was read, it would cut the text back.
+pub fn entry_is_behind(entries: &[AgentEntry], index: usize, entry: &AgentEntry) -> bool {
+    match (entries.get(index), entry) {
+        (Some(AgentEntry::Agent { text: have }), AgentEntry::Agent { text })
+        | (Some(AgentEntry::Thought { text: have }), AgentEntry::Thought { text }) => {
+            have.len() > text.len() && have.starts_with(text.as_str())
+        }
+        _ => false,
+    }
+}
+
+/// Appends streamed `text` to the agent message or thought at `index`, whose first `from` UTF-16
+/// units the sender had already sent. Text the copy here holds already is skipped. `false`: the
+/// copy cannot take it (no such message, or it misses text before `from`), and the conversation is
+/// read again.
+pub fn append_entry(entries: &mut [AgentEntry], index: usize, from: usize, text: &str) -> bool {
+    let Some(AgentEntry::Agent { text: have } | AgentEntry::Thought { text: have }) = entries.get_mut(index) else {
+        return false;
+    };
+    let held = have.encode_utf16().count();
+    if held < from {
+        return false;
+    }
+    let mut skip = held - from;
+    let mut rest = text;
+    for (at, c) in text.char_indices() {
+        if skip == 0 {
+            rest = &text[at..];
+            break;
+        }
+        skip = skip.saturating_sub(c.len_utf16());
+        rest = &text[at + c.len_utf8()..];
+    }
+    have.push_str(rest);
+    true
+}
+
 /// "agent/fix-lexer" → "fix-lexer".
 pub fn branch_label(branch: Option<&str>) -> &str {
     let branch = branch.unwrap_or_default();
@@ -332,6 +370,40 @@ mod tests {
                 (GroupStatus::Ready, vec!["e", "a"]),
             ]
         );
+    }
+
+    // src/features/agents/agents.test.ts › appends streamed text from where the copy here stands
+    #[test]
+    fn appends_streamed_text_from_where_the_copy_here_stands() {
+        let user = AgentEntry::User {
+            text: "q".to_owned(),
+            attachments: Vec::new(),
+            images: Vec::new(),
+            sent_ms: None,
+            done_ms: None,
+            steered: false,
+        };
+        let mut entries = vec![user.clone(), agent("He")];
+        assert!(append_entry(&mut entries, 1, 2, "llo"));
+        assert_eq!(entries, vec![user.clone(), agent("Hello")]);
+        // Loaded while it streamed: part of the text is already here.
+        let mut entries = vec![user.clone(), agent("Hel")];
+        assert!(append_entry(&mut entries, 1, 2, "llo"));
+        assert_eq!(entries[1], agent("Hello"));
+        let mut entries = vec![user.clone(), agent("Hello")];
+        assert!(append_entry(&mut entries, 1, 2, "llo"));
+        assert_eq!(entries[1], agent("Hello"));
+        assert!(!append_entry(&mut [user.clone(), agent("H")], 1, 2, "llo"));
+        assert!(!append_entry(&mut [user.clone(), agent("He")], 0, 0, "x"));
+        assert!(!append_entry(&mut [user.clone(), agent("He")], 2, 0, "x"));
+        // `from` counts UTF-16 units: an emoji is two.
+        let mut entries = vec![agent("a😀")];
+        assert!(append_entry(&mut entries, 0, 1, "😀b"));
+        assert_eq!(entries[0], agent("a😀b"));
+        // An older copy of the streamed message does not cut it back.
+        assert!(entry_is_behind(&[agent("Hello")], 0, &agent("He")));
+        assert!(!entry_is_behind(&[agent("He")], 0, &agent("Hello")));
+        assert!(!entry_is_behind(&[agent("Hello")], 0, &agent("Bye")));
     }
 
     #[test]

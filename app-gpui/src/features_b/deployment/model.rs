@@ -192,11 +192,11 @@ pub fn server_label(server: &DeploymentServer) -> &str {
     if name.is_empty() { &server.id } else { name }
 }
 
-/// The SSH configuration a server's transfers authenticate with ("" for a local server).
+/// The SSH configuration a server's transfers authenticate with ("" for a local or FTP server).
 pub fn server_ssh(server: &DeploymentServer) -> &str {
     match server.kind {
         DeploymentType::Sftp => &server.ssh_config,
-        DeploymentType::Local => "",
+        DeploymentType::Ftp | DeploymentType::Ftps | DeploymentType::Local => "",
     }
 }
 

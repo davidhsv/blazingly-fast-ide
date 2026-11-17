@@ -24,7 +24,6 @@ fn toolchain(id: &'static str, title: &'static str, order: f64, keywords: &[&'st
 /// Markdown settings; the Go sub-pages pick their scope themselves.
 pub fn language_pages() -> Vec<PageSpec> {
     vec![
-        toolchain("languages.serverTargets", "Language server targets", 451.0, &["lsp", "container", "target"]),
         PageSpec::new("languages.pluginFormatters", "Plugin Formatters", 450)
             .group(LANGUAGES_GROUP)
             .project_scope()
@@ -278,7 +277,12 @@ mod tests {
             },
         }));
         assert_eq!(v.plugin_formatters.get("sql").map(String::as_str), Some("example.formatter"));
-        assert_eq!(v.python, PythonSettings { interpreter: "/usr/bin/python3".to_owned(), activate_virtualenv: true });
+        let python = PythonSettings {
+            interpreter: "/usr/bin/python3".to_owned(),
+            activate_virtualenv: true,
+            ..PythonSettings::default()
+        };
+        assert_eq!(v.python, python);
         // Any package manager name is kept; the webview only kept the ones it knows.
         assert_eq!(v.node.package_manager, "pip");
         assert_eq!((v.rust.check_command.as_str(), v.rust.check_on_save), ("clippy", false));
@@ -524,7 +528,6 @@ mod tests {
                 "Rust",
                 "TypeScript",
                 "Plugin Formatters",
-                "Language server targets",
             ]
         );
     }

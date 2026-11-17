@@ -716,7 +716,8 @@ mod tests {
 
     #[test]
     fn resets_selection_when_changing_the_gradle_build_used_for_completion() {
-        let model = BuildModel { maven: None, gradle: vec![build("a", "assemble"), build("b", "build")] };
+        let model =
+            BuildModel { maven: None, gradle: vec![build("a", "assemble"), build("b", "build")], sbt: Vec::new() };
         let mut state = ExecuteState::new(BuildTool::Gradle, &model, Vec::new(), None);
         assert_eq!(state.rows(&model)[0], ExecuteRow::Section { key: "commands", label: "Gradle Tasks" });
         state.move_selection(Move::Down, &model);
@@ -735,7 +736,8 @@ mod tests {
     fn a_typed_line_runs_in_the_chosen_project_and_is_kept_without_its_launcher() {
         assert_eq!(history_line(BuildTool::Maven, "./mvnw clean  install"), "clean  install");
         assert_eq!(history_line(BuildTool::Gradle, "build --info"), "build --info");
-        let model = BuildModel { maven: None, gradle: vec![build("a", "assemble"), build("b", "build")] };
+        let model =
+            BuildModel { maven: None, gradle: vec![build("a", "assemble"), build("b", "build")], sbt: Vec::new() };
         let settings = BuildSettings::default();
         let key = gradle_project_key("b", ":");
         let config = execute_config(BuildTool::Gradle, "gradle build", Some(&key), &model, &settings);

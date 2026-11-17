@@ -20,6 +20,32 @@ impl Plugin for Execution {
                 )?;
                 Ok(None)
             }
+            "target-overrides" => {
+                let project = ctx.project().ok_or_else(|| Error::Invalid("no project".into()))?;
+                let workdir_args = match arg {
+                    Some("empty") => Some(vec![]),
+                    Some("own") => Some(vec!["--working-dir={cwd}".into()]),
+                    Some("invalid") => Some(vec!["bad\0arg".into()]),
+                    _ => None,
+                };
+                host::register_run_target_with_overrides(
+                    &project,
+                    &PluginRunTargetWithOverrides {
+                        id: "wrapper".into(),
+                        name: "Execution target".into(),
+                        program: "execution-tool".into(),
+                        args: vec!["wrapped".into()],
+                        workdir_args: vec!["--cwd={cwd}".into()],
+                        container_root: Some("/container".into()),
+                        commands: vec![PluginCommandOverride {
+                            name: "composer".into(),
+                            args: vec!["composer".into()],
+                            workdir_args,
+                        }],
+                    },
+                )?;
+                Ok(None)
+            }
             "untarget" => {
                 host::unregister_run_target(&ctx.project().unwrap(), arg.unwrap_or("wrapper"));
                 Ok(None)
@@ -52,7 +78,20 @@ impl Plugin for Execution {
                 })?;
                 Ok(None)
             }
+            "diff" => {
+                host::open_diff(
+                    &ContentDiff {
+                        left: "before\n".into(),
+                        right: "after\n".into(),
+                        title: Some("Review".into()),
+                        ..Default::default()
+                    },
+                    Some("src/review.rs"),
+                )?;
+                Ok(None)
+            }
             "events" => host::storage::get("events"),
+            "validation" => host::storage::get("validation"),
             _ => Err(Error::NotFound(id.into())),
         }
     }
@@ -75,17 +114,37 @@ impl Plugin for Execution {
         host::storage::set("events", &serde_json::to_string(&received).unwrap()).unwrap();
     }
 }
-impl RunConfigurations for Execution {
-    fn configurations(&mut self, _: &str) -> Vec<PluginRunConfiguration> {
-        vec![PluginRunConfiguration {
-            id: "dynamic".into(),
-            name: "Dynamic tests".into(),
-            program: "execution-tool".into(),
-            args: vec!["test".into()],
-            test: true,
-            framework: Some("plugin".into()),
-            ..Default::default()
-        }]
+impl LaunchConfigurations for Execution {
+    fn launch_configurations(&mut self, _: &str) -> Vec<PluginLaunchConfiguration> {
+        vec![
+            PluginLaunchConfiguration {
+                config: PluginRunConfiguration {
+                    id: "dynamic".into(),
+                    name: "Dynamic tests".into(),
+                    program: "execution-tool".into(),
+                    args: vec!["test".into()],
+                    test: true,
+                    framework: Some("plugin".into()),
+                    ..Default::default()
+                },
+                env: vec![("OPENIDEA_EXECUTION_FIXTURE".into(), "1".into())],
+                debugger: Some(Debugger::Launch { language: "python".into() }),
+            },
+            PluginLaunchConfiguration {
+                config: PluginRunConfiguration {
+                    id: "worker".into(),
+                    name: "Worker".into(),
+                    program: "execution-tool".into(),
+                    args: vec!["start".into()],
+                    ..Default::default()
+                },
+                env: Vec::new(),
+                debugger: Some(Debugger::AttachChild {
+                    kind: "dotnet".into(),
+                    command_contains: Some("Worker.dll".into()),
+                }),
+            },
+        ]
     }
 }
 impl TestResults for Execution {
@@ -121,4 +180,25 @@ impl TestResults for Execution {
         ]
     }
 }
-register_plugin!(Execution, run_configurations, test_results);
+impl RunTargetValidation for Execution {
+    fn validate(&mut self, project: &str, target: &str, launch: &RunTargetLaunch) -> Result<(), String> {
+        host::storage::set(
+            "validation",
+            &format!("{project}|{target}|{:?}|{}|{}", launch.operation, launch.program, launch.cwd),
+        )
+        .unwrap();
+        match target {
+            "refuse" => Err("Project runtime is stopped".into()),
+            "long-refusal" => Err("x".repeat(10000)),
+            "trap" => panic!("validator failed"),
+            "timeout" => {
+                let _task = host::begin_task("Validation", true);
+                loop {
+                    std::hint::spin_loop();
+                }
+            }
+            _ => Ok(()),
+        }
+    }
+}
+register_plugin!(Execution, launch_configurations, test_results, run_target_validation);

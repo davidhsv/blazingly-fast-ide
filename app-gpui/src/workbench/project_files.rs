@@ -757,11 +757,11 @@ impl Workbench {
                         // What the desktop app's `fs_create_dir` command does.
                         BackendCall::FsCreateDir(path) => ide_vfs::create_dir(Path::new(&path)),
                         BackendCall::FsRename { from, to } => {
-                            ide_host::ops::fs::rename(&host, from.into(), to.into()).await
+                            ide_host::ops::fs::rename(&host, &label, from.into(), to.into()).await
                         }
                         BackendCall::FsDelete(path) => crate::backend::delete_path(&host, &label, path.into()).await,
                         BackendCall::FsCopy { from, to } => {
-                            ide_host::ops::fs::copy(&host, from.into(), to.into()).await
+                            ide_host::ops::fs::copy(&host, &label, from.into(), to.into()).await
                         }
                         BackendCall::RemoteImportLocal { .. } => {
                             Err(IdeError::unavailable("Uploading files needs a remote project"))
@@ -902,7 +902,10 @@ impl Workbench {
         if let Some(backend) = cx.try_global::<Backend>() {
             let created = moves.iter().map(|moved| moved.to.clone()).collect();
             let removed = moves.iter().map(|moved| moved.from.clone()).collect();
-            backend.emit(Some(&self.label), IdeEvent::FsChanged { created, modified: Vec::new(), removed });
+            backend.emit(
+                Some(&self.label),
+                IdeEvent::FsChanged { created, modified: Vec::new(), removed, ignore_rules: Vec::new() },
+            );
         }
         let Content::Project { tabs, editors, editor_focus, find_bars, view_tabs, .. } = &mut self.content else {
             return;

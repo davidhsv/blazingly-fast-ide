@@ -82,7 +82,7 @@ pub fn backend_connections() -> Connections {
 pub fn backend_tester() -> Tester {
     Rc::new(|connection: FsConnection, path: String, then: Then<Result<(), IdeError>>, cx: &mut App| {
         on_backend(
-            move |host| async move { ide_host::ops::deploy::deploy_test_connection(&host, connection, path).await },
+            move |host| async move { ide_host::ops::deploy::deploy_test_connection(&host, connection, path, None).await },
             then,
             cx,
         );
@@ -550,13 +550,18 @@ impl DeploymentServersView {
     }
 }
 
-/// The test of a server holds while its type, SSH configuration and root path stay the same.
+/// The test of a server holds while its type, SSH configuration, FTP login and root path stay the
+/// same.
 fn test_key(server: &DeploymentServer) -> String {
     let kind = match server.kind {
         DeploymentType::Sftp => "sftp",
+        DeploymentType::Ftp => "ftp",
+        DeploymentType::Ftps => "ftps",
         DeploymentType::Local => "local",
     };
-    format!("{kind}:{}:{}", server.ssh_config, server.root_path)
+    let ftp = &server.ftp;
+    let ftp = format!("{}:{}:{}:{}", ftp.host, ftp.port.unwrap_or(21), ftp.user, ftp.passive);
+    format!("{kind}:{}:{ftp}:{}", server.ssh_config, server.root_path)
 }
 
 /// A toolbar's strip of icon buttons.

@@ -125,9 +125,13 @@ export function installDiagnosticsEvents(): () => void {
 
 const SEVERITY_RANK: Record<Severity, number> = { error: 0, warning: 1, info: 2, hint: 3 };
 
+export interface EditorDiagnostic extends LintDiagnostic {
+  problem?: Diagnostic;
+}
+
 /** Backend diagnostics → lint diagnostics for `doc` (empty ranges widened to one character). */
-export function toLintDiagnostics(doc: Text, items: readonly Diagnostic[]): LintDiagnostic[] {
-  const out: LintDiagnostic[] = items.map((d) => {
+export function toLintDiagnostics(doc: Text, items: readonly Diagnostic[]): EditorDiagnostic[] {
+  const out: EditorDiagnostic[] = items.map((d) => {
     let { from, to } = rangeToOffsets(doc, d.range);
     if (from === to) {
       const line = doc.lineAt(from);
@@ -142,6 +146,7 @@ export function toLintDiagnostics(doc: Text, items: readonly Diagnostic[]): Lint
     return {
       from,
       to,
+      problem: d,
       severity: d.severity,
       message: d.message,
       source: [d.source, isInternalCode(d.code) ? null : d.code].filter(Boolean).join(" ") || undefined,
@@ -230,12 +235,16 @@ const lintTheme = EditorView.theme({
   ".cm-lintRange-error": {
     textDecoration: "var(--editor-error-decoration, underline wavy var(--danger))",
     WebkitTextDecoration: "var(--editor-error-decoration, underline wavy var(--danger))",
+    fontWeight: "var(--wave-error-bold, inherit)",
+    fontStyle: "var(--wave-error-italic, inherit)",
     textDecorationSkipInk: "none",
     textUnderlineOffset: "3px",
   },
   ".cm-lintRange-warning": {
     textDecoration: "var(--editor-warning-decoration, underline wavy var(--warning))",
     WebkitTextDecoration: "var(--editor-warning-decoration, underline wavy var(--warning))",
+    fontWeight: "var(--wave-warning-bold, inherit)",
+    fontStyle: "var(--wave-warning-italic, inherit)",
     backgroundColor: "var(--editor-warning-background, transparent)",
     textDecorationSkipInk: "none",
     textUnderlineOffset: "3px",
@@ -249,8 +258,10 @@ const lintTheme = EditorView.theme({
   ".cm-lintRange-hint": { textDecoration: "none" },
   // Typo level: IDEA's green wavy underline.
   ".cm-lintRange.cm-lsp-typo": {
-    textDecoration: "underline wavy color-mix(in srgb, var(--success) 85%, transparent)",
-    WebkitTextDecoration: "underline wavy color-mix(in srgb, var(--success) 85%, transparent)",
+    textDecoration: "var(--wave-typo-effect, underline wavy var(--wave-typo, var(--success)))",
+    WebkitTextDecoration: "var(--wave-typo-effect, underline wavy var(--wave-typo, var(--success)))",
+    fontWeight: "var(--wave-typo-bold, inherit)",
+    fontStyle: "var(--wave-typo-italic, inherit)",
     textDecorationSkipInk: "none",
     textUnderlineOffset: "3px",
   },
@@ -258,9 +269,16 @@ const lintTheme = EditorView.theme({
     textDecoration: "none",
     backgroundColor: "transparent",
     color: "var(--fg-unused, var(--fg-faint))",
+    fontWeight: "var(--fg-unused-bold, inherit)",
+    fontStyle: "var(--fg-unused-italic, inherit)",
   },
   ".cm-lintRange.cm-lsp-unnecessary *": { color: "var(--fg-unused, var(--fg-faint))" },
-  ".cm-lintRange.cm-lsp-deprecated": { textDecoration: "line-through", textDecorationColor: "var(--fg-muted)" },
+  ".cm-lintRange.cm-lsp-deprecated": {
+    textDecoration: "var(--fg-deprecated-effect, line-through var(--fg-deprecated, var(--fg-muted)))",
+    WebkitTextDecoration: "var(--fg-deprecated-effect, line-through var(--fg-deprecated, var(--fg-muted)))",
+    fontWeight: "var(--fg-deprecated-bold, inherit)",
+    fontStyle: "var(--fg-deprecated-italic, inherit)",
+  },
   // An error or warning on the same range (merged into one mark) keeps its underline.
   ".cm-lintRange-error.cm-lsp-typo, .cm-lintRange-error.cm-lsp-unnecessary": {
     textDecoration: "var(--editor-error-decoration, underline wavy var(--danger))",
@@ -282,7 +300,7 @@ export function diagnosticsExtension() {
 export interface PlacedDiagnostic {
   from: number;
   to: number;
-  diagnostic: LintDiagnostic;
+  diagnostic: EditorDiagnostic;
 }
 
 export function diagnosticsAt(view: EditorView, pos: number): PlacedDiagnostic[] {

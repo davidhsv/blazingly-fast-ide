@@ -484,6 +484,12 @@ const UNRESOLVED_CONDITIONS = {
   "src/features/plugins/points.tsx": "a plugin command (dynamic id): its `when` is the plugin's manifest, at run time",
 };
 
+/**
+ * Interfaces shaped like an action (`id`, `title`, `run`) whose objects are not actions: a
+ * before-commit check runs in the commit flow and is never in the registry.
+ */
+const NOT_ACTIONS = new Set(["CommitCheck"]);
+
 const ACTION_FIELDS = [
   "id",
   "title",
@@ -506,7 +512,7 @@ function actionManifest() {
       if (ts.isObjectLiteralExpression(node)) {
         const type = checker.getContextualType(node) ?? checker.getTypeAtLocation(node);
         const names = new Set(node.properties.map((p) => p.name?.getText().replace(/["']/g, "")));
-        if (names.has("id") && isAction(type)) {
+        if (names.has("id") && isAction(type) && !NOT_ACTIONS.has(type.getSymbol()?.getName())) {
           for (const instance of instances(node)) {
             const { site } = instance;
             const record = wrapped(instance.record, site);
@@ -599,7 +605,8 @@ function iconTables() {
     throw new Error("the SYMBOL_ICONS table of src/ui/icons.tsx did not resolve");
   for (const [name, path] of [...Object.entries(icons), ...Object.entries(symbols)]) {
     const file =
-      typeof path === "string" && (path.startsWith("openidea/") ? `src/ui/${path}.svg` : `src/ui/expui/${path}.svg`);
+      typeof path === "string" &&
+      (path.startsWith("openidea/") || path.startsWith("brands/") ? `src/ui/${path}.svg` : `src/ui/expui/${path}.svg`);
     if (!file || !existsSync(join(root, file))) throw new Error(`icon ${name}: ${file} does not exist`);
   }
   const sortedEntries = (table) => Object.fromEntries(Object.entries(table).sort(([a], [b]) => a.localeCompare(b)));

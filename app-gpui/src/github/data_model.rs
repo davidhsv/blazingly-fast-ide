@@ -984,7 +984,7 @@ mod tests {
     #[test]
     fn finds_the_remote_behind_an_ssh_host_alias_by_the_urls_path() {
         let repo = Coordinates::new("Org", "app");
-        let remote = |name: &str, url: &str| ide_vcs::Remote { name: name.into(), url: url.into() };
+        let remote = |name: &str, url: &str| ide_vcs::Remote { name: name.into(), url: url.into(), resolved_url: None };
         let remotes =
             [remote("other", "git@work-github:org/app2.git"), remote("origin", "git@work-github:org/app.git")];
         assert_eq!(remote_of_repository(&remotes, &repo), Some(&remotes[1]));

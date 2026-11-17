@@ -18,10 +18,12 @@ const KIND_LABELS: Record<string, string> = {
   make: "Make",
   cmake: "CMake",
   just: "Just",
+  sbt: "sbt Task",
   shell: "Shell Script",
   program: "Program",
   compound: "Compound",
   application: "Application",
+  "jar-application": "JAR Application",
   "spring-boot": "Spring Boot",
   node: "Node.js",
   "java-file": "Java Single File",
@@ -51,6 +53,7 @@ export const KIND_OPTIONS = Object.entries(KIND_LABELS).map(([value, label]) => 
 export const KIND_CATEGORIES: Record<string, string> = {
   "spring-boot": "Java",
   application: "Java",
+  "jar-application": "Java",
   native: "Java",
   "java-file": "Java",
   kotlin: "Java",
@@ -61,6 +64,7 @@ export const KIND_CATEGORIES: Record<string, string> = {
   cmake: "Build Tools",
   make: "Build Tools",
   just: "Build Tools",
+  sbt: "Build Tools",
   npm: "JavaScript",
   node: "JavaScript",
   bun: "JavaScript",
@@ -105,14 +109,16 @@ export function configIcon(config: Pick<RunConfig, "kind" | "isTest">): string {
     case "compound":
       return "gutter-run-all";
     case "program":
+    case "jar-application":
       return "file-binary";
     case "spring-boot":
       return "spring-boot";
     case "tomcat":
       return "tomcat";
     case "npm":
-    case "bun":
       return "file-npm";
+    case "bun":
+      return "file-bun";
     case "deno":
       return "file-ts";
     case "cargo":
@@ -126,6 +132,11 @@ export function configIcon(config: Pick<RunConfig, "kind" | "isTest">): string {
       return "file-csharp";
     case "go":
       return "file-go";
+    case "rebar3":
+    case "escript":
+      return "file-erlang";
+    case "mix":
+      return "file-elixir";
     case "node":
       return "file-js";
     case "application":
@@ -156,11 +167,15 @@ export function configIcon(config: Pick<RunConfig, "kind" | "isTest">): string {
     case "elixir":
       return "file-elixir";
     case "scala-cli":
+    case "sbt":
       return "file-scala";
     case "kotlinc":
       return "file-kotlin";
     case "kotlin":
       return "file-kotlin-script";
+    case "zig":
+    case "zig-application":
+      return "file-zig";
     case "native":
       return "file-binary";
     case "python":

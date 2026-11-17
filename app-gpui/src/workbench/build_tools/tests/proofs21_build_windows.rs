@@ -8,7 +8,8 @@ use crate::workbench::tool_windows::{Anchor, Stripe};
 pub(super) fn removed(paths: Vec<PathBuf>, cx: &mut VisualTestContext) {
     cx.update(|_, cx| {
         let removed = paths.into_iter().map(Into::into).collect();
-        let event = IdeEvent::FsChanged { created: Vec::new(), modified: Vec::new(), removed };
+        let event =
+            IdeEvent::FsChanged { created: Vec::new(), modified: Vec::new(), removed, ignore_rules: Vec::new() };
         cx.global::<Backend>().emit(Some("w1"), event);
     });
 }

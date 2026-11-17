@@ -46,6 +46,13 @@
     "consoleOutput.keyMissedFramePct": 10,
     "consoleOutput.tbtMs": 50,
 
+    "terminalTui.rowsRebuiltPerTuiFrame": 3,
+    "terminalTui.styleLayoutMsPerTuiFrame": 6,
+    "terminalTui.droppedFramesPct": 2,
+    "terminalTui.keyP95Ms": 25,
+    "terminalTui.keyMissedFramePct": 15,
+    "terminalTui.tbtMs": 50,
+
     "gitLog.showMs": 300,
     "gitLog.droppedFramesPct": 2,
     "gitLog.tbtMs": 50,
@@ -137,6 +144,9 @@
 
     "plugins/load_50": 20000,
     "plugins/cold_activation": 30000,
-    "plugins/syntax_highlights_2k_lines": 50000
+    "plugins/syntax_highlights_2k_lines": 50000,
+
+    "heap/index_1m_objects": 400000,
+    "heap/dominators_1m_random": 1000000
   }
 }

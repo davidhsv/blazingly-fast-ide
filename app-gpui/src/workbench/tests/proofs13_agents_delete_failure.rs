@@ -14,9 +14,9 @@ fn wait_for_titled_prompt(
     workbench.read_with(cx, |w, _| w.vcs_prompt()).expect("the dialog is open")
 }
 
-/// Deleting a worktree task and a local task, with the project no longer a repository, fails for the worktree task
-/// (its folder cannot be removed through git) and still deletes the local one; the failure is then reported once,
-/// naming the task that failed, which stays listed with its folder. Once the repository is back, deleting it works.
+/// Deleting a worktree task and a local task, with the project no longer a repository: both leave the list (a
+/// task is dropped before its worktree folder is removed), the worktree task's folder cannot be removed through
+/// git and stays on disk, and the failure is reported once, naming the task that failed.
 #[gpui_kit::test]
 async fn continues_after_an_error_and_reports_the_failed_task(cx: &mut TestAppContext) {
     let home = start(cx);
@@ -58,22 +58,14 @@ async fn continues_after_an_error_and_reports_the_failed_task(cx: &mut TestAppCo
     let body = report.read_with(cx, |dialog, _| dialog.message_text().map(str::to_owned)).unwrap_or_default();
     assert!(body.starts_with("Worktree greeting: "), "the failed task is named: {body}");
     assert!(!body.contains('\n') && !body.contains("Local greeting"), "only the failed task is reported: {body}");
-    wait_long(cx, "the local task to be deleted after the failure", |cx| {
-        task_ids(&store, cx) == std::slice::from_ref(&worktree)
-    });
-    assert!(worktree_folder.is_dir(), "the failed task keeps its folder");
+    wait_long(cx, "both tasks to leave the list", |cx| task_ids(&store, cx).is_empty());
+    assert!(worktree_folder.is_dir(), "the failed task's folder stays on disk");
     let rows = workbench.read_with(cx, |w, _| w.agents_list()).expect("the tool window has its view");
     let rows = rows.read_with(cx, |list, cx| list.rows(cx));
-    assert!(rows.iter().any(|row| row.contains(" | Worktree greeting | ")), "{rows:?}");
+    assert!(!rows.iter().any(|row| row.contains(" | Worktree greeting | ")), "{rows:?}");
     assert!(!rows.iter().any(|row| row.contains(" | Local greeting | ")), "{rows:?}");
     click_on(cx, "prompt-button-ok");
     wait_long(cx, "the report to close", |cx| workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()));
-
     std::fs::rename(&away, &git).expect("the repository is back");
-    run_action(cx, "agents.deleteTasks", Some(serde_json::json!([worktree])));
-    wait_for_titled_prompt(&workbench, "Delete Agent Task", cx);
-    click_on(cx, "prompt-button-ok");
-    wait_long(cx, "the task to be deleted", |cx| task_ids(&store, cx).is_empty());
-    wait_long(cx, "the worktree folder to go", |_| !worktree_folder.exists());
     workbench.update_in(cx, |workbench, window, cx| workbench.close_project(window, cx));
 }

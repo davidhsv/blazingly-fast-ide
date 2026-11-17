@@ -39,6 +39,11 @@ pub(super) fn market_offering(home: &Path, host: &PluginHost, market: &Path, off
                 engine: "^1.0".to_owned(),
                 categories: Vec::new(),
                 icon: None,
+                homepage: None,
+                notes: None,
+                downloads: None,
+                featured: false,
+                suggest: Vec::new(),
             }
         })
         .collect();
