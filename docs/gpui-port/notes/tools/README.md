@@ -1,0 +1,3 @@
+# Working tools (reference copies)
+
+Copies of the scripts the manager keeps in its scratch folder, kept here because files vanished from that folder twice (2026-11-16 and 2026-11-17, cause unknown). `${S}` is the scratch folder and `${W}` the worktree: set both before using a copy. `save_final.py` writes an agent's final report from its task transcript; `verify_template.sh` is the verification run after every integration (the suite twice, web_view, clippy, build, then the list of native tests); `parity_helpers_example.py` shows the helpers every rows script starts with; `inspect_run.sh` launches the debug binary for a look at the real window under a temp home; `fmt.sh` formats one file.
