@@ -3236,16 +3236,16 @@
     "proof": "`features_a::todo::tests`; 12 of 13 cases: \"decorates TODO comments only\" needs the editor to highlight TODO comments, which it does not"
   },
   "unit:src/features/vim/__tests__/conflicts.test.ts": {
-    "status": "done",
-    "proof": "`features_a::vim::conflicts::tests`, `features_a::vim::settings::tests`"
+    "status": "partial",
+    "proof": "`features_a::vim::conflicts::tests`, `features_a::vim::settings::tests`; 7 of 8 cases; added upstream and not covered: \"treats a key as the IDE's alone only when the user moved it from Vim\" (the native conflicts model has no notion of a key the user moved to the IDE)"
   },
   "unit:src/features/vim/__tests__/rc.test.ts": {
-    "status": "done",
-    "proof": "`features_a::vim::rc::tests`"
+    "status": "partial",
+    "proof": "`features_a::vim::rc::tests`; every case on the rc parser; the table of IdeaVim action names has 94 of the webview's 96 (ExtractInterface and GotoRelated were added upstream)"
   },
   "unit:src/features/vim/__tests__/vim.test.ts": {
     "status": "partial",
-    "proof": "`features_a::vim::mode::tests`, `features_a::vim::engine::tests`, `features_a::vim::ime::tests`; 15 of 17 cases; \"inserts escaped key notation literally\" is proven only as far as the keys the mapping resolves to, and \"matches browser key events\" not at all: the editor feeds no keystrokes to a Vim engine"
+    "proof": "`features_a::vim::mode::tests`, `features_a::vim::engine::tests`, `features_a::vim::ime::tests`; of the 19 cases at v0.1.46 the 14 older ones are covered as before (13 by name; \"inserts escaped key notation literally\" only as far as the keys the mapping resolves to, \"matches browser key events\" not at all: the editor feeds no keystrokes to a Vim engine); added upstream and not covered: 5 cases (keys the user gave to the IDE left to the editor, u and Ctrl-R sent to an editor's own history in notebook cells, a key run as a Vim key when its keydown is dropped, Space and Enter mapped like a keydown, text input left to the usual handlers)"
   },
   "unit:src/features/analysis/analysis.test.ts": {
     "status": "done",

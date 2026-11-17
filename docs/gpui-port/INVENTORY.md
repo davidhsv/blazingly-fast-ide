@@ -5,7 +5,7 @@ A row is `[x]` only when `parity.json` names a Rust test (Proof) that demonstrat
 A row is `[m]` (model only) when its tests pass but are tests of code that nothing reachable from the application uses yet: the logic exists, the app does not do it. `[m]` rows do not count as at parity.
 A row is `[–]` (nothing to port) when it is a backend command that no file of the webview calls; this script checks that claim on every run. Those rows do not count as at parity either.
 
-**Overall: 1413/3782 rows at parity, 74 model only, 589 partial, 14 with nothing to port.**
+**Overall: 1411/3782 rows at parity, 74 model only, 591 partial, 14 with nothing to port.**
 
 | Section | At parity | Model only | Partial | Nothing to port | Total |
 |---|---|---|---|---|---|
@@ -63,7 +63,7 @@ A row is `[–]` (nothing to port) when it is a backend command that no file of 
 | IPC commands | 325 | 0 | 28 | 14 | 715 |
 | Backend events (IdeEvent) | 17 | 0 | 2 | 0 | 31 |
 | Plugin API interfaces (wit/) | 8 | 0 | 12 | 0 | 53 |
-| Behaviour specification: unit tests (vitest) | 335 | 73 | 201 | 0 | 976 |
+| Behaviour specification: unit tests (vitest) | 333 | 73 | 203 | 0 | 976 |
 | Behaviour specification: end-to-end specs (Playwright) | 9 | 0 | 9 | 0 | 113 |
 
 ## Actions (501/974 at parity, 144 partial)
@@ -3039,7 +3039,7 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [x] | `invocation` | wit/workspace.wit | `workbench::plugin_runtime::tests::a_declared_status_item_shows_and_a_click_runs_its_plugin_command`, `workbench::plugin_contributions::tests::applies_pending_values_before_a_command_reads_them_and_shows_command_errors_inline`, `workbench::plugin_contributions::tests::proofs10_menus_settings::forwards_a_menus_path_and_selection_to_the_command`; a command run from the window gets its project and focused editor (the word count of notes.txt), and selected-paths carries the Project view menu's file |
 | [~] | `vcs` | wit/workspace.wit | `workbench::plugin_runtime::tests::proofs10_host_api::a_plugin_reads_the_projects_log_blame_and_diff`, `workbench::plugin_runtime::tests::the_focused_editor_and_a_checkout_reach_the_plugin_which_shows_the_branch`; log, blame and diff answer the commit, its author and the changed line, and status shows as the plugin's branch item. Missing: remotes, and fetch's effect is not asserted |
 
-## Behaviour specification: unit tests (vitest) (335/976 at parity, 73 model only, 201 partial)
+## Behaviour specification: unit tests (vitest) (333/976 at parity, 73 model only, 203 partial)
 
 976 files, 8823 cases. A row is at parity when the behaviour its cases assert is covered by Rust tests of the GPUI app.
 
@@ -3931,10 +3931,10 @@ The GPUI app calls the implementation directly; a row is at parity when the UI b
 | [~] | `src/features/viewers/markdown/render.test.ts` | 18 | `features_b::viewers::render::tests`; 16 of 18 cases; added upstream and not covered: 'lets only a link name another host', 'resolves no link to a network share, however the file spells it' |
 | [~] | `src/features/viewers/markdown/zoom.test.tsx` | 9 | `features_b::viewers::preview_host::tests`, `features_b::viewers::font_zoom::tests`; 1 of 7 cases on the view; the preview's font zoom is not wired |
 | [~] | `src/features/viewers/viewers.test.ts` | 12 | `features_b::viewers::file_kinds::tests`, `features_b::viewers::hex::tests`, `features_b::viewers::image_zoom::tests`; 11 of 12 cases; added upstream and not covered: 'matches files opened with an associated application' |
-| [x] | `src/features/vim/__tests__/conflicts.test.ts` | 8 | `features_a::vim::conflicts::tests`, `features_a::vim::settings::tests` |
-| [x] | `src/features/vim/__tests__/rc.test.ts` | 17 | `features_a::vim::rc::tests` |
+| [~] | `src/features/vim/__tests__/conflicts.test.ts` | 8 | `features_a::vim::conflicts::tests`, `features_a::vim::settings::tests`; 7 of 8 cases; added upstream and not covered: "treats a key as the IDE's alone only when the user moved it from Vim" (the native conflicts model has no notion of a key the user moved to the IDE) |
+| [~] | `src/features/vim/__tests__/rc.test.ts` | 17 | `features_a::vim::rc::tests`; every case on the rc parser; the table of IdeaVim action names has 94 of the webview's 96 (ExtractInterface and GotoRelated were added upstream) |
 | [ ] | `src/features/vim/__tests__/textObjects.test.ts` | 5 |  |
-| [~] | `src/features/vim/__tests__/vim.test.ts` | 22 | `features_a::vim::mode::tests`, `features_a::vim::engine::tests`, `features_a::vim::ime::tests`; 15 of 17 cases; "inserts escaped key notation literally" is proven only as far as the keys the mapping resolves to, and "matches browser key events" not at all: the editor feeds no keystrokes to a Vim engine |
+| [~] | `src/features/vim/__tests__/vim.test.ts` | 22 | `features_a::vim::mode::tests`, `features_a::vim::engine::tests`, `features_a::vim::ime::tests`; of the 19 cases at v0.1.46 the 14 older ones are covered as before (13 by name; "inserts escaped key notation literally" only as far as the keys the mapping resolves to, "matches browser key events" not at all: the editor feeds no keystrokes to a Vim engine); added upstream and not covered: 5 cases (keys the user gave to the IDE left to the editor, u and Ctrl-R sent to an editor's own history in notebook cells, a key run as a Vim key when its keydown is dropped, Space and Enter mapped like a keydown, text input left to the usual handlers) |
 | [ ] | `src/features/web/djangoTemplates.test.ts` | 2 |  |
 | [x] | `src/features/welcome/openRecent.test.ts` | 2 | `workbench::welcome_model::tests` |
 | [x] | `src/features/welcome/recent.test.ts` | 9 | `workbench::welcome_model::tests` |
