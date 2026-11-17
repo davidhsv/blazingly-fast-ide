@@ -1,0 +1,39 @@
+# Integrator brief: Run and Debug guards (drafts written without a compiler)
+
+Read first: `$S/int_rules.md` (hard rules and report format), `$S/tests_brief.md`, `$S/wiring_brief.md`. Your own scratch subfolder: `$S/drgi/`.
+
+Format only files you edited, taken from `git diff --name-only` plus the draft files this brief hands you by name. Never build a file list from `git status`. Never restore a file from a backup copy or with `git checkout`: undo your own edit by editing. Use `git diff -U3` when you read a diff. Leave no polling loop behind.
+
+## The slice
+
+Notes (every hunk with a quoted anchor, grouped by the three parts so each lands alone; the rows; every spec case with its native test; hypotheses and how to settle each; the existing tests whose expectations change; the tests most likely to fail): `$S/drafts/run_guards_integration.md` (read this scratch copy). The writer's report: `docs/gpui-port/notes/reports/run_guards_writer.md`. Draft files (committed, undeclared, never compiled): `app-gpui/src/run/proofs40_start_gate.rs` (a test helper that holds a stand-in's start), `app-gpui/src/run/store/tests/proofs40_run_guards.rs`, `app-gpui/src/run/store/tests/proofs40_run_tabs_pending.rs` (stays undeclared: it waits for pinned tabs), `app-gpui/src/workbench/tests/proofs40_run_start.rs`, `app-gpui/src/workbench/debug_guards.rs`, `app-gpui/src/workbench/debug/tests/proofs40_debug_guards.rs`.
+
+The webview decides where a note and the source disagree: `src/features/run/store.ts`, `src/features/run/index.ts`, `src/features/run/runTabs.ts`, `src/features/debugger/state.ts`, and the specs `javaModule.test.ts`, `resolveCancellation.test.ts`, `runTabReuse.test.ts`, `closeRunTab.test.ts`. Order: part 1 (Stop while a run is starting), part 2 (Debug on a running configuration asks; a second Debug while the first prepares does nothing), part 3 (which finished tab a run reuses). If a part does not converge, take its hunks out by editing, leave its files undeclared, say where it stands, and go on.
+
+## Points to settle by measurement, not by the notes
+
+- Part 1. A failing test first: Stop during a start that the gate holds leaves no process (the stand-in's own marker files under the test's temp folder: never a listing of the machine's processes), the configuration is not shown running, and the output says what the webview's says. The writer found that the backend checks the cancel token only at entry and after a plugin target's preparation, so a local start cannot be interrupted midway: a process that started anyway is stopped quietly: prove it (the stand-in records that it started and that it was stopped). The writer moved the cancelled requests from the per-tab runtime to the store because a rerun replaces the runtime and a late answer would have orphaned its process: prove that case by a test (Stop, then Rerun at once, the first start's late answer: one process only, the second's).
+- Part 2. The dialog's title and buttons are the webview's (`index.ts` near 177-182: read them at HEAD). The writer left out "Do not ask again" because the native prompt has no checkbox: read what the webview stores when it is ticked and whether a stored value from the webview changes what the native app must do (if the setting is already off in the user's settings, the native app must not ask: test it). The writer's deviation: a debug session that is already stopping is not asked about and Debug waits up to ten seconds for it to end: read `src/features/debugger/state.ts:961-962` and say whether this matches what a user of the webview sees; a wait is never a sleep on the window's thread.
+- A process the user did not ask to stop is never stopped: for every "stops the live session first" a test asserts that a session of another configuration keeps running (the writer has them: check they fail if the guard stops everything).
+- Part 3 changes which tab a run takes: every existing run and debug test passes or its changed expectation is named with the webview's `file:line` (the writer names one: `a_failed_run_notifies_when_the_run_window_is_hidden`). Pins, a Run that also stops the configuration's debug sessions (`store.ts:865`), and closing a run tab (`closeRunTab.test.ts`: no native action) are not built: list them.
+- What the tests start: `/bin/sh` scripts written by the test into its temp folder and, for the debug tests, `python3` running the existing fake adapter, as today's run and debug tests do. Nothing else of the machine, no network, nothing under the user's home.
+
+## Rows
+
+`ipc:run_start`, `action:run.debugConfig`, `action:run.runConfig`, `action:debug.rerun`, `unit:src/features/run/javaModule.test.ts` (six cases expect the request id: say for each which native test now proves it, by reading both), `unit:src/features/run/resolveCancellation.test.ts`, `unit:src/features/run/runTabReuse.test.ts`, `unit:src/features/run/closeRunTab.test.ts`: for each spec file every case at HEAD with its native test by full name or MISSING. Check which keys exist in `docs/gpui-port/parity.json`.
+
+## Changed since
+
+BEFORE LAUNCH (for the manager; delete this paragraph then): the notes were written on the tree at e0854289f while follow upstream 2a (Services, the run chooser, version control, agents) was in flight; say which files the hunks anchor on changed since (`run/store.rs`, `run/driver.rs`, `workbench/debug.rs`, `workbench/mod.rs`, the run store's tests) and the other agents' undeclared drafts then in the tree.
+
+## Gates (they replace rule 12 of `$S/int_rules.md`)
+
+The whole suite twice to files, nothing else running beside the first (write `uptime` before and after each run into the same file); during the second, every test you added, declared or changed twenty times by filter (report passes of twenty and every test that failed at least once, with its failure: these tests wait on processes, so an unstable one is not done: fix the wait, not the assertion); `cargo test --test web_view` once; clippy `--all-targets -- -D warnings`; `cargo build` with 0 warnings. Never pipe a test run into `head`. Start no test run with `&`, in a script or from the shell. If any test fails in a whole-suite run, keep that run's log and quote the failure whole.
+
+## Report
+
+Besides the format of `$S/int_rules.md`: one section per part (each point above with its test and whether it failed before the code; what is left); the rows with every spec case; which way each hypothesis went.
+
+## Do not touch
+
+Every undeclared draft of other agents under `app-gpui/src` and every undeclared `proofs*` or `*_pending.rs` test file this brief does not hand you. No edits under `crates/`, `docs/`, `src/`, `src-tauri/`, `e2e/`. Do not write to `DECISIONS.md`, `parity.json` or `INVENTORY.md`. The real binary is not needed; if you run it, only through `$S/insp8/run.sh` with a temp home and project under a neutral path `/private/tmp/openidea-inspect-<random>/`; never a debug session, the Agents tool window, the Agents pages of Settings or the Services window's Services tab.
