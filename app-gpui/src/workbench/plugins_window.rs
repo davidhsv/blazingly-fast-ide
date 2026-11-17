@@ -972,6 +972,7 @@ pub(crate) mod test_support {
         let home = crate::workbench::tests::start(cx);
         cx.update(|cx| {
             crate::theme::appearance::init(cx);
+            crate::platform::ui_language::init(cx);
             Plugins::init(cx).expect("the plugin host starts");
         });
         settle_app(cx, "the first listing", |cx| cx.global::<Plugins>().snapshot().is_some());

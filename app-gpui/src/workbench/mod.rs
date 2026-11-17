@@ -4262,6 +4262,10 @@ impl Render for Workbench {
                 // A tool window: its title, a button to hide it, and its view.
                 let tool_window = |id: &str| {
                     let (declared, panel) = (layout.window(id)?, panels.get(id)?);
+                    let title = match cx.try_global::<crate::platform::i18n::Localization>() {
+                        Some(localization) if !declared.verbatim => localization.0.tx(&declared.title),
+                        _ => declared.title.clone(),
+                    };
                     let (hidden, options) = (id.to_owned(), id.to_owned());
                     Some(
                         island()
@@ -4280,7 +4284,8 @@ impl Render for Workbench {
                                         .pl(gpui_kit::px(12.0))
                                         .pr(gpui_kit::px(6.0))
                                         .text_color(theme::color(cx, "fg-strong"))
-                                        .child(SharedString::from(declared.title.clone()))
+                                        .debug_selector(|| format!("tool-window-title:{id}:{title}"))
+                                        .child(SharedString::from(title))
                                         .child(div().flex_1())
                                         .child(
                                             div()
@@ -4622,10 +4627,15 @@ mod tests {
     mod smoke_registered_actions;
     mod smoke_services;
     mod smoke_settings_pages;
+    mod ui_language;
 
     pub(super) fn start(cx: &mut TestAppContext) -> tempfile::TempDir {
+        start_in(tempfile::tempdir().expect("a temporary home"), cx)
+    }
+
+    /// [`start`] on `home`, which may hold settings already.
+    pub(super) fn start_in(home: tempfile::TempDir, cx: &mut TestAppContext) -> tempfile::TempDir {
         cx.executor().allow_parking();
-        let home = tempfile::tempdir().expect("a temporary home");
         cx.update(|cx| {
             cx.set_global(theme::ActiveTheme::default());
             input::init(cx);
