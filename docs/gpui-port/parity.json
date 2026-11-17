@@ -3241,7 +3241,7 @@
   },
   "unit:src/features/vim/__tests__/rc.test.ts": {
     "status": "partial",
-    "proof": "`features_a::vim::rc::tests`; every case on the rc parser; the table of IdeaVim action names has 94 of the webview's 96 (ExtractInterface and GotoRelated were added upstream)"
+    "proof": "`features_a::vim::rc::tests`; every case on the rc parser; the native table of IdeaVim action names lacks two the webview's has since the merge: GotoRelated and ExtractInterface (`src/platform/ideaActions.ts`)"
   },
   "unit:src/features/vim/__tests__/vim.test.ts": {
     "status": "partial",
