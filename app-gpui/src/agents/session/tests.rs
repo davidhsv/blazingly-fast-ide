@@ -316,7 +316,7 @@ fn shows_the_providers_usage_limits_by_default_and_each_meter_as_settings_tools_
         meters
             .into_iter()
             .map(|m| match m {
-                Meter::Context(l) => l.short,
+                Meter::Context(l) => format!("{}%", l.percent),
                 Meter::Limit(l) => l.short,
                 Meter::Cost(c) | Meter::WorkTime(c) => c,
             })

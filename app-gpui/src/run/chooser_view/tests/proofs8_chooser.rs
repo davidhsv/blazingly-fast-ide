@@ -8,7 +8,8 @@ async fn lists_the_configurations_started_last_after_the_pinned_ones_newest_firs
     store.pinned = vec!["serve".to_owned()];
     store.recent = ["App", "serve", "build"].map(str::to_owned).to_vec();
     let (chooser, _, _, cx) = open(cx, store, ChooserMode::Select);
-    assert_eq!(lines(&chooser, cx), ["current", "[Pinned]", "serve", "[Recent]", "App", "build", "edit"]);
+    let expected = ["[Pinned]", "serve", "[Recent]", "App", "build", "---", "current", "---", "edit"];
+    assert_eq!(lines(&chooser, cx), expected);
 }
 
 /// Delete on a detected configuration of any kind asks to delete it; what that saves is no user

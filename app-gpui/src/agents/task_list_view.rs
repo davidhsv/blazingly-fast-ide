@@ -884,7 +884,7 @@ mod tests {
         });
         let items = items.expect("a menu");
         let commands: Vec<TaskCommand> = items.iter().filter_map(|item| item.command().cloned()).collect();
-        assert!(commands.contains(&TaskCommand::Open("d".to_owned())));
+        assert!(commands.contains(&TaskCommand::Rename("d".to_owned())));
         assert!(commands.contains(&TaskCommand::Delete(vec!["d".to_owned()])));
     }
 

@@ -13,27 +13,38 @@ fn reopen(workbench: &Entity<Workbench>, root: &std::path::Path, cx: &mut Visual
     store
 }
 
-/// The rows the chooser lists right after its section `section`, up to the next section or the Edit row.
+/// The rows the chooser lists right after its section `section`, up to the next section, separator or the Edit
+/// row.
 fn rows_in_section(lines: &[String], section: &str) -> Vec<String> {
     let Some(start) = lines.iter().position(|line| line == section) else { return Vec::new() };
-    lines[start + 1..].iter().take_while(|line| !line.starts_with('[') && *line != "edit").cloned().collect()
+    let end = |line: &&String| line.starts_with('[') || *line == "---" || *line == "edit";
+    lines[start + 1..].iter().take_while(|line| !end(line)).cloned().collect()
 }
 
-/// Pins the chooser's row `name` with its Pin button (the chooser is open).
-fn pin_in_chooser(workbench: &Entity<Workbench>, name: &str, cx: &mut VisualTestContext) {
+/// Pins or unpins the chooser's row `name` from its actions menu, opened with → (the chooser is open), and checks
+/// that the menu offered `label` and that the chooser is still open afterwards.
+fn pin_in_chooser(workbench: &Entity<Workbench>, name: &str, label: &str, cx: &mut VisualTestContext) {
     select_in_chooser(workbench, name, cx);
-    click_on(cx, "run-chooser-pin");
+    cx.simulate_keystrokes("right");
+    let chooser = workbench.read_with(cx, |w, _| w.config_chooser()).expect("the chooser is open");
+    let menu = chooser.read_with(cx, |chooser, cx| chooser.menu_lines(cx)).expect("the actions menu is open");
+    assert_eq!(menu.get(4).map(String::as_str), Some(label), "{menu:?}");
+    click_on(cx, "menu-row-0-4");
+    let open = workbench.read_with(cx, |w, _| w.config_chooser().is_some());
+    assert!(open, "pinning keeps the chooser open");
+    let store = workbench.read_with(cx, |w, _| w.run_driver().cloned()).expect("the project runs things");
+    assert!(store.read_with(cx, |driver, cx| driver.store().read(cx).chooser_open), "the store says it is open");
 }
 
-/// Pins made in the chooser come back when the project is opened again, in the order they were made; an unpin is
+/// Pins made in the chooser's row menus come back when the project is opened again, in the order they were made; an unpin is
 /// kept too, and another project has pins of its own (none).
 #[gpui_kit::test]
 async fn keeps_pins_per_project_across_reloads(cx: &mut TestAppContext) {
     let configs = vec![program("build", "/bin/echo", "b"), program("serve", "/bin/echo", "s")];
     let (workbench, cx, _folders, root, _store) = run_project(cx, configs.clone());
     run_action(cx, "run.chooseConfig", None);
-    pin_in_chooser(&workbench, "serve", cx);
-    pin_in_chooser(&workbench, "build", cx);
+    pin_in_chooser(&workbench, "serve", "Pin", cx);
+    pin_in_chooser(&workbench, "build", "Pin", cx);
     cx.simulate_keystrokes("escape");
     cx.run_until_parked();
 
@@ -42,9 +53,8 @@ async fn keeps_pins_per_project_across_reloads(cx: &mut TestAppContext) {
     run_action(cx, "run.chooseConfig", None);
     let lines = chooser_lines(&workbench, cx).expect("the chooser is open");
     assert_eq!(rows_in_section(&lines, "[Pinned]"), ["serve", "build"], "{lines:?}");
-    // Unpinned with the same button, then read back once more.
-    select_in_chooser(&workbench, "serve", cx);
-    click_on(cx, "run-chooser-pin");
+    // Unpinned from the same menu, then read back once more.
+    pin_in_chooser(&workbench, "serve", "Unpin", cx);
     cx.simulate_keystrokes("escape");
     cx.run_until_parked();
     let store = reopen(&workbench, &root, cx);

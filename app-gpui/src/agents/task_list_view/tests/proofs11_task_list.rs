@@ -146,7 +146,8 @@ async fn opens_tabs_as_usual_without_a_docked_conversation(cx: &mut TestAppConte
     assert_eq!(*events.borrow(), [TaskListEvent::OpenTask("b".to_owned())]);
 }
 
-/// A task's menu offers Open and none of the placement choices, docked or not.
+/// A task's menu starts with Rename… and offers neither Open (a click opens the task) nor any of the
+/// placement choices, docked or not.
 #[gpui_kit::test]
 async fn keeps_placement_out_of_session_menus(cx: &mut TestAppContext) {
     for docked in [None, Some("a")] {
@@ -158,7 +159,11 @@ async fn keeps_placement_out_of_session_menus(cx: &mut TestAppContext) {
         }
         right_click(cx, "agents-task-a");
         let menu = last_menu(&events);
-        assert!(menu.iter().any(|(_, command, _)| *command == Some(TaskCommand::Open("a".to_owned()))), "{menu:?}");
+        assert!(!menu.iter().any(|(_, command, _)| matches!(command, Some(TaskCommand::Open(_)))), "{menu:?}");
+        assert_eq!(
+            menu.first().map(|(_, command, _)| command.clone()),
+            Some(Some(TaskCommand::Rename("a".to_owned())))
+        );
         for placement in ["Dock", "Undock", "Open in Editor", "Chat in Tool Window", "Chat in Editor"] {
             assert!(!menu.iter().any(|(label, _, _)| label.contains(placement)), "{docked:?}: {menu:?}");
         }

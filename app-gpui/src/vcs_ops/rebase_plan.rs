@@ -57,6 +57,18 @@ pub fn head_pushed(branch: Option<&BranchInfo>) -> bool {
     branch.is_some_and(|branch| tracked(branch) && branch.ahead == 0)
 }
 
+/// Why pushed history of the branch `head` cannot be rewritten: a force push is not allowed on a
+/// protected branch. Without an upstream there is no force push to prohibit, so nothing is refused.
+pub fn protected_branch_problem(
+    head: Option<&str>,
+    upstream: Option<&str>,
+    protected_branch: impl Fn(&str) -> bool,
+) -> Option<String> {
+    let name = head.filter(|name| !name.is_empty())?;
+    upstream.filter(|upstream| !upstream.is_empty())?;
+    protected_branch(name).then(|| format!("Pushed commits of the protected branch '{name}' cannot be rewritten"))
+}
+
 /// The plan a rebase of `commits` (oldest first) starts with: every commit picked, `fixup!` and
 /// `squash!` commits already moved to their targets.
 pub fn initial_rows(commits: &[Commit]) -> Vec<RebaseRow> {
@@ -259,6 +271,22 @@ mod tests {
         assert!(head_pushed(Some(&tracked)));
         assert!(!head_pushed(Some(&BranchInfo { ahead: 1, ..tracked })));
         assert!(!head_pushed(Some(&info())));
+    }
+
+    // src/features/vcs/__tests__/gitOps.test.ts › Undo Commit › refuses history rewriting on a protected branch with an upstream
+    #[test]
+    fn refuses_history_rewriting_on_a_protected_branch_with_an_upstream() {
+        let problem = |head: Option<&str>, upstream: Option<&str>| {
+            protected_branch_problem(head, upstream, |name| name == "main" || name == "master")
+        };
+        let refused = problem(Some("main"), Some("origin/main"));
+        assert_eq!(refused.as_deref(), Some("Pushed commits of the protected branch 'main' cannot be rewritten"));
+        assert!(
+            problem(Some("master"), Some("origin/master")).is_some_and(|p| p.contains("protected branch 'master'"))
+        );
+        assert_eq!(problem(Some("feature"), Some("origin/main")), None);
+        assert_eq!(problem(Some("main"), None), None);
+        assert_eq!(problem(None, Some("origin/main")), None);
     }
 
     // src/features/vcs/__tests__/gitOps.test.ts › interactive rebase plan › takes the commits from the target to HEAD, oldest first

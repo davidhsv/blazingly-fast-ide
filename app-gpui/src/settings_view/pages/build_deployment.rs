@@ -21,7 +21,7 @@ use super::ssh_backend::{backend_set_secret, backend_trust_host, on_backend};
 use super::tools_record_table::RecordTable;
 use super::{Binding, ControlEvent, Then, new_field};
 use crate::platform::i18n::Localization;
-use crate::platform_more::remote_settings::with_unique_ids;
+use crate::platform_more::remote_settings::{read_deployment_servers, with_unique_ids};
 use crate::settings_model::deployment_model::{RemoteIds, fix_default_server, new_server};
 use crate::settings_view::controls::tx;
 use crate::theme;
@@ -98,12 +98,10 @@ fn tx_text(cx: &App, text: &str) -> String {
     }
 }
 
-/// The servers stored, each under an id of its own; a value that is not a list of servers reads
-/// as none.
+/// The servers stored, each under an id of its own (a type deployment does not know reads as
+/// SFTP); a value that is not a list of servers reads as none.
 pub fn servers(binding: &Binding, cx: &App) -> Vec<DeploymentServer> {
-    let value = binding.value(SERVERS, cx).filter(|value| !value.is_null());
-    let stored: Vec<DeploymentServer> = value.and_then(|value| serde_json::from_value(value).ok()).unwrap_or_default();
-    with_unique_ids(&stored, "server")
+    with_unique_ids(&read_deployment_servers(binding.value(SERVERS, cx)), "server")
 }
 
 /// Stages `next` as the servers, and the default server again when it is gone from them.

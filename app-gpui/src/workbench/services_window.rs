@@ -17,7 +17,7 @@ use crate::run::view::RunView;
 use crate::run_testing::service_sessions::{ServiceSession, StopServiceSessions, StopStep};
 use crate::run_testing::services::{
     AddService, CONFIG_PREFIX, MenuCommand, RUN_PROVIDER, RunServices, ServiceCommand, ServiceDetail, Services,
-    StartAll, StartAllStep, StoredServices, TYPE_PREFIX, hidden_key, order_key, ran_key, types_key,
+    StartAll, StartAllStep, StoredServices, TYPE_PREFIX, hidden_key, order_key, types_key,
 };
 use crate::services::docker::{DOCKER_PROVIDER, DockerCommand, DockerRequest, DockerStore, FILTERS_KEY, POLL_MS};
 use crate::services::model::{
@@ -31,7 +31,6 @@ use gpui_kit::{
     App, AsyncApp, BorrowAppContext, Context, Entity, IntoElement, Render, SharedString, Subscription, Task,
     UniformListScrollHandle, WeakEntity, Window, div, prelude::*, px, uniform_list,
 };
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
@@ -59,8 +58,6 @@ pub(super) struct ServicesWindow {
     poll: Option<Task<()>>,
     /// The detail pane of the selected run-configuration node.
     detail: Option<Entity<ServiceDetailPane>>,
-    /// The start of every Run session seen, by session id: a new start is a run to remember.
-    seen_runs: HashMap<String, f64>,
     /// The roots last given to the view (run configurations, Docker): output alone changes nothing.
     pushed: Option<(Vec<ServiceNode>, Vec<ServiceNode>)>,
     _subscriptions: Vec<Subscription>,
@@ -375,8 +372,7 @@ impl Workbench {
         if self.services.as_ref().is_none_or(|services| services.driver != driver) {
             let root = self.project_root(cx)?.to_string_lossy().into_owned();
             self.services = Some(self.new_services_window(driver, &root, window, cx));
-            // The runs of the project's open sessions are remembered as well.
-            self.services_store_changed(cx);
+            self.push_services_roots(cx);
         }
         self.services.as_ref()
     }
@@ -391,25 +387,19 @@ impl Workbench {
         let (store, types) = (driver.read(cx).store().clone(), driver.read(cx).types());
         let stored =
             |key: String| cx.try_global::<UiStorage>().and_then(|storage| storage.get(&key)).map(str::to_owned);
-        let (added, ran, hidden, order) =
-            (stored(types_key(root)), stored(ran_key(root)), stored(hidden_key(root)), stored(order_key(root)));
+        let (added, hidden, order) = (stored(types_key(root)), stored(hidden_key(root)), stored(order_key(root)));
         let filters = stored(FILTERS_KEY.to_owned());
         let run = RunServices::open(
             Some(root),
             Some(root),
-            StoredServices {
-                types: added.as_deref(),
-                ran: ran.as_deref(),
-                hidden: hidden.as_deref(),
-                order: order.as_deref(),
-            },
+            StoredServices { types: added.as_deref(), hidden: hidden.as_deref(), order: order.as_deref() },
         );
         let state = cx.new(|_| ServicesState { run, docker: DockerStore::new(filters.as_deref()) });
         let source = Rc::new(Source { store: store.clone(), types: Rc::clone(&types), state: state.clone() });
         let view = cx.new(|cx| ServicesView::new(source, cx));
         let subscriptions = vec![
             cx.subscribe_in(&view, window, Self::services_view_event),
-            cx.observe(&store, |workbench, _, cx| workbench.services_store_changed(cx)),
+            cx.observe(&store, |workbench, _, cx| workbench.push_services_roots(cx)),
             cx.observe(&state, |workbench, _, cx| workbench.push_services_roots(cx)),
         ];
         ServicesWindow {
@@ -421,7 +411,6 @@ impl Workbench {
             shown: false,
             poll: None,
             detail: None,
-            seen_runs: HashMap::new(),
             pushed: None,
             _subscriptions: subscriptions,
         }
@@ -478,32 +467,6 @@ impl Workbench {
             if visible { state.docker.watch() } else { state.docker.unwatch() }
         });
         self.carry_out_docker(&state, requests, cx);
-    }
-
-    /// The run store changed: runs that started are remembered, and the roots follow.
-    fn services_store_changed(&mut self, cx: &mut Context<Self>) {
-        let Some(services) = self.services.as_mut() else { return };
-        let started: Vec<(String, f64, String)> = services
-            .store
-            .read(cx)
-            .sessions
-            .iter()
-            .map(|session| (session.id.clone(), session.started_at, session.config.id.clone()))
-            .collect();
-        let mut ran = Vec::new();
-        for (session, at, config) in started {
-            if services.seen_runs.insert(session, at) != Some(at) {
-                ran.push(config);
-            }
-        }
-        if !ran.is_empty() {
-            let writes: Vec<StorageWrite> = services.state.update(cx, |state, cx| {
-                cx.notify();
-                ran.iter().filter_map(|config| state.run.record_run(config)).collect()
-            });
-            write_storage(writes, cx);
-        }
-        self.push_services_roots(cx);
     }
 
     /// Gives the view each provider's roots as they are now.

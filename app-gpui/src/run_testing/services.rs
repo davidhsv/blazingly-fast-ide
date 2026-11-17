@@ -1,10 +1,10 @@
-//! Run configurations in the Services tool window (IDEA's Run Dashboard): Spring Boot by default,
-//! the configuration types added there ("Add Service › Run Configuration Type"), the types of this
-//! window's run sessions and the configurations that ran before (kept per project across restarts),
-//! one group each, with run / debug / stop / rerun per configuration.
+//! Run configurations in the Services tool window (IDEA's Run Dashboard): the configuration types
+//! added there ("Add Service › Run Configuration Type"), one group each, with run / debug / stop /
+//! rerun per configuration. Nothing else is listed, and what is removed leaves at once; a run it
+//! started keeps its console in the Run tool window.
 //!
-//! [`RunServices`] holds what the project keeps about its Services (added types, remembered runs,
-//! hidden configurations, display order); a change returns the [`StorageWrite`]s to make.
+//! [`RunServices`] holds what the project keeps about its Services (added types, hidden
+//! configurations, display order); a change returns the [`StorageWrite`]s to make.
 //! [`Services`] reads the tree, its toolbar and its menus from the run store, the debugger's
 //! sessions and that state. What a toolbar button or a menu entry does is a [`ServiceCommand`] or a
 //! [`MenuCommand`] for the caller to carry out; Run All / Restart All ([`StartAll`]) and the cleanup
@@ -16,13 +16,12 @@ use crate::platform::i18n::{I18n, Param};
 use crate::run::application_update::is_updatable;
 use crate::run::config_types::RunConfigTypes;
 use crate::run::configs::{CATEGORY_ORDER, KIND_LABELS, category_of, command_line, config_icon, cwd_of, kind_label};
-use crate::run::store::{
-    Persist, RunSession, RunStore, SessionStatus, StartOptions, StopAction, StorageWrite, parse_ids,
-};
+use crate::run::store::{Persist, RunSession, RunStore, SessionStatus, StartOptions, StopAction, StorageWrite};
 use crate::run::types::is_debug_only;
 use crate::run_testing::service_sessions::{
     ServiceSession, current_service_session, current_service_sessions, service_sessions,
 };
+use crate::services::run_types::{DOCKER_COMPOSE, DOCKER_IMAGE, DOCKERFILE};
 use crate::workbench::notifications::{NotificationLevel, NotificationRequest};
 use ide_core::DebugSessionId;
 use ide_run::RunConfig;
@@ -35,15 +34,14 @@ pub const RUN_PROVIDER: &str = "runConfigurations";
 pub const TYPE_PREFIX: &str = "run:type:";
 /// Key prefix of a configuration's node; the configuration id follows.
 pub const CONFIG_PREFIX: &str = "run:config:";
-/// Storage key prefixes of the added types and the remembered runs; the project root follows.
+/// Storage key prefix of the added types; the project root follows.
 pub const TYPES_KEY: &str = "openidea.services.runTypes:";
-pub const RAN_KEY: &str = "openidea.services.ran:";
 /// Storage key prefixes of the hidden configurations and the display order; the project location
 /// follows.
 pub const HIDDEN_KEY: &str = "openidea.services.runHidden:";
 pub const ORDER_KEY: &str = "openidea.services.runOrder:";
-/// Types shown in Services until the user changes the list.
-pub const DEFAULT_TYPES: [&str; 1] = ["spring-boot"];
+/// Docker run kinds: their containers and deployments are already listed by the Docker provider.
+const DOCKER_PROVIDER_KINDS: [&str; 3] = [DOCKER_COMPOSE, DOCKERFILE, DOCKER_IMAGE];
 
 /// Display order of configuration ids, by kind.
 pub type ServiceOrder = BTreeMap<String, Vec<String>>;
@@ -57,10 +55,6 @@ pub fn types_key(root: &str) -> String {
     format!("{TYPES_KEY}{root}")
 }
 
-pub fn ran_key(root: &str) -> String {
-    format!("{RAN_KEY}{root}")
-}
-
 pub fn hidden_key(location: &str) -> String {
     format!("{HIDDEN_KEY}{location}")
 }
@@ -69,19 +63,13 @@ pub fn order_key(location: &str) -> String {
     format!("{ORDER_KEY}{location}")
 }
 
-/// The project's added types: Spring Boot until the user changes the list. A stored list that is
-/// not an array reads as none.
+/// The project's added types: none until the user adds one with "Add Service". A stored list that
+/// is not an array reads as none.
 pub fn read_types(stored: Option<&str>) -> Vec<String> {
     match stored.and_then(|raw| serde_json::from_str::<Value>(raw).ok()) {
-        None => DEFAULT_TYPES.iter().map(|kind| kind.to_string()).collect(),
         Some(Value::Array(items)) => items.iter().filter_map(Value::as_str).map(str::to_string).collect(),
-        Some(_) => Vec::new(),
+        _ => Vec::new(),
     }
-}
-
-/// The project's previously run configuration ids, most recent last.
-pub fn read_ran(stored: Option<&str>) -> Vec<String> {
-    parse_ids(stored)
 }
 
 /// Lists of ids stored by kind; anything that is not a list of strings is skipped. `unique` also
@@ -160,12 +148,11 @@ pub fn order_not_saved() -> NotificationRequest {
     notification
 }
 
-/// The stored values of a project's Services, each under its key ([`types_key`], [`ran_key`],
-/// [`hidden_key`], [`order_key`]).
+/// The stored values of a project's Services, each under its key ([`types_key`], [`hidden_key`],
+/// [`order_key`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct StoredServices<'a> {
     pub types: Option<&'a str>,
-    pub ran: Option<&'a str>,
     pub hidden: Option<&'a str>,
     pub order: Option<&'a str>,
 }
@@ -196,20 +183,18 @@ pub struct RunServices {
     root: Option<String>,
     location: Option<String>,
     types: Vec<String>,
-    ran: Vec<String>,
     hidden: HiddenConfigs,
     order: ServiceOrder,
 }
 
 impl RunServices {
-    /// The Services of a project. `root` keys its added types and remembered runs; `location` (the
+    /// The Services of a project. `root` keys its added types; `location` (the
     /// root, or where a remote project lives) keys its hidden configurations and display order.
     pub fn open(root: Option<&str>, location: Option<&str>, stored: StoredServices<'_>) -> Self {
         Self {
             root: root.map(str::to_string),
             location: location.map(str::to_string),
             types: if root.is_some() { read_types(stored.types) } else { Vec::new() },
-            ran: if root.is_some() { read_ran(stored.ran) } else { Vec::new() },
             hidden: if location.is_some() { read_hidden(stored.hidden) } else { HiddenConfigs::new() },
             order: if location.is_some() { read_service_order(stored.order) } else { ServiceOrder::new() },
         }
@@ -228,11 +213,6 @@ impl RunServices {
         &self.types
     }
 
-    /// The ids of the configurations that ran, most recent last.
-    pub fn ran(&self) -> &[String] {
-        &self.ran
-    }
-
     pub fn hidden(&self) -> &HiddenConfigs {
         &self.hidden
     }
@@ -244,11 +224,6 @@ impl RunServices {
     fn write_types(&self) -> Option<StorageWrite> {
         let root = self.root.as_deref()?;
         Some(StorageWrite { key: types_key(root), value: Some(json!(self.types).to_string()) })
-    }
-
-    fn write_ran(&self) -> Option<StorageWrite> {
-        let root = self.root.as_deref()?;
-        Some(StorageWrite { key: ran_key(root), value: Some(json!(self.ran).to_string()) })
     }
 
     fn write_hidden(&self) -> Option<StorageWrite> {
@@ -269,23 +244,8 @@ impl RunServices {
         self.write_types()
     }
 
-    /// Records a run, so its configuration is back in Services after a restart.
-    pub fn record_run(&mut self, config_id: &str) -> Option<StorageWrite> {
-        self.ran.retain(|id| id != config_id);
-        self.ran.push(config_id.to_string());
-        self.write_ran()
-    }
-
-    /// Forgets the remembered runs `keep` rejects.
-    fn retain_ran(&mut self, keep: impl Fn(&str) -> bool) -> Option<StorageWrite> {
-        self.root.as_ref()?;
-        let before = self.ran.len();
-        self.ran.retain(|id| keep(id));
-        if self.ran.len() == before { None } else { self.write_ran() }
-    }
-
-    /// Removes one configuration from Services; it reappears while it runs (its console stays
-    /// reachable).
+    /// Removes one configuration from Services at once, even while it runs (its console is in the
+    /// Run tool window).
     pub fn hide_config(&mut self, kind: &str, id: &str) -> Option<StorageWrite> {
         let hidden = self.hidden.entry(kind.to_string()).or_default();
         if hidden.iter().any(|known| known == id) {
@@ -400,8 +360,6 @@ pub struct TreeInput<'a> {
     pub debug: &'a [DebugServiceSession],
     /// The types added to Services.
     pub added: &'a [String],
-    /// Ids of the configurations that ran before.
-    pub ran: &'a [String],
     pub order: &'a ServiceOrder,
     pub hidden: &'a HiddenConfigs,
     /// Whether the configuration with this id was deleted since it was listed.
@@ -413,64 +371,36 @@ type KindGroup<'a> = (String, Vec<&'a RunConfig>);
 
 /// The groups of the tree. `latest` holds the execution shown for each configuration of
 /// `executions`.
-fn kind_groups<'a>(
-    input: TreeInput<'a>,
-    executions: &'a [ServiceSession],
-    latest: &[&'a ServiceSession],
-) -> Vec<KindGroup<'a>> {
+fn kind_groups<'a>(input: TreeInput<'a>, latest: &[&'a ServiceSession]) -> Vec<KindGroup<'a>> {
     let shown = |session: &ServiceSession| session.is_live() || !(input.removed)(&session.config.id);
-    let mut kinds: Vec<&'a str> = input.added.iter().map(String::as_str).collect();
-    for session in executions {
-        if shown(session) && !kinds.contains(&session.config.kind.as_str()) {
-            kinds.push(&session.config.kind);
-        }
-    }
-    for id in input.ran {
-        if let Some(config) = input.configs.iter().find(|config| config.id == *id)
-            && !kinds.contains(&config.kind.as_str())
-        {
-            kinds.push(&config.kind);
-        }
-    }
+    let kinds = input.added.iter().map(String::as_str).filter(|kind| !DOCKER_PROVIDER_KINDS.contains(kind));
     let mut groups = Vec::new();
     for kind in kinds {
-        let of_kind = |config: &&'a RunConfig| config.kind == kind;
-        let mut entries: Vec<&'a RunConfig> = if input.added.iter().any(|added| added == kind) {
-            input.configs.iter().filter(of_kind).collect()
-        } else {
-            let ran = input.ran.iter().filter_map(|id| input.configs.iter().find(|config| config.id == *id));
-            ran.filter(of_kind).collect()
-        };
+        let mut entries: Vec<&'a RunConfig> = input.configs.iter().filter(|config| config.kind == kind).collect();
         for &session in latest {
             let listed = entries.iter().any(|config| config.id == session.config.id);
             if session.config.kind == kind && shown(session) && !listed {
                 entries.push(&session.config);
             }
         }
-        // Hidden configurations reappear only while they run (their console stays reachable).
         let hidden = input.hidden.get(kind).map(Vec::as_slice).unwrap_or_default();
-        let live = |id: &str| latest.iter().any(|session| session.config.id == id && session.is_live());
-        entries.retain(|config| !hidden.contains(&config.id) || live(&config.id));
-        // An empty group stays only when its existing configurations can be restored.
-        let restorable = input.configs.iter().any(|config| config.kind == kind);
-        if entries.is_empty() && DEFAULT_TYPES.contains(&kind) && !restorable {
-            continue;
-        }
+        entries.retain(|config| !hidden.contains(&config.id));
         let saved = input.order.get(kind).map(Vec::as_slice).unwrap_or_default();
         groups.push((kind.to_string(), order_services(entries, saved)));
     }
     groups
 }
 
-/// Groups by configuration type: added types list all their configurations, other types only those
-/// that ran. A default type (Spring Boot) without configurations is hidden. A configuration deleted
-/// since it ran stays only while its run is live.
+/// Groups by configuration type: only the types added in this window list their configurations
+/// (Docker kinds are the Docker provider's), and a configuration removed from the window stays out
+/// even while it runs (its console is in the Run tool window). A configuration deleted since it ran
+/// stays only while its run is live.
 pub fn run_service_items(input: TreeInput<'_>, types: &RunConfigTypes, i18n: &mut I18n) -> Vec<ServiceTreeItem> {
     let executions = service_sessions(input.sessions, input.debug);
     let latest = current_service_sessions(&executions);
     let execution = |id: &str| latest.iter().copied().find(|session| session.config.id == id);
     let mut items = Vec::new();
-    for (kind, configs) in kind_groups(input, &executions, &latest) {
+    for (kind, configs) in kind_groups(input, &latest) {
         let mut running = 0usize;
         let mut children = Vec::new();
         for config in configs {
@@ -672,7 +602,6 @@ impl Services<'_> {
             sessions: &self.store.sessions,
             debug: self.debug,
             added: self.state.types(),
-            ran: self.state.ran(),
             order: self.state.order(),
             hidden: self.state.hidden(),
             removed,
@@ -690,7 +619,7 @@ impl Services<'_> {
         let removed = |id: &str| self.store.config_removed(id);
         let executions = self.executions();
         let latest = current_service_sessions(&executions);
-        let groups = kind_groups(self.input(&removed), &executions, &latest);
+        let groups = kind_groups(self.input(&removed), &latest);
         let Some((_, configs)) = groups.into_iter().find(|(group, _)| group == kind) else { return Vec::new() };
         // A configuration as saved now, else the one its execution ran with.
         configs.into_iter().map(|config| self.store.config(&config.id).unwrap_or(config).clone()).collect()
@@ -1113,7 +1042,7 @@ pub struct ReloadConfigs {
 
 /// Drops a removed workspace member's data from Services: stops and forgets its sessions (a
 /// finished one still groups the tree), removes its temporary configurations, and after the reload
-/// clears the added types and remembered runs that would otherwise render empty groups.
+/// clears the added types that would otherwise render empty groups.
 #[derive(Clone, Debug)]
 pub struct RemovedProjectCleanup {
     /// The kinds the member had configurations of.
@@ -1145,8 +1074,7 @@ impl RemovedProjectCleanup {
     }
 
     /// The configurations were reloaded: the member's kinds that are left without a configuration
-    /// and without a session leave the added types, and runs of configurations that are gone are
-    /// forgotten.
+    /// and without a session leave the added types.
     pub fn reloaded(self, store: &RunStore, services: &mut RunServices) -> Vec<StorageWrite> {
         let configured = |kind: &str| store.configs().iter().any(|config| config.kind == kind);
         let ran = |kind: &str| store.sessions.iter().any(|session| session.config.kind == kind);
@@ -1154,7 +1082,6 @@ impl RemovedProjectCleanup {
         for kind in self.kinds.iter().filter(|kind| !configured(kind) && !ran(kind)) {
             writes.extend(services.remove_type(kind));
         }
-        writes.extend(services.retain_ran(|id| store.config(id).is_some()));
         writes
     }
 }
@@ -1213,10 +1140,6 @@ mod tests {
         items.iter().map(|item| item.to_string()).collect()
     }
 
-    fn default_types() -> Vec<String> {
-        strings(&DEFAULT_TYPES)
-    }
-
     /// Ids by kind; the ids of a kind are separated by spaces.
     fn by_kind(entries: &[(&str, &str)]) -> BTreeMap<String, Vec<String>> {
         let ids = |listed: &str| -> Vec<String> { listed.split_whitespace().map(str::to_string).collect() };
@@ -1237,7 +1160,6 @@ mod tests {
         configs: Vec<RunConfig>,
         sessions: Vec<RunSession>,
         added: Vec<String>,
-        ran: Vec<String>,
         order: ServiceOrder,
         debug: Vec<DebugServiceSession>,
         removed: Vec<String>,
@@ -1252,7 +1174,6 @@ mod tests {
                 sessions: &self.sessions,
                 debug: &self.debug,
                 added: &self.added,
-                ran: &self.ran,
                 order: &self.order,
                 hidden: &self.hidden,
                 removed: &removed,
@@ -1288,7 +1209,6 @@ mod tests {
             let get = |key: Option<String>| key.and_then(|key| self.storage.get(&key)).map(String::as_str);
             let stored = StoredServices {
                 types: get(root.map(types_key)),
-                ran: get(root.map(ran_key)),
                 hidden: get(root.map(hidden_key)),
                 order: get(root.map(order_key)),
             };
@@ -1384,7 +1304,7 @@ mod tests {
             let c = config("debug-app", kind);
             let build = |status: DebugStatus| {
                 let d = DebugServiceSession { status, ..debug_root(&c) };
-                Tree { configs: vec![c.clone()], debug: vec![d], ..Tree::default() }.items()
+                Tree { configs: vec![c.clone()], added: strings(&[kind]), debug: vec![d], ..Tree::default() }.items()
             };
             let live = build(DebugStatus::Running);
             let child = &children(&live[0])[0];
@@ -1405,7 +1325,8 @@ mod tests {
         let r = RunSession { run_id: Some(RunId(7)), http_port: Some(8080), ..ended };
         let d = debug_root(&c);
         let tree = |sessions: Vec<RunSession>, debug: Vec<DebugServiceSession>| {
-            Tree { configs: vec![c.clone()], sessions, added: default_types(), debug, ..Tree::default() }.items()
+            Tree { configs: vec![c.clone()], sessions, added: strings(&["spring-boot"]), debug, ..Tree::default() }
+                .items()
         };
         let direct = tree(vec![r.clone()], vec![d.clone()]);
         assert_eq!(direct[0].detail.as_deref(), Some("1 running"));
@@ -1424,7 +1345,8 @@ mod tests {
         let c = config("app", "spring-boot");
         let d = DebugServiceSession { http_port: Some(8080), ..debug_root(&c) };
         let tree = |d: DebugServiceSession| {
-            Tree { configs: vec![c.clone()], added: default_types(), debug: vec![d], ..Tree::default() }.items()
+            Tree { configs: vec![c.clone()], added: strings(&["spring-boot"]), debug: vec![d], ..Tree::default() }
+                .items()
         };
         let items = tree(d.clone());
         let child = &children(&items[0])[0];
@@ -1473,14 +1395,6 @@ mod tests {
     }
 
     #[test]
-    fn orders_remembered_configurations_when_their_type_was_not_explicitly_added() {
-        let configs = vec![config("build", "cargo"), config("test", "cargo")];
-        let order = by_kind(&[("cargo", "test build")]);
-        let items = Tree { configs, ran: strings(&["build", "test"]), order, ..Tree::default() }.items();
-        assert_eq!(keys(&items[0]), ["run:config:test", "run:config:build"]);
-    }
-
-    #[test]
     fn keeps_stable_service_identity_and_session_details_after_refresh_and_rename() {
         let renamed = RunConfig { name: "Renamed build".into(), ..config("build", "cargo") };
         let items = Tree {
@@ -1499,7 +1413,7 @@ mod tests {
     }
 
     #[test]
-    fn lists_added_types_fully_and_other_types_only_with_their_runs() {
+    fn lists_added_types_fully_and_keeps_other_types_out() {
         let (build, test, dev) = (config("build", "cargo"), config("test", "cargo"), config("dev", "npm"));
         let scratch = config("context:file", "python");
         let sessions = vec![
@@ -1507,28 +1421,24 @@ mod tests {
             session("s2", &dev, SessionStatus::Running, 2.0),
             RunSession { exit_code: Some(2), ..session("s3", &scratch, SessionStatus::Failed, 3.0) },
         ];
-        let configs = vec![build, test, dev];
-        let items = Tree { configs, sessions, added: strings(&["cargo"]), ..Tree::default() }.items();
+        let configs = vec![build, test, dev.clone()];
+        let tree = |configs: Vec<RunConfig>, added: &[&str]| {
+            Tree { configs, sessions: sessions.clone(), added: strings(added), ..Tree::default() }.items()
+        };
+        let items = tree(configs, &["cargo"]);
         let groups: Vec<(&str, &str, Option<&str>)> =
             items.iter().map(|item| (item.key.as_str(), item.label.as_str(), item.detail.as_deref())).collect();
-        let expected = [
-            ("run:type:cargo", "Cargo", None),
-            ("run:type:npm", "npm", Some("1 running")),
-            ("run:type:python", "Python", None),
-        ];
-        assert_eq!(groups, expected);
+        assert_eq!(groups, [("run:type:cargo", "Cargo", None)]);
         let cargo: Vec<(&str, Option<&str>, bool)> =
             children(&items[0]).iter().map(|child| (child.key.as_str(), child.detail.as_deref(), child.dim)).collect();
         assert_eq!(cargo, [("run:config:build", None, true), ("run:config:test", None, true)]);
-        // The newest session of a configuration decides its state.
-        let npm: Vec<(&str, Option<&str>, bool, &str)> = children(&items[1])
+        // The newest session of a configuration decides its state once its type is added.
+        let npm = tree(vec![dev], &["npm"]);
+        let shown: Vec<(&str, Option<&str>, bool, &str)> = children(&npm[0])
             .iter()
             .map(|child| (child.label.as_str(), child.detail.as_deref(), child.dim, child.icon.as_str()))
             .collect();
-        assert_eq!(npm, [("dev", Some("Running"), false, "run")]);
-        let python: Vec<(&str, Option<&str>)> =
-            children(&items[2]).iter().map(|child| (child.key.as_str(), child.detail.as_deref())).collect();
-        assert_eq!(python, [("run:config:context:file", Some("Failed (exit 2)"))]);
+        assert_eq!(shown, [("dev", Some("Running"), false, "run")]);
     }
 
     #[test]
@@ -1548,17 +1458,23 @@ mod tests {
     }
 
     #[test]
-    fn shows_spring_boot_by_default_hidden_while_the_project_has_none() {
+    fn shows_nothing_for_a_type_that_was_never_added() {
         let (build, app) = (config("build", "cargo"), config("spring:app", "spring-boot"));
-        let tree = |configs: Vec<RunConfig>| Tree { configs, added: default_types(), ..Tree::default() }.items();
-        assert_eq!(tree(vec![build.clone()]), []);
-        let items = tree(vec![build, app]);
+        let tree = |configs: Vec<RunConfig>, added: &[&str]| {
+            Tree { configs, added: strings(added), ..Tree::default() }.items()
+        };
+        assert_eq!(tree(vec![build.clone(), app.clone()], &[]), []);
+        let items = tree(vec![build.clone(), app], &["spring-boot"]);
         let groups: Vec<(&str, &str, bool)> =
             items.iter().map(|item| (item.key.as_str(), item.label.as_str(), item.expanded)).collect();
         assert_eq!(groups, [("run:type:spring-boot", "Spring Boot", true)]);
-        let child = &children(&items[0])[0];
-        assert_eq!((child.label.as_str(), child.detail.as_deref(), child.dim), ("spring:app", None, true));
-        assert_eq!(children(&items[0]).len(), 1);
+        let shown: Vec<(&str, Option<&str>, bool)> = children(&items[0])
+            .iter()
+            .map(|child| (child.label.as_str(), child.detail.as_deref(), child.dim))
+            .collect();
+        assert_eq!(shown, [("spring:app", None, true)]);
+        // An added type stays listed without configurations until it is removed again.
+        assert_eq!(tree(vec![build], &["spring-boot"])[0].children, Some(Vec::new()));
     }
 
     #[test]
@@ -1571,72 +1487,52 @@ mod tests {
             RunSession { http_port: Some(8080), stopped: true, ..session("s1", &app, SessionStatus::Finished, 1.0) };
         assert_eq!(session_detail(Some(&stopped)).as_deref(), Some("Stopped"));
         let (configs, sessions) = (vec![app], vec![serving]);
-        let items = Tree { configs, sessions, added: default_types(), ..Tree::default() }.items();
+        let items = Tree { configs, sessions, added: strings(&["spring-boot"]), ..Tree::default() }.items();
         assert_eq!(children(&items[0])[0].detail.as_deref(), Some(":8080"));
     }
 
     // types added to Services
 
     #[test]
-    fn defaults_to_spring_boot_and_persists_the_users_list_per_project() {
+    fn starts_empty_and_persists_the_users_list_per_project() {
         let mut world = World::new(None);
-        assert_eq!(read_types(world.stored(&types_key("/p"))), ["spring-boot"]);
+        assert_eq!(read_types(world.stored(&types_key("/p"))), [""; 0]);
         world.storage.insert(types_key("/p"), r#"["npm"]"#.to_string());
         assert_eq!(read_types(world.stored(&types_key("/p"))), ["npm"]);
         world.storage.insert(types_key("/p"), "[]".to_string());
         assert_eq!(read_types(world.stored(&types_key("/p"))), [""; 0]);
-        assert_eq!(read_types(world.stored(&types_key("/q"))), ["spring-boot"]);
+        assert_eq!(read_types(world.stored(&types_key("/q"))), [""; 0]);
+        // A project opened for the first time lists no type.
+        world.open(Some("/q"));
+        assert_eq!(world.state.types(), [""; 0]);
+        assert_eq!(world.services().roots(&mut I18n::default()), []);
     }
 
-    // configurations that ran
+    // sessions of types not added
 
     #[test]
-    fn persists_the_ran_configuration_ids_per_project() {
-        let mut world = World::new(None);
-        assert_eq!(read_ran(world.stored(&ran_key("/p"))), [""; 0]);
-        world.storage.insert(ran_key("/p"), r#"["dev"]"#.to_string());
-        assert_eq!(read_ran(world.stored(&ran_key("/p"))), ["dev"]);
-        assert_eq!(read_ran(world.stored(&ran_key("/q"))), [""; 0]);
-    }
-
-    #[test]
-    fn lists_previously_run_configurations_without_a_session() {
-        let configs = vec![config("dev", "npm"), config("context:file", "python")];
-        let items = Tree { configs, ran: strings(&["dev", "context:file"]), ..Tree::default() }.items();
-        let groups: Vec<(&str, &str)> = items.iter().map(|item| (item.key.as_str(), item.label.as_str())).collect();
-        assert_eq!(groups, [("run:type:npm", "npm"), ("run:type:python", "Python")]);
-        let npm: Vec<(&str, bool)> =
-            children(&items[0]).iter().map(|child| (child.label.as_str(), child.dim)).collect();
-        assert_eq!(npm, [("dev", true)]);
-        assert_eq!(keys(&items[1]), ["run:config:context:file"]);
-    }
-
-    #[test]
-    fn ignores_ran_ids_whose_configuration_is_gone_and_merges_sessions() {
+    fn keeps_the_type_out_of_services() {
         let dev = config("dev", "npm");
-        let gone = Tree { configs: vec![dev.clone()], ran: strings(&["missing"]), ..Tree::default() }.items();
-        assert_eq!(gone, []);
-        let sessions = vec![running("s1", &dev)];
-        let items = Tree { configs: vec![dev], sessions, ran: strings(&["dev"]), ..Tree::default() }.items();
-        assert_eq!(items.len(), 1);
-        let shown: Vec<(&str, Option<&str>)> =
-            children(&items[0]).iter().map(|child| (child.label.as_str(), child.detail.as_deref())).collect();
-        assert_eq!(shown, [("dev", Some("Running"))]);
+        assert_eq!(
+            Tree { configs: vec![dev.clone()], sessions: vec![running("s1", &dev)], ..Tree::default() }.items(),
+            []
+        );
     }
 
     #[test]
     fn drops_a_deleted_configuration_once_its_run_has_ended() {
         let (dev, scratch) = (config("dev", "npm"), config("context:file", "python"));
-        let tree = |sessions: Vec<RunSession>, ran: &[&str]| {
-            Tree { sessions, ran: strings(ran), removed: strings(&["dev"]), ..Tree::default() }.items()
+        let tree = |sessions: Vec<RunSession>, added: &str| {
+            Tree { sessions, added: strings(&[added]), removed: strings(&["dev"]), ..Tree::default() }.items()
         };
-        assert_eq!(tree(vec![session("s1", &dev, SessionStatus::Finished, 1.0)], &["dev"]), []);
-        let live = tree(vec![running("s1", &dev)], &["dev"]);
+        let ended = tree(vec![session("s1", &dev, SessionStatus::Finished, 1.0)], "npm");
+        assert_eq!(ended[0].children, Some(Vec::new()));
+        let live = tree(vec![running("s1", &dev)], "npm");
         let shown: Vec<(&str, Option<&str>)> =
             children(&live[0]).iter().map(|child| (child.label.as_str(), child.detail.as_deref())).collect();
         assert_eq!(shown, [("dev", Some("Running"))]);
         // Never a saved configuration (a build task, an external tool): its finished run stays.
-        let ad_hoc = tree(vec![session("s2", &scratch, SessionStatus::Finished, 1.0)], &[]);
+        let ad_hoc = tree(vec![session("s2", &scratch, SessionStatus::Finished, 1.0)], "python");
         assert_eq!(keys(&ad_hoc[0]), ["run:config:context:file"]);
     }
 
@@ -1660,22 +1556,22 @@ mod tests {
     // hidden configurations
 
     #[test]
-    fn hides_a_configuration_unless_it_runs() {
+    fn hides_a_configuration_even_while_it_runs() {
         let (a, b) = (config("a", "spring-boot"), config("b", "spring-boot"));
         let tree = |sessions: Vec<RunSession>| {
             let hidden = by_kind(&[("spring-boot", "a")]);
             let configs = vec![a.clone(), b.clone()];
-            Tree { configs, sessions, added: default_types(), hidden, ..Tree::default() }.items()
+            Tree { configs, sessions, added: strings(&["spring-boot"]), hidden, ..Tree::default() }.items()
         };
         assert_eq!(keys(&tree(Vec::new())[0]), ["run:config:b"]);
-        assert_eq!(keys(&tree(vec![running("s1", &a)])[0]), ["run:config:a", "run:config:b"]);
+        assert_eq!(keys(&tree(vec![running("s1", &a)])[0]), ["run:config:b"]);
     }
 
     #[test]
-    fn keeps_an_empty_default_group_whose_configurations_are_all_hidden() {
+    fn keeps_an_added_types_group_whose_configurations_are_all_hidden() {
         let hidden = by_kind(&[("spring-boot", "a")]);
         let configs = vec![config("a", "spring-boot")];
-        let items = Tree { configs, added: default_types(), hidden, ..Tree::default() }.items();
+        let items = Tree { configs, added: strings(&["spring-boot"]), hidden, ..Tree::default() }.items();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].children, Some(Vec::new()));
     }
@@ -1690,6 +1586,17 @@ mod tests {
         // Without a project nothing is read.
         let stored = StoredServices { hidden: world.stored(&hidden_key("/p")), ..StoredServices::default() };
         assert_eq!(RunServices::open(None, None, stored).hidden(), &HiddenConfigs::new());
+    }
+
+    #[test]
+    fn does_not_duplicate_docker_compose_docker_dockerfile_or_docker_image_runs_in_the_run_configurations_provider() {
+        let compose = config("docker:compose:docker/playground-compose.yml:postgres", "docker-compose");
+        let dockerfile = config("docker:dockerfile:Dockerfile", "docker-dockerfile");
+        let image = config("docker:image:postgres", "docker-image");
+        let sessions = vec![running("s1", &compose), session("s2", &dockerfile, SessionStatus::Finished, 2.0)];
+        let added = strings(&["docker-compose", "docker-dockerfile", "docker-image"]);
+        let configs = vec![compose, dockerfile, image];
+        assert_eq!(Tree { configs, sessions, added, ..Tree::default() }.items(), []);
     }
 
     // add service categories
@@ -1883,6 +1790,8 @@ mod tests {
     #[test]
     fn uses_the_saved_display_order_and_leaves_other_types_alone() {
         let mut world = World::new(None);
+        // Spring Boot is added explicitly: no type is in Services by default (services.test.ts:638).
+        world.storage.insert(types_key("/group-order"), r#"["spring-boot"]"#.to_string());
         world.storage.insert(order_key("/group-order"), r#"{"spring-boot":["c","a","b"]}"#.to_string());
         world.open(Some("/group-order"));
         let d = config("d", "npm");
@@ -1934,7 +1843,6 @@ mod tests {
         let vue = in_dir(config("dev", "npm"), "/w/vue");
         let mut world = World::new(None);
         world.storage.insert(types_key("/w/main"), r#"["spring-boot","npm"]"#.to_string());
-        world.storage.insert(ran_key("/w/main"), r#"["app","dev"]"#.to_string());
         world.open(Some("/w/main"));
         world.store.set_configs(vec![main.clone(), vue.clone()]);
         world.store.temporary = strings(&["dev"]);
@@ -1952,7 +1860,6 @@ mod tests {
         let writes = cleanup.reloaded(&world.store, &mut world.state);
         world.apply(writes);
         assert_eq!(read_types(world.stored(&types_key("/w/main"))), ["spring-boot"]);
-        assert_eq!(read_ran(world.stored(&ran_key("/w/main"))), ["app"]);
     }
 
     #[test]
@@ -2030,8 +1937,8 @@ mod tests {
         let writes = world.state.services_picked(&pick, Some(picked.as_slice()));
         assert_eq!(writes, Vec::new());
         assert_eq!(read_hidden(world.stored(&hidden_key("/other-selection"))), HiddenConfigs::new());
-        assert_eq!(read_types(world.stored(&types_key("/other-selection"))), DEFAULT_TYPES);
-        assert_eq!((world.state.types(), world.state.hidden()), (default_types().as_slice(), &HiddenConfigs::new()));
+        assert_eq!(read_types(world.stored(&types_key("/other-selection"))), [""; 0]);
+        assert_eq!((world.state.types(), world.state.hidden()), (&[][..], &HiddenConfigs::new()));
     }
 
     // Not from a spec: the picker's answer hides what was not picked, and a drop reorders within a group only.
@@ -2044,7 +1951,7 @@ mod tests {
         let picked = strings(&["dev", "lint"]);
         let writes = world.state.services_picked(&pick, Some(picked.as_slice()));
         world.apply(writes);
-        assert_eq!(read_types(world.stored(&types_key("/selection"))), ["spring-boot", "npm"]);
+        assert_eq!(read_types(world.stored(&types_key("/selection"))), ["npm"]);
         assert_eq!(read_hidden(world.stored(&hidden_key("/selection"))), by_kind(&[("npm", "test")]));
         let (dev, lint) = ("run:config:dev", "run:config:lint");
         assert!(!world.services().can_move(dev, NPM_GROUP));

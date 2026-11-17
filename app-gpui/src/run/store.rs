@@ -1492,7 +1492,7 @@ pub enum StartEffect {
     ShowRunWindow {
         focus: bool,
     },
-    /// The configuration ran: the Services tool window lists it again after a restart.
+    /// The configuration ran: it leads the chooser's recent configurations.
     RecordRun(String),
     /// Give the process's terminal the size the console reported.
     Resize {

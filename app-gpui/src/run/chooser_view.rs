@@ -1,10 +1,11 @@
 //! The Run/Debug configuration chooser popup (⌃⌥R, and the title bar widget's dropdown).
 //!
-//! It lists "Current File", the pinned and recent configurations and the rest by kind, as
+//! It lists the pinned and recent configurations, the rest by kind and "Current File", as
 //! [`build_rows`] orders them, filtered by what is typed. Rows 1–9 carry a number while the chooser
-//! runs or debugs and nothing is typed. The selected row offers Pin and Run / Debug, or Rerun / Stop
-//! while the configuration runs. Enter, a click or a number acts on a row; Shift switches Run and
-//! Debug; F4 edits; Delete removes; Escape closes.
+//! runs or debugs and nothing is typed. The selected row offers Run / Debug, or Rerun / Stop while
+//! the configuration runs, and More Actions: a menu of Run, Debug, Edit…, Pin or Unpin and Delete,
+//! also opened with →. Enter, a click or a number acts on a row; Shift switches Run and Debug; F4
+//! edits; Delete removes; Escape closes.
 //!
 //! [`ConfigChooser`] owns no process and changes nothing in the store: what the user chose is a
 //! [`ConfigChooserEvent`] the workbench carries out (selecting, starting, pinning and deleting all
@@ -19,11 +20,13 @@ use crate::run::sessions::selected_target;
 use crate::run::store::{CURRENT_FILE, ChooserMode, RunStore};
 use crate::theme;
 use crate::ui::matching::index_runs;
+use crate::ui::popup_menu::{Choice, PopupMenu, PopupMenuEvent};
 use crate::ui::text_field::{TextField, TextFieldEvent};
+use crate::vcs_ops::menu::MenuItem;
 use gpui_kit::{
     AnyElement, App, Context, Div, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, Keystroke,
-    ModifiersChangedEvent, MouseMoveEvent, Render, ScrollStrategy, SharedString, Subscription, UniformListScrollHandle,
-    Window, div, prelude::*, px, uniform_list,
+    ModifiersChangedEvent, MouseButton, MouseDownEvent, MouseMoveEvent, Pixels, Point, Render, ScrollStrategy,
+    SharedString, Subscription, UniformListScrollHandle, Window, deferred, div, point, prelude::*, px, uniform_list,
 };
 use std::rc::Rc;
 
@@ -72,33 +75,49 @@ pub enum ConfigChooserEvent {
 /// An inline button of the selected row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum InlineButton {
-    Pin,
     Run,
     Debug,
     Rerun,
     Stop,
+    More,
 }
 
 impl InlineButton {
     fn selector(self) -> &'static str {
         match self {
-            Self::Pin => "run-chooser-pin",
             Self::Run => "run-chooser-run",
             Self::Debug => "run-chooser-debug",
             Self::Rerun => "run-chooser-rerun",
             Self::Stop => "run-chooser-stop",
+            Self::More => "run-chooser-more",
         }
     }
 
     fn icon(self) -> &'static str {
         match self {
-            Self::Pin => "pin",
             Self::Run => "run",
             Self::Debug => "debug",
             Self::Rerun => "rerun-filled",
             Self::Stop => "stop-filled",
+            Self::More => "more",
         }
     }
+}
+
+/// What a row of a configuration's actions menu does with it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RowCommand {
+    Run,
+    Debug,
+    Edit,
+    TogglePinned,
+    Delete,
+}
+
+/// The open actions menu of a configuration's row.
+struct ActionsMenu {
+    menu: Entity<PopupMenu<RowCommand>>,
+    _events: Subscription,
 }
 
 /// A row with what it shows besides its configuration.
@@ -128,6 +147,8 @@ pub struct ConfigChooser {
     debug_available: bool,
     edit_shortcut: Option<String>,
     scroll: UniformListScrollHandle,
+    /// The open actions menu of a row.
+    menu: Option<ActionsMenu>,
     key_claim: u64,
     _subscriptions: Vec<Subscription>,
 }
@@ -204,8 +225,8 @@ impl ConfigChooser {
         let claimant = cx.weak_entity();
         let key_claim = input::claim_keys(
             field.focus_handle(cx),
-            move |keystroke, _, cx| {
-                claimant.update(cx, |chooser, cx| chooser.claim_key(keystroke, cx)).unwrap_or(false)
+            move |keystroke, window, cx| {
+                claimant.update(cx, |chooser, cx| chooser.claim_key(keystroke, window, cx)).unwrap_or(false)
             },
             cx,
         );
@@ -221,6 +242,7 @@ impl ConfigChooser {
             debug_available: true,
             edit_shortcut: None,
             scroll: UniformListScrollHandle::new(),
+            menu: None,
             key_claim,
             _subscriptions: subscriptions,
         };
@@ -243,8 +265,8 @@ impl ConfigChooser {
         &self.field
     }
 
-    /// The rows, as the chooser's tests spell them: `[Section]`, a configuration's name, `current`,
-    /// `save` and `edit`.
+    /// The rows, as the chooser's tests spell them: `[Section]`, `---` for a separator, a
+    /// configuration's name, `current`, `save` and `edit`.
     pub fn lines(&self) -> Vec<String> {
         self.entries.iter().map(|entry| entry.line.clone()).collect()
     }
@@ -268,6 +290,12 @@ impl ConfigChooser {
     pub fn buttons(&self, cx: &App) -> Vec<(String, bool)> {
         let Some(entry) = self.active.and_then(|index| self.entries.get(index)) else { return Vec::new() };
         self.inline_buttons(entry).into_iter().map(|button| (self.button_title(entry, button, cx), true)).collect()
+    }
+
+    /// The rows of the open actions menu (`> ` before the selected one, `-` for a separator).
+    pub fn menu_lines(&self, cx: &App) -> Option<Vec<String>> {
+        let open = self.menu.as_ref()?;
+        open.menu.read(cx).lines().into_iter().next()
     }
 
     /// "Run" or "Debug" over the list while the chooser runs or debugs (Shift flips it).
@@ -322,6 +350,7 @@ impl ConfigChooser {
                 let key = row.key();
                 let number = numbers.iter().find(|(numbered, _)| *numbered == key).map(|(_, number)| *number);
                 let (line, running, temporary, pinned, selected) = match &row {
+                    Row::Section { label, .. } if label.is_empty() => ("---".to_owned(), None, false, false, false),
                     Row::Section { label, .. } => (format!("[{label}]"), None, false, false, false),
                     Row::Current { .. } => {
                         ("current".to_owned(), None, false, false, selected_id == Some(CURRENT_FILE))
@@ -410,7 +439,7 @@ impl ConfigChooser {
 
     /// The keys the chooser handles itself while the keyboard is in its query. Returns whether
     /// `keystroke` is one of them.
-    fn claim_key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
+    fn claim_key(&mut self, keystroke: &Keystroke, window: &mut Window, cx: &mut Context<Self>) -> bool {
         let modifiers = keystroke.modifiers;
         if self.shift != modifiers.shift {
             self.shift = modifiers.shift;
@@ -428,6 +457,15 @@ impl ConfigChooser {
             "down" => self.step(1, true, cx),
             "pageup" => self.step(-PAGE_ROWS, false, cx),
             "pagedown" => self.step(PAGE_ROWS, false, cx),
+            // IDEA: → opens the configuration's actions, as its More Actions button does.
+            "right" if plain && !modifiers.shift => {
+                let field = self.field.read(cx);
+                let at_end = field.selection() == (field.text().len()..field.text().len());
+                match (self.active, &config_row) {
+                    (Some(index), Some(_)) if at_end => self.open_actions(index, None, window, cx),
+                    _ => return false,
+                }
+            }
             "f4" => match (self.active, &config_row) {
                 (Some(index), Some(_)) => self.activate(index, ChooserAction::Edit, cx),
                 _ => return false,
@@ -464,7 +502,7 @@ impl ConfigChooser {
         if !matches!(entry.row, Row::Config { .. }) {
             return Vec::new();
         }
-        let mut buttons = vec![InlineButton::Pin];
+        let mut buttons = Vec::new();
         if entry.running.is_some() {
             buttons.extend([InlineButton::Rerun, InlineButton::Stop]);
         } else {
@@ -473,13 +511,14 @@ impl ConfigChooser {
                 buttons.push(InlineButton::Debug);
             }
         }
+        buttons.push(InlineButton::More);
         buttons
     }
 
     fn button_title(&self, entry: &Entry, button: InlineButton, cx: &App) -> String {
         let name = &entry.line;
         match button {
-            InlineButton::Pin => tx(cx, if entry.pinned { "Unpin" } else { "Pin" }),
+            InlineButton::More => tx(cx, "More Actions"),
             InlineButton::Run => tx_template(cx, format!("Run '{name}'")),
             InlineButton::Debug => tx_template(cx, format!("Debug '{name}'")),
             InlineButton::Rerun => tx_template(cx, format!("Rerun '{name}'")),
@@ -487,17 +526,81 @@ impl ConfigChooser {
         }
     }
 
-    /// Carries out an inline button of the row at `index`.
-    fn press(&mut self, index: usize, button: InlineButton, cx: &mut Context<Self>) {
+    /// Carries out an inline button of the row at `index`; `at` is where it was clicked.
+    fn press(
+        &mut self,
+        index: usize,
+        button: InlineButton,
+        at: Point<Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(entry) = self.entries.get(index).cloned() else { return };
-        let Row::Config { config, .. } = &entry.row else { return };
+        let Row::Config { .. } = &entry.row else { return };
         match (button, entry.running) {
-            (InlineButton::Pin, _) => cx.emit(ConfigChooserEvent::TogglePinned(config.id.clone())),
+            (InlineButton::More, _) => self.open_actions(index, Some(at), window, cx),
             (InlineButton::Run, _) => self.activate(index, ChooserAction::Run, cx),
             (InlineButton::Debug, _) => self.activate(index, ChooserAction::Debug, cx),
             (InlineButton::Rerun, Some(session)) => cx.emit(ConfigChooserEvent::Rerun(session)),
             (InlineButton::Stop, Some(session)) => cx.emit(ConfigChooserEvent::Stop(session)),
             (InlineButton::Rerun | InlineButton::Stop, None) => {}
+        }
+    }
+
+    /// IDEA: a configuration's submenu lists its executors, then Edit and Pin, and Delete when the
+    /// configuration can be deleted. It opens at `at`, or beside the row for the keyboard.
+    fn open_actions(&mut self, index: usize, at: Option<Point<Pixels>>, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(Row::Config { config, .. }) = self.entries.get(index).map(|entry| &entry.row) else { return };
+        let pinned = self.entries[index].pinned;
+        let can_delete = self.store.read(cx).can_delete_config(&config.id);
+        let mut items = vec![
+            MenuItem::item(tx(cx, "Run"), RowCommand::Run).icon("run"),
+            MenuItem::item(tx(cx, "Debug"), RowCommand::Debug).icon("debug").disabled(!self.debug_available),
+            MenuItem::Separator,
+            MenuItem::item(tx(cx, "Edit…"), RowCommand::Edit).icon("edit"),
+            MenuItem::item(tx(cx, if pinned { "Unpin" } else { "Pin" }), RowCommand::TogglePinned).icon("pin"),
+        ];
+        if can_delete {
+            items.push(MenuItem::item(tx(cx, "Delete"), RowCommand::Delete).danger());
+        }
+        let position = at.unwrap_or_else(|| self.row_menu_position(index));
+        let menu = cx.new(|cx| PopupMenu::new(&items, position, window, cx));
+        let events =
+            cx.subscribe_in(&menu, window, move |chooser, _, event: &PopupMenuEvent<RowCommand>, window, cx| {
+                chooser.close_actions(window, cx);
+                if let PopupMenuEvent::Chosen(Choice::Command(command)) = event {
+                    chooser.run_row_command(index, *command, cx);
+                }
+            });
+        window.focus(&menu.focus_handle(cx), cx);
+        self.menu = Some(ActionsMenu { menu, _events: events });
+        cx.notify();
+    }
+
+    /// Beside the row at `index`, at the list's right edge.
+    fn row_menu_position(&self, index: usize) -> Point<Pixels> {
+        let state = self.scroll.0.borrow();
+        let list = state.base_handle.bounds();
+        point(list.right(), list.top() + state.base_handle.offset().y + px(ROW * index as f32))
+    }
+
+    /// Closes the actions menu; the keyboard goes back to the query.
+    fn close_actions(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.menu.take().is_some() {
+            window.focus(&self.field.focus_handle(cx), cx);
+            cx.notify();
+        }
+    }
+
+    fn run_row_command(&mut self, index: usize, command: RowCommand, cx: &mut Context<Self>) {
+        let Some(Row::Config { config, .. }) = self.entries.get(index).map(|entry| &entry.row) else { return };
+        let id = config.id.clone();
+        match command {
+            RowCommand::Run => self.activate(index, ChooserAction::Run, cx),
+            RowCommand::Debug => self.activate(index, ChooserAction::Debug, cx),
+            RowCommand::Edit => self.activate(index, ChooserAction::Edit, cx),
+            RowCommand::TogglePinned => cx.emit(ConfigChooserEvent::TogglePinned(id)),
+            RowCommand::Delete => cx.emit(ConfigChooserEvent::Delete(id)),
         }
     }
 
@@ -517,6 +620,9 @@ impl ConfigChooser {
             .overflow_hidden()
             .text_color(fg);
         let line = match &entry.row {
+            Row::Section { label, .. } if label.is_empty() => {
+                return line.child(div().w_full().h(px(1.0)).bg(theme::color(cx, "border-popup"))).into_any_element();
+            }
             Row::Section { label, .. } => {
                 return line
                     .text_color(muted)
@@ -567,9 +673,9 @@ impl ConfigChooser {
                                 .rounded(theme::length(cx, "radius-small"))
                                 .hover(move |el| el.bg(hover))
                                 .child(theme::icon(cx, button.icon(), 12.0, color))
-                                .on_click(cx.listener(move |chooser, _, _, cx| {
+                                .on_click(cx.listener(move |chooser, event: &gpui_kit::ClickEvent, window, cx| {
                                     cx.stop_propagation();
-                                    chooser.press(index, button, cx);
+                                    chooser.press(index, button, event.position(), window, cx);
                                 }))
                                 .into_any_element()
                         })
@@ -652,8 +758,13 @@ impl Render for ConfigChooser {
         .size_full();
         let height = ROW * self.entries.len().clamp(1, VISIBLE_ROWS) as f32;
         let (muted, border) = (theme::color(cx, "fg-faint"), theme::color(cx, "border-popup"));
+        let menu = self.menu.as_ref().map(|open| deferred(open.menu.clone()).with_priority(2));
         div()
             .debug_selector(|| "run-chooser".to_owned())
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|chooser, _: &MouseDownEvent, window, cx| chooser.close_actions(window, cx)),
+            )
             .w(px(WIDTH))
             .flex()
             .flex_col()
@@ -695,6 +806,7 @@ impl Render for ConfigChooser {
                     .text_size(theme::length(cx, "fs-small"))
                     .child(SharedString::from(hint))
             }))
+            .children(menu)
     }
 }
 
@@ -818,20 +930,50 @@ mod tests {
         store_of(configs, None)
     }
 
-    // src/features/run/chooserPinned.test.tsx › pins and unpins from the row's button
+    fn menu_lines(chooser: &Entity<ConfigChooser>, cx: &mut VisualTestContext) -> Vec<String> {
+        chooser.read_with(cx, |chooser, cx| chooser.menu_lines(cx)).unwrap_or_default()
+    }
+
+    /// Opens the actions menu of the row `line` with its More Actions button.
+    fn open_actions(chooser: &Entity<ConfigChooser>, line: &str, cx: &mut VisualTestContext) {
+        move_to(chooser, line, cx);
+        assert_eq!(buttons(chooser, cx).last().map(String::as_str), Some("More Actions"));
+        click(cx, "run-chooser-more");
+    }
+
+    // src/features/run/chooserPinned.test.tsx › pins and unpins from the row's actions menu
     #[gpui_kit::test]
-    async fn pins_and_unpins_from_the_rows_button(cx: &mut TestAppContext) {
-        let (chooser, store, _, cx) = open(cx, pin_fixture(), ChooserMode::Select);
-        move_to(&chooser, "build", cx);
-        assert_eq!(buttons(&chooser, cx)[0], "Pin");
-        click(cx, "run-chooser-pin");
+    async fn pins_and_unpins_from_the_rows_actions_menu(cx: &mut TestAppContext) {
+        let (chooser, store, events, cx) = open(cx, pin_fixture(), ChooserMode::Select);
+        open_actions(&chooser, "build", cx);
+        assert_eq!(menu_lines(&chooser, cx)[4], "Pin");
+        click(cx, "menu-row-0-4");
         assert_eq!(store.read_with(cx, |store, _| store.pinned.clone()), ["build"]);
+        // The chooser stays open: nothing closed it, and it lists the pinned configuration.
+        assert!(!events.borrow().iter().any(|event| matches!(event, ConfigChooserEvent::Dismissed)));
         assert!(lines(&chooser, cx).contains(&"[Pinned]".to_owned()));
-        // The selection stays on the pinned row, which now offers Unpin.
-        assert_eq!(chooser.read_with(cx, |chooser, _| chooser.selected()).as_deref(), Some("build"));
-        assert_eq!(buttons(&chooser, cx)[0], "Unpin");
-        click(cx, "run-chooser-pin");
+        assert!(menu_lines(&chooser, cx).is_empty(), "the menu closes once a row is chosen");
+        open_actions(&chooser, "build", cx);
+        assert_eq!(menu_lines(&chooser, cx)[4], "Unpin");
+        click(cx, "menu-row-0-4");
         assert!(store.read_with(cx, |store, _| store.pinned.is_empty()));
+    }
+
+    // src/features/run/chooserPinned.test.tsx › offers the configuration's executors, Edit and Delete in its
+    // actions menu, also on →
+    #[gpui_kit::test]
+    async fn offers_the_configurations_executors_edit_and_delete_in_its_actions_menu_also_on_right(
+        cx: &mut TestAppContext,
+    ) {
+        let (chooser, _, events, cx) = open(cx, pin_fixture(), ChooserMode::Select);
+        move_to(&chooser, "serve", cx);
+        cx.simulate_keystrokes("right");
+        assert_eq!(menu_lines(&chooser, cx), ["> Run", "Debug", "-", "Edit…", "Pin", "Delete"]);
+        click(cx, "menu-row-0-3");
+        assert_eq!(*events.borrow(), [ConfigChooserEvent::Chosen { id: "serve".into(), how: ChooserAction::Edit }]);
+        // Typing goes to the query again once the menu is closed.
+        cx.simulate_input("s");
+        assert_eq!(lines(&chooser, cx), ["[npm]", "serve", "---", "edit"]);
     }
 
     // src/features/run/chooserPinned.test.tsx › lists pinned configurations first, in pin order, and not
@@ -841,10 +983,11 @@ mod tests {
         let mut store = pin_fixture();
         store.pinned = ["serve", "App", "gone"].map(str::to_owned).to_vec();
         let (chooser, _, _, cx) = open(cx, store, ChooserMode::Select);
-        assert_eq!(lines(&chooser, cx), ["current", "[Pinned]", "serve", "App", "[npm]", "build", "edit"]);
+        let expected = ["[Pinned]", "serve", "App", "[npm]", "build", "---", "current", "---", "edit"];
+        assert_eq!(lines(&chooser, cx), expected);
         // A search keeps the pinned matches on top.
         cx.simulate_input("s");
-        assert_eq!(lines(&chooser, cx), ["[Pinned]", "serve", "edit"]);
+        assert_eq!(lines(&chooser, cx), ["[Pinned]", "serve", "---", "edit"]);
     }
 
     fn running_fixture() -> RunStore {
@@ -869,7 +1012,7 @@ mod tests {
     async fn offers_rerun_and_stop_for_a_running_configuration_instead_of_run_and_debug(cx: &mut TestAppContext) {
         let (chooser, _, events, cx) = open(cx, running_fixture(), ChooserMode::Run);
         move_to(&chooser, "worker", cx);
-        assert_eq!(buttons(&chooser, cx), ["Pin", "Rerun 'worker'", "Stop 'worker'"]);
+        assert_eq!(buttons(&chooser, cx), ["Rerun 'worker'", "Stop 'worker'", "More Actions"]);
         click(cx, "run-chooser-stop");
         assert_eq!(*events.borrow(), [ConfigChooserEvent::Stop("s2".into())]);
         click(cx, "run-chooser-rerun");
@@ -881,7 +1024,7 @@ mod tests {
     async fn keeps_run_and_debug_for_a_configuration_that_isnt_running(cx: &mut TestAppContext) {
         let (chooser, _, events, cx) = open(cx, running_fixture(), ChooserMode::Run);
         move_to(&chooser, "idle", cx);
-        assert_eq!(buttons(&chooser, cx), ["Pin", "Run 'idle'", "Debug 'idle'"]);
+        assert_eq!(buttons(&chooser, cx), ["Run 'idle'", "Debug 'idle'", "More Actions"]);
         click(cx, "run-chooser-run");
         assert_eq!(*events.borrow(), [ConfigChooserEvent::Chosen { id: "npm:idle".into(), how: ChooserAction::Run }]);
     }
@@ -904,10 +1047,11 @@ mod tests {
     async fn is_always_offered_in_the_chooser(cx: &mut TestAppContext) {
         let store = store_of(vec![config("a", "a", "shell")], Some(CURRENT_FILE));
         let (chooser, _, events, cx) = open(cx, store, ChooserMode::Select);
-        assert_eq!(lines(&chooser, cx)[0], "current");
+        // Current File follows the configurations (src/features/run/ConfigChooser.tsx:90-95).
+        assert_eq!(lines(&chooser, cx)[2..], ["---", "current", "---", "edit"]);
         assert_eq!(chooser.read_with(cx, |chooser, _| chooser.selected()).as_deref(), Some("current"));
         cx.simulate_input("cur");
-        assert_eq!(lines(&chooser, cx), ["current", "edit"]);
+        assert_eq!(lines(&chooser, cx), ["current", "---", "edit"]);
         cx.simulate_keystrokes("enter");
         assert_eq!(
             *events.borrow(),
@@ -942,14 +1086,16 @@ mod tests {
         let (chooser, _, events, cx) = open(cx, running_fixture(), ChooserMode::Run);
         let selected = |cx: &mut VisualTestContext| chooser.read_with(cx, |chooser, _| chooser.selected());
         assert_eq!(selected(cx).as_deref(), Some("server"));
-        cx.simulate_keystrokes("up");
-        assert_eq!(selected(cx).as_deref(), Some("current"));
+        // Current File and Edit Configurations follow the configurations
+        // (src/features/run/ConfigChooser.tsx:90-97), and the separators before them are skipped.
         cx.simulate_keystrokes("up");
         assert_eq!(selected(cx).as_deref(), Some("edit"));
+        cx.simulate_keystrokes("up");
+        assert_eq!(selected(cx).as_deref(), Some("current"));
         cx.simulate_keystrokes("down down");
         assert_eq!(selected(cx).as_deref(), Some("server"));
         cx.simulate_keystrokes("enter shift-enter f4");
-        cx.simulate_keystrokes("up up enter escape");
+        cx.simulate_keystrokes("up enter escape");
         let id = "npm:server".to_owned();
         assert_eq!(
             *events.borrow(),

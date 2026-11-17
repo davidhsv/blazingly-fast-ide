@@ -54,8 +54,8 @@ use crate::vcs_ops::operations::{InProgress, in_progress};
 use crate::vcs_ops::ops::vcs_notice;
 use crate::vcs_ops::patches::{PatchOrigin, suggested_patch_name};
 use crate::vcs_ops::rebase_plan::{
-    RebaseRange, head_pushed, initial_rows, rebase_range, single_commit_plan, squash_plan, to_entries,
-    undo_commit_problem,
+    RebaseRange, head_pushed, initial_rows, protected_branch_problem, rebase_range, single_commit_plan, squash_plan,
+    to_entries, undo_commit_problem,
 };
 use crate::vcs_ops::remote_ui::is_protected_branch;
 use crate::workbench::notifications::{NotificationAction, NotificationLevel};
@@ -67,7 +67,7 @@ use gpui_kit::{
 use ide_core::IdeError;
 use ide_host::Host;
 use ide_host::ops::vcs::{self as git, GitOperation, PatchSource};
-use ide_vcs::{ChangeKind, ChangedFile, Commit, LogQuery, RebaseAction, RebaseEntry};
+use ide_vcs::{BranchInfo, ChangeKind, ChangedFile, Commit, LogQuery, RebaseAction, RebaseEntry};
 use ide_workspace::settings::SettingsScope;
 use serde_json::{Value, json};
 use std::collections::{BTreeSet, HashSet};
@@ -632,8 +632,53 @@ async fn compare(this: This, cx: &mut AsyncWindowContext, older: Commit, newer: 
     }
 }
 
+/// Why pushed history of `branch` cannot be rewritten: it is one of Settings › Git › Protected
+/// branches and tracks an upstream (a force push is not allowed there).
+fn protected_problem(
+    this: &This,
+    cx: &mut AsyncWindowContext,
+    branch: Option<&BranchInfo>,
+) -> anyhow::Result<Option<String>> {
+    let patterns =
+        this.update(cx, |workbench, cx| settings::effective(&workbench.label, cx).vcs.git.protected_branches)?;
+    let (head, upstream) = (branch.and_then(|b| b.head.as_deref()), branch.and_then(|b| b.upstream.as_deref()));
+    Ok(protected_branch_problem(head, upstream, |name| is_protected_branch(name, &patterns)))
+}
+
+/// Whether rewriting `range` (its oldest commit up to HEAD) touches history already pushed to the
+/// branch's upstream. Every common ancestor of HEAD and the upstream is an ancestor of their merge
+/// base, so the range is pushed when its oldest commit is at or below that merge base. What cannot be
+/// read counts as not pushed.
+async fn range_touches_upstream(
+    this: &This,
+    cx: &mut AsyncWindowContext,
+    branch: Option<&BranchInfo>,
+    range: &RebaseRange,
+    repo: Option<&str>,
+) -> anyhow::Result<bool> {
+    let Some(upstream) = branch.and_then(|branch| branch.upstream.clone()).filter(|upstream| !upstream.is_empty())
+    else {
+        return Ok(false);
+    };
+    if head_pushed(branch) {
+        return Ok(true);
+    }
+    let Some(oldest) = range.commits.first().map(|commit| commit.id.clone()) else { return Ok(false) };
+    let path = repo_path(repo);
+    let below = call(this, cx, move |host, label| async move {
+        let Some(base) = git::vcs_merge_base(&host, &label, path.clone(), "HEAD".to_owned(), upstream).await? else {
+            return Ok(None);
+        };
+        let query = LogQuery { range: Some(format!("{base}..{oldest}")), limit: 1, ..LogQuery::default() };
+        git::vcs_log(&host, &label, path, query).await.map(Some)
+    })
+    .await?;
+    Ok(matches!(below, Ok(Some(commits)) if commits.is_empty()))
+}
+
 /// The commits from `target` to HEAD, when they can be rewritten; otherwise what stands in the way
-/// is reported and `None` comes back. A pushed HEAD asks first.
+/// is reported and `None` comes back. A range that reaches the upstream is refused on a protected
+/// branch and asks first elsewhere.
 async fn range_from(
     this: &This,
     cx: &mut AsyncWindowContext,
@@ -662,7 +707,12 @@ async fn range_from(
             return Ok(None);
         }
     };
-    if head_pushed(branch.as_ref()) {
+    if range_touches_upstream(this, cx, branch.as_ref(), &range, repo.as_deref()).await? {
+        // Protected branches refuse only rewrites of history that is already pushed.
+        if let Some(problem) = protected_problem(this, cx, branch.as_ref())? {
+            refuse(this, cx, format!("Cannot {verb}"), problem).await?;
+            return Ok(None);
+        }
         let title = capitalized(verb);
         let upstream = branch.as_ref().and_then(|branch| branch.upstream.as_deref());
         let request = ConfirmRequest::danger(&title, pushed_warning(upstream, &title), "Continue");
@@ -696,7 +746,13 @@ async fn range_for(
 async fn undo_commit(this: This, cx: &mut AsyncWindowContext, commit: Commit) -> anyhow::Result<()> {
     refresh(&this, cx).await?;
     let (repo, branch) = vcs_state(&this, cx, |state| (state.repo.clone(), state.branch.clone()))?;
-    if let Some(problem) = undo_commit_problem(&commit, branch.as_ref()) {
+    // Protected branches refuse only rewrites of history that is already pushed.
+    let problem = match undo_commit_problem(&commit, branch.as_ref()) {
+        Some(problem) => Some(problem),
+        None if head_pushed(branch.as_ref()) => protected_problem(&this, cx, branch.as_ref())?,
+        None => None,
+    };
+    if let Some(problem) = problem {
         return refuse(&this, cx, "Cannot undo commit".to_owned(), problem).await;
     }
     if head_pushed(branch.as_ref()) {
@@ -2550,23 +2606,81 @@ mod tests {
         disabled.unwrap_or_else(|| panic!("{label} is a row of the menu"))
     }
 
-    /// A commit already on the branch's upstream (a local bare repository) has the history rewriting
-    /// rows of its menu disabled, and Push All up to Here… too; a commit made since keeps them.
-    #[gpui_kit::test]
-    async fn the_commit_menu_disables_history_rewriting_for_a_pushed_commit(cx: &mut TestAppContext) {
+    /// A local bare repository `origin.git` in a temporary folder, and the project's repository: `main`
+    /// holds "first"; on `branch` (which may be `main`) "two" and "three" are pushed to `origin` and
+    /// "four" is a local commit made since.
+    fn pushed_project<'a>(
+        cx: &'a mut TestAppContext,
+        branch: &'static str,
+    ) -> (Entity<Workbench>, &'a mut VisualTestContext, [tempfile::TempDir; 3], PathBuf) {
         let remote = tempfile::tempdir().expect("a temporary folder");
         let parent = remote.path().canonicalize().expect("the folder exists");
-        let bare = parent.join("origin.git");
-        let bare_path = bare.to_string_lossy().into_owned();
+        let bare_path = parent.join("origin.git").to_string_lossy().into_owned();
         git_in(&parent, &["init", "-q", "--bare", "-b", "main", &bare_path]);
-        let (workbench, cx, _folders, _root) = git_project(cx, |root| {
+        let (workbench, cx, [home, folder], root) = git_project(cx, |root| {
             init_repo(root);
-            commit_file(root, "b.txt", "b\n", "pushed");
+            if branch != "main" {
+                git_in(root, &["checkout", "-q", "-b", branch]);
+            }
+            commit_file(root, "b.txt", "b\n", "two");
+            commit_file(root, "c.txt", "c\n", "three");
             git_in(root, &["remote", "add", "origin", &bare_path]);
-            git_in(root, &["push", "-q", "-u", "origin", "main"]);
-            commit_file(root, "c.txt", "c\n", "local");
+            git_in(root, &["push", "-q", "-u", "origin", branch]);
+            commit_file(root, "d.txt", "d\n", "four");
         });
-        let log = show_log(&workbench, 3, cx);
+        (workbench, cx, [home, folder, remote], root)
+    }
+
+    /// The ids of the branch's commits, newest first.
+    fn history(root: &Path) -> Vec<String> {
+        git_in(root, &["log", "--format=%H"]).lines().map(str::to_owned).collect()
+    }
+
+    /// Closes the open prompt dialog with Escape, waits until it is gone, and checks that the action asks
+    /// nothing more: no other prompt and no commit message dialog follows.
+    fn dismiss_prompt(workbench: &Entity<Workbench>, cx: &mut VisualTestContext) {
+        cx.simulate_keystrokes("escape");
+        wait_long(cx, "the dialog closes", |cx| workbench.read_with(cx, |w, _| w.vcs_prompt().is_none()));
+        cx.run_until_parked();
+        let asks = workbench.read_with(cx, |w, _| {
+            w.vcs_prompt().is_some()
+                || w.vcs_dialog_view::<MessageDialog>().is_some()
+                || w.vcs_dialog_view::<InteractiveRebaseDialog>().is_some()
+        });
+        assert!(!asks, "nothing more is asked");
+    }
+
+    /// The history rewriting actions on commits of `three` (pushed) and `four` (local): each action
+    /// with its argument and the verb its dialogs are titled with.
+    fn rewriting_actions(three: &str, four: &str) -> Vec<(&'static str, Value, &'static str)> {
+        vec![
+            ("vcs.log.editMessage", json!(three), "edit commit message"),
+            ("vcs.log.dropCommit", json!(three), "drop commit"),
+            ("vcs.log.dropCommit", json!([four, three]), "drop commits"),
+            ("vcs.log.squashCommits", json!([four, three]), "squash commits"),
+            ("vcs.log.interactiveRebase", json!(three), "rebase"),
+        ]
+    }
+
+    /// Makes a `fixup!` commit for `target` from a change to a.txt and starts Commit and Rebase.
+    fn commit_and_rebase_fixup(workbench: &Entity<Workbench>, root: &Path, target: &str, cx: &mut VisualTestContext) {
+        std::fs::write(root.join("a.txt"), "fixed\n").expect("the file is written");
+        wait_long(cx, "the change is read", |cx| {
+            workbench.read_with(cx, |w, _| w.vcs_state().is_some_and(|state| state.status.len() == 1))
+        });
+        run_action(cx, "vcs.log.fixup", Some(json!(target)));
+        let commit_box = workbench.read_with(cx, |w, _| w.commit_box().cloned()).expect("the commit box");
+        wait_long(cx, "the box counts the change", |cx| commit_box.read_with(cx, |b, _| b.input().included == 1));
+        commit_box.update(cx, |commit_box, cx| commit_box.commit(false, true, cx));
+    }
+
+    /// A commit already on the branch's upstream (a local bare repository) keeps the history rewriting
+    /// rows of its menu enabled, as a commit made since does; Push All up to Here… alone is disabled
+    /// for it.
+    #[gpui_kit::test]
+    async fn the_commit_menu_offers_history_rewriting_for_a_pushed_commit_too(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, _root) = pushed_project(cx, "feature");
+        let log = show_log(&workbench, 4, cx);
         let rewriting =
             ["Edit Commit Message…", "Fixup…", "Squash Into…", "Drop Commit", "Interactively Rebase from Here…"];
 
@@ -2584,11 +2698,108 @@ mod tests {
         log.update(cx, |log, cx| log.select(1, cx));
         let menu = commit_menu_of(&workbench, cx);
         for row in rewriting {
-            assert!(row_disabled(&menu, row, cx), "{row} is disabled for a pushed commit");
+            assert!(!row_disabled(&menu, row, cx), "{row} is enabled for a pushed commit too");
         }
         assert!(row_disabled(&menu, "Push All up to Here…", cx), "it is on the upstream already");
         assert!(!row_disabled(&menu, "Reset Current Branch to Here…", cx), "a reset does not rewrite the upstream");
         cx.simulate_keystrokes("escape");
+    }
+
+    /// On `main`, a protected branch by default, every history rewriting action that reaches a pushed
+    /// commit is refused with an error dialog saying so, and no commit is rewritten; its local commit
+    /// can still be rewritten. Undo Commit of a pushed HEAD is refused the same way.
+    #[gpui_kit::test]
+    async fn refuses_every_rewrite_of_pushed_commits_of_a_protected_branch(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = pushed_project(cx, "main");
+        show_log(&workbench, 4, cx);
+        let refusal = "Pushed commits of the protected branch 'main' cannot be rewritten";
+        let (three, four) = (rev(&root, "HEAD~1"), rev(&root, "HEAD"));
+        let before = history(&root);
+        let refused = |verb: &str, cx: &mut VisualTestContext| {
+            let dialog = wait_for_prompt(&workbench, cx);
+            let shown = dialog.read_with(cx, |d, _| (d.title().to_owned(), d.message_text().map(str::to_owned)));
+            assert_eq!(shown, (format!("Cannot {verb}"), Some(refusal.to_owned())), "{verb}");
+            dismiss_prompt(&workbench, cx);
+        };
+        for (action, arg, verb) in rewriting_actions(&three, &four) {
+            run_action(cx, action, Some(arg));
+            refused(verb, cx);
+            assert_eq!(history(&root), before, "{action} rewrites nothing");
+        }
+
+        // Commit and Rebase after Fixup…: the fixup commit is made, the rebase into the pushed commit
+        // is refused and the pushed commits stay as they are.
+        commit_and_rebase_fixup(&workbench, &root, &three, cx);
+        refused("rebase", cx);
+        let after = history(&root);
+        assert_eq!(after[1..], before[..], "only the fixup commit is added");
+        assert_eq!(subjects_in(&root)[0], "fixup! three");
+
+        // A commit not pushed yet is not protected: its message can be edited.
+        let head = rev(&root, "HEAD");
+        run_action(cx, "vcs.log.editMessage", Some(json!(head)));
+        let dialog = wait_for_dialog::<MessageDialog>(&workbench, cx);
+        dialog.update(cx, |dialog, cx| dialog.press(crate::vcs::log_message_dialog::CANCEL, cx));
+        cx.run_until_parked();
+
+        // Undo Commit of a HEAD that is on the upstream.
+        git_in(&root, &["push", "-q", "origin", "main"]);
+        let pushed = history(&root);
+        run_action(cx, "vcs.log.undoCommit", Some(json!(head)));
+        refused("undo commit", cx);
+        assert_eq!(history(&root), pushed, "nothing is undone");
+    }
+
+    /// On a branch that is not protected, a rewrite that reaches a pushed commit asks first, saying the
+    /// commit is on the upstream; declining rewrites nothing, for every rewriting action and for Undo
+    /// Commit of a pushed HEAD, and Continue goes on with the rewrite.
+    #[gpui_kit::test]
+    async fn asks_before_rewriting_pushed_commits_and_rewrites_nothing_when_declined(cx: &mut TestAppContext) {
+        let (workbench, cx, _folders, root) = pushed_project(cx, "feature");
+        show_log(&workbench, 4, cx);
+        let (three, four) = (rev(&root, "HEAD~1"), rev(&root, "HEAD"));
+        let before = history(&root);
+        let asked = |title: &str, what: &str, cx: &mut VisualTestContext| {
+            let dialog = wait_for_prompt(&workbench, cx);
+            let shown = dialog.read_with(cx, |d, _| (d.title().to_owned(), d.message_text().map(str::to_owned)));
+            let warning = format!(
+                "The commit is already pushed to origin/feature. {what} rewrites published history; pushing afterwards \
+                 needs a force push."
+            );
+            assert_eq!(shown, (title.to_owned(), Some(warning)), "{title}");
+            dialog
+        };
+        for (action, arg, verb) in rewriting_actions(&three, &four) {
+            run_action(cx, action, Some(arg));
+            let title = capitalized(verb);
+            asked(&title, &title, cx);
+            dismiss_prompt(&workbench, cx);
+            assert_eq!(history(&root), before, "a declined {action} rewrites nothing");
+        }
+
+        commit_and_rebase_fixup(&workbench, &root, &three, cx);
+        asked("Rebase", "Rebase", cx);
+        dismiss_prompt(&workbench, cx);
+        let fixed = history(&root);
+        assert_eq!(fixed[1..], before[..], "the declined rebase leaves the fixup commit on top");
+
+        // Continue goes on: the pushed commit's message is edited.
+        run_action(cx, "vcs.log.editMessage", Some(json!(three)));
+        asked("Edit commit message", "Edit commit message", cx);
+        cx.simulate_keystrokes("enter");
+        let dialog = wait_for_dialog::<MessageDialog>(&workbench, cx);
+        answer_message(&dialog, "three reworded", cx);
+        wait_for_notice(&workbench, &format!("Commit message of {} changed", short(&three)), cx);
+        assert_eq!(subjects_in(&root), ["fixup! three", "four", "three reworded", "two", "first"]);
+
+        // Undo Commit of a HEAD that is on the upstream asks too.
+        git_in(&root, &["push", "-q", "-f", "origin", "feature"]);
+        let pushed = history(&root);
+        let head = rev(&root, "HEAD");
+        run_action(cx, "vcs.log.undoCommit", Some(json!(head)));
+        asked("Undo Commit", "Undoing it", cx);
+        dismiss_prompt(&workbench, cx);
+        assert_eq!(history(&root), pushed, "nothing is undone");
     }
 
     /// Create Patch… of two commits suggests a file in the project's root named after them, writes

@@ -6,6 +6,7 @@
 use ide_core::settings::{DeploymentServer, DeploymentSettings, DeploymentType, RunTarget, RunTargetKind};
 use ide_core::settings::{SshConfiguration, SshSettings};
 use ide_ssh::FsConnection;
+use serde_json::Value;
 use std::collections::HashSet;
 
 /// Something features refer to by id.
@@ -58,6 +59,25 @@ pub fn normalized_ssh(ssh: &SshSettings) -> SshSettings {
         .map(|config| SshConfiguration { port: config.port.filter(|port| *port > 0), ..config })
         .collect();
     SshSettings { configs }
+}
+
+/// The server types deployment knows; any other, or none, reads as SFTP.
+const DEPLOYMENT_TYPES: [&str; 4] = ["sftp", "ftp", "ftps", "local"];
+
+/// The stored deployment servers: a type deployment does not know (or none) reads as SFTP, and a
+/// server that still cannot be read is left out, as is a value that is not a list.
+pub fn read_deployment_servers(stored: Option<Value>) -> Vec<DeploymentServer> {
+    let Some(Value::Array(servers)) = stored else { return Vec::new() };
+    servers
+        .into_iter()
+        .filter_map(|mut server| {
+            let object = server.as_object_mut()?;
+            if !object.get("kind").and_then(Value::as_str).is_some_and(|kind| DEPLOYMENT_TYPES.contains(&kind)) {
+                object.insert("kind".to_owned(), Value::from("sftp"));
+            }
+            serde_json::from_value(server).ok()
+        })
+        .collect()
 }
 
 /// The deployment settings with every server under an id of its own.
@@ -156,12 +176,17 @@ mod tests {
     // deployment types › normalizes unsupported types to SFTP
     #[test]
     fn normalizes_unsupported_types_to_sftp() {
-        assert_eq!(deployment(json!({ "servers": [{}] })).servers[0].kind, DeploymentType::Sftp);
-        // A type the backend does not know is refused where the settings are stored.
+        assert_eq!(read_deployment_servers(Some(json!([{}])))[0].kind, DeploymentType::Sftp);
         for kind in [json!("webdav"), json!("inPlace"), Value::Null] {
-            let raw = json!({ "servers": [{ "kind": kind }] });
-            assert!(serde_json::from_value::<DeploymentSettings>(raw).is_err(), "{kind}");
+            let servers = read_deployment_servers(Some(json!([{ "kind": kind, "id": "s1" }])));
+            let read: Vec<(&str, DeploymentType)> = servers.iter().map(|s| (s.id.as_str(), s.kind)).collect();
+            assert_eq!(read, [("s1", DeploymentType::Sftp)], "{kind}");
         }
+        // FTP and FTPS are types of their own.
+        for (kind, expected) in [("ftp", DeploymentType::Ftp), ("ftps", DeploymentType::Ftps)] {
+            assert_eq!(read_deployment_servers(Some(json!([{ "kind": kind }])))[0].kind, expected);
+        }
+        assert!(read_deployment_servers(Some(json!({ "kind": "sftp" }))).is_empty());
     }
 
     // Not from a spec: ids are made unique in order, SSH ports of 0 mean the default port, and

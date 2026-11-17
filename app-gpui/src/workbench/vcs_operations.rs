@@ -948,7 +948,7 @@ impl Workbench {
             };
             let changed: Option<Vec<String>> =
                 written.map(|files| files.into_iter().map(|file| file.0.to_string_lossy().into_owned()).collect());
-            let outcome = ignore_written(destination, changed.as_deref());
+            let outcome = ignore_written(changed.as_deref());
             finished(this.update_in(cx, |workbench, window, cx| {
                 // The tree draws what is ignored, and a rule file outside the project (or a write that failed
                 // half-way) brings no change of the project's folders: it is read again either way.

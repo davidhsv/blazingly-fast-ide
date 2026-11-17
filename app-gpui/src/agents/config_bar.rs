@@ -4,7 +4,7 @@
 //! model (and its effort) is also in the compact Agent settings popup. Names and descriptions are the
 //! agent's own; a choice is sent as `(option id, value)`.
 
-use crate::agents::composer::{main_options, mode_icon};
+use crate::agents::composer::{is_model_config, main_options, mode_icon};
 use crate::agents::config_pickers::{PickerEntry, config_picker_options, switch_values};
 use crate::platform::i18n::I18n;
 use crate::ui::matching::fuzzy_match;
@@ -60,7 +60,11 @@ pub struct ConfigBar<'a> {
 }
 
 pub fn config_bar(config: &[AgentConfigOption]) -> ConfigBar<'_> {
-    let options = main_options(config);
+    let mut options = main_options(config);
+    // The model's own parameters (Fast, a context tier) belong to the model's popup, not the row.
+    if options.iter().any(|o| category(o) == "model") {
+        options.retain(|o| !is_model_config(o));
+    }
     let model = options.iter().copied().find(|o| category(o) == "model");
     let effort = model.and(options.iter().copied().find(|o| category(o) == "thought_level" && !o.values.is_empty()));
     let mode = options.iter().copied().find(|o| category(o) == "mode");

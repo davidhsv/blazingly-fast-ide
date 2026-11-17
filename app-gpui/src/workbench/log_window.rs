@@ -199,6 +199,7 @@ impl Workbench {
             repositories: vcs.map_or_else(Vec::new, |vcs| vcs.roots.clone()),
             users: users.to_vec(),
             root: vcs.and_then(|vcs| vcs.root.clone()),
+            favorites: self.vcs_tags_and_favorites().1,
             branches_hidden: !log.options().show_branches,
             recent: Default::default(),
             bookmarks: Vec::new(),

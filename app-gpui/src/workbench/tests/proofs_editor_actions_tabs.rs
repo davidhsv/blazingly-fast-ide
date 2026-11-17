@@ -140,7 +140,8 @@ async fn reload_with_encoding_reads_the_file_again_in_the_chosen_encoding(cx: &m
         cx.simulate_keystrokes("down");
     }
     cx.simulate_keystrokes("enter");
-    cx.run_until_parked();
+    // The file is read again on the backend's runtime, which the window's executor does not wait for.
+    settle(cx, |cx| items(cx)[2] == "windows-1252" && editor.read_with(cx, |e, _| e.text()) != "café\n");
 
     // The two UTF-8 bytes of "é" read as windows-1252 are "Ã©".
     assert_eq!(editor.read_with(cx, |e, _| e.text()), "cafÃ©\n");

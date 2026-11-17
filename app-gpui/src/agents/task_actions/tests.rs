@@ -199,10 +199,11 @@ fn keeps_placement_out_of_session_menus() {
             .collect();
         let cwd = "/project".to_owned();
         let id = || "one".to_owned();
+        // A click opens the task: the menu does not repeat it, and Rename comes first
+        // (src/features/agents/AgentsView.test.tsx, "keeps placement out of session menus").
         assert_eq!(
             commands,
             [
-                &TaskCommand::Open(id()),
                 &TaskCommand::Rename(id()),
                 &TaskCommand::OpenInTerminal(cwd),
                 &TaskCommand::Archive(vec![id()]),

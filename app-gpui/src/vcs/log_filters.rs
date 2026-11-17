@@ -8,13 +8,14 @@
 //! The bar reads the shown log's [`LogFilters`] and reports every change as the filters to set;
 //! the window applies them to the log store and reloads the log.
 
+use crate::platform::collate;
 use crate::platform::i18n::Localization;
 use crate::platform::input;
 use crate::platform::local_time::now_ms;
 use crate::theme;
 use crate::ui::matching::{fuzzy_match, index_runs};
 use crate::ui::text_field::{TextField, TextFieldEvent};
-use crate::vcs::branches::{Branch, sort_local, sort_remote};
+use crate::vcs::branches::{Branch, is_favorite_branch, sort_local, sort_remote};
 use crate::vcs::changes::{base_name, rel_to};
 use crate::vcs_ops::log_store::{LogDateFilter, LogFilters, LogFiltersPatch, ME, toggle_repository};
 use gpui_kit::{
@@ -52,6 +53,8 @@ pub struct LogFilterInput {
     pub filters: LogFilters,
     /// The branches of the log's repositories, each name once.
     pub branches: Vec<Branch>,
+    /// The user's favorite branches; `None` while the defaults (main / master) apply.
+    pub favorites: Option<Vec<String>>,
     /// The repositories the log reads; with more than one the Repository filter shows.
     pub repositories: Vec<String>,
     /// The users of the repositories (`vcs_log_users`) and the authors of the loaded commits, as
@@ -151,10 +154,32 @@ struct FilterRow {
     choice: Option<Choice>,
 }
 
+/// A collapsible group of the branch chooser.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BranchGroup {
+    Local,
+    Remote,
+}
+
+impl BranchGroup {
+    fn index(self) -> usize {
+        match self {
+            Self::Local => 0,
+            Self::Remote => 1,
+        }
+    }
+}
+
 /// A row of the branch chooser.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BranchFilterRow {
     Section(String),
+    /// Local or Remote, opened and closed in place.
+    Group {
+        group: BranchGroup,
+        label: String,
+        expanded: bool,
+    },
     Ref {
         /// What the filter is set to.
         value: String,
@@ -165,25 +190,71 @@ pub enum BranchFilterRow {
     },
 }
 
-/// HEAD, then the Local and Remote groups, matching `query`; a group without a match is left out,
-/// and so is a remote's HEAD.
+impl BranchFilterRow {
+    /// Whether the keyboard can be on the row: a section header is skipped.
+    fn selectable(&self) -> bool {
+        !matches!(self, Self::Section(_))
+    }
+}
+
+/// The titles of the branch chooser's parts.
+#[derive(Debug, Clone, Copy)]
+pub struct BranchFilterLabels<'a> {
+    pub head: &'a str,
+    pub favorites: &'a str,
+    pub local: &'a str,
+    pub remote: &'a str,
+}
+
+/// IDEA's branch filter: HEAD, the favorite branches (★) by name under Favorites, then Local and
+/// Remote collapsed like its submenus (`expanded` says which are open; inside, the current branch,
+/// then the favorites, then the rest). A query lists every match under Local and Remote instead; a
+/// group without a match is left out, and so is a remote's HEAD.
 pub fn branch_filter_rows(
     branches: &[Branch],
+    favorites: Option<&[String]>,
     query: &str,
-    head_label: &str,
-    groups: [&str; 2],
+    labels: BranchFilterLabels<'_>,
+    expanded: [bool; 2],
 ) -> Vec<BranchFilterRow> {
     let query = query.trim();
     let row = |value: &str, label: &str, current: bool| {
         let matches = if query.is_empty() { None } else { Some(fuzzy_match(label, query)?) };
         Some(BranchFilterRow::Ref { value: value.to_owned(), label: label.to_owned(), current, matches })
     };
-    let mut rows: Vec<BranchFilterRow> = row("HEAD", head_label, false).into_iter().collect();
-    for (title, list) in [(groups[0], sort_local(branches, None)), (groups[1], sort_remote(branches, None))] {
-        let found: Vec<BranchFilterRow> = list.iter().filter_map(|b| row(&b.name, &b.name, b.current)).collect();
-        if !found.is_empty() {
-            rows.push(BranchFilterRow::Section(title.to_owned()));
-            rows.extend(found);
+    let mut rows: Vec<BranchFilterRow> = row("HEAD", labels.head, false).into_iter().collect();
+    let lists = [
+        (BranchGroup::Local, labels.local, sort_local(branches, favorites)),
+        (BranchGroup::Remote, labels.remote, sort_remote(branches, favorites)),
+    ];
+    if !query.is_empty() {
+        for (_, title, list) in &lists {
+            let found: Vec<BranchFilterRow> = list.iter().filter_map(|b| row(&b.name, &b.name, b.current)).collect();
+            if !found.is_empty() {
+                rows.push(BranchFilterRow::Section((*title).to_owned()));
+                rows.extend(found);
+            }
+        }
+        return rows;
+    }
+    let mut favorite: Vec<&Branch> = lists
+        .iter()
+        .flat_map(|(_, _, list)| list.iter().copied())
+        .filter(|b| is_favorite_branch(&b.name, b.remote, favorites))
+        .collect();
+    favorite.sort_by(|a, b| collate::compare(&a.name, &b.name));
+    if !favorite.is_empty() {
+        rows.push(BranchFilterRow::Section(labels.favorites.to_owned()));
+        rows.extend(favorite.iter().filter_map(|b| row(&b.name, &b.name, b.current)));
+    }
+    for (group, title, list) in lists {
+        if list.is_empty() {
+            continue;
+        }
+        let open = expanded[group.index()];
+        rows.push(BranchFilterRow::Group { group, label: title.to_owned(), expanded: open });
+        if open {
+            rows.extend(list.iter().filter_map(|b| row(&b.name, &b.name, b.current)));
         }
     }
     rows
@@ -192,8 +263,8 @@ pub fn branch_filter_rows(
 /// The open popup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Popup {
-    /// The branch chooser, with the ref row the keyboard is on.
-    Branches { active: Option<usize> },
+    /// The branch chooser, with the row the keyboard is on and which of Local and Remote are open.
+    Branches { active: Option<usize>, expanded: [bool; 2] },
     /// A filter's list, with the row the keyboard is on.
     List { kind: FilterKind, active: Option<usize> },
 }
@@ -234,7 +305,11 @@ impl LogFilterBar {
             }),
             cx.subscribe_in(&branch_search, window, |bar: &mut Self, _, event: &TextFieldEvent, window, cx| {
                 match event {
-                    TextFieldEvent::Changed => bar.popup = Some(Popup::Branches { active: None }),
+                    TextFieldEvent::Changed => {
+                        if let Some(Popup::Branches { active, .. }) = bar.popup.as_mut() {
+                            *active = None;
+                        }
+                    }
                     TextFieldEvent::Submitted => bar.choose_branch(None, window, cx),
                     TextFieldEvent::Cancelled => bar.close(window, cx),
                 }
@@ -412,7 +487,7 @@ impl LogFilterBar {
         }
         if kind == FilterKind::Branch {
             self.branch_search.update(cx, |field, cx| field.set_text("", cx));
-            self.popup = Some(Popup::Branches { active: None });
+            self.popup = Some(Popup::Branches { active: None, expanded: [false; 2] });
             let focus = self.branch_search.focus_handle(cx);
             window.focus(&focus, cx);
         } else {
@@ -502,9 +577,21 @@ impl LogFilterBar {
 
     fn branch_rows(&self, cx: &mut App) -> Vec<BranchFilterRow> {
         let query = self.branch_search.read(cx).text().to_owned();
-        let head = tx(cx, "HEAD (Current Branch)");
-        let groups = [tx(cx, "Local"), tx(cx, "Remote")];
-        branch_filter_rows(&self.input.branches, &query, &head, [&groups[0], &groups[1]])
+        let expanded = match self.popup {
+            Some(Popup::Branches { expanded, .. }) => expanded,
+            _ => [false; 2],
+        };
+        let texts = ["HEAD (Current Branch)", "Favorites", "Local", "Remote"].map(|text| tx(cx, text));
+        let labels = BranchFilterLabels { head: &texts[0], favorites: &texts[1], local: &texts[2], remote: &texts[3] };
+        branch_filter_rows(&self.input.branches, self.input.favorites.as_deref(), &query, labels, expanded)
+    }
+
+    /// Opens or closes the group Local or Remote of the branch chooser.
+    fn set_group_open(&mut self, group: BranchGroup, open: bool, cx: &mut Context<Self>) {
+        if let Some(Popup::Branches { expanded, .. }) = self.popup.as_mut() {
+            expanded[group.index()] = open;
+            cx.notify();
+        }
     }
 
     /// The branch chooser's rows while it is open.
@@ -512,21 +599,32 @@ impl LogFilterBar {
         matches!(self.popup, Some(Popup::Branches { .. })).then(|| self.branch_rows(cx))
     }
 
-    /// The branch chooser's row the keyboard is on: the first ref when none was chosen.
+    /// The branch chooser's row the keyboard is on: the first that is not a header when none was
+    /// chosen.
     pub fn branch_active(&self, cx: &mut App) -> Option<usize> {
-        let Some(Popup::Branches { active }) = self.popup else { return None };
+        let Some(Popup::Branches { active, .. }) = self.popup else { return None };
         let rows = self.branch_rows(cx);
-        let is_ref = |at: usize| matches!(rows.get(at), Some(BranchFilterRow::Ref { .. }));
-        active.filter(|at| is_ref(*at)).or_else(|| (0..rows.len()).find(|at| is_ref(*at)))
+        let selectable = |at: usize| rows.get(at).is_some_and(BranchFilterRow::selectable);
+        active.filter(|at| selectable(*at)).or_else(|| (0..rows.len()).find(|at| selectable(*at)))
     }
 
-    /// Chooses the branch chooser's row `index` (`None`: the row the keyboard is on).
+    /// Chooses the branch chooser's row `index` (`None`: the row the keyboard is on): a branch sets
+    /// the filter, Local or Remote opens or closes.
     pub fn choose_branch(&mut self, index: Option<usize>, window: &mut Window, cx: &mut Context<Self>) {
         let rows = self.branch_rows(cx);
         let Some(at) = index.or_else(|| self.branch_active(cx)) else { return };
-        if let Some(BranchFilterRow::Ref { value, .. }) = rows.get(at) {
-            cx.emit(LogFilterEvent::SetBranches(vec![value.clone()]));
-            self.close(window, cx);
+        match rows.get(at) {
+            Some(BranchFilterRow::Ref { value, .. }) => {
+                cx.emit(LogFilterEvent::SetBranches(vec![value.clone()]));
+                self.close(window, cx);
+            }
+            Some(BranchFilterRow::Group { group, expanded, .. }) => {
+                if let Some(Popup::Branches { active, .. }) = self.popup.as_mut() {
+                    *active = Some(at);
+                }
+                self.set_group_open(*group, !expanded, cx);
+            }
+            Some(BranchFilterRow::Section(_)) | None => {}
         }
     }
 
@@ -546,8 +644,9 @@ impl LogFilterBar {
         }
     }
 
-    /// Up and Down move over the refs (skipping the section headers, wrapping around), Enter
-    /// chooses, Escape closes; the rest is the search field's.
+    /// Up and Down move over the rows (skipping the section headers, wrapping around), Right and Left
+    /// open and close the group the keyboard is on, Enter chooses, Escape closes; the rest is the
+    /// search field's.
     fn claim_branch_key(&mut self, keystroke: &Keystroke, window: &mut Window, cx: &mut Context<Self>) -> bool {
         let key = keystroke.key.as_str();
         if !matches!(self.popup, Some(Popup::Branches { .. })) || keystroke.modifiers.modified() {
@@ -556,8 +655,7 @@ impl LogFilterBar {
         match key {
             "up" | "down" => {
                 let rows = self.branch_rows(cx);
-                let refs: Vec<usize> =
-                    (0..rows.len()).filter(|at| matches!(rows[*at], BranchFilterRow::Ref { .. })).collect();
+                let refs: Vec<usize> = (0..rows.len()).filter(|at| rows[*at].selectable()).collect();
                 if refs.is_empty() {
                     return true;
                 }
@@ -568,8 +666,18 @@ impl LogFilterBar {
                     ("down", None) => 0,
                     _ => refs.len() - 1,
                 };
-                self.popup = Some(Popup::Branches { active: Some(refs[next]) });
+                if let Some(Popup::Branches { active, .. }) = self.popup.as_mut() {
+                    *active = Some(refs[next]);
+                }
                 cx.notify();
+            }
+            "right" | "left" => {
+                let rows = self.branch_rows(cx);
+                let Some(BranchFilterRow::Group { group, .. }) = self.branch_active(cx).and_then(|at| rows.get(at))
+                else {
+                    return false;
+                };
+                self.set_group_open(*group, key == "right", cx);
             }
             "enter" => self.choose_branch(None, window, cx),
             "escape" => self.close(window, cx),
@@ -755,6 +863,24 @@ impl LogFilterBar {
                     .px(px(8.0))
                     .text_color(muted)
                     .child(SharedString::from(label))
+                    .into_any_element(),
+                BranchFilterRow::Group { label, expanded, .. } => div()
+                    .id(("log-filter-branch", index))
+                    .debug_selector(move || format!("log-filter-branch-{index}"))
+                    .h(theme::length(cx, "h-row"))
+                    .flex()
+                    .items_center()
+                    .gap(px(6.0))
+                    .px(px(8.0))
+                    .rounded(px(4.0))
+                    .text_color(fg)
+                    .when(active == Some(index), |el| el.bg(selected_bg))
+                    .when(active != Some(index), |el| el.hover(|el| el.bg(hover_bg)))
+                    .child(theme::icon(cx, if expanded { "chevron-down" } else { "chevron-right" }, 14.0, muted))
+                    .child(SharedString::from(label))
+                    .on_click(cx.listener(move |bar, _: &ClickEvent, window, cx| {
+                        bar.choose_branch(Some(index), window, cx);
+                    }))
                     .into_any_element(),
                 BranchFilterRow::Ref { value, label, current, matches } => {
                     let runs = matches.as_deref().map(|matches| index_runs(&label, matches)).unwrap_or_default();
@@ -1001,7 +1127,9 @@ mod tests {
         let rows = bar.update(cx, |bar, cx| bar.branch_lines(cx)).expect("the chooser is open");
         rows.into_iter()
             .map(|row| match row {
-                BranchFilterRow::Section(label) | BranchFilterRow::Ref { label, .. } => label,
+                BranchFilterRow::Section(label)
+                | BranchFilterRow::Group { label, .. }
+                | BranchFilterRow::Ref { label, .. } => label,
             })
             .collect()
     }
@@ -1021,15 +1149,69 @@ mod tests {
             .collect()
     }
 
-    // src/features/vcs/__tests__/branchFilterPopup.test.tsx › branch filter popup › groups HEAD, local and remote branches and leaves out the remote HEAD
+    /// The row of the branch chooser labelled `label`, as a selector.
+    fn branch_row(bar: &Entity<LogFilterBar>, label: &str, cx: &mut VisualTestContext) -> &'static str {
+        const ROWS: [&str; 8] = [
+            "log-filter-branch-0",
+            "log-filter-branch-1",
+            "log-filter-branch-2",
+            "log-filter-branch-3",
+            "log-filter-branch-4",
+            "log-filter-branch-5",
+            "log-filter-branch-6",
+            "log-filter-branch-7",
+        ];
+        let at = labels(bar, cx).iter().position(|shown| shown == label).unwrap_or_else(|| panic!("{label} is a row"));
+        ROWS[at]
+    }
+
+    fn group_open(bar: &Entity<LogFilterBar>, wanted: BranchGroup, cx: &mut VisualTestContext) -> bool {
+        let rows = bar.update(cx, |bar, cx| bar.branch_lines(cx)).expect("the chooser is open");
+        rows.iter().any(|row| matches!(row, BranchFilterRow::Group { group, expanded: true, .. } if *group == wanted))
+    }
+
+    // src/features/vcs/__tests__/branchFilterPopup.test.tsx › branch filter popup › lists HEAD and the favorites, with Local and Remote collapsed until opened; no remote HEAD
     #[gpui_kit::test]
-    async fn groups_head_local_and_remote_branches_and_leaves_out_the_remote_head(cx: &mut TestAppContext) {
+    async fn lists_head_and_the_favorites_with_local_and_remote_collapsed_until_opened_no_remote_head(
+        cx: &mut TestAppContext,
+    ) {
         let (bar, _, cx) = open(cx, input());
         click(cx, "log-filter-chip-branch");
+        // `main` is a favorite by default.
+        assert_eq!(labels(&bar, cx), ["HEAD (Current Branch)", "Favorites", "main", "Local", "Remote"]);
+        let remote = branch_row(&bar, "Remote", cx);
+        click(cx, remote);
+        assert!(group_open(&bar, BranchGroup::Remote, cx));
+        let shown = labels(&bar, cx);
+        assert!(shown.contains(&"origin/develop".to_owned()), "{shown:?}");
+        assert!(!shown.contains(&"origin/HEAD".to_owned()), "{shown:?}");
+    }
+
+    // src/features/vcs/__tests__/branchFilterPopup.test.tsx › branch filter popup › shows the user's favorite branches, local and remote, under Favorites by name
+    #[gpui_kit::test]
+    async fn shows_the_users_favorite_branches_local_and_remote_under_favorites_by_name(cx: &mut TestAppContext) {
+        let favorites = Some(vec!["origin/develop".to_owned(), "feature/demo".to_owned()]);
+        let (bar, _, cx) = open(cx, LogFilterInput { favorites, ..input() });
+        click(cx, "log-filter-chip-branch");
+        let collapsed = ["HEAD (Current Branch)", "Favorites", "feature/demo", "origin/develop", "Local", "Remote"];
+        assert_eq!(labels(&bar, cx), collapsed);
+        // Right opens a group on the keyboard, Left closes it. Inside, the current branch, then favorites.
+        cx.simulate_keystrokes("down down down right");
         assert_eq!(
             labels(&bar, cx),
-            ["HEAD (Current Branch)", "Local", "main", "feature/demo", "Remote", "origin/develop"]
+            [
+                "HEAD (Current Branch)",
+                "Favorites",
+                "feature/demo",
+                "origin/develop",
+                "Local",
+                "main",
+                "feature/demo",
+                "Remote"
+            ]
         );
+        cx.simulate_keystrokes("left");
+        assert_eq!(labels(&bar, cx), collapsed);
     }
 
     // src/features/vcs/__tests__/branchFilterPopup.test.tsx › branch filter popup › searches case-insensitively and hides groups without a match
@@ -1050,7 +1232,7 @@ mod tests {
         let (bar, events, cx) = open(cx, input());
         click(cx, "log-filter-chip-branch");
         assert_eq!(bar.update(cx, |bar, cx| bar.branch_active(cx)), Some(0));
-        // HEAD → (Local header skipped) → main
+        // HEAD → (Favorites header skipped) → main
         cx.simulate_keystrokes("down");
         assert_eq!(bar.update(cx, |bar, cx| bar.branch_active(cx)), Some(2));
         cx.simulate_keystrokes("enter");

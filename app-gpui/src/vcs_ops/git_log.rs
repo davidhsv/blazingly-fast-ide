@@ -80,14 +80,9 @@ pub fn commit_menu(
         ];
     }
     let CommitMenuContext { log, vcs, .. } = context;
-    // In a log of the selected repository alone, a commit is pushed when it is not among the
-    // outgoing ones; in a log of several, when its own repository says so.
-    let pushed = |commit: &RepoCommit| match commit.repo {
-        None => log.outgoing.as_ref().is_some_and(|outgoing| !outgoing.contains(&commit.commit.id)),
-        Some(_) => log.is_pushed(&commit.key()),
-    };
+    // History rewriting is offered for pushed commits too, as IDEA does: the run itself refuses it on
+    // a protected branch and asks first elsewhere.
     if selection.len() > 1 && selection.iter().any(|selected| selected.key() == key) {
-        let any_pushed = selection.iter().any(pushed);
         let all = |id: &'static str| Item::action_with(id, commits_arg(selection));
         let mut items = vec![
             all("vcs.log.copyRevision").labelled("Copy Revision Numbers"),
@@ -101,8 +96,8 @@ pub fn commit_menu(
             Item::Separator,
             all("vcs.log.revert").labelled("Revert Commits"),
             Item::Separator,
-            all("vcs.log.squashCommits").disabled(any_pushed),
-            all("vcs.log.dropCommit").labelled("Drop Commits").disabled(any_pushed),
+            all("vcs.log.squashCommits"),
+            all("vcs.log.dropCommit").labelled("Drop Commits"),
         ]);
         return items;
     }
@@ -112,7 +107,6 @@ pub fn commit_menu(
         None => vcs.branch.as_ref().and_then(|branch| branch.head.as_deref()),
     };
     let head = head.filter(|head| !head.is_empty());
-    let pushed_commit = pushed(commit);
     // Without an upstream there is no outgoing set: pushing up to any commit of HEAD is allowed.
     let tracked = match commit.repo {
         None => log.outgoing.is_some(),
@@ -152,11 +146,11 @@ pub fn commit_menu(
         act("vcs.log.revert", commit),
         act("vcs.log.undoCommit", commit),
         Item::Separator,
-        act("vcs.log.editMessage", commit).disabled(pushed_commit),
-        act("vcs.log.fixup", commit).disabled(pushed_commit),
-        act("vcs.log.squashInto", commit).disabled(pushed_commit),
-        act("vcs.log.dropCommit", commit).disabled(pushed_commit),
-        act("vcs.log.interactiveRebase", commit).disabled(pushed_commit),
+        act("vcs.log.editMessage", commit),
+        act("vcs.log.fixup", commit),
+        act("vcs.log.squashInto", commit),
+        act("vcs.log.dropCommit", commit),
+        act("vcs.log.interactiveRebase", commit),
         act("vcs.log.pushUpToHere", commit).disabled(!can_push_here),
         Item::Separator,
     ];
@@ -233,25 +227,32 @@ mod tests {
         assert!(items.iter().filter(|item| item.action_id().is_some()).all(|item| item.arg() == Some(&bound)));
     }
 
-    // src/features/vcs/__tests__/historyOps.test.ts › Git Log commit actions › disables history rewriting for pushed commits
+    // src/features/vcs/__tests__/historyOps.test.ts › Git Log commit actions › offers history rewriting for pushed commits too (IDEA allows it; the run confirms)
     #[test]
-    fn disables_history_rewriting_for_pushed_commits() {
+    fn offers_history_rewriting_for_pushed_commits_too_idea_allows_it_the_run_confirms() {
         let local = commit("Local", &"1".repeat(40));
         let pushed = commit("Pushed", &"2".repeat(40));
         let mut log = GitLog::default();
         log.outgoing.get_or_insert_with(HashSet::new).insert(local.commit.id.clone());
         let off = |commit: &RepoCommit| disabled(&menu(commit, std::slice::from_ref(commit), &log));
-        assert!(!off(&local).contains(&"vcs.log.editMessage"));
         let rewriting = [
             "vcs.log.editMessage",
             "vcs.log.fixup",
             "vcs.log.squashInto",
             "vcs.log.dropCommit",
             "vcs.log.interactiveRebase",
-            "vcs.log.pushUpToHere",
         ];
-        let off = off(&pushed);
-        assert!(rewriting.iter().all(|id| off.contains(id)), "{off:?}");
+        let rewriting_off = |commit: &RepoCommit| -> Vec<&'static str> {
+            off(commit).into_iter().filter(|id| rewriting.contains(id)).collect()
+        };
+        assert_eq!(rewriting_off(&local), [""; 0]);
+        assert_eq!(rewriting_off(&pushed), [""; 0]);
+        // Push All up to Here keeps its own rule: it cannot push past a pushed commit.
+        assert!(off(&pushed).contains(&"vcs.log.pushUpToHere"));
+        // Several selected commits, one of them pushed, keep Squash Commits and Drop Commits too.
+        let both = [local.clone(), pushed];
+        let several = disabled(&menu(&local, &both, &log));
+        assert!(!several.contains(&"vcs.log.squashCommits") && !several.contains(&"vcs.log.dropCommit"), "{several:?}");
     }
 
     // src/features/vcs/__tests__/historyOps.test.ts › Git Log commit actions › offers the multi-commit actions for a multiple selection

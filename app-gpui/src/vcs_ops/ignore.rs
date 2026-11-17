@@ -33,18 +33,17 @@ pub struct IgnoreOutcome {
     pub open: Option<String>,
 }
 
-/// What follows the write of `destination`. `changed`: the files it wrote rules to, `None` when it
+/// What follows an ignore write. `changed`: the files it wrote rules to, `None` when it
 /// failed (the failure is reported by the operation itself).
-pub fn ignore_written(destination: IgnoreDestination, changed: Option<&[String]>) -> IgnoreOutcome {
+pub fn ignore_written(changed: Option<&[String]>) -> IgnoreOutcome {
     match changed {
         // Existing rules already cover the selection (e.g. a `_*/` directory pattern).
         Some([]) => {
             IgnoreOutcome { notification: Some(vcs_notice(NotificationLevel::Info, "Already ignored")), open: None }
         }
-        // Show the rule where it was written: the nearest .gitignore may be a nested one.
-        Some([file, ..]) if matches!(destination, IgnoreDestination::Gitignore) && !file.is_empty() => {
-            IgnoreOutcome { notification: None, open: Some(file.clone()) }
-        }
+        // Show the rule where it was written: the nearest .gitignore may be a nested one, or the
+        // repository's local exclude file.
+        Some([file, ..]) if !file.is_empty() => IgnoreOutcome { notification: None, open: Some(file.clone()) },
         _ => IgnoreOutcome::default(),
     }
 }
@@ -85,7 +84,7 @@ mod tests {
     #[test]
     fn a_failed_write_is_still_followed_by_the_refresh_only() {
         assert!(ignore_write(&strings(&["/p/file"]), IgnoreDestination::Gitignore).is_some());
-        assert_eq!(ignore_written(IgnoreDestination::Gitignore, None), IgnoreOutcome::default());
+        assert_eq!(ignore_written(None), IgnoreOutcome::default());
     }
 
     // src/features/vcs/__tests__/ignore.test.ts › ignore action › ignores an empty selection
@@ -97,22 +96,23 @@ mod tests {
     // src/features/vcs/__tests__/ignore.test.ts › ignore action › opens the .gitignore the rules were written to, which may be a nested one
     #[test]
     fn opens_the_gitignore_the_rules_were_written_to_which_may_be_a_nested_one() {
-        let outcome = ignore_written(IgnoreDestination::Gitignore, Some(&strings(&["/p/pkg/.gitignore"])));
+        let outcome = ignore_written(Some(&strings(&["/p/pkg/.gitignore"])));
         assert_eq!(outcome.open.as_deref(), Some("/p/pkg/.gitignore"));
         assert_eq!(outcome.notification, None);
     }
 
-    // src/features/vcs/__tests__/ignore.test.ts › ignore action › opens nothing for the local exclude file
+    // src/features/vcs/__tests__/ignore.test.ts › ignore action › opens the local exclude file the rule was written to
     #[test]
-    fn opens_nothing_for_the_local_exclude_file() {
-        let outcome = ignore_written(IgnoreDestination::LocalExclude, Some(&strings(&["/p/.git/info/exclude"])));
-        assert_eq!(outcome.open, None);
+    fn opens_the_local_exclude_file_the_rule_was_written_to() {
+        let outcome = ignore_written(Some(&strings(&["/p/.git/info/exclude"])));
+        assert_eq!(outcome.open.as_deref(), Some("/p/.git/info/exclude"));
+        assert_eq!(outcome.notification, None);
     }
 
     // src/features/vcs/__tests__/ignore.test.ts › ignore action › reports an already ignored selection instead of opening an unchanged file
     #[test]
     fn reports_an_already_ignored_selection_instead_of_opening_an_unchanged_file() {
-        let outcome = ignore_written(IgnoreDestination::Gitignore, Some(&[]));
+        let outcome = ignore_written(Some(&[]));
         assert_eq!(outcome.notification.map(|notice| notice.title).as_deref(), Some("Already ignored"));
         assert_eq!(outcome.open, None);
     }
@@ -120,6 +120,6 @@ mod tests {
     // src/features/vcs/__tests__/ignore.test.ts › ignore action › stays quiet after a failure
     #[test]
     fn stays_quiet_after_a_failure() {
-        assert_eq!(ignore_written(IgnoreDestination::Gitignore, None).notification, None);
+        assert_eq!(ignore_written(None).notification, None);
     }
 }

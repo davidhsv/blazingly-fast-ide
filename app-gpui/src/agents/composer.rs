@@ -271,12 +271,24 @@ fn category(option: &AgentConfigOption) -> &str {
     option.category.as_deref().unwrap_or_default()
 }
 
-/// The settings shown in the composer: model, mode, permissions, approvals, effort (the first of each).
+/// A model parameter (Cursor's `fast`, a context tier…), separate from the model id itself.
+pub fn is_model_config(option: &AgentConfigOption) -> bool {
+    matches!(category(option), "model_config" | "context_tier")
+        || option.id == "fast"
+        || option.id == "context_tier"
+        || option.id == "contextTier"
+}
+
+/// The settings shown in the composer: model, mode, collaboration mode, permissions, approvals, effort (the
+/// first of each), then every model parameter.
 pub fn main_options(config: &[AgentConfigOption]) -> Vec<&AgentConfigOption> {
-    ["model", "mode", "permissions", "approval", "thought_level"]
-        .iter()
-        .filter_map(|c| config.iter().find(|o| category(o) == *c))
-        .collect()
+    let mut out: Vec<&AgentConfigOption> =
+        ["model", "mode", "collaboration_mode", "permissions", "approval", "thought_level"]
+            .iter()
+            .filter_map(|c| config.iter().find(|o| category(o) == *c))
+            .collect();
+    out.extend(config.iter().filter(|o| is_model_config(o)));
+    out
 }
 
 pub fn mode_option(config: &[AgentConfigOption]) -> Option<&AgentConfigOption> {
@@ -359,6 +371,8 @@ pub fn retry_parts(r: &AgentRetry, now: f64) -> RetryParts {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MeterLabel {
     pub short: String,
+    /// The share of the context window used, 0 to 100.
+    pub percent: u32,
     pub detail: String,
 }
 
@@ -379,12 +393,14 @@ fn tokens(n: f64) -> String {
     }
 }
 
-/// "12%" of the context window and a tooltip with the numbers.
+/// "167k/1M (17%)" of the context window, the share used and a tooltip with the exact counts.
 pub fn usage_label(u: &AgentUsage, i18n: &mut I18n) -> MeterLabel {
     let pct = (f64::from(u.used) / f64::from(u.size.max(1)) * 100.0).round().min(100.0);
-    let detail =
-        i18n.tx_built(&["", " / ", " tokens"], &[tokens(f64::from(u.used)).into(), tokens(f64::from(u.size)).into()]);
-    MeterLabel { short: format!("{pct}%"), detail }
+    let (used, size) = (tokens(f64::from(u.used)), tokens(f64::from(u.size)));
+    let detail = i18n.tx_built(&["", " / ", " tokens"], &[used.as_str().into(), size.as_str().into()]);
+    // The share is a whole number from 0 to 100, so the cast keeps it exactly.
+    let percent = pct as u32;
+    MeterLabel { short: format!("{used}/{size} ({percent}%)"), percent, detail }
 }
 
 /// The usage-limit windows agents report, by the name they give them: the short and the full name.
@@ -662,16 +678,22 @@ mod tests {
             option("model", &["m"], Some("m")),
         ];
         let ids = |options: Vec<&AgentConfigOption>| options.iter().map(|o| o.id.clone()).collect::<Vec<_>>();
-        assert_eq!(ids(main_options(&config)), vec!["model", "mode"]);
+        assert_eq!(ids(main_options(&config)), vec!["model", "mode", "fast"]);
         assert_eq!(next_value(&config[1]), Some("ask"));
         let mut permissions = option("allow_all", &["off", "on"], Some("off"));
         permissions.category = Some("permissions".into());
-        let with_permissions = [config, vec![permissions]].concat();
-        assert_eq!(ids(main_options(&with_permissions)), vec!["model", "mode", "allow_all"]);
+        let with_permissions = [config.clone(), vec![permissions]].concat();
+        assert_eq!(ids(main_options(&with_permissions)), vec!["model", "mode", "allow_all", "fast"]);
+        let collaboration = option("collaboration_mode", &["default", "plan"], Some("default"));
+        let with_collaboration = [config, vec![collaboration]].concat();
+        assert_eq!(ids(main_options(&with_collaboration)), vec!["model", "mode", "collaboration_mode", "fast"]);
         let mut approvals = option("openidea.cursor.approval", &["ask", "bypass"], Some("ask"));
         approvals.category = Some("approval".into());
         let with_approvals = [with_permissions.clone(), vec![approvals]].concat();
-        assert_eq!(ids(main_options(&with_approvals)), vec!["model", "mode", "allow_all", "openidea.cursor.approval"]);
+        assert_eq!(
+            ids(main_options(&with_approvals)),
+            vec!["model", "mode", "allow_all", "openidea.cursor.approval", "fast"]
+        );
         let modes = [
             "default",
             "acceptEdits",
@@ -693,7 +715,7 @@ mod tests {
         let usage = AgentUsage { used: 24_000, size: 200_000, cost: None };
         assert_eq!(
             usage_label(&usage, &mut i18n),
-            MeterLabel { short: "12%".into(), detail: "24k / 200k tokens".into() }
+            MeterLabel { short: "24k/200k (12%)".into(), percent: 12, detail: "24k / 200k tokens".into() }
         );
         assert_eq!(
             image_from_data_url("data:image/png;base64,AAA", Some("a.png")),

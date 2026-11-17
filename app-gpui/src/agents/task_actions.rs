@@ -58,8 +58,8 @@ pub fn task_menu(tasks: &[&AgentTask], i18n: &mut I18n) -> Vec<MenuItem> {
     let archived = tasks.iter().filter(|t| t.status == AgentStatus::Archived).count();
     let archivable = tasks.iter().filter(|t| can_archive(t)).count();
     let mut out = Vec::new();
+    // A click opens the task: the menu does not repeat it.
     if !multiple {
-        out.push(action(TaskCommand::Open(task.id.clone()), i18n.tx("Open"), None, false));
         out.push(action(TaskCommand::Rename(task.id.clone()), i18n.tx("Rename…"), Some("edit"), false));
         let cwd = task.cwd.0.to_string_lossy().into_owned();
         out.push(action(TaskCommand::OpenInTerminal(cwd), i18n.tx("Open in Terminal"), Some("terminal"), false));

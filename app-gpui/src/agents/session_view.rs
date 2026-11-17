@@ -362,7 +362,8 @@ fn build(store: &AgentsStore, inputs: &Inputs, cache: &mut MarkdownCache, i18n: 
     let meters = meters(task, own, store.limits(&task.provider), inputs.settings, inputs.now, i18n)
         .into_iter()
         .map(|meter| match meter {
-            Meter::Context(label) => label.short,
+            // The share shows; the counts are in the meter's label and tooltip.
+            Meter::Context(label) => format!("{}%", label.percent),
             Meter::Limit(label) => label.short,
             Meter::Cost(text) | Meter::WorkTime(text) => text,
         })

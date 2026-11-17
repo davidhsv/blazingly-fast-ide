@@ -18,6 +18,7 @@ pub enum Row {
     Current {
         indices: Option<Vec<usize>>,
     },
+    /// A group's header; without a label, a separator.
     Section {
         key: String,
         label: String,
@@ -63,9 +64,6 @@ pub fn build_rows(state: ChooserState, query: &str, types: &RunConfigTypes) -> V
         rows.push(Row::Save { config: Box::new(selected.clone()) });
     }
     let matched = |label: &str| if query.is_empty() { Some(None) } else { fuzzy_match(label, query).map(Some) };
-    if let Some(indices) = matched(CURRENT_FILE_LABEL) {
-        rows.push(Row::Current { indices });
-    }
     let section = |rows: &mut Vec<Row>, key: String, label: String, configs: &[&RunConfig]| {
         let row = |config: &RunConfig| {
             Some(Row::Config { indices: matched(&config.name)?, config: Box::new(config.clone()) })
@@ -88,8 +86,21 @@ pub fn build_rows(state: ChooserState, query: &str, types: &RunConfigTypes) -> V
         let configs: Vec<&RunConfig> = group.configs.iter().collect();
         section(&mut rows, format!("s:{}", group.kind), group.label.clone(), &configs);
     }
+    // IDEA: the permanent "Current File" entry follows the configurations, set apart by separators.
+    if let Some(indices) = matched(CURRENT_FILE_LABEL) {
+        push_separator(&mut rows, "sep:current");
+        rows.push(Row::Current { indices });
+    }
+    push_separator(&mut rows, "sep:edit");
     rows.push(Row::Edit);
     rows
+}
+
+/// A separator (a section without a label) before what follows, unless nothing comes before it.
+fn push_separator(rows: &mut Vec<Row>, key: &str) {
+    if !rows.is_empty() {
+        rows.push(Row::Section { key: key.to_string(), label: String::new() });
+    }
 }
 
 /// Numeric mnemonics (IDEA: 1–9 run the Nth configuration while the search is empty), by row key.
@@ -121,7 +132,8 @@ mod tests {
         assert!(!matches!(build_rows(state, "x", &types).first(), Some(Row::Save { .. })));
     }
 
-    // Not from a spec: pinned configurations lead, then the recent ones, then the rest by kind.
+    // Not from a spec: pinned configurations lead, then the recent ones, then the rest by kind; Current File and
+    // Edit Configurations follow, each after a separator (src/features/run/ConfigChooser.tsx:90-97).
     #[test]
     fn lists_pinned_then_recent_then_groups_by_kind() {
         let configs = [cfg("a", "npm"), cfg("b", "cargo"), cfg("c", "npm"), cfg("d", "cargo")];
@@ -130,10 +142,29 @@ mod tests {
             ChooserState { configs: &configs, selected: None, temporary: &[], pinned: &pinned, recent: &recent };
         let rows = build_rows(state, "", &RunConfigTypes::new());
         let keys: Vec<String> = rows.iter().map(Row::key).collect();
-        let expected = ["current", "s:pinned", "c:c", "s:recent", "c:d", "s:npm", "c:a", "s:cargo", "c:b", "edit"];
+        let expected = [
+            "s:pinned",
+            "c:c",
+            "s:recent",
+            "c:d",
+            "s:npm",
+            "c:a",
+            "s:cargo",
+            "c:b",
+            "sep:current",
+            "current",
+            "sep:edit",
+            "edit",
+        ];
         assert_eq!(keys, expected);
         assert_eq!(mnemonics(&rows)[..2], [("c:c".to_string(), 1), ("c:d".to_string(), 2)]);
         let searched = build_rows(state, "b", &RunConfigTypes::new());
-        assert_eq!(searched.iter().map(Row::key).collect::<Vec<_>>(), ["s:cargo", "c:b", "edit"]);
+        assert_eq!(searched.iter().map(Row::key).collect::<Vec<_>>(), ["s:cargo", "c:b", "sep:edit", "edit"]);
+        // Without configurations Current File comes first (src/features/run/runConfigTypes.test.tsx:895).
+        let empty = ChooserState { configs: &[], selected: None, temporary: &[], pinned: &[], recent: &[] };
+        let keys =
+            |query: &str| build_rows(empty, query, &RunConfigTypes::new()).iter().map(Row::key).collect::<Vec<_>>();
+        assert_eq!(keys(""), ["current", "sep:edit", "edit"]);
+        assert_eq!(keys("cur"), ["current", "sep:edit", "edit"]);
     }
 }
