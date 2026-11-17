@@ -143,7 +143,7 @@ pub fn install(
         slots.empty(pages::appearance::PAGE, "Main menu", cx);
     }
     let accent = cx.new(|cx| pages::appearance::AccentView::new(appearance.clone(), cx));
-    slots.put(pages::appearance::PAGE, "Accent colour", &accent, cx);
+    slots.put(pages::appearance::PAGE, "Accent color", &accent, cx);
     let pieces = pages::appearance::custom_font_slot().into_iter().map(|piece| match piece {
         pages::appearance::FontPiece::Form(parts) => Piece::Form(parts),
         pages::appearance::FontPiece::Picker(spec) => Piece::Picker(spec),

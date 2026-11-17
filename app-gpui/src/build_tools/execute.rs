@@ -1,6 +1,7 @@
 //! Execute Maven Goal / Execute Gradle Task (IDEA's Run Anything for one build tool): a command line
 //! with completion of lifecycle phases and plugin goals (Maven) or task names and paths (Gradle),
-//! after the recent command lines. Tab or a click accepts a completion; Enter runs the line in the
+//! after the recent command lines. Tab completes the word. Selecting a row (a click or the arrows)
+//! shows its command line in the field; Enter or a double click runs it (or the typed line) in the
 //! project chosen in the footer.
 //!
 //! [`ExecuteState`] is the popup's logic; [`ExecutePopup`] draws it around a text field and asks
@@ -233,6 +234,31 @@ impl ExecuteState {
         }
     }
 
+    /// Selects the row at `index` when it is a completion; sections are ignored.
+    pub fn select(&mut self, index: usize, model: &BuildModel) {
+        if matches!(self.rows(model).get(index), Some(ExecuteRow::Completion(_))) {
+            self.active = Some(index);
+        }
+    }
+
+    /// The selected completion, if a completion is selected.
+    fn selected(&self, model: &BuildModel) -> Option<Completion> {
+        match self.rows(model).into_iter().nth(self.active?)? {
+            ExecuteRow::Completion(completion) => Some(completion),
+            ExecuteRow::Section { .. } => None,
+        }
+    }
+
+    /// What the command line shows: the selected completion's line, else the typed one.
+    pub fn shown_line(&self, model: &BuildModel) -> String {
+        self.selected(model).map_or_else(|| self.line.clone(), |completion| completion.line)
+    }
+
+    /// The build model changed: its list replaces the old one, so nothing in it stays selected.
+    pub fn model_changed(&mut self) {
+        self.active = None;
+    }
+
     /// Tab: accepts the selected completion, else the first.
     pub fn tab(&mut self, model: &BuildModel) {
         let index = self.active.or_else(|| self.rows(model).iter().position(|row| !row.is_section()));
@@ -241,15 +267,10 @@ impl ExecuteState {
         }
     }
 
-    /// Enter: accepts the selected completion; with none selected, the trimmed line to run, if any.
-    pub fn enter(&mut self, model: &BuildModel) -> Option<String> {
-        match self.active {
-            Some(index) => {
-                self.accept(index, model);
-                None
-            }
-            None => Some(self.line.trim().to_owned()).filter(|line| !line.is_empty()),
-        }
+    /// Enter: the line to run, trimmed: the selected completion's, else the typed one; `None` when
+    /// it is empty. Nothing is accepted into the line.
+    pub fn enter(&self, model: &BuildModel) -> Option<String> {
+        Some(self.shown_line(model).trim().to_owned()).filter(|line| !line.is_empty())
     }
 }
 
@@ -375,29 +396,46 @@ impl ExecutePopup {
 
     /// The build model changed: completions follow it.
     pub fn set_model(&mut self, model: BuildModel, cx: &mut Context<Self>) {
+        // A model read again unchanged lists the same rows: the selection stays.
+        if self.model == model {
+            return;
+        }
         self.model = model;
-        cx.notify();
+        self.state.model_changed();
+        self.sync_field(cx);
     }
 
     /// Chooses the project the line runs in.
     pub fn choose_project(&mut self, project: &str, cx: &mut Context<Self>) {
         self.state.set_project(project);
-        cx.notify();
+        self.sync_field(cx);
     }
 
-    /// Puts the state's line into the field when accepting changed it.
+    /// Puts what the command line shows (the selected completion's line, else the typed one) into
+    /// the field.
     fn sync_field(&mut self, cx: &mut Context<Self>) {
-        let line = self.state.line().to_owned();
+        let line = self.state.shown_line(&self.model);
         if self.field.read(cx).text() != line {
             self.field.update(cx, |field, cx| field.set_text(&line, cx));
         }
         cx.notify();
     }
 
-    /// A click on the row `index`: sections are ignored.
-    pub fn click_row(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.state.accept(index, &self.model);
+    /// A click on the row `index` selects it, a double click runs its line; sections are ignored.
+    pub fn click_row(&mut self, index: usize, click_count: usize, cx: &mut Context<Self>) {
+        self.state.select(index, &self.model);
         self.sync_field(cx);
+        if click_count >= 2 && self.state.active() == Some(index) {
+            self.execute(cx);
+        }
+    }
+
+    /// Asks to run the shown line, when there is one.
+    fn execute(&mut self, cx: &mut Context<Self>) {
+        if let Some(line) = self.state.enter(&self.model) {
+            let project = self.state.project().map(str::to_owned);
+            cx.emit(ExecuteEvent::Execute { line, project });
+        }
     }
 
     fn claim_key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
@@ -420,7 +458,7 @@ impl ExecutePopup {
                     active.checked_sub(1).filter(|above| self.rows().get(*above).is_some_and(|r| r.is_section()));
                 self.scroll.scroll_to_item(heading.unwrap_or(active));
             }
-            cx.notify();
+            self.sync_field(cx);
             return true;
         }
         match keystroke.key.as_str() {
@@ -430,13 +468,7 @@ impl ExecutePopup {
                 true
             }
             "enter" => {
-                match self.state.enter(&self.model) {
-                    Some(line) => {
-                        let project = self.state.project().map(str::to_owned);
-                        cx.emit(ExecuteEvent::Execute { line, project });
-                    }
-                    None => self.sync_field(cx),
-                }
+                self.execute(cx);
                 true
             }
             _ => false,
@@ -494,7 +526,9 @@ impl Render for ExecutePopup {
                             .items_center()
                             .gap(px(6.0))
                             .when(active == Some(index), |el| el.bg(selected_bg))
-                            .on_click(cx.listener(move |popup, _: &ClickEvent, _, cx| popup.click_row(index, cx)))
+                            .on_click(cx.listener(move |popup, event: &ClickEvent, _, cx| {
+                                popup.click_row(index, event.click_count(), cx)
+                            }))
                             .child(theme::icon(cx, icon, 16.0, subtle))
                             .child(
                                 div()
@@ -638,7 +672,7 @@ mod tests {
     fn starts_page_up_on_a_completion_rather_than_a_section() {
         let (mut state, model) = maven_state(&[]);
         press(&mut state, &model, &[Move::PageUp]);
-        assert_eq!(state.enter(&model), None);
+        state.tab(&model);
         assert_eq!(state.line(), "clean ");
     }
 
@@ -693,9 +727,35 @@ mod tests {
         let model = BuildModel::default();
         let mut state = ExecuteState::new(BuildTool::Maven, &model, history, None);
         press(&mut state, &model, &[Move::Down, Move::PageDown]);
-        assert_eq!(state.enter(&model), None);
+        state.tab(&model);
         let first = goal_completions("", &[], &[]).remove(0).line;
         assert_eq!(state.line(), format!("{first} "));
+    }
+
+    #[test]
+    fn shows_a_clicked_completion_in_the_input_instead_of_appending_it() {
+        let (mut state, model) = maven_state(&[]);
+        let count = state.rows(&model).len();
+        state.select(1, &model);
+        assert_eq!(state.shown_line(&model), "clean");
+        state.select(2, &model);
+        assert_eq!(state.shown_line(&model), "validate");
+        assert_eq!(state.rows(&model).len(), count);
+    }
+
+    // Not from a spec: Enter runs the selected completion's line, else the typed one, and accepts nothing.
+    #[test]
+    fn enter_runs_the_selected_completion_or_the_typed_line() {
+        let (mut state, model) = maven_state(&[]);
+        state.set_line("cl");
+        press(&mut state, &model, &[Move::Down]);
+        assert_eq!(state.shown_line(&model), "clean");
+        assert_eq!(state.enter(&model).as_deref(), Some("clean"));
+        assert_eq!(state.line(), "cl", "Enter accepts nothing into the line");
+        state.set_line(" clean install ");
+        assert_eq!(state.enter(&model).as_deref(), Some("clean install"));
+        state.set_line("  ");
+        assert_eq!(state.enter(&model), None);
     }
 
     fn build(dir: &str, name: &str) -> GradleModel {

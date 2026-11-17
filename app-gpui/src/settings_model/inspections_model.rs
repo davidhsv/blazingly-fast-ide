@@ -76,7 +76,7 @@ const SPELLING_OPTIONS: [InspectionOptionSpec; 3] = [
 ];
 
 /// The built-in checks, in the order the page's search lists them.
-pub static BUILTIN_INSPECTIONS: [BuiltinInspection; 9] = [
+pub static BUILTIN_INSPECTIONS: [BuiltinInspection; 14] = [
     builtin(
         "builtin:merge-conflict-markers",
         "merge-conflict-markers",
@@ -148,6 +148,54 @@ pub static BUILTIN_INSPECTIONS: [BuiltinInspection; 9] = [
              reported is listed below by its identifier and can be turned off or re-graded on its own.",
         )
     },
+    builtin(
+        "builtin:cucumber-undefined-step",
+        "cucumber-undefined-step",
+        "Undefined step",
+        "Gherkin",
+        Some(InspectionLevel::Warning),
+        "Reports steps of a .feature file that no step definition of the project matches (Cucumber expressions \
+         and regular expressions, in JavaScript, TypeScript, Java and Kotlin files). Projects without step \
+         definitions in those files are not checked. Alt+Enter creates the definition.",
+    ),
+    builtin(
+        "builtin:python-circular-bases",
+        "python-circular-bases",
+        "Circular inheritance",
+        "Python",
+        Some(InspectionLevel::Error),
+        "Reports a Python class that ends up among its own ancestors: Python raises 'Cannot create a consistent \
+         MRO' when the module is imported.",
+    ),
+    builtin(
+        "builtin:python-override",
+        "python-override",
+        "Inconsistent '@override'",
+        "Python",
+        Some(InspectionLevel::Warning),
+        "Reports a method marked typing.override that no base class declares. Only hierarchies the IDE's index \
+         knows completely are checked: a base outside the project may declare the method, so those are left \
+         alone.",
+    ),
+    builtin(
+        "builtin:python-abstract-method",
+        "python-abstract-method",
+        "Abstract method not implemented",
+        "Python",
+        Some(InspectionLevel::Warning),
+        "Reports a class that leaves a base class's @abstractmethod unimplemented, in a hierarchy the IDE's index \
+         knows completely. A class that declares an abstract method of its own is abstract, so it is not \
+         reported.",
+    ),
+    builtin(
+        "builtin:python-redundant-override",
+        "python-redundant-override",
+        "Redundant override",
+        "Python",
+        Some(InspectionLevel::WeakWarning),
+        "Reports a method whose body only repeats the inherited one — 'pass' over a method that does nothing, or \
+         calling 'super()' with the same arguments — so the override can be removed.",
+    ),
     builtin(
         "builtin:sql",
         "sql-inspections",
@@ -885,6 +933,7 @@ mod tests {
             [
                 "Cargo",
                 "General",
+                "Gherkin",
                 "Java",
                 "JavaScript",
                 "Other",
@@ -897,7 +946,18 @@ mod tests {
             ]
         );
         let python = node(&tree, "group:Python");
-        assert_eq!(child_ids(python), ["lsp:basedpyright", "lsp:ruff"]);
+        assert_eq!(
+            child_ids(python),
+            [
+                "lsp:basedpyright",
+                "lsp:ruff",
+                // The Python built-ins the IDE decides itself (no server checks class rules).
+                "builtin:python-circular-bases",
+                "builtin:python-override",
+                "builtin:python-abstract-method",
+                "builtin:python-redundant-override",
+            ]
+        );
         assert_eq!(child_ids(&python.children[1]), ["lsp:ruff:E501", "lsp:ruff:F401"]);
         assert!(node(&tree, "Python/lsp:ruff:F401").description.contains("imported but unused"));
         assert_eq!(child_ids(node(&tree, "group:Other")), ["lsp:custom-ls"]);
@@ -1051,7 +1111,8 @@ mod tests {
         let tree = tree();
         let ruff = node(&tree, "Python/lsp:ruff:F401");
         assert!(ruff.description.starts_with("ruff problems with code F401 (Ruff)."), "{}", ruff.description);
-        assert_eq!(node(&tree, "group:Python").description, "2 inspections.");
+        // The two servers and the four Python built-ins.
+        assert_eq!(node(&tree, "group:Python").description, "6 inspections.");
         assert_eq!(node(&tree, "group:SQL").description, "1 inspection.");
         assert_eq!(producer_inspection_id("spelling"), SPELLING_INSPECTION);
         let s1 = copy_profile(&base(), "default", "Strict!", ProfileLevel::Ide);

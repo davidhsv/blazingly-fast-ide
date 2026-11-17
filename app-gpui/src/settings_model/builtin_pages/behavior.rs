@@ -34,7 +34,7 @@ fn appearance() -> PageSpec {
                 select_owned("appearance.theme", "Theme", themes),
                 custom("Editor color scheme", &["Theme default", "scheme"]),
                 custom("File icon theme", &["icons", "file icons", "icon theme"]),
-                custom("Accent colour", &["accent color", "highlight"]),
+                custom("Accent color", &["accent colour", "highlight"]),
                 custom("Different tool window background", &[]),
             ],
         )

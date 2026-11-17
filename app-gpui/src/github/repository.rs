@@ -368,14 +368,23 @@ mod tests {
             "ssh://git@github.com/o/r.git",
             "ssh://git@github.com:22/o/r.git",
             "git://github.com/o/r",
+            // GitHub's SSH-over-HTTPS host.
+            "ssh://git@ssh.github.com:443/o/r.git",
+            "git@ssh.github.com:o/r.git",
         ] {
             assert_eq!(parse_github_remote(url), Some(Coordinates::new("o", "r")), "{url}");
         }
         assert_eq!(parse_github_remote("https://gitlab.com/o/r.git"), None);
         assert_eq!(parse_github_remote("/local/repo"), None);
+        assert_eq!(parse_github_remote("https://ssh.github.com/o/r.git"), None);
+        let fork = Remote {
+            resolved_url: Some("git@github.com:dengliu/r.git".into()),
+            ..remote("fork", "git@github-personal:dengliu/r.git")
+        };
         let found = github_remotes(
             &[
                 remote("origin", "git@github.com:me/r.git"),
+                fork,
                 remote("upstream", "https://github.com/org/r.git"),
                 remote("dup", "https://github.com/ORG/r"),
                 remote("other", "https://example.com/x/y"),
@@ -383,7 +392,7 @@ mod tests {
             None,
         );
         let names: Vec<String> = found.iter().map(|r| format!("{}={}/{}", r.remote, r.owner, r.name)).collect();
-        assert_eq!(names, ["origin=me/r", "upstream=org/r"]);
+        assert_eq!(names, ["origin=me/r", "fork=dengliu/r", "upstream=org/r"]);
         // A host alias of `~/.ssh/config` is a GitHub remote once resolved; its own URL stays.
         let alias =
             Remote { resolved_url: Some("git@github.com:me/r.git".into()), ..remote("work", "work-gh:me/r.git") };

@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 
 /// The settings owned by the client, their descendants included. Sections that mix both kinds
 /// list their client keys one by one, so that project and tool settings stay with the host.
-pub const CLIENT_SETTINGS_KEYS: [&str; 82] = [
+pub const CLIENT_SETTINGS_KEYS: [&str; 107] = [
     "keymap",
     "keymapOverrides",
     "customKeymaps",
@@ -15,9 +15,13 @@ pub const CLIENT_SETTINGS_KEYS: [&str; 82] = [
     "notifications",
     "general.reopenLastProject",
     "general.confirmExit",
+    "general.closeWithoutWelcome",
+    "general.closeTabsWithWindow",
     "general.openProjectIn",
     "general.updateSource",
     "general.autoCheckUpdates",
+    "general.showWhatsNewAfterUpdate",
+    "general.lastRunVersion",
     "general.dateFormat",
     "editor.fontFamily",
     "editor.fontSize",
@@ -30,6 +34,7 @@ pub const CLIENT_SETTINGS_KEYS: [&str; 82] = [
     "editor.colorOverrides",
     "editor.customSchemes",
     "editor.semanticHighlighting",
+    "editor.docstringFormat",
     "editor.rainbowBrackets",
     "editor.softWrap",
     "editor.showWhitespace",
@@ -44,6 +49,7 @@ pub const CLIENT_SETTINGS_KEYS: [&str; 82] = [
     "editor.gutterIconsDisabled",
     "editor.showGutterIcons",
     "editor.general.wheelZoom",
+    "editor.general.wheelZoomScope",
     "editor.general.dragAndDrop",
     "editor.general.caretScroll",
     "editor.general.softWrapFiles",
@@ -71,9 +77,11 @@ pub const CLIENT_SETTINGS_KEYS: [&str; 82] = [
     "terminal.columnWidth",
     "console.softWrap",
     "console.foldPatterns",
+    "console.logColors",
     "debugger.showOnBreakpoint",
     "debugger.focusAppOnBreakpoint",
     "debugger.hideOnTermination",
+    "debugger.variablesOnBreakpoint",
     "debugger.runToCursorInlay",
     "debugger.inlineValues",
     "debugger.sortValues",
@@ -83,13 +91,30 @@ pub const CLIENT_SETTINGS_KEYS: [&str; 82] = [
     "run.confirmRerun",
     "run.confirmTerminate",
     "run.showOnStart",
+    "run.pinTabs",
+    "externalDiff",
     "vcs.showDirtyDirectories",
     "vcs.git.inlineBlame",
+    "vcs.git.showBranchInProjectView",
     "vcs.git.showPushDialog",
     "vcs.git.pushDialogOnlyProtected",
     "vcs.git.combineStashAndShelf",
+    "vcs.git.stagingArea",
     "vcs.commit.nonModal",
+    "vcs.commit.doubleClickOpensDiff",
     "vcs.commit.showRightMargin",
+    "agents.showContextUsage",
+    "agents.showWorkTime",
+    "agents.showUsageLimits",
+    "agents.showCost",
+    "agents.foldTurns",
+    "agents.smoothText",
+    "agents.fitWindowWidth",
+    "agents.thinking",
+    "agents.toolCalls",
+    "agents.expandToolOutput",
+    "agents.sendWith",
+    "agents.whileRunning",
 ];
 
 /// Whether the dotted settings `key` is a client setting or lies below one.
@@ -133,9 +158,31 @@ pub fn overlay_client_settings(remote: &Value, local: &Value) -> Value {
 }
 
 #[cfg(test)]
+pub(crate) mod testing {
+    /// The client settings of the settings model every client of a host shares, in their order:
+    /// what a remote window must keep on this machine.
+    pub fn shared_client_keys() -> Vec<&'static str> {
+        const SOURCE: &str = include_str!("../../../src/platform/clientSettings.ts");
+        let (_, list) = SOURCE.split_once("export const CLIENT_SETTINGS_KEYS = [").expect("the shared list");
+        let (list, _) = list.split_once("] as const").expect("the end of the shared list");
+        list.split('"').skip(1).step_by(2).collect()
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // Not from a spec: every client setting of the shared model is one here, in the same order, and nothing else is.
+    #[test]
+    fn keeps_every_client_setting_of_the_shared_model_and_nothing_else() {
+        let shared = testing::shared_client_keys();
+        assert!(shared.len() > 80, "the shared list is read: {shared:?}");
+        let missing: Vec<&str> = shared.iter().copied().filter(|key| !CLIENT_SETTINGS_KEYS.contains(key)).collect();
+        assert_eq!(missing, Vec::<&str>::new(), "client settings a remote window would send to the host");
+        assert_eq!(CLIENT_SETTINGS_KEYS.as_slice(), shared.as_slice());
+    }
 
     // Not from a spec: ownership follows whole key segments, and the overlay replaces client
     // values only, creating the sections it needs.

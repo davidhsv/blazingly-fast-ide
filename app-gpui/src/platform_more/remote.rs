@@ -337,7 +337,7 @@ pub fn parse_remote_location(location: &str) -> Option<(RemoteTarget, String)> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::client_settings::CLIENT_SETTINGS_KEYS;
+    use super::super::client_settings::testing::shared_client_keys;
     use super::*;
 
     fn served(commands: &[&str]) -> HashSet<String> {
@@ -373,6 +373,7 @@ mod tests {
             "appearance": { "theme": "dark" },
             "editor": { "fontSize": 19, "tabSize": 8 },
             "terminal": { "fontSize": 18, "shellPath": "/local" },
+            "agents": { "fitWindowWidth": true, "newTaskApprovals": "ask" },
         })
     }
 
@@ -385,6 +386,11 @@ mod tests {
             "appearance": { "theme": "light" },
             "editor": { "fontSize": 13, "tabSize": 2 },
             "terminal": { "fontSize": 13, "shellPath": "/remote" },
+            "agents": {
+                "fitWindowWidth": false,
+                "newTaskApprovals": "bypass",
+                "mcpServers": { "docs": { "command": "npx" } },
+            },
         })
     }
 
@@ -525,7 +531,7 @@ mod tests {
     fn keeps_client_settings_writes_local_in_either_scope() {
         let served = served(&SETTINGS_COMMANDS);
         let nested = ["customKeymaps.mine", "keymapOverrides.editor.copy", "appearance.theme"];
-        for key in CLIENT_SETTINGS_KEYS.iter().chain(&nested) {
+        for key in shared_client_keys().iter().chain(&nested) {
             for scope in ["global", "project"] {
                 let args = json!({ "scope": scope, "key": key, "value": "null" });
                 assert_eq!(remote_routing("settings_set", &args, &served), Destination::Local, "{key}");
@@ -545,6 +551,9 @@ mod tests {
             "terminal.env",
             "tools.node",
             "languages.python.interpreter",
+            "agents.newTaskApprovals",
+            "agents.defaults",
+            "agents.mcpServers",
             "keymapExtra",
         ] {
             let routing = |scope: &str| remote_routing("settings_set", &json!({ "scope": scope, "key": key }), &served);
@@ -632,6 +641,10 @@ mod tests {
         }
         assert_eq!(font_and_tab_size(&settings), (Some(19), Some(2)));
         assert_eq!(settings["terminal"], json!({ "fontSize": 18, "shellPath": "/remote" }));
+        // The client's own agent display setting, the host's approvals and servers.
+        let servers = json!({ "docs": { "command": "npx" } });
+        let agents = json!({ "fitWindowWidth": true, "newTaskApprovals": "bypass", "mcpServers": servers });
+        assert_eq!(settings["agents"], agents);
     }
 
     // remote client settings › shows client preferences in the global settings dialog snapshot

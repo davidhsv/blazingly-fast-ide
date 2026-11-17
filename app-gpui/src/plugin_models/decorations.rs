@@ -1,7 +1,8 @@
 //! Plugin-owned decorations: highlights, underlines and after-text in editors, badges and colours in
-//! the project tree. Each plugin replaces its whole set at once; sets of another project root, of
-//! unknown styles or with positions outside the document are left out. Text a plugin adds is
-//! plain text, never markup.
+//! the project tree. Each plugin replaces its whole set at once. Editor annotations follow their
+//! file wherever it is open, even outside this window's project; tree decorations are per project
+//! root. Items of unknown styles or with positions outside the document are left out. Text a plugin
+//! adds is plain text, never markup.
 //!
 //! [`PluginDecorations`] keeps the snapshots; [`PluginDecorations::catch_up`] asks for what was
 //! published before a window opened, and a plugin's newer publication wins over that answer.
@@ -138,12 +139,13 @@ impl PluginDecorations {
         changed
     }
 
-    /// The decorations of the editor of `path` in project `root`, for a document of `text`.
-    pub fn editor(&self, root: Option<&str>, path: &str, text: &str) -> Vec<EditorDecoration> {
+    /// The decorations of the editor of `path`, for a document of `text`, whichever project root
+    /// published them.
+    pub fn editor(&self, path: &str, text: &str) -> Vec<EditorDecoration> {
         let lines = LineStarts::new(text);
         let mut out = Vec::new();
         for set in self.snapshots.values().flatten() {
-            if set.tree || root != Some(&*set.root.to_string_lossy()) || set.path.to_string_lossy() != path {
+            if set.tree || set.path.to_string_lossy() != path {
                 continue;
             }
             for item in &set.items {
@@ -238,7 +240,7 @@ mod tests {
     fn renders_plain_annotations_and_withdraws_them() {
         let mut decorations = PluginDecorations::default();
         decorations.set("test", vec![set("/p")]);
-        let shown = decorations.editor(Some("/p"), "/p/a.txt", TEXT);
+        let shown = decorations.editor("/p/a.txt", TEXT);
         assert_eq!(
             shown,
             vec![EditorDecoration {
@@ -252,22 +254,25 @@ mod tests {
         let covered: String = String::from_utf16_lossy(&TEXT.encode_utf16().collect::<Vec<_>>()[2..4]);
         assert_eq!(covered, "te");
         decorations.set("test", Vec::new());
-        assert!(decorations.editor(Some("/p"), "/p/a.txt", TEXT).is_empty());
+        assert!(decorations.editor("/p/a.txt", TEXT).is_empty());
     }
 
     #[test]
-    fn filters_project_roots_and_unknown_styles_and_replaces_tree_badges() {
+    fn filters_tree_badges_by_project_root_but_not_editor_annotations_and_drops_unknown_styles() {
         let mut decorations = PluginDecorations::default();
         decorations.set("test", vec![set("/other")]);
-        assert!(decorations.editor(Some("/p"), "/p/a.txt", TEXT).is_empty());
+        let shown = decorations.editor("/p/a.txt", TEXT);
+        assert_eq!(shown.iter().map(|d| d.after.as_deref()).collect::<Vec<_>>(), [Some("<plain>")]);
         let mut unknown = set("/p");
         unknown.items[0].style = "unknown".into();
         decorations.set("test", vec![unknown]);
-        assert!(decorations.editor(Some("/p"), "/p/a.txt", TEXT).is_empty());
+        assert!(decorations.editor("/p/a.txt", TEXT).is_empty());
         let (badge, tooltip) = (Some("M".to_owned()), Some("changed".to_owned()));
         let file = FileDecoration { style: "modified".into(), badge, tooltip, icon: None, note: None };
-        let tree = DecorationSet { tree: true, items: Vec::new(), file: Some(file), ..set("/p") };
-        decorations.set("test", vec![tree]);
+        let tree = DecorationSet { tree: true, items: Vec::new(), file: Some(file), ..set("/other") };
+        decorations.set("test", vec![tree.clone()]);
+        assert!(!decorations.tree(Some("/p"), "test").contains_key("/p/a.txt"));
+        decorations.set("test", vec![DecorationSet { root: "/p".into(), ..tree }]);
         let badge = decorations.tree(Some("/p"), "test").get("/p/a.txt").and_then(|d| d.badge.clone());
         assert_eq!(badge.as_deref(), Some("M"));
         decorations.set("test", Vec::new());
@@ -291,7 +296,7 @@ mod tests {
         let mut changed = decorations.caught_up(&request, all);
         changed.sort();
         assert_eq!(changed, vec!["new".to_owned(), "stale".to_owned()]);
-        assert_eq!(decorations.editor(Some("/p"), "/p/a.txt", TEXT).len(), 2, "live kept its own, new arrived");
+        assert_eq!(decorations.editor("/p/a.txt", TEXT).len(), 2, "live kept its own, new arrived");
         let _newer = decorations.catch_up();
         let late = HashMap::from([("late".to_owned(), vec![set("/p")])]);
         assert_eq!(decorations.caught_up(&request, late), Vec::<String>::new(), "superseded");

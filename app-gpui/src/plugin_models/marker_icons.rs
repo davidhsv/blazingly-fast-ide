@@ -208,10 +208,11 @@ pub(crate) mod tests {
         let database = ready(icons.resolve_marker_icon("p", Some("database")));
         assert_eq!(marker_icon(database.as_deref()), "database");
         assert_eq!(marker_icon(Some("overriding")), "gutter-overriding");
-        assert_eq!(marker_icon(Some("not-an-icon")), "gutter-implementing");
-        assert_eq!(marker_icon(Some("__proto__")), "gutter-implementing");
-        assert_eq!(marker_icon(Some("constructor")), "gutter-implementing");
-        assert_eq!(marker_icon(None), "gutter-implementing");
+        assert_eq!(marker_icon(Some("implementing")), "gutter-implementing");
+        assert_eq!(marker_icon(Some("not-an-icon")), "gutter-navigate");
+        assert_eq!(marker_icon(Some("__proto__")), "gutter-navigate");
+        assert_eq!(marker_icon(Some("constructor")), "gutter-navigate");
+        assert_eq!(marker_icon(None), "gutter-navigate");
     }
 
     #[test]
@@ -249,6 +250,6 @@ pub(crate) mod tests {
         let read = icons.project("p", decl("resource", "icons/resource.svg", None));
         icons.assets_answered(read.handle, Err("disabled".to_owned()), &mut names);
         let icon = ready(icons.resolve_marker_icon("p", Some("icons/resource.svg")));
-        assert_eq!(marker_icon(icon.as_deref()), "gutter-implementing");
+        assert_eq!(marker_icon(icon.as_deref()), "gutter-navigate");
     }
 }

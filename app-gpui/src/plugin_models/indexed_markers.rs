@@ -1,6 +1,7 @@
 //! Gutter markers from plugins' document indexers, resolved by the host from its cached graph: one
 //! button per line going to the targets of every marker on it (a chooser for several), with the
-//! first declared icon among them. An edit hides the markers until the edited text is indexed.
+//! first declared icon among them. An edit keeps them on their lines until the edited text is
+//! indexed, so the column keeps its width while typing.
 //!
 //! [`IndexedMarkersView`] is one editor's state. Icons whose package files are still being read
 //! hold the markers back; they are placed when [`IndexedMarkersView::refresh`] runs again after the
@@ -8,8 +9,10 @@
 
 use super::line_markers::{NavigationButton, marker_icon};
 use super::marker_icons::{IndexedMarkerIcon, MarkerIcons, Resolved};
-use ide_core::Location;
+use crate::editor::buffer::{self, Assoc};
+use ide_core::{Location, TextChange};
 use ide_plugin::indexing::FileMarkers;
+use ropey::Rope;
 use std::collections::HashMap;
 
 /// The button of one line.
@@ -95,9 +98,19 @@ impl IndexedMarkersView {
         &self.rows
     }
 
-    /// The document changed: the markers go until the text is indexed again.
-    pub fn doc_changed(&mut self) {
-        self.rows.clear();
+    /// The document changed from `old_doc` to `new_doc` by `changes`: each marker stays at the
+    /// start of its line, before text inserted there, and one whose line start was deleted or
+    /// replaced from before it (its line joined to the one above) goes. The entry is placed again
+    /// when the store sends it.
+    pub fn doc_changed(&mut self, old_doc: &Rope, changes: &[TextChange], new_doc: &Rope) {
+        self.rows.retain_mut(|row| {
+            let start = buffer::line_range(old_doc, row.line as u32).start;
+            if changes.iter().any(|change| change.from < start && start <= change.to) {
+                return false;
+            }
+            row.line = buffer::line_col(new_doc, buffer::map_offset(start, changes, Assoc::Before)).0 as usize;
+            true
+        });
         self.last = None;
         self.waiting = false;
     }
@@ -150,6 +163,7 @@ mod tests {
     use ide_core::{Pos, Range};
     use ide_plugin::indexing::IndexedMarker;
 
+    const SOURCE: &str = "<mapper>\n<select id=\"find\">SELECT 1</select>\n</mapper>";
     const LINES: usize = 3;
 
     fn target(path: &str) -> Location {
@@ -213,14 +227,51 @@ mod tests {
         assert_eq!(row.button.click(&I18n::default()), Some(NavigationClick::Navigate(target("/p/Query.java"))));
     }
 
+    /// `doc` after replacing the UTF-16 range `from..to` with `insert`, and the change that did it.
+    fn edit(doc: &Rope, from: u32, to: u32, insert: &str) -> (Vec<TextChange>, Rope) {
+        let mut next = doc.clone();
+        let (start, end) = (next.utf16_cu_to_char(from as usize), next.utf16_cu_to_char(to as usize));
+        next.remove(start..end);
+        next.insert(start, insert);
+        (vec![TextChange { from, to, insert: insert.to_owned() }], next)
+    }
+
+    /// Applies an edit to `doc` and tells `view` about it.
+    fn type_into(view: &mut IndexedMarkersView, doc: &mut Rope, from: u32, to: u32, insert: &str) {
+        let (changes, next) = edit(doc, from, to, insert);
+        view.doc_changed(doc, &changes, &next);
+        *doc = next;
+    }
+
     #[test]
-    fn hides_markers_on_edit_and_when_the_entry_goes_away() {
+    fn keeps_markers_on_their_lines_while_typing_and_hides_them_when_the_entry_goes_away() {
         let icons = Icons::new();
+        let mut doc = Rope::from_str(SOURCE);
         let mut view = view_of(&plain(), &icons.icons);
-        view.doc_changed();
+        let select = SOURCE.find("SELECT").unwrap() as u32;
+        type_into(&mut view, &mut doc, select, select, "x");
+        assert_eq!(view.rows().iter().map(|row| row.line).collect::<Vec<_>>(), [1]);
+        type_into(&mut view, &mut doc, 0, 0, "\n");
+        assert_eq!(view.rows().iter().map(|row| row.line).collect::<Vec<_>>(), [2]);
+        let line = crate::editor::buffer::line_range(&doc, 2);
+        type_into(&mut view, &mut doc, line.start - 1, line.end, "");
         assert!(view.rows().is_empty());
         let mut view = view_of(&plain(), &icons.icons);
         assert!(view.refresh(None, LINES, &icons.icons, true));
+        assert!(view.rows().is_empty());
+    }
+
+    // Not from a spec: a marker keeps to its line's start as a gutter marker does: a line break typed there leaves it
+    // on that (now empty) line, and joining its line to the one above drops it.
+    #[test]
+    fn stays_before_text_typed_at_its_line_start_and_goes_when_its_line_joins_the_one_above() {
+        let icons = Icons::new();
+        let mut doc = Rope::from_str(SOURCE);
+        let mut view = view_of(&plain(), &icons.icons);
+        let start = buffer::line_range(&doc, 1).start;
+        type_into(&mut view, &mut doc, start, start, "\n");
+        assert_eq!(view.rows().iter().map(|row| row.line).collect::<Vec<_>>(), [1]);
+        type_into(&mut view, &mut doc, start - 1, start, "");
         assert!(view.rows().is_empty());
     }
 
@@ -286,7 +337,8 @@ mod tests {
             assert!(!view.refresh(Some(&slow), LINES, &icons.icons, true), "held back while the icon loads");
             let current = match change {
                 "edit" => {
-                    view.doc_changed();
+                    let mut doc = Rope::from_str(SOURCE);
+                    type_into(&mut view, &mut doc, 0, SOURCE.len() as u32, "short");
                     None
                 }
                 "remove" => {
@@ -320,7 +372,8 @@ mod tests {
         let read = icons.declare("p", decl("slow", "icons/slow.svg", None));
         let first = entry(1, vec![marker("p", Some("slow"), vec![target("/p/Query.java")])]);
         let mut view = view_of(&first, &icons.icons);
-        view.doc_changed();
+        let mut doc = Rope::from_str(SOURCE);
+        type_into(&mut view, &mut doc, 0, 0, "a longer first line\n");
         let mut moved = marker("p", Some("slow"), vec![target("/p/Query.java")]);
         moved.range = Range::new(Pos::new(2, 12), Pos::new(2, 16));
         let second = entry(2, vec![moved]);

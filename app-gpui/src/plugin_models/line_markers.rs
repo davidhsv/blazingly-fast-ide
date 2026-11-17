@@ -20,7 +20,8 @@ pub fn marker_icon(icon: Option<&str>) -> String {
     let name = icon.unwrap_or("navigate");
     let alias = match name {
         "implemented" => Some("gutter-implemented"),
-        "implementing" | "navigate" => Some("gutter-implementing"),
+        "implementing" => Some("gutter-implementing"),
+        "navigate" => Some("gutter-navigate"),
         "overridden" => Some("gutter-overridden"),
         "overriding" => Some("gutter-overriding"),
         "run" => Some("gutter-run"),
@@ -29,7 +30,7 @@ pub fn marker_icon(icon: Option<&str>) -> String {
     match alias {
         Some(alias) => alias.to_owned(),
         None if icon_path(name).is_some() => name.to_owned(),
-        None => "gutter-implementing".to_owned(),
+        None => "gutter-navigate".to_owned(),
     }
 }
 
@@ -293,7 +294,7 @@ mod tests {
         let (mut gutter, _) = LineMarkerGutter::new();
         let late = || vec![marker("late", 0, "icons/late.svg", "late icon")];
         assert!(shown(&mut gutter, 1, late(), &icons));
-        assert_eq!(gutter.markers()[0].icon, "gutter-implementing");
+        assert_eq!(gutter.markers()[0].icon, "gutter-navigate");
         let read = icons.project("late", decl("late", "icons/late.svg", None));
         let assets = vec![("markerIcon/late/light".to_owned(), svg(r#"<circle cx="8" cy="8" r="6"/>"#))];
         let (registered, changed) = icons.assets_answered(read.handle, Ok(assets), &mut names);

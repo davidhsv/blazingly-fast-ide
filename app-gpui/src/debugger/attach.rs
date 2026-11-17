@@ -212,6 +212,7 @@ mod tests {
             named(21, AttachKind::Python, "python3", "python3 -m debugpy --listen 5678 api.py", Some(5678)),
             named(25, AttachKind::Node, "node", "node server.js", None),
             named(26, AttachKind::Go, "gosrv", "./gosrv", None),
+            named(40, AttachKind::Dotnet, "Api", "./Api --urls http://localhost:5000", None),
         ]
     }
 
@@ -220,6 +221,16 @@ mod tests {
             AttachRequest::Launch(launch) => *launch,
             AttachRequest::Java(target) => panic!("a JVM is attached to through jdtls: {target:?}"),
         }
+    }
+
+    #[test]
+    fn attaches_the_chosen_unity_editor_by_its_exact_id_without_launching_or_using_a_native_adapter() {
+        let editor = named(1234, AttachKind::Unity, "Unity Editor", "Unity app", None);
+        let AttachRequest::Launch(launch) = attach_config(&editor, "/game", true) else { panic!("a DAP attach") };
+        assert_eq!((launch.adapter.as_str(), launch.request.as_str()), ("unity", "attach"));
+        assert_eq!(launch.program, None);
+        assert_eq!(launch.cwd.as_ref().map(path_text).as_deref(), Some("/game"));
+        assert_eq!(extra(&launch), json!({ "name": "Unity Editor (1234)", "__exceptionOptions": [] }));
     }
 
     #[test]
@@ -232,7 +243,17 @@ mod tests {
                 AttachRow::Process { .. } => None,
             })
             .collect();
-        assert_eq!(groups, ["Java (JDWP):1", "Node.js:1", "Python (debugpy):2", "Go (Delve):1", "Native (LLDB):1"]);
+        assert_eq!(
+            groups,
+            [
+                "Java (JDWP):1",
+                "Node.js:1",
+                "Python (debugpy):2",
+                ".NET (netcoredbg):1",
+                "Go (Delve):1",
+                "Native (LLDB):1"
+            ]
+        );
         assert!(matches!(rows[0], AttachRow::Group { .. }));
         assert!(matches!(&rows[1], AttachRow::Process { process, .. } if process.pid == 10));
     }
@@ -270,6 +291,9 @@ mod tests {
         let listening = AttachableProcess { port: Some(9230), ..proc(27, AttachKind::Node) };
         assert!(includes(&extra(&launch(&listening)), &json!({ "port": 9230, "address": "localhost" })));
         assert_eq!(extra(&launch(&list[5])), json!({ "mode": "local", "processId": 26 }));
+        let dotnet = launch(&list[6]);
+        assert_eq!((dotnet.adapter.as_str(), dotnet.request.as_str()), ("netcoredbg", "attach"));
+        assert!(includes(&extra(&dotnet), &json!({ "processId": 40 })));
         let native = launch(&list[0]);
         assert_eq!((native.adapter.as_str(), native.request.as_str()), ("codelldb", "attach"));
         assert_eq!(native.name, "a.out (30)");
@@ -281,7 +305,6 @@ mod tests {
     #[test]
     fn lists_unity_first_and_dotnet_after_python_and_builds_their_requests() {
         let mut processes = list();
-        processes.push(named(40, AttachKind::Dotnet, "Api", "./Api", None));
         processes.push(named(41, AttachKind::Unity, "Unity", "/Applications/Unity.app/Contents/MacOS/Unity", None));
         let groups: Vec<&str> = attach_rows(&processes, "")
             .into_iter()

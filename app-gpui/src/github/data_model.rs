@@ -521,17 +521,19 @@ pub fn repository_display_name(all: &[Coordinates], repo: &Coordinates, always_s
     if show_owner { repo.name_with_owner() } else { repo.name.clone() }
 }
 
-/// `https?://[user@]`, `ssh://[user@]`, `git://` or scp-like `[user@]`, github.com, an optional
-/// port (only before `/`), then `owner/name[.git][/]`.
+/// `https?://[user@]` or `git://` then `[www.]`, or `ssh://[user@]` or scp-like `[user@]` then
+/// `[www.]` or `[ssh.]` (GitHub's SSH over the HTTPS port), github.com, an optional port (only
+/// before `/`), then `owner/name[.git][/]`.
 static GITHUB_REMOTE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(concat!(
-        r"(?i)^(?:https?://(?:[^@/]+@)?|ssh://(?:[^@/]+@)?|git://|(?:[^@/]+@)?)",
-        r"(?:www\.)?github\.com(?::[0-9]+/[:/]*|[:/]+)([^/]+)/([^/]+?)(?:\.git)?/?$",
+        r"(?i)^(?:(?:https?://(?:[^@/]+@)?|git://)(?:www\.)?|(?:ssh://(?:[^@/]+@)?|(?:[^@/]+@)?)(?:www\.|ssh\.)?)",
+        r"github\.com(?::[0-9]+/[:/]*|[:/]+)([^/]+)/([^/]+?)(?:\.git)?/?$",
     ))
     .expect("valid regex")
 });
 
-/// `owner/name` of a github.com remote URL (https, ssh or scp-like), else `None`.
+/// `owner/name` of a github.com remote URL (https, ssh or scp-like; SSH also through
+/// ssh.github.com), else `None`.
 pub fn parse_github_remote(url: &str) -> Option<Coordinates> {
     let m = GITHUB_REMOTE.captures(url.trim())?;
     Some(Coordinates::new(&m[1], &m[2]))

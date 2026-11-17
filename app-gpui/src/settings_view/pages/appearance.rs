@@ -235,7 +235,7 @@ fn hex_color(hex: &str) -> Option<Hsla> {
     parse_color(hex).map(|c| Rgba { r: c.r, g: c.g, b: c.b, a: c.a }.into())
 }
 
-/// Accent colour: the presets as swatches, and a custom colour typed as `#rrggbb`.
+/// Accent color: the presets as swatches, and a custom colour typed as `#rrggbb`.
 pub struct AccentView {
     binding: Binding,
     field: Entity<TextField>,
@@ -283,7 +283,7 @@ impl AccentView {
         self.binding.stage(ACCENT_KEY, Value::String(value.to_owned()), cx);
     }
 
-    /// `Accent colour: Blue` (a preset) or `Accent colour: Custom #rrggbb`.
+    /// `Accent color: Blue` (a preset) or `Accent color: Custom colour #rrggbb`.
     pub fn lines(&self, cx: &App) -> Vec<String> {
         let accent = self.binding.text(ACCENT_KEY, cx).to_lowercase();
         let preset = ACCENT_PRESETS.iter().find(|preset| preset.value.to_lowercase() == accent);
@@ -292,7 +292,7 @@ impl AccentView {
             None => format!("{} {accent}", tx(cx, "Custom colour")),
         };
         let invalid = if self.invalid { " (invalid)" } else { "" };
-        vec![format!("{}: {shown}{invalid}", tx(cx, "Accent colour"))]
+        vec![format!("{}: {shown}{invalid}", tx(cx, "Accent color"))]
     }
 }
 
@@ -316,7 +316,7 @@ fn keys(keystroke: &Keystroke, cx: &mut Context<AccentView>) -> bool {
 
 impl Render for AccentView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        const LABEL: &str = "Accent colour";
+        const LABEL: &str = "Accent color";
         let query = self.binding.query(cx);
         let matched = self.binding.matches(LABEL, cx);
         let accent = self.binding.text(ACCENT_KEY, cx).to_lowercase();
@@ -379,14 +379,14 @@ mod tests {
             staged(&model, cx),
             [("global:appearance.accent".to_owned(), format!("\"{}\"", ACCENT_PRESETS[1].value))]
         );
-        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["Accent colour: Teal"]);
+        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["Accent color: Teal"]);
         let field = view.read_with(cx, |view, _| view.field().clone());
         type_over(&field, "#FF0000", cx);
         assert_eq!(staged(&model, cx), [("global:appearance.accent".to_owned(), "\"#ff0000\"".to_owned())]);
         // Typed a character at a time, "#ff0" is a colour on the way and is staged; "#ff00" is not.
         type_over(&field, "#ff00", cx);
         assert_eq!(staged(&model, cx), [("global:appearance.accent".to_owned(), "\"#ff0\"".to_owned())]);
-        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["Accent colour: Custom colour #ff0 (invalid)"]);
+        assert_eq!(view.read_with(cx, |view, cx| view.lines(cx)), ["Accent color: Custom colour #ff0 (invalid)"]);
     }
 
     // appearance & behavior settings › steps zoom within 50–300% (a stored zoom between the steps

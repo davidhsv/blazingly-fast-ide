@@ -106,16 +106,17 @@ async fn omits_the_empty_recent_section_when_no_commands_have_been_run(cx: &mut 
     close(cx);
 }
 
-/// Page Up from nothing selected lands on the first goal, not on its heading: Enter then completes it instead of
-/// running the empty line.
+/// Page Up from nothing selected lands on the first goal, not on its heading: the command line shows it, and Tab
+/// completes it.
 #[gpui_kit::test]
 async fn starts_page_up_on_a_completion_rather_than_a_section(cx: &mut TestAppContext) {
     let (workbench, cx, _folders, _root, _tools) = build_project(cx, true, maven_project);
     let popup = open_execute_popup(&workbench, "maven.executeGoal", cx);
     cx.simulate_keystrokes("pageup");
-    cx.simulate_keystrokes("enter");
+    assert_eq!(field_text(&popup, cx), "clean", "the selected goal is shown in the command line");
+    cx.simulate_keystrokes("tab");
     assert_eq!(field_text(&popup, cx), "clean ");
-    assert!(workbench.read_with(cx, |w, _| w.execute_popup().is_some()), "Enter completed and ran nothing");
+    assert!(workbench.read_with(cx, |w, _| w.execute_popup().is_some()), "Tab completed and ran nothing");
     dismiss(&workbench, cx);
     close(cx);
 }
@@ -157,7 +158,11 @@ async fn clears_selection_when_typing_changes_the_rows_and_ignores_section_click
     let popup = open_execute_popup(&workbench, "maven.executeGoal", cx);
     cx.simulate_keystrokes("up");
     assert!(active(&popup, cx).is_some(), "Up selects the last completion");
+    assert_eq!(field_text(&popup, cx), completion_line(&drawn_rows(&popup, cx), drawn_rows(&popup, cx).len() - 1));
+    // The command line shows the selected line; "cl" is typed over it.
+    cx.simulate_keystrokes("cmd-a");
     cx.simulate_input("cl");
+    assert_eq!(field_text(&popup, cx), "cl");
     assert_eq!(active(&popup, cx), None, "typing clears the selection");
     // Up scrolled the long list to its end; the short one is drawn from its top.
     wait_long(cx, "the shorter list at its top", |cx| popup.read_with(cx, |popup, _| popup.list_scroll() == px(0.0)));
@@ -211,7 +216,7 @@ async fn keeps_an_empty_completion_list_safe_for_all_navigation_and_acceptance_k
 }
 
 /// With nine lines run before, Down selects the newest and Page Down lands on the first goal past the Maven Goals
-/// heading, which Enter completes.
+/// heading, which Tab completes.
 #[gpui_kit::test]
 async fn page_down_selects_a_completion_rather_than_a_section_at_its_landing_position(cx: &mut TestAppContext) {
     let (workbench, cx, _folders, root, _tools) = build_project(cx, true, maven_project);
@@ -221,10 +226,116 @@ async fn page_down_selects_a_completion_rather_than_a_section_at_its_landing_pos
     let popup = open_execute_popup(&workbench, "maven.executeGoal", cx);
     cx.simulate_keystrokes("down");
     cx.simulate_keystrokes("pagedown");
-    cx.simulate_keystrokes("enter");
+    cx.simulate_keystrokes("tab");
     assert_eq!(field_text(&popup, cx), "clean ");
-    assert!(workbench.read_with(cx, |w, _| w.execute_popup().is_some()), "Enter completed and ran nothing");
+    assert!(workbench.read_with(cx, |w, _| w.execute_popup().is_some()), "Tab completed and ran nothing");
     dismiss(&workbench, cx);
+    close(cx);
+}
+
+/// A click on a goal selects it and shows its line in the command line, replacing what was shown rather than
+/// appending to it; the list stays as it was.
+#[gpui_kit::test]
+async fn shows_a_clicked_completion_in_the_input_instead_of_appending_it(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, _root, _tools) = build_project(cx, true, maven_project);
+    let popup = open_execute_popup(&workbench, "maven.executeGoal", cx);
+    let count = drawn_rows(&popup, cx).len();
+    click_on(cx, "execute-row-1");
+    assert_eq!(field_text(&popup, cx), "clean");
+    assert_eq!(active(&popup, cx), Some(1));
+    click_on(cx, "execute-row-2");
+    assert_eq!(field_text(&popup, cx), "validate");
+    assert_eq!(drawn_rows(&popup, cx).len(), count);
+    assert!(workbench.read_with(cx, |w, _| w.execute_popup().is_some()), "a click runs nothing");
+    dismiss(&workbench, cx);
+    close(cx);
+}
+
+/// A double click on a goal runs its line as the second press of the click: the popup closes and the goal is kept in
+/// the history.
+#[gpui_kit::test]
+async fn a_double_click_on_a_completion_runs_its_line(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, root, _tools) = build_project(cx, true, maven_project);
+    let popup = open_execute_popup(&workbench, "maven.executeGoal", cx);
+    let line = completion_line(&drawn_rows(&popup, cx), 2);
+    let position = cx.debug_bounds("execute-row-2").expect("the second goal is drawn").center();
+    for count in [1, 2] {
+        let (modifiers, button) = (Modifiers::default(), gpui_kit::MouseButton::Left);
+        cx.simulate_event(gpui_kit::MouseDownEvent {
+            position,
+            modifiers,
+            button,
+            click_count: count,
+            first_mouse: false,
+        });
+        cx.simulate_event(gpui_kit::MouseUpEvent { position, modifiers, button, click_count: count });
+        cx.run_until_parked();
+        if count == 1 {
+            assert_eq!(field_text(&popup, cx), line, "the first press selects the goal");
+            assert!(workbench.read_with(cx, |w, _| w.execute_popup().is_some()), "a single click runs nothing");
+        }
+    }
+    assert!(workbench.read_with(cx, |w, _| w.execute_popup().is_none()), "the double click runs the goal");
+    let key = history_key(BuildTool::Maven, &root.to_string_lossy());
+    let stored = cx.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned));
+    assert_eq!(parse_history(stored.as_deref()).first(), Some(&line));
+    let store = workbench
+        .read_with(cx, |w, cx| w.run_driver().map(|driver| driver.read(cx).store().clone()))
+        .expect("the project runs things");
+    wait_long(cx, "the goal's run to end", |cx| {
+        store.read_with(cx, |store, _| store.sessions.iter().any(|s| s.config.args.contains(&line) && !s.is_live()))
+    });
+    close(cx);
+}
+
+/// The build model read again with a change replaces the list: nothing in it stays selected, and the command line
+/// shows the typed line again.
+#[gpui_kit::test]
+async fn a_changed_build_model_clears_the_selection(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, root, _tools) = build_project(cx, true, maven_project);
+    let popup = open_execute_popup(&workbench, "maven.executeGoal", cx);
+    cx.simulate_input("cl");
+    cx.simulate_keystrokes("down");
+    assert_eq!(field_text(&popup, cx), "clean");
+    let pom = root.join("pom.xml");
+    let renamed = std::fs::read_to_string(&pom).expect("the POM is read").replace("Multi Demo", "Renamed Demo");
+    write(&pom, &renamed);
+    cx.update(|_, cx| {
+        let modified = vec![pom.clone().into()];
+        let event =
+            IdeEvent::FsChanged { created: Vec::new(), modified, removed: Vec::new(), ignore_rules: Vec::new() };
+        cx.global::<Backend>().emit(Some("w1"), event);
+    });
+    wait_long(cx, "the renamed project", |cx| {
+        popup.read_with(cx, |popup, _| popup.projects().iter().any(|choice| choice.label == "Renamed Demo"))
+    });
+    assert_eq!(active(&popup, cx), None, "no completion stays selected");
+    assert_eq!(field_text(&popup, cx), "cl");
+    dismiss(&workbench, cx);
+    close(cx);
+}
+
+/// Enter runs the selected goal's line, not the typed one: the popup closes and the goal is kept in the history.
+#[gpui_kit::test]
+async fn enter_runs_the_selected_completion_instead_of_completing_it(cx: &mut TestAppContext) {
+    let (workbench, cx, _folders, root, _tools) = build_project(cx, true, maven_project);
+    let popup = open_execute_popup(&workbench, "maven.executeGoal", cx);
+    cx.simulate_input("cl");
+    cx.simulate_keystrokes("down");
+    assert_eq!(field_text(&popup, cx), "clean");
+    cx.simulate_keystrokes("enter");
+    assert!(workbench.read_with(cx, |w, _| w.execute_popup().is_none()), "running closes the popup");
+    let key = history_key(BuildTool::Maven, &root.to_string_lossy());
+    let stored = cx.update(|_, cx| cx.global::<UiStorage>().get(&key).map(str::to_owned));
+    assert_eq!(parse_history(stored.as_deref()).first().map(String::as_str), Some("clean"));
+    let store = workbench
+        .read_with(cx, |w, cx| w.run_driver().map(|driver| driver.read(cx).store().clone()))
+        .expect("the project runs things");
+    wait_long(cx, "the goal's run to end", |cx| {
+        store.read_with(cx, |store, _| {
+            store.sessions.iter().any(|s| s.config.args.iter().any(|arg| arg == "clean") && !s.is_live())
+        })
+    });
     close(cx);
 }
 

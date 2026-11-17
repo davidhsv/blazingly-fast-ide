@@ -366,7 +366,7 @@ mod tests {
             assert!(completion.contains(&label), "{label}");
         }
         let appearance = spec_labels(&spec("appearance"));
-        for label in ["Accent colour", "High Contrast", "UI font size", "Zoom", "Compact mode", "Antialiasing"] {
+        for label in ["Accent color", "High Contrast", "UI font size", "Zoom", "Compact mode", "Antialiasing"] {
             assert!(appearance.contains(&label), "{label}");
         }
     }

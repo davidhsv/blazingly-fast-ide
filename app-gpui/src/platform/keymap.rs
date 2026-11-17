@@ -490,7 +490,9 @@ fn dedup(items: impl Iterator<Item = String>) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use regex::Regex;
     use serde_json::json;
+    use std::sync::LazyLock;
     mod proofs11_host_modifier;
     mod proofs20_new_element;
     mod proofs7_vscode_preset;
@@ -591,6 +593,8 @@ mod tests {
             ("file.reloadFromDisk", "project.reloadFromDisk"),
             ("code.unfold", "project.expandAll"),
             ("code.fold", "project.collapseAll"),
+            ("code.unfold", "run.expandAllTests"),
+            ("code.fold", "run.collapseAllTests"),
             ("navigate.nextError", "vcs.changelist.edit"),
             ("debug.setValue", "vcs.changelist.edit"),
             ("find.replaceInFile", "find.rerun"),
@@ -606,6 +610,36 @@ mod tests {
             for (earlier, later) in pairs {
                 assert!(place(earlier).is_some() && place(earlier) < place(later), "{name}: {earlier} before {later}");
             }
+        }
+    }
+
+    // Not from a spec: the presets the app loads declare what the preset sources declare, in the
+    // same order and with the same keys. These three sources list one binding per line; the others
+    // are built from them.
+    #[test]
+    fn loads_the_written_out_presets_as_their_sources_declare_them() {
+        static ENTRY: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r#"^  "([^"]+)": (\[.*\]),?$"#).expect("valid regex"));
+        let sources = [
+            ("intellij-macos", include_str!("../../../src/platform/keymaps/intellij-macos.ts")),
+            ("intellij-windows", include_str!("../../../src/platform/keymaps/intellij-windows.ts")),
+            ("vscode-macos", include_str!("../../../src/platform/keymaps/vscode-macos.ts")),
+        ];
+        for (name, source) in sources {
+            let declared: Vec<(String, Vec<String>)> = source
+                .lines()
+                .filter(|line| line.starts_with("  \""))
+                .map(|line| {
+                    let entry = ENTRY.captures(line).unwrap_or_else(|| panic!("{name}: one binding per line: {line}"));
+                    let keys = serde_json::from_str(&entry[2]).unwrap_or_else(|e| panic!("{name}: {line}: {e}"));
+                    (entry[1].to_owned(), keys)
+                })
+                .collect();
+            assert!(declared.len() > 300, "{name}: the source is read");
+            let order: Vec<&str> = declared.iter().map(|(action, _)| action.as_str()).collect();
+            assert_eq!(preset_order(name), order.as_slice(), "{name}: the declared order");
+            let bindings: Keymap = declared.into_iter().collect();
+            assert_eq!(preset(name), Some(&bindings), "{name}: the keys");
         }
     }
 
