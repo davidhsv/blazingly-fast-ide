@@ -38,6 +38,13 @@ fn len(text: &str) -> u32 {
     text.encode_utf16().count() as u32
 }
 
+/// No language server runs for the window's project: the editor's Tab alone did what is asserted.
+fn assert_no_language_server(cx: &mut VisualTestContext) {
+    let host = cx.update(|_, cx| cx.global::<Backend>().host.clone());
+    let servers = ide_host::ops::lsp::lsp_servers(&host, "w1").expect("the project is open");
+    assert!(servers.is_empty(), "{}", window_lsp_report(cx));
+}
+
 /// What Introduce Variable saw when it ran: the editor's text and its selected text.
 type Seen = Rc<RefCell<Option<(String, String)>>>;
 
@@ -75,6 +82,7 @@ async fn runs_introduce_variable_on_the_expression_ended_as_a_statement(cx: &mut
     );
     assert_eq!(text(&editor, cx), "class A { void f() {\n  list.get(0);\n} }\n");
     assert!(workbench.read_with(cx, |w, _| w.template_session(&editor).is_none()), "no template is filled in");
+    assert_no_language_server(cx);
     close_backend_project(cx);
 }
 
@@ -91,6 +99,7 @@ async fn falls_back_to_the_var_template_without_introduce_variable(cx: &mut Test
     assert_eq!(text(&editor, cx), "class A { void f() {\n  var name = name();\n} }\n");
     // The name is the template's first field, selected.
     assert_eq!(editor.read_with(cx, |e, _| e.selected_text()), "name");
+    assert_no_language_server(cx);
     close_backend_project(cx);
 }
 
@@ -112,5 +121,6 @@ async fn a_declined_introduce_variable_leaves_the_var_declaration(cx: &mut TestA
     cx.simulate_keystrokes("tab");
     cx.run_until_parked();
     assert_eq!(text(&editor, cx), "class A { void f() {\n  var name = name();\n} }\n");
+    assert_no_language_server(cx);
     close_backend_project(cx);
 }

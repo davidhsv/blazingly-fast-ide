@@ -6,6 +6,8 @@ use super::live_model::{LiveTemplate, TemplateScope, TemplateVariable};
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
 
+mod zig;
+
 /// The languages sharing the JavaScript / TypeScript templates.
 pub const TS_LANGS: [&str; 6] = ["typescript", "typescriptreact", "javascript", "javascriptreact", "vue", "svelte"];
 
@@ -449,7 +451,7 @@ fn sql() -> Vec<LiveTemplate> {
 /// Every built-in template, in the order the settings list them.
 pub fn builtin_templates() -> &'static [LiveTemplate] {
     static TEMPLATES: LazyLock<Vec<LiveTemplate>> = LazyLock::new(|| {
-        [rust(), ts(), python(), go(), java(), kotlin(), php(), sql(), general(), surround()].concat()
+        [rust(), ts(), python(), go(), zig::zig(), java(), kotlin(), php(), sql(), general(), surround()].concat()
     });
     &TEMPLATES
 }
@@ -499,6 +501,9 @@ mod tests {
         }
         for a in ["iferr", "fori", "func", "test"] {
             assert!(has("go", a), "go {a}");
+        }
+        for a in ["pfn", "test", "st", "iferr", "defer", "for"] {
+            assert!(has("zig", a), "zig {a}");
         }
         for a in ["psvm", "sout", "fori", "iter", "main"] {
             assert!(has("java", a), "java {a}");

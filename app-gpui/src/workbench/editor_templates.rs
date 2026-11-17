@@ -41,6 +41,8 @@ use ide_syntax::StructuralRanges;
 use std::collections::HashMap;
 use std::ops::Range;
 
+mod postfix_action;
+
 /// The templates of the window's editors: the stores as last read, the template each editor is
 /// filling in, and the chooser on screen.
 #[derive(Default)]
@@ -328,7 +330,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         match action {
-            TemplateAction::Expand(expansion) => self.expand_template(editor, &expansion, cx),
+            TemplateAction::Expand(expansion) => self.expand_or_run_action(editor, expansion, window, cx),
             TemplateAction::Choose { chooser, pending } => {
                 self.show_template_chooser(editor, chooser, pending, window, cx)
             }
@@ -392,7 +394,7 @@ impl Workbench {
             (read.rope().clone(), read.caret())
         };
         match open.pending.pick(key, &doc, head) {
-            Picked::Expand(expansion) => self.expand_template(&editor, &expansion, cx),
+            Picked::Expand(expansion) => self.expand_or_run_action(&editor, expansion, window, cx),
             Picked::OpenSettings(page) => window.defer(cx, move |window, cx| {
                 execute_action("file.settings", Some(&serde_json::Value::from(page)), window, cx);
             }),

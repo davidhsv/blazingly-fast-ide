@@ -5,10 +5,10 @@
 //!
 //! Every action applies to the window's active editor. The backend work runs off the main thread
 //! and comes back to the window; what a server answers is turned into edits, hints, popups and
-//! dialogs by the models of [`crate::editor_lsp`] and [`crate::editor_refactor`]. A refactoring the
-//! backend applied across files (`WorkspaceEditApplied`) is remembered so that it is undone as one
-//! step: from the notification it raises, or by Edit › Undo in an editor of one of its files once
-//! that editor has nothing of its own left to undo.
+//! dialogs by the models of [`crate::editor_lsp`] and [`crate::editor_refactor`]. A refactoring or an
+//! agent's edit the backend applied across files (`WorkspaceEditApplied`) is remembered so that it is
+//! undone as one step: from the notification a refactoring raises, or by Edit › Undo in an editor of
+//! one of its files once that editor has nothing of its own left to undo.
 
 use super::Workbench;
 use super::branches::run_action_later;
@@ -110,7 +110,7 @@ impl AppliedEdit {
 /// The language actions' state of one window.
 #[derive(Default)]
 pub(super) struct EditorLanguage {
-    /// The backend listener of applied workspace edits, once an editor opened.
+    /// The backend listener of applied workspace edits, from the first project or editor opened.
     listener: Option<u64>,
     applied: Vec<AppliedEdit>,
     undo: WorkspaceUndo,
@@ -1116,12 +1116,12 @@ impl Workbench {
         let (this, label) = (cx.weak_entity(), self.label.clone());
         let listener = cx.global_mut::<Backend>().listen(move |event, cx| {
             // An agent's edit through the MCP tools is undoable but not announced as a refactoring.
-            if let IdeEvent::WorkspaceEditApplied { id, paths, by_agent: false } = &event.event
+            if let IdeEvent::WorkspaceEditApplied { id, paths, by_agent } = &event.event
                 && event.window.as_deref().is_none_or(|window| window == label)
             {
                 let paths: Vec<String> = paths.iter().map(|path| to_ipc(&path.0)).collect();
-                let id = *id;
-                let _ = this.update(cx, |workbench, cx| workbench.workspace_edit_applied(id, paths, cx));
+                let (id, by_agent) = (*id, *by_agent);
+                let _ = this.update(cx, |workbench, cx| workbench.workspace_edit_applied(id, paths, by_agent, cx));
             }
         });
         self.language.listener = Some(listener);
@@ -1138,18 +1138,29 @@ impl Workbench {
         .detach();
     }
 
+    /// How many applied workspace edits the window remembers for Edit › Undo.
+    #[cfg(test)]
+    pub(super) fn remembered_edits(&self) -> usize {
+        self.language.applied.len()
+    }
+
     /// The project the window shows, as the refactoring history knows it.
     fn undo_project(&self, cx: &App) -> Option<String> {
         self.project_root(cx).map(|root| to_ipc(&root))
     }
 
-    fn workspace_edit_applied(&mut self, id: u32, paths: Vec<String>, cx: &mut Context<Self>) {
+    /// The backend applied workspace edit `id` to `paths`: Edit › Undo in an editor of one of them
+    /// takes it back. An agent's edit (`by_agent`) raises no notification: an agent makes many.
+    fn workspace_edit_applied(&mut self, id: u32, paths: Vec<String>, by_agent: bool, cx: &mut Context<Self>) {
         let applied = &mut self.language.applied;
         // A new edit drops the redo of an undone one it overlaps.
         applied.retain(|edit| !(edit.undone && paths.iter().any(|path| edit.affects(path))));
         applied.push(AppliedEdit { id, paths, undone: false });
         if applied.len() > REMEMBERED_EDITS {
             applied.remove(0);
+        }
+        if by_agent {
+            return;
         }
         let project = self.undo_project(cx);
         let notice = self.language.undo.applied(id, project.as_deref());

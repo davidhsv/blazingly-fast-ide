@@ -11,6 +11,8 @@ use ropey::Rope;
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
 
+mod zig;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PostfixTemplate {
     /// Stable id: `<language group>.<key>`.
@@ -24,6 +26,9 @@ pub struct PostfixTemplate {
     pub statement: bool,
     /// Wrap compound expressions (`a + b`) in parentheses for `$EXPR$`.
     pub wrap_compound: bool,
+    /// An editor action run on the selected expression instead of inserting `body` (Java's `.var`
+    /// is Introduce Variable); `body` stays for when the action is not available.
+    pub action: Option<&'static str>,
 }
 
 /// A template before its set gives it an id and languages.
@@ -34,11 +39,12 @@ struct Def {
     variables: Vec<TemplateVariable>,
     statement: bool,
     wrap_compound: bool,
+    action: Option<&'static str>,
 }
 
 /// A template offered for any expression.
 fn expr(key: &'static str, description: &'static str, body: &'static str) -> Def {
-    Def { key, description, body, variables: Vec::new(), statement: false, wrap_compound: false }
+    Def { key, description, body, variables: Vec::new(), statement: false, wrap_compound: false, action: None }
 }
 
 /// A template offered only for an expression that starts its line.
@@ -54,6 +60,12 @@ impl Def {
 
     fn var(mut self, variable: TemplateVariable) -> Self {
         self.variables.push(variable);
+        self
+    }
+
+    /// Runs the editor action `action` on the expression instead of inserting the text.
+    fn action(mut self, action: &'static str) -> Self {
+        self.action = Some(action);
         self
     }
 }
@@ -82,6 +94,7 @@ fn set(key: &str, langs: &[&str], defs: Vec<Def>) -> Vec<PostfixTemplate> {
             variables: d.variables,
             statement: d.statement,
             wrap_compound: d.wrap_compound,
+            action: d.action,
         })
         .collect()
 }
@@ -200,7 +213,8 @@ fn java() -> Vec<PostfixTemplate> {
             stmt("if", "if (expr)", "if ($EXPR$) {\n\t$END$\n}"),
             stmt("else", "if (!expr)", "if (!$EXPR$) {\n\t$END$\n}").wrap(),
             expr("not", "!expr", "!$EXPR$$END$").wrap(),
-            stmt("var", "var name = expr;", "var $NAME$ = $EXPR$;$END$").var(name()),
+            // The language server declares the expression's type.
+            stmt("var", "T name = expr;", "var $NAME$ = $EXPR$;$END$").var(name()).action("refactor.extractVariable"),
             stmt("return", "return expr;", "return $EXPR$;$END$"),
             stmt("sout", "System.out.println(expr)", "System.out.println($EXPR$);$END$"),
             stmt("for", "for (var item : expr)", "for (var $ITEM$ : $EXPR$) {\n\t$END$\n}").var(item()),
@@ -250,16 +264,17 @@ fn kotlin() -> Vec<PostfixTemplate> {
 /// Every postfix template, grouped by language set.
 pub fn postfix_templates() -> &'static [PostfixTemplate] {
     static TEMPLATES: LazyLock<Vec<PostfixTemplate>> =
-        LazyLock::new(|| [ts_like(), rust(), python(), go(), java(), kotlin()].concat());
+        LazyLock::new(|| [ts_like(), rust(), python(), go(), zig::zig(), java(), kotlin()].concat());
     &TEMPLATES
 }
 
 /// The language sets, as the settings page titles them: `(id prefix, title)`.
-pub const POSTFIX_GROUPS: [(&str, &str); 6] = [
+pub const POSTFIX_GROUPS: [(&str, &str); 7] = [
     ("ts", "JavaScript / TypeScript"),
     ("rust", "Rust"),
     ("py", "Python"),
     ("go", "Go"),
+    ("zig", "Zig"),
     ("java", "Java"),
     ("kt", "Kotlin"),
 ];
@@ -798,7 +813,7 @@ mod tests {
     // postfix target › every language has the core keys
     #[test]
     fn every_language_has_the_core_keys() {
-        for lang in ["typescript", "rust", "python", "go", "java", "kotlin"] {
+        for lang in ["typescript", "rust", "python", "go", "zig", "java", "kotlin"] {
             let keys: Vec<&str> =
                 postfix_templates_for(lang, &BTreeSet::new()).iter().map(|t| t.key.as_str()).collect();
             for key in ["if", "not", "return", "par", "nn"] {
@@ -831,6 +846,6 @@ mod tests {
         assert!(starts_with_keyword("return x") && starts_with_keyword("new") && !starts_with_keyword("newest"));
         assert_eq!(without_strings("f(\"a;b\", '{') + `}` + \"open"), "f(, ) +  + \"open");
         assert_eq!(scan("x = \"😀\" + sé.len()", "rust"), "sé.len()");
-        assert_eq!(postfix_templates().len(), 99);
+        assert_eq!(postfix_templates().len(), 111);
     }
 }

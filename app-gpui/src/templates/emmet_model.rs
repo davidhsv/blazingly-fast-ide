@@ -27,7 +27,7 @@ pub struct EmmetSyntax {
 const MARKUP: EmmetSyntax = EmmetSyntax { kind: EmmetType::Markup, syntax: "html" };
 
 /// Languages with markup expansion; their `<style>` and `<script>` regions are told apart.
-const MARKUP_LANGUAGES: [&str; 3] = ["html", "vue", "svelte"];
+const MARKUP_LANGUAGES: [&str; 4] = ["html", "vue", "svelte", "django-html"];
 
 /// The stylesheet dialect of a language id.
 fn stylesheet_syntax(language: &str) -> Option<&'static str> {
@@ -102,6 +102,13 @@ pub fn syntax_at(language: &str, before: &str) -> Option<EmmetSyntax> {
     }
     let after = |open: Option<usize>, close: Option<usize>| open.is_some_and(|o| close.is_none_or(|c| o > c));
     if after(text.rfind("<!--"), text.rfind("-->")) || open_region(text, "script").is_some() {
+        return None;
+    }
+    // Not inside a Django tag, variable or comment (`{% if user|`).
+    static DJANGO_OPEN: LazyLock<Regex> = LazyLock::new(|| pattern(r"\{[%{#]"));
+    static DJANGO_CLOSE: LazyLock<Regex> = LazyLock::new(|| pattern(r"[%}#]\}"));
+    let last = |found: &Regex| found.find_iter(text).last().map(|at| at.start());
+    if language == "django-html" && after(last(&DJANGO_OPEN), last(&DJANGO_CLOSE)) {
         return None;
     }
     if let Some((head, attrs)) = open_region(text, "style") {

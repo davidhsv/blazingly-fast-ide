@@ -3376,6 +3376,8 @@ impl Workbench {
                         // It is the most recent project now: Open Recent lists it first.
                         menu::refresh_recent(cx);
                         workbench.load_bookmarks(&root.to_string_lossy(), cx);
+                        // Workspace edits are remembered from the start, those made before an editor opens too.
+                        workbench.watch_workspace_edits(cx);
                         let label = workbench.label.clone();
                         // The layout is stored under the project folder's path as its key.
                         let scope = root.to_string_lossy().into_owned();
@@ -4565,6 +4567,8 @@ mod tests {
     mod proofs34_template_actions;
     mod proofs34_template_files;
     mod proofs35_settings_vim;
+    mod proofs39_agent_undo;
+    mod proofs39_java_var;
     mod proofs3_context;
     mod proofs3_rename_lsp;
     mod proofs3_run;

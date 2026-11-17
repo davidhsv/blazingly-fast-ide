@@ -299,6 +299,9 @@ mod tests {
     use crate::settings_model::staging::Scope;
     use gpui_kit::{Entity, TestAppContext, VisualTestContext};
 
+    mod proofs39_java_var_row;
+    mod proofs39_zig_tab;
+
     fn page(cx: &mut TestAppContext) -> (Entity<PostfixPageView>, Seen, &mut VisualTestContext) {
         cx.update(|cx| cx.set_global(UiStorage::default()));
         let model = cx.update(|cx| dialog_model(PAGE, &[], cx));
@@ -314,7 +317,7 @@ mod tests {
     async fn toggles_postfix_templates(cx: &mut TestAppContext) {
         let (view, _, cx) = page(cx);
         let lines = view.read_with(cx, |view, cx| view.lines(cx));
-        assert_eq!(lines[4], "[JavaScript / TypeScript] | Rust | Python | Go | Java | Kotlin");
+        assert_eq!(lines[4], "[JavaScript / TypeScript] | Rust | Python | Go | Zig | Java | Kotlin");
         assert!(lines.contains(&"  [x] .if | if (expr)".to_owned()), "{lines:?}");
         click(cx, "settings-postfix-template-ts.if");
         assert!(stored(cx).disabled.contains(&"ts.if".to_owned()));
@@ -349,7 +352,7 @@ mod tests {
         assert_eq!(stored(cx), off);
         click(cx, "settings-postfix-group-rust");
         let lines = view.read_with(cx, |view, cx| view.lines(cx));
-        assert_eq!(lines[4], "JavaScript / TypeScript | [Rust] | Python | Go | Java | Kotlin");
+        assert_eq!(lines[4], "JavaScript / TypeScript | [Rust] | Python | Go | Zig | Java | Kotlin");
         assert!(lines.contains(&"  [x] .if | if expr (disabled)".to_owned()), "{lines:?}");
         assert!(seen.borrow().is_empty(), "the page asks nothing of the dialog");
     }

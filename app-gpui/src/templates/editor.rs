@@ -13,6 +13,7 @@ use super::live_model::{
 use super::live_store::LiveTemplateOptions;
 use super::live_surrounders::{SurroundEntryKind, SurroundSelection, Surrounder, surround_entries, surrounders_for};
 use super::popup_store::{ChooserItem, ChooserRequest};
+use super::postfix_action::PostfixAction;
 use super::postfix_model::{
     PostfixCandidate, PostfixTarget, PostfixTemplate, candidates_for, find_postfix_target, is_compound,
     postfix_templates_for,
@@ -110,6 +111,8 @@ pub struct TemplateExpansion {
     pub options: ExpandOptions,
     /// Select `from..to` before applying (Surround With keeps the wrapped text selected).
     pub select_range: bool,
+    /// The editor action the postfix template stands for, run instead of inserting the text.
+    pub postfix_action: Option<PostfixAction>,
 }
 
 /// An expansion ready for the document.
@@ -131,6 +134,7 @@ impl TemplateExpansion {
             to,
             options: ExpandOptions::default(),
             select_range: false,
+            postfix_action: None,
         }
     }
 
@@ -187,6 +191,8 @@ pub enum PendingChoice {
     /// Which expression a postfix template applies to.
     PostfixExpression {
         template: PostfixTemplate,
+        /// Offset of the `.` before the key.
+        dot: u32,
         target_end: u32,
         candidates: Vec<PostfixCandidate>,
     },
@@ -215,12 +221,19 @@ pub enum Picked {
     Nothing,
 }
 
-fn postfix_expansion(template: &PostfixTemplate, candidate: &PostfixCandidate, end: u32) -> TemplateExpansion {
+fn postfix_expansion(
+    template: &PostfixTemplate,
+    candidate: &PostfixCandidate,
+    dot: u32,
+    end: u32,
+) -> TemplateExpansion {
     let wrap = template.wrap_compound && is_compound(&candidate.text);
     let expr = if wrap { format!("({})", candidate.text) } else { candidate.text.clone() };
     let mut expansion = TemplateExpansion::new(&template.body, &template.variables, candidate.from, end);
     expansion.options.predefined.insert("EXPR".to_owned(), expr);
     expansion.options.expression = Some(candidate.text.clone());
+    expansion.postfix_action =
+        template.action.map(|action| PostfixAction { action, dot, statement: template.statement });
     expansion
 }
 
@@ -234,10 +247,12 @@ impl PendingChoice {
                 None => Picked::Nothing,
             },
             Self::Surround(choice) => choice.pick(key, doc),
-            Self::PostfixExpression { template, target_end, candidates } => {
+            Self::PostfixExpression { template, dot, target_end, candidates } => {
                 match key.parse::<usize>().ok().and_then(|index| candidates.get(index)) {
                     // The key may have grown since the target was computed.
-                    Some(candidate) => Picked::Expand(postfix_expansion(template, candidate, (*target_end).max(head))),
+                    Some(candidate) => {
+                        Picked::Expand(postfix_expansion(template, candidate, *dot, (*target_end).max(head)))
+                    }
                     None => Picked::Nothing,
                 }
             }
@@ -505,7 +520,7 @@ pub fn apply_postfix(template: &PostfixTemplate, target: &PostfixTarget, head: u
     let candidates = candidates_for(template, target);
     match candidates.as_slice() {
         [] => None,
-        [only] => Some(TemplateAction::Expand(postfix_expansion(template, only, target.end.max(head)))),
+        [only] => Some(TemplateAction::Expand(postfix_expansion(template, only, target.dot, target.end.max(head)))),
         several => {
             let items = several.iter().enumerate().map(|(index, candidate)| {
                 let label = candidate.text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -519,6 +534,7 @@ pub fn apply_postfix(template: &PostfixTemplate, target: &PostfixTarget, head: u
                 },
                 pending: PendingChoice::PostfixExpression {
                     template: template.clone(),
+                    dot: target.dot,
                     target_end: target.end,
                     candidates: several.iter().map(|&candidate| candidate.clone()).collect(),
                 },

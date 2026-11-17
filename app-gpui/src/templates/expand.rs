@@ -168,12 +168,15 @@ pub struct TemplateSession {
     /// The expansion's own edit is reported by the editor after the session started; the fields
     /// are already where that edit put them, so its report must not move them again.
     own_edits: usize,
+    /// The fields are a live template's, where Enter moves to the next field; a completion item's
+    /// snippet leaves Enter to the editor.
+    from_template: bool,
 }
 
 impl TemplateSession {
     /// The fields of a snippet another feature already put in, whose edit the editor has reported.
     pub fn from_fields(fields: ActiveSnippet) -> Self {
-        Self { fields, completing: Vec::new(), own_edits: 0 }
+        Self { fields, completing: Vec::new(), own_edits: 0, from_template: false }
     }
 
     pub fn fields(&self) -> &ActiveSnippet {
@@ -208,8 +211,12 @@ impl TemplateSession {
 
     /// Where `key` takes the caret: the next field (Tab, Enter) or the previous one (Shift+Tab).
     /// `None` leaves the key to the editor: the lookup takes Tab and Enter while it is open, and
-    /// Shift+Tab has nowhere to go from the first field.
+    /// Shift+Tab has nowhere to go from the first field. Enter is the editor's in a completion
+    /// item's snippet.
     pub fn step(&self, key: FieldKey, lookup_open: bool) -> Option<FieldStep> {
+        if key == FieldKey::Enter && !self.from_template {
+            return None;
+        }
         let moved = field_key(&self.fields, key, lookup_open)?;
         let target = match key {
             FieldKey::ShiftTab => self.fields.active.saturating_sub(1),
@@ -217,7 +224,12 @@ impl TemplateSession {
         };
         Some(FieldStep {
             selections: moved.selection.iter().map(|range| (range.start, range.end)).collect(),
-            session: moved.active.map(|fields| Self { fields, completing: self.completing.clone(), own_edits: 0 }),
+            session: moved.active.map(|fields| Self {
+                fields,
+                completing: self.completing.clone(),
+                own_edits: 0,
+                from_template: self.from_template,
+            }),
             complete: self.completing.get(target).copied().unwrap_or(false),
         })
     }
@@ -257,7 +269,8 @@ impl TemplateEdit {
             insertion.selection.iter().map(|range| (range.start, range.end)).collect()
         };
         let changes = vec![insertion.change()];
-        let session = insertion.active.map(|fields| TemplateSession { fields, completing, own_edits: 1 });
+        let session =
+            insertion.active.map(|fields| TemplateSession { fields, completing, own_edits: 1, from_template: true });
         Self { changes, selections, session, complete_first }
     }
 }

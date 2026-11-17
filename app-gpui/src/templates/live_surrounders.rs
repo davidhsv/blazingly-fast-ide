@@ -7,6 +7,8 @@ use super::live_model::{LiveTemplate, TemplateVariable};
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
 
+mod zig;
+
 /// What a surrounder wraps.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SurrounderKind {
@@ -250,6 +252,7 @@ fn all_for(language: &str) -> &'static [Surrounder] {
     static KOTLIN: LazyLock<Vec<Surrounder>> = LazyLock::new(kotlin);
     static PYTHON: LazyLock<Vec<Surrounder>> = LazyLock::new(python);
     static GO: LazyLock<Vec<Surrounder>> = LazyLock::new(go);
+    static ZIG: LazyLock<Vec<Surrounder>> = LazyLock::new(zig::zig);
     static RUST: LazyLock<Vec<Surrounder>> = LazyLock::new(rust);
     static JS: LazyLock<Vec<Surrounder>> = LazyLock::new(js);
     static C_LIKE: LazyLock<Vec<Surrounder>> = LazyLock::new(c_like);
@@ -258,6 +261,7 @@ fn all_for(language: &str) -> &'static [Surrounder] {
         "kotlin" => KOTLIN.as_slice(),
         "python" => PYTHON.as_slice(),
         "go" => GO.as_slice(),
+        "zig" => ZIG.as_slice(),
         "rust" => RUST.as_slice(),
         _ if TS_LANGS.contains(&language) => JS.as_slice(),
         _ if C_LIKE_LANGS.contains(&language) => C_LIKE.as_slice(),

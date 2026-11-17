@@ -5,6 +5,8 @@ use crate::templates::live_builtins::builtin_templates;
 use gpui_kit::{Focusable, TestAppContext, VisualTestContext};
 use serde_json::{Value, json};
 
+mod proofs39_zig_group;
+
 fn page(cx: &mut TestAppContext) -> (Entity<LiveTemplatesPageView>, Seen, &mut VisualTestContext) {
     cx.update(|cx| cx.set_global(UiStorage::default()));
     let model = cx.update(|cx| dialog_model(PAGE, &[], cx));

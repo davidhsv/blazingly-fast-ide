@@ -17,6 +17,7 @@ pub mod live_store;
 pub mod live_surrounders;
 pub mod new_file_dialog;
 pub mod popup_store;
+pub mod postfix_action;
 pub mod postfix_model;
 pub mod postfix_store;
 pub mod snippet;
@@ -31,3 +32,15 @@ mod proofs33_expand;
 mod proofs34_new_file_dialog;
 #[cfg(test)]
 mod proofs34_update_tag_dialog;
+#[cfg(test)]
+mod proofs39_completion_enter;
+#[cfg(test)]
+mod proofs39_django_emmet;
+#[cfg(test)]
+mod proofs39_java_var;
+#[cfg(test)]
+mod proofs39_zig_live;
+#[cfg(test)]
+mod proofs39_zig_postfix;
+#[cfg(test)]
+mod proofs39_zig_surrounders;

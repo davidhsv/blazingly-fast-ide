@@ -14,6 +14,7 @@ fn len(text: &str) -> u32 {
 // template fields › leaves Enter to the editor in a completion's snippet: the fields of a snippet a
 // completion item put in walk with Tab only, while a template's walk with Enter too.
 #[test]
+#[expect(clippy::single_range_in_vec_init, reason = "a caret is a selection of one range")]
 fn leaves_enter_to_the_editor_in_a_completions_snippet() {
     // An LSP tag completion `<dependency>$1</dependency>$0` accepted on the typed `<dep`.
     let doc = Rope::from_str("<dep");
