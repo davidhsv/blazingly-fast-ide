@@ -1,0 +1,2580 @@
+F-MACROS-RUNANY-SCRATCH	[ ]	act	features/macros	(dynamic) src/features/macros/index.ts:101
+Q-FU4	[~]	act	features/plugins	(dynamic) src/features/plugins/points.tsx:200
+F-PL-VIEWS-C	[ ]	act	features/plugins	(dynamic) src/features/plugins/views/serviceProvider.tsx:88
+F-EXTERNAL-TOOLS	[ ]	act	features/run	(dynamic) src/features/run/externalTools.ts:164
+F-NFT-REST	[~]	act	features/templates	(dynamic) src/features/templates/index.ts:81
+F-AG-COMPOSER-TASKS-B	[ ]	act	features/agents	agents.closeAndNewTask
+F-AG-COMPOSER-TASKS-B	[ ]	act	features/agents	agents.closeTask
+F-AG-MODELS	[ ]	act	features/agents	agents.cycleEffort
+F-AG-COMPOSER-TASKS-B	[~]	act	features/agents	agents.dockTask
+F-AG-SESSION-FEATURES	[ ]	act	features/agents	agents.findInConversation
+F-AG-SESSION-FEATURES	[ ]	act	features/agents	agents.focusInput
+Q-FU4	[~]	act	features/agents	agents.forkReply
+Q-FU4	[~]	act	features/agents	agents.forkTask
+F-AG-COMPOSER-TASKS-B	[ ]	act	features/agents	agents.importSessions
+F-AG-MCP	[ ]	act	features/agents	agents.mcpServers
+F-AG-COMPOSER-TASKS-B	[ ]	act	features/agents	agents.newTaskGroup
+F-AG-COMPOSER-TASKS-B	[ ]	act	features/agents	agents.openSampleConversations
+F-AG-COMPOSER-TASKS-B	[~]	act	features/agents	agents.openTask
+F-AG-COMPOSER-TASKS-B	[~]	act	features/agents	agents.openTaskInEditor
+F-AG-COMPOSER-TASKS-B	[ ]	act	features/agents	agents.pinTasks
+F-AG-SESSION-FEATURES	[~]	act	features/agents	agents.quoteReply
+F-AG-MODELS	[ ]	act	features/agents	agents.refreshModels
+F-AG-COMPOSER-TASKS-B	[ ]	act	features/agents	agents.removeTaskGroup
+F-AG-COMPOSER-TASKS-B	[ ]	act	features/agents	agents.renameTaskGroup
+F-AG-SESSION-FEATURES	[ ]	act	features/agents	agents.retryConversation
+F-AG-SESSION-FEATURES	[ ]	act	features/agents	agents.startSideConversation
+F-AG-COMPOSER-TASKS-B	[~]	act	features/agents	agents.undockTask
+F-AG-COMPOSER-TASKS-B	[ ]	act	features/agents	agents.unpinTasks
+F-AG-COMPOSER-TASKS-B	[~]	act	features/agents	agents.useEditor
+F-AG-COMPOSER-TASKS-B	[~]	act	features/agents	agents.useToolWindow
+F-ANALYSIS	[ ]	act	features/analysis	analyze.inspectCode
+F-ANALYSIS	[ ]	act	features/analysis	analyze.inspectFile
+F-ANALYSIS	[ ]	act	features/analysis	analyze.locateDuplicates
+F-RUN-TYPES-OTHER-A	[ ]	act	features/run	analyze.stackTrace
+F-APP-SHELL-C	[~]	act	features/app	app.about
+F-APP-SHELL-B	[ ]	act	features/app	app.checkForUpdates
+F-APP-SHELL-C	[ ]	act	features/app	app.installCli
+F-APP-SHELL-A	[~]	act	features/app	app.restart
+F-APP-SHELL-C	[ ]	act	features/app	app.uninstallCli
+F-SMALL-FEATURES-B	[ ]	act	features/whats-new	app.whatsNew
+F-SMALL-FEATURES-A	[~]	act	features/build	build.buildArtifacts
+F-SMALL-FEATURES-A	[~]	act	features/build	build.buildModule
+F-SMALL-FEATURES-A	[~]	act	features/build	build.buildProject
+F-SMALL-FEATURES-A	[ ]	act	features/build	build.compileFile
+F-SMALL-FEATURES-A	[~]	act	features/build	build.rebuildProject
+F-LSP-POPUPS-C	[ ]	act	editor/lsp	code.applyPastedImports
+Q-FU4	[~]	act	editor/lsp	code.applyQuickFix
+F-ANALYSIS	[ ]	act	features/analysis	code.cleanup
+F-LSP-INLINE-B	[~]	act	editor/lsp	code.cleanupFile
+F-EDITOR-CORE-EDITING	[~]	act	editor/core	code.completeStatement
+F-LSP-POPUPS-A	[~]	act	editor/lsp	code.completion
+F-LSP-POPUPS-B	[~]	act	editor/lsp	code.expressionTypeInfo
+F-LSP-POPUPS-C	[ ]	act	editor/lsp	code.fixEslintProblems
+F-EDITOR-CORE-EDITING	[~]	act	editor/core	code.moveStatementDown
+F-EDITOR-CORE-EDITING	[~]	act	editor/core	code.moveStatementUp
+F-LSP-POPUPS-B	[~]	act	editor/lsp	code.parameterInfo
+F-EDITOR-CORE-EDITING	[~]	act	editor/core	code.pasteFromHistory
+Q-FU4	[~]	act	editor/lsp	code.quickDefinition
+F-LSP-POPUPS-B	[~]	act	editor/lsp	code.quickDocumentation
+F-LSP-POPUPS-B	[~]	act	editor/lsp	code.quickTypeDefinition
+F-LSP-INLINE-B	[~]	act	editor/lsp	code.reformat
+F-LSP-INLINE-B	[~]	act	editor/lsp	code.reformatDialog
+F-LSP-INLINE-B	[~]	act	editor/lsp	code.reformatFile
+F-LSP-POPUPS-C	[~]	act	editor/lsp	code.showIntentions
+F-COVERAGE-PROFILER	[ ]	act	features/coverage	coverage.hide
+F-COVERAGE-PROFILER	[ ]	act	features/coverage	coverage.importReport
+F-COVERAGE-PROFILER	[ ]	act	features/coverage	coverage.manageReports
+F-COVERAGE-PROFILER	[ ]	act	features/coverage	coverage.show
+F-DB-GRID-B	[ ]	act	features/database	db.addRow
+F-DB-RESULT-TABS	[ ]	act	features/database	db.closeAllButPinnedResultTabs
+F-DB-RESULT-TABS	[ ]	act	features/database	db.closeAllResultTabs
+F-DB-RESULT-TABS	[ ]	act	features/database	db.closeOtherResultTabs
+F-DB-RESULT-TABS	[ ]	act	features/database	db.closeResultTab
+F-DB-TREE-SOURCES-B	[ ]	act	features/database	db.compareSchemas
+F-DB-GRID-B	[ ]	act	features/database	db.copyAsCsv
+F-DB-GRID-B	[ ]	act	features/database	db.copyAsOneRow
+F-DB-GRID-B	[ ]	act	features/database	db.copyAsTsv
+F-DB-GRID-B	[ ]	act	features/database	db.copyRowsAsCsv
+F-DB-GRID-B	[ ]	act	features/database	db.copyRowsAsTsv
+F-DB-GRID-B	[ ]	act	features/database	db.copyWithHeader
+F-DB-TREE-SOURCES-A	[~]	act	features/database	db.ddlToClipboard
+F-DB-TREE-SOURCES-A	[~]	act	features/database	db.ddlToConsole
+F-DB-GRID-B	[ ]	act	features/database	db.deleteRows
+F-DB-GRID-B	[ ]	act	features/database	db.editCell
+F-DB-TREE-SOURCES-A	[~]	act	features/database	db.editData
+Q-FU4	[~]	act	features/database	db.execute
+F-DB-CONSOLES	[ ]	act	features/database	db.executeScript
+F-DB-TREE-SOURCES-A	[ ]	act	features/database	db.expandAll
+Q-FU4	[~]	act	features/database	db.explainPlan
+F-DB-TREE-SOURCES-B	[ ]	act	features/database	db.exportData
+F-DB-GRID-A	[ ]	act	features/database	db.findInValue
+F-DB-RESULT-TABS	[ ]	act	features/database	db.firstPage
+Q-FU4	[~]	act	features/database	db.goToColumn
+F-DB-TREE-SOURCES-B	[~]	act	features/database	db.importData
+F-DB-TREE-SOURCES-A	[ ]	act	features/database	db.introspect
+F-DB-CONSOLES	[~]	act	features/database	db.jumpToConsole
+F-DB-RESULT-TABS	[ ]	act	features/database	db.lastPage
+F-DB-GRID-B	[ ]	act	features/database	db.localFilter
+F-DB-TREE-SOURCES-A	[~]	act	features/database	db.modifyTable
+F-DB-CONSOLES	[ ]	act	features/database	db.new
+F-DB-TREE-SOURCES-A	[~]	act	features/database	db.newColumn
+F-DB-CONSOLES	[ ]	act	features/database	db.newConsole
+Q-FU4	[~]	act	features/database	db.newDataSource
+F-DB-TREE-SOURCES-A	[~]	act	features/database	db.newTable
+F-DB-RESULT-TABS	[ ]	act	features/database	db.nextPage
+F-DB-RESULT-TABS	[ ]	act	features/database	db.nextResultTab
+F-DB-CONSOLES	[~]	act	features/database	db.openConsole
+F-DB-GRID-A	[ ]	act	features/database	db.openValueWindow
+F-DB-RESULT-TABS	[ ]	act	features/database	db.pinResultTab
+F-DB-TREE-SOURCES-B	[ ]	act	features/database	db.pluginConnect
+F-DB-RESULT-TABS	[ ]	act	features/database	db.previousPage
+F-DB-RESULT-TABS	[ ]	act	features/database	db.previousResultTab
+Q-FU4	[~]	act	features/database	db.queryHistory
+F-DB-CONSOLES	[ ]	act	features/database	db.quickDoc
+F-DB-GRID-A	[ ]	act	features/database	db.reformatValue
+F-DB-RESULT-TABS	[ ]	act	features/database	db.reloadPage
+Q-FU4	[~]	act	features/database	db.rename
+F-DB-RESULT-TABS	[ ]	act	features/database	db.renameResultTab
+F-DB-GRID-B	[ ]	act	features/database	db.restoreRows
+Q-FU4	[~]	act	features/database	db.revertChanges
+F-DB-CONSOLES	[~]	act	features/database	db.runSqlScript
+F-DB-TREE-SOURCES-A	[ ]	act	features/database	db.selectOpened
+F-DB-GRID-B	[ ]	act	features/database	db.setCellDefault
+F-DB-GRID-B	[ ]	act	features/database	db.setCellNull
+F-DB-CONSOLES	[ ]	act	features/database	db.sqlScript
+Q-FU4	[~]	act	features/database	db.submitChanges
+F-DB-GRID-B	[ ]	act	features/database	db.toggleBooleanCell
+F-DB-RESULT-TABS	[ ]	act	features/database	db.toggleInEditorResults
+F-RUN-TYPES-OTHER-A	[ ]	act	features/run	debug
+F-DBG-ATTACH	[ ]	act	features/debugger	debug.attach
+F-DBG-ATTACH	[ ]	act	features/debugger	debug.attachToProcess
+F-DBG-ATTACH	[ ]	act	features/debugger	debug.attachUnity
+F-DBG-CONSOLE-WATCHES-A	[ ]	act	features/debugger	debug.browseConsoleHistory
+F-RUN-TABS	[ ]	act	features/debugger	debug.closeAllTabs
+F-RUN-TABS	[ ]	act	features/debugger	debug.closeOtherTabs
+F-RUN-TABS	[ ]	act	features/debugger	debug.closeTab
+F-DBG-JS-BROWSER	[ ]	act	features/debugger	debug.debugInBrowser
+F-DBG-CONSOLE-WATCHES-B	[~]	act	features/debugger	debug.evaluate
+F-DBG-HEAP-MEMORY	[ ]	act	features/debugger	debug.heap.capture
+F-DBG-HEAP-MEMORY	[ ]	act	features/debugger	debug.heap.open
+F-DBG-HEAP-MEMORY	[ ]	act	features/debugger	debug.heap.saveDump
+F-DBG-HEAP-MEMORY	[ ]	act	features/debugger	debug.jvmAttachReady
+F-DBG-HEAP-MEMORY	[ ]	act	features/debugger	debug.memory.closeInstances
+F-DBG-HEAP-MEMORY	[ ]	act	features/debugger	debug.memory.jumpToSource
+F-DBG-HEAP-MEMORY	[ ]	act	features/debugger	debug.memory.refresh
+F-DBG-HEAP-MEMORY	[ ]	act	features/debugger	debug.memory.showInstances
+F-DBG-HEAP-MEMORY	[ ]	act	features/debugger	debug.memory.showReferrers
+F-RUN-TABS	[ ]	act	features/debugger	debug.pinTab
+F-DBG-TAIL	[~]	act	features/debugger	debug.pluginStart
+F-DBG-CONSOLE-WATCHES-B	[~]	act	features/debugger	debug.quickEvaluate
+F-RUN-TABS	[~]	act	features/debugger	debug.rerun
+F-DBG-CONSOLE-WATCHES-B	[~]	act	features/debugger	debug.smartStepInto
+F-DBG-JS-BROWSER	[~]	act	features/debugger	debug.startConfig
+F-DBG-JS-BROWSER	[ ]	act	features/debugger	debug.startPageProfile
+F-DBG-JS-BROWSER	[ ]	act	features/debugger	debug.stopPageProfile
+F-SVC-DOCKER-A	[ ]	act	features/services	delete
+F-DEPLOY-WINDOW	[~]	act	features/deployment	deployment.configure
+F-DEPLOY-WINDOW	[ ]	act	features/deployment	deployment.downloadRemoteInto
+F-DEPLOY-WINDOW	[~]	act	features/deployment	deployment.uploadTo
+F-VCS-DIFF-TOOLBAR	[~]	act	features/vcs	diff.applyLeftSide
+F-VCS-DIFF-TOOLBAR	[~]	act	features/vcs	diff.applyRightSide
+F-VCS-DIFF-FIND	[ ]	act	features/vcs	diff.closeEditor
+F-VCS-DIR-COMPARE	[ ]	act	features/vcs	diff.compareDirectories
+F-VCS-DIFF-FIND	[~]	act	features/vcs	diff.compareWith
+F-VCS-DIFF-TOOLBAR	[ ]	act	features/vcs	diff.focusOppositePane
+F-VCS-DIFF-FIND	[ ]	act	features/vcs	diff.openBlankDiff
+F-VCS-DIFF-FIND	[ ]	act	features/vcs	diff.showInExternalTool
+F-VCS-DIFF-TOOLBAR	[ ]	act	features/vcs	diff.swapSides
+F-SVC-DOCKER-B	[ ]	act	features/services	docker.composeUp
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.execShell
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.inspect
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.openLogInEditor
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.prune
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.pullImage
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.remove
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.restart
+F-SVC-DOCKER-B	[ ]	act	features/services	docker.setComposeFileOverride
+F-SVC-DOCKER-B	[ ]	act	features/services	docker.showDashboard
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.showLayers
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.showLog
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.showProcesses
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.start
+F-SVC-DOCKER-A	[ ]	act	features/services	docker.stop
+F-DOTNET	[ ]	act	features/dotnet	dotnet.build
+F-DOTNET	[ ]	act	features/dotnet	dotnet.cancel
+F-DOTNET	[ ]	act	features/dotnet	dotnet.clean
+F-DOTNET	[ ]	act	features/dotnet	dotnet.discover
+F-DOTNET	[ ]	act	features/dotnet	dotnet.installTrx
+F-DOTNET	[ ]	act	features/dotnet	dotnet.packageChange
+F-DOTNET	[ ]	act	features/dotnet	dotnet.packages
+F-DOTNET	[ ]	act	features/dotnet	dotnet.reload
+F-DOTNET	[ ]	act	features/dotnet	dotnet.restore
+F-DOTNET	[ ]	act	features/dotnet	dotnet.search
+F-DOTNET	[ ]	act	features/dotnet	dotnet.select
+F-DOTNET	[ ]	act	features/dotnet	dotnet.show
+F-DOTNET	[ ]	act	features/dotnet	dotnet.test
+Q-FU4	[~]	act	features/app	edit.copy
+Q-FU4	[~]	act	features/app	edit.cut
+Q-FU4	[~]	act	features/app	edit.paste
+Q-FU4	[~]	act	features/app	edit.redo
+I-ACTIONS-ENABLED	[~]	act	features/app	edit.selectAll
+I-ACTIONS-ENABLED	[~]	act	features/app	edit.undo
+F-EDITOR-DOCS-SYNC-B	[ ]	act	editor/core	editor.cancelSourceDownload
+F-EDITOR-DOCS-SYNC-B	[ ]	act	editor/core	editor.chooseSources
+F-PLAT-MODELS-B-B	[ ]	act	features/settings	editor.colorScheme.delete
+F-PLAT-MODELS-B-B	[ ]	act	features/settings	editor.colorScheme.export
+F-PLAT-MODELS-B-B	[ ]	act	features/settings	editor.colorScheme.import
+F-EDITOR-DOCS-SYNC-B	[~]	act	editor/core	editor.copyPathReference
+I-ZOOM-PX	[~]	act	editor/core	editor.decreaseFontSize
+F-EDITOR-DOCS-SYNC-B	[ ]	act	editor/core	editor.downloadSources
+F-EDITOR-DOCS-SYNC-B	[ ]	act	features/settings	editor.encodings.toggleNativeToAscii
+I-ZOOM-PX	[~]	act	editor/core	editor.increaseFontSize
+F-LSP-INLINE-A	[ ]	act	editor/lsp	editor.inlineCompletion.accept
+F-LSP-INLINE-A	[ ]	act	editor/lsp	editor.inlineCompletion.acceptWord
+F-LSP-INLINE-A	[ ]	act	editor/lsp	editor.inlineCompletion.dismiss
+F-LSP-INLINE-A	[ ]	act	editor/lsp	editor.inlineCompletion.next
+F-LSP-INLINE-A	[ ]	act	editor/lsp	editor.inlineCompletion.previous
+F-LSP-INLINE-A	[ ]	act	editor/lsp	editor.inlineCompletion.trigger
+F-EDITOR-TABS-SESSIONS-A	[~]	act	editor/core	editor.pinTab
+I-ZOOM-PX	[~]	act	editor/core	editor.resetFontSize
+F-EDITOR-RENDERED-DOCS	[ ]	act	editor/core	editor.toggleRenderedDocs
+F-EDITOR-RENDERED-DOCS	[ ]	act	editor/core	editor.toggleRenderedView
+F-LSP-SEMANTIC	[ ]	act	editor/core	editor.toggleSemanticHighlighting
+I-SOFTWRAP	[ ]	act	editor/core	editor.toggleSoftWrap
+F-WB-TOOLWINDOWS	[~]	act	workbench	editor.toggleZen
+F-EDITOR-TABS-SESSIONS-A	[~]	act	editor/core	editor.unsplit
+F-EDITOR-TABS-SESSIONS-A	[~]	act	editor/core	editor.unsplitAll
+F-APP-SHELL-C	[~]	act	features/app	file.exportSettings
+F-APP-SHELL-B	[ ]	act	features/app	file.importJetBrainsSettings
+F-APP-SHELL-C	[~]	act	features/app	file.importSettings
+F-APP-NEW-PROJECT	[~]	act	features/app	file.newProject
+F-MACROS-RUNANY-SCRATCH	[ ]	act	features/scratch	file.newScratchFile
+I-UNTITLED	[ ]	act	features/app	file.newUntitled
+Q-FU4	[~]	act	features/app	file.openFile
+Q-FU4	[~]	act	features/app	file.openInNewWindow
+F-APP-SHELL-C	[ ]	act	features/app	file.openPaths
+F-WB-SHELL-A	[~]	act	workbench	file.openProject
+F-APP-SHELL-C	[~]	act	features/app	file.openProjectPath
+F-SMALL-FEATURES-A	[~]	act	features/welcome	file.openRecent
+F-APP-SHELL-C	[~]	act	features/app	file.openRecentProject
+F-SET-FILE-TYPES	[ ]	act	features/settings	file.overrideFileType
+F-SET-JDK-LANGS	[ ]	act	features/settings	file.projectStructure
+F-APP-NEW-PROJECT	[ ]	act	features/app	file.renameProject
+F-SET-FILE-TYPES	[ ]	act	features/settings	file.revertFileTypeOverride
+F-SET-UPSTREAM-TOGGLES-B	[~]	act	features/settings	file.settings
+F-EDITOR-TABS-SESSIONS-B	[~]	act	editor/core	file.toggleReadOnly
+F-WB-MENUS-TITLE	[ ]	act	workbench	find.field.newLine
+F-WB-MENUS-TITLE	[ ]	act	workbench	find.field.recentSearches
+F-SEARCH-A	[~]	act	features/search	find.inPath
+F-EDITOR-TABS-SESSIONS-B	[~]	act	editor/core	find.openInWindow
+F-SEARCH-A	[~]	act	features/search	find.replaceInPath
+F-ANALYSIS	[ ]	act	features/analysis	find.replaceStructural
+F-ANALYSIS	[ ]	act	features/analysis	find.structural
+F-HIERARCHY-USAGES	[~]	act	features/code-insight	find.usages
+F-GH-REVIEW-B	[~]	act	features/github	github.checkoutPullRequest
+F-GH-REVIEW-B	[~]	act	features/github	github.pullRequest.checkoutBranch
+F-GH-REVIEW-B	[ ]	act	features/github	github.pullRequest.deleteMergedBranch
+F-GH-REVIEW-A	[ ]	act	features/github	github.pullRequest.diff.addComment
+F-GH-REVIEW-A	[ ]	act	features/github	github.pullRequest.diff.addMultilineComment
+F-GH-REVIEW-A	[ ]	act	features/github	github.pullRequest.diff.nextComment
+F-GH-REVIEW-A	[ ]	act	features/github	github.pullRequest.diff.previousComment
+F-GH-REVIEW-A	[ ]	act	features/github	github.pullRequest.diff.refreshReview
+F-GH-REVIEW-B	[~]	act	features/github	github.pullRequest.refresh
+F-GH-REVIEW-A	[ ]	act	features/github	github.pullRequest.reviewMode
+F-GH-REVIEW-A	[ ]	act	features/github	github.pullRequest.reviewMode.showDiff
+F-GH-REVIEW-B	[~]	act	features/github	github.pullRequest.show
+F-GH-REVIEW-B	[ ]	act	features/github	github.pullRequest.showInToolWindow
+F-GH-REVIEW-B	[ ]	act	features/github	github.pullRequest.showTimeline
+F-GH-REVIEW-A	[ ]	act	features/github	github.pullRequest.submitReview
+F-GH-REVIEW-B	[ ]	act	features/github	github.pullRequest.timeline.refresh
+F-GH-REVIEW-B	[ ]	act	features/github	github.pullRequest.updateBranch
+F-GH-REVIEW-B	[ ]	act	features/github	github.selectOpenedPullRequest
+F-RUN-TYPES-OTHER-B	[ ]	act	features/run	go.generate.file
+F-RUN-TYPES-OTHER-B	[ ]	act	features/run	go.generate.package
+F-BT-SBT-ANALYZER-A	[ ]	act	features/build-tools	gradle.analyzeDependencies
+F-BT-TAIL	[~]	act	features/build-tools	gradle.executeTask
+F-BT-SBT-ANALYZER-B	[ ]	act	features/build-tools	gradle.toggleSkipTests
+F-GRAPHQL	[ ]	act	features/graphql	graphql.addConfiguration
+F-GRAPHQL	[ ]	act	features/graphql	graphql.editConfiguration
+F-GRAPHQL	[ ]	act	features/graphql	graphql.introspect
+F-GRAPHQL	[ ]	act	features/graphql	graphql.restartDiscovery
+F-GRAPHQL	[ ]	act	features/graphql	graphql.runQuery
+F-GRAPHQL	[ ]	act	features/graphql	graphql.showToolWindow
+F-APP-SHELL-C	[ ]	act	features/app	help.showLog
+F-HTTP	[ ]	act	features/http-client	http.addPrivateEnvironment
+F-HTTP	[ ]	act	features/http-client	http.addPublicEnvironment
+F-HTTP	[ ]	act	features/http-client	http.copyAsCurl
+F-HTTP	[~]	act	features/http-client	http.newRequest
+Q-FU4	[~]	act	features/http-client	http.openEndpoint
+F-TOOLS-SERVERS	[ ]	act	features/tools	java.downloadJdk
+F-WB-TOOLWINDOWS	[~]	act	workbench	layout.delete
+F-WB-TOOLWINDOWS	[~]	act	workbench	layout.rename
+F-WB-TOOLWINDOWS	[~]	act	workbench	layout.restore
+F-SMALL-FEATURES-B	[ ]	act	features/libraries	libraries.reload
+F-VCS-HISTORY	[~]	act	features/vcs	localHistory.recentChanges
+F-MACROS-RUNANY-SCRATCH	[ ]	act	features/macros	macro.edit
+F-MACROS-RUNANY-SCRATCH	[ ]	act	features/macros	macro.playBack
+F-MACROS-RUNANY-SCRATCH	[ ]	act	features/macros	macro.playSaved
+F-MACROS-RUNANY-SCRATCH	[ ]	act	features/macros	macro.startRecording
+F-MACROS-RUNANY-SCRATCH	[ ]	act	features/macros	macro.stopRecording
+F-BT-SBT-ANALYZER-A	[ ]	act	features/build-tools	maven.addProjects
+F-BT-SBT-ANALYZER-A	[ ]	act	features/build-tools	maven.analyzeDependencies
+F-BT-TAIL	[~]	act	features/build-tools	maven.executeGoal
+F-BT-SBT-ANALYZER-B	[ ]	act	features/build-tools	maven.generateSources
+F-BT-SBT-ANALYZER-A	[ ]	act	features/build-tools	maven.importExternal
+F-BT-TAIL	[~]	act	features/build-tools	maven.settings
+F-BT-SBT-ANALYZER-A	[ ]	act	features/build-tools	maven.unlinkProjects
+F-VCS-HISTORY	[~]	act	features/vcs	merge.annotate
+F-EDITOR-TABS-SESSIONS-B	[~]	act	editor/core	navigate.back
+F-HIERARCHY-USAGES	[~]	act	features/code-insight	navigate.callHierarchy
+F-LSP-NAV	[~]	act	editor/lsp	navigate.declaration
+F-SEARCH-B	[~]	act	features/search	navigate.fileStructure
+F-SEARCH-B	[~]	act	features/search	navigate.findAction
+F-EDITOR-TABS-SESSIONS-B	[~]	act	editor/core	navigate.forward
+F-SEARCH-B	[~]	act	features/search	navigate.gotoFile
+F-SEARCH-B	[~]	act	features/search	navigate.gotoSymbol
+F-NAVIGATION	[~]	act	editor/navigation	navigate.gotoTest
+F-LSP-NAV	[~]	act	editor/lsp	navigate.implementation
+F-EDITOR-NAVBAR	[ ]	act	editor/core	navigate.navigationBar
+F-WB-SHELL-A	[~]	act	workbench	navigate.nextOccurrence
+F-WB-SHELL-A	[~]	act	workbench	navigate.prevOccurrence
+F-SEARCH-B	[~]	act	features/search	navigate.recentFiles
+F-SEARCH-B	[ ]	act	features/search	navigate.recentLocations
+F-NAVIGATION	[ ]	act	editor/navigation	navigate.relatedSymbol
+F-SEARCH-B	[~]	act	features/search	navigate.searchEverywhere
+F-SEARCH-B	[~]	act	features/search	navigate.searchText
+F-PROJECT-VIEW	[~]	act	features/project-tree	navigate.selectIn
+F-PROJECT-VIEW	[~]	act	features/project-tree	navigate.showFilePath
+F-NAVIGATION	[~]	act	editor/navigation	navigate.superMethod
+F-SEARCH-B	[~]	act	features/search	navigate.switcher
+F-HIERARCHY-USAGES	[~]	act	features/code-insight	navigate.typeHierarchy
+F-RUN-SERVICES	[~]	act	features/run	open-browser
+F-PERF-MCP-SSH	[ ]	act	features/perf	perf.clearCaches
+F-PERF-MCP-SSH	[ ]	act	features/perf	perf.showMemory
+F-PERF-MCP-SSH	[ ]	act	features/perf	perf.toggleMemoryIndicator
+F-PERF-MCP-SSH	[ ]	act	features/perf	perf.toggleOverlay
+F-RUN-TYPES-OTHER-B	[ ]	act	features/run	php.composerInstall
+F-SET-PYTHON-PHP-B	[ ]	act	features/settings	php.languageLevelPopup
+F-SET-PYTHON-PHP-B	[ ]	act	features/settings	php.selectLanguageLevel
+F-PL-VIEWS-A	[ ]	act	features/plugins	plugins.content.action
+F-PL-VIEWS-A	[ ]	act	features/plugins	plugins.content.find
+F-PL-DETAILS	[ ]	act	features/plugins	plugins.importInstalledIntellijTheme
+F-PL-DETAILS	[ ]	act	features/plugins	plugins.importIntellijTheme
+F-PL-DETAILS	[~]	act	features/plugins	plugins.installFromDisk
+F-PL-VIEWS-A	[ ]	act	features/plugins	plugins.log.find
+F-PL-VIEWS-A	[~]	act	features/plugins	plugins.log.wrap
+F-COVERAGE-PROFILER	[ ]	act	features/profiler	profiler.showCpuProfiles
+F-APP-WORKSPACE	[ ]	act	features/app	project.attach
+F-PROJECT-VIEW	[~]	act	features/project-tree	project.copy
+F-PROJECT-VIEW	[~]	act	features/project-tree	project.cut
+F-APP-WORKSPACE	[ ]	act	features/app	project.detach
+F-PROJECT-VIEW	[ ]	act	features/project-tree	project.openInRightSplit
+F-PROJECT-VIEW	[ ]	act	features/project-tree	project.option.showMembers
+F-PROJECT-VIEW	[ ]	act	features/project-tree	project.option.showRootPaths
+F-PROJECT-VIEW	[~]	act	features/project-tree	project.paste
+Q-FU4	[~]	act	features/project-trust	project.previewRestricted
+F-PROJECT-VIEW	[~]	act	features/project-tree	project.rename
+F-PROJECT-VIEW	[ ]	act	features/project-tree	project.renameInline
+F-PROJECT-VIEW	[~]	act	features/project-tree	project.revealInFinder
+Q-FU4	[~]	act	features/project-trust	project.revokeTrust
+F-SMALL-FEATURES-A	[~]	act	features/project-trust	project.trust
+F-PROJECT-VIEW	[ ]	act	features/project-tree	project.viewMode.scratches
+F-PROJECT-VIEW	[ ]	act	features/project-tree	project.viewMode.unity
+F-SVC-DOCKER-A	[ ]	act	features/services	pull
+F-SET-PYTHON-PHP-A	[ ]	act	features/settings	python.addInterpreter
+F-SET-PYTHON-PHP-A	[ ]	act	features/settings	python.interpreterPopup
+F-SET-PYTHON-PHP-A	[ ]	act	features/settings	python.interpreterSettings
+F-SET-PYTHON-PHP-A	[ ]	act	features/settings	python.selectInterpreter
+F-LSP-REFACTOR-B	[~]	act	editor/lsp	refactor.extractConstant
+F-LSP-REFACTOR-B	[~]	act	editor/lsp	refactor.extractField
+F-LSP-REFACTOR-A	[ ]	act	editor/lsp	refactor.extractInterface
+F-LSP-REFACTOR-B	[~]	act	editor/lsp	refactor.extractMethod
+F-LSP-REFACTOR-B	[~]	act	editor/lsp	refactor.extractParameter
+F-LSP-REFACTOR-B	[~]	act	editor/lsp	refactor.extractVariable
+F-LSP-REFACTOR-A	[ ]	act	editor/lsp	refactor.pullMembersUp
+F-LSP-REFACTOR-A	[ ]	act	editor/lsp	refactor.pushMembersDown
+F-LSP-POPUPS-C	[~]	act	editor/lsp	refactor.rename
+F-LSP-REFACTOR-C	[~]	act	editor/lsp	refactor.safeDelete
+F-LSP-REFACTOR-C	[~]	act	editor/lsp	refactor.thisMenu
+F-SVC-DOCKER-A	[ ]	act	features/services	refresh
+F-SMALL-FEATURES-C	[ ]	act	features/remote-dev	remote.connect
+F-SMALL-FEATURES-C	[ ]	act	features/remote-dev	remote.disconnect
+F-SMALL-FEATURES-C	[ ]	act	features/remote-dev	remote.reloadEnvironment
+F-SMALL-FEATURES-C	[ ]	act	features/remote-dev	remote.reopenInContainer
+F-SVC-DOCKER-A	[ ]	act	features/services	restart
+F-RUN-SERVICES	[~]	act	features/run	restart-all
+F-RUN-SERVICES	[~]	act	features/run	run-all
+F-RUN-TYPES-OTHER-C	[ ]	act	features/run	run.agentStart
+F-RUN-CHOOSER	[ ]	act	features/run	run.attachUnity
+F-RUN-TABS	[ ]	act	features/run	run.closeAllTabs
+F-RUN-TABS	[ ]	act	features/run	run.closeOtherTabs
+F-RUN-TABS	[ ]	act	features/run	run.closeTab
+F-RUN-TESTS	[ ]	act	features/run	run.collapseAllTests
+F-COVERAGE-PROFILER	[ ]	act	features/coverage	run.coverage
+F-COVERAGE-PROFILER	[ ]	act	features/coverage	run.coverageContext
+F-RUN-IMPORT	[~]	act	features/run	run.createConfig
+T1-RUN-GUARDS	[~]	act	features/run	run.debugConfig
+F-RUN-IMPORT	[~]	act	features/run	run.editConfigs
+F-RUN-TESTS	[ ]	act	features/run	run.expandAllTests
+F-RUN-IMPORT	[ ]	act	features/run	run.importJetbrains
+F-RUN-IMPORT	[ ]	act	features/run	run.importVscodeLaunch
+F-RUN-TABS	[ ]	act	features/run	run.pinTab
+F-RUN-TYPES-OTHER-C	[ ]	act	features/run	run.pluginStart
+F-COVERAGE-PROFILER	[ ]	act	features/profiler	run.profile
+F-COVERAGE-PROFILER	[ ]	act	features/profiler	run.profileAllocations
+F-COVERAGE-PROFILER	[ ]	act	features/profiler	run.profileContext
+F-COVERAGE-PROFILER	[ ]	act	features/profiler	run.profileLiveObjects
+F-RUN-IMPORT	[~]	act	features/run	run.reloadConfigs
+F-RUN-TESTS	[ ]	act	features/run	run.rerunFailed
+T1-RUN-GUARDS	[~]	act	features/run	run.runConfig
+F-RUN-CONSOLE	[ ]	act	features/run	run.sampleOutput
+F-RUN-SERVICES	[~]	act	features/run	run.services.openBrowser
+F-RUN-SERVICES	[~]	act	features/run	run.services.restartAll
+F-RUN-SERVICES	[~]	act	features/run	run.services.runAll
+F-RUN-SERVICES	[~]	act	features/run	run.services.stopAll
+F-RUN-IMPORT	[~]	act	features/run	run.stop
+F-RUN-TYPES-JVM	[ ]	act	features/run	run.updateApplication
+F-RUN-CHOOSER	[ ]	act	features/run	run.withExecutor
+F-MACROS-RUNANY-SCRATCH	[ ]	act	features/run-anything	runAnything.show
+F-BT-SBT-ANALYZER-B	[ ]	act	features/build-tools	sbt.collapseAll
+F-BT-SBT-ANALYZER-B	[ ]	act	features/build-tools	sbt.expandAll
+F-BT-SBT-ANALYZER-B	[ ]	act	features/build-tools	sbt.reload
+F-PLAT-MODELS-A	[ ]	act	features/search	search.editScopes
+F-SVC-DOCKER-B	[~]	act	features/services	services.addService
+F-SET-UPSTREAM-TOGGLES-B	[ ]	act	features/settings	settings.assignShortcut
+F-SET-UPSTREAM-TOGGLES-B	[~]	act	features/settings	settings.keymap
+F-PERF-MCP-SSH	[ ]	act	features/ssh	ssh.configurations
+F-PERF-MCP-SSH	[ ]	act	features/ssh	ssh.startSession
+F-SVC-DOCKER-A	[ ]	act	features/services	start
+F-RUN-SERVICES	[~]	act	features/run	stop-all
+F-NFT-REST	[~]	act	features/templates	templates.newFromTemplate
+F-SVC-DOCKER-A	[ ]	act	features/services	terminal
+F-TERMINAL	[ ]	act	features/terminal	terminal.find
+F-TERMINAL	[ ]	act	features/terminal	terminal.moveToEditor
+Q-FU4	[~]	act	features/terminal	terminal.openAt
+F-TERMINAL	[ ]	act	features/terminal	terminal.pluginSession
+F-TERMINAL	[ ]	act	features/terminal	terminal.sampleTui
+F-TERMINAL	[~]	act	features/terminal	terminal.splitAndMoveDown
+F-TOOLS-SERVERS	[ ]	act	features/tools	tools.install
+F-TOOLS-SERVERS	[ ]	act	features/tools	tools.languageServers
+F-TOOLS-SERVERS	[ ]	act	features/tools	tools.promptInstall
+I-TW-CONTENT-TABS	[ ]	act	workbench	toolwindow.closeContent
+Q-FU4	[~]	act	workbench	toolwindow.hideActive
+I-TW-CONTENT-TABS	[ ]	act	workbench	toolwindow.viewMode.dockPinned
+I-TW-CONTENT-TABS	[ ]	act	workbench	toolwindow.viewMode.dockUnpinned
+I-TW-CONTENT-TABS	[ ]	act	workbench	toolwindow.viewMode.undock
+F-RUN-TYPES-OTHER-A	[ ]	act	features/run	update
+F-VCS-COMMIT-DIALOG	[ ]	act	features/vcs	vcs.analysis
+F-VCS-BRANCHES	[~]	act	features/vcs	vcs.branches
+F-VCS-REMOTE-LINKS	[ ]	act	features/vcs	vcs.clone
+F-VCS-COMMIT-DIALOG	[~]	act	features/vcs	vcs.commit
+F-VCS-COMMIT-DIALOG	[~]	act	features/vcs	vcs.commitAndPush
+F-VCS-REPO-DIALOGS-A	[~]	act	features/vcs	vcs.compareWithBranch
+F-VCS-HISTORY	[ ]	act	features/vcs	vcs.compareWithRevision
+F-VCS-REMOTE-LINKS	[ ]	act	features/vcs	vcs.copyRemoteLink
+F-VCS-REMOTE-LINKS	[ ]	act	features/vcs	vcs.createRepository
+F-VCS-COMMIT-DIALOG	[ ]	act	features/vcs	vcs.crlf
+F-VCS-COMMIT-DIALOG	[ ]	act	features/vcs	vcs.detachedHead
+Q-FU4	[~]	act	features/vcs	vcs.fetch
+F-VCS-COMMIT-DIALOG	[ ]	act	features/vcs	vcs.fileNames
+Q-FU4	[~]	act	features/vcs	vcs.ignoreLocal
+Q-FU4	[~]	act	features/vcs	vcs.ignoreShared
+F-VCS-COMMIT-DIALOG	[ ]	act	features/vcs	vcs.largeFiles
+Q-FU4	[~]	act	features/vcs	vcs.log.branches.update
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.changes.compareBeforeWithLocal
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.changes.compareWithLocal
+Q-FU4	[~]	act	features/vcs	vcs.log.changes.jumpToSource
+Q-FU4	[~]	act	features/vcs	vcs.log.changes.showDiff
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.collapseLinear
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.compareVersions
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.compareWithLocal
+Q-FU2	[~]	act	features/vcs	vcs.log.dropCommit
+Q-FU2	[~]	act	features/vcs	vcs.log.editMessage
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.expandLinear
+Q-FU2	[~]	act	features/vcs	vcs.log.fixup
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.goToRef
+Q-FU2	[~]	act	features/vcs	vcs.log.interactiveRebase
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.openExternal
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.pushUpToHere
+F-VCS-LOG	[~]	act	features/vcs	vcs.log.squashCommits
+Q-FU2	[~]	act	features/vcs	vcs.log.squashInto
+Q-FU2	[~]	act	features/vcs	vcs.log.undoCommit
+F-VCS-REPO-DIALOGS-B	[~]	act	features/vcs	vcs.manageRemotes
+Q-FU4	[~]	act	features/vcs	vcs.merge
+F-VCS-REPO-DIALOGS-A	[~]	act	features/vcs	vcs.newBranch
+F-VCS-REPO-DIALOGS-A	[~]	act	features/vcs	vcs.newTag
+F-VCS-COMBINED-DIFF	[~]	act	features/vcs	vcs.openDiff
+F-VCS-REMOTE-LINKS	[ ]	act	features/vcs	vcs.openOnRemote
+Q-FU4	[~]	act	features/vcs	vcs.pull
+F-VCS-REPO-DIALOGS-B	[~]	act	features/vcs	vcs.push
+Q-FU4	[~]	act	features/vcs	vcs.rebase
+Q-FU4	[~]	act	features/vcs	vcs.resetHead
+F-VCS-MERGE	[~]	act	features/vcs	vcs.resolveConflicts
+Q-FU4	[~]	act	features/vcs	vcs.rollback
+F-VCS-HISTORY	[~]	act	features/vcs	vcs.shelf.showDiffNewTab
+F-VCS-LOG	[~]	act	features/vcs	vcs.showCommit
+F-VCS-HISTORY	[ ]	act	features/vcs	vcs.showCurrentRevision
+F-VCS-COMBINED-DIFF	[~]	act	features/vcs	vcs.showDiff
+F-VCS-HISTORY	[ ]	act	features/vcs	vcs.showDiffForLines
+F-VCS-COMBINED-DIFF	[ ]	act	features/vcs	vcs.showDiffInEditorTab
+F-VCS-COMBINED-DIFF	[ ]	act	features/vcs	vcs.showDiffInNewWindow
+F-VCS-HISTORY	[~]	act	features/vcs	vcs.showHistory
+F-VCS-HISTORY	[~]	act	features/vcs	vcs.showHistoryForSelection
+F-VCS-LOG	[~]	act	features/vcs	vcs.showLog
+Q-FU4	[~]	act	features/vcs	vcs.stash
+F-VCS-STASH	[ ]	act	features/vcs	vcs.stashSelected
+F-VCS-SYNC	[ ]	act	features/vcs	vcs.syncCommits
+F-VCS-COMMIT-DIALOG	[ ]	act	features/vcs	vcs.todo
+Q-FU4	[~]	act	features/vcs	vcs.unstash
+Q-FU4	[~]	act	features/vcs	vcs.update
+F-EDITOR-NAVBAR	[ ]	act	features/settings	view.navigationBarHidden
+F-EDITOR-NAVBAR	[ ]	act	features/settings	view.navigationBarStatusBar
+F-EDITOR-NAVBAR	[ ]	act	features/settings	view.navigationBarTop
+F-PLAT-MODELS-B-B	[~]	act	workbench	view.quickSwitchScheme
+I-ZOOM-PX	[~]	act	features/settings	view.resetZoom
+I-ZOOM-PX	[~]	act	features/settings	view.zoomIn
+I-ZOOM-PX	[~]	act	features/settings	view.zoomOut
+V-I3	[ ]	act	features/vim	vim.reloadRc
+V-I3	[ ]	act	features/vim	vim.toggle
+F-SMALL-FEATURES-A	[ ]	act	features/web	web.openInBrowser
+F-SMALL-FEATURES-A	[ ]	act	features/web	web.togglePreview
+F-SMALL-FEATURES-A	[~]	act	features/welcome	welcome.recentProjects
+I-WINDOW-GROUPS	[ ]	act	features/app	window.closeOtherTabs
+I-WINDOW-GROUPS	[ ]	act	features/app	window.closeTab
+I-WINDOW-GROUPS	[ ]	act	features/app	window.closeTabsToLeft
+I-WINDOW-GROUPS	[ ]	act	features/app	window.closeTabsToRight
+I-WINDOW-GROUPS	[ ]	act	features/app	window.detachTab
+I-WINDOW-GROUPS	[ ]	act	features/app	window.mergeAllWindows
+I-WINDOW-GROUPS	[ ]	act	features/app	window.nextTab
+I-WINDOW-GROUPS	[ ]	act	features/app	window.previousTab
+I-WINDOW-GROUPS	[ ]	act	features/app	window.reorderTabs
+I-WINDOW-GROUPS	[ ]	act	features/app	window.selectTab
+F-WB-STATUS-TASKS	[ ]	act	workbench	workbench.stopBackgroundProcesses
+F-APP-WORKSPACE	[ ]	act	features/app	workspace.create
+F-APP-WORKSPACE	[ ]	act	features/app	workspace.manage
+F-APP-WORKSPACE	[ ]	act	features/app	workspace.open
+F-APP-WORKSPACE	[ ]	act	features/app	workspace.removeProject
+F-RUN-TABS	[ ]	boundid	?	toolwindow.debug
+F-RUN-SERVICES	[ ]	boundid	?	toolwindow.services
+I-UNTITLED	[~]	keymap	?	vscode-macos
+I-UNTITLED	[~]	keymap	?	vscode-windows
+F-AG-MODELS	[ ]	ctx	features/agents	agentEffortAvailable
+F-AG-SESSION-FEATURES	[ ]	ctx	features/agents	agentInputAvailable
+F-BT-SBT-ANALYZER-B	[ ]	ctx	features/build-tools	build.sbt
+F-VCS-TAIL	[ ]	ctx	features/vcs	command
+F-GH-REVIEW-B	[ ]	ctx	features/github	CONNECTED
+F-COVERAGE-PROFILER	[ ]	ctx	features/coverage	coverageSuites
+F-COVERAGE-PROFILER	[ ]	ctx	features/coverage	coverageVisible
+F-DB-GRID-B	[ ]	ctx	features/database	dbCellGridFocus
+F-DB-GRID-A	[ ]	ctx	features/database	dbJsonValueCanOpenWindow
+F-DB-GRID-A	[ ]	ctx	features/database	dbJsonValueEditable
+F-DB-GRID-A	[ ]	ctx	features/database	dbJsonValueFocus
+F-DB-RESULT-TABS	[ ]	ctx	features/database	dbResultsFocus
+F-DB-RESULT-TABS	[~]	ctx	features/database	dbTableEditorChanges
+F-DB-RESULT-TABS	[~]	ctx	features/database	dbTableEditorFocus
+F-DBG-JS-BROWSER	[ ]	ctx	features/debugger	debugHasJsPage
+F-DBG-HEAP-MEMORY	[ ]	ctx	features/debugger	debugHasJvmMemory
+F-DBG-HEAP-MEMORY	[ ]	ctx	features/debugger	debugHeapSnapshotCaptured
+F-DBG-JS-BROWSER	[ ]	ctx	features/debugger	debugPageProfiled
+F-TEMPLATES-REST	[ ]	ctx	features/templates	EDITOR_WHEN
+F-EDITOR-DOCS-SYNC-B	[~]	ctx	editor/core	findBarHasResults
+F-UI-PRIMITIVES	[~]	ctx	ui	focusedDirectory
+F-GH-REVIEW-B	[ ]	ctx	features/github	githubCurrentBranchPullRequest
+F-GH-REVIEW-A	[ ]	ctx	features/github	githubReviewDiff
+F-GH-REVIEW-A	[ ]	ctx	features/github	githubReviewEditor
+F-GH-REVIEW-B	[ ]	ctx	features/github	githubTimelineActive
+F-BT-SBT-ANALYZER-B	[ ]	ctx	features/build-tools	GRADLE_WHEN
+F-GH-REVIEW-B	[ ]	ctx	features/github	handlerContextKey
+F-MACROS-RUNANY-SCRATCH	[ ]	ctx	features/macros	macroLastAvailable
+F-MACROS-RUNANY-SCRATCH	[ ]	ctx	features/macros	macroRecording
+F-MACROS-RUNANY-SCRATCH	[ ]	ctx	features/macros	macrosSaved
+F-BT-SBT-ANALYZER-B	[ ]	ctx	features/build-tools	MAVEN_WHEN
+F-EDITOR-CORE-EDITING	[~]	ctx	editor/core	pasteHistoryListFocus
+F-WB-SHELL-A	[ ]	ctx	workbench	projectAttached
+F-WB-SHELL-A	[ ]	ctx	workbench	projectLocal
+F-WB-SHELL-A	[ ]	ctx	workbench	projectOpenAsk
+F-RUN-TESTS	[ ]	ctx	features/run	run.canRerunFailed
+F-RUN-TYPES-OTHER-A	[~]	ctx	features/run	run.updatableRunning
+F-WB-MENUS-TITLE	[ ]	ctx	ui	searchFieldHistory
+F-WB-MENUS-TITLE	[ ]	ctx	ui	searchFieldNewLine
+I-SOFTWRAP	[ ]	ctx	workbench	softWrapSurfaceFocus
+F-EDITOR-CORE-EDITING	[ ]	ctx	editor/core	TEXT_WHEN
+F-WB-TOOLWINDOWS	[ ]	ctx	workbench	toolWindowLayoutActive
+F-VCS-SYNC	[ ]	ctx	features/vcs	VCS
+F-VCS-HISTORY	[ ]	ctx	features/vcs	vcsFileHistoryVersion
+Q-FU4	[ ]	ctx	features/vcs	vcsLogChangesFocus
+V-I2A	[ ]	ctx	features/vim	vim.mode
+V-I2A	[ ]	ctx	features/vim	vimMode
+I-WINDOW-GROUPS	[ ]	ctx	platform	windowGrouped
+F-WB-SHELL-A	[ ]	ctx	workbench	workspaceContainer
+F-WB-SHELL-A	[ ]	ctx	workbench	workspaceOpen
+F-AG-COMPOSER-TASKS-C	[ ]	pt	features/agents	changes
+F-HIERARCHY-USAGES	[ ]	pt	features/code-insight	problems
+F-TERMINAL	[ ]	pt	features/terminal	terminal
+F-GH-REVIEW-B	[ ]	pt	features/github	github
+F-VCS-COMMIT-DIALOG	[ ]	pt	features/plugins	(at) src/features/plugins/uiPoints.tsx:215
+F-PL-NAV-EVENTS	[ ]	pt	features/plugins	(at) src/features/plugins/navigation.ts:170
+F-APP-SHELL-C	[ ]	pt	features/app	app.powerSave
+F-SVC-DOCKER-B	[ ]	pt	features/services	docker.composeAutoDetect
+F-EDITOR-DOCS-SYNC-A	[ ]	pt	editor/core	editor.document
+F-LSP-POPUPS-C	[ ]	pt	editor/lsp	lsp.outsideProject
+F-RUN-TYPES-OTHER-B	[ ]	pt	features/run	php.composerInstall
+F-EDITOR-EMBEDDED-LANGS	[ ]	pt	features/web	web.djangoTemplate
+F-ANALYSIS	[ ]	pt	features/analysis	analysis.python-inheritance
+F-BT-POM	[ ]	pt	features/build-tools	build-tools.pomCompletion
+F-BT-POM	[ ]	pt	features/build-tools	build-tools.pomNavigation
+F-BT-POM	[ ]	pt	features/build-tools	build-tools.versionCatalog
+T1-PLUGIN-VISUALS	[ ]	pt	features/color-preview	colorPreview.gutter
+F-COVERAGE-PROFILER	[ ]	pt	features/coverage	coverage.gutter
+F-SMALL-FEATURES-B	[ ]	pt	features/cucumber	cucumber.undefinedSteps
+F-DB-CONSOLES	[~]	pt	features/database	database.console
+F-DB-CONSOLES	[ ]	pt	features/database	database.mybatis
+F-DBG-TAIL	[ ]	pt	features/debugger	debugger
+F-SMALL-FEATURES-B	[ ]	pt	features/dependencies	dependency-versions
+F-GH-REVIEW-A	[ ]	pt	features/github	github.reviewMode
+F-GRAPHQL	[ ]	pt	features/graphql	graphql.toolbar
+F-HTTP	[ ]	pt	features/http-client	http.endpoints
+F-HTTP	[~]	pt	features/http-client	http.requests
+F-HTTP	[~]	pt	features/http-client	http.spring
+F-LSP-POPUPS-C	[ ]	pt	editor/lsp	lsp
+F-LSP-POPUPS-C	[ ]	pt	editor/lsp	lsp.lineMarkers
+F-LSP-POPUPS-C	[ ]	pt	editor/lsp	lsp.parameterTab
+F-MACROS-RUNANY-SCRATCH	[ ]	pt	features/macros	macros.recorder
+F-VCS-MERGE	[ ]	pt	features/vcs	merge-conflict-markers
+T1-PLUGIN-VISUALS	[ ]	pt	features/plugins	plugins.decorations
+F-PL-VIEWS-A	[ ]	pt	features/plugins	plugins.editorPanels
+T1-PLUGIN-VISUALS	[ ]	pt	features/plugins	plugins.indexedMarkers
+F-PL-NAV-EVENTS	[ ]	pt	features/plugins	plugins.languageFeatures
+T1-PLUGIN-VISUALS	[ ]	pt	features/plugins	plugins.lineMarkers
+F-PL-NAV-EVENTS	[ ]	pt	features/plugins	plugins.navigation
+F-RUN-TYPES-OTHER-B	[ ]	pt	features/run	run.launchSettings
+F-RUN-TYPES-OTHER-B	[~]	pt	features/run	run.npmScripts
+F-RUN-TYPES-OTHER-A	[~]	pt	features/run	run.targets
+F-SEARCH-B	[~]	pt	features/search	search.bookmarks
+F-SEARCH-A	[ ]	pt	features/search	search.tracking
+F-SVC-DOCKER-B	[ ]	pt	features/services	services.composeEditor
+F-SVC-DOCKER-B	[ ]	pt	features/services	services.dockerGutter
+F-TEMPLATES-REST	[~]	pt	features/templates	templates
+F-SMALL-FEATURES-C	[ ]	pt	features/todo	todo.highlight
+F-VCS-TAIL	[~]	pt	features/vcs	vcs.changeMarkers
+F-VIEWERS	[~]	pt	features/viewers	viewers.markdownLive
+V-I4	[ ]	pt	features/vim	vim
+F-EDITOR-EMBEDDED-LANGS	[ ]	pt	features/web	web.djangoContent
+F-AG-TAIL	[ ]	pt	features/agents	(at) src/features/agents/index.ts:210
+F-PL-VIEWS-A	[ ]	pt	features/plugins	(at) src/features/plugins/views/editorPanel.tsx:304
+F-AG-TAIL	[ ]	kind	features/agents	agent-home
+F-AG-TAIL	[ ]	kind	features/agents	agent-session
+F-VIEWERS	[~]	kind	features/viewers	binary
+F-TERMINAL	[ ]	kind	features/terminal	cli
+F-VCS-COMBINED-DIFF	[ ]	kind	features/vcs	combined-diff
+F-DB-TREE-SOURCES-A	[ ]	kind	features/database	db-table
+F-VCS-DIFF-FIND	[~]	kind	features/vcs	diff
+F-SVC-DOCKER-A	[ ]	kind	features/services	dockerLog
+F-VCS-LOG	[~]	kind	features/vcs	git-log
+F-VCS-MERGE	[ ]	kind	features/vcs	git-merge-diff
+F-VCS-HISTORY	[ ]	kind	features/vcs	git-revision
+F-GH-REVIEW-B	[ ]	kind	features/github	github.timeline
+F-DBG-HEAP-MEMORY	[ ]	kind	features/debugger	heap-snapshot
+F-VIEWERS	[~]	kind	features/viewers	image
+F-VCS-HISTORY	[ ]	kind	features/vcs	localHistory
+F-BT-SBT-ANALYZER-A	[ ]	kind	features/build-tools	maven.dependencyAnalyzer
+F-VCS-MERGE	[ ]	kind	features/vcs	merge
+F-NOTEBOOK	[~]	kind	features/notebook	notebook
+F-PL-VIEWS-A	[ ]	kind	features/plugins	pluginContent
+F-PL-VIEWS-A	[ ]	kind	features/plugins	pluginEditor
+F-PL-VIEWS-A	[~]	kind	features/plugins	pluginLog
+F-VCS-HISTORY	[~]	kind	features/vcs	selectionHistory
+F-SMALL-FEATURES-B	[ ]	kind	features/whats-new	whatsNew
+F-PL-NAV-EVENTS	[ ]	pt	features/plugins	(at) src/features/plugins/points.tsx:161
+F-PL-NAV-EVENTS	[ ]	pt	features/plugins	(at) src/features/plugins/uiPoints.tsx:446
+F-VIEWERS	[ ]	pt	features/viewers	viewers.associatedApps
+F-EDITOR-RENDERED-DOCS	[ ]	pt	editor/core	(at) src/editor/core/cm/markdownImages.ts:117
+F-TERMINAL	[ ]	pt	features/terminal	(at) src/features/terminal/drop.ts:23
+F-PL-VIEWS-C	[ ]	fep	features/plugins	(at) src/features/plugins/uiPoints.tsx:484
+F-NOTEBOOK	[~]	fep	features/notebook	notebook
+F-AG-TAIL	[ ]	pt	features/agents	(at) src/features/agents/fontZoom.ts:83
+F-PL-VIEWS-B	[ ]	pt	features/plugins	(at) src/features/plugins/views/WebView.tsx:233
+F-TERMINAL	[ ]	pt	features/terminal	(at) src/features/terminal/session.ts:382
+F-VIEWERS	[ ]	pt	features/viewers	(at) src/features/viewers/markdown/MarkdownEditor.tsx:390
+F-GH-REVIEW-B	[ ]	pt	features/github	(at) src/features/github/index.ts:269
+F-AG-TAIL	[ ]	pt	features/agents	(at) src/features/agents/Composer.tsx:871
+F-DBG-CONSOLE-WATCHES-A	[ ]	pt	features/debugger	(at) src/features/debugger/ui/DebugConsole.tsx:253
+F-PL-VIEWS-A	[ ]	pt	features/plugins	(at) src/features/plugins/views/contentEditor.tsx:521
+F-PL-VIEWS-A	[ ]	pt	features/plugins	(at) src/features/plugins/views/logEditor.tsx:241
+F-SEARCH-B	[~]	pt	features/search	(at) src/features/search/everywhere/SearchEverywhere.tsx:86
+F-SEARCH-A	[ ]	pt	features/search	(at) src/features/search/find/parts.tsx:184
+F-SVC-DOCKER-A	[ ]	pt	features/services	(at) src/features/services/logEditor.tsx:273
+F-VCS-BRANCHES	[ ]	pt	features/vcs	(at) src/features/vcs/BranchWidget.tsx:368
+V-I3	[ ]	pt	features/vim	(at) src/features/vim/index.ts:79
+F-UI-PRIMITIVES	[ ]	pt	ui	(at) src/ui/Tree.tsx:389
+F-HTTP	[ ]	pt	features/http-client	(at) src/features/http-client/index.ts:142
+F-AG-COMPOSER-TASKS-A	[~]	pt	features/agents	agents.send
+F-SMALL-FEATURES-A	[ ]	pt	features/build	build.compileFile
+F-SMALL-FEATURES-A	[ ]	pt	features/build	build.module
+F-HIERARCHY-USAGES	[ ]	pt	features/code-insight	codeInsight.eslint
+F-DBG-CONSOLE-WATCHES-B	[ ]	pt	features/debugger	debugger.evaluate
+F-DBG-TAIL	[ ]	pt	features/debugger	debugger.hotswap
+F-DBG-TAIL	[ ]	pt	features/debugger	debugger.stop
+F-DEPLOY-WINDOW	[ ]	pt	features/deployment	deployment
+F-GH-REVIEW-A	[ ]	pt	features/github	github.reviewMode
+F-RUN-TYPES-OTHER-B	[ ]	pt	features/run	go.modules
+F-BT-SBT-ANALYZER-A	[ ]	pt	features/build-tools	gradle.analyzeDependencies
+F-HTTP	[ ]	pt	features/http-client	http.new
+F-BT-SBT-ANALYZER-A	[ ]	pt	features/build-tools	maven.analyzeDependencies
+F-PL-NAV-EVENTS	[~]	pt	features/plugins	plugins
+F-RUN-TYPES-OTHER-A	[~]	pt	features/run	run.context
+F-MACROS-RUNANY-SCRATCH	[ ]	pt	features/scratch	scratch.new
+F-SEARCH-B	[~]	pt	features/search	search.bookmarks
+F-SEARCH-B	[~]	pt	features/search	search.bookmarks.files
+F-SEARCH-B	[ ]	pt	features/search	search.structure.selectIn
+F-SET-FILE-TYPES	[ ]	pt	features/settings	settings.fileType
+F-NFT-REST	[~]	pt	features/templates	templates.new
+F-VCS-TAIL	[~]	pt	features/vcs	vcs.gutter
+F-VCS-REMOTE-LINKS	[ ]	pt	features/vcs	vcs.openOnRemote
+F-SMALL-FEATURES-A	[ ]	pt	features/web	web.open
+F-SMALL-FEATURES-A	[ ]	pt	features/web	web.openIn
+F-PL-NAV-EVENTS	[~]	pt	features/plugins	(at) src/features/plugins/uiPoints.tsx:185
+F-SMALL-FEATURES-B	[ ]	pt	features/cucumber	(at) src/features/cucumber/index.ts:160
+F-HTTP	[ ]	pt	features/http-client	(at) src/features/http-client/fileNavigation.ts:29
+F-HTTP	[ ]	pt	features/http-client	(at) src/features/http-client/variableNavigation.ts:39
+F-PL-NAV-EVENTS	[ ]	pt	features/plugins	(at) src/features/plugins/navigation.ts:193
+F-SMALL-FEATURES-C	[ ]	pt	features/rails	(at) src/features/rails/index.ts:57
+F-SMALL-FEATURES-C	[ ]	pt	features/thymeleaf	(at) src/features/thymeleaf/index.ts:64
+F-WB-SHELL-B	[~]	pt	workbench	(at) src/workbench/contributions.ts:1628
+F-AG-COMPOSER-TASKS-B	[ ]	ovl	features/agents	agents.importSessions
+F-ANALYSIS	[ ]	ovl	features/analysis	analysis.dialogs
+F-APP-SHELL-C	[~]	ovl	features/app	app.about
+F-APP-SHELL-C	[~]	ovl	features/app	app.keymapReference
+F-APP-NEW-PROJECT	[~]	ovl	features/app	app.newProject
+F-APP-SHELL-A	[~]	ovl	features/app	app.termination
+F-APP-WORKSPACE	[ ]	ovl	features/app	app.workspace
+F-BT-TAIL	[~]	ovl	features/build-tools	build-tools.execute
+F-HIERARCHY-USAGES	[~]	ovl	features/code-insight	code-insight.usagesPopup
+F-COVERAGE-PROFILER	[ ]	ovl	features/coverage	coverage.manageReports
+F-DB-TREE-SOURCES-B	[~]	ovl	features/database	database.dialogs
+F-DBG-TAIL	[~]	ovl	features/debugger	debugger
+F-DEPLOY-WINDOW	[~]	ovl	features/deployment	deployment.dialogs
+F-LSP-REFACTOR-A	[ ]	ovl	editor/lsp	editor-lsp.changeSignatureDialog
+F-LSP-REFACTOR-A	[ ]	ovl	editor/lsp	editor-lsp.extractInterfaceDialog
+F-LSP-REFACTOR-A	[ ]	ovl	editor/lsp	editor-lsp.hierarchyDialog
+F-LSP-POPUPS-B	[~]	ovl	editor/lsp	editor-lsp.popups
+F-EDITOR-NAVBAR	[ ]	ovl	editor/core	editor.navigationBar
+F-EDITOR-CORE-EDITING	[~]	ovl	editor/core	editor.pasteHistory
+F-GH-REVIEW-B	[ ]	ovl	features/github	github.dialogs
+F-GRAPHQL	[ ]	ovl	features/graphql	graphql.environment
+F-MACROS-RUNANY-SCRATCH	[ ]	ovl	features/macros	macros.dialogs
+F-PERF-MCP-SSH	[ ]	ovl	features/mcp	mcp.confirm
+F-PERF-MCP-SSH	[ ]	ovl	features/perf	perf.overlay
+T1-PLUGIN-VISUALS	[~]	ovl	features/plugins	plugins.consent
+F-PL-DETAILS	[ ]	ovl	features/plugins	plugins.intellijThemes
+F-SMALL-FEATURES-A	[~]	ovl	features/project-trust	project.trustDialog
+F-SMALL-FEATURES-C	[ ]	ovl	features/remote-dev	remote.connect
+F-RUN-CHOOSER	[~]	ovl	features/run	run.chooser
+F-RUN-IMPORT	[ ]	ovl	features/run	run.dialogs
+F-RUN-IMPORT	[~]	ovl	features/run	run.editConfigs
+F-RUN-SERVICES	[ ]	ovl	features/run	run.serviceImport
+F-RUN-TYPES-OTHER-A	[ ]	ovl	features/run	run.stackTraceDialog
+F-MACROS-RUNANY-SCRATCH	[ ]	ovl	features/run-anything	runAnything.popup
+F-MACROS-RUNANY-SCRATCH	[ ]	ovl	features/scratch	scratch.chooser
+F-SEARCH-B	[~]	ovl	features/search	search.everywhere
+F-SEARCH-B	[~]	ovl	features/search	search.fileStructure
+F-SEARCH-A	[~]	ovl	features/search	search.findInFiles
+F-SEARCH-B	[~]	ovl	features/search	search.recent
+F-PLAT-MODELS-A	[ ]	ovl	features/search	search.scopes
+F-SVC-DOCKER-B	[ ]	ovl	features/services	services.dialogs
+F-SET-UPSTREAM-TOGGLES-B	[~]	ovl	features/settings	settings.assignShortcut
+F-SET-UPSTREAM-TOGGLES-B	[~]	ovl	features/settings	settings.dialog
+F-SET-JDK-LANGS	[ ]	ovl	features/settings	settings.projectStructure
+F-PERF-MCP-SSH	[ ]	ovl	features/ssh	ssh.askpass
+F-NFT-REST	[~]	ovl	features/templates	templates.chooser
+F-NFT-REST	[~]	ovl	features/templates	templates.newFile
+F-VCS-BRANCHES	[~]	ovl	features/vcs	vcs.branches
+F-VCS-REPO-DIALOGS-A	[~]	ovl	features/vcs	vcs.dialogs
+F-VCS-SYNC	[ ]	ovl	features/vcs	vcs.syncCommits
+F-SMALL-FEATURES-A	[ ]	ovl	features/welcome	welcome.recentProjects
+Q-FU3	[~]	ovl	workbench	workbench.backgroundTasks
+F-NOTEBOOK	[ ]	pt	features/notebook	(at) src/features/notebook/index.ts:91
+F-PROJECT-VIEW	[ ]	pt	features/project-tree	(at) src/features/project-tree/index.ts:140
+F-PROJECT-VIEW	[ ]	pt	features/project-tree	(at) src/features/project-tree/index.ts:151
+F-PROJECT-VIEW	[ ]	pt	features/project-tree	(at) src/features/project-tree/index.ts:162
+F-SMALL-FEATURES-B	[ ]	pt	features/libraries	externalLibraries
+F-MACROS-RUNANY-SCRATCH	[ ]	pt	features/scratch	scratches
+F-BT-TAIL	[ ]	pt	features/build-tools	build-tools
+F-RUN-TYPES-OTHER-A	[ ]	pt	features/run	run.configs
+F-RUN-TYPES-OTHER-B	[ ]	pt	features/run	bun
+F-SVC-DOCKER-B	[ ]	pt	features/services	docker-compose
+F-SVC-DOCKER-B	[ ]	pt	features/services	docker-dockerfile
+F-SVC-DOCKER-A	[ ]	pt	features/services	docker-image
+F-RUN-TYPES-OTHER-B	[ ]	pt	features/run	dotnet
+F-RUN-TESTS	[ ]	pt	features/run	dotnet-test
+F-DBG-ATTACH	[ ]	pt	features/debugger	go-remote
+F-DBG-ATTACH	[ ]	pt	features/debugger	godot-attach
+F-RUN-TYPES-JVM	[ ]	pt	features/run	jar-application
+F-DBG-JS-BROWSER	[ ]	pt	features/debugger	js-browser
+F-RUN-TESTS	[ ]	pt	features/run	junit
+F-DBG-ATTACH	[ ]	pt	features/debugger	node-remote
+F-RUN-TYPES-OTHER-B	[~]	pt	features/run	npm
+F-DBG-ATTACH	[ ]	pt	features/debugger	php-remote
+F-RUN-TESTS	[ ]	pt	features/run	phpunit
+F-DBG-ATTACH	[ ]	pt	features/debugger	python-remote
+F-RUN-TYPES-OTHER-B	[ ]	pt	features/run	rake
+F-DBG-ATTACH	[ ]	pt	features/debugger	remote-jvm
+F-RUN-TESTS	[ ]	pt	features/run	rspec
+F-RUN-TYPES-OTHER-B	[ ]	pt	features/run	ruby
+F-RUN-TYPES-JVM	[ ]	pt	features/run	tomcat
+F-RUN-TYPES-OTHER-B	[ ]	pt	features/run	unity-editor
+F-COVERAGE-PROFILER	[ ]	pt	features/profiler	(at) src/features/profiler/index.ts:15
+F-COVERAGE-PROFILER	[ ]	pt	features/profiler	(at) src/features/profiler/index.ts:16
+F-COVERAGE-PROFILER	[ ]	pt	features/profiler	(at) src/features/profiler/index.ts:17
+F-COVERAGE-PROFILER	[ ]	pt	features/coverage	coverage
+F-RUN-TYPES-OTHER-A	[ ]	pt	features/run	run
+F-LSP-INLINE-B	[ ]	pt	editor/lsp	(at) src/editor/lsp/actions.ts:159
+F-LSP-INLINE-B	[ ]	pt	editor/lsp	lsp.formatOnSave
+F-PL-VIEWS-C	[ ]	pt	features/plugins	(at) src/features/plugins/uiPoints.tsx:379
+F-SVC-DOCKER-B	[ ]	pt	features/services	docker
+F-RUN-TYPES-OTHER-A	[~]	pt	features/run	runConfigurations
+F-DB-RESULT-TABS	[~]	pt	features/database	dbResults
+F-HTTP	[~]	pt	features/http-client	httpClient
+I-SOFTWRAP	[ ]	pt	features/vcs	(at) src/features/vcs/DiffEditor.tsx:453
+F-PERF-MCP-SSH	[ ]	stat	features/perf	(at) src/features/perf/index.ts:12
+F-AG-COMPOSER-TASKS-C	[ ]	stat	features/agents	agents.status
+F-EDITOR-TABS-SESSIONS-B	[ ]	stat	features/app	app.lightEdit
+F-HIERARCHY-USAGES	[~]	stat	features/code-insight	code-insight.servers
+F-EDITOR-NAVBAR	[ ]	stat	editor/core	editor.breadcrumbs
+Q-FU3	[~]	stat	editor/core	editor.encoding
+F-EDITOR-DOCS-SYNC-B	[~]	stat	editor/core	editor.indent
+F-MACROS-RUNANY-SCRATCH	[ ]	stat	features/macros	macros.recording
+F-SET-PYTHON-PHP-B	[ ]	stat	features/settings	php.languageLevel
+F-SET-PYTHON-PHP-A	[ ]	stat	features/settings	python.interpreter
+F-SMALL-FEATURES-C	[ ]	stat	features/remote-dev	remote.location
+V-I2A	[ ]	stat	features/vim	vim.mode
+F-WB-STATUS-TASKS	[~]	stat	workbench	workbench.info
+Q-FU3	[~]	stat	workbench	workbench.tasks
+F-PL-VIEWS-C	[ ]	pt	features/plugins	(at) src/features/plugins/uiPoints.tsx:478
+F-VIEWERS	[~]	pt	features/viewers	viewers.markdown
+F-SMALL-FEATURES-A	[ ]	pt	features/web	web.html
+F-RUN-CHOOSER	[~]	title	features/run	run.widget
+F-VCS-BRANCHES	[~]	title	features/vcs	vcs.branch
+F-PL-VIEWS-A	[ ]	tw	features/plugins	(at) src/features/plugins/views/viewWindows.tsx:118
+F-AG-TAIL	[~]	tw	features/agents	agents
+F-SEARCH-B	[~]	tw	features/search	bookmarks
+F-SMALL-FEATURES-A	[~]	tw	features/build	build
+F-VCS-CHANGES	[~]	tw	features/vcs	commit
+F-VCS-DIR-COMPARE	[ ]	tw	features/vcs	compare
+F-COVERAGE-PROFILER	[ ]	tw	features/coverage	coverage
+F-DB-TAIL	[~]	tw	features/database	database
+F-DBG-TAIL	[~]	tw	features/debugger	debug
+F-LSP-POPUPS-B	[ ]	tw	editor/lsp	documentation
+F-DOTNET	[ ]	tw	features/dotnet	dotnet
+F-ANALYSIS	[ ]	tw	features/analysis	duplicates
+F-SEARCH-A	[~]	tw	features/search	find
+F-VCS-TAIL	[~]	tw	features/vcs	git
+F-BT-TAIL	[~]	tw	features/build-tools	gradle
+F-GRAPHQL	[ ]	tw	features/graphql	graphql
+F-HIERARCHY-USAGES	[~]	tw	features/code-insight	hierarchy
+F-ANALYSIS	[ ]	tw	features/analysis	inspection
+F-SMALL-FEATURES-C	[ ]	tw	features/logcat	logcat
+F-BT-TAIL	[~]	tw	features/build-tools	maven
+I-SYSNOTIFY	[~]	tw	workbench	notifications
+F-HIERARCHY-USAGES	[~]	tw	features/code-insight	problems
+F-COVERAGE-PROFILER	[ ]	tw	features/profiler	profiler
+F-PROJECT-VIEW	[~]	tw	features/project-tree	project
+F-GH-REVIEW-B	[~]	tw	features/github	pullRequests
+F-SMALL-FEATURES-C	[ ]	tw	features/remote-dev	remote.ports
+F-DEPLOY-WINDOW	[~]	tw	features/deployment	remoteHost
+F-RUN-TYPES-OTHER-A	[~]	tw	features/run	run
+F-BT-SBT-ANALYZER-B	[ ]	tw	features/build-tools	sbt
+F-SVC-DOCKER-B	[~]	tw	features/services	services
+F-SEARCH-B	[~]	tw	features/search	structure
+F-TERMINAL	[~]	tw	features/terminal	terminal
+F-SMALL-FEATURES-C	[~]	tw	features/todo	todo
+F-HIERARCHY-USAGES	[~]	tw	features/code-insight	usages
+F-PROJECT-VIEW	[~]	pt	features/project-tree	(at) src/features/project-tree/index.ts:242
+F-EDITOR-EMBEDDED-LANGS	[ ]	pt	features/notebook	vscode-notebook-cell
+F-SMALL-FEATURES-A	[~]	pt	features/project-trust	project.restrictedMode
+F-WB-SHELL-B	[ ]	pt	workbench	(registered at run time only)
+F-WB-SHELL-B	[ ]	pt	workbench	(registered at run time only)
+F-PL-DETAILS	[~]	set	features/plugins	(at) src/features/plugins/settings.tsx:376
+F-PL-DETAILS	[~]	set	features/plugins	(at) src/features/plugins/settings.tsx:386
+F-PLAT-MODELS-B-B	[ ]	set	features/settings	(at) src/features/settings/iconThemePages.tsx:18
+F-SET-UPSTREAM-TOGGLES-A	[ ]	set	features/settings	(at) src/features/settings/pages/registry.tsx:64
+F-SET-UPSTREAM-TOGGLES-A	[ ]	set	features/settings	(at) src/features/settings/pages/registry.tsx:71
+F-SET-UPSTREAM-TOGGLES-A	[ ]	set	features/settings	(at) src/features/settings/pages/registry.tsx:84
+F-SET-FILE-TYPES	[~]	set	features/settings	agents.chat
+Q-AGL	[ ]	set	features/agents	agents.list
+F-SET-FILE-TYPES	[~]	set	features/settings	agents.mcpServer
+F-AG-MCP	[ ]	set	features/agents	agents.mcpServers
+F-AG-COMPOSER-TASKS-C	[ ]	set	features/agents	agents.policy
+F-AG-COMPOSER-TASKS-C	[ ]	set	features/agents	agents.workingStatus
+F-PLAT-MODELS-B-B	[~]	set	features/settings	appearance
+F-RUN-CONSOLE	[~]	set	features/settings	build.console
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	build.debugger
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	build.debugger.dataViews
+Q-RC	[~]	set	features/settings	build.deployment
+F-SET-JDK-LANGS	[~]	set	features/settings	build.gradle
+F-SET-JDK-LANGS	[~]	set	features/settings	build.maven
+F-RUN-TABS	[~]	set	features/settings	build.run
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	editor.files
+F-TEMPLATES-REST	[~]	set	features/templates	editor.fileTemplates
+T1-TEMPLATES-UP	[~]	set	features/templates	editor.general.postfixCompletion
+F-TEMPLATES-REST	[~]	set	features/templates	editor.liveTemplates
+V-I3	[~]	set	features/vim	editor.vim
+F-SET-FILE-TYPES	[ ]	set	features/settings	fileColors
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	general
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	general.dateFormats
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	general.httpProxy
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	general.updates
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	keymap
+F-SET-JDK-LANGS	[~]	set	features/settings	languages.go
+F-SET-JDK-LANGS	[~]	set	features/settings	languages.java
+F-SET-JDK-LANGS	[~]	set	features/settings	languages.node
+F-SET-PYTHON-PHP-B	[~]	set	features/settings	languages.php
+F-SET-JDK-LANGS	[~]	set	features/settings	languages.ruby
+F-SET-JDK-LANGS	[~]	set	features/settings	languages.rust
+F-TOOLS-SERVERS	[ ]	set	features/tools	languages.servers
+F-DB-CONSOLES	[ ]	set	features/database	languages.sqlResolutionScopes
+F-SET-JDK-LANGS	[~]	set	features/settings	languages.typescript
+F-SET-JDK-LANGS	[ ]	set	features/settings	languages.zig
+I-SYSNOTIFY	[~]	set	features/settings	notifications
+F-PL-DETAILS	[~]	set	features/plugins	plugins
+F-SET-PYTHON-PHP-A	[~]	set	features/settings	python
+F-SET-PYTHON-PHP-A	[ ]	set	features/settings	python.docstrings
+F-SET-PYTHON-PHP-A	[~]	set	features/settings	python.interpreter
+F-SET-PYTHON-PHP-A	[ ]	set	features/settings	python.interpreters
+F-SET-PYTHON-PHP-A	[~]	set	features/settings	python.ruff
+F-PLAT-MODELS-A	[ ]	set	features/settings	scopes
+F-VCS-DIFF-FIND	[ ]	set	features/settings	tools.externalDiff
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	tools.terminal
+F-VCS-STAGING	[~]	set	features/settings	vcs.git
+F-SET-UPSTREAM-TOGGLES-A	[~]	set	features/settings	vcs.issueNavigation
+F-VCS-LOG	[~]	set	features/vcs	vcs.log
+F-AG-TAIL	[~]	feat	features/agents	agents
+F-ANALYSIS	[ ]	feat	features/analysis	analysis
+F-APP-TAIL	[ ]	feat	features/app	app
+F-SMALL-FEATURES-A	[~]	feat	features/build	build
+F-BT-TAIL	[~]	feat	features/build-tools	build-tools
+F-HIERARCHY-USAGES	[ ]	feat	features/code-insight	code-insight
+F-SMALL-FEATURES-B	[ ]	feat	features/color-preview	color-preview
+F-COVERAGE-PROFILER	[ ]	feat	features/coverage	coverage
+F-SMALL-FEATURES-B	[ ]	feat	features/cucumber	cucumber
+F-DB-TAIL	[ ]	feat	features/database	database
+F-DBG-TAIL	[~]	feat	features/debugger	debugger
+F-SMALL-FEATURES-B	[ ]	feat	features/dependencies	dependencies
+F-DEPLOY-WINDOW	[~]	feat	features/deployment	deployment
+F-DOTNET	[ ]	feat	features/dotnet	dotnet
+F-GH-REVIEW-B	[~]	feat	features/github	github
+F-GRAPHQL	[ ]	feat	features/graphql	graphql
+F-HTTP	[~]	feat	features/http-client	http-client
+F-SMALL-FEATURES-B	[ ]	feat	features/libraries	libraries
+F-SMALL-FEATURES-C	[ ]	feat	features/logcat	logcat
+F-MACROS-RUNANY-SCRATCH	[ ]	feat	features/macros	macros
+F-PERF-MCP-SSH	[ ]	feat	features/mcp	mcp
+F-NOTEBOOK	[~]	feat	features/notebook	notebook
+F-PERF-MCP-SSH	[ ]	feat	features/perf	perf
+F-PL-TAIL	[~]	feat	features/plugins	plugins
+F-COVERAGE-PROFILER	[ ]	feat	features/profiler	profiler
+F-PROJECT-VIEW	[~]	feat	features/project-tree	project-tree
+F-SMALL-FEATURES-A	[~]	feat	features/project-trust	project-trust
+F-SMALL-FEATURES-C	[ ]	feat	features/rails	rails
+F-SMALL-FEATURES-C	[ ]	feat	features/remote-dev	remote-dev
+F-RUN-TYPES-OTHER-A	[~]	feat	features/run	run
+F-MACROS-RUNANY-SCRATCH	[ ]	feat	features/run-anything	run-anything
+F-MACROS-RUNANY-SCRATCH	[ ]	feat	features/scratch	scratch
+F-SEARCH-B	[~]	feat	features/search	search
+F-SVC-DOCKER-B	[~]	feat	features/services	services
+F-SET-TAIL	[~]	feat	features/settings	settings
+F-PERF-MCP-SSH	[ ]	feat	features/ssh	ssh
+F-TEMPLATES-REST	[ ]	feat	features/templates	templates
+F-TERMINAL	[~]	feat	features/terminal	terminal
+F-SMALL-FEATURES-C	[ ]	feat	features/thymeleaf	thymeleaf
+F-SMALL-FEATURES-C	[~]	feat	features/todo	todo
+F-TOOLS-SERVERS	[ ]	feat	features/tools	tools
+F-VCS-TAIL	[~]	feat	features/vcs	vcs
+F-VIEWERS	[ ]	feat	features/viewers	viewers
+V-I4	[ ]	feat	features/vim	vim
+F-SMALL-FEATURES-A	[ ]	feat	features/web	web
+F-SMALL-FEATURES-A	[~]	feat	features/welcome	welcome
+F-SMALL-FEATURES-B	[ ]	feat	features/whats-new	whats-new
+F-EDITOR-DOCS-SYNC-A	[ ]	mod	editor	src/editor/api.ts
+F-EDITOR-CORE-EDITING	[~]	mod	editor/core	src/editor/core/actions.ts
+F-EDITOR-DOCS-SYNC-A	[ ]	mod	editor/core	src/editor/core/backend.ts
+F-EDITOR-CORE-EDITING	[~]	mod	editor/core	src/editor/core/cm
+F-EDITOR-DOCS-SYNC-B	[ ]	mod	editor/core	src/editor/core/colorSchemeRuntime.ts
+F-EDITOR-TABS-SESSIONS-B	[ ]	mod	editor/core	src/editor/core/controller.ts
+F-EDITOR-DOCS-SYNC-B	[~]	mod	editor/core	src/editor/core/copyReference.ts
+F-EDITOR-DOCS-SYNC-A	[ ]	mod	editor/core	src/editor/core/diskSync.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	mod	editor/core	src/editor/core/embeddedDocuments.ts
+F-EDITOR-CORE-EDITING	[~]	mod	editor/core	src/editor/core/extras.ts
+F-EDITOR-DOCS-SYNC-B	[~]	mod	editor/core	src/editor/core/fileAttributes.ts
+I-SOFTWRAP	[~]	mod	editor/core	src/editor/core/gutterMenu.ts
+F-EDITOR-TABS-SESSIONS-B	[ ]	mod	editor/core	src/editor/core/index.ts
+F-EDITOR-DOCS-SYNC-B	[ ]	mod	editor/core	src/editor/core/librarySources.ts
+F-EDITOR-TABS-SESSIONS-A	[~]	mod	editor/core	src/editor/core/model
+F-EDITOR-DOCS-SYNC-A	[ ]	mod	editor/core	src/editor/core/saveOnBlur.ts
+F-EDITOR-TABS-SESSIONS-A	[~]	mod	editor/core	src/editor/core/view
+F-EDITOR-EMBEDDED-LANGS	[ ]	mod	editor	src/editor/lineTokens.tsx
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/actions.ts
+F-LSP-INLINE-B	[ ]	mod	editor/lsp	src/editor/lsp/authorLens.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/autoImport.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/availability.ts
+F-LSP-INLINE-B	[ ]	mod	editor/lsp	src/editor/lsp/codeLens.ts
+F-LSP-POPUPS-A	[ ]	mod	editor/lsp	src/editor/lsp/completion.ts
+F-LSP-POPUPS-A	[ ]	mod	editor/lsp	src/editor/lsp/completionItems.ts
+F-LSP-NAV	[ ]	mod	editor/lsp	src/editor/lsp/configurationNavigation.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/diagnostics.ts
+F-LSP-POPUPS-B	[ ]	mod	editor/lsp	src/editor/lsp/docs.ts
+F-LSP-NAV	[ ]	mod	editor/lsp	src/editor/lsp/fileReferences.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/files.ts
+F-LSP-INLINE-B	[~]	mod	editor/lsp	src/editor/lsp/format.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/generate.ts
+Q-FU3	[~]	mod	editor/lsp	src/editor/lsp/hint.ts
+F-LSP-POPUPS-B	[ ]	mod	editor/lsp	src/editor/lsp/hover.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/importsOnPaste.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/index.ts
+F-LSP-INLINE-A	[ ]	mod	editor/lsp	src/editor/lsp/inlay.ts
+F-LSP-INLINE-A	[ ]	mod	editor/lsp	src/editor/lsp/inlineCompletion.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/inplaceRename.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/inspectionWidget.ts
+F-LSP-POPUPS-C	[~]	mod	editor/lsp	src/editor/lsp/intentions.ts
+F-LSP-INLINE-B	[ ]	mod	editor/lsp	src/editor/lsp/interactiveCommand.ts
+F-LSP-NAV	[ ]	mod	editor/lsp	src/editor/lsp/links.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/lsp.ts
+F-LSP-POPUPS-B	[ ]	mod	editor/lsp	src/editor/lsp/markdown.ts
+F-LSP-POPUPS-B	[ ]	mod	editor/lsp	src/editor/lsp/markdownParser.ts
+F-LSP-NAV	[ ]	mod	editor/lsp	src/editor/lsp/navigation.ts
+F-LSP-POPUPS-C	[ ]	mod	editor/lsp	src/editor/lsp/outsideProject.ts
+F-LSP-POPUPS-C	[~]	mod	editor/lsp	src/editor/lsp/pluginVisuals.ts
+F-LSP-POPUPS-B	[ ]	mod	editor/lsp	src/editor/lsp/Popups.tsx
+F-LSP-POPUPS-B	[ ]	mod	editor/lsp	src/editor/lsp/popupStore.ts
+F-LSP-POPUPS-C	[~]	mod	editor/lsp	src/editor/lsp/rename.ts
+F-LSP-SEMANTIC	[ ]	mod	editor/lsp	src/editor/lsp/semantic
+F-LSP-INLINE-B	[ ]	mod	editor/lsp	src/editor/lsp/serverCodeLens.ts
+F-LSP-POPUPS-B	[ ]	mod	editor/lsp	src/editor/lsp/signature.ts
+F-LSP-POPUPS-A	[ ]	mod	editor/lsp	src/editor/lsp/snippet.ts
+F-LSP-INLINE-B	[ ]	mod	editor/lsp	src/editor/lsp/spelling.ts
+F-LSP-SEMANTIC	[ ]	mod	editor/lsp	src/editor/lsp/syntaxErrors.ts
+F-LSP-SEMANTIC	[ ]	mod	editor/lsp	src/editor/lsp/syntaxFallback.ts
+F-LSP-SEMANTIC	[ ]	mod	editor/lsp	src/editor/lsp/tempHighlight.ts
+F-LSP-SEMANTIC	[ ]	mod	editor/lsp	src/editor/lsp/theme.ts
+F-LSP-POPUPS-B	[~]	mod	editor/lsp	src/editor/lsp/typeInfo.ts
+F-LSP-POPUPS-C	[~]	mod	editor/lsp	src/editor/lsp/workspaceEdit.ts
+F-NAVIGATION	[~]	mod	editor/navigation	src/editor/navigation/gotoTest.ts
+F-NAVIGATION	[ ]	mod	editor/navigation	src/editor/navigation/headerSource.ts
+F-NAVIGATION	[ ]	mod	editor/navigation	src/editor/navigation/implementationGutter.ts
+F-NAVIGATION	[ ]	mod	editor/navigation	src/editor/navigation/index.ts
+F-NAVIGATION	[ ]	mod	editor/navigation	src/editor/navigation/inheritanceGraph.ts
+F-NAVIGATION	[ ]	mod	editor/navigation	src/editor/navigation/lineMarkers.ts
+F-NAVIGATION	[ ]	mod	editor/navigation	src/editor/navigation/pythonHierarchy.ts
+F-NAVIGATION	[~]	mod	editor/navigation	src/editor/navigation/structureNav.ts
+F-NAVIGATION	[ ]	mod	editor/navigation	src/editor/navigation/testNaming.ts
+F-NAVIGATION	[ ]	mod	editor	src/editor/navigationProviders.ts
+F-LSP-REFACTOR-C	[~]	mod	editor/refactor	src/editor/refactor/catalog.ts
+F-LSP-REFACTOR-A	[ ]	mod	editor/refactor	src/editor/refactor/ChangeSignatureDialog.tsx
+F-LSP-REFACTOR-A	[ ]	mod	editor/refactor	src/editor/refactor/extractInterface.ts
+F-LSP-REFACTOR-A	[ ]	mod	editor/refactor	src/editor/refactor/ExtractInterfaceDialog.tsx
+F-LSP-REFACTOR-A	[ ]	mod	editor/refactor	src/editor/refactor/hierarchy.ts
+F-LSP-REFACTOR-A	[ ]	mod	editor/refactor	src/editor/refactor/HierarchyDialog.tsx
+F-LSP-REFACTOR-C	[ ]	mod	editor/refactor	src/editor/refactor/index.ts
+F-LSP-REFACTOR-B	[ ]	mod	editor/refactor	src/editor/refactor/introduce.ts
+F-LSP-REFACTOR-B	[ ]	mod	editor/refactor	src/editor/refactor/javaMove.ts
+F-LSP-REFACTOR-C	[ ]	mod	editor/refactor	src/editor/refactor/names.ts
+F-LSP-REFACTOR-C	[ ]	mod	editor/refactor	src/editor/refactor/occurrences.ts
+F-LSP-REFACTOR-C	[ ]	mod	editor/refactor	src/editor/refactor/projectLevel.ts
+F-LSP-REFACTOR-C	[ ]	mod	editor/refactor	src/editor/refactor/query.ts
+F-LSP-REFACTOR-C	[~]	mod	editor/refactor	src/editor/refactor/refactorThis.ts
+F-LSP-REFACTOR-C	[~]	mod	editor/refactor	src/editor/refactor/safeDelete.ts
+F-LSP-REFACTOR-B	[~]	mod	editor/refactor	src/editor/refactor/serverIntroduce.ts
+F-LSP-REFACTOR-A	[ ]	mod	editor/refactor	src/editor/refactor/signature.ts
+F-LSP-REFACTOR-C	[ ]	mod	editor/refactor	src/editor/refactor/templates.ts
+F-NAVIGATION	[ ]	mod	editor	src/editor/relatedProviders.ts
+F-NAVIGATION	[ ]	mod	editor/structure	src/editor/structure/index.ts
+I-ACTIONS-ENABLED	[~]	mod	platform	src/platform/actions.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/agentStatus.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/auxWindow.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/buildModel.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/buildToolRecovery.ts
+I-FILE-PROMPT	[ ]	mod	platform	src/platform/choosePath.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/clientSettings.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/clipboard.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/clipboardSource.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/cmakeSettings.ts
+F-PLAT-MODELS-B-A	[~]	mod	platform	src/platform/colorScheme.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/consoleColumns.ts
+F-PLAT-MODELS-B-A	[ ]	mod	platform	src/platform/consoleFont.ts
+F-PLAT-MODELS-B-A	[~]	mod	platform	src/platform/cssColor.ts
+F-PLAT-MODELS-C-A	[~]	mod	platform	src/platform/dateFormat.ts
+I-FILE-PROMPT	[ ]	mod	platform	src/platform/dialog.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/dotnet.ts
+F-PLAT-MODELS-A	[ ]	mod	platform	src/platform/doubleClick.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/editorSettings.ts
+F-PLAT-MODELS-C-B	[~]	mod	platform	src/platform/errorLog.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/fileColors.ts
+F-PLAT-PROJECT-A	[~]	mod	platform	src/platform/fileManager.ts
+F-PLAT-PROJECT-A	[ ]	mod	platform	src/platform/fileOps.ts
+F-NFT-REST	[ ]	mod	platform	src/platform/fileTemplates.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/fileTypes.ts
+F-PLAT-MODELS-B-A	[~]	mod	platform	src/platform/fonts.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/formatGuard.ts
+F-PLAT-MODELS-B-A	[~]	mod	platform	src/platform/icls.ts
+F-PLAT-MODELS-B-A	[ ]	mod	platform	src/platform/iconThemeOptions.ts
+F-PLAT-MODELS-A	[ ]	mod	platform	src/platform/ideaActions.ts
+F-PLAT-MODELS-A	[ ]	mod	platform	src/platform/ideaKeymap.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/ignoredNames.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/ime.ts
+F-PLAT-PROJECT-B	[~]	mod	platform	src/platform/inspections.ts
+C-WEBENGINE	[ ]	mod	platform	src/platform/ipc.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/javaLaunch.ts
+F-PLAT-PROJECT-B	[~]	mod	platform	src/platform/jdk.ts
+F-PLAT-MODELS-A	[~]	mod	platform	src/platform/keymap.ts
+F-PLAT-MODELS-A	[~]	mod	platform	src/platform/keymaps/vscode-macos.ts
+F-PLAT-MODELS-A	[~]	mod	platform	src/platform/keymaps/vscode-windows.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/languageList.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/languageSettings.ts
+F-PLAT-PROJECT-A	[ ]	mod	platform	src/platform/libraries.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/listeners.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/localDiagnostics.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/logLevels.ts
+F-PLAT-MODELS-A	[ ]	mod	platform	src/platform/losslessJson.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/nativeDrop.ts
+F-PLAT-MODELS-A	[~]	mod	platform	src/platform/navigationModifier.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/openUrl.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/pageSwipe.ts
+Q-FU3	[~]	mod	platform	src/platform/paths.ts
+F-PLAT-MODELS-C-B	[~]	mod	platform	src/platform/platformInfo.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/pluginRunTargets.ts
+F-PLAT-MODELS-A	[ ]	mod	platform	src/platform/pointerFocus.ts
+F-PLAT-PROJECT-A	[ ]	mod	platform	src/platform/project.ts
+F-PLAT-PROJECT-A	[~]	mod	platform	src/platform/projectPresentation.ts
+F-PLAT-PROJECT-A	[~]	mod	platform	src/platform/projectRoots.ts
+F-PLAT-PROJECT-A	[~]	mod	platform	src/platform/projectTrust.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/proxySettings.ts
+F-PLAT-MODELS-C-A	[ ]	mod	platform	src/platform/releaseNotes.ts
+F-PLAT-PROJECT-A	[ ]	mod	platform	src/platform/remote.ts
+F-PLAT-PROJECT-A	[ ]	mod	platform	src/platform/remoteSettings.ts
+C-WEBENGINE	[ ]	mod	platform	src/platform/reordered-tap-click.ts
+F-PLAT-PROJECT-B	[ ]	mod	platform	src/platform/runTargetSelection.ts
+F-PLAT-MODELS-A	[ ]	mod	platform	src/platform/scopes.ts
+F-PLAT-MODELS-C-B	[~]	mod	platform	src/platform/search.ts
+F-PLAT-MODELS-C-A	[ ]	mod	platform	src/platform/splash.ts
+F-PLAT-MODELS-B-A	[~]	mod	platform	src/platform/systemFonts.ts
+C-WEBENGINE	[ ]	mod	platform	src/platform/tauriCore.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/textSearch.ts
+F-PLAT-MODELS-B-A	[~]	mod	platform	src/platform/themes.ts
+F-PLAT-MODELS-B-A	[ ]	mod	platform	src/platform/themeWatch.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/updateSource.ts
+F-PLAT-PROJECT-A	[~]	mod	platform	src/platform/virtualDocs.ts
+C-WEBENGINE	[ ]	mod	platform	src/platform/webkitClipboard.ts
+I-WINDOW-GROUPS	[~]	mod	platform	src/platform/windowGroups.ts
+F-PLAT-MODELS-C-B	[ ]	mod	platform	src/platform/workflowSettings.ts
+I-ZOOM-PX	[ ]	mod	platform	src/platform/zoom.ts
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/activate.ts
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/browserGuards.ts
+F-WB-STATUS-TASKS	[ ]	mod	workbench	src/workbench/confirmTerminate.ts
+F-WB-MENUS-TITLE	[~]	mod	workbench	src/workbench/ContributedToolbar.tsx
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/contributions.ts
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/devSamples.tsx
+F-WB-TOOLWINDOWS	[~]	mod	workbench	src/workbench/distractionFree.ts
+F-WB-SHELL-B	[~]	mod	workbench	src/workbench/EditorArea.tsx
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/ErrorBoundary.tsx
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/fileColors.ts
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/fileDrop.ts
+F-WB-TOOLWINDOWS	[ ]	mod	workbench	src/workbench/focus.ts
+F-WB-MENUS-TITLE	[ ]	mod	workbench	src/workbench/inputDialogs.tsx
+F-WB-MENUS-TITLE	[ ]	mod	workbench	src/workbench/MainMenu.tsx
+F-WB-MENUS-TITLE	[ ]	mod	workbench	src/workbench/MainToolbarDialog.tsx
+I-SYSNOTIFY	[ ]	mod	workbench	src/workbench/messages.tsx
+F-WB-TOOLWINDOWS	[ ]	mod	workbench	src/workbench/narrowWindow.ts
+F-WB-MENUS-TITLE	[ ]	mod	workbench	src/workbench/nativeTitlebar.ts
+I-SYSNOTIFY	[ ]	mod	workbench	src/workbench/Notifications.tsx
+I-SYSNOTIFY	[~]	mod	workbench	src/workbench/notificationStore.ts
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/OverlayHost.tsx
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/perfProbe.ts
+F-WB-SHELL-B	[~]	mod	workbench	src/workbench/projectColor.ts
+F-WB-SHELL-B	[~]	mod	workbench	src/workbench/projectWindow.ts
+F-WB-SHELL-B	[ ]	mod	workbench	src/workbench/providerAcquisition.ts
+F-WB-SHELL-B	[~]	mod	workbench	src/workbench/quickSwitch.ts
+F-WB-SHELL-B	[~]	mod	workbench	src/workbench/shellActions.ts
+I-SOFTWRAP	[ ]	mod	workbench	src/workbench/softWrap.ts
+F-WB-STATUS-TASKS	[~]	mod	workbench	src/workbench/StatusBar.tsx
+F-WB-STATUS-TASKS	[~]	mod	workbench	src/workbench/statusBarWidgets.ts
+F-WB-SHELL-B	[~]	mod	workbench	src/workbench/theme.ts
+F-WB-MENUS-TITLE	[~]	mod	workbench	src/workbench/TitleBar.tsx
+F-WB-TOOLWINDOWS	[~]	mod	workbench	src/workbench/toolwindows/actions.ts
+I-TW-CONTENT-TABS	[~]	mod	workbench	src/workbench/toolwindows/content.ts
+F-WB-TOOLWINDOWS	[~]	mod	workbench	src/workbench/toolwindows/store.ts
+F-WB-TOOLWINDOWS	[~]	mod	workbench	src/workbench/toolwindows/ToolWindows.tsx
+F-WB-MENUS-TITLE	[ ]	mod	workbench	src/workbench/useFullscreen.ts
+F-WB-MENUS-TITLE	[ ]	mod	workbench	src/workbench/window-drag.ts
+F-WB-MENUS-TITLE	[ ]	mod	workbench	src/workbench/WindowControls.tsx
+I-WINDOW-GROUPS	[ ]	mod	workbench	src/workbench/WindowGroupTabs.tsx
+F-WB-MENUS-TITLE	[ ]	mod	workbench	src/workbench/WindowResizeHandles.tsx
+F-WB-SHELL-B	[~]	mod	workbench	src/workbench/Workbench.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/ansi.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/BarButton.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Button.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Checkbox.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Chip.tsx
+F-RUN-CONSOLE	[~]	mod	ui	src/ui/consoleFind.ts
+F-RUN-CONSOLE	[ ]	mod	ui	src/ui/ConsoleFindBar.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Dialog.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/dragCursor.ts
+F-UI-PRIMITIVES	[~]	mod	ui	src/ui/Feedback.tsx
+F-UI-PRIMITIVES	[~]	mod	ui	src/ui/filePresentation.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/FloatingToolbar.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/focusScope.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/HighlightedText.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/iconAppearance.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/iconNode.ts
+F-UI-PRIMITIVES	[~]	mod	ui	src/ui/icons.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/index.ts
+F-UI-PRIMITIVES	[~]	mod	ui	src/ui/Input.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Kbd.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/lazy.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/List.tsx
+F-RUN-CONSOLE	[ ]	mod	ui	src/ui/logColors.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/LogPane.tsx
+F-UI-PRIMITIVES	[~]	mod	ui	src/ui/match.ts
+F-UI-PRIMITIVES	[~]	mod	ui	src/ui/Menu.tsx
+F-UI-PRIMITIVES	[m]	mod	ui	src/ui/menuAim.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Mnemonic.tsx
+F-UI-PRIMITIVES	[~]	mod	ui	src/ui/patternIndex.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/pointerDrag.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Popup.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/popupState.ts
+F-APP-WORKSPACE	[ ]	mod	ui	src/ui/projectType.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Scrollbar.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Select.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/selectableText.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/SourcePreview.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Spinner.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Splitter.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/svgSize.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/symbolKind.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/T.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Tabs.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/tokenSpans.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Toolbar.tsx
+F-UI-PRIMITIVES	[~]	mod	ui	src/ui/Tooltip.tsx
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/Tree.tsx
+F-UI-PRIMITIVES	[~]	mod	ui	src/ui/treeDirectoryContext.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/treeReorder.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/useSanitizedField.ts
+F-UI-PRIMITIVES	[ ]	mod	ui	src/ui/useSelectionBoundary.ts
+F-APP-SHELL-A	[ ]	shell	src-tauri	src-tauri/src/application_focus.rs
+F-APP-SHELL-C	[ ]	shell	src-tauri	src-tauri/src/cli.rs
+C-WEBENGINE	[ ]	shell	src-tauri	src-tauri/src/dev.rs
+C-WEBENGINE	[ ]	shell	src-tauri	src-tauri/src/jump_list.rs
+C-WEBENGINE	[ ]	shell	src-tauri	src-tauri/src/linux_webkit.rs
+C-WEBENGINE	[ ]	shell	src-tauri	src-tauri/src/linux_window_state.rs
+F-APP-SHELL-C	[ ]	shell	src-tauri	src-tauri/src/logging.rs
+F-APP-SHELL-C	[ ]	shell	src-tauri	src-tauri/src/macos.rs
+C-WEBENGINE	[ ]	shell	src-tauri	src-tauri/src/macos_webview.rs
+F-WB-MENUS-TITLE	[~]	shell	src-tauri	src-tauri/src/menu.rs
+F-APP-SHELL-C	[ ]	shell	src-tauri	src-tauri/src/page_swipe.rs
+F-PL-VIEWS-B	[ ]	shell	src-tauri	src-tauri/src/plugin_web.rs
+F-APP-SHELL-C	[ ]	shell	src-tauri	src-tauri/src/relaunch.rs
+C-TOOLCHAIN	[ ]	shell	src-tauri	src-tauri/src/remote_container.rs
+C-TOOLCHAIN	[ ]	shell	src-tauri	src-tauri/src/remote_dev.rs
+C-TOOLCHAIN	[ ]	shell	src-tauri	src-tauri/src/remote_wsl.rs
+I-SYSNOTIFY	[ ]	shell	src-tauri	src-tauri/src/system_notifications.rs
+C-WEBENGINE	[ ]	shell	src-tauri	src-tauri/src/theme_frame.rs
+F-WB-MENUS-TITLE	[ ]	shell	src-tauri	src-tauri/src/titlebar.rs
+F-APP-SHELL-B	[ ]	shell	src-tauri	src-tauri/src/updates.rs
+I-WINDOW-GROUPS	[ ]	shell	src-tauri	src-tauri/src/window_groups.rs
+F-APP-SHELL-A	[ ]	shell	src-tauri	src-tauri/src/window_work_area.rs
+F-APP-SHELL-C	[ ]	shell	src-tauri	src-tauri/src/window_zoom.rs
+F-APP-SHELL-A	[~]	shell	src-tauri	src-tauri/src/windows.rs
+C-WEBENGINE	[ ]	shell	src-tauri	src-tauri/src/windows_error_mode.rs
+F-AG-COMPOSER-TASKS-C	[ ]	ipc	features/agents	agent_accept_changes
+F-AG-COMPOSER-TASKS-C	[ ]	ipc	features/agents	agent_base_text
+F-AG-COMPOSER-TASKS-C	[~]	ipc	features/agents	agent_changes
+F-AG-COMPOSER-TASKS-C	[ ]	ipc	features/agents	agent_commands
+F-AG-COMPOSER-TASKS-C	[~]	ipc	features/agents	agent_create
+F-AG-SESSION-FEATURES	[ ]	ipc	features/agents	agent_create_ephemeral
+Q-AGL	[ ]	ipc	features/agents	agent_custom_import
+Q-AGL	[ ]	ipc	features/agents	agent_custom_remove
+Q-AGL	[ ]	ipc	features/agents	agent_custom_save
+F-AG-SESSION-FEATURES	[~]	ipc	features/agents	agent_entries
+F-AG-COMPOSER-TASKS-B	[ ]	ipc	features/agents	agent_external_sessions
+F-AG-MODELS	[~]	ipc	features/agents	agent_fork
+F-AG-COMPOSER-TASKS-C	[ ]	ipc	features/agents	agent_grouped_changes
+F-AG-COMPOSER-TASKS-B	[ ]	ipc	features/agents	agent_import_session
+F-AG-MCP	[ ]	ipc	features/agents	agent_mcp_discover_sources
+F-AG-MCP	[ ]	ipc	features/agents	agent_mcp_import
+F-AG-MCP	[ ]	ipc	features/agents	agent_mcp_import_selected
+F-AG-MCP	[ ]	ipc	features/agents	agent_mcp_list
+F-AG-MCP	[ ]	ipc	features/agents	agent_mcp_remove
+F-AG-MCP	[ ]	ipc	features/agents	agent_mcp_save
+F-AG-MCP	[ ]	ipc	features/agents	agent_mcp_save_json
+F-AG-MCP	[ ]	ipc	features/agents	agent_mcp_set_enabled
+F-AG-MCP	[ ]	ipc	features/agents	agent_mcp_test
+F-AG-COMPOSER-TASKS-C	[ ]	ipc	features/agents	agent_probe
+F-AG-MODELS	[~]	ipc	features/agents	agent_providers
+F-AG-MODELS	[ ]	ipc	features/agents	agent_refresh_models
+Q-AGL	[ ]	ipc	features/agents	agent_registry_install
+Q-AGL	[ ]	ipc	features/agents	agent_registry_list
+Q-AGL	[ ]	ipc	features/agents	agent_registry_remove
+F-AG-SESSION-FEATURES	[~]	ipc	features/agents	agent_respond
+F-AG-COMPOSER-TASKS-C	[ ]	ipc	features/agents	agent_rollback_changes
+F-AG-SESSION-FEATURES	[ ]	ipc	features/agents	agent_send_queued_now
+Q-AGL	[ ]	ipc	features/agents	agent_set_command
+Q-AGL	[ ]	ipc	features/agents	agent_set_env
+F-AG-MCP	[ ]	ipc	features/agents	agent_set_mcp_overrides
+F-AG-SESSION-FEATURES	[ ]	ipc	features/agents	agent_stop_background
+F-AG-MODELS	[~]	ipc	features/agents	agent_subscribe
+F-AG-SESSION-FEATURES	[ ]	ipc	features/agents	agent_unqueue
+F-ANALYSIS	[ ]	ipc	features/analysis	analysis_locate_duplicates
+C-TOOLCHAIN	[ ]	ipc	features/logcat	android_devices
+C-TOOLCHAIN	[ ]	ipc	features/logcat	android_logcat
+C-TOOLCHAIN	[ ]	ipc	features/app	app_check_update
+F-APP-SHELL-C	[ ]	ipc	features/app	app_cli_install
+F-APP-SHELL-C	[ ]	ipc	features/app	app_cli_uninstall
+F-PLAT-MODELS-C-B	[~]	ipc	platform	app_info
+C-TOOLCHAIN	[ ]	ipc	features/app	app_install_update
+F-APP-SHELL-C	[ ]	ipc	features/app	app_log_location
+F-PERF-MCP-SSH	[ ]	ipc	features/perf	app_metrics
+F-APP-SHELL-A	[~]	ipc	features/app	app_quit
+F-SMALL-FEATURES-B	[ ]	ipc	features/whats-new	app_release_notes
+F-APP-SHELL-A	[~]	ipc	features/app	app_restart
+C-TOOLCHAIN	[ ]	ipc	features/app	app_update_announcement
+F-SET-UPSTREAM-TOGGLES-B	[ ]	ipc	features/settings	app_update_status
+F-APP-SHELL-B	[ ]	ipc	features/app	app_update_window_ready
+F-SMALL-FEATURES-A	[ ]	ipc	features/build	build_compile_file
+F-BT-SBT-ANALYZER-B	[~]	ipc	features/build-tools	build_sync
+F-SET-FILE-TYPES	[ ]	ipc	features/settings	caches_local_data_info
+F-APP-SHELL-C	[~]	ipc	features/app	caches_schedule_invalidation
+F-SET-FILE-TYPES	[ ]	ipc	features/settings	caches_set_local_data_dir
+F-VCS-TAIL	[~]	ipc	features/vcs	cancel_request
+F-PERF-MCP-SSH	[ ]	ipc	features/perf	clear_caches
+F-EDITOR-CORE-EDITING	[ ]	ipc	editor/core	clipboard_file_list
+F-PROJECT-VIEW	[ ]	ipc	features/project-tree	clipboard_has_files
+F-PROJECT-VIEW	[ ]	ipc	features/project-tree	clipboard_has_image
+F-AG-COMPOSER-TASKS-A	[ ]	ipc	features/agents	clipboard_image
+F-PROJECT-VIEW	[ ]	ipc	features/project-tree	clipboard_set_file_list
+F-PLAT-PROJECT-B	[ ]	ipc	platform	clipboard_text
+F-PLAT-PROJECT-B	[ ]	ipc	platform	clipboard_write_text
+F-COVERAGE-PROFILER	[ ]	ipc	features/coverage	coverage_collect
+F-COVERAGE-PROFILER	[ ]	ipc	features/coverage	coverage_import
+F-COVERAGE-PROFILER	[ ]	ipc	features/coverage	coverage_prepare
+F-SMALL-FEATURES-B	[ ]	ipc	features/cucumber	cucumber_sources
+F-DB-TREE-SOURCES-B	[ ]	ipc	features/database	db_connect
+F-DB-CONSOLES	[ ]	ipc	features/database	db_consoles
+F-DB-TREE-SOURCES-A	[ ]	ipc	features/database	db_database_catalog
+F-DB-TREE-SOURCES-A	[ ]	ipc	features/database	db_databases
+F-DB-TREE-SOURCES-A	[ ]	ipc	features/database	db_retain_catalog
+F-DB-TREE-SOURCES-A	[ ]	ipc	features/database	db_saved_catalog
+F-DB-TREE-SOURCES-A	[ ]	ipc	features/database	db_schema_objects
+F-DB-RESULT-TABS	[ ]	ipc	features/database	db_session_context
+F-DB-TREE-SOURCES-B	[ ]	ipc	features/database	db_set_ssh_secret
+C-TOOLCHAIN	[ ]	ipc	features/database	db_test_tunnel
+F-DB-TREE-SOURCES-B	[ ]	ipc	features/database	db_trust_ssh_host
+F-DBG-ATTACH	[ ]	ipc	features/debugger	debug_attachable_processes
+F-DBG-CONSOLE-WATCHES-A	[ ]	ipc	features/debugger	debug_completions
+F-RUN-TYPES-JVM	[ ]	ipc	features/run	debug_free_port
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_heap_capture
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_heap_classes
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_heap_close
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_heap_compare
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_heap_dominators
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_heap_open
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_heap_path
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_heap_save
+F-DBG-JS-BROWSER	[ ]	ipc	features/debugger	debug_js_custom_breakpoints
+F-DBG-JS-BROWSER	[ ]	ipc	features/debugger	debug_js_response_body
+F-DBG-JS-BROWSER	[ ]	ipc	features/debugger	debug_js_response_overrides
+F-DBG-JS-BROWSER	[ ]	ipc	features/debugger	debug_js_start_profile
+F-DBG-JS-BROWSER	[ ]	ipc	features/debugger	debug_js_stop_profile
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_jvm_memory_classes
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_jvm_memory_fields
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_jvm_memory_instances
+F-DBG-HEAP-MEMORY	[ ]	ipc	features/debugger	debug_jvm_memory_referrers
+F-DBG-CONSOLE-WATCHES-A	[ ]	ipc	features/debugger	debug_send_input
+F-DBG-ATTACH	[ ]	ipc	features/debugger	debug_unity_processes
+F-SMALL-FEATURES-B	[ ]	ipc	features/dependencies	dependency_versions
+T1-DEPLOY-FTP	[~]	ipc	features/settings	deploy_test_connection
+F-VCS-DIFF-FIND	[ ]	ipc	features/vcs	diff_external_tool
+I-UNTITLED	[ ]	ipc	editor/core	doc_open_untitled
+F-EDITOR-DOCS-SYNC-A	[ ]	ipc	editor/core	doc_open_virtual
+F-ANALYSIS	[ ]	ipc	features/analysis	doc_python_facts
+F-EDITOR-TABS-SESSIONS-B	[ ]	ipc	editor/core	doc_save_as
+F-EDITOR-DOCS-SYNC-B	[ ]	ipc	editor/core	doc_set_bom
+Q-FU3	[~]	ipc	editor/core	doc_set_encoding
+F-VCS-DIFF-FIND	[ ]	ipc	features/vcs	doc_snapshot
+F-EDITOR-DOCS-SYNC-A	[ ]	ipc	editor/core	doc_sync_from_disk
+F-EDITOR-TABS-SESSIONS-B	[ ]	ipc	editor/core	doc_ui_mode
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_compose_op
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_container_op
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_container_stats
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_container_top
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_events
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_image_history
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_inspect
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_logs
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_prune
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_pull
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_registry_login
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_remove
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_run_env
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_save_settings
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_set_registry_password
+C-TOOLCHAIN	[ ]	ipc	features/services	docker_snapshot
+F-PERF-MCP-SSH	[ ]	ipc	features/perf	end_process
+F-SMALL-FEATURES-C	[ ]	ipc	features/remote-dev	env_reload
+C-WEBENGINE	[ ]	ipc	platform	file_dialog_needs_gtk
+F-AG-COMPOSER-TASKS-A	[ ]	ipc	features/agents	find_dirs
+F-RUN-TYPES-OTHER-A	[ ]	ipc	features/run	find_files_named
+F-AG-COMPOSER-TASKS-A	[ ]	ipc	features/agents	find_symbols_named
+F-VCS-DIR-COMPARE	[ ]	ipc	features/vcs	fs_compare_directories
+F-VCS-DIR-COMPARE	[ ]	ipc	features/vcs	fs_copy_merge
+F-GRAPHQL	[ ]	ipc	features/graphql	fs_create_file_bytes
+F-PLAT-PROJECT-A	[ ]	ipc	platform	fs_open_with_system
+F-PROJECT-VIEW	[~]	ipc	features/project-tree	fs_rename
+F-LSP-NAV	[ ]	ipc	editor/lsp	fs_resolve_reference
+C-TOOLCHAIN	[ ]	ipc	features/github	gh_account_repos
+F-GH-REVIEW-B	[ ]	ipc	(no webview caller)	gh_pr_comment
+F-GH-REVIEW-B	[ ]	ipc	(no webview caller)	gh_pr_list
+F-GH-REVIEW-B	[ ]	ipc	(no webview caller)	gh_pr_review
+F-GH-REVIEW-B	[ ]	ipc	(no webview caller)	gh_pr_review_comments
+F-GH-REVIEW-B	[ ]	ipc	(no webview caller)	gh_pr_view
+F-BT-SBT-ANALYZER-A	[ ]	ipc	features/build-tools	gradle_dependencies
+F-BT-POM	[ ]	ipc	features/build-tools	gradle_published_catalog
+C-WEBENGINE	[ ]	ipc	platform	gtk_pick_paths
+F-HTTP	[ ]	ipc	features/http-client	http_curl
+F-HTTP	[ ]	ipc	features/http-client	http_environment_file
+F-HTTP	[ ]	ipc	features/http-client	http_from_curl
+F-HTTP	[ ]	ipc	features/http-client	http_variable_definitions
+F-RUN-TYPES-OTHER-A	[ ]	ipc	features/run	index_status
+F-ANALYSIS	[ ]	ipc	features/analysis	inspect_code
+F-RUN-TYPES-JVM	[ ]	ipc	features/debugger	java_build_workspace
+F-RUN-TYPES-JVM	[ ]	ipc	features/debugger	java_debug_server
+F-RUN-TYPES-JVM	[~]	ipc	features/run	java_resolve_launch
+C-TOOLCHAIN	[ ]	ipc	platform	jdk_download
+C-TOOLCHAIN	[ ]	ipc	features/settings	jdk_download_location
+C-TOOLCHAIN	[ ]	ipc	features/settings	jdk_download_releases
+C-TOOLCHAIN	[ ]	ipc	features/settings	jdk_download_vendors
+F-SET-JDK-LANGS	[ ]	ipc	features/settings	jdtls_required_java
+F-UI-PRIMITIVES	[ ]	ipc	ui	jvm_file_presentations
+I-UNTITLED	[ ]	ipc	platform	light_edit_open_untitled
+C-WEBENGINE	[ ]	ipc	platform	log_frontend
+F-EDITOR-DOCS-SYNC-B	[ ]	ipc	editor/core	lsp_can_download_sources
+F-LSP-REFACTOR-A	[ ]	ipc	editor/refactor	lsp_change_signature
+F-LSP-INLINE-B	[ ]	ipc	editor/lsp	lsp_code_lens
+Q-FU3	[~]	ipc	editor/lsp	lsp_completion
+F-LSP-NAV	[ ]	ipc	editor/lsp	lsp_document_links
+F-LSP-POPUPS-A	[ ]	ipc	editor/lsp	lsp_execute_code_action
+F-LSP-REFACTOR-A	[ ]	ipc	editor/refactor	lsp_extract_interface
+F-LSP-REFACTOR-A	[ ]	ipc	editor/refactor	lsp_extract_interface_info
+F-LSP-NAV	[ ]	ipc	editor/lsp	lsp_goto_implementation
+F-LSP-REFACTOR-A	[ ]	ipc	editor/refactor	lsp_hierarchy_members
+F-LSP-REFACTOR-A	[ ]	ipc	editor/refactor	lsp_hierarchy_refactor
+F-NAVIGATION	[ ]	ipc	editor/navigation	lsp_implementation_locations
+F-NAVIGATION	[ ]	ipc	editor/navigation	lsp_implementations
+F-LSP-INLINE-A	[ ]	ipc	editor/lsp	lsp_inlay_hints
+F-LSP-INLINE-A	[ ]	ipc	editor/lsp	lsp_inline_completion
+F-LSP-REFACTOR-B	[ ]	ipc	editor/refactor	lsp_java_move
+F-LSP-REFACTOR-B	[ ]	ipc	editor/refactor	lsp_java_move_destinations
+F-LSP-REFACTOR-B	[ ]	ipc	editor/refactor	lsp_java_source_types
+F-EDITOR-DOCS-SYNC-B	[ ]	ipc	editor/core	lsp_library_sources
+F-HIERARCHY-USAGES	[ ]	ipc	features/code-insight	lsp_prepare_type_hierarchy
+F-EDITOR-DOCS-SYNC-B	[ ]	ipc	editor/core	lsp_resolve_class_file
+F-LSP-INLINE-B	[ ]	ipc	editor/lsp	lsp_resolve_command
+F-TOOLS-SERVERS	[ ]	ipc	features/tools	lsp_restart_named
+F-LSP-SEMANTIC	[ ]	ipc	editor/lsp	lsp_semantic_tokens
+F-LSP-REFACTOR-A	[ ]	ipc	editor/refactor	lsp_signature_info
+F-EDITOR-DOCS-SYNC-A	[ ]	ipc	features/debugger	lsp_virtual_document
+F-DBG-CONSOLE-WATCHES-B	[ ]	ipc	features/debugger	lsp_workspace_symbols
+F-BT-POM	[ ]	ipc	features/build-tools	maven_dependency_completion
+F-BT-POM	[ ]	ipc	features/build-tools	maven_dependency_declaration
+F-BT-SBT-ANALYZER-A	[ ]	ipc	features/build-tools	maven_exclude_dependency
+F-BT-POM	[ ]	ipc	features/build-tools	maven_goto_declaration
+F-RUN-TYPES-OTHER-C	[ ]	ipc	features/run	mcp_agent_run_closed
+F-SET-FILE-TYPES	[ ]	ipc	features/settings	mcp_regenerate_token
+F-PERF-MCP-SSH	[ ]	ipc	features/mcp	mcp_respond
+F-SET-FILE-TYPES	[ ]	ipc	features/settings	mcp_server_status
+F-PERF-MCP-SSH	[ ]	ipc	features/mcp	mcp_set_focused_editor
+F-PERF-MCP-SSH	[ ]	ipc	features/mcp	mcp_ui_ready
+F-APP-SHELL-C	[~]	ipc	features/app	menu_configure
+F-APP-SHELL-C	[~]	ipc	features/app	menu_model
+F-APP-SHELL-C	[~]	ipc	features/app	menu_set_disabled
+F-LSP-NAV	[ ]	ipc	editor/lsp	nav_index_definitions
+F-NAVIGATION	[ ]	ipc	editor/navigation	nav_inheritance
+F-NAVIGATION	[ ]	ipc	editor/navigation	nav_resolve_module
+F-NOTEBOOK	[ ]	ipc	features/notebook	notebook_cell_docs
+C-TOOLCHAIN	[~]	ipc	features/notebook	notebook_execute
+C-TOOLCHAIN	[~]	ipc	features/notebook	notebook_interrupt
+C-TOOLCHAIN	[~]	ipc	features/notebook	notebook_restart
+F-AG-COMPOSER-TASKS-A	[ ]	ipc	features/agents	path_completions
+F-PL-NAV-EVENTS	[~]	ipc	features/plugins	plugin_activation_event
+F-VCS-COMMIT-DIALOG	[ ]	ipc	features/plugins	plugin_answer_commit
+Q-FU3	[~]	ipc	features/plugins	plugin_answer_prompt
+F-RUN-TYPES-OTHER-C	[ ]	ipc	features/plugins	plugin_answer_run_target
+F-RUN-TYPES-OTHER-C	[ ]	ipc	features/plugins	plugin_choose_program
+T1-PLUGIN-VISUALS	[ ]	ipc	features/color-preview	plugin_color_presentations
+F-VCS-COMMIT-DIALOG	[ ]	ipc	features/plugins	plugin_commit_checks
+F-PL-VIEWS-C	[ ]	ipc	features/plugins	plugin_content_tab_action
+F-RUN-TYPES-OTHER-C	[ ]	ipc	features/run	plugin_debug_attach_target
+T1-PLUGIN-VISUALS	[ ]	ipc	features/plugins	plugin_decoration_sets
+F-PL-NAV-EVENTS	[ ]	ipc	features/plugins	plugin_endpoints
+F-SET-FILE-TYPES	[ ]	ipc	features/settings	plugin_formatters
+F-PL-DETAILS	[ ]	ipc	features/plugins	plugin_installed_intellij_themes
+T1-PLUGIN-VISUALS	[ ]	ipc	features/plugins	plugin_line_markers
+F-PL-DETAILS	[~]	ipc	features/plugins	plugin_list
+Q-FU3	[~]	ipc	features/plugins	plugin_market
+F-PL-NAV-EVENTS	[ ]	ipc	features/plugins	plugin_navigation_files
+F-PL-NAV-EVENTS	[ ]	ipc	features/plugins	plugin_navigation_goto
+F-PL-NAV-EVENTS	[ ]	ipc	features/plugins	plugin_navigation_index
+F-PL-NAV-EVENTS	[ ]	ipc	features/plugins	plugin_navigation_invalidate
+F-PL-NAV-EVENTS	[ ]	ipc	features/plugins	plugin_navigation_markers
+F-RUN-TESTS	[ ]	ipc	features/plugins	plugin_parse_test_results
+F-PL-NAV-EVENTS	[~]	ipc	features/plugins	plugin_post_events
+F-DBG-TAIL	[~]	ipc	features/debugger	plugin_prepare_debug_run
+F-RUN-TYPES-OTHER-C	[ ]	ipc	features/plugins	plugin_program
+F-PL-DETAILS	[ ]	ipc	features/plugins	plugin_read_intellij_theme
+F-PL-DETAILS	[ ]	ipc	features/plugins	plugin_revoke_net_host
+F-PL-NAV-EVENTS	[~]	ipc	features/plugins	plugin_run_command
+F-RUN-TYPES-OTHER-C	[ ]	ipc	features/plugins	plugin_run_targets
+F-RUN-TESTS	[ ]	ipc	features/plugins	plugin_select_tests
+F-PL-VIEWS-C	[ ]	ipc	features/plugins	plugin_service_detail
+F-PL-VIEWS-C	[ ]	ipc	features/plugins	plugin_service_log
+F-PL-DETAILS	[~]	ipc	features/plugins	plugin_set_enabled
+F-PL-DETAILS	[ ]	ipc	features/plugins	plugin_set_theme_frame
+F-PL-NAV-EVENTS	[ ]	ipc	features/app	plugin_set_ui_locale
+F-PL-DETAILS	[ ]	ipc	features/plugins	plugin_stage_package
+F-PL-VIEWS-B	[ ]	ipc	features/plugins	plugin_terminal_session_close
+F-PL-VIEWS-B	[ ]	ipc	features/plugins	plugin_terminal_session_spawn
+F-PL-VIEWS-B	[ ]	ipc	features/plugins	plugin_web_page
+F-PL-VIEWS-B	[ ]	ipc	features/plugins	plugin_web_pty_spawn
+F-PL-VIEWS-B	[ ]	ipc	features/plugins	plugin_web_read_file
+F-PL-VIEWS-B	[ ]	ipc	features/plugins	plugin_web_save_file
+F-LSP-REFACTOR-C	[ ]	ipc	features/analysis	prepare_workspace_edit
+F-COVERAGE-PROFILER	[ ]	ipc	features/profiler	profiler_collect
+F-COVERAGE-PROFILER	[ ]	ipc	features/profiler	profiler_gc_before_stop
+F-COVERAGE-PROFILER	[ ]	ipc	features/profiler	profiler_prepare
+F-PLAT-MODELS-C-B	[ ]	ipc	platform	project_current
+F-APP-NEW-PROJECT	[ ]	ipc	features/app	project_rename
+C-TOOLCHAIN	[ ]	ipc	features/settings	proxy_check_connection
+Q-FU3	[~]	ipc	features/vcs	recent_projects
+C-TOOLCHAIN	[ ]	ipc	features/remote-dev	remote_bootstrap_list
+C-TOOLCHAIN	[ ]	ipc	platform	remote_connect
+F-PLAT-PROJECT-A	[ ]	ipc	platform	remote_current
+F-SMALL-FEATURES-A	[ ]	ipc	features/welcome	remote_disconnect
+F-DEPLOY-WINDOW	[ ]	ipc	features/deployment	remote_download_into
+C-TOOLCHAIN	[ ]	ipc	features/remote-dev	remote_forward_port
+F-SMALL-FEATURES-C	[ ]	ipc	features/remote-dev	remote_forwarded_ports
+F-PROJECT-VIEW	[ ]	ipc	features/project-tree	remote_import_local
+F-PLAT-PROJECT-A	[ ]	ipc	platform	remote_invoke
+F-SMALL-FEATURES-C	[ ]	ipc	features/remote-dev	remote_stop_forwarding
+F-SMALL-FEATURES-A	[ ]	ipc	features/project-trust	remote_trust_set
+F-SMALL-FEATURES-A	[ ]	ipc	features/project-trust	remote_trust_status
+F-RUN-TYPES-JVM	[ ]	ipc	features/run	run_application_build
+F-RUN-TYPES-JVM	[ ]	ipc	features/run	run_application_publish
+F-DBG-CONSOLE-WATCHES-B	[ ]	ipc	features/debugger	run_env_files
+F-RUN-IMPORT	[ ]	ipc	features/run	run_import_configs
+F-RUN-IMPORT	[ ]	ipc	features/run	run_import_sources
+F-RUN-IMPORT	[ ]	ipc	features/run	run_save_templates
+Q-FU3	[~]	ipc	features/run	run_start
+F-RUN-TYPES-OTHER-A	[ ]	ipc	features/run	run_system_env
+F-RUN-TESTS	[ ]	ipc	features/run	run_test_reports
+F-RUN-TYPES-JVM	[ ]	ipc	features/run	run_tomcat_artifacts
+F-RUN-TYPES-JVM	[ ]	ipc	features/run	run_tomcat_build
+F-RUN-TYPES-JVM	[ ]	ipc	features/run	run_tomcat_home
+F-RUN-TYPES-JVM	[ ]	ipc	features/run	run_tomcat_installations
+F-RUN-TYPES-JVM	[ ]	ipc	features/run	run_tomcat_sync
+F-RUN-TYPES-JVM	[ ]	ipc	features/run	run_tomcat_update
+F-APP-NEW-PROJECT	[ ]	ipc	features/app	scaffold_catalog
+F-APP-NEW-PROJECT	[ ]	ipc	features/app	scaffold_create
+F-APP-NEW-PROJECT	[ ]	ipc	features/app	scaffold_options
+F-APP-NEW-PROJECT	[ ]	ipc	features/app	scaffold_requirements
+C-TOOLCHAIN	[ ]	ipc	features/settings	sdk_container_python
+C-TOOLCHAIN	[ ]	ipc	features/settings	sdk_container_python_refresh
+F-RUN-TYPES-OTHER-B	[ ]	ipc	features/run	sdk_detect
+F-SET-JDK-LANGS	[ ]	ipc	features/settings	sdk_jdk_at
+C-TOOLCHAIN	[ ]	ipc	features/run	sdk_php_composer_install
+F-SET-PYTHON-PHP-B	[ ]	ipc	features/settings	sdk_php_language_level
+F-SMALL-FEATURES-B	[ ]	ipc	features/libraries	sdk_project_libraries
+C-TOOLCHAIN	[ ]	ipc	features/settings	sdk_python_create_venv
+F-SET-PYTHON-PHP-A	[ ]	ipc	features/settings	sdk_python_interpreter
+C-TOOLCHAIN	[ ]	ipc	features/settings	sdk_python_packages
+C-TOOLCHAIN	[ ]	ipc	features/settings	sdk_python_pip
+F-SET-PYTHON-PHP-A	[ ]	ipc	features/settings	sdk_python_project_interpreters
+Q-FU3	[~]	ipc	features/app	settings_export
+F-PLAT-MODELS-C-B	[~]	ipc	platform	settings_get_global
+F-APP-SHELL-C	[~]	ipc	features/app	settings_import
+F-APP-SHELL-B	[ ]	ipc	features/app	settings_list_jetbrains_ides
+F-APP-SHELL-B	[ ]	ipc	features/app	settings_read_jetbrains
+F-PLAT-MODELS-B-B	[ ]	ipc	features/plugins	settings_removed_theme
+F-SET-UPSTREAM-TOGGLES-B	[~]	ipc	features/settings	settings_set
+I-SYSNOTIFY	[ ]	ipc	workbench	show_system_notification
+F-LSP-INLINE-B	[ ]	ipc	editor/lsp	spell_check
+F-LSP-INLINE-B	[ ]	ipc	editor/lsp	spell_suggest
+F-PERF-MCP-SSH	[ ]	ipc	features/ssh	ssh_askpass_answer
+F-PERF-MCP-SSH	[ ]	ipc	features/ssh	ssh_open_terminal
+T1-DEPLOY-FTP	[ ]	ipc	features/settings	ssh_password_saved
+F-SET-TAIL	[~]	ipc	features/settings	ssh_trust_host
+F-ANALYSIS	[ ]	ipc	features/analysis	structural_languages
+F-ANALYSIS	[ ]	ipc	features/analysis	structural_search
+F-ANALYSIS	[ ]	ipc	features/analysis	structural_validate
+F-NAVIGATION	[ ]	ipc	editor/structure	syntax_expression_at
+F-PLAT-MODELS-B-B	[ ]	ipc	platform	system_font_families
+F-SET-UPSTREAM-TOGGLES-B	[ ]	ipc	features/settings	system_probe_hotkeys
+F-TERMINAL	[ ]	ipc	features/terminal	term_store_image
+C-TOOLCHAIN	[ ]	ipc	features/tools	tools_install
+F-DBG-CONSOLE-WATCHES-A	[ ]	ipc	features/debugger	tools_list
+C-TOOLCHAIN	[ ]	ipc	features/tools	tools_uninstall
+C-TOOLCHAIN	[ ]	ipc	features/tools	tools_updates
+F-PLAT-MODELS-B-B	[ ]	ipc	platform	user_font_data
+F-VCS-REMOTE-LINKS	[ ]	ipc	features/vcs	vcs_clone
+F-VCS-LOG	[~]	ipc	features/vcs	vcs_commits_changes
+F-VCS-DIR-COMPARE	[ ]	ipc	features/vcs	vcs_compare_paths
+F-VCS-TAIL	[~]	ipc	features/vcs	vcs_config_get
+F-VCS-REPO-DIALOGS-A	[ ]	ipc	features/vcs	vcs_delete_tag
+F-VCS-TAIL	[~]	ipc	features/vcs	vcs_diff_with_worktree
+F-VCS-CHANGES	[ ]	ipc	features/vcs	vcs_file_mode
+F-VCS-HISTORY	[ ]	ipc	features/vcs	vcs_ignore_blame_revision
+F-VCS-REMOTE-LINKS	[ ]	ipc	features/vcs	vcs_init
+F-VCS-LOG	[~]	ipc	features/vcs	vcs_log
+F-VCS-LOG	[ ]	ipc	features/vcs	vcs_log_details_batch
+F-VCS-LOG	[ ]	ipc	features/vcs	vcs_log_refs
+F-VCS-REMOTE-LINKS	[ ]	ipc	features/vcs	vcs_move_worktree
+F-VCS-TAIL	[~]	ipc	features/vcs	vcs_restore_head
+F-VCS-REPO-DIALOGS-A	[ ]	ipc	features/vcs	vcs_restore_tag
+F-VCS-LOG	[ ]	ipc	features/vcs	vcs_revision_children
+F-VCS-LOG	[ ]	ipc	features/vcs	vcs_revision_files
+I-STAGE-HUNKS	[ ]	ipc	features/vcs	vcs_stage_hunks
+F-VCS-STASH	[ ]	ipc	features/vcs	vcs_stash_drop
+F-VCS-STASH	[~]	ipc	features/vcs	vcs_stash_push
+F-VCS-STASH	[~]	ipc	features/vcs	vcs_stashes
+F-VCS-CHANGES	[ ]	ipc	features/vcs	vcs_status_paths
+F-DBG-JS-BROWSER	[ ]	ipc	features/debugger	web_browsers
+F-SMALL-FEATURES-A	[ ]	ipc	editor/lsp	web_goto
+F-SMALL-FEATURES-A	[ ]	ipc	features/web	web_open
+F-DBG-JS-BROWSER	[ ]	ipc	features/debugger	web_serves_page
+F-SMALL-FEATURES-A	[ ]	ipc	editor/lsp	web_unresolved_references
+F-SMALL-FEATURES-A	[ ]	ipc	features/web	web_url
+F-APP-SHELL-A	[~]	ipc	features/app	window_close_context
+F-APP-SHELL-A	[ ]	ipc	features/app	window_complete_launch
+F-DBG-CONSOLE-WATCHES-A	[ ]	ipc	features/debugger	window_flash_taskbar
+I-WINDOW-GROUPS	[ ]	ipc	features/app	window_group_cancel_close
+I-WINDOW-GROUPS	[ ]	ipc	features/app	window_group_close
+I-WINDOW-GROUPS	[ ]	ipc	features/app	window_group_close_tabs
+I-WINDOW-GROUPS	[ ]	ipc	platform	window_group_current
+I-WINDOW-GROUPS	[ ]	ipc	features/app	window_group_detach
+I-WINDOW-GROUPS	[ ]	ipc	features/app	window_group_merge
+I-WINDOW-GROUPS	[ ]	ipc	features/app	window_group_reorder
+I-WINDOW-GROUPS	[ ]	ipc	platform	window_group_restore
+I-WINDOW-GROUPS	[ ]	ipc	features/app	window_group_select
+F-WB-MENUS-TITLE	[ ]	ipc	workbench	window_is_fullscreen
+F-VCS-DIR-COMPARE	[ ]	ipc	features/vcs	window_open_comparison
+F-DEPLOY-WINDOW	[ ]	ipc	features/deployment	window_open_deployment
+F-VCS-DIFF-FIND	[ ]	ipc	features/vcs	window_open_diff
+F-EDITOR-TABS-SESSIONS-B	[ ]	ipc	editor/core	window_open_file_in_new_window
+F-APP-SHELL-A	[~]	ipc	features/app	window_open_project
+F-SMALL-FEATURES-A	[ ]	ipc	features/welcome	window_open_projects
+F-WB-SHELL-B	[ ]	ipc	workbench	window_open_remote
+F-SET-UPSTREAM-TOGGLES-B	[ ]	ipc	features/settings	window_open_settings
+C-WEBENGINE	[ ]	ipc	workbench	window_set_titlebar_height
+F-WB-MENUS-TITLE	[~]	ipc	workbench	window_start_drag
+F-VCS-TAIL	[ ]	ipc	features/vcs	window_take_launch
+F-APP-SHELL-C	[ ]	ipc	main.tsx	window_toggle_zoom
+F-APP-WORKSPACE	[ ]	ipc	features/app	workspace_attach
+F-APP-WORKSPACE	[ ]	ipc	features/app	workspace_create
+F-APP-WORKSPACE	[ ]	ipc	features/app	workspace_discover_projects
+F-APP-WORKSPACE	[ ]	ipc	features/app	workspace_update
+C-TOOLCHAIN	[ ]	ipc	features/remote-dev	wsl_distros
+C-TOOLCHAIN	[ ]	ipc	features/app	wsl_resolve
+F-PERF-MCP-SSH	[ ]	evt	(no webview listener)	McpRequest
+F-PERF-MCP-SSH	[ ]	evt	(no webview listener)	McpRequestClosed
+I-WINDOW-GROUPS	[ ]	evt	(no webview listener)	WindowGroupsChanged
+F-WB-MENUS-TITLE	[ ]	evt	(no webview listener)	WindowFullscreenChanged
+F-SEARCH-A	[~]	evt	(no webview listener)	FsChanged
+Q-FU3	[~]	evt	(no webview listener)	ExcludedDirsChanged
+T1-AGENT-UNDO	[~]	evt	(no webview listener)	WorkspaceEditApplied
+F-LSP-POPUPS-C	[ ]	evt	(no webview listener)	DocLanguage
+F-AG-COMPOSER-TASKS-C	[~]	evt	features/agents	Task
+F-PL-NAV-EVENTS	[~]	evt	features/plugins	IndexState
+Q-FU3	[~]	evt	(no webview listener)	LanguageServer
+F-LSP-POPUPS-C	[ ]	evt	(no webview listener)	LanguageServerWarning
+F-LSP-POPUPS-C	[ ]	evt	(no webview listener)	LspRefresh
+F-DBG-CONSOLE-WATCHES-B	[~]	evt	features/debugger	Debug
+I-SYSNOTIFY	[~]	evt	(no webview listener)	Notify
+F-APP-SHELL-B	[ ]	evt	(no webview listener)	UpdateStatusChanged
+F-APP-SHELL-B	[ ]	evt	(no webview listener)	UpdateAvailable
+F-PLAT-PROJECT-A	[ ]	evt	(no webview listener)	ProjectRootsChanged
+F-PERF-MCP-SSH	[ ]	evt	(no webview listener)	Askpass
+F-PERF-MCP-SSH	[ ]	evt	(no webview listener)	AskpassDone
+F-WIT	[ ]	wit	wit	commit
+F-WIT	[ ]	wit	wit	commit-checker
+F-WIT	[ ]	wit	wit	database
+F-WIT	[ ]	wit	wit	decorations
+F-WIT	[ ]	wit	wit	detail-types
+F-WIT	[ ]	wit	wit	detail-provider
+F-WIT	[ ]	wit	wit	diagnostics-provider
+F-WIT	[ ]	wit	wit	endpoints-provider
+F-WIT	[~]	wit	wit	events
+F-WIT	[~]	wit	wit	tasks
+F-WIT	[~]	wit	wit	lifecycle
+F-WIT	[ ]	wit	wit	syntax-provider
+F-WIT	[ ]	wit	wit	run-target-validation
+F-WIT	[ ]	wit	wit	extensions
+F-WIT	[ ]	wit	wit	file-actions
+F-WIT	[ ]	wit	wit	fs
+F-WIT	[ ]	wit	wit	log
+F-WIT	[~]	wit	wit	ui
+F-WIT	[~]	wit	wit	storage
+F-WIT	[ ]	wit	wit	language-servers
+F-WIT	[~]	wit	wit	output
+F-WIT	[ ]	wit	wit	hover-provider
+F-WIT	[ ]	wit	wit	document-indexer
+F-WIT	[ ]	wit	wit	injections
+F-WIT	[ ]	wit	wit	inlay-hints-provider
+F-WIT	[ ]	wit	wit	diagnostics
+F-WIT	[ ]	wit	wit	net
+F-WIT	[~]	wit	wit	secrets
+F-WIT	[~]	wit	wit	process
+F-WIT	[ ]	wit	wit	ipc
+F-WIT	[ ]	wit	wit	auth
+F-WIT	[~]	wit	wit	language-features
+F-WIT	[ ]	wit	wit	mcp
+F-WIT	[ ]	wit	wit	mcp-provider
+F-WIT	[ ]	wit	wit	providers
+F-WIT	[ ]	wit	wit	run-targets
+F-WIT	[ ]	wit	wit	launch-configurations
+F-WIT	[ ]	wit	wit	test-results
+F-WIT	[ ]	wit	wit	semantic-tokens-provider
+F-WIT	[ ]	wit	wit	types
+F-WIT	[ ]	wit	wit	view-types
+F-WIT	[~]	wit	wit	views
+F-WIT	[ ]	wit	wit	view-provider
+F-WIT	[~]	wit	wit	workspace
+F-WIT	[~]	wit	wit	editor
+F-WIT	[~]	wit	wit	vcs
+F-EDITOR-TABS-SESSIONS-B	[ ]	unit	editor/core	src/editor/core/busyClose.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/angular/angular.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/angular/inline.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/angularLoading.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/astro/astro.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/bracketBlockSelect.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/caretRow.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/cm/clipboard.test.ts
+F-EDITOR-EMBEDDED-LANGS	[~]	unit	editor/core	src/editor/core/cm/cmake.test.ts
+F-LSP-INLINE-B	[ ]	unit	editor/core	src/editor/core/cm/codeLens.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/cornerInset.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/django/django.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/cm/docComment.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/cm/docCommentTags.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/docRender.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/cm/editing.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/erb.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/gherkin.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/gomod.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/helm.test.ts
+T1-PLUGIN-VISUALS	[ ]	unit	editor/core	src/editor/core/cm/iconArea.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/cm/ideaParity.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/cm/indentGuides.test.ts
+F-EDITOR-EMBEDDED-LANGS	[~]	unit	editor/core	src/editor/core/cm/interpolation.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/interpolationIncremental.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/jsp/jsp.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/languages.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/cm/lines.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/linkedTags.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/markdownImages.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/preview.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/relativeLineNumbers.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/renderedDocs.gutter.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/renderedDocs.incremental.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/renderedDocs.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/selectionLayer.test.ts
+F-EDITOR-RENDERED-DOCS	[m]	unit	editor/core	src/editor/core/cm/selectionMarks.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/shellInterpolation.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/cm/smartKeys.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/stickyScroll.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/cm/stringClipboard.test.ts
+F-EDITOR-EMBEDDED-LANGS	[~]	unit	editor/core	src/editor/core/cm/syntaxHighlight.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/thymeleaf.test.ts
+F-EDITOR-RENDERED-DOCS	[ ]	unit	editor/core	src/editor/core/cm/tooltipBounds.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/cm/vue.test.ts
+F-EDITOR-TABS-SESSIONS-B	[~]	unit	editor/core	src/editor/core/controller.test.ts
+F-EDITOR-DOCS-SYNC-B	[~]	unit	editor/core	src/editor/core/copyPathPopup.test.tsx
+F-EDITOR-DOCS-SYNC-A	[~]	unit	editor/core	src/editor/core/customDocuments.test.ts
+F-EDITOR-TABS-SESSIONS-A	[m]	unit	editor/core	src/editor/core/detachTab.test.ts
+F-EDITOR-DOCS-SYNC-A	[~]	unit	editor/core	src/editor/core/diskSync.test.ts
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/editingExtras.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/embeddedDocuments.test.ts
+F-EDITOR-TABS-SESSIONS-B	[~]	unit	editor/core	src/editor/core/file-open-order.test.ts
+F-EDITOR-DOCS-SYNC-B	[~]	unit	editor/core	src/editor/core/fileAttributes.test.ts
+I-ZOOM-PX	[ ]	unit	editor/core	src/editor/core/fontZoom.test.ts
+F-EDITOR-TABS-SESSIONS-B	[~]	unit	editor/core	src/editor/core/inputClose.test.ts
+F-EDITOR-DOCS-SYNC-B	[ ]	unit	editor/core	src/editor/core/librarySources.test.tsx
+F-EDITOR-TABS-SESSIONS-B	[~]	unit	editor/core	src/editor/core/lightedit-launch.test.ts
+F-EDITOR-DOCS-SYNC-A	[~]	unit	editor/core	src/editor/core/model/attachment.test.ts
+F-EDITOR-TABS-SESSIONS-B	[ ]	unit	editor/core	src/editor/core/model/document-open-latency.test.ts
+F-EDITOR-DOCS-SYNC-A	[~]	unit	editor/core	src/editor/core/model/document.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor/core	src/editor/core/model/documentLanguage.test.ts
+F-EDITOR-TABS-SESSIONS-B	[~]	unit	editor/core	src/editor/core/model/model.test.ts
+F-EDITOR-TABS-SESSIONS-B	[m]	unit	editor/core	src/editor/core/model/workspaceHistory.test.ts
+F-EDITOR-TABS-SESSIONS-B	[ ]	unit	editor/core	src/editor/core/session-close.test.ts
+F-EDITOR-DOCS-SYNC-A	[~]	unit	editor/core	src/editor/core/sync/DocSync.test.ts
+I-UNTITLED	[ ]	unit	editor/core	src/editor/core/untitled.test.ts
+F-EDITOR-DOCS-SYNC-B	[ ]	unit	editor/core	src/editor/core/view/banner.test.tsx
+F-EDITOR-TABS-SESSIONS-A	[ ]	unit	editor/core	src/editor/core/view/editorLayoutActions.test.tsx
+F-EDITOR-DOCS-SYNC-B	[ ]	unit	editor/core	src/editor/core/view/encodingStatus.test.tsx
+F-EDITOR-TABS-SESSIONS-A	[ ]	unit	editor/core	src/editor/core/view/groupPanels.test.tsx
+F-EDITOR-TABS-SESSIONS-A	[~]	unit	editor/core	src/editor/core/view/keptTabs.test.tsx
+F-EDITOR-NAVBAR	[~]	unit	editor/core	src/editor/core/view/navBar.test.ts
+F-EDITOR-NAVBAR	[ ]	unit	editor/core	src/editor/core/view/navChildren.test.tsx
+F-EDITOR-CORE-EDITING	[~]	unit	editor/core	src/editor/core/view/PasteHistoryDialog.test.tsx
+F-EDITOR-TABS-SESSIONS-A	[~]	unit	editor/core	src/editor/core/view/pinnedTabsRow.test.tsx
+F-EDITOR-DOCS-SYNC-B	[ ]	unit	editor/core	src/editor/core/view/statusItems.test.tsx
+F-EDITOR-TABS-SESSIONS-A	[ ]	unit	editor/core	src/editor/core/view/tabTitleRevision.test.tsx
+F-EDITOR-DOCS-SYNC-A	[~]	unit	editor/core	src/editor/core/virtual.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor	src/editor/lazyEditorExtension.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	editor	src/editor/lineTokens.test.ts
+F-LSP-INLINE-B	[~]	unit	editor/lsp	src/editor/lsp/authorLens.test.ts
+F-LSP-POPUPS-C	[~]	unit	editor/lsp	src/editor/lsp/availability.test.ts
+F-LSP-INLINE-B	[~]	unit	editor/lsp	src/editor/lsp/codeLens.test.ts
+F-LSP-POPUPS-A	[~]	unit	editor/lsp	src/editor/lsp/completion.test.ts
+F-LSP-NAV	[~]	unit	editor/lsp	src/editor/lsp/configurationNavigation.test.ts
+F-LSP-POPUPS-C	[~]	unit	editor/lsp	src/editor/lsp/diagnostics.test.ts
+F-LSP-POPUPS-C	[~]	unit	editor/lsp	src/editor/lsp/features.test.ts
+F-LSP-INLINE-B	[ ]	unit	editor/lsp	src/editor/lsp/formatErrors.test.tsx
+F-LSP-POPUPS-B	[~]	unit	editor/lsp	src/editor/lsp/hint.test.ts
+F-LSP-INLINE-A	[~]	unit	editor/lsp	src/editor/lsp/inlay.test.ts
+F-LSP-INLINE-A	[ ]	unit	editor/lsp	src/editor/lsp/inlayRequests.test.ts
+F-LSP-INLINE-A	[m]	unit	editor/lsp	src/editor/lsp/inlineCompletion.test.ts
+F-LSP-POPUPS-C	[m]	unit	editor/lsp	src/editor/lsp/inplaceRename.test.ts
+F-LSP-POPUPS-C	[~]	unit	editor/lsp	src/editor/lsp/intentions.test.ts
+F-LSP-INLINE-B	[ ]	unit	editor/lsp	src/editor/lsp/interactiveCommand.test.tsx
+F-LSP-NAV	[~]	unit	editor/lsp	src/editor/lsp/links.test.ts
+F-LSP-POPUPS-B	[~]	unit	editor/lsp	src/editor/lsp/markdown.test.ts
+F-LSP-NAV	[ ]	unit	editor/lsp	src/editor/lsp/navigationChooser.test.ts
+F-LSP-NAV	[ ]	unit	editor/lsp	src/editor/lsp/navigationImplementations.test.ts
+F-LSP-NAV	[ ]	unit	editor/lsp	src/editor/lsp/navigationImportedDeclaration.test.ts
+F-LSP-NAV	[~]	unit	editor/lsp	src/editor/lsp/navigationMouse.test.ts
+F-LSP-NAV	[~]	unit	editor/lsp	src/editor/lsp/navigationPending.test.ts
+F-LSP-NAV	[ ]	unit	editor/lsp	src/editor/lsp/navigationShared.test.ts
+F-LSP-POPUPS-C	[m]	unit	editor/lsp	src/editor/lsp/outsideProject.test.ts
+F-LSP-POPUPS-B	[~]	unit	editor/lsp	src/editor/lsp/Popups.test.tsx
+F-LSP-SEMANTIC	[m]	unit	editor/lsp	src/editor/lsp/semantic/go/index.test.ts
+F-LSP-SEMANTIC	[ ]	unit	editor/lsp	src/editor/lsp/semantic/index.test.ts
+F-LSP-SEMANTIC	[~]	unit	editor/lsp	src/editor/lsp/semantic/kotlin/index.test.ts
+F-LSP-SEMANTIC	[m]	unit	editor/lsp	src/editor/lsp/semantic/php/constructs.test.ts
+F-LSP-SEMANTIC	[ ]	unit	editor/lsp	src/editor/lsp/semantic/python/highlight.test.ts
+F-LSP-SEMANTIC	[m]	unit	editor/lsp	src/editor/lsp/semantic/python/members.test.ts
+F-LSP-SEMANTIC	[ ]	unit	editor/lsp	src/editor/lsp/semantic/typing.test.ts
+F-LSP-INLINE-B	[~]	unit	editor/lsp	src/editor/lsp/serverCodeLens.test.ts
+F-LSP-POPUPS-A	[~]	unit	editor/lsp	src/editor/lsp/snippet.test.ts
+F-LSP-INLINE-B	[m]	unit	editor/lsp	src/editor/lsp/spelling.test.ts
+F-LSP-SEMANTIC	[~]	unit	editor/lsp	src/editor/lsp/syntaxErrors.test.ts
+F-LSP-SEMANTIC	[ ]	unit	editor/lsp	src/editor/lsp/syntaxFallback.test.ts
+F-LSP-SEMANTIC	[ ]	unit	editor/lsp	src/editor/lsp/usageHighlight.test.ts
+F-NAVIGATION	[ ]	unit	editor/navigation	src/editor/navigation/headerSource.test.ts
+F-NAVIGATION	[ ]	unit	editor/navigation	src/editor/navigation/lineMarkers.test.ts
+F-NAVIGATION	[ ]	unit	editor/navigation	src/editor/navigation/pythonHierarchy.test.ts
+F-NAVIGATION	[m]	unit	editor	src/editor/navigationProviders.test.ts
+F-LSP-REFACTOR-B	[ ]	unit	editor/refactor	src/editor/refactor/cancellable.test.ts
+F-LSP-REFACTOR-A	[ ]	unit	editor/refactor	src/editor/refactor/extractInterface.test.ts
+F-LSP-REFACTOR-A	[ ]	unit	editor/refactor	src/editor/refactor/hierarchy.test.ts
+F-LSP-REFACTOR-B	[ ]	unit	editor/refactor	src/editor/refactor/introduce.test.ts
+F-LSP-REFACTOR-B	[ ]	unit	editor/refactor	src/editor/refactor/javaMove.test.ts
+F-LSP-REFACTOR-C	[~]	unit	editor/refactor	src/editor/refactor/refactor.test.ts
+F-LSP-REFACTOR-C	[~]	unit	editor/refactor	src/editor/refactor/refactorThis.test.ts
+F-LSP-REFACTOR-C	[~]	unit	editor/refactor	src/editor/refactor/runKind.test.ts
+F-LSP-REFACTOR-B	[~]	unit	editor/refactor	src/editor/refactor/serverIntroduce.test.ts
+F-LSP-REFACTOR-A	[ ]	unit	editor/refactor	src/editor/refactor/signature.test.ts
+F-NAVIGATION	[m]	unit	editor/structure	src/editor/structure/structure.test.ts
+F-AG-COMPOSER-TASKS-C	[ ]	unit	features/agents	src/features/agents/agentPolicy.test.tsx
+Q-AGL	[~]	unit	features/agents	src/features/agents/agentRegistry.test.tsx
+F-AG-COMPOSER-TASKS-C	[~]	unit	features/agents	src/features/agents/agents.test.ts
+F-AG-COMPOSER-TASKS-C	[~]	unit	features/agents	src/features/agents/AgentsView.test.tsx
+F-AG-COMPOSER-TASKS-B	[ ]	unit	features/agents	src/features/agents/closeTask.test.ts
+F-AG-COMPOSER-TASKS-A	[~]	unit	features/agents	src/features/agents/composerCommands.test.tsx
+F-AG-COMPOSER-TASKS-A	[ ]	unit	features/agents	src/features/agents/composerFolders.test.tsx
+F-AG-COMPOSER-TASKS-A	[ ]	unit	features/agents	src/features/agents/composerSubmission.test.tsx
+F-AG-MODELS	[~]	unit	features/agents	src/features/agents/ConfigPickers.test.tsx
+F-AG-SESSION-FEATURES	[~]	unit	features/agents	src/features/agents/conversation.test.ts
+F-AG-COMPOSER-TASKS-C	[ ]	unit	features/agents	src/features/agents/fontZoom.test.tsx
+F-AG-COMPOSER-TASKS-C	[~]	unit	features/agents	src/features/agents/HomeEditor.test.tsx
+F-AG-COMPOSER-TASKS-C	[~]	unit	features/agents	src/features/agents/loginHint.test.ts
+F-AG-SESSION-FEATURES	[~]	unit	features/agents	src/features/agents/Markdown.test.tsx
+F-AG-MCP	[ ]	unit	features/agents	src/features/agents/McpPicker.test.tsx
+F-AG-MCP	[ ]	unit	features/agents	src/features/agents/mcpServers.test.tsx
+F-AG-SESSION-FEATURES	[ ]	unit	features/agents	src/features/agents/mermaidFollow.test.tsx
+F-AG-SESSION-FEATURES	[~]	unit	features/agents	src/features/agents/messageEditing.test.tsx
+F-AG-MODELS	[ ]	unit	features/agents	src/features/agents/modelRefresh.test.tsx
+F-AG-COMPOSER-TASKS-B	[ ]	unit	features/agents	src/features/agents/organize.test.ts
+F-AG-SESSION-FEATURES	[~]	unit	features/agents	src/features/agents/permission.test.ts
+F-AG-SESSION-FEATURES	[~]	unit	features/agents	src/features/agents/replyActions.test.ts
+F-AG-SESSION-FEATURES	[ ]	unit	features/agents	src/features/agents/reveal.test.tsx
+F-AG-SESSION-FEATURES	[ ]	unit	features/agents	src/features/agents/SelectionToolbar.test.tsx
+F-AG-SESSION-FEATURES	[~]	unit	features/agents	src/features/agents/sessionState.test.tsx
+F-AG-SESSION-FEATURES	[ ]	unit	features/agents	src/features/agents/sideConversation.test.ts
+F-AG-SESSION-FEATURES	[ ]	unit	features/agents	src/features/agents/symbolLinks.test.ts
+F-AG-COMPOSER-TASKS-B	[ ]	unit	features/agents	src/features/agents/taskProject.test.ts
+F-AG-SESSION-FEATURES	[ ]	unit	features/agents	src/features/agents/timeline.test.ts
+F-AG-COMPOSER-TASKS-C	[~]	unit	features/agents	src/features/agents/unread.test.tsx
+F-AG-COMPOSER-TASKS-C	[ ]	unit	features/agents	src/features/agents/workingStatusPage.test.tsx
+F-ANALYSIS	[m]	unit	features/analysis	src/features/analysis/analysis.test.ts
+F-ANALYSIS	[ ]	unit	features/analysis	src/features/analysis/inheritanceInspections.test.ts
+F-ANALYSIS	[ ]	unit	features/analysis	src/features/analysis/inheritanceProfileRefresh.test.ts
+F-ANALYSIS	[m]	unit	features/analysis	src/features/analysis/inspect.test.ts
+F-ANALYSIS	[ ]	unit	features/analysis	src/features/analysis/replacePreview.test.tsx
+F-APP-SHELL-C	[m]	unit	features/app	src/features/app/__tests__/cliCommand.test.ts
+F-APP-SHELL-A	[~]	unit	features/app	src/features/app/__tests__/closeGuard.test.ts
+F-RUN-CONSOLE	[~]	unit	features/app	src/features/app/__tests__/consoleCopy.test.ts
+F-APP-SHELL-C	[ ]	unit	features/app	src/features/app/__tests__/host.test.ts
+F-APP-SHELL-B	[ ]	unit	features/app	src/features/app/__tests__/importFromJetBrainsIde.test.tsx
+F-APP-SHELL-B	[~]	unit	features/app	src/features/app/__tests__/jetbrainsSettings.test.ts
+F-APP-SHELL-B	[ ]	unit	features/app	src/features/app/__tests__/jetbrainsSettingsImport.test.tsx
+F-APP-SHELL-C	[~]	unit	features/app	src/features/app/__tests__/menuBridge.test.ts
+F-APP-NEW-PROJECT	[ ]	unit	features/app	src/features/app/__tests__/newProjectTemplate.test.ts
+F-APP-SHELL-C	[~]	unit	features/app	src/features/app/__tests__/shell.test.tsx
+F-APP-SHELL-B	[~]	unit	features/app	src/features/app/__tests__/updates.test.ts
+F-APP-SHELL-A	[ ]	unit	features/app	src/features/app/__tests__/windowClose.test.ts
+F-APP-SHELL-A	[~]	unit	features/app	src/features/app/__tests__/windows.test.ts
+F-APP-WORKSPACE	[~]	unit	features/app	src/features/app/__tests__/WorkspaceDialog.test.tsx
+F-BT-SBT-ANALYZER-B	[~]	unit	features/build-tools	src/features/build-tools/actions.test.tsx
+F-BT-SBT-ANALYZER-A	[ ]	unit	features/build-tools	src/features/build-tools/analyzer.test.ts
+F-BT-SBT-ANALYZER-B	[ ]	unit	features/build-tools	src/features/build-tools/autoReload.test.ts
+F-BT-SBT-ANALYZER-A	[ ]	unit	features/build-tools	src/features/build-tools/DependencyAnalyzer.test.tsx
+Q-FU2	[~]	unit	features/build-tools	src/features/build-tools/ExecutePopup.test.tsx
+F-BT-SBT-ANALYZER-B	[ ]	unit	features/build-tools	src/features/build-tools/firstImport.test.ts
+F-BT-SBT-ANALYZER-A	[~]	unit	features/build-tools	src/features/build-tools/linkage.test.tsx
+F-BT-SBT-ANALYZER-B	[~]	unit	features/build-tools	src/features/build-tools/model.test.ts
+F-BT-POM	[ ]	unit	features/build-tools	src/features/build-tools/pomCompletion.test.ts
+F-BT-POM	[ ]	unit	features/build-tools	src/features/build-tools/pomNavigation.test.ts
+F-BT-SBT-ANALYZER-B	[ ]	unit	features/build-tools	src/features/build-tools/profileReload.test.ts
+F-BT-SBT-ANALYZER-B	[ ]	unit	features/build-tools	src/features/build-tools/sbt.test.ts
+F-BT-POM	[ ]	unit	features/build-tools	src/features/build-tools/versionCatalog.test.ts
+F-BT-SBT-ANALYZER-A	[ ]	unit	features/build-tools	src/features/build-tools/workspace.test.tsx
+F-SMALL-FEATURES-A	[~]	unit	features/build	src/features/build/build.test.tsx
+F-HIERARCHY-USAGES	[~]	unit	features/code-insight	src/features/code-insight/hierarchy.test.ts
+F-HIERARCHY-USAGES	[~]	unit	features/code-insight	src/features/code-insight/problemsStore.test.ts
+F-HIERARCHY-USAGES	[~]	unit	features/code-insight	src/features/code-insight/servers.test.ts
+F-HIERARCHY-USAGES	[~]	unit	features/code-insight	src/features/code-insight/ServerStatus.test.tsx
+F-HIERARCHY-USAGES	[~]	unit	features/code-insight	src/features/code-insight/usagePreview.test.tsx
+F-HIERARCHY-USAGES	[~]	unit	features/code-insight	src/features/code-insight/usageResults.test.ts
+F-HIERARCHY-USAGES	[~]	unit	features/code-insight	src/features/code-insight/usagesPopup.test.tsx
+T1-AGENT-UNDO	[~]	unit	features/code-insight	src/features/code-insight/workspaceUndo.test.ts
+F-SMALL-FEATURES-B	[~]	unit	features/color-preview	src/features/color-preview/colors.test.ts
+T1-PLUGIN-VISUALS	[ ]	unit	features/color-preview	src/features/color-preview/gutter.test.ts
+T1-PLUGIN-VISUALS	[~]	unit	features/color-preview	src/features/color-preview/pluginColors.test.ts
+F-COVERAGE-PROFILER	[m]	unit	features/coverage	src/features/coverage/coverage.test.ts
+F-SMALL-FEATURES-B	[ ]	unit	features/cucumber	src/features/cucumber/steps.test.ts
+F-DB-GRID-A	[ ]	unit	features/database	src/features/database/cellEditors.test.ts
+F-DB-TREE-SOURCES-A	[~]	unit	features/database	src/features/database/database.test.ts
+F-DB-TREE-SOURCES-A	[~]	unit	features/database	src/features/database/DatabaseView.test.tsx
+F-DB-TREE-SOURCES-B	[ ]	unit	features/database	src/features/database/export.test.ts
+F-DB-TREE-SOURCES-B	[~]	unit	features/database	src/features/database/ExportDialog.test.tsx
+F-DB-GRID-B	[~]	unit	features/database	src/features/database/Grid.test.tsx
+F-DB-RESULT-TABS	[ ]	unit	features/database	src/features/database/inEditorResults.test.tsx
+F-DB-TREE-SOURCES-A	[ ]	unit	features/database	src/features/database/introspection.test.ts
+F-DB-GRID-A	[ ]	unit	features/database	src/features/database/jsonValue.test.ts
+F-DB-CONSOLES	[ ]	unit	features/database	src/features/database/mybatis.test.ts
+F-DB-TREE-SOURCES-A	[~]	unit	features/database	src/features/database/objects.test.ts
+F-DB-RESULT-TABS	[ ]	unit	features/database	src/features/database/requestLifecycle.test.ts
+F-DB-CONSOLES	[ ]	unit	features/database	src/features/database/resolutionScopes.test.ts
+F-DB-RESULT-TABS	[ ]	unit	features/database	src/features/database/result-tabs.test.tsx
+F-DB-RESULT-TABS	[~]	unit	features/database	src/features/database/resultEditing.test.ts
+F-DB-RESULT-TABS	[~]	unit	features/database	src/features/database/results-view.test.tsx
+F-DB-RESULT-TABS	[~]	unit	features/database	src/features/database/resultView.test.ts
+F-DB-RESULT-TABS	[ ]	unit	features/database	src/features/database/resultViewAverages.test.ts
+F-DB-TREE-SOURCES-B	[ ]	unit	features/database	src/features/database/schemaCompare.test.ts
+F-DB-TREE-SOURCES-B	[~]	unit	features/database	src/features/database/SourceDialog.test.tsx
+F-DB-CONSOLES	[~]	unit	features/database	src/features/database/sql/format.test.ts
+F-DB-CONSOLES	[ ]	unit	features/database	src/features/database/sql/mapper.test.ts
+F-DB-CONSOLES	[~]	unit	features/database	src/features/database/sql/readOnly.test.ts
+F-DB-CONSOLES	[ ]	unit	features/database	src/features/database/sql/snowflakeCommands.test.ts
+F-DB-CONSOLES	[ ]	unit	features/database	src/features/database/sql/snowflakeHighlight.test.ts
+F-DB-CONSOLES	[~]	unit	features/database	src/features/database/sql/sql.test.ts
+F-DB-CONSOLES	[ ]	unit	features/database	src/features/database/SqlHighlight.test.tsx
+F-DB-TREE-SOURCES-A	[~]	unit	features/database	src/features/database/table-editor.test.tsx
+F-DBG-TAIL	[~]	unit	features/debugger	src/features/debugger/__tests__/actions.test.ts
+F-DBG-ATTACH	[ ]	unit	features/debugger	src/features/debugger/__tests__/adapterChoice.test.ts
+F-DBG-ATTACH	[~]	unit	features/debugger	src/features/debugger/__tests__/attach.test.ts
+F-DBG-JS-BROWSER	[ ]	unit	features/debugger	src/features/debugger/__tests__/browser.test.ts
+F-DBG-JS-BROWSER	[ ]	unit	features/debugger	src/features/debugger/__tests__/browserSession.test.ts
+F-DBG-CONSOLE-WATCHES-B	[ ]	unit	features/debugger	src/features/debugger/__tests__/classImports.test.ts
+F-RUN-TABS	[ ]	unit	features/debugger	src/features/debugger/__tests__/closeTab.test.ts
+F-DBG-CONSOLE-WATCHES-A	[ ]	unit	features/debugger	src/features/debugger/__tests__/debugConsoleLinks.test.tsx
+F-DBG-CONSOLE-WATCHES-A	[ ]	unit	features/debugger	src/features/debugger/__tests__/debugFind.test.tsx
+F-DBG-CONSOLE-WATCHES-B	[ ]	unit	features/debugger	src/features/debugger/__tests__/eventBreakpoints.test.ts
+F-DBG-CONSOLE-WATCHES-B	[ ]	unit	features/debugger	src/features/debugger/__tests__/EventBreakpointsSection.test.tsx
+F-DBG-CONSOLE-WATCHES-B	[~]	unit	features/debugger	src/features/debugger/__tests__/executionState.test.ts
+F-DBG-CONSOLE-WATCHES-A	[ ]	unit	features/debugger	src/features/debugger/__tests__/expressionCompletion.test.tsx
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/heapEdgeText.test.ts
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/heapEditor.test.tsx
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/heapState.test.ts
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/instancesPane.test.tsx
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/instancesState.test.ts
+F-DBG-TAIL	[~]	unit	features/debugger	src/features/debugger/__tests__/java.test.ts
+F-DBG-TAIL	[~]	unit	features/debugger	src/features/debugger/__tests__/launch.test.ts
+F-DBG-CONSOLE-WATCHES-B	[ ]	unit	features/debugger	src/features/debugger/__tests__/liveWatches.test.ts
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/memoryLayout.test.ts
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/memoryRows.test.ts
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/memoryState.test.ts
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/memoryValues.test.ts
+F-DBG-HEAP-MEMORY	[ ]	unit	features/debugger	src/features/debugger/__tests__/memoryView.test.tsx
+F-DBG-ATTACH	[~]	unit	features/debugger	src/features/debugger/__tests__/missingAdapter.test.ts
+F-DBG-JS-BROWSER	[ ]	unit	features/debugger	src/features/debugger/__tests__/network.test.ts
+F-DBG-JS-BROWSER	[ ]	unit	features/debugger	src/features/debugger/__tests__/networkSessions.test.ts
+F-DBG-JS-BROWSER	[ ]	unit	features/debugger	src/features/debugger/__tests__/NetworkView.test.tsx
+F-DBG-JS-BROWSER	[ ]	unit	features/debugger	src/features/debugger/__tests__/OverridesDialog.test.tsx
+F-DBG-JS-BROWSER	[ ]	unit	features/debugger	src/features/debugger/__tests__/pageProfile.test.ts
+F-DBG-CONSOLE-WATCHES-A	[ ]	unit	features/debugger	src/features/debugger/__tests__/processOutput.test.ts
+F-DBG-CONSOLE-WATCHES-B	[~]	unit	features/debugger	src/features/debugger/__tests__/quickEvaluate.test.ts
+F-DBG-ATTACH	[~]	unit	features/debugger	src/features/debugger/__tests__/remote.test.ts
+F-DBG-JS-BROWSER	[ ]	unit	features/debugger	src/features/debugger/__tests__/responseOverrides.test.ts
+F-DBG-CONSOLE-WATCHES-A	[ ]	unit	features/debugger	src/features/debugger/__tests__/serviceConsole.test.tsx
+F-RUN-TABS	[ ]	unit	features/debugger	src/features/debugger/__tests__/sessionTabs.test.ts
+F-DBG-TAIL	[~]	unit	features/debugger	src/features/debugger/__tests__/startFailure.test.ts
+F-DBG-CONSOLE-WATCHES-B	[~]	unit	features/debugger	src/features/debugger/__tests__/startupBreakpoints.test.ts
+F-DBG-TAIL	[~]	unit	features/debugger	src/features/debugger/__tests__/toolWindow.test.tsx
+F-DBG-ATTACH	[ ]	unit	features/debugger	src/features/debugger/__tests__/unityAttach.test.tsx
+F-DBG-CONSOLE-WATCHES-B	[~]	unit	features/debugger	src/features/debugger/__tests__/values.test.ts
+F-DBG-CONSOLE-WATCHES-B	[ ]	unit	features/debugger	src/features/debugger/__tests__/watchStorage.test.ts
+F-SMALL-FEATURES-B	[m]	unit	features/dependencies	src/features/dependencies/dependencies.test.ts
+F-DEPLOY-WINDOW	[~]	unit	features/deployment	src/features/deployment/actions.test.tsx
+F-DEPLOY-WINDOW	[~]	unit	features/deployment	src/features/deployment/model.test.ts
+F-DEPLOY-WINDOW	[~]	unit	features/deployment	src/features/deployment/remoteHost.test.ts
+F-DEPLOY-WINDOW	[~]	unit	features/deployment	src/features/deployment/window.test.ts
+F-DOTNET	[m]	unit	features/dotnet	src/features/dotnet/store.test.ts
+F-GH-REVIEW-B	[~]	unit	features/github	src/features/github/clone/GitHubCloneSource.test.tsx
+F-GH-REVIEW-B	[m]	unit	features/github	src/features/github/create/create.test.ts
+Q-FU2	[~]	unit	features/github	src/features/github/data/data.test.ts
+F-GH-REVIEW-A	[~]	unit	features/github	src/features/github/diff/reviewDiff.test.tsx
+F-GH-REVIEW-A	[~]	unit	features/github	src/features/github/reviewMode/reviewMode.test.tsx
+F-GH-REVIEW-B	[~]	unit	features/github	src/features/github/toolwindow/toolwindow.test.tsx
+F-GH-REVIEW-B	[~]	unit	features/github	src/features/github/ui/ui.test.tsx
+F-GRAPHQL	[~]	unit	features/graphql	src/features/graphql/graphql.test.ts
+F-GRAPHQL	[m]	unit	features/graphql	src/features/graphql/store.test.ts
+F-HTTP	[~]	unit	features/http-client	src/features/http-client/endpoints.test.ts
+F-HTTP	[ ]	unit	features/http-client	src/features/http-client/fileNavigation.test.ts
+F-HTTP	[ ]	unit	features/http-client	src/features/http-client/headers.test.ts
+F-HTTP	[~]	unit	features/http-client	src/features/http-client/httpClient.test.ts
+F-HTTP	[ ]	unit	features/http-client	src/features/http-client/responseFind.test.tsx
+F-HTTP	[~]	unit	features/http-client	src/features/http-client/spring/spring.test.ts
+F-HTTP	[ ]	unit	features/http-client	src/features/http-client/variableNavigation.test.ts
+F-SMALL-FEATURES-B	[~]	unit	features/libraries	src/features/libraries/libraries.test.ts
+F-SMALL-FEATURES-B	[ ]	unit	features/libraries	src/features/libraries/refresh.test.ts
+F-SMALL-FEATURES-C	[m]	unit	features/logcat	src/features/logcat/history.test.ts
+F-SMALL-FEATURES-C	[m]	unit	features/logcat	src/features/logcat/model.test.ts
+F-MACROS-RUNANY-SCRATCH	[m]	unit	features/macros	src/features/macros/model.test.ts
+F-PERF-MCP-SSH	[~]	unit	features/mcp	src/features/mcp/reporters.test.ts
+F-PERF-MCP-SSH	[ ]	unit	features/mcp	src/features/mcp/requests.test.tsx
+F-NOTEBOOK	[~]	unit	features/notebook	src/features/notebook/OutputView.test.tsx
+F-NOTEBOOK	[~]	unit	features/notebook	src/features/notebook/security.test.ts
+F-NOTEBOOK	[~]	unit	features/notebook	src/features/notebook/session.test.ts
+Q-FU2	[~]	unit	features/perf	src/features/perf/__tests__/perf.test.ts
+F-PERF-MCP-SSH	[ ]	unit	features/perf	src/features/perf/__tests__/views.test.tsx
+F-PL-NAV-EVENTS	[ ]	unit	features/plugins	src/features/plugins/__tests__/commandBackend.test.ts
+F-PL-VIEWS-A	[ ]	unit	features/plugins	src/features/plugins/__tests__/contentEditor.test.tsx
+T1-PLUGIN-VISUALS	[~]	unit	features/plugins	src/features/plugins/__tests__/decorations.test.ts
+F-PL-DETAILS	[ ]	unit	features/plugins	src/features/plugins/__tests__/detailViews.test.tsx
+F-PL-VIEWS-A	[ ]	unit	features/plugins	src/features/plugins/__tests__/editorPanels.test.tsx
+F-PL-VIEWS-B	[ ]	unit	features/plugins	src/features/plugins/__tests__/htmlFrame.test.tsx
+F-PL-DETAILS	[ ]	unit	features/plugins	src/features/plugins/__tests__/intellijImport.test.tsx
+F-PL-VIEWS-A	[~]	unit	features/plugins	src/features/plugins/__tests__/logEditor.test.tsx
+F-PL-DETAILS	[ ]	unit	features/plugins	src/features/plugins/__tests__/market.test.ts
+F-PL-DETAILS	[~]	unit	features/plugins	src/features/plugins/__tests__/plugins.test.tsx
+F-PL-VIEWS-A	[ ]	unit	features/plugins	src/features/plugins/__tests__/projectUi.test.tsx
+F-PL-VIEWS-B	[m]	unit	features/plugins	src/features/plugins/__tests__/ptyBackend.test.ts
+F-PL-VIEWS-B	[m]	unit	features/plugins	src/features/plugins/__tests__/ptyBridge.test.ts
+F-PL-VIEWS-C	[ ]	unit	features/plugins	src/features/plugins/__tests__/servicePane.test.tsx
+F-PL-VIEWS-C	[ ]	unit	features/plugins	src/features/plugins/__tests__/serviceProvider.test.tsx
+F-PL-DETAILS	[~]	unit	features/plugins	src/features/plugins/__tests__/settings.test.tsx
+F-PL-DETAILS	[~]	unit	features/plugins	src/features/plugins/__tests__/startupTheme.test.ts
+F-PL-VIEWS-A	[ ]	unit	features/plugins	src/features/plugins/__tests__/verbatimText.test.tsx
+F-PL-VIEWS-A	[ ]	unit	features/plugins	src/features/plugins/__tests__/viewProjection.test.tsx
+F-PL-VIEWS-A	[~]	unit	features/plugins	src/features/plugins/__tests__/views.test.tsx
+F-PL-VIEWS-A	[ ]	unit	features/plugins	src/features/plugins/__tests__/viewWindows.test.tsx
+F-PL-VIEWS-B	[~]	unit	features/plugins	src/features/plugins/__tests__/webViews.test.tsx
+F-PL-NAV-EVENTS	[~]	unit	features/plugins	src/features/plugins/__tests__/workspaceContains.test.ts
+Q-FU2	[~]	unit	features/plugins	src/features/plugins/indexedMarkers.test.ts
+F-PL-TAIL	[~]	unit	features/plugins	src/features/plugins/languageVisuals.test.ts
+T1-PLUGIN-VISUALS	[~]	unit	features/plugins	src/features/plugins/lineMarkerGutter.test.ts
+Q-FU2	[~]	unit	features/plugins	src/features/plugins/markerIcons.test.ts
+T1-PLUGIN-VISUALS	[m]	unit	features/plugins	src/features/plugins/markerStore.test.ts
+F-PL-TAIL	[~]	unit	features/plugins	src/features/plugins/navigation.test.ts
+F-PL-NAV-EVENTS	[m]	unit	features/plugins	src/features/plugins/pluginText.test.ts
+F-PL-TAIL	[ ]	unit	features/plugins	src/features/plugins/runtimeUi.test.tsx
+F-COVERAGE-PROFILER	[ ]	unit	features/profiler	src/features/profiler/cpuProfiles.test.ts
+F-COVERAGE-PROFILER	[ ]	unit	features/profiler	src/features/profiler/executor.test.ts
+F-COVERAGE-PROFILER	[~]	unit	features/profiler	src/features/profiler/profiler.test.ts
+F-COVERAGE-PROFILER	[ ]	unit	features/profiler	src/features/profiler/ProfilerView.test.tsx
+F-PROJECT-VIEW	[~]	unit	features/project-tree	src/features/project-tree/contextMenu.test.ts
+F-PROJECT-VIEW	[~]	unit	features/project-tree	src/features/project-tree/extraRoots.test.ts
+F-PROJECT-VIEW	[~]	unit	features/project-tree	src/features/project-tree/fileRefactor.test.tsx
+F-PROJECT-VIEW	[~]	unit	features/project-tree	src/features/project-tree/fs.test.ts
+F-PROJECT-VIEW	[ ]	unit	features/project-tree	src/features/project-tree/mavenRootIcon.test.tsx
+F-PROJECT-VIEW	[ ]	unit	features/project-tree	src/features/project-tree/mavenRoots.test.ts
+F-PROJECT-VIEW	[~]	unit	features/project-tree	src/features/project-tree/model.test.ts
+F-PROJECT-VIEW	[m]	unit	features/project-tree	src/features/project-tree/moduleGroups.test.ts
+F-PROJECT-VIEW	[~]	unit	features/project-tree	src/features/project-tree/operations.test.ts
+F-PROJECT-VIEW	[ ]	unit	features/project-tree	src/features/project-tree/projectType.test.ts
+F-PROJECT-VIEW	[ ]	unit	features/project-tree	src/features/project-tree/projectTypes.test.ts
+F-PROJECT-VIEW	[ ]	unit	features/project-tree	src/features/project-tree/ProjectView.test.tsx
+F-PROJECT-VIEW	[~]	unit	features/project-tree	src/features/project-tree/selectIn.test.ts
+F-PROJECT-VIEW	[~]	unit	features/project-tree	src/features/project-tree/store.test.ts
+F-PROJECT-VIEW	[~]	unit	features/project-tree	src/features/project-tree/unityRefresh.test.ts
+F-SMALL-FEATURES-A	[~]	unit	features/project-trust	src/features/project-trust/trust.test.tsx
+F-SMALL-FEATURES-C	[ ]	unit	features/rails	src/features/rails/conventions.test.ts
+F-SMALL-FEATURES-C	[ ]	unit	features/rails	src/features/rails/references.test.ts
+F-SMALL-FEATURES-C	[m]	unit	features/remote-dev	src/features/remote-dev/ConnectDialog.test.tsx
+F-SMALL-FEATURES-C	[m]	unit	features/remote-dev	src/features/remote-dev/container.test.ts
+F-SMALL-FEATURES-C	[m]	unit	features/remote-dev	src/features/remote-dev/environment.test.ts
+F-SMALL-FEATURES-C	[~]	unit	features/remote-dev	src/features/remote-dev/ports.test.tsx
+F-SMALL-FEATURES-C	[m]	unit	features/remote-dev	src/features/remote-dev/remoteDev.test.ts
+F-MACROS-RUNANY-SCRATCH	[m]	unit	features/run-anything	src/features/run-anything/model.test.ts
+F-RUN-TYPES-OTHER-C	[ ]	unit	features/run	src/features/run/agentRuns.test.ts
+F-RUN-CHOOSER	[~]	unit	features/run	src/features/run/chooserPinned.test.tsx
+T1-RUN-GUARDS	[ ]	unit	features/run	src/features/run/closeRunTab.test.ts
+F-RUN-TYPES-OTHER-B	[ ]	unit	features/run	src/features/run/composerInstall.test.tsx
+F-RUN-CONSOLE	[ ]	unit	features/run	src/features/run/consoleColoring.test.tsx
+F-RUN-CONSOLE	[ ]	unit	features/run	src/features/run/consoleCopy.test.tsx
+F-RUN-TYPES-OTHER-C	[m]	unit	features/run	src/features/run/containerDebug.test.ts
+F-RUN-IMPORT	[~]	unit	features/run	src/features/run/contextRun.test.ts
+F-RUN-TYPES-OTHER-B	[ ]	unit	features/run	src/features/run/dotnetTypes.test.tsx
+F-RUN-TYPES-OTHER-A	[m]	unit	features/run	src/features/run/executors.test.ts
+F-RUN-TYPES-OTHER-A	[ ]	unit	features/run	src/features/run/executorStop.test.ts
+F-RUN-CONSOLE	[~]	unit	features/run	src/features/run/findBar.test.tsx
+F-RUN-TYPES-OTHER-B	[m]	unit	features/run	src/features/run/goActions.test.ts
+F-RUN-TYPES-JVM	[~]	unit	features/run	src/features/run/gradleRun.test.ts
+F-RUN-IMPORT	[ ]	unit	features/run	src/features/run/importAction.test.tsx
+F-RUN-IMPORT	[ ]	unit	features/run	src/features/run/importConfigs.test.tsx
+F-RUN-TYPES-JVM	[~]	unit	features/run	src/features/run/java.test.ts
+F-RUN-TYPES-JVM	[ ]	unit	features/run	src/features/run/javaDebug.test.ts
+F-RUN-TYPES-JVM	[~]	unit	features/run	src/features/run/javaModule.test.ts
+F-RUN-TESTS	[ ]	unit	features/run	src/features/run/junitType.test.ts
+F-RUN-TYPES-JVM	[~]	unit	features/run	src/features/run/jvmTypes.test.ts
+F-RUN-TYPES-OTHER-B	[ ]	unit	features/run	src/features/run/launchSettingsGutter.test.ts
+F-RUN-TYPES-OTHER-A	[~]	unit	features/run	src/features/run/navigate.test.ts
+F-RUN-TYPES-OTHER-C	[ ]	unit	features/run	src/features/run/pluginAttach.test.ts
+F-RUN-IMPORT	[~]	unit	features/run	src/features/run/producers.test.ts
+F-RUN-TYPES-OTHER-A	[~]	unit	features/run	src/features/run/remote.test.tsx
+T1-RUN-GUARDS	[~]	unit	features/run	src/features/run/resolveCancellation.test.ts
+F-RUN-TESTS	[m]	unit	features/run	src/features/run/rubyTests.test.ts
+F-RUN-TYPES-OTHER-A	[~]	unit	features/run	src/features/run/runConfigTypes.test.tsx
+F-RUN-CONSOLE	[ ]	unit	features/run	src/features/run/runOutput.test.ts
+T1-RUN-GUARDS	[ ]	unit	features/run	src/features/run/runTabReuse.test.ts
+F-RUN-TYPES-OTHER-A	[~]	unit	features/run	src/features/run/runtimes.test.ts
+F-RUN-CHOOSER	[~]	unit	features/run	src/features/run/RunWidget.test.tsx
+F-RUN-SERVICES	[m]	unit	features/run	src/features/run/serviceOrder.test.ts
+F-RUN-SERVICES	[~]	unit	features/run	src/features/run/services.test.ts
+F-RUN-TYPES-OTHER-A	[~]	unit	features/run	src/features/run/session.test.tsx
+F-RUN-TYPES-OTHER-A	[m]	unit	features/run	src/features/run/stackTrace.test.ts
+F-RUN-TYPES-OTHER-A	[~]	unit	features/run	src/features/run/targets.test.ts
+F-RUN-CONSOLE	[ ]	unit	features/run	src/features/run/terminal.test.tsx
+F-RUN-TESTS	[m]	unit	features/run	src/features/run/testing/comparison.test.ts
+F-RUN-TESTS	[m]	unit	features/run	src/features/run/testing/dotnet.test.ts
+F-RUN-TESTS	[~]	unit	features/run	src/features/run/testing/parsers.test.ts
+F-RUN-TESTS	[m]	unit	features/run	src/features/run/testing/plugin.test.ts
+F-RUN-TESTS	[~]	unit	features/run	src/features/run/testing/rerun.test.ts
+F-RUN-TESTS	[~]	unit	features/run	src/features/run/testing/states.test.ts
+F-RUN-TESTS	[ ]	unit	features/run	src/features/run/testing/zig.test.ts
+F-RUN-TESTS	[ ]	unit	features/run	src/features/run/TestTreeView.test.tsx
+F-RUN-TYPES-JVM	[ ]	unit	features/run	src/features/run/tomcat.test.tsx
+F-RUN-CONSOLE	[ ]	unit	features/run	src/features/run/useConsoleSelection.test.tsx
+F-MACROS-RUNANY-SCRATCH	[ ]	unit	features/scratch	src/features/scratch/__tests__/scratch.test.tsx
+I-UNDO-PER-DOC	[~]	unit	features/search	src/features/search/__tests__/codePreview.test.tsx
+F-SEARCH-A	[~]	unit	features/search	src/features/search/__tests__/controller.test.ts
+F-SEARCH-B	[~]	unit	features/search	src/features/search/__tests__/dialogs.test.tsx
+F-SEARCH-A	[ ]	unit	features/search	src/features/search/__tests__/editorResults.test.tsx
+F-SEARCH-B	[~]	unit	features/search	src/features/search/__tests__/fileStructure.test.tsx
+F-SEARCH-A	[~]	unit	features/search	src/features/search/__tests__/findPopup.test.tsx
+F-SEARCH-A	[~]	unit	features/search	src/features/search/__tests__/findWindow.test.ts
+F-SEARCH-B	[~]	unit	features/search	src/features/search/__tests__/inherited.test.ts
+F-SEARCH-A	[ ]	unit	features/search	src/features/search/__tests__/matchText.test.tsx
+F-SEARCH-A	[~]	unit	features/search	src/features/search/__tests__/pathScopeActions.test.tsx
+F-SEARCH-B	[m]	unit	features/search	src/features/search/__tests__/searchKeys.test.ts
+F-SVC-DOCKER-B	[ ]	unit	features/services	src/features/services/compose.test.ts
+F-SVC-DOCKER-B	[ ]	unit	features/services	src/features/services/connectionDialog.test.tsx
+F-SVC-DOCKER-B	[ ]	unit	features/services	src/features/services/dockerGutter.test.ts
+F-SVC-DOCKER-B	[~]	unit	features/services	src/features/services/services.test.ts
+F-SVC-DOCKER-B	[~]	unit	features/services	src/features/services/ServicesTree.debug.test.tsx
+F-SVC-DOCKER-B	[~]	unit	features/services	src/features/services/ServicesTree.reorder.test.tsx
+F-SET-PYTHON-PHP-A	[ ]	unit	features/settings	src/features/settings/__tests__/addInterpreter.test.tsx
+F-SET-JDK-LANGS	[ ]	unit	features/settings	src/features/settings/__tests__/addJdkFromDisk.test.tsx
+F-SET-FILE-TYPES	[~]	unit	features/settings	src/features/settings/__tests__/agents.test.ts
+F-SET-UPSTREAM-TOGGLES-A	[~]	unit	features/settings	src/features/settings/__tests__/appearanceToggles.test.ts
+F-PLAT-MODELS-B-B	[ ]	unit	features/settings	src/features/settings/__tests__/backgroundImage.test.ts
+F-SET-UPSTREAM-TOGGLES-A	[~]	unit	features/settings	src/features/settings/__tests__/behavior.test.ts
+F-SET-JDK-LANGS	[~]	unit	features/settings	src/features/settings/__tests__/cmake.test.ts
+F-PLAT-MODELS-B-B	[ ]	unit	features/settings	src/features/settings/__tests__/colorScheme.test.tsx
+F-SET-PYTHON-PHP-A	[ ]	unit	features/settings	src/features/settings/__tests__/containerInterpreter.test.tsx
+F-PLAT-MODELS-B-B	[m]	unit	features/settings	src/features/settings/__tests__/contrast.test.ts
+T1-DEPLOY-FTP	[ ]	unit	features/settings	src/features/settings/__tests__/deploymentFtpPassword.test.tsx
+F-SET-UPSTREAM-TOGGLES-A	[~]	unit	features/settings	src/features/settings/__tests__/dialog.test.tsx
+F-SET-JDK-LANGS	[ ]	unit	features/settings	src/features/settings/__tests__/downloadJdk.test.tsx
+F-PLAT-MODELS-B-B	[m]	unit	features/settings	src/features/settings/__tests__/fontSync.test.ts
+F-SET-JDK-LANGS	[~]	unit	features/settings	src/features/settings/__tests__/goBuildTags.test.ts
+F-PLAT-MODELS-B-B	[ ]	unit	features/settings	src/features/settings/__tests__/iconThemeSettings.test.tsx
+Q-FU2	[~]	unit	features/settings	src/features/settings/__tests__/inspections.test.ts
+F-SET-PYTHON-PHP-A	[ ]	unit	features/settings	src/features/settings/__tests__/interpreters.test.ts
+F-SET-JDK-LANGS	[~]	unit	features/settings	src/features/settings/__tests__/javaFormatter.test.tsx
+F-SET-JDK-LANGS	[ ]	unit	features/settings	src/features/settings/__tests__/jdtlsJdk.test.tsx
+F-SET-UPSTREAM-TOGGLES-B	[~]	unit	features/settings	src/features/settings/__tests__/keymap.test.ts
+F-SET-JDK-LANGS	[~]	unit	features/settings	src/features/settings/__tests__/languages.test.ts
+F-PLAT-MODELS-B-B	[ ]	unit	features/settings	src/features/settings/__tests__/ligatures.test.ts
+F-SET-UPSTREAM-TOGGLES-A	[~]	unit	features/settings	src/features/settings/__tests__/mainMenuStyle.test.tsx
+F-SET-FILE-TYPES	[~]	unit	features/settings	src/features/settings/__tests__/mcpServer.test.ts
+F-SET-JDK-LANGS	[ ]	unit	features/settings	src/features/settings/__tests__/moduleOverrides.test.tsx
+F-PLAT-MODELS-A	[~]	unit	features/settings	src/features/settings/__tests__/mouseShortcut.test.tsx
+F-SET-UPSTREAM-TOGGLES-B	[~]	unit	features/settings	src/features/settings/__tests__/pages.test.ts
+F-SET-PYTHON-PHP-B	[ ]	unit	features/settings	src/features/settings/__tests__/phpStatus.test.tsx
+F-SET-PYTHON-PHP-B	[~]	unit	features/settings	src/features/settings/__tests__/phpXdebug.test.tsx
+F-SET-JDK-LANGS	[ ]	unit	features/settings	src/features/settings/__tests__/projectDependencies.test.ts
+F-SET-PYTHON-PHP-A	[ ]	unit	features/settings	src/features/settings/__tests__/pythonInterpreters.test.tsx
+F-SET-PYTHON-PHP-A	[ ]	unit	features/settings	src/features/settings/__tests__/pythonStatus.test.tsx
+F-SET-UPSTREAM-TOGGLES-B	[m]	unit	features/settings	src/features/settings/__tests__/settingsWindowOpen.test.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	unit	features/settings	src/features/settings/__tests__/systemHotkeys.test.ts
+F-PLAT-MODELS-B-B	[ ]	unit	features/settings	src/features/settings/__tests__/themePreview.test.tsx
+F-SET-UPSTREAM-TOGGLES-A	[~]	unit	features/settings	src/features/settings/__tests__/window.test.ts
+F-SET-JDK-LANGS	[ ]	unit	features/settings	src/features/settings/__tests__/zigSettings.test.tsx
+T1-DEPLOY-FTP	[~]	unit	features/settings	src/features/settings/pages/deploymentModel.test.ts
+F-PERF-MCP-SSH	[~]	unit	features/ssh	src/features/ssh/ssh.test.ts
+T1-TEMPLATES-UP	[~]	unit	features/templates	src/features/templates/__tests__/editor.test.ts
+F-TEMPLATES-REST	[~]	unit	features/templates	src/features/templates/__tests__/emmet.test.ts
+F-NFT-REST	[~]	unit	features/templates	src/features/templates/__tests__/files.test.ts
+Q-FU2	[~]	unit	features/templates	src/features/templates/__tests__/live.test.ts
+F-NFT-REST	[~]	unit	features/templates	src/features/templates/__tests__/pluginFiles.test.tsx
+T1-TEMPLATES-UP	[~]	unit	features/templates	src/features/templates/__tests__/postfix.test.ts
+T1-TEMPLATES-UP	[~]	unit	features/templates	src/features/templates/__tests__/surrounders.test.ts
+F-NFT-REST	[~]	unit	features/templates	src/features/templates/__tests__/templateCreate.test.ts
+F-TERMINAL	[ ]	unit	features/terminal	src/features/terminal/cli.test.ts
+F-TERMINAL	[ ]	unit	features/terminal	src/features/terminal/cliKinds.test.tsx
+F-TERMINAL	[ ]	unit	features/terminal	src/features/terminal/cliSessions.test.ts
+F-TERMINAL	[ ]	unit	features/terminal	src/features/terminal/closeLastTab.test.ts
+F-TERMINAL	[ ]	unit	features/terminal	src/features/terminal/domRowCache.test.ts
+F-TERMINAL	[~]	unit	features/terminal	src/features/terminal/drop.test.ts
+F-TERMINAL	[~]	unit	features/terminal	src/features/terminal/embedded.test.ts
+F-TERMINAL	[m]	unit	features/terminal	src/features/terminal/embeddedFit.test.ts
+F-TERMINAL	[ ]	unit	features/terminal	src/features/terminal/fontLoading.test.ts
+F-TERMINAL	[ ]	unit	features/terminal	src/features/terminal/highlight.test.ts
+F-TERMINAL	[~]	unit	features/terminal	src/features/terminal/imeCommit.test.ts
+F-TERMINAL	[~]	unit	features/terminal	src/features/terminal/imeInput.test.ts
+F-TERMINAL	[ ]	unit	features/terminal	src/features/terminal/linkHighlights.test.ts
+F-TERMINAL	[~]	unit	features/terminal	src/features/terminal/paste.test.ts
+F-TERMINAL	[ ]	unit	features/terminal	src/features/terminal/sampleTui.test.ts
+F-TERMINAL	[~]	unit	features/terminal	src/features/terminal/session.test.ts
+F-TERMINAL	[~]	unit	features/terminal	src/features/terminal/terminal.test.ts
+F-TERMINAL	[m]	unit	features/terminal	src/features/terminal/windowsPty.test.ts
+F-SMALL-FEATURES-C	[ ]	unit	features/thymeleaf	src/features/thymeleaf/references.test.ts
+F-SMALL-FEATURES-C	[~]	unit	features/todo	src/features/todo/PreviewEditor.test.tsx
+F-SMALL-FEATURES-C	[~]	unit	features/todo	src/features/todo/todo.test.ts
+F-TOOLS-SERVERS	[ ]	unit	features/tools	src/features/tools/__tests__/expired.test.ts
+F-TOOLS-SERVERS	[ ]	unit	features/tools	src/features/tools/__tests__/jdk.test.ts
+F-TOOLS-SERVERS	[ ]	unit	features/tools	src/features/tools/__tests__/serverSettings.test.tsx
+F-TOOLS-SERVERS	[ ]	unit	features/tools	src/features/tools/__tests__/tools.test.tsx
+F-VCS-HISTORY	[ ]	unit	features/vcs	src/features/vcs/__tests__/annotateRevision.test.ts
+F-VCS-HISTORY	[ ]	unit	features/vcs	src/features/vcs/__tests__/blame.test.tsx
+F-VCS-BRANCHES	[~]	unit	features/vcs	src/features/vcs/__tests__/branches.test.ts
+F-VCS-BRANCHES	[~]	unit	features/vcs	src/features/vcs/__tests__/branchesPopupHost.test.tsx
+F-VCS-LOG	[~]	unit	features/vcs	src/features/vcs/__tests__/branchFilterPopup.test.tsx
+F-VCS-REPO-DIALOGS-A	[~]	unit	features/vcs	src/features/vcs/__tests__/branchOps.test.ts
+F-VCS-CHANGES	[ ]	unit	features/vcs	src/features/vcs/__tests__/changelistDrop.test.ts
+F-VCS-CHANGES	[~]	unit	features/vcs	src/features/vcs/__tests__/changes.test.ts
+F-VCS-CHANGES	[ ]	unit	features/vcs	src/features/vcs/__tests__/changesCopy.test.tsx
+F-VCS-CHANGES	[ ]	unit	features/vcs	src/features/vcs/__tests__/changesDirectory.test.tsx
+F-VCS-CHANGES	[ ]	unit	features/vcs	src/features/vcs/__tests__/changesGroupByRepo.test.tsx
+F-VCS-CHANGES	[ ]	unit	features/vcs	src/features/vcs/__tests__/changesIgnoreMenu.test.tsx
+F-VCS-CHANGES	[ ]	unit	features/vcs	src/features/vcs/__tests__/changesRepoBranch.test.tsx
+F-VCS-COMBINED-DIFF	[ ]	unit	features/vcs	src/features/vcs/__tests__/combinedDiff.test.tsx
+F-VCS-COMMIT-DIALOG	[~]	unit	features/vcs	src/features/vcs/__tests__/commitChecks.test.ts
+F-VCS-COMMIT-DIALOG	[~]	unit	features/vcs	src/features/vcs/__tests__/commitMode.test.ts
+F-VCS-COMBINED-DIFF	[ ]	unit	features/vcs	src/features/vcs/__tests__/commitPreviewDiff.test.tsx
+F-VCS-DIFF-FIND	[ ]	unit	features/vcs	src/features/vcs/__tests__/compareTool.test.tsx
+F-VCS-MERGE	[m]	unit	features/vcs	src/features/vcs/__tests__/conflictMarkerEdits.test.ts
+F-VCS-MERGE	[m]	unit	features/vcs	src/features/vcs/__tests__/conflictMarkers.test.ts
+F-VCS-REMOTE-LINKS	[ ]	unit	features/vcs	src/features/vcs/__tests__/copyRemoteLink.test.ts
+F-VCS-REPO-DIALOGS-A	[~]	unit	features/vcs	src/features/vcs/__tests__/deleteBranches.test.ts
+F-VCS-CHANGES	[~]	unit	features/vcs	src/features/vcs/__tests__/deleteFiles.test.ts
+F-VCS-DIFF-FIND	[~]	unit	features/vcs	src/features/vcs/__tests__/diffChain.test.ts
+Q-FU2	[~]	unit	features/vcs	src/features/vcs/__tests__/diffDialog.test.tsx
+F-VCS-DIFF-TOOLBAR	[ ]	unit	features/vcs	src/features/vcs/__tests__/diffDividerDrag.test.ts
+F-VCS-DIFF-FIND	[ ]	unit	features/vcs	src/features/vcs/__tests__/diffFind.test.tsx
+F-VCS-DIFF-TOOLBAR	[~]	unit	features/vcs	src/features/vcs/__tests__/diffOptions.test.ts
+F-VCS-DIFF-TOOLBAR	[~]	unit	features/vcs	src/features/vcs/__tests__/diffScroll.test.ts
+F-VCS-DIFF-TOOLBAR	[~]	unit	features/vcs	src/features/vcs/__tests__/diffToolbar.test.tsx
+F-VCS-DIFF-FIND	[ ]	unit	features/vcs	src/features/vcs/__tests__/diffViewerProviders.test.tsx
+F-VCS-DIR-COMPARE	[ ]	unit	features/vcs	src/features/vcs/__tests__/directoryCompare.test.tsx
+F-VCS-HISTORY	[ ]	unit	features/vcs	src/features/vcs/__tests__/fileRevisionChooser.test.tsx
+F-VCS-HISTORY	[ ]	unit	features/vcs	src/features/vcs/__tests__/fileRevisions.test.tsx
+F-VCS-REMOTE-LINKS	[ ]	unit	features/vcs	src/features/vcs/__tests__/fileWebUrl.test.ts
+F-VCS-DIR-COMPARE	[ ]	unit	features/vcs	src/features/vcs/__tests__/folderCompare.test.tsx
+F-VCS-LOG	[ ]	unit	features/vcs	src/features/vcs/__tests__/gitLogRefLabels.test.tsx
+F-VCS-MERGE	[ ]	unit	features/vcs	src/features/vcs/__tests__/GitMergeDiff.test.tsx
+F-VCS-REPO-DIALOGS-A	[~]	unit	features/vcs	src/features/vcs/__tests__/gitOps.test.ts
+F-VCS-LOG	[~]	unit	features/vcs	src/features/vcs/__tests__/graph.test.ts
+Q-FU2	[~]	unit	features/vcs	src/features/vcs/__tests__/historyOps.test.ts
+Q-FU2	[~]	unit	features/vcs	src/features/vcs/__tests__/ignore.test.ts
+F-VCS-HISTORY	[~]	unit	features/vcs	src/features/vcs/__tests__/inlineBlame.test.ts
+F-VCS-CHANGES	[ ]	unit	features/vcs	src/features/vcs/__tests__/localChanges.test.tsx
+F-VCS-HISTORY	[ ]	unit	features/vcs	src/features/vcs/__tests__/localHistory.test.tsx
+F-VCS-LOG	[m]	unit	features/vcs	src/features/vcs/__tests__/logBranchMemory.test.ts
+F-VCS-LOG	[ ]	unit	features/vcs	src/features/vcs/__tests__/logDetails.test.tsx
+F-VCS-LOG	[~]	unit	features/vcs	src/features/vcs/__tests__/logFilters.test.ts
+F-VCS-LOG	[~]	unit	features/vcs	src/features/vcs/__tests__/logGraphCorrectness.test.tsx
+F-VCS-LOG	[~]	unit	features/vcs	src/features/vcs/__tests__/logLoading.test.ts
+F-VCS-LOG	[~]	unit	features/vcs	src/features/vcs/__tests__/logOptions.test.ts
+F-VCS-LOG	[~]	unit	features/vcs	src/features/vcs/__tests__/logPanes.test.tsx
+F-VCS-LOG	[m]	unit	features/vcs	src/features/vcs/__tests__/logSearch.test.ts
+F-VCS-LOG	[~]	unit	features/vcs	src/features/vcs/__tests__/logUiFeatures.test.tsx
+F-VCS-LOG	[ ]	unit	features/vcs	src/features/vcs/__tests__/logViews.test.tsx
+F-VCS-REPO-DIALOGS-A	[ ]	unit	features/vcs	src/features/vcs/__tests__/mergeDialogRepo.test.tsx
+F-VCS-DIFF-FIND	[~]	unit	features/vcs	src/features/vcs/__tests__/modalDiffWindow.test.ts
+F-VCS-REPO-DIALOGS-B	[~]	unit	features/vcs	src/features/vcs/__tests__/multiPushTarget.test.tsx
+F-VCS-CHANGES	[m]	unit	features/vcs	src/features/vcs/__tests__/multiRepoRollback.test.ts
+F-VCS-REPO-DIALOGS-A	[~]	unit	features/vcs	src/features/vcs/__tests__/multiRoot.test.ts
+F-VCS-STASH	[ ]	unit	features/vcs	src/features/vcs/__tests__/multiRootStashes.test.tsx
+F-VCS-REPO-DIALOGS-A	[ ]	unit	features/vcs	src/features/vcs/__tests__/operationRepo.test.ts
+F-VCS-COMMIT-DIALOG	[ ]	unit	features/vcs	src/features/vcs/__tests__/pluginCommit.test.ts
+F-VCS-SYNC	[m]	unit	features/vcs	src/features/vcs/__tests__/projectSwitch.test.ts
+F-VCS-REPO-DIALOGS-A	[~]	unit	features/vcs	src/features/vcs/__tests__/promptDialog.test.tsx
+F-VCS-REPO-DIALOGS-A	[ ]	unit	features/vcs	src/features/vcs/__tests__/pullDialogRepo.test.tsx
+F-VCS-REPO-DIALOGS-B	[ ]	unit	features/vcs	src/features/vcs/__tests__/pushChanges.test.tsx
+F-VCS-REPO-DIALOGS-B	[m]	unit	features/vcs	src/features/vcs/__tests__/pushRejected.test.ts
+F-VCS-REPO-DIALOGS-A	[ ]	unit	features/vcs	src/features/vcs/__tests__/rebaseDialogRepo.test.tsx
+F-VCS-HISTORY	[m]	unit	features/vcs	src/features/vcs/__tests__/recentChanges.test.ts
+F-VCS-REPO-DIALOGS-B	[~]	unit	features/vcs	src/features/vcs/__tests__/remoteResults.test.ts
+F-VCS-SYNC	[ ]	unit	features/vcs	src/features/vcs/__tests__/repoScopedSync.test.ts
+F-VCS-CHANGES	[ ]	unit	features/vcs	src/features/vcs/__tests__/rollbackAction.test.ts
+F-VCS-SYNC	[ ]	unit	features/vcs	src/features/vcs/__tests__/rootSync.test.ts
+F-VCS-HISTORY	[~]	unit	features/vcs	src/features/vcs/__tests__/selectionHistory.test.tsx
+F-VCS-TAIL	[~]	unit	features/vcs	src/features/vcs/__tests__/shelf.test.tsx
+F-VCS-DIFF-FIND	[~]	unit	features/vcs	src/features/vcs/__tests__/show-diff-chain.test.ts
+F-VCS-HISTORY	[ ]	unit	features/vcs	src/features/vcs/__tests__/showDiffForLines.test.ts
+F-VCS-REPO-DIALOGS-B	[ ]	unit	features/vcs	src/features/vcs/__tests__/singlePush.test.tsx
+F-VCS-STAGING	[ ]	unit	features/vcs	src/features/vcs/__tests__/stagingArea.test.tsx
+F-VCS-STASH	[ ]	unit	features/vcs	src/features/vcs/__tests__/stashDialogRepo.test.tsx
+F-VCS-STASH	[ ]	unit	features/vcs	src/features/vcs/__tests__/stashSelectedFiles.test.ts
+F-VCS-SYNC	[ ]	unit	features/vcs	src/features/vcs/__tests__/statusMerge.test.ts
+F-VCS-SYNC	[ ]	unit	features/vcs	src/features/vcs/__tests__/syncCommits.test.ts
+F-VCS-SYNC	[ ]	unit	features/vcs	src/features/vcs/__tests__/syncCommitsPopup.test.tsx
+F-VCS-REPO-DIALOGS-A	[ ]	unit	features/vcs	src/features/vcs/__tests__/tagDialogRepo.test.tsx
+F-VCS-REPO-DIALOGS-B	[ ]	unit	features/vcs	src/features/vcs/__tests__/targetBranchInput.test.tsx
+F-VCS-CHANGES	[ ]	unit	features/vcs	src/features/vcs/__tests__/testFileColor.test.tsx
+F-VCS-STASH	[ ]	unit	features/vcs	src/features/vcs/__tests__/unstashViewDrop.test.tsx
+F-VCS-DIFF-TOOLBAR	[~]	unit	features/vcs	src/features/vcs/__tests__/viewerCaret.test.ts
+F-VCS-COMMIT-DIALOG	[~]	unit	features/vcs	src/features/vcs/__tests__/workflow.test.ts
+F-VCS-HISTORY	[m]	unit	features/vcs	src/features/vcs/diffBlame.test.ts
+F-VCS-DIFF-FIND	[ ]	unit	features/vcs	src/features/vcs/diffWindowSave.test.ts
+F-VCS-REMOTE-LINKS	[~]	unit	features/vcs	src/features/vcs/worktrees.test.ts
+F-VIEWERS	[ ]	unit	features/viewers	src/features/viewers/markdown/highlight.test.tsx
+F-VIEWERS	[ ]	unit	features/viewers	src/features/viewers/markdown/highlightIndex.test.ts
+F-VIEWERS	[ ]	unit	features/viewers	src/features/viewers/markdown/localSvg.test.ts
+F-VIEWERS	[~]	unit	features/viewers	src/features/viewers/markdown/mermaid.test.ts
+F-VIEWERS	[~]	unit	features/viewers	src/features/viewers/markdown/previewScroll.test.tsx
+F-VIEWERS	[~]	unit	features/viewers	src/features/viewers/markdown/render.test.ts
+F-VIEWERS	[~]	unit	features/viewers	src/features/viewers/markdown/zoom.test.tsx
+F-VIEWERS	[~]	unit	features/viewers	src/features/viewers/viewers.test.ts
+V-I3	[~]	unit	features/vim	src/features/vim/__tests__/conflicts.test.ts
+V-I3	[~]	unit	features/vim	src/features/vim/__tests__/rc.test.ts
+V-I4	[ ]	unit	features/vim	src/features/vim/__tests__/textObjects.test.ts
+V-I4	[~]	unit	features/vim	src/features/vim/__tests__/vim.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	features/web	src/features/web/djangoTemplates.test.ts
+F-SMALL-FEATURES-A	[~]	unit	features/welcome	src/features/welcome/welcome.test.tsx
+F-SMALL-FEATURES-B	[ ]	unit	features/whats-new	src/features/whats-new/__tests__/whatsNew.test.tsx
+I-ACTIONS-ENABLED	[~]	unit	platform	src/platform/actions.test.ts
+C-WEBENGINE	[ ]	unit	platform	src/platform/appCsp.test.ts
+F-PLAT-PROJECT-B	[ ]	unit	platform	src/platform/auxWindow.test.ts
+F-PLAT-MODELS-C-A	[~]	unit	platform	src/platform/boot.test.ts
+F-PLAT-PROJECT-B	[~]	unit	platform	src/platform/buildToolRecovery.test.ts
+F-PLAT-PROJECT-A	[~]	unit	platform	src/platform/classFiles.test.ts
+F-PLAT-PROJECT-B	[ ]	unit	platform	src/platform/clipboard.test.ts
+F-PLAT-MODELS-B-A	[~]	unit	platform	src/platform/colorScheme.test.ts
+F-PLAT-MODELS-C-B	[ ]	unit	platform	src/platform/consoleColumns.test.ts
+F-PLAT-MODELS-B-A	[~]	unit	platform	src/platform/cssColor.test.ts
+F-PLAT-MODELS-C-A	[~]	unit	platform	src/platform/dateFormat.test.ts
+T1-DEPLOY-FTP	[~]	unit	platform	src/platform/deploymentSettings.test.ts
+I-FILE-PROMPT	[ ]	unit	platform	src/platform/dialog.test.ts
+F-PLAT-PROJECT-B	[~]	unit	platform	src/platform/dotnet.test.ts
+F-PLAT-PROJECT-B	[m]	unit	platform	src/platform/dotnetProcess.test.ts
+F-PLAT-MODELS-A	[ ]	unit	platform	src/platform/doubleClick.test.ts
+F-PLAT-MODELS-C-B	[~]	unit	platform	src/platform/errorLog.test.ts
+F-PLAT-PROJECT-A	[~]	unit	platform	src/platform/fileManager.test.ts
+F-PLAT-MODELS-B-A	[~]	unit	platform	src/platform/fonts.test.ts
+F-PLAT-MODELS-C-A	[~]	unit	platform	src/platform/i18n.test.ts
+F-PLAT-MODELS-B-A	[~]	unit	platform	src/platform/icls.test.ts
+F-PLAT-MODELS-A	[ ]	unit	platform	src/platform/ideaKeymap.test.ts
+F-PLAT-PROJECT-B	[ ]	unit	platform	src/platform/ime.test.ts
+C-WEBENGINE	[ ]	unit	platform	src/platform/ipc.test.ts
+F-PLAT-PROJECT-B	[~]	unit	platform	src/platform/jdk.test.ts
+F-PLAT-MODELS-A	[~]	unit	platform	src/platform/keymap.test.ts
+F-PLAT-MODELS-A	[ ]	unit	platform	src/platform/keymapMouse.test.ts
+F-PLAT-MODELS-A	[~]	unit	platform	src/platform/keymaps/eclipse.test.ts
+Q-FU2	[~]	unit	platform	src/platform/keymaps/ideaParity.test.ts
+F-PLAT-MODELS-C-B	[ ]	unit	platform	src/platform/localDiagnostics.test.ts
+F-PLAT-MODELS-C-A	[ ]	unit	platform	src/platform/locales/textCatalog.test.ts
+F-PLAT-MODELS-A	[ ]	unit	platform	src/platform/losslessJson.test.ts
+F-PLAT-PROJECT-B	[ ]	unit	platform	src/platform/nativeDrop.test.ts
+F-PLAT-MODELS-A	[ ]	unit	platform	src/platform/navigationModifier.test.ts
+F-PLAT-MODELS-C-B	[ ]	unit	platform	src/platform/openUrl.test.ts
+F-PLAT-PROJECT-B	[~]	unit	platform	src/platform/pageSwipe.test.ts
+Q-FU3	[~]	unit	platform	src/platform/paths.test.ts
+F-PLAT-MODELS-C-B	[~]	unit	platform	src/platform/platformInfo.test.ts
+F-PLAT-MODELS-A	[ ]	unit	platform	src/platform/pointerFocus.test.ts
+F-PLAT-PROJECT-A	[~]	unit	platform	src/platform/project.test.ts
+F-PLAT-MODELS-C-B	[~]	unit	platform	src/platform/proxySettings.test.ts
+F-PLAT-MODELS-C-A	[ ]	unit	platform	src/platform/releaseNotes.test.ts
+F-PLAT-PROJECT-A	[~]	unit	platform	src/platform/remote.test.ts
+Q-FU2	[~]	unit	platform	src/platform/remoteSettings.test.ts
+C-WEBENGINE	[ ]	unit	platform	src/platform/reordered-tap-click.test.ts
+F-PLAT-MODELS-A	[ ]	unit	platform	src/platform/scopes.test.ts
+F-PLAT-MODELS-C-B	[~]	unit	platform	src/platform/search.test.ts
+F-PLAT-MODELS-C-A	[ ]	unit	platform	src/platform/splash.test.ts
+F-PLAT-MODELS-B-A	[~]	unit	platform	src/platform/themes.test.ts
+F-PLAT-PROJECT-A	[~]	unit	platform	src/platform/virtualDocs.test.ts
+C-WEBENGINE	[ ]	unit	platform	src/platform/webkitClipboard.test.ts
+C-WEBENGINE	[ ]	unit	platform	src/platform/webkitCompatibility.test.ts
+I-WINDOW-GROUPS	[m]	unit	platform	src/platform/windowGroups.test.ts
+F-PLAT-MODELS-C-B	[~]	unit	platform	src/platform/workflowSettings.test.ts
+C-WEBENGINE	[ ]	unit	styles	src/styles/cssModules.test.ts
+C-WEBENGINE	[ ]	unit	styles	src/styles/customProperties.test.ts
+F-SMALL-FEATURES-C	[ ]	unit	styles	src/styles/spacingScale.test.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	unit	src/test	src/test/syntax.test.ts
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Button.test.tsx
+F-RUN-CONSOLE	[~]	unit	ui	src/ui/consoleFind.test.ts
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Dialog.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/dragCursor.test.ts
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/filePresentation.cache.test.tsx
+F-UI-PRIMITIVES	[m]	unit	ui	src/ui/filePresentation.test.ts
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/FloatingToolbar.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/focusScope.test.ts
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/iconAppearance.test.tsx
+F-UI-PRIMITIVES	[~]	unit	ui	src/ui/icons.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/List.test.tsx
+F-RUN-CONSOLE	[ ]	unit	ui	src/ui/logColors.test.ts
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/LogPane.test.tsx
+F-UI-PRIMITIVES	[m]	unit	ui	src/ui/menuAim.test.ts
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Mnemonic.test.tsx
+F-UI-PRIMITIVES	[~]	unit	ui	src/ui/pointerDrag.test.ts
+F-UI-PRIMITIVES	[~]	unit	ui	src/ui/Popup.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Scrollbar.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Select.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/selectableSurfaces.test.tsx
+F-UI-PRIMITIVES	[~]	unit	ui	src/ui/selectableText.test.ts
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/SourcePreview.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Splitter.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Tabs.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Toolbar.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Tree.reorder.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/Tree.test.tsx
+F-UI-PRIMITIVES	[ ]	unit	ui	src/ui/useSelectionBoundary.test.tsx
+F-WB-SHELL-A	[ ]	unit	workbench	src/workbench/browserGuards.test.ts
+F-PLAT-PROJECT-B	[ ]	unit	workbench	src/workbench/buildToolRecovery.test.ts
+F-WB-SHELL-A	[ ]	unit	workbench	src/workbench/decorations.test.ts
+F-EDITOR-TABS-SESSIONS-A	[ ]	unit	workbench	src/workbench/emptyEditorHints.test.tsx
+F-WB-SHELL-A	[~]	unit	workbench	src/workbench/endpointProviders.test.ts
+F-EDITOR-TABS-SESSIONS-B	[ ]	unit	workbench	src/workbench/externalFiles.test.ts
+F-WB-SHELL-A	[m]	unit	workbench	src/workbench/fileEditors.test.ts
+F-WB-TOOLWINDOWS	[~]	unit	workbench	src/workbench/focus.test.ts
+F-WB-MENUS-TITLE	[ ]	unit	workbench	src/workbench/inputDialogs.test.tsx
+F-EDITOR-TABS-SESSIONS-B	[ ]	unit	workbench	src/workbench/lightEdit.test.tsx
+F-WB-MENUS-TITLE	[ ]	unit	workbench	src/workbench/MainMenu.interaction.test.tsx
+F-WB-MENUS-TITLE	[ ]	unit	workbench	src/workbench/MainMenu.test.ts
+I-SYSNOTIFY	[ ]	unit	workbench	src/workbench/messages.test.tsx
+F-WB-TOOLWINDOWS	[ ]	unit	workbench	src/workbench/narrowWindow.test.ts
+F-WB-MENUS-TITLE	[ ]	unit	workbench	src/workbench/nativeTitlebar.test.tsx
+F-WB-SHELL-A	[~]	unit	workbench	src/workbench/projectWindow.test.ts
+F-WB-SHELL-A	[m]	unit	workbench	src/workbench/providerAcquisition.test.ts
+F-WB-SHELL-A	[~]	unit	workbench	src/workbench/quickSwitch.test.tsx
+F-WB-STATUS-TASKS	[m]	unit	workbench	src/workbench/runningProcesses.test.ts
+F-WB-STATUS-TASKS	[~]	unit	workbench	src/workbench/statusBarWidgets.test.tsx
+F-WB-STATUS-TASKS	[ ]	unit	workbench	src/workbench/stopBackground.test.ts
+F-WB-STATUS-TASKS	[~]	unit	workbench	src/workbench/tasks.test.tsx
+F-WB-MENUS-TITLE	[~]	unit	workbench	src/workbench/TitleBar.test.tsx
+I-TW-CONTENT-TABS	[ ]	unit	workbench	src/workbench/toolwindows/badges.test.tsx
+I-TW-CONTENT-TABS	[~]	unit	workbench	src/workbench/toolwindows/content.test.ts
+I-TW-CONTENT-TABS	[ ]	unit	workbench	src/workbench/toolwindows/header.test.tsx
+F-WB-TOOLWINDOWS	[~]	unit	workbench	src/workbench/toolwindows/layouts.test.ts
+F-WB-TOOLWINDOWS	[~]	unit	workbench	src/workbench/toolwindows/store.test.ts
+F-WB-MENUS-TITLE	[ ]	unit	workbench	src/workbench/window-drag.test.ts
+I-WINDOW-GROUPS	[ ]	unit	workbench	src/workbench/WindowGroupTabs.test.tsx
+F-WB-SHELL-A	[~]	unit	workbench	src/workbench/Workbench.test.tsx
+F-AG-SESSION-FEATURES	[ ]	e2e	e2e	e2e/agentApproval.spec.ts
+F-AG-COMPOSER-TASKS-A	[ ]	e2e	e2e	e2e/agentComposerClick.spec.ts
+F-AG-MODELS	[ ]	e2e	e2e	e2e/agentCycleEffort.spec.ts
+F-AG-COMPOSER-TASKS-A	[ ]	e2e	e2e	e2e/agentDraftSubmission.spec.ts
+F-AG-SESSION-FEATURES	[ ]	e2e	e2e	e2e/agentFocusInput.spec.ts
+F-AG-SESSION-FEATURES	[ ]	e2e	e2e	e2e/agentMarkdown.spec.ts
+F-AG-MCP	[ ]	e2e	e2e	e2e/agentMcp.spec.ts
+F-AG-SESSION-FEATURES	[ ]	e2e	e2e	e2e/agentQuestions.spec.ts
+F-AG-SESSION-FEATURES	[ ]	e2e	e2e	e2e/agentScroll.spec.ts
+F-AG-COMPOSER-TASKS-B	[ ]	e2e	e2e	e2e/agentsDock.spec.ts
+F-AG-COMPOSER-TASKS-B	[ ]	e2e	e2e	e2e/agentTaskProject.spec.ts
+F-AG-MODELS	[ ]	e2e	e2e	e2e/agentVersion.spec.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	e2e	e2e	e2e/angularInline.spec.ts
+F-APP-WORKSPACE	[ ]	e2e	e2e	e2e/attachProject.spec.ts
+F-PLAT-MODELS-C-A	[ ]	e2e	e2e	e2e/boot.spec.ts
+F-VCS-BRANCHES	[ ]	e2e	e2e	e2e/branchesPopupExpansion.spec.ts
+F-VCS-BRANCHES	[ ]	e2e	e2e	e2e/branchesPopupResize.spec.ts
+C-TOOLCHAIN	[ ]	e2e	e2e	e2e/clickhouse-source.spec.ts
+F-LSP-POPUPS-C	[~]	e2e	e2e	e2e/codeInsight.spec.ts
+F-EDITOR-CORE-EDITING	[ ]	e2e	e2e	e2e/commentToggle.spec.ts
+F-VCS-COMMIT-DIALOG	[~]	e2e	e2e	e2e/commit.spec.ts
+F-VCS-CHANGES	[ ]	e2e	e2e	e2e/commitDoubleClick.spec.ts
+F-VCS-CHANGES	[ ]	e2e	e2e	e2e/commitDrag.spec.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	e2e	e2e	e2e/compactSettingsControls.spec.ts
+F-VCS-DIFF-FIND	[~]	e2e	e2e	e2e/compareWith.spec.ts
+F-LSP-NAV	[ ]	e2e	e2e	e2e/configurationNavigation.spec.ts
+F-VCS-MERGE	[ ]	e2e	e2e	e2e/conflictMarkers.spec.ts
+F-RUN-CONSOLE	[ ]	e2e	e2e	e2e/console-selection.spec.ts
+F-RUN-CONSOLE	[ ]	e2e	e2e	e2e/console-ui.spec.ts
+F-RUN-CONSOLE	[ ]	e2e	e2e	e2e/consoleFont.spec.ts
+F-EDITOR-RENDERED-DOCS	[ ]	e2e	e2e	e2e/cornerInset.spec.ts
+F-DB-RESULT-TABS	[ ]	e2e	e2e	e2e/databaseAverages.spec.ts
+F-DB-TREE-SOURCES-A	[ ]	e2e	e2e	e2e/databaseDialogLayout.spec.ts
+F-DB-TREE-SOURCES-B	[ ]	e2e	e2e	e2e/databaseJsonExport.spec.ts
+F-DB-GRID-A	[ ]	e2e	e2e	e2e/databaseJsonValue.spec.ts
+F-DB-GRID-B	[ ]	e2e	e2e	e2e/databaseNumericSort.spec.ts
+F-DB-RESULT-TABS	[ ]	e2e	e2e	e2e/databaseRequestLifecycle.spec.ts
+F-DB-RESULT-TABS	[ ]	e2e	e2e	e2e/databaseResultSpacing.spec.ts
+F-DB-RESULT-TABS	[ ]	e2e	e2e	e2e/databaseResultTabs.spec.ts
+T1-DEPLOY-FTP	[ ]	e2e	e2e	e2e/deployment.spec.ts
+F-WB-MENUS-TITLE	[ ]	e2e	e2e	e2e/dialogFocus.spec.ts
+F-WB-MENUS-TITLE	[ ]	e2e	e2e	e2e/dialogTitleBar.spec.ts
+F-VCS-DIFF-TOOLBAR	[~]	e2e	e2e	e2e/diff-navigation.spec.ts
+F-VCS-DIFF-FIND	[ ]	e2e	e2e	e2e/diff.spec.ts
+F-VCS-DIFF-FIND	[ ]	e2e	e2e	e2e/diffJumpToSource.spec.ts
+F-EDITOR-CORE-EDITING	[~]	e2e	e2e	e2e/editor.spec.ts
+F-WB-MENUS-TITLE	[ ]	e2e	e2e	e2e/editorGitMenu.spec.ts
+F-HIERARCHY-USAGES	[ ]	e2e	e2e	e2e/findUsages-ui.spec.ts
+F-VCS-LOG	[ ]	e2e	e2e	e2e/gitLogBranchMenu.spec.ts
+F-VCS-COMMIT-DIALOG	[ ]	e2e	e2e	e2e/gitLogCommitChecks.spec.ts
+F-VCS-LOG	[ ]	e2e	e2e	e2e/gitLogScrollbar.spec.ts
+F-VCS-LOG	[ ]	e2e	e2e	e2e/gitLogToolbarMenus.spec.ts
+F-LSP-SEMANTIC	[ ]	e2e	e2e	e2e/goHighlight.spec.ts
+F-LSP-REFACTOR-A	[ ]	e2e	e2e	e2e/hierarchyRefactor.spec.ts
+F-LSP-POPUPS-B	[ ]	e2e	e2e	e2e/hover-clamp.spec.ts
+F-EDITOR-EMBEDDED-LANGS	[ ]	e2e	e2e	e2e/httpHighlight.spec.ts
+F-PLAT-MODELS-B-B	[ ]	e2e	e2e	e2e/icls-php.spec.ts
+F-LSP-INLINE-A	[ ]	e2e	e2e	e2e/inlayRequests.spec.ts
+F-LSP-SEMANTIC	[~]	e2e	e2e	e2e/kotlinHighlight.spec.ts
+F-BT-SBT-ANALYZER-B	[ ]	e2e	e2e	e2e/linkedGradle.spec.ts
+F-VCS-MERGE	[~]	e2e	e2e	e2e/mergeEditor.spec.ts
+C-TOOLCHAIN	[ ]	e2e	e2e	e2e/oracle-source.spec.ts
+F-EDITOR-RENDERED-DOCS	[ ]	e2e	e2e	e2e/overviewLane.spec.ts
+F-EDITOR-RENDERED-DOCS	[ ]	e2e	e2e	e2e/overviewLaneSelection.spec.ts
+F-EDITOR-RENDERED-DOCS	[ ]	e2e	e2e	e2e/pageScroll.spec.ts
+F-PL-DETAILS	[~]	e2e	e2e	e2e/plugin-settings.spec.ts
+F-PL-DETAILS	[ ]	e2e	e2e	e2e/pluginDetails.spec.ts
+F-PL-NAV-EVENTS	[ ]	e2e	e2e	e2e/pluginEndpoints.spec.ts
+F-PL-NAV-EVENTS	[ ]	e2e	e2e	e2e/pluginFileTemplates.spec.ts
+F-PL-NAV-EVENTS	[ ]	e2e	e2e	e2e/pluginMarkerIcons.spec.ts
+F-PL-VIEWS-C	[ ]	e2e	e2e	e2e/pluginViews.spec.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	e2e	e2e	e2e/postfixRowLayout.spec.ts
+F-WB-MENUS-TITLE	[ ]	e2e	e2e	e2e/projectNewMenu.spec.ts
+F-PROJECT-VIEW	[ ]	e2e	e2e	e2e/projectTree.spec.ts
+F-VCS-REPO-DIALOGS-B	[ ]	e2e	e2e	e2e/pushTargetBranch.spec.ts
+F-LSP-SEMANTIC	[ ]	e2e	e2e	e2e/pythonHighlight.spec.ts
+F-SET-PYTHON-PHP-A	[ ]	e2e	e2e	e2e/pythonInterpreters.spec.ts
+F-RUN-TYPES-OTHER-A	[~]	e2e	e2e	e2e/run.spec.ts
+F-RUN-CHOOSER	[ ]	e2e	e2e	e2e/runConfigDialogScroll.spec.ts
+F-RUN-CHOOSER	[ ]	e2e	e2e	e2e/runConfigLayout.spec.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	e2e	e2e	e2e/sdkFieldLayout.spec.ts
+F-SEARCH-A	[~]	e2e	e2e	e2e/search.spec.ts
+F-SEARCH-B	[ ]	e2e	e2e	e2e/searchEverywhereLayout.spec.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	e2e	e2e	e2e/selectPopupLayout.spec.ts
+F-LSP-SEMANTIC	[ ]	e2e	e2e	e2e/semanticStyle.spec.ts
+F-RUN-SERVICES	[ ]	e2e	e2e	e2e/services.spec.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	e2e	e2e	e2e/settings.spec.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	e2e	e2e	e2e/settingsFormLayout.spec.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	e2e	e2e	e2e/settingsHeaderLayout.spec.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	e2e	e2e	e2e/settingsListLayout.spec.ts
+F-SET-UPSTREAM-TOGGLES-B	[ ]	e2e	e2e	e2e/settingsPaneLayout.spec.ts
+C-TOOLCHAIN	[ ]	e2e	e2e	e2e/snowflake-source.spec.ts
+F-WB-TOOLWINDOWS	[ ]	e2e	e2e	e2e/stripeTooltip.spec.ts
+F-TERMINAL	[ ]	e2e	e2e	e2e/terminal-clipboard.spec.ts
+F-TERMINAL	[ ]	e2e	e2e	e2e/terminal-ui.spec.ts
+F-RUN-TESTS	[ ]	e2e	e2e	e2e/testRunner-ui.spec.ts
+F-PLAT-MODELS-B-B	[ ]	e2e	e2e	e2e/themes.spec.ts
+F-WB-MENUS-TITLE	[ ]	e2e	e2e	e2e/toolbarHover.spec.ts
+F-WB-TOOLWINDOWS	[~]	e2e	e2e	e2e/toolwindows.spec.ts
+I-TW-CONTENT-TABS	[ ]	e2e	e2e	e2e/toolWindowViewMode.spec.ts
+F-WB-TOOLWINDOWS	[ ]	e2e	e2e	e2e/treeWidth.spec.ts
+F-VCS-REPO-DIALOGS-B	[ ]	e2e	e2e	e2e/updateProject.spec.ts
+C-TOOLCHAIN	[ ]	e2e	e2e	e2e/updates.spec.ts
+F-LSP-SEMANTIC	[ ]	e2e	e2e	e2e/usage-highlight-contrast.spec.ts
+F-WB-TOOLWINDOWS	[ ]	e2e	e2e	e2e/workbench.spec.ts
+F-APP-WORKSPACE	[ ]	e2e	e2e	e2e/workspaceProjectTypes.spec.ts
