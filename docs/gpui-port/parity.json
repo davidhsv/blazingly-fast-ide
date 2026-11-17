@@ -196,8 +196,8 @@
     "proof": "`workbench::tests::a_project_shows_its_tree_and_opens_files_in_the_editor`"
   },
   "unit:src/platform/paths.test.ts": {
-    "status": "partial",
-    "proof": "`platform::paths::tests::slashes_windows_drive_paths_plain_or_verbatim`, `platform::paths::tests::slashes_network_shares`, `platform::paths::tests::leaves_ui_paths_and_posix_paths_alone`; 3 of 9 cases; not covered: is true for a share the base is not on; reads the server and share of a device path; is false on the base's own share and off any share; is true for a share the text names itself, in any mix of slashes; is true for a share that only appears once the path is resolved; is false on a local drive and on the share the text is on; the other-network-share checks (onOtherShare, opensOtherShare) do not exist natively"
+    "status": "done",
+    "proof": "`platform::paths::tests::slashes_windows_drive_paths_plain_or_verbatim`, `platform::paths::tests::slashes_network_shares`, `platform::paths::tests::leaves_ui_paths_and_posix_paths_alone`, `platform::paths::tests::is_true_for_a_share_the_base_is_not_on`, `platform::paths::tests::reads_the_server_and_share_of_a_device_path`, `platform::paths::tests::is_false_on_the_bases_own_share_and_off_any_share`, `platform::paths::tests::is_true_for_a_share_the_text_names_itself_in_any_mix_of_slashes`, `platform::paths::tests::is_true_for_a_share_that_only_appears_once_the_path_is_resolved`, `platform::paths::tests::is_false_on_a_local_drive_and_on_the_share_the_text_is_on`; 9 of 9 cases by their names; the other-share check is called where the native app follows a path that text names: an agent conversation's file references and the Markdown preview's links, and the functions behind document links and hover links, which no window reaches yet"
   },
   "module:src/platform/paths.ts": {
     "status": "partial",
@@ -505,7 +505,7 @@
   },
   "unit:src/platform/dateFormat.test.ts": {
     "status": "partial",
-    "proof": "`platform::date_format::tests`; system formats are implemented for en-US only (Node prints `09:07 AM` with a plain space; what WebKit prints was not measured)"
+    "proof": "`platform::date_format::tests`, `platform::date_format::tests::keeps_the_time_of_dates_before_yesterday_as_ideas_pretty_date_time_does`, `platform::date_format::tests::formats_like_the_locale_methods_it_replaces`, `platform::date_format::tests::formats_another_date_with_the_same_cached_formatter`; 3 of 3 cases by their names; system formats are implemented for en-US only (Node prints `09:07 AM` with a plain space; what WebKit prints was not measured)"
   },
   "module:src/platform/dateFormat.ts": {
     "status": "partial",
@@ -1156,8 +1156,8 @@
     "proof": "`workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; see the file.openProjectPath action"
   },
   "ipc:recent_projects": {
-    "status": "partial",
-    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`; the Welcome screen lists the recent projects and opens them; missing: the branch shown on each recent project is the one stored when it was last opened, not the live branch read from the project's .git/HEAD that the adapter now returns (src-tauri/src/commands/app.rs:51, ide_workspace::recent::with_live_branches, c54253fba) and the webview shows (src/features/welcome/RecentList.tsx:201); the native list is recent.list() (app-gpui/src/workbench/mod.rs:3186, :3246)"
+    "status": "done",
+    "proof": "`workbench::tests::a_window_with_nothing_open_welcomes_with_the_recent_projects`, `workbench::tests::projects_open_in_this_window_a_new_one_or_the_one_that_has_them`, `workbench::tests::recent_live_branch::the_welcome_screen_shows_the_live_branch_of_a_recent_project`; the Welcome screen lists the recent projects and opens them; each recent project shows the live branch read from its repository's HEAD file, as the adapter returns it"
   },
   "shell:windows.rs": {
     "status": "partial",
@@ -1909,7 +1909,7 @@
   },
   "ipc:doc_set_encoding": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs_editor_actions_tabs::reload_with_encoding_reads_the_file_again_in_the_chosen_encoding`; Reload with Encoding of a file on disk reads it again in the chosen encoding; missing: the editor calls Documents::set_encoding directly (app-gpui/src/editor/view.rs:1289), while ide_host::ops::doc::doc_set_encoding now does more than forward to it: Reload with Encoding of a virtual document (a library source in an archive, a language server's document, a Git revision) re-reads its origin in that encoding (crates/ide-host/src/ops/doc/commands.rs:53-63, 5063f6756), as the webview's encoding item does (src/editor/core/view/StatusItems.tsx:368-372); the BOM state of the answer is dropped (StatusItems.tsx:370)"
+    "proof": "`workbench::tests::proofs_editor_actions_tabs::reload_with_encoding_reads_the_file_again_in_the_chosen_encoding`, `workbench::tests::reload_with_encoding_shows_the_byte_order_mark_state_the_backend_answers`; Reload with Encoding and Convert go through ide_host::ops::doc::doc_set_encoding as the adapter does, and the encoding item shows the byte-order-mark state of its answer; not proven: the re-read of a virtual document (no native code opens a library source, a server's document or a revision as an editor tab, so that branch is not reached); missing: the UTF-8 BOM entry of the encoding menu and Reload with Encoding disabled when the document cannot be re-read (src/editor/core/view/StatusItems.tsx:368-372)"
   },
   "unit:src/features/run/producers.test.ts": {
     "status": "partial",
@@ -2409,7 +2409,7 @@
   },
   "unit:src/editor/lsp/hint.test.ts": {
     "status": "partial",
-    "proof": "`editor_lsp::hint::tests`; 4 of 7 cases; added or renamed upstream and not covered: 'shows a slow request within the feedback budget and removes its hint on completion', 'marks only progress as pending', 'puts what the hint answers in its data attributes'"
+    "proof": "`editor_lsp::hint::tests`, `editor_lsp::hint::tests::shows_a_slow_request_within_the_feedback_budget_and_removes_its_hint_on_completion`; 5 of 7 cases by their names; not covered: 'marks only progress as pending', 'puts what the hint answers in its data attributes'"
   },
   "unit:src/editor/lsp/hoverPrecedence.test.ts": {
     "status": "done",
@@ -3960,8 +3960,8 @@
     "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`, `editor::intelligence::tests::problems_are_underlined_and_the_hover_shows_them_with_the_documentation`, `editor::intelligence::tests::parameter_info_opens_after_a_parenthesis_and_follows_the_commas`, `editor::intelligence::tests::show_intentions_lists_the_code_actions_and_applies_the_chosen_one`, `editor::intelligence::tests::cmd_click_goes_to_the_declaration_or_chooses_between_several`, `workbench::editor_language::tests::quick_definition_shows_the_definitions_lines_and_f4_opens_it`, `editor_lsp::definition_view::tests`, `workbench::editor_extras::tests::reformat_file_reformats_the_scope_chosen_in_the_dialog`; the lookup, hover, parameter info, intentions, the target chooser, the quick definition popup and the Reformat File dialog; rename asks in a dialog instead of the popup at the caret, Expression Type Info shows a hint instead of the doc popup, and the imports-on-paste dialog is not built"
   },
   "ipc:lsp_completion": {
-    "status": "partial",
-    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`; typing completes from the server through ide_host::ops::lsp::lsp_completion with the adapter's arguments, and Enter inserts the item with its import; missing: an explicit completion (Ctrl+Space) does not bypass the document's completion back-off and a successful answer does not clear it (src/editor/lsp/completion.ts:514, :527; native app-gpui/src/editor_lsp/completion.rs:131, :143), which matters more now that the backend answers Unavailable instead of an empty list when no plugin covers the document (ba0b3d9c7); the item's labelDescription, which the webview shows first in the type column (src/editor/lsp/completionItems.ts:177), is not shown (the native type column takes the item's detail, app-gpui/src/editor_lsp/completion_view.rs:89)"
+    "status": "done",
+    "proof": "`editor::intelligence::tests::typing_completes_from_the_server_and_enter_inserts_the_item_with_its_import`, `editor_lsp::completion::tests::an_explicit_completion_bypasses_the_back_off_and_an_answer_clears_it`, `editor_lsp::completion_view::tests::the_type_column_shows_the_label_description_before_the_detail`; typing completes from the server through ide_host::ops::lsp::lsp_completion with the adapter's arguments, and Enter inserts the item with its import; an explicit completion bypasses the document's back-off and an answer clears it (on the source the editor asks through, which passes the explicit flag), and the type column shows the item's label description before its detail"
   },
   "ipc:lsp_resolve_completion": {
     "status": "done",
@@ -6540,8 +6540,8 @@
     "proof": "`workbench::app_actions::tests::exports_templates_macros_layouts_and_view_options_not_per_project_state`; run through the registry it asks for a file and writes the global settings with the IDE-level UI state, leaving per-project state behind, and reports Settings exported. Missing: the save dialog has no OpenIDEA settings file-type filter"
   },
   "ipc:settings_export": {
-    "status": "partial",
-    "proof": "`workbench::app_actions::tests::exports_templates_macros_layouts_and_view_options_not_per_project_state`; the bundle file holds the exported UI state, which only SettingsStore::export_bundle writes, called with the path and the storage map as the adapter does; missing: the adapter now first moves MCP server values written into the user settings to the credential store (ide_host::ops::agent::move_user_mcp_values, src-tauri/src/commands/app.rs:289, 22685815c), so such values can reach the exported file from the native export (app-gpui/src/workbench/app_actions.rs:896)"
+    "status": "done",
+    "proof": "`workbench::app_actions::tests::exports_templates_macros_layouts_and_view_options_not_per_project_state`, `workbench::app_actions::tests::export_settings_moves_mcp_server_values_to_the_secret_store_and_writes_only_their_names`; the bundle file holds the exported UI state, which only SettingsStore::export_bundle writes, called with the path and the storage map as the adapter does; MCP servers' values in the user settings go to the secret store first, as the adapter does, so the exported file holds their names only (the test fails without the call)"
   },
   "action:file.importSettings": {
     "status": "partial",
@@ -6549,7 +6549,7 @@
   },
   "ipc:settings_import": {
     "status": "partial",
-    "proof": "`workbench::app_actions::tests::exports_templates_macros_layouts_and_view_options_not_per_project_state`, `workbench::app_actions::tests::importing_a_file_that_is_not_a_settings_bundle_changes_nothing`; the imported global setting and UI state come back from SettingsStore::import_bundle, after which each project reloads its settings, file defaults and language servers, SSH configurations and the proxy apply, and SettingsChanged is sent. Missing: the MCP servers are not re-applied and the update checker is not woken, as the adapter does"
+    "proof": "`workbench::app_actions::tests::exports_templates_macros_layouts_and_view_options_not_per_project_state`, `workbench::app_actions::tests::importing_a_file_that_is_not_a_settings_bundle_changes_nothing`, `workbench::app_actions::tests::import_settings_moves_mcp_server_values_out_of_the_user_settings`; the imported global setting and UI state come back from SettingsStore::import_bundle, after which each project reloads its settings, file defaults and language servers, SSH configurations and the proxy apply, and SettingsChanged is sent. Missing: the MCP servers are not re-applied and the update checker is not woken, as the adapter does An imported MCP server value leaves the user settings for the secret store at once."
   },
   "action:file.togglePowerSave": {
     "status": "done",
@@ -6717,7 +6717,7 @@
   },
   "module:src/editor/lsp/hint.ts": {
     "status": "partial",
-    "proof": "`editor_lsp::hint::tests::does_not_dismiss_a_newer_hint_when_an_old_request_finishes`, `editor_lsp::hint::tests::does_not_flash_for_fast_requests`, `editor_lsp::hint::tests::does_not_overwrite_a_newer_hint_while_waiting_to_show_progress`, `editor_lsp::hint::tests::does_not_show_stale_progress_after_edit_move_or_destroy`, `editor_lsp::hint::tests::shows_a_slow_request_and_removes_its_hint_on_completion`, `workbench::editor_language::tests::proofs7_hint::show_editor_hint_draws_the_hint_in_the_tone_it_is_given`, `workbench::editor_language::tests::proofs7_hint::a_hint_at_the_caret_goes_away_after_four_seconds`, `workbench::editor_language::tests::proofs7_hint::an_edit_a_caret_move_or_escape_dismisses_the_hint_at_the_caret`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; the hint at the caret in its tone, replaced by the next one, gone after the 4000 ms timeout and dismissed by an edit, a caret move or Escape, and slow requests show their progress hint without flashing. Missing: the progress hint shows after 50 ms, natively after 250 ms (src/editor/lsp/hint.ts:86, native editor_lsp/hint.rs:36)"
+    "proof": "`editor_lsp::hint::tests::does_not_dismiss_a_newer_hint_when_an_old_request_finishes`, `editor_lsp::hint::tests::does_not_flash_for_fast_requests`, `editor_lsp::hint::tests::does_not_overwrite_a_newer_hint_while_waiting_to_show_progress`, `editor_lsp::hint::tests::does_not_show_stale_progress_after_edit_move_or_destroy`, `editor_lsp::hint::tests::shows_a_slow_request_within_the_feedback_budget_and_removes_its_hint_on_completion`, `workbench::editor_language::tests::proofs7_hint::show_editor_hint_draws_the_hint_in_the_tone_it_is_given`, `workbench::editor_language::tests::proofs7_hint::a_hint_at_the_caret_goes_away_after_four_seconds`, `workbench::editor_language::tests::proofs7_hint::an_edit_a_caret_move_or_escape_dismisses_the_hint_at_the_caret`, `workbench::editor_language::tests::proofs5_editor::show_editor_hint_shows_the_text_at_the_caret_and_the_next_hint_replaces_it`, `workbench::editor_language::tests::proofs5_editor::ctrl_g_past_the_last_occurrence_says_not_found_then_searches_from_the_top`; the hint at the caret in its tone, replaced by the next one, gone after the 4000 ms timeout and dismissed by an edit, a caret move or Escape, and slow requests show their progress hint without flashing. Missing: the progress hint shows after 50 ms, natively after 250 ms (src/editor/lsp/hint.ts:86, native editor_lsp/hint.rs:36)"
   },
   "action:github.pullRequests": {
     "status": "done",
@@ -6972,8 +6972,8 @@
     "proof": "`workbench::plugins_window::tests::proofs6_plugins::review_permissions_grants_a_plugin_waiting_for_consent`, `workbench::plugins_window::tests::proofs16_plugins::a_running_plugins_permission_request_shows_the_permission_page_and_ok_grants_it`; and from a running plugin's request: OK grants the permission on the host through the function the adapter calls"
   },
   "ipc:plugin_market": {
-    "status": "partial",
-    "proof": "`workbench::plugins_window::tests::proofs6_plugins_market::the_marketplace_lists_the_indexs_plugins_and_install_downloads_and_installs_one`; the marketplace lists the index's plugins and Install downloads and installs one; missing: the entry's publisherName, which the webview shows as the publisher when the index gives one (src/features/plugins/PluginsPage.tsx:1044, 908740b3f); the native page shows publisher only (app-gpui/src/plugin_models/plugins_page.rs:1442, :1975)"
+    "status": "done",
+    "proof": "`workbench::plugins_window::tests::proofs6_plugins_market::the_marketplace_lists_the_indexs_plugins_and_install_downloads_and_installs_one`, `plugin_models::plugins_page::tests::a_marketplace_plugin_shows_its_publishers_name`; the marketplace lists the index's plugins and Install downloads and installs one; the publisher shown is the index's publisher name when it gives one (on the page's model)"
   },
   "ipc:plugin_market_download": {
     "status": "done",
@@ -7681,7 +7681,7 @@
   },
   "ipc:window_close_context": {
     "status": "partial",
-    "proof": "`workbench::tests::proofs13_close_guard::does_not_confirm_exit_for_one_of_several_windows_or_during_quit`, `workbench::tests::proofs13_close_guard::confirms_exit_for_the_last_window_when_enabled`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`; a command of the Tauri shell with no backend function behind it; the native app does it itself: closing a window confirms the exit only for the last window and not during a quit, and the last project window goes back to Welcome; missing: the last window closes instead of going back to Welcome when general.closeWithoutWelcome is on (src/features/app/closeGuard.ts:52, :227; native app-gpui/src/app_models/close_guard.rs:415 always routes to Welcome), and general.closeTabsWithWindow drops the window's saved editor tabs on close (src/features/app/closeGuard.ts:204), which the native app does not read (c1a6079ee)"
+    "proof": "`workbench::tests::proofs13_close_guard::does_not_confirm_exit_for_one_of_several_windows_or_during_quit`, `workbench::tests::proofs13_close_guard::confirms_exit_for_the_last_window_when_enabled`, `workbench::tests::closing_asks_about_unsaved_changes_whatever_autosave_says`, `workbench::tests::proofs13_close_guard::closing_the_last_project_window_closes_it_when_close_without_welcome_is_on`; a command of the Tauri shell with no backend function behind it; the native app does it itself: closing a window confirms the exit only for the last window and not during a quit, and the last project window goes back to Welcome, or closes when general.closeWithoutWelcome is on; missing: general.closeTabsWithWindow drops the window's saved editor tabs on close and puts them back on a cancelled close (src/features/app/closeGuard.ts:204), which the native app does not read"
   },
   "ipc:window_open_files": {
     "status": "done",
